@@ -19,14 +19,18 @@ pub fn try_encode_training_step(
     if config.curriculum && pair.difficulty.unwrap_or(5) > max_difficulty {
         return Ok(TryEncodeOutcome::SkipCurriculum);
     }
-    let text = if let Some(ref turns) = pair.messages {
+    let messages = pair
+        .messages
+        .as_deref()
+        .map(|t| crate::training_text::with_system_turn(t, system_prompt, &config.chatml));
+    let text = if let Some(ref turns) = messages {
         crate::training_text::chatml_turns_text(turns, &config.chatml)
     } else if let (Some(p), Some(r)) = (pair.effective_prompt(), pair.effective_response()) {
         crate::training_text::chatml_supervised_text(system_prompt, p, r, &config.chatml)
     } else {
         return Ok(TryEncodeOutcome::SkipShortSeq);
     };
-    let prefix_text = if let Some(ref turns) = pair.messages {
+    let prefix_text = if let Some(ref turns) = messages {
         crate::training_text::chatml_turns_prefix_open_assistant(turns, &config.chatml)
     } else if let Some(p) = pair.effective_prompt() {
         crate::training_text::chatml_prefix_open_assistant(system_prompt, p, &config.chatml)
@@ -41,13 +45,9 @@ pub fn try_encode_training_step(
     let enc = tokenizer
         .encode(text, true)
         .map_err(|e| anyhow::anyhow!("{e}"))?;
-    let mut ids = enc.get_ids().to_vec();
-    let raw_token_len = ids.len();
-    let mut trunc_offset = 0usize;
-    if ids.len() > config.seq_len {
-        trunc_offset = ids.len() - config.seq_len;
-        ids = ids[trunc_offset..].to_vec();
-    }
+    let raw_token_len = enc.get_ids().len();
+    let (ids, trunc_offset) =
+        crate::training_text::fit_to_seq_len(enc.get_ids().to_vec(), prefix_len, config.seq_len);
     if ids.len() < 2 {
         return Ok(TryEncodeOutcome::SkipShortSeq);
     }

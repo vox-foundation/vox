@@ -171,7 +171,16 @@ jobs:
 
       - name: Crate version inheritance (no hardcoded versions)
         run: |
-          if grep -rnE '^version\s*=\s*"[^"]+"' crates/*/Cargo.toml; then
+          # Crates in the root `[workspace] exclude` list (e.g. vox-cargo-shim) have no
+          # workspace to inherit from, so a literal version there is correct. Derive the
+          # list from Cargo.toml rather than hardcoding paths.
+          excluded="$(awk '/^exclude[[:space:]]*=[[:space:]]*\[/{f=1;next} f&&/^\]/{exit} f' Cargo.toml | grep -oE '"[^"]+"' | tr -d '"')"
+          hits=0
+          for m in crates/*/Cargo.toml; do
+            printf '%s\n' "$excluded" | grep -qxF "$(dirname "$m")" && continue
+            if grep -nHE '^version[[:space:]]*=[[:space:]]*"[^"]+"' "$m"; then hits=1; fi
+          done
+          if [ "$hits" = 1 ]; then
             echo "::error::Found hardcoded versions in crate Cargo.toml files. Use 'version.workspace = true'."
             exit 1
           fi

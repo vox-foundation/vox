@@ -348,11 +348,9 @@ fn extract_qa_sections(
             if !current_heading.is_empty()
                 && current_body.len() >= config.min_section_chars
                 && heading_level >= 2
+                && !is_link_list(&current_body)
             {
-                let prompt = format!(
-                    "Explain the Vox concept: {} (precise prose; any code snippets must use `->` returns.)",
-                    current_heading
-                );
+                let prompt = format!("Explain the Vox concept: {}", current_heading);
                 let mut response = current_body.trim().to_string();
 
                 // Relational Chunking: Inject linked .vox examples directly into the training response
@@ -405,6 +403,7 @@ fn extract_qa_sections(
     if !current_heading.is_empty()
         && current_body.len() >= config.min_section_chars
         && heading_level >= 2
+        && !is_link_list(&current_body)
     {
         let prompt = format!("Explain the Vox concept: {}", current_heading);
         let mut response = current_body.trim().to_string();
@@ -524,6 +523,27 @@ pub fn walk_and_extract_docs(config: &ExtractDocsConfig) -> anyhow::Result<Vec<D
     Ok(all)
 }
 
+/// True when most non-empty lines are markdown links (an index/"see also" list).
+/// Such sections have no explanatory content to learn from.
+fn is_link_list(body: &str) -> bool {
+    let lines: Vec<&str> = body
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty())
+        .collect();
+    if lines.is_empty() {
+        return false;
+    }
+    let links = lines
+        .iter()
+        .filter(|l| {
+            let l = l.trim_start_matches(['-', '*', '/', ' ']);
+            l.starts_with('[') && l.contains("](")
+        })
+        .count();
+    links * 2 > lines.len()
+}
+
 fn walk_docs_dir(
     dir: &Path,
     config: &ExtractDocsConfig,
@@ -536,6 +556,10 @@ fn walk_docs_dir(
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
+            // Tombstoned (AGENTS.md §Archival Protocol): never training data.
+            if path.file_name().is_some_and(|n| n == "archive") {
+                continue;
+            }
             walk_docs_dir(&path, config, out)?;
         } else if path.extension().is_some_and(|e| e == "md") {
             match extract_from_md_file(&path, config) {
@@ -607,6 +631,45 @@ is actually emitted as a training pair by the extractor under test.
 
 More prose after the fence, also part of the section body.
 "#;
+
+    #[test]
+    fn qa_prompts_do_not_demand_arrow_returns_and_link_lists_are_skipped() {
+        const MD: &str = r#"# Doc
+
+## Returns
+
+Functions declare their return type with `to`, for example a function that
+adds two integers returns an int. This section is long enough to be emitted.
+
+## See also
+
+- [one.md](one.md)
+- [two.md](two.md)
+- [three.md](three.md)
+"#;
+        let mut out = Vec::new();
+        let config = ExtractDocsConfig {
+            min_section_chars: 40,
+            ..ExtractDocsConfig::default()
+        };
+        extract_qa_sections(
+            MD,
+            Path::new("d.md"),
+            &Frontmatter::default(),
+            0,
+            &config,
+            &mut out,
+        );
+        assert_eq!(out.len(), 1, "only the prose section should be emitted");
+        assert_eq!(out[0].prompt, "Explain the Vox concept: Returns");
+        assert!(!out.iter().any(|p| p.prompt.contains("->")));
+    }
+
+    #[test]
+    fn link_list_detection() {
+        assert!(is_link_list("- [a](a.md)\n- [b](b.md)\n"));
+        assert!(!is_link_list("Prose line.\n- [a](a.md)\nMore prose.\n"));
+    }
 
     #[test]
     fn qa_lane_excludes_skip_marked_fences() {

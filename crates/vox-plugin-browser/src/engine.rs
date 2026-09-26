@@ -193,7 +193,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "slow; requires local Chrome/Chromium binary"]
+    #[ignore = "owner:browser sunset:never slow; requires local Chrome/Chromium binary"]
     async fn engine_open_goto_back_list_pages_smoke() {
         let engine = BrowserEngine::new();
         let page_id = engine

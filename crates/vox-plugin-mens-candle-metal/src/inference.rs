@@ -902,11 +902,25 @@ fn sample_next_token(
     ranked[0].0 as u32
 }
 
+/// Build the ChatML prompt the adapter was trained on (`chatml_prefix_open_assistant`
+/// in `vox-plugin-mens-candle-core::training_text`): system turn, user turn, open
+/// assistant turn. A prompt that is already ChatML (eval-local, chat completions) is
+/// kept as-is, gaining the system turn only if it has none.
 fn assemble_prompt(system: Option<&str>, prompt: &str) -> String {
-    match system {
-        Some(system) if !system.is_empty() => format!("{system}\n\n{prompt}"),
-        _ => prompt.to_string(),
+    let system = system.filter(|s| !s.is_empty());
+    let system_turn = |s: &str| format!("<|im_start|>system\n{s}<|im_end|>\n");
+    if prompt.starts_with("<|im_start|>") {
+        return match system {
+            Some(s) if !prompt.starts_with("<|im_start|>system") => {
+                format!("{}{prompt}", system_turn(s))
+            }
+            _ => prompt.to_string(),
+        };
     }
+    format!(
+        "{}<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n",
+        system.map(system_turn).unwrap_or_default()
+    )
 }
 
 /// `model_dir_json` is a JSON string with a `"model_dir"` field pointing to the
@@ -949,7 +963,7 @@ mod live_metal_tests {
     }
 
     #[test]
-    #[ignore = "needs a real model directory and Metal hardware"]
+    #[ignore = "owner:mens sunset:never needs a real model directory and Metal hardware"]
     fn generation_sustains_a_usable_token_rate() {
         // 0.6B on Metal. The pre-fix engine measured 1.76 tok/s at this length;
         // the floor below is deliberately far under what a cached engine gives,
@@ -976,7 +990,7 @@ mod live_metal_tests {
     }
 
     #[test]
-    #[ignore = "needs a real model directory"]
+    #[ignore = "owner:mens sunset:never needs a real model directory"]
     fn the_demo_config_eos_is_read_from_disk_not_hardcoded() {
         // 151643 is BOS. The real EOS is 151645 and must come from config.json.
         assert_eq!(
@@ -998,7 +1012,7 @@ mod live_metal_tests {
     ///   cargo test -p vox-plugin-mens-candle-metal --features metal -- --ignored base_only
     /// ```
     #[test]
-    #[ignore = "needs a real base-model directory and Metal hardware"]
+    #[ignore = "owner:mens sunset:never needs a real base-model directory and Metal hardware"]
     fn base_only_load_runs_real_inference_with_no_adapter_present() {
         let raw = std::env::var("VOX_MENS_BASE_ONLY_DIR")
             .expect("set VOX_MENS_BASE_ONLY_DIR to a base-model directory with no adapter present");
@@ -1432,14 +1446,32 @@ mod tests {
     }
 
     #[test]
-    fn assemble_prompt_prepends_system_when_present() {
+    fn assemble_prompt_wraps_in_training_chatml() {
         let out = assemble_prompt(Some("YOU ARE VOX"), "hello");
-        assert_eq!(out, "YOU ARE VOX\n\nhello");
+        assert_eq!(
+            out,
+            "<|im_start|>system\nYOU ARE VOX<|im_end|>\n<|im_start|>user\nhello<|im_end|>\n<|im_start|>assistant\n"
+        );
     }
 
     #[test]
-    fn assemble_prompt_is_unchanged_when_system_absent() {
-        assert_eq!(assemble_prompt(None, "hello"), "hello");
+    fn assemble_prompt_without_system_still_opens_assistant_turn() {
+        assert_eq!(
+            assemble_prompt(None, "hello"),
+            "<|im_start|>user\nhello<|im_end|>\n<|im_start|>assistant\n"
+        );
+    }
+
+    #[test]
+    fn assemble_prompt_keeps_prewrapped_chatml_and_adds_missing_system() {
+        let wrapped = "<|im_start|>user\nhi<|im_end|>\n<|im_start|>assistant\n";
+        assert_eq!(assemble_prompt(None, wrapped), wrapped);
+        assert_eq!(
+            assemble_prompt(Some("S"), wrapped),
+            format!("<|im_start|>system\nS<|im_end|>\n{wrapped}")
+        );
+        let with_sys = format!("<|im_start|>system\nX<|im_end|>\n{wrapped}");
+        assert_eq!(assemble_prompt(Some("S"), &with_sys), with_sys);
     }
 
     #[test]

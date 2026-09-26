@@ -709,11 +709,25 @@ fn sample_next_token(
     ranked[0].0 as u32
 }
 
+/// Build the ChatML prompt the adapter was trained on (`chatml_prefix_open_assistant`
+/// in `vox-plugin-mens-candle-core::training_text`): system turn, user turn, open
+/// assistant turn. A prompt that is already ChatML (eval-local, chat completions) is
+/// kept as-is, gaining the system turn only if it has none.
 fn assemble_prompt(system: Option<&str>, prompt: &str) -> String {
-    match system {
-        Some(system) if !system.is_empty() => format!("{system}\n\n{prompt}"),
-        _ => prompt.to_string(),
+    let system = system.filter(|s| !s.is_empty());
+    let system_turn = |s: &str| format!("<|im_start|>system\n{s}<|im_end|>\n");
+    if prompt.starts_with("<|im_start|>") {
+        return match system {
+            Some(s) if !prompt.starts_with("<|im_start|>system") => {
+                format!("{}{prompt}", system_turn(s))
+            }
+            _ => prompt.to_string(),
+        };
     }
+    format!(
+        "{}<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n",
+        system.map(system_turn).unwrap_or_default()
+    )
 }
 
 /// Entry point called from `backend.rs` `run_inference`.
@@ -1037,14 +1051,32 @@ mod tests {
     }
 
     #[test]
-    fn assemble_prompt_prepends_system_when_present() {
+    fn assemble_prompt_wraps_in_training_chatml() {
         let out = assemble_prompt(Some("YOU ARE VOX"), "hello");
-        assert_eq!(out, "YOU ARE VOX\n\nhello");
+        assert_eq!(
+            out,
+            "<|im_start|>system\nYOU ARE VOX<|im_end|>\n<|im_start|>user\nhello<|im_end|>\n<|im_start|>assistant\n"
+        );
     }
 
     #[test]
-    fn assemble_prompt_is_unchanged_when_system_absent() {
-        assert_eq!(assemble_prompt(None, "hello"), "hello");
+    fn assemble_prompt_without_system_still_opens_assistant_turn() {
+        assert_eq!(
+            assemble_prompt(None, "hello"),
+            "<|im_start|>user\nhello<|im_end|>\n<|im_start|>assistant\n"
+        );
+    }
+
+    #[test]
+    fn assemble_prompt_keeps_prewrapped_chatml_and_adds_missing_system() {
+        let wrapped = "<|im_start|>user\nhi<|im_end|>\n<|im_start|>assistant\n";
+        assert_eq!(assemble_prompt(None, wrapped), wrapped);
+        assert_eq!(
+            assemble_prompt(Some("S"), wrapped),
+            format!("<|im_start|>system\nS<|im_end|>\n{wrapped}")
+        );
+        let with_sys = format!("<|im_start|>system\nX<|im_end|>\n{wrapped}");
+        assert_eq!(assemble_prompt(Some("S"), &with_sys), with_sys);
     }
 
     #[test]

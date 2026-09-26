@@ -63,6 +63,28 @@ pub struct CheckpointState {
     pub wall_seconds_elapsed: f64,
     /// RFC 3339 UTC timestamp when this checkpoint was saved.
     pub saved_at_utc: String,
+    /// Content fingerprint of the training data file this checkpoint was produced
+    /// from (see [`fingerprint_file`]). `None` for checkpoints written before this
+    /// field existed; such checkpoints skip the resume-time data-match check
+    /// (`#[serde(default)]` keeps old checkpoint files loadable).
+    #[serde(default)]
+    pub data_fingerprint: Option<String>,
+}
+
+/// Content fingerprint for a training data file (`train.jsonl` / `train_mixed.jsonl`),
+/// used to detect resuming a checkpoint against a different dataset than the one it
+/// was trained on so far. Not a security hash — `std::hash::DefaultHasher` over the
+/// raw bytes is enough to catch "this is a different file" without a new dependency
+/// (same reasoning as the `DefaultHasher` use in `validation::split_validation_by_response`).
+/// Returns `None` if the file cannot be read (never blocks training on a fingerprinting
+/// failure — the resume check just skips itself when either side is `None`).
+#[must_use]
+pub fn fingerprint_file(path: &Path) -> Option<String> {
+    use std::hash::{DefaultHasher, Hasher};
+    let bytes = std::fs::read(path).ok()?;
+    let mut h = DefaultHasher::new();
+    h.write(&bytes);
+    Some(format!("{:016x}", h.finish()))
 }
 
 impl CheckpointState {
@@ -178,6 +200,7 @@ mod tests {
             last_loss: 1.25,
             wall_seconds_elapsed: 120.5,
             saved_at_utc: CheckpointState::now_utc(),
+            data_fingerprint: Some("abc123".to_string()),
         };
         state.save(&dir).unwrap();
         let loaded = CheckpointState::load(&dir).expect("should load back");
@@ -186,6 +209,7 @@ mod tests {
         assert_eq!(loaded.pair_offset, 1823);
         assert_eq!(loaded.shuffled_indices, vec![4, 1, 3, 2, 0]);
         assert_eq!(loaded.rng_seed, 42);
+        assert_eq!(loaded.data_fingerprint.as_deref(), Some("abc123"));
         CheckpointState::delete(&dir);
         assert!(CheckpointState::load(&dir).is_none());
         let _ = std::fs::remove_dir_all(&dir);
@@ -227,10 +251,57 @@ mod tests {
             last_loss: 0.0,
             wall_seconds_elapsed: 0.0,
             saved_at_utc: String::new(),
+            data_fingerprint: None,
         };
         let path = CheckpointState::path_in(&dir);
         std::fs::write(&path, serde_json::to_string(&state).unwrap()).unwrap();
         assert!(CheckpointState::load(&dir).is_none());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// A checkpoint written before `data_fingerprint` existed has no such key in its
+    /// JSON at all (not `null` — genuinely absent). `#[serde(default)]` must still
+    /// load it, with the field defaulting to `None`, rather than failing to parse.
+    #[test]
+    fn load_pre_fingerprint_checkpoint_defaults_to_none() {
+        let dir = std::env::temp_dir().join("vox_ckpt_pre_fingerprint_test");
+        std::fs::create_dir_all(&dir).unwrap();
+        let raw = serde_json::json!({
+            "schema": CHECKPOINT_SCHEMA,
+            "run_id": "old-run",
+            "epoch": 1,
+            "global_step": 10,
+            "pair_offset": 0,
+            "shuffled_indices": [],
+            "rng_seed": 0,
+            "adapter_path": "",
+            "last_loss": 0.0,
+            "wall_seconds_elapsed": 0.0,
+            "saved_at_utc": "",
+        });
+        std::fs::write(CheckpointState::path_in(&dir), raw.to_string()).unwrap();
+        let loaded = CheckpointState::load(&dir).expect("old-format checkpoint must still load");
+        assert_eq!(loaded.data_fingerprint, None);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn fingerprint_file_is_stable_and_content_sensitive() {
+        let dir = std::env::temp_dir().join("vox_ckpt_fingerprint_test");
+        std::fs::create_dir_all(&dir).unwrap();
+        let a = dir.join("a.jsonl");
+        let b = dir.join("b.jsonl");
+        std::fs::write(&a, b"{\"prompt\":\"x\"}\n").unwrap();
+        std::fs::write(&b, b"{\"prompt\":\"y\"}\n").unwrap();
+        let fp_a1 = fingerprint_file(&a).expect("readable file must fingerprint");
+        let fp_a2 = fingerprint_file(&a).expect("readable file must fingerprint");
+        let fp_b = fingerprint_file(&b).expect("readable file must fingerprint");
+        assert_eq!(fp_a1, fp_a2, "same content must fingerprint identically");
+        assert_ne!(
+            fp_a1, fp_b,
+            "different content must fingerprint differently"
+        );
+        assert!(fingerprint_file(&dir.join("missing.jsonl")).is_none());
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

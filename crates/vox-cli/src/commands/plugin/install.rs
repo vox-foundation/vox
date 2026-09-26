@@ -1164,24 +1164,25 @@ version = \"../../..\"
         assert_eq!(got, payload_hash());
     }
 
-    /// A catalog install must fail BEFORE any network call when the entry is
-    /// unpinned — an unpinned `latest` asset cannot be checksummed at all.
-    #[tokio::test]
-    #[allow(unsafe_code)] // `remove_var` is unsafe on Rust 2024; ENV_LOCK serialises this test's mutators.
-    #[allow(clippy::await_holding_lock)] // `#[tokio::test]` is single-threaded, so holding the guard across the await is sound.
-    async fn catalog_install_refuses_an_unpinned_entry_before_downloading() {
-        // ENV_LOCK (defined above) serialises this against the fallback tests,
-        // which set and remove the same process-global variable.
-        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        unsafe { std::env::remove_var(LOCAL_FALLBACK_ENV) };
-        let err = install_from_catalog("oratio", true, false, false)
-            .await
-            .expect_err("unpinned catalog entry must not install");
-        let m = err.to_string();
-        assert!(
-            m.contains("no pinned `version`") || m.contains("no sha256"),
-            "expected a pre-network refusal, got: {m}"
-        );
+    /// Third-party `github:` catalog entries keep the pinned-hash model: an
+    /// unpinned `latest` asset cannot be checksummed at all. (First-party
+    /// entries resolve version + hash from this binary's own release's
+    /// `checksums.txt` instead, so they are exempt.)
+    #[test]
+    fn third_party_github_catalog_entries_pin_a_version() {
+        for p in vox_plugin_catalog::all_plugins() {
+            let Some(gh) = p.default_source.strip_prefix("github:") else {
+                continue;
+            };
+            if gh == FIRST_PARTY_PLUGIN_REPO {
+                continue;
+            }
+            assert!(
+                p.version.is_some(),
+                "plugin '{}' has a third-party github: source but no pinned version",
+                p.id
+            );
+        }
     }
 
     /// Serialises tests that point `VOX_PLUGINS_DIR` at a private tempdir —

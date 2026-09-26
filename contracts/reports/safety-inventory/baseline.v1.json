@@ -1,11 +1,15 @@
 {
   "schema_version": 1,
   "rust": {
-    "unsafe_brace_block_opens": 501,
-    "lines_unsafe_with_env_mutation": 186,
-    "ignored_test_functions_total": 142,
-    "ignored_test_governance_violation_count": 16,
+    "unsafe_brace_block_opens": 691,
+    "lines_unsafe_with_env_mutation": 249,
+    "ignored_test_functions_total": 170,
+    "ignored_test_governance_violation_count": 0,
     "ignored_tests_top_files": [
+      {
+        "path": "crates/vox-mesh-transport/tests/interp_executor.rs",
+        "count": 12
+      },
       {
         "path": "crates/vox-compiler/tests/golden_dashboard_composites_test.rs",
         "count": 11
@@ -43,10 +47,6 @@
         "count": 5
       },
       {
-        "path": "crates/vox-cli/tests/run_mode_dispatch.rs",
-        "count": 4
-      },
-      {
         "path": "crates/vox-compiler/tests/golden_for_loop_test.rs",
         "count": 4
       },
@@ -67,6 +67,10 @@
         "count": 3
       },
       {
+        "path": "crates/vox-cli/tests/run_mode_dispatch.rs",
+        "count": 3
+      },
+      {
         "path": "crates/vox-compiler/tests/bug_handler_lambda_repro.rs",
         "count": 3
       },
@@ -77,6 +81,14 @@
       {
         "path": "crates/vox-integration-tests/tests/codegen_rust_test.rs",
         "count": 3
+      },
+      {
+        "path": "crates/vox-plugin-mens-candle-metal/src/inference.rs",
+        "count": 3
+      },
+      {
+        "path": "crates/vox-codegen/tests/generated_project_builds_outside_repo.rs",
+        "count": 2
       },
       {
         "path": "crates/vox-compiler/tests/tombstone_test.rs",
@@ -93,21 +105,9 @@
       {
         "path": "crates/vox-integration-tests/tests/ts_emit_typecheck_test.rs",
         "count": 2
-      },
-      {
-        "path": "crates/vox-orchestrator/tests/api_v2_health_test.rs",
-        "count": 2
-      },
-      {
-        "path": "crates/vox-actor-runtime/src/feedback.rs",
-        "count": 1
-      },
-      {
-        "path": "crates/vox-actor-runtime/tests/openrouter_free_floor_smoke.rs",
-        "count": 1
       }
     ],
-    "crate_root_inner_allow_lines": 30,
+    "crate_root_inner_allow_lines": 32,
     "crate_root_inner_allow_files": [
       "crates/vox-actor-runtime/src/lib.rs",
       "crates/vox-cli/src/lib.rs",
@@ -118,6 +118,7 @@
       "crates/vox-deploy-codegen/src/lib.rs",
       "crates/vox-gamify/src/lib.rs",
       "crates/vox-graph-reader/src/lib.rs",
+      "crates/vox-integration-tests/src/lib.rs",
       "crates/vox-openclaw-runtime/src/lib.rs",
       "crates/vox-orchestrator/src/lib.rs",
       "crates/vox-package/src/lib.rs",

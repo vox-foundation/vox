@@ -1,574 +1,3978 @@
 {
-  "schema_version": 1,
-  "clap_command_paths": [
-    "add",
-    "ars",
-    "ars share",
-    "ars share feedback",
-    "ars share list",
-    "ars share publish",
-    "ars share search",
-    "ars snippet",
-    "ars snippet export",
-    "ars snippet save",
-    "ars snippet search",
-    "audit",
-    "audit arch",
-    "audit code",
-    "audit core",
-    "audit effort",
-    "audit effort-route",
-    "audit research-parity",
-    "audit retirement",
-    "auth",
-    "auth connect",
-    "auth init",
-    "auth trust",
-    "auth trust-list",
-    "auth unlock",
-    "auth untrust",
-    "auth whoami",
-    "build",
-    "bundle",
-    "bundle apply",
-    "bundle build",
-    "bundle list",
-    "bundle verify",
-    "bundle-app",
-    "catalog",
-    "catalog add",
-    "catalog focus",
-    "catalog list",
-    "catalog remove",
-    "chat",
-    "check",
-    "ci",
-    "ci affected-crates",
-    "ci agentskills-compliance",
-    "ci ai-fixtures-coverage",
-    "ci artifact-audit",
-    "ci artifact-prune",
-    "ci attention-config-parity",
-    "ci attention-event-ledger-parity",
-    "ci backend-tests",
-    "ci bom-check",
-    "ci build-bench",
-    "ci build-cache-doctor",
-    "ci build-docs",
-    "ci build-timings",
-    "ci cache-key-lint",
-    "ci canonical-map-verify",
-    "ci capability-snapshot",
-    "ci capability-sync",
-    "ci check-codex-ssot",
-    "ci check-docs-ssot",
-    "ci check-links",
-    "ci check-summary-drift",
-    "ci command-compliance",
-    "ci command-sync",
-    "ci commit-lint",
-    "ci compile-matrix",
-    "ci completion-audit",
-    "ci completion-gates",
-    "ci completion-ingest",
-    "ci config-gui-codegen",
-    "ci config-hygiene",
-    "ci config-registry-parity",
-    "ci contracts-index",
-    "ci coolify-eval",
-    "ci coolify-eval discover",
-    "ci coolify-eval sync-compose",
-    "ci corpus-decl-coverage",
-    "ci coverage-gates",
-    "ci crate-budget",
-    "ci crate-build-map-parity",
-    "ci crate-edges",
-    "ci cuda-features",
-    "ci cuda-release-build",
-    "ci data-ssot-guards",
-    "ci data-storage-guard",
-    "ci db-schema-coverage",
-    "ci dep-cycles",
-    "ci dep-sprawl",
-    "ci deploy-status",
-    "ci detect-rules-bench",
-    "ci determinism-audit",
-    "ci dev-loop-audit",
-    "ci doc-inventory",
-    "ci doc-inventory generate",
-    "ci doc-inventory verify",
-    "ci docs-reality-audit",
-    "ci docs-reality-audit metrics",
-    "ci docs-reality-audit verify",
-    "ci doctest-md",
-    "ci eval-matrix",
-    "ci eval-matrix run",
-    "ci eval-matrix verify",
-    "ci exec-policy-contract",
-    "ci fan-in-budget",
-    "ci feature-matrix",
-    "ci flake-budget",
-    "ci fmt-check",
-    "ci free-binary",
-    "ci generate-plugin-catalog-docs",
-    "ci grammar-drift",
-    "ci grammar-export-check",
-    "ci grammar-ssot-parity",
-    "ci gui-catalog-parity",
-    "ci gui-honesty",
-    "ci gui-smoke",
-    "ci gui-surface-coverage",
-    "ci gui-surface-registry",
-    "ci gui-version-sync",
-    "ci gui-visual-review",
-    "ci harness-trust-guard",
-    "ci ignored-test-age",
-    "ci install-hooks",
-    "ci job-timings",
-    "ci json-parse-check",
-    "ci k-complexity-budget",
-    "ci kill-stuck-tests",
-    "ci line-endings",
-    "ci manifest",
-    "ci mcp-vox-surface-parity",
-    "ci mens-scorecard",
-    "ci mens-scorecard burn-rnd",
-    "ci mens-scorecard decide",
-    "ci mens-scorecard ingest-trust",
-    "ci mens-scorecard run",
-    "ci mens-scorecard verify",
-    "ci mesh-gate",
-    "ci model-routing-check",
-    "ci no-dei-import",
-    "ci no-plugin-cdylib-as-compile-dep",
-    "ci no-tauri-in-core",
-    "ci node-pnpm-ssot-guard",
-    "ci nomenclature-guard",
-    "ci openclaw-contract",
-    "ci operations-sync",
-    "ci operations-verify",
-    "ci operator-env-guard",
-    "ci parse-status",
-    "ci pipeline-parity",
-    "ci plugin-abi-parity",
-    "ci plugin-catalog-parity",
-    "ci plugin-catalog-sync",
-    "ci plugin-dep-boundary",
-    "ci plugin-skill-parity",
-    "ci plugin-surface-sync",
-    "ci pm-provenance",
-    "ci policy-allowlist-parity",
-    "ci policy-registry",
-    "ci policy-registry-parity",
-    "ci policy-smoke",
-    "ci pre-push",
-    "ci profile-parity",
-    "ci query-all-guard",
-    "ci release-build",
-    "ci release-draft-guard",
-    "ci repo-guards",
-    "ci required-context-guard",
-    "ci retired-symbol-check",
-    "ci retirement-audit",
-    "ci row-serde-lint",
-    "ci runtime-regress",
-    "ci rust-ecosystem-policy",
-    "ci safety-inventory",
-    "ci scaling-audit",
-    "ci scaling-audit emit-reports",
-    "ci scaling-audit verify",
-    "ci scientia-heuristics-parity",
-    "ci scientia-novelty-ledger-contracts",
-    "ci scientia-worthiness-contract",
-    "ci script-hygiene",
-    "ci secret-env-guard",
-    "ci secrets-contracts",
-    "ci secrets-cutover-audit",
-    "ci secrets-cutover-gates",
-    "ci secrets-parity",
-    "ci source-token-budget",
-    "ci speech-runtime-suite",
-    "ci spoke-check",
-    "ci sql-surface-guard",
-    "ci ssot-audit",
-    "ci ssot-drift",
-    "ci status",
-    "ci string-id-lint",
-    "ci sync-ignore-files",
-    "ci test-inventory",
-    "ci test-runtime-report",
-    "ci tier-budget-check",
-    "ci toestub-budget",
-    "ci toestub-scoped",
-    "ci toestub-self-apply",
-    "ci toolchain-ssot",
-    "ci toolchain-workflow-lint",
-    "ci turso-import-guard",
-    "ci vox-parse-check",
-    "ci watch-run",
-    "ci workflow-concurrency-guard",
-    "ci workflow-scripts",
-    "ci yaml-parse-check",
-    "codex",
-    "codex cutover",
-    "codex export-legacy",
-    "codex import-legacy",
-    "codex import-orchestrator-memory",
-    "codex import-skill-bundle",
-    "codex socrates-eval-snapshot",
-    "codex socrates-metrics",
-    "codex verify",
-    "commands",
-    "compile",
-    "completions",
-    "component",
-    "config",
-    "config get",
-    "config list",
-    "config set",
-    "config sync",
-    "config unset",
-    "container",
-    "container build",
-    "container run",
-    "db",
-    "db audit",
-    "db build-health",
-    "db build-regressions",
-    "db capability-list",
-    "db discovery-watch",
-    "db exec-history",
-    "db explain",
-    "db export",
-    "db feed-source-add",
-    "db feed-source-list",
-    "db import",
-    "db ingest-tick",
-    "db introspect",
-    "db mens-metrics",
-    "db mens-runs",
-    "db migrate",
-    "db mirror-search-corpus",
-    "db pref-get",
-    "db pref-list",
-    "db pref-set",
-    "db prune",
-    "db prune-apply",
-    "db prune-plan",
-    "db publication-approve",
-    "db publication-archive-code",
-    "db publication-archive-run",
-    "db publication-arxiv-handoff-record",
-    "db publication-autofill",
-    "db publication-decision-explain",
-    "db publication-discovery-explain",
-    "db publication-discovery-publish-rss",
-    "db publication-discovery-refresh-evidence",
-    "db publication-discovery-scan",
-    "db publication-external-jobs-dead-letter",
-    "db publication-external-jobs-due",
-    "db publication-external-jobs-replay",
-    "db publication-external-jobs-tick",
-    "db publication-external-pipeline-metrics",
-    "db publication-media-delete",
-    "db publication-media-list",
-    "db publication-media-upsert",
-    "db publication-novelty-fetch",
-    "db publication-novelty-happy-path",
-    "db publication-openreview-profile",
-    "db publication-preflight",
-    "db publication-prepare",
-    "db publication-prepare-validated",
-    "db publication-publish",
-    "db publication-retry-failed",
-    "db publication-route-simulate",
-    "db publication-scholarly-pipeline-run",
-    "db publication-scholarly-remote-status",
-    "db publication-scholarly-remote-status-sync-all",
-    "db publication-scholarly-remote-status-sync-batch",
-    "db publication-scholarly-staging-export",
-    "db publication-status",
-    "db publication-submit-local",
-    "db publication-transform-preview",
-    "db publication-worthiness-evaluate",
-    "db publication-zenodo-metadata",
-    "db reliability-agents",
-    "db reliability-list",
-    "db research-ingest-file",
-    "db research-ingest-url",
-    "db research-list",
-    "db research-map-add",
-    "db research-map-list",
-    "db research-metrics",
-    "db research-refresh",
-    "db reset",
-    "db retrieval-status",
-    "db sample",
-    "db schema",
-    "db status",
-    "db sync-invocables",
-    "db vacuum",
-    "db verify",
-    "deploy",
-    "dev",
-    "diag",
-    "diag doctor",
-    "dispatch",
-    "dispatch preview",
-    "doctor",
-    "drift-check",
-    "emit",
-    "emit client",
-    "emit openapi",
-    "ext",
-    "ext ars",
-    "ext ars share",
-    "ext ars share feedback",
-    "ext ars share list",
-    "ext ars share publish",
-    "ext ars share search",
-    "ext ars snippet",
-    "ext ars snippet export",
-    "ext ars snippet save",
-    "ext ars snippet search",
-    "ext mens",
-    "ext oratio",
-    "ext populi",
-    "ext train",
-    "fabrica",
-    "fabrica build",
-    "fabrica bundle",
-    "fabrica check",
-    "fabrica compile",
-    "fabrica dev",
-    "fabrica fmt",
-    "fabrica run",
-    "fabrica script",
-    "fabrica test",
-    "fmt",
-    "generate",
-    "grammar",
-    "graph",
-    "graph coverage",
-    "graph crate-map",
-    "graph gc",
-    "graph index",
-    "graph ingest",
-    "graph query",
-    "graph rebuild",
-    "graph refresh",
-    "graph status",
-    "graph why-rebuilt",
-    "harness",
-    "harness eval",
-    "harness history",
-    "harness publish",
-    "harness report",
-    "init",
-    "llm",
-    "llm prompt",
-    "lock",
-    "login",
-    "logout",
-    "lsp",
-    "mcp",
-    "memory",
-    "memory search",
-    "mens",
-    "migrate",
-    "migrate names",
-    "migrate web",
-    "model",
-    "model cas",
-    "model cas ls",
-    "model cas pull",
-    "model cas push",
-    "model classify",
-    "model costs",
-    "model council-report",
-    "model discover",
-    "model eval",
-    "model eval-corpus",
-    "model explain",
-    "model list",
-    "model preferences",
-    "model preferences reset",
-    "model preferences set",
-    "model pricing",
-    "model pricing check",
-    "model pricing refresh",
-    "model pricing rollup",
-    "model pricing show",
-    "model rollup",
-    "model scoreboard",
-    "model shadow",
-    "model show",
-    "new",
-    "new fn",
-    "new skill",
-    "new web",
-    "plan",
-    "plan create",
-    "plan replan",
-    "plan status",
-    "play",
-    "plugin",
-    "plugin doctor",
-    "plugin info",
-    "plugin install",
-    "plugin list",
-    "plugin publish",
-    "plugin remove",
-    "plugin scaffold",
-    "pm",
-    "pm cache",
-    "pm cache clear",
-    "pm cache status",
-    "pm info",
-    "pm mirror",
-    "pm publish",
-    "pm search",
-    "pm vendor",
-    "pm verify",
-    "pm yank",
-    "policy",
-    "policy domains",
-    "policy groups",
-    "policy list",
-    "policy show",
-    "policy status",
-    "populi",
-    "remove",
-    "repair",
-    "repl",
-    "repo",
-    "repo catalog",
-    "repo catalog list",
-    "repo catalog refresh",
-    "repo init",
-    "repo query",
-    "repo query file",
-    "repo query history",
-    "repo query text",
-    "repo status",
-    "research",
-    "research down",
-    "research eval",
-    "research history",
-    "research preview",
-    "research result",
-    "research run",
-    "research search",
-    "research show",
-    "research status",
-    "research up",
-    "research watch",
-    "rollback",
-    "run",
-    "scientia",
-    "scientia capability-list",
-    "scientia claims",
-    "scientia cost",
-    "scientia dashboard",
-    "scientia diagnose",
-    "scientia discovery-watch",
-    "scientia evidence-assist",
-    "scientia feed-source-add",
-    "scientia feed-source-list",
-    "scientia finding-candidate-validate",
-    "scientia ingest-tick",
-    "scientia mirror-search-corpus",
-    "scientia novelty-evidence-bundle-validate",
-    "scientia publication-approve",
-    "scientia publication-archive-code",
-    "scientia publication-archive-run",
-    "scientia publication-arxiv-bundle",
-    "scientia publication-arxiv-handoff-record",
-    "scientia publication-autofill",
-    "scientia publication-claim-review",
-    "scientia publication-critic-approve",
-    "scientia publication-critic-gate-check",
-    "scientia publication-dashboard-snapshot",
-    "scientia publication-decision-explain",
-    "scientia publication-discovery-explain",
-    "scientia publication-discovery-publish-rss",
-    "scientia publication-discovery-scan",
-    "scientia publication-external-jobs-dead-letter",
-    "scientia publication-external-jobs-due",
-    "scientia publication-external-jobs-replay",
-    "scientia publication-external-jobs-tick",
-    "scientia publication-external-pipeline-metrics",
-    "scientia publication-extract-claims",
-    "scientia publication-finding-page-render",
-    "scientia publication-manuscript-draft",
-    "scientia publication-nanopub-build",
-    "scientia publication-novelty-fetch",
-    "scientia publication-novelty-happy-path",
-    "scientia publication-openreview-profile",
-    "scientia publication-preflight",
-    "scientia publication-prepare",
-    "scientia publication-prepare-validated",
-    "scientia publication-render-latex",
-    "scientia publication-replay-execute",
-    "scientia publication-review-queue",
-    "scientia publication-scholarly-pipeline-run",
-    "scientia publication-scholarly-remote-status",
-    "scientia publication-scholarly-remote-status-sync-all",
-    "scientia publication-scholarly-remote-status-sync-batch",
-    "scientia publication-scholarly-staging-export",
-    "scientia publication-status",
-    "scientia publication-submit-local",
-    "scientia publication-transform-preview",
-    "scientia publication-venue-recommend",
-    "scientia publication-worthiness-evaluate",
-    "scientia publication-zenodo-metadata",
-    "scientia research-list",
-    "scientia research-map-list",
-    "scientia research-refresh",
-    "scientia retrieval-status",
-    "scientia scout",
-    "script",
-    "secrets",
-    "secrets backend-status",
-    "secrets get",
-    "secrets import-env",
-    "secrets login",
-    "secrets migrate-auth-store",
-    "secrets set",
-    "secrets status",
-    "secrets sync",
-    "share",
-    "shell",
-    "shell check",
-    "shell repl",
-    "snapshot",
-    "snapshot orphans",
-    "snippet",
-    "snippet export",
-    "snippet save",
-    "snippet search",
-    "speech",
-    "stop",
-    "sync",
-    "telemetry",
-    "telemetry consent",
-    "telemetry consent deny",
-    "telemetry consent grant",
-    "telemetry consent status",
-    "telemetry doctor",
-    "telemetry enqueue",
-    "telemetry export",
-    "telemetry status",
-    "telemetry upload",
-    "term",
-    "test",
-    "train",
-    "update",
-    "upgrade",
-    "workflow",
-    "workflow drain",
-    "workflow ls",
-    "workflow preview"
+  "schema_version": 2,
+  "cli_command_paths": [
+    {
+      "path": "add",
+      "feature_gate": null
+    },
+    {
+      "path": "architect",
+      "feature_gate": "codex|stub-check"
+    },
+    {
+      "path": "ars",
+      "feature_gate": null
+    },
+    {
+      "path": "ars ludus",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus arena-join",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus arena-leaderboard",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus arena-show",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus audit",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus auth",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus battle-start",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus battle-submit",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus challenge-list",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus challenge-start",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus challenge-submit",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus collegium-join",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus collegium-list",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus collegium-new",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus collegium-status",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus companion-create",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus companion-interact",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus companion-list",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus companion-show",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus digest",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus digest-weekly",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus disable",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus dispute-appeal",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus dispute-file",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus dispute-status",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus dispute-vote",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus enable",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus feedback-rate",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus glyph-list",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus hint",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus leaderboard-show",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus metrics",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus mode",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus monte-carlo-sweep",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus morning",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus notify-clear",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus notify-list",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus pack-init",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus pack-list",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus profile-merge",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus quest-generate",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus quest-list",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus record",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus reward-claim",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus shield-use",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus shop-buy",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus shop-list",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus status",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars ludus sync-github",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ars openclaw",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ars openclaw approvals",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ars openclaw approve",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ars openclaw config",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ars openclaw deny",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ars openclaw doctor",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ars openclaw gateway-call",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ars openclaw import",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ars openclaw list-remote",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ars openclaw notify",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ars openclaw search-remote",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ars openclaw serve",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ars openclaw sidecar",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ars openclaw sidecar start",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ars openclaw sidecar status",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ars openclaw sidecar stop",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ars openclaw subscribe",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ars openclaw subscriptions",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ars openclaw unsubscribe",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ars share",
+      "feature_gate": null
+    },
+    {
+      "path": "ars share feedback",
+      "feature_gate": null
+    },
+    {
+      "path": "ars share list",
+      "feature_gate": null
+    },
+    {
+      "path": "ars share publish",
+      "feature_gate": null
+    },
+    {
+      "path": "ars share search",
+      "feature_gate": null
+    },
+    {
+      "path": "ars skill",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ars skill add",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ars skill context-assemble",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ars skill create",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ars skill discover",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ars skill eval-task",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ars skill info",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ars skill install",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ars skill list",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ars skill promote",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ars skill run",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ars skill search",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ars skill suggest",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ars skill uninstall",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ars snippet",
+      "feature_gate": null
+    },
+    {
+      "path": "ars snippet export",
+      "feature_gate": null
+    },
+    {
+      "path": "ars snippet save",
+      "feature_gate": null
+    },
+    {
+      "path": "ars snippet search",
+      "feature_gate": null
+    },
+    {
+      "path": "audit",
+      "feature_gate": null
+    },
+    {
+      "path": "audit arch",
+      "feature_gate": null
+    },
+    {
+      "path": "audit code",
+      "feature_gate": null
+    },
+    {
+      "path": "audit core",
+      "feature_gate": null
+    },
+    {
+      "path": "audit effort",
+      "feature_gate": null
+    },
+    {
+      "path": "audit effort-route",
+      "feature_gate": null
+    },
+    {
+      "path": "audit research-parity",
+      "feature_gate": null
+    },
+    {
+      "path": "audit retirement",
+      "feature_gate": null
+    },
+    {
+      "path": "auth",
+      "feature_gate": null
+    },
+    {
+      "path": "auth connect",
+      "feature_gate": null
+    },
+    {
+      "path": "auth init",
+      "feature_gate": null
+    },
+    {
+      "path": "auth login",
+      "feature_gate": null
+    },
+    {
+      "path": "auth trust",
+      "feature_gate": null
+    },
+    {
+      "path": "auth trust-list",
+      "feature_gate": null
+    },
+    {
+      "path": "auth unlock",
+      "feature_gate": null
+    },
+    {
+      "path": "auth untrust",
+      "feature_gate": null
+    },
+    {
+      "path": "auth whoami",
+      "feature_gate": null
+    },
+    {
+      "path": "build",
+      "feature_gate": null
+    },
+    {
+      "path": "bundle",
+      "feature_gate": null
+    },
+    {
+      "path": "bundle apply",
+      "feature_gate": null
+    },
+    {
+      "path": "bundle build",
+      "feature_gate": null
+    },
+    {
+      "path": "bundle list",
+      "feature_gate": null
+    },
+    {
+      "path": "bundle verify",
+      "feature_gate": null
+    },
+    {
+      "path": "bundle-app",
+      "feature_gate": null
+    },
+    {
+      "path": "catalog",
+      "feature_gate": null
+    },
+    {
+      "path": "catalog add",
+      "feature_gate": null
+    },
+    {
+      "path": "catalog focus",
+      "feature_gate": null
+    },
+    {
+      "path": "catalog list",
+      "feature_gate": null
+    },
+    {
+      "path": "catalog remove",
+      "feature_gate": null
+    },
+    {
+      "path": "chat",
+      "feature_gate": null
+    },
+    {
+      "path": "check",
+      "feature_gate": null
+    },
+    {
+      "path": "ci",
+      "feature_gate": null
+    },
+    {
+      "path": "ci affected-crates",
+      "feature_gate": null
+    },
+    {
+      "path": "ci agentskills-compliance",
+      "feature_gate": null
+    },
+    {
+      "path": "ci ai-fixtures-coverage",
+      "feature_gate": null
+    },
+    {
+      "path": "ci artifact-audit",
+      "feature_gate": null
+    },
+    {
+      "path": "ci artifact-prune",
+      "feature_gate": null
+    },
+    {
+      "path": "ci attention-config-parity",
+      "feature_gate": null
+    },
+    {
+      "path": "ci attention-event-ledger-parity",
+      "feature_gate": null
+    },
+    {
+      "path": "ci backend-tests",
+      "feature_gate": null
+    },
+    {
+      "path": "ci bom-check",
+      "feature_gate": null
+    },
+    {
+      "path": "ci build-bench",
+      "feature_gate": null
+    },
+    {
+      "path": "ci build-cache-doctor",
+      "feature_gate": null
+    },
+    {
+      "path": "ci build-docs",
+      "feature_gate": null
+    },
+    {
+      "path": "ci build-timings",
+      "feature_gate": null
+    },
+    {
+      "path": "ci cache-key-lint",
+      "feature_gate": null
+    },
+    {
+      "path": "ci canonical-map-verify",
+      "feature_gate": null
+    },
+    {
+      "path": "ci capability-snapshot",
+      "feature_gate": null
+    },
+    {
+      "path": "ci capability-sync",
+      "feature_gate": null
+    },
+    {
+      "path": "ci check-codex-ssot",
+      "feature_gate": null
+    },
+    {
+      "path": "ci check-docs-ssot",
+      "feature_gate": null
+    },
+    {
+      "path": "ci check-frozen",
+      "feature_gate": null
+    },
+    {
+      "path": "ci check-links",
+      "feature_gate": null
+    },
+    {
+      "path": "ci check-summary-drift",
+      "feature_gate": null
+    },
+    {
+      "path": "ci collateral-damage-gate",
+      "feature_gate": null
+    },
+    {
+      "path": "ci command-compliance",
+      "feature_gate": null
+    },
+    {
+      "path": "ci command-sync",
+      "feature_gate": null
+    },
+    {
+      "path": "ci commit-lint",
+      "feature_gate": null
+    },
+    {
+      "path": "ci compile-matrix",
+      "feature_gate": null
+    },
+    {
+      "path": "ci completion-audit",
+      "feature_gate": null
+    },
+    {
+      "path": "ci completion-gates",
+      "feature_gate": null
+    },
+    {
+      "path": "ci completion-ingest",
+      "feature_gate": null
+    },
+    {
+      "path": "ci config-gui-codegen",
+      "feature_gate": null
+    },
+    {
+      "path": "ci config-hygiene",
+      "feature_gate": null
+    },
+    {
+      "path": "ci config-registry-parity",
+      "feature_gate": null
+    },
+    {
+      "path": "ci constrained-gen-smoke",
+      "feature_gate": null
+    },
+    {
+      "path": "ci contracts-index",
+      "feature_gate": null
+    },
+    {
+      "path": "ci coolify-eval",
+      "feature_gate": null
+    },
+    {
+      "path": "ci coolify-eval discover",
+      "feature_gate": null
+    },
+    {
+      "path": "ci coolify-eval sync-compose",
+      "feature_gate": null
+    },
+    {
+      "path": "ci corpus-decl-coverage",
+      "feature_gate": null
+    },
+    {
+      "path": "ci coverage-gates",
+      "feature_gate": null
+    },
+    {
+      "path": "ci crate-budget",
+      "feature_gate": null
+    },
+    {
+      "path": "ci crate-build-map-parity",
+      "feature_gate": null
+    },
+    {
+      "path": "ci crate-edges",
+      "feature_gate": null
+    },
+    {
+      "path": "ci cuda-features",
+      "feature_gate": null
+    },
+    {
+      "path": "ci cuda-release-build",
+      "feature_gate": null
+    },
+    {
+      "path": "ci data-ssot-guards",
+      "feature_gate": null
+    },
+    {
+      "path": "ci data-storage-guard",
+      "feature_gate": null
+    },
+    {
+      "path": "ci db-schema-coverage",
+      "feature_gate": null
+    },
+    {
+      "path": "ci dep-cycles",
+      "feature_gate": null
+    },
+    {
+      "path": "ci dep-sprawl",
+      "feature_gate": null
+    },
+    {
+      "path": "ci deploy-status",
+      "feature_gate": null
+    },
+    {
+      "path": "ci detect-rules-bench",
+      "feature_gate": null
+    },
+    {
+      "path": "ci determinism-audit",
+      "feature_gate": null
+    },
+    {
+      "path": "ci dev-loop-audit",
+      "feature_gate": null
+    },
+    {
+      "path": "ci doc-inventory",
+      "feature_gate": null
+    },
+    {
+      "path": "ci doc-inventory generate",
+      "feature_gate": null
+    },
+    {
+      "path": "ci doc-inventory verify",
+      "feature_gate": null
+    },
+    {
+      "path": "ci docs-reality-audit",
+      "feature_gate": null
+    },
+    {
+      "path": "ci docs-reality-audit metrics",
+      "feature_gate": null
+    },
+    {
+      "path": "ci docs-reality-audit verify",
+      "feature_gate": null
+    },
+    {
+      "path": "ci doctest-md",
+      "feature_gate": null
+    },
+    {
+      "path": "ci eval-matrix",
+      "feature_gate": null
+    },
+    {
+      "path": "ci eval-matrix run",
+      "feature_gate": null
+    },
+    {
+      "path": "ci eval-matrix verify",
+      "feature_gate": null
+    },
+    {
+      "path": "ci exec-policy-contract",
+      "feature_gate": null
+    },
+    {
+      "path": "ci fan-in-budget",
+      "feature_gate": null
+    },
+    {
+      "path": "ci feature-matrix",
+      "feature_gate": null
+    },
+    {
+      "path": "ci flake-budget",
+      "feature_gate": null
+    },
+    {
+      "path": "ci fmt-check",
+      "feature_gate": null
+    },
+    {
+      "path": "ci free-binary",
+      "feature_gate": null
+    },
+    {
+      "path": "ci generate-plugin-catalog-docs",
+      "feature_gate": null
+    },
+    {
+      "path": "ci grammar-drift",
+      "feature_gate": null
+    },
+    {
+      "path": "ci grammar-export-check",
+      "feature_gate": null
+    },
+    {
+      "path": "ci grammar-ssot-parity",
+      "feature_gate": null
+    },
+    {
+      "path": "ci grpo-reward-baseline",
+      "feature_gate": null
+    },
+    {
+      "path": "ci gui-catalog-parity",
+      "feature_gate": null
+    },
+    {
+      "path": "ci gui-honesty",
+      "feature_gate": null
+    },
+    {
+      "path": "ci gui-smoke",
+      "feature_gate": null
+    },
+    {
+      "path": "ci gui-surface-coverage",
+      "feature_gate": null
+    },
+    {
+      "path": "ci gui-surface-registry",
+      "feature_gate": null
+    },
+    {
+      "path": "ci gui-version-sync",
+      "feature_gate": null
+    },
+    {
+      "path": "ci gui-visual-review",
+      "feature_gate": null
+    },
+    {
+      "path": "ci harness-trust-guard",
+      "feature_gate": null
+    },
+    {
+      "path": "ci ignored-test-age",
+      "feature_gate": null
+    },
+    {
+      "path": "ci install-hooks",
+      "feature_gate": null
+    },
+    {
+      "path": "ci job-timings",
+      "feature_gate": null
+    },
+    {
+      "path": "ci json-parse-check",
+      "feature_gate": null
+    },
+    {
+      "path": "ci k-complexity-budget",
+      "feature_gate": null
+    },
+    {
+      "path": "ci kill-stuck-tests",
+      "feature_gate": null
+    },
+    {
+      "path": "ci line-endings",
+      "feature_gate": null
+    },
+    {
+      "path": "ci manifest",
+      "feature_gate": null
+    },
+    {
+      "path": "ci mcp-vox-surface-parity",
+      "feature_gate": null
+    },
+    {
+      "path": "ci mens-corpus-health",
+      "feature_gate": null
+    },
+    {
+      "path": "ci mens-scorecard",
+      "feature_gate": null
+    },
+    {
+      "path": "ci mens-scorecard burn-rnd",
+      "feature_gate": null
+    },
+    {
+      "path": "ci mens-scorecard decide",
+      "feature_gate": null
+    },
+    {
+      "path": "ci mens-scorecard ingest-trust",
+      "feature_gate": null
+    },
+    {
+      "path": "ci mens-scorecard run",
+      "feature_gate": null
+    },
+    {
+      "path": "ci mens-scorecard verify",
+      "feature_gate": null
+    },
+    {
+      "path": "ci mesh-gate",
+      "feature_gate": null
+    },
+    {
+      "path": "ci model-routing-check",
+      "feature_gate": null
+    },
+    {
+      "path": "ci no-dei-import",
+      "feature_gate": null
+    },
+    {
+      "path": "ci no-plugin-cdylib-as-compile-dep",
+      "feature_gate": null
+    },
+    {
+      "path": "ci no-tauri-in-core",
+      "feature_gate": null
+    },
+    {
+      "path": "ci node-pnpm-ssot-guard",
+      "feature_gate": null
+    },
+    {
+      "path": "ci nomenclature-guard",
+      "feature_gate": null
+    },
+    {
+      "path": "ci openclaw-contract",
+      "feature_gate": null
+    },
+    {
+      "path": "ci operations-sync",
+      "feature_gate": null
+    },
+    {
+      "path": "ci operations-verify",
+      "feature_gate": null
+    },
+    {
+      "path": "ci operator-env-guard",
+      "feature_gate": null
+    },
+    {
+      "path": "ci parse-status",
+      "feature_gate": null
+    },
+    {
+      "path": "ci pipeline-parity",
+      "feature_gate": null
+    },
+    {
+      "path": "ci plugin-abi-parity",
+      "feature_gate": null
+    },
+    {
+      "path": "ci plugin-catalog-parity",
+      "feature_gate": null
+    },
+    {
+      "path": "ci plugin-catalog-sync",
+      "feature_gate": null
+    },
+    {
+      "path": "ci plugin-dep-boundary",
+      "feature_gate": null
+    },
+    {
+      "path": "ci plugin-skill-parity",
+      "feature_gate": null
+    },
+    {
+      "path": "ci plugin-surface-sync",
+      "feature_gate": null
+    },
+    {
+      "path": "ci pm-provenance",
+      "feature_gate": null
+    },
+    {
+      "path": "ci policy-allowlist-parity",
+      "feature_gate": null
+    },
+    {
+      "path": "ci policy-registry",
+      "feature_gate": null
+    },
+    {
+      "path": "ci policy-registry-parity",
+      "feature_gate": null
+    },
+    {
+      "path": "ci policy-smoke",
+      "feature_gate": null
+    },
+    {
+      "path": "ci pre-push",
+      "feature_gate": null
+    },
+    {
+      "path": "ci profile-parity",
+      "feature_gate": null
+    },
+    {
+      "path": "ci query-all-guard",
+      "feature_gate": null
+    },
+    {
+      "path": "ci queue",
+      "feature_gate": null
+    },
+    {
+      "path": "ci release-build",
+      "feature_gate": null
+    },
+    {
+      "path": "ci release-draft-guard",
+      "feature_gate": null
+    },
+    {
+      "path": "ci repo-guards",
+      "feature_gate": null
+    },
+    {
+      "path": "ci required-context-guard",
+      "feature_gate": null
+    },
+    {
+      "path": "ci retired-symbol-check",
+      "feature_gate": null
+    },
+    {
+      "path": "ci retirement-audit",
+      "feature_gate": null
+    },
+    {
+      "path": "ci row-serde-lint",
+      "feature_gate": null
+    },
+    {
+      "path": "ci runner-policy-check",
+      "feature_gate": null
+    },
+    {
+      "path": "ci runner-preflight",
+      "feature_gate": null
+    },
+    {
+      "path": "ci runner-scale",
+      "feature_gate": null
+    },
+    {
+      "path": "ci runner-status",
+      "feature_gate": null
+    },
+    {
+      "path": "ci runtime-regress",
+      "feature_gate": null
+    },
+    {
+      "path": "ci rust-ecosystem-policy",
+      "feature_gate": null
+    },
+    {
+      "path": "ci safety-inventory",
+      "feature_gate": null
+    },
+    {
+      "path": "ci scaling-audit",
+      "feature_gate": null
+    },
+    {
+      "path": "ci scaling-audit emit-reports",
+      "feature_gate": null
+    },
+    {
+      "path": "ci scaling-audit verify",
+      "feature_gate": null
+    },
+    {
+      "path": "ci scientia-heuristics-parity",
+      "feature_gate": null
+    },
+    {
+      "path": "ci scientia-novelty-ledger-contracts",
+      "feature_gate": null
+    },
+    {
+      "path": "ci scientia-worthiness-contract",
+      "feature_gate": null
+    },
+    {
+      "path": "ci script-hygiene",
+      "feature_gate": null
+    },
+    {
+      "path": "ci secret-env-guard",
+      "feature_gate": null
+    },
+    {
+      "path": "ci secrets-contracts",
+      "feature_gate": null
+    },
+    {
+      "path": "ci secrets-cutover-audit",
+      "feature_gate": null
+    },
+    {
+      "path": "ci secrets-cutover-gates",
+      "feature_gate": null
+    },
+    {
+      "path": "ci secrets-parity",
+      "feature_gate": null
+    },
+    {
+      "path": "ci source-token-budget",
+      "feature_gate": null
+    },
+    {
+      "path": "ci speech-runtime-suite",
+      "feature_gate": null
+    },
+    {
+      "path": "ci spoke-check",
+      "feature_gate": null
+    },
+    {
+      "path": "ci sql-surface-guard",
+      "feature_gate": null
+    },
+    {
+      "path": "ci ssot-audit",
+      "feature_gate": null
+    },
+    {
+      "path": "ci ssot-drift",
+      "feature_gate": null
+    },
+    {
+      "path": "ci string-id-lint",
+      "feature_gate": null
+    },
+    {
+      "path": "ci sync-ignore-files",
+      "feature_gate": null
+    },
+    {
+      "path": "ci test-inventory",
+      "feature_gate": null
+    },
+    {
+      "path": "ci test-runtime-report",
+      "feature_gate": null
+    },
+    {
+      "path": "ci tier-budget-check",
+      "feature_gate": null
+    },
+    {
+      "path": "ci toestub-budget",
+      "feature_gate": null
+    },
+    {
+      "path": "ci toestub-scoped",
+      "feature_gate": null
+    },
+    {
+      "path": "ci toestub-self-apply",
+      "feature_gate": null
+    },
+    {
+      "path": "ci toolchain-ssot",
+      "feature_gate": null
+    },
+    {
+      "path": "ci toolchain-workflow-lint",
+      "feature_gate": null
+    },
+    {
+      "path": "ci turso-import-guard",
+      "feature_gate": null
+    },
+    {
+      "path": "ci vox-parse-check",
+      "feature_gate": null
+    },
+    {
+      "path": "ci watch-run",
+      "feature_gate": null
+    },
+    {
+      "path": "ci workflow-concurrency-guard",
+      "feature_gate": null
+    },
+    {
+      "path": "ci workflow-scripts",
+      "feature_gate": null
+    },
+    {
+      "path": "ci yaml-parse-check",
+      "feature_gate": null
+    },
+    {
+      "path": "codex",
+      "feature_gate": null
+    },
+    {
+      "path": "codex cutover",
+      "feature_gate": null
+    },
+    {
+      "path": "codex export-legacy",
+      "feature_gate": null
+    },
+    {
+      "path": "codex import-legacy",
+      "feature_gate": null
+    },
+    {
+      "path": "codex import-orchestrator-memory",
+      "feature_gate": null
+    },
+    {
+      "path": "codex import-skill-bundle",
+      "feature_gate": null
+    },
+    {
+      "path": "codex socrates-eval-snapshot",
+      "feature_gate": null
+    },
+    {
+      "path": "codex socrates-metrics",
+      "feature_gate": null
+    },
+    {
+      "path": "codex verify",
+      "feature_gate": null
+    },
+    {
+      "path": "commands",
+      "feature_gate": null
+    },
+    {
+      "path": "compile",
+      "feature_gate": null
+    },
+    {
+      "path": "completions",
+      "feature_gate": null
+    },
+    {
+      "path": "component",
+      "feature_gate": null
+    },
+    {
+      "path": "config",
+      "feature_gate": null
+    },
+    {
+      "path": "config get",
+      "feature_gate": null
+    },
+    {
+      "path": "config list",
+      "feature_gate": null
+    },
+    {
+      "path": "config set",
+      "feature_gate": null
+    },
+    {
+      "path": "config sync",
+      "feature_gate": null
+    },
+    {
+      "path": "config unset",
+      "feature_gate": null
+    },
+    {
+      "path": "container",
+      "feature_gate": null
+    },
+    {
+      "path": "container build",
+      "feature_gate": null
+    },
+    {
+      "path": "container run",
+      "feature_gate": null
+    },
+    {
+      "path": "db",
+      "feature_gate": null
+    },
+    {
+      "path": "db audit",
+      "feature_gate": null
+    },
+    {
+      "path": "db build-health",
+      "feature_gate": null
+    },
+    {
+      "path": "db build-regressions",
+      "feature_gate": null
+    },
+    {
+      "path": "db capability-list",
+      "feature_gate": null
+    },
+    {
+      "path": "db discovery-watch",
+      "feature_gate": null
+    },
+    {
+      "path": "db exec-history",
+      "feature_gate": null
+    },
+    {
+      "path": "db explain",
+      "feature_gate": null
+    },
+    {
+      "path": "db export",
+      "feature_gate": null
+    },
+    {
+      "path": "db feed-source-add",
+      "feature_gate": null
+    },
+    {
+      "path": "db feed-source-list",
+      "feature_gate": null
+    },
+    {
+      "path": "db import",
+      "feature_gate": null
+    },
+    {
+      "path": "db ingest-tick",
+      "feature_gate": null
+    },
+    {
+      "path": "db introspect",
+      "feature_gate": null
+    },
+    {
+      "path": "db mens-metrics",
+      "feature_gate": null
+    },
+    {
+      "path": "db mens-runs",
+      "feature_gate": null
+    },
+    {
+      "path": "db migrate",
+      "feature_gate": null
+    },
+    {
+      "path": "db mirror-search-corpus",
+      "feature_gate": null
+    },
+    {
+      "path": "db pref-get",
+      "feature_gate": null
+    },
+    {
+      "path": "db pref-list",
+      "feature_gate": null
+    },
+    {
+      "path": "db pref-set",
+      "feature_gate": null
+    },
+    {
+      "path": "db prune",
+      "feature_gate": null
+    },
+    {
+      "path": "db prune-apply",
+      "feature_gate": null
+    },
+    {
+      "path": "db prune-plan",
+      "feature_gate": null
+    },
+    {
+      "path": "db publication-approve",
+      "feature_gate": null
+    },
+    {
+      "path": "db publication-archive-code",
+      "feature_gate": null
+    },
+    {
+      "path": "db publication-archive-run",
+      "feature_gate": null
+    },
+    {
+      "path": "db publication-arxiv-handoff-record",
+      "feature_gate": null
+    },
+    {
+      "path": "db publication-autofill",
+      "feature_gate": null
+    },
+    {
+      "path": "db publication-decision-explain",
+      "feature_gate": null
+    },
+    {
+      "path": "db publication-discovery-explain",
+      "feature_gate": null
+    },
+    {
+      "path": "db publication-discovery-publish-rss",
+      "feature_gate": null
+    },
+    {
+      "path": "db publication-discovery-refresh-evidence",
+      "feature_gate": null
+    },
+    {
+      "path": "db publication-discovery-scan",
+      "feature_gate": null
+    },
+    {
+      "path": "db publication-external-jobs-dead-letter",
+      "feature_gate": null
+    },
+    {
+      "path": "db publication-external-jobs-due",
+      "feature_gate": null
+    },
+    {
+      "path": "db publication-external-jobs-replay",
+      "feature_gate": null
+    },
+    {
+      "path": "db publication-external-jobs-tick",
+      "feature_gate": null
+    },
+    {
+      "path": "db publication-external-pipeline-metrics",
+      "feature_gate": null
+    },
+    {
+      "path": "db publication-media-delete",
+      "feature_gate": null
+    },
+    {
+      "path": "db publication-media-list",
+      "feature_gate": null
+    },
+    {
+      "path": "db publication-media-upsert",
+      "feature_gate": null
+    },
+    {
+      "path": "db publication-novelty-fetch",
+      "feature_gate": null
+    },
+    {
+      "path": "db publication-novelty-happy-path",
+      "feature_gate": null
+    },
+    {
+      "path": "db publication-openreview-profile",
+      "feature_gate": null
+    },
+    {
+      "path": "db publication-preflight",
+      "feature_gate": null
+    },
+    {
+      "path": "db publication-prepare",
+      "feature_gate": null
+    },
+    {
+      "path": "db publication-prepare-validated",
+      "feature_gate": null
+    },
+    {
+      "path": "db publication-publish",
+      "feature_gate": null
+    },
+    {
+      "path": "db publication-retry-failed",
+      "feature_gate": null
+    },
+    {
+      "path": "db publication-route-simulate",
+      "feature_gate": null
+    },
+    {
+      "path": "db publication-scholarly-pipeline-run",
+      "feature_gate": null
+    },
+    {
+      "path": "db publication-scholarly-remote-status",
+      "feature_gate": null
+    },
+    {
+      "path": "db publication-scholarly-remote-status-sync-all",
+      "feature_gate": null
+    },
+    {
+      "path": "db publication-scholarly-remote-status-sync-batch",
+      "feature_gate": null
+    },
+    {
+      "path": "db publication-scholarly-staging-export",
+      "feature_gate": null
+    },
+    {
+      "path": "db publication-status",
+      "feature_gate": null
+    },
+    {
+      "path": "db publication-submit-local",
+      "feature_gate": null
+    },
+    {
+      "path": "db publication-transform-preview",
+      "feature_gate": null
+    },
+    {
+      "path": "db publication-worthiness-evaluate",
+      "feature_gate": null
+    },
+    {
+      "path": "db publication-zenodo-metadata",
+      "feature_gate": null
+    },
+    {
+      "path": "db reliability-agents",
+      "feature_gate": null
+    },
+    {
+      "path": "db reliability-list",
+      "feature_gate": null
+    },
+    {
+      "path": "db research-ingest-file",
+      "feature_gate": null
+    },
+    {
+      "path": "db research-ingest-url",
+      "feature_gate": null
+    },
+    {
+      "path": "db research-list",
+      "feature_gate": null
+    },
+    {
+      "path": "db research-map-add",
+      "feature_gate": null
+    },
+    {
+      "path": "db research-map-list",
+      "feature_gate": null
+    },
+    {
+      "path": "db research-metrics",
+      "feature_gate": null
+    },
+    {
+      "path": "db research-refresh",
+      "feature_gate": null
+    },
+    {
+      "path": "db reset",
+      "feature_gate": null
+    },
+    {
+      "path": "db retrieval-status",
+      "feature_gate": null
+    },
+    {
+      "path": "db sample",
+      "feature_gate": null
+    },
+    {
+      "path": "db schema",
+      "feature_gate": null
+    },
+    {
+      "path": "db status",
+      "feature_gate": null
+    },
+    {
+      "path": "db sync-invocables",
+      "feature_gate": null
+    },
+    {
+      "path": "db vacuum",
+      "feature_gate": null
+    },
+    {
+      "path": "db verify",
+      "feature_gate": null
+    },
+    {
+      "path": "dei",
+      "feature_gate": "dei"
+    },
+    {
+      "path": "dei oplog list",
+      "feature_gate": "dei"
+    },
+    {
+      "path": "dei snapshot diff",
+      "feature_gate": "dei"
+    },
+    {
+      "path": "dei snapshot list",
+      "feature_gate": "dei"
+    },
+    {
+      "path": "dei snapshot restore",
+      "feature_gate": "dei"
+    },
+    {
+      "path": "dei takeover-status",
+      "feature_gate": "dei"
+    },
+    {
+      "path": "dei workspace create",
+      "feature_gate": "dei"
+    },
+    {
+      "path": "dei workspace merge",
+      "feature_gate": "dei"
+    },
+    {
+      "path": "dei workspace status",
+      "feature_gate": "dei"
+    },
+    {
+      "path": "deploy",
+      "feature_gate": null
+    },
+    {
+      "path": "dev",
+      "feature_gate": null
+    },
+    {
+      "path": "diag",
+      "feature_gate": null
+    },
+    {
+      "path": "diag doctor",
+      "feature_gate": null
+    },
+    {
+      "path": "dispatch",
+      "feature_gate": null
+    },
+    {
+      "path": "dispatch preview",
+      "feature_gate": null
+    },
+    {
+      "path": "doctor",
+      "feature_gate": null
+    },
+    {
+      "path": "drift-check",
+      "feature_gate": null
+    },
+    {
+      "path": "emit",
+      "feature_gate": null
+    },
+    {
+      "path": "emit client",
+      "feature_gate": null
+    },
+    {
+      "path": "emit openapi",
+      "feature_gate": null
+    },
+    {
+      "path": "ext",
+      "feature_gate": null
+    },
+    {
+      "path": "ext ars",
+      "feature_gate": null
+    },
+    {
+      "path": "ext ars ludus",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus arena-join",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus arena-leaderboard",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus arena-show",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus audit",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus auth",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus battle-start",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus battle-submit",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus challenge-list",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus challenge-start",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus challenge-submit",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus collegium-join",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus collegium-list",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus collegium-new",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus collegium-status",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus companion-create",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus companion-interact",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus companion-list",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus companion-show",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus digest",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus digest-weekly",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus disable",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus dispute-appeal",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus dispute-file",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus dispute-status",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus dispute-vote",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus enable",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus feedback-rate",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus glyph-list",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus hint",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus leaderboard-show",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus metrics",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus mode",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus monte-carlo-sweep",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus morning",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus notify-clear",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus notify-list",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus pack-init",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus pack-list",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus profile-merge",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus quest-generate",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus quest-list",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus record",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus reward-claim",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus shield-use",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus shop-buy",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus shop-list",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus status",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars ludus sync-github",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ars openclaw",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext ars openclaw approvals",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext ars openclaw approve",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext ars openclaw config",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext ars openclaw deny",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext ars openclaw doctor",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext ars openclaw gateway-call",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext ars openclaw import",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext ars openclaw list-remote",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext ars openclaw notify",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext ars openclaw search-remote",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext ars openclaw serve",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext ars openclaw sidecar",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext ars openclaw sidecar start",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext ars openclaw sidecar status",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext ars openclaw sidecar stop",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext ars openclaw subscribe",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext ars openclaw subscriptions",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext ars openclaw unsubscribe",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext ars share",
+      "feature_gate": null
+    },
+    {
+      "path": "ext ars share feedback",
+      "feature_gate": null
+    },
+    {
+      "path": "ext ars share list",
+      "feature_gate": null
+    },
+    {
+      "path": "ext ars share publish",
+      "feature_gate": null
+    },
+    {
+      "path": "ext ars share search",
+      "feature_gate": null
+    },
+    {
+      "path": "ext ars skill",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext ars skill add",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext ars skill context-assemble",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext ars skill create",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext ars skill discover",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext ars skill eval-task",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext ars skill info",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext ars skill install",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext ars skill list",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext ars skill promote",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext ars skill run",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext ars skill search",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext ars skill suggest",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext ars skill uninstall",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext ars snippet",
+      "feature_gate": null
+    },
+    {
+      "path": "ext ars snippet export",
+      "feature_gate": null
+    },
+    {
+      "path": "ext ars snippet save",
+      "feature_gate": null
+    },
+    {
+      "path": "ext ars snippet search",
+      "feature_gate": null
+    },
+    {
+      "path": "ext ludus",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus arena-join",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus arena-leaderboard",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus arena-show",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus audit",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus auth",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus battle-start",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus battle-submit",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus challenge-list",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus challenge-start",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus challenge-submit",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus collegium-join",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus collegium-list",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus collegium-new",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus collegium-status",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus companion-create",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus companion-interact",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus companion-list",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus companion-show",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus digest",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus digest-weekly",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus disable",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus dispute-appeal",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus dispute-file",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus dispute-status",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus dispute-vote",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus enable",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus feedback-rate",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus glyph-list",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus hint",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus leaderboard-show",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus metrics",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus mode",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus monte-carlo-sweep",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus morning",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus notify-clear",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus notify-list",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus pack-init",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus pack-list",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus profile-merge",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus quest-generate",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus quest-list",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus record",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus reward-claim",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus shield-use",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus shop-buy",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus shop-list",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus status",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext ludus sync-github",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "ext mens",
+      "feature_gate": "mens-base|gpu"
+    },
+    {
+      "path": "ext openclaw",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext openclaw approvals",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext openclaw approve",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext openclaw config",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext openclaw deny",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext openclaw doctor",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext openclaw gateway-call",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext openclaw import",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext openclaw list-remote",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext openclaw notify",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext openclaw search-remote",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext openclaw serve",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext openclaw sidecar",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext openclaw sidecar start",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext openclaw sidecar status",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext openclaw sidecar stop",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext openclaw subscribe",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext openclaw subscriptions",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext openclaw unsubscribe",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext oratio",
+      "feature_gate": "oratio"
+    },
+    {
+      "path": "ext populi",
+      "feature_gate": "populi"
+    },
+    {
+      "path": "ext skill",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext skill add",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext skill context-assemble",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext skill create",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext skill discover",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext skill eval-task",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext skill info",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext skill install",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext skill list",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext skill promote",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext skill run",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext skill search",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext skill suggest",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext skill uninstall",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "ext train",
+      "feature_gate": "gpu+mens-dei"
+    },
+    {
+      "path": "fabrica",
+      "feature_gate": null
+    },
+    {
+      "path": "fabrica build",
+      "feature_gate": null
+    },
+    {
+      "path": "fabrica bundle",
+      "feature_gate": null
+    },
+    {
+      "path": "fabrica check",
+      "feature_gate": null
+    },
+    {
+      "path": "fabrica compile",
+      "feature_gate": null
+    },
+    {
+      "path": "fabrica dev",
+      "feature_gate": null
+    },
+    {
+      "path": "fabrica fmt",
+      "feature_gate": null
+    },
+    {
+      "path": "fabrica run",
+      "feature_gate": null
+    },
+    {
+      "path": "fabrica script",
+      "feature_gate": "script-execution"
+    },
+    {
+      "path": "fabrica test",
+      "feature_gate": null
+    },
+    {
+      "path": "fmt",
+      "feature_gate": null
+    },
+    {
+      "path": "gamify",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify arena-join",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify arena-leaderboard",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify arena-show",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify audit",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify auth",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify battle-start",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify battle-submit",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify challenge-list",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify challenge-start",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify challenge-submit",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify collegium-join",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify collegium-list",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify collegium-new",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify collegium-status",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify companion-create",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify companion-interact",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify companion-list",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify companion-show",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify digest",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify digest-weekly",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify disable",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify dispute-appeal",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify dispute-file",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify dispute-status",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify dispute-vote",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify enable",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify feedback-rate",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify glyph-list",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify hint",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify hud",
+      "feature_gate": "ludus-hud"
+    },
+    {
+      "path": "gamify leaderboard-show",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify metrics",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify mode",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify monte-carlo-sweep",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify morning",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify notify-clear",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify notify-list",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify pack-init",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify pack-list",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify profile-merge",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify quest-generate",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify quest-list",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify record",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify reward-claim",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify shield-use",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify shop-buy",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify shop-list",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify status",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "gamify sync-github",
+      "feature_gate": "extras-ludus"
+    },
+    {
+      "path": "generate",
+      "feature_gate": null
+    },
+    {
+      "path": "grammar",
+      "feature_gate": null
+    },
+    {
+      "path": "graph",
+      "feature_gate": null
+    },
+    {
+      "path": "graph coverage",
+      "feature_gate": null
+    },
+    {
+      "path": "graph crate-map",
+      "feature_gate": null
+    },
+    {
+      "path": "graph gc",
+      "feature_gate": null
+    },
+    {
+      "path": "graph index",
+      "feature_gate": null
+    },
+    {
+      "path": "graph ingest",
+      "feature_gate": null
+    },
+    {
+      "path": "graph query",
+      "feature_gate": null
+    },
+    {
+      "path": "graph rebuild",
+      "feature_gate": null
+    },
+    {
+      "path": "graph refresh",
+      "feature_gate": null
+    },
+    {
+      "path": "graph status",
+      "feature_gate": null
+    },
+    {
+      "path": "graph why-rebuilt",
+      "feature_gate": null
+    },
+    {
+      "path": "gui",
+      "feature_gate": "gui"
+    },
+    {
+      "path": "gui drive",
+      "feature_gate": "gui"
+    },
+    {
+      "path": "gui drive headless",
+      "feature_gate": "gui"
+    },
+    {
+      "path": "gui drive headless send",
+      "feature_gate": "gui"
+    },
+    {
+      "path": "gui drive headless set",
+      "feature_gate": "gui"
+    },
+    {
+      "path": "gui drive headless state",
+      "feature_gate": "gui"
+    },
+    {
+      "path": "gui drive send",
+      "feature_gate": "gui"
+    },
+    {
+      "path": "gui drive set",
+      "feature_gate": "gui"
+    },
+    {
+      "path": "gui drive show",
+      "feature_gate": "gui"
+    },
+    {
+      "path": "gui drive start",
+      "feature_gate": "gui"
+    },
+    {
+      "path": "gui drive state",
+      "feature_gate": "gui"
+    },
+    {
+      "path": "gui drive stop",
+      "feature_gate": "gui"
+    },
+    {
+      "path": "gui drive wait",
+      "feature_gate": "gui"
+    },
+    {
+      "path": "harness",
+      "feature_gate": null
+    },
+    {
+      "path": "harness eval",
+      "feature_gate": null
+    },
+    {
+      "path": "harness history",
+      "feature_gate": null
+    },
+    {
+      "path": "harness publish",
+      "feature_gate": null
+    },
+    {
+      "path": "harness report",
+      "feature_gate": null
+    },
+    {
+      "path": "init",
+      "feature_gate": null
+    },
+    {
+      "path": "live",
+      "feature_gate": "live"
+    },
+    {
+      "path": "llm",
+      "feature_gate": null
+    },
+    {
+      "path": "llm prompt",
+      "feature_gate": null
+    },
+    {
+      "path": "lock",
+      "feature_gate": null
+    },
+    {
+      "path": "login",
+      "feature_gate": null
+    },
+    {
+      "path": "logout",
+      "feature_gate": null
+    },
+    {
+      "path": "lsp",
+      "feature_gate": null
+    },
+    {
+      "path": "mcp",
+      "feature_gate": "mcp-server"
+    },
+    {
+      "path": "memory",
+      "feature_gate": null
+    },
+    {
+      "path": "memory search",
+      "feature_gate": null
+    },
+    {
+      "path": "mens",
+      "feature_gate": "mens-base|gpu"
+    },
+    {
+      "path": "mens bench-completion",
+      "feature_gate": "mens-base"
+    },
+    {
+      "path": "mens check",
+      "feature_gate": "mens-dei"
+    },
+    {
+      "path": "mens cloud-estimate",
+      "feature_gate": "cloud"
+    },
+    {
+      "path": "mens corpus",
+      "feature_gate": "mens-base"
+    },
+    {
+      "path": "mens eval-gate",
+      "feature_gate": "mens-base"
+    },
+    {
+      "path": "mens eval-local",
+      "feature_gate": "gpu"
+    },
+    {
+      "path": "mens fix",
+      "feature_gate": "mens-dei"
+    },
+    {
+      "path": "mens generate",
+      "feature_gate": "mens-dei"
+    },
+    {
+      "path": "mens merge-qlora",
+      "feature_gate": "gpu"
+    },
+    {
+      "path": "mens merge-weights",
+      "feature_gate": "gpu"
+    },
+    {
+      "path": "mens pipeline",
+      "feature_gate": "mens-base"
+    },
+    {
+      "path": "mens plan",
+      "feature_gate": "mens-base"
+    },
+    {
+      "path": "mens probe",
+      "feature_gate": "gpu"
+    },
+    {
+      "path": "mens review",
+      "feature_gate": "mens-dei"
+    },
+    {
+      "path": "mens serve",
+      "feature_gate": "gpu"
+    },
+    {
+      "path": "mens status",
+      "feature_gate": "mens-base"
+    },
+    {
+      "path": "mens system-prompt-template",
+      "feature_gate": "mens-base"
+    },
+    {
+      "path": "mens train",
+      "feature_gate": "gpu"
+    },
+    {
+      "path": "mens watch-telemetry",
+      "feature_gate": "mens-base"
+    },
+    {
+      "path": "mens workflow check",
+      "feature_gate": "mens-dei"
+    },
+    {
+      "path": "mens workflow inspect",
+      "feature_gate": "mens-dei"
+    },
+    {
+      "path": "mens workflow list",
+      "feature_gate": "mens-dei"
+    },
+    {
+      "path": "mens workflow run",
+      "feature_gate": "mens-dei"
+    },
+    {
+      "path": "migrate",
+      "feature_gate": null
+    },
+    {
+      "path": "migrate names",
+      "feature_gate": null
+    },
+    {
+      "path": "migrate web",
+      "feature_gate": null
+    },
+    {
+      "path": "model",
+      "feature_gate": null
+    },
+    {
+      "path": "model cas",
+      "feature_gate": null
+    },
+    {
+      "path": "model cas ls",
+      "feature_gate": null
+    },
+    {
+      "path": "model cas pull",
+      "feature_gate": null
+    },
+    {
+      "path": "model cas push",
+      "feature_gate": null
+    },
+    {
+      "path": "model classify",
+      "feature_gate": null
+    },
+    {
+      "path": "model costs",
+      "feature_gate": null
+    },
+    {
+      "path": "model council-report",
+      "feature_gate": null
+    },
+    {
+      "path": "model discover",
+      "feature_gate": null
+    },
+    {
+      "path": "model eval",
+      "feature_gate": null
+    },
+    {
+      "path": "model eval-corpus",
+      "feature_gate": null
+    },
+    {
+      "path": "model explain",
+      "feature_gate": null
+    },
+    {
+      "path": "model list",
+      "feature_gate": null
+    },
+    {
+      "path": "model preferences",
+      "feature_gate": null
+    },
+    {
+      "path": "model preferences reset",
+      "feature_gate": null
+    },
+    {
+      "path": "model preferences set",
+      "feature_gate": null
+    },
+    {
+      "path": "model pricing",
+      "feature_gate": null
+    },
+    {
+      "path": "model pricing check",
+      "feature_gate": null
+    },
+    {
+      "path": "model pricing refresh",
+      "feature_gate": null
+    },
+    {
+      "path": "model pricing rollup",
+      "feature_gate": null
+    },
+    {
+      "path": "model pricing show",
+      "feature_gate": null
+    },
+    {
+      "path": "model rollup",
+      "feature_gate": null
+    },
+    {
+      "path": "model scoreboard",
+      "feature_gate": null
+    },
+    {
+      "path": "model shadow",
+      "feature_gate": null
+    },
+    {
+      "path": "model show",
+      "feature_gate": null
+    },
+    {
+      "path": "new",
+      "feature_gate": null
+    },
+    {
+      "path": "new fn",
+      "feature_gate": null
+    },
+    {
+      "path": "new skill",
+      "feature_gate": null
+    },
+    {
+      "path": "new web",
+      "feature_gate": null
+    },
+    {
+      "path": "openclaw",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "openclaw approvals",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "openclaw approve",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "openclaw config",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "openclaw deny",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "openclaw doctor",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "openclaw gateway-call",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "openclaw import",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "openclaw list-remote",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "openclaw notify",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "openclaw search-remote",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "openclaw serve",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "openclaw sidecar",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "openclaw sidecar start",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "openclaw sidecar status",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "openclaw sidecar stop",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "openclaw subscribe",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "openclaw subscriptions",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "openclaw unsubscribe",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "plan",
+      "feature_gate": null
+    },
+    {
+      "path": "plan create",
+      "feature_gate": null
+    },
+    {
+      "path": "plan replan",
+      "feature_gate": null
+    },
+    {
+      "path": "plan status",
+      "feature_gate": null
+    },
+    {
+      "path": "play",
+      "feature_gate": null
+    },
+    {
+      "path": "plugin",
+      "feature_gate": null
+    },
+    {
+      "path": "plugin doctor",
+      "feature_gate": null
+    },
+    {
+      "path": "plugin info",
+      "feature_gate": null
+    },
+    {
+      "path": "plugin install",
+      "feature_gate": null
+    },
+    {
+      "path": "plugin list",
+      "feature_gate": null
+    },
+    {
+      "path": "plugin publish",
+      "feature_gate": null
+    },
+    {
+      "path": "plugin remove",
+      "feature_gate": null
+    },
+    {
+      "path": "plugin scaffold",
+      "feature_gate": null
+    },
+    {
+      "path": "pm",
+      "feature_gate": null
+    },
+    {
+      "path": "pm cache",
+      "feature_gate": null
+    },
+    {
+      "path": "pm cache clear",
+      "feature_gate": null
+    },
+    {
+      "path": "pm cache status",
+      "feature_gate": null
+    },
+    {
+      "path": "pm info",
+      "feature_gate": null
+    },
+    {
+      "path": "pm mirror",
+      "feature_gate": null
+    },
+    {
+      "path": "pm publish",
+      "feature_gate": null
+    },
+    {
+      "path": "pm search",
+      "feature_gate": null
+    },
+    {
+      "path": "pm vendor",
+      "feature_gate": null
+    },
+    {
+      "path": "pm verify",
+      "feature_gate": null
+    },
+    {
+      "path": "pm yank",
+      "feature_gate": null
+    },
+    {
+      "path": "policy",
+      "feature_gate": null
+    },
+    {
+      "path": "policy domains",
+      "feature_gate": null
+    },
+    {
+      "path": "policy groups",
+      "feature_gate": null
+    },
+    {
+      "path": "policy list",
+      "feature_gate": null
+    },
+    {
+      "path": "policy show",
+      "feature_gate": null
+    },
+    {
+      "path": "policy status",
+      "feature_gate": null
+    },
+    {
+      "path": "populi",
+      "feature_gate": "populi"
+    },
+    {
+      "path": "populi down",
+      "feature_gate": "populi"
+    },
+    {
+      "path": "populi registry-snapshot",
+      "feature_gate": "populi"
+    },
+    {
+      "path": "populi serve",
+      "feature_gate": "populi"
+    },
+    {
+      "path": "populi status",
+      "feature_gate": "populi"
+    },
+    {
+      "path": "populi up",
+      "feature_gate": "populi"
+    },
+    {
+      "path": "recensio",
+      "feature_gate": "coderabbit"
+    },
+    {
+      "path": "recensio coderabbit",
+      "feature_gate": "coderabbit"
+    },
+    {
+      "path": "recensio coderabbit batch-submit",
+      "feature_gate": "coderabbit"
+    },
+    {
+      "path": "recensio coderabbit db-backfill",
+      "feature_gate": "coderabbit"
+    },
+    {
+      "path": "recensio coderabbit db-report",
+      "feature_gate": "coderabbit"
+    },
+    {
+      "path": "recensio coderabbit db-status",
+      "feature_gate": "coderabbit"
+    },
+    {
+      "path": "recensio coderabbit deadletter-retry",
+      "feature_gate": "coderabbit"
+    },
+    {
+      "path": "recensio coderabbit historical-submit",
+      "feature_gate": "coderabbit"
+    },
+    {
+      "path": "recensio coderabbit ingest",
+      "feature_gate": "coderabbit"
+    },
+    {
+      "path": "recensio coderabbit learning-sync",
+      "feature_gate": "coderabbit"
+    },
+    {
+      "path": "recensio coderabbit semantic-submit",
+      "feature_gate": "coderabbit"
+    },
+    {
+      "path": "recensio coderabbit stack-submit",
+      "feature_gate": "coderabbit"
+    },
+    {
+      "path": "recensio coderabbit submit",
+      "feature_gate": "coderabbit"
+    },
+    {
+      "path": "recensio coderabbit tasks",
+      "feature_gate": "coderabbit"
+    },
+    {
+      "path": "recensio coderabbit wait",
+      "feature_gate": "coderabbit"
+    },
+    {
+      "path": "remove",
+      "feature_gate": null
+    },
+    {
+      "path": "repair",
+      "feature_gate": null
+    },
+    {
+      "path": "repl",
+      "feature_gate": null
+    },
+    {
+      "path": "repo",
+      "feature_gate": null
+    },
+    {
+      "path": "repo catalog",
+      "feature_gate": null
+    },
+    {
+      "path": "repo catalog list",
+      "feature_gate": null
+    },
+    {
+      "path": "repo catalog refresh",
+      "feature_gate": null
+    },
+    {
+      "path": "repo init",
+      "feature_gate": null
+    },
+    {
+      "path": "repo query",
+      "feature_gate": null
+    },
+    {
+      "path": "repo query file",
+      "feature_gate": null
+    },
+    {
+      "path": "repo query history",
+      "feature_gate": null
+    },
+    {
+      "path": "repo query text",
+      "feature_gate": null
+    },
+    {
+      "path": "repo status",
+      "feature_gate": null
+    },
+    {
+      "path": "research",
+      "feature_gate": null
+    },
+    {
+      "path": "research down",
+      "feature_gate": null
+    },
+    {
+      "path": "research eval",
+      "feature_gate": null
+    },
+    {
+      "path": "research history",
+      "feature_gate": null
+    },
+    {
+      "path": "research preview",
+      "feature_gate": null
+    },
+    {
+      "path": "research result",
+      "feature_gate": null
+    },
+    {
+      "path": "research run",
+      "feature_gate": null
+    },
+    {
+      "path": "research search",
+      "feature_gate": null
+    },
+    {
+      "path": "research show",
+      "feature_gate": null
+    },
+    {
+      "path": "research status",
+      "feature_gate": null
+    },
+    {
+      "path": "research up",
+      "feature_gate": null
+    },
+    {
+      "path": "research watch",
+      "feature_gate": null
+    },
+    {
+      "path": "review",
+      "feature_gate": "coderabbit"
+    },
+    {
+      "path": "review coderabbit",
+      "feature_gate": "coderabbit"
+    },
+    {
+      "path": "review coderabbit batch-submit",
+      "feature_gate": "coderabbit"
+    },
+    {
+      "path": "review coderabbit db-backfill",
+      "feature_gate": "coderabbit"
+    },
+    {
+      "path": "review coderabbit db-report",
+      "feature_gate": "coderabbit"
+    },
+    {
+      "path": "review coderabbit db-status",
+      "feature_gate": "coderabbit"
+    },
+    {
+      "path": "review coderabbit deadletter-retry",
+      "feature_gate": "coderabbit"
+    },
+    {
+      "path": "review coderabbit historical-submit",
+      "feature_gate": "coderabbit"
+    },
+    {
+      "path": "review coderabbit ingest",
+      "feature_gate": "coderabbit"
+    },
+    {
+      "path": "review coderabbit learning-sync",
+      "feature_gate": "coderabbit"
+    },
+    {
+      "path": "review coderabbit semantic-submit",
+      "feature_gate": "coderabbit"
+    },
+    {
+      "path": "review coderabbit stack-submit",
+      "feature_gate": "coderabbit"
+    },
+    {
+      "path": "review coderabbit submit",
+      "feature_gate": "coderabbit"
+    },
+    {
+      "path": "review coderabbit tasks",
+      "feature_gate": "coderabbit"
+    },
+    {
+      "path": "review coderabbit wait",
+      "feature_gate": "coderabbit"
+    },
+    {
+      "path": "rollback",
+      "feature_gate": null
+    },
+    {
+      "path": "run",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia capability-list",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia claims",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia collection-transform-preview",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia cost",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia dashboard",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia diagnose",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia discovery-watch",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia evidence-assist",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia feed-source-add",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia feed-source-list",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia finding-candidate-validate",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia ingest-tick",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia mirror-search-corpus",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia novelty-evidence-bundle-validate",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-approve",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-archive-code",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-archive-run",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-arxiv-bundle",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-arxiv-handoff-record",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-autofill",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-claim-review",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-critic-approve",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-critic-gate-check",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-dashboard-snapshot",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-decision-explain",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-discovery-explain",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-discovery-publish-rss",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-discovery-scan",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-external-jobs-dead-letter",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-external-jobs-due",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-external-jobs-replay",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-external-jobs-tick",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-external-pipeline-metrics",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-extract-claims",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-finding-page-render",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-manuscript-draft",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-nanopub-build",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-novelty-fetch",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-novelty-happy-path",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-openreview-profile",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-preflight",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-prepare",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-prepare-validated",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-render-latex",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-replay-execute",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-review-queue",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-scholarly-pipeline-run",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-scholarly-remote-status",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-scholarly-remote-status-sync-all",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-scholarly-remote-status-sync-batch",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-scholarly-staging-export",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-status",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-submit-local",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-transform-preview",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-venue-recommend",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-worthiness-evaluate",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia publication-zenodo-metadata",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia research-list",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia research-map-list",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia research-refresh",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia retrieval-status",
+      "feature_gate": null
+    },
+    {
+      "path": "scientia scout",
+      "feature_gate": null
+    },
+    {
+      "path": "script",
+      "feature_gate": "script-execution"
+    },
+    {
+      "path": "secrets",
+      "feature_gate": null
+    },
+    {
+      "path": "secrets backend-status",
+      "feature_gate": null
+    },
+    {
+      "path": "secrets get",
+      "feature_gate": null
+    },
+    {
+      "path": "secrets import-env",
+      "feature_gate": null
+    },
+    {
+      "path": "secrets login",
+      "feature_gate": null
+    },
+    {
+      "path": "secrets migrate-auth-store",
+      "feature_gate": null
+    },
+    {
+      "path": "secrets set",
+      "feature_gate": null
+    },
+    {
+      "path": "secrets status",
+      "feature_gate": null
+    },
+    {
+      "path": "secrets sync",
+      "feature_gate": null
+    },
+    {
+      "path": "share",
+      "feature_gate": null
+    },
+    {
+      "path": "shell",
+      "feature_gate": null
+    },
+    {
+      "path": "shell check",
+      "feature_gate": null
+    },
+    {
+      "path": "shell repl",
+      "feature_gate": null
+    },
+    {
+      "path": "skill",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "skill add",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "skill context-assemble",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "skill create",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "skill discover",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "skill eval-task",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "skill info",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "skill install",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "skill list",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "skill promote",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "skill run",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "skill search",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "skill suggest",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "skill uninstall",
+      "feature_gate": "ars"
+    },
+    {
+      "path": "snapshot",
+      "feature_gate": null
+    },
+    {
+      "path": "snapshot orphans",
+      "feature_gate": null
+    },
+    {
+      "path": "snippet",
+      "feature_gate": null
+    },
+    {
+      "path": "snippet export",
+      "feature_gate": null
+    },
+    {
+      "path": "snippet save",
+      "feature_gate": null
+    },
+    {
+      "path": "snippet search",
+      "feature_gate": null
+    },
+    {
+      "path": "speech",
+      "feature_gate": "oratio"
+    },
+    {
+      "path": "stop",
+      "feature_gate": "dei"
+    },
+    {
+      "path": "stub-check",
+      "feature_gate": "stub-check"
+    },
+    {
+      "path": "sync",
+      "feature_gate": null
+    },
+    {
+      "path": "telemetry",
+      "feature_gate": null
+    },
+    {
+      "path": "telemetry consent",
+      "feature_gate": null
+    },
+    {
+      "path": "telemetry consent deny",
+      "feature_gate": null
+    },
+    {
+      "path": "telemetry consent grant",
+      "feature_gate": null
+    },
+    {
+      "path": "telemetry consent status",
+      "feature_gate": null
+    },
+    {
+      "path": "telemetry doctor",
+      "feature_gate": null
+    },
+    {
+      "path": "telemetry enqueue",
+      "feature_gate": null
+    },
+    {
+      "path": "telemetry export",
+      "feature_gate": null
+    },
+    {
+      "path": "telemetry status",
+      "feature_gate": null
+    },
+    {
+      "path": "telemetry upload",
+      "feature_gate": null
+    },
+    {
+      "path": "term",
+      "feature_gate": null
+    },
+    {
+      "path": "test",
+      "feature_gate": null
+    },
+    {
+      "path": "train",
+      "feature_gate": "gpu+mens-dei"
+    },
+    {
+      "path": "update",
+      "feature_gate": null
+    },
+    {
+      "path": "upgrade",
+      "feature_gate": null
+    },
+    {
+      "path": "visus audit",
+      "feature_gate": "dei"
+    },
+    {
+      "path": "visus baseline",
+      "feature_gate": "dei"
+    },
+    {
+      "path": "workflow",
+      "feature_gate": null
+    },
+    {
+      "path": "workflow drain",
+      "feature_gate": null
+    },
+    {
+      "path": "workflow ls",
+      "feature_gate": null
+    },
+    {
+      "path": "workflow preview",
+      "feature_gate": null
+    }
   ],
   "operations_rows": [
     "a2a.ack",
@@ -603,12 +4007,110 @@
     "approvals.resolve",
     "architect",
     "ars",
+    "ars.ludus",
+    "ars.ludus.arena-join",
+    "ars.ludus.arena-leaderboard",
+    "ars.ludus.arena-show",
+    "ars.ludus.audit",
+    "ars.ludus.auth",
+    "ars.ludus.battle-start",
+    "ars.ludus.battle-submit",
+    "ars.ludus.challenge-list",
+    "ars.ludus.challenge-start",
+    "ars.ludus.challenge-submit",
+    "ars.ludus.collegium-join",
+    "ars.ludus.collegium-list",
+    "ars.ludus.collegium-new",
+    "ars.ludus.collegium-status",
+    "ars.ludus.companion-create",
+    "ars.ludus.companion-interact",
+    "ars.ludus.companion-list",
+    "ars.ludus.companion-show",
+    "ars.ludus.digest",
+    "ars.ludus.digest-weekly",
+    "ars.ludus.disable",
+    "ars.ludus.dispute-appeal",
+    "ars.ludus.dispute-file",
+    "ars.ludus.dispute-status",
+    "ars.ludus.dispute-vote",
+    "ars.ludus.enable",
+    "ars.ludus.feedback-rate",
+    "ars.ludus.glyph-list",
+    "ars.ludus.hint",
+    "ars.ludus.leaderboard-show",
+    "ars.ludus.metrics",
+    "ars.ludus.mode",
+    "ars.ludus.monte-carlo-sweep",
+    "ars.ludus.morning",
+    "ars.ludus.notify-clear",
+    "ars.ludus.notify-list",
+    "ars.ludus.pack-init",
+    "ars.ludus.pack-list",
+    "ars.ludus.profile-merge",
+    "ars.ludus.quest-generate",
+    "ars.ludus.quest-list",
+    "ars.ludus.record",
+    "ars.ludus.reward-claim",
+    "ars.ludus.shield-use",
+    "ars.ludus.shop-buy",
+    "ars.ludus.shop-list",
+    "ars.ludus.status",
+    "ars.ludus.sync-github",
+    "ars.openclaw",
+    "ars.openclaw.approvals",
+    "ars.openclaw.approve",
+    "ars.openclaw.config",
+    "ars.openclaw.deny",
+    "ars.openclaw.doctor",
+    "ars.openclaw.gateway-call",
+    "ars.openclaw.import",
+    "ars.openclaw.list-remote",
+    "ars.openclaw.notify",
+    "ars.openclaw.search-remote",
+    "ars.openclaw.serve",
+    "ars.openclaw.sidecar",
+    "ars.openclaw.sidecar.start",
+    "ars.openclaw.sidecar.status",
+    "ars.openclaw.sidecar.stop",
+    "ars.openclaw.subscribe",
+    "ars.openclaw.subscriptions",
+    "ars.openclaw.unsubscribe",
+    "ars.share",
+    "ars.share.feedback",
+    "ars.share.list",
+    "ars.share.publish",
+    "ars.share.search",
+    "ars.skill",
+    "ars.skill.add",
+    "ars.skill.context-assemble",
+    "ars.skill.create",
+    "ars.skill.discover",
+    "ars.skill.eval-task",
+    "ars.skill.info",
+    "ars.skill.install",
+    "ars.skill.list",
+    "ars.skill.promote",
+    "ars.skill.run",
+    "ars.skill.search",
+    "ars.skill.suggest",
+    "ars.skill.uninstall",
+    "ars.snippet",
+    "ars.snippet.export",
+    "ars.snippet.save",
+    "ars.snippet.search",
     "ask.agent",
     "ask.clarification",
     "attention.history",
     "attention.reset",
     "attention.summary",
     "audit",
+    "audit.arch",
+    "audit.code",
+    "audit.core",
+    "audit.effort",
+    "audit.effort-route",
+    "audit.research-parity",
+    "audit.retirement",
     "auth",
     "auth.connect",
     "auth.init",
@@ -661,8 +4163,17 @@
     "builtin.registry",
     "bundle",
     "bundle-app",
+    "bundle.apply",
+    "bundle.build",
+    "bundle.list",
+    "bundle.verify",
     "cancel.task",
     "capability.model.manifest",
+    "catalog",
+    "catalog.add",
+    "catalog.focus",
+    "catalog.list",
+    "catalog.remove",
     "change.create",
     "change.log",
     "chat",
@@ -674,48 +4185,99 @@
     "check.mood",
     "check.workspace",
     "ci",
+    "ci.affected-crates",
+    "ci.agentskills-compliance",
     "ci.ai-fixtures-coverage",
     "ci.artifact-audit",
     "ci.artifact-prune",
+    "ci.attention-config-parity",
+    "ci.attention-event-ledger-parity",
     "ci.backend-tests",
+    "ci.bom-check",
     "ci.build-bench",
+    "ci.build-cache-doctor",
     "ci.build-docs",
     "ci.build-timings",
+    "ci.cache-key-lint",
+    "ci.canonical-map-verify",
+    "ci.capability-snapshot",
     "ci.capability-sync",
     "ci.check-codex-ssot",
     "ci.check-docs-ssot",
+    "ci.check-frozen",
     "ci.check-links",
     "ci.check-summary-drift",
+    "ci.collateral-damage-gate",
     "ci.command-compliance",
     "ci.command-sync",
+    "ci.commit-lint",
     "ci.compile-matrix",
     "ci.completion-audit",
     "ci.completion-gates",
     "ci.completion-ingest",
+    "ci.config-gui-codegen",
     "ci.config-hygiene",
     "ci.config-registry-parity",
+    "ci.constrained-gen-smoke",
     "ci.contracts-index",
     "ci.coolify-eval",
+    "ci.coolify-eval.discover",
+    "ci.coolify-eval.sync-compose",
+    "ci.corpus-decl-coverage",
     "ci.coverage-gates",
+    "ci.crate-budget",
+    "ci.crate-build-map-parity",
+    "ci.crate-edges",
     "ci.cuda-features",
     "ci.cuda-release-build",
     "ci.data-ssot-guards",
+    "ci.data-storage-guard",
     "ci.db-schema-coverage",
     "ci.dep-cycles",
+    "ci.dep-sprawl",
+    "ci.deploy-status",
+    "ci.detect-rules-bench",
+    "ci.determinism-audit",
     "ci.dev-loop-audit",
     "ci.doc-inventory",
+    "ci.doc-inventory.generate",
+    "ci.doc-inventory.verify",
     "ci.docs-reality-audit",
+    "ci.docs-reality-audit.metrics",
+    "ci.docs-reality-audit.verify",
+    "ci.doctest-md",
     "ci.eval-matrix",
     "ci.eval-matrix.run",
     "ci.eval-matrix.verify",
     "ci.exec-policy-contract",
+    "ci.fan-in-budget",
     "ci.feature-matrix",
     "ci.flake-budget",
+    "ci.fmt-check",
+    "ci.free-binary",
+    "ci.generate-plugin-catalog-docs",
     "ci.grammar-drift",
+    "ci.grammar-export-check",
+    "ci.grammar-ssot-parity",
+    "ci.grpo-reward-baseline",
+    "ci.gui-catalog-parity",
+    "ci.gui-honesty",
     "ci.gui-smoke",
+    "ci.gui-surface-coverage",
+    "ci.gui-surface-registry",
+    "ci.gui-version-sync",
+    "ci.gui-visual-review",
+    "ci.harness-trust-guard",
     "ci.ignored-test-age",
+    "ci.install-hooks",
+    "ci.job-timings",
+    "ci.json-parse-check",
+    "ci.k-complexity-budget",
+    "ci.kill-stuck-tests",
     "ci.line-endings",
     "ci.manifest",
+    "ci.mcp-vox-surface-parity",
+    "ci.mens-corpus-health",
     "ci.mens-scorecard",
     "ci.mens-scorecard.burn-rnd",
     "ci.mens-scorecard.decide",
@@ -723,40 +4285,81 @@
     "ci.mens-scorecard.run",
     "ci.mens-scorecard.verify",
     "ci.mesh-gate",
+    "ci.model-routing-check",
     "ci.no-dei-import",
+    "ci.no-plugin-cdylib-as-compile-dep",
+    "ci.no-tauri-in-core",
+    "ci.node-pnpm-ssot-guard",
     "ci.nomenclature-guard",
     "ci.openclaw-contract",
     "ci.operations-sync",
     "ci.operations-verify",
+    "ci.operator-env-guard",
     "ci.parse-status",
     "ci.pipeline-parity",
+    "ci.plugin-abi-parity",
+    "ci.plugin-catalog-parity",
+    "ci.plugin-catalog-sync",
+    "ci.plugin-dep-boundary",
+    "ci.plugin-skill-parity",
+    "ci.plugin-surface-sync",
     "ci.pm-provenance",
     "ci.policy-allowlist-parity",
+    "ci.policy-registry",
+    "ci.policy-registry-parity",
     "ci.policy-smoke",
     "ci.pre-push",
+    "ci.profile-parity",
     "ci.query-all-guard",
+    "ci.queue",
     "ci.release-build",
+    "ci.release-draft-guard",
     "ci.repo-guards",
+    "ci.required-context-guard",
+    "ci.retired-symbol-check",
     "ci.retirement-audit",
+    "ci.row-serde-lint",
+    "ci.runner-policy-check",
+    "ci.runner-preflight",
+    "ci.runner-scale",
+    "ci.runner-status",
     "ci.runtime-regress",
     "ci.rust-ecosystem-policy",
     "ci.safety-inventory",
     "ci.scaling-audit",
     "ci.scaling-audit.emit-reports",
     "ci.scaling-audit.verify",
+    "ci.scientia-heuristics-parity",
     "ci.scientia-novelty-ledger-contracts",
     "ci.scientia-worthiness-contract",
+    "ci.script-hygiene",
     "ci.secret-env-guard",
+    "ci.secrets-contracts",
+    "ci.secrets-cutover-audit",
+    "ci.secrets-cutover-gates",
     "ci.secrets-parity",
+    "ci.source-token-budget",
     "ci.speech-runtime-suite",
+    "ci.spoke-check",
     "ci.sql-surface-guard",
+    "ci.ssot-audit",
     "ci.ssot-drift",
+    "ci.string-id-lint",
+    "ci.sync-ignore-files",
     "ci.test-inventory",
     "ci.test-runtime-report",
+    "ci.tier-budget-check",
+    "ci.toestub-budget",
     "ci.toestub-scoped",
     "ci.toestub-self-apply",
+    "ci.toolchain-ssot",
+    "ci.toolchain-workflow-lint",
     "ci.turso-import-guard",
+    "ci.vox-parse-check",
+    "ci.watch-run",
+    "ci.workflow-concurrency-guard",
     "ci.workflow-scripts",
+    "ci.yaml-parse-check",
     "claim.file",
     "codex",
     "codex.cutover",
@@ -776,41 +4379,111 @@
     "component",
     "config",
     "config.get",
+    "config.list",
     "config.set",
+    "config.sync",
+    "config.unset",
     "conflict.diff",
     "conflicts",
     "container",
+    "container.build",
+    "container.run",
     "context.budget",
     "cost.history",
     "coverage.report",
     "credentials.status",
     "db",
     "db.audit",
+    "db.build-health",
+    "db.build-regressions",
+    "db.capability-list",
     "db.conversation.edge.insert",
     "db.conversation.version.append",
     "db.data.flow",
+    "db.discovery-watch",
+    "db.exec-history",
+    "db.explain",
     "db.explain.query",
+    "db.export",
+    "db.feed-source-add",
+    "db.feed-source-list",
+    "db.import",
+    "db.ingest-tick",
+    "db.introspect",
+    "db.mens-metrics",
+    "db.mens-runs",
+    "db.migrate",
     "db.mirror-search-corpus",
+    "db.pref-get",
+    "db.pref-list",
+    "db.pref-set",
+    "db.prune",
     "db.prune-apply",
     "db.prune-plan",
+    "db.publication-approve",
+    "db.publication-archive-code",
+    "db.publication-archive-run",
+    "db.publication-arxiv-handoff-record",
+    "db.publication-autofill",
     "db.publication-decision-explain",
     "db.publication-discovery-explain",
+    "db.publication-discovery-publish-rss",
     "db.publication-discovery-refresh-evidence",
     "db.publication-discovery-scan",
+    "db.publication-external-jobs-dead-letter",
+    "db.publication-external-jobs-due",
+    "db.publication-external-jobs-replay",
+    "db.publication-external-jobs-tick",
+    "db.publication-external-pipeline-metrics",
+    "db.publication-media-delete",
+    "db.publication-media-list",
+    "db.publication-media-upsert",
     "db.publication-novelty-fetch",
     "db.publication-novelty-happy-path",
+    "db.publication-openreview-profile",
+    "db.publication-preflight",
+    "db.publication-prepare",
+    "db.publication-prepare-validated",
+    "db.publication-publish",
+    "db.publication-retry-failed",
+    "db.publication-route-simulate",
+    "db.publication-scholarly-pipeline-run",
+    "db.publication-scholarly-remote-status",
+    "db.publication-scholarly-remote-status-sync-all",
+    "db.publication-scholarly-remote-status-sync-batch",
+    "db.publication-scholarly-staging-export",
+    "db.publication-status",
+    "db.publication-submit-local",
     "db.publication-transform-preview",
+    "db.publication-worthiness-evaluate",
+    "db.publication-zenodo-metadata",
     "db.relationships",
+    "db.reliability-agents",
+    "db.reliability-list",
+    "db.research-ingest-file",
+    "db.research-ingest-url",
+    "db.research-list",
+    "db.research-map-add",
+    "db.research-map-list",
+    "db.research-metrics",
+    "db.research-refresh",
     "db.research.metric.linked",
     "db.research.session.upsert",
+    "db.reset",
+    "db.retrieval-status",
+    "db.sample",
     "db.sample.data",
     "db.schema",
+    "db.status",
     "db.suggest.query",
+    "db.sync-invocables",
     "db.topic.evolution.append",
     "db.trust.drift",
     "db.trust.propagate",
     "db.trust.rollups",
     "db.trust.summary",
+    "db.vacuum",
+    "db.verify",
     "decorator.registry",
     "dei",
     "dei.oplog.list",
@@ -824,22 +4497,262 @@
     "deploy",
     "dev",
     "diag",
+    "diag.doctor",
     "dispatch",
+    "dispatch.preview",
     "doctor",
     "doubt.task",
     "drain.agent",
     "drift-check",
     "emergency.stop",
     "emit",
+    "emit.client",
+    "emit.openapi",
     "exec.time.query",
     "exec.time.record",
     "export.grammar.ebnf",
     "ext",
+    "ext.ars",
+    "ext.ars.ludus",
+    "ext.ars.ludus.arena-join",
+    "ext.ars.ludus.arena-leaderboard",
+    "ext.ars.ludus.arena-show",
+    "ext.ars.ludus.audit",
+    "ext.ars.ludus.auth",
+    "ext.ars.ludus.battle-start",
+    "ext.ars.ludus.battle-submit",
+    "ext.ars.ludus.challenge-list",
+    "ext.ars.ludus.challenge-start",
+    "ext.ars.ludus.challenge-submit",
+    "ext.ars.ludus.collegium-join",
+    "ext.ars.ludus.collegium-list",
+    "ext.ars.ludus.collegium-new",
+    "ext.ars.ludus.collegium-status",
+    "ext.ars.ludus.companion-create",
+    "ext.ars.ludus.companion-interact",
+    "ext.ars.ludus.companion-list",
+    "ext.ars.ludus.companion-show",
+    "ext.ars.ludus.digest",
+    "ext.ars.ludus.digest-weekly",
+    "ext.ars.ludus.disable",
+    "ext.ars.ludus.dispute-appeal",
+    "ext.ars.ludus.dispute-file",
+    "ext.ars.ludus.dispute-status",
+    "ext.ars.ludus.dispute-vote",
+    "ext.ars.ludus.enable",
+    "ext.ars.ludus.feedback-rate",
+    "ext.ars.ludus.glyph-list",
+    "ext.ars.ludus.hint",
+    "ext.ars.ludus.leaderboard-show",
+    "ext.ars.ludus.metrics",
+    "ext.ars.ludus.mode",
+    "ext.ars.ludus.monte-carlo-sweep",
+    "ext.ars.ludus.morning",
+    "ext.ars.ludus.notify-clear",
+    "ext.ars.ludus.notify-list",
+    "ext.ars.ludus.pack-init",
+    "ext.ars.ludus.pack-list",
+    "ext.ars.ludus.profile-merge",
+    "ext.ars.ludus.quest-generate",
+    "ext.ars.ludus.quest-list",
+    "ext.ars.ludus.record",
+    "ext.ars.ludus.reward-claim",
+    "ext.ars.ludus.shield-use",
+    "ext.ars.ludus.shop-buy",
+    "ext.ars.ludus.shop-list",
+    "ext.ars.ludus.status",
+    "ext.ars.ludus.sync-github",
+    "ext.ars.openclaw",
+    "ext.ars.openclaw.approvals",
+    "ext.ars.openclaw.approve",
+    "ext.ars.openclaw.config",
+    "ext.ars.openclaw.deny",
+    "ext.ars.openclaw.doctor",
+    "ext.ars.openclaw.gateway-call",
+    "ext.ars.openclaw.import",
+    "ext.ars.openclaw.list-remote",
+    "ext.ars.openclaw.notify",
+    "ext.ars.openclaw.search-remote",
+    "ext.ars.openclaw.serve",
+    "ext.ars.openclaw.sidecar",
+    "ext.ars.openclaw.sidecar.start",
+    "ext.ars.openclaw.sidecar.status",
+    "ext.ars.openclaw.sidecar.stop",
+    "ext.ars.openclaw.subscribe",
+    "ext.ars.openclaw.subscriptions",
+    "ext.ars.openclaw.unsubscribe",
+    "ext.ars.share",
+    "ext.ars.share.feedback",
+    "ext.ars.share.list",
+    "ext.ars.share.publish",
+    "ext.ars.share.search",
+    "ext.ars.skill",
+    "ext.ars.skill.add",
+    "ext.ars.skill.context-assemble",
+    "ext.ars.skill.create",
+    "ext.ars.skill.discover",
+    "ext.ars.skill.eval-task",
+    "ext.ars.skill.info",
+    "ext.ars.skill.install",
+    "ext.ars.skill.list",
+    "ext.ars.skill.promote",
+    "ext.ars.skill.run",
+    "ext.ars.skill.search",
+    "ext.ars.skill.suggest",
+    "ext.ars.skill.uninstall",
+    "ext.ars.snippet",
+    "ext.ars.snippet.export",
+    "ext.ars.snippet.save",
+    "ext.ars.snippet.search",
+    "ext.ludus",
+    "ext.ludus.arena-join",
+    "ext.ludus.arena-leaderboard",
+    "ext.ludus.arena-show",
+    "ext.ludus.audit",
+    "ext.ludus.auth",
+    "ext.ludus.battle-start",
+    "ext.ludus.battle-submit",
+    "ext.ludus.challenge-list",
+    "ext.ludus.challenge-start",
+    "ext.ludus.challenge-submit",
+    "ext.ludus.collegium-join",
+    "ext.ludus.collegium-list",
+    "ext.ludus.collegium-new",
+    "ext.ludus.collegium-status",
+    "ext.ludus.companion-create",
+    "ext.ludus.companion-interact",
+    "ext.ludus.companion-list",
+    "ext.ludus.companion-show",
+    "ext.ludus.digest",
+    "ext.ludus.digest-weekly",
+    "ext.ludus.disable",
+    "ext.ludus.dispute-appeal",
+    "ext.ludus.dispute-file",
+    "ext.ludus.dispute-status",
+    "ext.ludus.dispute-vote",
+    "ext.ludus.enable",
+    "ext.ludus.feedback-rate",
+    "ext.ludus.glyph-list",
+    "ext.ludus.hint",
+    "ext.ludus.leaderboard-show",
+    "ext.ludus.metrics",
+    "ext.ludus.mode",
+    "ext.ludus.monte-carlo-sweep",
+    "ext.ludus.morning",
+    "ext.ludus.notify-clear",
+    "ext.ludus.notify-list",
+    "ext.ludus.pack-init",
+    "ext.ludus.pack-list",
+    "ext.ludus.profile-merge",
+    "ext.ludus.quest-generate",
+    "ext.ludus.quest-list",
+    "ext.ludus.record",
+    "ext.ludus.reward-claim",
+    "ext.ludus.shield-use",
+    "ext.ludus.shop-buy",
+    "ext.ludus.shop-list",
+    "ext.ludus.status",
+    "ext.ludus.sync-github",
+    "ext.mens",
+    "ext.openclaw",
+    "ext.openclaw.approvals",
+    "ext.openclaw.approve",
+    "ext.openclaw.config",
+    "ext.openclaw.deny",
+    "ext.openclaw.doctor",
+    "ext.openclaw.gateway-call",
+    "ext.openclaw.import",
+    "ext.openclaw.list-remote",
+    "ext.openclaw.notify",
+    "ext.openclaw.search-remote",
+    "ext.openclaw.serve",
+    "ext.openclaw.sidecar",
+    "ext.openclaw.sidecar.start",
+    "ext.openclaw.sidecar.status",
+    "ext.openclaw.sidecar.stop",
+    "ext.openclaw.subscribe",
+    "ext.openclaw.subscriptions",
+    "ext.openclaw.unsubscribe",
+    "ext.oratio",
+    "ext.populi",
+    "ext.skill",
+    "ext.skill.add",
+    "ext.skill.context-assemble",
+    "ext.skill.create",
+    "ext.skill.discover",
+    "ext.skill.eval-task",
+    "ext.skill.info",
+    "ext.skill.install",
+    "ext.skill.list",
+    "ext.skill.promote",
+    "ext.skill.run",
+    "ext.skill.search",
+    "ext.skill.suggest",
+    "ext.skill.uninstall",
+    "ext.train",
     "fabrica",
+    "fabrica.build",
+    "fabrica.bundle",
+    "fabrica.check",
+    "fabrica.compile",
+    "fabrica.dev",
+    "fabrica.fmt",
+    "fabrica.run",
+    "fabrica.script",
+    "fabrica.test",
     "fail.task",
     "feedback.list",
     "file.graph",
     "fmt",
+    "gamify.arena-join",
+    "gamify.arena-leaderboard",
+    "gamify.arena-show",
+    "gamify.audit",
+    "gamify.auth",
+    "gamify.battle-start",
+    "gamify.battle-submit",
+    "gamify.challenge-list",
+    "gamify.challenge-start",
+    "gamify.challenge-submit",
+    "gamify.collegium-join",
+    "gamify.collegium-list",
+    "gamify.collegium-new",
+    "gamify.collegium-status",
+    "gamify.companion-create",
+    "gamify.companion-interact",
+    "gamify.companion-list",
+    "gamify.companion-show",
+    "gamify.digest",
+    "gamify.digest-weekly",
+    "gamify.disable",
+    "gamify.dispute-appeal",
+    "gamify.dispute-file",
+    "gamify.dispute-status",
+    "gamify.dispute-vote",
+    "gamify.enable",
+    "gamify.feedback-rate",
+    "gamify.glyph-list",
+    "gamify.hint",
+    "gamify.leaderboard-show",
+    "gamify.metrics",
+    "gamify.mode",
+    "gamify.monte-carlo-sweep",
+    "gamify.morning",
+    "gamify.notify-clear",
+    "gamify.notify-list",
+    "gamify.pack-init",
+    "gamify.pack-list",
+    "gamify.profile-merge",
+    "gamify.quest-generate",
+    "gamify.quest-list",
+    "gamify.record",
+    "gamify.reward-claim",
+    "gamify.shield-use",
+    "gamify.shop-buy",
+    "gamify.shop-list",
+    "gamify.status",
+    "gamify.sync-github",
+    "generate",
     "generate.code",
     "get.active.model",
     "get.context",
@@ -852,13 +4765,19 @@
     "graph.callees",
     "graph.callers",
     "graph.compare",
+    "graph.coverage",
+    "graph.crate-map",
+    "graph.gc",
+    "graph.index",
     "graph.ingest",
     "graph.path",
     "graph.query",
     "graph.rebuild",
+    "graph.refresh",
     "graph.search",
     "graph.set.ttl",
     "graph.status",
+    "graph.why-rebuilt",
     "gui",
     "gui.components",
     "gui.drive",
@@ -879,6 +4798,10 @@
     "handoff.context",
     "handoff.lineage",
     "harness",
+    "harness.eval",
+    "harness.history",
+    "harness.publish",
+    "harness.report",
     "heartbeat",
     "init",
     "inline.edit",
@@ -903,6 +4826,7 @@
     "list.models",
     "live",
     "llm",
+    "llm.prompt",
     "lock",
     "lock.status",
     "login",
@@ -922,6 +4846,7 @@
     "ludus.shop.catalog",
     "map.agent.session",
     "mcp",
+    "memory",
     "memory.list.keys",
     "memory.log",
     "memory.recall",
@@ -958,38 +4883,62 @@
     "mesh.dispatch",
     "mesh.nodes",
     "mesh.queue-stats",
+    "migrate",
+    "migrate.names",
     "migrate.web",
+    "model",
+    "model.cas",
+    "model.cas.ls",
+    "model.cas.pull",
+    "model.cas.push",
+    "model.classify",
     "model.costs",
+    "model.council-report",
     "model.discover",
+    "model.eval",
+    "model.eval-corpus",
     "model.explain",
     "model.list",
+    "model.preferences",
     "model.preferences.reset",
     "model.preferences.set",
+    "model.pricing",
     "model.pricing.check",
     "model.pricing.refresh",
     "model.pricing.rollup",
     "model.pricing.show",
     "model.rollup",
     "model.scoreboard",
+    "model.shadow",
     "model.show",
     "my.files",
     "new",
+    "new.fn",
+    "new.skill",
+    "new.web",
     "news.approval.status",
     "news.approve",
     "news.draft.research",
     "news.simulate.publish.gate",
     "news.test.syndicate",
     "openclaw",
+    "openclaw.approvals",
+    "openclaw.approve",
+    "openclaw.config",
+    "openclaw.deny",
     "openclaw.discover",
     "openclaw.doctor",
     "openclaw.gateway-call",
     "openclaw.gateway.call",
     "openclaw.health",
+    "openclaw.import",
     "openclaw.import.skill",
+    "openclaw.list-remote",
     "openclaw.list.remote",
     "openclaw.notify",
     "openclaw.search-remote",
     "openclaw.search.remote",
+    "openclaw.serve",
     "openclaw.sidecar",
     "openclaw.sidecar.start",
     "openclaw.sidecar.status",
@@ -1010,16 +4959,21 @@
     "pending.questions",
     "pipeline.status",
     "plan",
+    "plan.create",
     "plan.list.sessions",
+    "plan.replan",
     "plan.resume",
     "plan.status",
     "play",
     "plugin",
     "plugin.catalog",
+    "plugin.doctor",
     "plugin.info",
     "plugin.install",
     "plugin.list",
+    "plugin.publish",
     "plugin.remove",
+    "plugin.scaffold",
     "pm",
     "pm.cache",
     "pm.cache.clear",
@@ -1032,6 +4986,11 @@
     "pm.verify",
     "pm.yank",
     "policy",
+    "policy.domains",
+    "policy.groups",
+    "policy.list",
+    "policy.show",
+    "policy.status",
     "poll.events",
     "populi",
     "populi.down",
@@ -1052,11 +5011,26 @@
     "queue.status",
     "rebalance",
     "recensio",
+    "recensio.coderabbit",
+    "recensio.coderabbit.batch-submit",
+    "recensio.coderabbit.db-backfill",
+    "recensio.coderabbit.db-report",
+    "recensio.coderabbit.db-status",
+    "recensio.coderabbit.deadletter-retry",
+    "recensio.coderabbit.historical-submit",
+    "recensio.coderabbit.ingest",
+    "recensio.coderabbit.learning-sync",
+    "recensio.coderabbit.semantic-submit",
+    "recensio.coderabbit.stack-submit",
+    "recensio.coderabbit.submit",
+    "recensio.coderabbit.tasks",
+    "recensio.coderabbit.wait",
     "record.cost",
     "redo",
     "remove",
     "reorder.task",
     "repair",
+    "repl",
     "replan",
     "repo",
     "repo.catalog",
@@ -1064,47 +5038,97 @@
     "repo.catalog.refresh",
     "repo.index.refresh",
     "repo.index.status",
+    "repo.init",
     "repo.query",
     "repo.query.file",
     "repo.query.history",
     "repo.query.text",
     "repo.status",
+    "research",
+    "research.down",
+    "research.eval",
     "research.get",
+    "research.history",
+    "research.preview",
+    "research.result",
     "research.run",
     "research.search",
+    "research.show",
     "research.start",
     "research.status",
+    "research.up",
+    "research.watch",
     "resolve.conflict",
     "resolve.feedback",
     "resume.agent",
     "retire.agent",
     "review",
+    "review.coderabbit",
+    "review.coderabbit.batch-submit",
+    "review.coderabbit.db-backfill",
+    "review.coderabbit.db-report",
+    "review.coderabbit.db-status",
+    "review.coderabbit.deadletter-retry",
+    "review.coderabbit.historical-submit",
+    "review.coderabbit.ingest",
+    "review.coderabbit.learning-sync",
+    "review.coderabbit.semantic-submit",
+    "review.coderabbit.stack-submit",
+    "review.coderabbit.submit",
+    "review.coderabbit.tasks",
+    "review.coderabbit.wait",
     "rollback",
     "run",
     "run.tests",
     "schola.submit",
     "scientia",
     "scientia.assist.suggestions",
+    "scientia.capability-list",
+    "scientia.claims",
     "scientia.collection-transform-preview",
+    "scientia.cost",
+    "scientia.dashboard",
+    "scientia.diagnose",
+    "scientia.discovery-watch",
+    "scientia.evidence-assist",
+    "scientia.feed-source-add",
+    "scientia.feed-source-list",
     "scientia.finding-candidate-validate",
+    "scientia.ingest-tick",
     "scientia.mirror-search-corpus",
     "scientia.novelty-evidence-bundle-validate",
     "scientia.publication-approve",
+    "scientia.publication-archive-code",
+    "scientia.publication-archive-run",
+    "scientia.publication-arxiv-bundle",
     "scientia.publication-arxiv-handoff-record",
+    "scientia.publication-autofill",
+    "scientia.publication-claim-review",
+    "scientia.publication-critic-approve",
+    "scientia.publication-critic-gate-check",
+    "scientia.publication-dashboard-snapshot",
     "scientia.publication-decision-explain",
     "scientia.publication-discovery-explain",
+    "scientia.publication-discovery-publish-rss",
     "scientia.publication-discovery-scan",
     "scientia.publication-external-jobs-dead-letter",
     "scientia.publication-external-jobs-due",
     "scientia.publication-external-jobs-replay",
     "scientia.publication-external-jobs-tick",
     "scientia.publication-external-pipeline-metrics",
+    "scientia.publication-extract-claims",
+    "scientia.publication-finding-page-render",
+    "scientia.publication-manuscript-draft",
+    "scientia.publication-nanopub-build",
     "scientia.publication-novelty-fetch",
     "scientia.publication-novelty-happy-path",
     "scientia.publication-openreview-profile",
     "scientia.publication-preflight",
     "scientia.publication-prepare",
     "scientia.publication-prepare-validated",
+    "scientia.publication-render-latex",
+    "scientia.publication-replay-execute",
+    "scientia.publication-review-queue",
     "scientia.publication-scholarly-pipeline-run",
     "scientia.publication-scholarly-remote-status",
     "scientia.publication-scholarly-remote-status-sync-all",
@@ -1113,6 +5137,7 @@
     "scientia.publication-status",
     "scientia.publication-submit-local",
     "scientia.publication-transform-preview",
+    "scientia.publication-venue-recommend",
     "scientia.publication-worthiness-evaluate",
     "scientia.publication-zenodo-metadata",
     "scientia.publication.approve",
@@ -1143,16 +5168,23 @@
     "scientia.publication.scholarly.staging.export",
     "scientia.publication.status",
     "scientia.publication.submit.local",
+    "scientia.research-list",
+    "scientia.research-map-list",
+    "scientia.research-refresh",
+    "scientia.retrieval-status",
+    "scientia.scout",
     "scientia.worthiness.evaluate",
     "script",
     "secrets",
     "secrets.backend-status",
     "secrets.doctor",
     "secrets.get",
+    "secrets.import-env",
     "secrets.login",
     "secrets.migrate-auth-store",
     "secrets.set",
     "secrets.status",
+    "secrets.sync",
     "session.cleanup",
     "session.compact",
     "session.create",
@@ -1164,24 +5196,35 @@
     "set.context",
     "set.model",
     "share",
+    "shell",
     "shell.check",
     "shell.repl",
     "skill",
     "skill.add",
+    "skill.context-assemble",
+    "skill.create",
     "skill.discover",
+    "skill.eval-task",
     "skill.info",
     "skill.install",
     "skill.list",
     "skill.parse",
+    "skill.promote",
     "skill.remove",
     "skill.run",
     "skill.search",
+    "skill.suggest",
     "skill.uninstall",
     "skill.use",
+    "snapshot",
     "snapshot.diff",
     "snapshot.list",
+    "snapshot.orphans",
     "snapshot.restore",
     "snippet",
+    "snippet.export",
+    "snippet.save",
+    "snippet.search",
     "spawn.agent",
     "speech.to.code",
     "stop",
@@ -1191,6 +5234,11 @@
     "sync",
     "task.status",
     "telemetry",
+    "telemetry.consent",
+    "telemetry.consent.deny",
+    "telemetry.consent.grant",
+    "telemetry.consent.status",
+    "telemetry.doctor",
     "telemetry.enqueue",
     "telemetry.export",
     "telemetry.status",
@@ -1213,6 +5261,10 @@
     "visual.rag.query",
     "visus.audit",
     "visus.baseline",
+    "workflow",
+    "workflow.drain",
+    "workflow.ls",
+    "workflow.preview",
     "workspace.create",
     "workspace.mcp_refresh",
     "workspace.merge",

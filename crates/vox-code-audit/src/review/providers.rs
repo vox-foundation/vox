@@ -83,12 +83,13 @@ pub fn default_openai_base_url() -> String {
 pub fn default_gemini_model() -> String {
     "gemini-3-flash".to_string()
 }
-/// Default Ollama listen URL. Resolved via `local_ollama_populi_base_url()`
+/// Default Ollama listen URL. Re-exports the config SSOT resolver
 /// (`VOX_POPULI_LOCAL_OLLAMA_URL` -> `POPULI_URL` -> `OLLAMA_URL` -> default)
-/// so a self-hosted server can be targeted without a code change.
-pub fn default_ollama_url() -> String {
-    vox_config::inference::local_ollama_populi_base_url()
-}
+/// so a self-hosted server can be targeted without a code change. A re-export
+/// rather than a wrapper fn: there is no body here that could drift back to a
+/// hardcoded literal, and the precedence is tested in `vox-config`
+/// (`local_base_prefers_populi_then_ollama`) without env races in this crate.
+pub use vox_config::inference::local_ollama_populi_base_url as default_ollama_url;
 /// Default Ollama model tag when `OLLAMA_MODEL` is unset.
 pub fn default_ollama_model() -> String {
     "codellama".to_string()
@@ -204,27 +205,18 @@ pub fn probe_ollama(url: &str) -> bool {
 }
 
 #[cfg(test)]
-mod ollama_ssot_tests {
+mod tests {
     use super::*;
 
-    /// Catches: reverting the body to a hardcoded "http://localhost:11434".
-    /// With the literal, OLLAMA_URL cannot redirect the client, so
-    /// mens-serving-ssot.md's "point POPULI_URL at your server" story is
-    /// false for every vox-code-audit review.
-    // ponytail: this crate has no shared env-mutation lock (unlike
-    // vox-orchestrator-mcp's CHAT_MESSAGE_ENV_LOCK); a second test racing
-    // OLLAMA_URL under `cargo test`'s default parallelism would flake. Add
-    // one if a second OLLAMA_URL-mutating test lands in this crate.
+    /// Env-free: a config that omits Ollama's url/model gets the serde
+    /// defaults, and the url default is the config SSOT's value.
     #[test]
-    #[allow(unsafe_code)] // Rust 2024 `set_var` is unsafe; see SAFETY below.
-    fn ollama_default_url_resolves_through_the_config_ssot() {
-        // SAFETY: single-threaded scope; the var is restored below and no
-        // other test in this crate reads OLLAMA_URL.
-        unsafe { std::env::set_var("OLLAMA_URL", "http://ssot-probe:1234") };
-        vox_config::snapshot::bump(&["OLLAMA_URL"]);
-        let got = default_ollama_url();
-        unsafe { std::env::remove_var("OLLAMA_URL") };
-        vox_config::snapshot::bump(&["OLLAMA_URL"]);
-        assert_eq!(got, "http://ssot-probe:1234");
+    fn ollama_config_defaults_come_from_the_ssot() {
+        let p: ReviewProvider = serde_json::from_str(r#"{"provider":"ollama"}"#).unwrap();
+        let ReviewProvider::Ollama { url, model } = p else {
+            panic!("expected Ollama, got {p:?}");
+        };
+        assert_eq!(url, vox_config::inference::local_ollama_populi_base_url());
+        assert_eq!(model, default_ollama_model());
     }
 }

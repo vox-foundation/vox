@@ -1869,3 +1869,54 @@ mod gradient_checkpoint_tests {
         );
     }
 }
+
+#[cfg(all(test, target_os = "macos"))]
+mod metal_backward_tests {
+    //! GQA training on Metal: `repeat_kv` goes through a rank-5 `expand`, whose
+    //! backward is a `sum_keepdim` over a middle axis of a rank-5 tensor.
+    //! candle-metal-kernels 0.10.2 mis-indexed every rank>4 strided reduce, so
+    //! the K/V gradients were garbage, grew ~1.5x per layer, and overflowed to
+    //! inf/NaN within a few steps; AdamW then wrote NaN into every LoRA var
+    //! (even at lr=0, since 0 * NaN = NaN). See patches/candle-metal-kernels-0.10.2.
+
+    use super::*;
+    use candle_core::Var;
+
+    fn grad_of_repeat_kv(dev: &Device, x0: &Tensor, w0: &Tensor) -> Vec<f32> {
+        let x = Var::from_tensor(&x0.to_device(dev).unwrap()).unwrap();
+        let w = w0.to_device(dev).unwrap();
+        let y = repeat_kv(x.as_tensor(), 2).unwrap();
+        let grads = (y * w).unwrap().sum_all().unwrap().backward().unwrap();
+        grads
+            .get(x.as_tensor())
+            .unwrap()
+            .flatten_all()
+            .unwrap()
+            .to_device(&Device::Cpu)
+            .unwrap()
+            .to_vec1()
+            .unwrap()
+    }
+
+    #[test]
+    fn repeat_kv_backward_on_metal_matches_cpu() {
+        let Ok(metal) = Device::new_metal(0) else {
+            return; // no Metal device (e.g. a macOS CI VM): nothing to compare
+        };
+        let cpu = Device::Cpu;
+        // (b, n_kv, seq, head_dim) — Qwen3-0.6B shape class, shortened.
+        let x0 = Tensor::randn(0f32, 1.0, (1, 2, 64, 16), &cpu).unwrap();
+        let w0 = Tensor::randn(0f32, 1.0, (1, 4, 64, 16), &cpu).unwrap();
+        let want = grad_of_repeat_kv(&cpu, &x0, &w0);
+        let got = grad_of_repeat_kv(&metal, &x0, &w0);
+        let max_diff = want
+            .iter()
+            .zip(&got)
+            .map(|(a, b)| (a - b).abs())
+            .fold(0f32, f32::max);
+        assert!(
+            max_diff < 1e-4,
+            "repeat_kv K/V gradient differs between Metal and CPU (max |diff| = {max_diff})"
+        );
+    }
+}

@@ -116,7 +116,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 None,  // qlora_max_skip_rate
                 false, // qlora_lm_head_only
                 None,  // qlora_proxy_max_layers
-                64,    // qlora_ce_last_k
+                0,     // qlora_ce_last_k (whole assistant response)
                 Some(checkpoint_every),
                 force_restart,
                 false, // curriculum (dogfood default: off)
