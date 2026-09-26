@@ -63,7 +63,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 02-01-PLAN.md — SC#2: vox-orchestrator depends on vox-mcp-registry; `ToolReceiptLedger::issue_intent` fails closed on names absent from `TOOL_REGISTRY` (test-first tracer, mutation-proven) (wave 1)
+- [ ] 02-01-PLAN.md — SC#2: vox-orchestrator depends on vox-mcp-registry; `ToolReceiptLedger::issue_intent` fails closed on names absent from `TOOL_REGISTRY` (test-first tracer, mutation-proven); `crate-graph.v1.json` regenerated in the same commit (wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion — shared git index, not shared files)*
 
