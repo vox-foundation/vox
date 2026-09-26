@@ -148,7 +148,8 @@ export function AppShell({
           onTaskBadgeClick={onTaskBadgeClick}
         />
 
-        <main className="flex-1 flex flex-col min-w-0 relative">
+        {/* data-view: stable hook for e2e to assert which surface is mounted (the workbench tab bar that used to expose this was removed in #460). */}
+        <main className="flex-1 flex flex-col min-w-0 relative" data-testid="active-surface" data-view={activeView}>
           <div className="px-4 pt-3 pb-0">
             <BreadcrumbBar viewKey={activeView} onNavigate={onNavigate} gamifyEnabled={gamifyEnabled} />
           </div>

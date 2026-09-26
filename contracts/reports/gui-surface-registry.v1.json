@@ -91,10 +91,6 @@
     "workflow"
   ],
   "surface_count": 112,
-  "unclassified_backfilled": [
-    "architect",
-    "live",
-    "stub-check"
-  ],
+  "unclassified_backfilled": [],
   "wiring_violations": []
 }

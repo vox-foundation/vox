@@ -1,6 +1,5 @@
 # Rust
 target/
-.ci-runner-logs/
 .sccache/
 **/fuzz/target/
 **/fuzz/artifacts/

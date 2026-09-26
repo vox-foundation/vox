@@ -17,16 +17,16 @@ test.describe('Vox Dashboard', () => {
 
     // Non-fixture execution path when the full shell is active.
     if (hasDashboard) {
-      await expect(page.getByTestId('workbench-tab-bar')).toBeVisible();
-      await expect(page.getByTestId('workbench-tab-dashboard')).toHaveAttribute('aria-selected', 'true');
+      const activeSurface = page.getByTestId('active-surface');
+      await expect(activeSurface).toHaveAttribute('data-view', 'dashboard');
 
       await page.locator('aside').first().getByRole('button', { name: /^Workspace/ }).click();
       await expect.poll(async () => page.evaluate(() => window.location.hash)).toContain('view=console');
-      await expect(page.getByTestId('workbench-tab-console')).toHaveAttribute('aria-selected', 'true');
+      await expect(activeSurface).toHaveAttribute('data-view', 'console');
 
       await page.goto('/#view=repository');
       await page.waitForSelector('nav', { timeout: 15_000 });
-      await expect(page.getByTestId('workbench-tab-repository')).toHaveAttribute('aria-selected', 'true');
+      await expect(activeSurface).toHaveAttribute('data-view', 'repository');
       await page.getByRole('button', { name: 'Workspace status' }).click();
       await expect(page.getByText('ok')).toBeVisible();
 

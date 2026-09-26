@@ -14,11 +14,19 @@ concurrency:
                               # ceiling scenario a same-runner overlap would otherwise create —
                               # no separate file-level lock is needed for that failure mode.
 
+permissions:
+  contents: read
+
 jobs:
   live-eval:
-    runs-on: [self-hosted, linux]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
+      # PUSH_TOKEN prefers the SSOT_AUTOREGEN_TOKEN PAT, which is independent of this job's
+      # own token scope. contents: write is kept as a fallback so a GITHUB_TOKEN push still
+      # works gracefully if the PAT is ever rotated out — see ci.yml's ssot-autoregen job
+      # for the identical pattern and rationale. Without it the fallback would 403, and the
+      # push step's retry loop would exhaust its attempts and hard-fail the job (loud, not silent).
       contents: write   # job-scoped override (workflow default is contents: read) to push results
     steps:
       # Pinned to the same immutable SHA ci.yml's ssot-autoregen job uses for actions/checkout,
@@ -56,11 +64,29 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Local-only (not committed): two concurrent nightly-eval pushes both
+          # append a line to the same append-only JSONL tail, which a plain
+          # 3-way rebase treats as one overlapping hunk and conflicts on — even
+          # though the intent (keep both lines) is unambiguous. The builtin
+          # `union` merge driver takes both sides instead of conflicting.
+          mkdir -p .git/info
+          echo "docs/harness-eval-history/runs.jsonl merge=union" >> .git/info/attributes
           git add docs/harness-eval-history/runs.jsonl
           git commit -m "chore(harness-eval): publish nightly run results [skip ci]"
-          # Non-fatal on a rejected push (e.g. a concurrent merge to main landed between
-          # checkout and push) — matches this repo's own established handling for this exact
-          # race elsewhere, rather than hard-failing the job and losing tonight's already-paid-
-          # for live-eval results.
-          git push "https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:main \
-            || echo "::warning::harness-eval-nightly push skipped (non-fast-forward)"
+          REMOTE="https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          # A concurrent merge to main between checkout and push is the common
+          # race here (append-only JSONL, so a rebase — with the union driver
+          # above — always replays cleanly). Retry with a rebase on top of the
+          # new tip; any OTHER rejection (protected branch, revoked token, ...)
+          # keeps failing after the retries and must fail the job loudly rather
+          # than silently drop tonight's already-paid-for live-eval results.
+          attempt=0
+          until git push "$REMOTE" HEAD:main; do
+            attempt=$((attempt + 1))
+            if [ "$attempt" -ge 3 ]; then
+              echo "::error::harness-eval-nightly push failed after ${attempt} attempts — results are committed locally but not pushed"
+              exit 1
+            fi
+            echo "push rejected (attempt ${attempt}/3) — rebasing onto origin/main and retrying"
+            git pull --rebase origin main
+          done

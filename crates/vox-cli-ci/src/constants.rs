@@ -11,12 +11,10 @@ pub const DOCS_SSOT_FILES: &[&str] = &[
     "docs/src/ci/command-surface-duals.md",
     "docs/src/ci/documentation-pointers.md",
     "docs/src/ci/crate-hardening-matrix.md",
-    "docs/src/ci/github-hosted-exceptions.md",
     "docs/src/ci/workflow-enumeration.md",
     "docs/src/ci/binary-release-contract.md",
     "docs/src/ci/cli-baseline-metrics.md",
     "docs/src/ci/concurrency-exceptions.md",
-    "docs/src/ci/local-first-ci.md",
 ];
 
 pub const CODEX_SSOT_FILES: &[&str] = &[

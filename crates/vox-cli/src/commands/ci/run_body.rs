@@ -34,39 +34,35 @@ pub(crate) mod run_body_helpers;
 
 use run_body_helpers::{
     MensGateOpts, check_codex_ssot, check_docs_ssot, check_no_vox_dei, check_workflow_scripts,
-    run_build_timings, run_collateral_damage_gate, run_constrained_gen_smoke,
-    run_corpus_decl_coverage, run_cuda_features, run_cuda_release_build, run_data_ssot_guards,
-    run_feature_matrix, run_grammar_drift, run_grammar_export_check, run_grpo_reward_baseline,
-    run_k_complexity_budget, run_manifest, run_mens_corpus_health, run_mens_gate,
-    run_operator_env_guard, run_query_all_guard, run_repo_guards, run_script_hygiene,
-    run_secret_env_guard, run_secrets_contracts, run_secrets_cutover_audit,
-    run_secrets_cutover_gates, run_secrets_parity, run_source_token_budget, run_spoke_check,
-    run_sql_surface_guard, run_ssot_audit, run_ssot_drift, run_toestub_scoped_roots,
-    run_toestub_self_apply, run_turso_import_guard,
+    run_build_timings, run_corpus_decl_coverage, run_cuda_features, run_cuda_release_build,
+    run_data_ssot_guards, run_feature_matrix, run_grammar_drift, run_grammar_export_check,
+    run_k_complexity_budget, run_manifest, run_mens_gate, run_operator_env_guard,
+    run_query_all_guard, run_repo_guards, run_script_hygiene, run_secret_env_guard,
+    run_secrets_contracts, run_secrets_cutover_audit, run_secrets_cutover_gates,
+    run_secrets_parity, run_source_token_budget, run_spoke_check, run_sql_surface_guard,
+    run_ssot_audit, run_ssot_drift, run_toestub_scoped_roots, run_toestub_self_apply,
+    run_turso_import_guard,
 };
 
 use vox_cli_ci::retired_symbol_check;
 
 /// Whether a `vox ci` subcommand must pass the stale-binary freshness guard.
 ///
-/// `false` for infra reconcile/read commands (runner autoscaler/preflight/status):
-/// they carry no correctness verdict and must keep the CI fleet alive even when the
-/// installed binary lags a fast-moving source tree.
+/// `false` for read-only commands that carry no correctness verdict.
 ///
-/// `ArtifactAudit` joins them for the same reason: it is read-only (never deletes,
+/// `ArtifactAudit` is exempt because it is read-only (never deletes,
 /// never mutates the workspace) and produces an inventory, not a pass/fail guard
 /// verdict, so a stale binary running outdated retention logic against a live tree
 /// is a stale *report*, not a false CI signal. `ArtifactPrune` is deliberately NOT
 /// exempted here: it deletes, and a stale binary running outdated retention logic
 /// against a live tree while deleting is exactly what this guard exists to prevent.
+///
+/// `Status` is exempted for the same read-only reason, and MUST stay exempt: hook
+/// modes (`--hook`/`--changed-only`) are invoked by git/Claude Code hooks with
+/// `|| true`, so a refusal here would silently and permanently stop CI status from
+/// ever reaching an agent on a stale installed binary.
 fn should_enforce_freshness(cmd: &CiCmd) -> bool {
-    !matches!(
-        cmd,
-        CiCmd::RunnerScale { .. }
-            | CiCmd::RunnerPreflight
-            | CiCmd::RunnerStatus
-            | CiCmd::ArtifactAudit { .. }
-    )
+    !matches!(cmd, CiCmd::ArtifactAudit { .. } | CiCmd::Status { .. })
 }
 
 /// Run `vox ci` subcommand.
@@ -74,12 +70,6 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
     let root = repo_root();
     // A stale `vox` binary runs outdated guard logic/allowlists, so its `vox ci`
     // verdict would not reflect the current source. Refuse rather than mislead.
-    //
-    // EXCEPTION: the runner autoscaler/preflight/status are infra reconcile + read
-    // commands, not guard verdicts — they spawn/inspect Docker CI runners and produce
-    // no correctness judgement. Gating them on freshness lets a fast-moving source tree
-    // (multiple agents racing ahead of the installed binary) starve the CI fleet to zero
-    // every tick. They must run regardless of binary staleness.
     if should_enforce_freshness(&cmd) {
         crate::freshness::enforce_for_ci(&root)?;
     }
@@ -121,7 +111,6 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             }
         }
         CiCmd::CheckDocsSsot => check_docs_ssot(&root),
-        CiCmd::CheckFrozen => vox_cli_ci::frozen_crates::check_frozen_crates(&root),
         CiCmd::GuiCatalogParity => super::gui_catalog_parity::run(&root),
         CiCmd::GuiVersionSync { write } => vox_cli_ci::gui_version_sync::run(&root, write),
         CiCmd::GuiSurfaceCoverage { write } => super::gui_surface_coverage::run(&root, write),
@@ -334,7 +323,6 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             Ok(())
         }
         CiCmd::FmtCheck => super::pre_push::check_fmt(&root),
-        CiCmd::RunnerPolicyCheck { strict } => vox_cli_ci::runner_policy_check::run(&root, strict),
         CiCmd::WorkflowConcurrencyGuard { strict } => {
             vox_cli_ci::workflow_concurrency_guard::run(&root, strict)
         }
@@ -417,17 +405,6 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::RepoGuards => run_repo_guards(&root),
         CiCmd::SecretEnvGuard { all } => run_secret_env_guard(&root, all),
         CiCmd::OperatorEnvGuard { all } => run_operator_env_guard(&root, all),
-        CiCmd::MensCorpusHealth {
-            min_pairs,
-            min_human_ratio,
-        } => run_mens_corpus_health(&root, min_pairs, min_human_ratio).await,
-        CiCmd::GrpoRewardBaseline => run_grpo_reward_baseline(&root).await,
-        CiCmd::CollateralDamageGate { max_damage_rate } => {
-            run_collateral_damage_gate(&root, max_damage_rate).await
-        }
-        CiCmd::ConstrainedGenSmoke { n_samples } => {
-            run_constrained_gen_smoke(&root, n_samples).await
-        }
         CiCmd::SqlSurfaceGuard { all } => run_sql_surface_guard(&root, all),
         CiCmd::QueryAllGuard { all } => run_query_all_guard(&root, all),
         CiCmd::TursoImportGuard { all } => run_turso_import_guard(&root, all),
@@ -603,7 +580,6 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
                 max_age_days,
             },
         ),
-        CiCmd::RunnerScale { apply } => super::runner_scale::run_scale(apply),
         CiCmd::BuildBench {
             label,
             write,
@@ -663,25 +639,9 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
                 Err(anyhow!("affected-crates exited with code {code}"))
             }
         }
-        CiCmd::RunnerPreflight => super::runner_scale::run_preflight(),
-        CiCmd::RunnerStatus => super::runner_scale::run_status(),
-        CiCmd::Queue {
-            json,
-            brief,
-            from_snapshot,
-            clear,
-            dry_run,
-            ttl_mins,
-            hook_guard,
-        } => super::queue::run(super::queue::QueueArgs {
-            json,
-            brief,
-            from_snapshot,
-            clear,
-            dry_run,
-            ttl_mins,
-            hook_guard,
-        }),
+        CiCmd::Status { hook, changed_only } => {
+            super::status::run(super::status::StatusArgs { hook, changed_only })
+        }
         CiCmd::JobTimings {
             run_id,
             threshold_mins,
@@ -916,16 +876,13 @@ mod gate_status_tests {
     }
 
     #[test]
-    fn freshness_exempts_runner_infra_but_guards_enforce() {
-        // Infra reconcile/read commands must run even with a stale binary (keep the fleet alive).
-        assert!(!should_enforce_freshness(&CiCmd::RunnerScale {
-            apply: false
+    fn freshness_exempts_read_only_but_guards_enforce() {
+        // Hook modes run with `|| true`; a stale-binary refusal here would silently
+        // and permanently stop CI status from reaching an agent — must stay exempt.
+        assert!(!should_enforce_freshness(&CiCmd::Status {
+            hook: true,
+            changed_only: false
         }));
-        assert!(!should_enforce_freshness(&CiCmd::RunnerScale {
-            apply: true
-        }));
-        assert!(!should_enforce_freshness(&CiCmd::RunnerPreflight));
-        assert!(!should_enforce_freshness(&CiCmd::RunnerStatus));
         // ArtifactAudit is read-only (no delete, no guard verdict) and joins the
         // exemption; ArtifactPrune deletes and must stay gated.
         assert!(!should_enforce_freshness(&CiCmd::ArtifactAudit {

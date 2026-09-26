@@ -29,7 +29,7 @@ test.describe('IPC-failure degradation', () => {
       await addMockInitScript(page, installErrorStateMock, view);
       await page.goto('/');
       await page.waitForSelector('nav', { timeout: 15_000 });
-      await expect(page.getByTestId('workbench-tab-bar')).toBeVisible();
+      await expect(page.getByTestId('active-surface')).toHaveAttribute('data-view', view);
       // Short bounded settle so async uncaught rejections have time to surface
       // before assertion 1 (the affordance check below is auto-retrying and
       // needs no sleep).

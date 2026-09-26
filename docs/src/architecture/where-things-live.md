@@ -186,7 +186,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 |---|---|
 | [`vox-cli`](../../../crates/vox-cli/) | Vox command-line interface: compile, run, bundle, and workspace diagnostics. |
 | [`vox-langtool`](../../../crates/vox-langtool/) | DB-free CLI for the Vox language: check, fmt, run, build (no database runtime required). |
-| [`vox-cli-ci`](../../../crates/vox-cli-ci/) | CI guard checks extracted from vox-cli (runner-policy-check, line-endings, and related). |
+| [`vox-cli-ci`](../../../crates/vox-cli-ci/) | CI guard checks extracted from vox-cli (line-endings, workflow-concurrency-guard, and related). |
 | [`vox-cli-contracts`](../../../crates/vox-cli-contracts/) | Trait seam between vox-cli and vox-cli-ci (`CheckProvider`, `GateStatusWriter`, `TerminalPolicyValidator`, `HeavyGuardHost`); zero tokio. |
 | [`vox-cli-research`](../../../crates/vox-cli-research/) | `commands/research/` extracted from vox-cli (infra + eval, mesh intake); consumed exclusively by vox-cli. |
 | [`vox-cli-review`](../../../crates/vox-cli-review/) | CodeRabbit batch-PR review flow (`vox review coderabbit`) extracted from vox-cli; consumed exclusively by vox-cli. |
@@ -219,7 +219,6 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | Add a speech-to-code audit artifact | Contracts under `contracts/speech-to-code/`; narrative findings under `docs/src/architecture/vox-speech-*-2026.md`; cross-crate tests under `crates/vox-integration-tests/tests/speech_*`. |
 | AI-first language fixtures (taxonomy + seed catalog + lifecycle) | [`contracts/agentos/ai-first-fixtures.v1.yaml`](../../../contracts/agentos/ai-first-fixtures.v1.yaml) (JSON Schema: `contracts/agentos/ai-first-fixtures.v1.schema.json`) + narrative SSOT [`ai-first-fixtures-research-2026.md`](./ai-first-fixtures-research-2026.md). |
 | Local `act` configuration (catalog image pin, platform map) | `.actrc` (repo root) |
-| Self-hosted CI runner image | `Dockerfile.ci-runner` (repo root); published via `.github/workflows/publish-ci-runner.yml` to GHCR |
 | Extend `vox ci pre-push` modes / timing JSON | `crates/vox-cli/src/commands/ci/pre_push.rs` — add `Step` to `build_steps` or extend `PrePushOpts` |
 | `vox ci dev-loop-audit` (AI/local compile-loop diagnostics) | `crates/vox-cli/src/commands/ci/dev_loop_audit.rs` |
 | `vox ci docs-reality-audit` (doc/code audit artifacts + metrics) | `crates/vox-cli-ci/src/docs_reality_audit.rs` + `contracts/reports/docs-reality-audit/` |

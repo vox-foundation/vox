@@ -477,9 +477,10 @@ impl VoxDb {
                     )
                     .await
                     && let Ok(Some(row)) = rows.next().await
-                        && let Ok(q) = row.get::<String>(0) {
-                            query_text = q;
-                        }
+                    && let Ok(q) = row.get::<String>(0)
+                {
+                    query_text = q;
+                }
 
                 let mut claims_text = String::new();
                 if let Ok(mut rows) = conn

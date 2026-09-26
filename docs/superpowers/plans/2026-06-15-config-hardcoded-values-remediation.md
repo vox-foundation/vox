@@ -8,7 +8,7 @@
 
 **Tech Stack:** Rust (workspace crates), `reqwest` per-request timeouts, `vox_config::timeouts` SSOT, env-var overrides, `cargo test -p <crate>`.
 
-**Source of truth:** [`graphify-out/config-audit-graph/FINDINGS_INDEX.md`](../../../graphify-out/config-audit-graph/FINDINGS_INDEX.md) (135 findings) and the per-group docs in [`graphify-out/config-audit/`](../../../graphify-out/config-audit/). This plan covers the **8 high-severity** rows; medium/low batches are listed under *Follow-On Plans*.
+**Source of truth:** `graphify-out/config-audit-graph/FINDINGS_INDEX.md` (135 findings) and the per-group docs in `graphify-out/config-audit/` (both are generated, git-ignored graph output — regenerate with `vox graph`). This plan covers the **8 high-severity** rows; medium/low batches are listed under *Follow-On Plans*.
 
 **Out of scope (owned by another plan):** the GUI/LLM **settings-registry** split-brain (vox-config accessors ↔ operator_registry ↔ vox-gui FIELDS) is owned by the *Enforceable LLM/AI settings SSOT* plan (`project_llm_ai_settings_ssot_enforce_2026`). Do not touch the GUI settings registry here.
 
@@ -836,7 +836,7 @@ cargo fmt -p vox-actor-runtime -p vox-orchestrator -p vox-scaling-policy -p vox-
 
 ## Follow-On Plans (the other 127 findings — not in this plan)
 
-Each is its own plan/PR so each lands working, testable software. Finding IDs reference [`FINDINGS_INDEX.md`](../../../graphify-out/config-audit-graph/FINDINGS_INDEX.md).
+Each is its own plan/PR so each lands working, testable software. Finding IDs reference `graphify-out/config-audit-graph/FINDINGS_INDEX.md`.
 
 1. **GUI / LLM settings-registry split-brain** — **already owned** by `project_llm_ai_settings_ssot_enforce_2026` (vox-config accessors ↔ operator_registry ↔ vox-gui FIELDS, dual-egress seal, `vox://llm-config-changed`). Covers HC-G05-02/03/04 and the LLM-settings backend-gaps. **Do not duplicate.**
 2. **Escaped-`vox_config::timeouts` SSOT batch** — values that hand-roll a duration instead of using the existing SSOT they already import: HC-G10-03 (browser CDP 90s), HC-G12-09 (workflow populi 30s), G09 jj OP_TIMEOUT 120s, and the AIMD triplet HC-G04-01..05. One PR routing each through `vox_config::timeouts`.

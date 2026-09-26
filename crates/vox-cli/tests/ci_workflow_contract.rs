@@ -5,7 +5,7 @@
 fn github_ci_doc_inventory_is_rust() {
     let yml = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../.github/workflows/ci.yml"
+        "/../../.github/workflows/nightly.yml"
     ));
     assert!(
         yml.contains("ci command-compliance") || yml.contains("ci ssot-drift"),
@@ -25,7 +25,7 @@ fn github_ci_doc_inventory_is_rust() {
 fn github_ci_populi_gate_is_unified() {
     let yml = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../.github/workflows/ci.yml"
+        "/../../.github/workflows/nightly.yml"
     ));
     assert!(
         yml.contains("ci mens-gate --profile ci_full"),
@@ -41,7 +41,7 @@ fn github_ci_populi_gate_is_unified() {
 fn github_ci_no_duplicate_mens_populi_gate_tests_after_manifest() {
     let yml = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../.github/workflows/ci.yml"
+        "/../../.github/workflows/nightly.yml"
     ));
     if yml.contains("ci mens-gate --profile ci_full") {
         assert!(
@@ -59,7 +59,7 @@ fn github_ci_no_duplicate_mens_populi_gate_tests_after_manifest() {
 fn github_ci_runs_llvm_cov_and_coverage_gates() {
     let yml = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../.github/workflows/ci.yml"
+        "/../../.github/workflows/nightly.yml"
     ));
     assert!(
         yml.contains("cargo llvm-cov nextest --workspace"),
@@ -79,12 +79,8 @@ fn github_ci_runs_llvm_cov_and_coverage_gates() {
 fn linux_ci_runs_workspace_tests_and_windows_stack_wrappers_stay_cfg_gated() {
     let ci = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../.github/workflows/ci.yml"
+        "/../../.github/workflows/nightly.yml"
     ));
-    assert!(
-        ci.contains("runs-on: [self-hosted, linux, x64]"),
-        "ci.yml should keep the main test job on the Linux self-hosted runner"
-    );
     assert!(
         ci.contains("cargo llvm-cov nextest --workspace")
             && ci.contains("cargo nextest run --workspace"),
@@ -197,14 +193,12 @@ fn cross_platform_gate_is_required_three_os_matrix() {
         env!("CARGO_MANIFEST_DIR"),
         "/../../.github/workflows/cross-platform-check.yml"
     ));
-    // Must run on PRs and merge-queue batches, not only weekly cron.
+    // Runs on the weekly schedule, not pull_request/merge_group: the full
+    // Win/macOS/Ubuntu matrix (90m/60m) exceeds the fast-lane 30-min cap
+    // (workflow_policy_guard).
     assert!(
-        yml.contains("pull_request:"),
-        "cross-platform gate must trigger on pull_request"
-    );
-    assert!(
-        yml.contains("merge_group:"),
-        "cross-platform gate must trigger on merge_group"
+        yml.contains("schedule:"),
+        "cross-platform gate must trigger on schedule"
     );
     // All three target OSes must be present.
     assert!(yml.contains("windows-latest"), "must cover Windows");
@@ -213,20 +207,18 @@ fn cross_platform_gate_is_required_three_os_matrix() {
         yml.contains("ubuntu-latest"),
         "must cover Ubuntu (gate name claims cross-platform)"
     );
-    // Compilation must be proven on every PR (cheap `cargo check`).
+    // Compilation must be proven on every OS (cheap `cargo check`).
     assert!(
         yml.contains("cargo check --workspace"),
-        "per-PR depth must `cargo check --workspace`"
+        "must `cargo check --workspace`"
     );
-    // Expensive depth (clippy + full nextest) deferred to merge_group to bound hosted-runner cost.
     assert!(
-        yml.contains("clippy"),
-        "must run clippy -D warnings (merge_group leg)"
+        yml.contains("cargo clippy --workspace --exclude vox-gui --target ${{ matrix.target }} -- -D warnings"),
+        "must run workspace clippy -D warnings per target"
     );
-    assert!(yml.contains("nextest"), "must run nextest");
     assert!(
-        yml.contains("github.event_name == 'merge_group'"),
-        "expensive legs must be merge_group-gated"
+        yml.contains("cargo nextest run --workspace --exclude vox-gui"),
+        "must run workspace nextest"
     );
 }
 
@@ -313,88 +305,29 @@ fn gui_cross_build_covers_three_os_with_webkit() {
         yml.contains("cargo build -p vox-gui"),
         "must actually compile the GUI crate"
     );
-    // The workflow file itself must be in the `paths:` filter so that changes to
-    // gui-cross-build.yml re-trigger the build (prevents the filter from being
-    // tightened to only src/ and silently excluding workflow-file changes).
+    // Runs on schedule, not pull_request/merge_group: the full matrix build
+    // (90m) exceeds the fast-lane 30-min cap (workflow_policy_guard).
     assert!(
-        yml.contains(".github/workflows/gui-cross-build.yml"),
-        "gui-cross-build.yml must self-trigger on workflow file changes (paths: filter)"
-    );
-    // merge_group: must be present WITHOUT a paths: restriction so the workflow
-    // always runs at merge time regardless of which files changed.
-    assert!(
-        yml.contains("merge_group:"),
-        "gui-cross-build must run on merge_group (no paths filter at merge time)"
-    );
-}
-
-#[test]
-fn selective_ci_setup_exports_affected_outputs() {
-    let yml = include_str!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../.github/workflows/ci.yml"
-    ));
-    for key in [
-        "affected_crates:",
-        "affected_p_args:",
-        "affects_compiler:",
-        "affects_contracts:",
-        "affects_scripts:",
-        "affects_golden:",
-    ] {
-        assert!(
-            yml.contains(key),
-            "ci.yml setup must export selective CI output `{key}`"
-        );
-    }
-}
-
-#[test]
-fn selective_ci_shadow_comparator_on_merge_group() {
-    let yml = include_str!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../.github/workflows/ci.yml"
-    ));
-    assert!(
-        yml.contains("--shadow-junit"),
-        "ci.yml should run affected shadow comparator"
-    );
-    assert!(
-        yml.contains("github.event_name == 'merge_group'")
-            && yml.contains("continue-on-error: true"),
-        "shadow comparator should be merge_group advisory (continue-on-error)"
+        yml.contains("schedule:"),
+        "gui-cross-build must run on schedule"
     );
 }
 
 #[test]
 fn selective_ci_fail_closed_on_empty_affected() {
+    // The selective/affected lane lives in ci.yml; nightly.yml is schedule-only
+    // and always runs the full workspace, so it has no empty-affected case.
     let yml = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../.github/workflows/ci.yml"
     ));
     assert!(
-        yml.contains("rust_changed=true but git diff produced no changed files"),
-        "ci.yml must fail-closed when rust_changed but diff is empty"
+        yml.contains(r#"if [ "$full" != "false" ] || [ -z "$(echo "$args" | xargs)" ]"#),
+        "ci.yml must fail-closed to the full workspace when the affected set is empty"
     );
     assert!(
-        yml.contains("rust_changed with empty affected set"),
-        "ci.yml must upgrade to full=true when rust_changed but affected set empty"
-    );
-}
-
-#[test]
-fn selective_ci_fail_closed_on_docs_only_empty_affected() {
-    let yml = include_str!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../.github/workflows/ci.yml"
-    ));
-    assert!(
-        yml.contains("docs_changed with empty affected set"),
-        "ci.yml must upgrade to full=true when docs_changed but affected set empty"
-    );
-    assert!(
-        yml.contains("Run Tests — plain nextest (full gate, docs-only change)"),
-        "ci.yml must run workspace nextest on full gate when rust did not change"
+        yml.contains(r#"args="--workspace --exclude vox-gui""#),
+        "ci.yml's fail-closed branch must widen to the full workspace"
     );
 }
 
@@ -410,37 +343,10 @@ fn selective_ci_workflow_changes_force_rust_gate() {
     );
 }
 
-#[test]
-fn selective_ci_toestub_minimal_default_when_empty() {
-    let yml = include_str!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../.github/workflows/ci.yml"
-    ));
-    assert!(
-        yml.contains("toestub-scoped --mode enforce-warn crates/vox-repository"),
-        "ci.yml must run TOESTUB on crates/vox-repository when affected set is empty"
-    );
-    assert!(
-        !yml.contains("No affected crates — skipping TOESTUB scoped."),
-        "ci.yml must not skip TOESTUB when affected set is empty"
-    );
-}
-
-#[test]
-fn cross_platform_pr_is_path_filtered() {
-    let yml = include_str!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../.github/workflows/cross-platform-check.yml"
-    ));
-    assert!(
-        yml.contains("pull_request:") && yml.contains("paths:"),
-        "cross-platform PR trigger must be path-filtered"
-    );
-    assert!(
-        yml.contains(".config/hakari.toml") && yml.contains("examples/golden/**"),
-        "cross-platform paths must include hakari + golden sentinels"
-    );
-}
+// cross_platform_pr_is_path_filtered removed: cross-platform-check.yml no
+// longer triggers on pull_request (moved to schedule, see
+// cross_platform_gate_is_required_three_os_matrix) — the PR path-filter it
+// asserted no longer exists.
 
 #[test]
 fn check_targets_declares_pr_scope() {
@@ -460,6 +366,212 @@ fn check_targets_declares_pr_scope() {
     }
 }
 
+/// Playwright ends its `webServer` by killing that process's group. `pnpm run dev`
+/// starts `vite` in a *different* group, so the kill orphans it; the orphan keeps
+/// the inherited stdio pipes open and Playwright then waits on them forever -- the
+/// `ui` leg sat at "Terminating the WebServer" until the 30-min cap on the hosted
+/// runner. Launch vite directly so it is in the group Playwright kills.
+#[test]
+fn playwright_web_server_is_not_started_through_pnpm() {
+    let cfg = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../vox-gui/ui/playwright.config.ts"
+    ));
+    let command = cfg
+        .lines()
+        .map(str::trim)
+        .find(|l| l.starts_with("command:"))
+        .expect("playwright.config.ts webServer.command");
+    assert!(
+        !command.contains("pnpm") && !command.contains("npm ") && !command.contains("npx"),
+        "webServer.command must not go through a package-manager wrapper: {command}"
+    );
+    assert!(
+        command.contains("vite"),
+        "webServer.command must run vite: {command}"
+    );
+}
+
+/// The ssot-autoregen bot must build vox with exactly the features the `linux`
+/// gate verifies with: feature-gated commands (e.g. `ars ludus`) change what
+/// `gui-surface-coverage` / `command-sync` emit, so a divergent build makes
+/// the bot commit artifacts the gate then rejects as drift.
+#[test]
+fn ssot_autoregen_builds_vox_like_the_gate() {
+    let yml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/ci.yml"
+    ));
+    let builds: Vec<&str> = yml
+        .lines()
+        .map(str::trim)
+        .filter(|l| l.starts_with("run: cargo build -p vox-cli"))
+        .collect();
+    assert_eq!(
+        builds.len(),
+        2,
+        "expected linux + ssot-autoregen builds: {builds:?}"
+    );
+    assert_eq!(
+        builds[0], builds[1],
+        "ssot-autoregen must build vox-cli like the gate"
+    );
+}
+
+#[test]
+fn ci_gate_is_hosted_capped_and_owns_required_context() {
+    let yml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/ci.yml"
+    ));
+    assert!(yml.contains("name: Check, Build, and Test (Rust)"));
+    assert!(yml.contains("runs-on: ubuntu-latest"));
+    assert!(yml.contains("runs-on: windows-latest"));
+    assert!(yml.contains("timeout-minutes: 30"));
+    assert!(!yml.contains("self-hosted"));
+    assert!(
+        yml.contains("sed 's/-p vox-gui//g'"),
+        "affected args must never build vox-gui"
+    );
+    assert!(
+        yml.contains("needs: [linux, ui]"),
+        "required context aggregates linux + ui; windows is warn-only"
+    );
+    assert!(
+        yml.contains("cargo deny check licenses bans sources"),
+        "no date-dependent advisories in the required leg"
+    );
+    assert!(
+        yml.contains("RUSTDOCFLAGS"),
+        "toolchain bumps must run rustdoc -D warnings in the required leg"
+    );
+    assert!(
+        yml.contains("playwright test --project=chromium"),
+        "UI changes must pass Playwright before merge"
+    );
+    assert!(
+        yml.contains(r"examples/|\.github/workflows/)"),
+        "examples-only diffs must reach the affected step"
+    );
+}
+
+#[test]
+fn ci_gate_job_runs_unconditionally_and_checks_both_deps() {
+    // R2: `if: ${{ !cancelled() }}` still SKIPS `gate` on a cancelled run, and a
+    // skipped check-run satisfies the required-context match (see
+    // crates/vox-cli-ci/src/required_context_guard.rs module doc). `if: always()`
+    // is the only spelling that runs `gate` (and therefore its own explicit
+    // success checks) on every outcome, including cancellation.
+    let yml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/ci.yml"
+    ));
+    assert!(
+        yml.contains("if: always()"),
+        "gate job must run unconditionally (`if: always()`), not `if: ${{ !cancelled() }}` \
+         — a skipped gate still satisfies the required-context check"
+    );
+    assert!(
+        !yml.contains("!cancelled()"),
+        "gate must not gate on !cancelled() — see required_context_guard.rs module doc"
+    );
+    assert!(
+        yml.contains(r#"[ "$LINUX" = success ]"#),
+        "gate must explicitly check linux succeeded"
+    );
+    assert!(
+        yml.contains(r#"[ "$UI" = success ]"#),
+        "gate must explicitly check ui succeeded"
+    );
+}
+
+#[test]
+fn ci_linux_job_load_bearing_conditionals_are_present() {
+    let yml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/ci.yml"
+    ));
+    assert!(
+        yml.contains("if: steps.bump.outputs.toolchain == 'true'"),
+        "rustdoc -D warnings step must be gated on a detected toolchain bump"
+    );
+    assert!(
+        yml.contains(
+            "steps.affected.outputs.p_args != '' && steps.bump.outputs.toolchain != 'true'"
+        ),
+        "the nextest step must skip when a toolchain bump already spent the budget on rustdoc"
+    );
+    assert!(
+        yml.contains(r"^crates/vox-gui/|^crates/vox-orchestrator/src/orch_daemon/mod\.rs$"),
+        "the ui job's change-detection filter must include the orch_daemon/mod.rs alternative"
+    );
+}
+
+#[test]
+fn ci_affected_prefilter_regex_admits_contracts_and_dot_config() {
+    // G1: the "Affected crates" step's prefilter regex gates whether the whole
+    // affected-crates machinery even runs. It must admit `contracts/` (SSOT
+    // artifacts like crate-graph.v1.json) and `.config/` (e.g. nextest.toml) —
+    // both can change gate-relevant behavior — alongside every path
+    // `vox_cli_ci::affected::SENTINEL_EXACT` already treats as gate-relevant.
+    let yml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/ci.yml"
+    ));
+    let doc: serde_yaml::Value = serde_yaml::from_str(yml).expect("ci.yml must parse as YAML");
+    let steps = doc["jobs"]["linux"]["steps"]
+        .as_sequence()
+        .expect("jobs.linux.steps must be a sequence");
+    let run = steps
+        .iter()
+        .find(|s| s["name"].as_str() == Some("Affected crates"))
+        .and_then(|s| s["run"].as_str())
+        .expect("linux job must have an 'Affected crates' step with a run: block");
+
+    let pattern = run
+        .split("grep -qE '")
+        .nth(1)
+        .and_then(|rest| rest.split('\'').next())
+        .expect("Affected crates step must contain a grep -qE '<pattern>' prefilter");
+
+    let re = regex::Regex::new(pattern).expect("prefilter regex must compile");
+
+    for sentinel in vox_cli_ci::affected::SENTINEL_EXACT {
+        assert!(
+            re.is_match(sentinel),
+            "prefilter regex {pattern:?} must match SENTINEL_EXACT entry {sentinel:?}"
+        );
+    }
+    for path in [
+        "contracts/x.yaml",
+        ".config/nextest.toml",
+        ".github/workflows/x.yml",
+        "examples/golden/x.vox",
+    ] {
+        assert!(
+            re.is_match(path),
+            "prefilter regex {pattern:?} must match {path:?}"
+        );
+    }
+}
+
+#[test]
+fn harness_eval_nightly_push_failure_is_not_silently_swallowed() {
+    // G3: `git push ... || echo "::warning::...push skipped (non-fast-forward)"`
+    // hid every rejection (fast-forward or otherwise) behind a warning that
+    // looks the same as the benign race it claimed to be. The fixed step
+    // retries against a rebase and hard-fails loud (`::error::` + exit 1) if
+    // that doesn't resolve it.
+    let yml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/harness-eval-nightly.yml"
+    ));
+    assert!(
+        !yml.contains("push skipped (non-fast-forward)"),
+        "harness-eval-nightly must not hide a rejected push behind a warning"
+    );
+}
+
 #[test]
 fn ssot_drift_includes_crate_graph_check() {
     let src = include_str!(concat!(
@@ -470,4 +582,26 @@ fn ssot_drift_includes_crate_graph_check() {
         src.contains("affected_cmd::check_graph"),
         "ssot-drift bundle must call affected_cmd::check_graph"
     );
+}
+
+#[test]
+fn vox_gui_is_tested_somewhere() {
+    let yml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/gui-cross-build.yml"
+    ));
+    // `cargo test -p vox-gui --test gui_tauri_prereqs` already exists; require the full suite.
+    // rfind (not find): the file has two "Stage Tauri external sidecar" steps
+    // (Windows, then Unix) before the full-suite step; `find` matches the
+    // Windows one, which happens to also precede `full` on this OS-ordered
+    // file but proves nothing about ordering relative to the step that
+    // actually runs on the same OS as `full`. rfind anchors on the step
+    // immediately preceding it.
+    let full = yml
+        .find("cargo test -p vox-gui --locked")
+        .expect("full vox-gui test suite");
+    let sidecar = yml
+        .rfind("Stage Tauri external sidecar")
+        .expect("sidecar staging step");
+    assert!(full > sidecar, "tests need the staged sidecar");
 }

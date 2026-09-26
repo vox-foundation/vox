@@ -75,7 +75,7 @@ surface:
 | Surface | How it connects | Config source |
 |---------|----------------|---------------|
 | Local shells / agent tabs (Windows host) | S3 via env vars when MinIO is up; falls back to disk cache | `%APPDATA%\Mozilla\sccache\config\config` (`[cache.disk]` default + `SCCACHE_*` env) |
-| Self-hosted runner containers | `host.docker.internal:9000` | env injected by `vox ci runner-scale` at spawn (`shared_cache_env`) |
+| Self-hosted runner containers | `host.docker.internal:9000` | `SCCACHE_*` env set on the container at launch |
 | Other LAN machines | `http://<ci-host>:9000` | same sccache config file, LAN endpoint |
 | GitHub-hosted lanes (`gate`, `cross-check`) | GitHub Actions cache service | `SCCACHE_GHA_ENABLED` in the workflow (cannot reach the LAN) |
 
@@ -99,10 +99,8 @@ docker run -d --name vox-sccache-minio --restart always --memory=1g \
 ```
 
 `--restart always` survives Docker/WSL2 engine restarts (this host uses the
-WSL2-native Docker Engine, not Docker Desktop — see
-[runner-autoscaling.md](runner-autoscaling.md)). The autoscaler probes
-`127.0.0.1:9000` before each spawn; if MinIO is down, runner containers fall
-back to the per-host disk volume (`SCCACHE_DIR=/cache/sccache`) baked into the
+WSL2-native Docker Engine, not Docker Desktop). If MinIO is down, runner
+containers fall back to the per-host disk volume (`SCCACHE_DIR=/cache/sccache`) baked into the
 runner image — builds never fail because the cache is away.
 
 ## Rules that keep hit rates high

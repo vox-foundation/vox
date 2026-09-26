@@ -29,6 +29,9 @@ concurrency:
   group: deploy-vox-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   smoke-ci:
     name: "Gate 1: Smoke CI"

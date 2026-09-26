@@ -10,7 +10,6 @@ mod grammar;
 mod guards;
 mod hash;
 mod matrix;
-pub(crate) mod mens;
 mod orchestration_audit;
 mod syntax_k;
 mod timings;
@@ -30,10 +29,6 @@ pub(crate) use guards::{
 pub(crate) use matrix::{
     MensGateOpts, check_no_vox_dei, check_workflow_scripts, run_feature_matrix, run_mens_gate,
     run_script_hygiene, run_toestub_scoped_roots, run_toestub_self_apply,
-};
-pub(crate) use mens::{
-    run_collateral_damage_gate, run_constrained_gen_smoke, run_grpo_reward_baseline,
-    run_mens_corpus_health,
 };
 pub(crate) use orchestration_audit::run_ssot_audit;
 pub(crate) use syntax_k::{run_k_complexity_budget, run_source_token_budget};

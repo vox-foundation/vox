@@ -49,6 +49,7 @@ impl AccelBudget {
 /// trustworthy, so the effective budget is their minimum. `None` live
 /// pressure (e.g. `vm_stat` unavailable/unparseable) leaves the driver
 /// advisory untouched. Not `#[cfg]`-gated so it's testable on every host.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 fn combine_with_live_pressure(driver_advisory_bytes: u64, live_pressure_bytes: Option<u64>) -> u64 {
     match live_pressure_bytes {
         Some(live) => driver_advisory_bytes.min(live),

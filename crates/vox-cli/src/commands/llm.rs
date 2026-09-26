@@ -103,6 +103,7 @@ pub async fn run(cmd: LlmCmd) -> anyhow::Result<()> {
 }
 
 #[cfg(test)]
+#[allow(unsafe_code)] // test-only std::env::{set_var, remove_var} (unsafe since edition 2024)
 mod tests {
     use super::*;
 

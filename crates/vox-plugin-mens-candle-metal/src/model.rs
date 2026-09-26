@@ -21,7 +21,7 @@ use candle_nn::RmsNorm;
 
 #[allow(clippy::large_enum_variant)]
 pub enum QuantizedLinear {
-    QLora(qlora_rs::qlora::QuantizedLinear),
+    QLora(Box<qlora_rs::qlora::QuantizedLinear>),
     QMatMul(QMatMul),
     Unquantized(Tensor),
 }
@@ -35,7 +35,7 @@ impl QuantizedLinear {
     ) -> Result<Self> {
         let l = qlora_rs::qlora::QuantizedLinear::from_weight(weight, bias, config, device)
             .map_err(|e| candle_core::Error::Msg(e.to_string()))?;
-        Ok(Self::QLora(l))
+        Ok(Self::QLora(Box::new(l)))
     }
 
     pub fn from_weight_with_varbuilder(
@@ -47,7 +47,7 @@ impl QuantizedLinear {
         let l =
             qlora_rs::qlora::QuantizedLinear::from_weight_with_varbuilder(weight, bias, config, vb)
                 .map_err(|e| candle_core::Error::Msg(e.to_string()))?;
-        Ok(Self::QLora(l))
+        Ok(Self::QLora(Box::new(l)))
     }
 
     pub fn from_qmatmul(qmm: QMatMul) -> Self {
@@ -85,7 +85,7 @@ impl QuantizedLinear {
 
 impl From<qlora_rs::qlora::QuantizedLinear> for QuantizedLinear {
     fn from(l: qlora_rs::qlora::QuantizedLinear) -> Self {
-        Self::QLora(l)
+        Self::QLora(Box::new(l))
     }
 }
 

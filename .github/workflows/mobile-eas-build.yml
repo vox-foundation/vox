@@ -34,20 +34,27 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   # ── Gate that needs no Expo account: prove the generated app bundles. ──────
   bundle:
     name: Generate + export Expo bundle
     # Tier: heavy (self-hosted). merge_group + 'full-ci' label only.
     if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
-    runs-on: [self-hosted, linux]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
       - uses: ./.github/actions/setup-rust
+        with:
+          cache: "false"   # Swatinem below is the only Rust cache; PRs never write it
 
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - uses: actions/setup-node@v7
         with:
@@ -103,7 +110,7 @@ jobs:
   # ── Cloud APK build: only when an Expo account token is wired up. ─────────
   eas-build:
     name: EAS cloud build (Android APK)
-    runs-on: [self-hosted, linux]
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: bundle
     # NOTE: the `secrets` context is NOT allowed in a job-level `if:` (GitHub
@@ -128,8 +135,12 @@ jobs:
         uses: actions/checkout@v7
       - if: steps.guard.outputs.enabled == 'true'
         uses: ./.github/actions/setup-rust
+        with:
+          cache: "false"   # Swatinem below is the only Rust cache; PRs never write it
       - if: steps.guard.outputs.enabled == 'true'
         uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - if: steps.guard.outputs.enabled == 'true'
         uses: actions/setup-node@v7
         with:

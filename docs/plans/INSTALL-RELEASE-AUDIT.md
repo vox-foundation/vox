@@ -141,7 +141,7 @@ archives (minimal compiler CLI + full CLI&GUI), and (e) CI that runs on all thre
 | 🟠 | **Local CI (`act`) is Windows/Unix-asymmetric** — no `windows-latest` image map; `--artifact-server-path /tmp/act-artifacts` is Unix-only; `self-hosted` maps to a Linux image. | `.actrc:21-28, 43` |
 | 🟠 | **Rust toolchain skew** — `rust-toolchain.toml` `1.96.0` vs `Cargo.toml` rust-version `1.95` vs Dockerfiles `1.95.0`. | `rust-toolchain.toml:2`; `Cargo.toml:27`; `Dockerfile.ci-runner:19`; `infra/ci-runner/Dockerfile:18` |
 | 🟠 | **`bundle-release.yml` omits macOS entirely.** | `bundle-release.yml:27-44` |
-| 🟠 | **Linux binaries unsigned; no SBOM; provenance is dispatch-only.** | `release-binaries.yml` (no signing/SBOM); `pm-provenance-verify.yml:20` |
+| 🟠 | **Linux binaries unsigned; no SBOM; provenance check is a nightly fixture, not wired to real release artifacts.** | `release-binaries.yml` (no signing/SBOM); `nightly.yml`'s `audits` job (`pm-provenance-verify.yml`, retired 2026-09, is now folded in there) |
 | 🟡 | **No ARM Linux target** (`aarch64-unknown-linux-gnu`) in any release workflow. | `release-binaries.yml:22-30` |
 | 🟡 | **CLI shipped as split-arch; GUI shipped universal (macOS)** — inconsistent. | `release-binaries.yml:29-30` vs `release-gui.yml:24` |
 | 🟡 | **No automated `Cargo.toml` version ↔ git tag sync.** | (absent) |
@@ -279,8 +279,10 @@ omitted; plugins installable later.
 1.2 **Plugin integrity** — add `sha256`/`signature` + `source_commit` to `Plugin.toml`
     (`vox-plugin-types`); verify on install (`plugin/install.rs`) and at load (`loader.rs`),
     reusing the CLI's `checksum_manifest` logic. Fail closed; `--insecure` escape hatch for dev.
-1.3 **SBOM + provenance** — add `cargo sbom`/`syft` to release; flip `pm-provenance-verify.yml` to
-    run on release.
+1.3 **SBOM + provenance** — add `cargo sbom`/`syft` to release; the fixture-only
+    `pm-provenance --strict` gate now lives in `nightly.yml`'s `audits` job
+    (`pm-provenance-verify.yml` was retired 2026-09) — extend it to a real
+    release-artifact check, not just the nightly fixture.
 
 ### Phase 2 — Frictionless install (bootstrap + voxup completion)
 2.1 **Bootstrap scripts** — `scripts/install.sh` (POSIX) + `scripts/install.ps1` (PowerShell):

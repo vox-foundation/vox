@@ -673,19 +673,15 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
         )
         .map_err(|e| anyhow::anyhow!(e))
     )?;
-    // ENFORCED on the CI side: an unregistered GitHub-hosted `runs-on` fails ssot-drift
-    // (and therefore CI). ssot-drift is reachable from the fast pre-push tier; that
-    // propagation is intentional and bounded. The standalone pre-push step
-    // (pre_push.rs step_runner_policy_check) stays ADVISORY so the gate is never
-    // silently bypassed by the known stale-binary `--no-verify` pattern.
-    ds!(
-        "runner_policy_check",
-        vox_cli_ci::runner_policy_check::run(root, true)
-    )?;
     ds!(
         "node_pnpm_ssot_guard",
         vox_cli_ci::node_pnpm_ssot_guard::run(root)
     )?;
+    ds!(
+        "workflow_policy_guard",
+        vox_cli_ci::workflow_policy_guard::run(root)
+    )?;
+    ds!("cache_key_lint", vox_cli_ci::cache_key_lint::run(root))?;
     println!("ssot-drift: nested SSOT guards OK");
     Ok(())
 }
@@ -875,6 +871,24 @@ mod stale_ref_guard_tests {
         .expect("write AGENTS.md");
         check_stale_doc_and_workflow_refs(tmp.path()).expect(
             "without docs/, the stale-ref guard does not scan root AGENTS.md at all (documented gap)",
+        );
+    }
+
+    /// R7a: `run_ssot_drift` must dispatch `cache_key_lint` as a stage, or a
+    /// drift in it never blocks `vox ci pre-push`/CI. A source-text check on
+    /// this file rather than executing `run_ssot_drift` (which shells out to
+    /// `cargo metadata` and other stages) — mutation-checked by deleting the
+    /// dispatch line and confirming this test fails.
+    ///
+    /// The needle is built from two halves at runtime (not a single string
+    /// literal) so this assertion can never match itself via `include_str!`.
+    #[test]
+    fn run_ssot_drift_dispatches_cache_key_lint() {
+        let src = include_str!("docs.rs");
+        let needle = format!("{}{}", "ds!(\"cache_key", "_lint\"");
+        assert!(
+            src.contains(&needle),
+            "run_ssot_drift must call ds!(\"cache_key_lint\", ...)"
         );
     }
 }

@@ -1,12 +1,9 @@
 name: Setup Pipeline E2E
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'scripts/setup.vox'
-      - 'scripts/**/setup*.vox'
-      - '.github/workflows/setup-e2e.yml'
+  # Not on push:main: test-setup's 90m clean-room timeout exceeds the
+  # fast-lane (branch push) 30-min cap (workflow_policy_guard). Already ran
+  # nightly in addition to push; now nightly-only.
   schedule:
     - cron: '0 2 * * *' # Run nightly (cross-platform clean-room; not per-PR)
   workflow_dispatch:
@@ -14,6 +11,9 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   test-setup:

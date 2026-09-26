@@ -31,7 +31,9 @@ fn config_hygiene_baseline_has_pinned_count() {
         "config-hygiene-baseline.txt changed — update EXPECTED_HYGIENE_COUNT if intentional"
     );
 }
-const EXPECTED_HYGIENE_COUNT: usize = 379;
+// 2026-09-22: 379 -> 375, the four CI-runner autoscaler findings from
+// `runner_scale.rs` went away with the self-hosted fleet tooling.
+const EXPECTED_HYGIENE_COUNT: usize = 375;
 
 #[test]
 fn config_registry_baseline_has_pinned_count() {
@@ -42,4 +44,5 @@ fn config_registry_baseline_has_pinned_count() {
         "config-registry-baseline.txt changed — update EXPECTED_REGISTRY_COUNT if intentional"
     );
 }
-const EXPECTED_REGISTRY_COUNT: usize = 347;
+// 2026-09-22: 347 -> 343, the same four autoscaler knobs.
+const EXPECTED_REGISTRY_COUNT: usize = 343;

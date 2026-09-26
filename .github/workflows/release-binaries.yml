@@ -16,7 +16,7 @@ jobs:
   build:
     name: Build ${{ matrix.target }}
     runs-on: ${{ fromJson(matrix.runs_on) }}
-    timeout-minutes: 240
+    timeout-minutes: 180  # clamped to slow-lane cap (workflow_policy_guard); was 240
     # This job performs five serial fat-LTO links (vox-cli with
     # heavy-retrieval, vox-ml-cli, vox-langtool, vox-lsp, voxup) on 4-core/14-16GB hosted runners.
     # CARGO_BUILD_JOBS caps the dep-compile phase's parallelism to protect
@@ -216,8 +216,8 @@ jobs:
   # 2026-08-23: moved off [self-hosted, linux, x64] to ubuntu-latest -- the
   # self-hosted fleet's Linux queue never picked up a release-tag run (one
   # recorded attempt queued 24:00:00 with zero pickup). NOTE: the 14 GB
-  # self-hosted budget this job used to cite (runner_scale.rs MEM_PER_RUNNER,
-  # measured from a THIN-LTO `cargo doc` workload, not this job's FAT-LTO
+  # self-hosted budget this job used to cite (measured from a THIN-LTO
+  # `cargo doc` workload, not this job's FAT-LTO
   # link) never actually applied to ubuntu-latest, and this job's real
   # peak RSS under fat LTO has never been measured on ANY runner -- the
   # 2026-05-26 self-hosted attempt queued forever and never reached the
@@ -226,7 +226,7 @@ jobs:
   gpu-plugin-metal:
     name: Build mens-candle-metal plugin (${{ matrix.triple }})
     runs-on: macos-latest
-    timeout-minutes: 240
+    timeout-minutes: 180  # clamped to slow-lane cap (workflow_policy_guard); was 240
     # Non-blocking: a plugin build failure must never take down the core
     # vox/vox-ml-cli/voxup release. Job-level continue-on-error sets the job
     # conclusion to success for `needs:` resolution, so publish still WAITS
@@ -285,7 +285,7 @@ jobs:
   gpu-plugin-cuda:
     name: Build ${{ matrix.id }} plugin
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    timeout-minutes: 180  # clamped to slow-lane cap (workflow_policy_guard); was 240
     # See gpu-plugin-metal -- same non-blocking contract. CUDA is the least
     # proven part of this plan: no workflow in this repo has ever installed a
     # CUDA toolkit on a hosted runner, and the only CUDA-compiling job in CI
@@ -351,7 +351,7 @@ jobs:
     runs-on: ubuntu-latest
     # ~90-180m dep compile at codegen-units=1 + a serial fat-LTO link + the e2e
     # test target. CARGO_BUILD_JOBS caps the dep phase for RSS headroom.
-    timeout-minutes: 240
+    timeout-minutes: 180  # clamped to slow-lane cap (workflow_policy_guard); was 240
     permissions:
       contents: read
     env:

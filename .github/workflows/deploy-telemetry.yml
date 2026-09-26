@@ -9,14 +9,14 @@ name: Deploy Telemetry (Coolify)
 # 403/HTML-login tolerance. We do NOT copy-paste the trigger/poll bash from
 # deploy-hetzner.yml — single source of deploy logic, parameterized by app UUID.
 #
-# Runs on ubuntu-latest (vox is public → free minutes; deploy never waits on the
-# self-hosted fleet). See docs/src/ci/compute-placement.md.
+# Runs on ubuntu-latest (vox is public → free minutes). The self-hosted runner
+# fleet this comment used to contrast against has since been removed; there is
+# no fleet to wait on either way. See docs/src/ci/compute-placement.md.
 
+# workflow_dispatch-only (no schedule, no push trigger): dormant until the
+# telemetry stack is revived (never deployed successfully; see
+# docs/src/architecture/ci-cd-audit-findings-2026.md).
 on:
-  workflow_run:
-    workflows: ["Build & Push vox-telemetry-server Docker Image"]
-    types: [completed]
-    branches: [main]
   workflow_dispatch:
     inputs:
       skip_public_health_probe:
