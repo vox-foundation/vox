@@ -37,13 +37,15 @@ async fn test_partial_harvest_resilience_slow_provider_does_not_block_fast() {
         .mount(&fast_server)
         .await;
 
-    let mut policy = SearchPolicy::default();
-    policy.fast_timeout_ms = 1500;
-    policy.tavily_enabled = false;
-    policy.searxng_url = None;
-    policy.enable_arxiv = false;
-    policy.openalex_api_url = Some(slow_server.uri());
-    policy.wikipedia_api_url = Some(format!("{}/w/api.php", fast_server.uri()));
+    let policy = SearchPolicy {
+        fast_timeout_ms: 1500,
+        tavily_enabled: false,
+        searxng_url: None,
+        enable_arxiv: false,
+        openalex_api_url: Some(slow_server.uri()),
+        wikipedia_api_url: Some(format!("{}/w/api.php", fast_server.uri())),
+        ..Default::default()
+    };
 
     // Warm up OS networking/proxy stack to ensure deterministic timing on macOS
     let _ = vox_http_client::client()
