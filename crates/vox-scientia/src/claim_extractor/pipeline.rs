@@ -72,23 +72,11 @@ impl ExtractionPipeline {
 
         let mut all_claims: Vec<AtomicClaim> = Vec::new();
         for (sentence, _score) in &verifiable {
-            let sentence_offset = offset_by_ptr
-                .get(&(sentence.as_ptr() as usize))
-                .copied()
-                .unwrap_or(0);
-            // `decompose` measures spans relative to `sentence`; shift them to be
-            // source-absolute so `span_checker.check` (below) verifies against the
-            // same text the span was measured in, not the whole source.
-            let claims = self
-                .decomposer
-                .decompose(sentence)
-                .into_iter()
-                .map(|mut c| {
-                    c.span.start += sentence_offset;
-                    c.span.end += sentence_offset;
-                    c
-                });
-            all_claims.extend(claims);
+            all_claims.extend(claims_for_sentence(
+                &self.decomposer,
+                sentence,
+                &offset_by_ptr,
+            ));
         }
 
         let valid_claims: Vec<AtomicClaim> = all_claims
@@ -151,6 +139,52 @@ impl ExtractionPipeline {
             abstained_sentence_count: abstained,
         })
     }
+}
+
+/// Decomposes `sentence` and shifts its (sentence-relative) claim spans to be
+/// source-absolute, using `sentence`'s byte offset in `offset_by_ptr` — looked
+/// up by pointer identity, since `VeriScoreGate::filter_sentences` borrows
+/// `&str`s directly out of the same `sentences: Vec<String>` that
+/// `offset_by_ptr` was built from (see `extract`).
+///
+/// # Invariant
+/// `sentence`'s pointer must be present in `offset_by_ptr`. That holds today
+/// because the gate only ever borrows; it does not hold if the gate is ever
+/// changed to trim, normalize, or otherwise return owned/re-allocated
+/// sentence strings. A silent fallback to offset 0 in that case would exactly
+/// reproduce Task 15b's original bug (every claim after the first sentence
+/// checked against the wrong region of `source_text`, and dropped) with no
+/// signal that it had regressed. So a miss is treated as a broken invariant,
+/// not a benign default: logged loudly, `debug_assert!`-ed so tests catch it,
+/// and the sentence is skipped rather than silently mis-offset.
+fn claims_for_sentence(
+    decomposer: &AtomicDecomposer,
+    sentence: &str,
+    offset_by_ptr: &std::collections::HashMap<usize, usize>,
+) -> Vec<AtomicClaim> {
+    let Some(sentence_offset) = offset_by_ptr.get(&(sentence.as_ptr() as usize)).copied() else {
+        tracing::error!(
+            sentence = %sentence,
+            "offset-by-pointer-identity invariant broken: VeriScoreGate::filter_sentences returned a \
+             sentence not borrowed from the original `sentences` Vec. Skipping it rather than silently \
+             checking its claims against the wrong region of source_text (Task 15b's original bug)."
+        );
+        debug_assert!(
+            false,
+            "claims_for_sentence: pointer-identity miss on offset_by_ptr — VeriScoreGate::filter_sentences \
+             must keep borrowing directly from `sentences` for claim spans to stay source-absolute"
+        );
+        return Vec::new();
+    };
+    decomposer
+        .decompose(sentence)
+        .into_iter()
+        .map(|mut c| {
+            c.span.start += sentence_offset;
+            c.span.end += sentence_offset;
+            c
+        })
+        .collect()
 }
 
 /// Test-only convenience over `split_sentences_with_offsets`: `extract` needs the
@@ -226,6 +260,26 @@ fn split_sentences_with_offsets(text: &str) -> Vec<(usize, String)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Round 1 fix: `claims_for_sentence` must not silently fall back to offset
+    /// 0 on a pointer-identity miss — that would exactly reproduce Task 15b's
+    /// original bug with no signal. Build `offset_by_ptr` from one String
+    /// allocation and pass a *different* allocation (same text) as `sentence`,
+    /// simulating a `VeriScoreGate::filter_sentences` that started returning
+    /// owned/re-allocated strings instead of borrowing. Direct unit test of the
+    /// helper (rather than injecting a fake gate into `ExtractionPipeline`,
+    /// which has no seam for one) per the reviewer's fallback instruction.
+    #[test]
+    #[should_panic(expected = "pointer-identity miss")]
+    fn claims_for_sentence_debug_asserts_on_pointer_identity_miss() {
+        let decomposer = AtomicDecomposer::default();
+        let owned_elsewhere = String::from("Latency rose by 10ms.");
+        let mut offset_by_ptr = std::collections::HashMap::new();
+        offset_by_ptr.insert(owned_elsewhere.as_str().as_ptr() as usize, 5usize);
+
+        let sentence = String::from("Latency rose by 10ms."); // distinct allocation, same text
+        let _ = claims_for_sentence(&decomposer, &sentence, &offset_by_ptr);
+    }
 
     #[test]
     fn split_does_not_break_decimal_numbers() {
