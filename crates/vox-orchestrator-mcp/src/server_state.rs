@@ -13,6 +13,9 @@ use vox_orchestrator::{
 };
 use vox_skills::{SkillRegistry, install_builtins, new_registry_arc};
 
+/// Opt-in webhook -> hopper intake poller (Phase 3 D-10/D-13).
+mod webhook_intake;
+
 #[derive(Debug, Clone)]
 pub struct CachedCatalog {
     pub resolved: vox_repository::ResolvedRepoCatalog,
