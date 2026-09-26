@@ -121,6 +121,7 @@ impl Subcommand for StdlibCoverageSubcommand {
                     note.push_str(&format!(" (info: {})", infos.join(" ")));
                 }
                 if !parity.is_clean() {
+                    eprint!("{}", error_details(&parity));
                     report.note = Some(format!("stdlib drift: {}", note));
                 } else {
                     // Clean run — still surface info-class counts for visibility.
@@ -187,6 +188,26 @@ impl Subcommand for StdlibCoverageSubcommand {
 
 fn gate_thing_name() -> &'static str {
     CrlGate::ToolingStdlibCoverage.thing_name()
+}
+
+/// Human-readable list of error-severity mismatches: each symbol with its
+/// corpus call sites, so a red gate names what to fix instead of only counts.
+fn error_details(parity: &stdlib_parity::ParityReport) -> String {
+    let mut out = String::new();
+    for m in parity
+        .mismatches
+        .iter()
+        .filter(|m| m.severity == stdlib_parity::Severity::Error)
+    {
+        out.push_str(&format!(
+            "stdlib-coverage error: `{}` ({:?})\n",
+            m.symbol, m.kind
+        ));
+        for site in &m.corpus_locations {
+            out.push_str(&format!("  {}:{}\n", site.file.display(), site.line));
+        }
+    }
+    out
 }
 
 /// Extract `error_count` from the `note` field of a prior canonical report.
@@ -312,6 +333,44 @@ mod tests {
             .parent()
             .unwrap()
             .to_path_buf()
+    }
+
+    #[test]
+    fn error_details_lists_symbol_and_call_sites() {
+        use stdlib_parity::{CorpusSite, Mismatch, MismatchKind, ParityReport, Severity};
+        let mk = |symbol: &str, kind, severity| Mismatch {
+            symbol: symbol.into(),
+            kind,
+            severity,
+            binary_location: None,
+            doc_locations: Vec::new(),
+            corpus_locations: vec![CorpusSite {
+                file: "scripts/a.vox".into(),
+                line: 7,
+            }],
+            recommendation: String::new(),
+        };
+        let report = ParityReport {
+            symbols_registered: 0,
+            symbols_documented: 0,
+            symbols_used_in_corpus: 0,
+            mismatches: vec![
+                mk(
+                    "fs.nope",
+                    MismatchKind::CorpusUsesUnregistered,
+                    Severity::Error,
+                ),
+                mk(
+                    "fs.read",
+                    MismatchKind::RegisteredButUndocumented,
+                    Severity::Warn,
+                ),
+            ],
+        };
+        let out = error_details(&report);
+        assert!(out.contains("fs.nope"), "{out}");
+        assert!(out.contains("scripts/a.vox:7"), "{out}");
+        assert!(!out.contains("fs.read"), "non-error leaked: {out}");
     }
 
     #[test]
