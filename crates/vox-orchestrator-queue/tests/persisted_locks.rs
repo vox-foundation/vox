@@ -63,7 +63,7 @@ async fn acquire_then_replay_from_db() {
 // prior evidence of turso surfacing connection-level inconsistencies. Root
 // cause is likely inside turso's own internals (or `turso_sdk_kit`), beyond
 // what this crate's wrapper can account for or safely patch around blind.
-#[ignore = "suspected upstream turso 0.6.1 :memory:-mode visibility bug — see comment above; not a Vox logic error"]
+#[ignore = "owner:orchestrator sunset:2026-12-31 suspected upstream turso 0.6.1 :memory:-mode visibility bug — see comment above; not a Vox logic error"]
 #[tokio::test]
 async fn release_propagates_to_db() {
     let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");

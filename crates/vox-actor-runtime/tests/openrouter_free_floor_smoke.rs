@@ -12,7 +12,7 @@ use vox_actor_runtime::llm::cascade::chat_with_cascade;
 use vox_actor_runtime::llm::{LlmChatMessage, LlmConfig};
 
 #[tokio::test]
-#[ignore = "requires OPENROUTER_API_KEY and network; run with --ignored"]
+#[ignore = "owner:actor-runtime sunset:never requires OPENROUTER_API_KEY and network; run with --ignored"]
 async fn free_floor_slug_dispatches_and_returns_content() {
     if vox_config::inference::openrouter_api_key().is_none() {
         eprintln!("SKIP: OPENROUTER_API_KEY not set — cannot run live dispatch smoke test");

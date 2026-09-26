@@ -277,7 +277,7 @@ lanes:
     }
 
     #[test]
-    #[ignore = "reads the live device; run manually on a Metal host"]
+    #[ignore = "owner:mens sunset:never reads the live device; run manually on a Metal host"]
     fn live_device_reports_a_plausible_budget() {
         let b = query_accel_budget().expect("a device on this host");
         assert!(b.working_set_bytes > 0 && b.max_alloc_bytes > 0);

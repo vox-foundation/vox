@@ -12,7 +12,7 @@ use vox_orchestrator_mcp::agy_exec::{AgyExec, AgySpec};
 use vox_orchestrator_mcp::agy_worktree::DelegationWorktree;
 
 #[tokio::test]
-#[ignore = "live agy call — bills Antigravity credits"]
+#[ignore = "owner:orchestrator sunset:never live agy call — bills Antigravity credits"]
 async fn smoke_delegate_trivial_task() {
     let status = detect();
     assert!(

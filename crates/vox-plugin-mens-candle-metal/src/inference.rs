@@ -963,7 +963,7 @@ mod live_metal_tests {
     }
 
     #[test]
-    #[ignore = "needs a real model directory and Metal hardware"]
+    #[ignore = "owner:mens sunset:never needs a real model directory and Metal hardware"]
     fn generation_sustains_a_usable_token_rate() {
         // 0.6B on Metal. The pre-fix engine measured 1.76 tok/s at this length;
         // the floor below is deliberately far under what a cached engine gives,
@@ -990,7 +990,7 @@ mod live_metal_tests {
     }
 
     #[test]
-    #[ignore = "needs a real model directory"]
+    #[ignore = "owner:mens sunset:never needs a real model directory"]
     fn the_demo_config_eos_is_read_from_disk_not_hardcoded() {
         // 151643 is BOS. The real EOS is 151645 and must come from config.json.
         assert_eq!(
@@ -1012,7 +1012,7 @@ mod live_metal_tests {
     ///   cargo test -p vox-plugin-mens-candle-metal --features metal -- --ignored base_only
     /// ```
     #[test]
-    #[ignore = "needs a real base-model directory and Metal hardware"]
+    #[ignore = "owner:mens sunset:never needs a real base-model directory and Metal hardware"]
     fn base_only_load_runs_real_inference_with_no_adapter_present() {
         let raw = std::env::var("VOX_MENS_BASE_ONLY_DIR")
             .expect("set VOX_MENS_BASE_ONLY_DIR to a base-model directory with no adapter present");
