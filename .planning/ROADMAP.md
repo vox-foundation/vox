@@ -79,7 +79,7 @@ Plans:
   1. vox-grammar-export stays a CORE library: crate-audit decision D-4/D-18 (docs/src/architecture/crate-audit-and-plan-2026.md; commit 0a8d1518c, 2026-05-24) deleted the 61-LoC vox-plugin-grammar-export pass-through and its ABI extension, superseding the 2026-05-08 PRD's EXTRACT disposition (Phase 3 D-11). Its zero-consumer automaton module and vox-populi's unused dependency on it are removed.
   2. vox-webhook ships as `vox-plugin-webhook`; vox-orchestrator calls it through `WebhookOrchestratorBridge`/`OrchestratorInboxItem` dispatch instead of a direct crate dependency.
   3. vox-ssg is not a CORE crate: it was folded into vox-cli/src/utils/ssg/ (layer 4) by 9d385a60b (2026-05-12) and has no entry in contracts/ci/crate-layers.v1.json (Phase 3 D-05).
-  4. The vox-oratio extraction is complete, with no direct Candle dependency remaining in any CORE (L0-L3) crate.
+  4. The vox-oratio extraction is complete — Candle Whisper STT is reachable only through vox-plugin-speech and vox-speech has no Candle feature (D-08/D-12) — and no CORE crate (layers 0-3 per contracts/ci/crate-layers.v1.json, D-09) declares an unconditional Candle dependency; optional, feature-gated Candle dependencies remain allowed (D-06).
 
 **Plans**: 6 plans
 
