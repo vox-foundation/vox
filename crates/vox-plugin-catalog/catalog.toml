@@ -164,7 +164,7 @@ id = "webhook"
 payload-kind = "code"
 description = "Inbound webhook HTTP listener with HMAC signature verification (GitHub, generic; GitLab deprecated)."
 status = "stable"
-extension-points = ["HttpListener"]
+extension-points = ["HttpListener", "WebhookInbox"]
 default-source = "local:crates/vox-plugin-webhook"
 bundled-in = ["vox-server", "vox-dev"]
 

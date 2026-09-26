@@ -2,7 +2,7 @@
 # Source of truth: crates/vox-plugin-api/src/extensions/*.rs (+ the VoxPlugin accessors
 # in crates/vox-plugin-api/src/abi.rs). Do NOT hand-edit — regenerate instead.
 schema_version: 1
-abi_version: 12
+abi_version: 13
 extension_points:
 - name: AudioCapture
   module: audio_capture
@@ -146,3 +146,10 @@ extension_points:
   - revision
   - supports_cuda
   - supports_wgpu
+- name: WebhookInbox
+  module: webhook_inbox
+  revision: 1
+  accessor: as_webhook_inbox
+  methods:
+  - poll_events
+  - revision

@@ -13,3 +13,4 @@ pub mod script_executor;
 pub mod skill_runtime;
 pub mod speech_to_text;
 pub mod tensor_backend;
+pub mod webhook_inbox;

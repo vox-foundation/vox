@@ -10,7 +10,7 @@
 
 /// The newest plugin ABI this host speaks. A plugin built against this exact version
 /// always loads. Bumped on **any** ABI change (additive or breaking).
-pub const VOX_PLUGIN_ABI_VERSION: u32 = 12;
+pub const VOX_PLUGIN_ABI_VERSION: u32 = 13;
 
 /// The oldest plugin ABI this host still accepts. A plugin whose embedded ABI is within
 /// `VOX_PLUGIN_ABI_MIN_SUPPORTED ..= VOX_PLUGIN_ABI_VERSION` loads **without a rebuild** —
