@@ -1096,6 +1096,11 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                             params.temperature,
                             params.top_p,
                             params.attachment_manifest.clone(),
+                            // Task 8f: cognitive-profile resolution failed, but this
+                            // fallback still infers capabilities from the user's own
+                            // message, not from `user_prompt` (the assembled prompt
+                            // with injected history/open-files/retrieved/web context).
+                            Some(&expanded_prompt),
                         )
                         .await
                         {
@@ -1838,6 +1843,113 @@ mod tests {
             crate::chat_hop::turn_outcome_for_dispatch_err(&err),
             crate::chat_hop::TurnOutcome::BudgetDenied,
             "budget guard refusal must classify as BudgetDenied, not LlmError"
+        );
+    }
+
+    /// Task 8f, fix round 2: when `resolve_chat_llm_model` errors, `chat_message`'s
+    /// `cognitive_profile` branch falls through to plain `call_llm(state,
+    /// &system_prompt, &user_prompt, ...)` — `user_prompt` there is the fully
+    /// assembled prompt (history/open-files/`[SELECTED TEXT]`/retrieved/web
+    /// context). This must still infer capabilities from the user's own message
+    /// (`expanded_prompt`), not from that assembled prompt.
+    ///
+    /// Forces `resolve_chat_llm_model` to error via an exceeded daily budget —
+    /// `resolve_chat_llm_model` calls `enforce_budget_guard` *before* any model
+    /// resolution work, so it fails deterministically and hermetically (no
+    /// network reachable: no HTTP mock is even needed, since the fallback
+    /// `call_llm` call below also hits `mcp_infer_completion`'s own budget gate
+    /// before any dispatch). `params.selected_text` injects "latest news" into
+    /// `context_parts` (`[SELECTED TEXT]`) without needing multi-turn history —
+    /// the user's actual message (`prompt`) is "refactor this", with no
+    /// web-search cue. An error mentioning "budget" (not "capability"/"not
+    /// allowed") proves resolution accepted the pinned web-incapable model
+    /// despite "latest news" sitting in the injected `[SELECTED TEXT]` block.
+    #[tokio::test]
+    #[serial]
+    async fn cognitive_profile_fallback_infers_capabilities_from_users_message_not_injected_context()
+     {
+        let prior = std::env::var("VOX_BUDGET_USD").ok();
+        // SAFETY: `#[serial]` — no concurrent env mutation in this crate's tests.
+        unsafe { std::env::set_var("VOX_BUDGET_USD", "0.01") };
+        vox_config::snapshot::bump(&["VOX_BUDGET_USD"]);
+
+        let db = VoxDb::connect(DbConfig::Memory)
+            .await
+            .expect("open in-memory db");
+        db.record_llm_outcome(ModelOutcome {
+            session_id: "cognitive-fallback-capability-test",
+            user_id: None,
+            tenant_id: None,
+            prompt: "p",
+            response: "r",
+            model_id: "m",
+            provider: "openrouter",
+            task_category: "general",
+            strength_tag: "generalist",
+            latency_ms: Some(10),
+            input_tokens: Some(5),
+            output_tokens: Some(5),
+            cache_read_tokens: Some(0),
+            trace_id: None,
+            context_utilization_pct: None,
+            success: true,
+            cost_usd: Some(0.02),
+            quality_score: Some(1.0),
+            ttft_ms: None,
+            tpot_ms: None,
+        })
+        .await
+        .expect("record spend");
+
+        let state = ServerState::new_test()
+            .await
+            .with_db_initialized(Arc::new(db))
+            .await;
+
+        // Web-incapable model, pinned via the sticky override so the fallback
+        // `call_llm`'s resolution takes the id-lookup branch (no scored
+        // selection, no API key dependency).
+        let model_id = "cognitive-fallback-web-incapable";
+        {
+            let handle = state.orchestrator.models_handle();
+            handle
+                .write()
+                .expect("models lock")
+                .register(model_spec(ProviderType::OpenRouter, model_id));
+        }
+        *state.mcp_chat_model_override.write() = Some(model_id.to_string());
+
+        let params: ChatMessageParams = serde_json::from_value(serde_json::json!({
+            "prompt": "refactor this",
+            "selected_text": "what's the latest news on rust async?",
+            "cognitive_profile": "fast",
+            "session_id": "cognitive-fallback-capability-test",
+        }))
+        .expect("chat message params");
+
+        let response_json = chat_message(&state, params).await;
+
+        // SAFETY: `#[serial]` — restore prior env state before asserting/panicking.
+        unsafe {
+            match &prior {
+                Some(v) => std::env::set_var("VOX_BUDGET_USD", v),
+                None => std::env::remove_var("VOX_BUDGET_USD"),
+            }
+        }
+        vox_config::snapshot::bump(&["VOX_BUDGET_USD"]);
+
+        let parsed: serde_json::Value =
+            serde_json::from_str(&response_json).expect("chat_message must return valid JSON");
+        assert_eq!(
+            parsed["success"], false,
+            "budget-exceeded turn must fail: {response_json}"
+        );
+        let err = parsed["error"].as_str().unwrap_or_default();
+        assert!(
+            err.to_lowercase().contains("budget"),
+            "expected a budget error (proving capability resolution accepted the pinned \
+             web-incapable model despite \"latest news\" in injected [SELECTED TEXT]) — got a \
+             capability-gate or other error instead: {response_json}"
         );
     }
 

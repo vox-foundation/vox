@@ -838,6 +838,16 @@ pub async fn mcp_infer_tool_completion(
 ///
 /// Sibling of [`call_llm_with_pref`] with no per-request model
 /// override/tier — see that function's doc comment for why the two exist.
+///
+/// Task 8f fix round 2: `capability_prompt` is a REQUIRED parameter (not
+/// `Default`-elided), specifically so the compiler forces every call site to
+/// decide what it means for this caller — the earlier round-1 doc comment
+/// claiming "no caller of `call_llm` assembles injected context" was false:
+/// `browser_tools::browser_extract`/`browser_extract_json`/`browser_act` all
+/// build their `user_prompt` from `p.instruction` (the user's real intent)
+/// PLUS fetched/untrusted page text, and `chat_message`'s cognitive-profile
+/// `Err` fallback passes the fully assembled `user_prompt` here too. See each
+/// call site's own comment for its chosen value.
 pub async fn call_llm(
     state: &ServerState,
     system_prompt: &str,
@@ -846,6 +856,7 @@ pub async fn call_llm(
     temperature_override: Option<f32>,
     top_p_override: Option<f32>,
     attachment_manifest: Option<vox_orchestrator::attachment_manifest::AttachmentManifest>,
+    capability_prompt: Option<&str>,
 ) -> Result<(String, String, u64), String> {
     call_llm_with_pref(
         state,
@@ -857,13 +868,7 @@ pub async fn call_llm(
         attachment_manifest,
         None,
         None,
-        // Task 8f: every caller of `call_llm` (the compiler/oratio/db/scientia
-        // tool assists, plus `browser_tools`) builds its own single-purpose
-        // prompt from scratch — there is no separately-assembled chat context
-        // (history/open-files/retrieved/web text) mixed into `user_prompt` for
-        // any of them, so `user_prompt` already IS the caller's "own message".
-        // `None` correctly falls back to it in `resolve_mcp_chat_model_sync_inner`.
-        None,
+        capability_prompt,
     )
     .await
 }
@@ -1276,6 +1281,134 @@ mod tests {
             err.to_lowercase().contains("budget"),
             "expected a budget error (proving capability resolution accepted the pinned \
              web-incapable model despite \"latest news\" in injected history) — got a \
+             capability-gate or other error instead: {err}"
+        );
+    }
+
+    /// Task 8f, fix round 2: `browser_tools::browser_extract` builds
+    /// `user = format!("Instruction:\n{}\n\nVisible page text (truncated):\n{}",
+    /// p.instruction, summary)` and calls `call_llm` — `summary` is FETCHED,
+    /// untrusted page text, so capability inference must run over
+    /// `p.instruction` alone, not over the fetched text mixed into `user_prompt`.
+    /// Testing the real `browser_extract` function hermetically would require
+    /// stubbing the browser plugin backend (`with_browser_plugin`/`backend!`),
+    /// which is heavy for this fix; this test instead exercises the exact
+    /// prompt shape at the `call_llm` seam browser_extract actually calls
+    /// through, with `capability_prompt: Some(&p.instruction)` as browser_tools
+    /// now passes it.
+    ///
+    /// Same no-network technique as the attachment test above: an exceeded
+    /// daily budget makes `mcp_infer_completion` refuse after resolution
+    /// succeeds but before any HTTP dispatch. The pinned model advertises
+    /// neither `supports_web_search` nor `supports_json` (`capabilities:
+    /// Default::default()`), and the fetched "page text" contains both a
+    /// "latest news" cue and a "json" cue — an error mentioning "budget" (not
+    /// "capability") proves neither requirement leaked from the fetched text.
+    #[tokio::test]
+    #[serial]
+    async fn call_llm_infers_capabilities_from_instruction_not_fetched_page_text() {
+        let prior = std::env::var("VOX_BUDGET_USD").ok();
+        // SAFETY: `#[serial]` — no concurrent env mutation in this crate's tests.
+        unsafe { std::env::set_var("VOX_BUDGET_USD", "0.01") };
+        vox_config::snapshot::bump(&["VOX_BUDGET_USD"]);
+
+        let db = VoxDb::connect(DbConfig::Memory)
+            .await
+            .expect("open in-memory db");
+        db.record_llm_outcome(ModelOutcome {
+            session_id: "browser-extract-capability-test",
+            user_id: None,
+            tenant_id: None,
+            prompt: "p",
+            response: "r",
+            model_id: "m",
+            provider: "openrouter",
+            task_category: "general",
+            strength_tag: "generalist",
+            latency_ms: Some(10),
+            input_tokens: Some(5),
+            output_tokens: Some(5),
+            cache_read_tokens: Some(0),
+            trace_id: None,
+            context_utilization_pct: None,
+            success: true,
+            cost_usd: Some(0.02),
+            quality_score: Some(1.0),
+            ttft_ms: None,
+            tpot_ms: None,
+        })
+        .await
+        .expect("record spend");
+
+        let state = crate::server_state::ServerState::new_test()
+            .await
+            .with_db_initialized(Arc::new(db))
+            .await;
+
+        {
+            let handle = state.orchestrator.models_handle();
+            let mut registry = vox_orchestrator::sync_lock::rw_write(&*handle);
+            registry.register(ModelSpec {
+                id: "browser-extract-incapable".into(),
+                canonical_slug: "browser-extract-incapable".into(),
+                provider: "test".into(),
+                provider_type: ProviderType::OpenRouter,
+                max_tokens: 1000,
+                cost_per_1k: 0.01,
+                cost_per_1k_input: 0.01,
+                cost_per_1k_output: 0.01,
+                is_free: false,
+                observed_cost_per_1k: None,
+                strengths: vec![vox_orchestrator::models::generated::StrengthTag::Codegen],
+                capabilities: Default::default(), // no web search, no json mode
+                cache_creation_cost_per_1k: 0.0,
+                cache_read_cost_per_1k: 0.0,
+                supports_prompt_caching: false,
+                pricing_source: vox_orchestrator::models::spec::PricingSource::Bootstrap,
+                supported_parameters: vec![],
+            });
+        }
+        // `call_llm` has no per-request model override — pin via the sticky
+        // global override so resolution takes the deterministic id-lookup
+        // branch instead of `decide()`'s scored selection.
+        *state.mcp_chat_model_override.write() = Some("browser-extract-incapable".to_string());
+
+        let instruction = "summarize the pricing table";
+        let summary = "Site latest news: a competitor announced a new plan today. \
+                        Our public API returns a json object for pricing tiers.";
+        let sys = "You help automate web pages. Answer ONLY with the extracted content requested — no preamble.";
+        let user =
+            format!("Instruction:\n{instruction}\n\nVisible page text (truncated):\n{summary}");
+
+        let result = call_llm(
+            &state,
+            sys,
+            &user,
+            Some("browser-extract-capability-test"),
+            None,
+            None,
+            None,
+            Some(instruction),
+        )
+        .await;
+
+        // SAFETY: `#[serial]` — restore prior env state before asserting/panicking.
+        unsafe {
+            match &prior {
+                Some(v) => std::env::set_var("VOX_BUDGET_USD", v),
+                None => std::env::remove_var("VOX_BUDGET_USD"),
+            }
+        }
+        vox_config::snapshot::bump(&["VOX_BUDGET_USD"]);
+
+        let err = result.expect_err(
+            "budget-exceeded must still refuse this turn (proves dispatch, not the \
+             capability gate, is what's being asserted)",
+        );
+        assert!(
+            err.to_lowercase().contains("budget"),
+            "expected a budget error (proving capability resolution accepted the pinned \
+             incapable model despite \"latest news\"/\"json\" in fetched page text) — got a \
              capability-gate or other error instead: {err}"
         );
     }
