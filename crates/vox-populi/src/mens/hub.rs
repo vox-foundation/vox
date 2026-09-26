@@ -198,11 +198,16 @@ pub async fn download_model(repo_id: &str) -> anyhow::Result<DownloadedModelFile
         if weights.is_empty() {
             anyhow::bail!("Local model directory {local_path:?} contains no *.safetensors files");
         }
+        let optional = |name: &str| Some(local_path.join(name)).filter(|p| p.exists());
+        let tokenizer_config = optional("tokenizer_config.json");
+        let chat_template = optional("chat_template.jinja");
         return Ok(DownloadedModelFiles {
             cache_dir: local_path,
             config,
             weights,
             tokenizer,
+            tokenizer_config,
+            chat_template,
         });
     }
 
@@ -538,6 +543,44 @@ mod tests {
     use std::sync::Mutex;
 
     static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    fn local_model_dir(extra: &[&str]) -> tempfile::TempDir {
+        let dir = tempfile::tempdir().expect("tempdir");
+        for f in ["config.json", "model.safetensors", "tokenizer.json"]
+            .iter()
+            .chain(extra)
+        {
+            std::fs::write(dir.path().join(f), b"{}").expect("write fixture");
+        }
+        dir
+    }
+
+    #[tokio::test]
+    async fn local_dir_picks_up_tokenizer_config_and_chat_template() {
+        let dir = local_model_dir(&["tokenizer_config.json", "chat_template.jinja"]);
+        let files = super::download_model(dir.path().to_str().expect("utf8 path"))
+            .await
+            .expect("local model dir resolves");
+        assert_eq!(
+            files.tokenizer_config.as_deref(),
+            Some(dir.path().join("tokenizer_config.json").as_path())
+        );
+        assert_eq!(
+            files.chat_template.as_deref(),
+            Some(dir.path().join("chat_template.jinja").as_path())
+        );
+    }
+
+    #[tokio::test]
+    async fn local_dir_without_optional_files_leaves_them_none() {
+        let dir = local_model_dir(&[]);
+        let files = super::download_model(dir.path().to_str().expect("utf8 path"))
+            .await
+            .expect("local model dir resolves");
+        assert!(files.tokenizer_config.is_none());
+        assert!(files.chat_template.is_none());
+        assert!(files.tokenizer.is_some());
+    }
 
     #[test]
     fn hf_token_propagates_to_hugging_face_hub_token() {
