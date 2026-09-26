@@ -159,6 +159,7 @@ impl Default for OrchestratorConfig {
             research_quality_target: super::defaults::default_research_quality_target(),
             tool_ledger_key: String::new(),
             budget_gate_config: None,
+            webhook: None,
             task_policy: crate::config::TaskPolicyOverrides::default(),
             unrecognized_fields: std::collections::BTreeMap::new(),
         }

@@ -331,6 +331,11 @@ impl ServerState {
         state.spawn_populi_remote_worker_poller();
 
         state.spawn_scientia_research_mesh_background_jobs();
+        // Phase 3 D-04: no [orchestrator.webhook] section => no-op.
+        let _ = webhook_intake::spawn_webhook_intake_poller(
+            state.orchestrator_config.webhook.as_ref(),
+            state.orchestrator.hopper(),
+        );
 
         state
     }
@@ -400,6 +405,11 @@ impl ServerState {
             state.skill_search_index.clone(),
         );
         state.spawn_scientia_research_mesh_background_jobs();
+        // Phase 3 D-04: no [orchestrator.webhook] section => no-op.
+        let _ = webhook_intake::spawn_webhook_intake_poller(
+            state.orchestrator_config.webhook.as_ref(),
+            state.orchestrator.hopper(),
+        );
         state
     }
 

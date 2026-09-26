@@ -7,10 +7,16 @@
 //! are the plugin's `WebhookEvent` serde names and are the whole contract across
 //! the boundary — no crate here depends on the plugin.
 
+use std::sync::Arc;
+use vox_orchestrator::config::WebhookIntakeConfig;
 use vox_orchestrator::hopper::{HopperIntake, IntakeSource, PriorityHint};
 
 /// Longest slice of any untrusted event field that reaches the hopper intent.
 const MAX_FIELD_CHARS: usize = 64;
+/// Floor for `poll_interval_ms` (bounds intake per second).
+const MIN_POLL_INTERVAL_MS: u64 = 250;
+/// Ceiling for `max_events_per_poll` (bounds intake per tick).
+const MAX_EVENTS_PER_POLL: u32 = 1024;
 
 // Copied instead of depending on the plugin: vox-plugin-webhook is an L4
 // plugin, and D-10 forbids a crate edge to it — the host sees only the JSON
@@ -91,6 +97,121 @@ pub(crate) async fn submit_webhook_events(hopper: &dyn HopperIntake, events: Vec
     submitted
 }
 
+/// What [`spawn_webhook_intake_poller`] does once the opt-in checks pass.
+/// Deliberately not `Debug`: `config_json` carries the ingress token.
+pub(crate) struct IntakePlan {
+    config_json: String,
+    interval: std::time::Duration,
+    max_events: u32,
+}
+
+/// D-04/D-14: no `[orchestrator.webhook]` section -> `None` before any secret
+/// read; a missing or blank ingress token -> `None` (fail closed).
+pub(crate) fn plan_webhook_intake(
+    cfg: Option<&WebhookIntakeConfig>,
+    resolve_token: impl FnOnce() -> Option<String>,
+) -> Option<IntakePlan> {
+    let cfg = cfg?;
+    let Some(ingress) = resolve_token().filter(|t| !t.trim().is_empty()) else {
+        tracing::error!(
+            "[orchestrator.webhook] is configured but VOX_WEBHOOK_INGRESS_TOKEN \
+             (WebhookIngressToken) is not set; webhook intake stays off (fail closed)"
+        );
+        return None;
+    };
+    let mut start = serde_json::json!({ "ingress_token": ingress });
+    if let Some(addr) = &cfg.bind_addr {
+        start["addr"] = serde_json::Value::String(addr.clone());
+    }
+    Some(IntakePlan {
+        config_json: start.to_string(),
+        interval: std::time::Duration::from_millis(cfg.poll_interval_ms.max(MIN_POLL_INTERVAL_MS)),
+        max_events: cfg.max_events_per_poll.clamp(1, MAX_EVENTS_PER_POLL),
+    })
+}
+
+/// Start the webhook plugin's listener and poll its inbox into `hopper`.
+/// Does nothing (returns `None`) unless [`plan_webhook_intake`] yields a plan and
+/// a tokio runtime is running.
+pub(crate) fn spawn_webhook_intake_poller(
+    cfg: Option<&WebhookIntakeConfig>,
+    hopper: Arc<dyn HopperIntake>,
+) -> Option<tokio::task::JoinHandle<()>> {
+    let plan = plan_webhook_intake(cfg, || {
+        vox_secrets::resolve_secret(vox_secrets::SecretId::WebhookIngressToken)
+            .expose()
+            .map(str::to_owned)
+    })?;
+    let Ok(rt) = tokio::runtime::Handle::try_current() else {
+        tracing::error!("webhook intake: no tokio runtime, poller not started");
+        return None;
+    };
+    Some(rt.spawn(run_poller(plan, hopper)))
+}
+
+async fn run_poller(plan: IntakePlan, hopper: Arc<dyn HopperIntake>) {
+    let IntakePlan {
+        config_json,
+        interval,
+        max_events,
+    } = plan;
+    let loaded = match tokio::task::spawn_blocking(move || start_listener(&config_json)).await {
+        Ok(Ok(loaded)) => loaded,
+        Ok(Err(e)) => {
+            tracing::error!(error = %e, "webhook intake disabled");
+            return;
+        }
+        Err(e) => {
+            tracing::error!(error = %e, "webhook intake: plugin start task failed");
+            return;
+        }
+    };
+    let mut tick = tokio::time::interval(interval);
+    tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    loop {
+        tick.tick().await;
+        // Owned Strings only: no FFI value is held across the await below.
+        let polled: Result<Vec<String>, String> =
+            match loaded.plugin.as_webhook_inbox().into_option() {
+                Some(inbox) => inbox
+                    .poll_events(max_events)
+                    .into_result()
+                    .map(|v| v.into_iter().map(|s| s.into_string()).collect())
+                    .map_err(|e| e.to_string()),
+                None => Err("webhook plugin has no WebhookInbox extension".into()),
+            };
+        match polled {
+            Ok(events) => {
+                submit_webhook_events(hopper.as_ref(), events).await;
+            }
+            Err(e) => tracing::warn!(error = %e, "webhook inbox poll failed"),
+        }
+    }
+}
+
+/// Blocking: discover + dlopen the webhook plugin and start its listener.
+fn start_listener(config_json: &str) -> Result<&'static vox_plugin_host::LoadedCodePlugin, String> {
+    // LoadError's Display already carries the install hint (D-02).
+    let loaded = vox_plugin_host::cached_code_plugin("webhook").map_err(|e| e.to_string())?;
+    if loaded.plugin.as_webhook_inbox().is_none() {
+        return Err(
+            "the installed webhook plugin predates ABI 13 (no WebhookInbox extension); \
+             reinstall it"
+                .into(),
+        );
+    }
+    let listener = loaded
+        .plugin
+        .as_http_listener()
+        .into_option()
+        .ok_or("webhook plugin has no HttpListener extension")?;
+    listener
+        .start_listening(config_json.into())
+        .into_result()
+        .map_err(|e| format!("webhook listener refused to start: {e}"))?;
+    Ok(loaded)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -158,5 +279,56 @@ mod tests {
         assert!(!intent.contains(&"a".repeat(65)));
         assert!(hints.iter().all(|h| !h.chars().any(char::is_control)));
         assert!(hints.iter().all(|h| !h.contains(&"a".repeat(65))));
+    }
+
+    #[test]
+    fn no_config_section_means_no_plan_and_no_token_read() {
+        let plan = plan_webhook_intake(None, || {
+            panic!("the token must not be resolved without an [orchestrator.webhook] section")
+        });
+        assert!(plan.is_none());
+    }
+
+    #[test]
+    fn missing_or_blank_token_fails_closed() {
+        let cfg = WebhookIntakeConfig::default();
+        assert!(plan_webhook_intake(Some(&cfg), || None).is_none());
+        assert!(plan_webhook_intake(Some(&cfg), || Some(String::new())).is_none());
+        assert!(plan_webhook_intake(Some(&cfg), || Some("   ".into())).is_none());
+    }
+
+    #[test]
+    fn configured_section_with_token_plans_listener_start() {
+        let cfg = WebhookIntakeConfig {
+            poll_interval_ms: 10,
+            max_events_per_poll: 0,
+            ..WebhookIntakeConfig::default()
+        };
+        let plan = plan_webhook_intake(Some(&cfg), || Some("tok".into())).expect("plan");
+        let json: serde_json::Value = serde_json::from_str(&plan.config_json).expect("json");
+        assert_eq!(json["ingress_token"], "tok");
+        assert!(
+            json.get("addr").is_none(),
+            "no addr unless bind_addr is set"
+        );
+        assert_eq!(plan.interval, std::time::Duration::from_millis(250));
+        assert_eq!(plan.max_events, 1);
+
+        let cfg = WebhookIntakeConfig {
+            bind_addr: Some("127.0.0.1:9080".into()),
+            max_events_per_poll: 5000,
+            ..WebhookIntakeConfig::default()
+        };
+        let plan = plan_webhook_intake(Some(&cfg), || Some("tok".into())).expect("plan");
+        let json: serde_json::Value = serde_json::from_str(&plan.config_json).expect("json");
+        assert_eq!(json["addr"], "127.0.0.1:9080");
+        assert_eq!(plan.max_events, 1024);
+    }
+
+    #[tokio::test]
+    async fn spawn_without_config_is_a_no_op() {
+        let hopper: std::sync::Arc<dyn HopperIntake> =
+            std::sync::Arc::new(InMemoryHopper::headless());
+        assert!(spawn_webhook_intake_poller(None, hopper).is_none());
     }
 }

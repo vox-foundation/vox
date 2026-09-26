@@ -13,6 +13,7 @@ use super::defaults::*;
 use super::enums::{CostPreference, OverflowStrategy, ScalingProfile};
 use super::news::NewsConfig;
 use super::scientia_research_mesh::ScientiaResearchMeshConfig;
+use super::webhook_intake::WebhookIntakeConfig;
 
 /// One override entry: a clutch and/or risk label (parsed via
 /// `ClutchProfile::from_label`/`RiskPosture::from_label`). Either may be
@@ -569,6 +570,9 @@ pub struct OrchestratorConfig {
     /// Optional configuration for the orchestrator-policy budget gate (D7).
     #[serde(default)]
     pub budget_gate_config: Option<crate::budget_gate::BudgetGateConfig>,
+    /// Opt-in webhook intake (Phase 3 D-04): present => vox-orchestrator-mcp loads vox-plugin-webhook and polls it; absent => no plugin load, no listener.
+    #[serde(default)]
+    pub webhook: Option<WebhookIntakeConfig>,
     /// Per-task-type cost/model policy overrides (category + trigger-source).
     /// See `crate::mode::resolve_task_policy` for how these combine with the
     /// compiled defaults.

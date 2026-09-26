@@ -14,6 +14,7 @@ mod merge_populi;
 mod news;
 mod orchestrator_fields;
 mod scientia_research_mesh;
+mod webhook_intake;
 
 pub use enums::{CostPreference, OverflowStrategy, ScalingProfile};
 pub use errors::{ConfigError, ConfigValidationError};
@@ -22,6 +23,7 @@ pub use orchestrator_fields::{
     FieldType, OrchestratorConfig, OrchestratorConfigField, TaskPolicyEntry, TaskPolicyOverrides,
 };
 pub use scientia_research_mesh::ScientiaResearchMeshConfig;
+pub use webhook_intake::WebhookIntakeConfig;
 
 #[cfg(test)]
 mod tests;
