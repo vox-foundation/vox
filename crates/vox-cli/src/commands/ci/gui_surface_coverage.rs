@@ -366,4 +366,28 @@ mod tests {
             .expect("`mcp` listed");
         assert!(mcp.contains("mcp-server"), "mcp must carry its gate: {mcp}");
     }
+
+    /// Coverage guard: the registry is only a faithful feature-independent source if it lists
+    /// every command the clap tree compiles. One build cannot see other feature sets, so this
+    /// checks the running build; CI's feature build covers the feature-gated subtrees.
+    #[test]
+    fn every_compiled_clap_path_is_in_command_registry() {
+        let root = vox_repository::resolve_repo_root_for_ci();
+        let registered: BTreeSet<String> = collect_command_paths(&root)
+            .expect("collect command paths")
+            .into_iter()
+            .map(|p| p.path)
+            .collect();
+        let missing: Vec<String> = crate::command_catalog::build_catalog()
+            .entries
+            .into_iter()
+            .map(|e| e.path.join(" "))
+            .filter(|p| !registered.contains(p))
+            .collect();
+        assert!(
+            missing.is_empty(),
+            "clap paths missing from {COMMAND_REGISTRY} (add them to \
+             contracts/operations/catalog.v1.yaml, then `vox ci operations-sync --target all --write`): {missing:?}"
+        );
+    }
 }
