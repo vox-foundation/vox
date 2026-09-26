@@ -6,7 +6,7 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-candle-core = { workspace = true }
+candle-core = { workspace = true, optional = true }
 safetensors = { workspace = true }
 memmap2 = { workspace = true }
 dirs = { workspace = true }
@@ -20,7 +20,11 @@ tempfile = { workspace = true }
 
 [features]
 default = []
+# The quantization engine (every module) needs Candle, so it sits behind this
+# feature and a default build compiles no Candle (CORE layer, D-07). Consumers
+# enable it explicitly: vox-populi `mens-candle-qlora`, vox-ml-cli `quantize`.
+engine = ["dep:candle-core"]
 # GPU acceleration. CI builds without these (no GPU on runners); the engine
 # falls back to CPU. Mirrors vox-plugin-mens-candle-cuda's feature wiring.
-cuda = ["candle-core/cuda"]
-metal = ["candle-core/metal"]
+cuda = ["engine", "candle-core/cuda"]
+metal = ["engine", "candle-core/metal"]

@@ -67,7 +67,7 @@ vox-workflow-runtime = { workspace = true, optional = true }
 vox-secrets = { workspace = true }
 vox-git = { workspace = true }
 dirs = { workspace = true }
-vox-quantize = { workspace = true, optional = true }
+vox-quantize = { workspace = true, optional = true, features = ["engine"] }
 
 clap = { workspace = true }
 tokio = { workspace = true, features = ["io-std", "macros", "rt-multi-thread"] }

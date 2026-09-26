@@ -163,7 +163,8 @@ vox-package.workspace = true
 # non-optional, it dragged `candle-core` into EVERY build that touched
 # vox-populi — including the default `vox` binary, which never enables
 # mens-candle-qlora. Gated under that same feature so the dep tracks its consumer.
-vox-quantize = { workspace = true, optional = true }
+# Its `engine` feature is what pulls candle-core (vox-quantize is Candle-free without it).
+vox-quantize = { workspace = true, optional = true, features = ["engine"] }
 vox-orchestrator-queue.workspace = true
 
 # macOS-only: live GPU memory telemetry for HardwareRegistry::monitor(). Already
