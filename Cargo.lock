@@ -18711,7 +18711,6 @@ dependencies = [
  "vox-eval",
  "vox-foundation",
  "vox-gamify",
- "vox-grammar-export",
  "vox-hf-layout",
  "vox-http-client",
  "vox-identity",

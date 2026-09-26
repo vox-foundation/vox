@@ -289,7 +289,7 @@
       "compile_s": 0.8,
       "dependents": 53,
       "blast_s": 588.0,
-      "fan_in": 6
+      "fan_in": 5
     },
     {
       "crate": "vox-graph-reader",
