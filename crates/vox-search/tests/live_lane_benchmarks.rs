@@ -12,12 +12,14 @@ async fn test_live_lane_comparative_benchmarks() {
         "retrieval augmented generation reciprocal rank fusion",
     ];
 
-    let mut policy = SearchPolicy::default();
-    policy.wikipedia_fallback_enabled = true;
-    policy.enable_openalex = true;
-    policy.enable_arxiv = true;
-    policy.fast_timeout_ms = 2500;
-    policy.deep_timeout_ms = 15000;
+    let policy = SearchPolicy {
+        wikipedia_fallback_enabled: true,
+        enable_openalex: true,
+        enable_arxiv: true,
+        fast_timeout_ms: 2500,
+        deep_timeout_ms: 15000,
+        ..Default::default()
+    };
 
     println!("\n=== LIVE LANE COMPARATIVE BENCHMARK SCOREBOARD ===");
     println!("| Query | Lane | Latency (ms) | Hits | Unique Domains | Engines |");
