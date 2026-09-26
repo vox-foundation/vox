@@ -83,7 +83,7 @@ This audit classifies every crate in `crates/` against five labels:
 | vox-workflow-runtime | DEAD (optional) | 0 direct / 1 optional | optional in vox-cli behind `workflow-runtime` feature |
 | vox-mcp-meta | DEAD | 0 | MCP meta; no consumers |
 | vox-mcp-registry | DEAD | 0 | MCP registry stub; orphaned |
-| vox-doc-inventory | DEAD | 0 | doc inventory; no consumers |
+| vox-doc-inventory | CORE | 1 (vox-cli) | doc inventory; unconditional dependency of vox-cli (`crates/vox-cli/Cargo.toml:204`); reclassified from DEAD 2026-09-25 |
 | vox-integration-tests | DEAD | 0 | test crate with no callers; uses vox-lsp |
 | vox-test-harness | DEAD | 0 | test harness; no consumers |
 | vox-lsp | CORE (optional) | 1 (orchestrator behind feature) | behind `toestub-gate` feature |
@@ -137,7 +137,6 @@ The following crates have zero consumers in `Cargo.toml` files across the worksp
 | `vox-tools` | Orphaned; `vox-oratio` was extracted to a plugin |
 | `vox-mcp-meta` | MCP meta stub; no consumers |
 | `vox-mcp-registry` | Orphaned MCP registry |
-| `vox-doc-inventory` | No consumers |
 | `vox-integration-tests` | Self-contained test binary but no CI wiring found |
 | `vox-test-harness` | No consumers |
 | `vox-browser` | BrowserAutomation extracted to `vox-plugin-browser`; this crate is the old host-side abstraction with zero consumers left |
