@@ -32,34 +32,28 @@ pub struct WebhookState {
     pub channels: Arc<ChannelManager>,
     /// Sink for processed events (e.g. tokio broadcast channel)
     pub event_sink: Arc<tokio::sync::broadcast::Sender<super::handler::WebhookEvent>>,
-    /// Optional bearer token for inbound request authentication.
-    /// Resolved from Clavis `WebhookIngressToken` at startup.
-    /// When `None`, auth is skipped with a warning (degraded mode).
-    pub ingress_token: Option<Arc<str>>,
+    /// Bearer token every inbound request must carry. Required: the host resolves
+    /// Clavis `WebhookIngressToken` and passes it to `start_listening`; there is no
+    /// unauthenticated mode.
+    pub ingress_token: Arc<str>,
 }
 
 impl WebhookState {
-    pub fn new(handler: WebhookHandler) -> Self {
+    pub fn new(handler: WebhookHandler, ingress_token: impl Into<String>) -> Self {
         let (tx, _) = tokio::sync::broadcast::channel(super::config::channel_cap_from_env());
         Self {
             handler: Arc::new(handler),
             channels: Arc::new(ChannelManager::new()),
             event_sink: Arc::new(tx),
-            ingress_token: None,
+            ingress_token: Arc::from(ingress_token.into()),
         }
-    }
-
-    /// Set the bearer token for ingress authentication.
-    pub fn with_ingress_token(mut self, token: impl Into<String>) -> Self {
-        self.ingress_token = Some(Arc::from(token.into().as_str()));
-        self
     }
 }
 
 /// Build the Axum `Router` for the webhook gateway.
 ///
-/// When `WebhookState.ingress_token` is set, all routes except `/webhooks/health`
-/// require an `Authorization: Bearer <token>` header.
+/// All routes except `/webhooks/health` require an
+/// `Authorization: Bearer <token>` header matching `WebhookState.ingress_token`.
 pub fn build_router(state: WebhookState) -> Router {
     Router::new()
         .route("/webhooks/health", get(health_check))
@@ -72,13 +66,16 @@ pub fn build_router(state: WebhookState) -> Router {
         .with_state(state)
 }
 
-/// Start the webhook server on the given bind address.
-pub async fn serve(state: WebhookState, addr: &str) -> Result<(), WebhookError> {
+/// Serve the webhook gateway on an already-bound listener (the caller binds, so a
+/// bind failure is reported to it rather than lost in a background task).
+pub async fn serve(
+    state: WebhookState,
+    listener: tokio::net::TcpListener,
+) -> Result<(), WebhookError> {
     let router = build_router(state);
-    let listener = tokio::net::TcpListener::bind(addr)
-        .await
-        .map_err(WebhookError::Io)?;
-    info!(addr, "Webhook gateway listening");
+    if let Ok(addr) = listener.local_addr() {
+        info!(%addr, "Webhook gateway listening");
+    }
     axum::serve(listener, router)
         .await
         .map_err(|e| WebhookError::Http(e.to_string()))
@@ -91,50 +88,33 @@ pub async fn serve(state: WebhookState, addr: &str) -> Result<(), WebhookError> 
 /// Bearer token authentication middleware.
 ///
 /// - `/webhooks/health` is always passed through (no auth required).
-/// - If `WebhookState.ingress_token` is `None`, the request is passed through
-///   with a one-time `WARN` log (degraded mode — set `VOX_WEBHOOK_INGRESS_TOKEN`).
-/// - Otherwise, the `Authorization: Bearer <token>` header must match exactly.
+/// - Every other request must carry `Authorization: Bearer <token>` matching
+///   `WebhookState.ingress_token` exactly; there is no pass-through.
 async fn bearer_auth_middleware(
     State(state): State<WebhookState>,
     request: Request<axum::body::Body>,
     next: Next,
 ) -> Response {
-    use std::sync::OnceLock;
     // Skip auth on the liveness probe.
     if request.uri().path() == "/webhooks/health" {
         return next.run(request).await;
     }
 
-    match &state.ingress_token {
-        None => {
-            // Degraded mode — warn once per process lifetime.
-            static DID_WARN: OnceLock<()> = OnceLock::new();
-            DID_WARN.get_or_init(|| {
-                warn!(
-                    "Webhook server is operating WITHOUT an ingress token. \
-                     Set VOX_WEBHOOK_INGRESS_TOKEN to require bearer auth."
-                );
-            });
-            next.run(request).await
-        }
-        Some(expected_token) => {
-            let provided = request
-                .headers()
-                .get("Authorization")
-                .and_then(|v| v.to_str().ok())
-                .and_then(|v| v.strip_prefix(vox_http_client::BEARER_PREFIX));
+    let provided = request
+        .headers()
+        .get("Authorization")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix(vox_http_client::BEARER_PREFIX));
 
-            if provided == Some(expected_token.as_ref()) {
-                next.run(request).await
-            } else {
-                warn!("Webhook ingress: rejected request with missing/invalid bearer token");
-                (
-                    StatusCode::UNAUTHORIZED,
-                    Json(serde_json::json!({ "error": "invalid or missing bearer token" })),
-                )
-                    .into_response()
-            }
-        }
+    if provided == Some(state.ingress_token.as_ref()) {
+        next.run(request).await
+    } else {
+        warn!("Webhook ingress: rejected request with missing/invalid bearer token");
+        (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({ "error": "invalid or missing bearer token" })),
+        )
+            .into_response()
     }
 }
 
@@ -252,5 +232,16 @@ async fn receive_webhook(
                 Json(serde_json::json!({ "error": e.to_string() })),
             )
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn webhook_state_requires_and_keeps_the_ingress_token() {
+        let state = WebhookState::new(WebhookHandler::new(), "t");
+        assert_eq!(&*state.ingress_token, "t");
     }
 }

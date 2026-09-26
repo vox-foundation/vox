@@ -1,25 +1,21 @@
-#![cfg_attr(test, allow(unsafe_code))] // test-only std::env::set_var (unsafe on edition 2024)
 //! # vox-plugin-webhook
 //!
 //! Plugin entry point for the Vox webhook HTTP listener gateway.
 //!
-//! On `init()` the plugin spawns a Tokio task that runs the Axum webhook
-//! server on the address configured by the `VOX_WEBHOOK_ADDR` environment
-//! variable (default: `0.0.0.0:9080`).
+//! ## Lifecycle (fail closed, D-14)
 //!
-//! ## Event routing
+//! Loading the plugin starts nothing: `init()` only constructs the plugin object.
+//! A listener exists only after the host calls `HttpListener::start_listening`
+//! with a JSON config carrying a non-blank `ingress_token` (and optionally `addr`;
+//! else `VOX_WEBHOOK_ADDR`, else `0.0.0.0:9080`). Without a token the call is
+//! refused and nothing is bound. The listener runs on a tokio runtime owned by
+//! this plugin, binds synchronously so bind errors reach the caller, and
+//! `stop_listening` (or `shutdown`) aborts it.
 //!
-//! The plugin uses a no-op `WebhookEventSink` by default. For production use,
-//! the host should wire an `Arc<dyn WebhookEventSink>` backed by the Orchestrator
-//! (see `WebhookOrchestratorBridge` in `webhook::bridge`). The orchestrator-side
-//! wiring is deferred — tracked as Step 8 of the extraction plan.
+//! ## Event routing (D-10)
 //!
-//! ## Plugin trait
-//!
-//! Implements `VoxPlugin` (id + shutdown). The HTTP server is a long-running
-//! background tokio task started from `init()`. There is no dedicated
-//! "start-service" lifecycle hook in ABI v11 — this matches the pattern used
-//! by other long-running plugins (e.g. vox-plugin-cloud).
+//! Accepted events are drained by the host through the `WebhookInbox` extension
+//! (`as_webhook_inbox().poll_events(max)`), one JSON-serialized event per item.
 
 // Public types are designed for orchestrator wiring (Step 8). Suppress dead-code
 // lint until the bridge is wired — these are real implementations, not stubs.
@@ -57,6 +53,7 @@ use webhook::{
 struct ListenerSlot {
     sender: Arc<broadcast::Sender<WebhookEvent>>,
     receiver: broadcast::Receiver<WebhookEvent>,
+    task: tokio::task::JoinHandle<()>,
 }
 
 static LISTENER: Mutex<Option<ListenerSlot>> = Mutex::new(None);
@@ -67,6 +64,27 @@ fn listener_slot() -> MutexGuard<'static, Option<ListenerSlot>> {
 
 fn plugin_err(msg: impl Into<String>) -> RBoxError {
     RBoxError::new(std::io::Error::other(msg.into()))
+}
+
+/// The plugin's own tokio runtime. A cdylib links its own tokio, so it must not rely
+/// on the host's runtime context across the dylib boundary.
+fn rt() -> &'static tokio::runtime::Runtime {
+    static RT: std::sync::OnceLock<tokio::runtime::Runtime> = std::sync::OnceLock::new();
+    RT.get_or_init(|| {
+        tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .enable_all()
+            .thread_name("vox-webhook-rt")
+            .build()
+            .expect("failed to build webhook plugin tokio runtime")
+    })
+}
+
+/// Abort the running listener, if any.
+fn stop_listener() {
+    if let Some(slot) = listener_slot().take() {
+        slot.task.abort();
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -90,35 +108,12 @@ fn manifest_json() -> RString {
 
 #[sabi_extern_fn]
 fn init(_host: VoxHost_TO<'static, RBox<()>>) -> RResult<VoxPluginRef, RBoxError> {
-    // Start the HTTP listener on a background tokio task.
-    //
-    // NOTE: this relies on a tokio runtime already being active in the host
-    // process, which is guaranteed by the vox-plugin-host bootstrap.
-    let addr = webhook::config::bind_addr_from_env();
-    let ingress_token = std::env::var("VOX_WEBHOOK_INGRESS_TOKEN").ok();
+    // Side-effect free (D-14): nothing listens until the host calls start_listening.
+    RResult::ROk(new_plugin())
+}
 
-    let mut state = WebhookState::new(WebhookHandler::new());
-    if let Some(token) = ingress_token {
-        state = state.with_ingress_token(token);
-    } else {
-        warn!(
-            "vox-plugin-webhook: VOX_WEBHOOK_INGRESS_TOKEN not set — running in degraded (no-auth) mode"
-        );
-    }
-
-    // Spawn the HTTP server. The broadcast channel inside WebhookState will
-    // accumulate events; wire WebhookOrchestratorBridge to consume them.
-    let addr_clone = addr.clone();
-    tokio::spawn(async move {
-        info!(addr = %addr_clone, "vox-plugin-webhook: starting HTTP listener");
-        if let Err(e) = serve(state, &addr_clone).await {
-            tracing::error!("vox-plugin-webhook: server error: {e}");
-        }
-    });
-
-    let plugin = WebhookPlugin;
-    let to = VoxPlugin_TO::from_value(plugin, TD_Opaque);
-    RResult::ROk(to)
+fn new_plugin() -> VoxPluginRef {
+    VoxPlugin_TO::from_value(WebhookPlugin, TD_Opaque)
 }
 
 // ---------------------------------------------------------------------------
@@ -133,8 +128,8 @@ impl VoxPlugin for WebhookPlugin {
     }
 
     fn shutdown(&self) -> RResult<(), RBoxError> {
-        // The tokio task will be dropped when the runtime shuts down.
-        // No explicit handle is stored (acceptable for the current ABI surface).
+        // The plugin-owned runtime outlives the plugin object, so stop explicitly.
+        stop_listener();
         RResult::ROk(())
     }
 
@@ -191,33 +186,69 @@ impl HttpListener for WebhookHttpListener {
     }
 
     fn start_listening(&self, config_json: RStr<'_>) -> RResult<(), RBoxError> {
-        let addr = serde_json::from_str::<serde_json::Value>(config_json.as_str())
-            .ok()
-            .and_then(|v| v.get("addr").and_then(|a| a.as_str()).map(str::to_string))
-            .or_else(|| std::env::var("VOX_WEBHOOK_ADDR").ok());
-        let addr = webhook::config::resolve_bind_addr(addr.as_deref());
-        let ingress_token = std::env::var("VOX_WEBHOOK_INGRESS_TOKEN").ok();
-        let mut state = WebhookState::new(WebhookHandler::new());
-        if let Some(token) = ingress_token {
-            state = state.with_ingress_token(token);
+        match start_listener(config_json.as_str()) {
+            Ok(()) => RResult::ROk(()),
+            Err(msg) => RResult::RErr(plugin_err(msg)),
         }
-        *listener_slot() = Some(ListenerSlot {
-            sender: state.event_sink.clone(),
-            receiver: state.event_sink.subscribe(),
-        });
-        tokio::spawn(async move {
-            info!(addr = %addr, "vox-plugin-webhook: HttpListener start_listening");
-            if let Err(e) = serve(state, &addr).await {
-                tracing::error!("vox-plugin-webhook: server error: {e}");
-            }
-        });
-        RResult::ROk(())
     }
 
     fn stop_listening(&self) -> RResult<(), RBoxError> {
-        listener_slot().take();
+        stop_listener();
         RResult::ROk(())
     }
+}
+
+/// Fail closed: refuse without a non-blank `ingress_token`, bind synchronously, and
+/// fill the listener slot only once everything succeeded. Never logs the token or
+/// the raw config.
+fn start_listener(config_json: &str) -> Result<(), String> {
+    let config: serde_json::Value = serde_json::from_str(config_json)
+        .map_err(|e| format!("vox-plugin-webhook: start_listening config is not JSON: {e}"))?;
+    let token = config
+        .get("ingress_token")
+        .and_then(|t| t.as_str())
+        .map(str::trim)
+        .filter(|t| !t.is_empty())
+        .ok_or("vox-plugin-webhook: refusing to start the listener without an ingress token")?;
+    let addr = config
+        .get("addr")
+        .and_then(|a| a.as_str())
+        .map(str::to_string)
+        .or_else(|| std::env::var("VOX_WEBHOOK_ADDR").ok());
+    let addr = webhook::config::resolve_bind_addr(addr.as_deref());
+
+    let mut slot = listener_slot();
+    if slot.is_some() {
+        return Err("vox-plugin-webhook: the listener is already running".into());
+    }
+    let std_listener = std::net::TcpListener::bind(&addr)
+        .map_err(|e| format!("vox-plugin-webhook: cannot bind {addr}: {e}"))?;
+    std_listener
+        .set_nonblocking(true)
+        .map_err(|e| format!("vox-plugin-webhook: cannot configure {addr}: {e}"))?;
+
+    let state = WebhookState::new(WebhookHandler::new(), token);
+    let sender = state.event_sink.clone();
+    let receiver = sender.subscribe();
+    let task = rt().spawn(async move {
+        let listener = match tokio::net::TcpListener::from_std(std_listener) {
+            Ok(l) => l,
+            Err(e) => {
+                tracing::error!("vox-plugin-webhook: cannot register listener: {e}");
+                return;
+            }
+        };
+        if let Err(e) = serve(state, listener).await {
+            tracing::error!("vox-plugin-webhook: server error: {e}");
+        }
+    });
+    *slot = Some(ListenerSlot {
+        sender,
+        receiver,
+        task,
+    });
+    info!(addr = %addr, "vox-plugin-webhook: listener started");
+    Ok(())
 }
 
 /// Serialises tests that touch the process-wide listener slot.
@@ -316,69 +347,101 @@ mod webhook_inbox_tests {
 }
 
 #[cfg(test)]
-mod semcov_wave3_tests {
-    // Rust 2024 made std::env::{set_var,remove_var} unsafe; mutated single-threaded.
-    #![allow(unused_imports, unsafe_code)]
+mod listener_lifecycle_tests {
+    //! D-14: the listener is fail closed and inert until the host starts it.
     use super::*;
-    use vox_plugin_api::extensions::http_listener::HttpListener;
 
-    // start_listening resolves addr from JSON config first, then env var, then
-    // hardcoded default. We can observe the branching at the function boundary
-    // without actually binding a port because the function always returns ROk
-    // (spawn is fire-and-forget) — but we MUST run inside a tokio runtime so
-    // that tokio::spawn does not panic.
+    const GOOD: &str = r#"{"addr":"127.0.0.1:0","ingress_token":"test-token"}"#;
 
-    #[tokio::test]
-    async fn start_listening_returns_ok_for_valid_json_config() {
-        let _g = test_lock();
-        let listener = WebhookHttpListener;
-        let config = r#"{"addr": "127.0.0.1:0"}"#;
-        let result = listener.start_listening(config.into());
-        let _ = listener.stop_listening();
-        assert!(
-            result.is_rok(),
-            "start_listening must succeed for valid JSON config: {:?}",
-            result
-        );
+    fn polls_err() -> bool {
+        WebhookInboxImpl.poll_events(10).is_rerr()
     }
 
-    #[tokio::test]
-    async fn start_listening_returns_ok_for_empty_json_object() {
-        // Falls through to env-var / default path
-        let _g = test_lock();
-        let listener = WebhookHttpListener;
-        let config = r#"{}"#;
-        let result = listener.start_listening(config.into());
-        let _ = listener.stop_listening();
-        assert!(
-            result.is_rok(),
-            "start_listening must succeed for empty JSON"
-        );
+    fn event(id: &str) -> WebhookEvent {
+        WebhookEvent {
+            id: id.to_string(),
+            source: "test".to_string(),
+            event_type: "ping".to_string(),
+            payload: serde_json::json!({}),
+            received_at: 0,
+        }
     }
 
-    #[tokio::test]
-    async fn start_listening_returns_ok_for_invalid_json() {
-        // JSON parse fails → falls back to env-var / default — must not propagate error
+    #[test]
+    fn start_listening_refuses_without_ingress_token() {
         let _g = test_lock();
-        let listener = WebhookHttpListener;
-        let config = "not-json";
-        let result = listener.start_listening(config.into());
-        let _ = listener.stop_listening();
-        assert!(
-            result.is_rok(),
-            "start_listening must succeed even for unparseable config"
-        );
+        for config in [
+            "{}",
+            "not-json",
+            r#"{"addr":"127.0.0.1:0"}"#,
+            r#"{"addr":"127.0.0.1:0","ingress_token":""}"#,
+            r#"{"addr":"127.0.0.1:0","ingress_token":"   "}"#,
+        ] {
+            let r = WebhookHttpListener.start_listening(config.into());
+            assert!(r.is_rerr(), "config {config:?} must be refused");
+            assert!(polls_err(), "a refused start must keep no listener slot");
+        }
     }
 
-    #[tokio::test]
-    async fn start_listening_env_var_path_succeeds() {
+    #[test]
+    fn start_listening_twice_is_refused() {
         let _g = test_lock();
-        unsafe { std::env::set_var("VOX_WEBHOOK_ADDR", "127.0.0.1:0") };
-        let listener = WebhookHttpListener;
-        // Empty JSON → addr from env var
-        let result = listener.start_listening(r#"{}"#.into());
-        let _ = listener.stop_listening();
-        unsafe { std::env::remove_var("VOX_WEBHOOK_ADDR") };
-        assert!(result.is_rok(), "env-var addr path must succeed");
+        let l = WebhookHttpListener;
+        assert!(l.start_listening(GOOD.into()).is_rok());
+        assert!(l.start_listening(GOOD.into()).is_rerr());
+        {
+            let slot = listener_slot();
+            let sink = &slot.as_ref().expect("first listener kept").sender;
+            sink.send(event("still-live")).expect("receiver subscribed");
+        }
+        let polled = WebhookInboxImpl.poll_events(10);
+        assert_eq!(polled.unwrap().len(), 1, "the first listener keeps working");
+        assert!(l.stop_listening().is_rok());
+    }
+
+    #[test]
+    fn stop_listening_releases_the_listener() {
+        let _g = test_lock();
+        let l = WebhookHttpListener;
+        assert!(l.start_listening(GOOD.into()).is_rok());
+        assert!(l.stop_listening().is_rok());
+        assert!(polls_err(), "polling after stop must be an error");
+        assert!(
+            l.start_listening(GOOD.into()).is_rok(),
+            "restart after stop"
+        );
+        assert!(l.stop_listening().is_rok());
+    }
+
+    #[test]
+    fn start_listening_returns_bind_errors() {
+        let _g = test_lock();
+        let occupied = std::net::TcpListener::bind("127.0.0.1:0").expect("bind probe");
+        let addr = occupied.local_addr().expect("local addr");
+        let config = format!(r#"{{"addr":"{addr}","ingress_token":"test-token"}}"#);
+        let r = WebhookHttpListener.start_listening(config.as_str().into());
+        assert!(r.is_rerr(), "binding an occupied port must fail");
+        assert!(polls_err(), "a failed bind must keep no listener slot");
+    }
+
+    #[test]
+    fn start_listening_needs_no_ambient_tokio_runtime() {
+        let _g = test_lock();
+        let l = WebhookHttpListener;
+        let r = l.start_listening(GOOD.into());
+        assert!(r.is_rok(), "start outside any tokio runtime failed: {r:?}");
+        assert!(l.stop_listening().is_rok());
+    }
+
+    #[test]
+    fn constructing_the_plugin_starts_no_listener() {
+        let _g = test_lock();
+        let plugin = new_plugin();
+        assert_eq!(plugin.id().as_str(), "webhook");
+        assert!(
+            listener_slot().is_none(),
+            "constructing the plugin must not listen"
+        );
+        assert!(polls_err());
     }
 }
