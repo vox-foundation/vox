@@ -69,10 +69,10 @@ fn normalize_error_class(raw: &str) -> &'static str {
 /// - `session_id` → prefix kept as enum under `session_prefix`; suffix is salt-hashed
 ///   under `session_suffix_hash` (salt comes from `vox_telemetry::config::install_salt`).
 /// - `metadata_json` and any free-form `String` → dropped entirely.
-/// - Open/growing identifiers (`model_id`, `rule_id`) → salt-hashed via [`salted_hash`],
+/// - Open/growing identifiers (`model_id`, `rule_id`) → salt-hashed via `salted_hash`,
 ///   matching the `skill_id_hash` pattern.
 /// - `ErrorEvent`'s free-form `subsystem`/`error_class` → bucketed onto the same bounded
-///   enums as `ErrorSurfaceEvent` via [`normalize_error_subsystem`]/[`normalize_error_class`].
+///   enums as `ErrorSurfaceEvent` via `normalize_error_subsystem`/`normalize_error_class`.
 /// - Numeric/enum/bool fields → passed through under their taxonomy field name.
 pub fn project_event(event: &TelemetryEvent) -> Option<(String, serde_json::Map<String, Value>)> {
     match event {

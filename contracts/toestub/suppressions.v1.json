@@ -169,6 +169,12 @@
       "path_glob": "**/vox-cli/src/commands/plugin_bundle/apply.rs",
       "reason": "pub fn run() is the pre-existing `vox bundle apply` entry point (a thin loop calling install::run per plugin, which carries its own test coverage); this fix only threads a new `force` argument through that one call site. tdd-guard re-scans the whole touched file, not the diff.",
       "owner": "robot"
+    },
+    {
+      "rule_id_prefix": "skeleton/untested-pub-api",
+      "path_glob": "**/vox-telemetry-otlp/src/project.rs",
+      "reason": "project_event, duration_bucket, token_bucket and the other pub fns are pre-existing; this change only replaced three intra-doc links to private helpers with code spans in project_event's doc comment (rustdoc -D warnings). Surfaced only because tdd-guard re-scans the whole touched file, not the diff.",
+      "owner": "robot"
     }
   ]
 }
