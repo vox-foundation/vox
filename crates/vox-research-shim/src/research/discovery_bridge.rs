@@ -274,6 +274,7 @@ mod tests {
                         is_numeric: false,
                         is_recent: false,
                         is_named_event: false,
+                        salience_score: 0.5,
                     },
                     verdict: Verdict::Supported,
                     confidence: 0.91,

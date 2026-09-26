@@ -30,6 +30,7 @@ fn supported_result(session_id: i64, quality: i32) -> ResearchResult {
                     is_numeric: false,
                     is_recent: false,
                     is_named_event: false,
+                    salience_score: 0.5,
                 },
                 verdict: Verdict::Supported,
                 confidence: 0.95,

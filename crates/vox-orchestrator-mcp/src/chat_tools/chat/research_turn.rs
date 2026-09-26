@@ -481,12 +481,26 @@ pub fn deep_stages(r: &vox_research_shim::research::ResearchResult) -> Vec<Stage
         ),
         json!(m.retrieval_diagnostics),
     ));
+    // Review round 1 (minor): the shim's `ClaimVerdict` has no reason field
+    // for a capped-out claim (it's just `Unverified`, indistinguishable from
+    // an LLM genuinely abstaining), so the cap is only visible in this
+    // aggregate trace summary — surface it explicitly when the cap actually
+    // bound this run (fewer claims verified than extracted), rather than only
+    // implying it via the raw counts.
+    let cap_note = if m.claims_verified_count < m.claims_extracted_count {
+        format!(
+            " ({} not verified: over per-run verification cap)",
+            m.claims_extracted_count - m.claims_verified_count
+        )
+    } else {
+        String::new()
+    };
     out.push(StageRecord::new(
         "claims",
         if m.claim_verdicts.is_empty() { "empty" } else { "ok" },
         None,
         format!(
-            "{} verified of {} extracted: {} supported, {} contested, {} contradicted, {} unverified",
+            "{} verified of {} extracted: {} supported, {} contested, {} contradicted, {} unverified{cap_note}",
             m.claims_verified_count, m.claims_extracted_count,
             count(Verdict::Supported), count(Verdict::Contested),
             count(Verdict::Contradicted), count(Verdict::Unverified)
@@ -570,6 +584,7 @@ mod tests {
                 is_numeric: false,
                 is_recent: false,
                 is_named_event: false,
+                salience_score: 0.5,
             },
             verdict,
             confidence: 0.9,
@@ -623,6 +638,71 @@ mod tests {
         assert!(
             claims_stage.summary.contains("1 verified of 3 extracted"),
             "expected verified/extracted counts in summary, got: {}",
+            claims_stage.summary
+        );
+        // Task 15d review round 1 minor: the cap reason must be visible to
+        // the user in the trace, not just implied by the raw counts — this
+        // scenario (verified 1 < extracted 3) is exactly the capped case.
+        assert!(
+            claims_stage
+                .summary
+                .contains("2 not verified: over per-run verification cap"),
+            "expected the cap reason to be visible when verified < extracted, got: {}",
+            claims_stage.summary
+        );
+    }
+
+    /// Task 15d review round 1 minor, negative case: when nothing was
+    /// capped (verified == extracted), the trace must not fabricate a cap
+    /// note that didn't apply.
+    #[test]
+    fn deep_stages_claims_summary_omits_cap_note_when_nothing_was_capped() {
+        use vox_research_shim::research::types::{
+            ResearchMetadata, ResearchResult, RetrievalDiagnostics, RoutingTier,
+        };
+
+        let result = ResearchResult {
+            answer: "answer".to_string(),
+            sources: vec![],
+            citations: vec![],
+            research_metadata: ResearchMetadata {
+                session_id: 1,
+                duration_ms: 1,
+                provider: "test".to_string(),
+                routing_tier: RoutingTier::Direct,
+                confidence: 0.5,
+                subquery_count: 1,
+                source_count: 0,
+                claim_verdicts: vec![],
+                retrieval_diagnostics: RetrievalDiagnostics::default(),
+                quality_score: 50,
+                planner_degraded: false,
+                competence: None,
+                self_verification: None,
+                citation_audit: None,
+                corroboration_counts: vec![],
+                wave_count: 1,
+                wave_stability: None,
+                low_grounding_evidence: false,
+                subqueries: vec![],
+                synthesis_model: String::new(),
+                judge_error: None,
+                served_from_cache: false,
+                claims_extracted_count: 0,
+                claims_verified_count: 0,
+            },
+        };
+
+        let stages = deep_stages(&result);
+        let claims_stage = stages
+            .iter()
+            .find(|s| s.stage == "claims")
+            .expect("claims stage present");
+        assert!(
+            !claims_stage
+                .summary
+                .contains("over per-run verification cap"),
+            "no cap note should appear when nothing was capped, got: {}",
             claims_stage.summary
         );
     }

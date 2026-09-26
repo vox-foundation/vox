@@ -164,22 +164,16 @@ pub const MAX_CLAIMS_VERIFIED_PER_RUN: usize = 24;
 pub const VERIFY_CONCURRENCY: usize = 8;
 const CAP_REASON: &str = "not verified: over per-run verification cap";
 
-/// Reuses each claim's existing extraction-time salience flags
-/// (`is_numeric`/`is_recent`/`is_named_event` — already computed by
-/// `extract_claims_from_text`, not a new ranker) to rank claims when more were
-/// extracted than the per-run verification cap allows.
-fn claim_salience(c: &Claim) -> u8 {
-    c.is_numeric as u8 + c.is_recent as u8 + c.is_named_event as u8
-}
-
-/// Selects at most `cap` claims to actually verify — the highest-salience
-/// ones first, ties broken by original position for determinism — and
-/// produces an honest `Unverified` verdict for every claim beyond the cap.
-/// Returns `(indices_to_verify, capped_verdicts)`, both indexed against
-/// `claims`; `indices_to_verify` is sorted back into original claim order so
-/// a caller verifying them preserves that order too. No claim is ever
-/// dropped: every index in `0..claims.len()` ends up in exactly one of the
-/// two outputs.
+/// Selects at most `cap` claims to actually verify — the highest
+/// `Claim::salience_score` first (carried through from
+/// `AtomicClaim::verifiability_score` by `claims::extract_claims_from_text`;
+/// see that field's doc comment — not a new ranker), ties broken by original
+/// position for determinism — and produces an honest `Unverified` verdict for
+/// every claim beyond the cap. Returns `(indices_to_verify, capped_verdicts)`,
+/// both indexed against `claims`; `indices_to_verify` is sorted back into
+/// original claim order so a caller verifying them preserves that order too.
+/// No claim is ever dropped: every index in `0..claims.len()` ends up in
+/// exactly one of the two outputs.
 fn select_claims_for_verification(
     claims: &[Claim],
     cap: usize,
@@ -190,7 +184,12 @@ fn select_claims_for_verification(
     let mut by_salience: Vec<usize> = (0..claims.len()).collect();
     // Stable sort: ties keep their original relative order, so selection
     // among equally-salient claims is deterministic rather than arbitrary.
-    by_salience.sort_by(|&a, &b| claim_salience(&claims[b]).cmp(&claim_salience(&claims[a])));
+    by_salience.sort_by(|&a, &b| {
+        claims[b]
+            .salience_score
+            .partial_cmp(&claims[a].salience_score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     let mut to_verify: Vec<usize> = by_salience[..cap].to_vec();
     to_verify.sort_unstable();
     let selected: std::collections::HashSet<usize> = to_verify.iter().copied().collect();
@@ -588,6 +587,7 @@ mod tests {
             is_numeric: false,
             is_recent: false,
             is_named_event: true,
+            salience_score: 0.5,
         }
     }
 
@@ -781,6 +781,7 @@ mod tests {
                 is_numeric: false,
                 is_recent: false,
                 is_named_event: false,
+                salience_score: 0.5,
             })
             .collect();
         let indices: Vec<usize> = (0..claims.len()).collect();
@@ -811,24 +812,27 @@ mod tests {
         assert!(results.iter().all(|(_, v)| v.verdict == Verdict::Supported));
     }
 
-    /// Task 15d cap: extracting more claims than the per-run cap allows must
-    /// still verify exactly `cap` of them (the highest-salience ones — reusing
-    /// each claim's existing is_numeric/is_recent/is_named_event flags, not a
-    /// new ranker) and mark the rest `Unverified` rather than dropping them or
-    /// showing them as supported.
+    /// Task 15d cap (review round 1, B1 minor: rank by the real
+    /// `Claim::salience_score`, carried through from
+    /// `AtomicClaim::verifiability_score`, not the old boolean-sum
+    /// heuristic): extracting more claims than the per-run cap allows must
+    /// still verify exactly `cap` of them (the highest-scored ones) and mark
+    /// the rest `Unverified` rather than dropping them or showing them as
+    /// supported.
     #[test]
     fn select_claims_for_verification_caps_to_highest_salience() {
         let claims: Vec<Claim> = (0..40)
             .map(|i| Claim {
                 text: format!("claim {i}"),
                 claim_id: i as u64,
-                is_numeric: i < 20,
-                is_recent: i < 10,
-                is_named_event: i < 5,
+                is_numeric: false,
+                is_recent: false,
+                is_named_event: false,
+                // Strictly decreasing score by index: the top 24 by score
+                // (ties impossible here) are exactly 0..24.
+                salience_score: 1.0 - (i as f64) * 0.01,
             })
             .collect();
-        // Salience by construction: 0..5 -> 3, 5..10 -> 2, 10..20 -> 1, 20..40 -> 0.
-        // The top 24 by salience (ties broken by original position) are exactly 0..24.
 
         let (to_verify, capped) = select_claims_for_verification(&claims, 24);
 
@@ -861,6 +865,7 @@ mod tests {
                 is_numeric: false,
                 is_recent: false,
                 is_named_event: false,
+                salience_score: 0.5,
             })
             .collect();
         let (to_verify, capped) = select_claims_for_verification(&claims, 24);

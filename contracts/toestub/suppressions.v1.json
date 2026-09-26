@@ -99,6 +99,12 @@
       "owner": "robot"
     },
     {
+      "rule_id_prefix": "skeleton/hollow-fn",
+      "path_glob": "**/vox-research-shim/src/research/claims.rs",
+      "reason": "Task 15d review round 1: extract_claims_from_text's `not(feature = \"scientia-claims\")` fallback (pre-existing, unrelated to this task's Claim::salience_score field addition to the other cfg branch in the same file) is a deliberate no-op -- without that feature vox-scientia's extractor isn't linked in, so there is no deterministic path to fall back to; extract_claims_with_model already treats an empty result as \"try the LLM cascade next\". Surfaced only because tdd-guard re-scans the whole touched file, not the diff.",
+      "owner": "robot"
+    },
+    {
       "rule_id_prefix": "skeleton/untested-pub-api",
       "path_glob": "**/vox-search/src/searxng.rs",
       "reason": "Task 8c only added a field to the sibling SearxngResult struct in this file; SearxngSearchClient::new/search are pre-existing and untouched. Covered by tests/web_dispatcher_searxng_mock.rs and tests/deterministic_lanes_ci_test.rs, just not by an in-file #[cfg(test)] module. Surfaced only because tdd-guard re-scans the whole touched file, not the diff.",

@@ -576,10 +576,13 @@ pub async fn chat_send_message<R: tauri::Runtime>(
     if let Some(skill) = input.active_skill.as_ref() {
         args["active_skill"] = serde_json::Value::String(skill.clone());
     }
+    // Task 15d review round 1 (B1): see chat_turn.rs's `run_sync` for why
+    // `vox_chat_message` needs its own, longer client read deadline.
     let envelope = client
-        .call(
+        .call_with_deadline(
             vox_foundation::protocol::orch_daemon_method::TOOL_CALL,
             serde_json::json!({ "name": "vox_chat_message", "args": args }),
+            vox_orchestrator_mcp::dispatch_timeout::CHAT_MESSAGE_CLIENT_DEADLINE,
         )
         .await
         .map_err(|e| e.to_string())?;

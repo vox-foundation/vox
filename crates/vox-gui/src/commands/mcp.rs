@@ -44,9 +44,10 @@ pub async fn invoke_mcp_tool(
         client = client.with_permission_mode(mode);
     }
     let value = client
-        .call(
+        .call_with_deadline(
             orch_daemon_method::TOOL_CALL,
             serde_json::json!({ "name": tool, "args": args }),
+            deadline_for_tool(&tool),
         )
         .await
         .map_err(|e| format!("MCP tool '{tool}' failed: {e}"))?;
@@ -58,4 +59,44 @@ pub async fn invoke_mcp_tool(
         "is_error": is_error,
         "result": value,
     }))
+}
+
+/// Task 15d review round 1 (B1): this generic passthrough can invoke
+/// `vox_chat_message` too (the `tool` name is caller-supplied), so it needs
+/// the same longer client deadline as the dedicated chat commands
+/// (`chat_turn::run_sync`, `chat::chat_send_message`) — otherwise a Deep
+/// turn routed through here would still time out client-side. Split out as
+/// a pure function so the tool-name branch is unit-testable without a Tauri
+/// runtime/mocked `State`, which `invoke_mcp_tool` itself needs.
+fn deadline_for_tool(tool: &str) -> std::time::Duration {
+    if tool == "vox_chat_message" {
+        vox_orchestrator_mcp::dispatch_timeout::CHAT_MESSAGE_CLIENT_DEADLINE
+    } else {
+        vox_orchestrator::orch_daemon::ORCH_CLIENT_READ_DEADLINE
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn deadline_for_tool_gives_chat_the_longer_deadline() {
+        assert_eq!(
+            deadline_for_tool("vox_chat_message"),
+            vox_orchestrator_mcp::dispatch_timeout::CHAT_MESSAGE_CLIENT_DEADLINE
+        );
+    }
+
+    #[test]
+    fn deadline_for_tool_gives_everything_else_the_generic_deadline() {
+        assert_eq!(
+            deadline_for_tool("vox_read_file"),
+            vox_orchestrator::orch_daemon::ORCH_CLIENT_READ_DEADLINE
+        );
+        assert_eq!(
+            deadline_for_tool("vox_plan"),
+            vox_orchestrator::orch_daemon::ORCH_CLIENT_READ_DEADLINE
+        );
+    }
 }

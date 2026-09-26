@@ -105,7 +105,11 @@ impl OrchDaemonClient {
         self
     }
 
-    /// Send one line, read one line (blocking for this request).
+    /// Send one line, read one line (blocking for this request), using the
+    /// default [`ORCH_CLIENT_READ_DEADLINE`]. Callers whose method can
+    /// legitimately run longer than that (e.g. `vox_chat_message` on the Deep
+    /// research lane) should use [`Self::call_with_deadline`] instead of
+    /// raising this default for every method.
     pub async fn call(
         &self,
         method: &str,
@@ -121,6 +125,33 @@ impl OrchDaemonClient {
         &self,
         method: &str,
         params: serde_json::Value,
+    ) -> Result<serde_json::Value, OrchClientError> {
+        self.call_classified_with_deadline(method, params, ORCH_CLIENT_READ_DEADLINE)
+            .await
+    }
+
+    /// Same as [`Self::call`], but with an explicit read deadline instead of
+    /// the default [`ORCH_CLIENT_READ_DEADLINE`]. Used by callers of
+    /// `vox_chat_message` on the Deep research lane, whose server-side budget
+    /// (`vox_orchestrator_mcp::dispatch_timeout::DEEP_CHAT_MESSAGE_TIMEOUT`)
+    /// exceeds the generic default.
+    pub async fn call_with_deadline(
+        &self,
+        method: &str,
+        params: serde_json::Value,
+        deadline: std::time::Duration,
+    ) -> anyhow::Result<serde_json::Value> {
+        self.call_classified_with_deadline(method, params, deadline)
+            .await
+            .map_err(anyhow::Error::from)
+    }
+
+    /// Same as [`Self::call_classified`], but with an explicit read deadline.
+    pub async fn call_classified_with_deadline(
+        &self,
+        method: &str,
+        params: serde_json::Value,
+        deadline: std::time::Duration,
     ) -> Result<serde_json::Value, OrchClientError> {
         let mut stream = TcpStream::connect(&self.addr)
             .await
@@ -147,13 +178,13 @@ impl OrchDaemonClient {
 
         let mut reader = BufReader::new(read_half);
         let mut resp_line = String::new();
-        match timeout(ORCH_CLIENT_READ_DEADLINE, reader.read_line(&mut resp_line)).await {
+        match timeout(deadline, reader.read_line(&mut resp_line)).await {
             Ok(Ok(_)) => {}
             Ok(Err(e)) => return Err(OrchClientError::Other(e.into())),
             Err(_elapsed) => {
                 return Err(OrchClientError::ReadTimeout {
                     method: method.to_string(),
-                    secs: ORCH_CLIENT_READ_DEADLINE.as_secs(),
+                    secs: deadline.as_secs(),
                 });
             }
         }
@@ -491,5 +522,21 @@ mod tests {
     #[test]
     fn client_read_deadline_exceeds_chat_ceiling() {
         assert!(ORCH_CLIENT_READ_DEADLINE > std::time::Duration::from_secs(180));
+    }
+
+    /// Task 15d review round 1 (B1): a per-call deadline is now available so
+    /// `vox_chat_message` callers on the Deep lane aren't stuck with the
+    /// generic [`ORCH_CLIENT_READ_DEADLINE`] — this only checks the plumbing
+    /// compiles and the read-timeout error still names the deadline that was
+    /// actually passed in, not the default.
+    #[test]
+    fn read_timeout_reports_the_deadline_actually_used() {
+        let err = OrchClientError::ReadTimeout {
+            method: "orch.tool_call".into(),
+            secs: 330,
+        };
+        let msg = err.to_string();
+        assert!(msg.contains("330"));
+        assert!(!msg.contains(&ORCH_CLIENT_READ_DEADLINE.as_secs().to_string()));
     }
 }

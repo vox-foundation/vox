@@ -10,6 +10,7 @@ async fn verify_claims_without_evidence_returns_empty() {
         is_numeric: false,
         is_recent: false,
         is_named_event: false,
+        salience_score: 0.5,
     }];
     let registry = ProviderRegistry::default();
     let cfg = vox_research_shim::research::verifier::VerifierConfig::default();

@@ -9,60 +9,19 @@ use crate::claim_extractor::veriscore::{VeriScoreConfig, VeriScoreGate};
 
 /// Task 15d: a live deep-research run verifying claims sequentially (this
 /// loop, and its sibling in `vox-research-shim::research::verifier`) took
-/// 322s for ~50 claims and blew the 180s chat dispatch timeout. Verify at
-/// most this many claims per run with a real `verify_claim` call; the rest
-/// are reported honestly as `Abstain` with a cap reason, never dropped or
-/// shown as supported.
-const MAX_CLAIMS_VERIFIED_PER_RUN: usize = 24;
-/// Max in-flight `verify_claim` calls at once. `buffered` (not
-/// `buffer_unordered`) keeps verdict order aligned with `claims` order.
+/// 322s for ~50 claims and blew the 180s chat dispatch timeout.
+///
+/// Review round 1 (B2): the per-run *cap* stays only in
+/// `vox-research-shim::research::verifier`, where the LLM latency actually
+/// lives. This shared `ExtractionPipeline` is also used by `vox scientia`
+/// publication scoring (`vox-cli`'s `scientia_phase_handlers.rs`, which counts
+/// `Supported` toward `claim_evidence_coverage` and writes every verdict to
+/// the claim ledger) and by `vox_research_shim::research::claims::extract_claims_from_text`
+/// (which discards `result.verdicts` and keeps every claim regardless) — a cap
+/// here would silently change publication-worthiness scoring for a
+/// manuscript with more than 24 claims, while saving no latency on the
+/// research path at all. Only bounded *concurrency* is kept here.
 const VERIFY_CONCURRENCY: usize = 8;
-const CAP_REASON: &str = "not verified: over per-run verification cap";
-
-/// Selects at most `cap` claims to actually verify — the highest
-/// `verifiability_score` first, ties broken by original position for
-/// determinism — and produces an honest `Abstain` verdict (with the cap
-/// reason) for every claim beyond the cap. Returns
-/// `(indices_to_verify, capped_verdicts)`, both indexed against `claims`;
-/// `indices_to_verify` is sorted back into original order. No claim is ever
-/// dropped: every index in `0..claims.len()` ends up in exactly one output.
-fn select_claims_for_verification(
-    claims: &[AtomicClaim],
-    cap: usize,
-) -> (Vec<usize>, Vec<(usize, ClaimVerdict)>) {
-    if claims.len() <= cap {
-        return ((0..claims.len()).collect(), Vec::new());
-    }
-    let mut by_score: Vec<usize> = (0..claims.len()).collect();
-    // Stable sort: ties keep their original relative order.
-    by_score.sort_by(|&a, &b| {
-        claims[b]
-            .verifiability_score
-            .partial_cmp(&claims[a].verifiability_score)
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
-    let mut to_verify: Vec<usize> = by_score[..cap].to_vec();
-    to_verify.sort_unstable();
-    let selected: std::collections::HashSet<usize> = to_verify.iter().copied().collect();
-    let capped = (0..claims.len())
-        .filter(|i| !selected.contains(i))
-        .map(|i| {
-            tracing::info!(
-                claim_id = claims[i].id,
-                cap,
-                extracted = claims.len(),
-                "{CAP_REASON}"
-            );
-            (
-                i,
-                ClaimVerdict::Abstain {
-                    reason: CAP_REASON.to_string(),
-                },
-            )
-        })
-        .collect();
-    (to_verify, capped)
-}
 
 /// Verifies `claims[indices]` concurrently (bounded by `concurrency`),
 /// running `verify_one` for each and pairing each result with its original
@@ -196,9 +155,7 @@ impl ExtractionPipeline {
         let abstain_threshold = self.config.abstain_threshold;
         let promotion_threshold = self.config.promotion_threshold;
         let verifier = &self.verifier;
-
-        let (to_verify, capped) =
-            select_claims_for_verification(&valid_claims, MAX_CLAIMS_VERIFIED_PER_RUN);
+        let all_indices: Vec<usize> = (0..valid_claims.len()).collect();
 
         // Contradiction is checked first: a high contradiction_score overrides
         // the abstain/support/contest ladder regardless of support_score. A
@@ -244,18 +201,24 @@ impl ExtractionPipeline {
             }
         };
 
-        let mut results =
-            verify_indices_concurrently(&valid_claims, &to_verify, VERIFY_CONCURRENCY, verify_one)
-                .await;
-        results.extend(capped);
-        results.sort_by_key(|(i, _)| *i);
+        // No per-run cap here (B2): every claim in `valid_claims` is verified,
+        // just concurrently rather than sequentially. `verify_indices_concurrently`
+        // already preserves input order via `buffered`, so the result is
+        // already index-sorted — no separate merge/sort step needed once
+        // there's no second (capped) source to interleave.
+        let results = verify_indices_concurrently(
+            &valid_claims,
+            &all_indices,
+            VERIFY_CONCURRENCY,
+            verify_one,
+        )
+        .await;
         let verdicts: Vec<ClaimVerdict> = results.into_iter().map(|(_, v)| v).collect();
 
         // Recomputed from the verdict tag rather than tracked during
         // verification: `Supported` is only ever produced above when
         // `support_score >= promotion_threshold`, so this stays exactly
-        // equivalent to the original per-claim check — and capped-out claims
-        // (marked `Abstain`) are correctly never promotable.
+        // equivalent to the original per-claim check.
         let promotable: Vec<u64> = valid_claims
             .iter()
             .zip(verdicts.iter())
@@ -441,86 +404,76 @@ mod tests {
         );
     }
 
-    /// Task 15d error isolation: one claim's verification failing (mirrored
-    /// here the same way `extract`'s `verify_one` handles a real `Err` — by
-    /// producing an `Abstain` verdict) must not stop the others from getting
-    /// their real verdicts, and must not abort the batch.
+    /// Task 15d review round 1 (B3): the previous version of this test
+    /// stubbed `verify_indices_concurrently`'s `verify_one` closure to return
+    /// `Abstain` directly and then asserted `Abstain` — circular, since it
+    /// never exercised `extract`'s actual `Err => Abstain` arm (deleting that
+    /// arm, or having it return `Supported`, would still have passed).
+    ///
+    /// This version builds a real `ExtractionPipeline` whose verifier is
+    /// `MiniCheckBackend::Http` pointed at an unreachable loopback port
+    /// (`127.0.0.1:1` — nothing listens there, so the connection is refused
+    /// immediately; no real network egress beyond that refused local
+    /// connection). Every claim's `verify_claim` call therefore genuinely
+    /// returns `Err`, and `extract` must still return `Ok` with every claim
+    /// marked `Abstain { reason: "verification error: ..." }` — proving the
+    /// `?` is really gone, not just that some intermediate helper preserves
+    /// item counts.
+    ///
+    /// Mutation guard (manually verified, not committed as a second test):
+    /// temporarily changing `extract`'s `Err(e) => ClaimVerdict::Abstain {
+    /// ... }` arm back to `let output = verifier.verify_claim(...).await?;`
+    /// makes this test fail with an `Err` return instead of `Ok`, and
+    /// changing the arm to `ClaimVerdict::Supported { confidence: 1.0 }`
+    /// makes the `all(|v| matches!(v, Abstain))` assertion fail.
     #[tokio::test]
-    async fn verify_indices_concurrently_isolates_a_failing_claim() {
-        let claims: Vec<AtomicClaim> = (0..5).map(|i| stub_claim(i, 0.9)).collect();
-        let indices: Vec<usize> = (0..claims.len()).collect();
-        let failing_id = 2u64;
+    async fn extract_marks_every_claim_abstain_on_real_verification_error() {
+        use crate::claim_extractor::minicheck::MiniCheckBackend;
 
-        let results = verify_indices_concurrently(
-            &claims,
-            &indices,
-            VERIFY_CONCURRENCY,
-            move |claim| async move {
-                if claim.id == failing_id {
-                    ClaimVerdict::Abstain {
-                        reason: "verification error: stub failure".to_string(),
-                    }
-                } else {
-                    ClaimVerdict::Supported { confidence: 0.9 }
-                }
+        let pipeline = ExtractionPipeline {
+            config: ExtractionConfig::default(),
+            gate: VeriScoreGate::new(VeriScoreConfig::default()),
+            decomposer: AtomicDecomposer::new(AtomicConfig::default()),
+            span_checker: SpanChecker::default(),
+            verifier: MiniCheckVerifier {
+                backend: MiniCheckBackend::Http {
+                    endpoint: "http://127.0.0.1:1".to_string(),
+                },
+                abstain_threshold: 0.3,
             },
-        )
-        .await;
+        };
 
-        assert_eq!(
-            results.len(),
-            5,
-            "the failing claim must not abort the batch"
+        let source = "Provider X p95 latency increased by 12ms after the update. \
+                       Cache hit rate improved by 15 percent this quarter.";
+        let result = pipeline
+            .extract(source, &[])
+            .await
+            .expect("a failing verifier must not abort extract() via `?`");
+
+        assert!(
+            !result.claims.is_empty(),
+            "expected at least one extracted claim to verify against"
         );
-        for (i, verdict) in &results {
-            if *i as u64 == failing_id {
-                assert!(matches!(verdict, ClaimVerdict::Abstain { .. }));
-            } else {
-                assert!(
-                    matches!(verdict, ClaimVerdict::Supported { .. }),
-                    "claim {i} should still get a real verdict"
-                );
+        assert_eq!(
+            result.claims.len(),
+            result.verdicts.len(),
+            "every extracted claim must get exactly one verdict"
+        );
+        for verdict in &result.verdicts {
+            match verdict {
+                ClaimVerdict::Abstain { reason } => {
+                    assert!(
+                        reason.starts_with("verification error:"),
+                        "expected the real Err path's reason text, got: {reason}"
+                    );
+                }
+                other => panic!("expected Abstain for every claim, got: {other:?}"),
             }
         }
-    }
-
-    /// Task 15d cap: extracting more claims than the per-run cap allows must
-    /// still verify exactly `cap` of them (the highest `verifiability_score`
-    /// ones — the existing per-claim score, not a new ranker) and mark the
-    /// rest `Abstain` with the cap reason rather than dropping them or
-    /// showing them as supported.
-    #[test]
-    fn select_claims_for_verification_caps_to_highest_score() {
-        let claims: Vec<AtomicClaim> = (0..40)
-            .map(|i| stub_claim(i, if i < 24 { 0.9 } else { 0.6 }))
-            .collect();
-
-        let (to_verify, capped) = select_claims_for_verification(&claims, 24);
-
-        assert_eq!(to_verify.len(), 24, "exactly the cap gets verified");
-        assert_eq!(capped.len(), 16, "the rest are capped, never dropped");
-        assert_eq!(to_verify, (0..24).collect::<Vec<usize>>());
-        for (_, verdict) in &capped {
-            assert!(
-                matches!(verdict, ClaimVerdict::Abstain { .. }),
-                "capped claims must be honestly Abstain, never shown as supported"
-            );
-        }
-        let mut all_idx: Vec<usize> = to_verify
-            .iter()
-            .copied()
-            .chain(capped.iter().map(|(i, _)| *i))
-            .collect();
-        all_idx.sort_unstable();
-        assert_eq!(all_idx, (0..40).collect::<Vec<usize>>());
-    }
-
-    #[test]
-    fn select_claims_for_verification_is_a_no_op_under_the_cap() {
-        let claims: Vec<AtomicClaim> = (0..5).map(|i| stub_claim(i, 0.9)).collect();
-        let (to_verify, capped) = select_claims_for_verification(&claims, 24);
-        assert_eq!(to_verify, (0..5).collect::<Vec<usize>>());
-        assert!(capped.is_empty());
+        assert!(
+            result.promotable_claim_ids.is_empty(),
+            "no claim can be promotable when every verdict is Abstain"
+        );
     }
 
     /// Round 1 fix: `claims_for_sentence` must not silently fall back to offset

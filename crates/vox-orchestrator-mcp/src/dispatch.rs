@@ -357,14 +357,7 @@ pub async fn handle_tool_call_with_mode(
     // `ChatMessageParams` is even parsed (that happens later, inside the
     // timeout, in `handle_tool_call_inner`).
     let call_timeout = if name_canonical == "vox_chat_message" {
-        let prompt = args
-            .get("prompt")
-            .or_else(|| args.get("message"))
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
-        let force_research = args.get("force_research").and_then(|v| v.as_bool());
-        let research_scope = args.get("research_scope").and_then(|v| v.as_str());
-        crate::dispatch_timeout::timeout_for_chat_message(prompt, force_research, research_scope)
+        crate::dispatch_timeout::timeout_for_chat_message_args(&args)
     } else {
         crate::dispatch_timeout::timeout_for(name_canonical)
     };
