@@ -374,7 +374,7 @@ pub use socrates::{
     session_context_envelope_key,
 };
 pub use summary::SummaryManager;
-pub use tool_receipt::{ReceiptValidationResult, ToolReceipt, ToolReceiptLedger};
+pub use tool_receipt::{ReceiptValidationResult, ToolReceipt, ToolReceiptError, ToolReceiptLedger};
 pub use topology::{
     AgentDelegationBinding, AgentRole, AgentTopologyNode, AgentTopologySnapshot, DelegationEdge,
     DynamicSpawnContext, TopologyGap,

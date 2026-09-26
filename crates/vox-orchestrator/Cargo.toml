@@ -100,6 +100,8 @@ vox-orchestrator-types.workspace = true
 vox-orchestrator-queue.workspace = true
 vox-config.workspace = true
 vox-repository.workspace = true
+# Canonical MCP tool-name allow-list; tool_receipt.rs fails closed on names absent from TOOL_REGISTRY.
+vox-mcp-registry.workspace = true
 # In-process VRAM telemetry for the advisory VRAM-fit scoring signal (Task 2.6).
 # Same-workspace rlib call (not the dylib plugin ABI) — see
 # `vox-plugin-nvml-probe/src/lib.rs` module doc.

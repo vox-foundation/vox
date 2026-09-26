@@ -2200,6 +2200,13 @@
   ],
   "exceptions": [
     {
+      "from": "vox-orchestrator",
+      "to": "vox-mcp-registry",
+      "reason": "ToolReceiptLedger::issue_intent fails closed on tool names absent from vox_mcp_registry::TOOL_REGISTRY, dead-crate wire-up plan (phase 2, REQ-dead-crate-wire-up)",
+      "date": "2026-09-25",
+      "authorized_by": "user (explicit chat approval, 2026-09-25)"
+    },
+    {
       "from": "vox-cli",
       "to": "vox-oauth-pkce",
       "reason": "vox secrets login --oauth --provider openrouter (RFC 8252 loopback PKCE flow), free-tier onboarding plan",

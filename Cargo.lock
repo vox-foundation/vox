@@ -18061,6 +18061,7 @@ dependencies = [
  "vox-gamify",
  "vox-http-client",
  "vox-lsp",
+ "vox-mcp-registry",
  "vox-mesh-policy",
  "vox-mesh-transport",
  "vox-mesh-types",

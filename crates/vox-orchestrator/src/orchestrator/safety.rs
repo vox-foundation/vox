@@ -5,16 +5,19 @@ use crate::types::{AgentId, TaskId};
 impl Orchestrator {
     /// Issues a cryptographic tool receipt for an agent to perform a specific tool call.
     /// This prevents agents from hallucinating tool outputs that were never executed.
+    ///
+    /// Returns `Err(ToolReceiptError::UnknownTool)` for names absent from
+    /// `vox_mcp_registry::TOOL_REGISTRY`.
     pub fn issue_tool_receipt(
         &self,
         agent_id: AgentId,
         tool_name: &str,
         args_json: &str,
-    ) -> String {
+    ) -> Result<String, crate::tool_receipt::ToolReceiptError> {
         let ledger = crate::sync_lock::rw_read(&*self.tool_ledger);
         ledger
             .issue_intent(agent_id, tool_name, args_json)
-            .receipt_id
+            .map(|r| r.receipt_id)
     }
 
     /// Records the result of a tool execution in an existing receipt.
@@ -109,5 +112,31 @@ impl Orchestrator {
                 agent_id,
                 path: std::path::PathBuf::from(resource_id),
             });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::OrchestratorConfig;
+    use crate::tool_receipt::ToolReceiptError;
+
+    #[test]
+    fn issue_tool_receipt_propagates_unknown_tool_error() {
+        let orch = Orchestrator::new(OrchestratorConfig::for_testing());
+        let res = orch.issue_tool_receipt(AgentId(1), "definitely_not_a_registered_tool", "{}");
+        assert!(matches!(res, Err(ToolReceiptError::UnknownTool { .. })));
+        assert!(orch.tool_ledger_handle().read().unwrap().is_empty());
+    }
+
+    #[test]
+    fn issue_tool_receipt_issues_verifiable_receipt_for_registered_tool() {
+        let orch = Orchestrator::new(OrchestratorConfig::for_testing());
+        let id = orch
+            .issue_tool_receipt(AgentId(1), "vox_git_status", "{}")
+            .unwrap();
+        assert!(orch.verify_tool_receipt(&id));
+        assert!(orch.fulfill_tool_receipt(&id, "{}"));
+        assert!(orch.verify_tool_receipt(&id));
     }
 }

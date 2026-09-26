@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
+use vox_mcp_registry::TOOL_REGISTRY;
 
 /// A cryptographic receipt proving that a tool was successfully executed by the runtime.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -23,6 +24,14 @@ pub struct ReceiptValidationResult {
     pub valid: Vec<String>,
     pub fabricated: Vec<String>, // claimed but no ledger entry
     pub unverified: Vec<String>, // ledger entry exists but tag fails
+}
+
+/// Rejection reasons when issuing a tool receipt.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum ToolReceiptError {
+    /// `tool_name` is not an exact entry in `vox_mcp_registry::TOOL_REGISTRY` (fail closed, D-02).
+    #[error("Unknown tool: {tool_name}")]
+    UnknownTool { tool_name: String },
 }
 
 /// Thread-safe ledger of tool execution receipts.
@@ -87,7 +96,20 @@ impl ToolReceiptLedger {
     }
 
     /// Issue a new receipt for a tool execution intent.
-    pub fn issue_intent(&self, agent_id: AgentId, tool_name: &str, args_json: &str) -> ToolReceipt {
+    ///
+    /// Fails closed: returns `Err(ToolReceiptError::UnknownTool)` without recording anything
+    /// when `tool_name` is not an exact `TOOL_REGISTRY` entry.
+    pub fn issue_intent(
+        &self,
+        agent_id: AgentId,
+        tool_name: &str,
+        args_json: &str,
+    ) -> Result<ToolReceipt, ToolReceiptError> {
+        if !TOOL_REGISTRY.iter().any(|e| e.name == tool_name) {
+            return Err(ToolReceiptError::UnknownTool {
+                tool_name: tool_name.to_string(),
+            });
+        }
         let receipt_id = Uuid::now_v7().to_string();
         let executed_at_ms = chrono::Utc::now().timestamp_millis() as u64;
 
@@ -113,7 +135,7 @@ impl ToolReceiptLedger {
 
         let mut map = self.receipts.write();
         map.insert(receipt_id, receipt.clone());
-        receipt
+        Ok(receipt)
     }
 
     /// Update a receipt with the execution result.
@@ -148,10 +170,11 @@ impl ToolReceiptLedger {
         tool_name: &str,
         args_json: &str,
         result_json: &str,
-    ) -> ToolReceipt {
-        let receipt = self.issue_intent(agent_id, tool_name, args_json);
-        self.fulfill_intent(&receipt.receipt_id, result_json)
-            .unwrap()
+    ) -> Result<ToolReceipt, ToolReceiptError> {
+        let receipt = self.issue_intent(agent_id, tool_name, args_json)?;
+        Ok(self
+            .fulfill_intent(&receipt.receipt_id, result_json)
+            .unwrap())
     }
 
     /// Verify a single receipt by ID.
@@ -188,5 +211,54 @@ impl ToolReceiptLedger {
             }
         }
         result
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn ledger() -> ToolReceiptLedger {
+        ToolReceiptLedger::new([7u8; 32])
+    }
+
+    #[test]
+    fn issue_intent_rejects_unknown_tool_without_recording() {
+        let l = ledger();
+        let err = l
+            .issue_intent(AgentId(1), "definitely_not_a_registered_tool", "{}")
+            .unwrap_err();
+        assert_eq!(
+            err,
+            ToolReceiptError::UnknownTool {
+                tool_name: "definitely_not_a_registered_tool".to_string()
+            }
+        );
+        assert!(l.is_empty());
+    }
+
+    #[test]
+    fn issue_intent_accepts_registered_tool() {
+        let l = ledger();
+        let r = l.issue_intent(AgentId(1), "vox_submit_task", "{}").unwrap();
+        assert!(r.result_hash.is_none());
+        assert!(l.verify(&r.receipt_id).is_ok());
+        assert_eq!(l.len(), 1);
+    }
+
+    #[test]
+    fn issue_rejects_unknown_tool_without_recording() {
+        let l = ledger();
+        let res = l.issue(AgentId(1), "definitely_not_a_registered_tool", "{}", "{}");
+        assert!(matches!(res, Err(ToolReceiptError::UnknownTool { .. })));
+        assert!(l.is_empty());
+    }
+
+    #[test]
+    fn issue_accepts_registered_tool_and_binds_result() {
+        let l = ledger();
+        let r = l.issue(AgentId(1), "vox_git_status", "{}", "{}").unwrap();
+        assert!(r.result_hash.is_some());
+        assert!(l.verify(&r.receipt_id).is_ok());
     }
 }
