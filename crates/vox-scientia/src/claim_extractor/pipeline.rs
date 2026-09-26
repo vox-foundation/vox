@@ -57,13 +57,37 @@ impl ExtractionPipeline {
         source_text: &str,
         context_passages: &[&str],
     ) -> Result<ExtractionResult, Box<dyn std::error::Error + Send + Sync>> {
-        let sentences = split_sentences(source_text);
+        let indexed_sentences = split_sentences_with_offsets(source_text);
+        // `filter_sentences` takes plain text and doesn't carry offsets (VeriScore gating
+        // is out of scope for this fix); map each surviving `&str` back to its
+        // source-absolute byte offset by pointer identity into `sentences` below.
+        let sentences: Vec<String> = indexed_sentences.iter().map(|(_, s)| s.clone()).collect();
+        let offset_by_ptr: std::collections::HashMap<usize, usize> = sentences
+            .iter()
+            .zip(indexed_sentences.iter())
+            .map(|(s, (offset, _))| (s.as_str().as_ptr() as usize, *offset))
+            .collect();
         let verifiable = self.gate.filter_sentences(&sentences);
         let abstained = sentences.len() - verifiable.len();
 
         let mut all_claims: Vec<AtomicClaim> = Vec::new();
         for (sentence, _score) in &verifiable {
-            let claims = self.decomposer.decompose(sentence);
+            let sentence_offset = offset_by_ptr
+                .get(&(sentence.as_ptr() as usize))
+                .copied()
+                .unwrap_or(0);
+            // `decompose` measures spans relative to `sentence`; shift them to be
+            // source-absolute so `span_checker.check` (below) verifies against the
+            // same text the span was measured in, not the whole source.
+            let claims = self
+                .decomposer
+                .decompose(sentence)
+                .into_iter()
+                .map(|mut c| {
+                    c.span.start += sentence_offset;
+                    c.span.end += sentence_offset;
+                    c
+                });
             all_claims.extend(claims);
         }
 
@@ -129,50 +153,72 @@ impl ExtractionPipeline {
     }
 }
 
+/// Test-only convenience over `split_sentences_with_offsets`: `extract` needs the
+/// offsets to shift claim spans, but the splitting-rules tests below only assert
+/// on sentence text.
+#[cfg(test)]
 fn split_sentences(text: &str) -> Vec<String> {
+    split_sentences_with_offsets(text)
+        .into_iter()
+        .map(|(_, s)| s)
+        .collect()
+}
+
+/// Same splitting rules as `split_sentences`, but also returns each sentence's
+/// byte offset (source-absolute, char-boundary-aligned) within `text` — needed
+/// so downstream claim spans can be shifted from sentence-relative to
+/// source-absolute before `SpanChecker::check` verifies them against `text`.
+fn split_sentences_with_offsets(text: &str) -> Vec<(usize, String)> {
     /// Trailing tokens after which a `.` does not end a sentence ("e.g.", "vs.", …).
     const NON_TERMINAL_SUFFIXES: [&str; 4] = ["e.g", "i.e", "etc", "vs"];
-    let chars: Vec<char> = text.chars().collect();
+    let indexed: Vec<(usize, char)> = text.char_indices().collect();
     let mut sentences = Vec::new();
     let mut current = String::new();
-    for i in 0..chars.len() {
-        let ch = chars[i];
+    let mut seg_start_byte = 0usize;
+    for i in 0..indexed.len() {
+        let (byte_idx, ch) = indexed[i];
         current.push(ch);
         let terminal = match ch {
             '!' | '?' => true,
             '.' => {
                 // "12.5ms", "v0.6.2": a dot between digits is decimal/version punctuation.
-                let prev_digit = i > 0 && chars[i - 1].is_ascii_digit();
-                let next_digit = chars.get(i + 1).is_some_and(|c| c.is_ascii_digit());
+                let prev_digit = i > 0 && indexed[i - 1].1.is_ascii_digit();
+                let next_digit = indexed.get(i + 1).is_some_and(|(_, c)| c.is_ascii_digit());
                 let mid_number = prev_digit && next_digit;
                 let trimmed = current.trim_end_matches('.');
                 let abbrev = NON_TERMINAL_SUFFIXES
                     .iter()
                     .any(|s| trimmed.to_lowercase().ends_with(s));
-                let next_starts_sentence = match chars[i + 1..].iter().find(|c| !c.is_whitespace())
-                {
-                    None => true,
-                    Some(c) => {
-                        c.is_uppercase()
-                            || c.is_ascii_digit()
-                            || matches!(c, '"' | '\'' | '(' | '[')
-                    }
-                };
+                let next_starts_sentence =
+                    match indexed[i + 1..].iter().find(|(_, c)| !c.is_whitespace()) {
+                        None => true,
+                        Some((_, c)) => {
+                            c.is_uppercase()
+                                || c.is_ascii_digit()
+                                || matches!(c, '"' | '\'' | '(' | '[')
+                        }
+                    };
                 !mid_number && !abbrev && next_starts_sentence
             }
             _ => false,
         };
         if terminal {
-            let t = current.trim().to_string();
+            let end_byte = byte_idx + ch.len_utf8();
+            let raw = &text[seg_start_byte..end_byte];
+            let t = raw.trim();
             if !t.is_empty() {
-                sentences.push(t);
+                let leading_ws = raw.len() - raw.trim_start().len();
+                sentences.push((seg_start_byte + leading_ws, t.to_string()));
             }
             current.clear();
+            seg_start_byte = end_byte;
         }
     }
-    let t = current.trim().to_string();
+    let raw = &text[seg_start_byte..];
+    let t = raw.trim();
     if !t.is_empty() {
-        sentences.push(t);
+        let leading_ws = raw.len() - raw.trim_start().len();
+        sentences.push((seg_start_byte + leading_ws, t.to_string()));
     }
     sentences
 }
@@ -253,5 +299,78 @@ mod tests {
             "expected at least one Contradicted verdict, got: {:?}",
             result.verdicts
         );
+    }
+
+    /// Task 15b: a claim in the third sentence must survive span checking. Before
+    /// the fix, its span was measured relative to sentence 3 but checked against
+    /// the whole `source_text`, so the word-overlap check compared it against an
+    /// unrelated prefix of the source and (almost always) dropped it.
+    #[tokio::test]
+    async fn claim_in_third_sentence_survives_span_check() {
+        let pipeline = ExtractionPipeline::new(ExtractionConfig::default());
+        let source = "The report opens with background context here. \
+                       This is filler text that also passes the veriscore gate. \
+                       Provider X p95 latency increased by 12ms after the update.";
+        let result = pipeline.extract(source, &[]).await.unwrap();
+        assert!(
+            result.claims.iter().any(|c| c.text.contains("12ms")),
+            "expected the sentence-3 claim to survive span checking, got claims: {:?}",
+            result.claims.iter().map(|c| &c.text).collect::<Vec<_>>()
+        );
+    }
+
+    /// Two identical sentences at different positions: each claim's span must
+    /// point at its own occurrence, not both resolve to the first one.
+    #[tokio::test]
+    async fn duplicate_sentences_each_keep_their_own_span() {
+        let pipeline = ExtractionPipeline::new(ExtractionConfig::default());
+        let source = "Latency rose by 10ms today. \
+                       Some unrelated middle sentence with no digits at all. \
+                       Latency rose by 10ms today.";
+        let result = pipeline.extract(source, &[]).await.unwrap();
+        let matches: Vec<_> = result
+            .claims
+            .iter()
+            .filter(|c| c.text.contains("Latency rose by 10ms"))
+            .collect();
+        assert_eq!(
+            matches.len(),
+            2,
+            "expected both occurrences to survive, got: {matches:?}"
+        );
+        assert_ne!(
+            matches[0].span.start, matches[1].span.start,
+            "each occurrence should keep its own source-absolute span"
+        );
+        for c in &matches {
+            let slice = source
+                .get(c.span.start..c.span.end)
+                .expect("span must be char-boundary aligned");
+            assert!(slice.contains("Latency rose by 10ms"));
+        }
+    }
+
+    /// Multi-byte characters (emoji/CJK) before the claim sentence must not shift
+    /// the claim's span off a char boundary; guards the c616e4f5e panic class.
+    #[tokio::test]
+    async fn multibyte_prefix_does_not_break_span_alignment() {
+        let pipeline = ExtractionPipeline::new(ExtractionConfig::default());
+        let source = "SearXNG 🥈 second place; 検索エンジン comparison happened here today. \
+                       Provider X p95 latency increased by 12ms after the update.";
+        let result = pipeline.extract(source, &[]).await.unwrap();
+        let claim = result
+            .claims
+            .iter()
+            .find(|c| c.text.contains("12ms"))
+            .unwrap_or_else(|| {
+                panic!(
+                    "expected the numeric claim to survive, got: {:?}",
+                    result.claims
+                )
+            });
+        let slice = source
+            .get(claim.span.start..claim.span.end)
+            .expect("span must remain on a char boundary despite multi-byte prefix");
+        assert!(slice.contains("12ms"));
     }
 }

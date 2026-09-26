@@ -174,7 +174,11 @@ async fn run_research_emits_scientia_events() {
     .await
     .expect("save snippet");
 
-    let (sender, mut receiver) = tokio::sync::broadcast::channel(16);
+    // Capacity bumped from 16 (Task 15b): fixing the claim-span coordinate bug means
+    // legitimate claims now survive extraction and each emits a `ClaimExtracted` event,
+    // so the small buffer previously sized for the (mostly-dropped-claims) bug lags
+    // before this test's single post-hoc `try_recv`.
+    let (sender, mut receiver) = tokio::sync::broadcast::channel(256);
     let config = ResearchConfig {
         event_emitter: Some(std::sync::Arc::new(BroadcastEmitter::new(sender))),
         ..ResearchConfig::default()
