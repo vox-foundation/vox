@@ -2,6 +2,7 @@
   "schema_version": 1,
   "top_level_groups": [
     "add",
+    "architect",
     "ars",
     "attention",
     "audit",
@@ -36,8 +37,10 @@
     "generate",
     "grammar",
     "graph",
+    "gui",
     "harness",
     "init",
+    "live",
     "llm",
     "lock",
     "login",
@@ -76,6 +79,7 @@
     "snippet",
     "speech",
     "stop",
+    "stub-check",
     "sync",
     "telemetry",
     "term",
@@ -86,7 +90,11 @@
     "visus",
     "workflow"
   ],
-  "surface_count": 109,
-  "unclassified_backfilled": [],
+  "surface_count": 112,
+  "unclassified_backfilled": [
+    "architect",
+    "live",
+    "stub-check"
+  ],
   "wiring_violations": []
 }

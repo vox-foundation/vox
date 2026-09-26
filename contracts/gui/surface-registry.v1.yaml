@@ -162,6 +162,14 @@ surfaces:
   parent_surface: null
   notes: null
 - view_key: null
+  cli_group: architect
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  parent_surface: null
+  notes: null
+- view_key: null
   cli_group: ars
   representation_tier: none
   nav_label: null
@@ -451,6 +459,14 @@ surfaces:
   notes: null
 - view_key: null
   cli_group: init
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  parent_surface: null
+  notes: null
+- view_key: null
+  cli_group: live
   representation_tier: none
   nav_label: null
   nav_icon: null
@@ -795,6 +811,14 @@ surfaces:
   notes: null
 - view_key: null
   cli_group: stop
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  parent_surface: null
+  notes: null
+- view_key: null
+  cli_group: stub-check
   representation_tier: none
   nav_label: null
   nav_icon: null
