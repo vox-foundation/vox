@@ -205,7 +205,9 @@ This confirms genuine concurrent read/write traffic — not pragma
 concurrency — is the cause. Default `cargo test -p vox-db --lib` coverage of
 `VoxDbPool::get()`'s independence was restored via a second, non-`#[ignore]`d
 test using the original (pre-yield) pattern, honestly documented as having
-weaker detection power against this specific race.
+weaker detection power against this specific race. (Superseded 2026-09-25:
+both tests were replaced by one default-run, file-backed yielding test; see
+below.)
 
 **This strengthens, not weakens, the recommendation above.** It is a second,
 independent, and more serious reason not to adopt `VoxDbPool` as `GuiDbPool`'s
@@ -219,9 +221,9 @@ and either fixing upstream in `turso` or documenting it as a hard constraint
 on `VoxDbPool`'s `:memory:` mode is out of scope here and should be tracked as
 a separate, higher-priority follow-up — this finding has direct bearing on
 "does it break our DB," independent of any throughput question. The
-regression test that surfaced this is `#[ignore]`d rather than deleted or
-weakened, specifically so this finding is not lost; see its doc comment for
-the exact reproduction procedure.
+regression test that surfaced this was `#[ignore]`d rather than deleted or
+weakened, specifically so this finding was not lost; the reproducers now live
+in `crates/vox-db/tests/pool_corruption_probe.rs`.
 
 > **Narrowed 2026-09-25 (next section).** The file-backed question is now
 > answered: the failure did not reproduce on on-disk databases, and it
@@ -235,7 +237,7 @@ the exact reproduction procedure.
 happen on file-backed (`DbConfig::Local`) databases?
 
 **Harness.** `crates/vox-db/tests/pool_corruption_probe.rs` (all tests
-`#[ignore]`d). The workload is the same as the `pool.rs` reproducer: 100 tasks
+`#[ignore]`d). The workload is the same as the `pool.rs` rowid-race test: 100 tasks
 on an 8-worker multi-threaded runtime, 10 writes per task, and for each write
 `INSERT`, then `yield_now()`, then `last_insert_rowid()`, then `SELECT` the row
 back. Each trial is a separate process. File variants use a fresh temp file
@@ -297,9 +299,8 @@ target/debug/deps/pool_corruption_probe-<hash> --ignored --exact <variant> --noc
   connections on one in-memory `turso::Database`. It currently has no
   consumers outside `vox-db`. Tests that need concurrent pooled access should
   use a temp file.
-- The rowid-race gate in `pool.rs` stays `#[ignore]`d on `:memory:`. Moving it
-  to a temp file would probably make it a stable gate that could run by
-  default. This session did not do that because it is a separate change.
+- The rowid-race gate in `pool.rs` now runs by default on a temp file instead
+  of `#[ignore]`d on `:memory:` (done 2026-09-25).
 - **Upstream:** `raw_turso_memory` is a self-contained reproducer with no vox
   code, suitable for a Turso issue. This investigation did not file one and
   did not look for a root cause inside Turso.

@@ -18,7 +18,7 @@ const TASKS: usize = 100;
 const WRITES_PER_TASK: usize = 10;
 const CREATE: &str = "CREATE TABLE IF NOT EXISTS rowid_race_probe (id INTEGER PRIMARY KEY AUTOINCREMENT, marker TEXT NOT NULL)";
 
-/// Same body as `pool.rs::last_insert_rowid_probe` with `yield_between = true`:
+/// Same body as `pool.rs::tests::pooled_connections_never_race_on_last_insert_rowid`:
 /// insert, yield, `last_insert_rowid()`, select back. Works for both
 /// `GuardedConnection` and bare `turso::Connection` (identical method shapes).
 macro_rules! write_loop {
