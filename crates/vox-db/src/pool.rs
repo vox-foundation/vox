@@ -136,3 +136,98 @@ impl VoxDbPool {
             .cloned()
     }
 }
+
+#[cfg(all(test, feature = "local"))]
+mod tests {
+    use super::*;
+    use crate::DbConfig;
+
+    /// Guards the `last_insert_rowid()` bypass documented on
+    /// [`crate::GuardedConnection`]: the read is synchronous and skips
+    /// `ConcurrentGuard`, so tasks sharing one cloned connection (as `vox-gui`'s
+    /// `GuiDbPool` does) can read back another task's row id. `VoxDbPool::get()`
+    /// must vend independent connections, so this must report 0 mismatches.
+    ///
+    /// The `yield_now()` between insert and `last_insert_rowid()` has no
+    /// production counterpart; it widens the window so a sharing regression
+    /// fails. Mutation-verified 2026-09-22: a shared connection gave 981/1000
+    /// mismatches with the yield and 0/1000 without it.
+    ///
+    /// It uses a temp file, not `:memory:`: Turso 0.6.1 `:memory:` corrupts in
+    /// ~50% of runs under this workload (reproduces with bare turso; file-backed
+    /// 0/300, 2026-09-25). See `crates/vox-db/tests/pool_corruption_probe.rs` and
+    /// `docs/src/architecture/2026-09-22-voxdb-turso-pooling-and-mvcc-recommendation.md`.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+    async fn pooled_connections_never_race_on_last_insert_rowid() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir
+            .path()
+            .join("rowid_race.db")
+            .to_string_lossy()
+            .into_owned();
+        let pool = VoxDbPool::new(DbConfig::Local { path })
+            .await
+            .expect("pool init");
+        {
+            let db = pool.get().await.expect("get conn for schema");
+            db.connection()
+                .execute_batch(
+                    "CREATE TABLE IF NOT EXISTS rowid_race_probe (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        marker TEXT NOT NULL
+                    )",
+                )
+                .await
+                .expect("create probe table");
+        }
+
+        const TASKS: usize = 100;
+        const WRITES_PER_TASK: usize = 10;
+        let mut handles = Vec::with_capacity(TASKS);
+        for t in 0..TASKS {
+            let pool = pool.clone();
+            handles.push(tokio::spawn(async move {
+                let db = pool.get().await.expect("get pooled conn");
+                let mut mismatches = 0usize;
+                for w in 0..WRITES_PER_TASK {
+                    let marker = format!("task-{t}-write-{w}");
+                    db.connection()
+                        .execute(
+                            "INSERT INTO rowid_race_probe (marker) VALUES (?1)",
+                            turso::params![marker.clone()],
+                        )
+                        .await
+                        .expect("insert");
+                    tokio::task::yield_now().await;
+                    let returned_id = db.connection().last_insert_rowid();
+
+                    let mut rows = db
+                        .connection()
+                        .query(
+                            "SELECT marker FROM rowid_race_probe WHERE id = ?1",
+                            turso::params![returned_id],
+                        )
+                        .await
+                        .expect("select back");
+                    let row = rows.next().await.expect("row query").expect("row present");
+                    let actual_marker: String = row.get(0).expect("marker column");
+                    if actual_marker != marker {
+                        mismatches += 1;
+                    }
+                }
+                mismatches
+            }));
+        }
+
+        let mut total_mismatches = 0usize;
+        for h in handles {
+            total_mismatches += h.await.expect("task panicked");
+        }
+        assert_eq!(
+            total_mismatches, 0,
+            "pooled connections must never read back a different task's row id; a \
+             nonzero count means VoxDbPool::get() is sharing a connection instead of \
+             vending an independent one"
+        );
+    }
+}
