@@ -92,7 +92,7 @@ Plans:
 
   1. `docs/src/adr/045-tauri-gui-replaces-axum-dashboard.md` carries an explicit "Status: Accepted" line and its classification changes from `locked: false`/medium-confidence to locked.
   2. Every command `vox-gui` exposes traces back to `vox-cli`'s `CommandCatalog` SSOT — an audit finds no orphaned or duplicated command surface between the two.
-  3. A documented rule (per ADR-027) states which UI primitives are Vox-native vs React/TanStack interop, and existing components are checked against it with no undocumented crossovers.
+  3. A documented rule (per `external-frontend-interop-plan-2026.md`, which superseded ADR-027 on 2026-05-03) states which UI primitives are Vox-native vs React/TanStack interop, and existing components are checked against it with no undocumented crossovers.
   4. ADR-037's desktop-convergence clause is confirmed complete and its own status reflects "Accepted" for that clause, independent of the already-superseded mobile clause.
 
 **Plans**: 2/2 plans executed

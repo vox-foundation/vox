@@ -26,7 +26,7 @@
 
 - [x] **GUI-01**: ADR-045 (Tauri GUI Replaces Axum Dashboard) is formally ratified — an explicit "Status: Accepted" line and locked-equivalent classification replace its current medium-confidence "current" status.
 - [x] **GUI-02**: `vox-gui`'s command surface is verified fully sourced from `vox-cli`'s `CommandCatalog` SSOT, with no orphaned or duplicated command definitions between the two surfaces.
-- [x] **GUI-03**: Vox-native and React/TanStack interop UI primitive tracks have an explicit, documented, enforced boundary per ADR-027.
+- [x] **GUI-03**: Vox-native and React/TanStack interop UI primitive tracks have an explicit, documented, enforced boundary per `external-frontend-interop-plan-2026.md` (ADR-027 is superseded as of 2026-05-03).
 - [x] **GUI-04**: The Tauri 2 desktop-convergence clause of ADR-037 is confirmed complete and Accepted, independent of the already-superseded mobile clause (adr-NNN).
 
 ### Multi-Agent Trust

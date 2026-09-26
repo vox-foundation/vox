@@ -31,8 +31,8 @@ The compiler, orchestrator, and runtime that everything else depends on must kee
 <!-- Current scope for this milestone. -->
 
 - [ ] Dispose of the 20 crates audited in the dead-crate-fate plan: delete zero-consumer crates, wire up functionally-complete-but-unadopted crates, extract plugin-appropriate crates out of CORE, fix misplaced-tier crates, confirm frozen crates need no action, and verify catalog hygiene
-- [ ] Formally ratify ADR-045 (Tauri GUI replaces Axum dashboard) and verify `vox-gui`'s command surface is fully sourced from `vox-cli`'s `CommandCatalog` SSOT
-- [ ] Establish and enforce the documented boundary between Vox-native and React/TanStack interop UI primitives (ADR-027), and confirm the Tauri desktop-convergence clause of ADR-037 as complete
+- [x] Formally ratify ADR-045 (Tauri GUI replaces Axum dashboard) and verify `vox-gui`'s command surface is fully sourced from `vox-cli`'s `CommandCatalog` SSOT
+- [x] Establish and enforce the documented boundary between Vox-native and React/TanStack interop UI primitives (external-frontend-interop-plan-2026; ADR-027 is superseded), and confirm the Tauri desktop-convergence clause of ADR-037 as complete
 - [ ] Extend the locks subsystem with `ResourceLockManager` for multi-agent resource coordination (ADR-025)
 - [ ] Ship HMAC tool-call receipts under the two-tier formal-intent verification system (ADR-029)
 - [ ] Ship Pareto-frontier reporting for model scoreboards (ADR-046, reporting-only)
@@ -81,7 +81,7 @@ The compiler, orchestrator, and runtime that everything else depends on must kee
 | ADR-026: Third-party code provenance policy | AGPL guardrails and attribution for vendored code | ✓ Good — locked; directly governs how EXTRACT-TO-PLUGIN work vendors/attributes code |
 | ADR-037: Tauri Convergence (desktop clause) | Desktop shell convergence on Tauri 2 remains Accepted; only the mobile clause was superseded | ⚠️ Revisit — this milestone confirms the desktop clause complete |
 | adr-NNN: Scope Tauri to desktop only; RN+Expo+uniffi for mobile | Supersedes ADR-037's mobile clause specifically | ✓ Good — locked |
-| ADR-027: Dual-Track UI Surfaces | Splits UI primitives into Vox-native vs React/TanStack interop tracks with an explicit boundary | — Pending — this milestone establishes the enforced boundary |
+| ADR-027: Dual-Track UI Surfaces | Split UI primitives into Vox-native vs React/TanStack interop tracks. Superseded 2026-05-03 by external-frontend-interop-plan-2026 | Boundary established and enforced in Phase 4 under the superseding plan (`authoring_track` in contracts/frontend/surface-ownership.v1.yaml) |
 | ADR-025: Multi-Agent Lock Coherence | Extends locks subsystem with `ResourceLockManager` for multi-agent contention | — Pending — this milestone implements it |
 | ADR-029: Formal Intent and Tool Receipt Auditing | Two-tier verification with HMAC receipts for agent tool calls | — Pending — this milestone implements it |
 | ADR-046: Pareto-Frontier Model Reporting | Reporting-only Pareto view over reliability/cost/latency; not a routing change | — Pending — this milestone implements it |
