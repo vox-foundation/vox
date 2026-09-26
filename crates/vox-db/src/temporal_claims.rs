@@ -69,21 +69,59 @@ pub fn is_claim_valid_at_version(
         }
     }
 
-    if let Some(since_str) = valid_since {
-        if let Some(since) = normalize_semver(since_str) {
-            if target < since {
-                return Ok(false);
-            }
-        }
+    if let Some(since_str) = valid_since
+        && let Some(since) = normalize_semver(since_str)
+        && target < since
+    {
+        return Ok(false);
     }
 
-    if let Some(until_str) = valid_until {
-        if let Some(until) = normalize_semver(until_str) {
-            if target >= until {
-                return Ok(false);
-            }
-        }
+    if let Some(until_str) = valid_until
+        && let Some(until) = normalize_semver(until_str)
+        && target >= until
+    {
+        return Ok(false);
     }
 
     Ok(true)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn normalize_semver_pads_and_strips_prefixes() {
+        assert_eq!(normalize_semver("2").unwrap(), Version::new(2, 0, 0));
+        assert_eq!(normalize_semver("1.0").unwrap(), Version::new(1, 0, 0));
+        assert_eq!(normalize_semver("v1.25.0").unwrap(), Version::new(1, 25, 0));
+        assert_eq!(normalize_semver("= 1.2.3").unwrap(), Version::new(1, 2, 3));
+        assert!(normalize_semver("not-a-version").is_none());
+    }
+
+    #[test]
+    fn is_claim_valid_at_version_checks_half_open_interval_and_req() {
+        // Within [1.0.0, 2.0.0)
+        assert_eq!(
+            is_claim_valid_at_version(Some("1.0.0"), Some("2.0.0"), None, "1.5.0"),
+            Ok(true)
+        );
+        // At the exclusive upper bound (until is excluded from the interval)
+        assert_eq!(
+            is_claim_valid_at_version(Some("1.0.0"), Some("2.0.0"), None, "2.0.0"),
+            Ok(false)
+        );
+        // Before the lower bound
+        assert_eq!(
+            is_claim_valid_at_version(Some("1.0.0"), None, None, "0.9.0"),
+            Ok(false)
+        );
+        // version_req excludes the target
+        assert_eq!(
+            is_claim_valid_at_version(None, None, Some("^2.0"), "1.5.0"),
+            Ok(false)
+        );
+        // Unparseable target version
+        assert!(is_claim_valid_at_version(None, None, None, "nonsense").is_err());
+    }
 }

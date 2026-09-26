@@ -476,13 +476,10 @@ impl VoxDb {
                         params![session_id],
                     )
                     .await
-                {
-                    if let Ok(Some(row)) = rows.next().await {
-                        if let Ok(q) = row.get::<String>(0) {
+                    && let Ok(Some(row)) = rows.next().await
+                        && let Ok(q) = row.get::<String>(0) {
                             query_text = q;
                         }
-                    }
-                }
 
                 let mut claims_text = String::new();
                 if let Ok(mut rows) = conn

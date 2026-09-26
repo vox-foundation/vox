@@ -178,43 +178,36 @@ impl SafeTensorsSource {
 
     fn resolve_base_dir(dir: &Path) -> Result<PathBuf, QuantizeError> {
         let tm_path = dir.join("training_manifest.json");
-        if tm_path.is_file() {
-            if let Ok(raw) = std::fs::read_to_string(&tm_path) {
-                if let Ok(v) = serde_json::from_str::<serde_json::Value>(&raw) {
-                    if let Some(tok_path) = v.get("tokenizer_path").and_then(|p| p.as_str()) {
-                        let p = PathBuf::from(tok_path);
-                        if let Some(parent) = p.parent() {
-                            if parent.join("model.safetensors.index.json").is_file() {
-                                return Ok(parent.to_path_buf());
-                            }
-                        }
-                    }
-                }
+        if tm_path.is_file()
+            && let Ok(raw) = std::fs::read_to_string(&tm_path)
+            && let Ok(v) = serde_json::from_str::<serde_json::Value>(&raw)
+            && let Some(tok_path) = v.get("tokenizer_path").and_then(|p| p.as_str())
+        {
+            let p = PathBuf::from(tok_path);
+            if let Some(parent) = p.parent()
+                && parent.join("model.safetensors.index.json").is_file()
+            {
+                return Ok(parent.to_path_buf());
             }
         }
 
         // Try adapter_manifest.json base_model
         let am_path = dir.join("adapter_manifest.json");
-        if am_path.is_file() {
-            if let Ok(raw) = std::fs::read_to_string(&am_path) {
-                if let Ok(v) = serde_json::from_str::<serde_json::Value>(&raw) {
-                    if let Some(base) = v.get("base_model").and_then(|p| p.as_str()) {
-                        if let Some(home) = dirs::home_dir() {
-                            let hub = home
-                                .join(".cache/huggingface/hub")
-                                .join(format!("models--{}", base.replace('/', "--")))
-                                .join("snapshots");
-                            if let Ok(entries) = std::fs::read_dir(&hub) {
-                                for entry in entries.flatten() {
-                                    let ep = entry.path();
-                                    if ep.is_dir()
-                                        && ep.join("model.safetensors.index.json").is_file()
-                                    {
-                                        return Ok(ep);
-                                    }
-                                }
-                            }
-                        }
+        if am_path.is_file()
+            && let Ok(raw) = std::fs::read_to_string(&am_path)
+            && let Ok(v) = serde_json::from_str::<serde_json::Value>(&raw)
+            && let Some(base) = v.get("base_model").and_then(|p| p.as_str())
+            && let Some(home) = dirs::home_dir()
+        {
+            let hub = home
+                .join(".cache/huggingface/hub")
+                .join(format!("models--{}", base.replace('/', "--")))
+                .join("snapshots");
+            if let Ok(entries) = std::fs::read_dir(&hub) {
+                for entry in entries.flatten() {
+                    let ep = entry.path();
+                    if ep.is_dir() && ep.join("model.safetensors.index.json").is_file() {
+                        return Ok(ep);
                     }
                 }
             }
