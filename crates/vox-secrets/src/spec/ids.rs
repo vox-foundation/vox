@@ -329,6 +329,10 @@ pub enum SecretId {
     VoxCandleDevice,
     VoxQuestioningMirrorGlobalAttention,
     VoxMcpOrchestratorDaemonRepositoryIdStrict,
+    /// Umbrella for MCP daemon read-RPC pilots (today: status tool only).
+    VoxMcpOrchestratorRpcReads,
+    /// `vox_orchestrator_status` attaches `orch.status` from the aligned daemon.
+    VoxMcpOrchestratorStatusToolRpc,
 
     VoxQuestioningMaxAttentionMs,
     VoxOratioLogitBiasStrength,

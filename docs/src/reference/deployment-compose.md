@@ -22,7 +22,7 @@ schema_type: "TechArticle"
 
 **Do not** assume root `docker-compose.yml` and `infra/coolify/docker-compose.yml` are interchangeable: they target **different workloads** (MCP vs Codex API template). See [Codex BaaS](../archive/research-2026-q1/codex-baas.md) and [infra/coolify/README.md](../adr/index.md).
 
-Optional split-plane sidecar: run **`vox-orchestrator-d`** alongside `vox-mcp` and set `VOX_ORCHESTRATOR_DAEMON_SOCKET` on MCP to the daemon TCP endpoint. Use `VOX_MCP_ORCHESTRATOR_RPC_READS=1` / `VOX_MCP_ORCHESTRATOR_RPC_WRITES=1` only when both services share the same repo/db context and startup probe confirms matching `repository_id`.
+Optional split-plane sidecar: run **`vox-orchestrator-d`** alongside `vox-mcp` and set `VOX_ORCHESTRATOR_DAEMON_SOCKET` on MCP to the daemon TCP endpoint. Use `VOX_MCP_ORCHESTRATOR_RPC_READS=1` (status-tool read pilot) only when both services share the same repo/db context and startup probe confirms matching `repository_id`.
 
 ## OCI image (repo `Dockerfile`)
 
