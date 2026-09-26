@@ -1975,13 +1975,12 @@ jobs:
           - vox-populi
           - vox-ml-cli
           - vox-gamify
-          - vox-oratio
           - vox-skills
           - vox-scientia
           - vox-doc-pipeline
           - vox-mcp-registry
           - vox-package
-          - vox-primitives
+          - vox-foundation
           - vox-config
           - vox-crypto
           - vox-code-audit
