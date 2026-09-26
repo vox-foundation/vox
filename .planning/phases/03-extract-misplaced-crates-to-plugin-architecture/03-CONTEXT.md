@@ -21,8 +21,10 @@ Scout findings (2026-09-25, verify before relying on them):
 ## Implementation Decisions
 
 ### Grammar-export (SC#1)
-- **D-01:** Split, not wholesale move. Keep a small CORE core (grammar IR plus the compact-prompt emitter that vox-compiler and vox-constrained-gen need unconditionally) and move the emitters/export/SSOT-markdown surfaces into a new `vox-plugin-grammar-export` implementing a new `GrammarExportPlugin` ABI, dispatched through `vox-plugin-host`. Research picks the exact split line from actual consumer use; vox-compiler must never depend on plugin availability. — **Reversibility:** costly — the ABI becomes a plugin contract and consumers move to host dispatch.
-- **D-02:** When the plugin is absent at runtime (e.g. `vox grammar export`, orchestrator-mcp EBNF emit), fail with a clear, actionable error naming the plugin and how to install it. No silent fallback, no bundled duplicate.
+> **D-01 and D-02 are SUPERSEDED by D-11** (user decision 2026-09-25, after pattern mapping found that `vox-plugin-grammar-export` was deliberately deleted on 2026-05-24 by decision D-4/D-18 of `docs/src/architecture/crate-audit-and-plan-2026.md`, commit `0a8d1518c`). Do not plan against D-01/D-02; they are kept only as a record.
+
+- **D-01 (superseded):** Split, not wholesale move. Keep a small CORE core (grammar IR plus the compact-prompt emitter that vox-compiler and vox-constrained-gen need unconditionally) and move the emitters/export/SSOT-markdown surfaces into a new `vox-plugin-grammar-export` implementing a new `GrammarExportPlugin` ABI, dispatched through `vox-plugin-host`. Research picks the exact split line from actual consumer use; vox-compiler must never depend on plugin availability. — **Reversibility:** costly — the ABI becomes a plugin contract and consumers move to host dispatch.
+- **D-02 (superseded):** When the plugin is absent at runtime (e.g. `vox grammar export`, orchestrator-mcp EBNF emit), fail with a clear, actionable error naming the plugin and how to install it. No silent fallback, no bundled duplicate.
 
 ### Webhook (SC#2)
 - **D-03:** Close SC#2 by wiring real host dispatch: the orchestrator side loads `vox-plugin-webhook` through `vox-plugin-host` and routes webhook events into the inbox via `WebhookOrchestratorBridge` / `OrchestratorInboxItem`, with a test. No direct crate edge from vox-orchestrator to the plugin.
@@ -35,6 +37,18 @@ Scout findings (2026-09-25, verify before relying on them):
 - **D-06:** Interpretation: default CORE builds pull no Candle (already true), and no L0-L3 crate manifest names Candle as an unconditional dependency. Optional, feature-gated Candle deps in vox-populi stay.
 - **D-07:** Keep `vox-quantize` in its CORE layer (no relayer, so no new crate-edge exception). Make its `candle-core` dependency optional behind a feature inside vox-quantize itself, and have its consumers (vox-populi `mens-candle-qlora`, vox-ml-cli `quantize`) enable that feature. User explicitly declined authorizing a vox-populi -> vox-quantize upward-edge exception.
 - **D-08:** Complete the oratio extraction: repoint vox-gui's Candle STT path to `vox-plugin-speech` via the plugin host (sherpa stays a direct vox-speech feature), then delete vox-speech's `stt-candle` feature and its heavy deps.
+
+### Post-research decisions (2026-09-25, after 03-RESEARCH.md)
+- **D-09:** `contracts/ci/crate-layers.v1.json` governs what counts as CORE (L0-L3) for SC#4. Under it `vox-plugin-mens-candle-core` is L4, so SC#4 closes with D-07 alone. The disagreement with `docs/src/architecture/layers.toml` (which says L3) is recorded as a named follow-up, not fixed or expanded into this phase.
+- **D-10:** Webhook data path uses a new poll-style plugin extension with a JSON boundary (e.g. `poll_events() -> RVec<RString>`). The orchestrator polls on an interval after loading the plugin via `vox-plugin-host`, re-derives the small event-kind routing locally with a `// vox:defactored-from vox-plugin-webhook 2026-09-25` comment, and calls `HopperIntake::submit(..., IntakeSource::Webhook, ...)`. No change to `VoxHost` or `Loader`; no crate edge to the plugin.
+
+### Post-pattern-mapping decisions (2026-09-25, after 03-PATTERNS.md)
+- **D-11:** Honor crate-audit D-4/D-18: no grammar-export plugin and no `GrammarExportPlugin` ABI. `vox-grammar-export` stays a CORE library. Close SC#1 by amending its wording to cite D-4 as superseding the 2026-05-08 PRD's EXTRACT disposition (ROADMAP SC#1, REQUIREMENTS acceptance text), plus the cleanup research found: delete the zero-consumer `automaton.rs` module and vox-populi's unused `vox-grammar-export` dependency. No ABI bump or new crate edge for grammar-export.
+- **D-12:** D-08 covers `serve` too: repoint both the vox-gui mic path and vox-speech's `serve` feature (enabled by vox-ml-cli's `oratio`) to Candle STT via `vox-plugin-speech` through the plugin host, then delete `stt-candle` and its Candle deps (including those named by vox-speech's `cuda` feature) from vox-speech entirely.
+- **D-13 (Claude's discretion, from PATTERNS.md):** the webhook poller lives in `vox-orchestrator-mcp` (it already has the `vox-plugin-host` edge, already starts config-gated pollers in `server_state.rs`, and reaches `HopperIntake`), so no new crate edge. The config struct may live in `vox-orchestrator/src/config/`.
+- **D-14 (follows from D-04 + fail-closed):** remove `vox-plugin-webhook`'s `init()`-time auto-spawn of an HTTP listener on `0.0.0.0:9080` and its no-token/no-auth mode. The listener starts only through the extension call made by the opt-in poller, and refuses to start without an ingress token.
+- **ABI:** D-10's new poll extension requires a `VOX_PLUGIN_ABI_VERSION` bump (12 -> 13), which `vox ci plugin-surface-sync` propagates to every tracked `Plugin.toml` and `contracts/plugin/extension-points.v1.yaml`. Accepted as part of D-10.
+- **Crate edges:** any gate reporting a NEW edge (not just an upward one) needs a user-authorized exception. None is expected under D-11/D-13; if one appears, STOP and ask with the exact gate output.
 
 ### Carried forward from earlier phases
 - Verify before assuming: prove already-done criteria with command output, do not rebuild (Phase 2 D-01).
@@ -110,6 +124,8 @@ No specific UI or behavioral references beyond the decisions above.
 
 - Relayering vox-quantize out of CORE (declined for now because it needs a user-authorized upward-edge exception).
 - Moving vox-populi's optional inference/qlora code out of populi ("strict manifest" interpretation of SC#4).
+- Reconciling the `vox-plugin-mens-candle-core` layer disagreement (`layers.toml` L3 vs `crate-layers.v1.json` L4), and feature-gating its unconditional Candle deps if it is ever ruled CORE (D-09).
+- Push-based webhook delivery via a `VoxHost` callback (rejected in favour of polling, D-10).
 
 </deferred>
 

@@ -81,7 +81,34 @@ Plans:
   3. vox-ssg's functionality ships as a plugin rather than a CORE crate.
   4. The vox-oratio extraction is complete, with no direct Candle dependency remaining in any CORE (L0-L3) crate.
 
-**Plans**: TBD
+**Plans**: 6 plans
+
+> **Scope note (from 03-CONTEXT.md D-09..D-14, 2026-09-25):** D-11 supersedes D-01/D-02 — there is no grammar-export plugin; SC#1 closes by citing crate-audit D-4/D-18 plus dead-code cleanup. SC#3 is evidence-only (D-05). SC#2 uses a new `WebhookInbox` poll extension (ABI 12 -> 13) and an opt-in poller in vox-orchestrator-mcp (D-10/D-13/D-14). SC#4's CORE half is vox-quantize alone under `contracts/ci/crate-layers.v1.json` (D-09); the `vox-plugin-mens-candle-core` layers.toml (L3) vs crate-layers (L4) disagreement is a recorded follow-up, not a task. Plans run one per wave: they share the git index and the lockfile / crate-graph / build-map / ROADMAP files.
+
+Plans:
+**Wave 1**
+
+- [ ] 03-01-PLAN.md — SC#1 per D-11 (drop grammar-export's dead automaton module and vox-populi's unused edge, with derived contracts) and SC#3 per D-05 (evidence, where-things-live row, SC/REQUIREMENTS wording) (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 03-02-PLAN.md — SC#4 CORE half: vox-quantize's Candle dependency behind an `engine` feature, consumers opt in, CORE Candle scan proven load-bearing (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 03-03-PLAN.md — SC#2 plugin side: `WebhookInbox` poll extension (ABI 12 -> 13, eleven manifests in lockstep) and a fail-closed, token-only webhook listener (wave 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 03-04-PLAN.md — SC#2 host side: opt-in `[orchestrator.webhook]` section and vox-orchestrator-mcp poller routing events into the hopper as `IntakeSource::Webhook` (wave 4)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
+- [ ] 03-05-PLAN.md — SC#4 oratio half, repoint: host-registered Whisper transcriber seam in vox-speech; vox-gui and vox-ml-cli route Candle STT through vox-plugin-speech (wave 5)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
+- [ ] 03-06-PLAN.md — SC#4 oratio half, delete: vox-speech's in-process Candle Whisper, feature and deps removed; decoding re-homed to `audio-decode`; final SC#4 evidence (wave 6)
 
 ### Phase 4: GUI/Dashboard Architecture Consolidation
 
@@ -139,7 +166,7 @@ Phases 1 → 2 → 3 form a dependency chain (crate surgery). Phase 4 is indepen
 |-------|----------------|--------|-----------|
 | 1. Dead Crate Cleanup — Remove & Confirm | 2/2 | Complete    | 2026-09-22 |
 | 2. Wire Up & Reclassify Dormant Crates | 2/2 | Complete    | 2026-09-25 |
-| 3. Extract Misplaced Crates to Plugin Architecture | 0/TBD | Not started | - |
+| 3. Extract Misplaced Crates to Plugin Architecture | 0/6 | Planned | - |
 | 4. GUI/Dashboard Architecture Consolidation | 2/2 | Complete    | 2026-09-25 |
 | 5. Multi-Agent Coordination & Trust Hardening | 0/TBD | Not started | - |
 | 6. Model Routing Transparency & ML Dependency Health | 0/TBD | Not started | - |
