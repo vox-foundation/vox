@@ -424,7 +424,7 @@ These will be folded into `vox-scientia` sub-modules when implemented (Phase I o
 | Planned crate | Notes |
 |---|---|
 | `vox-share` | Public-URL tunneling (Cloudflare Quick Tunnels, localhost.run, Tailscale). |
-| `vox-ssg` | Static site generator for Vox docs surface. |
+| `vox-ssg` | **Folded** into `vox-cli/src/utils/ssg/` (L4) by `9d385a60b` (2026-05-12); not a planned crate and not CORE. |
 | `vox-exec-grammar` | **Not a crate.** The AST parser and risk classifier live in `vox-container-types::exec_grammar`, re-exported as `vox_container::exec_grammar`. |
 | `vox-install-policy` | SSOT constants for Vox install/update surfaces. |
 | `vox-dashboard` | **Retired** (deleted 2026-05-12, ADR-037 / ADR-045). Use `vox-gui` (Tauri 2). |
