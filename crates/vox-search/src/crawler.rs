@@ -74,7 +74,7 @@ pub fn score_and_prioritize_links(links: &[String]) -> Vec<(String, u32)> {
         })
         .collect();
 
-    scored.sort_by(|a, b| b.1.cmp(&a.1));
+    scored.sort_by_key(|a| std::cmp::Reverse(a.1));
     scored
 }
 
@@ -108,15 +108,15 @@ pub async fn crawl_domain_depth(
 
         match fetch_and_extract_with_client(&client, &current_url).await {
             Ok(doc) => {
-                if depth < max_depth {
-                    if let Some(html) = doc.raw_html.as_deref() {
-                        let candidates = extract_candidate_links(html, &current_url, &allow_origin);
-                        let prioritized = score_and_prioritize_links(&candidates);
+                if depth < max_depth
+                    && let Some(html) = doc.raw_html.as_deref()
+                {
+                    let candidates = extract_candidate_links(html, &current_url, &allow_origin);
+                    let prioritized = score_and_prioritize_links(&candidates);
 
-                        for (link, _) in prioritized.into_iter().take(15) {
-                            if visited.insert(link.clone()) {
-                                queue.push_back((link, depth + 1));
-                            }
+                    for (link, _) in prioritized.into_iter().take(15) {
+                        if visited.insert(link.clone()) {
+                            queue.push_back((link, depth + 1));
                         }
                     }
                 }
@@ -130,4 +130,44 @@ pub async fn crawl_domain_depth(
     }
 
     Ok(results)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn normalize_crawl_url_strips_fragment_and_query() {
+        let url = Url::parse("https://example.com/path?q=1&x=2#section").unwrap();
+        let normalized = normalize_crawl_url(&url);
+        assert_eq!(normalized.as_str(), "https://example.com/path");
+    }
+
+    #[test]
+    fn extract_candidate_links_filters_to_same_origin_and_excludes_assets() {
+        let html = r#"
+            <a href="/docs/api.html">API</a>
+            <a href="https://other.example.com/page">Other origin</a>
+            <a href="/image.png">Image</a>
+            <a href="/docs/api.html">Duplicate</a>
+        "#;
+        let links = extract_candidate_links(html, "https://example.com/", "https://example.com");
+        assert_eq!(links, vec!["https://example.com/docs/api.html".to_string()]);
+    }
+
+    #[test]
+    fn score_and_prioritize_links_ranks_api_and_guide_links_higher() {
+        let links = vec![
+            "https://example.com/blog/post".to_string(),
+            "https://example.com/docs/struct.Foo.html".to_string(),
+        ];
+        let scored = score_and_prioritize_links(&links);
+        let struct_score = scored
+            .iter()
+            .find(|(l, _)| l.contains("struct.Foo"))
+            .unwrap()
+            .1;
+        let blog_score = scored.iter().find(|(l, _)| l.contains("blog")).unwrap().1;
+        assert!(struct_score > blog_score);
+    }
 }

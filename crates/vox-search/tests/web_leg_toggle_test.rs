@@ -26,19 +26,20 @@ fn ctx() -> SearchRuntimeContext {
 }
 
 fn searxng_only_policy(searxng_url: &str) -> SearchPolicy {
-    let mut policy = SearchPolicy::default();
-    // Isolate to a single, mocked web provider so a request/no-request
-    // observation on it is unambiguous.
-    policy.searxng_url = Some(searxng_url.to_string());
-    policy.enable_wikipedia = false;
-    policy.enable_openalex = false;
-    policy.enable_arxiv = false;
-    policy.tavily_enabled = false;
-    policy.duckduckgo_fallback_enabled = false;
-    // Generous, non-racy deadline — no artificial mock delay is used below.
-    policy.deep_timeout_ms = 10_000;
-    policy.fast_timeout_ms = 10_000;
-    policy
+    SearchPolicy {
+        // Isolate to a single, mocked web provider so a request/no-request
+        // observation on it is unambiguous.
+        searxng_url: Some(searxng_url.to_string()),
+        enable_wikipedia: false,
+        enable_openalex: false,
+        enable_arxiv: false,
+        tavily_enabled: false,
+        duckduckgo_fallback_enabled: false,
+        // Generous, non-racy deadline — no artificial mock delay is used below.
+        deep_timeout_ms: 10_000,
+        fast_timeout_ms: 10_000,
+        ..Default::default()
+    }
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

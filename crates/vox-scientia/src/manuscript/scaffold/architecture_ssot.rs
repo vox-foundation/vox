@@ -101,8 +101,7 @@ pub struct ArchitectureSsotInput {
 
 fn sanitize_yaml_string(s: &str) -> String {
     s.replace("\r\n", " ")
-        .replace('\r', " ")
-        .replace('\n', " ")
+        .replace(['\r', '\n'], " ")
         .replace('\\', "\\\\")
         .replace('"', "\\\"")
 }

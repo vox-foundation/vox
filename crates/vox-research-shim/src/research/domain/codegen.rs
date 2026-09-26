@@ -125,18 +125,17 @@ pub fn wrap_code_snippet_if_needed(snippet: &str) -> String {
 
         if brace_depth == 0 && is_item_decl {
             has_item_def = true;
-        } else if brace_depth == 0 {
-            if trimmed.starts_with("let ")
+        } else if brace_depth == 0
+            && (trimmed.starts_with("let ")
                 || trimmed.starts_with("assert!(")
                 || trimmed.starts_with("assert_eq!(")
                 || trimmed.starts_with("assert_ne!(")
                 || trimmed.starts_with("println!(")
                 || trimmed.starts_with("eprintln!(")
                 || trimmed.starts_with("dbg!(")
-                || (trimmed.ends_with(';') && !trimmed.starts_with("use "))
-            {
-                has_root_statements = true;
-            }
+                || (trimmed.ends_with(';') && !trimmed.starts_with("use ")))
+        {
+            has_root_statements = true;
         }
 
         // Update brace depth for following lines

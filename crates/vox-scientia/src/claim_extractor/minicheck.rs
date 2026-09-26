@@ -57,10 +57,10 @@ impl MiniCheckVerifier {
     pub fn from_env_with_lookup(
         lookup: impl FnOnce(&str) -> Result<String, std::env::VarError>,
     ) -> Self {
-        if let Ok(url) = lookup("VOX_MINICHECK_ENDPOINT") {
-            if !url.trim().is_empty() {
-                return Self::http(url);
-            }
+        if let Ok(url) = lookup("VOX_MINICHECK_ENDPOINT")
+            && !url.trim().is_empty()
+        {
+            return Self::http(url);
         }
         Self::mock()
     }

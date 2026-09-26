@@ -26,18 +26,20 @@ async fn report_distinguishes_ok_error_timeout_disabled_and_unconfigured() {
         .mount(&openalex)
         .await;
 
-    let mut policy = SearchPolicy::default();
-    // This test asserts status *classification* (Ok/Error/Disabled/NotConfigured),
-    // not timing — the mocks below carry no artificial delay, so a short deadline
-    // just races an undelayed local wiremock against host scheduling noise and
-    // occasionally misclassifies a provider as Timeout under load. Give it a
-    // generous deadline instead of a tight one.
-    policy.deep_timeout_ms = 10_000;
-    policy.tavily_enabled = false;
-    policy.searxng_url = None;
-    policy.enable_arxiv = false;
-    policy.wikipedia_api_url = Some(format!("{}/w/api.php", wiki.uri()));
-    policy.openalex_api_url = Some(openalex.uri());
+    let policy = SearchPolicy {
+        // This test asserts status *classification* (Ok/Error/Disabled/NotConfigured),
+        // not timing — the mocks below carry no artificial delay, so a short deadline
+        // just races an undelayed local wiremock against host scheduling noise and
+        // occasionally misclassifies a provider as Timeout under load. Give it a
+        // generous deadline instead of a tight one.
+        deep_timeout_ms: 10_000,
+        tavily_enabled: false,
+        searxng_url: None,
+        enable_arxiv: false,
+        wikipedia_api_url: Some(format!("{}/w/api.php", wiki.uri())),
+        openalex_api_url: Some(openalex.uri()),
+        ..Default::default()
+    };
 
     let r =
         WebSearchDispatcher::search_with_report("gemini flash", ResearchLane::Deep, &policy).await;
@@ -66,13 +68,15 @@ async fn report_marks_slow_provider_as_timeout() {
         .respond_with(ResponseTemplate::new(200).set_delay(std::time::Duration::from_millis(3000)))
         .mount(&slow)
         .await;
-    let mut policy = SearchPolicy::default();
-    policy.fast_timeout_ms = 300;
-    policy.tavily_enabled = false;
-    policy.searxng_url = None;
-    policy.enable_arxiv = false;
-    policy.enable_openalex = false;
-    policy.wikipedia_api_url = Some(format!("{}/w/api.php", slow.uri()));
+    let policy = SearchPolicy {
+        fast_timeout_ms: 300,
+        tavily_enabled: false,
+        searxng_url: None,
+        enable_arxiv: false,
+        enable_openalex: false,
+        wikipedia_api_url: Some(format!("{}/w/api.php", slow.uri())),
+        ..Default::default()
+    };
 
     let r = WebSearchDispatcher::search_with_report("x y z", ResearchLane::Fast, &policy).await;
     assert_eq!(status_of(&r, "wikipedia"), &ProviderStatus::Timeout);
@@ -98,14 +102,16 @@ async fn fast_lane_timeout_does_not_open_breaker_but_deep_lane_timeout_does() {
         .mount(&searxng)
         .await;
 
-    let mut policy = SearchPolicy::default();
-    policy.searxng_url = Some(searxng.uri());
-    policy.enable_wikipedia = false;
-    policy.enable_openalex = false;
-    policy.enable_arxiv = false;
-    policy.tavily_enabled = false;
-    policy.fast_timeout_ms = 200;
-    policy.deep_timeout_ms = 3000;
+    let policy = SearchPolicy {
+        searxng_url: Some(searxng.uri()),
+        enable_wikipedia: false,
+        enable_openalex: false,
+        enable_arxiv: false,
+        tavily_enabled: false,
+        fast_timeout_ms: 200,
+        deep_timeout_ms: 3000,
+        ..Default::default()
+    };
 
     let registry = SearchProviderCircuitRegistry::new();
 
@@ -163,14 +169,16 @@ async fn deep_lane_timeout_still_opens_breaker() {
         .mount(&searxng)
         .await;
 
-    let mut policy = SearchPolicy::default();
-    policy.searxng_url = Some(searxng.uri());
-    policy.enable_wikipedia = false;
-    policy.enable_openalex = false;
-    policy.enable_arxiv = false;
-    policy.tavily_enabled = false;
-    policy.fast_timeout_ms = 200;
-    policy.deep_timeout_ms = 300; // shorter than the 2000ms mock delay
+    let policy = SearchPolicy {
+        searxng_url: Some(searxng.uri()),
+        enable_wikipedia: false,
+        enable_openalex: false,
+        enable_arxiv: false,
+        tavily_enabled: false,
+        fast_timeout_ms: 200,
+        deep_timeout_ms: 300, // shorter than the 2000ms mock delay
+        ..Default::default()
+    };
 
     let registry = SearchProviderCircuitRegistry::new();
 

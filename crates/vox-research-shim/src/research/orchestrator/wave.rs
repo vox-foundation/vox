@@ -305,10 +305,10 @@ impl WaveExecutionPlan {
 
         let mut preserved_records = Vec::new();
         for mut record in new_records {
-            if let Some(prev_status) = existing_statuses.get(&record.contradiction_id) {
-                if !matches!(prev_status, ContradictionStatus::Unresolved) {
-                    record.status = prev_status.clone();
-                }
+            if let Some(prev_status) = existing_statuses.get(&record.contradiction_id)
+                && !matches!(prev_status, ContradictionStatus::Unresolved)
+            {
+                record.status = prev_status.clone();
             }
             preserved_records.push(record);
         }

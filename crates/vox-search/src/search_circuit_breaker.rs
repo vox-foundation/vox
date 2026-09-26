@@ -9,19 +9,10 @@ pub enum SearchProviderId {
     DuckDuckGo,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ProviderCircuitBreaker {
     pub consecutive_failures: u32,
     pub cooldown_until: Option<Instant>,
-}
-
-impl Default for ProviderCircuitBreaker {
-    fn default() -> Self {
-        Self {
-            consecutive_failures: 0,
-            cooldown_until: None,
-        }
-    }
 }
 
 impl ProviderCircuitBreaker {
