@@ -1,11 +1,112 @@
 //! Runtime backend selection for Oratio STT.
 //!
-//! Priority: `VOX_ORATIO_BACKEND` env → feature flags → Candle Whisper fallback.
+//! Priority: `VOX_ORATIO_BACKEND` env → feature flags → Whisper via [`whisper_backend`]
+//! (the host-registered `oratio` plugin transcriber; in-process Candle only while
+//! `stt-candle` is compiled and no transcriber is registered).
 
-use crate::backends::asr_backend::AsrBackend;
+use crate::backends::asr_backend::{AsrBackend, AsrOutput, TimedSegment};
 
-#[cfg(feature = "stt-candle")]
-use crate::backends::candle_whisper::CandleWhisperBackend;
+/// Whisper transcriber supplied by the host: the `SpeechToText::transcribe` contract of
+/// the `oratio` plugin (vox-plugin-speech). Takes mono f32 little-endian PCM bytes and a
+/// `{"sample_rate", "language"}` config JSON; returns `{"text", "segments"}` JSON.
+///
+/// vox-speech cannot reach vox-plugin-host itself, so hosts that can (vox-gui,
+/// vox-ml-cli's `vox oratio`) register one with [`register_whisper_transcriber`].
+pub type ExternalWhisperTranscribe =
+    fn(pcm_le_f32: &[u8], config_json: &str) -> Result<String, String>;
+
+static WHISPER_TRANSCRIBER: std::sync::RwLock<Option<ExternalWhisperTranscribe>> =
+    std::sync::RwLock::new(None);
+
+/// Register the host's Whisper transcriber and drop the cached backend so the next
+/// transcription rebuilds with it.
+pub fn register_whisper_transcriber(f: ExternalWhisperTranscribe) {
+    *WHISPER_TRANSCRIBER
+        .write()
+        .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(f);
+    invalidate_cache();
+}
+
+/// Whether a host registered a Whisper transcriber.
+pub fn has_registered_whisper_transcriber() -> bool {
+    registered_whisper_transcriber().is_some()
+}
+
+fn registered_whisper_transcriber() -> Option<ExternalWhisperTranscribe> {
+    *WHISPER_TRANSCRIBER
+        .read()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+/// Test-only: forget the registered transcriber.
+#[cfg(test)]
+fn clear_whisper_transcriber_for_test() {
+    *WHISPER_TRANSCRIBER
+        .write()
+        .unwrap_or_else(|poisoned| poisoned.into_inner()) = None;
+    invalidate_cache();
+}
+
+/// [`AsrBackend`] over a host-registered [`ExternalWhisperTranscribe`].
+struct ExternalWhisper(ExternalWhisperTranscribe);
+
+impl AsrBackend for ExternalWhisper {
+    fn name(&self) -> &'static str {
+        "whisper (oratio plugin)"
+    }
+
+    fn transcribe_pcm(
+        &self,
+        pcm: &[f32],
+        sample_rate: u32,
+        language: Option<&str>,
+    ) -> anyhow::Result<AsrOutput> {
+        let bytes: Vec<u8> = pcm.iter().flat_map(|s| s.to_le_bytes()).collect();
+        let config = serde_json::json!({ "sample_rate": sample_rate, "language": language });
+        let json = (self.0)(&bytes, &config.to_string())
+            .map_err(|e| anyhow::anyhow!("oratio plugin transcribe: {e}"))?;
+        parse_plugin_transcription(&json)
+    }
+}
+
+/// Map the plugin's `{"text", "segments"}` JSON to [`AsrOutput`]. `text` is required;
+/// malformed segments are an error, never a panic.
+fn parse_plugin_transcription(json: &str) -> anyhow::Result<AsrOutput> {
+    #[derive(serde::Deserialize)]
+    struct PluginTranscription {
+        text: String,
+        #[serde(default)]
+        segments: Vec<TimedSegment>,
+    }
+    let parsed: PluginTranscription = serde_json::from_str(json)
+        .map_err(|e| anyhow::anyhow!("oratio plugin returned invalid transcription JSON: {e}"))?;
+    Ok(AsrOutput {
+        raw_text: parsed.text,
+        confidence: 0.85,
+        n_best: Vec::new(),
+        segments: parsed.segments,
+    })
+}
+
+/// The Whisper backend: the host-registered transcriber wins; otherwise the in-process
+/// Candle backend while `stt-candle` is compiled; otherwise an actionable error.
+pub fn whisper_backend() -> anyhow::Result<Box<dyn AsrBackend>> {
+    if let Some(f) = registered_whisper_transcriber() {
+        return Ok(Box::new(ExternalWhisper(f)));
+    }
+    #[cfg(feature = "stt-candle")]
+    {
+        Ok(Box::new(
+            crate::backends::candle_whisper::CandleWhisperBackend,
+        ))
+    }
+    #[cfg(not(feature = "stt-candle"))]
+    anyhow::bail!(
+        "Candle Whisper STT runs in the `oratio` plugin (vox-plugin-speech) and this host \
+         registered no Whisper transcriber; vox-gui and `vox oratio` register it at startup. \
+         Install the plugin with `vox plugin install oratio`."
+    )
+}
 
 /// Test-only instrumentation: counts invocations of `create_backend()`'s body,
 /// used to assert that `with_cached_backend` constructs the backend once.
@@ -16,8 +117,8 @@ pub(crate) static CREATE_BACKEND_CALL_COUNT: std::sync::atomic::AtomicUsize =
 /// Instantiate the configured STT backend.
 ///
 /// # Env
-/// - `VOX_ORATIO_BACKEND=auto` (default) — picks Sherpa if compiled in, else Candle
-/// - `VOX_ORATIO_BACKEND=whisper` — always Candle Whisper
+/// - `VOX_ORATIO_BACKEND=auto` (default) — picks Sherpa if compiled in, else Whisper
+/// - `VOX_ORATIO_BACKEND=whisper` — always Whisper ([`whisper_backend`])
 /// - `VOX_ORATIO_BACKEND=sherpa` — always Sherpa (returns error if feature not compiled)
 pub fn create_backend() -> anyhow::Result<Box<dyn AsrBackend>> {
     #[cfg(test)]
@@ -45,34 +146,22 @@ pub fn create_backend() -> anyhow::Result<Box<dyn AsrBackend>> {
                             target: "vox_oratio_backend",
                             event = "sherpa_init_failed_falling_back",
                             error = %e,
-                            "Sherpa-ONNX (Parakeet) init failed; falling back to Candle Whisper"
+                            "Sherpa-ONNX (Parakeet) init failed; falling back to Whisper"
                         );
-                        #[cfg(feature = "stt-candle")]
-                        {
-                            Ok(Box::new(CandleWhisperBackend) as Box<dyn AsrBackend>)
-                        }
-                        #[cfg(not(feature = "stt-candle"))]
-                        {
-                            Err(e)
-                        }
+                        whisper_backend().map_err(|w| {
+                            anyhow::anyhow!(
+                                "Sherpa-ONNX init failed: {e:#}; Whisper fallback failed: {w:#}"
+                            )
+                        })
                     }
                 }
             }
-            #[cfg(all(feature = "stt-candle", not(feature = "stt-sherpa")))]
+            #[cfg(not(feature = "stt-sherpa"))]
             {
-                Ok(Box::new(CandleWhisperBackend))
+                whisper_backend()
             }
-            #[cfg(not(any(feature = "stt-candle", feature = "stt-sherpa")))]
-            anyhow::bail!(
-                "No STT backend compiled in. Enable `stt-candle` or `stt-sherpa` feature."
-            );
         }
-        "whisper" | "candle" => {
-            #[cfg(feature = "stt-candle")]
-            return Ok(Box::new(CandleWhisperBackend));
-            #[cfg(not(feature = "stt-candle"))]
-            anyhow::bail!("Backend 'whisper' selected but `stt-candle` feature not compiled.");
-        }
+        "whisper" | "candle" => whisper_backend(),
         "sherpa" => {
             #[cfg(feature = "stt-sherpa")]
             return Ok(Box::new(
@@ -149,32 +238,118 @@ where
 /// `BACKEND` is a process-wide static shared by every test in this binary;
 /// without this, whichever test runs first "wins" the cache for the rest.
 /// Delegates to [`invalidate_cache`] — same operation, test-facing name.
-#[cfg(all(test, feature = "stt-candle"))]
+#[cfg(test)]
 fn reset_cache_for_test() {
     invalidate_cache();
 }
 
-// Every test below forces `VOX_ORATIO_BACKEND=whisper` (or exercises the "auto"
-// fallback that lands on Candle Whisper), so the whole module requires the
-// `stt-candle` feature — which is NOT a default feature (see the `[features]`
-// doc comment in Cargo.toml: heavy ML deps are opt-in). Without it,
-// `create_backend()` correctly errors, which these tests would misreport as a
-// bug. Gated at the module (not per-`#[test]`) so the module's shared
-// `TEST_LOCK` / imports do not become unused items on the default feature set —
-// `cargo clippy --all-targets -- -D warnings` treats those as errors.
-#[cfg(all(test, feature = "stt-candle"))]
+// The tests below select Whisper (`VOX_ORATIO_BACKEND=whisper`, or the "auto"
+// fallback) and register `fake_transcriber` as the host's Whisper transcriber,
+// so they run on the default feature set — the build that matters once the
+// in-process Candle backend is gone — instead of needing `stt-candle`.
+#[cfg(test)]
 mod tests {
     use super::*;
     use std::sync::atomic::Ordering;
 
     /// Serializes tests in this module: they share the process-wide `BACKEND`
-    /// cache and mutate `VOX_ORATIO_BACKEND` / `VOX_TEST_FORCE_BACKEND_FAIL`
-    /// env vars, so they cannot run concurrently with each other.
+    /// cache and registered transcriber, and mutate `VOX_ORATIO_BACKEND` /
+    /// `VOX_TEST_FORCE_BACKEND_FAIL` env vars, so they cannot run concurrently.
     static TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    /// Stands in for the `oratio` plugin: decodes the f32 LE bytes and the
+    /// config JSON back, and reports what it received in the plugin's output shape.
+    fn fake_transcriber(pcm_le_f32: &[u8], config_json: &str) -> Result<String, String> {
+        let samples: Vec<f32> = pcm_le_f32
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|c| f32::from_le_bytes(*c))
+            .collect();
+        let cfg: serde_json::Value =
+            serde_json::from_str(config_json).map_err(|e| e.to_string())?;
+        let sr = cfg["sample_rate"].as_u64().ok_or("sample_rate missing")?;
+        let lang = cfg["language"].as_str().unwrap_or("none");
+        Ok(serde_json::json!({
+            "text": format!("n={} sr={sr} lang={lang}", samples.len()),
+            "segments": [{"start_ms": 0, "end_ms": 10, "text": "x"}],
+        })
+        .to_string())
+    }
+
+    #[test]
+    fn registered_transcriber_serves_whisper_selection() {
+        let _guard = TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+        register_whisper_transcriber(fake_transcriber);
+        // SAFETY: test-only env mutation, serialized by TEST_LOCK.
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::remove_var("VOX_TEST_FORCE_BACKEND_FAIL");
+            std::env::set_var("VOX_ORATIO_BACKEND", "whisper");
+        }
+
+        let out = with_cached_backend(|b| b.transcribe_pcm(&[0.5, -0.25, 1.0], 16000, Some("en")));
+
+        // SAFETY: test-only env mutation, serialized by TEST_LOCK.
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::remove_var("VOX_ORATIO_BACKEND");
+        }
+        clear_whisper_transcriber_for_test();
+
+        let out = out.expect("registered transcriber should serve the whisper selection");
+        assert_eq!(out.raw_text, "n=3 sr=16000 lang=en");
+        assert_eq!(
+            out.segments,
+            vec![TimedSegment {
+                start_ms: 0,
+                end_ms: 10,
+                text: "x".to_string()
+            }]
+        );
+        assert_eq!(out.confidence, 0.85);
+        assert!(out.n_best.is_empty());
+    }
+
+    #[test]
+    fn parse_plugin_transcription_contract() {
+        let text_only = parse_plugin_transcription(r#"{"text":"hi","language":"en"}"#)
+            .expect("text-only output is valid");
+        assert_eq!(text_only.raw_text, "hi");
+        assert!(text_only.segments.is_empty());
+
+        assert!(
+            parse_plugin_transcription(r#"{"segments":[]}"#).is_err(),
+            "missing text"
+        );
+        assert!(
+            parse_plugin_transcription("not json").is_err(),
+            "invalid JSON"
+        );
+        assert!(
+            parse_plugin_transcription(r#"{"text":"hi","segments":[{"start_ms":"a"}]}"#).is_err(),
+            "malformed segment"
+        );
+    }
+
+    #[cfg(not(feature = "stt-candle"))]
+    #[test]
+    fn unregistered_whisper_is_an_actionable_error() {
+        let _guard = TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+        clear_whisper_transcriber_for_test();
+        let err = whisper_backend()
+            .err()
+            .expect("no transcriber registered and no in-process Candle: must error");
+        assert!(
+            format!("{err:#}").contains("vox plugin install oratio"),
+            "error should say how to install the plugin: {err:#}"
+        );
+    }
 
     #[test]
     fn with_cached_backend_constructs_once() {
         let _guard = TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+        register_whisper_transcriber(fake_transcriber);
         reset_cache_for_test();
         // SAFETY: test-only env mutation, serialized by TEST_LOCK.
         #[allow(unsafe_code)]
@@ -193,6 +368,7 @@ mod tests {
         unsafe {
             std::env::remove_var("VOX_ORATIO_BACKEND");
         }
+        clear_whisper_transcriber_for_test();
 
         assert_eq!(
             after - before,
@@ -204,6 +380,7 @@ mod tests {
     #[test]
     fn with_cached_backend_retries_after_failure() {
         let _guard = TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+        register_whisper_transcriber(fake_transcriber);
         reset_cache_for_test();
         // SAFETY: test-only env mutation, serialized by TEST_LOCK.
         #[allow(unsafe_code)]
@@ -229,6 +406,7 @@ mod tests {
         unsafe {
             std::env::remove_var("VOX_ORATIO_BACKEND");
         }
+        clear_whisper_transcriber_for_test();
 
         assert!(
             second.is_ok(),
@@ -253,6 +431,7 @@ mod tests {
     #[test]
     fn with_cached_backend_does_not_serialize_concurrent_calls() {
         let _guard = TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+        register_whisper_transcriber(fake_transcriber);
         reset_cache_for_test();
         #[allow(unsafe_code)]
         unsafe {
@@ -291,18 +470,21 @@ mod tests {
         unsafe {
             std::env::remove_var("VOX_ORATIO_BACKEND");
         }
+        clear_whisper_transcriber_for_test();
     }
 
-    // Asserts the "auto" mode falls back to Candle Whisper when Sherpa init
-    // fails — that fallback only exists when `stt-candle` is compiled in.
+    // Asserts the "auto" mode falls back to the registered Whisper transcriber
+    // when Sherpa init fails — the Sherpa arm only exists with `stt-sherpa`.
+    #[cfg(feature = "stt-sherpa")]
     #[test]
-    fn create_backend_auto_falls_back_to_candle_when_sherpa_init_fails() {
+    fn create_backend_auto_falls_back_to_whisper_when_sherpa_init_fails() {
         // Held for the duration of the test: see `crate::env_test_lock` (Task
         // 4 Step 1) — this env var is also mutated by sherpa_model_config's test.
         let _sherpa_env_guard = crate::env_test_lock::SHERPA_MODEL_DIR_ENV_LOCK
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         let _guard = TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+        register_whisper_transcriber(fake_transcriber);
 
         let dir = tempfile::tempdir().expect("tempdir");
         // Deliberately empty: no real ONNX model files, so Sherpa-ONNX init
@@ -321,11 +503,13 @@ mod tests {
         unsafe {
             std::env::remove_var("VOX_ORATIO_SHERPA_MODEL_DIR");
         }
-        assert!(
-            result.is_ok(),
-            "auto mode must fall back to Candle Whisper when Sherpa-ONNX init \
-             fails (empty model dir), not propagate the Sherpa error: {:?}",
-            result.err()
-        );
+        clear_whisper_transcriber_for_test();
+        match result {
+            Ok(backend) => assert_eq!(backend.name(), "whisper (oratio plugin)"),
+            Err(e) => panic!(
+                "auto mode must fall back to the registered Whisper transcriber when \
+                 Sherpa-ONNX init fails (empty model dir), not propagate the Sherpa error: {e:#}"
+            ),
+        }
     }
 }
