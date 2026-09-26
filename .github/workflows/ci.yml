@@ -170,7 +170,15 @@ jobs:
           pnpm typecheck
           pnpm test
           pnpm exec playwright install --with-deps chromium
-          pnpm exec playwright test --project=chromium
+          # Bounded: the suite takes ~3 min, and on the hosted runner the process was
+          # once seen to outlive its last test until the 30-min job cap. If it overruns,
+          # fail fast and show what is still alive instead of burning the whole cap.
+          if ! DEBUG=pw:webserver timeout --foreground -k 15s 12m pnpm exec playwright test --project=chromium; then
+            rc=$?
+            echo "::error::playwright exited ${rc} (124 = still running after 12 min)"
+            ps -eo pid,ppid,pgid,etime,stat,args --forest | cut -c1-200
+            exit "$rc"
+          fi
 
       - name: Warn when the leg nears its 30-min cap
         if: always()
