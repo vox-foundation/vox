@@ -1,4 +1,4 @@
-//! Corpus mix + primary-source sync for Mens training (single prep path for CLI / schola / pipeline).
+//! Corpus mix for Mens training (single prep path for CLI / schola / pipeline).
 //!
 //! Relative `--data-dir` / `--output-dir` / resume paths are anchored in
 //! [`crate::training::contract::normalize_workspace_relative_path`] before mix and validation run.
@@ -10,18 +10,30 @@ use crate::corpus::{self, MixConfigSchema, MixRunOptions};
 /// Relative path from workspace root to mix configuration.
 pub const MIX_CONFIG_REL: &str = "mens/config/mix.yaml";
 
-/// Whether two paths refer to the same existing file (handles relative vs absolute and `\\?\` on Windows).
-fn same_existing_file(a: &Path, b: &Path) -> bool {
+/// Whether two paths name the same location (canonicalized when both exist, lexical otherwise).
+fn same_location(a: &Path, b: &Path) -> bool {
     if a == b {
         return true;
-    }
-    if !a.is_file() || !b.is_file() {
-        return false;
     }
     match (std::fs::canonicalize(a), std::fs::canonicalize(b)) {
         (Ok(ca), Ok(cb)) => ca == cb,
         _ => false,
     }
+}
+
+/// Whether `data_dir` is the canonical corpus directory (`<workspace>/target/dogfood`).
+///
+/// The corpus mix only ever runs for the canonical directory; an explicit `--data-dir`
+/// elsewhere is the user's data and is trained on as-is.
+#[must_use]
+pub fn is_canonical_data_dir(workspace_root: Option<&Path>, data_dir: &Path) -> bool {
+    let base = workspace_root
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+    same_location(
+        &base.join(data_dir),
+        &base.join(super::CANONICAL_TRAIN_DATA_DIR),
+    )
 }
 
 /// `VOX_TRAIN_SKIP_CORPUS_MIX=1|true` skips mix entirely (operators / tests).
@@ -30,6 +42,13 @@ pub fn corpus_mix_skip_from_env() -> bool {
     std::env::var("VOX_TRAIN_SKIP_CORPUS_MIX")
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false)
+}
+
+/// Mix-skip decision: the `--fast-corpus` flag OR a user-set `VOX_TRAIN_SKIP_CORPUS_MIX`.
+/// Callers must never clear the env var — a user's opt-out always holds.
+#[must_use]
+pub fn corpus_mix_skipped(fast_corpus_flag: bool) -> bool {
+    fast_corpus_flag || corpus_mix_skip_from_env()
 }
 
 /// Resolve mix YAML path: prefer workspace root; fall back to `cwd/mens/config/mix.yaml` (pipeline legacy).
@@ -43,62 +62,28 @@ pub fn resolve_mix_config_path(workspace_root: Option<&Path>) -> PathBuf {
     }
 }
 
-/// When the active `data_dir/train.jsonl` differs from mix’s primary source path, copy train into the
-/// primary path so `run_mix` sees the latest pairs (workspace-relative primary paths).
-pub fn sync_mix_primary_with_train_jsonl(
-    workspace_root: Option<&Path>,
-    data_dir: &Path,
-    mix_yaml: &Path,
-) -> anyhow::Result<()> {
-    let Some(ws) = workspace_root else {
-        return Ok(());
-    };
-    let Ok(cfg) = MixConfigSchema::load(mix_yaml) else {
-        return Ok(());
-    };
-    let Some(primary) = cfg.sources.first() else {
-        return Ok(());
-    };
-    let primary_resolved = ws.join(&primary.path);
-    let train_jsonl = data_dir.join(super::preflight::PRIMARY_TRAIN_FILE);
-    if same_existing_file(&primary_resolved, &train_jsonl) {
-        tracing::debug!(
-            path = %train_jsonl.display(),
-            "mix primary path matches data_dir train.jsonl; skip redundant copy"
-        );
-        return Ok(());
-    }
-    if !train_jsonl.is_file() {
-        tracing::warn!(
-            active_train_jsonl = %train_jsonl.display(),
-            "active train.jsonl missing; skip mix primary sync"
-        );
-        return Ok(());
-    }
-    if let Some(parent) = primary_resolved.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    std::fs::copy(&train_jsonl, &primary_resolved).map_err(|e| {
-        anyhow::anyhow!(
-            "mix primary sync failed ({} -> {}): {e}",
-            train_jsonl.display(),
-            primary_resolved.display()
-        )
-    })?;
-    Ok(())
-}
-
-/// Run corpus mix (when not skipped) and return the mixed JSONL path for [`super::preflight::validate_train_preflight`].
+/// Run corpus mix (when not skipped) and return the mix **output** path for
+/// [`super::preflight::validate_train_preflight`].
 ///
-/// Mix output is always resolved relative to **`workspace_root`** when known (SSOT); avoids CWD drift.
+/// File roles: `data_dir/train.jsonl` is the pairs file (or the user's own data) and is
+/// never written here; the mix writes only its configured `output:`. The mix runs only
+/// for the canonical data dir ([`is_canonical_data_dir`]); for any other `--data-dir`
+/// this returns `None` and training reads that directory's `train.jsonl` untouched.
 pub fn refresh_train_contract_override_from_mix(
     workspace_root: Option<&Path>,
     data_dir: &Path,
     skip_mix: bool,
-    sync_primary_with_data_dir_train: bool,
     explicit_mix_yaml: Option<&Path>,
 ) -> anyhow::Result<Option<PathBuf>> {
     if skip_mix {
+        return Ok(None);
+    }
+    if !is_canonical_data_dir(workspace_root, data_dir) {
+        eprintln!(
+            "  ⏭ --data-dir {} is not the canonical {}: training on its train.jsonl as-is (corpus mix not run). Omit --data-dir to train on the corpus mix.",
+            data_dir.display(),
+            super::CANONICAL_TRAIN_DATA_DIR
+        );
         return Ok(None);
     }
     let mix_yaml = explicit_mix_yaml
@@ -106,9 +91,6 @@ pub fn refresh_train_contract_override_from_mix(
         .unwrap_or_else(|| resolve_mix_config_path(workspace_root));
     if !mix_yaml.is_file() {
         return Ok(None);
-    }
-    if sync_primary_with_data_dir_train {
-        sync_mix_primary_with_train_jsonl(workspace_root, data_dir, &mix_yaml)?;
     }
     let path_base_for_mix = workspace_root
         .map(Path::to_path_buf)
@@ -124,59 +106,8 @@ pub fn refresh_train_contract_override_from_mix(
     let Ok(mix_cfg) = MixConfigSchema::load(&mix_yaml) else {
         return Ok(None);
     };
-    let mix_output = match workspace_root {
-        Some(ws) => ws.join(&mix_cfg.output),
-        None => path_base_for_mix.join(&mix_cfg.output),
-    };
-
-    // Prefer data_dir/train.jsonl after copy so training reads the same file mix just produced even if
-    // cwd/workspace differed historically or target/ is cleaned between preflight and load.
-    let mut use_train_jsonl = false;
-    if let Some(ws) = workspace_root {
-        match copy_mix_output_to_train_jsonl(ws, data_dir, &mix_yaml) {
-            Ok(true) => use_train_jsonl = true,
-            Ok(false) => {}
-            Err(e) => tracing::warn!(
-                error = %e,
-                data_dir = %data_dir.display(),
-                "copy mix output to data_dir train.jsonl failed; using mix output path"
-            ),
-        }
-    }
-    let train_jsonl = data_dir.join(super::preflight::PRIMARY_TRAIN_FILE);
-    if use_train_jsonl && train_jsonl.is_file() {
-        return Ok(Some(train_jsonl));
-    }
-    if mix_output.is_file() {
-        Ok(Some(mix_output))
-    } else {
-        Ok(None)
-    }
-}
-
-/// After pipeline (or other steps) already produced a mixed file, copy mix output to `data_dir/train.jsonl`.
-pub fn copy_mix_output_to_train_jsonl(
-    workspace_root: &Path,
-    data_dir: &Path,
-    mix_yaml: &Path,
-) -> anyhow::Result<bool> {
-    if !mix_yaml.is_file() {
-        return Ok(false);
-    }
-    let mix_cfg = MixConfigSchema::load(mix_yaml)?;
-    let mixed_path = workspace_root.join(&mix_cfg.output);
-    let final_train_path = data_dir.join(super::preflight::PRIMARY_TRAIN_FILE);
-    if !mixed_path.is_file() {
-        return Ok(false);
-    }
-    if same_existing_file(&mixed_path, &final_train_path) {
-        return Ok(true);
-    }
-    if let Some(parent) = final_train_path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    std::fs::copy(&mixed_path, &final_train_path)?;
-    Ok(true)
+    let mix_output = path_base_for_mix.join(&mix_cfg.output);
+    Ok(mix_output.is_file().then_some(mix_output))
 }
 
 /// Re-materialize training JSONL if it disappeared after preflight (e.g. long HF download while `cargo clean`
@@ -197,21 +128,7 @@ pub fn recover_train_input_path_after_prefetch(
     );
     let primary = data_dir.join(super::preflight::PRIMARY_TRAIN_FILE);
 
-    if let Some(ws) = workspace_root
-        && mix_yaml.is_file()
-    {
-        match copy_mix_output_to_train_jsonl(ws, data_dir, mix_yaml) {
-            Ok(true) if primary.is_file() => return Ok(primary),
-            Ok(true) => {}
-            Ok(false) => {}
-            Err(e) => tracing::warn!(
-                error = %e,
-                "recovery: copy mix output to data_dir train.jsonl failed"
-            ),
-        }
-    }
-
-    if !skip_mix && mix_yaml.is_file() {
+    if !skip_mix && mix_yaml.is_file() && is_canonical_data_dir(workspace_root, data_dir) {
         if let Ok(cfg) = crate::corpus::mix::MixConfigSchema::load(mix_yaml) {
             let path_base = workspace_root
                 .map(Path::to_path_buf)
@@ -245,7 +162,6 @@ pub fn recover_train_input_path_after_prefetch(
             workspace_root,
             data_dir,
             false,
-            true,
             Some(mix_yaml),
         ) {
             Ok(Some(p)) if p.is_file() => return Ok(p),
@@ -269,84 +185,135 @@ mod tests {
     use super::*;
     use std::io::Write;
 
-    #[test]
-    fn sync_copies_train_into_primary_when_paths_differ() {
-        let tmp = tempfile::tempdir().expect("tempdir");
-        let ws = tmp.path();
-        let data = ws.join("target/dogfood");
-        std::fs::create_dir_all(&data).expect("data dir");
-        let mix_dir = ws.join("mens/config");
-        std::fs::create_dir_all(&mix_dir).expect("mix dir");
-        let primary = ws.join("mens/data/mix_sources/primary.jsonl");
-        std::fs::create_dir_all(primary.parent().unwrap()).expect("parent");
-        let train = data.join("train.jsonl");
-        std::fs::write(&train, r#"{"a":1}"#).expect("write train");
-
-        let mix_yaml = mix_dir.join("mix.yaml");
-        let mut f = std::fs::File::create(&mix_yaml).expect("mix file");
-        writeln!(
-            f,
-            "output: mens/data/mixed_out.jsonl\nsources:\n  - path: mens/data/mix_sources/primary.jsonl\n    weight: 1.0"
-        )
-        .expect("write mix");
-
-        sync_mix_primary_with_train_jsonl(Some(ws), &data, &mix_yaml).expect("sync");
-        let got = std::fs::read_to_string(&primary).expect("read primary");
-        assert!(got.contains("\"a\":1"));
-    }
-
-    #[test]
-    fn sync_skips_when_absolute_paths_differ_but_same_file() {
+    /// Temp workspace with a canonical `target/dogfood/train.jsonl` pairs file and a
+    /// `mix.yaml` whose primary source is that pairs file.
+    fn temp_workspace() -> tempfile::TempDir {
         let tmp = tempfile::tempdir().expect("tempdir");
         let ws = tmp.path();
         std::fs::create_dir_all(ws.join("target/dogfood")).expect("dirs");
         std::fs::create_dir_all(ws.join("mens/config")).expect("mix dir");
-        let train = ws.join("target/dogfood/train.jsonl");
-        std::fs::write(&train, r#"{"x":1}"#).expect("train");
-
-        let mix_yaml = ws.join("mens/config/mix.yaml");
-        let mut f = std::fs::File::create(&mix_yaml).expect("mix");
+        std::fs::write(
+            ws.join("target/dogfood/train.jsonl"),
+            "{\"prompt\":\"p1\",\"response\":\"r1\"}\n{\"prompt\":\"p2\",\"response\":\"r2\"}\n",
+        )
+        .expect("pairs");
+        let mut f = std::fs::File::create(ws.join(MIX_CONFIG_REL)).expect("mix");
         writeln!(
             f,
-            "output: target/dogfood/train_mixed.jsonl\nsources:\n  - path: target/dogfood/train.jsonl\n    weight: 1.0"
+            "output: target/dogfood/train_mixed.jsonl\nsources:\n  - path: target/dogfood/train.jsonl\n    weight: 2.0"
         )
         .expect("write");
-
-        let data = ws.join("target/dogfood");
-        sync_mix_primary_with_train_jsonl(Some(ws), &data, &mix_yaml).expect("no self-copy");
-
-        let got = std::fs::read_to_string(&train).expect("read");
-        assert!(got.contains("\"x\":1"));
+        tmp
     }
 
     #[test]
-    fn sync_skips_when_data_dir_is_relative_to_cwd_matching_primary() {
-        static CWD_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-        let _guard = CWD_LOCK.lock().expect("cwd test lock");
-
-        let tmp = tempfile::tempdir().expect("tempdir");
+    fn explicit_data_dir_is_never_modified_and_wins_over_canonical_train() {
+        let tmp = temp_workspace();
         let ws = tmp.path();
-        std::fs::create_dir_all(ws.join("target/dogfood")).expect("dirs");
-        std::fs::create_dir_all(ws.join("mens/config")).expect("mix dir");
-        let train = ws.join("target/dogfood/train.jsonl");
-        std::fs::write(&train, r#"{"y":2}"#).expect("train");
+        let user = ws.join("my_data");
+        std::fs::create_dir_all(&user).expect("user dir");
+        let user_train = user.join("train.jsonl");
+        let original = "{\"prompt\":\"mine\",\"response\":\"only\"}\n";
+        std::fs::write(&user_train, original).expect("user train");
 
-        let mix_yaml = ws.join("mens/config/mix.yaml");
-        let mut f = std::fs::File::create(&mix_yaml).expect("mix");
-        writeln!(
-            f,
-            "output: target/dogfood/train_mixed.jsonl\nsources:\n  - path: target/dogfood/train.jsonl\n    weight: 1.0"
-        )
-        .expect("write");
+        let over = refresh_train_contract_override_from_mix(Some(ws), &user, false, None)
+            .expect("refresh");
+        assert_eq!(
+            over, None,
+            "explicit data dir must not be routed to a mix output"
+        );
+        assert!(
+            !ws.join("target/dogfood/train_mixed.jsonl").exists(),
+            "mix must not run for an explicit data dir"
+        );
+        let resolved =
+            crate::training::preflight::validate_train_preflight(&user, over.as_deref(), Some(ws))
+                .expect("preflight");
+        assert_eq!(resolved.path, user_train, "explicit --data-dir must win");
+        assert_eq!(std::fs::read_to_string(&user_train).unwrap(), original);
 
-        let prev = std::env::current_dir().expect("cwd");
-        std::env::set_current_dir(ws).expect("cd tmp");
-        let r = sync_mix_primary_with_train_jsonl(Some(ws), Path::new("target/dogfood"), &mix_yaml);
-        std::env::set_current_dir(prev).expect("restore cwd");
-        r.expect("relative data-dir must not self-copy on Windows");
+        // Same with the skip flag (the `--fast-corpus` / env opt-out path).
+        let over =
+            refresh_train_contract_override_from_mix(Some(ws), &user, true, None).expect("refresh");
+        assert_eq!(over, None);
+        assert_eq!(std::fs::read_to_string(&user_train).unwrap(), original);
+    }
 
-        let got = std::fs::read_to_string(&train).expect("read");
-        assert!(got.contains("\"y\":2"));
+    #[test]
+    fn mix_output_never_becomes_mix_input() {
+        let tmp = temp_workspace();
+        let ws = tmp.path();
+        let data = ws.join("target/dogfood");
+        let pairs = data.join("train.jsonl");
+        let pairs_before = std::fs::read(&pairs).unwrap();
+
+        let first = refresh_train_contract_override_from_mix(Some(ws), &data, false, None)
+            .expect("refresh")
+            .expect("mix output");
+        assert_eq!(first, ws.join("target/dogfood/train_mixed.jsonl"));
+        let mixed_first = std::fs::read(&first).unwrap();
+        assert_eq!(
+            std::fs::read(&pairs).unwrap(),
+            pairs_before,
+            "pairs file untouched"
+        );
+
+        // A second run must mix the same pairs again, not the previous output.
+        std::fs::remove_file(ws.join("target/dogfood/train_mixed.mix_report.json")).unwrap();
+        let second = refresh_train_contract_override_from_mix(Some(ws), &data, false, None)
+            .expect("refresh")
+            .expect("mix output");
+        assert_eq!(std::fs::read(&second).unwrap(), mixed_first);
+        assert_eq!(
+            std::fs::read(&pairs).unwrap(),
+            pairs_before,
+            "pairs file untouched"
+        );
+
+        let resolved =
+            crate::training::preflight::validate_train_preflight(&data, Some(&second), Some(ws))
+                .expect("preflight");
+        assert_eq!(
+            resolved.path, second,
+            "trainer reads the mix output when the mix ran"
+        );
+    }
+
+    #[test]
+    fn canonical_data_dir_detection() {
+        let tmp = temp_workspace();
+        let ws = tmp.path();
+        assert!(is_canonical_data_dir(Some(ws), Path::new("target/dogfood")));
+        assert!(is_canonical_data_dir(Some(ws), &ws.join("target/dogfood")));
+        assert!(!is_canonical_data_dir(Some(ws), &ws.join("other")));
+        assert!(!is_canonical_data_dir(Some(ws), Path::new("/tmp/X")));
+    }
+
+    #[test]
+    fn user_set_skip_env_is_honored_without_the_flag() {
+        // SAFETY: test-only; no other test in this crate reads this variable concurrently.
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::set_var("VOX_TRAIN_SKIP_CORPUS_MIX", "1");
+        }
+        let with_env = corpus_mix_skipped(false);
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::remove_var("VOX_TRAIN_SKIP_CORPUS_MIX");
+        }
+        assert!(with_env, "env opt-out must hold even without --fast-corpus");
+        assert!(corpus_mix_skipped(true));
+        assert!(!corpus_mix_skipped(false));
+    }
+
+    #[test]
+    fn shipped_workspace_contract_does_not_override_data_dir() {
+        let ws = crate::training::contract::find_workspace_root().unwrap();
+        assert_eq!(
+            crate::training::preflight::load_contract(&ws).unwrap(),
+            None,
+            "a workspace train_path would silently replace every --data-dir/train.jsonl"
+        );
     }
 
     #[test]
@@ -358,7 +325,8 @@ mod tests {
             if !source.optional {
                 assert!(
                     ws.join(&source.path).is_file()
-                        || source.path.contains("validated_mixed.jsonl"),
+                        // Pairs output, generated by `vox mens corpus pairs`.
+                        || source.path == "target/dogfood/train.jsonl",
                     "Source path {} must exist if not optional",
                     source.path
                 );

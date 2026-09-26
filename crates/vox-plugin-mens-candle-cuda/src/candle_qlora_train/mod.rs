@@ -18,8 +18,6 @@ use qlora_rs::QLoraConfig;
 use qlora_rs::qlora::QuantizedLinear;
 use qlora_rs::quantization::ComputeDType;
 use qlora_rs::training::{QLoraTrainer, QLoraTrainingConfig};
-use rand::SeedableRng;
-use rand::seq::SliceRandom;
 use tokenizers::Tokenizer;
 
 use crate::config::LoraTrainingConfig;
@@ -312,6 +310,11 @@ pub fn run_candle_qlora_train(
             .with_context(|| format!("load training data from {}", train_path.display()))?;
     train_log::info(&format!("Loaded {} pairs.", pairs.len()));
     log_stage("data_load", t_dataload);
+    // Stamped once, here, so every checkpoint written below (and the resume-time
+    // guard) can tell whether a later run is resuming against the same data.
+    let mut config = config.clone();
+    config.data_fingerprint = crate::checkpoint_state::fingerprint_file(&train_path);
+    let config = &config;
     let mut computed_contamination = None;
     if let Some(filter) = config.context_filter.as_ref() {
         let before = pairs.len();
@@ -420,13 +423,12 @@ pub fn run_candle_qlora_train(
             pct_count
         }
     };
-    let eval_pairs = if val_count > 0 && pairs.len() > val_count {
-        let mut rng = rand::rngs::StdRng::seed_from_u64(config.seed ^ 0xA1B2_C3D4_E5F6_1122);
-        pairs.shuffle(&mut rng);
-        pairs.split_off(pairs.len() - val_count)
-    } else {
-        Vec::new()
-    };
+    let (pairs, eval_pairs) =
+        vox_plugin_mens_candle_core::candle_qlora_train::validation::split_validation_by_response(
+            pairs,
+            val_count,
+            config.seed ^ 0xA1B2_C3D4_E5F6_1122,
+        );
 
     // ── GQA-aware dimensions ─────────────────────────────────────────────────
     let n_heads = bundle.layout.num_attention_heads;

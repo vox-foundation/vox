@@ -1,0 +1,6018 @@
+{
+  "schema": "vox_mens_vox_source_inventory_v1",
+  "generated_by": "vox-ml-cli corpus extract --report",
+  "pool_config": "mens/config/vox-source-pool.yaml",
+  "totals": {
+    "considered": 828,
+    "by_decision": {
+      "compile_failed": 49,
+      "excluded_glob": 29,
+      "included": 271,
+      "marked_training_eligible_false": 5,
+      "not_in_roots": 474
+    },
+    "included_unique_content": 206,
+    "baseline_examples_only": 177,
+    "baseline_examples_only_unique_content": 116
+  },
+  "by_top_dir": {
+    "apps/interop": {
+      "compile_ok": 1,
+      "included": 1,
+      "marker_absent": 1,
+      "total": 1
+    },
+    "apps/marquee": {
+      "compile_ok": 2,
+      "included": 2,
+      "marker_absent": 2,
+      "total": 2
+    },
+    "apps/vox-mental-tracker": {
+      "compile_fail": 1,
+      "compile_ok": 6,
+      "included": 6,
+      "marker_absent": 7,
+      "total": 7
+    },
+    "contracts/eval": {
+      "compile_fail": 91,
+      "compile_ok": 367,
+      "marker_absent": 396,
+      "marker_false": 62,
+      "total": 458
+    },
+    "crates/vox-cli": {
+      "compile_fail": 3,
+      "marker_absent": 3,
+      "total": 3
+    },
+    "crates/vox-cli-tests": {
+      "compile_ok": 14,
+      "included": 12,
+      "marker_absent": 14,
+      "total": 14
+    },
+    "crates/vox-compiler": {
+      "compile_fail": 4,
+      "compile_ok": 21,
+      "included": 21,
+      "marker_absent": 25,
+      "total": 25
+    },
+    "crates/vox-integration-tests": {
+      "compile_ok": 5,
+      "included": 4,
+      "marker_absent": 5,
+      "total": 5
+    },
+    "crates/vox-langtool": {
+      "compile_fail": 1,
+      "compile_ok": 3,
+      "included": 3,
+      "marker_absent": 4,
+      "total": 4
+    },
+    "examples/aspirational": {
+      "compile_fail": 5,
+      "marker_absent": 5,
+      "total": 5
+    },
+    "examples/cli-tour": {
+      "compile_ok": 4,
+      "included": 4,
+      "marker_absent": 4,
+      "total": 4
+    },
+    "examples/compile-suite": {
+      "compile_ok": 2,
+      "included": 2,
+      "marker_absent": 2,
+      "total": 2
+    },
+    "examples/forbidden": {
+      "compile_fail": 7,
+      "compile_ok": 8,
+      "marker_absent": 15,
+      "total": 15
+    },
+    "examples/golden": {
+      "compile_ok": 87,
+      "included": 87,
+      "marker_absent": 2,
+      "marker_true": 85,
+      "total": 87
+    },
+    "examples/golden-ts": {
+      "compile_ok": 75,
+      "included": 75,
+      "marker_absent": 14,
+      "marker_true": 61,
+      "total": 75
+    },
+    "examples/parser-inventory": {
+      "compile_fail": 3,
+      "marker_absent": 3,
+      "total": 3
+    },
+    "examples/sandboxes": {
+      "compile_ok": 1,
+      "included": 1,
+      "marker_absent": 1,
+      "total": 1
+    },
+    "infra/containers": {
+      "compile_ok": 2,
+      "included": 2,
+      "marker_absent": 2,
+      "total": 2
+    },
+    "scripts": {
+      "compile_fail": 22,
+      "compile_ok": 29,
+      "included": 27,
+      "marker_absent": 49,
+      "marker_false": 2,
+      "total": 51
+    },
+    "scripts/ci": {
+      "compile_fail": 3,
+      "compile_ok": 4,
+      "included": 4,
+      "marker_absent": 7,
+      "total": 7
+    },
+    "scripts/docs": {
+      "compile_ok": 2,
+      "marker_false": 2,
+      "total": 2
+    },
+    "scripts/mens": {
+      "compile_ok": 7,
+      "included": 7,
+      "marker_absent": 7,
+      "total": 7
+    },
+    "scripts/mens-corpus": {
+      "compile_ok": 7,
+      "included": 7,
+      "marker_absent": 7,
+      "total": 7
+    },
+    "scripts/migrations": {
+      "compile_ok": 4,
+      "included": 4,
+      "marker_absent": 4,
+      "total": 4
+    },
+    "scripts/orchestrator": {
+      "compile_fail": 2,
+      "marker_absent": 2,
+      "total": 2
+    },
+    "scripts/perf": {
+      "compile_fail": 2,
+      "marker_absent": 2,
+      "total": 2
+    },
+    "scripts/quality": {
+      "compile_fail": 4,
+      "compile_ok": 1,
+      "included": 1,
+      "marker_absent": 4,
+      "marker_false": 1,
+      "total": 5
+    },
+    "scripts/scientia": {
+      "compile_fail": 4,
+      "compile_ok": 1,
+      "included": 1,
+      "marker_absent": 5,
+      "total": 5
+    },
+    "scripts/show": {
+      "compile_fail": 5,
+      "marker_absent": 5,
+      "total": 5
+    },
+    "test_syntax.vox": {
+      "compile_fail": 1,
+      "marker_absent": 1,
+      "total": 1
+    },
+    "tests": {
+      "compile_fail": 3,
+      "compile_ok": 1,
+      "marker_absent": 4,
+      "total": 4
+    },
+    "tests/fixtures": {
+      "compile_fail": 2,
+      "marker_absent": 2,
+      "total": 2
+    },
+    "tests/speech-to-code": {
+      "compile_ok": 11,
+      "marker_absent": 11,
+      "total": 11
+    }
+  },
+  "files": [
+    {
+      "path": "apps/interop/marquee_app/src/main.vox",
+      "top_dir": "apps/interop",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "apps/marquee/chat/src/main.vox",
+      "top_dir": "apps/marquee",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "apps/marquee/todo-auth/src/main.vox",
+      "top_dir": "apps/marquee",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "apps/vox-mental-tracker/scripts/build.vox",
+      "top_dir": "apps/vox-mental-tracker",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "apps/vox-mental-tracker/scripts/generate-icons.vox",
+      "top_dir": "apps/vox-mental-tracker",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "apps/vox-mental-tracker/scripts/network_guard_note.vox",
+      "top_dir": "apps/vox-mental-tracker",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "apps/vox-mental-tracker/scripts/preview_workflow.vox",
+      "top_dir": "apps/vox-mental-tracker",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "apps/vox-mental-tracker/scripts/release_gates.vox",
+      "top_dir": "apps/vox-mental-tracker",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "apps/vox-mental-tracker/scripts/sign-android.vox",
+      "top_dir": "apps/vox-mental-tracker",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "apps/vox-mental-tracker/src/main.vox",
+      "top_dir": "apps/vox-mental-tracker",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/001-fizzbuzz/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/001-fizzbuzz/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/002-factorial/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/002-factorial/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/003-fibonacci/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/003-fibonacci/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/004-is-palindrome/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/004-is-palindrome/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/005-count-vowels/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/005-count-vowels/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/006-reverse-string/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/006-reverse-string/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/007-sum-digits/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/007-sum-digits/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/008-is-prime/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/008-is-prime/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/009-gcd/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/009-gcd/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/010-celsius-to-fahrenheit/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/010-celsius-to-fahrenheit/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/011-word-count/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/011-word-count/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/012-max-of-list/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/012-max-of-list/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/013-sum-list/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/013-sum-list/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/014-remove-duplicates/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/014-remove-duplicates/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/015-count-occurrences/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/015-count-occurrences/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/016-running-total/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/016-running-total/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/017-is-sorted/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/017-is-sorted/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/018-rotate-left/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/018-rotate-left/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/019-alternating-sum/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/019-alternating-sum/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/020-flatten-one-level/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/020-flatten-one-level/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/021-starts-with-capital/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/021-starts-with-capital/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/022-repeat-str/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/022-repeat-str/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/023-longest-word/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/023-longest-word/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/024-is-balanced-parens/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/024-is-balanced-parens/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/025-min-of-list/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/025-min-of-list/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/026-average/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/026-average/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/027-clamp/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/027-clamp/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/028-abs-val/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/028-abs-val/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/029-lcm/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/029-lcm/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/030-power/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/030-power/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/031-count-chars/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/031-count-chars/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/032-is-even/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/032-is-even/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/033-filter-evens/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/033-filter-evens/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/034-list-to-str/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/034-list-to-str/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/035-str-length/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/035-str-length/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/036-double-list/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/036-double-list/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/037-nth-element/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/037-nth-element/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/038-product-list/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/038-product-list/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/039-zip-sums/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/039-zip-sums/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/040-count-negatives/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/040-count-negatives/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/041-nth-prime/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/041-nth-prime/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/042-reverse-list/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/042-reverse-list/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/043-triangle-valid/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/043-triangle-valid/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/044-digital-root/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/044-digital-root/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/045-caesar-shift/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/045-caesar-shift/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/046-count-primes-up-to/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/046-count-primes-up-to/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/047-partition-by-sign/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/047-partition-by-sign/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/048-collatz-length/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/048-collatz-length/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/049-merge-sorted/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/049-merge-sorted/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/050-selection-sort/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/050-selection-sort/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/051-is-leap-year/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/051-is-leap-year/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/052-title-case/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/052-title-case/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/053-is-anagram/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/053-is-anagram/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/054-str-is-numeric/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/054-str-is-numeric/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/055-remove-vowels/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/055-remove-vowels/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/056-count-words/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/056-count-words/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/057-sum-of-squares/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/057-sum-of-squares/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/058-is-armstrong/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/058-is-armstrong/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/059-count-divisors/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/059-count-divisors/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/060-int-to-binary/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/060-int-to-binary/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/061-binary-to-int/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/061-binary-to-int/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/062-is-power-of-two/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/062-is-power-of-two/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/063-is-isogram/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/063-is-isogram/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/064-list-intersection/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/064-list-intersection/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/065-rotate-right/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/065-rotate-right/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/066-max-subarray-sum/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/066-max-subarray-sum/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/067-bubble-sort/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/067-bubble-sort/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/068-insertion-sort/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/068-insertion-sort/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/069-binary-search/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/069-binary-search/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/070-count-set-bits/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/070-count-set-bits/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/071-is-perfect/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/071-is-perfect/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/072-triangular-number/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/072-triangular-number/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/073-two-sum-exists/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/073-two-sum-exists/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/074-chunk-list/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/074-chunk-list/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/075-sum-even-squares/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/075-sum-even-squares/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/076-is-palindrome-int/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/076-is-palindrome-int/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/077-sum-of-digits/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/077-sum-of-digits/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/078-count-uppercase/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/078-count-uppercase/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/079-count-lowercase/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/079-count-lowercase/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/080-capitalize-first/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/080-capitalize-first/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/081-repeat-list/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/081-repeat-list/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/082-list-min-max/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/082-list-min-max/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/083-remove-negatives/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/083-remove-negatives/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/084-sum-odd/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/084-sum-odd/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/085-count-even/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/085-count-even/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/086-is-square/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/086-is-square/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/087-int-reverse/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/087-int-reverse/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/088-str-frequency/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/088-str-frequency/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/089-flatten-nested/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/089-flatten-nested/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/090-sum-squares/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/090-sum-squares/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/091-is-sorted-desc/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/091-is-sorted-desc/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/092-zip-products/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/092-zip-products/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/093-last-n/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/093-last-n/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/094-first-n/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/094-first-n/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/095-range-sum/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/095-range-sum/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/096-reverse-words/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/096-reverse-words/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/097-digit-product/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/097-digit-product/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/098-is-power-of-n/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/098-is-power-of-n/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/099-hamming-distance/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/099-hamming-distance/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/100-pangram-check/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/100-pangram-check/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/101-is-abundant/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/101-is-abundant/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/102-common-elements/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/102-common-elements/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/103-remove-at-index/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/103-remove-at-index/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/104-insert-at-index/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/104-insert-at-index/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/105-str-repeat/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/105-str-repeat/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/106-count-words-long/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/106-count-words-long/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/107-nth-fibonacci/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/107-nth-fibonacci/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/108-is-valid-bracket/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/108-is-valid-bracket/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/109-max-gap/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/109-max-gap/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/110-remove-spaces/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/110-remove-spaces/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/111-capitalize-words/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/111-capitalize-words/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/112-divisors-of/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/112-divisors-of/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/113-multiply-list/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/113-multiply-list/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/114-is-substring/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/114-is-substring/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/115-str-to-list/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/115-str-to-list/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/116-sum-first-n/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/116-sum-first-n/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/117-reverse-str-words/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/117-reverse-str-words/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/118-all-positive/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/118-all-positive/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/119-any-negative/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/119-any-negative/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/120-str-palindrome-ignore-case/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/120-str-palindrome-ignore-case/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/121-second-largest/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/121-second-largest/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/122-list-difference/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/122-list-difference/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/123-is-monotone/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/123-is-monotone/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/124-median-of-three/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/124-median-of-three/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/125-sum-above-avg/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/125-sum-above-avg/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/126-first-duplicate/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/126-first-duplicate/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/127-count-digits/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/127-count-digits/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/128-caesar-decode/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/128-caesar-decode/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/129-square-list/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/129-square-list/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/130-product-of-odds/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/130-product-of-odds/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/131-count-consonants/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/131-count-consonants/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/132-remove-duplicates-str/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/132-remove-duplicates-str/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/133-most-frequent/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/133-most-frequent/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/134-zip-sum/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/134-zip-sum/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/135-list-spread/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/135-list-spread/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/136-count-distinct/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/136-count-distinct/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/137-alternating-case/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/137-alternating-case/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/138-remove-consecutive-dups/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/138-remove-consecutive-dups/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/139-str-starts-digits/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/139-str-starts-digits/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/140-list-rotate-left/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/140-list-rotate-left/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/141-digit-sum-alternating/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/141-digit-sum-alternating/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/142-is-prime-string/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/142-is-prime-string/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/143-sum-list-float/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/143-sum-list-float/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/144-running-max/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/144-running-max/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/145-gcd-list/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/145-gcd-list/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/146-lcm-list/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/146-lcm-list/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/147-fibonacci-list/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/147-fibonacci-list/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/148-is-sorted-unique/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/148-is-sorted-unique/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/149-count-div3/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/149-count-div3/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/150-insert-sorted/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/150-insert-sorted/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/151-int-to-digits/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/151-int-to-digits/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/152-digits-to-int/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/152-digits-to-int/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/153-count-substring/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/153-count-substring/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/154-remove-last/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/154-remove-last/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/155-str-count-words-unique/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/155-str-count-words-unique/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/156-power-sum/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/156-power-sum/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/157-min-index/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/157-min-index/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/158-max-index/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/158-max-index/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/159-ends-with-digit/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/159-ends-with-digit/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/160-list-intersection-sorted/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/160-list-intersection-sorted/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/161-to-hex/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/161-to-hex/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/162-from-hex/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/162-from-hex/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/163-str-compress/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/163-str-compress/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/164-str-decompress/reference.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/humaneval-vox/problems/164-str-decompress/tests.vox",
+      "top_dir": "contracts/eval",
+      "marker": "false",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/001-add-fn/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/002-add-test/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/003-rename-field/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/004-refactor-loop/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/005-implement-endpoint/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/006-add-doc-comment/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/007-rename-local/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/008-add-import-style-helper/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/009-add-second-test/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/010-extract-constant/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/011-add-input-validation/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/012-add-default-branch/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/013-tighten-return-type/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/014-add-auth-endpoint/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/015-add-mutation-endpoint/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/016-add-query-endpoint/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/017-add-table/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/018-add-result-error/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/019-add-endpoint-validation/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/020-add-stream-endpoint/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/021-rename-endpoint/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/022-add-public-decorator/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/023-add-table-field/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/024-extract-validator/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/025-split-endpoint/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/026-add-test-for-endpoint/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/027-tighten-result-error/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/028-actor-add-handler/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/029-actor-rename-handler/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/030-add-second-table/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/031-add-foreign-key-field/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/032-convert-to-result/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/033-extract-helper-from-actor/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/034-add-actor/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/035-add-table-with-index/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/036-rename-table-field/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/037-add-pure-helper/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/038-split-into-two-files-conceptual/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/039-add-fmt-helper/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/040-add-batch-endpoint/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/041-add-bulk-mutation/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/042-add-effect-cap/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/043-extract-workflow-step/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/044-introduce-actor-broadcast/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/045-convert-to-stream/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/046-replace-retired-decorator/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/047-introduce-pure-marker/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/048-deduplicate-across-fns/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/049-tighten-effect-row/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/plan-fidelity/plans/050-end-to-end-feature/base.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/problems/001-type-return-mismatch/buggy.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/problems/001-type-return-mismatch/fixed.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/problems/002-type-arg-type-mismatch/buggy.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/problems/002-type-arg-type-mismatch/fixed.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/problems/003-type-arg-count-mismatch/buggy.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/problems/003-type-arg-count-mismatch/fixed.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/problems/004-effect-pure-http-call/buggy.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/problems/004-effect-pure-http-call/fixed.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/problems/005-effect-workflow-nondeterministic/buggy.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/problems/005-effect-workflow-nondeterministic/fixed.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/problems/006-effect-net-undeclared/buggy.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/problems/006-effect-net-undeclared/fixed.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/problems/007-logic-fizzbuzz-off-by-one/buggy.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/problems/007-logic-fizzbuzz-off-by-one/fixed.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/problems/008-logic-grade-threshold/buggy.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/problems/008-logic-grade-threshold/fixed.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/problems/009-logic-max-operator/buggy.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/problems/009-logic-max-operator/fixed.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/problems/010-exhaustive-bool-match/buggy.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/problems/010-exhaustive-bool-match/fixed.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/problems/011-exhaustive-adt-missing-arm/buggy.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/problems/011-exhaustive-adt-missing-arm/fixed.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/problems/012-exhaustive-adt-missing-two/buggy.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/problems/012-exhaustive-adt-missing-two/fixed.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/problems/013-api-arg-count-too-few/buggy.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/problems/013-api-arg-count-too-few/fixed.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/problems/014-api-arg-count-too-many/buggy.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/problems/014-api-arg-count-too-many/fixed.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/problems/015-api-wrong-effect-declared/buggy.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/problems/015-api-wrong-effect-declared/fixed.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/001-type-error/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/002-effect-violation/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/003-logic/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/004-exhaustiveness/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/005-api-misuse/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/006-type-mismatch-arith/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/007-type-mismatch-string-int/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/008-type-mismatch-bool-int/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/009-type-mismatch-list-element/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/010-type-mismatch-record-field/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/011-type-mismatch-return-branch/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/012-type-mismatch-let-bind/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/013-type-mismatch-fn-arg/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/014-type-mismatch-result-payload/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/015-pure-calls-print/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/016-pure-calls-net/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/017-pure-calls-fs/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/018-pure-calls-now/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/019-pure-calls-random/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/020-pure-calls-db/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/021-pure-recursive-effect/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/022-pure-via-helper/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/023-pure-in-test/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/024-off-by-one/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/025-inverted-condition/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/026-wrong-operator/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/027-swapped-args/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/028-missing-base-case/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/029-wrong-accumulator-init/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/030-wrong-comparison/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/031-double-return/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/032-mishandled-empty-list/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/033-missing-none/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/034-missing-some/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/035-missing-error/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/036-missing-ok/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/037-missing-variant-three/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/038-missing-default/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/039-missing-bool-true/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/040-nested-non-exhaustive/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/041-multi-variant-missing/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/042-db-get-wrong-id-type/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/043-db-insert-missing-field/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/044-len-on-int/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/045-result-without-match/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/046-option-missing-unwrap/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/047-list-index-out-of-bounds-paper/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/048-string-concat-without-coerce/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/049-builtin-arity-mismatch/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "contracts/eval/repair-corpus/projects/050-undefined-fn-call/src/main.vox",
+      "top_dir": "contracts/eval",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "crates/vox-cli/tests/fixtures/golden_rust_import_lowering.vox",
+      "top_dir": "crates/vox-cli",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "crates/vox-cli/tests/fixtures/migrate/after/sample.vox",
+      "top_dir": "crates/vox-cli",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "crates/vox-cli/tests/fixtures/migrate/before/sample.vox",
+      "top_dir": "crates/vox-cli",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "excluded_glob:crates/vox-cli/tests/fixtures/migrate/before/**"
+    },
+    {
+      "path": "crates/vox-cli-tests/tests/fixtures/component_state/main.vox",
+      "top_dir": "crates/vox-cli-tests",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-cli-tests/tests/fixtures/endpoint_query_mutation/main.vox",
+      "top_dir": "crates/vox-cli-tests",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-cli-tests/tests/fixtures/form_basic/main.vox",
+      "top_dir": "crates/vox-cli-tests",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-cli-tests/tests/fixtures/full_app/main.vox",
+      "top_dir": "crates/vox-cli-tests",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-cli-tests/tests/fixtures/mobile_app_complete/main.vox",
+      "top_dir": "crates/vox-cli-tests",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-cli-tests/tests/fixtures/mobile_back_button/main.vox",
+      "top_dir": "crates/vox-cli-tests",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-cli-tests/tests/fixtures/mobile_bad_contrast/main.vox",
+      "top_dir": "crates/vox-cli-tests",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "excluded_glob:crates/vox-cli-tests/tests/fixtures/mobile_bad_contrast/**"
+    },
+    {
+      "path": "crates/vox-cli-tests/tests/fixtures/mobile_counter/main.vox",
+      "top_dir": "crates/vox-cli-tests",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-cli-tests/tests/fixtures/mobile_form/main.vox",
+      "top_dir": "crates/vox-cli-tests",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-cli-tests/tests/fixtures/mobile_list/main.vox",
+      "top_dir": "crates/vox-cli-tests",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-cli-tests/tests/fixtures/mobile_modal_unsupported/main.vox",
+      "top_dir": "crates/vox-cli-tests",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "excluded_glob:crates/vox-cli-tests/tests/fixtures/mobile_modal_unsupported/**"
+    },
+    {
+      "path": "crates/vox-cli-tests/tests/fixtures/mobile_routes/main.vox",
+      "top_dir": "crates/vox-cli-tests",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-cli-tests/tests/fixtures/routes_with_loader/main.vox",
+      "top_dir": "crates/vox-cli-tests",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-cli-tests/tests/fixtures/state_machine/main.vox",
+      "top_dir": "crates/vox-cli-tests",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-compiler/src/builtin/std/mobile.vox",
+      "top_dir": "crates/vox-compiler",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "crates/vox-compiler/tests/fixtures/diagnostics/rust_import_dup.vox",
+      "top_dir": "crates/vox-compiler",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "excluded_glob:crates/vox-compiler/tests/fixtures/diagnostics/**"
+    },
+    {
+      "path": "crates/vox-compiler/tests/fixtures/for/for_minimal_body.vox",
+      "top_dir": "crates/vox-compiler",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-compiler/tests/fixtures/for/for_nested.vox",
+      "top_dir": "crates/vox-compiler",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-compiler/tests/fixtures/for/for_no_index.vox",
+      "top_dir": "crates/vox-compiler",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-compiler/tests/fixtures/for/runs_table.vox",
+      "top_dir": "crates/vox-compiler",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-compiler/tests/fixtures/props/subscript.vox",
+      "top_dir": "crates/vox-compiler",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-compiler/tests/fixtures/svg/snake_case.vox",
+      "top_dir": "crates/vox-compiler",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-compiler/tests/fixtures/svg/uncovered_tags.vox",
+      "top_dir": "crates/vox-compiler",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-compiler/tests/llm_fixtures/crud_api.vox",
+      "top_dir": "crates/vox-compiler",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "crates/vox-compiler/tests/llm_fixtures/data_transform.vox",
+      "top_dir": "crates/vox-compiler",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-compiler/tests/llm_fixtures/fix_01_simple_main.vox",
+      "top_dir": "crates/vox-compiler",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-compiler/tests/llm_fixtures/fix_02_function.vox",
+      "top_dir": "crates/vox-compiler",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-compiler/tests/llm_fixtures/fix_03_struct.vox",
+      "top_dir": "crates/vox-compiler",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-compiler/tests/llm_fixtures/fix_04_enum.vox",
+      "top_dir": "crates/vox-compiler",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-compiler/tests/llm_fixtures/fix_05_loop.vox",
+      "top_dir": "crates/vox-compiler",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-compiler/tests/llm_fixtures/fix_06_impl.vox",
+      "top_dir": "crates/vox-compiler",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-compiler/tests/llm_fixtures/fix_07_trait.vox",
+      "top_dir": "crates/vox-compiler",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-compiler/tests/llm_fixtures/fix_08_match.vox",
+      "top_dir": "crates/vox-compiler",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-compiler/tests/llm_fixtures/fix_09_generics.vox",
+      "top_dir": "crates/vox-compiler",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-compiler/tests/llm_fixtures/fix_10_imports.vox",
+      "top_dir": "crates/vox-compiler",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-compiler/tests/llm_fixtures/import_usage.vox",
+      "top_dir": "crates/vox-compiler",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "crates/vox-compiler/tests/llm_fixtures/mcp_tool.vox",
+      "top_dir": "crates/vox-compiler",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-compiler/tests/llm_fixtures/option_chain.vox",
+      "top_dir": "crates/vox-compiler",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-compiler/tests/llm_fixtures/test_suite.vox",
+      "top_dir": "crates/vox-compiler",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-integration-tests/tests/fixtures/chatbot.vox",
+      "top_dir": "crates/vox-integration-tests",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-integration-tests/tests/fixtures/chatbot_pipeline.vox",
+      "top_dir": "crates/vox-integration-tests",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-integration-tests/tests/fixtures/full_stack_minimal.vox",
+      "top_dir": "crates/vox-integration-tests",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-integration-tests/tests/fixtures/greaterfool_reference.vox",
+      "top_dir": "crates/vox-integration-tests",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-integration-tests/tests/fixtures/web_ir_validate_dup_routes.vox",
+      "top_dir": "crates/vox-integration-tests",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "excluded_glob:crates/vox-integration-tests/tests/fixtures/web_ir_validate_dup_routes.vox"
+    },
+    {
+      "path": "crates/vox-langtool/tests/fixtures/caps_directive.vox",
+      "top_dir": "crates/vox-langtool",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-langtool/tests/fixtures/formatted.vox",
+      "top_dir": "crates/vox-langtool",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-langtool/tests/fixtures/hello.vox",
+      "top_dir": "crates/vox-langtool",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "crates/vox-langtool/tests/fixtures/type_error.vox",
+      "top_dir": "crates/vox-langtool",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "excluded_glob:crates/vox-langtool/tests/fixtures/type_error.vox"
+    },
+    {
+      "path": "examples/aspirational/intra-project-imports/emit_diagnostics.vox",
+      "top_dir": "examples/aspirational",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "excluded_glob:examples/aspirational/**"
+    },
+    {
+      "path": "examples/aspirational/intra-project-imports/jsonl_writer.vox",
+      "top_dir": "examples/aspirational",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "excluded_glob:examples/aspirational/**"
+    },
+    {
+      "path": "examples/aspirational/intra-project-imports/walk_docs.vox",
+      "top_dir": "examples/aspirational",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "excluded_glob:examples/aspirational/**"
+    },
+    {
+      "path": "examples/aspirational/intra-project-imports/walk_sources.vox",
+      "top_dir": "examples/aspirational",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "excluded_glob:examples/aspirational/**"
+    },
+    {
+      "path": "examples/aspirational/tensor_gc_computation.vox",
+      "top_dir": "examples/aspirational",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "excluded_glob:examples/aspirational/**"
+    },
+    {
+      "path": "examples/cli-tour/ai-and-data.vox",
+      "top_dir": "examples/cli-tour",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/cli-tour/build-and-project.vox",
+      "top_dir": "examples/cli-tour",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/cli-tour/deploy-and-share.vox",
+      "top_dir": "examples/cli-tour",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/cli-tour/orchestration-and-meta.vox",
+      "top_dir": "examples/cli-tour",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/compile-suite/packages/desktop/src/main.vox",
+      "top_dir": "examples/compile-suite",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/compile-suite/packages/server/src/main.vox",
+      "top_dir": "examples/compile-suite",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/forbidden/absolute_in_partition.vox",
+      "top_dir": "examples/forbidden",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "excluded_glob:examples/forbidden/**"
+    },
+    {
+      "path": "examples/forbidden/contrast_gray_on_white.vox",
+      "top_dir": "examples/forbidden",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "excluded_glob:examples/forbidden/**"
+    },
+    {
+      "path": "examples/forbidden/embed_on_endpoint_unimplemented.vox",
+      "top_dir": "examples/forbidden",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "excluded_glob:examples/forbidden/**"
+    },
+    {
+      "path": "examples/forbidden/inference_decorator_unimplemented.vox",
+      "top_dir": "examples/forbidden",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "excluded_glob:examples/forbidden/**"
+    },
+    {
+      "path": "examples/forbidden/modal_inside_toast.vox",
+      "top_dir": "examples/forbidden",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "excluded_glob:examples/forbidden/**"
+    },
+    {
+      "path": "examples/forbidden/pii_on_endpoint_unimplemented.vox",
+      "top_dir": "examples/forbidden",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "excluded_glob:examples/forbidden/**"
+    },
+    {
+      "path": "examples/forbidden/public_and_auth_conflict.vox",
+      "top_dir": "examples/forbidden",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "excluded_glob:examples/forbidden/**"
+    },
+    {
+      "path": "examples/forbidden/raw_class_occlusion.vox",
+      "top_dir": "examples/forbidden",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "excluded_glob:examples/forbidden/**"
+    },
+    {
+      "path": "examples/forbidden/raw_z_index.vox",
+      "top_dir": "examples/forbidden",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "excluded_glob:examples/forbidden/**"
+    },
+    {
+      "path": "examples/forbidden/system_overlay_reserved.vox",
+      "top_dir": "examples/forbidden",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "excluded_glob:examples/forbidden/**"
+    },
+    {
+      "path": "examples/forbidden/tier_inversion_modal_in_chrome.vox",
+      "top_dir": "examples/forbidden",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "excluded_glob:examples/forbidden/**"
+    },
+    {
+      "path": "examples/forbidden/tokens_low_contrast_pair.vox",
+      "top_dir": "examples/forbidden",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "excluded_glob:examples/forbidden/**"
+    },
+    {
+      "path": "examples/forbidden/unknown_color.vox",
+      "top_dir": "examples/forbidden",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "excluded_glob:examples/forbidden/**"
+    },
+    {
+      "path": "examples/forbidden/unknown_kwarg_typo.vox",
+      "top_dir": "examples/forbidden",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "excluded_glob:examples/forbidden/**"
+    },
+    {
+      "path": "examples/forbidden/webhook_on_bare_fn.vox",
+      "top_dir": "examples/forbidden",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "excluded_glob:examples/forbidden/**"
+    },
+    {
+      "path": "examples/golden/adt_multi_field.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/agent_pipeline.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/agentos_std_surface.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/ai_fixtures/agent_control_subagent.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/ai_fixtures/deferred_fill_hole.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/ai_fixtures/end_to_end_demo.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/ai_fixtures/model_selection_intent_routed.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/ai_fixtures/query_template_prompt.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/ai_fixtures/search_substitution_docs.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/argv_shape.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/async_view.vox",
+      "top_dir": "examples/golden",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/auth_patterns.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/background_jobs.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/blog_fullstack.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/checkout_workflow.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/clean_build_stdlib_reference.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/closures_hof.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/config_deploy.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/control_flow_if.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/counter_actor.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/crud_api.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/crypto_hash_parity.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/dashboard_ui.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/db_advanced_queries.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/db_native_ir.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/db_operations.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/decimal_math.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/display_composites.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/division_by_zero.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/durable_workflow_real.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/env_and_path.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/error_propagation.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/float_formatting.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/format_conversion.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/getting_started.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/glob_and_listdir_order.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/hello.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/http_error_mapping.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/index_showcase.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/int_overflow_boundary.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/inventory_rosetta_core.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/inventory_rosetta_platform.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/io_polymorphic.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/iot_telemetry.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/json_as_typed.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/json_stdlib.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/layered_overlay.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/list_sort_value_semantics.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/match_arm_stmts.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/mcp_tools.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/mesh/noop.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/mobile_camera.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/mobile_test.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/multi_tenancy.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/nested_types.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/object_field_order.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/option_type.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/pagination.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/process_run.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/range_and_indexing.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/react_interop.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/reactive_counter.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/ref_actors.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/ref_agents.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/ref_effects.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/ref_orchestrator.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/ref_syntax.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/ref_types.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/regex_free_functions.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/regex_stdlib.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/repo_operations.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/repo_versioned_decorator.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/saga_compensation.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/scheduled_tick.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/scrape_demo.vox",
+      "top_dir": "examples/golden",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/std_http_wrappers.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/str_utils.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/string_interpolation.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/struct_types.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/structured_shell_listings.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/tabular_subprocess.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/test_suite.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/ts_source_ffi.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/tuple_destructure.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/type_system.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/web_routing_fullstack.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden/while_loop_algorithms.vox",
+      "top_dir": "examples/golden",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/adt_multi_field.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/agent_pipeline.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/agentos_std_surface.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/async_view.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/auth_patterns.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/back_button.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/background_jobs.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/blog_fullstack.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/checkout_workflow.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/clean_build_stdlib_reference.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/closures_hof.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/component_effect_with_deps.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/component_state.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/config_deploy.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/control_flow_if.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/counter_actor.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/crud_api.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/db_advanced_queries.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/db_native_ir.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/db_operations.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/decimal_math.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/durable_workflow_real.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/endpoint_call_in_handler.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/env_and_path.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/error_propagation.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/form_basic.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/format_conversion.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/getting_started.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/hello.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/http_error_mapping.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/inventory_rosetta_core.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/io_polymorphic.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/iot_telemetry.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/json_as_typed.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/json_stdlib.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/list_render_with_key.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/list_sort_value_semantics.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/match_arm_stmts.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/match_tagged_union.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/mcp_tools.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/multi_tenancy.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/nested_types.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/pagination.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/process_run.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/range_and_indexing.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/reactive_counter.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/ref_actors.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/ref_effects.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/ref_orchestrator.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/ref_syntax.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/ref_types.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/regex_free_functions.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/regex_stdlib.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/repo_operations.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/repo_versioned_decorator.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/routes_with_loader.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/safe_area.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/saga_compensation.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/scheduled_tick.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/scrape_demo.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/simple_fn.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/std_http_wrappers.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/str_utils.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/string_interpolation.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/string_with_json.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/struct_types.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/structured_shell_listings.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/tabular_subprocess.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/test_suite.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/ts_source_ffi.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/tuple_destructure.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/type_system.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/web_routing_fullstack.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/while_loop_algorithms.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "true",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/golden-ts/wire_format_round_trip.vox",
+      "top_dir": "examples/golden-ts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "examples/parser-inventory/nested-unclosed.vox",
+      "top_dir": "examples/parser-inventory",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "excluded_glob:examples/parser-inventory/**"
+    },
+    {
+      "path": "examples/parser-inventory/pub-bogus.vox",
+      "top_dir": "examples/parser-inventory",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "excluded_glob:examples/parser-inventory/**"
+    },
+    {
+      "path": "examples/parser-inventory/top-level-garbage.vox",
+      "top_dir": "examples/parser-inventory",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "excluded_glob:examples/parser-inventory/**"
+    },
+    {
+      "path": "examples/sandboxes/test_app/src/main.vox",
+      "top_dir": "examples/sandboxes",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "infra/containers/entrypoints/populi-entrypoint.vox",
+      "top_dir": "infra/containers",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "infra/containers/entrypoints/vox-entrypoint.vox",
+      "top_dir": "infra/containers",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/arch-check.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/audit-skill-licenses.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/axis-drive-metal-e2e.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/axis-drive-metal-failure-honesty.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/axis-drive-openrouter-e2e.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/axis-drive-openrouter-failure-honesty.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/bench-script-tiers.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/broker-bypass-lint.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/broker-ci.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/broker-install.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/ci/compile_kernels.vox",
+      "top_dir": "scripts/ci",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/ci/corpus_prep.vox",
+      "top_dir": "scripts/ci",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/ci/gui-e2e-check.vox",
+      "top_dir": "scripts/ci",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/ci/gui-registry-check.vox",
+      "top_dir": "scripts/ci",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/ci/install-runner-schedule.vox",
+      "top_dir": "scripts/ci",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/ci/script-hygiene.vox",
+      "top_dir": "scripts/ci",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/ci/test.vox",
+      "top_dir": "scripts/ci",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/ci-proximity-drift.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/ci-runners-up.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/clean-build-artifacts.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/crate-build-audit.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/db-table-census.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/db-test-census.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/docs/architecture-staleness-report.vox",
+      "top_dir": "scripts/docs",
+      "marker": "false",
+      "compiles": true,
+      "decision": "marked_training_eligible_false"
+    },
+    {
+      "path": "scripts/docs/strip-last-updated-frontmatter.vox",
+      "top_dir": "scripts/docs",
+      "marker": "false",
+      "compiles": true,
+      "decision": "marked_training_eligible_false"
+    },
+    {
+      "path": "scripts/docs-corpus-census.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/docs-reality-audit-cycle.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/fix-doc-categories.vox",
+      "top_dir": "scripts",
+      "marker": "false",
+      "compiles": true,
+      "decision": "marked_training_eligible_false"
+    },
+    {
+      "path": "scripts/fmt.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/frontend-review.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/generate-bench-scaffold.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/generate-grammars.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/graphify-coverage.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/graphify-refresh.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/graphify-study-source.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/gui-build.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/hf_model_pipeline.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/install-hooks.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/mens/_probe.vox",
+      "top_dir": "scripts/mens",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/mens/full-pipeline.vox",
+      "top_dir": "scripts/mens",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/mens/gate_safe.vox",
+      "top_dir": "scripts/mens",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/mens/run_4080_cycles.vox",
+      "top_dir": "scripts/mens",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/mens/train_dogfood.vox",
+      "top_dir": "scripts/mens",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/mens/train_resilient.vox",
+      "top_dir": "scripts/mens",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/mens/train_watch.vox",
+      "top_dir": "scripts/mens",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/mens-corpus/build_rust_authoring_corpus.vox",
+      "top_dir": "scripts/mens-corpus",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/mens-corpus/build_vox_corpus_extract_pkg.vox",
+      "top_dir": "scripts/mens-corpus",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/mens-corpus/harvest.vox",
+      "top_dir": "scripts/mens-corpus",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/mens-corpus/harvest_small.vox",
+      "top_dir": "scripts/mens-corpus",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/mens-corpus/helpers/jsonl_writer.vox",
+      "top_dir": "scripts/mens-corpus",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/mens-corpus/helpers/walk_docs.vox",
+      "top_dir": "scripts/mens-corpus",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/mens-corpus/helpers/walk_sources.vox",
+      "top_dir": "scripts/mens-corpus",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/mens-macos-metal-e2e.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/migrate-arrows.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/migrate-corpus.vox",
+      "top_dir": "scripts",
+      "marker": "false",
+      "compiles": true,
+      "decision": "marked_training_eligible_false"
+    },
+    {
+      "path": "scripts/migrations/2026-phase1-contract-headers.vox",
+      "top_dir": "scripts/migrations",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/migrations/2026-phase1-delete-empty-schemas-dir.vox",
+      "top_dir": "scripts/migrations",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/migrations/2026-phase1-delete-repo-root-strays.vox",
+      "top_dir": "scripts/migrations",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/migrations/2026-phase7-target-cleanup.vox",
+      "top_dir": "scripts/migrations",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/orchestrator/model_discover.vox",
+      "top_dir": "scripts/orchestrator",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/orchestrator/scoreboard_rollup.vox",
+      "top_dir": "scripts/orchestrator",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/perf/coverage-report.vox",
+      "top_dir": "scripts/perf",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/perf/test-baseline.vox",
+      "top_dir": "scripts/perf",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/plugin-candidacy.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/pre-claim.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/profile-crate-count.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/quality/audit-dependency-layers.vox",
+      "top_dir": "scripts/quality",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/quality/audit-telemetry.vox",
+      "top_dir": "scripts/quality",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/quality/audit-workspace-health.vox",
+      "top_dir": "scripts/quality",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/quality/doc-policy-lint.vox",
+      "top_dir": "scripts/quality",
+      "marker": "false",
+      "compiles": false,
+      "decision": "marked_training_eligible_false"
+    },
+    {
+      "path": "scripts/quality/generate-matrix-doc.vox",
+      "top_dir": "scripts/quality",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/quant_benchmark_matrix.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/render-durable-animation.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/scientia/acceptance-matrix.vox",
+      "top_dir": "scripts/scientia",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/scientia/atlas-draft.vox",
+      "top_dir": "scripts/scientia",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/scientia/atlas-publish.vox",
+      "top_dir": "scripts/scientia",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/scientia/probe-run.vox",
+      "top_dir": "scripts/scientia",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/scientia/profile-rollup.vox",
+      "top_dir": "scripts/scientia",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/serve_mens_v1.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/setup.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/show/cross-post.vox",
+      "top_dir": "scripts/show",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/show/publish.vox",
+      "top_dir": "scripts/show",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/show/script.vox",
+      "top_dir": "scripts/show",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/show/title-workshop.vox",
+      "top_dir": "scripts/show",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/show/topic-suggest.vox",
+      "top_dir": "scripts/show",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/smoke-llm.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/start-marquee.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/sync-cursor-skills.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/sync-superpowers-skills.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "scripts/sync_golden_vox.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/target-gc.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/test_for.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/test_fs.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/test_process_primitives.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/test_recursion.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/train_local_qwen.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "included"
+    },
+    {
+      "path": "scripts/vendor-skills.vox",
+      "top_dir": "scripts",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "test_syntax.vox",
+      "top_dir": "test_syntax.vox",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "tests/fixtures/workflow_preview/simple_two_step.vox",
+      "top_dir": "tests/fixtures",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "tests/fixtures/workflow_preview/with_side_effect.vox",
+      "top_dir": "tests/fixtures",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "compile_failed"
+    },
+    {
+      "path": "tests/hopper_mesh_replication.vox",
+      "top_dir": "tests",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "tests/snippet.vox",
+      "top_dir": "tests",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "tests/sniptype.vox",
+      "top_dir": "tests",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "tests/sniptype2.vox",
+      "top_dir": "tests",
+      "marker": "absent",
+      "compiles": false,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "tests/speech-to-code/fixtures/corpus_v1/utt_01.expected.vox",
+      "top_dir": "tests/speech-to-code",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "tests/speech-to-code/fixtures/corpus_v1/utt_02.expected.vox",
+      "top_dir": "tests/speech-to-code",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "tests/speech-to-code/fixtures/corpus_v1/utt_03.expected.vox",
+      "top_dir": "tests/speech-to-code",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "tests/speech-to-code/fixtures/corpus_v1/utt_04.expected.vox",
+      "top_dir": "tests/speech-to-code",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "tests/speech-to-code/fixtures/corpus_v1/utt_05.expected.vox",
+      "top_dir": "tests/speech-to-code",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "tests/speech-to-code/fixtures/corpus_v1/utt_06.expected.vox",
+      "top_dir": "tests/speech-to-code",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "tests/speech-to-code/fixtures/corpus_v1/utt_07.expected.vox",
+      "top_dir": "tests/speech-to-code",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "tests/speech-to-code/fixtures/corpus_v1/utt_08.expected.vox",
+      "top_dir": "tests/speech-to-code",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "tests/speech-to-code/fixtures/corpus_v1/utt_09.expected.vox",
+      "top_dir": "tests/speech-to-code",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "tests/speech-to-code/fixtures/corpus_v1/utt_10.expected.vox",
+      "top_dir": "tests/speech-to-code",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    },
+    {
+      "path": "tests/speech-to-code/fixtures/p001_expected.vox",
+      "top_dir": "tests/speech-to-code",
+      "marker": "absent",
+      "compiles": true,
+      "decision": "not_in_roots"
+    }
+  ]
+}

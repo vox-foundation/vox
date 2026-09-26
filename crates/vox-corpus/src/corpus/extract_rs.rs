@@ -102,6 +102,17 @@ fn is_cfg_test_attr(line: &str) -> bool {
     t == "#[cfg(test)]" || t.starts_with("#[cfg(test,") || t.starts_with("#[cfg(any(test")
 }
 
+/// Generator output (`*.generated.rs`, `archive/`, `patches/`) is not authored code
+/// and repeats boilerplate (e.g. one `try_from` 180 times), so it is never training data.
+fn is_generated_rs(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|n| n.to_str())
+        .is_some_and(|n| n.ends_with(".generated.rs"))
+        || path
+            .components()
+            .any(|c| matches!(c.as_os_str().to_str(), Some("archive" | "patches")))
+}
+
 /// Return true if the line (trimmed) is a `#[test]` attribute.
 fn is_test_attr(line: &str) -> bool {
     let t = line.trim();
@@ -365,7 +376,7 @@ fn walk_dir_rs(
                 continue;
             }
             walk_dir_rs(&path, config, out)?;
-        } else if path.extension().is_some_and(|e| e == "rs") {
+        } else if path.extension().is_some_and(|e| e == "rs") && !is_generated_rs(&path) {
             let category = infer_category(&path);
             match extract_from_file(&path, config, &category) {
                 Ok(mut pairs) => {
@@ -481,6 +492,20 @@ mod tests {
             "should skip all with min_body_lines=4, got {} pairs",
             pairs.len()
         );
+    }
+
+    #[test]
+    fn generated_and_vendored_rust_is_excluded() {
+        assert!(is_generated_rs(Path::new(
+            "crates/vox-research-events/src/schema_types.generated.rs"
+        )));
+        assert!(is_generated_rs(Path::new(
+            "patches/qlora-rs-1.0.5/src/training.rs"
+        )));
+        assert!(is_generated_rs(Path::new("archive/old/src/lib.rs")));
+        assert!(!is_generated_rs(Path::new(
+            "crates/vox-publisher/src/archive_run.rs"
+        )));
     }
 
     #[test]

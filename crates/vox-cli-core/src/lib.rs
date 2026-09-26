@@ -21,6 +21,7 @@ pub mod fs_utils;
 #[cfg(feature = "db")]
 pub mod gamify_shim;
 pub mod market;
+pub mod ml_cli_handshake;
 #[cfg(feature = "orchestrator")]
 pub mod orchestrator_driver;
 pub mod scientia;

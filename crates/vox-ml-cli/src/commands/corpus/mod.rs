@@ -7,9 +7,15 @@
 //! - `mix` — merge sources per `mens/config/mix.yaml`
 //! - `prompt` — auto-generate system prompt from construct reference
 
+mod back_translate;
 pub(crate) mod generate;
+mod rft;
+pub(crate) mod source_pool;
 mod stats;
+mod synth;
 mod validate;
+
+pub use synth::SynthLlmArgs;
 
 use anyhow::{Context, Result};
 
@@ -38,12 +44,17 @@ pub enum CorpusAction {
     Fingerprint,
     /// Extract training corpus from .vox files
     Extract {
-        /// Directory containing .vox files (recursive)
-        #[arg(required = true)]
-        dir: std::path::PathBuf,
+        /// Directory containing .vox files (recursive). Omit to use the roots in `--pool`.
+        dir: Option<std::path::PathBuf>,
         /// Output JSONL file
         #[arg(short, long, default_value = "mens/data/validated.jsonl")]
         output: std::path::PathBuf,
+        /// Source-pool SSOT (roots, exclude globs, heldout bench); exclusions apply even with `dir`
+        #[arg(long, default_value = "mens/config/vox-source-pool.yaml")]
+        pool: std::path::PathBuf,
+        /// Write a per-file inventory (marker, compile result, decision) as JSON; compiles every walked file
+        #[arg(long)]
+        report: Option<std::path::PathBuf>,
     },
     /// Extract training pairs from Rust source code (.rs)
     ExtractRs {
@@ -314,6 +325,66 @@ pub enum CorpusAction {
         #[arg(long, default_value_t = 0.40)]
         min_diversity: f64,
     },
+    /// Back-translate compile-clean code rows into instruction pairs via the LLM facade
+    /// (dry-run by default; `--apply` to spend).
+    #[command(name = "back-translate")]
+    BackTranslate {
+        /// Input JSONL of code rows (`response` or `code`, plus `source`)
+        #[arg(short, long, default_value = "mens/data/validated.jsonl")]
+        input: std::path::PathBuf,
+        /// Output pair JSONL (vox_codegen lane)
+        #[arg(
+            short,
+            long,
+            default_value = "mens/data/mix_sources/back_translated.jsonl"
+        )]
+        output: std::path::PathBuf,
+        /// Reply cache keyed by hash(prompt version, model, code)
+        #[arg(long, default_value = "target/dogfood/back_translate_cache.jsonl")]
+        cache: std::path::PathBuf,
+        /// Held-out bench manifest; code overlapping a bench answer is skipped
+        #[arg(long, default_value = "mens/data/heldout_bench/manifest.json")]
+        bench: std::path::PathBuf,
+        /// Maximum compile-clean rows to consider
+        #[arg(long, default_value_t = 200)]
+        max_rows: usize,
+        /// Keep a pair only if a regeneration from the instruction also compiles (2x calls)
+        #[arg(long)]
+        round_trip: bool,
+        #[command(flatten)]
+        llm: SynthLlmArgs,
+    },
+    /// Rejection-sampling fine-tuning: sample K completions per task, keep compiler-verified ones
+    /// (dry-run by default; `--apply` to spend).
+    Rft {
+        /// Task JSONL (`prompt` / `instruction` / `description`); back-translate output works
+        #[arg(
+            short,
+            long,
+            default_value = "mens/data/mix_sources/back_translated.jsonl"
+        )]
+        input: std::path::PathBuf,
+        /// Output pair JSONL (vox_codegen lane)
+        #[arg(short, long, default_value = "mens/data/mix_sources/rft_vox.jsonl")]
+        output: std::path::PathBuf,
+        /// Held-out bench manifest used for leakage exclusion
+        #[arg(long, default_value = "mens/data/heldout_bench/manifest.json")]
+        bench: std::path::PathBuf,
+        /// Samples per task
+        #[arg(short, default_value_t = 4)]
+        k: usize,
+        /// Maximum verified completions kept per task
+        #[arg(long, default_value_t = 2)]
+        max_per_task: usize,
+        /// Maximum tasks to sample
+        #[arg(long, default_value_t = 100)]
+        max_tasks: usize,
+        /// Sampling temperature
+        #[arg(long, default_value_t = 0.8)]
+        temperature: f32,
+        #[command(flatten)]
+        llm: SynthLlmArgs,
+    },
     /// Check whether a spoke's corpus meets readiness thresholds before training spend.
     ///
     /// Exits non-zero when the corpus is not ready.  Writes corpus_readiness.json
@@ -347,7 +418,12 @@ pub async fn run(action: CorpusAction) -> Result<()> {
             force_regen,
             dry_run,
         } => generate::run_generate(output, force_regen, dry_run).await,
-        CorpusAction::Extract { dir, output } => generate::run_extract(&dir, &output).await,
+        CorpusAction::Extract {
+            dir,
+            output,
+            pool,
+            report,
+        } => generate::run_extract(dir.as_deref(), &output, &pool, report.as_deref()).await,
         CorpusAction::ExtractRs { dir, output } => {
             let config = vox_corpus::corpus::extract_rs::ExtractRsConfig {
                 root: dir,
@@ -685,6 +761,56 @@ pub async fn run(action: CorpusAction) -> Result<()> {
                 output.display()
             );
             Ok(())
+        }
+        CorpusAction::BackTranslate {
+            input,
+            output,
+            cache,
+            bench,
+            max_rows,
+            round_trip,
+            llm,
+        } => {
+            let backend = synth::FacadeBackend::from_args(&llm, 1024)?;
+            let opts = back_translate::BackTranslateOpts {
+                input,
+                output,
+                cache,
+                bench,
+                max_rows,
+                round_trip,
+                max_spend_usd: llm.max_spend_usd,
+                usd_per_1k_tokens: llm.usd_per_1k_tokens,
+                apply: llm.apply,
+            };
+            back_translate::run_back_translate(&opts, &backend)
+                .await
+                .map(|_| ())
+        }
+        CorpusAction::Rft {
+            input,
+            output,
+            bench,
+            k,
+            max_per_task,
+            max_tasks,
+            temperature,
+            llm,
+        } => {
+            let backend = synth::FacadeBackend::from_args(&llm, 1024)?;
+            let opts = rft::RftOpts {
+                input,
+                output,
+                bench,
+                k,
+                max_per_task,
+                max_tasks,
+                temperature,
+                max_spend_usd: llm.max_spend_usd,
+                usd_per_1k_tokens: llm.usd_per_1k_tokens,
+                apply: llm.apply,
+            };
+            rft::run_rft(&opts, &backend).await.map(|_| ())
         }
         CorpusAction::ReadinessCheck {
             spoke,

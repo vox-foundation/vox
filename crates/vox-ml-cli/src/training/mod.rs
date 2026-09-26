@@ -5,9 +5,8 @@
 //! `vox corpus` subcommands.
 
 pub mod core;
+mod decl_pairs;
 mod instruction;
-mod multiturn;
-mod negative;
 mod system_prompt;
 mod taxonomy;
 
@@ -15,10 +14,8 @@ pub use core::{
     SCHEMA_VERSION, append_jsonl, build_training_record, extract_constructs, timestamp_string,
     walk_vox_files,
 };
-pub use instruction::{extract_name_from_source, instruction_templates};
-#[allow(unused_imports)] // re-exported for CLI / corpus tooling
-pub use multiturn::{followup_templates, generate_multiturn_pairs};
-pub use negative::generate_negative_examples;
+pub use decl_pairs::{PairStats, pairs_for_file};
+pub use instruction::{extract_name_from_source, instruction_templates, split_training_metadata};
 #[allow(unused_imports)] // re-exported for CLI / corpus tooling
 pub use system_prompt::{CONSTRUCT_DOCS, SYSTEM_PROMPT_PREAMBLE, generate_system_prompt};
 pub use taxonomy::{TAXONOMY, construct_difficulty};

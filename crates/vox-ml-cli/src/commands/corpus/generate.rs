@@ -68,44 +68,71 @@ pub(super) async fn run_generate(
     Ok(())
 }
 
-pub(super) async fn run_extract(dir: &Path, output: &Path) -> Result<()> {
-    let walked = crate::training::walk_vox_files(dir);
+pub(super) async fn run_extract(
+    dir: Option<&Path>,
+    output: &Path,
+    pool: &Path,
+    report: Option<&Path>,
+) -> Result<()> {
+    use super::source_pool;
 
-    // Drop `// training_eligible: false` files (held-out eval tasks, deprecated golden
-    // examples) before anything else touches them — mirrors the guard in
-    // `vox_corpus::corpus::extract_vox`'s own extractor. See leakage incident: a bare
-    // `walk_vox_files` + `build_training_record` pass pulled 31/31 held-out humaneval-vox
-    // reference.vox files into the corpus unfiltered.
-    let mut leakage_filtered = 0u32;
-    let entries: Vec<_> = walked
-        .into_iter()
-        .filter(|path| {
-            let eligible = read_utf8_path_capped(path)
-                .map(|content| vox_corpus::corpus::extract_vox::is_eligible_for_training(&content))
-                .unwrap_or(true);
-            if !eligible {
-                leakage_filtered += 1;
-            }
-            eligible
-        })
-        .collect();
+    // Selection rules (roots, exclude globs, training_eligible:false, @generated headers,
+    // heldout-bench overlap) — SSOT mens/config/vox-source-pool.yaml. The marker guard
+    // matters most: a bare walk once pulled 31/31 held-out humaneval-vox reference.vox
+    // files into the corpus.
+    let selector = source_pool::Selector::load(pool, dir)?;
+    let walked = source_pool::walk(dir.unwrap_or(Path::new(".")));
+    let mut rows: Vec<InventoryRow> = Vec::with_capacity(walked.len());
+    let mut entries = Vec::new();
+    for path in walked {
+        let content = read_utf8_path_capped(&path).unwrap_or_default();
+        let skip = selector.skip_reason(&path, &content);
+        if skip.is_none() {
+            entries.push(path.clone());
+        }
+        rows.push(InventoryRow {
+            marker: source_pool::marker(&content),
+            content_hash: vox_actor_runtime::builtins::vox_hash_fast(&content),
+            path,
+            skip,
+            compiles: None,
+        });
+    }
+    let mut by_reason: std::collections::BTreeMap<&str, u32> = Default::default();
+    for r in &rows {
+        if let Some(s) = &r.skip {
+            *by_reason
+                .entry(s.split(':').next().unwrap_or(s))
+                .or_default() += 1;
+        }
+    }
+    for (reason, n) in &by_reason {
+        eprintln!("{}", format!("  ⊘ Skipped {n} file(s): {reason}").yellow());
+    }
 
-    if leakage_filtered > 0 {
+    if let Some(report) = report {
+        // The inventory wants a compile verdict for every walked file, not just candidates.
+        let mut handles = Vec::with_capacity(rows.len());
+        for r in &rows {
+            let p = r.path.clone();
+            handles.push(tokio::spawn(async move {
+                matches!(crate::training::core::run_frontend(&p).await,
+                    Ok(res) if !crate::training::core::has_errors(&res))
+            }));
+        }
+        for (r, h) in rows.iter_mut().zip(handles) {
+            r.compiles = Some(h.await.unwrap_or(false));
+        }
+        write_inventory(report, pool, &rows)?;
         eprintln!(
-            "{}",
-            format!(
-                "  ⊘ Skipped {} file(s) marked training_eligible: false",
-                leakage_filtered
-            )
-            .yellow()
+            "  {} Wrote source inventory → {}",
+            "✓".green(),
+            report.display()
         );
     }
 
     if entries.is_empty() {
-        eprintln!(
-            "{}",
-            format!("No .vox files found in {}", dir.display()).yellow()
-        );
+        eprintln!("{}", "No eligible .vox files found".yellow());
         return Ok(());
     }
 
@@ -236,6 +263,107 @@ pub(super) async fn run_extract(dir: &Path, output: &Path) -> Result<()> {
     Ok(())
 }
 
+struct InventoryRow {
+    path: std::path::PathBuf,
+    marker: &'static str,
+    content_hash: String,
+    skip: Option<String>,
+    compiles: Option<bool>,
+}
+
+impl InventoryRow {
+    /// "included", "compile_failed", or the selection skip reason.
+    fn decision(&self) -> String {
+        match (&self.skip, self.compiles) {
+            (Some(s), _) => s.clone(),
+            (None, Some(false)) => "compile_failed".into(),
+            (None, _) => "included".into(),
+        }
+    }
+}
+
+/// Grouping key for the inventory: first two path components when nested
+/// (`scripts/ci`, `contracts/eval`), else the first (`scripts`, `test_syntax.vox`).
+fn top_dir(p: &Path) -> String {
+    let parts: Vec<_> = p
+        .components()
+        .map(|c| c.as_os_str().to_string_lossy())
+        .collect();
+    if parts.len() > 2 {
+        format!("{}/{}", parts[0], parts[1])
+    } else {
+        parts[0].to_string()
+    }
+}
+
+fn write_inventory(report: &Path, pool: &Path, rows: &[InventoryRow]) -> Result<()> {
+    use std::collections::{BTreeMap, BTreeSet};
+    let mut by_decision: BTreeMap<String, u32> = BTreeMap::new();
+    let mut by_dir: BTreeMap<String, BTreeMap<&str, u32>> = BTreeMap::new();
+    let mut included_unique = BTreeSet::new();
+    let mut baseline = 0u32;
+    let mut baseline_unique = BTreeSet::new();
+    for r in rows {
+        let d = r.decision();
+        let key = d.split(':').next().unwrap_or(&d).to_string();
+        *by_decision.entry(key.clone()).or_default() += 1;
+        let e = by_dir.entry(top_dir(&r.path)).or_default();
+        *e.entry("total").or_default() += 1;
+        *e.entry(if r.compiles == Some(true) {
+            "compile_ok"
+        } else {
+            "compile_fail"
+        })
+        .or_default() += 1;
+        *e.entry(match r.marker {
+            "true" => "marker_true",
+            "false" => "marker_false",
+            _ => "marker_absent",
+        })
+        .or_default() += 1;
+        if key == "included" {
+            *e.entry("included").or_default() += 1;
+            included_unique.insert(r.content_hash.clone());
+        }
+        // Old behavior: walk examples/, drop marker:false, keep what compiles.
+        if r.path.starts_with("examples") && r.marker != "false" && r.compiles == Some(true) {
+            baseline += 1;
+            baseline_unique.insert(r.content_hash.clone());
+        }
+    }
+    let files: Vec<_> = rows
+        .iter()
+        .map(|r| {
+            serde_json::json!({
+                "path": r.path.to_string_lossy(),
+                "top_dir": top_dir(&r.path),
+                "marker": r.marker,
+                "compiles": r.compiles,
+                "decision": r.decision(),
+            })
+        })
+        .collect();
+    let doc = serde_json::json!({
+        "schema": "vox_mens_vox_source_inventory_v1",
+        "generated_by": "vox-ml-cli corpus extract --report",
+        "pool_config": pool.to_string_lossy(),
+        "totals": {
+            "considered": rows.len(),
+            "by_decision": by_decision,
+            "included_unique_content": included_unique.len(),
+            "baseline_examples_only": baseline,
+            "baseline_examples_only_unique_content": baseline_unique.len(),
+        },
+        "by_top_dir": by_dir,
+        "files": files,
+    });
+    if let Some(parent) = report.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(report, serde_json::to_string_pretty(&doc)? + "\n")?;
+    Ok(())
+}
+
 pub(super) async fn run_pairs(
     input: &Path,
     output: &Path,
@@ -248,6 +376,7 @@ pub(super) async fn run_pairs(
     let content = read_utf8_path_capped_async(input).await?;
     let mut all_pairs: Vec<serde_json::Value> = Vec::new();
     let mut pair_hashes: HashSet<String> = HashSet::new();
+    let mut stats = crate::training::PairStats::default();
 
     for line in content.lines().filter(|l| !l.is_empty()) {
         let record: serde_json::Value = match serde_json::from_str(line) {
@@ -255,98 +384,45 @@ pub(super) async fn run_pairs(
             Err(_) => continue,
         };
 
-        let code = record.get("code").and_then(|v| v.as_str()).unwrap_or("");
+        let raw_code = record.get("code").and_then(|v| v.as_str()).unwrap_or("");
         let source = record
             .get("source")
             .and_then(|v| v.as_str())
             .unwrap_or("unknown");
-        let constructs: Vec<String> = record
-            .get("constructs")
-            .and_then(|v| v.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|v| v.as_str().map(String::from))
-                    .collect()
-            })
-            .unwrap_or_default();
-
-        if code.is_empty() {
+        if raw_code.is_empty() {
             continue;
         }
-
-        let name = crate::training::extract_name_from_source(code);
-
-        for construct in &constructs {
-            let templates = crate::training::instruction_templates(construct);
-            for template in templates {
-                let instruction = template.replace("{name}", &name);
-
-                // Dedup by content hash (XXH3)
-                let combined = format!("{}|||{}", instruction, code);
-                let h = vox_actor_runtime::builtins::vox_hash_fast(&combined);
-                if pair_hashes.contains(&h) {
-                    continue;
-                }
-                pair_hashes.insert(h);
-
-                let pair = serde_json::json!({
-                    "prompt": instruction,
-                    "response": code,
-                    "messages": [
-                        { "role": "user", "content": instruction },
-                        { "role": "assistant", "content": code }
-                    ],
-                    "instruction": instruction,
-                    "output": code,
-                    "category": construct,
-                    "difficulty": crate::training::construct_difficulty(construct),
-                    "source": source,
-                    "rating": 5,
-                    "schema_version": crate::training::SCHEMA_VERSION,
-                    "lane": "vox_codegen",
-                    "response_mode": "code_only",
-                    "task_family": "vox_codegen",
-                });
+        let (pairs, st) = crate::training::pairs_for_file(raw_code, source);
+        stats.add(&st);
+        for pair in pairs {
+            // Dedup by content hash (XXH3) of prompt + response.
+            let combined = format!(
+                "{}|||{}",
+                pair["prompt"].as_str().unwrap_or(""),
+                pair["response"].as_str().unwrap_or("")
+            );
+            if pair_hashes.insert(vox_actor_runtime::builtins::vox_hash_fast(&combined)) {
                 all_pairs.push(pair);
-
-                // Multi-turn: generate follow-up refinement pairs
-                let multi = crate::training::generate_multiturn_pairs(
-                    construct,
-                    &name,
-                    &instruction,
-                    code,
-                    crate::training::SCHEMA_VERSION,
-                    source,
-                );
-                all_pairs.extend(multi);
             }
         }
-
-        // Generate negative (broken code) examples for this record
-        let neg_examples = crate::training::generate_negative_examples(code);
-        for (broken_code, error_desc) in neg_examples {
-            let fix_instruction = format!("Fix this broken Vox code. Error: {}", error_desc);
-            let fix_pair = serde_json::json!({
-                "prompt": format!("{}\n\n```vox\n{}\n```", fix_instruction, broken_code),
-                "response": code,
-                "messages": [
-                    { "role": "user", "content": format!("{}\n\n```vox\n{}\n```", fix_instruction, broken_code) },
-                    { "role": "assistant", "content": code }
-                ],
-                "instruction": fix_instruction,
-                "output": code,
-                "category": "error_correction",
-                "difficulty": crate::training::construct_difficulty("error_correction"),
-                "source": source,
-                "rating": 4,
-                "schema_version": crate::training::SCHEMA_VERSION,
-                "lane": "vox_codegen",
-                "response_mode": "code_only",
-                "task_family": "error_correction",
-            });
-            all_pairs.push(fix_pair);
-        }
     }
+
+    println!(
+        "  Vox files: {} ({} did not compile after metadata strip, {} expect-error fixtures skipped)",
+        stats.files, stats.files_failed, stats.files_expect_error
+    );
+    println!(
+        "  Declarations: {} → {} verified pairs ({} failed in-context compile, {} unnamed skipped); {} whole-file pairs",
+        stats.decls,
+        stats.decl_pairs,
+        stats.verify_failed,
+        stats.unnamed_skipped,
+        stats.whole_file_pairs
+    );
+    println!(
+        "  Error correction: {} mutants tried, {} accepted by compiler (dropped), {} pairs",
+        stats.mutants_tried, stats.mutants_accepted, stats.error_pairs
+    );
 
     for docs in docs_dirs {
         let docs_for_task = docs.clone();
@@ -391,11 +467,17 @@ pub(super) async fn run_pairs(
         *cats.entry(cat.to_string()).or_insert(0) += 1;
     }
     let neg_count = cats.get("error_correction").copied().unwrap_or(0);
+    let unique_answers = all_pairs
+        .iter()
+        .filter_map(|p| p.get("response").and_then(|v| v.as_str()))
+        .collect::<HashSet<_>>()
+        .len();
     println!(
         "\n{}",
         format!(
-            "Generated {} training pairs ({} negative examples):",
+            "Generated {} training pairs ({} unique answers, {} error-correction):",
             all_pairs.len(),
+            unique_answers,
             neg_count
         )
         .green()
@@ -416,6 +498,11 @@ pub(super) async fn run_pairs(
         "schema_version": crate::training::SCHEMA_VERSION,
         "total_pairs": all_pairs.len(),
         "negative_pairs": neg_count,
+        "unique_answers": unique_answers,
+        "decl_pairs": stats.decl_pairs,
+        "decl_verify_failed": stats.verify_failed,
+        "mutants_tried": stats.mutants_tried,
+        "mutants_accepted_by_compiler": stats.mutants_accepted,
         "curriculum_ordered": true,
         "generated_by": "vox corpus pairs",
         "compiler_version": env!("CARGO_PKG_VERSION"),
@@ -1028,7 +1115,10 @@ mod tests {
         .unwrap();
 
         let output = tmp.path().join("out.jsonl");
-        run_extract(&src_dir, &output).await.expect("run_extract");
+        let no_pool = tmp.path().join("no-pool.yaml");
+        run_extract(Some(&src_dir), &output, &no_pool, None)
+            .await
+            .expect("run_extract");
 
         let produced = std::fs::read_to_string(&output).unwrap_or_default();
         let record_count = produced.lines().filter(|l| !l.trim().is_empty()).count();
@@ -1036,5 +1126,73 @@ mod tests {
             record_count, 0,
             "expected zero training records for a training_eligible: false file, got: {produced}"
         );
+    }
+
+    /// End-to-end over a fixture pool: exclude glob, marker, generated header and the
+    /// compile gate each drop their file, the report records why, and only the clean
+    /// compiling file reaches the JSONL with its `source` path.
+    #[tokio::test]
+    async fn run_extract_applies_pool_rules_and_reports_decisions() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let root = tmp.path();
+        let files = [
+            (
+                "src/good.vox",
+                "fn double(x: int) to int {\n    return x * 2\n}\n",
+            ),
+            (
+                "src/neg/bad.vox",
+                "fn triple(x: int) to int {\n    return x * 3\n}\n",
+            ),
+            (
+                "src/held.vox",
+                "// training_eligible: false\nfn h(x: int) to int {\n    return x\n}\n",
+            ),
+            (
+                "src/gen.vox",
+                "// @generated-hash ab12\nfn g(x: int) to int {\n    return x\n}\n",
+            ),
+            ("src/broken.vox", "fn oops( to int {\n"),
+        ];
+        for (p, body) in files {
+            let f = root.join(p);
+            std::fs::create_dir_all(f.parent().unwrap()).unwrap();
+            std::fs::write(f, body).unwrap();
+        }
+        let src = root.join("src");
+        let pool = root.join("pool.yaml");
+        std::fs::write(
+            &pool,
+            format!("exclude:\n  - glob: \"{}/neg/**\"\n", src.display()),
+        )
+        .unwrap();
+        let output = root.join("out.jsonl");
+        let report = root.join("inv.json");
+        run_extract(Some(&src), &output, &pool, Some(&report))
+            .await
+            .expect("run_extract");
+
+        let produced = std::fs::read_to_string(&output).unwrap();
+        let sources: Vec<String> = produced
+            .lines()
+            .map(|l| {
+                serde_json::from_str::<serde_json::Value>(l).unwrap()["source"]
+                    .as_str()
+                    .unwrap()
+                    .to_string()
+            })
+            .collect();
+        assert_eq!(sources.len(), 1, "{produced}");
+        assert!(sources[0].ends_with("src/good.vox"));
+
+        let inv: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&report).unwrap()).unwrap();
+        let by = &inv["totals"]["by_decision"];
+        assert_eq!(inv["totals"]["considered"], 5);
+        assert_eq!(by["included"], 1);
+        assert_eq!(by["excluded_glob"], 1);
+        assert_eq!(by["marked_training_eligible_false"], 1);
+        assert_eq!(by["generated_header"], 1);
+        assert_eq!(by["compile_failed"], 1);
     }
 }

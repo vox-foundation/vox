@@ -4,6 +4,24 @@
   "suppressions": [
     {
       "rule_id_prefix": "skeleton/untested-pub-api",
+      "path_glob": "**/vox-plugin-mens-candle-*/src/candle_qlora_train/training_loop/forward.rs",
+      "reason": "forward_masked_ce predates the 2026-09-22 change that only separates the reported (unweighted) loss scalar from the weighted backward loss. It needs a loaded TrainGraphModel on a device, so it has no cheap unit seam; the Metal repeat_kv regression test and real training runs exercise it. Surfaced because tdd-guard re-scans the whole touched file.",
+      "owner": "robot"
+    },
+    {
+      "rule_id_prefix": "skeleton/untested-pub-api",
+      "path_glob": "**/vox-corpus/src/corpus/augment/part_mutate.rs",
+      "reason": "part_mutate.rs is include!()d into augment/mod.rs; augment_prompt is tested by augment/tests_mod.rs (also include!()d there), e.g. augment_produces_variants and typos_never_touch_identifiers_or_code_spans. tdd-guard scans files individually and cannot see across include!.",
+      "owner": "robot"
+    },
+    {
+      "rule_id_prefix": "skeleton/untested-pub-api",
+      "path_glob": "**/vox-plugin-mens-candle-*/src/candle_qlora_train/training_loop/validation.rs",
+      "reason": "preflight_masked_ce_finite and run_validation_pass predate the 2026-09-22 MENS training fixes, which only swapped their truncation/system-turn helpers for the tested ones in vox-plugin-mens-candle-core::training_text (with_system_turn, truncate_to_seq_len). Both need a loaded TrainGraphModel and an HF tokenizer, so they have no cheap unit seam; surfaced only because tdd-guard re-scans the whole touched file.",
+      "owner": "robot"
+    },
+    {
+      "rule_id_prefix": "skeleton/untested-pub-api",
       "path_glob": "**/vox-codegen/src/codegen_rust/emit/mod.rs",
       "reason": "generate() and emit_cargo_toml() are pre-existing (predate the 2026-09-21 generated-project-runtime-deps fix, which only edits their Cargo.toml-emission internals). Both are exercised by codegen_rust/mod.rs's sibling `#[cfg(test)] mod tests` (e.g. app_emit_cargo_toml_includes_rust_import_lines, tauri_emit_registers_sherpa_acl_in_build_rs) and by tests/generated_project_builds_outside_repo.rs / tests/ai_fixture_bundle_compiles.rs, which call generate() directly and run `cargo check` on the output. tdd-guard only looks for inline #[test] blocks in the same file, not this crate's established emit-source/test-file split (mirrors the existing vox-ml-cli/eval_gate/check_run.rs suppression below).",
       "owner": "robot"
