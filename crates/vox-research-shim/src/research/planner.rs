@@ -131,10 +131,96 @@ fn parse_planner_response(
     })
 }
 
-fn passthrough_plan(query: &ResearchQuery, planner_degraded: bool) -> ResearchPlan {
+/// Longest keyword query sent to bag-of-words engines (DuckDuckGo) without an LLM planner.
+pub(crate) const MAX_KEYWORD_QUERY_TOKENS: usize = 8;
+
+const STOPWORDS: &[&str] = &[
+    "a",
+    "about",
+    "all",
+    "also",
+    "an",
+    "and",
+    "any",
+    "are",
+    "as",
+    "at",
+    "be",
+    "by",
+    "find",
+    "for",
+    "from",
+    "how",
+    "i",
+    "in",
+    "including",
+    "is",
+    "it",
+    "its",
+    "like",
+    "me",
+    "my",
+    "of",
+    "on",
+    "or",
+    "our",
+    "that",
+    "the",
+    "these",
+    "this",
+    "those",
+    "to",
+    "was",
+    "we",
+    "were",
+    "what",
+    "which",
+    "who",
+    "with",
+    "you",
+    "your",
+];
+
+/// Reduce a long conversational prompt to a keyword query for engines that treat the input as a
+/// bag of words. Proper nouns (capitalised, not sentence-initial) win the token budget over other
+/// content words; original order is preserved. Queries within the cap pass through unchanged.
+pub(crate) fn condense_query(query: &str) -> String {
+    let words: Vec<&str> = query.split_whitespace().collect();
+    if words.len() <= MAX_KEYWORD_QUERY_TOKENS {
+        return words.join(" ");
+    }
+    let mut seen = std::collections::HashSet::new();
+    // (rank, position, token): rank 0 = proper noun, 1 = other content word.
+    let mut kept: Vec<(u8, usize, &str)> = words
+        .iter()
+        .enumerate()
+        .filter_map(|(i, w)| {
+            let token = w.trim_matches(|c: char| !c.is_alphanumeric());
+            let lower = token.to_ascii_lowercase();
+            if token.is_empty() || STOPWORDS.contains(&lower.as_str()) || !seen.insert(lower) {
+                return None;
+            }
+            let proper = i > 0 && token.starts_with(char::is_uppercase);
+            Some((u8::from(!proper), i, token))
+        })
+        .collect();
+    if kept.is_empty() {
+        return words[..MAX_KEYWORD_QUERY_TOKENS].join(" ");
+    }
+    kept.sort_unstable();
+    kept.truncate(MAX_KEYWORD_QUERY_TOKENS);
+    kept.sort_unstable_by_key(|&(_, i, _)| i);
+    kept.iter()
+        .map(|&(_, _, t)| t)
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// Single-subquery plan used when no LLM planner ran (Fast lane) or it failed (`planner_degraded`).
+pub(crate) fn passthrough_plan(query: &ResearchQuery, planner_degraded: bool) -> ResearchPlan {
     ResearchPlan {
         original_query: query.query.clone(),
-        subqueries: vec![query.query.clone()],
+        subqueries: vec![condense_query(&query.query)],
         scope: query.scope.clone(),
         max_sources_per_subquery: query.max_sources,
         planner_degraded,
@@ -205,6 +291,51 @@ mod tests {
     fn passthrough_plan_marks_llm_fallback_as_degraded() {
         let plan = passthrough_plan(&query(), true);
         assert!(plan.planner_degraded);
+    }
+
+    #[test]
+    fn condense_query_passes_short_queries_through() {
+        assert_eq!(condense_query("what is  CRAG"), "what is CRAG");
+    }
+
+    #[test]
+    fn condense_query_keeps_proper_nouns_from_conversational_prompt() {
+        let long = "Find all high-value sources of data for events in Tucson that are updated \
+                    regularly, including university calendars, city government feeds, and \
+                    community meetup groups like Startup Tucson and Arizona Tech Council";
+        let condensed = condense_query(long);
+        let tokens: Vec<&str> = condensed.split_whitespace().collect();
+        assert!(tokens.len() <= MAX_KEYWORD_QUERY_TOKENS, "{condensed}");
+        for noun in ["Tucson", "Startup", "Arizona"] {
+            assert!(tokens.contains(&noun), "{noun} missing from {condensed:?}");
+        }
+        for stop in ["of", "for", "that", "are", "and"] {
+            assert!(
+                !tokens.contains(&stop),
+                "{stop} not stripped: {condensed:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn condense_query_falls_back_to_leading_words_when_all_stopwords() {
+        let all_stop = "and or the of to in on at for with by from as is are was were be";
+        assert_eq!(
+            condense_query(all_stop).split_whitespace().count(),
+            MAX_KEYWORD_QUERY_TOKENS
+        );
+    }
+
+    #[test]
+    fn passthrough_plan_condenses_long_queries_but_keeps_original() {
+        let mut q = query();
+        q.query = "Find all of the very best sources of data for tech events in Tucson \
+                   that are updated regularly and easy to scrape"
+            .to_string();
+        let plan = passthrough_plan(&q, true);
+        assert_eq!(plan.original_query, q.query);
+        assert!(plan.subqueries[0].split_whitespace().count() <= MAX_KEYWORD_QUERY_TOKENS);
+        assert!(plan.subqueries[0].contains("Tucson"));
     }
 
     #[test]

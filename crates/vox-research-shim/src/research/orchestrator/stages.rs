@@ -166,16 +166,27 @@ pub(super) struct SynthesisParams<'a> {
     pub context_max_chars: usize,
 }
 
-/// LLM-backed synthesis. Falls back to template when no endpoint is configured.
-pub(super) async fn synthesize_answer_with_llm(params: SynthesisParams<'_>) -> String {
+/// Quality score ceiling when synthesis fell back to the template: nothing was synthesized or
+/// judged, so the report must not read as a passing result.
+pub(super) const TEMPLATE_FALLBACK_QUALITY_CAP: i32 = 20;
+
+const TEMPLATE_FALLBACK_WARNING: &str = "> ⚠️ WARNING: LLM synthesis cascade failed. \
+     Showing unverified raw evidence snippets, not a synthesized answer.\n";
+
+/// LLM-backed synthesis. Returns `(answer, template_fallback)`; the flag is `true` when every
+/// synthesis candidate failed and the answer is the raw-evidence template.
+pub(super) async fn synthesize_answer_with_llm(params: SynthesisParams<'_>) -> (String, bool) {
     // Try LLM synthesis first.
     match call_synthesis_llm(&params).await {
-        Ok(answer) => return answer,
+        Ok(answer) => return (answer, false),
         Err(e) => tracing::warn!("LLM synthesis failed: {e}, falling back to template"),
     }
 
     // Template fallback.
-    synthesize_answer_template(params.query, params.hits, params.verdicts)
+    (
+        synthesize_answer_template(params.query, params.hits, params.verdicts),
+        true,
+    )
 }
 
 async fn call_synthesis_llm(params: &SynthesisParams<'_>) -> anyhow::Result<String> {
@@ -333,6 +344,7 @@ fn synthesize_answer_template(
     verdicts: &[super::super::types::ClaimVerdict],
 ) -> String {
     let mut parts: Vec<String> = Vec::new();
+    parts.push(TEMPLATE_FALLBACK_WARNING.to_string());
     parts.push(format!(
         "# Executive Summary\n\nResearch findings for: {query}\n"
     ));
@@ -643,6 +655,39 @@ mod citation_diversity_tests {
             sys_prompt.contains("Cite every material claim"),
             "judge prompt should use research-appropriate completeness language: {sys_prompt}"
         );
+    }
+
+    #[test]
+    fn template_fallback_is_labelled_as_unverified_evidence() {
+        let answer = super::synthesize_answer_template("q", &[], &[]);
+        assert!(
+            answer.starts_with("> ⚠️ WARNING: LLM synthesis cascade failed"),
+            "template output must lead with the failure warning: {answer}"
+        );
+    }
+
+    #[test]
+    fn template_fallback_cap_is_below_every_persistence_gate() {
+        // discovery bridge / pipeline gates open at quality >= 50.
+        const { assert!(super::TEMPLATE_FALLBACK_QUALITY_CAP < 50) };
+    }
+
+    #[test]
+    fn unjudged_fallback_score_stays_below_persistence_gates() {
+        // pipeline gates: low bar >= 50, high bar >= 70. An answer nobody judged must not clear them.
+        let cfg = crate::research::ResearchConfig::default();
+        assert!(
+            cfg.fallback_quality_score < 50,
+            "{}",
+            cfg.fallback_quality_score
+        );
+    }
+
+    #[test]
+    fn default_judge_budget_fits_its_json_schema() {
+        // A schema-shaped reply with modest reasoning text is ~100+ tokens; 16 truncated it every time.
+        let cfg = crate::research::ResearchConfig::default();
+        assert!(cfg.judge_max_tokens >= 256, "{}", cfg.judge_max_tokens);
     }
 
     #[test]

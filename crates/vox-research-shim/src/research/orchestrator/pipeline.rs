@@ -840,7 +840,7 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
         ),
         ResearchDomainMode::General => query.query.clone(),
     };
-    let (answer, _template_fallback) = synthesize_answer_with_llm(SynthesisParams {
+    let (answer, template_fallback) = synthesize_answer_with_llm(SynthesisParams {
         query: &synthesis_query,
         hits: &all_hits,
         verdicts: &claim_verdicts,
@@ -866,6 +866,12 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
         fallback_score: config.fallback_quality_score,
     })
     .await;
+    // A template fallback is raw evidence, not a synthesized answer: never let it clear a gate.
+    let quality_score = if template_fallback {
+        quality_score.min(super::stages::TEMPLATE_FALLBACK_QUALITY_CAP)
+    } else {
+        quality_score
+    };
 
     let self_verification_enabled = matches!(routing_tier, RoutingTier::DeepResearch);
 

@@ -51,6 +51,18 @@ async fn run_research_returns_coherent_metadata() {
         result.citations.len() <= result.sources.len(),
         "citations are capped from sources"
     );
+    // Offline / no-LLM runs land on the template fallback: it must say so and must not score as a
+    // passing answer (regression: an unjudged template used to report quality_score=80).
+    if result
+        .answer
+        .contains("WARNING: LLM synthesis cascade failed")
+    {
+        assert!(
+            result.research_metadata.quality_score <= 20,
+            "template fallback scored {}",
+            result.research_metadata.quality_score
+        );
+    }
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

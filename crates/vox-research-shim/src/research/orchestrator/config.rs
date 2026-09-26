@@ -43,7 +43,7 @@ pub struct ResearchConfig {
     pub judge_temperature: f32,
     /// Max tokens for the judge response.
     pub judge_max_tokens: u32,
-    /// Quality score returned when no LLM judge is available.
+    /// Quality score returned when no LLM judge is available (keep below the persistence gates).
     pub fallback_quality_score: i32,
     /// Max chars for the synthesis LLM context (hits + verdict text).
     pub synthesis_context_max_chars: usize,
@@ -139,10 +139,12 @@ impl Default for ResearchConfig {
             synthesis_max_tokens: 1200,
             judge_model: r.judge_model,
             judge_temperature: 0.0,
-            judge_max_tokens: 16,
-            fallback_quality_score: i32::from(
-                ConfidencePolicy::DEFAULT_MIN_REVIEW_FINDING_CONFIDENCE,
-            ),
+            // Must fit the judge's JSON schema (three reasoning strings + scores). At 16 the reply
+            // was always truncated, parsing failed, and every run silently scored `fallback_quality_score`.
+            judge_max_tokens: 512,
+            // Judge unavailable => the answer is unjudged, so it must land below the pipeline's
+            // persistence gates (>= 50 low bar, >= 70 high bar) instead of borrowing a passing score.
+            fallback_quality_score: 40,
             synthesis_context_max_chars: 24000,
             chunk_max_chars: 1200,
             chunk_overlap_chars: 150,

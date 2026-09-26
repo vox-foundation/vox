@@ -28,6 +28,22 @@ pub enum ResearchDomainMode {
     CodeGen,
 }
 
+impl std::str::FromStr for ResearchDomainMode {
+    type Err = String;
+
+    /// Parse the `general` / `shopping` / `codegen` wire and CLI label (case-insensitive).
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.trim().to_ascii_lowercase().as_str() {
+            "general" => Ok(Self::General),
+            "shopping" => Ok(Self::Shopping),
+            "codegen" | "code_gen" => Ok(Self::CodeGen),
+            other => Err(format!(
+                "invalid domain mode {other:?}: use general|shopping|codegen"
+            )),
+        }
+    }
+}
+
 fn default_waves() -> usize {
     1
 }
@@ -312,7 +328,15 @@ pub struct ResearchRunArtifact {
 
 #[cfg(test)]
 mod tests {
-    use super::ResearchStage;
+    use super::{ResearchDomainMode, ResearchStage};
+
+    #[test]
+    fn domain_mode_parses_wire_labels() {
+        assert_eq!("shopping".parse(), Ok(ResearchDomainMode::Shopping));
+        assert_eq!("Code_Gen".parse(), Ok(ResearchDomainMode::CodeGen));
+        assert_eq!("general".parse(), Ok(ResearchDomainMode::General));
+        assert!("legal".parse::<ResearchDomainMode>().is_err());
+    }
 
     #[test]
     fn research_stage_as_str_round_trips() {
