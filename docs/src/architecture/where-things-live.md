@@ -337,7 +337,7 @@ Don't depend on `vox-orchestrator` or `vox-cli` from a plugin.
 | [`vox-plugin-publication`](../../../crates/vox-plugin-publication/) | Publication plugin: RSS/Atom ingest with dedup, Reddit/YouTube publish, scholarly job feeds. |
 | [`vox-plugin-runtime-container`](../../../crates/vox-plugin-runtime-container/) | Skill-runtime plugin: Docker + Podman backends for vox-skill-runtime. |
 | [`vox-plugin-runtime-wasm`](../../../crates/vox-plugin-runtime-wasm/) | Skill-runtime plugin: wasmtime-based WASI sandbox (default for pure-compute skills). |
-| [`vox-plugin-webhook`](../../../crates/vox-plugin-webhook/) | Webhook plugin: HTTP listener with HMAC signature verification (GitHub, Discord, Slack; GitLab deprecated). Inlines the full webhook gateway (inbound handler, outbound delivery, channel adapters, bridge) in the `webhook` submodule — no separate library crate. |
+| [`vox-plugin-webhook`](../../../crates/vox-plugin-webhook/) | Webhook plugin: HTTP listener with HMAC signature verification (GitHub, Discord, Slack; GitLab deprecated). Inlines the full webhook gateway (inbound handler, outbound delivery, channel adapters, bridge) in the `webhook` submodule — no separate library crate. Hosts drain events through the `WebhookInbox` poll extension; the opt-in hopper intake poller lives in `vox-orchestrator-mcp` (`src/server_state/webhook_intake.rs`), enabled by an `[orchestrator.webhook]` section (Phase 3 D-10/D-13). |
 
 ## When to NOT add a new crate
 
