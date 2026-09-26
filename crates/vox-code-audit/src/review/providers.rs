@@ -219,16 +219,10 @@ mod ollama_ssot_tests {
     fn ollama_default_url_resolves_through_the_config_ssot() {
         // SAFETY: single-threaded scope; the var is restored below and no
         // other test in this crate reads OLLAMA_URL.
-        #[allow(unsafe_code)]
-        unsafe {
-            std::env::set_var("OLLAMA_URL", "http://ssot-probe:1234")
-        };
+        unsafe { std::env::set_var("OLLAMA_URL", "http://ssot-probe:1234") };
         vox_config::snapshot::bump(&["OLLAMA_URL"]);
         let got = default_ollama_url();
-        #[allow(unsafe_code)]
-        unsafe {
-            std::env::remove_var("OLLAMA_URL")
-        };
+        unsafe { std::env::remove_var("OLLAMA_URL") };
         vox_config::snapshot::bump(&["OLLAMA_URL"]);
         assert_eq!(got, "http://ssot-probe:1234");
     }

@@ -103,7 +103,6 @@ mod tests {
     #[test]
     fn stdout_color_enabled_respects_no_color() {
         // SAFETY: test-only env mutation; no other test in this process reads NO_COLOR.
-        #[allow(unsafe_code)]
         unsafe {
             std::env::set_var("NO_COLOR", "1");
         }
@@ -111,7 +110,6 @@ mod tests {
             !stdout_color_enabled(),
             "NO_COLOR=1 must disable colour output"
         );
-        #[allow(unsafe_code)]
         unsafe {
             std::env::remove_var("NO_COLOR");
         }
@@ -122,7 +120,6 @@ mod tests {
     #[test]
     fn stdout_color_enabled_disabled_when_not_a_tty() {
         // SAFETY: test-only env mutation.
-        #[allow(unsafe_code)]
         unsafe {
             std::env::remove_var("NO_COLOR");
         }

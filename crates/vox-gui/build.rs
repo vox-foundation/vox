@@ -43,30 +43,23 @@ fn check_sidecar_binaries(gui_dir: &Path) -> Result<Vec<(PathBuf, String)>, Stri
     Ok(missing)
 }
 
-/// `cargo build -p <owning package> --release --bin <name>` then copy the unsuffixed
+/// `cargo build -p vox-cli --release --bin <name>` then copy the unsuffixed
 /// `target/release/<name>` to the triple-suffixed sidecar path Tauri expects.
 /// Only handles the CLI binary itself — the frontend (`ui/dist`, built via
 /// `vox run scripts/gui-build.vox`'s `pnpm build` step) is a separate, larger
 /// dependency this can't self-heal, and is checked independently elsewhere.
 fn autobuild_sidecar(sidecar: &Path, bin_name: &str) -> Result<(), String> {
-    // `vox` is a bin of the `vox-cli` package; every other sidecar (`vox-ml-cli`) is the
-    // same-named bin of its own package.
-    let pkg = if bin_name == "vox" {
-        "vox-cli"
-    } else {
-        bin_name
-    };
     println!(
-        "cargo:warning=vox-gui: sidecar binary {} missing, running `cargo build -p {pkg} --release --bin {bin_name}` to build it (one-time per fresh worktree; set VOX_GUI_SKIP_SIDECAR_AUTOBUILD=1 to disable)",
+        "cargo:warning=vox-gui: sidecar binary {} missing, running `cargo build -p vox-cli --release --bin {bin_name}` to build it (one-time per fresh worktree; set VOX_GUI_SKIP_SIDECAR_AUTOBUILD=1 to disable)",
         sidecar.display()
     );
     let status = std::process::Command::new(env!("CARGO"))
-        .args(["build", "-p", pkg, "--release", "--bin", bin_name])
+        .args(["build", "-p", "vox-cli", "--release", "--bin", bin_name])
         .status()
-        .map_err(|e| format!("spawn `cargo build -p {pkg} --release --bin {bin_name}`: {e}"))?;
+        .map_err(|e| format!("spawn `cargo build -p vox-cli --release --bin {bin_name}`: {e}"))?;
     if !status.success() {
         return Err(format!(
-            "`cargo build -p {pkg} --release --bin {bin_name}` exited with {status}"
+            "`cargo build -p vox-cli --release --bin {bin_name}` exited with {status}"
         ));
     }
     let ext = if sidecar.extension().is_some() {
