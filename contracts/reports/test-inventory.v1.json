@@ -2,12 +2,12 @@
   "schema_version": 1,
   "summary": {
     "workspace_crate_count": 129,
-    "rust_files_scanned": 4048,
-    "cargo_unit_test_functions": 10411,
+    "rust_files_scanned": 4050,
+    "cargo_unit_test_functions": 10415,
     "cargo_integration_test_functions": 3020,
     "cargo_bench_functions": 0,
     "cargo_ignored_test_functions": 170,
-    "cargo_test_functions_total": 13431,
+    "cargo_test_functions_total": 13435,
     "webir_related_ignored_tests": 3,
     "webir_ignored_tests_likely_retired_note": 0
   },
@@ -37,7 +37,7 @@
       "integration_rs_files": 0
     },
     "vox-audit": {
-      "unit_tests": 151,
+      "unit_tests": 152,
       "integration_tests": 8,
       "bench_tests": 0,
       "ignored_tests": 2,
@@ -85,7 +85,7 @@
       "integration_rs_files": 3
     },
     "vox-cli": {
-      "unit_tests": 899,
+      "unit_tests": 900,
       "integration_tests": 268,
       "bench_tests": 0,
       "ignored_tests": 9,
@@ -149,7 +149,7 @@
       "integration_rs_files": 4
     },
     "vox-code-audit": {
-      "unit_tests": 439,
+      "unit_tests": 441,
       "integration_tests": 44,
       "bench_tests": 0,
       "ignored_tests": 1,
@@ -362,7 +362,7 @@
       "bench_tests": 0,
       "ignored_tests": 1,
       "has_integration_dir": true,
-      "integration_rs_files": 5
+      "integration_rs_files": 6
     },
     "vox-hf-layout": {
       "unit_tests": 28,
@@ -1047,8 +1047,8 @@
   },
   "rust_files_by_kind": {
     "benches": 3,
-    "integration_tests": 748,
-    "other": 24,
+    "integration_tests": 749,
+    "other": 25,
     "unit_src": 3273
   },
   "zero_test_crates": [
@@ -1240,7 +1240,7 @@
   "test_file_patterns": {
     "sleep_sites": 205,
     "env_var_reads": 799,
-    "env_var_mutations": 1041,
+    "env_var_mutations": 1036,
     "command_new": 577,
     "serial_test": 91,
     "proptest_colon_colon": 9,
