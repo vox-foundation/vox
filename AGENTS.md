@@ -453,10 +453,12 @@ ratchet + downward-only layer rule; contracts: `contracts/ci/crate-edges.allow.v
 
 - **GitHub-hosted CI is the gate.** `ci.yml`'s required context
   (`Check, Build, and Test (Rust)`) is a thin `gate` job whose one step checks
-  that `linux` and `ui` both succeeded. `linux` runs the local fast tier plus
-  clippy/nextest on affected crates; it also runs `cargo-deny`
+  that `linux`, `tests` and `ui` succeeded. `linux` runs the local fast tier
+  plus clippy on affected crates; it also runs `cargo-deny`
   licenses/bans/sources on dependency changes, and `cargo clippy`/`rustdoc -D
-  warnings` on a detected toolchain bump. `ui` (typecheck + vitest +
+  warnings` on a detected toolchain bump. `tests` runs nextest on the same
+  affected set in 3 parallel `--partition hash:K/3` shards (a skipped `tests`
+  counts only when `linux` planned none). `ui` (typecheck + vitest +
   Playwright) is required only on PRs that change `crates/vox-gui/**` or
   `orch_daemon/mod.rs` (it fails closed when the base SHA is missing). The
   merge queue additionally runs an **advisory** (non-blocking) Windows compile
@@ -465,13 +467,14 @@ ratchet + downward-only layer rule; contracts: `contracts/ci/crate-edges.allow.v
   `workflow-policy-guard` (in `ssot-drift`). Over budget? Cache, shard, or
   move the job to nightly — never raise the cap.
 - **What nightly defers, and what it doesn't.** Every normal PR *does* run
-  nextest — on the affected-crate subset, in `linux`. What is deferred to
-  nightly is the **full-workspace** run's llvm-cov coverage lane, and the
-  full run for ordinary PRs. PRs touching `Cargo.toml`/`Cargo.lock`,
-  `.cargo/`, `.github/workflows/`, `contracts/` or `.config/` already run the
-  full workspace in `linux`; whether that fits 30 min is unmeasured. The one
-  case where `linux` skips nextest entirely is a detected toolchain bump: there it spends its budget on fresh
-  clippy/rustdoc instead, and the tests fall to nightly's full run.
+  nextest — on the affected-crate subset, in the `tests` shards. What is
+  deferred to nightly is the **full-workspace** run's llvm-cov coverage lane,
+  and the full run for ordinary PRs. PRs touching `Cargo.toml`/`Cargo.lock`,
+  `.cargo/`, `.github/workflows/`, `contracts/` or `.config/` run the full
+  workspace suite (measured 2026-09-26: ~21 min of test execution on a 4-core
+  hosted runner, which is why it is sharded). The one case where tests are
+  skipped entirely is a detected toolchain bump: `linux` spends its budget on
+  fresh clippy/rustdoc instead, and the tests fall to nightly's full run.
 - **Run CI locally first:** `vox ci pre-push` (fast), `--complete`/`--full`
   for code changes, or run the PR gate's `linux` job in Docker with
   `act pull_request -j linux`.

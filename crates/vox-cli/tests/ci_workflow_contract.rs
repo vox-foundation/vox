@@ -434,8 +434,8 @@ fn ci_gate_is_hosted_capped_and_owns_required_context() {
         "affected args must never build vox-gui"
     );
     assert!(
-        yml.contains("needs: [linux, ui]"),
-        "required context aggregates linux + ui; windows is warn-only"
+        yml.contains("needs: [linux, tests, ui]"),
+        "required context aggregates linux + sharded tests + ui; windows is warn-only"
     );
     assert!(
         yml.contains("cargo deny check licenses bans sources"),
@@ -483,6 +483,41 @@ fn ci_gate_job_runs_unconditionally_and_checks_both_deps() {
         yml.contains(r#"[ "$UI" = success ]"#),
         "gate must explicitly check ui succeeded"
     );
+    // A skipped `tests` would otherwise satisfy the gate exactly like R2's skipped
+    // gate: it may count only when linux itself planned no tests.
+    assert!(
+        yml.contains(r#"if [ "$RUN_TESTS" = true ]; then"#)
+            && yml.contains(r#"[ "$TESTS" = success ]"#)
+            && yml.contains(r#"[ "$TESTS" = skipped ]"#),
+        "gate must require tests=success whenever linux planned tests, and accept skipped only otherwise"
+    );
+}
+
+/// The full-workspace suite's execution alone is ~21 min on a 4-core hosted
+/// runner, so it cannot share a 30-min job with the vox build and clippy.
+#[test]
+fn ci_tests_are_sharded_out_of_the_linux_leg() {
+    let yml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/ci.yml"
+    ));
+    assert!(yml.contains("shard: [1, 2, 3]"), "tests job must shard");
+    assert!(
+        yml.contains(r#"--partition "hash:${SHARD}/3""#),
+        "each shard must run its nextest partition, and the count must match the matrix"
+    );
+    assert!(
+        yml.contains("if: needs.linux.outputs.run_tests == 'true'"),
+        "tests job must key off linux's plan"
+    );
+    let linux = yml
+        .split("\n  tests:\n")
+        .next()
+        .expect("linux section precedes tests");
+    assert!(
+        !linux.contains("cargo nextest run"),
+        "the linux leg must not also run nextest (that is what blew the 30-min cap)"
+    );
 }
 
 #[test]
@@ -496,10 +531,8 @@ fn ci_linux_job_load_bearing_conditionals_are_present() {
         "rustdoc -D warnings step must be gated on a detected toolchain bump"
     );
     assert!(
-        yml.contains(
-            "steps.affected.outputs.p_args != '' && steps.bump.outputs.toolchain != 'true'"
-        ),
-        "the nextest step must skip when a toolchain bump already spent the budget on rustdoc"
+        yml.contains(r#"if [ -n "$P_ARGS" ] && [ "$TOOLCHAIN" != "true" ]; then"#),
+        "tests must be planned off when a toolchain bump already spent the budget on rustdoc"
     );
     assert!(
         yml.contains(r"^crates/vox-gui/|^crates/vox-orchestrator/src/orch_daemon/mod\.rs$"),

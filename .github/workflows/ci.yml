@@ -21,9 +21,12 @@ env:
 
 jobs:
   linux:
-    name: Linux (fmt, guards, clippy, tests — affected)
+    name: Linux (fmt, guards, clippy — affected)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    outputs:
+      p_args: ${{ steps.affected.outputs.p_args }}
+      run_tests: ${{ steps.plan.outputs.run_tests }}
     steps:
       - name: Start budget clock
         shell: bash
@@ -112,9 +115,21 @@ jobs:
         env:
           RUSTDOCFLAGS: -D warnings
 
-      - name: Tests (affected)
-        if: steps.affected.outputs.p_args != '' && steps.bump.outputs.toolchain != 'true'
-        run: cargo nextest run ${{ steps.affected.outputs.p_args }} --profile ci --locked --no-tests=pass
+      # Tests run in the sharded `tests` job below: the full-workspace suite's
+      # execution alone is ~21 min on a 4-core hosted runner, which cannot share a
+      # 30-min job with the vox build and clippy.
+      - name: Plan tests
+        id: plan
+        shell: bash
+        env:
+          P_ARGS: ${{ steps.affected.outputs.p_args }}
+          TOOLCHAIN: ${{ steps.bump.outputs.toolchain }}
+        run: |
+          if [ -n "$P_ARGS" ] && [ "$TOOLCHAIN" != "true" ]; then
+            echo "run_tests=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_tests=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Warn when the leg nears its 30-min cap
         if: always()
@@ -124,6 +139,55 @@ jobs:
           echo "linux leg ran ${mins} min"
           if [ "$mins" -ge 24 ]; then
             echo "::warning::linux leg took ${mins} min (>80% of the 30-min cap) — cache, shard, or move work to nightly.yml"
+          fi
+
+  tests:
+    name: Tests (affected, shard ${{ matrix.shard }}/3)
+    needs: linux
+    if: needs.linux.outputs.run_tests == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - name: Start budget clock
+        shell: bash
+        run: echo "GATE_START=$(date +%s)" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0   # some tests diff against origin/main or HEAD~1
+      - uses: ./.github/actions/install-linux-system-deps
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache: "false"   # Swatinem below is the only Rust cache; PRs never write it
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: workspace
+          save-if: false   # nightly.yml on main is the only writer (default-branch caches are shared)
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+
+      - name: Tests (affected)
+        shell: bash
+        env:
+          P_ARGS: ${{ needs.linux.outputs.p_args }}   # crate names validated by `vox ci affected-crates`
+          SHARD: ${{ matrix.shard }}
+        # $P_ARGS is deliberately unquoted so it splits into `-p <crate>` words.
+        run: cargo nextest run $P_ARGS --profile ci --locked --no-tests=pass --partition "hash:${SHARD}/3"
+
+      - name: Warn when the leg nears its 30-min cap
+        if: always()
+        shell: bash
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          mins=$(( ($(date +%s) - GATE_START) / 60 ))
+          echo "tests shard ${SHARD} ran ${mins} min"
+          if [ "$mins" -ge 24 ]; then
+            echo "::warning::tests shard ${SHARD} took ${mins} min (>80% of the 30-min cap) — add a shard or move work to nightly.yml"
           fi
 
   ui:
@@ -213,19 +277,28 @@ jobs:
   gate:
     # Branch-protection required context — do not rename (required_context_guard).
     name: Check, Build, and Test (Rust)
-    needs: [linux, ui]
+    needs: [linux, tests, ui]
     if: always()   # must still run (and fail) on a cancelled dep — a skipped gate satisfies branch protection's required-context check
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: linux and ui must both succeed
+      - name: linux, tests and ui must all succeed
         shell: bash
         env:
           LINUX: ${{ needs.linux.result }}
+          TESTS: ${{ needs.tests.result }}
+          RUN_TESTS: ${{ needs.linux.outputs.run_tests }}
           UI: ${{ needs.ui.result }}
         run: |
           [ "$LINUX" = success ] || { echo "::error::linux=$LINUX"; exit 1; }
           [ "$UI" = success ] || { echo "::error::ui=$UI"; exit 1; }
+          # A skipped `tests` counts only when linux itself decided no tests were due
+          # (no Rust changes, or a toolchain bump); every other non-success fails.
+          if [ "$RUN_TESTS" = true ]; then
+            [ "$TESTS" = success ] || { echo "::error::tests=$TESTS"; exit 1; }
+          else
+            [ "$TESTS" = skipped ] || { echo "::error::tests=$TESTS but linux planned no tests"; exit 1; }
+          fi
 
   # SSOT auto-regenerate (PR helper, NON-required): regenerate the committed SSOT
   # artifacts that guards-fast → `vox ci ssot-drift` verifies, and commit the result back
