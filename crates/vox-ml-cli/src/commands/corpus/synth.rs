@@ -159,24 +159,18 @@ pub(crate) fn verify(code: &str, tag: &str, idx: usize) -> CompletionVerificatio
 fn is_balanced(code: &str) -> bool {
     let mut stack = Vec::new();
     for c in code.chars() {
-        match c {
-            '{' | '(' | '[' => stack.push(c),
-            '}' => {
-                if stack.pop() != Some('{') {
-                    return false;
-                }
+        let opener = match c {
+            '{' | '(' | '[' => {
+                stack.push(c);
+                continue;
             }
-            ')' => {
-                if stack.pop() != Some('(') {
-                    return false;
-                }
-            }
-            ']' => {
-                if stack.pop() != Some('[') {
-                    return false;
-                }
-            }
-            _ => {}
+            '}' => '{',
+            ')' => '(',
+            ']' => '[',
+            _ => continue,
+        };
+        if stack.pop() != Some(opener) {
+            return false;
         }
     }
     stack.is_empty()
