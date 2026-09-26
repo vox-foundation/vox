@@ -255,7 +255,8 @@ export function Sidebar({
                       ariaLabel={navAriaLabel}
                     />
                   </div>
-                  {children && mode === 'wide' && (
+                  {/* chat has no child views but expands to its session list, so it needs the toggle too */}
+                  {(children || key === 'chat') && mode === 'wide' && (
                     <button
                       type="button"
                       aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${label}`}
