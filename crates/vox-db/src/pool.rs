@@ -321,12 +321,13 @@ mod tests {
     /// read/write traffic against Turso's shared in-memory B-tree across
     /// independent connections, confirming the original hypothesis (a).
     ///
-    /// Whether this also affects `DbConfig::Local` (file-backed, what production
-    /// and this plan's other benchmarks actually use) is **not established** —
-    /// untested as of this writing, and out of scope for this plan, which makes
-    /// no production code changes. Until someone characterizes and either fixes
-    /// or documents this properly (a real bug report against `turso`, or a
-    /// documented constraint on `VoxDbPool`'s `:memory:` mode), this test stays
+    /// **Scoped 2026-09-25: `:memory:`-only, and a Turso engine bug.** The same
+    /// workload on a fresh on-disk file (`DbConfig::Local`) never failed (0/100
+    /// pooled, 0/100 shared), while plain `turso::Builder::new_local(":memory:")`
+    /// connections with no vox-db code at all failed 11/20. Reproducers:
+    /// `crates/vox-db/tests/pool_corruption_probe.rs`; rates and commands:
+    /// `docs/src/architecture/2026-09-22-voxdb-turso-pooling-and-mvcc-recommendation.md`.
+    /// Until it is fixed upstream in `turso`, this test stays
     /// `#[ignore]`d so it does not nondeterministically fail unrelated CI runs on
     /// this crate — run it deliberately with `cargo test -p vox-db --lib --
     /// --ignored pooled_connections_never_race_on_last_insert_rowid` to reproduce

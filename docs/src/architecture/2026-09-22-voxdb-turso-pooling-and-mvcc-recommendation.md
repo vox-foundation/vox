@@ -223,6 +223,95 @@ regression test that surfaced this is `#[ignore]`d rather than deleted or
 weakened, specifically so this finding is not lost; see its doc comment for
 the exact reproduction procedure.
 
+> **Narrowed 2026-09-25 (next section).** The file-backed question is now
+> answered: the failure did not reproduce on on-disk databases, and it
+> reproduces on bare Turso `:memory:` connections with no vox-db code. The
+> corruption argument above therefore does not apply to production
+> (`DbConfig::Local`); the throughput argument stands on its own.
+
+### Post-decision update 2026-09-25: file-backed databases do not reproduce; the bug is Turso `:memory:`
+
+**Question.** Does the `Corrupt("Invalid page type: 0")` failure above also
+happen on file-backed (`DbConfig::Local`) databases?
+
+**Harness.** `crates/vox-db/tests/pool_corruption_probe.rs` (all tests
+`#[ignore]`d). The workload is the same as the `pool.rs` reproducer: 100 tasks
+on an 8-worker multi-threaded runtime, 10 writes per task, and for each write
+`INSERT`, then `yield_now()`, then `last_insert_rowid()`, then `SELECT` the row
+back. Each trial is a separate process. File variants use a fresh temp file
+per trial (`-wal`/`-shm` removed afterwards). After the workload, each trial
+runs `PRAGMA integrity_check`. A trial fails if any task panics or the check
+is not `ok`.
+
+| Variant | Connections | Backing | Failed trials | Failure signatures (first panic per failing trial) |
+|---|---|---|---|---|
+| `pooled_memory` (control) | `VoxDbPool`, one `get()` per task | `DbConfig::Memory` | **10 / 20** | 6× `Corrupt("Invalid page type: 0")` on `select back`, 4× `row present` (the `SELECT` returned no row for the id that was just inserted) |
+| `pooled_file` | `VoxDbPool`, one `get()` per task | `DbConfig::Local`, fresh file | **0 / 100** | none |
+| `shared_file` | one `VoxDb`, `Arc`-shared across tasks | `DbConfig::Local`, fresh file | **0 / 100** | none (976–990 of 1000 `rowid_mismatches` per trial, which is the known `last_insert_rowid` race on a shared connection, not corruption) |
+| `raw_turso_memory` | plain `turso::Builder`, one `db.connect()` per task, no vox-db code | `:memory:` | **11 / 20** | 9× `Corrupt("Invalid page type: 0")` on `row query`, 2× `row present` |
+| `raw_turso_file` | plain `turso::Builder`, one `db.connect()` per task, no vox-db code | fresh file | **0 / 100** | none |
+
+The raw variants set only `journal_mode=WAL` and `busy_timeout=5000`. Without
+`busy_timeout`, 99 of 100 tasks fail immediately with `Busy`. They run no
+migrations and no other vox-db pragmas, and they do not use
+`GuardedConnection`. The `pooled_memory` control uses this new harness rather
+than reusing the earlier 11/20 figure, and at 10/20 it agrees with that figure.
+
+Commands (Turso 0.6.1, macOS arm64, 2026-09-25). Each trial is one process:
+
+```text
+cargo test -p vox-db --test pool_corruption_probe --no-run
+# repeated N times per variant, one process per trial:
+target/debug/deps/pool_corruption_probe-<hash> --ignored --exact <variant> --nocapture
+```
+
+**Findings.**
+
+1. **File-backed databases did not reproduce it.** Across 300 file-backed
+   trials (pooled, shared, and raw) there were zero task panics and zero
+   `integrity_check` failures. The same harness failed in about half of the
+   `:memory:` trials. At zero failures in 100 trials, the 95% upper bound on
+   the per-trial rate for each file variant is about 3%, against about 50%
+   for memory.
+2. **It is a Turso engine bug, not a vox-db bug.** It reproduces at the same
+   rate with bare `turso::Builder::new_local(":memory:")` connections and no
+   vox-db code involved: no migration, no `apply_pragmas`, and no
+   `GuardedConnection`. `VoxDbPool` only exposes the bug, because it opens
+   several connections on one in-memory `turso::Database`.
+3. **The failure is transient on the read path. It was not detected as
+   persistent corruption.** In all 40 memory trials, including the 21 that
+   failed, the `PRAGMA integrity_check` that ran afterwards returned `ok`.
+   The symptom is a reader that sees a zeroed page (`Invalid page type: 0`),
+   or that does not see its own just-committed row (`row present`). Caveat:
+   this conclusion depends on how complete Turso's `integrity_check` is,
+   which this investigation did not audit.
+
+**Effect on the recommendations.**
+
+- *Do not switch `GuiDbPool` to `VoxDbPool`.* This is unchanged, but it now
+  rests on throughput alone (a 66–71% deficit). The corruption finding is no
+  longer an argument against file-backed pooling, which is how production
+  would use it.
+- *New constraint: do not use `VoxDbPool` with `DbConfig::Memory` for
+  concurrent work.* Also do not use any other pattern that opens several
+  connections on one in-memory `turso::Database`. It currently has no
+  consumers outside `vox-db`. Tests that need concurrent pooled access should
+  use a temp file.
+- The rowid-race gate in `pool.rs` stays `#[ignore]`d on `:memory:`. Moving it
+  to a temp file would probably make it a stable gate that could run by
+  default. This session did not do that because it is a separate change.
+- **Upstream:** `raw_turso_memory` is a self-contained reproducer with no vox
+  code, suitable for a Turso issue. This investigation did not file one and
+  did not look for a root cause inside Turso.
+
+**What was not measured.** Only one workload shape was tested (100 tasks and
+single-row inserts on one table). No larger rows, page splits under heavier
+load, or checkpoint pressure were exercised, so the result is strong evidence
+that file-backed databases behave differently, not proof that they are
+immune. The `concurrency_stress` example was not used for this question
+because it has no `yield_now()` between the insert and the read-back. That
+yield is what widens the window enough for the failure to appear.
+
 ## Decision: `VOX_DB_MVCC=1` default
 
 - If `pooled-mvcc` throughput is not meaningfully higher than `pooled` at
