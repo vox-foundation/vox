@@ -412,7 +412,7 @@ pub fn run_check(payload: &str, policy_file: Option<&Path>) -> Result<()> {
 
 /// Pure-Rust exec-policy check used when `pwsh` is not available.
 ///
-/// Uses [`vox_exec_grammar`] to tokenise `payload` and evaluate it against the
+/// Uses `vox_container::exec_grammar` to tokenise `payload` and evaluate it against the
 /// policy allow-lists and blocked-parameter rules.  Network URL enforcement is
 /// best-effort (literal string scanning) compared to the full pwsh AST path.
 fn run_check_rust_fallback(payload: &str, policy: &ExecPolicyV1) -> Result<()> {

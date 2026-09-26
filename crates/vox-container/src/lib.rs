@@ -25,7 +25,8 @@ pub use vox_container_types::{BuildOpts, ContainerRuntime, RunOpts, RuntimePrefe
 
 /// Classify the exec risk of a container image or command string and log the result.
 ///
-/// Called before any container run dispatch. Uses `vox-exec-grammar`'s risk classifier.
+/// Called before any container run dispatch. Uses the `exec_grammar` risk classifier
+/// (from `vox-container-types`). The result is logged only; nothing enforces on it.
 pub fn log_exec_risk(raw_command: &str) {
     match exec_grammar::parse(raw_command) {
         Ok(mut ast) => {
