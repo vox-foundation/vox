@@ -2,12 +2,12 @@
   "schema_version": 1,
   "summary": {
     "workspace_crate_count": 129,
-    "rust_files_scanned": 4054,
-    "cargo_unit_test_functions": 10499,
+    "rust_files_scanned": 4056,
+    "cargo_unit_test_functions": 10508,
     "cargo_integration_test_functions": 3021,
     "cargo_bench_functions": 0,
     "cargo_ignored_test_functions": 170,
-    "cargo_test_functions_total": 13520,
+    "cargo_test_functions_total": 13529,
     "webir_related_ignored_tests": 3,
     "webir_ignored_tests_likely_retired_note": 0
   },
@@ -37,7 +37,7 @@
       "integration_rs_files": 0
     },
     "vox-audit": {
-      "unit_tests": 151,
+      "unit_tests": 152,
       "integration_tests": 8,
       "bench_tests": 0,
       "ignored_tests": 2,
@@ -85,7 +85,7 @@
       "integration_rs_files": 3
     },
     "vox-cli": {
-      "unit_tests": 904,
+      "unit_tests": 909,
       "integration_tests": 268,
       "bench_tests": 0,
       "ignored_tests": 9,
@@ -149,7 +149,7 @@
       "integration_rs_files": 4
     },
     "vox-code-audit": {
-      "unit_tests": 439,
+      "unit_tests": 441,
       "integration_tests": 44,
       "bench_tests": 0,
       "ignored_tests": 1,
@@ -362,7 +362,7 @@
       "bench_tests": 0,
       "ignored_tests": 1,
       "has_integration_dir": true,
-      "integration_rs_files": 5
+      "integration_rs_files": 6
     },
     "vox-hf-layout": {
       "unit_tests": 28,
@@ -933,7 +933,7 @@
       "integration_rs_files": 6
     },
     "vox-tauri-codegen": {
-      "unit_tests": 4,
+      "unit_tests": 5,
       "integration_tests": 0,
       "bench_tests": 0,
       "ignored_tests": 0,
@@ -1047,8 +1047,8 @@
   },
   "rust_files_by_kind": {
     "benches": 3,
-    "integration_tests": 748,
-    "other": 25,
+    "integration_tests": 749,
+    "other": 26,
     "unit_src": 3278
   },
   "zero_test_crates": [
@@ -1240,7 +1240,7 @@
   "test_file_patterns": {
     "sleep_sites": 205,
     "env_var_reads": 802,
-    "env_var_mutations": 1043,
+    "env_var_mutations": 1038,
     "command_new": 578,
     "serial_test": 91,
     "proptest_colon_colon": 9,
