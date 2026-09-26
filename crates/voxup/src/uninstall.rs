@@ -14,7 +14,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::home::require_home;
 
-/// Marker line written by [`crate::shell`] / `add_to_path`.
+/// Marker line written by the binary's `shell::add_to_path` (`src/shell.rs`, a
+/// `main.rs` module, so not linkable from this library crate).
 pub const VOXUP_MARKER: &str = "# Added by voxup";
 
 /// Previous toolchains kept beside the active one when pruning on install.
@@ -95,8 +96,8 @@ pub fn run_uninstall(opts: UninstallOpts) -> Result<UninstallReport> {
 }
 
 /// Uninstall against an explicit `home`. Callers that construct `home`
-/// themselves (tests) must run [`crate::home::assert_test_home_is_isolated`]
-/// first.
+/// themselves (tests) must run `crate::home::assert_test_home_is_isolated`
+/// (test-only, `#[cfg(test)]`, so not an intra-doc link) first.
 pub fn uninstall_at(home: &Path, opts: &UninstallOpts) -> Result<UninstallReport> {
     if home.as_os_str().is_empty() {
         bail!("home path is empty; refusing to run");
