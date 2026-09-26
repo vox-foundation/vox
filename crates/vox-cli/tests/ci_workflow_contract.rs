@@ -366,6 +366,32 @@ fn check_targets_declares_pr_scope() {
     }
 }
 
+/// Playwright ends its `webServer` by killing that process's group. `pnpm run dev`
+/// starts `vite` in a *different* group, so the kill orphans it; the orphan keeps
+/// the inherited stdio pipes open and Playwright then waits on them forever -- the
+/// `ui` leg sat at "Terminating the WebServer" until the 30-min cap on the hosted
+/// runner. Launch vite directly so it is in the group Playwright kills.
+#[test]
+fn playwright_web_server_is_not_started_through_pnpm() {
+    let cfg = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../vox-gui/ui/playwright.config.ts"
+    ));
+    let command = cfg
+        .lines()
+        .map(str::trim)
+        .find(|l| l.starts_with("command:"))
+        .expect("playwright.config.ts webServer.command");
+    assert!(
+        !command.contains("pnpm") && !command.contains("npm ") && !command.contains("npx"),
+        "webServer.command must not go through a package-manager wrapper: {command}"
+    );
+    assert!(
+        command.contains("vite"),
+        "webServer.command must run vite: {command}"
+    );
+}
+
 /// The ssot-autoregen bot must build vox with exactly the features the `linux`
 /// gate verifies with: feature-gated commands (e.g. `ars ludus`) change what
 /// `gui-surface-coverage` / `command-sync` emit, so a divergent build makes
