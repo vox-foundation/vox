@@ -11,6 +11,7 @@ const OPERATIONS_CATALOG: &str = "contracts/operations/catalog.v1.yaml";
 const GUI_NAV: &str = "crates/vox-gui/ui/src/lib/navigation.ts";
 const GUI_APP: &str = "crates/vox-gui/ui/src/App.tsx";
 const GUI_MAIN: &str = "crates/vox-gui/src/main.rs";
+const COMMAND_REGISTRY: &str = "contracts/cli/command-registry.yaml";
 
 #[derive(Debug, Serialize)]
 struct CapabilityStatus {
@@ -20,10 +21,18 @@ struct CapabilityStatus {
     priority: &'static str,
 }
 
+/// One `vox` command path, listed whether or not the running binary compiled it in.
+#[derive(Debug, Serialize)]
+struct CliCommandPath {
+    path: String,
+    /// Cargo feature expression from the registry (`null` = always available).
+    feature_gate: Option<String>,
+}
+
 #[derive(Debug, Serialize)]
 struct SurfaceCoverageReport {
     schema_version: u8,
-    clap_command_paths: Vec<String>,
+    cli_command_paths: Vec<CliCommandPath>,
     operations_rows: Vec<String>,
     gui_routes: Vec<String>,
     gui_ipc_commands: Vec<String>,
@@ -254,19 +263,42 @@ fn enforce_policy(report: &SurfaceCoverageReport) -> Result<()> {
     Ok(())
 }
 
-pub fn run(repo_root: &Path, write: bool) -> Result<()> {
-    let clap_paths: Vec<String> = crate::command_catalog::build_catalog()
-        .entries
+/// Command paths come from `contracts/cli/command-registry.yaml` (verified against clap by
+/// `command-sync`), NOT the compiled clap tree: the tree varies with cargo features, so a
+/// feature-built CI binary and a default-built local binary would disagree on the committed
+/// report. Feature-gated commands are listed unconditionally, marked with their gate.
+fn collect_command_paths(repo_root: &Path) -> Result<Vec<CliCommandPath>> {
+    use vox_cli_core::command_contract::merged_feature_gate_from_vox_cli_ops;
+    use vox_cli_core::command_registry_model::RegistryFile;
+
+    let path = repo_root.join(COMMAND_REGISTRY);
+    let raw = fs::read_to_string(&path).with_context(|| format!("read {}", path.display()))?;
+    let reg: RegistryFile =
+        serde_yaml::from_str(&raw).with_context(|| format!("parse {}", path.display()))?;
+    let ops: Vec<_> = reg
+        .operations
         .into_iter()
-        .map(|entry| entry.path.join(" "))
+        .filter(|op| op.surface == "vox-cli" && op.status != "retired")
         .collect();
+    let paths: BTreeSet<Vec<String>> = ops.iter().map(|op| op.path.clone()).collect();
+    Ok(paths
+        .into_iter()
+        .map(|p| CliCommandPath {
+            feature_gate: merged_feature_gate_from_vox_cli_ops(&ops, &p),
+            path: p.join(" "),
+        })
+        .collect())
+}
+
+pub fn run(repo_root: &Path, write: bool) -> Result<()> {
+    let cli_command_paths = collect_command_paths(repo_root)?;
     let operations_rows = parse_operations_ids(repo_root)?;
     let gui_routes = parse_gui_routes(repo_root)?;
     let gui_ipc_commands = parse_gui_ipc_commands(repo_root)?;
 
     let mut report = SurfaceCoverageReport {
-        schema_version: 1,
-        clap_command_paths: clap_paths,
+        schema_version: 2,
+        cli_command_paths,
         operations_rows,
         gui_routes,
         gui_ipc_commands,
@@ -298,4 +330,40 @@ pub fn run(repo_root: &Path, write: bool) -> Result<()> {
     }
     println!("gui-surface-coverage: report is up to date");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The committed report must be byte-identical whatever cargo features the
+    /// running `vox` was built with. `vox gamify` is compiled out of a default
+    /// build (`extras-ludus`) and `vox mcp` is compiled in but runtime-gated
+    /// (`mcp-server`); both must be listed, each marked with its real gate, and
+    /// the whole list must come from the feature-independent command registry,
+    /// not the compiled clap tree.
+    #[test]
+    fn command_paths_are_feature_independent_and_marked_with_gate() {
+        let root = vox_repository::resolve_repo_root_for_ci();
+        let paths = collect_command_paths(&root).expect("collect command paths");
+        let rendered: Vec<String> = paths.iter().map(|p| format!("{p:?}")).collect();
+        let gamify = rendered
+            .iter()
+            .find(|p| p.contains("\"gamify\"") && !p.contains("hud"))
+            .unwrap_or_else(|| {
+                panic!(
+                    "`gamify` missing from {} paths: list depends on the compiled clap tree",
+                    rendered.len()
+                )
+            });
+        assert!(
+            gamify.contains("extras-ludus"),
+            "gamify must carry its gate: {gamify}"
+        );
+        let mcp = rendered
+            .iter()
+            .find(|p| p.contains("\"mcp\""))
+            .expect("`mcp` listed");
+        assert!(mcp.contains("mcp-server"), "mcp must carry its gate: {mcp}");
+    }
 }
