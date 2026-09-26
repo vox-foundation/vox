@@ -349,7 +349,25 @@ pub async fn handle_tool_call_with_mode(
     // `vox_db::TimedExecution` (the `te` used below) only measures duration
     // for telemetry and never bounded it, so a hung tool implementation
     // previously blocked this handler (and the MCP connection) indefinitely.
-    let call_timeout = crate::dispatch_timeout::timeout_for(name_canonical);
+    // Task 15d: Deep research legitimately takes longer than an ordinary chat
+    // turn even after bounding claim verification, so `vox_chat_message`
+    // needs its own (longer) budget for Deep-intent turns without raising the
+    // budget for every other turn. `classify_research_intent` is pure and
+    // cheap, so it's safe to run here off the raw JSON args, before
+    // `ChatMessageParams` is even parsed (that happens later, inside the
+    // timeout, in `handle_tool_call_inner`).
+    let call_timeout = if name_canonical == "vox_chat_message" {
+        let prompt = args
+            .get("prompt")
+            .or_else(|| args.get("message"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let force_research = args.get("force_research").and_then(|v| v.as_bool());
+        let research_scope = args.get("research_scope").and_then(|v| v.as_str());
+        crate::dispatch_timeout::timeout_for_chat_message(prompt, force_research, research_scope)
+    } else {
+        crate::dispatch_timeout::timeout_for(name_canonical)
+    };
     let result = te
         .run(|| {
             let args = args.clone();

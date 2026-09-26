@@ -406,6 +406,12 @@ pub async fn run_research_with_context_and_session(
     // Set status → verifying_claims before NLI classification.
     set_session_stage(db, session_id, ResearchStage::VerifyingClaims).await;
     report_progress("Verifying research claims...".to_string(), Some(0.60));
+    // Task 15d: how many of `draft_claims` actually went through a real (fresh
+    // or cached) verification this run vs. were skipped by the per-run cap.
+    // `claims_extracted_count` == `draft_claims.len()` whenever verification ran
+    // at all; both feed the "claims" trace stage's "K verified of M extracted".
+    let mut claims_verified_count: usize = 0;
+    let claims_extracted_count = draft_claims.len();
     let mut claim_verdicts = if query.verify_claims && !draft_claims.is_empty() {
         let max_age_ms: i64 = 14 * 24 * 60 * 60 * 1000; // 14 days
         let mut cached_verdicts = Vec::new();
@@ -469,7 +475,7 @@ pub async fn run_research_with_context_and_session(
             claims_to_verify = draft_claims.clone();
         }
 
-        let fresh_verdicts = if !claims_to_verify.is_empty() {
+        let (fresh_verdicts, fresh_verified_count) = if !claims_to_verify.is_empty() {
             verify_claims_with_config(
                 &claims_to_verify,
                 &query.query,
@@ -481,8 +487,10 @@ pub async fn run_research_with_context_and_session(
             )
             .await
         } else {
-            vec![]
+            (vec![], 0)
         };
+        // Cache hits are genuinely verified too (just cheaply, from a prior run).
+        claims_verified_count = cached_verdicts.len() + fresh_verified_count;
 
         if let Some(db) = db
             && session_id > 0
@@ -1032,6 +1040,8 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
         synthesis_model: winning_synthesis_model,
         judge_error,
         served_from_cache: false,
+        claims_extracted_count,
+        claims_verified_count,
     };
 
     let result = ResearchResult {
@@ -1395,6 +1405,8 @@ mod tests {
                 synthesis_model: String::new(),
                 judge_error: None,
                 served_from_cache: false,
+                claims_extracted_count: 0,
+                claims_verified_count: 0,
             },
         };
         let report_markdown = render_research_report_markdown(&query, &plan, &result);

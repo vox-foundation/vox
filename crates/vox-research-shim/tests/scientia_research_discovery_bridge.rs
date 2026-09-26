@@ -58,6 +58,8 @@ fn supported_result(session_id: i64, quality: i32) -> ResearchResult {
             synthesis_model: String::new(),
             judge_error: None,
             served_from_cache: false,
+            claims_extracted_count: 0,
+            claims_verified_count: 0,
         },
     }
 }

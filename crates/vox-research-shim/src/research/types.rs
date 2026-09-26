@@ -246,6 +246,20 @@ pub struct ResearchMetadata {
     pub judge_error: Option<String>,
     #[serde(default)]
     pub served_from_cache: bool,
+    /// Task 15d: total claims extracted before the per-run verification cap
+    /// (`verifier::MAX_CLAIMS_VERIFIED_PER_RUN`) was applied. Equals
+    /// `claim_verdicts.len()` whenever verification ran at all (capped claims
+    /// are marked `Unverified`, never dropped, so every extracted claim still
+    /// gets an entry).
+    #[serde(default)]
+    pub claims_extracted_count: usize,
+    /// Task 15d: how many of `claims_extracted_count` actually went through a
+    /// real verification this run (fresh LLM call or a cache hit) — at most
+    /// `verifier::MAX_CLAIMS_VERIFIED_PER_RUN`. The remainder were capped out
+    /// and marked `Unverified`. Surfaced in the chat "claims" trace stage as
+    /// "K verified of M extracted".
+    #[serde(default)]
+    pub claims_verified_count: usize,
 }
 
 /// Final research result.

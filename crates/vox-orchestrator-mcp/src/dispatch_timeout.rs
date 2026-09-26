@@ -71,6 +71,40 @@ pub const COMPILER_WORKSPACE_TIMEOUT: Duration = Duration::from_secs(15 * 60);
 /// Must stay ≤ client read deadline (`vox_config::timeouts::D_195S`).
 pub const CHAT_MESSAGE_TIMEOUT: Duration = Duration::from_secs(180);
 
+/// Task 15d: deep research (the Scientia pipeline — planning, retrieval,
+/// concurrent+capped claim verification, synthesis, judging) legitimately
+/// takes longer than an ordinary chat turn even after bounding claim
+/// verification (see `vox_research_shim::research::verifier`). A measured
+/// live run with the fix landed came in well under this; 300s keeps headroom
+/// above [`CHAT_MESSAGE_TIMEOUT`] without handing every chat turn a longer
+/// budget than it needs.
+pub const DEEP_CHAT_MESSAGE_TIMEOUT: Duration = Duration::from_secs(300);
+
+/// Resolves the outer dispatch timeout for a `vox_chat_message` call
+/// specifically: Deep-intent turns (`/deepresearch`, or a comparative/survey
+/// prompt — see `chat_tools::chat::research_intent::classify_research_intent`)
+/// get [`DEEP_CHAT_MESSAGE_TIMEOUT`] instead of [`CHAT_MESSAGE_TIMEOUT`],
+/// without changing the budget for every other chat turn.
+///
+/// `classify_research_intent` is a pure, cheap `&str` classifier (no I/O, no
+/// `await`), so it is safe to run again here — before the timeout is chosen —
+/// even though `chat_message` also runs it later on the (possibly
+/// mention-expanded) prompt to build the research trace.
+#[must_use]
+pub fn timeout_for_chat_message(
+    prompt: &str,
+    force_research: Option<bool>,
+    research_scope: Option<&str>,
+) -> Duration {
+    use crate::chat_tools::chat::research_intent::{ResearchMode, classify_research_intent};
+    let intent = classify_research_intent(prompt, force_research, research_scope);
+    if intent.mode == ResearchMode::Deep {
+        DEEP_CHAT_MESSAGE_TIMEOUT
+    } else {
+        CHAT_MESSAGE_TIMEOUT
+    }
+}
+
 /// Tool names given an explicit non-default execution timeout. Everything
 /// else falls back to [`DEFAULT_TIMEOUT`] via [`timeout_for`].
 const EXPLICIT_TIMEOUTS: &[(&str, Duration)] = &[
@@ -114,6 +148,44 @@ pub fn timeout_for(tool_name: &str) -> Duration {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Task 15d: a Deep-intent chat turn (`/deepresearch`, or a heuristic
+    /// comparative/survey cue) must get the longer deep budget; an ordinary
+    /// turn must keep the normal chat ceiling. Mutation guard: swapping the
+    /// branches (or collapsing both to `CHAT_MESSAGE_TIMEOUT`) makes this
+    /// fail.
+    #[test]
+    fn deep_chat_turns_get_the_longer_timeout() {
+        assert_eq!(
+            timeout_for_chat_message("/deepresearch compare SearXNG and Tavily", None, None),
+            DEEP_CHAT_MESSAGE_TIMEOUT
+        );
+        assert_eq!(
+            timeout_for_chat_message(
+                "compare SearXNG and Tavily for agent web search",
+                None,
+                None
+            ),
+            DEEP_CHAT_MESSAGE_TIMEOUT
+        );
+    }
+
+    #[test]
+    fn ordinary_chat_turns_keep_the_normal_timeout() {
+        assert_eq!(
+            timeout_for_chat_message("hi", None, None),
+            CHAT_MESSAGE_TIMEOUT
+        );
+        assert_eq!(
+            timeout_for_chat_message("what's the current version of tokio?", None, None),
+            CHAT_MESSAGE_TIMEOUT
+        );
+    }
+
+    #[test]
+    fn deep_timeout_exceeds_the_ordinary_chat_timeout() {
+        assert!(DEEP_CHAT_MESSAGE_TIMEOUT > CHAT_MESSAGE_TIMEOUT);
+    }
 
     #[test]
     fn agy_tools_get_the_long_exception_timeout() {

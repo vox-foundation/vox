@@ -486,8 +486,9 @@ pub fn deep_stages(r: &vox_research_shim::research::ResearchResult) -> Vec<Stage
         if m.claim_verdicts.is_empty() { "empty" } else { "ok" },
         None,
         format!(
-            "{} claims: {} supported, {} contested, {} contradicted, {} unverified",
-            m.claim_verdicts.len(), count(Verdict::Supported), count(Verdict::Contested),
+            "{} verified of {} extracted: {} supported, {} contested, {} contradicted, {} unverified",
+            m.claims_verified_count, m.claims_extracted_count,
+            count(Verdict::Supported), count(Verdict::Contested),
             count(Verdict::Contradicted), count(Verdict::Unverified)
         ),
         json!(m.claim_verdicts.iter().map(|c| json!({"claim": c.claim, "verdict": c.verdict.to_string(), "confidence": c.confidence})).collect::<Vec<_>>()),
@@ -549,6 +550,81 @@ mod tests {
             provenance: vec!["WebResearch".into(), format!("engine:{engine}")],
             potential_contradiction: false,
         }
+    }
+
+    /// Task 15d: the "claims" trace stage must surface how many of the
+    /// extracted claims actually got verified this run (vs. capped out),
+    /// not just a raw claim count — so a chat user can see the cap in
+    /// effect rather than silently assuming every claim was checked.
+    #[test]
+    fn deep_stages_claims_summary_reports_verified_of_extracted() {
+        use vox_research_shim::research::types::{
+            ResearchMetadata, ResearchResult, RetrievalDiagnostics, RoutingTier,
+        };
+        use vox_research_shim::research::verifier::{ClaimVerdict, Verdict};
+
+        let claim = |id: u64, verdict: Verdict| ClaimVerdict {
+            claim: vox_research_shim::research::claims::Claim {
+                text: format!("claim {id}"),
+                claim_id: id,
+                is_numeric: false,
+                is_recent: false,
+                is_named_event: false,
+            },
+            verdict,
+            confidence: 0.9,
+            supporting_count: 0,
+            contradicting_count: 0,
+            evidence_spans: vec![],
+            resample_stability: 1.0,
+        };
+
+        let result = ResearchResult {
+            answer: "answer".to_string(),
+            sources: vec![],
+            citations: vec![],
+            research_metadata: ResearchMetadata {
+                session_id: 1,
+                duration_ms: 1,
+                provider: "test".to_string(),
+                routing_tier: RoutingTier::Direct,
+                confidence: 0.5,
+                subquery_count: 1,
+                source_count: 0,
+                claim_verdicts: vec![
+                    claim(1, Verdict::Supported),
+                    claim(2, Verdict::Unverified),
+                    claim(3, Verdict::Unverified),
+                ],
+                retrieval_diagnostics: RetrievalDiagnostics::default(),
+                quality_score: 50,
+                planner_degraded: false,
+                competence: None,
+                self_verification: None,
+                citation_audit: None,
+                corroboration_counts: vec![],
+                wave_count: 1,
+                wave_stability: None,
+                low_grounding_evidence: false,
+                subqueries: vec![],
+                synthesis_model: String::new(),
+                judge_error: None,
+                served_from_cache: false,
+                claims_extracted_count: 3,
+                claims_verified_count: 1,
+            },
+        };
+
+        let stages = deep_stages(&result);
+        let claims_stage = stages
+            .iter()
+            .find(|s| s.stage == "claims")
+            .expect("claims stage present");
+        assert!(
+            claims_stage.summary.contains("1 verified of 3 extracted"),
+            "expected verified/extracted counts in summary, got: {}",
+            claims_stage.summary
+        );
     }
 
     #[test]

@@ -128,6 +128,8 @@ mod tests {
                 synthesis_model: String::new(),
                 judge_error: None,
                 served_from_cache: false,
+                claims_extracted_count: 0,
+                claims_verified_count: 0,
             },
         }
     }

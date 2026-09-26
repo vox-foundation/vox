@@ -42,6 +42,8 @@ fn test_query_lane_defaults_and_metadata_serialization() {
         synthesis_model: String::new(),
         judge_error: None,
         served_from_cache: false,
+        claims_extracted_count: 0,
+        claims_verified_count: 0,
     };
     let json = serde_json::to_value(&meta).expect("serialize metadata");
     assert_eq!(json["low_grounding_evidence"], true);

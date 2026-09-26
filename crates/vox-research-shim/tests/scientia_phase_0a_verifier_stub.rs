@@ -13,9 +13,11 @@ async fn verify_claims_without_evidence_returns_empty() {
     }];
     let registry = ProviderRegistry::default();
     let cfg = vox_research_shim::research::verifier::VerifierConfig::default();
-    let verdicts = verify_claims_with_config(&claims, "q", &[], &registry, &cfg, None, None).await;
+    let (verdicts, verified_count) =
+        verify_claims_with_config(&claims, "q", &[], &registry, &cfg, None, None).await;
     assert!(
         verdicts.is_empty(),
         "verifier needs retrieved evidence before producing claim verdicts"
     );
+    assert_eq!(verified_count, 0);
 }

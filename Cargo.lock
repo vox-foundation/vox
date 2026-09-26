@@ -18956,6 +18956,7 @@ dependencies = [
  "chrono",
  "feed-rs",
  "flate2",
+ "futures",
  "gix",
  "hex",
  "nanopub",
