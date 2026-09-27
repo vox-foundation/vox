@@ -290,16 +290,6 @@ vox-mesh-policy       = { layer = 2 }                                    # Donat
 # documents WHY and what would be required to remove it.
 
 [[known_inversions]]
-from   = "vox-cli"
-to     = "vox-orchestrator"
-reason = "CLI ↔ orchestrator coupling is load-bearing for runtime/observability surfaces (vox status, vox attention, vox model *, vox dei, vox live). Shared Vox.toml bootstrap lives in vox-orchestrator-driver (re-exported from vox-cli-core). See build-time-log.md Phase 7 audit."
-
-[[known_inversions]]
-from   = "vox-orchestrator-mcp"
-to     = "vox-orchestrator-driver"
-reason = "MCP stdio host loads embedded orchestrator config via vox-orchestrator-driver::build_embedded_orchestrator_config (shared with vox-cli dei surfaces). Shim remains at vox-cli-core::orchestrator_driver for legacy CLI imports."
-
-[[known_inversions]]
 from   = "vox-ml-cli"
 to     = "vox-cli"
 reason = "Optional `mens-dei` workflow path shells out through `vox_cli::commands::build`, `build_service`, and `fs_utils` when `workflow-runtime` is disabled. Prefer extracting a shared L3 driver crate over tightening `vox-cli` deps."
