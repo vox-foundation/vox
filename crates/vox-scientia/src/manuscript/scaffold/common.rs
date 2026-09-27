@@ -1,7 +1,6 @@
 pub fn escape_pipe(s: &str) -> String {
     s.replace("\r\n", " ")
-        .replace('\r', " ")
-        .replace('\n', " ")
+        .replace(['\r', '\n'], " ")
         .replace('|', "\\|")
 }
 
