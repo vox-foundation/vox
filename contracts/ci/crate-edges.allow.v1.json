@@ -1823,10 +1823,6 @@
     ],
     [
       "vox-populi",
-      "vox-grammar-export"
-    ],
-    [
-      "vox-populi",
       "vox-http-client"
     ],
     [
