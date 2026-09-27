@@ -23,11 +23,18 @@
 
 - vox-populi `mens-hf-hub` E0063: **fixed** in `90f408a45` (local-dir branch fills both fields; two tests).
 - vox-gui sidecar autobuild package: **fixed** in `4840ff1b7` (package chosen per binary).
-- **Still open — layer SSOT drift (D-09):** `docs/src/architecture/layers.toml` and
-  `contracts/ci/crate-layers.v1.json` disagree on several crates (e.g. `vox-plugin-mens-candle-core` L3 vs L4,
-  and per the verifier also `vox-speech`, `vox-quantize`, `vox-populi`). Under `layers.toml`,
-  `vox-plugin-mens-candle-core`'s unconditional Candle deps would be the one SC#4 violation. Needs a decision on
-  which file is authoritative and a reconciliation pass.
+- Layer SSOT drift (D-09): **resolved** in `276852014` and `2a2a7e477` (2026-09-27). The two maps used
+  different scales (L0-5 vs L0-4) and disagreed on 89 of 119 shared crates; 9 workspace crates were missing
+  from the JSON. `layers.toml` is the only layer map now. vox-arch-check, the WTL parity rule, drift-check and
+  the scripts already read it. `vox ci crate-edges` now reads its `[crates]` and `[[known_inversions]]`, and
+  `contracts/ci/crate-layers.v1.json` is deleted. `vox-plugin-mens-candle-core` moved L3 -> L4. It is an rlib
+  linked only by the two L4 Candle plugins, and its Candle deps are unconditional. The 03-02 CORE Candle scan,
+  re-keyed on `layers.toml`, prints only the three L4 `vox-plugin-mens-candle-*` crates (core_count=0).
+  `vox-speech` (L3), `vox-quantize` (L2) and `vox-populi` (L3) keep their `layers.toml` values; the live graph
+  needs them. **Still open:** under the one map, `vox-orchestrator (L3) -> vox-plugin-nvml-probe (L4)` is an
+  upward edge. vox-arch-check already failed on it (layer inversion + linked cdylib), and crate-edges now
+  reports it too. The fix is a code change (load it through vox-plugin-host) or a user-authorized ledger entry.
+  Inventory: `target/d09-inventory.txt`.
 - Stale crate-edges baseline entry `vox-populi -> vox-grammar-export`: **fixed** in `07a681ca7` (2026-09-27).
   `--tighten` refuses while the three NEW EDGE violations stand, so the one pair was removed by hand
   (removal-only diff); the stale warning is gone. The three violations themselves remain open.
