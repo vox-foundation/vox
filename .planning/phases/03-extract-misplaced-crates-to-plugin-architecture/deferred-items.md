@@ -28,8 +28,9 @@
   and per the verifier also `vox-speech`, `vox-quantize`, `vox-populi`). Under `layers.toml`,
   `vox-plugin-mens-candle-core`'s unconditional Candle deps would be the one SC#4 violation. Needs a decision on
   which file is authoritative and a reconciliation pass.
-- **Still open — stale crate-edges baseline entry** `vox-populi -> vox-grammar-export`: run
-  `cargo run -q -p vox-cli -- ci crate-edges --tighten` once the three unrelated violations are cleared.
+- Stale crate-edges baseline entry `vox-populi -> vox-grammar-export`: **fixed** in `07a681ca7` (2026-09-27).
+  `--tighten` refuses while the three NEW EDGE violations stand, so the one pair was removed by hand
+  (removal-only diff); the stale warning is gone. The three violations themselves remain open.
 - **Still open — `docs/src/reference/cli.md:970`** names the retired `VOX_MCP_ORCHESTRATOR_RPC_WRITES`; the file
   carries another session's uncommitted edits, so the one-line fix waits for that session.
 - **Still open — webhook auth for GitHub/Slack/Discord:** the listener accepts only `Authorization: Bearer`;
