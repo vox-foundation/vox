@@ -506,8 +506,12 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         .unwrap_or_else(|| std::path::PathBuf::from("."));
     let (expanded_prompt, mention_files) =
         resolve_mentions(&params.prompt, &workspace_root, &state.mention_path_cache);
-    // Research (spec §4) classifies and searches from THIS prompt — @mentions
-    // expanded, but before `canonicalize_prompt` below wraps it in "Objectives
+    // Research (spec §4) classifies and searches from THIS prompt — the user's own
+    // words, NOT the @mention-expanded text (a mention inlines up to 8000 chars of
+    // file content, whose words must not trip research cues; and dispatch's
+    // `timeout_for_chat_message_args` classifies this same raw prompt, so the two
+    // must agree or a Deep turn gets the ordinary timeout) — and before
+    // `canonicalize_prompt` below wraps it in "Objectives
     // (treat as a single set; order does not imply priority):\n\n1. ..."
     // boilerplate for the LLM's own framing. That boilerplate is not the user's
     // question: fed into a search engine verbatim it returns garbage (observed
@@ -515,7 +519,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     // swallows a leading `/deepresearch`/`/research` slash command so
     // `classify_research_intent`'s `strip_command` never matches, forcing every
     // command onto the heuristic-cue fallback instead of the explicit path.
-    let raw_prompt_for_research = expanded_prompt.clone();
+    let raw_prompt_for_research = params.prompt.clone();
     // Research (spec §4): classify from the RAW (pre-canonicalization) prompt —
     // see the doc comment above — and do it *before* the autonomous-retrieval
     // preamble below, so the preamble knows whether this turn's numbered

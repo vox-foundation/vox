@@ -1540,8 +1540,15 @@ where
     use tokio::runtime::{Handle, RuntimeFlavor};
     match Handle::try_current() {
         // block_in_place is only legal on the multi-thread scheduler.
+        // A panic inside the future becomes a SecretError here (as the scoped-thread
+        // arm below already does), never an unwind through the resolver's caller.
         Ok(handle) if handle.runtime_flavor() == RuntimeFlavor::MultiThread => {
-            tokio::task::block_in_place(|| handle.block_on(future))
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                tokio::task::block_in_place(|| handle.block_on(future))
+            }))
+            .map_err(|_| {
+                SecretError::BackendMisconfigured("secrets async operation panicked".to_string())
+            })?
         }
         // current_thread runtime (block_in_place would panic — D13) or no runtime:
         // drive the future on a dedicated thread with its own runtime.
@@ -1568,6 +1575,27 @@ where
 mod semcov_wave2_tests {
     #![allow(unused_imports)]
     use super::*;
+
+    #[test]
+    fn run_secrets_future_turns_a_panic_on_the_multi_thread_runtime_into_an_error() {
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .expect("rt");
+        let out: Result<(), SecretError> = rt.block_on(async {
+            tokio::spawn(async {
+                #[allow(unreachable_code)]
+                run_secrets_future(async {
+                    panic!("driver exploded");
+                    Ok::<(), SecretError>(())
+                })
+            })
+            .await
+            .expect("task must not unwind")
+        });
+        assert!(matches!(out, Err(SecretError::BackendMisconfigured(_))));
+    }
 
     #[test]
     fn run_secrets_future_inside_current_thread_runtime_does_not_fail() {

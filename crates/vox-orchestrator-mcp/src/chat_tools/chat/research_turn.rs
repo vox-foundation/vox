@@ -179,6 +179,12 @@ pub fn check_citations(answer: &str, source_count: usize) -> CitationCheck {
         let after = &rest[open + 1..];
         let Some(close) = after.find(']') else { break };
         let inner = &after[..close];
+        // Nested/doubled marker (`[[1]]`): restart from the innermost `[` so the
+        // real citation is not swallowed as a non-numeric `[1` group.
+        if let Some(p) = inner.rfind('[') {
+            rest = &after[p..];
+            continue;
+        }
         let nums: Vec<Option<usize>> = inner
             .split(',')
             .map(|t| t.trim().parse::<usize>().ok())
@@ -252,7 +258,18 @@ const SEARCH_QUERY_NOISE: &[&str] = &[
 fn search_query_for(query: &str) -> String {
     let kept: Vec<&str> = query
         .split_whitespace()
-        .map(|t| t.trim_matches(|c: char| !c.is_alphanumeric()))
+        // Keep `+`/`#` (C++, C#, F#) and a leading `.` (.NET) — punctuation that
+        // carries the product name; trim everything else off token ends.
+        .map(|t| {
+            let t = t.trim_end_matches(|c: char| !c.is_alphanumeric() && c != '+' && c != '#');
+            let word = t.trim_start_matches(|c: char| !c.is_alphanumeric());
+            let prefix = &t[..t.len() - word.len()];
+            if !word.is_empty() && prefix.ends_with('.') {
+                &t[prefix.len() - 1..]
+            } else {
+                word
+            }
+        })
         .filter(|t| !t.is_empty())
         .filter(|t| !SEARCH_QUERY_NOISE.contains(&t.to_ascii_lowercase().as_str()))
         .collect();
@@ -554,6 +571,22 @@ mod tests {
     use super::*;
     use crate::chat_tools::chat::research_intent::classify_research_intent;
     use vox_search::memory_hybrid::HybridSearchHit;
+
+    #[test]
+    fn nested_citation_markers_are_counted() {
+        let c = check_citations("Released Sept 2 [[1]], see also [2].", 3);
+        assert_eq!(c.cited, vec![1, 2]);
+        assert!(c.invalid.is_empty());
+    }
+
+    #[test]
+    fn search_query_keeps_punctuation_that_names_a_product() {
+        assert_eq!(
+            search_query_for("what are the latest C++ and C# features in .NET?"),
+            "latest C++ C# features .NET"
+        );
+        assert_eq!(search_query_for("(C#) vs. Rust"), "C# vs Rust");
+    }
 
     fn hit(url: &str, engine: &str) -> HybridSearchHit {
         HybridSearchHit {
