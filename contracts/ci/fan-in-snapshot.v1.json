@@ -8,7 +8,7 @@
     "vox-config":                   40,
     "vox-db":                       27,
     "vox-foundation":               14,
-    "vox-http-client":              24,
+    "vox-http-client":              25,
     "vox-llm-egress":               5,
     "vox-orchestrator":             12,
     "vox-orchestrator-test-helpers":0,
