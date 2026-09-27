@@ -51,7 +51,11 @@ fn root_module() -> VoxPluginRootRef {
 
 #[sabi_extern_fn]
 fn manifest_json() -> RString {
-    RString::from(r#"{"id":"mens-candle-metal","version":"0.1.0"}"#)
+    RString::from(concat!(
+        r#"{"id":"mens-candle-metal","version":""#,
+        env!("CARGO_PKG_VERSION"),
+        r#""}"#
+    ))
 }
 
 #[sabi_extern_fn]
@@ -59,4 +63,16 @@ fn init(_host: VoxHost_TO<'static, RBox<()>>) -> RResult<VoxPluginRef, RBoxError
     let plugin = backend::CandleMetalPlugin::new();
     let to = VoxPlugin_TO::from_value(plugin, TD_Opaque);
     RResult::ROk(to)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn manifest_json_version_is_the_crate_version() {
+        let m: serde_json::Value =
+            serde_json::from_str(manifest_json().as_str()).expect("manifest_json is JSON");
+        assert_eq!(m["version"], env!("CARGO_PKG_VERSION"));
+    }
 }
