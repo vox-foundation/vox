@@ -160,7 +160,10 @@ fn probe_macos_vram_gb() -> Option<f64> {
 }
 
 fn probe_discrete_vram_gb() -> Option<f64> {
-    if let Ok(json) = vox_plugin_nvml_probe::probe::probe_summary() {
+    // Host-registered GPU probe (vox-orchestrator-mcp / vox-cli / vox-gui load the
+    // nvml-probe plugin); none registered -> the free-VRAM hint / RAM fallback below.
+    let summary = crate::models::vram::registered_vram_probe().map(|p| (p.probe_summary_json)());
+    if let Some(Ok(json)) = summary {
         if let Ok(val) = serde_json::from_str::<serde_json::Value>(&json) {
             if let Some(devices) = val.get("devices").and_then(|d| d.as_array()) {
                 let max_total_mb = devices
@@ -258,6 +261,28 @@ mod tests {
             select_tier_for_vram(26.0, false).0,
             "mens/runs/qwen3_27b_metal_check/quant_q5_k_m"
         );
+    }
+
+    #[test]
+    fn discrete_vram_comes_from_the_registered_probe() {
+        use crate::models::vram::{
+            VRAM_PROBE_TEST_LOCK, VramProbe, clear_vram_probe_for_test, register_vram_probe,
+        };
+        fn summary() -> Result<String, String> {
+            Ok(r#"{"devices":[{"vram_total_mb":8192},{"vram_total_mb":24576}]}"#.into())
+        }
+        fn metrics() -> Result<String, String> {
+            Err("unused".into())
+        }
+        let _g = VRAM_PROBE_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
+        register_vram_probe(VramProbe {
+            probe_summary_json: summary,
+            device_metrics_json: metrics,
+        });
+        assert_eq!(probe_discrete_vram_gb(), Some(24.0), "largest device wins");
+        clear_vram_probe_for_test();
     }
 
     #[test]

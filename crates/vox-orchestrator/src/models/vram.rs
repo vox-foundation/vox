@@ -136,9 +136,13 @@ pub fn registered_vram_probe() -> Option<VramProbe> {
 }
 
 #[cfg(test)]
-fn clear_vram_probe_for_test() {
+pub(crate) fn clear_vram_probe_for_test() {
     *VRAM_PROBE.write().unwrap_or_else(|p| p.into_inner()) = None;
 }
+
+/// Serializes the tests that register a probe (they share the process-wide slot).
+#[cfg(test)]
+pub(crate) static VRAM_PROBE_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 /// Minimum per-device free VRAM (MiB) from the registered probe. The minimum
 /// (not sum/max) keeps the advisory signal conservative on multi-GPU boxes,
@@ -277,12 +281,14 @@ mod tests {
         Err("NVML unavailable".into())
     }
 
-    /// The only test that mutates the registered probe, so it cannot race itself.
     /// Registered fake probe -> its free-VRAM figure reaches the scoring penalty;
     /// unregistered or failing probe -> no signal, zero score effect (the
     /// pre-registration fallback).
     #[test]
     fn registered_probe_feeds_scoring_and_unregistered_falls_back() {
+        let _g = VRAM_PROBE_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
         let big = spec_with_params(Some(70.0));
 
         clear_vram_probe_for_test();

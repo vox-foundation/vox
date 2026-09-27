@@ -44,9 +44,9 @@ impl HardwareRegistry {
     /// rule (layers in `docs/src/architecture/layers.toml`), and adding a
     /// `crate-edges` exception is user-authorized-only (see `AGENTS.md`
     /// §Dependency Discipline). Load the plugin through `vox-plugin-host`
-    /// instead. `vox-orchestrator` links it statically today
-    /// (`crates/vox-orchestrator/src/models/vram.rs`), and vox-arch-check
-    /// flags that edge as a layer inversion and a linked cdylib — do not copy it.
+    /// instead, the way vox-orchestrator does: a host registers a probe with
+    /// `vox_orchestrator::models::register_vram_probe` (see
+    /// `vox-orchestrator-mcp/src/server_state/vram_probe.rs`).
     pub fn monitor() -> Option<types::GpuTelemetry> {
         #[cfg(target_os = "macos")]
         {
