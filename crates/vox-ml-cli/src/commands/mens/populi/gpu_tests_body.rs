@@ -83,6 +83,60 @@ fn merge_qlora_rejects_burn_bin_adapter() {
     );
 }
 
+/// The `MlBackend` plugin for this host, taken from the workspace build (the dylib next to
+/// this test binary's profile dir) and installed into a temp root. The user's plugin
+/// install dir is never consulted, so a stale or ABI-mismatched install cannot be loaded.
+/// `None` (after a SKIP line) when this host has no backend candidate, the plugin is not
+/// built, or the build does not load against this host.
+fn fresh_ml_backend() -> Option<(
+    &'static str,
+    vox_plugin_host::LoadedCodePlugin,
+    tempfile::TempDir,
+)> {
+    let Ok(id) = vox_plugin_host::resolve_extension_point(
+        "MlBackend",
+        merge_qlora::ML_BACKEND_CANDIDATES,
+        &vox_plugin_host::probe(),
+    ) else {
+        eprintln!("SKIP merge-qlora roundtrip: no MlBackend plugin candidate for this host");
+        return None;
+    };
+    let lib = format!(
+        "{}vox_plugin_{}{}",
+        std::env::consts::DLL_PREFIX,
+        id.replace('-', "_"),
+        std::env::consts::DLL_SUFFIX
+    );
+    let exe = std::env::current_exe().expect("current_exe");
+    let built = exe.parent()?.parent()?.join(&lib);
+    if !built.is_file() {
+        eprintln!(
+            "SKIP merge-qlora roundtrip: {} not built; run `cargo build -p vox-plugin-{id}`",
+            built.display()
+        );
+        return None;
+    }
+    let root = tempfile::tempdir().expect("plugins tempdir");
+    let install = root.path().join(id);
+    std::fs::create_dir_all(&install).expect("mkdir install");
+    let manifest =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("../vox-plugin-{id}/Plugin.toml"));
+    std::fs::copy(&manifest, install.join("Plugin.toml")).expect("copy Plugin.toml");
+    std::fs::copy(&built, install.join(&lib)).expect("copy plugin dylib");
+    let registry = vox_plugin_host::discover(root.path()).expect("discover temp plugin root");
+    match vox_plugin_host::load_code_plugin(&registry, id) {
+        Ok(plugin) => Some((id, plugin, root)),
+        Err(e) => {
+            eprintln!(
+                "SKIP merge-qlora roundtrip: {} does not load against this host ({e}); \
+                 rebuild with `cargo build -p vox-plugin-{id}`",
+                built.display()
+            );
+            None
+        }
+    }
+}
+
 #[test]
 fn merge_qlora_cli_roundtrip_lm_head_subset() {
     use std::collections::HashMap;
@@ -91,6 +145,9 @@ fn merge_qlora_cli_roundtrip_lm_head_subset() {
     use safetensors::tensor::{Dtype, TensorView};
     use serde_json::json;
 
+    let Some((plugin_id, plugin, _plugin_root)) = fresh_ml_backend() else {
+        return;
+    };
     let dir = tempfile::tempdir().expect("tempdir");
     let d = 3usize;
     let vocab = 4usize;
@@ -123,11 +180,11 @@ fn merge_qlora_cli_roundtrip_lm_head_subset() {
     }
     let mut ad_map: HashMap<String, TensorView<'_>> = HashMap::new();
     ad_map.insert(
-        "lm_head.lora_a".into(),
+        "lm_head.lora_a.weight".into(),
         TensorView::new(Dtype::F32, vec![rank, d], ab.as_slice()).unwrap(),
     );
     ad_map.insert(
-        "lm_head.lora_b".into(),
+        "lm_head.lora_b.weight".into(),
         TensorView::new(Dtype::F32, vec![vocab, rank], bb.as_slice()).unwrap(),
     );
     let ad_path = dir.path().join("adapter.safetensors");
@@ -154,7 +211,8 @@ fn merge_qlora_cli_roundtrip_lm_head_subset() {
     .unwrap();
 
     let out_path = dir.path().join("merged.safetensors");
-    merge_qlora::run_merge_qlora(
+    merge_qlora::run_merge_qlora_using(
+        Some((plugin_id, &plugin)),
         vec![base_path],
         ad_path,
         meta_path,
@@ -179,7 +237,11 @@ fn merge_qlora_cli_roundtrip_lm_head_subset() {
     }
     let bytes = std::fs::read(&out_path).unwrap();
     let st = SafeTensors::deserialize(&bytes).unwrap();
-    let tv = st.tensor("wte.weight").unwrap();
+    // The plugin unties tied embeddings: a merged "lm_head" logical layer is always
+    // written back as "lm_head.weight", never the base_key_map source key ("wte.weight")
+    // — see crates/vox-plugin-mens-candle-core/src/merge.rs merge_qlora_into_base_subset
+    // and its own `merge_v2_applies_lm_head_delta` test.
+    let tv = st.tensor("lm_head.weight").unwrap();
     assert_eq!(tv.dtype(), Dtype::F32);
     let sl = tv.data();
     for i in 0..vocab * d {
@@ -197,6 +259,9 @@ fn merge_qlora_cli_roundtrip_lm_head_subset() {
 fn merge_qlora_cli_roundtrip_lm_head_subset_adapter_manifest_v3() {
     use std::collections::HashMap;
 
+    let Some((plugin_id, plugin, _plugin_root)) = fresh_ml_backend() else {
+        return;
+    };
     use safetensors::SafeTensors;
     use safetensors::tensor::{Dtype, TensorView};
 
@@ -232,11 +297,11 @@ fn merge_qlora_cli_roundtrip_lm_head_subset_adapter_manifest_v3() {
     }
     let mut ad_map: HashMap<String, TensorView<'_>> = HashMap::new();
     ad_map.insert(
-        "lm_head.lora_a".into(),
+        "lm_head.lora_a.weight".into(),
         TensorView::new(Dtype::F32, vec![rank, d], ab.as_slice()).unwrap(),
     );
     ad_map.insert(
-        "lm_head.lora_b".into(),
+        "lm_head.lora_b.weight".into(),
         TensorView::new(Dtype::F32, vec![vocab, rank], bb.as_slice()).unwrap(),
     );
     let ad_path = dir.path().join("adapter.safetensors");
@@ -270,7 +335,8 @@ fn merge_qlora_cli_roundtrip_lm_head_subset_adapter_manifest_v3() {
     .unwrap();
 
     let out_path = dir.path().join("merged_v3.safetensors");
-    merge_qlora::run_merge_qlora(
+    merge_qlora::run_merge_qlora_using(
+        Some((plugin_id, &plugin)),
         vec![base_path],
         ad_path,
         meta_path,
@@ -295,7 +361,9 @@ fn merge_qlora_cli_roundtrip_lm_head_subset_adapter_manifest_v3() {
     }
     let bytes = std::fs::read(&out_path).unwrap();
     let st = SafeTensors::deserialize(&bytes).unwrap();
-    let tv = st.tensor("wte.weight").unwrap();
+    // Same untie-on-merge behavior as the non-v3 roundtrip above: output key is
+    // "lm_head.weight", not the base_key_map source key.
+    let tv = st.tensor("lm_head.weight").unwrap();
     assert_eq!(tv.dtype(), Dtype::F32);
     let sl = tv.data();
     for i in 0..vocab * d {

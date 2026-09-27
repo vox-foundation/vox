@@ -72,7 +72,38 @@ pub struct PopuliAdapterManifestV3 {
     pub provenance: Option<serde_json::Value>,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn run_merge_qlora(
+    base_shards: Vec<PathBuf>,
+    adapter: PathBuf,
+    meta: PathBuf,
+    output: PathBuf,
+    quantize: Option<String>,
+    keep_merged: bool,
+    gguf_out: Option<PathBuf>,
+    llama_cpp: Option<PathBuf>,
+    license_class: Option<String>,
+) -> anyhow::Result<()> {
+    run_merge_qlora_using(
+        None,
+        base_shards,
+        adapter,
+        meta,
+        output,
+        quantize,
+        keep_merged,
+        gguf_out,
+        llama_cpp,
+        license_class,
+    )
+}
+
+/// [`run_merge_qlora`] with an explicit `MlBackend` plugin. `None` resolves the host's
+/// installed backend (the CLI path). Tests pass the freshly built workspace plugin so the
+/// user's plugin install is never involved.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn run_merge_qlora_using(
+    plugin: Option<(&str, &vox_plugin_host::LoadedCodePlugin)>,
     base_shards: Vec<PathBuf>,
     adapter: PathBuf,
     meta: PathBuf,
@@ -141,15 +172,21 @@ pub fn run_merge_qlora(
     // (CUDA on an NVIDIA host, Metal on Apple Silicon), not a hardcoded id —
     // see vox_plugin_host::resolve_extension_point.
     let result = (|| -> anyhow::Result<()> {
-        let plugin_id = vox_plugin_host::resolve_extension_point(
-            "MlBackend",
-            ML_BACKEND_CANDIDATES,
-            &vox_plugin_host::probe(),
-        )
-        .context("no ML backend plugin matches this host's capabilities")?;
-        let plugin = vox_plugin_host::cached_code_plugin(plugin_id).with_context(|| {
-            format!("{plugin_id} plugin not found — install vox-plugin-{plugin_id}")
-        })?;
+        let (plugin_id, plugin) = match plugin {
+            Some(p) => p,
+            None => {
+                let plugin_id = vox_plugin_host::resolve_extension_point(
+                    "MlBackend",
+                    ML_BACKEND_CANDIDATES,
+                    &vox_plugin_host::probe(),
+                )
+                .context("no ML backend plugin matches this host's capabilities")?;
+                let plugin = vox_plugin_host::cached_code_plugin(plugin_id).with_context(|| {
+                    format!("{plugin_id} plugin not found — install vox-plugin-{plugin_id}")
+                })?;
+                (plugin_id, plugin)
+            }
+        };
         let backend = plugin
             .plugin
             .as_ml_backend()
