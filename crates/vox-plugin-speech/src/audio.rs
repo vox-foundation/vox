@@ -72,25 +72,18 @@ impl SpeechToText for OratioPlugin {
         {
             use crate::backends::candle_whisper::transcribe_pcm_internal;
 
-            // Parse the f32 PCM bytes.
-            let raw = audio_pcm.as_slice();
-            if !raw.len().is_multiple_of(4) {
-                return RResult::RErr(RBoxError::new(std::io::Error::other(
-                    "audio_pcm length must be a multiple of 4 (mono f32 little-endian)",
-                )));
-            }
-            let pcm: Vec<f32> = raw
-                .as_chunks::<4>()
-                .0
-                .iter()
-                .map(|b| f32::from_le_bytes(*b))
-                .collect();
-
-            // Parse language from config.
-            let language: Option<String> =
-                serde_json::from_str::<serde_json::Value>(config_json.as_str())
-                    .ok()
-                    .and_then(|v| v.get("language")?.as_str().map(|s| s.to_string()));
+            let config: serde_json::Value =
+                serde_json::from_str(config_json.as_str()).unwrap_or_default();
+            let pcm = match whisper_pcm_from_request(audio_pcm.as_slice(), &config) {
+                Ok(pcm) => pcm,
+                Err(e) => {
+                    return RResult::RErr(RBoxError::new(std::io::Error::other(e.to_string())));
+                }
+            };
+            let language: Option<String> = config
+                .get("language")
+                .and_then(|l| l.as_str())
+                .map(str::to_string);
 
             match transcribe_pcm_internal(&pcm, language.as_deref()) {
                 Ok((text, segments)) => {
@@ -189,6 +182,31 @@ impl SpeechToText for OratioPlugin {
     }
 }
 
+/// Decode `transcribe`'s mono f32 LE bytes and resample them from the config's
+/// `sample_rate` (default 16 kHz) to the 16 kHz Whisper expects.
+#[cfg(feature = "stt-candle")]
+fn whisper_pcm_from_request(raw: &[u8], config: &serde_json::Value) -> anyhow::Result<Vec<f32>> {
+    if !raw.len().is_multiple_of(4) {
+        anyhow::bail!("audio_pcm length must be a multiple of 4 (mono f32 little-endian)");
+    }
+    let pcm: Vec<f32> = raw
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|b| f32::from_le_bytes(*b))
+        .collect();
+    let whisper_rate = candle_transformers::models::whisper::SAMPLE_RATE as u32;
+    let rate = match config.get("sample_rate") {
+        None | Some(serde_json::Value::Null) => whisper_rate,
+        Some(v) => v
+            .as_u64()
+            .and_then(|r| u32::try_from(r).ok())
+            .filter(|&r| r > 0)
+            .ok_or_else(|| anyhow::anyhow!("invalid sample_rate {v}"))?,
+    };
+    crate::backends::audio_io::resample_pcm(&pcm, rate, whisper_rate)
+}
+
 pub(crate) fn make_plugin(
     _host: VoxHost_TO<'static, RBox<()>>,
 ) -> RResult<VoxPluginRef, RBoxError> {
@@ -244,6 +262,31 @@ mod semcov_wave9_tests {
                 panic!("expected Err for 5-byte PCM, got Ok: {s}");
             }
         }
+    }
+
+    // Catches: transcribe() ignoring the declared sample_rate, so non-16 kHz audio (e.g.
+    // `vox oratio serve` posting 44.1 kHz) reaches Whisper at the wrong speed.
+    #[cfg(feature = "stt-candle")]
+    #[test]
+    fn request_pcm_is_resampled_from_declared_rate_to_16k() {
+        let one_sec_44k: Vec<u8> = (0..44_100)
+            .flat_map(|i| ((i as f32 * 0.05).sin() * 0.1).to_le_bytes())
+            .collect();
+        let pcm =
+            whisper_pcm_from_request(&one_sec_44k, &serde_json::json!({"sample_rate": 44_100}))
+                .expect("44.1 kHz resamples");
+        assert!(
+            (15_500..=16_500).contains(&pcm.len()),
+            "1 s at 44.1 kHz must become ~16000 samples, got {}",
+            pcm.len()
+        );
+        let untouched = whisper_pcm_from_request(&one_sec_44k, &serde_json::json!({}))
+            .expect("no sample_rate means 16 kHz");
+        assert_eq!(untouched.len(), 44_100);
+        assert!(
+            whisper_pcm_from_request(&one_sec_44k, &serde_json::json!({"sample_rate": 0})).is_err()
+        );
+        assert!(whisper_pcm_from_request(&one_sec_44k[..5], &serde_json::json!({})).is_err());
     }
 
     // Catches: begin_stream() accidentally succeeding (returning ROk) when the

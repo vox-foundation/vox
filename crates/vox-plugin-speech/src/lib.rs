@@ -14,3 +14,21 @@ mod oratio_internals;
 vox_plugin_sdk::declare_plugin! {
     init: |host| audio::make_plugin(host),
 }
+
+#[cfg(test)]
+mod tests {
+    /// Plugin.toml is hand-maintained, and vox-plugin-host refuses to load a code plugin
+    /// whose declared version differs from the host's own `CARGO_PKG_VERSION`. A stale
+    /// Plugin.toml version therefore makes an installed `oratio` plugin unloadable.
+    #[test]
+    fn plugin_toml_version_matches_crate_version() {
+        let manifest: toml::Value = include_str!("../Plugin.toml")
+            .parse()
+            .expect("Plugin.toml must be valid TOML");
+        assert_eq!(
+            manifest["plugin"]["version"].as_str(),
+            Some(env!("CARGO_PKG_VERSION")),
+            "Plugin.toml's [plugin] version must match this crate's version"
+        );
+    }
+}

@@ -76,7 +76,12 @@ async fn transcribe_handler(
     })
     .await
     .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?
-    .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
+    .map_err(|e| {
+        // The 500 carries no body; without this the cause (e.g. the oratio plugin
+        // failing to load) is visible nowhere.
+        tracing::warn!("transcription failed: {e:#}");
+        axum::http::StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     Ok(Json(out))
 }

@@ -29,19 +29,23 @@ pub enum WhisperModel {
 
 impl WhisperModel {
     /// Whisper hyperparameters from the checkpoint.
-    pub fn config(&self) -> &Config {
+    pub(crate) fn config(&self) -> &Config {
         match self {
             Self::Normal(m) => &m.config,
         }
     }
 
-    pub fn encoder_forward(&mut self, x: &Tensor, flush: bool) -> candle_core::Result<Tensor> {
+    pub(crate) fn encoder_forward(
+        &mut self,
+        x: &Tensor,
+        flush: bool,
+    ) -> candle_core::Result<Tensor> {
         match self {
             Self::Normal(m) => m.encoder.forward(x, flush),
         }
     }
 
-    pub fn decoder_forward(
+    pub(crate) fn decoder_forward(
         &mut self,
         x: &Tensor,
         xa: &Tensor,
@@ -52,7 +56,7 @@ impl WhisperModel {
         }
     }
 
-    pub fn decoder_final_linear(&self, x: &Tensor) -> candle_core::Result<Tensor> {
+    pub(crate) fn decoder_final_linear(&self, x: &Tensor) -> candle_core::Result<Tensor> {
         match self {
             Self::Normal(m) => m.decoder.final_linear(x),
         }
@@ -611,6 +615,7 @@ impl Decoder {
             } else {
                 self.decode_with_fallback(&mel_segment, None)?
             };
+            let segment_start = seek;
             seek += segment_size;
             let no_speech_threshold =
                 vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioNoSpeechThreshold)
@@ -630,8 +635,8 @@ impl Decoder {
                     text: segment_text,
                     avg_logprob: dr.avg_logprob,
                     no_speech_prob: dr.no_speech_prob,
-                    start_frame: seek,
-                    end_frame: seek + segment_size,
+                    start_frame: segment_start,
+                    end_frame: seek,
                 });
             }
             if self.verbose {
