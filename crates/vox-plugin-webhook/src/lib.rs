@@ -435,6 +435,18 @@ mod listener_lifecycle_tests {
         assert!(l.stop_listening().is_rok());
     }
 
+    /// The host refuses to load a plugin whose installed Plugin.toml `version`
+    /// differs from its own (`vox-plugin-host::load_code_plugin`), and Plugin.toml
+    /// is hand-written, so pin it to the crate version here.
+    #[test]
+    fn plugin_toml_version_matches_crate_version() {
+        let declared = include_str!("../Plugin.toml")
+            .lines()
+            .find_map(|l| l.strip_prefix("version = \"")?.strip_suffix('"'))
+            .expect("Plugin.toml [plugin] version");
+        assert_eq!(declared, env!("CARGO_PKG_VERSION"));
+    }
+
     #[test]
     fn constructing_the_plugin_starts_no_listener() {
         let _g = test_lock();
