@@ -21,14 +21,112 @@ category: "Language Reference"
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml) (itself projected from [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml)).
 
-**schema_version:** `1` · **vox-cli operations:** 320
+**schema_version:** `1` · **vox-cli operations:** 994
 
 | Path | Status | Feature gate | Latin ns | Product lane | Catalog group |
 |------|--------|--------------|----------|--------------|----------------|
 | `vox add` | active | — | pm | platform | — |
 | `vox architect` | active | codex|stub-check | diag | platform | — |
 | `vox ars` | active | — | ars | interop | — |
+| `vox ars ludus` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus arena-join` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus arena-leaderboard` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus arena-show` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus audit` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus auth` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus battle-start` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus battle-submit` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus challenge-list` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus challenge-start` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus challenge-submit` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus collegium-join` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus collegium-list` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus collegium-new` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus collegium-status` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus companion-create` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus companion-interact` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus companion-list` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus companion-show` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus digest` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus digest-weekly` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus disable` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus dispute-appeal` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus dispute-file` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus dispute-status` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus dispute-vote` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus enable` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus feedback-rate` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus glyph-list` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus hint` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus leaderboard-show` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus metrics` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus mode` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus monte-carlo-sweep` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus morning` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus notify-clear` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus notify-list` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus pack-init` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus pack-list` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus profile-merge` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus quest-generate` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus quest-list` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus record` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus reward-claim` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus shield-use` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus shop-buy` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus shop-list` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus status` | active | extras-ludus | ars | interop | — |
+| `vox ars ludus sync-github` | active | extras-ludus | ars | interop | — |
+| `vox ars openclaw` | active | ars | ars | interop | — |
+| `vox ars openclaw approvals` | active | ars | ars | interop | — |
+| `vox ars openclaw approve` | active | ars | ars | interop | — |
+| `vox ars openclaw config` | active | ars | ars | interop | — |
+| `vox ars openclaw deny` | active | ars | ars | interop | — |
+| `vox ars openclaw doctor` | active | ars | ars | interop | — |
+| `vox ars openclaw gateway-call` | active | ars | ars | interop | — |
+| `vox ars openclaw import` | active | ars | ars | interop | — |
+| `vox ars openclaw list-remote` | active | ars | ars | interop | — |
+| `vox ars openclaw notify` | active | ars | ars | interop | — |
+| `vox ars openclaw search-remote` | active | ars | ars | interop | — |
+| `vox ars openclaw serve` | active | ars | ars | interop | — |
+| `vox ars openclaw sidecar` | active | ars | ars | interop | — |
+| `vox ars openclaw sidecar start` | active | ars | ars | interop | — |
+| `vox ars openclaw sidecar status` | active | ars | ars | interop | — |
+| `vox ars openclaw sidecar stop` | active | ars | ars | interop | — |
+| `vox ars openclaw subscribe` | active | ars | ars | interop | — |
+| `vox ars openclaw subscriptions` | active | ars | ars | interop | — |
+| `vox ars openclaw unsubscribe` | active | ars | ars | interop | — |
+| `vox ars share` | active | — | ars | interop | — |
+| `vox ars share feedback` | active | — | ars | interop | — |
+| `vox ars share list` | active | — | ars | interop | — |
+| `vox ars share publish` | active | — | ars | interop | — |
+| `vox ars share search` | active | — | ars | interop | — |
+| `vox ars skill` | active | ars | ars | interop | — |
+| `vox ars skill add` | active | ars | ars | interop | — |
+| `vox ars skill context-assemble` | active | ars | ars | interop | — |
+| `vox ars skill create` | active | ars | ars | interop | — |
+| `vox ars skill discover` | active | ars | ars | interop | — |
+| `vox ars skill eval-task` | active | ars | ars | interop | — |
+| `vox ars skill info` | active | ars | ars | interop | — |
+| `vox ars skill install` | active | ars | ars | interop | — |
+| `vox ars skill list` | active | ars | ars | interop | — |
+| `vox ars skill promote` | active | ars | ars | interop | — |
+| `vox ars skill run` | active | ars | ars | interop | — |
+| `vox ars skill search` | active | ars | ars | interop | — |
+| `vox ars skill suggest` | active | ars | ars | interop | — |
+| `vox ars skill uninstall` | active | ars | ars | interop | — |
+| `vox ars snippet` | active | — | ars | interop | — |
+| `vox ars snippet export` | active | — | ars | interop | — |
+| `vox ars snippet save` | active | — | ars | interop | — |
+| `vox ars snippet search` | active | — | ars | interop | — |
 | `vox audit` | active | — | — | platform | — |
+| `vox audit arch` | active | — | — | platform | — |
+| `vox audit code` | active | — | — | platform | — |
+| `vox audit core` | active | — | — | platform | — |
+| `vox audit effort` | active | — | — | platform | — |
+| `vox audit effort-route` | active | — | — | platform | — |
+| `vox audit research-parity` | active | — | — | platform | — |
+| `vox audit retirement` | active | — | — | platform | — |
 | `vox auth` | active | — | ars | platform | — |
 | `vox auth connect` | active | — | ars | platform | — |
 | `vox auth init` | active | — | ars | platform | — |
@@ -40,52 +138,112 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox auth whoami` | active | — | ars | platform | — |
 | `vox build` | active | — | fabrica | app | — |
 | `vox bundle` | active | — | fabrica | platform | — |
+| `vox bundle apply` | active | — | fabrica | platform | — |
+| `vox bundle build` | active | — | fabrica | platform | — |
+| `vox bundle list` | active | — | fabrica | platform | — |
+| `vox bundle verify` | active | — | fabrica | platform | — |
 | `vox bundle-app` | active | — | fabrica | app | — |
+| `vox catalog` | active | — | — | platform | — |
+| `vox catalog add` | active | — | — | platform | — |
+| `vox catalog focus` | active | — | — | platform | — |
+| `vox catalog list` | active | — | — | platform | — |
+| `vox catalog remove` | active | — | — | platform | — |
 | `vox chat` | active | — | — | ai | — |
 | `vox check` | active | — | fabrica | app | — |
 | `vox ci` | active | — | ci | platform | — |
+| `vox ci affected-crates` | active | — | ci | platform | — |
+| `vox ci agentskills-compliance` | active | — | ci | platform | — |
 | `vox ci ai-fixtures-coverage` | active | — | — | platform | — |
 | `vox ci artifact-audit` | active | — | — | platform | — |
 | `vox ci artifact-prune` | active | — | — | platform | — |
+| `vox ci attention-config-parity` | active | — | ci | platform | — |
+| `vox ci attention-event-ledger-parity` | active | — | ci | platform | — |
 | `vox ci backend-tests` | active | — | — | platform | — |
+| `vox ci bom-check` | active | — | ci | platform | — |
 | `vox ci build-bench` | active | — | — | platform | — |
+| `vox ci build-cache-doctor` | active | — | ci | platform | — |
 | `vox ci build-docs` | active | — | — | platform | — |
 | `vox ci build-timings` | active | — | — | platform | — |
+| `vox ci cache-key-lint` | active | — | ci | platform | — |
+| `vox ci canonical-map-verify` | active | — | ci | platform | — |
+| `vox ci capability-snapshot` | active | — | ci | platform | — |
 | `vox ci capability-sync` | active | — | — | platform | — |
 | `vox ci check-codex-ssot` | active | — | — | platform | — |
 | `vox ci check-docs-ssot` | active | — | — | platform | — |
+| `vox ci check-frozen` | active | — | ci | platform | — |
 | `vox ci check-links` | active | — | — | platform | — |
 | `vox ci check-summary-drift` | active | — | — | platform | — |
+| `vox ci collateral-damage-gate` | active | — | ci | platform | — |
 | `vox ci command-compliance` | active | — | — | platform | — |
 | `vox ci command-sync` | active | — | — | platform | — |
+| `vox ci commit-lint` | active | — | ci | platform | — |
 | `vox ci compile-matrix` | active | — | — | platform | — |
 | `vox ci completion-audit` | active | — | — | platform | — |
 | `vox ci completion-gates` | active | — | — | platform | — |
 | `vox ci completion-ingest` | active | — | — | platform | — |
+| `vox ci config-gui-codegen` | active | — | ci | platform | — |
 | `vox ci config-hygiene` | active | — | — | platform | — |
 | `vox ci config-registry-parity` | active | — | — | platform | — |
+| `vox ci constrained-gen-smoke` | active | — | ci | platform | — |
 | `vox ci contracts-index` | active | — | — | platform | — |
 | `vox ci coolify-eval` | active | — | — | platform | — |
+| `vox ci coolify-eval discover` | active | — | — | platform | — |
+| `vox ci coolify-eval sync-compose` | active | — | — | platform | — |
+| `vox ci corpus-decl-coverage` | active | — | ci | platform | — |
 | `vox ci coverage-gates` | active | — | — | platform | — |
+| `vox ci crate-budget` | active | — | ci | platform | — |
+| `vox ci crate-build-map-parity` | active | — | ci | platform | — |
+| `vox ci crate-edges` | active | — | ci | platform | — |
 | `vox ci cuda-features` | active | — | — | platform | — |
 | `vox ci cuda-release-build` | active | — | — | platform | — |
 | `vox ci data-ssot-guards` | active | — | — | platform | — |
+| `vox ci data-storage-guard` | active | — | ci | platform | — |
 | `vox ci db-schema-coverage` | active | — | — | platform | — |
 | `vox ci dep-cycles` | active | — | — | platform | — |
+| `vox ci dep-sprawl` | active | — | ci | platform | — |
+| `vox ci deploy-status` | active | — | ci | platform | — |
+| `vox ci detect-rules-bench` | active | — | ci | platform | — |
+| `vox ci determinism-audit` | active | — | ci | platform | — |
 | `vox ci dev-loop-audit` | active | — | — | platform | — |
 | `vox ci doc-inventory` | active | — | — | platform | — |
+| `vox ci doc-inventory generate` | active | — | — | platform | — |
+| `vox ci doc-inventory verify` | active | — | — | platform | — |
 | `vox ci docs-reality-audit` | active | — | — | platform | — |
+| `vox ci docs-reality-audit metrics` | active | — | — | platform | — |
+| `vox ci docs-reality-audit verify` | active | — | — | platform | — |
+| `vox ci doctest-md` | active | — | ci | platform | — |
 | `vox ci eval-matrix` | active | — | — | platform | — |
 | `vox ci eval-matrix run` | active | — | — | platform | — |
 | `vox ci eval-matrix verify` | active | — | — | platform | — |
 | `vox ci exec-policy-contract` | active | — | — | platform | — |
+| `vox ci fan-in-budget` | active | — | ci | platform | — |
 | `vox ci feature-matrix` | active | — | — | platform | — |
 | `vox ci flake-budget` | active | — | — | platform | — |
+| `vox ci fmt-check` | active | — | ci | platform | — |
+| `vox ci free-binary` | active | — | ci | platform | — |
+| `vox ci generate-plugin-catalog-docs` | active | — | ci | platform | — |
 | `vox ci grammar-drift` | active | — | — | platform | — |
+| `vox ci grammar-export-check` | active | — | ci | platform | — |
+| `vox ci grammar-ssot-parity` | active | — | ci | platform | — |
+| `vox ci grpo-reward-baseline` | active | — | ci | platform | — |
+| `vox ci gui-catalog-parity` | active | — | ci | platform | — |
+| `vox ci gui-honesty` | active | — | ci | platform | — |
 | `vox ci gui-smoke` | active | — | — | platform | — |
+| `vox ci gui-surface-coverage` | active | — | ci | platform | — |
+| `vox ci gui-surface-registry` | active | — | ci | platform | — |
+| `vox ci gui-version-sync` | active | — | ci | platform | — |
+| `vox ci gui-visual-review` | active | — | ci | platform | — |
+| `vox ci harness-trust-guard` | active | — | ci | platform | — |
 | `vox ci ignored-test-age` | active | — | — | platform | — |
+| `vox ci install-hooks` | active | — | ci | platform | — |
+| `vox ci job-timings` | active | — | ci | platform | — |
+| `vox ci json-parse-check` | active | — | ci | platform | — |
+| `vox ci k-complexity-budget` | active | — | ci | platform | — |
+| `vox ci kill-stuck-tests` | active | — | ci | platform | — |
 | `vox ci line-endings` | active | — | — | platform | — |
 | `vox ci manifest` | active | — | — | platform | — |
+| `vox ci mcp-vox-surface-parity` | active | — | ci | platform | — |
+| `vox ci mens-corpus-health` | active | — | ci | platform | — |
 | `vox ci mens-scorecard` | active | — | — | platform | — |
 | `vox ci mens-scorecard burn-rnd` | active | — | — | platform | — |
 | `vox ci mens-scorecard decide` | active | — | — | platform | — |
@@ -93,40 +251,81 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci mens-scorecard run` | active | — | — | platform | — |
 | `vox ci mens-scorecard verify` | active | — | — | platform | — |
 | `vox ci mesh-gate` | active | — | — | platform | — |
+| `vox ci model-routing-check` | active | — | ci | platform | — |
 | `vox ci no-dei-import` | active | — | — | platform | — |
+| `vox ci no-plugin-cdylib-as-compile-dep` | active | — | ci | platform | — |
+| `vox ci no-tauri-in-core` | active | — | ci | platform | — |
+| `vox ci node-pnpm-ssot-guard` | active | — | ci | platform | — |
 | `vox ci nomenclature-guard` | active | — | ci | platform | — |
 | `vox ci openclaw-contract` | active | — | — | platform | — |
 | `vox ci operations-sync` | active | — | — | platform | — |
 | `vox ci operations-verify` | active | — | — | platform | — |
+| `vox ci operator-env-guard` | active | — | ci | platform | — |
 | `vox ci parse-status` | active | — | — | platform | — |
 | `vox ci pipeline-parity` | active | — | — | platform | — |
+| `vox ci plugin-abi-parity` | active | — | ci | platform | — |
+| `vox ci plugin-catalog-parity` | active | — | ci | platform | — |
+| `vox ci plugin-catalog-sync` | active | — | ci | platform | — |
+| `vox ci plugin-dep-boundary` | active | — | ci | platform | — |
+| `vox ci plugin-skill-parity` | active | — | ci | platform | — |
+| `vox ci plugin-surface-sync` | active | — | ci | platform | — |
 | `vox ci pm-provenance` | active | — | — | platform | — |
 | `vox ci policy-allowlist-parity` | active | — | — | platform | — |
+| `vox ci policy-registry` | active | — | ci | platform | — |
+| `vox ci policy-registry-parity` | active | — | ci | platform | — |
 | `vox ci policy-smoke` | active | — | — | platform | — |
 | `vox ci pre-push` | active | — | — | platform | — |
+| `vox ci profile-parity` | active | — | ci | platform | — |
 | `vox ci query-all-guard` | active | — | — | platform | — |
+| `vox ci queue` | active | — | ci | platform | — |
 | `vox ci release-build` | active | — | — | platform | — |
+| `vox ci release-draft-guard` | active | — | ci | platform | — |
 | `vox ci repo-guards` | active | — | — | platform | — |
+| `vox ci required-context-guard` | active | — | ci | platform | — |
+| `vox ci retired-symbol-check` | active | — | ci | platform | — |
 | `vox ci retirement-audit` | active | — | — | platform | — |
+| `vox ci row-serde-lint` | active | — | ci | platform | — |
+| `vox ci runner-policy-check` | active | — | ci | platform | — |
+| `vox ci runner-preflight` | active | — | ci | platform | — |
+| `vox ci runner-scale` | active | — | ci | platform | — |
+| `vox ci runner-status` | active | — | ci | platform | — |
 | `vox ci runtime-regress` | active | — | — | platform | — |
 | `vox ci rust-ecosystem-policy` | active | — | — | platform | — |
 | `vox ci safety-inventory` | active | — | — | platform | — |
 | `vox ci scaling-audit` | active | — | — | platform | — |
 | `vox ci scaling-audit emit-reports` | active | — | — | platform | — |
 | `vox ci scaling-audit verify` | active | — | — | platform | — |
+| `vox ci scientia-heuristics-parity` | active | — | ci | platform | — |
 | `vox ci scientia-novelty-ledger-contracts` | active | — | — | platform | — |
 | `vox ci scientia-worthiness-contract` | active | — | — | platform | — |
+| `vox ci script-hygiene` | active | — | ci | platform | — |
 | `vox ci secret-env-guard` | active | — | — | platform | — |
+| `vox ci secrets-contracts` | active | — | ci | platform | — |
+| `vox ci secrets-cutover-audit` | active | — | ci | platform | — |
+| `vox ci secrets-cutover-gates` | active | — | ci | platform | — |
 | `vox ci secrets-parity` | active | — | — | platform | — |
+| `vox ci source-token-budget` | active | — | ci | platform | — |
 | `vox ci speech-runtime-suite` | active | — | — | platform | — |
+| `vox ci spoke-check` | active | — | ci | platform | — |
 | `vox ci sql-surface-guard` | active | — | — | platform | — |
+| `vox ci ssot-audit` | active | — | ci | platform | — |
 | `vox ci ssot-drift` | active | — | — | platform | — |
+| `vox ci string-id-lint` | active | — | ci | platform | — |
+| `vox ci sync-ignore-files` | active | — | ci | platform | — |
 | `vox ci test-inventory` | active | — | — | platform | — |
 | `vox ci test-runtime-report` | active | — | — | platform | — |
+| `vox ci tier-budget-check` | active | — | ci | platform | — |
+| `vox ci toestub-budget` | active | — | ci | platform | — |
 | `vox ci toestub-scoped` | active | — | — | platform | — |
 | `vox ci toestub-self-apply` | active | — | — | platform | — |
+| `vox ci toolchain-ssot` | active | — | ci | platform | — |
+| `vox ci toolchain-workflow-lint` | active | — | ci | platform | — |
 | `vox ci turso-import-guard` | active | — | — | platform | — |
+| `vox ci vox-parse-check` | active | — | ci | platform | — |
+| `vox ci watch-run` | active | — | ci | platform | — |
+| `vox ci workflow-concurrency-guard` | active | — | ci | platform | — |
 | `vox ci workflow-scripts` | active | — | — | platform | — |
+| `vox ci yaml-parse-check` | active | — | ci | platform | — |
 | `vox codex` | active | — | codex | data | — |
 | `vox codex cutover` | active | — | codex | data | — |
 | `vox codex export-legacy` | active | — | codex | data | — |
@@ -141,19 +340,92 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox completions` | active | — | fabrica | app | — |
 | `vox component` | active | — | — | app | — |
 | `vox config` | active | — | — | platform | — |
+| `vox config get` | active | — | — | platform | — |
+| `vox config list` | active | — | — | platform | — |
+| `vox config set` | active | — | — | platform | — |
+| `vox config sync` | active | — | — | platform | — |
+| `vox config unset` | active | — | — | platform | — |
 | `vox container` | active | — | — | app | — |
+| `vox container build` | active | — | — | app | — |
+| `vox container run` | active | — | — | app | — |
 | `vox db` | active | — | codex | data | — |
 | `vox db audit` | active | — | codex | data | — |
+| `vox db build-health` | active | — | codex | data | — |
+| `vox db build-regressions` | active | — | codex | data | — |
+| `vox db capability-list` | active | — | codex | data | — |
+| `vox db discovery-watch` | active | — | codex | data | — |
+| `vox db exec-history` | active | — | codex | data | — |
+| `vox db explain` | active | — | codex | data | — |
+| `vox db export` | active | — | codex | data | — |
+| `vox db feed-source-add` | active | — | codex | data | — |
+| `vox db feed-source-list` | active | — | codex | data | — |
+| `vox db import` | active | — | codex | data | — |
+| `vox db ingest-tick` | active | — | codex | data | — |
+| `vox db introspect` | active | — | codex | data | — |
+| `vox db mens-metrics` | active | — | codex | data | — |
+| `vox db mens-runs` | active | — | codex | data | — |
+| `vox db migrate` | active | — | codex | data | — |
 | `vox db mirror-search-corpus` | active | — | codex | data | — |
+| `vox db pref-get` | active | — | codex | data | — |
+| `vox db pref-list` | active | — | codex | data | — |
+| `vox db pref-set` | active | — | codex | data | — |
+| `vox db prune` | active | — | codex | data | — |
 | `vox db prune-apply` | active | — | codex | data | — |
 | `vox db prune-plan` | active | — | codex | data | — |
+| `vox db publication-approve` | active | — | codex | data | — |
+| `vox db publication-archive-code` | active | — | codex | data | — |
+| `vox db publication-archive-run` | active | — | codex | data | — |
+| `vox db publication-arxiv-handoff-record` | active | — | codex | data | — |
+| `vox db publication-autofill` | active | — | codex | data | — |
 | `vox db publication-decision-explain` | active | — | codex | data | — |
 | `vox db publication-discovery-explain` | active | — | codex | data | — |
+| `vox db publication-discovery-publish-rss` | active | — | codex | data | — |
 | `vox db publication-discovery-refresh-evidence` | active | — | codex | data | — |
 | `vox db publication-discovery-scan` | active | — | codex | data | — |
+| `vox db publication-external-jobs-dead-letter` | active | — | codex | data | — |
+| `vox db publication-external-jobs-due` | active | — | codex | data | — |
+| `vox db publication-external-jobs-replay` | active | — | codex | data | — |
+| `vox db publication-external-jobs-tick` | active | — | codex | data | — |
+| `vox db publication-external-pipeline-metrics` | active | — | codex | data | — |
+| `vox db publication-media-delete` | active | — | codex | data | — |
+| `vox db publication-media-list` | active | — | codex | data | — |
+| `vox db publication-media-upsert` | active | — | codex | data | — |
 | `vox db publication-novelty-fetch` | active | — | codex | data | — |
 | `vox db publication-novelty-happy-path` | active | — | codex | data | — |
+| `vox db publication-openreview-profile` | active | — | codex | data | — |
+| `vox db publication-preflight` | active | — | codex | data | — |
+| `vox db publication-prepare` | active | — | codex | data | — |
+| `vox db publication-prepare-validated` | active | — | codex | data | — |
+| `vox db publication-publish` | active | — | codex | data | — |
+| `vox db publication-retry-failed` | active | — | codex | data | — |
+| `vox db publication-route-simulate` | active | — | codex | data | — |
+| `vox db publication-scholarly-pipeline-run` | active | — | codex | data | — |
+| `vox db publication-scholarly-remote-status` | active | — | codex | data | — |
+| `vox db publication-scholarly-remote-status-sync-all` | active | — | codex | data | — |
+| `vox db publication-scholarly-remote-status-sync-batch` | active | — | codex | data | — |
+| `vox db publication-scholarly-staging-export` | active | — | codex | data | — |
+| `vox db publication-status` | active | — | codex | data | — |
+| `vox db publication-submit-local` | active | — | codex | data | — |
 | `vox db publication-transform-preview` | active | — | codex | data | — |
+| `vox db publication-worthiness-evaluate` | active | — | codex | data | — |
+| `vox db publication-zenodo-metadata` | active | — | codex | data | — |
+| `vox db reliability-agents` | active | — | codex | data | — |
+| `vox db reliability-list` | active | — | codex | data | — |
+| `vox db research-ingest-file` | active | — | codex | data | — |
+| `vox db research-ingest-url` | active | — | codex | data | — |
+| `vox db research-list` | active | — | codex | data | — |
+| `vox db research-map-add` | active | — | codex | data | — |
+| `vox db research-map-list` | active | — | codex | data | — |
+| `vox db research-metrics` | active | — | codex | data | — |
+| `vox db research-refresh` | active | — | codex | data | — |
+| `vox db reset` | active | — | codex | data | — |
+| `vox db retrieval-status` | active | — | codex | data | — |
+| `vox db sample` | active | — | codex | data | — |
+| `vox db schema` | active | — | codex | data | — |
+| `vox db status` | active | — | codex | data | — |
+| `vox db sync-invocables` | active | — | codex | data | — |
+| `vox db vacuum` | active | — | codex | data | — |
+| `vox db verify` | active | — | codex | data | — |
 | `vox dei` | active | dei | dei | ai | — |
 | `vox dei oplog list` | active | dei | dei | ai | — |
 | `vox dei snapshot diff` | active | dei | dei | ai | — |
@@ -166,18 +438,267 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox deploy` | active | — | fabrica | app | — |
 | `vox dev` | active | — | fabrica | app | — |
 | `vox diag` | active | — | diag | platform | — |
+| `vox diag doctor` | active | — | diag | platform | — |
 | `vox dispatch` | active | — | — | platform | — |
+| `vox dispatch preview` | active | — | — | platform | — |
 | `vox doctor` | active | — | diag | platform | — |
 | `vox drift-check` | active | — | — | platform | — |
 | `vox emit` | active | — | — | app | — |
+| `vox emit client` | active | — | — | app | — |
+| `vox emit openapi` | active | — | — | app | — |
 | `vox ext` | active | — | — | interop | — |
+| `vox ext ars` | active | — | — | interop | — |
+| `vox ext ars ludus` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus arena-join` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus arena-leaderboard` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus arena-show` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus audit` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus auth` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus battle-start` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus battle-submit` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus challenge-list` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus challenge-start` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus challenge-submit` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus collegium-join` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus collegium-list` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus collegium-new` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus collegium-status` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus companion-create` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus companion-interact` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus companion-list` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus companion-show` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus digest` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus digest-weekly` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus disable` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus dispute-appeal` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus dispute-file` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus dispute-status` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus dispute-vote` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus enable` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus feedback-rate` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus glyph-list` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus hint` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus leaderboard-show` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus metrics` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus mode` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus monte-carlo-sweep` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus morning` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus notify-clear` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus notify-list` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus pack-init` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus pack-list` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus profile-merge` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus quest-generate` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus quest-list` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus record` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus reward-claim` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus shield-use` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus shop-buy` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus shop-list` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus status` | active | extras-ludus | — | interop | — |
+| `vox ext ars ludus sync-github` | active | extras-ludus | — | interop | — |
+| `vox ext ars openclaw` | active | ars | — | interop | — |
+| `vox ext ars openclaw approvals` | active | ars | — | interop | — |
+| `vox ext ars openclaw approve` | active | ars | — | interop | — |
+| `vox ext ars openclaw config` | active | ars | — | interop | — |
+| `vox ext ars openclaw deny` | active | ars | — | interop | — |
+| `vox ext ars openclaw doctor` | active | ars | — | interop | — |
+| `vox ext ars openclaw gateway-call` | active | ars | — | interop | — |
+| `vox ext ars openclaw import` | active | ars | — | interop | — |
+| `vox ext ars openclaw list-remote` | active | ars | — | interop | — |
+| `vox ext ars openclaw notify` | active | ars | — | interop | — |
+| `vox ext ars openclaw search-remote` | active | ars | — | interop | — |
+| `vox ext ars openclaw serve` | active | ars | — | interop | — |
+| `vox ext ars openclaw sidecar` | active | ars | — | interop | — |
+| `vox ext ars openclaw sidecar start` | active | ars | — | interop | — |
+| `vox ext ars openclaw sidecar status` | active | ars | — | interop | — |
+| `vox ext ars openclaw sidecar stop` | active | ars | — | interop | — |
+| `vox ext ars openclaw subscribe` | active | ars | — | interop | — |
+| `vox ext ars openclaw subscriptions` | active | ars | — | interop | — |
+| `vox ext ars openclaw unsubscribe` | active | ars | — | interop | — |
+| `vox ext ars share` | active | — | — | interop | — |
+| `vox ext ars share feedback` | active | — | — | interop | — |
+| `vox ext ars share list` | active | — | — | interop | — |
+| `vox ext ars share publish` | active | — | — | interop | — |
+| `vox ext ars share search` | active | — | — | interop | — |
+| `vox ext ars skill` | active | ars | — | interop | — |
+| `vox ext ars skill add` | active | ars | — | interop | — |
+| `vox ext ars skill context-assemble` | active | ars | — | interop | — |
+| `vox ext ars skill create` | active | ars | — | interop | — |
+| `vox ext ars skill discover` | active | ars | — | interop | — |
+| `vox ext ars skill eval-task` | active | ars | — | interop | — |
+| `vox ext ars skill info` | active | ars | — | interop | — |
+| `vox ext ars skill install` | active | ars | — | interop | — |
+| `vox ext ars skill list` | active | ars | — | interop | — |
+| `vox ext ars skill promote` | active | ars | — | interop | — |
+| `vox ext ars skill run` | active | ars | — | interop | — |
+| `vox ext ars skill search` | active | ars | — | interop | — |
+| `vox ext ars skill suggest` | active | ars | — | interop | — |
+| `vox ext ars skill uninstall` | active | ars | — | interop | — |
+| `vox ext ars snippet` | active | — | — | interop | — |
+| `vox ext ars snippet export` | active | — | — | interop | — |
+| `vox ext ars snippet save` | active | — | — | interop | — |
+| `vox ext ars snippet search` | active | — | — | interop | — |
+| `vox ext ludus` | active | extras-ludus | — | interop | — |
+| `vox ext ludus arena-join` | active | extras-ludus | — | interop | — |
+| `vox ext ludus arena-leaderboard` | active | extras-ludus | — | interop | — |
+| `vox ext ludus arena-show` | active | extras-ludus | — | interop | — |
+| `vox ext ludus audit` | active | extras-ludus | — | interop | — |
+| `vox ext ludus auth` | active | extras-ludus | — | interop | — |
+| `vox ext ludus battle-start` | active | extras-ludus | — | interop | — |
+| `vox ext ludus battle-submit` | active | extras-ludus | — | interop | — |
+| `vox ext ludus challenge-list` | active | extras-ludus | — | interop | — |
+| `vox ext ludus challenge-start` | active | extras-ludus | — | interop | — |
+| `vox ext ludus challenge-submit` | active | extras-ludus | — | interop | — |
+| `vox ext ludus collegium-join` | active | extras-ludus | — | interop | — |
+| `vox ext ludus collegium-list` | active | extras-ludus | — | interop | — |
+| `vox ext ludus collegium-new` | active | extras-ludus | — | interop | — |
+| `vox ext ludus collegium-status` | active | extras-ludus | — | interop | — |
+| `vox ext ludus companion-create` | active | extras-ludus | — | interop | — |
+| `vox ext ludus companion-interact` | active | extras-ludus | — | interop | — |
+| `vox ext ludus companion-list` | active | extras-ludus | — | interop | — |
+| `vox ext ludus companion-show` | active | extras-ludus | — | interop | — |
+| `vox ext ludus digest` | active | extras-ludus | — | interop | — |
+| `vox ext ludus digest-weekly` | active | extras-ludus | — | interop | — |
+| `vox ext ludus disable` | active | extras-ludus | — | interop | — |
+| `vox ext ludus dispute-appeal` | active | extras-ludus | — | interop | — |
+| `vox ext ludus dispute-file` | active | extras-ludus | — | interop | — |
+| `vox ext ludus dispute-status` | active | extras-ludus | — | interop | — |
+| `vox ext ludus dispute-vote` | active | extras-ludus | — | interop | — |
+| `vox ext ludus enable` | active | extras-ludus | — | interop | — |
+| `vox ext ludus feedback-rate` | active | extras-ludus | — | interop | — |
+| `vox ext ludus glyph-list` | active | extras-ludus | — | interop | — |
+| `vox ext ludus hint` | active | extras-ludus | — | interop | — |
+| `vox ext ludus leaderboard-show` | active | extras-ludus | — | interop | — |
+| `vox ext ludus metrics` | active | extras-ludus | — | interop | — |
+| `vox ext ludus mode` | active | extras-ludus | — | interop | — |
+| `vox ext ludus monte-carlo-sweep` | active | extras-ludus | — | interop | — |
+| `vox ext ludus morning` | active | extras-ludus | — | interop | — |
+| `vox ext ludus notify-clear` | active | extras-ludus | — | interop | — |
+| `vox ext ludus notify-list` | active | extras-ludus | — | interop | — |
+| `vox ext ludus pack-init` | active | extras-ludus | — | interop | — |
+| `vox ext ludus pack-list` | active | extras-ludus | — | interop | — |
+| `vox ext ludus profile-merge` | active | extras-ludus | — | interop | — |
+| `vox ext ludus quest-generate` | active | extras-ludus | — | interop | — |
+| `vox ext ludus quest-list` | active | extras-ludus | — | interop | — |
+| `vox ext ludus record` | active | extras-ludus | — | interop | — |
+| `vox ext ludus reward-claim` | active | extras-ludus | — | interop | — |
+| `vox ext ludus shield-use` | active | extras-ludus | — | interop | — |
+| `vox ext ludus shop-buy` | active | extras-ludus | — | interop | — |
+| `vox ext ludus shop-list` | active | extras-ludus | — | interop | — |
+| `vox ext ludus status` | active | extras-ludus | — | interop | — |
+| `vox ext ludus sync-github` | active | extras-ludus | — | interop | — |
+| `vox ext mens` | active | mens-base|gpu | — | interop | — |
+| `vox ext openclaw` | active | ars | — | interop | — |
+| `vox ext openclaw approvals` | active | ars | — | interop | — |
+| `vox ext openclaw approve` | active | ars | — | interop | — |
+| `vox ext openclaw config` | active | ars | — | interop | — |
+| `vox ext openclaw deny` | active | ars | — | interop | — |
+| `vox ext openclaw doctor` | active | ars | — | interop | — |
+| `vox ext openclaw gateway-call` | active | ars | — | interop | — |
+| `vox ext openclaw import` | active | ars | — | interop | — |
+| `vox ext openclaw list-remote` | active | ars | — | interop | — |
+| `vox ext openclaw notify` | active | ars | — | interop | — |
+| `vox ext openclaw search-remote` | active | ars | — | interop | — |
+| `vox ext openclaw serve` | active | ars | — | interop | — |
+| `vox ext openclaw sidecar` | active | ars | — | interop | — |
+| `vox ext openclaw sidecar start` | active | ars | — | interop | — |
+| `vox ext openclaw sidecar status` | active | ars | — | interop | — |
+| `vox ext openclaw sidecar stop` | active | ars | — | interop | — |
+| `vox ext openclaw subscribe` | active | ars | — | interop | — |
+| `vox ext openclaw subscriptions` | active | ars | — | interop | — |
+| `vox ext openclaw unsubscribe` | active | ars | — | interop | — |
+| `vox ext oratio` | active | oratio | — | interop | — |
+| `vox ext populi` | active | populi | — | interop | — |
+| `vox ext skill` | active | ars | — | interop | — |
+| `vox ext skill add` | active | ars | — | interop | — |
+| `vox ext skill context-assemble` | active | ars | — | interop | — |
+| `vox ext skill create` | active | ars | — | interop | — |
+| `vox ext skill discover` | active | ars | — | interop | — |
+| `vox ext skill eval-task` | active | ars | — | interop | — |
+| `vox ext skill info` | active | ars | — | interop | — |
+| `vox ext skill install` | active | ars | — | interop | — |
+| `vox ext skill list` | active | ars | — | interop | — |
+| `vox ext skill promote` | active | ars | — | interop | — |
+| `vox ext skill run` | active | ars | — | interop | — |
+| `vox ext skill search` | active | ars | — | interop | — |
+| `vox ext skill suggest` | active | ars | — | interop | — |
+| `vox ext skill uninstall` | active | ars | — | interop | — |
+| `vox ext train` | deprecated | gpu+mens-dei | — | interop | — |
 | `vox fabrica` | active | — | fabrica | app | — |
+| `vox fabrica build` | active | — | fabrica | app | — |
+| `vox fabrica bundle` | active | — | fabrica | app | — |
+| `vox fabrica check` | active | — | fabrica | app | — |
+| `vox fabrica compile` | active | — | fabrica | app | — |
+| `vox fabrica dev` | active | — | fabrica | app | — |
+| `vox fabrica fmt` | active | — | fabrica | app | — |
+| `vox fabrica run` | active | — | fabrica | app | — |
+| `vox fabrica script` | active | script-execution | fabrica | app | — |
+| `vox fabrica test` | active | — | fabrica | app | — |
 | `vox fmt` | active | — | fabrica | app | — |
 | `vox gamify` | active | extras-ludus | ars | ai | — |
+| `vox gamify arena-join` | active | extras-ludus | ars | ai | — |
+| `vox gamify arena-leaderboard` | active | extras-ludus | ars | ai | — |
+| `vox gamify arena-show` | active | extras-ludus | ars | ai | — |
+| `vox gamify audit` | active | extras-ludus | ars | ai | — |
+| `vox gamify auth` | active | extras-ludus | ars | ai | — |
+| `vox gamify battle-start` | active | extras-ludus | ars | ai | — |
+| `vox gamify battle-submit` | active | extras-ludus | ars | ai | — |
+| `vox gamify challenge-list` | active | extras-ludus | ars | ai | — |
+| `vox gamify challenge-start` | active | extras-ludus | ars | ai | — |
+| `vox gamify challenge-submit` | active | extras-ludus | ars | ai | — |
+| `vox gamify collegium-join` | active | extras-ludus | ars | ai | — |
+| `vox gamify collegium-list` | active | extras-ludus | ars | ai | — |
+| `vox gamify collegium-new` | active | extras-ludus | ars | ai | — |
+| `vox gamify collegium-status` | active | extras-ludus | ars | ai | — |
+| `vox gamify companion-create` | active | extras-ludus | ars | ai | — |
+| `vox gamify companion-interact` | active | extras-ludus | ars | ai | — |
+| `vox gamify companion-list` | active | extras-ludus | ars | ai | — |
+| `vox gamify companion-show` | active | extras-ludus | ars | ai | — |
+| `vox gamify digest` | active | extras-ludus | ars | ai | — |
+| `vox gamify digest-weekly` | active | extras-ludus | ars | ai | — |
+| `vox gamify disable` | active | extras-ludus | ars | ai | — |
+| `vox gamify dispute-appeal` | active | extras-ludus | ars | ai | — |
+| `vox gamify dispute-file` | active | extras-ludus | ars | ai | — |
+| `vox gamify dispute-status` | active | extras-ludus | ars | ai | — |
+| `vox gamify dispute-vote` | active | extras-ludus | ars | ai | — |
+| `vox gamify enable` | active | extras-ludus | ars | ai | — |
+| `vox gamify feedback-rate` | active | extras-ludus | ars | ai | — |
+| `vox gamify glyph-list` | active | extras-ludus | ars | ai | — |
+| `vox gamify hint` | active | extras-ludus | ars | ai | — |
 | `vox gamify hud` | active | ludus-hud | ars | ai | — |
+| `vox gamify leaderboard-show` | active | extras-ludus | ars | ai | — |
+| `vox gamify metrics` | active | extras-ludus | ars | ai | — |
+| `vox gamify mode` | active | extras-ludus | ars | ai | — |
+| `vox gamify monte-carlo-sweep` | active | extras-ludus | ars | ai | — |
+| `vox gamify morning` | active | extras-ludus | ars | ai | — |
+| `vox gamify notify-clear` | active | extras-ludus | ars | ai | — |
+| `vox gamify notify-list` | active | extras-ludus | ars | ai | — |
+| `vox gamify pack-init` | active | extras-ludus | ars | ai | — |
+| `vox gamify pack-list` | active | extras-ludus | ars | ai | — |
+| `vox gamify profile-merge` | active | extras-ludus | ars | ai | — |
+| `vox gamify quest-generate` | active | extras-ludus | ars | ai | — |
+| `vox gamify quest-list` | active | extras-ludus | ars | ai | — |
+| `vox gamify record` | active | extras-ludus | ars | ai | — |
+| `vox gamify reward-claim` | active | extras-ludus | ars | ai | — |
+| `vox gamify shield-use` | active | extras-ludus | ars | ai | — |
+| `vox gamify shop-buy` | active | extras-ludus | ars | ai | — |
+| `vox gamify shop-list` | active | extras-ludus | ars | ai | — |
+| `vox gamify status` | active | extras-ludus | ars | ai | — |
+| `vox gamify sync-github` | active | extras-ludus | ars | ai | — |
+| `vox generate` | active | — | — | ai | — |
 | `vox grammar` | active | — | — | ai | — |
 | `vox graph` | active | — | pm | platform | — |
+| `vox graph coverage` | active | — | pm | platform | — |
+| `vox graph crate-map` | active | — | pm | platform | — |
+| `vox graph gc` | active | — | pm | platform | — |
+| `vox graph index` | active | — | pm | platform | — |
 | `vox graph ingest` | active | — | pm | platform | — |
+| `vox graph query` | active | — | pm | platform | — |
+| `vox graph rebuild` | active | — | pm | platform | — |
+| `vox graph refresh` | active | — | pm | platform | — |
+| `vox graph status` | active | — | pm | platform | — |
+| `vox graph why-rebuilt` | active | — | pm | platform | — |
 | `vox gui` | active | gui | gui | platform | — |
 | `vox gui drive` | active | gui | gui | platform | — |
 | `vox gui drive headless` | active | gui | gui | platform | — |
@@ -192,14 +713,20 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox gui drive stop` | active | gui | gui | platform | — |
 | `vox gui drive wait` | active | gui | gui | platform | — |
 | `vox harness` | active | — | — | ai | — |
+| `vox harness eval` | active | — | — | ai | — |
+| `vox harness history` | active | — | — | ai | — |
+| `vox harness publish` | active | — | — | ai | — |
+| `vox harness report` | active | — | — | ai | — |
 | `vox init` | active | — | pm | platform | — |
 | `vox live` | active | live | — | ai | — |
 | `vox llm` | active | — | — | ai | — |
+| `vox llm prompt` | active | — | — | ai | — |
 | `vox lock` | active | — | pm | platform | — |
 | `vox login` | active | — | ars | platform | — |
 | `vox logout` | active | — | ars | platform | — |
 | `vox lsp` | active | — | fabrica | app | — |
 | `vox mcp` | active | mcp-server | — | platform | — |
+| `vox memory` | active | — | codex | ai | — |
 | `vox memory search` | active | — | codex | ai | — |
 | `vox mens` | active | mens-base|gpu | mens | ai | — |
 | `vox mens bench-completion` | active | mens-base | mens | ai | — |
@@ -226,31 +753,70 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox mens workflow inspect` | active | mens-dei | mens | ai | — |
 | `vox mens workflow list` | active | mens-dei | mens | ai | — |
 | `vox mens workflow run` | active | mens-dei | mens | ai | — |
+| `vox migrate` | active | — | pm | platform | — |
+| `vox migrate names` | active | — | pm | platform | — |
 | `vox migrate web` | active | — | pm | platform | — |
+| `vox model` | active | — | — | ai | — |
+| `vox model cas` | active | — | — | ai | — |
+| `vox model cas ls` | active | — | — | ai | — |
+| `vox model cas pull` | active | — | — | ai | — |
+| `vox model cas push` | active | — | — | ai | — |
+| `vox model classify` | active | — | — | ai | — |
 | `vox model costs` | active | — | — | ai | — |
+| `vox model council-report` | active | — | — | ai | — |
 | `vox model discover` | active | — | — | ai | — |
+| `vox model eval` | active | — | — | ai | — |
+| `vox model eval-corpus` | active | — | — | ai | — |
 | `vox model explain` | active | — | — | ai | — |
 | `vox model list` | active | — | — | ai | — |
+| `vox model preferences` | active | — | — | ai | — |
 | `vox model preferences reset` | active | — | — | ai | — |
 | `vox model preferences set` | active | — | — | ai | — |
+| `vox model pricing` | active | — | — | ai | — |
 | `vox model pricing check` | active | — | — | ai | — |
 | `vox model pricing refresh` | active | — | — | ai | — |
 | `vox model pricing rollup` | active | — | — | ai | — |
 | `vox model pricing show` | active | — | — | ai | — |
 | `vox model rollup` | active | — | — | ai | — |
 | `vox model scoreboard` | active | — | — | ai | — |
+| `vox model shadow` | active | — | — | ai | — |
 | `vox model show` | active | — | — | ai | — |
 | `vox new` | active | — | — | app | — |
+| `vox new fn` | active | — | — | app | — |
+| `vox new skill` | active | — | — | app | — |
+| `vox new web` | active | — | — | app | — |
 | `vox openclaw` | active | ars | ars | interop | — |
+| `vox openclaw approvals` | active | ars | ars | interop | — |
+| `vox openclaw approve` | active | ars | ars | interop | — |
+| `vox openclaw config` | active | ars | ars | interop | — |
+| `vox openclaw deny` | active | ars | ars | interop | — |
 | `vox openclaw doctor` | active | ars | ars | interop | — |
 | `vox openclaw gateway-call` | active | ars | ars | interop | — |
+| `vox openclaw import` | active | ars | ars | interop | — |
+| `vox openclaw list-remote` | active | ars | ars | interop | — |
+| `vox openclaw notify` | active | ars | ars | interop | — |
 | `vox openclaw search-remote` | active | ars | ars | interop | — |
+| `vox openclaw serve` | active | ars | ars | interop | — |
 | `vox openclaw sidecar` | active | ars | ars | interop | — |
 | `vox openclaw sidecar start` | active | ars | ars | interop | — |
 | `vox openclaw sidecar status` | active | ars | ars | interop | — |
 | `vox openclaw sidecar stop` | active | ars | ars | interop | — |
+| `vox openclaw subscribe` | active | ars | ars | interop | — |
+| `vox openclaw subscriptions` | active | ars | ars | interop | — |
+| `vox openclaw unsubscribe` | active | ars | ars | interop | — |
+| `vox plan` | active | — | — | ai | — |
+| `vox plan create` | active | — | — | ai | — |
+| `vox plan replan` | active | — | — | ai | — |
+| `vox plan status` | active | — | — | ai | — |
 | `vox play` | active | — | — | app | — |
 | `vox plugin` | active | — | — | platform | — |
+| `vox plugin doctor` | active | — | — | platform | — |
+| `vox plugin info` | active | — | — | interop | — |
+| `vox plugin install` | active | — | — | interop | — |
+| `vox plugin list` | active | — | — | interop | — |
+| `vox plugin publish` | active | — | — | platform | — |
+| `vox plugin remove` | active | — | — | interop | — |
+| `vox plugin scaffold` | active | — | — | platform | — |
 | `vox pm` | active | — | pm | platform | — |
 | `vox pm cache` | active | — | pm | platform | — |
 | `vox pm cache clear` | active | — | pm | platform | — |
@@ -263,6 +829,11 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox pm verify` | active | — | pm | platform | — |
 | `vox pm yank` | active | — | pm | platform | — |
 | `vox policy` | active | — | — | platform | — |
+| `vox policy domains` | active | — | — | platform | — |
+| `vox policy groups` | active | — | — | platform | — |
+| `vox policy list` | active | — | — | platform | — |
+| `vox policy show` | active | — | — | platform | — |
+| `vox policy status` | active | — | — | platform | — |
 | `vox populi` | active | populi | — | workflow | — |
 | `vox populi down` | active | populi | — | workflow | — |
 | `vox populi registry-snapshot` | active | populi | — | workflow | — |
@@ -270,42 +841,109 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox populi status` | active | populi | — | workflow | — |
 | `vox populi up` | active | populi | — | workflow | — |
 | `vox recensio` | active | coderabbit | recensio | ai | — |
+| `vox recensio coderabbit` | active | coderabbit | recensio | ai | — |
+| `vox recensio coderabbit batch-submit` | active | coderabbit | recensio | ai | — |
+| `vox recensio coderabbit db-backfill` | active | coderabbit | recensio | ai | — |
+| `vox recensio coderabbit db-report` | active | coderabbit | recensio | ai | — |
+| `vox recensio coderabbit db-status` | active | coderabbit | recensio | ai | — |
+| `vox recensio coderabbit deadletter-retry` | active | coderabbit | recensio | ai | — |
+| `vox recensio coderabbit historical-submit` | active | coderabbit | recensio | ai | — |
+| `vox recensio coderabbit ingest` | active | coderabbit | recensio | ai | — |
+| `vox recensio coderabbit learning-sync` | active | coderabbit | recensio | ai | — |
+| `vox recensio coderabbit semantic-submit` | active | coderabbit | recensio | ai | — |
+| `vox recensio coderabbit stack-submit` | active | coderabbit | recensio | ai | — |
+| `vox recensio coderabbit submit` | active | coderabbit | recensio | ai | — |
+| `vox recensio coderabbit tasks` | active | coderabbit | recensio | ai | — |
+| `vox recensio coderabbit wait` | active | coderabbit | recensio | ai | — |
 | `vox remove` | active | — | pm | platform | — |
 | `vox repair` | active | — | — | ai | — |
+| `vox repl` | active | — | — | app | — |
 | `vox repo` | active | — | codex | platform | — |
 | `vox repo catalog` | active | — | codex | platform | — |
 | `vox repo catalog list` | active | — | codex | platform | — |
 | `vox repo catalog refresh` | active | — | codex | platform | — |
+| `vox repo init` | active | — | codex | platform | — |
 | `vox repo query` | active | — | codex | platform | — |
 | `vox repo query file` | active | — | codex | platform | — |
 | `vox repo query history` | active | — | codex | platform | — |
 | `vox repo query text` | active | — | codex | platform | — |
 | `vox repo status` | active | — | codex | platform | — |
+| `vox research` | active | — | — | ai | — |
+| `vox research down` | active | — | — | ai | — |
+| `vox research eval` | active | — | — | ai | — |
+| `vox research history` | active | — | — | ai | — |
+| `vox research preview` | active | — | — | ai | — |
+| `vox research result` | active | — | — | ai | — |
 | `vox research run` | active | — | — | ai | — |
+| `vox research search` | active | — | — | ai | — |
+| `vox research show` | active | — | — | ai | — |
+| `vox research status` | active | — | — | ai | — |
+| `vox research up` | active | — | — | ai | — |
+| `vox research watch` | active | — | — | ai | — |
 | `vox review` | active | coderabbit | recensio | ai | — |
+| `vox review coderabbit` | active | coderabbit | recensio | ai | — |
+| `vox review coderabbit batch-submit` | active | coderabbit | recensio | ai | — |
+| `vox review coderabbit db-backfill` | active | coderabbit | recensio | ai | — |
+| `vox review coderabbit db-report` | active | coderabbit | recensio | ai | — |
+| `vox review coderabbit db-status` | active | coderabbit | recensio | ai | — |
+| `vox review coderabbit deadletter-retry` | active | coderabbit | recensio | ai | — |
+| `vox review coderabbit historical-submit` | active | coderabbit | recensio | ai | — |
+| `vox review coderabbit ingest` | active | coderabbit | recensio | ai | — |
+| `vox review coderabbit learning-sync` | active | coderabbit | recensio | ai | — |
+| `vox review coderabbit semantic-submit` | active | coderabbit | recensio | ai | — |
+| `vox review coderabbit stack-submit` | active | coderabbit | recensio | ai | — |
+| `vox review coderabbit submit` | active | coderabbit | recensio | ai | — |
+| `vox review coderabbit tasks` | active | coderabbit | recensio | ai | — |
+| `vox review coderabbit wait` | active | coderabbit | recensio | ai | — |
 | `vox rollback` | active | — | — | platform | — |
 | `vox run` | active | — | fabrica | app | — |
 | `vox scientia` | active | — | codex | data | — |
+| `vox scientia capability-list` | active | — | codex | data | — |
+| `vox scientia claims` | active | — | codex | data | — |
 | `vox scientia collection-transform-preview` | active | — | codex | data | — |
+| `vox scientia cost` | active | — | codex | data | — |
+| `vox scientia dashboard` | active | — | codex | data | — |
+| `vox scientia diagnose` | active | — | codex | data | — |
+| `vox scientia discovery-watch` | active | — | codex | data | — |
+| `vox scientia evidence-assist` | active | — | codex | data | — |
+| `vox scientia feed-source-add` | active | — | codex | data | — |
+| `vox scientia feed-source-list` | active | — | codex | data | — |
 | `vox scientia finding-candidate-validate` | active | — | codex | data | — |
+| `vox scientia ingest-tick` | active | — | codex | data | — |
 | `vox scientia mirror-search-corpus` | active | — | codex | data | — |
 | `vox scientia novelty-evidence-bundle-validate` | active | — | codex | data | — |
 | `vox scientia publication-approve` | active | — | codex | data | — |
+| `vox scientia publication-archive-code` | active | — | codex | data | — |
+| `vox scientia publication-archive-run` | active | — | codex | data | — |
+| `vox scientia publication-arxiv-bundle` | active | — | codex | data | — |
 | `vox scientia publication-arxiv-handoff-record` | active | — | codex | data | — |
+| `vox scientia publication-autofill` | active | — | codex | data | — |
+| `vox scientia publication-claim-review` | active | — | codex | data | — |
+| `vox scientia publication-critic-approve` | active | — | codex | data | — |
+| `vox scientia publication-critic-gate-check` | active | — | codex | data | — |
+| `vox scientia publication-dashboard-snapshot` | active | — | codex | data | — |
 | `vox scientia publication-decision-explain` | active | — | codex | data | — |
 | `vox scientia publication-discovery-explain` | active | — | codex | data | — |
+| `vox scientia publication-discovery-publish-rss` | active | — | codex | data | — |
 | `vox scientia publication-discovery-scan` | active | — | codex | data | — |
 | `vox scientia publication-external-jobs-dead-letter` | active | — | codex | data | — |
 | `vox scientia publication-external-jobs-due` | active | — | codex | data | — |
 | `vox scientia publication-external-jobs-replay` | active | — | codex | data | — |
 | `vox scientia publication-external-jobs-tick` | active | — | codex | data | — |
 | `vox scientia publication-external-pipeline-metrics` | active | — | codex | data | — |
+| `vox scientia publication-extract-claims` | active | — | codex | data | — |
+| `vox scientia publication-finding-page-render` | active | — | codex | data | — |
+| `vox scientia publication-manuscript-draft` | active | — | codex | data | — |
+| `vox scientia publication-nanopub-build` | active | — | codex | data | — |
 | `vox scientia publication-novelty-fetch` | active | — | codex | data | — |
 | `vox scientia publication-novelty-happy-path` | active | — | codex | data | — |
 | `vox scientia publication-openreview-profile` | active | — | codex | data | — |
 | `vox scientia publication-preflight` | active | — | codex | data | — |
 | `vox scientia publication-prepare` | active | — | codex | data | — |
 | `vox scientia publication-prepare-validated` | active | — | codex | data | — |
+| `vox scientia publication-render-latex` | active | — | codex | data | — |
+| `vox scientia publication-replay-execute` | active | — | codex | data | — |
+| `vox scientia publication-review-queue` | active | — | codex | data | — |
 | `vox scientia publication-scholarly-pipeline-run` | active | — | codex | data | — |
 | `vox scientia publication-scholarly-remote-status` | active | — | codex | data | — |
 | `vox scientia publication-scholarly-remote-status-sync-all` | active | — | codex | data | — |
@@ -314,26 +952,58 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox scientia publication-status` | active | — | codex | data | — |
 | `vox scientia publication-submit-local` | active | — | codex | data | — |
 | `vox scientia publication-transform-preview` | active | — | codex | data | — |
+| `vox scientia publication-venue-recommend` | active | — | codex | data | — |
 | `vox scientia publication-worthiness-evaluate` | active | — | codex | data | — |
 | `vox scientia publication-zenodo-metadata` | active | — | codex | data | — |
+| `vox scientia research-list` | active | — | codex | data | — |
+| `vox scientia research-map-list` | active | — | codex | data | — |
+| `vox scientia research-refresh` | active | — | codex | data | — |
+| `vox scientia retrieval-status` | active | — | codex | data | — |
+| `vox scientia scout` | active | — | codex | data | — |
 | `vox script` | active | script-execution | fabrica | workflow | — |
 | `vox secrets` | active | — | ars | platform | — |
 | `vox secrets backend-status` | active | — | ars | platform | — |
 | `vox secrets get` | active | — | ars | platform | — |
+| `vox secrets import-env` | active | — | ars | platform | — |
 | `vox secrets login` | active | — | ars | platform | — |
 | `vox secrets migrate-auth-store` | active | — | ars | platform | — |
 | `vox secrets set` | active | — | ars | platform | — |
 | `vox secrets status` | active | — | ars | platform | — |
+| `vox secrets sync` | active | — | ars | platform | — |
 | `vox share` | active | — | ars | interop | — |
+| `vox shell` | active | — | — | platform | — |
 | `vox shell check` | active | — | — | platform | — |
 | `vox shell repl` | active | — | — | platform | — |
 | `vox skill` | active | ars | ars | interop | — |
+| `vox skill add` | active | ars | ars | interop | — |
+| `vox skill context-assemble` | active | ars | ars | interop | — |
+| `vox skill create` | active | ars | ars | interop | — |
+| `vox skill discover` | active | ars | ars | interop | — |
+| `vox skill eval-task` | active | ars | ars | interop | — |
+| `vox skill info` | active | ars | ars | interop | — |
+| `vox skill install` | active | ars | ars | interop | — |
+| `vox skill list` | active | ars | ars | interop | — |
+| `vox skill promote` | active | ars | ars | interop | — |
+| `vox skill run` | active | ars | ars | interop | — |
+| `vox skill search` | active | ars | ars | interop | — |
+| `vox skill suggest` | active | ars | ars | interop | — |
+| `vox skill uninstall` | active | ars | ars | interop | — |
+| `vox snapshot` | active | — | — | platform | — |
+| `vox snapshot orphans` | active | — | — | platform | — |
 | `vox snippet` | active | — | ars | interop | — |
+| `vox snippet export` | active | — | ars | interop | — |
+| `vox snippet save` | active | — | ars | interop | — |
+| `vox snippet search` | active | — | ars | interop | — |
 | `vox speech` | active | oratio | fabrica | ai | speech |
 | `vox stop` | active | dei | — | platform | — |
 | `vox stub-check` | active | stub-check | diag | platform | — |
 | `vox sync` | active | — | pm | platform | — |
 | `vox telemetry` | active | — | ci | platform | — |
+| `vox telemetry consent` | active | — | ci | platform | — |
+| `vox telemetry consent deny` | active | — | ci | platform | — |
+| `vox telemetry consent grant` | active | — | ci | platform | — |
+| `vox telemetry consent status` | active | — | ci | platform | — |
+| `vox telemetry doctor` | active | — | ci | platform | — |
 | `vox telemetry enqueue` | active | — | ci | platform | — |
 | `vox telemetry export` | active | — | ci | platform | — |
 | `vox telemetry status` | active | — | ci | platform | — |
@@ -345,3 +1015,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox upgrade` | active | — | pm | platform | — |
 | `vox visus audit` | active | dei | dei | ai | — |
 | `vox visus baseline` | active | dei | dei | ai | — |
+| `vox workflow` | active | — | — | workflow | — |
+| `vox workflow drain` | active | — | — | workflow | — |
+| `vox workflow ls` | active | — | — | workflow | — |
+| `vox workflow preview` | active | — | — | workflow | — |

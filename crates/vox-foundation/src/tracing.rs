@@ -7,7 +7,7 @@ use tracing_subscriber::EnvFilter;
 
 /// ANSI color belongs only on a real terminal. Scheduled tasks, pipes, and file
 /// redirects are NOT terminals, so emitting escape codes there produces literal
-/// `\x1b[2m…\x1b[0m` garbage in logs (observed in the VoxCIRunnerScale task output).
+/// `\x1b[2m…\x1b[0m` garbage in logs (observed in scheduled-task log output).
 pub(crate) fn ansi_enabled_for(is_terminal: bool) -> bool {
     is_terminal
 }

@@ -1,18 +1,12 @@
 name: Mobile E2E - Android
-# Heavy GitHub-hosted macOS job. Per the tier note it runs only in the merge queue
-# and on 'full-ci'-labeled PRs — NOT on every direct push to main. The former `push:`
-# trigger cold-compiled vox-cli on macos-13 with no cache and no timeout, so a routine
-# main push could run for hours. Removed `push:`; added a build cache and a timeout.
+# Heavy GitHub-hosted macOS job. Not on pull_request/merge_group: android-e2e's
+# 45m timeout exceeds the fast-lane (PR/merge_group) 30-min cap
+# (workflow_policy_guard). Runs nightly instead, mirroring mobile-e2e-ios's
+# earlier move off push/PR for the same class of heavy macOS job.
 on:
-  merge_group:
-  pull_request:
-    paths:
-      - 'apps/vox-mental-tracker/**'
-      - 'crates/vox-cli/**'
-      - 'crates/vox-codegen/**'
-      - 'crates/vox-codegen-ts/**'
-      - 'crates/vox-tauri-codegen/**'
-      - '.github/workflows/mobile-e2e-android.yml'
+  schedule:
+    - cron: '0 3 * * *' # Nightly, alongside mobile-e2e-ios
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -21,11 +15,13 @@ concurrency:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
+permissions:
+  contents: read
+
 jobs:
   android-e2e:
-    # Tier: heavy (GitHub-hosted macOS). merge_group + 'full-ci' label only; skip routine PR pushes.
-    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
-    runs-on: macos-13
+    # Tier: heavy (GitHub-hosted macOS).
+    runs-on: macos-15-intel
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7

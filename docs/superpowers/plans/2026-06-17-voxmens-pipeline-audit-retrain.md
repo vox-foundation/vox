@@ -366,7 +366,7 @@ git commit -m "feat(mens): enforce require_gpu and disable silent cpu fallback i
 ## Task 6: Fix training corpus mix configuration
 
 **Files:**
-- Modify: [mix.yaml](file:///c:/Users/Owner/vox/mens/config/mix.yaml)
+- Modify: [mix.yaml](../../../mens/config/mix.yaml)
 
 - [ ] **Step 1: Write the failing test**
 
@@ -399,7 +399,7 @@ Wait, we will edit `mix.yaml` directly.
 
 - [ ] **Step 3: Write minimal implementation**
 
-Modify [mens/config/mix.yaml](file:///c:/Users/Owner/vox/mens/config/mix.yaml):
+Modify [mens/config/mix.yaml](../../../mens/config/mix.yaml):
 Change lines 18-28 to reference `mens/data/mix_sources/rust_source.jsonl` and add `mens/data/mix_sources/docs.jsonl`:
 ```yaml
   - path: mens/data/mix_sources/rust_source.jsonl

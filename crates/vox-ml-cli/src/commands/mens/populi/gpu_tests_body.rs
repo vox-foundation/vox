@@ -84,7 +84,7 @@ fn merge_qlora_rejects_burn_bin_adapter() {
 }
 
 #[test]
-#[ignore = "dispatches to an installed MlBackend plugin (vox plugin install mens-candle-metal / -cuda / -cpu); run with --ignored. Merge math is covered hermetically by vox-plugin-mens-candle-core merge::tests"]
+#[ignore = "owner:mens sunset:never dispatches to an installed MlBackend plugin (vox plugin install mens-candle-metal / -cuda / -cpu); run with --ignored. Merge math is covered hermetically by vox-plugin-mens-candle-core merge::tests"]
 fn merge_qlora_cli_roundtrip_lm_head_subset() {
     use std::collections::HashMap;
 
@@ -196,7 +196,7 @@ fn merge_qlora_cli_roundtrip_lm_head_subset() {
 }
 
 #[test]
-#[ignore = "dispatches to an installed MlBackend plugin (vox plugin install mens-candle-metal / -cuda / -cpu); run with --ignored. Merge math is covered hermetically by vox-plugin-mens-candle-core merge::tests"]
+#[ignore = "owner:mens sunset:never dispatches to an installed MlBackend plugin (vox plugin install mens-candle-metal / -cuda / -cpu); run with --ignored. Merge math is covered hermetically by vox-plugin-mens-candle-core merge::tests"]
 fn merge_qlora_cli_roundtrip_lm_head_subset_adapter_manifest_v3() {
     use std::collections::HashMap;
 

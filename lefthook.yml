@@ -56,6 +56,10 @@ pre-commit:
       glob: "crates/vox-gui/ui/src/components/surfaces/**/*.tsx"
       run: cd crates/vox-gui/ui && pnpm vitest run src/components/surfaces/__guards__/surfaceHonesty.guard.test.ts
 
+    ci-status:
+      # Never fails the commit; prints GitHub CI problems + open nightly failures.
+      run: vox ci status --hook || true
+
 # Optional secondary gate when using lefthook directly on push (thin Rust drift).
 # The authoritative hook installed by `vox ci install-hooks` delegates to `vox ci pre-push`
 # (fast profile: fmt, line-endings, ssot-drift, scoped docs, vox-drift-check).

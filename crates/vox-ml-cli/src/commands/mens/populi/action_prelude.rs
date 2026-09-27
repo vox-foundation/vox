@@ -134,9 +134,20 @@ pub enum PipelineStage {
     AgentTraceIngest,
     /// Mine PR review findings → Rust-review DPO preference pairs.
     ReviewToDpo,
+    /// LLM back-translation of compile-clean code into instruction pairs
+    /// (`vox mens corpus back-translate`). Opt-in; spends only with `VOX_MENS_ALLOW_SPEND=1`.
+    BackTranslate,
+    /// Rejection-sampling fine-tuning pairs (`vox mens corpus rft`).
+    /// Opt-in; spends only with `VOX_MENS_ALLOW_SPEND=1`.
+    Rft,
 }
 
 impl PipelineStage {
+    /// Stages that spend on LLM calls run only when named in `--stages`.
+    pub fn is_opt_in(&self) -> bool {
+        matches!(self, Self::BackTranslate | Self::Rft)
+    }
+
     /// Human-readable label for the stage.
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -156,6 +167,8 @@ impl PipelineStage {
             Self::KbSignals => "kb_signals",
             Self::AgentTraceIngest => "agent_trace_ingest",
             Self::ReviewToDpo => "review_to_dpo",
+            Self::BackTranslate => "back_translate",
+            Self::Rft => "rft",
         }
     }
 }
@@ -173,4 +186,17 @@ pub struct PipelineProgress {
     pub completed_stages: usize,
     /// Percentage complete (0.0 - 100.0).
     pub progress_pct: f64,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::PipelineStage;
+
+    #[test]
+    fn only_spending_synth_stages_are_opt_in() {
+        assert!(PipelineStage::BackTranslate.is_opt_in());
+        assert!(PipelineStage::Rft.is_opt_in());
+        assert!(!PipelineStage::Mix.is_opt_in());
+        assert_eq!(PipelineStage::BackTranslate.as_str(), "back_translate");
+    }
 }

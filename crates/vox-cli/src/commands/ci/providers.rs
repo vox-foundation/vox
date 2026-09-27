@@ -133,9 +133,6 @@ impl vox_cli_ci::HeavyGuardHost for VoxCliProviders {
                 out_dir,
                 package,
             } => super::release_build::run(root, target, version.as_deref(), out_dir, *package),
-            CiCmd::RunnerScale { apply } => super::runner_scale::run_scale(*apply),
-            CiCmd::RunnerPreflight => super::runner_scale::run_preflight(),
-            CiCmd::RunnerStatus => super::runner_scale::run_status(),
             _ => return None,
         })
     }

@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript, React 19, Tailwind CSS, Playwright, Vitest, Rust (Tauri 2, tokio, serde), `vox-search`, `vox-research-shim`.
 
-**Spec:** [`docs/superpowers/specs/2026-09-17-axis-gui-visual-debugger-deep-research-design.md`](file:///Users/brbrainerd/dev/vox/docs/superpowers/specs/2026-09-17-axis-gui-visual-debugger-deep-research-design.md)
+**Spec:** [`docs/superpowers/specs/2026-09-17-axis-gui-visual-debugger-deep-research-design.md`](../specs/2026-09-17-axis-gui-visual-debugger-deep-research-design.md)
 
 ## Global Constraints
 

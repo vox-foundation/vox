@@ -25,7 +25,7 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use rayon::prelude::*;
-use xxhash_rust::xxh3::xxh3_64;
+use xxhash_rust::xxh3::{xxh3_64, xxh3_64_with_seed};
 
 use anyhow::Context;
 use serde::Deserialize;
@@ -76,7 +76,9 @@ pub struct MixSource {
     /// When `true`, silently skip this source if the file does not exist (no warning printed).
     #[serde(default)]
     pub optional: bool,
-    /// Probability (0.0 to 1.0) of including a row in the output.
+    /// Probability (0.0 to 1.0) of including a row in the output. Decided per row from
+    /// a hash of (mix `seed`, source `path`, line), so the same inputs always keep the
+    /// same rows (see [`keep_sampled_line`]).
     #[serde(default)]
     pub sample_rate: Option<f64>,
     /// Hard cap on the number of lines emitted from this source.
@@ -113,6 +115,26 @@ pub struct MixConfigSchema {
     /// emitted are silently dropped. Zero overhead when false (default).
     #[serde(default)]
     pub dedup: bool,
+    /// Seed for `sample_rate` decisions. Fixed default so a mix is reproducible;
+    /// change it to draw a different (still reproducible) sample.
+    #[serde(default)]
+    pub seed: u64,
+}
+
+/// Deterministic `sample_rate` decision: xxh3(seed; path, line) mapped to [0, 1).
+pub(crate) fn keep_sampled_line(seed: u64, source_path: &str, line: &str, rate: f64) -> bool {
+    if rate >= 1.0 {
+        return true;
+    }
+    let key = format!("{source_path}\u{1f}{line}");
+    let h = xxh3_64_with_seed(key.as_bytes(), seed);
+    ((h >> 11) as f64 / (1u64 << 53) as f64) < rate
+}
+
+/// Lexical path key for comparing config paths (`./a/b` == `a/b`, `\\` == `/`).
+fn config_path_key(p: &str) -> String {
+    let p = p.trim().replace('\\', "/");
+    p.strip_prefix("./").unwrap_or(&p).to_string()
 }
 
 impl MixConfigSchema {
@@ -127,6 +149,16 @@ impl MixConfigSchema {
             "mix config {}: sources must be non-empty",
             path.display()
         );
+        // Feedback-loop guard: the mix output must never be read back as a mix input.
+        let out = config_path_key(&cfg.output);
+        if let Some(src) = cfg.sources.iter().find(|s| config_path_key(&s.path) == out) {
+            anyhow::bail!(
+                "mix config {}: output `{}` is also listed as a source (`{}`); a mix must not read its own output",
+                path.display(),
+                cfg.output,
+                src.path
+            );
+        }
         Ok(cfg)
     }
 }
@@ -174,6 +206,9 @@ pub struct MixRunReport {
     pub config_fingerprint: String,
     pub sources: Vec<MixSourceReportRow>,
     pub total_emitted: usize,
+    /// Emitted rows per lane (after dedup and `max_lines`).
+    #[serde(default)]
+    pub lane_counts: std::collections::BTreeMap<String, usize>,
 }
 
 /// Rewrite one JSONL line for mixing. Pass-through unless `record_format` requests transformation.
@@ -508,6 +543,23 @@ fn enrich_lane_metadata(line: &str) -> Result<(String, String), String> {
 /// No-op if `weight == 1.0` (the default; keeps the JSONL diff minimal for
 /// the common single-source case). Existing `mix_weight` is preserved if
 /// already set — caller intent wins over mix-time defaults.
+/// Content key for `dedup: true`. Covers `prompt`/`instruction`, `input`,
+/// `response`/`output`, and `messages`, so messages-only rows no longer all
+/// collapse onto the empty-prompt/empty-response key.
+pub(crate) fn dedup_key(row: &serde_json::Value) -> u64 {
+    let field = |k: &str| row.get(k).map(|v| v.to_string()).unwrap_or_default();
+    let prompt = row.get("prompt").or_else(|| row.get("instruction"));
+    let response = row.get("response").or_else(|| row.get("output"));
+    let key = format!(
+        "{}\u{1f}{}\u{1f}{}\u{1f}{}",
+        prompt.map(|v| v.to_string()).unwrap_or_default(),
+        field("input"),
+        response.map(|v| v.to_string()).unwrap_or_default(),
+        field("messages"),
+    );
+    xxh3_64(key.as_bytes())
+}
+
 fn stamp_mix_weight(line: &str, weight: f64) -> Result<String, String> {
     if (weight - 1.0).abs() < f64::EPSILON {
         return Ok(line.to_string());
@@ -556,9 +608,11 @@ fn calculate_config_fingerprint(cfg: &MixConfigSchema) -> String {
     for lane in &cfg.exclude_lanes {
         s.push_str(lane);
     }
+    s.push_str(&format!("dedup={};seed={};", cfg.dedup, cfg.seed));
     for src in &cfg.sources {
         s.push_str(&src.path);
         s.push_str(&src.weight.to_string());
+        s.push_str(&format!("max_lines={:?};", src.max_lines));
         if let Some(f) = &src.record_format {
             s.push_str(f);
         }
@@ -644,9 +698,7 @@ pub fn run_mix_with_options(
         cfg.include_lanes.iter().cloned().collect()
     });
     let exclude_lanes: Arc<HashSet<String>> = Arc::new(cfg.exclude_lanes.iter().cloned().collect());
-    let lane_counts = Arc::new(Mutex::new(
-        std::collections::BTreeMap::<String, usize>::new(),
-    ));
+    let mut lane_counts = std::collections::BTreeMap::<String, usize>::new();
 
     let out_file = File::create(&out_path)
         .with_context(|| format!("create mix output {}", out_path.display()))?;
@@ -734,9 +786,11 @@ pub fn run_mix_with_options(
             let record_format = src.record_format.clone();
             let include_lanes = Arc::clone(&include_lanes);
             let exclude_lanes = Arc::clone(&exclude_lanes);
-            let lane_counts = Arc::clone(&lane_counts);
+            let seed = cfg.seed;
+            let src_path = src.path.as_str();
 
-            let processed_chunk: Vec<String> = chunk
+            // Indexed par_iter + collect preserves input order, so output order is deterministic.
+            let processed_chunk: Vec<(String, String)> = chunk
                 .into_par_iter()
                 .filter_map(|line| {
                     let trimmed = line.trim();
@@ -744,13 +798,8 @@ pub fn run_mix_with_options(
                         return None;
                     }
 
-                    // Sampling logic
-                    if sample_rate < 1.0 {
-                        let mut rng = rand::thread_rng();
-                        use rand::Rng;
-                        if !rng.gen_bool(sample_rate) {
-                            return None;
-                        }
+                    if !keep_sampled_line(seed, src_path, trimmed, sample_rate) {
+                        return None;
                     }
 
                     let normalized =
@@ -783,10 +832,7 @@ pub fn run_mix_with_options(
                         }
                     };
 
-                    let mut counts = lane_counts.lock().unwrap();
-                    *counts.entry(lane).or_insert(0) += 1;
-
-                    Some(normalized)
+                    Some((normalized, lane))
                 })
                 .collect();
 
@@ -794,18 +840,11 @@ pub fn run_mix_with_options(
                 let mut out = out_file.lock().unwrap();
                 let mut cap_reached = false;
                 for _ in 0..repeats {
-                    for row in &processed_chunk {
+                    for (row, lane) in &processed_chunk {
                         if cfg.dedup
                             && let Ok(parsed) = serde_json::from_str::<serde_json::Value>(row)
                         {
-                            let prompt =
-                                parsed.get("prompt").and_then(|v| v.as_str()).unwrap_or("");
-                            let response = parsed
-                                .get("response")
-                                .or_else(|| parsed.get("output"))
-                                .and_then(|v| v.as_str())
-                                .unwrap_or("");
-                            let hash = xxh3_64(prompt.as_bytes()) ^ xxh3_64(response.as_bytes());
+                            let hash = dedup_key(&parsed);
                             if !seen_hashes.insert(hash) {
                                 continue; // Duplicate -- skip
                             }
@@ -817,6 +856,7 @@ pub fn run_mix_with_options(
                             break;
                         }
                         writeln!(out, "{row}")?;
+                        *lane_counts.entry(lane.clone()).or_insert(0) += 1;
                         total_out += 1;
                         emitted_this_src += 1;
                     }
@@ -900,6 +940,7 @@ pub fn run_mix_with_options(
             config_fingerprint: config_fp,
             sources: report_rows,
             total_emitted: total_out,
+            lane_counts: lane_counts.clone(),
         };
         std::fs::write(
             &report_path,
@@ -909,9 +950,8 @@ pub fn run_mix_with_options(
         eprintln!("  [mix] report → {}", report_path.display());
     }
 
-    let lane_counts = lane_counts.lock().unwrap();
     if !lane_counts.is_empty() {
-        eprintln!("  [mix] lane distribution: {:?}", *lane_counts);
+        eprintln!("  [mix] lane distribution: {lane_counts:?}");
     }
     eprintln!("  [mix] wrote {} lines → {}", total_out, out_path.display());
     Ok(())

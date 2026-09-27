@@ -1,11 +1,11 @@
 //! One Rust toolchain version, declared once, enforced everywhere.
 //!
 //! `contracts/toolchain/workspace-toolchain.v1.yaml` (`versions.rust`) is the
-//! single source of truth. Nine other lines across eight files restate it —
-//! `rust-toolchain.toml`, the `Cargo.toml` MSRV floor, two CI-runner
-//! Dockerfiles, the production `Dockerfile`, the distribution profile, the
-//! stable channel manifest, and a voxup test fixture (plus the assertion
-//! that reads it back) — and until now nothing checked that they agreed.
+//! single source of truth. Seven other lines across six files restate it —
+//! `rust-toolchain.toml`, the `Cargo.toml` MSRV floor, the production
+//! `Dockerfile`, the distribution profile, the stable channel manifest, and a
+//! voxup test fixture (plus the assertion that reads it back) — and until
+//! now nothing checked that they agreed.
 //!
 //! This module mirrors `version_ssot`'s vocabulary (`Declaration`, `Drift`)
 //! and its key-anchoring discipline: every parser requires the key to be the
@@ -156,10 +156,6 @@ fn span_dockerfile_from_rust(line: &str) -> Option<(usize, usize)> {
     bare_value_span(line, "FROM rust", ':', &['-', ' '])
 }
 
-fn span_arg_rust_version(line: &str) -> Option<(usize, usize)> {
-    bare_value_span(line, "ARG RUST_VERSION", '=', &[' ', '\t'])
-}
-
 fn span_yaml_rust_version(line: &str) -> Option<(usize, usize)> {
     quoted_value_span(line, "rust_version", ':')
 }
@@ -181,7 +177,7 @@ struct Row {
     span: fn(&str) -> Option<(usize, usize)>,
 }
 
-/// The nine measured rows. Append-only — see the module doc for the two
+/// The measured rows. Append-only — see the module doc for the two
 /// look-alike strings that must NEVER be added here.
 const ROWS: &[Row] = &[
     Row {
@@ -201,18 +197,6 @@ const ROWS: &[Row] = &[
         what: "Dockerfile FROM rust:",
         kind: Kind::Exact,
         span: span_dockerfile_from_rust,
-    },
-    Row {
-        file: "Dockerfile.ci-runner",
-        what: "Dockerfile.ci-runner ARG RUST_VERSION",
-        kind: Kind::Exact,
-        span: span_arg_rust_version,
-    },
-    Row {
-        file: "infra/ci-runner/Dockerfile",
-        what: "infra/ci-runner/Dockerfile ARG RUST_VERSION",
-        kind: Kind::Exact,
-        span: span_arg_rust_version,
     },
     Row {
         file: "contracts/distribution/profiles.v1.yaml",
@@ -536,15 +520,6 @@ mod tests {
     }
 
     #[test]
-    fn arg_rust_version_parses_and_rewrites() {
-        let line = "ARG RUST_VERSION=1.96.0";
-        let (s, e) = span_arg_rust_version(line).expect("must parse");
-        assert_eq!(&line[s..e], "1.96.0");
-        let rewritten = format!("{}{}{}", &line[..s], "1.98.1", &line[e..]);
-        assert_eq!(rewritten, "ARG RUST_VERSION=1.98.1");
-    }
-
-    #[test]
     fn yaml_rust_version_parses_and_rewrites() {
         let line = r#"rust_version: "1.96.0""#;
         let (s, e) = span_yaml_rust_version(line).expect("must parse");
@@ -650,7 +625,6 @@ mod tests {
             )
             .is_none()
         );
-        assert!(span_arg_rust_version("assert!(!is_real_rustup(\"cargo 1.96.0\"));").is_none());
     }
 
     #[test]
@@ -658,7 +632,6 @@ mod tests {
         let line = r#"Check::pass("toolchain: rustc identity", "rustc 1.96.0"),"#;
         assert!(span_channel(line).is_none());
         assert!(span_yaml_rust_version(line).is_none());
-        assert!(span_arg_rust_version(line).is_none());
         assert!(span_dockerfile_from_rust(line).is_none());
         assert!(span_stable_min_rust(line).is_none());
         assert!(span_cargo_rust_version_floor(line).is_none());
@@ -713,13 +686,12 @@ targets:
 
     // ---- integration: declarations() + drift() against synthetic files ----
 
-    /// Minimal fixture tree covering all nine rows, written under a temp dir
+    /// Minimal fixture tree covering every row, written under a temp dir
     /// so tests never touch the real repo.
     fn write_all_rows(root: &Path, version: &str) {
         std::fs::create_dir_all(root.join("contracts/toolchain")).unwrap();
         std::fs::create_dir_all(root.join("contracts/distribution")).unwrap();
         std::fs::create_dir_all(root.join("contracts/channels")).unwrap();
-        std::fs::create_dir_all(root.join("infra/ci-runner")).unwrap();
         std::fs::create_dir_all(root.join("crates/voxup/src")).unwrap();
 
         std::fs::write(
@@ -750,16 +722,6 @@ targets:
         )
         .unwrap();
         std::fs::write(
-            root.join("Dockerfile.ci-runner"),
-            format!("ARG RUST_VERSION={version}\n\nFROM ubuntu:24.04\n"),
-        )
-        .unwrap();
-        std::fs::write(
-            root.join("infra/ci-runner/Dockerfile"),
-            format!("ARG RUST_VERSION={version}\nARG RUNNER_VERSION=2.337.0\n"),
-        )
-        .unwrap();
-        std::fs::write(
             root.join("contracts/distribution/profiles.v1.yaml"),
             format!("schema_version: 1\nrust_version: \"{version}\"\n"),
         )
@@ -783,11 +745,13 @@ targets:
     }
 
     #[test]
-    fn declarations_finds_all_nine_rows() {
+    fn declarations_finds_every_row() {
         let dir = tempdir();
         write_all_rows(dir.path(), "1.96.0");
         let d = declarations(dir.path());
-        assert_eq!(d.len(), 9, "{d:#?}");
+        // Against ROWS.len() rather than a literal: the point is that the
+        // fixture tree covers every row, not that there are N of them.
+        assert_eq!(d.len(), ROWS.len(), "{d:#?}");
         assert_eq!(d.iter().filter(|x| x.kind == Kind::Floor).count(), 1);
     }
 
@@ -845,7 +809,7 @@ targets:
         let root = dir.path();
         write_all_rows(root, "1.96.0");
         let n = rewrite_all(root, "1.98.1").expect("rewrite must succeed");
-        assert_eq!(n, 10, "9 rows + the SSOT itself: {n}");
+        assert_eq!(n, ROWS.len() + 1, "every row + the SSOT itself: {n}");
         assert!(drift(root).is_empty(), "rewritten tree must be clean");
         let ssot = std::fs::read_to_string(root.join(SSOT_PATH)).unwrap();
         assert_eq!(ssot_rust_version(&ssot).as_deref(), Some("1.98.1"));

@@ -13,7 +13,7 @@ hub:
 
 defaults:
   min_rating: 3
-  ce_last_k: 64
+  ce_last_k: 0  # 0 = loss over the whole assistant response; K>0 trains only the last K tokens
   validation_split_ratio: 0.05
   weight_decay: 0.01
   max_grad_norm: 1.0
@@ -68,7 +68,7 @@ profiles:
     mix_config: mens/config/mix-rust.yaml
     system_prompt: scripts/rust_system_prompt.txt
     min_rating: 3
-    ce_last_k: 64
+    ce_last_k: 0
     reward_hook: "cargo_build"
     base:
       model: strong_code_default    # resolved in Phase 3
@@ -89,7 +89,7 @@ profiles:
     mix_config: mens/config/mix-tool-selection.yaml
     system_prompt: scripts/agent_system_prompt.txt
     min_rating: 4
-    ce_last_k: 64
+    ce_last_k: 0
     max_grad_norm: 0.5
     trajectory_weighting: true
     trajectory_tool_trace_boost: 1.5
@@ -116,7 +116,7 @@ profiles:
     mix_config: mens/config/mix-argument-generation.yaml
     system_prompt: scripts/agent_system_prompt.txt
     min_rating: 4
-    ce_last_k: 64
+    ce_last_k: 0
     max_grad_norm: 0.5
     trajectory_weighting: true
     trajectory_tool_trace_boost: 1.5
@@ -146,7 +146,7 @@ profiles:
       difficulty_min: 5
     mix_config: mens/config/mix-harness.yaml
     min_rating: 4
-    ce_last_k: 64
+    ce_last_k: 0
     router:
       triggers: ["lane:vox_harness"]
       priority: 5
@@ -159,7 +159,7 @@ profiles:
       categories: [rocks_db, rocks_tuning, rocks_bindings]
     mix_config: mens/config/mix-rocks.yaml
     min_rating: 4
-    ce_last_k: 64
+    ce_last_k: 0
 
   research:
     description: "Epistemically grounded synthesis and knowledge acquisition"
@@ -167,7 +167,7 @@ profiles:
       categories: [socrates, research_synthesis, epistemic_grounding]
     mix_config: mens/config/mix-research.yaml
     min_rating: 4
-    ce_last_k: 64
+    ce_last_k: 0
 
   populi-meta:
     description: "Self-knowledge about Vox architecture from verified golden sources"
@@ -175,7 +175,7 @@ profiles:
       categories: [vox_architecture, populi_internals]
     mix_config: mens/config/mix-populi-meta.yaml
     min_rating: 4
-    ce_last_k: 64
+    ce_last_k: 0
 
   research-expert:
     description: "Lane G: Evidence synthesis, multi-hop reasoning, and contradiction resolution"
@@ -183,6 +183,6 @@ profiles:
       categories: [vox_research_expert, multi_hop, retrieve_and_synthesize]
     mix_config: mens/config/mix-research-expert.yaml
     min_rating: 4
-    ce_last_k: 128 # larger context window for evidence
+    ce_last_k: 0 # whole response (128 exceeded the trainer's 64 cap)
     reward_hook: "research_synthesis_eval" # GRPO+RLVR harness
     trajectory_weighting: true

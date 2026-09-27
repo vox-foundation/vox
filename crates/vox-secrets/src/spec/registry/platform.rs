@@ -699,7 +699,7 @@ pub const SPECS_PLATFORM: &[SecretSpec] = &[
         backend_key: None,
         auth_registry: Some("expo"),
         policy: SecretPolicy::optional_skip(),
-        remediation: "Run `vox secrets set expo <token>` or set EXPO_TOKEN. Required for EAS build/submit.",
+        remediation: "Run `vox secrets set EXPO_TOKEN --stdin` or set EXPO_TOKEN. Required for EAS build/submit.",
         scope_description: "Expo / EAS access token for mobile build and submit.",
     },
 ];

@@ -203,7 +203,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "slow; requires local Chrome/Chromium binary"]
+    #[ignore = "owner:browser sunset:never slow; requires local Chrome/Chromium binary"]
     async fn snapshot_click_ref_on_data_html() {
         let engine = BrowserEngine::new();
         let html = "data:text/html,<html><body><button id='go'>Go</button></body></html>";

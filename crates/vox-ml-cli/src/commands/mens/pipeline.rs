@@ -9,6 +9,58 @@ pub fn selected_profile(profile: &Option<String>) -> &str {
     profile.as_deref().unwrap_or("default")
 }
 
+/// Canonical stage order. Mix-source producers must run BEFORE Mix so their
+/// outputs are consumed in the same run (Mix is the only stage that reads
+/// mix_sources/*).
+const ALL_STAGES: [PipelineStage; 18] = [
+    PipelineStage::Generate,
+    PipelineStage::ResearchGen,
+    PipelineStage::Extract,
+    PipelineStage::HealToDpo,
+    PipelineStage::Replay,
+    PipelineStage::ReviewIngest,
+    PipelineStage::ReviewDatasetBuild,
+    PipelineStage::ReviewEvalPackBuild,
+    PipelineStage::ReviewToDpo,
+    PipelineStage::AgentTraceIngest,
+    PipelineStage::Validate,
+    PipelineStage::Pairs,
+    PipelineStage::BackTranslate,
+    PipelineStage::Rft,
+    PipelineStage::Mix,
+    PipelineStage::Eval,
+    PipelineStage::KbSignals,
+    PipelineStage::Train,
+];
+
+/// Stages to run: the requested subset (comma-separated `as_str` names) in
+/// canonical order, or every non-opt-in stage when none are requested.
+fn plan_stages(stages: Option<&str>, skip_train: bool) -> Vec<PipelineStage> {
+    let requested: Option<HashSet<String>> =
+        stages.map(|s| s.split(',').map(|x| x.trim().to_lowercase()).collect());
+    ALL_STAGES
+        .into_iter()
+        .filter(|st| !(skip_train && *st == PipelineStage::Train))
+        .filter(|st| match &requested {
+            Some(r) => r.contains(st.as_str()),
+            None => !st.is_opt_in(),
+        })
+        .collect()
+}
+
+/// Synthesis-stage LLM flags: real calls only with `VOX_MENS_ALLOW_SPEND=1`
+/// (the cloud spend gate), otherwise the command prints its dry-run plan.
+fn synth_llm_args() -> crate::commands::corpus::SynthLlmArgs {
+    crate::commands::corpus::SynthLlmArgs {
+        provider: "openrouter".into(),
+        model: None,
+        base_url: None,
+        max_spend_usd: 1.0,
+        usd_per_1k_tokens: 0.002,
+        apply: std::env::var("VOX_MENS_ALLOW_SPEND").is_ok_and(|v| v.trim() == "1"),
+    }
+}
+
 /// Run the dogfood pipeline: corpus extract → validate → pairs → eval → optional native train.
 pub async fn run(
     data_dir: PathBuf,
@@ -39,52 +91,11 @@ pub async fn run(
 
     let run_id = vox_corpus::training::timestamp_string();
 
-    let all_possible_stages = [
-        PipelineStage::Generate,
-        PipelineStage::ResearchGen,
-        PipelineStage::Extract,
-        PipelineStage::HealToDpo,
-        PipelineStage::Replay,
-        PipelineStage::ReviewIngest,
-        PipelineStage::ReviewDatasetBuild,
-        PipelineStage::ReviewEvalPackBuild,
-        // Mix-source producers must run BEFORE Mix so their outputs are consumed
-        // in the same run (Mix is the only stage that reads mix_sources/*).
-        PipelineStage::ReviewToDpo,
-        PipelineStage::AgentTraceIngest,
-        PipelineStage::Validate,
-        PipelineStage::Pairs,
-        PipelineStage::Mix,
-        PipelineStage::Eval,
-        PipelineStage::KbSignals,
-        PipelineStage::Train,
-    ];
-
-    let mut planned_stages = Vec::new();
-    if let Some(s) = stages {
-        let requested: HashSet<String> = s.split(',').map(|x| x.trim().to_lowercase()).collect();
-        for stage in all_possible_stages {
-            if requested.contains(stage.as_str()) {
-                if stage == PipelineStage::Train && skip_train {
-                    continue;
-                }
-                planned_stages.push(stage);
-            }
-        }
-    } else {
-        for stage in all_possible_stages {
-            if stage == PipelineStage::Train && skip_train {
-                continue;
-            }
-            planned_stages.push(stage);
-        }
-    }
+    let planned_stages = plan_stages(stages.as_deref(), skip_train);
 
     let total_stages = planned_stages.len();
     let validated = PathBuf::from("mens/data/validated.jsonl");
     let train_jsonl = data_dir.join("train.jsonl");
-    let _train_mixed_jsonl = data_dir.join("train_mixed.jsonl");
-    let validated_mixed_jsonl = data_dir.join("validated_mixed.jsonl");
     let eval_out = output_dir.join("eval_results.json");
 
     tracing::info!(
@@ -133,18 +144,16 @@ pub async fn run(
             }
             PipelineStage::Extract => {
                 if !dry_run {
-                    // Extract from .vox examples
-                    let examples_dir = PathBuf::from("examples");
-                    if examples_dir.is_dir() {
-                        crate::commands::corpus::run(
-                            crate::commands::corpus::CorpusAction::Extract {
-                                dir: examples_dir,
-                                output: validated.clone(),
-                            },
-                        )
-                        .await
-                        .map_err(|e| anyhow::anyhow!("pipeline extract examples failed: {e}"))?;
-                    }
+                    // Extract from every approved .vox source root
+                    // (SSOT: mens/config/vox-source-pool.yaml).
+                    crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Extract {
+                        dir: None,
+                        output: validated.clone(),
+                        pool: PathBuf::from(crate::commands::corpus::source_pool::DEFAULT_CONFIG),
+                        report: None,
+                    })
+                    .await
+                    .map_err(|e| anyhow::anyhow!("pipeline extract vox sources failed: {e}"))?;
 
                     // Extract from Rust source
                     let crates_dir = PathBuf::from("crates");
@@ -327,6 +336,42 @@ pub async fn run(
                     tracing::info!("AgentTraceIngest: dry_run, skipping");
                 }
             }
+            PipelineStage::BackTranslate => {
+                if !dry_run {
+                    crate::commands::corpus::run(
+                        crate::commands::corpus::CorpusAction::BackTranslate {
+                            input: validated.clone(),
+                            output: PathBuf::from("mens/data/mix_sources/back_translated.jsonl"),
+                            cache: PathBuf::from("target/dogfood/back_translate_cache.jsonl"),
+                            bench: PathBuf::from("mens/data/heldout_bench/manifest.json"),
+                            max_rows: 200,
+                            round_trip: false,
+                            llm: synth_llm_args(),
+                        },
+                    )
+                    .await
+                    .map_err(|e| anyhow::anyhow!("pipeline back_translate failed: {e}"))?;
+                }
+            }
+            PipelineStage::Rft => {
+                let tasks = PathBuf::from("mens/data/mix_sources/back_translated.jsonl");
+                if !dry_run && tasks.is_file() {
+                    crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Rft {
+                        input: tasks,
+                        output: PathBuf::from("mens/data/mix_sources/rft_vox.jsonl"),
+                        bench: PathBuf::from("mens/data/heldout_bench/manifest.json"),
+                        k: 4,
+                        max_per_task: 2,
+                        max_tasks: 100,
+                        temperature: 0.8,
+                        llm: synth_llm_args(),
+                    })
+                    .await
+                    .map_err(|e| anyhow::anyhow!("pipeline rft failed: {e}"))?;
+                } else if !dry_run {
+                    tracing::debug!("Rft: no back_translated.jsonl task file, skipping");
+                }
+            }
             PipelineStage::KbSignals => {
                 if !dry_run {
                     run_kb_signals_stage(&data_dir).await?;
@@ -352,14 +397,14 @@ pub async fn run(
             }
             PipelineStage::Eval => {
                 if !dry_run {
-                    if !validated_mixed_jsonl.is_file() {
+                    if !train_jsonl.is_file() {
                         anyhow::bail!(
-                            "Eval stage: missing input file '{}'. Make sure Mix/Pairs stage ran successfully.",
-                            validated_mixed_jsonl.display()
+                            "Eval stage: missing input file '{}'. Make sure the Pairs stage ran successfully.",
+                            train_jsonl.display()
                         );
                     }
                     crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Eval {
-                        input: validated_mixed_jsonl.clone(),
+                        input: train_jsonl.clone(),
                         output: eval_out.clone(),
                         print_summary: false,
                     })
@@ -371,12 +416,19 @@ pub async fn run(
                     let ws = vox_corpus::training::contract::find_workspace_root();
                     let mix_config =
                         vox_corpus::training::mix_prepare::resolve_mix_config_path(ws.as_deref());
-                    if mix_config.is_file() {
-                        vox_corpus::training::mix_prepare::sync_mix_primary_with_train_jsonl(
-                            ws.as_deref(),
-                            &data_dir,
-                            &mix_config,
-                        )?;
+                    // Mix sources are workspace paths (pairs = target/dogfood/train.jsonl);
+                    // pairs written to a non-canonical --data-dir are not a mix input.
+                    let canonical = vox_corpus::training::mix_prepare::is_canonical_data_dir(
+                        ws.as_deref(),
+                        &data_dir,
+                    );
+                    if !canonical {
+                        eprintln!(
+                            "  ⏭ Mix stage skipped: --data-dir {} is not the canonical {}; its train.jsonl is used as-is.",
+                            data_dir.display(),
+                            vox_corpus::training::CANONICAL_TRAIN_DATA_DIR
+                        );
+                    } else if mix_config.is_file() {
                         let is_active_spoke_mix = if let Some(name) = profile.as_deref() {
                             let eff = vox_populi::mens::tensor::domain_profiles::EffectiveDomainProfile
                                 ::load_domain_profile(name, ws.as_deref())?;
@@ -486,7 +538,7 @@ pub async fn run(
                                     None,  // qlora_max_skip_rate
                                     false, // qlora_lm_head_only
                                     None,  // qlora_proxy_max_layers
-                                    64,    // qlora_ce_last_k
+                                    0,     // qlora_ce_last_k (whole assistant response)
                                     None,  // checkpoint_every
                                     false, // force_restart
                                     curriculum,
@@ -708,6 +760,24 @@ mod tests {
     }
 
     #[test]
+    fn synth_stages_are_opt_in_and_run_before_mix() {
+        let default = plan_stages(None, false);
+        assert!(!default.contains(&PipelineStage::BackTranslate));
+        assert!(!default.contains(&PipelineStage::Rft));
+        assert!(default.contains(&PipelineStage::Mix));
+
+        let picked = plan_stages(Some("mix, rft,back_translate,train"), true);
+        assert_eq!(
+            picked,
+            vec![
+                PipelineStage::BackTranslate,
+                PipelineStage::Rft,
+                PipelineStage::Mix
+            ]
+        );
+    }
+
+    #[test]
     fn test_selected_profile_helper() {
         assert_eq!(selected_profile(&None), "default");
         assert_eq!(
@@ -717,16 +787,16 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_eval_stage_targets_validated_mixed_jsonl() {
+    async fn test_eval_stage_targets_pairs_train_jsonl() {
         let temp_dir = tempfile::tempdir().unwrap();
         let data_dir = temp_dir.path().join("data");
         let output_dir = temp_dir.path().join("output");
         std::fs::create_dir_all(&data_dir).unwrap();
         std::fs::create_dir_all(&output_dir).unwrap();
 
-        // Create validated_mixed.jsonl but NOT train_mixed.jsonl
-        let mixed_path = data_dir.join("validated_mixed.jsonl");
-        std::fs::write(&mixed_path, r#"{"prompt":"hello","completion":"world"}"#).unwrap();
+        // Only the pairs file exists (no mix output): eval reads the pairs.
+        let pairs_path = data_dir.join("train.jsonl");
+        std::fs::write(&pairs_path, r#"{"prompt":"hello","completion":"world"}"#).unwrap();
 
         let res = run(
             data_dir.clone(),
@@ -747,8 +817,8 @@ mod tests {
         if let Err(e) = res {
             let err_msg = e.to_string();
             assert!(
-                !err_msg.contains("train_mixed.jsonl"),
-                "Should not expect train_mixed.jsonl, error was: {}",
+                !err_msg.contains("missing input file"),
+                "eval must read data_dir/train.jsonl, error was: {}",
                 err_msg
             );
         }

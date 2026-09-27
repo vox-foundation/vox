@@ -6,7 +6,7 @@
 //! provides zero flood protection — that counts as a violation.
 //!
 //! Advisory by default; `--strict` fails. Exceptions: backticked filenames in
-//! `docs/src/ci/concurrency-exceptions.md` (pattern mirrors runner_policy_check.rs).
+//! `docs/src/ci/concurrency-exceptions.md`.
 
 use std::path::Path;
 
@@ -50,8 +50,7 @@ fn has_cancelling_concurrency(doc: &serde_yaml::Value) -> bool {
 }
 
 /// Scoped to markdown list-item lines (`- \`file.yml\` — reason`), not the
-/// whole doc — mirrors `runner_policy_check::parse_exceptions_doc` scoping to
-/// table rows, so a filename mentioned in unrelated prose (e.g. contrastive
+/// whole doc, so a filename mentioned in unrelated prose (e.g. contrastive
 /// documentation) can never silently exempt a workflow.
 fn is_excepted(exceptions_text: &str, file_name: &str) -> bool {
     let marker = format!("`{file_name}`");

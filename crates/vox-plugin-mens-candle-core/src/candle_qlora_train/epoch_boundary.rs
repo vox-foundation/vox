@@ -36,9 +36,14 @@ pub fn finish_epoch(
     } else {
         0.0
     };
+    let val_str = if val_steps > 0 {
+        format!("{avg_val_loss:.4}")
+    } else {
+        "n/a (no validation rows)".to_string()
+    };
     train_log::info(&format!(
-        "Epoch {}/{} complete — avg_loss={:.4} val_loss={:.4} ({} steps, {} val steps)",
-        epoch, config.epochs, avg_loss, avg_val_loss, epoch_steps, val_steps
+        "Epoch {}/{} complete — mean train loss={:.4} val_loss={val_str} ({} steps, {} val steps)",
+        epoch, config.epochs, avg_loss, epoch_steps, val_steps
     ));
 
     let epoch_ckpt = out.join(format!("checkpoint_epoch_{epoch}.safetensors"));
@@ -58,6 +63,7 @@ pub fn finish_epoch(
         last_loss: last_loss_val,
         wall_seconds_elapsed: progress_anchor_time.elapsed().as_secs_f64(),
         saved_at_utc: CheckpointState::now_utc(),
+        data_fingerprint: config.data_fingerprint.clone(),
     };
     epoch_state
         .save(out)

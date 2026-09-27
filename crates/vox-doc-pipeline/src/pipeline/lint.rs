@@ -90,10 +90,6 @@ fn levenshtein(a: &str, b: &str) -> usize {
     prev[b.len()]
 }
 
-fn repo_root_for_lint() -> PathBuf {
-    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
-}
-
 /// Long-form plans and design drafts often use unlabeled Markdown code fences for ASCII
 /// diagrams, git snippets, and mixed excerpts; requiring a language tag on every fence is noise
 /// without improving publish output. Canonical tutorials and reference SSOT pages remain enforced.
@@ -126,18 +122,6 @@ fn skip_unlabeled_code_fence(path: &Path, repo_root: &Path) -> bool {
     normalized
         .find("docs/")
         .is_some_and(|idx| skip_unlabeled_code_fence_rel(&normalized[idx..]))
-}
-
-/// Recursively walk `dir` and collect lint errors for every `.md` file.
-pub(crate) fn collect_lint_errors(dir: &Path, errors: &mut Vec<LintError>) {
-    let root = repo_root_for_lint();
-    collect_lint_errors_target_with_root(dir, errors, &root);
-}
-
-/// Collect lint errors from either a markdown file or a directory tree.
-pub(crate) fn collect_lint_errors_target(target: &Path, errors: &mut Vec<LintError>) {
-    let root = repo_root_for_lint();
-    collect_lint_errors_target_with_root(target, errors, &root);
 }
 
 pub(crate) fn collect_lint_errors_target_with_root(
@@ -673,25 +657,17 @@ fn lint_readme_sync_content(
     }
 }
 
-/// Whole-repo check: compares README.md against docs/src/index.mdx. Called once
-/// per lint run (not per-file) from `mod.rs`. Reads plain repo-root-relative
-/// paths directly (matching this tool's own convention of assuming the process
-/// cwd is the repo root — see mod.rs's own `Path::new("docs/src")` with no
-/// root-joining) rather than taking a caller-supplied repo_root, since the
-/// natural helper for that (`repo_root_for_lint()`) is private to this module
-/// and mod.rs can't call it across module boundaries.
-pub(crate) fn lint_readme_sync(errors: &mut Vec<LintError>) {
-    lint_readme_sync_paths(
-        Path::new("README.md"),
-        Path::new("docs/src/index.mdx"),
-        errors,
-    );
-}
-
-/// `lint_readme_sync`'s logic, with the two source paths as parameters so it's
-/// directly unit-testable (e.g. pointing `readme_path` at a nonexistent file to
-/// exercise the missing-source-file error without touching the real repo files).
-fn lint_readme_sync_paths(readme_path: &Path, mdx_path: &Path, errors: &mut Vec<LintError>) {
+/// Whole-repo check: compares `README.md` against `docs/src/index.mdx`. Called
+/// once per lint run (not per-file) from `mod.rs::lint_in`, which passes both
+/// paths joined under its caller-supplied `root` so the check never reads the
+/// process cwd. Source paths are parameters (rather than hardcoded) so this is
+/// directly unit-testable, e.g. pointing `readme_path` at a nonexistent file to
+/// exercise the missing-source-file error without touching the real repo files.
+pub(crate) fn lint_readme_sync_paths(
+    readme_path: &Path,
+    mdx_path: &Path,
+    errors: &mut Vec<LintError>,
+) {
     // A missing source file must be a loud lint error, not a quiet early return — the
     // whole point of this check is to never let drift go unnoticed, and a silent no-op
     // here (e.g. after one of the two files gets moved or renamed) would defeat that.

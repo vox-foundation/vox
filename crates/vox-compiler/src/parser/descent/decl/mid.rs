@@ -191,6 +191,11 @@ impl Parser {
                     break;
                 }
                 if matches!(self.peek(), Token::Eof) {
+                    // EOF inside an open struct body is a truncated/malformed
+                    // file, not a successful close — `expect` records a
+                    // proper "Expected }, found <eof>" error instead of
+                    // silently treating EOF as if `}` had been consumed.
+                    self.expect(&Token::RBrace)?;
                     break;
                 }
                 let fstart = self.span();

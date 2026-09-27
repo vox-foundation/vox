@@ -131,7 +131,15 @@ pub async fn run_train(
             spec.seq_len = seq_len.unwrap_or(512);
             spec.batch_size = batch_size.unwrap_or(4);
             spec.epochs = epochs.unwrap_or(3);
-            spec.num_samples = 5000;
+            // Sizes the runtime estimate and the 1.5x watchdog kill; a fixed 5000
+            // under-counted the real 9,268-row corpus.
+            spec.num_samples =
+                jsonl_row_count(&data_dir.join("train.jsonl")).unwrap_or_else(|| {
+                    eprintln!(
+                        "  [cloud] no local train.jsonl to count; assuming 5000 rows for sizing"
+                    );
+                    5000
+                });
             spec.persistent = persistent;
 
             // Corpus hash for the idempotency key (stable per input corpus).
@@ -316,14 +324,21 @@ pub async fn run_train(
         vox_corpus::training::contract::normalize_training_resume_path(r, workspace_root.as_deref())
     });
 
-    #[allow(unsafe_code)]
-    unsafe {
-        if fast_corpus {
+    // Never clear a user-set `VOX_TRAIN_SKIP_CORPUS_MIX`: the flag only adds the opt-out.
+    let skip_mix = vox_corpus::training::mix_prepare::corpus_mix_skipped(fast_corpus);
+    if fast_corpus {
+        // SAFETY: single-threaded CLI setup; read later by the trainer's mix step.
+        #[allow(unsafe_code)]
+        unsafe {
             std::env::set_var("VOX_TRAIN_SKIP_CORPUS_MIX", "1");
-        } else {
-            std::env::remove_var("VOX_TRAIN_SKIP_CORPUS_MIX");
         }
     }
+    // The stale-corpus refresh (pairs → data_dir/train.jsonl, then mix) only applies to
+    // the canonical data dir; an explicit --data-dir is the user's data.
+    let canonical_data_dir = vox_corpus::training::mix_prepare::is_canonical_data_dir(
+        workspace_root.as_deref(),
+        &data_dir,
+    );
 
     // Preflight: stale corpus fingerprint → same refresh path for both data modes (synthetic + pipeline w/o train + mix).
     // `strict`: refresh failures abort. `auto-refresh`: log warnings and continue (legacy).
@@ -345,8 +360,7 @@ pub async fn run_train(
         let version_mismatch = corpus_compiler_version_mismatch(&data_dir);
         let is_fresh = fingerprint_fresh && version_mismatch.is_none();
 
-        let skip_regen = vox_corpus::training::mix_prepare::corpus_mix_skip_from_env();
-        if !is_fresh && !skip_regen {
+        if !is_fresh && !skip_mix && canonical_data_dir {
             let strict = matches!(data_mode, TrainDataModeCli::Strict);
             let reason = match &version_mismatch {
                 Some((found, current)) => format!(
@@ -768,8 +782,9 @@ fn corpus_compiler_version_mismatch(data_dir: &Path) -> Option<(String, String)>
     }
 }
 
-/// Regenerate synthetic data, run `vox mens pipeline` with `skip_train`, optionally copy mix → `train.jsonl`,
-/// then record fingerprint. See [`TrainDataModeCli`](super::action::TrainDataModeCli).
+/// Regenerate synthetic data, run `vox mens pipeline` with `skip_train` (pairs → `train.jsonl`,
+/// mix → the mix config's `output:`), then record fingerprint. The trainer's own mix step
+/// then resolves the mix output (incremental skip when unchanged). See [`TrainDataModeCli`](super::action::TrainDataModeCli).
 async fn refresh_stale_training_corpus(
     root: &Path,
     data_dir: &Path,
@@ -826,51 +841,6 @@ async fn refresh_stale_training_corpus(
                 return Err(e).context("corpus extraction pipeline (stale-fingerprint refresh)");
             }
             eprintln!("  {} Pipeline error: {}", "⚠️".yellow(), e);
-        }
-    }
-
-    let mix_yaml = root.join(vox_corpus::training::mix_prepare::MIX_CONFIG_REL);
-    if mix_yaml.is_file() {
-        match vox_corpus::training::mix_prepare::copy_mix_output_to_train_jsonl(
-            root, data_dir, &mix_yaml,
-        ) {
-            Ok(true) => {
-                eprintln!(
-                    "  {} Mixed data ready at: {}",
-                    "✓".green(),
-                    data_dir.join("train.jsonl").display()
-                );
-                #[allow(unsafe_code)]
-                unsafe {
-                    std::env::set_var("VOX_TRAIN_SKIP_CORPUS_MIX", "1");
-                }
-            }
-            Ok(false) => {
-                if strict {
-                    anyhow::bail!(
-                        "mix output not found after pipeline; check {}",
-                        mix_yaml.display()
-                    );
-                }
-                eprintln!(
-                    "  {} Mix output not found after pipeline; check {}",
-                    "⚠️".yellow(),
-                    mix_yaml.display()
-                );
-            }
-            Err(e) => {
-                if strict {
-                    return Err(e).context(format!(
-                        "copy mixed corpus to {}",
-                        data_dir.join("train.jsonl").display()
-                    ));
-                }
-                eprintln!(
-                    "  {} Failed to copy mixed corpus to train.jsonl: {}",
-                    "⚠️".yellow(),
-                    e
-                );
-            }
         }
     }
 
@@ -977,6 +947,23 @@ mod cloud_eval_gate_tests {
 /// wiring on top of it: that the local path's own helper, called with no CLI
 /// overrides, still surfaces the "rust" spoke's Qwen base instead of leaving
 /// `model` as `None` / `preset` unset.
+/// Non-empty lines in a JSONL file, or `None` when it cannot be read.
+#[cfg_attr(not(feature = "cloud"), allow(dead_code))]
+fn jsonl_row_count(path: &std::path::Path) -> Option<usize> {
+    let text = vox_bounded_fs::read_utf8_path_capped(path).ok()?;
+    Some(text.lines().filter(|l| !l.trim().is_empty()).count())
+}
+
+#[cfg(test)]
+#[test]
+fn jsonl_row_count_counts_non_empty_lines() {
+    let d = tempfile::tempdir().unwrap();
+    let p = d.path().join("train.jsonl");
+    std::fs::write(&p, "{\"a\":1}\n\n{\"a\":2}\n").unwrap();
+    assert_eq!(jsonl_row_count(&p), Some(2));
+    assert_eq!(jsonl_row_count(&d.path().join("missing.jsonl")), None);
+}
+
 #[cfg(test)]
 mod local_spoke_base_wiring_tests {
     use super::resolve_local_spoke_base;
