@@ -35,38 +35,37 @@ pub fn run_models(_verbose: bool) -> Result<()> {
             continue;
         }
 
-        if let Ok(manifest_raw) = read_utf8_path_capped(&manifest_path) {
-            if let Ok(manifest) = serde_json::from_str::<
+        if let Ok(manifest_raw) = read_utf8_path_capped(&manifest_path)
+            && let Ok(manifest) = serde_json::from_str::<
                 vox_populi::mens::tensor::manifest::TrainingManifest,
             >(&manifest_raw)
-            {
-                found += 1;
+        {
+            found += 1;
 
-                let run_id = manifest.run_id.unwrap_or_else(|| "unknown".to_string());
-                let base = manifest.base_model.unwrap_or_else(|| "scratch".to_string());
+            let run_id = manifest.run_id.unwrap_or_else(|| "unknown".to_string());
+            let base = manifest.base_model.unwrap_or_else(|| "scratch".to_string());
 
-                println!(
-                    "\n⭐ {}",
-                    path.file_name()
-                        .unwrap_or_default()
-                        .to_string_lossy()
-                        .green()
-                        .bold()
-                );
-                println!("  └─ Run ID:      {}", run_id.dimmed());
-                println!("  └─ Base Model:  {}", base);
-                println!(
-                    "  └─ Adapter:     Rank {} / Alpha {}",
-                    manifest.rank, manifest.alpha
-                );
-                println!(
-                    "  └─ Data:        {} ({} epochs)",
-                    manifest.train_file, manifest.epochs
-                );
+            println!(
+                "\n⭐ {}",
+                path.file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .green()
+                    .bold()
+            );
+            println!("  └─ Run ID:      {}", run_id.dimmed());
+            println!("  └─ Base Model:  {}", base);
+            println!(
+                "  └─ Adapter:     Rank {} / Alpha {}",
+                manifest.rank, manifest.alpha
+            );
+            println!(
+                "  └─ Data:        {} ({} epochs)",
+                manifest.train_file, manifest.epochs
+            );
 
-                if let Some(target) = manifest.training_deployment_target {
-                    println!("  └─ Target:      {:?}", target.cyan());
-                }
+            if let Some(target) = manifest.training_deployment_target {
+                println!("  └─ Target:      {:?}", target.cyan());
             }
         }
     }
@@ -82,4 +81,18 @@ pub fn run_models(_verbose: bool) -> Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn run_models_does_not_panic() {
+        // DEFAULT_MENS_RUNS_ROOT ("mens/runs", relative to cwd) may or may not
+        // exist on the test host; either branch (missing-dir early return, or
+        // a real scan of whatever is there) must succeed without panicking.
+        assert!(run_models(false).is_ok());
+        assert!(run_models(true).is_ok());
+    }
 }

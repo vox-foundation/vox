@@ -195,7 +195,7 @@ pub fn run_eval_local(
                 })
                 .to_string();
                 match backend
-                    .run_inference(&**handle, prompt_json.as_str().into())
+                    .run_inference(handle, prompt_json.as_str().into())
                     .into_result()
                 {
                     Ok(resp) => {
