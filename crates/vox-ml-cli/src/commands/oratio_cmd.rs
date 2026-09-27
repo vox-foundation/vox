@@ -326,8 +326,34 @@ pub enum OratioAction {
     },
 }
 
+/// vox-speech's `ExternalWhisperTranscribe` over the `oratio` plugin's
+/// `SpeechToText::transcribe` (mono f32 LE PCM bytes + config JSON in, transcription JSON out).
+// Copied rather than shared: vox-ml-cli and vox-gui both reach vox-plugin-host, but a shared
+// home would need a new crate edge for ~15 lines (AGENTS.md defactor rule).
+// vox:defactored-from vox-gui 2026-09-25 (commands::speech_plugin_backend::transcribe_with_oratio_plugin, ~15 lines)
+fn transcribe_with_oratio_plugin(pcm_le_f32: &[u8], config_json: &str) -> Result<String, String> {
+    let plugin = vox_plugin_host::cached_code_plugin("oratio")
+        .map_err(|e| format!("oratio plugin load: {e}"))?;
+    let stt = plugin
+        .plugin
+        .as_speech_to_text()
+        .into_option()
+        .ok_or_else(|| "oratio plugin missing SpeechToText accessor".to_string())?;
+    stt.transcribe(pcm_le_f32.into(), config_json.into())
+        .into_result()
+        .map(|json| json.into_string())
+        .map_err(|e| e.to_string())
+}
+
+/// Route vox-speech's Whisper selection (`serve`, `session`, `subtitle`) through the
+/// `oratio` plugin (Phase 3 D-12); the plugin loads lazily on first use.
+fn register_oratio_whisper_transcriber() {
+    vox_speech::backend_dispatch::register_whisper_transcriber(transcribe_with_oratio_plugin);
+}
+
 /// Run **`vox oratio …`**.
 pub async fn run(action: OratioAction, global_json: bool) -> Result<()> {
+    register_oratio_whisper_transcriber();
     let runtime = vox_speech::resolved_runtime_config();
     match action {
         OratioAction::Transcribe {
@@ -773,5 +799,16 @@ pub async fn run(action: OratioAction, global_json: bool) -> Result<()> {
             vox_speech::serve::run_serve_worker(port).await?;
             Ok(())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn run_setup_registers_the_oratio_plugin_transcriber() {
+        register_oratio_whisper_transcriber();
+        assert!(vox_speech::backend_dispatch::has_registered_whisper_transcriber());
     }
 }
