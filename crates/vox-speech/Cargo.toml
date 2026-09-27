@@ -44,11 +44,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 toml = { workspace = true }
 axum = { workspace = true, optional = true }
-candle-core = { workspace = true, optional = true }
-candle-nn = { workspace = true, optional = true }
-candle-transformers = { workspace = true, optional = true }
 hf-hub = { workspace = true, optional = true }
-tokenizers = { workspace = true, optional = true }
 symphonia = { workspace = true, optional = true, default-features = false, features = [
     "aac",
     "alac",
@@ -60,8 +56,6 @@ symphonia = { workspace = true, optional = true, default-features = false, featu
     "wav",
 ] }
 rubato = { workspace = true, optional = true }
-rand09 = { workspace = true, optional = true }
-byteorder = { workspace = true, optional = true }
 uuid = { workspace = true }
 tempfile = { workspace = true }
 sherpa-onnx = { workspace = true, optional = true }
