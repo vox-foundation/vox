@@ -34,6 +34,7 @@ pub async fn decompose_query_with_config(
         }
         let primary = crate::research::orchestrator::model_dispatch::primary_candidate_for_intent(
             vox_orchestrator::models::SelectionIntent::research(),
+            vox_config::inference::ModelRole::Planner,
         );
         let mut candidates: Vec<LlmConfig> = primary.into_iter().collect();
         candidates.extend(cascade_with_optional_manual(
@@ -65,7 +66,14 @@ pub async fn decompose_query_with_config(
             },
         ];
         let opts = ActivityOptions::new().with_timeout_secs(30);
-        let degraded = match chat_with_cascade(&opts, messages, candidates, None).await {
+        let degraded = match chat_with_cascade(
+            &opts,
+            messages,
+            candidates,
+            Some(ResearchStage::Planner),
+        )
+        .await
+        {
             Ok(response) => {
                 match parse_planner_response(&response.content, query, max_subqueries) {
                     Ok(plan) => return Ok(plan),

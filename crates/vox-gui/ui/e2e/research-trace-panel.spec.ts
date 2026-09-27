@@ -4,7 +4,8 @@
  * The `.derived.json` fixtures are real runs with one labelled edit each:
  * tavily swapped to budget_exhausted (no live run exhausted the budget), a
  * deep run given the provider table deep traces only carry since Task 9, and
- * a failed deep run given the retrieval stage failed runs carry since Task 9b.
+ * a failed deep run given the retrieval stage failed runs carry since Task 9b,
+ * and a deep run given the per-role model list traces carry since Task 13.
  * Screenshots taken from a derived fixture carry a `-derived` filename suffix.
  *
  * The base tauriMock is extended with a `chat_turn` handler returning the
@@ -36,6 +37,7 @@ const deepOk = load('deep-ok');
 const deepProviders = load('deep-providers.derived');
 const deepFailed = load('deep-failed');
 const deepFailedProviders = load('deep-failed-providers.derived');
+const deepModels = load('deep-models.derived');
 const noResearch = load('no-research');
 
 /** Self-contained (serialized into the page): wraps the base invoke for `chat_turn`. */
@@ -142,6 +144,17 @@ for (const theme of ['dark', 'light'] as const) {
       await expect(retrieval.locator('[data-provider="tavily"]')).toHaveText(/20 hits.*×4 calls/);
       await expect(retrieval.getByTestId('research-tavily-credits')).toHaveText(/4\/50 used · 46 left/);
       await shot(page, `research-trace-deep-providers-derived-${theme}`);
+    });
+
+    test('deep research lists the model each role used', async ({ page }) => {
+      await sendTurn(page, deepModels, theme);
+      const panel = await expandedPanel(page);
+      const rows = panel.getByTestId('research-model');
+      await expect(rows).toHaveCount(4);
+      await expect(panel.locator('[data-role="synthesis"]')).toHaveText(/synthesis\s*google\/gemini-3\.8-flash/);
+      await panel.getByTestId('research-model').last().scrollIntoViewIfNeeded();
+      mkdirSync(OUT_DIR, { recursive: true });
+      await page.screenshot({ path: join(OUT_DIR, `research-trace-deep-models-derived-${theme}.png`) });
     });
 
     test('deep research pipeline failure is visible', async ({ page }) => {

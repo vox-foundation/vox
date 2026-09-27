@@ -337,6 +337,7 @@ pub async fn verify_claims_with_config(
                 let primary =
                     crate::research::orchestrator::model_dispatch::primary_candidate_for_intent(
                         vox_orchestrator::models::SelectionIntent::nli_classifier(),
+                        vox_config::inference::ModelRole::Verifier,
                     );
                 let fallback = cascade_with_optional_manual(
                     ResearchStage::Verification,

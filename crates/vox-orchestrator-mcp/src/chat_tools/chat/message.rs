@@ -1611,8 +1611,16 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         selection_reason.clone(),
     );
 
+    // Task 13: the chat role's model — the pin it was requested as (if the
+    // strict-pin branch applied one) and the id that answered. A deep turn's
+    // answer comes from the research roles, not chat.
+    if intent.mode != super::research_intent::ResearchMode::Deep && !model_used.is_empty() {
+        research_trace.set_chat_model(
+            super::research_turn::chat_pin_from_rationale(selection_reason.as_deref()),
+            &model_used,
+        );
+    }
     if intent.mode == super::research_intent::ResearchMode::Quick {
-        research_trace.model = Some(model_used.clone());
         let check =
             super::research_turn::check_citations(&response_text, research_trace.sources.len());
         research_trace.push(super::research_turn::citation_stage(
@@ -2203,6 +2211,15 @@ mod tests {
              evidence this turn",
             "{preamble}"
         );
+        // Task 13: the chat role's model is recorded as the id the provider
+        // reported ("test-model" in the mock body) — not a strict pin here
+        // (sticky override), so no requested pin.
+        assert_eq!(
+            ev["models"],
+            serde_json::json!([{"role": "chat", "requested": null, "resolved": "test-model"}]),
+            "{ev}"
+        );
+        assert_eq!(ev["model"], "test-model", "{ev}");
     }
 
     /// Regression test for the "attention budget meter never increments during

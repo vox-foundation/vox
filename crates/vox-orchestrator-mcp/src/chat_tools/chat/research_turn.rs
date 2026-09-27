@@ -46,16 +46,77 @@ pub struct Source {
     pub snippet: String,
 }
 
+/// One model role's requested id (a pin, possibly a `~vendor/…-latest` alias)
+/// and the concrete id that answered (Task 13).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct RoleModel {
+    pub role: &'static str,
+    pub requested: Option<String>,
+    pub resolved: String,
+}
+
 #[derive(Debug)]
 pub struct ResearchTrace {
     pub intent: ResearchIntent,
     pub stages: Vec<StageRecord>,
     pub sources: Vec<Source>,
+    /// The headline model: the id that actually answered (see [`Self::set_model`]).
     pub model: Option<String>,
+    /// The id it was requested as, when that differs (an alias).
+    pub model_alias: Option<String>,
+    /// Per-role requested vs resolved models, in first-use order.
+    pub models: Vec<RoleModel>,
     started: Instant,
 }
 
+/// The pin the chat strict-pin branch applied, read back from its rationale
+/// (`resolve.rs` records exactly `strict pin: <pin>`).
+pub fn chat_pin_from_rationale(rationale: Option<&str>) -> Option<&str> {
+    rationale?.strip_prefix("strict pin: ")
+}
+
 impl ResearchTrace {
+    /// Headline model: `resolved` when the provider reported one, else the
+    /// requested id; the requested id is kept as `model_alias` when it differs
+    /// (e.g. `~vendor/model-latest` resolved to a concrete version).
+    pub fn set_model(&mut self, requested: &str, resolved: Option<&str>) {
+        let resolved = resolved.map(str::trim).filter(|r| !r.is_empty());
+        self.model = Some(resolved.unwrap_or(requested).to_string());
+        self.model_alias = resolved
+            .filter(|r| *r != requested)
+            .map(|_| requested.to_string());
+    }
+
+    fn push_role_model(&mut self, m: RoleModel) {
+        if !self.models.contains(&m) {
+            self.models.push(m);
+        }
+    }
+
+    /// Record the research stages' requested/resolved models (deduped per role).
+    pub fn record_role_models(
+        &mut self,
+        uses: &[vox_actor_runtime::llm::cascade::ResearchModelUse],
+    ) {
+        for u in uses {
+            self.push_role_model(RoleModel {
+                role: u.stage.model_role().label(),
+                requested: Some(u.requested.clone()),
+                resolved: u.resolved.clone(),
+            });
+        }
+    }
+
+    /// Record the chat reply's model: the pin it was requested as (if any) and
+    /// the id that answered; also the headline model.
+    pub fn set_chat_model(&mut self, requested: Option<&str>, resolved: &str) {
+        self.push_role_model(RoleModel {
+            role: vox_config::inference::ModelRole::Chat.label(),
+            requested: requested.map(str::to_string),
+            resolved: resolved.to_string(),
+        });
+        self.set_model(requested.unwrap_or(resolved), Some(resolved));
+    }
     pub fn new(intent: ResearchIntent) -> Self {
         let detection = StageRecord::new(
             "detection",
@@ -69,6 +130,8 @@ impl ResearchTrace {
             stages: vec![detection],
             sources: Vec::new(),
             model: None,
+            model_alias: None,
+            models: Vec::new(),
             started: Instant::now(),
         }
     }
@@ -95,6 +158,8 @@ impl ResearchTrace {
             "query": self.intent.query,
             "source_count": self.sources.len(),
             "model": self.model,
+            "model_alias": self.model_alias,
+            "models": self.models,
             "total_ms": self.started.elapsed().as_millis() as u64,
             "status": status,
             "stages": self.stages,
@@ -451,7 +516,12 @@ pub async fn run_deep(
         state.orchestrator_config.memory.log_dir.clone(),
         state.orchestrator_config.memory.memory_md_path.clone(),
     );
-    let outcome = run_research_with_context(rq, Some(&ctx), state.db.as_deref(), &config).await;
+    // Record each research role's requested vs resolved model (Task 13).
+    let (outcome, model_uses) = vox_actor_runtime::llm::cascade::record_research_model_uses(
+        run_research_with_context(rq, Some(&ctx), state.db.as_deref(), &config),
+    )
+    .await;
+    trace.record_role_models(&model_uses);
     let timeline = progress.lock().map(|v| v.clone()).unwrap_or_default();
     trace.push(StageRecord::new(
         "pipeline_progress",
@@ -471,7 +541,15 @@ pub async fn run_deep(
                 trace.push(s);
             }
             trace.sources = pipeline_sources(&r.sources);
-            trace.model = Some(r.research_metadata.synthesis_model.clone());
+            // Headline: the synthesis model that answered, with the id it was
+            // requested as (a pin or alias) when the stage was recorded.
+            let requested = model_uses
+                .iter()
+                .rev()
+                .find(|u| u.stage == vox_actor_runtime::llm::cascade::ResearchStage::Synthesis)
+                .map(|u| u.requested.clone())
+                .unwrap_or_else(|| r.research_metadata.synthesis_model.clone());
+            trace.set_model(&requested, Some(&r.research_metadata.synthesis_model));
             Ok(r.answer)
         }
         Err(e) => {
@@ -1278,6 +1356,93 @@ mod tests {
         assert_eq!(st.status, "failed");
         let ok = citation_stage(&check_citations("fact [1]", 4), 4);
         assert_eq!(ok.status, "ok");
+    }
+
+    /// Task 13 (plan Step 1, vendor-neutral ids): the headline model is the id
+    /// that actually answered; the alias it was requested as rides alongside.
+    #[test]
+    fn trace_records_the_resolved_model_not_the_alias_when_they_differ() {
+        let mut t = ResearchTrace::new(classify_research_intent("/research x y z", None, None));
+        t.set_model("~vendor/model-latest", Some("vendor/model-1.2"));
+        let e = t.to_event();
+        assert_eq!(e["model"], "vendor/model-1.2");
+        assert_eq!(e["model_alias"], "~vendor/model-latest");
+
+        // A provider that echoes the requested id: no separate alias.
+        t.set_model("vendor/model-1.2", Some("vendor/model-1.2"));
+        let e = t.to_event();
+        assert_eq!(e["model"], "vendor/model-1.2");
+        assert!(e["model_alias"].is_null());
+        // No resolved id reported: fall back to what was requested.
+        t.set_model("~vendor/model-latest", None);
+        assert_eq!(t.to_event()["model"], "~vendor/model-latest");
+    }
+
+    /// Task 13: the trace lists, per role, the model requested (pin/alias) and
+    /// the one that answered — deduped, in first-use order.
+    #[test]
+    fn trace_lists_requested_and_resolved_model_per_role() {
+        use vox_actor_runtime::llm::cascade::{ResearchModelUse, ResearchStage};
+        let use_ = |stage, requested: &str, resolved: &str| ResearchModelUse {
+            stage,
+            requested: requested.into(),
+            resolved: resolved.into(),
+        };
+        let mut t = ResearchTrace::new(classify_research_intent("/deepresearch x y", None, None));
+        t.record_role_models(&[
+            use_(
+                ResearchStage::Planner,
+                "~vendor/fast-latest",
+                "vendor/fast-2",
+            ),
+            use_(
+                ResearchStage::ClaimExtraction,
+                "vendor/verify-1",
+                "vendor/verify-1",
+            ),
+            use_(
+                ResearchStage::Verification,
+                "vendor/verify-1",
+                "vendor/verify-1",
+            ),
+            use_(
+                ResearchStage::Verification,
+                "vendor/verify-1",
+                "vendor/verify-1",
+            ),
+            use_(
+                ResearchStage::Synthesis,
+                "~vendor/big-latest",
+                "vendor/big-7",
+            ),
+            use_(ResearchStage::Judge, "vendor/judge-3", "vendor/judge-3"),
+        ]);
+        t.set_chat_model(Some("~vendor/chat-latest"), "vendor/chat-9");
+        let e = t.to_event();
+        assert_eq!(
+            e["models"],
+            json!([
+                {"role": "planner", "requested": "~vendor/fast-latest", "resolved": "vendor/fast-2"},
+                {"role": "verifier", "requested": "vendor/verify-1", "resolved": "vendor/verify-1"},
+                {"role": "synthesis", "requested": "~vendor/big-latest", "resolved": "vendor/big-7"},
+                {"role": "judge", "requested": "vendor/judge-3", "resolved": "vendor/judge-3"},
+                {"role": "chat", "requested": "~vendor/chat-latest", "resolved": "vendor/chat-9"},
+            ])
+        );
+        assert_eq!(e["model"], "vendor/chat-9");
+        assert_eq!(e["model_alias"], "~vendor/chat-latest");
+    }
+
+    /// Task 13: the chat role's requested pin is the one the strict-pin branch
+    /// applied (its rationale), not a guess from config.
+    #[test]
+    fn chat_pin_comes_from_the_strict_pin_rationale() {
+        assert_eq!(
+            chat_pin_from_rationale(Some("strict pin: ~vendor/chat-latest")),
+            Some("~vendor/chat-latest")
+        );
+        assert_eq!(chat_pin_from_rationale(Some("scored: best value")), None);
+        assert_eq!(chat_pin_from_rationale(None), None);
     }
 
     #[test]

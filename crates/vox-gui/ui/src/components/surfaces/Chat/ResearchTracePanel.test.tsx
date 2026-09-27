@@ -103,4 +103,34 @@ describe('ResearchTracePanel', () => {
     expect(header).toHaveTextContent('No research · skip: greeting / small talk');
     expect(header).not.toHaveTextContent('sources');
   });
+
+  it('lists each role with the model that answered and the alias it was requested as', () => {
+    const trace: ResearchTrace = {
+      ...traceOf(deepOk),
+      model: 'vendor/big-7',
+      model_alias: '~vendor/big-latest',
+      models: [
+        { role: 'planner', requested: '~vendor/fast-latest', resolved: 'vendor/fast-2' },
+        { role: 'synthesis', requested: '~vendor/big-latest', resolved: 'vendor/big-7' },
+        { role: 'judge', requested: 'vendor/judge-3', resolved: 'vendor/judge-3' },
+      ],
+    };
+    render(<ResearchTracePanel trace={trace} />);
+    expect(screen.getByTestId('research-trace-toggle')).toHaveTextContent('vendor/big-7');
+    fireEvent.click(screen.getByTestId('research-trace-toggle'));
+    const rows = screen.getAllByTestId('research-model');
+    expect(rows.map((r) => r.getAttribute('data-role'))).toEqual(['planner', 'synthesis', 'judge']);
+    expect(rows[0]).toHaveTextContent('planner');
+    expect(rows[0]).toHaveTextContent('vendor/fast-2');
+    expect(rows[0]).toHaveTextContent('requested as ~vendor/fast-latest');
+    // Same id requested and answered: no redundant alias note.
+    expect(rows[2]).toHaveTextContent('vendor/judge-3');
+    expect(rows[2]).not.toHaveTextContent('requested as');
+  });
+
+  it('renders no model rows for a trace without them', () => {
+    render(<ResearchTracePanel trace={traceOf(quickOk)} />);
+    open();
+    expect(screen.queryAllByTestId('research-model')).toHaveLength(0);
+  });
 });

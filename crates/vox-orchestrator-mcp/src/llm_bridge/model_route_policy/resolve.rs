@@ -208,7 +208,7 @@ pub(crate) fn check_strict_pin(
 ) -> Result<(), String> {
     match found {
         None => Err(format!(
-            "pinned model {pin} (VOX_MODEL_FORCE / VOX_ROUTING_HARD_PIN_MODEL) is not in the model registry; \
+            "pinned model {pin} (VOX_MODEL_FORCE_CHAT / VOX_MODEL_FORCE / VOX_ROUTING_HARD_PIN_MODEL) is not in the model registry; \
              refresh the catalog (`vox model`) or fix the pin"
         )),
         Some(_) if !gates_ok => Err(format!(
@@ -372,10 +372,11 @@ fn resolve_mcp_chat_model_sync_inner(
     let task = res.task_category;
     let vox_local_route_preferred = VOX_LOCAL_PREFERRED_TASKS.contains(&task);
 
-    let strict_pin = routing_policy
-        .hard_pin_model_id
-        .clone()
-        .or_else(vox_config::inference::forced_model);
+    // Chat role pin (Task 13): VOX_MODEL_FORCE_CHAT, then VOX_MODEL_FORCE. A
+    // research-role pin never reaches chat.
+    let strict_pin = routing_policy.hard_pin_model_id.clone().or_else(|| {
+        vox_config::inference::forced_model_for(vox_config::inference::ModelRole::Chat)
+    });
     if let Some(pin) = strict_pin.as_deref() {
         let found = registry.get(pin);
         let gates_ok = found

@@ -8,6 +8,8 @@ type ProviderState = { state: string; hits?: number; message?: string };
 /** Quick: `ProviderOutcome`; deep: `ProviderCallSummary` (adds `calls`). */
 type Provider = { provider: string; status: ProviderState; elapsed_ms: number; calls?: number };
 type TavilyCredits = { used: number; remaining: number };
+/** Rust `RoleModel`: the id a role requested (pin / `~…-latest` alias) and the one that answered. */
+type RoleModel = { role: string; requested?: string | null; resolved: string };
 export type ResearchTrace = {
   kind: 'research_trace';
   mode: 'none' | 'quick' | 'deep' | string;
@@ -18,7 +20,11 @@ export type ResearchTrace = {
   stages: Stage[];
   sources: Src[];
   source_count: number;
+  /** The model that answered (resolved id). */
   model?: string | null;
+  /** The id it was requested as, when that differs (an alias). */
+  model_alias?: string | null;
+  models?: RoleModel[];
   total_ms?: number;
 };
 
@@ -120,6 +126,21 @@ export function ResearchTracePanel({ trace }: { trace: ResearchTrace }) {
               </div>
             );
           })}
+          {(trace.models ?? []).length > 0 && (
+            <div className="text-text-secondary">
+              <span className="font-semibold">models</span>
+              {(trace.models ?? []).map((m, i) => (
+                <div key={`${m.role}-${i}`} data-testid="research-model" data-role={m.role}
+                     className="ml-4 break-words">
+                  <span className="inline-block w-[10ch]">{m.role}</span>
+                  {m.resolved}
+                  {m.requested && m.requested !== m.resolved && (
+                    <span className="text-text-muted"> (requested as {m.requested})</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
           {trace.sources.length > 0 && (
             <ol className="ml-4 list-none text-text-secondary">
               {trace.sources.map((s) => (

@@ -189,6 +189,43 @@ fn web_evidence_supplied_drops_web_search_capability_requirement() {
     assert_eq!(with_flag.0.id, "web-incapable-model");
 }
 
+/// Task 13: the chat role pin (`VOX_MODEL_FORCE_CHAT`) is a strict pin for
+/// chat, and a research-group pin (`VOX_MODEL_FORCE_RESEARCH`) never reaches
+/// chat — here it names a model absent from the registry, which would error
+/// if chat read it.
+#[test]
+fn chat_role_pin_is_strict_and_research_pin_does_not_reach_chat() {
+    let _g = INFERENCE_PROFILE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _key = EnvKeyGuard::set("OPENROUTER_API_KEY", "test-key");
+    let _chat = EnvKeyGuard::set("VOX_MODEL_FORCE_CHAT", "web-incapable-model");
+    let _research = EnvKeyGuard::set("VOX_MODEL_FORCE_RESEARCH", "vendor/not-in-registry");
+    let mut config = OrchestratorConfig::for_testing();
+    config.cost_preference = CostPreference::Performance;
+    let orch = Orchestrator::new(config);
+    *vox_orchestrator::sync_lock::rw_write(&*orch.models_handle()) =
+        registry_with_web_incapable_model();
+
+    let choice = super::resolve::resolve_mcp_chat_model_sync_with_rationale(
+        &orch,
+        "hello there",
+        None,
+        McpChatModelResolution {
+            complexity: 5,
+            allow_cheapest_fallback: true,
+            ..Default::default()
+        },
+    )
+    .expect("the chat pin resolves");
+    assert_eq!(choice.model.id, "web-incapable-model");
+    assert_eq!(
+        choice.rationale.as_deref(),
+        Some("strict pin: web-incapable-model"),
+        "resolved through the strict-pin branch, not free selection"
+    );
+}
+
 /// Companion to the above: `web_evidence_supplied` must drop ONLY
 /// `Capability::SupportsWebSearch`. A prompt that also infers `tool_calling`
 /// (`Capability::SupportsToolUse`) against a model that supports neither must

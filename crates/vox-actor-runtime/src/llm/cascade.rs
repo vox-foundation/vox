@@ -17,6 +17,64 @@ pub enum ResearchStage {
     SelfVerification,
 }
 
+impl ResearchStage {
+    /// The model role whose pin governs this stage (Task 13). Claim extraction
+    /// and self-verification belong to verification.
+    #[must_use]
+    pub const fn model_role(self) -> vox_config::inference::ModelRole {
+        use vox_config::inference::ModelRole;
+        match self {
+            Self::Planner => ModelRole::Planner,
+            Self::Synthesis => ModelRole::Synthesis,
+            Self::Judge => ModelRole::Judge,
+            Self::ClaimExtraction | Self::Verification | Self::SelfVerification => {
+                ModelRole::Verifier
+            }
+        }
+    }
+}
+
+/// One successful research-stage LLM call: the id that was requested (the
+/// candidate's `model` — a pin, possibly a `~vendor/…-latest` alias) and the
+/// concrete id the provider reported answering (`LlmResponse::model`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResearchModelUse {
+    pub stage: ResearchStage,
+    pub requested: String,
+    pub resolved: String,
+}
+
+tokio::task_local! {
+    static RESEARCH_MODEL_USES: std::cell::RefCell<Vec<ResearchModelUse>>;
+}
+
+/// Run `f`, collecting every successful research-stage call made on this task
+/// ([`chat_with_cascade`] / [`chat_with_cascade_parsed`] with a stage). Calls
+/// made outside such a scope are simply not recorded.
+pub async fn record_research_model_uses<F: std::future::Future>(
+    f: F,
+) -> (F::Output, Vec<ResearchModelUse>) {
+    RESEARCH_MODEL_USES
+        .scope(std::cell::RefCell::new(Vec::new()), async move {
+            let out = f.await;
+            let uses = RESEARCH_MODEL_USES.with(|u| u.take());
+            (out, uses)
+        })
+        .await
+}
+
+fn note_research_model_use(stage: Option<ResearchStage>, cfg: &LlmConfig, resp: &LlmResponse) {
+    if let Some(stage) = stage {
+        let _ = RESEARCH_MODEL_USES.try_with(|u| {
+            u.borrow_mut().push(ResearchModelUse {
+                stage,
+                requested: cfg.model.clone(),
+                resolved: resp.model.clone(),
+            });
+        });
+    }
+}
+
 fn research_stage_label(stage: Option<ResearchStage>) -> String {
     stage
         .map(|s| format!("{s:?}"))
@@ -66,7 +124,10 @@ pub async fn chat_with_cascade(
     )));
 
     match res {
-        ActivityResult::Ok(Ok((response, _cfg))) => Ok(response),
+        ActivityResult::Ok(Ok((response, cfg))) => {
+            note_research_model_use(research_stage, &cfg, &response);
+            Ok(response)
+        }
         ActivityResult::Ok(Err(e)) => Err(e),
         ActivityResult::Failed(e) => Err(format!("research cascade activity failed: {e:?}")),
         ActivityResult::Cancelled => Err("research cascade cancelled".to_string()),
@@ -105,8 +166,9 @@ where
     for candidate in candidates {
         let res = infer_with_retry(opts, messages.clone(), vec![candidate.clone()]).await;
         match res {
-            ActivityResult::Ok(Ok((response, _cfg))) => match parser(&response.content) {
+            ActivityResult::Ok(Ok((response, cfg))) => match parser(&response.content) {
                 Ok(parsed) => {
+                    note_research_model_use(research_stage, &cfg, &response);
                     let stage_lbl = research_stage_label(research_stage);
                     vox_telemetry::record_event!(&TelemetryEvent::AiFixture(
                         AiFixtureEvent::PromptDispatch(PromptDispatchTelemetryEvent {
@@ -210,7 +272,9 @@ pub fn cascade_for_research_stage(
     stage: ResearchStage,
     input: &RouteResolutionInput,
 ) -> Vec<LlmConfig> {
-    if let Some(forced) = vox_config::inference::forced_model() {
+    // Per-role pin (Task 13): the stage's role key, then VOX_MODEL_FORCE_RESEARCH,
+    // then VOX_MODEL_FORCE.
+    if let Some(forced) = vox_config::inference::forced_model_for(stage.model_role()) {
         return pinned_research_candidates(stage, &forced);
     }
 
@@ -458,6 +522,121 @@ mod tests {
         // a configured model that is already a free slug appears exactly once.
         assert_eq!(v.iter().filter(|m| m.as_str() == slug).count(), 1);
         assert_eq!(v, expected_free());
+    }
+
+    /// Task 13: each research stage is pinned through its model role.
+    #[test]
+    fn research_stages_map_to_model_roles() {
+        use vox_config::inference::ModelRole;
+        assert_eq!(ResearchStage::Planner.model_role(), ModelRole::Planner);
+        assert_eq!(ResearchStage::Synthesis.model_role(), ModelRole::Synthesis);
+        assert_eq!(ResearchStage::Judge.model_role(), ModelRole::Judge);
+        assert_eq!(
+            ResearchStage::Verification.model_role(),
+            ModelRole::Verifier
+        );
+        assert_eq!(
+            ResearchStage::ClaimExtraction.model_role(),
+            ModelRole::Verifier
+        );
+        assert_eq!(
+            ResearchStage::SelfVerification.model_role(),
+            ModelRole::Verifier
+        );
+    }
+
+    /// Task 13: the research cascade honours the stage's own role pin (a key
+    /// no other test in this crate touches, so the env mutation is isolated).
+    #[test]
+    #[allow(unsafe_code)]
+    fn research_cascade_uses_the_stage_role_pin() {
+        let prev = std::env::var("VOX_MODEL_FORCE_JUDGE").ok();
+        // SAFETY: only this test reads or writes VOX_MODEL_FORCE_JUDGE.
+        unsafe { std::env::set_var("VOX_MODEL_FORCE_JUDGE", "vendor/judge-pin") };
+        let judge =
+            cascade_for_research_stage(ResearchStage::Judge, &RouteResolutionInput::default());
+        unsafe {
+            match prev {
+                Some(v) => std::env::set_var("VOX_MODEL_FORCE_JUDGE", v),
+                None => std::env::remove_var("VOX_MODEL_FORCE_JUDGE"),
+            }
+        }
+        assert_eq!(judge.len(), 1, "a pin is exactly one candidate");
+        assert_eq!(judge[0].model, "vendor/judge-pin");
+    }
+
+    /// Task 13: a successful research-stage call records the requested id (a pin
+    /// or `~…-latest` alias) next to the concrete id the provider reported, so a
+    /// trace can show both. Outside a recording scope nothing is recorded.
+    #[tokio::test]
+    async fn research_calls_record_requested_and_resolved_model_ids() {
+        use wiremock::matchers::method;
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "model": "vendor/concrete-model-1",
+                "choices": [{"message": {"role": "assistant", "content": "{\"ok\":true}"}}],
+                "usage": {"prompt_tokens": 3, "completion_tokens": 1}
+            })))
+            .mount(&server)
+            .await;
+        let candidate = || {
+            let mut c = LlmConfig::openrouter("~vendor/model-latest".to_string());
+            c.base_url = Some(format!("{}/chat/completions", server.uri()));
+            c.api_key = Some("test-key".into());
+            c.telemetry_skip_interaction = true;
+            vec![c]
+        };
+
+        let (res, uses) = record_research_model_uses(async {
+            let a = chat_with_cascade(
+                &ActivityOptions::default(),
+                vec![],
+                candidate(),
+                Some(ResearchStage::Judge),
+            )
+            .await;
+            let b = chat_with_cascade_parsed(
+                &ActivityOptions::default(),
+                vec![],
+                candidate(),
+                Some(ResearchStage::Verification),
+                |s| Ok::<_, String>(s.to_string()),
+            )
+            .await;
+            (a.is_ok(), b.is_ok())
+        })
+        .await;
+        assert_eq!(res, (true, true));
+        assert_eq!(
+            uses,
+            vec![
+                ResearchModelUse {
+                    stage: ResearchStage::Judge,
+                    requested: "~vendor/model-latest".into(),
+                    resolved: "vendor/concrete-model-1".into(),
+                },
+                ResearchModelUse {
+                    stage: ResearchStage::Verification,
+                    requested: "~vendor/model-latest".into(),
+                    resolved: "vendor/concrete-model-1".into(),
+                },
+            ]
+        );
+
+        // No recording scope: the call still works and nothing panics.
+        assert!(
+            chat_with_cascade(
+                &ActivityOptions::default(),
+                vec![],
+                candidate(),
+                Some(ResearchStage::Judge)
+            )
+            .await
+            .is_ok()
+        );
     }
 
     #[tokio::test]
