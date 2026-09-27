@@ -801,4 +801,53 @@ mod tests {
         register_oratio_whisper_transcriber();
         assert!(vox_speech::backend_dispatch::has_registered_whisper_transcriber());
     }
+
+    /// Live check (Phase 3 UAT test 3): the transcriber `run` registers, called the way
+    /// `vox oratio serve`'s handler calls it (`whisper_backend()?.transcribe_pcm`), reaches
+    /// the installed `oratio` plugin's Candle Whisper at 16 kHz and at a declared 44.1 kHz.
+    /// Skips unless that plugin loads (`VOX_PLUGINS_DIR` or the default root) and
+    /// openai/whisper-tiny.en is already in the Hugging Face cache; no download here.
+    #[test]
+    fn serve_transcriber_reaches_installed_oratio_plugin() {
+        if let Err(e) = vox_plugin_host::cached_code_plugin("oratio") {
+            eprintln!("skipping: oratio plugin not loadable: {e}");
+            return;
+        }
+        let hub = std::env::var_os("HF_HUB_CACHE")
+            .map(PathBuf::from)
+            .or_else(|| std::env::var_os("HF_HOME").map(|h| PathBuf::from(h).join("hub")))
+            .or_else(|| dirs::home_dir().map(|h| h.join(".cache/huggingface/hub")));
+        if !hub.is_some_and(|h| h.join("models--openai--whisper-tiny.en").is_dir()) {
+            eprintln!("skipping: openai/whisper-tiny.en is not in the Hugging Face cache");
+            return;
+        }
+
+        let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/speech-to-code/fixtures/corpus_v1/utt_11.wav");
+        let pcm_16k = vox_speech::backends::audio_io::pcm_decode_to_16k_mono(&fixture)
+            .expect("decode fixture");
+        let pcm_44k = vox_speech::backends::audio_io::resample_pcm(&pcm_16k, 16_000, 44_100)
+            .expect("resample fixture");
+        register_oratio_whisper_transcriber();
+        for (pcm, rate) in [(pcm_16k, 16_000), (pcm_44k, 44_100)] {
+            let backend = vox_speech::backend_dispatch::whisper_backend().expect("backend");
+            assert_eq!(backend.name(), "whisper (oratio plugin)");
+            let out = backend
+                .transcribe_pcm(&pcm, rate, None)
+                .expect("transcribe through the oratio plugin");
+            eprintln!("{rate} Hz: {:?}", out.raw_text);
+            assert!(
+                out.raw_text.to_lowercase().contains("canary"),
+                "{rate} Hz: expected the fixture's 'run speech canary sample 1', got {:?}",
+                out.raw_text
+            );
+            // One ~2.7 s utterance fits the first 30 s Whisper window.
+            let first = out.segments.first().expect("a timed segment");
+            assert_eq!(
+                (first.start_ms, first.end_ms),
+                (0, 30_000),
+                "{rate} Hz segment"
+            );
+        }
+    }
 }

@@ -438,6 +438,64 @@ mod tests {
         );
     }
 
+    /// Live check (Phase 3 UAT test 2): everything dictation does after cpal capture —
+    /// `write_wav_16k_mono` then `transcribe_audio_file`, as in
+    /// `stop_mic_capture_and_transcribe` — with Whisper selected and the startup
+    /// registration, so the text comes from the installed `oratio` plugin's Candle Whisper.
+    /// Skips unless that plugin loads (`VOX_PLUGINS_DIR` or the default root) and
+    /// openai/whisper-tiny.en is already in the Hugging Face cache; no download here.
+    #[test]
+    fn dictation_transcribes_through_installed_oratio_plugin() {
+        if let Err(e) = vox_plugin_host::cached_code_plugin("oratio") {
+            eprintln!("skipping: oratio plugin not loadable: {e}");
+            return;
+        }
+        let hub = std::env::var_os("HF_HUB_CACHE")
+            .map(PathBuf::from)
+            .or_else(|| std::env::var_os("HF_HOME").map(|h| PathBuf::from(h).join("hub")))
+            .or_else(|| dirs::home_dir().map(|h| h.join(".cache/huggingface/hub")));
+        if !hub.is_some_and(|h| h.join("models--openai--whisper-tiny.en").is_dir()) {
+            eprintln!("skipping: openai/whisper-tiny.en is not in the Hugging Face cache");
+            return;
+        }
+
+        let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/speech-to-code/fixtures/corpus_v1/utt_11.wav");
+        let mut reader = hound::WavReader::open(&fixture).expect("fixture WAV");
+        let spec = reader.spec();
+        let buf = CaptureBuffer {
+            samples: reader
+                .samples::<i16>()
+                .map(|s| s.expect("fixture sample") as f32 / 32768.0)
+                .collect(),
+            source_sample_rate: spec.sample_rate,
+            channels: spec.channels,
+        };
+        let dir = tempfile::tempdir().unwrap();
+        let wav = dir.path().join("dictation.wav");
+        write_wav_16k_mono(&buf, &wav).expect("write 16k mono WAV");
+
+        // Whisper is what the Settings backend choice selects; auto prefers in-process Sherpa.
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::set_var("VOX_ORATIO_BACKEND", "whisper");
+        }
+        super::super::speech_plugin_backend::register();
+        let out = transcribe_audio_file(&wav);
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::remove_var("VOX_ORATIO_BACKEND");
+        }
+        vox_speech::backend_dispatch::invalidate_cache();
+
+        let text = out.expect("dictation through the oratio plugin");
+        eprintln!("oratio plugin transcript: {text:?}");
+        assert!(
+            text.to_lowercase().contains("canary"),
+            "expected the fixture's 'run speech canary sample 1', got {text:?}"
+        );
+    }
+
     /// Hardware smoke test (ignored in CI — needs a real input device + the
     /// Whisper model). Records 3 s from the default mic through the SAME cpal
     /// path the Tauri command uses, writes the WAV, and runs the transcription
