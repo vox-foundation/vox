@@ -1,5 +1,6 @@
 use clap::Subcommand;
-use vox_research_shim::research::types::ResearchStage;
+use vox_research_shim::research::types::{ResearchDomainMode, ResearchStage};
+use vox_search::policy::ResearchLane;
 
 pub mod eval;
 pub mod infra;
@@ -33,6 +34,16 @@ pub enum ResearchCmd {
         /// Create an async research session and return its id without running inline.
         #[arg(long = "async", default_value_t = false)]
         async_run: bool,
+        /// Retrieval lane — `fast` (default; sends a condensed raw query, no LLM planner) or
+        /// `deep` (LLM query decomposition into subqueries).
+        #[arg(long)]
+        lane: Option<String>,
+        /// Research waves (1-5, default 1).
+        #[arg(long)]
+        waves: Option<usize>,
+        /// Domain mode — `general` (default), `shopping`, or `codegen`.
+        #[arg(long)]
+        domain_mode: Option<String>,
     },
     /// Preview an editable research plan without executing retrieval.
     Preview {
@@ -78,6 +89,40 @@ pub enum ResearchCmd {
         #[arg(long, default_value_t = 4)]
         concurrency: usize,
     },
+    /// Send a live query to the search providers and report status, latency and sample titles.
+    Probe {
+        /// Query tokens (join with spaces).
+        #[arg(required = true, num_args = 1..)]
+        query: Vec<String>,
+        /// One provider (`searxng`, `tavily`, `openalex`, `arxiv`, `wikipedia`, `duckduckgo`); default: all keyed/optional ones.
+        #[arg(long)]
+        provider: Option<String>,
+        /// Emit JSON instead of a table.
+        #[arg(long, default_value_t = false)]
+        json: bool,
+    },
+    /// Flag a citation from a session as misleading (penalizes its domain in future retrieval).
+    Flag {
+        /// Numeric `scientia_research_sessions.id` the citation came from.
+        session_id: i64,
+        /// URL of the misleading source.
+        #[arg(long)]
+        url: String,
+        /// `inelegant_code`, `fails_to_run`, `user_correction`, or `hallucinated_api`.
+        #[arg(long, default_value = "inelegant_code")]
+        defect: String,
+        /// What was wrong / the correction.
+        #[arg(long)]
+        notes: Option<String>,
+    },
+    /// Publish a session's report to `docs/src/architecture/` with frontmatter.
+    Publish {
+        /// Numeric `scientia_research_sessions.id`.
+        session_id: i64,
+        /// File slug (default `session-<id>-research`); `-2026.md` is appended.
+        #[arg(long)]
+        slug: Option<String>,
+    },
     /// Search past research artifacts via full-text search.
     Search {
         /// Topic / question tokens (join with spaces).
@@ -105,6 +150,9 @@ pub async fn run(cmd: ResearchCmd) -> anyhow::Result<()> {
             verify_claims,
             site_scope,
             async_run,
+            lane,
+            waves,
+            domain_mode,
         } => {
             let q = query.join(" ").trim().to_string();
             run_research_query(
@@ -115,9 +163,24 @@ pub async fn run(cmd: ResearchCmd) -> anyhow::Result<()> {
                 verify_claims,
                 site_scope,
                 async_run,
+                lane,
+                waves,
+                domain_mode,
             )
             .await
         }
+        ResearchCmd::Probe {
+            query,
+            provider,
+            json,
+        } => research_probe(query.join(" "), provider, json).await,
+        ResearchCmd::Flag {
+            session_id,
+            url,
+            defect,
+            notes,
+        } => research_flag(session_id, &url, &defect, notes).await,
+        ResearchCmd::Publish { session_id, slug } => research_publish(session_id, slug).await,
         ResearchCmd::History { limit } => research_history(limit).await,
         ResearchCmd::Show { session_id } => research_show(session_id).await,
         ResearchCmd::Watch { session_id } => research_watch(session_id).await,
@@ -275,6 +338,146 @@ fn research_plan_preview(query: &str) -> serde_json::Value {
     })
 }
 
+fn format_probe_report(results: &[vox_search::probe::ProviderProbeResult]) -> String {
+    let mut out = String::new();
+    for r in results {
+        let mark = if r.success { "ok  " } else { "FAIL" };
+        out.push_str(&format!(
+            "{mark} {:<11} http={:<3} {:>5}ms hits={}\n",
+            r.provider, r.http_status, r.latency_ms, r.hit_count
+        ));
+        for title in r.sample_titles.iter().take(3) {
+            out.push_str(&format!("       - {title}\n"));
+        }
+        if let Some(e) = &r.error_message {
+            out.push_str(&format!("       error: {e}\n"));
+        }
+        if let Some(tip) = &r.remediation_tip {
+            out.push_str(&format!("       fix:   {tip}\n"));
+        }
+    }
+    out
+}
+
+pub async fn research_probe(
+    query: String,
+    provider: Option<String>,
+    json: bool,
+) -> anyhow::Result<()> {
+    use vox_search::probe::{probe_all_search_providers, probe_search_provider};
+    let results = match provider {
+        Some(p) => vec![probe_search_provider(p, query).await],
+        None => match probe_all_search_providers(query).await {
+            Ok(all) => all.into_iter().map(Ok).collect(),
+            Err(e) => vec![Err(e)],
+        },
+    }
+    .into_iter()
+    .collect::<Result<Vec<_>, _>>()
+    .map_err(anyhow::Error::msg)?;
+    if json {
+        println!("{}", serde_json::to_string_pretty(&results)?);
+    } else {
+        print!("{}", format_probe_report(&results));
+    }
+    Ok(())
+}
+
+fn build_misguidance_params(
+    session_id: i64,
+    query_text: &str,
+    url: &str,
+    defect: &str,
+    notes: Option<String>,
+) -> anyhow::Result<vox_db::RecordMisguidanceParams> {
+    Ok(vox_db::RecordMisguidanceParams {
+        session_id: Some(session_id),
+        defect_class: defect.parse().map_err(anyhow::Error::msg)?,
+        culprit_url: Some(url.to_string()),
+        culprit_domain: vox_research_shim::research::distillation::extract_registrable_domain(url),
+        claim_id: None,
+        research_query: query_text.to_string(),
+        misleading_excerpt: None,
+        generated_code_snippet: None,
+        failure_diagnostic: None,
+        correction_diff: notes,
+        reporter: vox_db::MisguidanceReporter::User,
+        // Same penalty the GUI's flag modal records (`ResearchView.tsx`).
+        domain_penalty: 0.2,
+    })
+}
+
+pub async fn research_flag(
+    session_id: i64,
+    url: &str,
+    defect: &str,
+    notes: Option<String>,
+) -> anyhow::Result<()> {
+    let db = connect_research_db().await?;
+    let Some(row) = db.get_research_session(session_id).await? else {
+        anyhow::bail!("research session {session_id} not found");
+    };
+    let params = build_misguidance_params(session_id, &row.query_text, url, defect, notes)?;
+    let id = db.record_research_misguidance(&params).await?;
+    println!(
+        "recorded misguidance event {id} against {}",
+        params.culprit_domain
+    );
+    Ok(())
+}
+
+// vox:defactored-from vox-gui 2026-09-20 (`save_research_doc` / `publish_research_doc` slug rules + frontmatter)
+/// Build `(filename, markdown)` for a published research report. Never touches
+/// `research-index.md` (retired — the Starlight sidebar derives from frontmatter).
+fn render_published_doc(
+    query_text: &str,
+    session_id: i64,
+    slug: Option<&str>,
+    report_markdown: &str,
+) -> anyhow::Result<(String, String)> {
+    let slug = slug
+        .map(str::to_string)
+        .unwrap_or_else(|| format!("session-{session_id}-research"));
+    if slug.contains('/') || slug.contains('\\') || slug.contains("..") || slug.starts_with('.') {
+        anyhow::bail!("invalid slug {slug:?}: path characters are not permitted");
+    }
+    let filename = if slug.ends_with("-2026.md") {
+        slug
+    } else {
+        format!("{slug}-2026.md")
+    };
+    let topic: String = query_text.split_whitespace().collect::<Vec<_>>().join(" ");
+    let short: String = topic.chars().take(80).collect();
+    let escape = |s: &str| s.replace('\\', "\\\\").replace('"', "\\\"");
+    let doc = format!(
+        "---\ntitle: \"Research: {}\"\ndescription: \"Deep-research report for: {}\"\ncategory: \"Architecture SSOTs\"\nstatus: \"research\"\n---\n\n{report_markdown}\n",
+        escape(&short),
+        escape(&topic.chars().take(200).collect::<String>()),
+    );
+    Ok((filename, doc))
+}
+
+pub async fn research_publish(session_id: i64, slug: Option<String>) -> anyhow::Result<()> {
+    let db = connect_research_db().await?;
+    let Some(row) = db.get_research_session(session_id).await? else {
+        anyhow::bail!("research session {session_id} not found");
+    };
+    let Some(artifact) = db.get_research_artifact(session_id).await? else {
+        anyhow::bail!("no durable research artifact found for session {session_id}");
+    };
+    let (filename, doc) = render_published_doc(
+        &row.query_text,
+        session_id,
+        slug.as_deref(),
+        &artifact.report_markdown,
+    )?;
+    let root = vox_repository::discover_repository_or_fallback(&std::env::current_dir()?).root;
+    let path = root.join("docs/src/architecture").join(&filename);
+    vox_db::research_doc_io::atomic_write_secure(&path, doc.as_bytes())?;
+    println!("published {}", path.display());
+    Ok(())
+}
+
 pub async fn research_watch(session_id: i64) -> anyhow::Result<()> {
     let db = connect_research_db().await?;
     loop {
@@ -290,6 +493,7 @@ pub async fn research_watch(session_id: i64) -> anyhow::Result<()> {
 }
 
 /// Catalog handler anchor for `research.run` (`contracts/operations/catalog.v1.yaml`).
+#[allow(clippy::too_many_arguments)]
 pub async fn run_research_query(
     query: String,
     json: bool,
@@ -298,6 +502,9 @@ pub async fn run_research_query(
     verify_claims: bool,
     site_scope: Option<String>,
     async_run: bool,
+    lane: Option<String>,
+    waves: Option<usize>,
+    domain_mode: Option<String>,
 ) -> anyhow::Result<()> {
     use std::sync::Arc;
     use vox_db::{DbConfig, VoxDb};
@@ -326,9 +533,15 @@ pub async fn run_research_query(
         persist_to_docs: false,
         verify_claims,
         site_scope,
-        domain_mode: Default::default(),
-        waves: 1,
-        lane: vox_search::policy::ResearchLane::default(),
+        domain_mode: match domain_mode.as_deref() {
+            Some(m) => m.parse().map_err(anyhow::Error::msg)?,
+            None => Default::default(),
+        },
+        waves: waves.unwrap_or(1).clamp(1, 5),
+        lane: match lane.as_deref() {
+            Some(l) => l.parse().map_err(anyhow::Error::msg)?,
+            None => Default::default(),
+        },
     };
 
     if async_run {
@@ -392,6 +605,16 @@ fn research_run_daemon_params(
         "max_sources": rq.max_sources,
         "verify_claims": rq.verify_claims,
         "site_scope": rq.site_scope,
+        "waves": rq.waves,
+        "domain_mode": match rq.domain_mode {
+            ResearchDomainMode::General => "general",
+            ResearchDomainMode::Shopping => "shopping",
+            ResearchDomainMode::CodeGen => "codegen",
+        },
+        "lane": match rq.lane {
+            ResearchLane::Fast => "fast",
+            ResearchLane::Deep => "deep",
+        },
     })
 }
 
@@ -472,6 +695,100 @@ async fn run_research_async_via_daemon(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn run_query(
+        lane: ResearchLane,
+        domain_mode: ResearchDomainMode,
+        waves: usize,
+    ) -> serde_json::Value {
+        use vox_research_shim::research::{ResearchQuery, ResearchScope};
+        research_run_daemon_params(&ResearchQuery {
+            query: "q".into(),
+            scope: ResearchScope::Web,
+            max_sources: 10,
+            persist_to_docs: false,
+            verify_claims: false,
+            site_scope: None,
+            domain_mode,
+            waves,
+            lane,
+        })
+    }
+
+    #[test]
+    fn daemon_params_carry_lane_waves_and_domain_mode() {
+        let v = run_query(ResearchLane::Deep, ResearchDomainMode::CodeGen, 3);
+        assert_eq!(v["lane"], "deep");
+        assert_eq!(v["waves"], 3);
+        assert_eq!(v["domain_mode"], "codegen");
+    }
+
+    #[test]
+    fn probe_report_lists_status_titles_and_remediation() {
+        let ok = vox_search::probe::ProviderProbeResult {
+            provider: "wikipedia".into(),
+            http_status: 200,
+            latency_ms: 42,
+            success: true,
+            hit_count: 2,
+            sample_titles: vec!["Tucson".into()],
+            error_message: None,
+            remediation_tip: None,
+        };
+        let bad = vox_search::probe::ProviderProbeResult {
+            provider: "searxng".into(),
+            http_status: 0,
+            latency_ms: 0,
+            success: false,
+            hit_count: 0,
+            sample_titles: vec![],
+            error_message: Some("SearXNG URL is not configured".into()),
+            remediation_tip: Some("Set VOX_SEARCH_SEARXNG_URL".into()),
+        };
+        let report = format_probe_report(&[ok, bad]);
+        assert!(report.contains("ok   wikipedia"), "{report}");
+        assert!(report.contains("- Tucson"), "{report}");
+        assert!(report.contains("FAIL searxng"), "{report}");
+        assert!(
+            report.contains("fix:   Set VOX_SEARCH_SEARXNG_URL"),
+            "{report}"
+        );
+    }
+
+    #[test]
+    fn misguidance_params_derive_domain_and_reject_bad_defect() {
+        let p = build_misguidance_params(
+            9,
+            "tucson events",
+            "https://www.example.com/a/b?x=1",
+            "hallucinated_api",
+            Some("wrong".into()),
+        )
+        .expect("valid params");
+        assert_eq!(p.culprit_domain, "example.com");
+        assert_eq!(p.session_id, Some(9));
+        assert_eq!(p.correction_diff.as_deref(), Some("wrong"));
+        assert!(build_misguidance_params(9, "q", "https://a.io", "nonsense", None).is_err());
+    }
+
+    #[test]
+    fn published_doc_has_frontmatter_and_safe_slug() {
+        let (name, doc) =
+            render_published_doc("Tucson \"tech\" events", 3, None, "# Body").expect("renders");
+        assert_eq!(name, "session-3-research-2026.md");
+        assert!(doc.starts_with("---\ntitle: \"Research: Tucson \\\"tech\\\" events\"\n"));
+        assert!(doc.contains("category: \"Architecture SSOTs\""));
+        assert!(doc.contains("status: \"research\""));
+        assert!(doc.ends_with("# Body\n"));
+        let (kept, _) = render_published_doc("q", 3, Some("x-2026.md"), "b").unwrap();
+        assert_eq!(kept, "x-2026.md");
+        for bad in ["../evil", "a/b", ".hidden", "a\\b"] {
+            assert!(
+                render_published_doc("q", 3, Some(bad), "b").is_err(),
+                "{bad}"
+            );
+        }
+    }
 
     #[test]
     fn research_plan_preview_is_editable_and_free_baseline() {
