@@ -614,13 +614,37 @@ pub(crate) fn run_toestub_scoped_roots(
         c.arg(root.to_string_lossy().as_ref());
     }
     let output = c.output().context("spawn toestub scoped (batched)")?;
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        bail!("toestub scoped run failed: {stderr}");
-    }
     let stdout = String::from_utf8_lossy(&output.stdout);
     print_toestub_json_summary(&stdout, roots.len());
+    if !output.status.success() {
+        let critical = toestub_critical_findings(&stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        bail!(
+            "toestub scoped run failed ({} critical finding(s)):\n  {}\n{stderr}",
+            critical.len(),
+            critical.join("\n  ")
+        );
+    }
     Ok(())
+}
+
+/// `rule_id file:line` for each critical finding in a TOESTUB JSON envelope — the findings that
+/// fail `--mode enforce-warn`, so a failed gate can name them instead of only its stderr.
+fn toestub_critical_findings(stdout: &str) -> Vec<String> {
+    let Ok(doc) = serde_json::from_str::<serde_json::Value>(stdout.trim()) else {
+        return Vec::new();
+    };
+    doc.get("findings")
+        .and_then(|v| v.as_array())
+        .into_iter()
+        .flatten()
+        .filter(|f| f.get("severity").and_then(|v| v.as_str()) == Some("critical"))
+        .map(|f| {
+            let s = |k: &str| f.get(k).and_then(|v| v.as_str()).unwrap_or("?");
+            let line = f.get("line").and_then(|v| v.as_u64()).unwrap_or(0);
+            format!("{} {}:{line}", s("rule_id"), s("file"))
+        })
+        .collect()
 }
 
 /// Parse TOESTUB JSON envelope and print a one-line summary (no snippet dumps).
@@ -664,6 +688,19 @@ mod toestub_summary_tests {
     fn toestub_json_summary_parses_envelope() {
         let json = r#"{"schema_version":1,"files_scanned":3,"findings":[{"severity":"error"},{"severity":"warning"}]}"#;
         print_toestub_json_summary(json, 2);
+    }
+
+    #[test]
+    fn critical_findings_name_rule_and_location() {
+        let json = r#"{"findings":[
+            {"severity":"warning","rule_id":"skeleton/x","file":"a.rs","line":1},
+            {"severity":"critical","rule_id":"security/hardcoded-secret/aws-key","file":"b.rs","line":302}
+        ]}"#;
+        assert_eq!(
+            super::toestub_critical_findings(json),
+            vec!["security/hardcoded-secret/aws-key b.rs:302".to_string()]
+        );
+        assert!(super::toestub_critical_findings("not json").is_empty());
     }
 }
 
