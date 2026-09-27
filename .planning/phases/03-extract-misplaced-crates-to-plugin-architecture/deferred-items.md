@@ -31,10 +31,23 @@
   linked only by the two L4 Candle plugins, and its Candle deps are unconditional. The 03-02 CORE Candle scan,
   re-keyed on `layers.toml`, prints only the three L4 `vox-plugin-mens-candle-*` crates (core_count=0).
   `vox-speech` (L3), `vox-quantize` (L2) and `vox-populi` (L3) keep their `layers.toml` values; the live graph
-  needs them. **Still open:** under the one map, `vox-orchestrator (L3) -> vox-plugin-nvml-probe (L4)` is an
-  upward edge. vox-arch-check already failed on it (layer inversion + linked cdylib), and crate-edges now
-  reports it too. The fix is a code change (load it through vox-plugin-host) or a user-authorized ledger entry.
-  Inventory: `target/d09-inventory.txt`.
+  needs them. Inventory: `target/d09-inventory.txt`. Two known_inversions that were no longer upward were
+  dropped in `3ab57a7f2`, and ROADMAP SC#3/SC#4 now cite `layers.toml` (`9c2409dab`).
+- **Partly done: `vox-orchestrator (L3) -> vox-plugin-nvml-probe (L4)`**. vox-arch-check fails this edge
+  (layer inversion + linked cdylib) and crate-edges reports it. The user chose a host-registered probe.
+  `042ef4764` adds `vox_orchestrator::models::{VramProbe, register_vram_probe}` and switches `vram.rs`.
+  vox-orchestrator-mcp's `server_state::vram_probe` loads the `nvml-probe` plugin and registers it (ServerState
+  new_full/new_for_daemon, `vox chat --model auto`, vox-gui auto-model recommendation). **Blocked:**
+  `models/auto_select.rs:163` still calls `vox_plugin_nvml_probe::probe::probe_summary()`. That file carries
+  another session's uncommitted edit (the DISCRETE_RESERVE_* consts moved out of a doc comment, dated
+  2026-09-22), so it was not touched. Once that edit is committed or dropped, do the rest in this order:
+  1. In `probe_discrete_vram_gb`, replace `if let Ok(json) = vox_plugin_nvml_probe::probe::probe_summary() {`
+     with `if let Some(Ok(json)) = crate::models::vram::registered_vram_probe().map(|p| (p.probe_summary_json)()) {`.
+  2. Delete the `vox-plugin-nvml-probe` dep and its 3-line comment from `crates/vox-orchestrator/Cargo.toml`.
+  3. Commit the Cargo.lock hunk alone.
+  4. Run `affected-crates --regen`/`--check` and the crate-build-map delta.
+  5. Remove the edge from the crate-edges baseline (removal only).
+  6. Re-run vox-arch-check and crate-edges.
 - Stale crate-edges baseline entry `vox-populi -> vox-grammar-export`: **fixed** in `07a681ca7` (2026-09-27).
   `--tighten` refuses while the three NEW EDGE violations stand, so the one pair was removed by hand
   (removal-only diff); the stale warning is gone. The three violations themselves remain open.
