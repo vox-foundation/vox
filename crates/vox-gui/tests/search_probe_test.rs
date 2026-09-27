@@ -193,13 +193,14 @@ impl MockSearchCluster {
     }
 
     fn policy(&self) -> vox_search::policy::SearchPolicy {
-        let mut policy = vox_search::policy::SearchPolicy::default();
-        policy.wikipedia_api_url = Some(format!("{}/w/api.php", self.wikipedia.uri()));
-        policy.openalex_api_url = Some(self.openalex.uri());
-        policy.arxiv_api_url = Some(format!("{}/api/query", self.arxiv.uri()));
-        policy.tavily_api_url = Some(self.tavily.uri());
-        policy.searxng_url = Some(self.searxng.uri());
-        policy
+        vox_search::policy::SearchPolicy {
+            wikipedia_api_url: Some(format!("{}/w/api.php", self.wikipedia.uri())),
+            openalex_api_url: Some(self.openalex.uri()),
+            arxiv_api_url: Some(format!("{}/api/query", self.arxiv.uri())),
+            tavily_api_url: Some(self.tavily.uri()),
+            searxng_url: Some(self.searxng.uri()),
+            ..Default::default()
+        }
     }
 }
 
