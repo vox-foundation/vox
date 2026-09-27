@@ -1,6 +1,6 @@
 {
   "schema_version": 3,
-  "generated_at": "2026-09-27T20:24:17.828Z",
+  "generated_at": "2026-09-27T21:54:48.160Z",
   "description": "Per-file comment/doc counts for LLM batch targeting. Rust: lines_triple_slash=///, lines_inner_doc=//!, lines_plain_comment=// excluding doc. Markdown: lines_total=all lines; lines_other_doc_signal=# heading count. hotspot_tier: 1=plan-listed path, 2=high-density heuristic, 0=other. symbol_hints (schema v3): plan-hotspot Rust only; /// or //! linked to next item; containing_symbol, doc_preview, comment_type, quality_tag (mechanical|operational|section_divider|user_help|narrative|ssot_sensitive).",
   "first_read_for_agents": [
     "AGENTS.md",
@@ -7348,6 +7348,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/src/reference/ref-builtins-stdlib.md",
+      "kind": "markdown",
+      "lines_total": 237,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 15,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/src/reference/ref-syntax.md",
       "kind": "markdown",
       "lines_total": 237,
@@ -7399,17 +7410,6 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 8,
-      "hotspot_tier": 2,
-      "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
-      "path": "docs/src/reference/ref-builtins-stdlib.md",
-      "kind": "markdown",
-      "lines_total": 236,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 15,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -13519,6 +13519,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-arch-check/src/main.rs",
+      "kind": "rust",
+      "lines_total": 2406,
+      "lines_triple_slash": 150,
+      "lines_inner_doc": 63,
+      "lines_plain_comment": 119,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-orchestrator/src/config/orchestrator_fields.rs",
       "kind": "rust",
       "lines_total": 1779,
@@ -13536,17 +13547,6 @@
       "lines_triple_slash": 213,
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-arch-check/src/main.rs",
-      "kind": "rust",
-      "lines_total": 2300,
-      "lines_triple_slash": 141,
-      "lines_inner_doc": 63,
-      "lines_plain_comment": 108,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -14467,7 +14467,7 @@
     {
       "path": "crates/vox-audit/src/panel.rs",
       "kind": "rust",
-      "lines_total": 1028,
+      "lines_total": 1031,
       "lines_triple_slash": 82,
       "lines_inner_doc": 11,
       "lines_plain_comment": 26,
@@ -14581,6 +14581,17 @@
       "lines_triple_slash": 67,
       "lines_inner_doc": 22,
       "lines_plain_comment": 39,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-code-audit/src/stdlib_parity.rs",
+      "kind": "rust",
+      "lines_total": 700,
+      "lines_triple_slash": 73,
+      "lines_inner_doc": 16,
+      "lines_plain_comment": 53,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -14735,17 +14746,6 @@
       "lines_triple_slash": 77,
       "lines_inner_doc": 6,
       "lines_plain_comment": 70,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-code-audit/src/stdlib_parity.rs",
-      "kind": "rust",
-      "lines_total": 669,
-      "lines_triple_slash": 67,
-      "lines_inner_doc": 16,
-      "lines_plain_comment": 53,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -17151,10 +17151,10 @@
     {
       "path": "crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs",
       "kind": "rust",
-      "lines_total": 1778,
+      "lines_total": 1770,
       "lines_triple_slash": 45,
       "lines_inner_doc": 0,
-      "lines_plain_comment": 65,
+      "lines_plain_comment": 62,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
