@@ -33,21 +33,20 @@
   `vox-speech` (L3), `vox-quantize` (L2) and `vox-populi` (L3) keep their `layers.toml` values; the live graph
   needs them. Inventory: `target/d09-inventory.txt`. Two known_inversions that were no longer upward were
   dropped in `3ab57a7f2`, and ROADMAP SC#3/SC#4 now cite `layers.toml` (`9c2409dab`).
-- **Partly done: `vox-orchestrator (L3) -> vox-plugin-nvml-probe (L4)`**. vox-arch-check fails this edge
-  (layer inversion + linked cdylib) and crate-edges reports it. The user chose a host-registered probe.
-  `042ef4764` adds `vox_orchestrator::models::{VramProbe, register_vram_probe}` and switches `vram.rs`.
-  vox-orchestrator-mcp's `server_state::vram_probe` loads the `nvml-probe` plugin and registers it (ServerState
-  new_full/new_for_daemon, `vox chat --model auto`, vox-gui auto-model recommendation). **Blocked:**
-  `models/auto_select.rs:163` still calls `vox_plugin_nvml_probe::probe::probe_summary()`. That file carries
-  another session's uncommitted edit (the DISCRETE_RESERVE_* consts moved out of a doc comment, dated
-  2026-09-22), so it was not touched. Once that edit is committed or dropped, do the rest in this order:
-  1. In `probe_discrete_vram_gb`, replace `if let Ok(json) = vox_plugin_nvml_probe::probe::probe_summary() {`
-     with `if let Some(Ok(json)) = crate::models::vram::registered_vram_probe().map(|p| (p.probe_summary_json)()) {`.
-  2. Delete the `vox-plugin-nvml-probe` dep and its 3-line comment from `crates/vox-orchestrator/Cargo.toml`.
-  3. Commit the Cargo.lock hunk alone.
-  4. Run `affected-crates --regen`/`--check` and the crate-build-map delta.
-  5. Remove the edge from the crate-edges baseline (removal only).
-  6. Re-run vox-arch-check and crate-edges.
+- `vox-orchestrator (L3) -> vox-plugin-nvml-probe (L4)`: **resolved** (2026-09-27). The user chose a
+  host-registered probe.
+  - `042ef4764` adds `vox_orchestrator::models::{VramProbe, register_vram_probe}` and switches `vram.rs`.
+    vox-orchestrator-mcp's `server_state::vram_probe` loads the `nvml-probe` plugin and registers it. The
+    callers are ServerState new_full/new_for_daemon, `vox chat --model auto` and vox-gui's auto-model
+    recommendation.
+  - The idle 2026-09-22 edit that blocked `auto_select.rs` was reviewed and committed as `158ad634a`, on user
+    approval. `c3527f7ae` then switched `probe_discrete_vram_gb` to the registered probe.
+  - `8c6befd34` drops the dependency. That commit also carries the one-line Cargo.lock hunk, the regenerated
+    crate-graph, the build-map delta and the baseline edge removal. The build-map delta is vox-plugin-nvml-probe
+    dependents 17->0, blast_s 374->1, fan_in 1->0; vox-plugin-sdk dependents 19->2, blast_s 374->1.
+  - After it, vox-arch-check has no layer-inversion or cdylib-dep error (only the unrelated
+    forbidden_pattern set remains), and `ci crate-edges` prints `OK (699 live in-tree edges within baseline)`.
+  - The VRAM-fit signal now needs the nvml-probe plugin installed. It no longer comes from in-process NVML.
 - Stale crate-edges baseline entry `vox-populi -> vox-grammar-export`: **fixed** in `07a681ca7` (2026-09-27).
   `--tighten` refuses while the three NEW EDGE violations stand, so the one pair was removed by hand
   (removal-only diff); the stale warning is gone.
@@ -57,8 +56,8 @@
     the regenerated crate-graph and the build-map delta (vox-db-types `fan_in` 3 -> 2).
   - `vox-research-shim -> vox-compiler` and `vox-gui -> vox-research-shim`: user-authorized exceptions,
     `7f1dadf43`.
-  - After these, `ci crate-edges` reports only the `vox-orchestrator -> vox-plugin-nvml-probe` layer
-    inversion above.
+  - After these, `ci crate-edges` reported only the `vox-orchestrator -> vox-plugin-nvml-probe` layer
+    inversion above, and `8c6befd34` removed that edge.
 - `docs/src/reference/cli.md:970` retired `VOX_MCP_ORCHESTRATOR_RPC_WRITES`: **fixed** in `7ba445c14`. The line
   now names the status-tool pilot and its RPC_READS umbrella. Only that hunk was committed. The file's other
   uncommitted line documents `vox graph history`. That command is wired only by the uncommitted vox-cli
