@@ -625,6 +625,21 @@ fn managed_secret_env_regex() -> Result<regex::Regex> {
     .map_err(Into::into)
 }
 
+/// Whether `text` performs a direct secret env read: a `disallowed` match that does not start inside
+/// a string literal or comment (detector tests and docs quote such reads without performing them).
+fn has_direct_secret_env_read(disallowed: &regex::Regex, text: &str) -> Result<bool> {
+    if !disallowed.is_match(text) {
+        return Ok(false);
+    }
+    let quoted: Vec<std::ops::Range<usize>> = rust_literal_or_comment_regex()?
+        .find_iter(text)
+        .map(|m| m.range())
+        .collect();
+    Ok(disallowed
+        .find_iter(text)
+        .any(|m| !quoted.iter().any(|r| r.contains(&m.start()))))
+}
+
 /// Legacy Turso env aliases scheduled for removal; pattern built from `concat!` so this module
 /// does not embed contiguous `VOX_TURSO_*` substrings (would false-positive the sunset scanner).
 fn legacy_turso_compat_env_marker_regex() -> Result<regex::Regex> {
@@ -661,7 +676,7 @@ fn collect_secrets_cutover_audit(
         }
         scanned_files += 1;
         let text = read_utf8_path_capped(&path)?;
-        if disallowed.is_match(&text) {
+        if has_direct_secret_env_read(&disallowed, &text)? {
             direct_secret_env_reads.push(rel.clone());
         }
         let categories = secret_dataflow_leak_categories(&text)?;
@@ -693,23 +708,28 @@ fn collect_secrets_cutover_audit(
     })
 }
 
-/// Splits Rust source into statement-sized chunks (at `;` and at item starts such as `fn`, `impl`,
-/// `#[`), ignoring delimiters inside literals and comments. Returns `(raw, code)` per chunk, both
-/// lowercased: `raw` is the source text, `code` drops comments and literal text but keeps the
-/// identifiers a string captures inline (`"{api_key}"` -> ` api_key `).
-///
-/// ponytail: lexical, not a parser. A fn body with no `;` before the next item is one chunk, and
-/// nested raw strings beyond `r##"` are not recognised; move to a syn visitor if that bites.
-fn rust_statements(text: &str) -> Result<Vec<(String, String)>> {
+/// Rust comments, string/raw-string literals and char literals. Leftmost-first, so a `"` inside a
+/// comment belongs to the comment and vice versa.
+fn rust_literal_or_comment_regex() -> Result<&'static regex::Regex> {
     static LITERAL_RE: OnceLock<regex::Regex> = OnceLock::new();
-    static DELIM_RE: OnceLock<regex::Regex> = OnceLock::new();
-    static CAPTURE_RE: OnceLock<regex::Regex> = OnceLock::new();
-    // Leftmost-first, so a `"` inside a comment belongs to the comment and vice versa.
-    let literal_re = cached_guard_regex(
+    cached_guard_regex(
         &LITERAL_RE,
         "rust-literal-or-comment",
         r###"//[^\n]*|/\*[\s\S]*?\*/|r##"[\s\S]*?"##|r#"[\s\S]*?"#|r"[^"]*"|"(?:[^"\\]|\\[\s\S])*"|'(?:[^'\\\n]|\\[^'\n]{1,10})'"###,
-    )?;
+    )
+}
+
+/// Splits Rust source into statement-sized chunks (at `;` and at item starts such as `fn`, `impl`,
+/// `#[`), ignoring delimiters inside literals and comments. Each chunk is lowercased code with
+/// comments and literal text dropped, keeping only the identifiers a string captures inline
+/// (`"{api_key}"` -> ` api_key `).
+///
+/// ponytail: lexical, not a parser. A fn body with no `;` before the next item is one chunk, and
+/// nested raw strings beyond `r##"` are not recognised; move to a syn visitor if that bites.
+fn rust_statements(text: &str) -> Result<Vec<String>> {
+    static DELIM_RE: OnceLock<regex::Regex> = OnceLock::new();
+    static CAPTURE_RE: OnceLock<regex::Regex> = OnceLock::new();
+    let literal_re = rust_literal_or_comment_regex()?;
     let delim_re = cached_guard_regex(
         &DELIM_RE,
         "rust-statement-delimiter",
@@ -736,8 +756,7 @@ fn rust_statements(text: &str) -> Result<Vec<(String, String)>> {
     Ok(cuts
         .windows(2)
         .map(|w| {
-            let raw = &text[w[0]..w[1]];
-            let code = literal_re.replace_all(raw, |c: &regex::Captures<'_>| {
+            let code = literal_re.replace_all(&text[w[0]..w[1]], |c: &regex::Captures<'_>| {
                 let lit = &c[0];
                 if lit.starts_with("//") || lit.starts_with("/*") || lit.starts_with('\'') {
                     return " ".to_string();
@@ -748,14 +767,37 @@ fn rust_statements(text: &str) -> Result<Vec<(String, String)>> {
                     .collect();
                 format!(" {} ", idents.join(" "))
             });
-            (raw.to_ascii_lowercase(), code.to_ascii_lowercase())
+            code.to_ascii_lowercase()
         })
         .collect())
 }
 
+/// The bracketed argument list that starts at `from` (after optional whitespace), if any.
+fn sink_args(code: &str, from: usize) -> Option<&str> {
+    let start = from + (code[from..].len() - code[from..].trim_start().len());
+    if !code[start..].starts_with(['(', '[', '{']) {
+        return None;
+    }
+    let mut depth = 0usize;
+    for (i, ch) in code[start..].char_indices() {
+        match ch {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(&code[start..=start + i]);
+                }
+            }
+            _ => {}
+        }
+    }
+    Some(&code[start..])
+}
+
 /// Heuristic secret-dataflow scan, per statement: a secret-bearing identifier (not a literal's
-/// text, not the Clavis API itself) in the same statement as a serialize/format sink, a log
-/// macro, or model-context wording. Calling `vox_secrets` is the sanctioned path and is not a leak.
+/// text, not the Clavis API itself) inside the arguments of a serialize/format sink or a log
+/// macro; model-context when that statement also names a prompt/system/user/... binding.
+/// Calling `vox_secrets`, or handing a key to an API as its own argument, is not a leak.
 pub(crate) fn secret_dataflow_leak_categories(text: &str) -> Result<Vec<&'static str>> {
     static SERIALIZE_RE: OnceLock<regex::Regex> = OnceLock::new();
     static LOG_RE: OnceLock<regex::Regex> = OnceLock::new();
@@ -766,12 +808,12 @@ pub(crate) fn secret_dataflow_leak_categories(text: &str) -> Result<Vec<&'static
     let serialize_re = cached_guard_regex(
         &SERIALIZE_RE,
         "secret-dataflow-serialize",
-        r#"serde_json::(?:to_string|to_value)|json!\s*\(|format!\s*\("#,
+        r#"serde_json::(?:to_string|to_value)|json!|format!"#,
     )?;
     let log_re = cached_guard_regex(
         &LOG_RE,
         "secret-dataflow-log",
-        r#"tracing::(?:trace|debug|info|warn|error)!|log::(?:trace|debug|info|warn|error)!|e?println!\s*\("#,
+        r#"tracing::(?:trace|debug|info|warn|error)!|log::(?:trace|debug|info|warn|error)!|e?println!"#,
     )?;
     let context_re = cached_guard_regex(
         &CONTEXT_RE,
@@ -791,16 +833,24 @@ pub(crate) fn secret_dataflow_leak_categories(text: &str) -> Result<Vec<&'static
         r#"vox_secrets|secretid(?:::\w+)?|resolve_secret|store_secret|secret_id\w*"#,
     )?;
 
+    let secret_in = |sink: &regex::Regex, code: &str| {
+        sink.find_iter(code)
+            .any(|m| sink_args(code, m.end()).is_some_and(|args| secret_word_re.is_match(args)))
+    };
     let mut out = Vec::new();
-    for (raw, code) in rust_statements(text)? {
+    for code in rust_statements(text)? {
         let code = clavis_api_re.replace_all(&code, "");
         if !secret_word_re.is_match(&code) {
             continue;
         }
+        let serialized = secret_in(serialize_re, &code);
         for (hit, category) in [
-            (serialize_re.is_match(&code), "serialize-secret-material"),
-            (log_re.is_match(&code), "log-secret-material"),
-            (context_re.is_match(&raw), "model-context-secret-material"),
+            (serialized, "serialize-secret-material"),
+            (secret_in(log_re, &code), "log-secret-material"),
+            (
+                serialized && context_re.is_match(&code),
+                "model-context-secret-material",
+            ),
         ] {
             if hit && !out.contains(&category) {
                 out.push(category);
@@ -882,7 +932,7 @@ pub(crate) fn run_secret_env_guard(root: &Path, all: bool) -> Result<()> {
             continue;
         }
         let text = read_utf8_path_capped(&path)?;
-        if disallowed.is_match(&text) {
+        if has_direct_secret_env_read(&disallowed, &text)? {
             env_offenders.push(rel.clone());
         }
         let categories = secret_dataflow_leak_categories(&text)?;
@@ -1528,6 +1578,39 @@ mod sql_surface_tests {
         // Unregistered, but secret-shaped by suffix.
         let unregistered = ["ACME", "_API_KEY"].concat();
         assert!(re.is_match(&format!(r#"std::env::var("{unregistered}")"#)));
+    }
+
+    #[test]
+    fn secret_dataflow_requires_the_secret_inside_the_sink() {
+        // The LLM facade takes the key as its own argument; the prompt is formatted separately.
+        let facade_call = r#"
+            /// Builds the user prompt and system context for the judge.
+            let out = chat_stage(
+                ResearchStage::Judge,
+                params.endpoint,
+                params.api_key,
+                vec![("user".to_string(), format!("Q: {question}"))],
+            );
+        "#;
+        assert_eq!(
+            super::secret_dataflow_leak_categories(facade_call).unwrap(),
+            Vec::<&str>::new()
+        );
+        let leaked = r#"let user_prompt = format!("Q: {question} key={}", params.api_key);"#;
+        assert_eq!(
+            super::secret_dataflow_leak_categories(leaked).unwrap(),
+            vec!["serialize-secret-material", "model-context-secret-material"]
+        );
+    }
+
+    #[test]
+    fn direct_secret_env_read_skips_fixture_strings_and_comments() {
+        let re = super::managed_secret_env_regex().unwrap();
+        let read = format!(r#"std::env::var("{}")"#, ["ACME", "_API_KEY"].concat());
+        assert!(super::has_direct_secret_env_read(&re, &format!("let k = {read}.ok();")).unwrap());
+        // A detector test's input and a comment mention the read; neither performs it.
+        let fixture = format!("let src = r#\"let k = {read};\"#;\n// never call {read}\n");
+        assert!(!super::has_direct_secret_env_read(&re, &fixture).unwrap());
     }
 
     #[test]
