@@ -608,7 +608,7 @@ Every vestigial call site must carry this marker until it is fully removed by it
 
 ## Versioning Policy (SSOT)
 
-Single source of truth: `Cargo.toml [workspace.package] version`. All first-party crates inherit it via `version.workspace = true`; plugin crates (`vox-plugin-*`) version independently.
+Single source of truth: `Cargo.toml [workspace.package] version`. All first-party crates inherit it via `version.workspace = true`, `vox-plugin-*` included. The `[plugin] version` in a code or composite `Plugin.toml` must equal it too: `vox-plugin-host::load_code_plugin` refuses any other (spec §4.2(d)), and `vox ci plugin-surface-sync` fails on drift. Skill-only plugins are not version-checked.
 
 **Version scheme:** `MAJOR.MINOR.PATCH+build.N (GITHASH)` — `MAJOR.MINOR`/`PATCH` are human-bumped (or git-cliff on tag for `PATCH`); `+build.N`/`(GITHASH)` are injected automatically by `vox-build-meta` in `build.rs` on every commit.
 
