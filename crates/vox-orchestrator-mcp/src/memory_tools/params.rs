@@ -72,6 +72,9 @@ pub struct ResearchRunParams {
     /// Domain mode: general, shopping, codegen.
     #[serde(default)]
     pub domain_mode: Option<String>,
+    /// Research lane: `fast` (default; no LLM planner) or `deep` (LLM query decomposition).
+    #[serde(default)]
+    pub lane: Option<String>,
 }
 
 /// MCP arguments: start a long-running research job.
@@ -92,6 +95,9 @@ pub struct ResearchStartParams {
     /// Domain mode: general, shopping, codegen.
     #[serde(default)]
     pub domain_mode: Option<String>,
+    /// Research lane: `fast` (default; no LLM planner) or `deep` (LLM query decomposition).
+    #[serde(default)]
+    pub lane: Option<String>,
 }
 
 /// MCP arguments: inspect a research session.
@@ -299,4 +305,37 @@ pub struct MemoryRecallDbParams {
     pub memory_type: Option<String>,
     /// Max rows.
     pub limit: Option<i64>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn session_info_from_session_copies_every_field() {
+        let mut s = vox_orchestrator::session::Session::new(
+            vox_orchestrator::AgentId(7),
+            Some("tenant-a".into()),
+        );
+        s.turn_count = 3;
+        s.total_tokens = 42;
+        let info = SessionInfo::from_session(&s);
+        assert_eq!(info.id, s.id);
+        assert_eq!(info.agent_id, s.agent_id.0.to_string());
+        assert_eq!(info.tenant_id.as_deref(), Some("tenant-a"));
+        assert_eq!(info.state, s.state.to_string());
+        assert_eq!(info.turn_count, 3);
+        assert_eq!(info.token_count, 42);
+        assert_eq!(info.created_at, s.created_at);
+    }
+
+    #[test]
+    fn research_params_accept_optional_lane() {
+        let p: ResearchRunParams =
+            serde_json::from_value(serde_json::json!({"query": "q", "lane": "deep"})).unwrap();
+        assert_eq!(p.lane.as_deref(), Some("deep"));
+        let p: ResearchStartParams =
+            serde_json::from_value(serde_json::json!({"query": "q"})).unwrap();
+        assert_eq!(p.lane, None);
+    }
 }

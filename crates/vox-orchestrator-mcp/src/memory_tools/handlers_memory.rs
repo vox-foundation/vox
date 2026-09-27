@@ -283,10 +283,16 @@ pub async fn research_run(state: &ServerState, params: ResearchRunParams) -> Str
         }
     };
 
-    let domain_mode = match params.domain_mode.as_deref() {
-        Some("shopping") => vox_research_shim::research::ResearchDomainMode::Shopping,
-        Some("codegen") => vox_research_shim::research::ResearchDomainMode::CodeGen,
-        _ => vox_research_shim::research::ResearchDomainMode::General,
+    let domain_mode = params
+        .domain_mode
+        .as_deref()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or_default();
+    let lane = match parse_research_lane(params.lane.as_deref()) {
+        Ok(lane) => lane,
+        Err(msg) => {
+            return ToolResult::<String>::err_with_remediation(msg, REM_RESEARCH_RUN).to_json();
+        }
     };
     let rq = ResearchQuery {
         query: params.query,
@@ -297,7 +303,7 @@ pub async fn research_run(state: &ServerState, params: ResearchRunParams) -> Str
         site_scope: params.site_scope,
         domain_mode,
         waves: params.waves.unwrap_or(1).clamp(1, 5),
-        lane: vox_search::policy::ResearchLane::default(),
+        lane,
     };
 
     let config = ResearchConfig {
@@ -359,6 +365,12 @@ pub async fn research_start(state: &ServerState, params: ResearchStartParams) ->
             return ToolResult::<String>::err_with_remediation(msg, REM_RESEARCH_RUN).to_json();
         }
     };
+    let lane = match parse_research_lane(params.lane.as_deref()) {
+        Ok(lane) => lane,
+        Err(msg) => {
+            return ToolResult::<String>::err_with_remediation(msg, REM_RESEARCH_RUN).to_json();
+        }
+    };
     let query = params.query.trim().to_string();
     if query.is_empty() {
         return ToolResult::<String>::err_with_remediation(
@@ -381,11 +393,11 @@ pub async fn research_start(state: &ServerState, params: ResearchStartParams) ->
 
     let state = state.clone();
     tokio::spawn(async move {
-        let domain_mode = match params.domain_mode.as_deref() {
-            Some("shopping") => vox_research_shim::research::ResearchDomainMode::Shopping,
-            Some("codegen") => vox_research_shim::research::ResearchDomainMode::CodeGen,
-            _ => vox_research_shim::research::ResearchDomainMode::General,
-        };
+        let domain_mode = params
+            .domain_mode
+            .as_deref()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or_default();
         let rq = ResearchQuery {
             query,
             scope,
@@ -395,7 +407,7 @@ pub async fn research_start(state: &ServerState, params: ResearchStartParams) ->
             site_scope: params.site_scope,
             domain_mode,
             waves: params.waves.unwrap_or(1).clamp(1, 5),
-            lane: vox_search::policy::ResearchLane::default(),
+            lane,
         };
         let ctx = SearchRuntimeContext::new(
             state.repository.root.clone(),
@@ -589,6 +601,11 @@ pub async fn research_search(state: &ServerState, params: ResearchSearchParams) 
     }
 }
 
+fn parse_research_lane(lane: Option<&str>) -> Result<vox_search::policy::ResearchLane, String> {
+    lane.filter(|s| !s.trim().is_empty())
+        .map_or(Ok(Default::default()), str::parse)
+}
+
 fn parse_research_scope(
     scope: Option<&str>,
 ) -> Result<vox_research_shim::research::ResearchScope, String> {
@@ -623,5 +640,17 @@ mod tests {
             ResearchScope::Local
         );
         assert!(parse_research_scope(Some("invalid")).is_err());
+    }
+
+    #[test]
+    fn test_parse_research_lane() {
+        use vox_search::policy::ResearchLane;
+        assert_eq!(parse_research_lane(None).unwrap(), ResearchLane::Fast);
+        assert_eq!(parse_research_lane(Some("  ")).unwrap(), ResearchLane::Fast);
+        assert_eq!(
+            parse_research_lane(Some("Deep")).unwrap(),
+            ResearchLane::Deep
+        );
+        assert!(parse_research_lane(Some("slow")).is_err());
     }
 }
