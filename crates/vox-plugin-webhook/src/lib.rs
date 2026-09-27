@@ -17,8 +17,10 @@
 //! Accepted events are drained by the host through the `WebhookInbox` extension
 //! (`as_webhook_inbox().poll_events(max)`), one JSON-serialized event per item.
 
-// Public types are designed for orchestrator wiring (Step 8). Suppress dead-code
-// lint until the bridge is wired — these are real implementations, not stubs.
+// The host now drains events through `WebhookInbox` (D-10), so parts of the
+// `webhook` module (the in-process bridge, delivery/channel helpers) have no
+// in-crate caller; they are real implementations exercised by their own tests.
+// ponytail: crate-wide allow; prune or narrow it when those modules get callers or are removed.
 #![allow(dead_code, unused_imports)]
 
 mod webhook;

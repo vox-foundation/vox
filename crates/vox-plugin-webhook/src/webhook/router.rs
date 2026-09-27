@@ -106,7 +106,9 @@ async fn bearer_auth_middleware(
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.strip_prefix(vox_http_client::BEARER_PREFIX));
 
-    if provided == Some(state.ingress_token.as_ref()) {
+    if provided.is_some_and(|p| {
+        super::signing::constant_time_eq(p.as_bytes(), state.ingress_token.as_bytes())
+    }) {
         next.run(request).await
     } else {
         warn!("Webhook ingress: rejected request with missing/invalid bearer token");
@@ -243,5 +245,34 @@ mod tests {
     fn webhook_state_requires_and_keeps_the_ingress_token() {
         let state = WebhookState::new(WebhookHandler::new(), "t");
         assert_eq!(&*state.ingress_token, "t");
+    }
+
+    #[tokio::test]
+    async fn bearer_check_rejects_missing_or_wrong_token_and_admits_the_right_one() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let app = build_router(WebhookState::new(WebhookHandler::new(), "s3cret"));
+        tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+
+        let client = vox_http_client::client();
+        let channels = format!("http://{addr}/webhooks/channels");
+        let status = |req: reqwest::RequestBuilder| async move {
+            req.send().await.expect("request").status().as_u16()
+        };
+        assert_eq!(status(client.get(&channels)).await, 401);
+        assert_eq!(
+            status(client.get(&channels).bearer_auth("wrong")).await,
+            401
+        );
+        assert_eq!(
+            status(client.get(&channels).bearer_auth("s3cre")).await,
+            401
+        );
+        assert_eq!(
+            status(client.get(&channels).bearer_auth("s3cret")).await,
+            200
+        );
+        let health = format!("http://{addr}/webhooks/health");
+        assert_eq!(status(client.get(&health)).await, 200);
     }
 }

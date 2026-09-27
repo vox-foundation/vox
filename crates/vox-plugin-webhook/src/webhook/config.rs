@@ -62,11 +62,6 @@ pub fn resolve_channel_cap(raw: Option<&str>) -> usize {
 // Thin env wrappers
 // ---------------------------------------------------------------------------
 
-/// Resolve the bind address from `VOX_WEBHOOK_ADDR` (the established env name).
-pub fn bind_addr_from_env() -> String {
-    resolve_bind_addr(std::env::var("VOX_WEBHOOK_ADDR").ok().as_deref())
-}
-
 /// Resolve the max retry count from `VOX_WEBHOOK_RETRY_MAX`.
 pub fn retry_max_from_env() -> u32 {
     resolve_retry_max(std::env::var("VOX_WEBHOOK_RETRY_MAX").ok().as_deref())
