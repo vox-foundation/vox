@@ -108,6 +108,31 @@ pub struct RetrievalDiagnostics {
     /// True when `distinct_domain_count` is below `ResearchConfig::min_distinct_domains`.
     #[serde(default)]
     pub citation_diversity_below_threshold: bool,
+    /// Per-provider web-search outcomes across every subquery of the run —
+    /// the deep chat trace's provider table (same shape as quick mode's).
+    #[serde(default)]
+    pub providers: Vec<ProviderCallSummary>,
+    /// Session Tavily credits after the run's last web search; `None` when
+    /// Tavily is not configured.
+    #[serde(default)]
+    pub tavily_credits: Option<TavilyCredits>,
+}
+
+/// One (provider, outcome) row aggregated over a run's web-search calls.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ProviderCallSummary {
+    pub provider: String,
+    /// Representative status; for `Ok` the hits are summed over `calls`.
+    pub status: vox_search::web_dispatcher::ProviderStatus,
+    /// Slowest call in this row.
+    pub elapsed_ms: u64,
+    pub calls: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TavilyCredits {
+    pub used: usize,
+    pub remaining: usize,
 }
 
 impl Default for RetrievalDiagnostics {
@@ -121,6 +146,8 @@ impl Default for RetrievalDiagnostics {
             hit_rate: 0.0,
             distinct_domain_count: 0,
             citation_diversity_below_threshold: false,
+            providers: Vec::new(),
+            tavily_credits: None,
         }
     }
 }

@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 use vox_search::arxiv::ArXivClient;
-use vox_search::duckduckgo::DuckDuckGoClient;
 use vox_search::openalex::OpenAlexClient;
 use vox_search::policy::{ResearchLane, SearchPolicy};
 use vox_search::searxng::SearxngSearchClient;
@@ -73,6 +72,19 @@ pub struct ResearchEngineConfigDto {
     pub provider_api_keys: Option<HashMap<String, String>>,
 }
 
+/// This month's persisted Tavily spend (`provider_quota_usage`, written by the
+/// daemon). Read from the GUI's own DB handle: the daemon's budget-db OnceLock
+/// (`vox_search::tavily_budget::get_budget_db`) is never set in this process.
+async fn tavily_quota_from_db(db: Option<&vox_db::VoxDb>) -> Option<QuotaUsageDto> {
+    let period = vox_db::store::ops_quota::current_period_key();
+    let usage = db?.get_quota_usage("tavily", &period).await.ok()??;
+    Some(QuotaUsageDto {
+        units_spent: usage.units_spent,
+        units_limit: usage.units_limit,
+        last_synced_at: usage.last_synced_at,
+    })
+}
+
 #[tauri::command]
 pub async fn get_research_engine_status() -> Result<ResearchEngineStatusDto, String> {
     let mut policy = SearchPolicy::from_env();
@@ -125,9 +137,9 @@ pub async fn get_research_engine_status() -> Result<ResearchEngineStatusDto, Str
     }
 
     // If not in Vox.toml, check vox_db user preferences
-    if let Some(db) =
-        vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Runtime, true).await
-    {
+    let db =
+        vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Runtime, true).await;
+    if let Some(db) = &db {
         if let Ok(Some(lane)) = db
             .get_user_preference("local_user", "research.active_lane")
             .await
@@ -180,24 +192,7 @@ pub async fn get_research_engine_status() -> Result<ResearchEngineStatusDto, Str
         }
     };
 
-    // Check Tavily quota if db handle is available
-    let tavily_quota = if let Some(db) = vox_search::tavily_budget::get_budget_db() {
-        let period = vox_db::store::ops_quota::current_period_key();
-        let conn = db.connection();
-        if let Ok(Some(usage)) =
-            vox_db::store::ops_quota::get_quota_usage(conn, "tavily", &period).await
-        {
-            Some(QuotaUsageDto {
-                units_spent: usage.units_spent,
-                units_limit: usage.units_limit,
-                last_synced_at: usage.last_synced_at,
-            })
-        } else {
-            None
-        }
-    } else {
-        None
-    };
+    let tavily_quota = tavily_quota_from_db(db.as_ref()).await;
 
     let tavily_has_key = resolve_secret(SecretId::TavilyApiKey).is_present();
     let openalex_has_key = resolve_secret(SecretId::VoxOpenAlexEmail).is_present();
@@ -583,36 +578,19 @@ pub async fn probe_search_provider_with_policy(
                 }),
             }
         }
-        "duckduckgo" => match DuckDuckGoClient::search(q, 3).await {
-            Ok(hits) => Ok(ProviderProbeResult {
-                provider,
-                http_status: 200,
-                latency_ms: start.elapsed().as_millis() as u64,
-                success: true,
-                hit_count: hits.len(),
-                sample_titles: hits.iter().map(|h| h.title.clone()).collect(),
-                error_message: if hits.is_empty() {
-                    Some("Instant Answer returned 0 topics".into())
-                } else {
-                    None
-                },
-                remediation_tip: if hits.is_empty() {
-                    Some("DDG Instant Answer only matches entity terms; general web requires SearXNG or Tavily".into())
-                } else {
-                    None
-                },
-            }),
-            Err(e) => Ok(ProviderProbeResult {
-                provider,
-                http_status: 500,
-                latency_ms: start.elapsed().as_millis() as u64,
-                success: false,
-                hit_count: 0,
-                sample_titles: vec![],
-                error_message: Some(e.to_string()),
-                remediation_tip: None,
-            }),
-        },
+        "duckduckgo" => Ok(ProviderProbeResult {
+            provider,
+            http_status: 0,
+            latency_ms: 0,
+            success: false,
+            hit_count: 0,
+            sample_titles: vec![],
+            error_message: Some(
+                "not_implemented: DuckDuckGo client is a stub (vox-search/src/duckduckgo.rs); not used by research"
+                    .into(),
+            ),
+            remediation_tip: Some("Use SearXNG or Tavily for general web search".into()),
+        }),
         other => Err(format!("Unknown provider: {other}")),
     }
 }
@@ -674,6 +652,43 @@ mod tests {
             tavily_api_url: None,
             ..SearchPolicy::default()
         }
+    }
+
+    /// The daemon persists Tavily spend to `provider_quota_usage`; the GUI process
+    /// never sets the daemon's budget-db OnceLock, so the status command must read
+    /// the row from the DB connection it opens itself. In-memory DB only.
+    #[tokio::test]
+    async fn tavily_quota_reads_the_persisted_row_from_the_given_db() {
+        let db = vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
+            .await
+            .expect("in-memory db");
+        assert!(tavily_quota_from_db(None).await.is_none());
+        assert!(
+            tavily_quota_from_db(Some(&db)).await.is_none(),
+            "no row yet"
+        );
+
+        let period = vox_db::store::ops_quota::current_period_key();
+        db.record_quota_spend("tavily", &period, 7)
+            .await
+            .expect("spend");
+        let q = tavily_quota_from_db(Some(&db))
+            .await
+            .expect("persisted quota is surfaced");
+        assert_eq!((q.units_spent, q.units_limit), (7, 1000));
+    }
+
+    #[tokio::test]
+    async fn duckduckgo_probe_reports_not_implemented_without_a_network_call() {
+        let p = probe("duckduckgo", "rust").await.expect("known provider");
+        assert!(!p.success);
+        assert_eq!((p.http_status, p.latency_ms, p.hit_count), (0, 0, 0));
+        assert!(
+            p.error_message
+                .as_deref()
+                .is_some_and(|m| m.starts_with("not_implemented")),
+            "{p:?}"
+        );
     }
 
     async fn probe(provider: &str, query: &str) -> Result<ProviderProbeResult, String> {

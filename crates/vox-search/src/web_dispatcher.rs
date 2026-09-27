@@ -4,7 +4,7 @@ use tracing::{info, warn};
 
 use crate::policy::{ResearchLane, SearchPolicy};
 
-#[derive(Debug, Clone, serde::Serialize, PartialEq)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
 #[serde(tag = "state", rename_all = "snake_case")]
 pub enum ProviderStatus {
     Ok {

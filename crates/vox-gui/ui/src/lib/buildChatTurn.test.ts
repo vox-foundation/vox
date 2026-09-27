@@ -92,26 +92,28 @@ describe('buildChatTurn', () => {
     expect(CHAT_TURN_KEYS).not.toContain('intent');
   });
 
-  it('routes /research and /deepresearch slash commands to background execution with force_research', () => {
-    const res1 = buildChatTurn({ description: '/research best noise cancelling headphones' }, { sessionId: 's1' });
-    expect(res1.execution).toBe('background');
-    expect(res1.force_research).toBe(true);
-    expect(res1.content).toBe('best noise cancelling headphones');
+  // D4: the daemon's research classifier owns routing now — slash commands stay
+  // on the sync chat path with their raw text, so the turn carries its own
+  // research_trace event.
+  it('keeps research slash commands on the sync path with the raw text', () => {
+    const t = buildChatTurn({ description: '/deepresearch compare a and b' }, { sessionId: 's1' });
+    expect(t.execution).toBe('sync');
+    expect(t.content).toBe('/deepresearch compare a and b');
+    expect(t.research_scope ?? null).toBeNull();
+    expect(t.force_research ?? null).toBeNull();
 
-    const res2 = buildChatTurn({ description: '/deepresearch compare Rust async runtimes' }, { sessionId: 's1' });
-    expect(res2.execution).toBe('background');
-    expect(res2.force_research).toBe(true);
-    expect(res2.content).toBe('compare Rust async runtimes');
-    expect(res2.research_scope).toBe('deep');
+    const quick = buildChatTurn({ description: '/research best noise cancelling headphones' }, { sessionId: 's1' });
+    expect(quick.execution).toBe('sync');
+    expect(quick.content).toBe('/research best noise cancelling headphones');
+  });
 
-    const res3 = buildChatTurn(
+  it('still forwards slash domain/site hints', () => {
+    const t = buildChatTurn(
       { description: '/research --domain=codegen --site=docs.rs tokio select' },
-      { sessionId: 's1' }
+      { sessionId: 's1' },
     );
-    expect(res3.execution).toBe('background');
-    expect(res3.force_research).toBe(true);
-    expect(res3.content).toBe('tokio select');
-    expect(res3.domain_mode).toBe('codegen');
-    expect(res3.site_scope).toBe('docs.rs');
+    expect(t.execution).toBe('sync');
+    expect(t.domain_mode).toBe('codegen');
+    expect(t.site_scope).toBe('docs.rs');
   });
 });

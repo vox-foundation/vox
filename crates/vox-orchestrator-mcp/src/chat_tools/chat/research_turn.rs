@@ -471,9 +471,21 @@ pub fn deep_stages(r: &vox_research_shim::research::ResearchResult) -> Vec<Stage
         ),
         json!({ "subqueries": m.subqueries }),
     ));
+    // Same rule as quick retrieval: an errored/timed-out provider degrades a
+    // stage that still found sources.
+    let provider_failed = m.retrieval_diagnostics.providers.iter().any(|p| {
+        matches!(
+            p.status,
+            ProviderStatus::Error { .. } | ProviderStatus::Timeout
+        )
+    });
     out.push(StageRecord::new(
         "retrieval",
-        if m.source_count == 0 { "empty" } else { "ok" },
+        match (m.source_count == 0, provider_failed) {
+            (true, _) => "empty",
+            (false, true) => "degraded",
+            (false, false) => "ok",
+        },
         None,
         format!(
             "{} sources, {} distinct domains",
@@ -649,6 +661,99 @@ mod tests {
                 .contains("2 not verified: over per-run verification cap"),
             "expected the cap reason to be visible when verified < extracted, got: {}",
             claims_stage.summary
+        );
+    }
+
+    /// Task 9: the deep trace's retrieval stage carries the same per-provider
+    /// table as quick mode (real provider names + every outcome, including
+    /// budget_exhausted) plus the Tavily credit counter, and degrades when a
+    /// provider errored or timed out — the same rule as quick retrieval.
+    #[test]
+    fn deep_stages_retrieval_reports_per_provider_outcomes_and_tavily_credits() {
+        use vox_research_shim::research::types::{
+            ProviderCallSummary, ResearchMetadata, ResearchResult, RetrievalDiagnostics,
+            RoutingTier, TavilyCredits,
+        };
+
+        let row = |provider: &str, status: ProviderStatus, calls: usize| ProviderCallSummary {
+            provider: provider.into(),
+            status,
+            elapsed_ms: 100,
+            calls,
+        };
+        let result = ResearchResult {
+            answer: "answer".to_string(),
+            sources: vec![],
+            citations: vec![],
+            research_metadata: ResearchMetadata {
+                session_id: 1,
+                duration_ms: 1,
+                provider: "test".to_string(),
+                routing_tier: RoutingTier::Direct,
+                confidence: 0.5,
+                subquery_count: 2,
+                source_count: 7,
+                claim_verdicts: vec![],
+                retrieval_diagnostics: RetrievalDiagnostics {
+                    providers: vec![
+                        row("searxng", ProviderStatus::Ok { hits: 7 }, 2),
+                        row("tavily", ProviderStatus::BudgetExhausted, 2),
+                        row("openalex", ProviderStatus::Timeout, 1),
+                    ],
+                    tavily_credits: Some(TavilyCredits {
+                        used: 50,
+                        remaining: 0,
+                    }),
+                    ..RetrievalDiagnostics::default()
+                },
+                quality_score: 50,
+                planner_degraded: false,
+                competence: None,
+                self_verification: None,
+                citation_audit: None,
+                corroboration_counts: vec![],
+                wave_count: 1,
+                wave_stability: None,
+                low_grounding_evidence: false,
+                subqueries: vec![],
+                synthesis_model: String::new(),
+                judge_error: None,
+                served_from_cache: false,
+                claims_extracted_count: 0,
+                claims_verified_count: 0,
+            },
+        };
+
+        let stages = deep_stages(&result);
+        let retrieval = stages
+            .iter()
+            .find(|s| s.stage == "retrieval")
+            .expect("retrieval stage present");
+        assert_eq!(retrieval.status, "degraded", "openalex timed out");
+        let providers = retrieval.detail["providers"]
+            .as_array()
+            .expect("providers table");
+        let states: Vec<(&str, &str)> = providers
+            .iter()
+            .map(|p| {
+                (
+                    p["provider"].as_str().unwrap(),
+                    p["status"]["state"].as_str().unwrap(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            states,
+            vec![
+                ("searxng", "ok"),
+                ("tavily", "budget_exhausted"),
+                ("openalex", "timeout")
+            ]
+        );
+        assert_eq!(providers[0]["calls"], 2);
+        assert_eq!(
+            retrieval.detail["tavily_credits"],
+            json!({ "used": 50, "remaining": 0 })
         );
     }
 

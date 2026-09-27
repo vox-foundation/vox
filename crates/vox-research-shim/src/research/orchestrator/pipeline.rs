@@ -321,7 +321,10 @@ pub async fn run_research_with_context_and_session(
     };
     let (distinct_domain_count, citation_diversity_below_threshold) =
         evaluate_citation_diversity(&all_hits, config.min_distinct_domains);
+    let (providers, tavily_credits) = registry.retrieval_log();
     let diagnostics = RetrievalDiagnostics {
+        providers,
+        tavily_credits,
         coverage_pct,
         subquery_coverage_pct,
         avg_provider_score: avg_score,

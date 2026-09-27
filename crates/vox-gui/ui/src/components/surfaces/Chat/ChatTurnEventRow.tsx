@@ -1,5 +1,6 @@
 import React from 'react';
 import type { TurnEventDto } from '../../../types/dashboard';
+import { ResearchTracePanel, type ResearchTrace } from './ResearchTracePanel';
 
 interface ChatTurnEventRowProps {
   event: TurnEventDto;
@@ -39,6 +40,9 @@ export function ChatTurnEventRow({ event, onExcludeSkill }: ChatTurnEventRowProp
         )}
       </div>
     );
+  }
+  if (event.kind === 'research_trace') {
+    return <ResearchTracePanel trace={event as unknown as ResearchTrace} />;
   }
   return null;
 }
