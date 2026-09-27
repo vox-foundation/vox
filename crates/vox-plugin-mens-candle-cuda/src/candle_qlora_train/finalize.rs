@@ -44,9 +44,7 @@ fn build_adapter_manifest_v3(
     config: &LoraTrainingConfig,
     adapter_layer_order: &[String],
     base_key_map: &std::collections::HashMap<String, String>,
-    resolved_base_path: Option<String>,
 ) -> PopuliAdapterManifestV3 {
-    let base_model = resolved_base_path.or_else(|| config.base_model.clone());
     PopuliAdapterManifestV3::new(
         AdapterMethod::Qlora,
         BaseQuantMode::Nf4,
@@ -129,22 +127,24 @@ pub(super) fn finalize_training_run(
 
     // Copy tokenizer.json and config.json so the output directory is completely self-contained for eval & serving.
     let out_tokenizer = out.join("tokenizer.json");
-    if !out_tokenizer.exists() && bundle.tokenizer_path.is_file() {
-        if let Err(e) = std::fs::copy(&bundle.tokenizer_path, &out_tokenizer) {
-            train_log::warn(&format!(
-                "failed to copy tokenizer.json to {}: {e}",
-                out.display()
-            ));
-        }
+    if !out_tokenizer.exists()
+        && bundle.tokenizer_path.is_file()
+        && let Err(e) = std::fs::copy(&bundle.tokenizer_path, &out_tokenizer)
+    {
+        train_log::warn(&format!(
+            "failed to copy tokenizer.json to {}: {e}",
+            out.display()
+        ));
     }
     let out_config = out.join("config.json");
-    if !out_config.exists() && bundle.config_path.is_file() {
-        if let Err(e) = std::fs::copy(&bundle.config_path, &out_config) {
-            train_log::warn(&format!(
-                "failed to copy config.json to {}: {e}",
-                out.display()
-            ));
-        }
+    if !out_config.exists()
+        && bundle.config_path.is_file()
+        && let Err(e) = std::fs::copy(&bundle.config_path, &out_config)
+    {
+        train_log::warn(&format!(
+            "failed to copy config.json to {}: {e}",
+            out.display()
+        ));
     }
 
     let final_avg_loss = if total_step_count > 0 {
@@ -188,11 +188,6 @@ pub(super) fn finalize_training_run(
         ));
     }
 
-    let resolved_base_dir = bundle
-        .config_path
-        .parent()
-        .map(|p| p.to_string_lossy().to_string());
-
     let adapter_manifest_v3 = build_adapter_manifest_v3(
         bundle.vocab,
         bundle.d_model,
@@ -201,7 +196,6 @@ pub(super) fn finalize_training_run(
         config,
         adapter_layer_order,
         base_key_map,
-        resolved_base_dir,
     );
     let manifest_json = serde_json::to_string_pretty(&adapter_manifest_v3)?;
     std::fs::write(out.join("adapter_manifest.json"), &manifest_json)?;
