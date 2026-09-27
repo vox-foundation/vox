@@ -1,6 +1,6 @@
 {
   "schema_version": 3,
-  "generated_at": "2026-09-27T10:53:04.157Z",
+  "generated_at": "2026-09-27T11:23:49.143Z",
   "description": "Per-file comment/doc counts for LLM batch targeting. Rust: lines_triple_slash=///, lines_inner_doc=//!, lines_plain_comment=// excluding doc. Markdown: lines_total=all lines; lines_other_doc_signal=# heading count. hotspot_tier: 1=plan-listed path, 2=high-density heuristic, 0=other. symbol_hints (schema v3): plan-hotspot Rust only; /// or //! linked to next item; containing_symbol, doc_preview, comment_type, quality_tag (mechanical|operational|section_divider|user_help|narrative|ssot_sensitive).",
   "first_read_for_agents": [
     "AGENTS.md",
@@ -13741,10 +13741,10 @@
     {
       "path": "crates/vox-orchestrator-mcp/src/chat_tools/chat/message.rs",
       "kind": "rust",
-      "lines_total": 2482,
+      "lines_total": 2486,
       "lines_triple_slash": 145,
       "lines_inner_doc": 0,
-      "lines_plain_comment": 257,
+      "lines_plain_comment": 261,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -15798,10 +15798,10 @@
     {
       "path": "crates/vox-secrets/src/backend/vox_vault.rs",
       "kind": "rust",
-      "lines_total": 2229,
+      "lines_total": 2257,
       "lines_triple_slash": 48,
       "lines_inner_doc": 11,
-      "lines_plain_comment": 63,
+      "lines_plain_comment": 65,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -19802,10 +19802,10 @@
     {
       "path": "crates/vox-orchestrator-mcp/src/chat_tools/chat/research_turn.rs",
       "kind": "rust",
-      "lines_total": 845,
+      "lines_total": 878,
       "lines_triple_slash": 30,
       "lines_inner_doc": 1,
-      "lines_plain_comment": 21,
+      "lines_plain_comment": 25,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
