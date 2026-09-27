@@ -119,6 +119,8 @@ pub(crate) fn resolve_chat_config(model: &str) -> LlmConfig {
         || model == "qwen/qwen-3-8b"
     {
         let effective_model = if model == "auto" {
+            // Discrete-GPU VRAM comes from the nvml-probe plugin, if installed.
+            vox_orchestrator_mcp::server_state::vram_probe::register_nvml_vram_probe();
             let is_apple_silicon = vox_orchestrator::models::auto_select::is_host_apple_silicon();
             vox_orchestrator::models::auto_select::select_optimal_local_model(is_apple_silicon)
                 .selected_model_id

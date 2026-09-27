@@ -298,6 +298,8 @@ pub async fn get_active_model() -> Result<Option<String>, String> {
 #[tauri::command]
 pub async fn get_auto_model_recommendation()
 -> Result<vox_orchestrator::models::auto_select::AutoModelSelection, String> {
+    // Discrete-GPU VRAM comes from the nvml-probe plugin, if installed.
+    vox_orchestrator_mcp::server_state::vram_probe::register_nvml_vram_probe();
     Ok(vox_orchestrator::models::auto_select::select_optimal_local_model_for_host())
 }
 

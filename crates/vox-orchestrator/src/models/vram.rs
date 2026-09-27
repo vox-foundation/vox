@@ -2,8 +2,8 @@
 //!
 //! No surveyed coding tool does hardware/VRAM capability gating before
 //! recommending a local model. Vox has a real NVML probe
-//! (`vox-plugin-nvml-probe`) that was previously wired to nothing. This
-//! module turns it into a **soft ranking signal only**:
+//! (`vox-plugin-nvml-probe`), which hosts load as a plugin and register here
+//! as a [`VramProbe`]. This module turns it into a **soft ranking signal only**:
 //!
 //! - A model estimated not to fit is deprioritized in scoring, never removed
 //!   from candidates or hard-blocked. The estimate can be wrong — unusual
@@ -110,32 +110,68 @@ pub fn free_vram_mb_hint() -> Option<u64> {
     FREE_VRAM_MB_HINT.read().ok().and_then(|g| *g)
 }
 
-/// Probes NVML once (blocking FFI call — run via `spawn_blocking` from async
-/// contexts) and caches the minimum per-device free VRAM across all detected
-/// GPUs via [`set_free_vram_mb_hint`]. The minimum (not sum/max) is used so
-/// the advisory signal is conservative on multi-GPU boxes where a model must
-/// fit on a single device.
-///
-/// `Err(ProbeError::LibraryUnavailable(_))` (no NVML library — Apple Silicon,
-/// AMD, no discrete GPU, or the library simply isn't installed) and any other
-/// probe error are both treated identically: clear the hint to `None`. This
-/// is never logged as an error — it's the expected path on non-NVIDIA
-/// hardware.
-pub fn refresh_free_vram_hint_from_nvml() {
-    match vox_plugin_nvml_probe::probe::device_metrics() {
-        Ok(json) => {
-            let free_mb = parse_min_free_mb(&json);
-            set_free_vram_mb_hint(free_mb);
-        }
+/// A host-supplied GPU probe. vox-orchestrator (L3) must not link the L4
+/// `vox-plugin-nvml-probe` cdylib, so hosts that load plugins through
+/// vox-plugin-host (vox-orchestrator-mcp, vox-cli, vox-gui) register one here.
+/// Both functions return the plugin's `HardwareProbe` JSON:
+/// `probe_summary_json` -> `{"devices":[{"vram_total_mb":..},..]}`,
+/// `device_metrics_json` -> `{"metrics":[{"memory_free_mb":..},..]}`.
+#[derive(Debug, Clone, Copy)]
+pub struct VramProbe {
+    pub probe_summary_json: fn() -> Result<String, String>,
+    pub device_metrics_json: fn() -> Result<String, String>,
+}
+
+static VRAM_PROBE: RwLock<Option<VramProbe>> = RwLock::new(None);
+
+/// Install the host's GPU probe (replaces any earlier one).
+pub fn register_vram_probe(probe: VramProbe) {
+    *VRAM_PROBE.write().unwrap_or_else(|p| p.into_inner()) = Some(probe);
+}
+
+/// The registered GPU probe, or `None` when no host registered one.
+#[must_use]
+pub fn registered_vram_probe() -> Option<VramProbe> {
+    *VRAM_PROBE.read().unwrap_or_else(|p| p.into_inner())
+}
+
+#[cfg(test)]
+fn clear_vram_probe_for_test() {
+    *VRAM_PROBE.write().unwrap_or_else(|p| p.into_inner()) = None;
+}
+
+/// Minimum per-device free VRAM (MiB) from the registered probe. The minimum
+/// (not sum/max) keeps the advisory signal conservative on multi-GPU boxes,
+/// where a model must fit on a single device. No probe, a probe error (no
+/// NVML library: Apple Silicon, AMD, no discrete GPU) or an unparseable report
+/// all mean "no signal". That is the expected path on non-NVIDIA hardware, so
+/// it is logged at debug, never as an error.
+pub(crate) fn free_vram_mb_from_probe() -> Option<u64> {
+    let Some(probe) = registered_vram_probe() else {
+        tracing::debug!(
+            target: "vox.orchestrator.vram",
+            "no GPU probe registered; VRAM-fit advisory signal disabled this cycle"
+        );
+        return None;
+    };
+    match (probe.device_metrics_json)() {
+        Ok(json) => parse_min_free_mb(&json),
         Err(e) => {
             tracing::debug!(
                 target: "vox.orchestrator.vram",
                 error = %e,
-                "NVML unavailable; VRAM-fit advisory signal disabled this cycle"
+                "GPU probe unavailable; VRAM-fit advisory signal disabled this cycle"
             );
-            set_free_vram_mb_hint(None);
+            None
         }
     }
+}
+
+/// Probes the registered GPU probe once (blocking FFI call — run via
+/// `spawn_blocking` from async contexts) and caches the result via
+/// [`set_free_vram_mb_hint`]; see [`free_vram_mb_from_probe`].
+pub fn refresh_free_vram_hint_from_nvml() {
+    set_free_vram_mb_hint(free_vram_mb_from_probe());
 }
 
 /// Parses `device_metrics()`'s `{"metrics":[{"memory_free_mb": ..., ...}]}`
@@ -227,6 +263,55 @@ mod tests {
     fn parse_min_free_mb_empty_metrics_is_none() {
         let json = r#"{"metrics":[]}"#;
         assert_eq!(parse_min_free_mb(json), None);
+    }
+
+    fn fake_summary() -> Result<String, String> {
+        Ok(r#"{"devices":[{"vram_total_mb":24576}]}"#.into())
+    }
+    fn fake_metrics() -> Result<String, String> {
+        // 12_345 MiB free: a 70B Q4 model Exceeds, an 8B one fits (so this value is
+        // harmless to scoring tests that read the process-wide hint concurrently).
+        Ok(r#"{"metrics":[{"memory_free_mb":12345},{"memory_free_mb":20000}]}"#.into())
+    }
+    fn failing_metrics() -> Result<String, String> {
+        Err("NVML unavailable".into())
+    }
+
+    /// The only test that mutates the registered probe, so it cannot race itself.
+    /// Registered fake probe -> its free-VRAM figure reaches the scoring penalty;
+    /// unregistered or failing probe -> no signal, zero score effect (the
+    /// pre-registration fallback).
+    #[test]
+    fn registered_probe_feeds_scoring_and_unregistered_falls_back() {
+        let big = spec_with_params(Some(70.0));
+
+        clear_vram_probe_for_test();
+        assert!(registered_vram_probe().is_none());
+        assert_eq!(free_vram_mb_from_probe(), None);
+        assert_eq!(
+            crate::models::scoring::vram_score_delta(&big, free_vram_mb_from_probe()),
+            0.0
+        );
+
+        register_vram_probe(VramProbe {
+            probe_summary_json: fake_summary,
+            device_metrics_json: fake_metrics,
+        });
+        let probe = registered_vram_probe().expect("registered");
+        assert_eq!((probe.probe_summary_json)(), fake_summary());
+        assert_eq!(free_vram_mb_from_probe(), Some(12_345));
+        assert!(
+            crate::models::scoring::vram_score_delta(&big, free_vram_mb_from_probe()) < 0.0,
+            "the registered probe's VRAM figure must reach the scoring penalty"
+        );
+
+        register_vram_probe(VramProbe {
+            probe_summary_json: fake_summary,
+            device_metrics_json: failing_metrics,
+        });
+        assert_eq!(free_vram_mb_from_probe(), None);
+
+        clear_vram_probe_for_test();
     }
 
     #[test]

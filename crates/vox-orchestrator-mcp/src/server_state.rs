@@ -16,6 +16,9 @@ use vox_skills::{SkillRegistry, install_builtins, new_registry_arc};
 /// Opt-in webhook -> hopper intake poller (Phase 3 D-10/D-13).
 mod webhook_intake;
 
+/// Host-side registration of the nvml-probe plugin as the orchestrator's GPU probe.
+pub mod vram_probe;
+
 #[derive(Debug, Clone)]
 pub struct CachedCatalog {
     pub resolved: vox_repository::ResolvedRepoCatalog,
@@ -336,6 +339,7 @@ impl ServerState {
             state.orchestrator_config.webhook.as_ref(),
             state.orchestrator.hopper(),
         );
+        vram_probe::register_nvml_vram_probe();
 
         state
     }
@@ -410,6 +414,7 @@ impl ServerState {
             state.orchestrator_config.webhook.as_ref(),
             state.orchestrator.hopper(),
         );
+        vram_probe::register_nvml_vram_probe();
         state
     }
 

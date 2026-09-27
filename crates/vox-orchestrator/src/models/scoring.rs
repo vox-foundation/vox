@@ -493,7 +493,7 @@ pub fn auto_score_model(
 /// function so it's directly unit-testable without mutating the process-wide
 /// free-VRAM cache.
 #[must_use]
-fn vram_score_delta(m: &ModelSpec, free_vram_mb: Option<u64>) -> f64 {
+pub(crate) fn vram_score_delta(m: &ModelSpec, free_vram_mb: Option<u64>) -> f64 {
     match super::vram::estimate_vram_fit(m, free_vram_mb) {
         super::vram::VramFit::Exceeds => VRAM_EXCEEDS_PENALTY,
         super::vram::VramFit::Comfortable
