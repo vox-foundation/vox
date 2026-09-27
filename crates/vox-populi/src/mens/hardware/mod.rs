@@ -38,16 +38,15 @@ impl HardwareRegistry {
     /// Metal (macOS): live via `MTLDevice.currentAllocatedSize` /
     /// `recommendedMaxWorkingSetSize` (see [`macos_metal::monitor_metal`]).
     ///
-    /// CUDA: **not yet wired**. `vox-plugin-nvml-probe` (layer 3) reports this
-    /// telemetry, but `vox-populi` is layer 2 — a static dependency would be an
-    /// upward edge disallowed by the crate-layers "downward-only" rule (see
-    /// `contracts/ci/crate-layers.v1.json`), and adding a `crate-edges`
-    /// exception is user-authorized-only (see `AGENTS.md` §Dependency
-    /// Discipline). `vox-orchestrator` (also layer 3) already calls
-    /// `vox_plugin_nvml_probe::probe::device_metrics()` directly — see
-    /// `crates/vox-orchestrator/src/models/vram.rs` for the pattern to reuse
-    /// once a human approves either a ledger exception or moving this call
-    /// site to a layer-3-or-above crate.
+    /// CUDA: **not yet wired**. `vox-plugin-nvml-probe` (layer 4, a cdylib
+    /// plugin) reports this telemetry, but `vox-populi` is layer 3 — a static
+    /// dependency would be an upward edge disallowed by the "downward-only"
+    /// rule (layers in `docs/src/architecture/layers.toml`), and adding a
+    /// `crate-edges` exception is user-authorized-only (see `AGENTS.md`
+    /// §Dependency Discipline). Load the plugin through `vox-plugin-host`
+    /// instead. `vox-orchestrator` links it statically today
+    /// (`crates/vox-orchestrator/src/models/vram.rs`), and vox-arch-check
+    /// flags that edge as a layer inversion and a linked cdylib — do not copy it.
     pub fn monitor() -> Option<types::GpuTelemetry> {
         #[cfg(target_os = "macos")]
         {

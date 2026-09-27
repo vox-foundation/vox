@@ -868,11 +868,12 @@ pub enum CiCmd {
     },
     /// Exact edge-set ratchet + layer rule for workspace crate dependencies.
     /// Live graph from `cargo metadata` vs `contracts/ci/crate-edges.allow.v1.json`
-    /// (+ `crate-layers.v1.json`). New edges require a user-authorized ledger entry.
+    /// (+ the layer map in `docs/src/architecture/layers.toml`). New edges require a
+    /// user-authorized ledger entry.
     #[command(name = "crate-edges")]
     CrateEdges {
         /// Regenerate the baseline from the live graph (removal-only) and drop
-        /// stale exceptions. Bootstraps both contract files when missing.
+        /// stale exceptions. Bootstraps the allow file when missing.
         #[arg(long)]
         tighten: bool,
     },

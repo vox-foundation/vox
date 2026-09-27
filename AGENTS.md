@@ -443,8 +443,9 @@ their exact flags, and the `--include-slow` slow-test names live in
 ## Dependency Discipline (Required, SSOT)
 
 Workspace crate-dependency edges are CI-gated by `vox ci crate-edges` (exact edge-set
-ratchet + downward-only layer rule; contracts: `contracts/ci/crate-edges.allow.v1.json`,
-`contracts/ci/crate-layers.v1.json`).
+ratchet + downward-only layer rule; contracts: `contracts/ci/crate-edges.allow.v1.json`
+and the layer map in `docs/src/architecture/layers.toml`, which `vox-arch-check` also reads —
+the single layer SSOT).
 
 1. **Before adding a dep on another workspace crate:** prefer a narrower `-types`/`-core`
    crate; or apply the defactor policy (rule 3). If the edge is genuinely needed,
@@ -457,8 +458,8 @@ ratchet + downward-only layer rule; contracts: `contracts/ci/crate-edges.allow.v
    with a `// vox:defactored-from <crate> <date>` comment instead of taking a crate
    edge. Larger shared surfaces get split into `-types`/`-core` crates. Never fork
    100+ line chunks.
-4. **New crates** must be assigned a layer in `contracts/ci/crate-layers.v1.json` at
-   creation (L0 leaf foundation ... L4 apps/shells; see
+4. **New crates** must be assigned a layer in `docs/src/architecture/layers.toml` `[crates]`
+   at creation (L0 pure types ... L4 plugins, L5 surfaces; see the file header and
    `docs/src/architecture/where-things-live.md`). Dependencies point same-layer or down.
 
 ## Local-First CI Verification Contract (Required, SSOT)

@@ -3,7 +3,8 @@
 //! Reads the LIVE graph from `cargo metadata` (never the regenerated
 //! `crate-graph.v1.json` mirror — a mirror regen must not be able to admit edges).
 //! Baseline + human-gated exceptions: `contracts/ci/crate-edges.allow.v1.json`.
-//! Layer map (downward-only rule): `contracts/ci/crate-layers.v1.json`.
+//! Layer map (downward-only rule): `[crates]` + `[[known_inversions]]` of
+//! `docs/src/architecture/layers.toml`, the same file `vox-arch-check` reads.
 //! Spec: docs/superpowers/specs/2026-07-03-crate-disentanglement-ratchet-design.md
 
 use anyhow::{Context, Result, bail};
@@ -13,7 +14,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 pub const ALLOW_REL: &str = "contracts/ci/crate-edges.allow.v1.json";
-pub const LAYERS_REL: &str = "contracts/ci/crate-layers.v1.json";
+pub const LAYERS_REL: &str = "docs/src/architecture/layers.toml";
 /// hakari feature-unification crate: exempt both directions, by design.
 pub const EXEMPT: &str = "workspace-hack";
 
@@ -49,11 +50,44 @@ pub struct ExceptionEntry {
     pub authorized_by: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+/// The `[crates]` layer map and `[[known_inversions]]` of `layers.toml` — the one
+/// layer SSOT, shared with `vox-arch-check` (layer semantics are documented there).
+#[derive(Debug)]
 pub struct LayersFile {
-    pub schema_version: u32,
-    /// crate name -> layer (0 = leaf foundation ... 4 = apps/shells).
+    /// crate name -> layer (0 = pure types ... 5 = surfaces).
     pub layers: BTreeMap<String, u8>,
+    /// Upward `[from, to]` pairs accepted by `[[known_inversions]]`. They clear the
+    /// UpwardEdge verdict only; the edge must still be in the baseline or exceptions.
+    pub known_inversions: BTreeSet<(String, String)>,
+}
+
+/// Parse the subset of `layers.toml` this guard needs; other tables are ignored.
+pub fn parse_layers_toml(text: &str) -> Result<LayersFile> {
+    #[derive(Deserialize)]
+    struct Raw {
+        #[serde(default)]
+        crates: BTreeMap<String, RawCrate>,
+        #[serde(default)]
+        known_inversions: Vec<RawInversion>,
+    }
+    #[derive(Deserialize)]
+    struct RawCrate {
+        layer: u8,
+    }
+    #[derive(Deserialize)]
+    struct RawInversion {
+        from: String,
+        to: String,
+    }
+    let raw: Raw = toml::from_str(text).with_context(|| format!("parse {LAYERS_REL}"))?;
+    Ok(LayersFile {
+        layers: raw.crates.into_iter().map(|(k, c)| (k, c.layer)).collect(),
+        known_inversions: raw
+            .known_inversions
+            .into_iter()
+            .map(|i| (i.from, i.to))
+            .collect(),
+    })
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -113,7 +147,7 @@ pub fn check(
         // status; only the UpwardEdge verdict itself is suppressed when excepted.
         match (layers.layers.get(from), layers.layers.get(to)) {
             (Some(&fl), Some(&tl)) => {
-                if fl < tl && !is_excepted {
+                if fl < tl && !is_excepted && !layers.known_inversions.contains(&pair) {
                     violations.push(Violation::UpwardEdge {
                         from: from.clone(),
                         from_layer: fl,
@@ -255,68 +289,11 @@ pub fn tighten(root: &Path, live: &BTreeSet<(String, String)>) -> Result<()> {
     Ok(())
 }
 
-/// Bootstrap heuristic only: layer = longest path to an in-tree leaf, capped at 4.
-/// Written once when the layers file is absent; hand-adjusted afterwards, never overwritten.
-pub fn suggest_layers(live: &BTreeSet<(String, String)>) -> LayersFile {
-    let mut adj: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
-    let mut nodes: BTreeSet<&str> = BTreeSet::new();
-    for (f, t) in live {
-        if f == EXEMPT || t == EXEMPT {
-            continue;
-        }
-        adj.entry(f.as_str()).or_default().push(t.as_str());
-        nodes.insert(f.as_str());
-        nodes.insert(t.as_str());
-    }
-    fn depth<'a>(
-        n: &'a str,
-        adj: &BTreeMap<&'a str, Vec<&'a str>>,
-        memo: &mut BTreeMap<&'a str, u8>,
-    ) -> u8 {
-        if let Some(&d) = memo.get(n) {
-            return d;
-        }
-        memo.insert(n, 0);
-        let d = adj
-            .get(n)
-            .map(|ds| {
-                ds.iter()
-                    .map(|c| depth(c, adj, memo).saturating_add(1))
-                    .max()
-                    .unwrap_or(0)
-            })
-            .unwrap_or(0)
-            .min(4);
-        memo.insert(n, d);
-        d
-    }
-    let mut memo = BTreeMap::new();
-    let layers = nodes
-        .iter()
-        .map(|n| ((*n).to_string(), depth(n, &adj, &mut memo)))
-        .collect();
-    LayersFile {
-        schema_version: 1,
-        layers,
-    }
-}
-
 /// Guard entry point (`vox ci crate-edges [--tighten]`).
 pub fn run(root: &Path, tighten_mode: bool) -> Result<()> {
     let live = collect_live_edges(root)?;
     let layers_path = root.join(LAYERS_REL);
     if tighten_mode {
-        if !layers_path.exists() {
-            let suggested = suggest_layers(&live);
-            std::fs::write(
-                &layers_path,
-                serde_json::to_string_pretty(&suggested)? + "\n",
-            )?;
-            println!(
-                "crate-edges: wrote SUGGESTED layer map (hand-adjust before merging!) -> {}",
-                layers_path.display()
-            );
-        }
         return tighten(root, &live);
     }
     let allow_path = root.join(ALLOW_REL);
@@ -325,11 +302,10 @@ pub fn run(root: &Path, tighten_mode: bool) -> Result<()> {
     }
     let allow: AllowFile = serde_json::from_str(&std::fs::read_to_string(&allow_path)?)
         .context("parse crate-edges.allow.v1.json")?;
-    if !layers_path.exists() {
-        bail!("missing {LAYERS_REL} — bootstrap with `vox ci crate-edges --tighten`");
-    }
-    let layers: LayersFile = serde_json::from_str(&std::fs::read_to_string(&layers_path)?)
-        .context("parse crate-layers.v1.json")?;
+    let layers = parse_layers_toml(
+        &std::fs::read_to_string(&layers_path)
+            .with_context(|| format!("read {LAYERS_REL} (the layer SSOT)"))?,
+    )?;
 
     let (violations, stale) = check(&live, &allow, &layers);
     for (f, t) in &stale {
@@ -358,7 +334,7 @@ pub fn run(root: &Path, tighten_mode: bool) -> Result<()> {
                 "UPWARD EDGE (layer rule): {from} (L{from_layer}) -> {to} (L{to_layer}) — deps must point same-layer or down"
             ),
             Violation::MissingLayer { krate } => eprintln!(
-                "UNASSIGNED LAYER: {krate} missing from {LAYERS_REL} — assign one per where-things-live.md"
+                "UNASSIGNED LAYER: {krate} missing from {LAYERS_REL} [crates] — assign one per where-things-live.md"
             ),
         }
     }
@@ -396,9 +372,84 @@ mod tests {
     }
     fn layers(assign: &[(&str, u8)]) -> LayersFile {
         LayersFile {
-            schema_version: 1,
             layers: assign.iter().map(|(k, l)| (k.to_string(), *l)).collect(),
+            known_inversions: BTreeSet::new(),
         }
+    }
+
+    #[test]
+    fn parse_layers_toml_reads_crates_and_known_inversions_only() {
+        let l = parse_layers_toml(
+            r#"
+[guards]
+fan_in = "warn"
+
+[crates]
+vox-lib = { layer = 0 }
+vox-app = { layer = 5, kind = "binary", max_loc = 1_000 }
+
+[planned]
+vox-future = { plan = "x.md", layer = 2 }
+
+[[known_inversions]]
+from   = "vox-lib"
+to     = "vox-app"
+reason = "test"
+"#,
+        )
+        .unwrap();
+        assert_eq!(
+            l.layers,
+            BTreeMap::from([("vox-app".to_string(), 5), ("vox-lib".to_string(), 0)]),
+            "[planned] entries must not count as assigned layers"
+        );
+        assert_eq!(
+            l.known_inversions,
+            edges(&[("vox-lib", "vox-app")]),
+            "known inversions come from the same file vox-arch-check reads"
+        );
+    }
+
+    #[test]
+    fn parse_layers_toml_rejects_missing_layer() {
+        let err = parse_layers_toml("[crates]\nvox-lib = { kind = \"library\" }\n").unwrap_err();
+        assert!(format!("{err:#}").contains("layer"), "{err:#}");
+    }
+
+    #[test]
+    fn known_inversion_suppresses_upward_verdict_but_not_new_edge() {
+        let mut l = layers(&[("app", 5), ("lib", 0)]);
+        l.known_inversions = edges(&[("lib", "app")]);
+        let (v, _) = check(
+            &edges(&[("lib", "app")]),
+            &allow(&[("lib", "app")], &[]),
+            &l,
+        );
+        assert!(v.is_empty(), "{v:?}");
+        let (v, _) = check(&edges(&[("lib", "app")]), &allow(&[], &[]), &l);
+        assert_eq!(
+            v,
+            vec![Violation::NewEdge {
+                from: "lib".into(),
+                to: "app".into()
+            }],
+            "a known inversion must never admit an edge the baseline does not hold"
+        );
+    }
+
+    /// Integration: the layer map crate-edges reads is the one vox-arch-check
+    /// reads, so the two gates can no longer disagree about a crate's layer.
+    #[test]
+    fn repo_layer_map_is_layers_toml() {
+        let root = crate::repo_root();
+        let l =
+            parse_layers_toml(&std::fs::read_to_string(root.join(LAYERS_REL)).unwrap()).unwrap();
+        assert_eq!(LAYERS_REL, "docs/src/architecture/layers.toml");
+        assert!(l.layers.contains_key("vox-cli"));
+        assert!(
+            !root.join("contracts/ci/crate-layers.v1.json").exists(),
+            "the retired duplicate layer map must not come back"
+        );
     }
 
     /// A minimal single-package Cargo workspace (no dependencies, so `cargo
@@ -590,20 +641,6 @@ mod tests {
     }
 
     #[test]
-    fn suggest_layers_depth_capped() {
-        let l = suggest_layers(&edges(&[
-            ("a", "b"),
-            ("b", "c"),
-            ("c", "d"),
-            ("d", "e"),
-            ("e", "f"),
-        ]));
-        assert_eq!(l.layers["f"], 0);
-        assert_eq!(l.layers["e"], 1);
-        assert_eq!(l.layers["a"], 4);
-    }
-
-    #[test]
     fn run_verify_mode_bails_when_allow_file_missing() {
         let dir = fake_workspace();
         let err = run(dir.path(), false).unwrap_err();
@@ -618,22 +655,20 @@ mod tests {
         write_allow_file(&dir.path().join(ALLOW_REL), &allow(&[], &[])).unwrap();
         let err = run(dir.path(), false).unwrap_err();
         assert!(err.to_string().contains(LAYERS_REL), "{err}");
-        assert!(err.to_string().contains("--tighten"), "{err}");
     }
 
     #[test]
-    fn run_tighten_mode_bootstraps_layers_when_missing() {
+    fn run_tighten_mode_writes_baseline_but_never_the_layer_map() {
         let dir = fake_workspace();
         std::fs::create_dir_all(dir.path().join("contracts/ci")).unwrap();
-        assert!(!dir.path().join(LAYERS_REL).exists());
         run(dir.path(), true).unwrap();
         assert!(
-            dir.path().join(LAYERS_REL).exists(),
-            "tighten mode must bootstrap the layer map"
+            dir.path().join(ALLOW_REL).exists(),
+            "tighten mode must write the allow baseline"
         );
         assert!(
-            dir.path().join(ALLOW_REL).exists(),
-            "tighten mode must also write the allow baseline"
+            !dir.path().join(LAYERS_REL).exists(),
+            "layers.toml is hand-authored; crate-edges must never generate it"
         );
     }
 }
