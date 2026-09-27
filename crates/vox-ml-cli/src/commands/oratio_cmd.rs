@@ -164,14 +164,11 @@ fn resolve_ide_context() -> vox_speech::routing::IdeContext {
             .map(|mt| mt.elapsed().map(|e| e.as_secs() < 300).unwrap_or(false))
             .unwrap_or(false);
 
-        if is_fresh {
-            if let Ok(content) = std::fs::read_to_string(&state_file) {
-                if let Ok(file_ctx) =
-                    serde_json::from_str::<vox_speech::routing::IdeContext>(&content)
-                {
-                    ctx = file_ctx;
-                }
-            }
+        if is_fresh
+            && let Ok(content) = std::fs::read_to_string(&state_file)
+            && let Ok(file_ctx) = serde_json::from_str::<vox_speech::routing::IdeContext>(&content)
+        {
+            ctx = file_ctx;
         }
     }
 
@@ -189,19 +186,17 @@ fn resolve_ide_context() -> vox_speech::routing::IdeContext {
     }
 
     // Best-effort pull of build errors from vox-db
-    if let Ok(rt) = tokio::runtime::Runtime::new() {
-        if let Ok(db) =
+    if let Ok(rt) = tokio::runtime::Runtime::new()
+        && let Ok(db) =
             rt.block_on(async { crate::workspace_db::connect_cli_workspace_voxdb().await })
-        {
-            // Use repository_id if available, otherwise "workspace"
-            let repo_id =
-                std::env::var("VOX_REPOSITORY_ID").unwrap_or_else(|_| "workspace".to_string());
-            if let Ok(warnings) = rt.block_on(async { db.query_build_warnings(&repo_id, 3).await })
-            {
-                for w in warnings {
-                    ctx.recent_errors
-                        .push(format!("[{}] {}", w.crate_name, w.message));
-                }
+    {
+        // Use repository_id if available, otherwise "workspace"
+        let repo_id =
+            std::env::var("VOX_REPOSITORY_ID").unwrap_or_else(|_| "workspace".to_string());
+        if let Ok(warnings) = rt.block_on(async { db.query_build_warnings(&repo_id, 3).await }) {
+            for w in warnings {
+                ctx.recent_errors
+                    .push(format!("[{}] {}", w.crate_name, w.message));
             }
         }
     }
@@ -477,27 +472,25 @@ pub async fn run(action: OratioAction, global_json: bool) -> Result<()> {
             let mut ctx = resolve_ide_context();
 
             // Best-effort global symbol matching based on transcript keywords
-            if let Ok(rt) = tokio::runtime::Runtime::new() {
-                if let Ok(db) =
+            if let Ok(rt) = tokio::runtime::Runtime::new()
+                && let Ok(db) =
                     rt.block_on(async { crate::workspace_db::connect_cli_workspace_voxdb().await })
-                {
-                    // Extract potential symbol names from transcript
-                    let keywords: Vec<&str> = session
-                        .text
-                        .split_whitespace()
-                        .filter(|w| w.len() > 3) // Ignore short words
-                        .collect();
-                    for k in keywords {
-                        let clean = k.trim_matches(|c: char| !c.is_alphanumeric() && c != '_');
-                        if !clean.is_empty() {
-                            if let Ok(symbols) =
-                                rt.block_on(async { db.search_project_symbols(clean, 3).await })
-                            {
-                                for (_, label, _) in symbols {
-                                    if !ctx.symbol_stack.contains(&label) {
-                                        ctx.symbol_stack.push(label);
-                                    }
-                                }
+            {
+                // Extract potential symbol names from transcript
+                let keywords: Vec<&str> = session
+                    .text
+                    .split_whitespace()
+                    .filter(|w| w.len() > 3) // Ignore short words
+                    .collect();
+                for k in keywords {
+                    let clean = k.trim_matches(|c: char| !c.is_alphanumeric() && c != '_');
+                    if !clean.is_empty()
+                        && let Ok(symbols) =
+                            rt.block_on(async { db.search_project_symbols(clean, 3).await })
+                    {
+                        for (_, label, _) in symbols {
+                            if !ctx.symbol_stack.contains(&label) {
+                                ctx.symbol_stack.push(label);
                             }
                         }
                     }
@@ -630,13 +623,12 @@ pub async fn run(action: OratioAction, global_json: bool) -> Result<()> {
                 let _ = db.record_oratio_eval_run_start(&params).await;
             }
 
-            let mut rec_idx = 0usize;
-            for line in file.lines().filter(|l| !l.trim().is_empty()) {
-                rec_idx += 1;
-                if let Some(l) = limit {
-                    if count >= l {
-                        break;
-                    }
+            for (i, line) in file.lines().filter(|l| !l.trim().is_empty()).enumerate() {
+                let rec_idx = i + 1; // 1-based in error messages
+                if let Some(l) = limit
+                    && count >= l
+                {
+                    break;
                 }
                 let val: serde_json::Value = serde_json::from_str(line)
                     .with_context(|| format!("JSONL parse error at record {rec_idx}"))?;
@@ -754,43 +746,41 @@ pub async fn run(action: OratioAction, global_json: bool) -> Result<()> {
                 ground_truth_srt.clone(),
                 persist,
             )?;
-            if persist {
-                if let Some((wer, cer, offset)) = metrics {
-                    let rt = tokio::runtime::Runtime::new()?;
-                    let db_opt = rt.block_on(async {
-                        crate::workspace_db::connect_cli_workspace_voxdb()
-                            .await
-                            .ok()
+            if persist && let Some((wer, cer, offset)) = metrics {
+                let rt = tokio::runtime::Runtime::new()?;
+                let db_opt = rt.block_on(async {
+                    crate::workspace_db::connect_cli_workspace_voxdb()
+                        .await
+                        .ok()
+                });
+                if let Some(db) = db_opt {
+                    let run_id = uuid::Uuid::new_v4().to_string();
+                    let params = vox_db::OratioEvalRunStartParams {
+                        run_id: run_id.clone(),
+                        run_type: "srt_ground_truth".to_string(),
+                        backend: "candle-whisper".to_string(),
+                        model_id: None,
+                        dataset_name: ground_truth_srt.unwrap_or_default(),
+                    };
+                    rt.block_on(async {
+                        if db.record_oratio_eval_run_start(&params).await.is_ok() {
+                            let _ = db
+                                .append_oratio_eval_sample(
+                                    &run_id, &path, "srts", "srts", wer as f32, cer as f32, None,
+                                    None, 0,
+                                )
+                                .await;
+                            let _ = db
+                                .complete_oratio_eval_run(
+                                    &run_id,
+                                    Some(wer as f32),
+                                    Some(cer as f32),
+                                    None,
+                                    Some(offset),
+                                )
+                                .await;
+                        }
                     });
-                    if let Some(db) = db_opt {
-                        let run_id = uuid::Uuid::new_v4().to_string();
-                        let params = vox_db::OratioEvalRunStartParams {
-                            run_id: run_id.clone(),
-                            run_type: "srt_ground_truth".to_string(),
-                            backend: "candle-whisper".to_string(),
-                            model_id: None,
-                            dataset_name: ground_truth_srt.unwrap_or_default(),
-                        };
-                        let _ = rt.block_on(async {
-                            if db.record_oratio_eval_run_start(&params).await.is_ok() {
-                                let _ = db
-                                    .append_oratio_eval_sample(
-                                        &run_id, &path, "srts", "srts", wer as f32, cer as f32,
-                                        None, None, 0,
-                                    )
-                                    .await;
-                                let _ = db
-                                    .complete_oratio_eval_run(
-                                        &run_id,
-                                        Some(wer as f32),
-                                        Some(cer as f32),
-                                        None,
-                                        Some(offset),
-                                    )
-                                    .await;
-                            }
-                        });
-                    }
                 }
             }
             Ok(())
