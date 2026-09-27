@@ -467,10 +467,6 @@
     ],
     [
       "vox-cli-research",
-      "vox-config"
-    ],
-    [
-      "vox-cli-research",
       "vox-db"
     ],
     [
@@ -511,10 +507,6 @@
     ],
     [
       "vox-cli-review",
-      "vox-config"
-    ],
-    [
-      "vox-cli-review",
       "vox-corpus"
     ],
     [
@@ -540,10 +532,6 @@
     [
       "vox-cli-review",
       "vox-secrets"
-    ],
-    [
-      "vox-cli-share",
-      "vox-config"
     ],
     [
       "vox-cli-share",
@@ -1535,10 +1523,6 @@
     ],
     [
       "vox-plugin-mens-candle-core",
-      "vox-config"
-    ],
-    [
-      "vox-plugin-mens-candle-core",
       "vox-db"
     ],
     [
@@ -2088,10 +2072,6 @@
     [
       "vox-tensor",
       "vox-actor-runtime"
-    ],
-    [
-      "vox-term",
-      "vox-config"
     ],
     [
       "vox-term",
