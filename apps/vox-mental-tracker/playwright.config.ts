@@ -18,6 +18,10 @@ export default defineConfig({
           "pnpm build:web && pnpm exec vite preview --port 5173 --host 127.0.0.1 --strictPort",
         url,
         reuseExistingServer: true,
-        timeout: 180_000,
+        // `build:web` runs `cargo run --release -p vox-cli`; a cold build (cache
+        // miss, or a fresh toolchain) can take several minutes, well past the
+        // previous 180s budget. The CI job's own timeout-minutes (30) is the
+        // real backstop.
+        timeout: 600_000,
       },
 });

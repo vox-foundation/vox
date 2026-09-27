@@ -66,6 +66,13 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+      # Playwright's webServer runs `pnpm build:vox`, which compiles and runs
+      # `vox-cli` (`cargo run --release`). Without this, the toolchain isn't
+      # pre-installed (rustup auto-installs it mid-run, and neither the
+      # toolchain nor target/ get cached), so a cold build regularly blows
+      # through webServer's 180s timeout (observed 2026-09-26: "Timed out
+      # waiting 180000ms from config.webServer").
+      - uses: ./.github/actions/setup-rust
       - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
       - uses: pnpm/action-setup@v6
