@@ -105,7 +105,11 @@ fn root_module() -> VoxPluginRootRef {
 
 #[sabi_extern_fn]
 fn manifest_json() -> RString {
-    RString::from(r#"{"id":"webhook","version":"0.1.0"}"#)
+    RString::from(concat!(
+        r#"{"id":"webhook","version":""#,
+        env!("CARGO_PKG_VERSION"),
+        r#""}"#
+    ))
 }
 
 #[sabi_extern_fn]
@@ -445,6 +449,13 @@ mod listener_lifecycle_tests {
             .find_map(|l| l.strip_prefix("version = \"")?.strip_suffix('"'))
             .expect("Plugin.toml [plugin] version");
         assert_eq!(declared, env!("CARGO_PKG_VERSION"));
+    }
+
+    #[test]
+    fn manifest_json_version_is_the_crate_version() {
+        let m: serde_json::Value =
+            serde_json::from_str(manifest_json().as_str()).expect("manifest_json is JSON");
+        assert_eq!(m["version"], env!("CARGO_PKG_VERSION"));
     }
 
     #[test]
