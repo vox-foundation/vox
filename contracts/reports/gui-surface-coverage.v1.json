@@ -872,6 +872,7 @@
     "graph.callers",
     "graph.compare",
     "graph.history",
+    "graph.history_mcp",
     "graph.ingest",
     "graph.path",
     "graph.query",

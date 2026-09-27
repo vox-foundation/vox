@@ -904,6 +904,9 @@ async fn handle_tool_call_inner(
         "vox_search_compare" => {
             Ok(crate::graph_tools::graphify_compare(state, serde_json::from_value(args)?).await)
         }
+        "vox_search_history" => {
+            Ok(crate::history_tools::history(state, serde_json::from_value(args)?).await)
+        }
         "vox_search_rebuild" => {
             Ok(crate::graph_tools::graphify_rebuild(state, serde_json::from_value(args)?).await)
         }

@@ -76,6 +76,8 @@ pub mod grammar_tools;
 pub mod graph_tools;
 /// GUI registry + validation tools (`vox_gui_components`, `vox_gui_tokens`, `vox_gui_rules`, `vox_validate_vuv`).
 pub mod gui_registry_tools;
+/// `vox_search_history`: first-parent repo history for agents (same facade as `vox graph history`).
+pub mod history_tools;
 pub mod input_schemas;
 /// Introspection tools for language visualization (AST, surface, pipeline).
 pub mod introspection_tools;

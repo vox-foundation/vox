@@ -337,10 +337,10 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
             r#"{"type":"object","properties":{"query":{"type":"string"},"limit":{"type":"integer"}},"required":["query"],"additionalProperties":false}"#,
         ),
         "vox_research_run" => parse_obj(
-            r#"{"type":"object","properties":{"query":{"type":"string","minLength":1},"scope":{"type":"string"},"max_sources":{"type":"integer","minimum":1,"maximum":50},"verify_claims":{"type":"boolean"},"site_scope":{"type":"string"},"json":{"type":"boolean"}},"required":["query"],"additionalProperties":false}"#,
+            r#"{"type":"object","properties":{"query":{"type":"string","minLength":1},"scope":{"type":"string"},"max_sources":{"type":"integer","minimum":1,"maximum":50},"verify_claims":{"type":"boolean"},"site_scope":{"type":"string"},"json":{"type":"boolean"},"waves":{"type":"integer","minimum":1,"description":"Research waves (default 1)"},"domain_mode":{"type":"string","description":"general (default), shopping, or codegen; case-insensitive"},"lane":{"type":"string","enum":["fast","deep"],"description":"fast (default; no LLM planner) or deep (LLM query decomposition)"}},"required":["query"],"additionalProperties":false}"#,
         ),
         "vox_research_start" => parse_obj(
-            r#"{"type":"object","properties":{"query":{"type":"string","minLength":1},"scope":{"type":"string"},"max_sources":{"type":"integer","minimum":1,"maximum":50},"verify_claims":{"type":"boolean"},"site_scope":{"type":"string"}},"required":["query"],"additionalProperties":false}"#,
+            r#"{"type":"object","properties":{"query":{"type":"string","minLength":1},"scope":{"type":"string"},"max_sources":{"type":"integer","minimum":1,"maximum":50},"verify_claims":{"type":"boolean"},"site_scope":{"type":"string"},"waves":{"type":"integer","minimum":1,"description":"Research waves (default 1)"},"domain_mode":{"type":"string","description":"general (default), shopping, or codegen; case-insensitive"},"lane":{"type":"string","enum":["fast","deep"],"description":"fast (default; no LLM planner) or deep (LLM query decomposition)"}},"required":["query"],"additionalProperties":false}"#,
         ),
         "vox_research_status" | "vox_research_get" => parse_obj(
             r#"{"type":"object","properties":{"session_id":{"type":"integer","minimum":1}},"required":["session_id"],"additionalProperties":false}"#,
@@ -503,6 +503,9 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         ),
         "vox_search_compare" => parse_obj(
             r#"{"type":"object","properties":{"corpus_a":{"type":"string","description":"First corpus id to compare"},"corpus_b":{"type":"string","description":"Second corpus id to compare"}},"required":["corpus_a","corpus_b"],"additionalProperties":false}"#,
+        ),
+        "vox_search_history" => parse_obj(
+            r#"{"type":"object","properties":{"query":{"type":"string","enum":["log","focus","forgotten","search","timeline","brief"],"description":"View: log (a file's changes through rename/split/merge lineage), focus (churn per area), forgotten (dormant high-fan-in areas), search (commit text, paths, symbols), timeline (top areas per bucket), brief (one line)"},"path":{"type":"string","description":"log: repo-relative file path"},"text":{"type":"string","description":"search: terms"},"since_days":{"type":"integer","minimum":1,"description":"focus (default 30) / timeline (default 90)"},"min_age_days":{"type":"integer","minimum":0,"description":"forgotten: default 60"},"bucket_days":{"type":"integer","minimum":1,"description":"timeline: default 7"},"by":{"type":"string","enum":["crate","dir"],"description":"Area grouping (default crate)"},"include_mechanical":{"type":"boolean","description":"Include fmt/generated/import-only changes (default false)"},"limit":{"type":"integer","minimum":1,"description":"Max rows (default 20)"}},"required":["query"],"additionalProperties":false}"#,
         ),
         "vox_search_rebuild" => parse_obj(
             r#"{"type":"object","properties":{"corpus":{"type":"string","description":"Corpus id to rebuild; omit for the registry default_corpus_id. WRITE/mutating: regenerates the on-disk AST code graph and snapshots the previous one."}},"additionalProperties":false}"#,
@@ -910,6 +913,44 @@ mod tests {
             missing.is_empty(),
             "TOOL_REGISTRY tools missing non-empty input_schema: {missing:?}"
         );
+    }
+
+    /// The research schemas set `additionalProperties:false`, so every field the params
+    /// struct accepts must be advertised or strict clients cannot send it.
+    #[test]
+    fn research_run_start_schemas_advertise_every_param() {
+        fn keys(v: &Value) -> std::collections::BTreeSet<String> {
+            v["properties"]
+                .as_object()
+                .expect("properties")
+                .keys()
+                .cloned()
+                .collect()
+        }
+        for (tool, derived) in [
+            (
+                "vox_research_run",
+                serde_json::to_value(schemars::schema_for!(
+                    crate::memory_tools::ResearchRunParams
+                ))
+                .unwrap(),
+            ),
+            (
+                "vox_research_start",
+                serde_json::to_value(schemars::schema_for!(
+                    crate::memory_tools::ResearchStartParams
+                ))
+                .unwrap(),
+            ),
+        ] {
+            let schema = Value::Object(tool_input_schema(tool));
+            assert_eq!(keys(&schema), keys(&derived), "{tool}");
+            assert_eq!(
+                schema["properties"]["lane"]["enum"],
+                serde_json::json!(["fast", "deep"]),
+                "{tool}"
+            );
+        }
     }
 
     #[test]
