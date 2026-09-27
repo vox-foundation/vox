@@ -22,8 +22,10 @@ pub async fn run_countdown(duration: Duration, done_tx: mpsc::Sender<()>) {
 pub async fn run_countdown_printer(duration: Duration) {
     let deadline = tokio::time::Instant::now() + duration;
 
+    // vox:defactored-from vox-config 2026-09-27
+    const PRINT_INTERVAL: Duration = Duration::from_secs(30);
     loop {
-        tokio::time::sleep(vox_config::timeouts::D_30S).await;
+        tokio::time::sleep(PRINT_INTERVAL).await;
         let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
         if remaining.is_zero() {
             return;

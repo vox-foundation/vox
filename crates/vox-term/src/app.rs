@@ -100,7 +100,9 @@ pub fn run() -> Result<()> {
         })?;
 
         // Poll for input events (50 ms tick = ~20 fps).
-        if !event::poll(vox_config::timeouts::D_50MS)? {
+        // vox:defactored-from vox-config 2026-09-27
+        const POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(50);
+        if !event::poll(POLL_INTERVAL)? {
             continue;
         }
         match event::read()? {

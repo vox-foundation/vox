@@ -1,3 +1,11 @@
+//! `vox research` subcommands, extracted from vox-cli.
+//!
+//! [`ResearchCmd`] is the clap surface and [`run`] dispatches it. The commands cover:
+//! - the SearXNG sidecar (`up` / `down` / `status`, in [`infra`]);
+//! - research runs and their sessions (`run`, `preview`, `history`, `show`, `watch`,
+//!   `result`, `search`, `probe`, `flag`, `publish`);
+//! - the research eval harness ([`eval`]).
+
 use clap::Subcommand;
 use vox_research_shim::research::types::{ResearchDomainMode, ResearchStage};
 use vox_search::policy::ResearchLane;
@@ -488,7 +496,9 @@ pub async fn research_watch(session_id: i64) -> anyhow::Result<()> {
         if matches!(row.status.as_str(), "completed" | "failed" | "orphaned") {
             return Ok(());
         }
-        tokio::time::sleep(vox_config::timeouts::D_3S).await;
+        // vox:defactored-from vox-config 2026-09-27
+        const POLL_INTERVAL: std::time::Duration = std::time::Duration::from_secs(3);
+        tokio::time::sleep(POLL_INTERVAL).await;
     }
 }
 

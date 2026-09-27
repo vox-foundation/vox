@@ -3,6 +3,9 @@
 /// Files per PR soft target (stays comfortably under 300-file Pro cap).
 pub(crate) const DEFAULT_MAX_FILES_PER_PR: usize = 250;
 
+// vox:defactored-from vox-config 2026-09-27
+const CACHE_DIR_PREFIX: &str = ".vox/cache/";
+
 /// Directories / filename suffixes that should never land in a review PR.
 ///
 /// The `"target-"` prefix catches any `target-<name>/` variation (target-agent/, target-doc-inv2/,
@@ -14,7 +17,7 @@ pub(crate) static IGNORED_DIRS: &[&str] = &[
     ".cargo-targets/",
     "docs/book/",          // generated mdBook HTML (in .gitignore but sometimes tracked)
     ".vox-research-data/", // local SQLite cache
-    vox_config::paths::REPO_CACHE_DIR_PREFIX,
+    CACHE_DIR_PREFIX,
     ".gemini/",
     ".cursor/",
     "node_modules/",

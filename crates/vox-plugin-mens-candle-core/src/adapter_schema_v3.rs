@@ -32,10 +32,16 @@ pub struct AdapterMethodFields {
     pub adapter_method: AdapterMethod,
 }
 
+// vox:defactored-from vox-config 2026-09-27
+#[rustfmt::skip] // keeps the toestub-ignore comment pinned to the fn signature line
+fn double_quant_default() -> bool { // toestub-ignore(skeleton/hollow-fn): trivial serde default matching the field's own meaning — nothing more to implement
+    true
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QuantFields {
     pub base_quant: BaseQuantMode,
-    #[serde(default = "vox_config::serde_defaults::default_true")]
+    #[serde(default = "double_quant_default")]
     pub double_quant: bool,
 }
 

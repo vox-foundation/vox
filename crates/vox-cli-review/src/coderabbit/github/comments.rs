@@ -49,7 +49,9 @@ pub async fn wait_for_review(pr_number: u64, timeout_secs: u64, path: &Path) -> 
     let provider = GitHubProvider::new(&token).map_err(|e| anyhow::anyhow!("{e}"))?;
 
     let start = std::time::Instant::now();
-    let poll_interval = vox_config::timeouts::D_30S;
+    // vox:defactored-from vox-config 2026-09-27
+    const POLL_INTERVAL: std::time::Duration = std::time::Duration::from_secs(30);
+    let poll_interval = POLL_INTERVAL;
 
     while start.elapsed().as_secs() < timeout_secs {
         let reviews = provider

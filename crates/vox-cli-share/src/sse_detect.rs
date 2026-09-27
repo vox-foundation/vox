@@ -9,9 +9,11 @@
 /// Fetches `/openapi.json` with a short timeout. Returns false on any error
 /// (app might not be running yet, or might not have an OpenAPI endpoint).
 pub async fn has_sse_routes(upstream_port: u16) -> bool {
+    // vox:defactored-from vox-config 2026-09-27
+    const PROBE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(3);
     let url = format!("http://127.0.0.1:{}/openapi.json", upstream_port);
     let client = match vox_http_client::client_builder()
-        .timeout(vox_config::timeouts::D_3S)
+        .timeout(PROBE_TIMEOUT)
         .build()
     {
         Ok(c) => c,

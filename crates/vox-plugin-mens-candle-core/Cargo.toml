@@ -10,7 +10,6 @@ description = "Shared Candle QLoRA training/inference code for the Metal and CUD
 crate-type = ["rlib"]
 
 [dependencies]
-vox-config = { workspace = true }
 vox-db = { workspace = true, features = ["host-integration"] }
 vox-hf-layout = { workspace = true }
 vox-tensor = { workspace = true }
