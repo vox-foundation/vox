@@ -1,3 +1,6 @@
+// Task 9c: no real web host from any test (see tests/common/mod.rs).
+mod common;
+
 use vox_search::mens_research_subagent::{
     GroundingQuality, build_local_claim_extraction_prompt, evaluate_span_grounding,
     negation_parity_matches, normalize_for_matching, parse_and_ground_claim_triplets,

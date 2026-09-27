@@ -1,5 +1,8 @@
 //! Wiremock stub for SearXNG JSON (`WebSearchDispatcher`).
 
+// Task 9c: no real web host from any test (see tests/common/mod.rs).
+mod common;
+
 use vox_search::policy::SearchPolicy;
 use vox_search::web_dispatcher::WebSearchDispatcher;
 use wiremock::matchers::{method, path};

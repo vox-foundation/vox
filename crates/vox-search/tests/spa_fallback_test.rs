@@ -1,3 +1,6 @@
+// Task 9c: no real web host from any test (see tests/common/mod.rs).
+mod common;
+
 use vox_search::spa_fallback::{
     is_bot_challenge_page, sanitize_extracted_accessibility_text, should_fallback_to_headless,
 };

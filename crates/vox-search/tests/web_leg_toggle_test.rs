@@ -7,6 +7,9 @@
 //! nonzero/zero request count on the mock is an unambiguous, deterministic
 //! signal — not a hope that `heuristic_search_plan` picked a particular corpus.
 
+// Task 9c: no real web host from any test (see tests/common/mod.rs).
+mod common;
+
 use std::path::PathBuf;
 
 use vox_db::heuristic_search_plan;

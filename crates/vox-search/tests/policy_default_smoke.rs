@@ -1,5 +1,8 @@
 //! Offline policy defaults (`vox-search`).
 
+// Task 9c: no real web host from any test (see tests/common/mod.rs).
+mod common;
+
 use vox_search::{SEARCH_POLICY_DEFAULT_VERSION, SearchPolicy};
 
 #[test]

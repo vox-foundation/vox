@@ -1972,7 +1972,23 @@ mod tests {
     /// Run manually (needs network): `cargo test -p vox-search -- --ignored --nocapture deep_lane_probe`
     #[tokio::test]
     #[ignore = "live network probe — run manually with --ignored"]
+    #[allow(unsafe_code)]
     async fn deep_lane_probe_searxng_vs_tavily_subquery() {
+        // This probe is deliberately live: lift the unit-test egress guard
+        // (`crate::test_egress_guard`) for it. Only ever run on its own, by hand.
+        // SAFETY: a manual `--ignored` single-test run; nothing else reads env concurrently.
+        unsafe {
+            for key in [
+                "HTTP_PROXY",
+                "HTTPS_PROXY",
+                "ALL_PROXY",
+                "http_proxy",
+                "https_proxy",
+                "all_proxy",
+            ] {
+                std::env::remove_var(key);
+            }
+        }
         let policy = crate::SearchPolicy::from_env();
         let report = WebSearchDispatcher::search_with_report(
             "SearXNG vs Tavily comparison for AI agents",

@@ -1,5 +1,8 @@
 //! `ingest_markdown_tree` round-trip into in-memory VoxDb.
 
+// Task 9c: no real web host from any test (see tests/common/mod.rs).
+mod common;
+
 use vox_db::VoxDb;
 use vox_search::ingest::ingest_markdown_tree;
 

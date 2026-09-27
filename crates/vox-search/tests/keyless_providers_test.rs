@@ -1,3 +1,6 @@
+// Task 9c: no real web host from any test (see tests/common/mod.rs).
+mod common;
+
 use std::collections::HashMap;
 use vox_search::arxiv::{ArXivClient, normalize_arxiv_url};
 use vox_search::openalex::{OpenAlexClient, reconstruct_abstract};

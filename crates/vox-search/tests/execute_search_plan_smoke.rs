@@ -1,5 +1,8 @@
 //! Smoke test for `execute_search_plan` with in-memory DB + temp memory tree.
 
+// Task 9c: no real web host from any test (see tests/common/mod.rs).
+mod common;
+
 use std::sync::Arc;
 
 use vox_db::{RetrievalMode, SearchCorpus, SearchPlan, VoxDb};

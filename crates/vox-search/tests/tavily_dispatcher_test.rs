@@ -2,6 +2,9 @@
 //! No network, no real key: the client is built with a dummy key and the mock's URL.
 #![cfg(feature = "tavily")]
 
+// Task 9c: no real web host from any test (see tests/common/mod.rs).
+mod common;
+
 use vox_search::policy::{ResearchLane, SearchPolicy};
 use vox_search::search_circuit_breaker::{SearchProviderCircuitRegistry, SearchProviderId};
 use vox_search::tavily::{TavilyClient, TavilySessionBudget};

@@ -19012,6 +19012,7 @@ version = "0.6.0"
 dependencies = [
  "anyhow",
  "blake3",
+ "ctor 1.0.13",
  "deadpool",
  "futures",
  "html2text",

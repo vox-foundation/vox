@@ -1,3 +1,6 @@
+// Task 9c: no real web host from any test (see tests/common/mod.rs).
+mod common;
+
 use vox_search::policy::{ResearchLane, SearchPolicy};
 use vox_search::web_dispatcher::{ProviderStatus, WebSearchDispatcher};
 use wiremock::matchers::{method, path};

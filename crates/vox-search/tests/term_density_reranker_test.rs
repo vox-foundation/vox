@@ -1,3 +1,6 @@
+// Task 9c: no real web host from any test (see tests/common/mod.rs).
+mod common;
+
 use vox_search::term_density_reranker::{
     CandidatePassage, rerank_passages, score_passage_term_density,
 };

@@ -1,3 +1,6 @@
+// Task 9c: no real web host from any test (see tests/common/mod.rs).
+mod common;
+
 use std::sync::Arc;
 use vox_search::tavily_budget::TavilySessionBudget;
 use wiremock::matchers::{method, path};
