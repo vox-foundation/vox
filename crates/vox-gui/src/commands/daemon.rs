@@ -206,10 +206,13 @@ impl PersistentDaemon {
             return Ok(addr);
         }
 
-        let addr = match std::env::var("VOX_ORCHESTRATOR_DAEMON_SOCKET") {
-            Ok(s) if s.contains(':') => s,
-            _ => DEFAULT_DAEMON_ADDR.to_string(),
-        };
+        let addr =
+            match vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOrchestratorDaemonSocket)
+                .expose()
+            {
+                Some(s) if s.contains(':') => s.to_string(),
+                _ => DEFAULT_DAEMON_ADDR.to_string(),
+            };
 
         // A daemon is already running — only adopt it if a
         // token-authenticated ping actually succeeds. Reading the

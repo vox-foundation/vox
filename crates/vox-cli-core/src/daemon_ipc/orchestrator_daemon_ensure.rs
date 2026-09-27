@@ -98,8 +98,12 @@ impl OrchestratorDaemonEnsure {
     pub async fn ensure(&self) -> Result<String, String> {
         self.addr
             .get_or_try_init(|| async {
-                let addr = match std::env::var("VOX_ORCHESTRATOR_DAEMON_SOCKET") {
-                    Ok(s) if s.contains(':') => s,
+                let addr = match vox_secrets::resolve_secret(
+                    vox_secrets::SecretId::VoxOrchestratorDaemonSocket,
+                )
+                .expose()
+                {
+                    Some(s) if s.contains(':') => s.to_string(),
                     _ => DEFAULT_DAEMON_ADDR.to_string(),
                 };
 

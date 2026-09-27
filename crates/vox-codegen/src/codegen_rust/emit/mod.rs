@@ -133,7 +133,9 @@ fn looks_like_vox_checkout(root: &Path) -> bool {
 /// 3. `None` — caller falls back to the historical repo-relative path,
 ///    which still works when generating inside a vox checkout.
 fn resolve_vox_repo_root() -> Option<PathBuf> {
-    if let Ok(root) = std::env::var("VOX_REPO_ROOT") {
+    if let Some(root) =
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxRepositoryRoot).expose()
+    {
         let p = PathBuf::from(root);
         if looks_like_vox_checkout(&p) {
             return Some(p);

@@ -636,7 +636,9 @@ pub async fn run_ingest(
     let branch = std::env::var("GITHUB_HEAD_REF")
         .or_else(|_| std::env::var("GITHUB_REF_NAME"))
         .ok();
-    let commit_sha = std::env::var("GITHUB_SHA").ok();
+    let commit_sha = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxGithubSha)
+        .expose()
+        .map(str::to_string);
 
     let tool_versions = serde_json::json!({
         "vox_cli": env!("CARGO_PKG_VERSION"),
@@ -755,4 +757,56 @@ pub async fn run_ingest(
         report.findings.len()
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fingerprint_for_is_deterministic_and_input_sensitive() {
+        let a = fingerprint_for("detector/x", "crates/vox-cli/src/lib.rs", 12, "msg");
+        let b = fingerprint_for("detector/x", "crates/vox-cli/src/lib.rs", 12, "msg");
+        assert_eq!(a, b, "same inputs must hash to the same fingerprint");
+        let c = fingerprint_for("detector/x", "crates/vox-cli/src/lib.rs", 13, "msg");
+        assert_ne!(a, c, "a different line must change the fingerprint");
+        assert_eq!(a.len(), 16, "fingerprint is a fixed-width hex hash");
+    }
+
+    #[test]
+    fn normalize_repo_rel_strips_root_and_uses_forward_slashes() {
+        let root = Path::new("/repo");
+        let path = Path::new("/repo/crates/vox-cli-ci/src/completion_quality.rs");
+        assert_eq!(
+            normalize_repo_rel(path, root),
+            "crates/vox-cli-ci/src/completion_quality.rs"
+        );
+    }
+
+    #[test]
+    fn normalize_repo_rel_falls_back_to_original_when_not_under_root() {
+        let root = Path::new("/somewhere-else");
+        let path = Path::new("/repo/crates/vox-cli-ci/src/completion_quality.rs");
+        assert_eq!(
+            normalize_repo_rel(path, root),
+            path.to_string_lossy().replace('\\', "/")
+        );
+    }
+
+    #[test]
+    fn tier_for_detector_resolves_base_id_before_the_slash() {
+        let mut tiers = HashMap::new();
+        tiers.insert("skeleton".to_string(), "warning".to_string());
+        assert_eq!(
+            tier_for_detector(&tiers, "skeleton/untested-pub-api").unwrap(),
+            "warning"
+        );
+    }
+
+    #[test]
+    fn tier_for_detector_errors_on_unknown_base_id() {
+        let tiers = HashMap::new();
+        let err = tier_for_detector(&tiers, "unknown/rule").unwrap_err();
+        assert!(err.to_string().contains("unknown"));
+    }
 }

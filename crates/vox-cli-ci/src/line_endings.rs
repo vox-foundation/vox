@@ -146,20 +146,25 @@ fn resolve_diff_refs(
     repo_root: &Path,
     base_override: Option<&str>,
 ) -> Result<Option<(String, String)>> {
+    use vox_secrets::{SecretId, resolve_secret};
+    let head_ref = || {
+        resolve_secret(SecretId::VoxLineEndingsHead)
+            .expose()
+            .unwrap_or("HEAD")
+            .to_string()
+    };
     if let Some(b) = base_override.filter(|s| !s.is_empty()) {
-        let head = std::env::var("VOX_LINE_ENDINGS_HEAD").unwrap_or_else(|_| "HEAD".to_string());
-        return Ok(Some((b.to_string(), head)));
+        return Ok(Some((b.to_string(), head_ref())));
     }
-    if let Ok(b) = std::env::var("VOX_LINE_ENDINGS_BASE")
-        && !b.is_empty()
-    {
-        let head = std::env::var("VOX_LINE_ENDINGS_HEAD").unwrap_or_else(|_| "HEAD".to_string());
-        return Ok(Some((b, head)));
+    if let Some(b) = resolve_secret(SecretId::VoxLineEndingsBase).expose() {
+        return Ok(Some((b.to_string(), head_ref())));
     }
     let base_sha = std::env::var("GITHUB_BASE_SHA")
         .ok()
         .filter(|s| !s.is_empty());
-    let sha = std::env::var("GITHUB_SHA").ok().filter(|s| !s.is_empty());
+    let sha = resolve_secret(SecretId::VoxGithubSha)
+        .expose()
+        .map(str::to_string);
     if let (Some(b), Some(h)) = (base_sha, sha) {
         return Ok(Some((b, h)));
     }
