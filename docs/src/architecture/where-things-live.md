@@ -106,7 +106,6 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-llm-egress`](../../../crates/vox-llm-egress/) | Sanctioned LLM provider wire; pure egress (deps = vox-http-client + reqwest), no config/secret resolution. |
 | [`vox-mcp-registry`](../../../crates/vox-mcp-registry/) | Compile-time MCP tool name/description registry from contracts YAML (SSOT). |
 | [`vox-llm-egress`](../../../crates/vox-llm-egress/) | Sanctioned LLM provider wire; pure egress, no config/secret resolution. |
-| [`vox-plugin-mens-candle-core`](../../../crates/vox-plugin-mens-candle-core/) | Device-agnostic Candle QLoRA training/inference code shared by `vox-plugin-mens-candle-metal` and `vox-plugin-mens-candle-cuda` (config, manifest/model-card types, HF key/layout mapping, merge, preflight, telemetry, device-kind resolution). No cdylib entry point; `rlib` only. |
 | [`vox-project-scaffold`](../../../crates/vox-project-scaffold/) | Shared Vox.toml + src/main.vox + skill scaffolding for vox init and MCP. |
 | [`vox-repository`](../../../crates/vox-repository/) | Repository discovery, stable identity, layout probes, and agent scope helpers for external and internal Vox workspaces. |
 | [`vox-similarity`](../../../crates/vox-similarity/) | Pure simhash/minhash/LSH near-duplicate similarity core for discovery + marketplace dedup. |
@@ -331,6 +330,7 @@ Don't depend on `vox-orchestrator` or `vox-cli` from a plugin.
 | `vox-plugin-cloud` _(planned)_ | CloudSync plugin stub: HF Hub / S3 model artifact sync. |
 | [`vox-plugin-mens-candle-cuda`](../../../crates/vox-plugin-mens-candle-cuda/) | ML training backend plugin: Candle + CUDA. Implements MlBackend. |
 | [`vox-plugin-mens-candle-metal`](../../../crates/vox-plugin-mens-candle-metal/) | MENS Apple Silicon Metal execution plugin. |
+| [`vox-plugin-mens-candle-core`](../../../crates/vox-plugin-mens-candle-core/) | Device-agnostic Candle QLoRA training/inference code shared by `vox-plugin-mens-candle-metal` and `vox-plugin-mens-candle-cuda` (config, manifest/model-card types, HF key/layout mapping, merge, preflight, telemetry, device-kind resolution). No cdylib entry point; `rlib` only. L4 because only those two plugins link it and its Candle deps are unconditional, which keeps Candle out of CORE L0–L3. |
 | [`vox-plugin-nvml-probe`](../../../crates/vox-plugin-nvml-probe/) | Hardware probe plugin: NVML for NVIDIA GPU introspection. |
 | [`vox-plugin-speech`](../../../crates/vox-plugin-speech/) | Speech-to-text + AudioCapture plugin: Candle Whisper backend + mic capture surface (both extensions in one plugin). |
 | [`vox-plugin-populi-mesh`](../../../crates/vox-plugin-populi-mesh/) | Populi mesh transport plugin (composite: code + skill). |

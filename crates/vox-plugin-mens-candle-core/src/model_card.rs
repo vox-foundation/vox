@@ -6,10 +6,10 @@
 //!
 //! `vox-populi/src/mens/tensor/model_card.rs` carries a THIRD, still-separate
 //! copy of this exact type. Folding it in here too would need vox-populi
-//! (layer 2 in `contracts/ci/crate-layers.v1.json`) to depend on this crate
-//! (layer 4 — set by its own dependency on `vox-tensor`/`vox-hf-layout`,
-//! which sit at layers 3-4), an upward edge that `vox ci crate-edges` blocks
-//! unless a user adds a grandfathered `exceptions` entry (USER-AUTHORIZED-ONLY
+//! (layer 3 in `docs/src/architecture/layers.toml`) to depend on this crate
+//! (layer 4: a plugin-only rlib whose unconditional Candle deps must stay out
+//! of CORE L0-L3), an upward edge that `vox ci crate-edges` and vox-arch-check
+//! block unless a user adds a grandfathered `exceptions` entry (USER-AUTHORIZED-ONLY
 //! per AGENTS.md §Dependency Discipline — not something to add unilaterally).
 
 use std::path::Path;
