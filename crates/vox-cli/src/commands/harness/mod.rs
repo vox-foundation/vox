@@ -1,5 +1,5 @@
 //! `vox harness` — self-evaluation of the Vox agent harness (as opposed to
-//! `vox model eval`, which scores *models*). See [`eval`].
+//! `vox model eval`, which scores *models*). See `eval`.
 
 use clap::{Parser, Subcommand};
 

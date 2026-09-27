@@ -176,7 +176,8 @@ jobs:
           P_ARGS: ${{ needs.linux.outputs.p_args }}   # crate names validated by `vox ci affected-crates`
           SHARD: ${{ matrix.shard }}
         # $P_ARGS is deliberately unquoted so it splits into `-p <crate>` words.
-        run: cargo nextest run $P_ARGS --profile ci --locked --no-tests=pass --partition "hash:${SHARD}/3"
+        # ci-gate = ci + a quarantine of tests red on main (issue #569); nightly runs them all.
+        run: cargo nextest run $P_ARGS --profile ci-gate --locked --no-tests=pass --partition "hash:${SHARD}/3"
 
       - name: Warn when the leg nears its 30-min cap
         if: always()

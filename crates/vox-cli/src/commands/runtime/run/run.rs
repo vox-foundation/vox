@@ -32,7 +32,7 @@ fn has_service_surface(head: &str) -> bool {
 
 /// Returns `true` if `file` should be executed as a standalone script rather
 /// than a web-app dev server, using the **service-surface** heuristic (see
-/// [`has_service_surface`]) on the first 8 KiB (no full parse). Prefer
+/// `has_service_surface`) on the first 8 KiB (no full parse). Prefer
 /// `Vox.toml` `[web] run_mode` when that scan is insufficient
 /// (`vox_config::WebRunMode`).
 pub fn is_script_file_by_page_heuristic(file: &Path) -> bool {

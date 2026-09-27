@@ -682,6 +682,11 @@ jobs:
           key: ${{ needs.setup.outputs.cache-key }}
           restore-keys: |
             ${{ runner.os }}-cargo-
+      # Hosted images don't ship cargo-llvm-cov (the retired self-hosted image
+      # did); cargo-nextest comes from ./.github/actions/setup-rust.
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
 
       - name: Integration smokes (affected intersection)
         shell: bash
@@ -1548,15 +1553,24 @@ jobs:
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-nextest,cargo-deny,cargo-audit
+      # Independent checks: each runs even if an earlier one failed (the job still
+      # fails), so one red lint never hides the others -- and nextest always builds
+      # the test artifacts this job's cache hands to ci.yml's `tests` shards (a
+      # rustdoc error ahead of nextest once left that cache without them).
       - run: cargo build -p vox-cli --locked
-      - run: cargo clippy --workspace --exclude vox-gui --all-targets --locked -- -D warnings
-      - run: cargo doc --workspace --exclude vox-gui --no-deps --locked
+      - run: cargo nextest run --workspace --exclude vox-gui --profile ci --locked
+      - if: ${{ !cancelled() }}
+        run: cargo clippy --workspace --exclude vox-gui --all-targets --locked -- -D warnings
+      - if: ${{ !cancelled() }}
+        run: cargo doc --workspace --exclude vox-gui --no-deps --locked --keep-going
         env:
           RUSTDOCFLAGS: -D warnings
-      - run: cargo nextest run --workspace --exclude vox-gui --profile ci --locked
-      - run: cargo test --workspace --exclude vox-gui --doc --locked
-      - run: cargo deny check
-      - run: cargo audit
+      - if: ${{ !cancelled() }}
+        run: cargo test --workspace --exclude vox-gui --doc --locked
+      - if: ${{ !cancelled() }}
+        run: cargo deny check
+      - if: ${{ !cancelled() }}
+        run: cargo audit
 
   # Portable Windows lane: proves the Tauri shell compiles and the binary starts
   # (headless `--print-action-manifest-json`). Catches manifest/sidecar/icon drift

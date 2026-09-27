@@ -55,7 +55,7 @@ fn dominates(a: &ParetoPoint, b: &ParetoPoint) -> bool {
 
 /// Positions of every point that no other point dominates, in input order.
 ///
-/// Never returns empty for non-empty input: [`dominates`] is irreflexive and transitive —
+/// Never returns empty for non-empty input: `dominates` is irreflexive and transitive —
 /// transitive *because* an unknown axis is incomparable rather than neutral, so no chain of
 /// comparisons can cycle — and a strict partial order on a finite set always has a maximal
 /// element. A `NaN` quality is incomparable in both directions, so such a point is always

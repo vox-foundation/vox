@@ -1,6 +1,6 @@
 //! GUI visual AI adversarial review. Advisory: never gates CI.
 //!
-//! Deprecated-pending-removal: the legacy `Manifest`/[`run()`] capture-manifest
+//! Deprecated-pending-removal: the legacy `Manifest`/`run()` capture-manifest
 //! path (screenshots-variants/visual-review specs + `screenshotManifest.ts`) is
 //! unreachable from CI as of Task 12 of the Axis frontend review harness plan
 //! (`docs/superpowers/plans/2026-07-18-axis-frontend-review-harness.md`) — CI

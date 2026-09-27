@@ -140,7 +140,7 @@ pub(crate) fn privacy_allows_for_mode(m: &ModelSpec, local_only: bool) -> bool {
 
 /// Purpose-built for `vox harness eval`'s `privacy-filter-blocks-live-routing`
 /// golden task (`crates/vox-cli/src/commands/harness/eval.rs`): exercises
-/// [`privacy_allows_for_mode`] — the real decision core `privacy_allows`
+/// `privacy_allows_for_mode` — the real decision core `privacy_allows`
 /// delegates to — against a cloud-provider and a local-provider fixture,
 /// asserting the hard filter blocks cloud routing under `local_only` and
 /// allows both providers when not `local_only`. `pub` (not `pub(crate)`)

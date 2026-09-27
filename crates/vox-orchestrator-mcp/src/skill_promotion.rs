@@ -356,7 +356,7 @@ pub fn build_verification_prompt(draft: &CandidateSkillDraft) -> String {
 /// filter as inference routing elsewhere (Task 2.2) — `is_local_provider`
 /// should be `vox_orchestrator::route_policy::is_local_http_provider(&model.provider_type)`
 /// for the model backing `config`, and `privacy_local_only` MUST be derived
-/// from the same source [`crate::llm_bridge::local_health::privacy_allows`]
+/// from the same source `crate::llm_bridge::local_health::privacy_allows`
 /// uses internally (`VOX_INFERENCE_PRIVACY=local_only`, read via that
 /// module's private `inference_privacy_mode()`) — never a separately/ad-hoc
 /// computed value. Kept as plain bool parameters (rather than importing
@@ -406,7 +406,7 @@ pub async fn llm_chat_judge(
 /// Thin real-wiring wrapper around [`llm_chat_judge`] for the (not-yet-added)
 /// production call site: computes `is_local_provider` and
 /// `privacy_local_only` directly from the canonical, already-tested
-/// `local_health` predicates — [`crate::llm_bridge::local_health::privacy_allows`]
+/// `local_health` predicates — `crate::llm_bridge::local_health::privacy_allows`
 /// and `vox_orchestrator::route_policy::is_local_http_provider` — instead of
 /// requiring the caller to independently derive them (the drift risk the
 /// bare-bool `llm_chat_judge` signature otherwise leaves open). `model` must

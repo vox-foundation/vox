@@ -493,6 +493,42 @@ fn ci_gate_job_runs_unconditionally_and_checks_both_deps() {
     );
 }
 
+/// The quarantine (issue #569) applies to the PR gate only: the gate's shards run
+/// `--profile ci-gate`, while nightly's full run keeps `--profile ci` so the
+/// quarantined tests stay visible. Swapping either profile would either re-redden
+/// every full-run PR or silently hide the quarantined failures everywhere.
+#[test]
+fn quarantine_is_gate_only_and_nightly_still_runs_everything() {
+    let ci = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/ci.yml"
+    ));
+    let nightly = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/nightly.yml"
+    ));
+    let nextest = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.config/nextest.toml"
+    ));
+    assert!(
+        ci.contains("--profile ci-gate --locked --no-tests=pass --partition"),
+        "gate shards must use the ci-gate profile"
+    );
+    assert!(
+        !nightly.contains("--profile ci-gate"),
+        "nightly must not use the quarantining profile"
+    );
+    assert!(
+        nightly.contains("cargo nextest run --workspace --exclude vox-gui --profile ci --locked"),
+        "nightly's full job must run the whole suite under the ci profile"
+    );
+    assert!(
+        nextest.contains("[profile.ci-gate]") && nextest.contains("issues/569"),
+        "ci-gate must exist and point at its tracking issue"
+    );
+}
+
 /// The full-workspace suite's execution alone is ~21 min on a 4-core hosted
 /// runner, so it cannot share a 30-min job with the vox build and clippy.
 #[test]

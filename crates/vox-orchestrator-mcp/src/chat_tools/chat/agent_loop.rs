@@ -172,7 +172,7 @@ pub(crate) const DEFAULT_MAX_ITERATIONS: usize = 8;
 /// Result of running one agent turn to completion (or to the iteration bound).
 ///
 /// Called from `vox_chat_message`'s live entrypoint (`message.rs`) for the subset
-/// of provider/model choices [`model_spec_to_llm_config`] can map without the
+/// of provider/model choices `model_spec_to_llm_config` can map without the
 /// full `mcp_infer_completion` fallback pipeline (Task 1.3d, F24).
 #[derive(Debug, Clone)]
 pub struct AgentTurnOutcome {
@@ -188,7 +188,7 @@ pub struct AgentTurnOutcome {
     /// this turn (for observability/tests — not the same as iteration count, since
     /// one iteration's response may request several calls at once).
     pub tool_calls_made: usize,
-    /// `true` if the loop stopped only because [`DEFAULT_MAX_ITERATIONS`] (or the
+    /// `true` if the loop stopped only because `DEFAULT_MAX_ITERATIONS` (or the
     /// caller-supplied `max_iterations`) was reached while the model was still
     /// requesting tools, rather than because the model returned a final answer.
     pub hit_iteration_limit: bool,
@@ -197,7 +197,7 @@ pub struct AgentTurnOutcome {
     /// bookkeeping — `message.rs` records this alongside the persisted turn).
     pub total_tokens: u64,
     /// Chat-turn-visible events derived from tool RESULTS during this turn (see
-    /// [`turn_event_for_result`]) — e.g. a skill activation chip. Empty unless a
+    /// `turn_event_for_result`) — e.g. a skill activation chip. Empty unless a
     /// dispatched tool call both matches a known event-worthy tool AND actually
     /// succeeded.
     pub events: Vec<serde_json::Value>,
@@ -1084,9 +1084,9 @@ pub(crate) async fn run_agent_turn(
 /// Purpose-built for `vox harness eval`'s `agent-loop-terminates` golden task
 /// (`crates/vox-cli/src/commands/harness/eval.rs`): stands up a wiremock model
 /// server that always returns a tool call (never a final answer) and runs
-/// [`run_agent_turn`] against it, asserting the loop genuinely stops at its
+/// `run_agent_turn` against it, asserting the loop genuinely stops at its
 /// `max_iterations` bound rather than recursing forever — the property
-/// [`DEFAULT_MAX_ITERATIONS`] exists to guarantee. `pub` (not `pub(crate)`)
+/// `DEFAULT_MAX_ITERATIONS` exists to guarantee. `pub` (not `pub(crate)`)
 /// specifically so `vox-cli`'s eval gate, in a different crate, can call it.
 /// Hermetic: the mock server is entirely local (no real network egress), and
 /// the `ServerState` built here (via [`ServerState::hermetic_stub`]) does no

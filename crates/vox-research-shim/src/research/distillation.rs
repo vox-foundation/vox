@@ -89,7 +89,7 @@ pub fn verify_span_grounding(raw_content: &str, unit: &ClaimEvidenceUnit) -> boo
     true
 }
 
-/// Extract root domain from URL string (e.g. "https://docs.rs/example/path" -> "docs.rs").
+/// Extract root domain from URL string (e.g. `https://docs.rs/example/path` -> "docs.rs").
 pub fn extract_registrable_domain(url: &str) -> String {
     let stripped = url
         .trim_start_matches("https://")

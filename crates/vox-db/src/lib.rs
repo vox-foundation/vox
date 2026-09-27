@@ -426,7 +426,7 @@ impl VoxDb {
 /// `turso::Connection::clone()` does **not** create an independent connection: it clones an
 /// `Arc` to the same underlying `turso_sdk_kit::rsapi::TursoConnection`, which itself guards
 /// every `step()` (the primitive under `query`/`execute`/`execute_batch`/`prepare`) with an
-/// atomic [`ConcurrentGuard`]. Two async tasks that call into *any* clones of the same
+/// atomic `ConcurrentGuard`. Two async tasks that call into *any* clones of the same
 /// connection at literally the same instant (e.g. two Tauri GUI commands dispatched close
 /// together on a multi-threaded Tokio runtime, or a background poll racing a user action) can
 /// have their `step()` polls genuinely overlap on different OS threads, tripping that guard and

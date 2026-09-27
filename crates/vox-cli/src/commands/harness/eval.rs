@@ -13,7 +13,7 @@
 //!
 //! ## Adding a golden task
 //!
-//! Add a `GoldenTask` to [`golden_tasks`]. Each task is a `fn() -> Result<()>`
+//! Add a `GoldenTask` to `golden_tasks`. Each task is a `fn() -> Result<()>`
 //! that must be:
 //! - **Deterministic**: same inputs, same result, every time.
 //! - **Hermetic**: no live network or live model calls, no dependency on

@@ -295,7 +295,7 @@ impl VoxDb {
     /// captured anywhere between the wire response and `AgentTurnOutcome` today — a real gap,
     /// left for a follow-up rather than a blind cross-crate wire-parsing change) or "user
     /// re-asked within 2 turns" (that needs lookahead the caller doesn't have yet — see
-    /// [`Self::queue_live_chat_reask_check`]/[`Self::rescore_pending_live_chat_reask`], which
+    /// `Self::queue_live_chat_reask_check`/`Self::rescore_pending_live_chat_reask`, which
     /// AND that signal in retroactively once it's knowable).
     #[allow(clippy::too_many_arguments)]
     pub async fn record_live_chat_turn(

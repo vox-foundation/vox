@@ -15,7 +15,7 @@ use crate::params::ToolResult;
 /// Dispatch a federated workspace tool by name.
 ///
 /// `workspace_root` scopes the interpreter's filesystem grant (see
-/// [`invoke_mcp_tool_fn`]) — pass the same root the [`WorkspaceMcpSurface`] was
+/// `invoke_mcp_tool_fn`) — pass the same root the `WorkspaceMcpSurface` was
 /// loaded from.
 pub fn dispatch_workspace_tool(
     surface: &WorkspaceMcpSurface,
@@ -35,7 +35,7 @@ pub fn dispatch_workspace_tool(
 /// Read a federated workspace resource URI by invoking its nullary @mcp.resource fn.
 ///
 /// `workspace_root` scopes the interpreter's filesystem grant (see
-/// [`invoke_mcp_resource_fn`]) — pass the same root the [`WorkspaceMcpSurface`] was
+/// `invoke_mcp_resource_fn`) — pass the same root the `WorkspaceMcpSurface` was
 /// loaded from.
 pub fn dispatch_workspace_resource(
     surface: &WorkspaceMcpSurface,

@@ -1,5 +1,5 @@
 //! Chat-route → [`crate::llm::LlmConfig`] conversion (`chat_route_to_llm_config`),
-//! telemetry labels (`route_telemetry_labels`), and [`RouteResolutionInput`] model
+//! telemetry labels (`route_telemetry_labels`), and `RouteResolutionInput` model
 //! preferences for the research cascade builders.
 //!
 //! The former 7-way provider-route resolver (`resolve_chat_provider_route`) was

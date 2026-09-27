@@ -78,7 +78,7 @@ pub struct MixSource {
     pub optional: bool,
     /// Probability (0.0 to 1.0) of including a row in the output. Decided per row from
     /// a hash of (mix `seed`, source `path`, line), so the same inputs always keep the
-    /// same rows (see [`keep_sampled_line`]).
+    /// same rows (see `keep_sampled_line`).
     #[serde(default)]
     pub sample_rate: Option<f64>,
     /// Hard cap on the number of lines emitted from this source.
