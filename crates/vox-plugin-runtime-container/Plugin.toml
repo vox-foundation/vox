@@ -1,7 +1,7 @@
 [plugin]
 id = "runtime-container"
 name = "Container Skill Runtime"
-version = "0.1.0"
+version = "0.6.0"
 description = "Skill-runtime plugin: Docker and Podman backends for sandboxed skill execution."
 license = "Apache-2.0"
 

@@ -1,7 +1,7 @@
 [plugin]
 id = "nvml-probe"
 name = "NVIDIA NVML Hardware Probe"
-version = "0.1.0"
+version = "0.6.0"
 description = "Probes NVIDIA GPUs via NVML for device count, names, memory, utilization, temperature."
 license = "Apache-2.0"
 

@@ -1,7 +1,7 @@
 [plugin]
 id = "runtime-wasm"
 name = "WASM Skill Runtime"
-version = "0.1.0"
+version = "0.6.0"
 description = "Skill-runtime plugin: wasmtime-based WASI sandbox (default for pure-compute skills). Faster cold start than containers, no external daemon."
 license = "Apache-2.0"
 

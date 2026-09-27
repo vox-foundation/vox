@@ -1,7 +1,7 @@
 [plugin]
 id = "browser"
 name = "Browser Automation (CDP)"
-version = "0.1.0"
+version = "0.6.0"
 description = "Chrome DevTools Protocol browser automation via chromiumoxide."
 license = "Apache-2.0"
 

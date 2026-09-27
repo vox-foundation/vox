@@ -1,7 +1,7 @@
 [plugin]
 id = "populi-mesh"
 name = "Populi Mesh"
-version = "0.1.0"
+version = "0.6.0"
 description = "Populi mesh transport (HTTP control plane, A2A dispatch) + agent skill."
 license = "Apache-2.0"
 
