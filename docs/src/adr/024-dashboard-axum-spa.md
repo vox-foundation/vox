@@ -9,7 +9,7 @@ schema_type: "TechArticle"
 
 # ADR 024 — Dashboard as local Axum-served SPA
 
-**Status**: Accepted  
+**Status**: Superseded (2026-05-11) by [ADR-045](045-tauri-gui-replaces-axum-dashboard.md) — `crates/vox-dashboard` was decommissioned in favor of the native Tauri `vox-gui` application. `crates/vox-dashboard` no longer exists in the tree.
 **Date**: 2026-04-23
 
 ---
