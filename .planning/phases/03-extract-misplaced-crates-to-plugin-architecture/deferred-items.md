@@ -50,8 +50,18 @@
   6. Re-run vox-arch-check and crate-edges.
 - Stale crate-edges baseline entry `vox-populi -> vox-grammar-export`: **fixed** in `07a681ca7` (2026-09-27).
   `--tighten` refuses while the three NEW EDGE violations stand, so the one pair was removed by hand
-  (removal-only diff); the stale warning is gone. The three violations themselves remain open.
-- **Still open — `docs/src/reference/cli.md:970`** names the retired `VOX_MCP_ORCHESTRATOR_RPC_WRITES`; the file
-  carries another session's uncommitted edits, so the one-line fix waits for that session.
+  (removal-only diff); the stale warning is gone.
+- The three crate-edges NEW EDGE violations: **resolved** (2026-09-27).
+  - `vox-gui -> vox-db-types`: dependency removed, no exception needed. `2285de1fe` switched the four uses to
+    `vox_db`'s re-exports. `2c8c27348` dropped the dependency. That commit also carries the one-line Cargo.lock hunk,
+    the regenerated crate-graph and the build-map delta (vox-db-types `fan_in` 3 -> 2).
+  - `vox-research-shim -> vox-compiler` and `vox-gui -> vox-research-shim`: user-authorized exceptions,
+    `7f1dadf43`.
+  - After these, `ci crate-edges` reports only the `vox-orchestrator -> vox-plugin-nvml-probe` layer
+    inversion above.
+- `docs/src/reference/cli.md:970` retired `VOX_MCP_ORCHESTRATOR_RPC_WRITES`: **fixed** in `7ba445c14`. The line
+  now names the status-tool pilot and its RPC_READS umbrella. Only that hunk was committed. The file's other
+  uncommitted line documents `vox graph history`. That command is wired only by the uncommitted vox-cli
+  `graphify/mod.rs` + command-registry changes, which are still idle.
 - **Still open — webhook auth for GitHub/Slack/Discord:** the listener accepts only `Authorization: Bearer`;
   those providers need a relay that adds the header, or per-source HMAC verification as a second path.
