@@ -135,6 +135,30 @@ pub struct TavilyCredits {
     pub remaining: usize,
 }
 
+/// A research run that failed after retrieval started, carrying the run's
+/// per-provider log so a trace can show which provider failed. Transparent:
+/// `Display` and `source()` are the wrapped error's, so `{}` / `{:#}` / `?`
+/// callers see exactly the same error as before. Recover it with
+/// `anyhow::Error::downcast_ref::<ResearchRunFailure>()`.
+#[derive(Debug)]
+pub struct ResearchRunFailure {
+    pub error: anyhow::Error,
+    pub providers: Vec<ProviderCallSummary>,
+    pub tavily_credits: Option<TavilyCredits>,
+}
+
+impl std::fmt::Display for ResearchRunFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(&*self.error, f)
+    }
+}
+
+impl std::error::Error for ResearchRunFailure {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        self.error.source()
+    }
+}
+
 impl Default for RetrievalDiagnostics {
     fn default() -> Self {
         Self {

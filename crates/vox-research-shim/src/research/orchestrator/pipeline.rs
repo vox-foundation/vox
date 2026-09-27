@@ -15,7 +15,7 @@ use super::super::provider::ProviderRegistry;
 use super::super::types::{
     Citation, CitationAuditResult, ClaimSupport, CompetenceSignal, ResearchDomainMode, ResearchHit,
     ResearchMetadata, ResearchPlan, ResearchQuery, ResearchResult, ResearchRunArtifact,
-    ResearchScope, ResearchStage, RetrievalDiagnostics, RoutingTier,
+    ResearchRunFailure, ResearchScope, ResearchStage, RetrievalDiagnostics, RoutingTier,
 };
 use super::super::verifier::verify_claims_with_config;
 use super::config::ResearchConfig;
@@ -287,8 +287,11 @@ pub async fn run_research_with_context_and_session(
 
     if all_hits.is_empty() {
         set_session_stage(db, session_id, ResearchStage::Failed).await;
-        return Err(anyhow::anyhow!(
-            "Zero research hits retrieved. Halting to prevent hallucinated synthesis."
+        return Err(failed_with_provider_log(
+            anyhow::anyhow!(
+                "Zero research hits retrieved. Halting to prevent hallucinated synthesis."
+            ),
+            registry,
         ));
     }
 
@@ -872,7 +875,7 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
         Ok(a) => a,
         Err(e) => {
             set_session_stage(db, session_id, ResearchStage::Failed).await;
-            return Err(e);
+            return Err(failed_with_provider_log(e, registry));
         }
     };
 
@@ -1123,6 +1126,17 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
 
 /// Best-effort stage status update. Errors are logged and swallowed so a
 /// transient DB failure never aborts the research pipeline.
+/// Wrap a run failure with the provider log gathered so far (see
+/// [`ResearchRunFailure`]); the error text callers see is unchanged.
+fn failed_with_provider_log(error: anyhow::Error, registry: ProviderRegistry) -> anyhow::Error {
+    let (providers, tavily_credits) = registry.into_retrieval_log();
+    anyhow::Error::new(ResearchRunFailure {
+        error,
+        providers,
+        tavily_credits,
+    })
+}
+
 async fn set_session_stage(db: Option<&Codex>, session_id: i64, stage: ResearchStage) {
     if session_id <= 0 {
         return;

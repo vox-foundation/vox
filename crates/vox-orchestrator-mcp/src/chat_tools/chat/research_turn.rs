@@ -434,16 +434,60 @@ pub async fn run_deep(
             Ok(r.answer)
         }
         Err(e) => {
-            trace.push(StageRecord::new(
-                "deep_pipeline",
-                "failed",
-                Some(t.elapsed().as_millis() as u64),
-                e.to_string(),
-                json!({}),
-            ));
+            for s in failed_deep_stages(&e, t.elapsed().as_millis() as u64) {
+                trace.push(s);
+            }
             Err(e.to_string())
         }
     }
+}
+
+/// Trace stages for a failed deep run: the retrieval stage from the provider
+/// log the pipeline carries on its error (`ResearchRunFailure`) when it failed
+/// after retrieval started, then the failure itself.
+pub fn failed_deep_stages(e: &anyhow::Error, elapsed_ms: u64) -> Vec<StageRecord> {
+    use vox_research_shim::research::types::ResearchRunFailure;
+    let mut out = Vec::new();
+    if let Some(f) = e.downcast_ref::<ResearchRunFailure>() {
+        let hits: usize = f
+            .providers
+            .iter()
+            .map(|p| match p.status {
+                ProviderStatus::Ok { hits } => hits,
+                _ => 0,
+            })
+            .sum();
+        let answered = f
+            .providers
+            .iter()
+            .filter(|p| matches!(p.status, ProviderStatus::Ok { hits } if hits > 0))
+            .count();
+        // Same rule as quick retrieval (see `any_provider_failed`).
+        let failed = any_provider_failed(f.providers.iter().map(|p| &p.status));
+        out.push(StageRecord::new(
+            "retrieval",
+            match (hits == 0, failed) {
+                (true, true) => "failed",
+                (true, false) => "empty",
+                (false, true) => "degraded",
+                (false, false) => "ok",
+            },
+            None,
+            format!(
+                "{hits} hits from {answered}/{} providers",
+                f.providers.len()
+            ),
+            json!({ "providers": f.providers, "tavily_credits": f.tavily_credits }),
+        ));
+    }
+    out.push(StageRecord::new(
+        "deep_pipeline",
+        "failed",
+        Some(elapsed_ms),
+        e.to_string(),
+        json!({}),
+    ));
+    out
 }
 
 /// Map a completed pipeline result onto trace stages.
@@ -755,6 +799,61 @@ mod tests {
             retrieval.detail["tavily_credits"],
             json!({ "used": 50, "remaining": 0 })
         );
+    }
+
+    /// Task 9b: a failed deep run still renders its provider table and credits
+    /// (from the `ResearchRunFailure` the pipeline attaches), then the failure.
+    #[test]
+    fn failed_deep_run_renders_retrieval_from_the_carried_provider_log() {
+        use vox_research_shim::research::types::{
+            ProviderCallSummary, ResearchRunFailure, TavilyCredits,
+        };
+        let row = |provider: &str, status: ProviderStatus| ProviderCallSummary {
+            provider: provider.into(),
+            status,
+            elapsed_ms: 10,
+            calls: 1,
+        };
+        let err = anyhow::Error::new(ResearchRunFailure {
+            error: anyhow::anyhow!("Zero research hits retrieved. Halting."),
+            providers: vec![
+                row(
+                    "openalex",
+                    ProviderStatus::Error {
+                        message: "HTTP 503".into(),
+                    },
+                ),
+                row("tavily", ProviderStatus::BudgetExhausted),
+            ],
+            tavily_credits: Some(TavilyCredits {
+                used: 50,
+                remaining: 0,
+            }),
+        });
+
+        let stages = failed_deep_stages(&err, 1234);
+        let names: Vec<&str> = stages.iter().map(|s| s.stage).collect();
+        assert_eq!(names, vec!["retrieval", "deep_pipeline"]);
+        let retrieval = &stages[0];
+        assert_eq!(retrieval.status, "failed", "0 hits and openalex errored");
+        assert_eq!(retrieval.summary, "0 hits from 0/2 providers");
+        assert_eq!(retrieval.detail["providers"][0]["status"]["state"], "error");
+        assert_eq!(
+            retrieval.detail["providers"][1]["status"]["state"],
+            "budget_exhausted"
+        );
+        assert_eq!(
+            retrieval.detail["tavily_credits"],
+            json!({ "used": 50, "remaining": 0 })
+        );
+        assert_eq!(stages[1].status, "failed");
+        assert_eq!(stages[1].summary, "Zero research hits retrieved. Halting.");
+        assert_eq!(stages[1].elapsed_ms, Some(1234));
+
+        // A failure without a carried log (e.g. before retrieval) stays one stage.
+        let plain = failed_deep_stages(&anyhow::anyhow!("boom"), 5);
+        assert_eq!(plain.len(), 1);
+        assert_eq!(plain[0].stage, "deep_pipeline");
     }
 
     /// Task 9 review m3/m8: one degrade rule for quick and deep retrieval —

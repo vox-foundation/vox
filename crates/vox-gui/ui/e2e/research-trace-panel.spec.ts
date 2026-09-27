@@ -1,9 +1,10 @@
 /**
  * Research trace panel under a sync chat reply, driven by RECORDED live daemon
  * replies (e2e/fixtures/research-trace/*.json — each names its source run).
- * The two `.derived.json` fixtures are real runs with one labelled edit each:
- * tavily swapped to budget_exhausted (no live run exhausted the budget), and a
- * deep run given the provider table deep traces only carry since Task 9.
+ * The `.derived.json` fixtures are real runs with one labelled edit each:
+ * tavily swapped to budget_exhausted (no live run exhausted the budget), a
+ * deep run given the provider table deep traces only carry since Task 9, and
+ * a failed deep run given the retrieval stage failed runs carry since Task 9b.
  * Screenshots taken from a derived fixture carry a `-derived` filename suffix.
  *
  * The base tauriMock is extended with a `chat_turn` handler returning the
@@ -34,6 +35,7 @@ const budget = load('quick-budget-exhausted.derived');
 const deepOk = load('deep-ok');
 const deepProviders = load('deep-providers.derived');
 const deepFailed = load('deep-failed');
+const deepFailedProviders = load('deep-failed-providers.derived');
 const noResearch = load('no-research');
 
 /** Self-contained (serialized into the page): wraps the base invoke for `chat_turn`. */
@@ -148,6 +150,18 @@ for (const theme of ['dark', 'light'] as const) {
       await expect(page.getByTestId('research-trace')).toHaveAttribute('data-status', 'failed');
       await expect(page.getByTestId('research-stage-deep_pipeline')).toHaveText(/No API key available/);
       await shot(page, `research-trace-deep-failed-${theme}`);
+    });
+
+    test('failed deep research still shows the provider table', async ({ page }) => {
+      await sendTurn(page, deepFailedProviders, theme);
+      const panel = await expandedPanel(page);
+      await expect(page.getByTestId('research-trace')).toHaveAttribute('data-status', 'failed');
+      const retrieval = panel.getByTestId('research-stage-retrieval');
+      await expect(retrieval).toHaveAttribute('data-status', 'degraded');
+      await expect(retrieval.getByTestId('research-provider')).toHaveCount(5);
+      await expect(retrieval.locator('[data-provider="openalex"]')).toHaveText(/429 Too Many Requests/);
+      await expect(page.getByTestId('research-stage-deep_pipeline')).toHaveText(/No API key available/);
+      await shot(page, `research-trace-deep-failed-providers-derived-${theme}`);
     });
 
     test('non-research turn shows the compact "No research" detection line', async ({ page }) => {
