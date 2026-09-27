@@ -103,7 +103,7 @@ fn write_plugin_toml(dir: &Path, id: &str, kind: ScaffoldKind) -> Result<()> {
         "[plugin]\n\
          id = {:?}\n\
          name = {:?}\n\
-         version = \"0.1.0\"\n\
+         version = {:?}\n\
          description = \"TODO: describe your plugin.\"\n\
          status = \"alpha\"\n\
          \n\
@@ -111,7 +111,10 @@ fn write_plugin_toml(dir: &Path, id: &str, kind: ScaffoldKind) -> Result<()> {
          min-vox-version = \"0.5.0\"\n\
          \n\
          {payload_section}",
-        id, id
+        id,
+        id,
+        // The host loads a code plugin only when this equals its own version.
+        env!("CARGO_PKG_VERSION")
     );
     write_file(&dir.join("Plugin.toml"), &content)
 }
@@ -256,6 +259,9 @@ mod tests {
         // …and the manifest stamps the host's *current* ABI version (so it loads as-is).
         let manifest = std::fs::read_to_string(dir.join("Plugin.toml")).unwrap();
         assert!(manifest.contains(&format!("abi-version = {VOX_PLUGIN_ABI_VERSION}")));
+        // The host refuses a code plugin whose version differs from its own.
+        let version_line = format!("\nversion = \"{}\"\n", env!("CARGO_PKG_VERSION"));
+        assert!(manifest.contains(&version_line), "{manifest}");
     }
 
     #[test]

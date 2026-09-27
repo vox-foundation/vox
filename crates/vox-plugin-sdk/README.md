@@ -26,7 +26,7 @@ vox-plugin-sdk = "0.6"
 [plugin]
 id = "my-plugin"
 name = "My Plugin"
-version = "0.1.0"
+version = "0.6.0"  # must equal the vox version that loads it
 description = "Does something useful."
 license = "Apache-2.0"
 
