@@ -418,18 +418,7 @@ pub async fn run_deep(
             for s in deep_stages(&r) {
                 trace.push(s);
             }
-            trace.sources = r
-                .sources
-                .iter()
-                .enumerate()
-                .map(|(i, h)| Source {
-                    n: i + 1,
-                    url: h.url.clone(),
-                    title: h.title.clone(),
-                    engine: "pipeline".into(),
-                    snippet: h.snippet.chars().take(600).collect(),
-                })
-                .collect();
+            trace.sources = pipeline_sources(&r.sources);
             trace.model = Some(r.research_metadata.synthesis_model.clone());
             Ok(r.answer)
         }
@@ -437,9 +426,33 @@ pub async fn run_deep(
             for s in failed_deep_stages(&e, t.elapsed().as_millis() as u64) {
                 trace.push(s);
             }
+            // The sources the run had kept when it failed, so the header's
+            // source count matches the retrieval stage (not a blanket 0).
+            trace.sources = failed_run_sources(&e);
             Err(e.to_string())
         }
     }
+}
+
+fn pipeline_sources(hits: &[vox_research_shim::research::types::ResearchHit]) -> Vec<Source> {
+    hits.iter()
+        .enumerate()
+        .map(|(i, h)| Source {
+            n: i + 1,
+            url: h.url.clone(),
+            title: h.title.clone(),
+            engine: "pipeline".into(),
+            snippet: h.snippet.chars().take(600).collect(),
+        })
+        .collect()
+}
+
+/// Sources a failed deep run had kept (`ResearchRunFailure::sources`); empty
+/// for a failure that carries no log.
+pub fn failed_run_sources(e: &anyhow::Error) -> Vec<Source> {
+    e.downcast_ref::<vox_research_shim::research::types::ResearchRunFailure>()
+        .map(|f| pipeline_sources(&f.sources))
+        .unwrap_or_default()
 }
 
 /// Trace stages for a failed deep run: the retrieval stage from the provider
@@ -449,7 +462,9 @@ pub fn failed_deep_stages(e: &anyhow::Error, elapsed_ms: u64) -> Vec<StageRecord
     use vox_research_shim::research::types::ResearchRunFailure;
     let mut out = Vec::new();
     if let Some(f) = e.downcast_ref::<ResearchRunFailure>() {
-        let hits: usize = f
+        // Raw provider hits (before dedupe/filtering) vs. hits the run kept:
+        // a zero-hits halt can follow non-zero raw hits and must not read "ok".
+        let raw: usize = f
             .providers
             .iter()
             .map(|p| match p.status {
@@ -457,16 +472,23 @@ pub fn failed_deep_stages(e: &anyhow::Error, elapsed_ms: u64) -> Vec<StageRecord
                 _ => 0,
             })
             .sum();
-        let answered = f
-            .providers
-            .iter()
-            .filter(|p| matches!(p.status, ProviderStatus::Ok { hits } if hits > 0))
-            .count();
+        let kept = f.sources.len();
+        // Rows are (provider, outcome) pairs — count distinct providers.
+        let distinct = |pred: &dyn Fn(&ProviderStatus) -> bool| {
+            f.providers
+                .iter()
+                .filter(|p| pred(&p.status))
+                .map(|p| p.provider.as_str())
+                .collect::<BTreeSet<_>>()
+                .len()
+        };
+        let answered = distinct(&|s| matches!(s, ProviderStatus::Ok { hits } if *hits > 0));
+        let total = distinct(&|_| true);
         // Same rule as quick retrieval (see `any_provider_failed`).
         let failed = any_provider_failed(f.providers.iter().map(|p| &p.status));
         out.push(StageRecord::new(
             "retrieval",
-            match (hits == 0, failed) {
+            match (kept == 0, failed) {
                 (true, true) => "failed",
                 (true, false) => "empty",
                 (false, true) => "degraded",
@@ -474,8 +496,7 @@ pub fn failed_deep_stages(e: &anyhow::Error, elapsed_ms: u64) -> Vec<StageRecord
             },
             None,
             format!(
-                "{hits} hits from {answered}/{} providers",
-                f.providers.len()
+                "{raw} raw hits, {kept} kept after filtering, from {answered}/{total} providers"
             ),
             json!({ "providers": f.providers, "tavily_credits": f.tavily_credits }),
         ));
@@ -829,6 +850,7 @@ mod tests {
                 used: 50,
                 remaining: 0,
             }),
+            sources: vec![],
         });
 
         let stages = failed_deep_stages(&err, 1234);
@@ -836,7 +858,10 @@ mod tests {
         assert_eq!(names, vec!["retrieval", "deep_pipeline"]);
         let retrieval = &stages[0];
         assert_eq!(retrieval.status, "failed", "0 hits and openalex errored");
-        assert_eq!(retrieval.summary, "0 hits from 0/2 providers");
+        assert_eq!(
+            retrieval.summary,
+            "0 raw hits, 0 kept after filtering, from 0/2 providers"
+        );
         assert_eq!(retrieval.detail["providers"][0]["status"]["state"], "error");
         assert_eq!(
             retrieval.detail["providers"][1]["status"]["state"],
@@ -854,6 +879,68 @@ mod tests {
         let plain = failed_deep_stages(&anyhow::anyhow!("boom"), 5);
         assert_eq!(plain.len(), 1);
         assert_eq!(plain[0].stage, "deep_pipeline");
+        assert!(failed_run_sources(&anyhow::anyhow!("boom")).is_empty());
+    }
+
+    /// Task 9b review minors 1, 2, 4: the provider denominator counts distinct
+    /// providers; raw provider hits are told apart from the hits kept after
+    /// filtering (a zero-hits halt with raw hits must not read "ok"); and the
+    /// kept sources travel with the failure so the header is not "0 sources".
+    #[test]
+    fn failed_deep_run_counts_are_honest() {
+        use vox_research_shim::research::types::{
+            ProviderCallSummary, ResearchHit, ResearchRunFailure,
+        };
+        let row = |provider: &str, status: ProviderStatus| ProviderCallSummary {
+            provider: provider.into(),
+            status,
+            elapsed_ms: 10,
+            calls: 1,
+        };
+        let hit = |url: &str| ResearchHit {
+            url: url.into(),
+            title: format!("t {url}"),
+            snippet: "s".into(),
+            score: 1.0,
+            http_status: 0,
+            trust_score: 1.0,
+            raw_content: String::new(),
+        };
+        let failure = |sources: Vec<ResearchHit>| {
+            anyhow::Error::new(ResearchRunFailure {
+                error: anyhow::anyhow!("stop"),
+                providers: vec![
+                    row("openalex", ProviderStatus::Ok { hits: 4 }),
+                    row("openalex", ProviderStatus::Timeout),
+                    row("wikipedia", ProviderStatus::Ok { hits: 3 }),
+                ],
+                tavily_credits: None,
+                sources,
+            })
+        };
+
+        // Zero-hits halt after 7 raw hits: filtered to nothing, not "ok".
+        let halt = failed_deep_stages(&failure(vec![]), 1);
+        assert_eq!(
+            halt[0].summary,
+            "7 raw hits, 0 kept after filtering, from 2/2 providers"
+        );
+        assert_eq!(halt[0].status, "failed", "0 kept + an openalex timeout");
+
+        // Synthesis failure that kept 2 sources.
+        let synth = failure(vec![hit("https://a.example/1"), hit("https://b.example/2")]);
+        let stages = failed_deep_stages(&synth, 1);
+        assert_eq!(
+            stages[0].summary,
+            "7 raw hits, 2 kept after filtering, from 2/2 providers"
+        );
+        assert_eq!(stages[0].status, "degraded");
+        let sources = failed_run_sources(&synth);
+        assert_eq!(sources.len(), 2);
+        assert_eq!(
+            (sources[1].n, sources[1].url.as_str()),
+            (2, "https://b.example/2")
+        );
     }
 
     /// Task 9 review m3/m8: one degrade rule for quick and deep retrieval —

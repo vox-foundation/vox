@@ -1,5 +1,5 @@
 {
-  "source": ".superpowers/sdd/2026-09-22-chat-research-real-e2e/round15d-live-deep-1.json (DERIVED: a Task 9b retrieval stage inserted before deep_pipeline, in the exact shape failed_deep_stages emits, with provider rows taken from the real quick-provider-errors.json run (round3-live-2); this run predates failed runs carrying their provider log)",
+  "source": ".superpowers/sdd/2026-09-22-chat-research-real-e2e/round15d-live-deep-1.json (DERIVED for Task 9b: a retrieval stage inserted before deep_pipeline in the exact shape failed_deep_stages emits, plus sources/source_count as failed_run_sources emits them; provider rows and the 5 kept sources are taken from the real quick-provider-errors.json run (round3-live-2), with source engines shown as \"pipeline\" like every deep source. This run predates failed runs carrying their provider log.)",
   "user": "/deepresearch compare SearXNG and Tavily for agent web search (round15d run 1)",
   "reply": {
     "content": "Deep research failed: synthesis failed: Candidate google/gemini-3.8-flash failed: No API key available for LLM provider\n\nNo answer was generated. The research trace below shows which stage failed and what was retrieved.",
@@ -15,7 +15,7 @@
           "explicit: /deepresearch"
         ],
         "query": "compare SearXNG and Tavily for agent web search (round15d run 1)",
-        "source_count": 0,
+        "source_count": 5,
         "model": null,
         "total_ms": 17827,
         "status": "failed",
@@ -71,7 +71,7 @@
             "stage": "retrieval",
             "status": "degraded",
             "elapsed_ms": null,
-            "summary": "10 hits from 2/5 providers",
+            "summary": "10 raw hits, 5 kept after filtering, from 2/5 providers",
             "detail": {
               "providers": [
                 {
@@ -129,7 +129,38 @@
             "detail": {}
           }
         ],
-        "sources": []
+        "sources": [
+          {
+            "n": 1,
+            "url": "https://arxiv.org/abs/2503.20020",
+            "title": "Gemini Robotics: Bringing AI into the Physical World",
+            "engine": "pipeline"
+          },
+          {
+            "n": 2,
+            "url": "https://arxiv.org/abs/1705.09827",
+            "title": "Mini-Flash Crashes, Model Risk, and Optimal Execution",
+            "engine": "pipeline"
+          },
+          {
+            "n": 3,
+            "url": "https://arxiv.org/abs/2312.11805",
+            "title": "Gemini: A Family of Highly Capable Multimodal Models",
+            "engine": "pipeline"
+          },
+          {
+            "n": 4,
+            "url": "https://en.wikipedia.org/wiki/List_of_large_language_models",
+            "title": "List of large language models",
+            "engine": "pipeline"
+          },
+          {
+            "n": 5,
+            "url": "https://en.wikipedia.org/wiki/Google_DeepMind",
+            "title": "Google DeepMind",
+            "engine": "pipeline"
+          }
+        ]
       }
     ]
   }

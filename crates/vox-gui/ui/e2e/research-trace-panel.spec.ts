@@ -158,6 +158,10 @@ for (const theme of ['dark', 'light'] as const) {
       await expect(page.getByTestId('research-trace')).toHaveAttribute('data-status', 'failed');
       const retrieval = panel.getByTestId('research-stage-retrieval');
       await expect(retrieval).toHaveAttribute('data-status', 'degraded');
+      await expect(retrieval).toHaveText(/10 raw hits, 5 kept after filtering, from 2\/5 providers/);
+      // The header counts the sources the failed run had kept, not a blanket 0.
+      await expect(page.getByTestId('research-trace-toggle')).toHaveText(/Deep research · 5 sources · no model/);
+      await expect(panel.getByTestId('research-source-5')).toBeVisible();
       await expect(retrieval.getByTestId('research-provider')).toHaveCount(5);
       await expect(retrieval.locator('[data-provider="openalex"]')).toHaveText(/429 Too Many Requests/);
       await expect(page.getByTestId('research-stage-deep_pipeline')).toHaveText(/No API key available/);

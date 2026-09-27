@@ -136,15 +136,23 @@ pub struct TavilyCredits {
 }
 
 /// A research run that failed after retrieval started, carrying the run's
-/// per-provider log so a trace can show which provider failed. Transparent:
-/// `Display` and `source()` are the wrapped error's, so `{}` / `{:#}` / `?`
-/// callers see exactly the same error as before. Recover it with
+/// per-provider log (and the sources it had kept) so a trace can show which
+/// provider failed. Recover it with
 /// `anyhow::Error::downcast_ref::<ResearchRunFailure>()`.
+///
+/// Transparent for printing: `Display` and `source()` are the wrapped error's,
+/// so `{}`, `{:#}`, `chain()` and `root_cause()` read exactly as before.
+/// NOT transparent for type inspection: `err.downcast_ref::<InnerType>()` on
+/// the outer error now returns `None` (downcast `.error` instead), and the
+/// captured backtrace is the wrapper's, not the inner error's.
 #[derive(Debug)]
 pub struct ResearchRunFailure {
     pub error: anyhow::Error,
     pub providers: Vec<ProviderCallSummary>,
     pub tavily_credits: Option<TavilyCredits>,
+    /// Hits kept after dedupe/filtering when the run failed (empty on the
+    /// zero-hits halt).
+    pub sources: Vec<ResearchHit>,
 }
 
 impl std::fmt::Display for ResearchRunFailure {

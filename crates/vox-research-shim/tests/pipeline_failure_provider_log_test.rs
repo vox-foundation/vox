@@ -79,6 +79,7 @@ fn run_failure_is_transparent_to_display_and_the_source_chain() {
         error: make(),
         providers: vec![],
         tavily_credits: None,
+        sources: vec![],
     });
     assert_eq!(wrapped.to_string(), make().to_string());
     assert_eq!(format!("{wrapped:#}"), format!("{:#}", make()));
@@ -103,8 +104,20 @@ async fn zero_hits_failure_keeps_the_failing_providers_row() {
     );
     let f = failure(&err);
     assert!(has_error_row(f, "openalex"), "{:?}", f.providers);
+    assert!(f.sources.is_empty());
 }
 
+/// Offline ONLY without `runtime`: then `chat_stage` bails before any network.
+/// With `runtime` (on in any workspace-wide build — vox-cli and
+/// vox-orchestrator-mcp enable it) synthesis runs the real model cascade:
+/// `ResearchConfig::llm_endpoint` only PREPENDS a manual candidate
+/// (`cascade_with_optional_manual`), the registry primary and the stage
+/// cascade (OpenRouter, local Ollama, …) still follow, so no endpoint stub
+/// can make it hermetic — it could make a paid call and even succeed.
+#[cfg_attr(
+    feature = "runtime",
+    ignore = "needs a no-LLM build: with `runtime` synthesis would call real model providers"
+)]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn synthesis_failure_keeps_the_whole_provider_log() {
     let openalex = failing_openalex().await;
@@ -124,6 +137,8 @@ async fn synthesis_failure_keeps_the_whole_provider_log() {
     assert!(err.to_string().contains("synthesis failed"), "{err}");
     let f = failure(&err);
     assert!(has_error_row(f, "openalex"), "{:?}", f.providers);
+    // The kept sources travel too, so the trace header is not "0 sources".
+    assert_eq!(f.sources.len(), 1, "{:?}", f.sources);
     assert!(
         f.providers.iter().any(|r| r.provider == "wikipedia"
             && matches!(r.status, ProviderStatus::Ok { hits } if hits > 0)),
