@@ -966,7 +966,7 @@ Daemon dispatch lives in [`crates/vox-cli/src/compilerd.rs`](../../../crates/vox
 - Run (TCP): `VOX_ORCHESTRATOR_DAEMON_SOCKET=127.0.0.1:9745 target/debug/vox-orchestrator-d`
 - Run (stdio): `VOX_ORCHESTRATOR_DAEMON_SOCKET=stdio target/debug/vox-orchestrator-d`
 
-When using with MCP, set MCP-side `VOX_ORCHESTRATOR_DAEMON_SOCKET` to the same TCP peer and optionally enable pilots with `VOX_MCP_ORCHESTRATOR_RPC_READS=1` / `VOX_MCP_ORCHESTRATOR_RPC_WRITES=1`. Repo-id mismatch warning/error behavior is controlled by `VOX_MCP_ORCHESTRATOR_DAEMON_REPOSITORY_ID_STRICT`.
+When using with MCP, set MCP-side `VOX_ORCHESTRATOR_DAEMON_SOCKET` to the same TCP peer and optionally enable the status-tool read pilot with `VOX_MCP_ORCHESTRATOR_STATUS_TOOL_RPC=1` (or its umbrella `VOX_MCP_ORCHESTRATOR_RPC_READS=1`; see [Environment variables](env-vars.md)). Repo-id mismatch warning/error behavior is controlled by `VOX_MCP_ORCHESTRATOR_DAEMON_REPOSITORY_ID_STRICT`.
 
 ### Removed / non-compiled trees (historical)
 
