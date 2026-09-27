@@ -43,23 +43,34 @@ fn check_sidecar_binaries(gui_dir: &Path) -> Result<Vec<(PathBuf, String)>, Stri
     Ok(missing)
 }
 
-/// `cargo build -p vox-cli --release --bin <name>` then copy the unsuffixed
+/// Package that owns a sidecar binary: `vox` ships from `vox-cli`; every other
+/// sidecar (today `vox-ml-cli`) is a package named after its binary.
+fn sidecar_package(bin_name: &str) -> &str {
+    if bin_name == "vox" {
+        "vox-cli"
+    } else {
+        bin_name
+    }
+}
+
+/// `cargo build -p <package> --release --bin <name>` then copy the unsuffixed
 /// `target/release/<name>` to the triple-suffixed sidecar path Tauri expects.
-/// Only handles the CLI binary itself — the frontend (`ui/dist`, built via
+/// Only handles the CLI binaries themselves — the frontend (`ui/dist`, built via
 /// `vox run scripts/gui-build.vox`'s `pnpm build` step) is a separate, larger
 /// dependency this can't self-heal, and is checked independently elsewhere.
 fn autobuild_sidecar(sidecar: &Path, bin_name: &str) -> Result<(), String> {
+    let package = sidecar_package(bin_name);
     println!(
-        "cargo:warning=vox-gui: sidecar binary {} missing, running `cargo build -p vox-cli --release --bin {bin_name}` to build it (one-time per fresh worktree; set VOX_GUI_SKIP_SIDECAR_AUTOBUILD=1 to disable)",
+        "cargo:warning=vox-gui: sidecar binary {} missing, running `cargo build -p {package} --release --bin {bin_name}` to build it (one-time per fresh worktree; set VOX_GUI_SKIP_SIDECAR_AUTOBUILD=1 to disable)",
         sidecar.display()
     );
     let status = std::process::Command::new(env!("CARGO"))
-        .args(["build", "-p", "vox-cli", "--release", "--bin", bin_name])
+        .args(["build", "-p", package, "--release", "--bin", bin_name])
         .status()
-        .map_err(|e| format!("spawn `cargo build -p vox-cli --release --bin {bin_name}`: {e}"))?;
+        .map_err(|e| format!("spawn `cargo build -p {package} --release --bin {bin_name}`: {e}"))?;
     if !status.success() {
         return Err(format!(
-            "`cargo build -p vox-cli --release --bin {bin_name}` exited with {status}"
+            "`cargo build -p {package} --release --bin {bin_name}` exited with {status}"
         ));
     }
     let ext = if sidecar.extension().is_some() {
@@ -116,7 +127,8 @@ fn main() {
              vox run scripts/gui-build.vox\n\n\
              or manually:\n\n  \
              cargo build -p vox-cli --release --bin vox\n  \
-             # then copy target/release/vox<ext> to the path(s) listed above",
+             cargo build -p vox-ml-cli --release --bin vox-ml-cli\n  \
+             # then copy target/release/<bin><ext> to the path(s) listed above",
             if skip_autobuild {
                 "skipped via VOX_GUI_SKIP_SIDECAR_AUTOBUILD"
             } else {

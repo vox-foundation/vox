@@ -35,7 +35,7 @@ min-vox-version = "0.6.0"
 
 [plugin.payload]
 kind = "code"
-abi-version = 12
+abi-version = 13
 
 [plugin.payload.provides]
 extension-points = ["HardwareProbe"]

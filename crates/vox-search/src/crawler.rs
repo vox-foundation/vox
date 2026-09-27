@@ -74,7 +74,7 @@ pub fn score_and_prioritize_links(links: &[String]) -> Vec<(String, u32)> {
         })
         .collect();
 
-    scored.sort_by(|a, b| b.1.cmp(&a.1));
+    scored.sort_by_key(|s| std::cmp::Reverse(s.1));
     scored
 }
 
@@ -108,15 +108,15 @@ pub async fn crawl_domain_depth(
 
         match fetch_and_extract_with_client(&client, &current_url).await {
             Ok(doc) => {
-                if depth < max_depth {
-                    if let Some(html) = doc.raw_html.as_deref() {
-                        let candidates = extract_candidate_links(html, &current_url, &allow_origin);
-                        let prioritized = score_and_prioritize_links(&candidates);
+                if depth < max_depth
+                    && let Some(html) = doc.raw_html.as_deref()
+                {
+                    let candidates = extract_candidate_links(html, &current_url, &allow_origin);
+                    let prioritized = score_and_prioritize_links(&candidates);
 
-                        for (link, _) in prioritized.into_iter().take(15) {
-                            if visited.insert(link.clone()) {
-                                queue.push_back((link, depth + 1));
-                            }
+                    for (link, _) in prioritized.into_iter().take(15) {
+                        if visited.insert(link.clone()) {
+                            queue.push_back((link, depth + 1));
                         }
                     }
                 }
@@ -130,4 +130,43 @@ pub async fn crawl_domain_depth(
     }
 
     Ok(results)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn normalize_strips_fragment_and_query() {
+        let url = Url::parse("https://docs.rs/a/b?x=1#frag").unwrap();
+        assert_eq!(normalize_crawl_url(&url).as_str(), "https://docs.rs/a/b");
+    }
+
+    #[test]
+    fn candidate_links_stay_on_origin_skip_assets_and_dedupe() {
+        let html = r#"<a href="/guide#top">g</a><a href="/guide?x=1">g2</a>
+            <a href="/logo.png">img</a><a href="https://other.example/x">off</a>"#;
+        let links = extract_candidate_links(html, "https://docs.rs/", "https://docs.rs");
+        assert_eq!(links, vec!["https://docs.rs/guide".to_string()]);
+    }
+
+    #[test]
+    fn prioritize_sorts_descending_and_keeps_tie_order() {
+        let links = [
+            "https://x/plain1",
+            "https://x/api",
+            "https://x/plain2",
+            "https://x/guide",
+        ]
+        .map(String::from);
+        let scored = score_and_prioritize_links(&links);
+        let order: Vec<(&str, u32)> = scored
+            .iter()
+            .map(|(l, s)| (l.rsplit('/').next().unwrap(), *s))
+            .collect();
+        assert_eq!(
+            order,
+            vec![("api", 60), ("guide", 40), ("plain1", 10), ("plain2", 10)]
+        );
+    }
 }
