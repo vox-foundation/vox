@@ -17607,7 +17607,6 @@ dependencies = [
  "vox-config",
  "vox-crypto",
  "vox-db",
- "vox-db-types",
  "vox-foundation",
  "vox-gamify",
  "vox-git",
