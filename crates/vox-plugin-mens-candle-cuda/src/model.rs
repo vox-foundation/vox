@@ -23,7 +23,7 @@
 //! `CandleModel` and avoid the current memory leak on plugin unload.
 
 use candle_core::{DType, Device, Result, Tensor};
-use candle_nn::{Module, RmsNorm};
+use candle_nn::RmsNorm;
 use qlora_rs::qlora::QuantizedLinear;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -159,17 +159,6 @@ impl Qwen2Attention {
         let v = v
             .reshape((b, seq_len, self.n_kv_heads, self.head_dim))?
             .transpose(1, 2)?;
-
-        let q = if let Some(q_norm) = &self.q_norm {
-            q_norm.forward(&q)?
-        } else {
-            q
-        };
-        let k = if let Some(k_norm) = &self.k_norm {
-            k_norm.forward(&k)?
-        } else {
-            k
-        };
 
         let (q, k) = if let Some(inv_freq) = inv_freq {
             self.apply_rotary_emb(&q, &k, inv_freq, pos)?
@@ -1069,6 +1058,85 @@ mod bf16_activation_tests {
             without_norm, with_norm,
             "q_norm/k_norm must change the forward output — if this fails, \
              Qwen2Attention is silently ignoring them"
+        );
+    }
+
+    /// q_norm/k_norm are applied exactly once, per head, before RoPE (HF Qwen3:
+    /// `q_norm(q_proj(x).view(.., head_dim))`). RMSNorm with a non-uniform weight is not
+    /// idempotent, so applying it twice changes the output; compare against a reference.
+    #[test]
+    fn qk_norm_is_applied_exactly_once() {
+        use candle_nn::Module as _;
+        let device = Device::Cpu;
+        let (d, heads, hd, seq) = (8usize, 2usize, 4usize, 3usize);
+        let mut cfg = QLoraConfig::preset_all_bf16(4, 8);
+        cfg.quantization.compute_dtype = ComputeDType::F32;
+        let w = Tensor::arange(0u32, (d * d) as u32, &device)
+            .unwrap()
+            .to_dtype(DType::F32)
+            .unwrap()
+            .reshape((d, d))
+            .unwrap()
+            .affine(0.01, 0.0)
+            .unwrap();
+        let lin = || QuantizedLinear::from_weight(&w, None, &cfg, &device).unwrap();
+        let norm_w = Tensor::new(&[2.0f32, 0.5, 3.0, 1.5], &device).unwrap();
+        let norm = || RmsNorm::new(norm_w.clone(), 1e-6);
+        let attn = Qwen2Attention {
+            q_proj: lin(),
+            k_proj: lin(),
+            v_proj: lin(),
+            o_proj: lin(),
+            q_bias: None,
+            k_bias: None,
+            v_bias: None,
+            n_heads: heads,
+            n_kv_heads: heads,
+            head_dim: hd,
+            q_norm: Some(norm()),
+            k_norm: Some(norm()),
+        };
+        let x = Tensor::randn(0f32, 1f32, (1, seq, d), &device).unwrap();
+        let got = attn.forward(&x, 0, None, None).unwrap();
+
+        // Reference: one per-head RMSNorm on q and k, causal softmax attention, o_proj.
+        let per_head = |t: Tensor, n: Option<RmsNorm>| {
+            let t = t.reshape((1, seq, heads, hd)).unwrap();
+            let t = n.map_or(t.clone(), |n| n.forward(&t).unwrap());
+            t.transpose(1, 2).unwrap().contiguous().unwrap()
+        };
+        let q = per_head(attn.q_proj.forward(&x).unwrap(), Some(norm()));
+        let k = per_head(attn.k_proj.forward(&x).unwrap(), Some(norm()));
+        let v = per_head(attn.v_proj.forward(&x).unwrap(), None);
+        let kt = k.transpose(2, 3).unwrap().contiguous().unwrap();
+        let att = (q.matmul(&kt).unwrap() * (1.0 / (hd as f64).sqrt())).unwrap();
+        let att = att
+            .broadcast_add(&causal_mask(seq, &device).unwrap())
+            .unwrap();
+        let att = candle_nn::ops::softmax(&att, candle_core::D::Minus1).unwrap();
+        let y = att
+            .matmul(&v)
+            .unwrap()
+            .transpose(1, 2)
+            .unwrap()
+            .contiguous()
+            .unwrap()
+            .reshape((1, seq, d))
+            .unwrap();
+        let want = attn.o_proj.forward(&y).unwrap();
+        let diff = (got - want)
+            .unwrap()
+            .abs()
+            .unwrap()
+            .flatten_all()
+            .unwrap()
+            .max(0)
+            .unwrap()
+            .to_scalar::<f32>()
+            .unwrap();
+        assert!(
+            diff < 1e-4,
+            "max |forward - single-norm reference| = {diff}"
         );
     }
 
