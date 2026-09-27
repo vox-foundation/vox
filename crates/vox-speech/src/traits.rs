@@ -137,29 +137,18 @@ impl TranscribeDetail {
 /// Human-readable description of which Oratio capabilities are active.
 #[must_use]
 pub fn transcript_status() -> &'static str {
-    #[cfg(all(feature = "stt-sherpa", feature = "stt-candle"))]
-    return "Vox Oratio: dual backends compiled — Sherpa-ONNX + Candle Whisper. \
-            Active backend: VOX_ORATIO_BACKEND (auto|whisper|sherpa). Within Sherpa, \
-            model family: VOX_ORATIO_SHERPA_KIND (transducer/Parakeet by default, or \
-            \"whisper\" for the Whisper-shaped model) — a distinct axis from \
-            VOX_ORATIO_BACKEND.";
+    #[cfg(feature = "stt-sherpa")]
+    return "Vox Oratio: Sherpa-ONNX STT in-process, plus Candle Whisper through the `oratio` \
+            plugin when the host registered it (VOX_ORATIO_BACKEND=whisper, or the `auto` \
+            fallback). Env: VOX_ORATIO_BACKEND (auto|whisper|sherpa), VOX_ORATIO_SHERPA_KIND \
+            (transducer/Parakeet by default, or \"whisper\" for the Whisper-shaped model — a \
+            distinct axis from VOX_ORATIO_BACKEND), VOX_ORATIO_SHERPA_MODEL, \
+            VOX_ORATIO_SHERPA_MODEL_DIR.";
 
-    #[cfg(all(feature = "stt-sherpa", not(feature = "stt-candle")))]
-    return "Vox Oratio: Sherpa-ONNX STT backend active. Env: VOX_ORATIO_BACKEND, \
-            VOX_ORATIO_SHERPA_KIND (transducer/Parakeet by default, or \"whisper\"), \
-            VOX_ORATIO_SHERPA_MODEL, VOX_ORATIO_SHERPA_MODEL_DIR.";
-
-    #[cfg(all(feature = "stt-candle", not(feature = "stt-sherpa")))]
-    return "Vox Oratio: Candle Whisper (Rust) STT enabled; symphonia decode + 16 kHz resample; \
-            `.txt`/`.md` passthrough. Env: VOX_ORATIO_MODEL, VOX_ORATIO_REVISION, VOX_ORATIO_LANGUAGE, \
-            VOX_ORATIO_CUDA (requires `cuda` feature); long audio: VOX_ORATIO_CHUNK_SEC, \
-            VOX_ORATIO_CHUNK_OVERLAP_SEC, optional VOX_ORATIO_EMIT_PARTIAL_PATH (JSONL), \
-            VOX_ORATIO_STREAM_TOKENS; constrained decode knobs: VOX_ORATIO_LOGIT_BIAS_STRENGTH, \
-            VOX_ORATIO_LOGIT_BIAS_MAX_TOKENS, VOX_ORATIO_LOGIT_FORBID_TOKENS, \
-            VOX_ORATIO_CONSTRAINED_TRIE, VOX_ORATIO_CONSTRAINED_PHRASES, VOX_ORATIO_TRIE_STUCK_STEPS.";
-
-    #[cfg(all(not(feature = "stt-candle"), not(feature = "stt-sherpa")))]
-    return "Vox Oratio: built without `stt-candle` or `stt-sherpa`; only `.txt`/`.md` transcript passthrough is available.";
+    #[cfg(not(feature = "stt-sherpa"))]
+    return "Vox Oratio: no in-process STT backend; Candle Whisper runs through the `oratio` \
+            plugin when the host registered it. `.txt`/`.md` transcript passthrough is always \
+            available.";
 }
 
 /// Apply the full deterministic refinement pipeline (lexicon + rerank) to a raw transcript string.
@@ -173,11 +162,11 @@ pub fn refine_raw_text(raw_text: &str, ctx: &CorrectionContext) -> TranscribeDet
 
 /// Transcribe `path` with explicit refinement context and optional Whisper language override.
 ///
-/// For `.txt` / `.md`, `language_hint` is ignored. For audio, it is forwarded to the Candle backend.
+/// For `.txt` / `.md`, `language_hint` is ignored. For audio, it is forwarded to the STT backend.
 pub fn transcribe_path_detailed(
     path: &Path,
     ctx: &CorrectionContext,
-    #[cfg_attr(not(feature = "stt-candle"), allow(unused_variables))] language_hint: Option<&str>,
+    #[cfg_attr(not(feature = "audio-decode"), allow(unused_variables))] language_hint: Option<&str>,
 ) -> Result<TranscribeDetail> {
     let ext = path
         .extension()
@@ -210,7 +199,7 @@ pub fn transcribe_path_detailed(
     );
 
     if is_audio_or_video {
-        #[cfg(feature = "stt-candle")]
+        #[cfg(feature = "audio-decode")]
         {
             let (pcm, sample_rate) = match crate::backends::audio_io::pcm_decode_to_16k_mono(path) {
                 Ok(res) => (res, 16_000u32),
@@ -254,10 +243,10 @@ pub fn transcribe_path_detailed(
             return Ok(finalize_after_refine(out.raw_text, refined, ctx.domain));
         }
 
-        #[cfg(not(feature = "stt-candle"))]
+        #[cfg(not(feature = "audio-decode"))]
         anyhow::bail!(
-            "Vox Oratio: audio transcription requires stt-candle feature; \
-             file: {}. Use vox-plugin-oratio for plugin-dispatched transcription.",
+            "Vox Oratio: audio decoding needs the `audio-decode` feature (enabled by \
+             `stt-sherpa`, and by vox-ml-cli `oratio`); file: {}.",
             path.display()
         );
     }
@@ -275,7 +264,7 @@ pub fn transcribe_path_detailed(
 ///
 /// - **`.txt` / `.md`**: UTF-8 content is read as the raw transcript; `refine::rules::light_trim`
 ///   produces [`Transcript::refined_text`].
-/// - **Audio** (with `stt-candle`): common formats (e.g. wav, mp3, flac, ogg) via symphonia.
+/// - **Audio** (with `audio-decode`): common formats (e.g. wav, mp3, flac, ogg) via symphonia.
 pub fn transcribe_path(path: &Path) -> Result<Transcript> {
     let d = transcribe_path_detailed(path, &CorrectionContext::default(), None)?;
     Ok(Transcript {

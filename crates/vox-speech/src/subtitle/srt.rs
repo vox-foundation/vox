@@ -1,11 +1,11 @@
-#[cfg(any(feature = "stt-candle", feature = "stt-sherpa"))]
+#[cfg(feature = "audio-decode")]
 use std::fs::File;
-#[cfg(any(feature = "stt-candle", feature = "stt-sherpa"))]
+#[cfg(feature = "audio-decode")]
 use std::io::Write;
-#[cfg(any(feature = "stt-candle", feature = "stt-sherpa"))]
+#[cfg(feature = "audio-decode")]
 use std::path::{Path, PathBuf};
 
-#[cfg(any(feature = "stt-candle", feature = "stt-sherpa"))]
+#[cfg(feature = "audio-decode")]
 use anyhow::Context;
 
 use crate::backends::asr_backend::TimedSegment;
@@ -116,7 +116,7 @@ fn parse_srt_time(s: &str) -> Option<u64> {
 
 /// Generates an SRT file by processing audio from an input media path.
 /// Handles audio extraction, preprocessing, and speech-to-text inference.
-#[cfg(any(feature = "stt-candle", feature = "stt-sherpa"))]
+#[cfg(feature = "audio-decode")]
 pub fn generate_srt_file(
     input_path: String,
     explicit_output: Option<String>,
@@ -252,9 +252,9 @@ pub fn generate_srt_file(
     Ok(metrics)
 }
 
-/// Stub used when no STT backend feature is enabled — returns an error indicating
-/// `stt-candle` (or another STT feature) must be enabled to generate SRT files.
-#[cfg(not(any(feature = "stt-candle", feature = "stt-sherpa")))]
+/// Stub used without `audio-decode` — returns an error indicating the
+/// `audio-decode` feature must be enabled to generate SRT files.
+#[cfg(not(feature = "audio-decode"))]
 pub fn generate_srt_file(
     input_path: String,
     _explicit_output: Option<String>,
@@ -265,7 +265,36 @@ pub fn generate_srt_file(
     _persist: bool,
 ) -> anyhow::Result<Option<(f64, f64, f32)>> {
     anyhow::bail!(
-        "generate_srt_file requires stt-candle or stt-sherpa feature; file: {}",
+        "generate_srt_file requires the audio-decode feature; file: {}",
         input_path
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{TimedSegment, format_srt, parse_srt_basic};
+
+    #[test]
+    fn format_then_parse_roundtrip() {
+        let segments = vec![
+            TimedSegment {
+                start_ms: 0,
+                end_ms: 1_500,
+                text: "hello world".into(),
+            },
+            TimedSegment {
+                start_ms: 3_661_042,
+                end_ms: 3_662_999,
+                text: "second line".into(),
+            },
+        ];
+        let parsed = parse_srt_basic(&format_srt(&segments, 42, 2));
+        assert_eq!(parsed.len(), segments.len());
+        for (got, want) in parsed.iter().zip(&segments) {
+            assert_eq!(
+                (got.start_ms, got.end_ms, got.text.as_str()),
+                (want.start_ms, want.end_ms, want.text.as_str())
+            );
+        }
+    }
 }

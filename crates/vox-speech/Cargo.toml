@@ -1,6 +1,6 @@
 [package]
 name = "vox-speech"
-description = "Vox speech-to-text (Oratio) — Candle Whisper (Rust) STT and transcript refinement"
+description = "Vox speech-to-text (Oratio) — transcript refinement, routing and Sherpa-ONNX STT; Candle Whisper lives in vox-plugin-speech"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -9,41 +9,26 @@ keywords = ["vox", "speech", "stt", "whisper"]
 categories = ["multimedia::audio"]
 
 [features]
-# Heavy ML deps (Candle, hf-hub, tokenizers, symphonia, rubato) are NOT default:
-# they must be opted into explicitly by consumers via `features = ["stt-candle"]`. This
-# prevents accidental bleed-through of ~100MB+ of native ML code into crates that
-# only need lightweight surfaces like `refine`, `routing`, or `runtime_config`.
+# Heavy deps (sherpa-onnx, hf-hub, symphonia, rubato) are NOT default: consumers opt
+# in via `features = ["stt-sherpa"]` or `["audio-decode"]`. This keeps native STT code
+# out of crates that only need lightweight surfaces like `refine`, `routing`, or
+# `runtime_config`.
 # `compiler-rerank` IS default: it only pulls `vox-compiler` (already linked into the
 # shipped vox-gui binary via vox-cli/vox-orchestrator-mcp), and it is domain-gated at
 # runtime (see transcript_rerank.rs) so it only runs its compiler-frontend pass for
 # `DomainMode::Code` dictation.
 default = ["compiler-rerank"]
-# DEPRECATED: The Candle Whisper code has been extracted into vox-plugin-speech (Unit 4 of the
-# vox-populi extraction follow-up plan). Historical audio-ingress docs/env rows still point here while the
-# plugin-host rewire is pending. Once ingress is rewired through vox-plugin-host::load_code_plugin
-# + as_speech_to_text(), this feature and its heavy deps will be deleted from this crate.
-# TODO(extraction-unit4-followup): drop stt-candle after audio-ingress rewire/retirement.
-stt-candle = [
-    "dep:candle-core",
-    "dep:candle-nn",
-    "dep:candle-transformers",
-    "dep:hf-hub",
-    "dep:tokenizers",
-    "dep:symphonia",
-    "dep:rubato",
-    "dep:rand09",
-    "dep:byteorder",
-]
+# Audio file decoding + 16 kHz resampling for in-process transcription paths (Sherpa,
+# subtitles, sessions). Candle Whisper itself lives in vox-plugin-speech and is reached
+# through `backend_dispatch::register_whisper_transcriber`.
+audio-decode = ["dep:symphonia", "dep:rubato"]
 # Prefer transcript hypotheses that lex/parse/typecheck as Vox better (for speech-to-code).
 compiler-rerank = ["dep:vox-compiler"]
-cuda = ["candle-core/cuda", "candle-nn/cuda", "candle-transformers/cuda"]
-# `hf-hub` and `rubato` are needed unconditionally by sherpa_model_config.rs
-# (HF Hub model download) and sherpa_onnx.rs (resample_to_16k), both gated
-# only on this feature — without them, `--features stt-sherpa` alone (no
-# `stt-candle`) fails to compile with unresolved-crate errors.
-stt-sherpa = ["dep:sherpa-onnx", "dep:hf-hub", "dep:rubato"]
+# `hf-hub` downloads the Sherpa model (sherpa_model_config.rs); `audio-decode` decodes
+# audio files and supplies rubato for sherpa_onnx.rs's resample_to_16k.
+stt-sherpa = ["dep:sherpa-onnx", "dep:hf-hub", "audio-decode"]
 cloud = ["dep:vox-populi", "dep:tokio", "dep:vox-http-client", "dep:async-trait", "dep:reqwest"]
-serve = ["dep:axum", "axum/multipart", "dep:tokio", "stt-candle"]
+serve = ["dep:axum", "axum/multipart", "dep:tokio"]
 
 [dependencies]
 vox-config = { workspace = true }

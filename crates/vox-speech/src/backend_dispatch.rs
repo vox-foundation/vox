@@ -1,8 +1,8 @@
 //! Runtime backend selection for Oratio STT.
 //!
 //! Priority: `VOX_ORATIO_BACKEND` env → feature flags → Whisper via [`whisper_backend`]
-//! (the host-registered `oratio` plugin transcriber; in-process Candle only while
-//! `stt-candle` is compiled and no transcriber is registered).
+//! (the host-registered `oratio` plugin transcriber; an actionable error when none is
+//! registered).
 
 use crate::backends::asr_backend::{AsrBackend, AsrOutput, TimedSegment};
 
@@ -88,19 +88,12 @@ fn parse_plugin_transcription(json: &str) -> anyhow::Result<AsrOutput> {
     })
 }
 
-/// The Whisper backend: the host-registered transcriber wins; otherwise the in-process
-/// Candle backend while `stt-candle` is compiled; otherwise an actionable error.
+/// The Whisper backend: the host-registered transcriber, or an actionable error when
+/// none is registered.
 pub fn whisper_backend() -> anyhow::Result<Box<dyn AsrBackend>> {
     if let Some(f) = registered_whisper_transcriber() {
         return Ok(Box::new(ExternalWhisper(f)));
     }
-    #[cfg(feature = "stt-candle")]
-    {
-        Ok(Box::new(
-            crate::backends::candle_whisper::CandleWhisperBackend,
-        ))
-    }
-    #[cfg(not(feature = "stt-candle"))]
     anyhow::bail!(
         "Candle Whisper STT runs in the `oratio` plugin (vox-plugin-speech) and this host \
          registered no Whisper transcriber; vox-gui and `vox oratio` register it at startup. \
@@ -245,8 +238,7 @@ fn reset_cache_for_test() {
 
 // The tests below select Whisper (`VOX_ORATIO_BACKEND=whisper`, or the "auto"
 // fallback) and register `fake_transcriber` as the host's Whisper transcriber,
-// so they run on the default feature set — the build that matters once the
-// in-process Candle backend is gone — instead of needing `stt-candle`.
+// so they run on the default feature set.
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -332,14 +324,13 @@ mod tests {
         );
     }
 
-    #[cfg(not(feature = "stt-candle"))]
     #[test]
     fn unregistered_whisper_is_an_actionable_error() {
         let _guard = TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
         clear_whisper_transcriber_for_test();
         let err = whisper_backend()
             .err()
-            .expect("no transcriber registered and no in-process Candle: must error");
+            .expect("no transcriber registered: must error");
         assert!(
             format!("{err:#}").contains("vox plugin install oratio"),
             "error should say how to install the plugin: {err:#}"

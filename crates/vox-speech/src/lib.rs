@@ -1,8 +1,9 @@
 //! **Oratio** — Vox speech-to-text and transcript refinement.
 //!
-//! Default STT uses **Candle Whisper** (pure Rust + Hugging Face weights). There is no
-//! whisper.cpp / clang dependency. Set `VOX_ORATIO_MODEL` / `VOX_ORATIO_REVISION` to pick
-//! checkpoints. Without the `stt-candle` feature, only `.txt` / `.md` passthrough is available.
+//! STT runs through **Sherpa-ONNX** in-process (`stt-sherpa`) or **Candle Whisper** in the
+//! `oratio` plugin (vox-plugin-speech), which hosts register through
+//! [`backend_dispatch::register_whisper_transcriber`]. Audio file decoding needs the
+//! `audio-decode` feature; without it only `.txt` / `.md` passthrough is available.
 
 #![warn(missing_docs)]
 
@@ -47,11 +48,9 @@ pub mod speech_normalize;
 pub mod speech_policy;
 /// Env-tunable stabilization thresholds for **future** streaming decoders; offline `transcribe_path` ignores this.
 pub mod streaming_partial;
-// Gated: `subtitle::srt`'s audio path calls `backends::audio_io` unconditionally,
-// which is itself gated to `stt-candle` (`backends/mod.rs:9`) — without this
-// gate, any build enabling `stt-sherpa` but not `stt-candle` fails to compile
-// (pre-existing gap, surfaced while adding the `stt-sherpa`-standalone path).
-#[cfg(feature = "stt-candle")]
+// Gated: `subtitle::srt`'s audio path decodes files through `backends::audio_io`,
+// which only exists with `audio-decode`.
+#[cfg(feature = "audio-decode")]
 pub mod subtitle;
 /// Policy helpers (escalation hint, cache keys) for hosts — not required for file-based STT.
 pub mod tiering;
@@ -66,29 +65,11 @@ pub mod serve;
 pub use backend_dispatch::create_backend;
 pub use backends::asr_backend::{AsrBackend, AsrOutput};
 
-#[cfg(feature = "stt-candle")]
-pub use backends::candle_whisper::{
-    ENV_CHUNK_OVERLAP_SEC, ENV_CHUNK_SEC, ENV_CUDA, ENV_EMIT_PARTIAL_PATH, ENV_MODEL, ENV_REVISION,
-    ENV_STREAM_TOKENS, LanguageEnvOverride, transcribe_audio_file,
-    transcribe_audio_file_with_language,
-};
-#[cfg(feature = "stt-candle")]
-pub use backends::logit_processors::{
-    ENV_CONSTRAINED_PHRASES, ENV_CONSTRAINED_TRIE, ENV_LOGIT_BIAS_MAX_TOKENS,
-    ENV_LOGIT_BIAS_STRENGTH, ENV_LOGIT_FORBID_TOKENS, ENV_TRIE_STUCK_STEPS,
-};
-
-/// JSON status for the Candle backend (CPU/GPU feature flags, model env).
+/// JSON status for the in-process Candle backend — always `{"stt_candle": false}`:
+/// Candle Whisper runs in the `oratio` plugin (vox-plugin-speech).
 #[must_use]
 pub fn candle_backend_status_json() -> serde_json::Value {
-    #[cfg(feature = "stt-candle")]
-    {
-        backends::candle_whisper::candle_backend_status_json()
-    }
-    #[cfg(not(feature = "stt-candle"))]
-    {
-        serde_json::json!({ "stt_candle": false })
-    }
+    serde_json::json!({ "stt_candle": false })
 }
 
 pub use routing::{RouteMode, RouteResponse, route_transcript, route_transcript_with_options};
