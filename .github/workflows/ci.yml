@@ -1018,7 +1018,7 @@ jobs:
           fi
           if affected_has vox-orchestrator; then
             cargo nextest run -p vox-orchestrator --lib -E 'test(detect_layout_node_workspaces)'
-            cargo check -p vox-orchestrator --no-default-features --features runtime,toestub-gate
+            cargo clippy -p vox-orchestrator --no-default-features --features runtime,toestub-gate --color never -- -D warnings
           fi
           if affected_has vox-orchestrator-mcp; then
             cargo nextest run -p vox-orchestrator-mcp --lib
@@ -1033,7 +1033,7 @@ jobs:
             cargo nextest run -p vox-workflow-runtime
           fi
           if affected_has vox-cli; then
-            cargo check -p vox-cli --features workflow-runtime,gui
+            cargo clippy -p vox-cli --features workflow-runtime,gui --color never -- -D warnings
           fi
 
       - name: Arch-check (layer + fan-in + LoC + orphan + docstring)
@@ -1189,6 +1189,10 @@ jobs:
       - name: Serving path unit tests
         if: needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true'
         run: cargo test -p vox-ml-cli --features execution-api,gpu --lib
+
+      - name: vox-ml-cli clippy (gpu feature)
+        if: needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true'
+        run: cargo clippy -p vox-ml-cli --features gpu --all-targets --color never -- -D warnings
 
       # Phase 5 — Test-tier budget check (warn-only until budgets file is updated post Phase 2+3).
       # Reads the nextest JUnit elapsed time and compares against contracts/budgets/test-tier-budgets.v1.yaml.
