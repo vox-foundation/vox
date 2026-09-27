@@ -1318,7 +1318,7 @@ pub const CONFIG_KEYS: &[ConfigKey] = &[
     ConfigKey {
         key: "GEMINI_MODEL",
         kind: ConfigKind::String,
-        default: DefaultValue::Literal("gemini-1.5-pro"),
+        default: DefaultValue::Literal(crate::model_defaults::GEMINI_DIRECT),
         bound: None,
         group: Group::General,
         class: ConfigClass::UserPreference,
@@ -1346,7 +1346,7 @@ pub const CONFIG_KEYS: &[ConfigKey] = &[
     ConfigKey {
         key: "OPENAI_MODEL",
         kind: ConfigKind::String,
-        default: DefaultValue::Literal("gpt-4o"),
+        default: DefaultValue::Literal(crate::model_defaults::OPENAI_DIRECT),
         bound: None,
         group: Group::General,
         class: ConfigClass::UserPreference,

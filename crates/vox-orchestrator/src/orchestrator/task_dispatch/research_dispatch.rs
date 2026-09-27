@@ -824,12 +824,12 @@ impl Orchestrator {
 
                 // Configure Lane G endpoint — pick via SSOT `select()` so the
                 // 3-axis user knob + premium_alias drive the choice.
-                // 2026-Q2 refresh: claude-3.5-sonnet:beta retired.
+                // Fallback: contract role `research` (model-defaults.v1.yaml).
                 let model_id = crate::models::select_with_default_registry(
                     &crate::models::SelectionIntent::research(),
                 )
                 .map(|o| o.model_id)
-                .unwrap_or_else(|| "google/gemini-3.1-pro".to_string());
+                .unwrap_or_else(|| vox_config::model_defaults::RESEARCH.to_string());
                 let config = LlmConfig::openrouter(&model_id);
                 if let Some(_key) =
                     vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshToken).expose()

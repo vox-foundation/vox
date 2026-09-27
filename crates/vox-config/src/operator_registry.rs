@@ -317,7 +317,7 @@ pub const OPERATOR_TUNING_ENVS: &[OperatorEnvSpec] = &[
     OperatorEnvSpec {
         name: "GEMINI_MODEL",
         description: "Default model for Gemini provider.",
-        defaults: "gemini-1.5-pro",
+        defaults: crate::model_defaults::GEMINI_DIRECT,
 
         config_class: ConfigClass::UserPreference,
     },
@@ -331,7 +331,7 @@ pub const OPERATOR_TUNING_ENVS: &[OperatorEnvSpec] = &[
     OperatorEnvSpec {
         name: "OPENAI_MODEL",
         description: "Default model for OpenAI provider.",
-        defaults: "gpt-4o",
+        defaults: crate::model_defaults::OPENAI_DIRECT,
 
         config_class: ConfigClass::UserPreference,
     },

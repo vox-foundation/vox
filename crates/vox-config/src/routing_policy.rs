@@ -151,11 +151,11 @@ pub fn gemini_route_targets_from_env() -> GeminiRouteTargets {
         openrouter_model: vox_secrets::resolve_secret(vox_secrets::SecretId::OpenRouterGeminiModel)
             .expose()
             .map(std::string::ToString::to_string)
-            .unwrap_or_else(|| "google/gemini-2.5-flash".to_string()),
+            .unwrap_or_else(|| crate::model_defaults::GEMINI_OPENROUTER.to_string()),
         google_direct_model: vox_secrets::resolve_secret(vox_secrets::SecretId::GeminiDirectModel)
             .expose()
             .map(std::string::ToString::to_string)
-            .unwrap_or_else(|| "gemini-2.5-flash".to_string()),
+            .unwrap_or_else(|| crate::model_defaults::GEMINI_DIRECT.to_string()),
     }
 }
 
