@@ -411,10 +411,6 @@ fn path_is_allowed_for_secret_guard(rel_norm: &str, hard_cut_strict: bool) -> bo
         // The canonical `Authorization: Bearer` builder (`bearer_auth_header[_string]`) must format
         // the token into the header; it is the sanctioned sink every other caller should use.
         "crates/vox-http-client/src/lib.rs",
-        // OpenRouterPanelClient::complete builds the same `Bearer {token}` header vox-http-client's
-        // canonical bearer_auth_header_string formats — vox-audit doesn't depend on vox-http-client
-        // (no crate edge authorized to add one), so the pattern can't be narrowed to a call site.
-        "crates/vox-audit/src/panel.rs",
     ];
     const HARD_CUT_ALLOWLIST: &[&str] = &[
         "crates/vox-secrets/",
@@ -1464,15 +1460,11 @@ mod sql_surface_tests {
             "crates/vox-http-client/src/retry.rs",
             false
         ));
-        // panel.rs builds the same Bearer-header pattern; vox-audit has no vox-http-client edge.
-        assert!(super::path_is_allowed_for_secret_guard(
-            "crates/vox-audit/src/panel.rs",
-            false
-        ));
-        // Not the hard-cut allowlist: this is a heuristic exemption, not a Clavis-managed source.
+        // panel.rs now calls the canonical vox_http_client::bearer_auth_header helper directly
+        // (crate edge added 2026-09-27), so it no longer needs the heuristic allowlist.
         assert!(!super::path_is_allowed_for_secret_guard(
             "crates/vox-audit/src/panel.rs",
-            true
+            false
         ));
     }
 
