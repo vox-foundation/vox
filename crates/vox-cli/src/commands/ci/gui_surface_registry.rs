@@ -150,12 +150,23 @@ pub fn generate_ts(reg: &SurfaceRegistry) -> String {
     out
 }
 
-fn top_level_groups_from_catalog() -> BTreeSet<String> {
-    let mut groups: BTreeSet<String> = crate::command_catalog::build_catalog()
-        .entries
+/// Top-level command groups, from `contracts/cli/command-registry.yaml` rather than the
+/// compiled clap tree: the tree varies with cargo features, so a feature-built CI binary and
+/// a default-built local binary would disagree on the committed report. The registry lists
+/// every compiled path in either build (guarded by gui_surface_coverage's
+/// `every_compiled_clap_path_is_in_command_registry`).
+fn top_level_groups(repo_root: &Path) -> Result<BTreeSet<String>> {
+    use vox_cli_core::command_registry_model::RegistryFile;
+
+    let path = repo_root.join("contracts/cli/command-registry.yaml");
+    let raw = fs::read_to_string(&path).with_context(|| format!("read {}", path.display()))?;
+    let reg: RegistryFile =
+        serde_yaml::from_str(&raw).with_context(|| format!("parse {}", path.display()))?;
+    let mut groups: BTreeSet<String> = reg
+        .operations
         .into_iter()
-        .filter(|e| e.path.len() == 1)
-        .map(|e| e.path[0].clone())
+        .filter(|op| op.surface == "vox-cli" && op.status != "retired")
+        .filter_map(|op| op.path.into_iter().next())
         .collect();
     // Union feature-gated top-level groups so the gate is not structurally blind to commands that
     // are compiled out of this build (e.g. `dei`/`visus`/`safety`/`attention` behind `--features
@@ -164,7 +175,7 @@ fn top_level_groups_from_catalog() -> BTreeSet<String> {
     for (name, _feature) in crate::command_catalog::feature_gated_group_names() {
         groups.insert(name.to_string());
     }
-    groups
+    Ok(groups)
 }
 
 fn load_registry(repo_root: &Path) -> Result<SurfaceRegistry> {
@@ -187,7 +198,7 @@ fn load_registry(repo_root: &Path) -> Result<SurfaceRegistry> {
 
 pub fn run(repo_root: &Path, write: bool) -> Result<()> {
     let parsed = load_registry(repo_root)?;
-    let top_level = top_level_groups_from_catalog();
+    let top_level = top_level_groups(repo_root)?;
     let missing = missing_groups(&parsed, &top_level);
     let resolved = backfill(parsed, &missing);
 
@@ -301,11 +312,33 @@ mod tests {
         assert!(violations[0].contains("ghost"));
     }
 
+    fn repo_root() -> std::path::PathBuf {
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .canonicalize()
+            .expect("repo root")
+    }
+
+    /// The committed report must not depend on build features: CI builds `vox` with
+    /// `extras-ludus,ars,...` and the `ssot-autoregen` bot committed the groups those
+    /// compile in (`gamify`, `skill`, …), while a default build dropped them, so local
+    /// and CI kept overwriting each other. The registry lists them either way.
+    #[test]
+    fn top_level_groups_are_feature_independent() {
+        let groups = top_level_groups(&repo_root()).unwrap();
+        for g in ["gamify", "skill", "review", "openclaw", "recensio"] {
+            assert!(
+                groups.contains(g),
+                "expected feature-gated top-level group {g:?} regardless of build features, got {groups:?}"
+            );
+        }
+    }
+
     #[test]
     fn top_level_groups_include_feature_gated_dei_groups() {
         // Even in a default (non-dei) build, the gate must "see" dei-gated
         // top-level groups so they can be classified with a waiver (A3).
-        let groups = top_level_groups_from_catalog();
+        let groups = top_level_groups(&repo_root()).unwrap();
         for g in ["dei", "visus", "safety", "attention"] {
             assert!(
                 groups.contains(g),

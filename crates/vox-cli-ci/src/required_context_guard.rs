@@ -6,14 +6,15 @@
 //! claim it — and a job that is *skipped* still posts a check-run under its
 //! name, which GitHub counts as SATISFYING the requirement.
 //!
-//! That is not hypothetical. `ci-fallback-hosted.yml` names its `gate` job
-//! with the required context on purpose, so a green hosted run can satisfy
-//! the gate during a fleet outage. Its trigger list also included
-//! `synchronize`, so it fired on every push to every PR, skipped (no
-//! `fleet-down` label), and posted `conclusion=skipped` under the required
-//! name. Measured on PR #502: started and completed at 18:34:38Z, the same
-//! second, while ci.yml's `setup` was still queued and nothing had compiled.
-//! The PR was `mergeable=MERGEABLE`.
+//! That is not hypothetical. `ci-fallback-hosted.yml` named its `gate` job
+//! with the required context on purpose, so a green hosted run could satisfy
+//! the gate during a self-hosted fleet outage (deleted 2026-09, once the
+//! fleet itself was retired in favor of GitHub-hosted runners). Its trigger
+//! list also included `synchronize`, so it fired on every push to every PR,
+//! skipped (no `fleet-down` label), and posted `conclusion=skipped` under the
+//! required name. Measured on PR #502: started and completed at 18:34:38Z,
+//! the same second, while ci.yml's `setup` was still queued and nothing had
+//! compiled. The PR was `mergeable=MERGEABLE`.
 //!
 //! The invariant this enforces: a workflow may name a job with the required
 //! context ONLY IF it cannot be triggered by an ordinary pull-request event.

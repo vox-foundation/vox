@@ -9,6 +9,7 @@ mod freshness;
 mod gpu_hardware;
 mod gui_sidecar;
 mod llm_routing;
+mod ml_cli;
 mod model_catalog;
 mod model_telemetry;
 mod secrets;
@@ -54,6 +55,7 @@ pub async fn run_checks(
     build_health::run(auto_heal, checks).await;
     freshness::run(checks);
     binary_ssot::run(checks);
+    ml_cli::run(checks);
     secrets::run(auto_heal, checks).await;
     llm_routing::run(checks).await;
     gpu_hardware::run(checks).await;

@@ -109,6 +109,12 @@ async fn main() -> anyhow::Result<()> {
                     "vox-ml-cli",
                 );
             let mut command = Command::new(ml_cli_binary);
+            // Build-id handshake: vox-ml-cli warns when it was built from a
+            // different commit than this `vox` (see `ml_cli_handshake`).
+            command.env(
+                vox_cli_core::ml_cli_handshake::PARENT_BUILD_ID_ENV,
+                vox_cli::freshness::EMBEDDED_GIT_HASH,
+            );
             if primary_cmd == "train" {
                 // `vox train` -> `vox-ml-cli mens train`
                 command.arg("mens");

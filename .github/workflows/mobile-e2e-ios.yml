@@ -1,8 +1,8 @@
 name: Mobile E2E (iOS)
 
 on:
-  # push:main dropped (runner-remediation Task 9) — iOS E2E runs nightly, like
-  # the Android lane is merge/label-gated; no need on every main push.
+  # push:main dropped (runner-remediation Task 9) — iOS E2E runs nightly only,
+  # same as the Android lane (heavy macOS job, timeout exceeds the fast-lane cap).
   schedule:
     - cron: '0 3 * * *' # Run nightly
   workflow_dispatch:
@@ -10,6 +10,9 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   build-ios:
@@ -32,6 +35,8 @@ jobs:
         with:
           node-version: 24
           cache: 'pnpm'
+          # The repo root has no pnpm-lock.yaml; this workflow only installs
+          # the mobile app's workspace, so point the cache key at its lockfile.
           cache-dependency-path: apps/vox-mental-tracker/pnpm-lock.yaml
 
       - name: Install dependencies

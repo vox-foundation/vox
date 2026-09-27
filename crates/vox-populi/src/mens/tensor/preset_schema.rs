@@ -559,6 +559,14 @@ pub fn resolve_effective_profile(
             model_hint,
             overrides.batch_size,
         );
+        // The ladder's seq_len/grad_accum floors are defaults for the unset
+        // case (same rule as batch_size): an explicit flag wins.
+        if let Some(s) = overrides.seq_len {
+            p.seq_len = s;
+        }
+        if let Some(g) = overrides.grad_accum {
+            p.grad_accum = g;
+        }
     }
 
     // The VRAM budget limits, when a caller has already sized this run via the
@@ -688,6 +696,41 @@ mod preset_tests {
         assert_eq!(p.batch_size, 1);
         assert!(p.seq_len <= 512);
         assert!(p.rank <= 32);
+    }
+
+    /// An explicit `--grad-accum` / `--seq-len` must survive the Qwen size
+    /// ladder: its floors (S0.6 raises grad_accum to >= 4 and clamps seq_len
+    /// to 384..=1024) are defaults for the unset case, like `batch_size`.
+    #[test]
+    #[serial(vox_base_model_env)]
+    fn explicit_grad_accum_and_seq_len_survive_the_size_ladder() {
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::set_var(
+                "VOX_BASE_MODEL",
+                "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca",
+            );
+        }
+        let dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384, "nvidia");
+        let overrides = CliOverrides {
+            grad_accum: Some(1),
+            seq_len: Some(256),
+            ..CliOverrides::default()
+        };
+        let profile =
+            resolve_effective_profile(Some("prosumer_16g"), dev, None, overrides).expect("profile");
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::remove_var("VOX_BASE_MODEL");
+        }
+        assert_eq!(
+            profile.grad_accum, 1,
+            "explicit --grad-accum 1 was overridden"
+        );
+        assert_eq!(
+            profile.seq_len, 256,
+            "explicit --seq-len 256 was overridden"
+        );
     }
 
     #[test]

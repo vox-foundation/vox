@@ -34,8 +34,8 @@ test.describe('Axis brand', () => {
     await expect(page.getByText('AXIS', { exact: true }).first()).toBeVisible();
     await expect(page.getByText(/Vox Axis/).first()).toBeVisible();
     await expect(page.getByText('VOX', { exact: true })).toHaveCount(0);
-    // topbar (TopHud) lockup is rebranded too — guards the second brand surface
-    await expect(page.getByText('axis operator console')).toBeVisible();
+    // The TopHud "axis operator console" lockup was removed in #460 (BottomStatusBar
+    // replaced it); just guard that the legacy lockup never comes back.
     await expect(page.getByText('vox operator console')).toHaveCount(0);
     // no lingering legacy brand strings anywhere on the surface
     await expect(page.getByText(/\bIMPERIUM\b/)).toHaveCount(0);

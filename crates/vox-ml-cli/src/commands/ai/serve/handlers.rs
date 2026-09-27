@@ -226,39 +226,47 @@ fn tool_def_description(tool: &serde_json::Value) -> Option<&str> {
         .and_then(|v| v.as_str())
 }
 
-/// Task B2: flatten `messages[]` (+ an optional tool catalog) into the single
-/// prompt string `do_generate` already knows how to handle. Deliberately a
-/// plain textual rendering, not a chat template — this server has no
-/// model-specific chat template registry, and the flattened form only needs
-/// to be good enough for the model to (a) see the conversation so far and
-/// (b) know which tool names/descriptions it may respond with as JSON when
-/// `tools` is non-empty.
+/// Task B2: render `messages[]` (+ an optional tool catalog) as the ChatML the
+/// MENS adapters are trained on, ending with an open assistant turn. The tool
+/// catalog is prepended to the first system turn (or the first user turn when
+/// there is none), so the inference backend still adds the server's default
+/// system prompt when the client sent no system message.
 #[cfg(feature = "execution-api")]
 fn flatten_chat_messages(
     messages: &[ChatCompletionMessage],
     tools: Option<&[serde_json::Value]>,
 ) -> String {
-    let mut out = String::new();
+    let mut catalog = String::new();
     if let Some(tools) = tools.filter(|t| !t.is_empty()) {
-        out.push_str(
+        catalog.push_str(
             "Available tools (to call one, respond with ONLY a single JSON object \
              shaped like {\"name\": \"<tool>\", \"arguments\": {...}}):\n",
         );
         for tool in tools {
             let name = tool_def_name(tool).unwrap_or("unknown");
             let description = tool_def_description(tool).unwrap_or("");
-            out.push_str(&format!("- {name}: {description}\n"));
+            catalog.push_str(&format!("- {name}: {description}\n"));
         }
-        out.push('\n');
+        catalog.push('\n');
     }
-    for message in messages {
+    let catalog_idx = messages
+        .iter()
+        .position(|m| m.role == "system")
+        .or_else(|| messages.iter().position(|m| m.role == "user"));
+    let mut out = String::new();
+    for (i, message) in messages.iter().enumerate() {
         let content = message.content.as_deref().unwrap_or("");
-        out.push_str(&message.role);
-        out.push_str(": ");
-        out.push_str(content);
-        out.push('\n');
+        let prefix = if Some(i) == catalog_idx {
+            catalog.as_str()
+        } else {
+            ""
+        };
+        out.push_str(&format!(
+            "<|im_start|>{}\n{prefix}{content}<|im_end|>\n",
+            message.role
+        ));
     }
-    out.push_str("assistant:");
+    out.push_str("<|im_start|>assistant\n");
     out
 }
 
@@ -486,9 +494,10 @@ mod chat_completions_tests {
         let flattened = flatten_chat_messages(&messages, Some(&tools));
         assert!(flattened.contains("get_weather"));
         assert!(flattened.contains("looks up the weather"));
-        assert!(flattened.contains("system: be helpful"));
-        assert!(flattened.contains("user: what's the weather?"));
-        assert!(flattened.ends_with("assistant:"));
+        assert!(flattened.starts_with("<|im_start|>system\nAvailable tools"));
+        assert!(flattened.contains("be helpful<|im_end|>"));
+        assert!(flattened.contains("<|im_start|>user\nwhat's the weather?<|im_end|>"));
+        assert!(flattened.ends_with("<|im_start|>assistant\n"));
     }
 
     #[test]
@@ -499,7 +508,10 @@ mod chat_completions_tests {
         }];
         let flattened = flatten_chat_messages(&messages, None);
         assert!(!flattened.contains("Available tools"));
-        assert!(flattened.contains("user: hi"));
+        assert_eq!(
+            flattened,
+            "<|im_start|>user\nhi<|im_end|>\n<|im_start|>assistant\n"
+        );
     }
 
     /// Spawn a fake worker thread that replies with a fixed string to every

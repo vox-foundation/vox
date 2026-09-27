@@ -16,7 +16,7 @@ use std::path::{Path, PathBuf};
 use vox_bounded_fs::read_utf8_path_capped;
 use vox_codegen::codegen_rust::RustAppShell;
 
-fn generated_backend_dir(start: Option<&Path>) -> PathBuf {
+pub(crate) fn generated_backend_dir(start: Option<&Path>) -> PathBuf {
     crate::fs_utils::strip_windows_verbatim_path(
         crate::fs_utils::run_target_dir_for_workspace(start).join("generated"),
     )
@@ -626,17 +626,21 @@ async fn run_inner(
 mod tests {
     use super::*;
 
+    /// `examples/compile-suite` carries its own `Vox.toml`, and since 441571a2c
+    /// `find_repo_root` stops at any `Vox.toml`, so a Vox workspace nested in the
+    /// repo gets its own `target/generated` rather than the repo's.
     #[test]
-    fn generated_backend_dir_uses_repo_target_from_nested_compile_suite() {
+    fn generated_backend_dir_uses_the_nested_vox_workspace_target() {
         let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .parent()
             .and_then(|p| p.parent())
             .expect("workspace root")
             .to_path_buf();
         let nested = repo.join("examples/compile-suite");
+        assert!(nested.join("Vox.toml").is_file(), "fixture precondition");
         assert_eq!(
             generated_backend_dir(Some(&nested)),
-            repo.join("target/generated")
+            crate::fs_utils::strip_windows_verbatim_path(nested.join("target/generated"))
         );
     }
 }

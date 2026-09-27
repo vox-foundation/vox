@@ -21,9 +21,12 @@ defaults:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
+permissions:
+  contents: read
+
 jobs:
   vox-check:
-    runs-on: [self-hosted, linux]
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
@@ -35,7 +38,7 @@ jobs:
         working-directory: "."
 
   vitest:
-    runs-on: [self-hosted, linux]
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
@@ -47,8 +50,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: "24"
-          cache: "pnpm"
-          cache-dependency-path: apps/vox-mental-tracker/pnpm-lock.yaml
+          package-manager-cache: false   # no PR-scoped cache writes (cache is at 9.8/10 GB)
       - name: Install JS deps
         run: pnpm install --frozen-lockfile
         working-directory: apps/vox-mental-tracker
@@ -60,7 +62,7 @@ jobs:
         working-directory: apps/vox-mental-tracker
 
   playwright:
-    runs-on: [self-hosted, linux]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -72,8 +74,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: "24"
-          cache: "pnpm"
-          cache-dependency-path: apps/vox-mental-tracker/pnpm-lock.yaml
+          package-manager-cache: false   # no PR-scoped cache writes (cache is at 9.8/10 GB)
       - name: Install JS deps
         run: pnpm install --frozen-lockfile
         working-directory: apps/vox-mental-tracker
@@ -84,8 +85,13 @@ jobs:
           ver=$(node -p "require('./apps/vox-mental-tracker/node_modules/@playwright/test/package.json').version")
           echo "ver=$ver" >> "$GITHUB_OUTPUT"
         working-directory: "."
-      - name: Cache Playwright browsers
-        id: pw_cache
+      # Only `main` WRITES: this workflow runs on every branch push and every
+      # PR, and a PR-scoped cache entry is unreadable from any other ref while
+      # still evicting main-scope entries out of the 10 GB LRU bucket.
+      # Machine-checked by `vox ci cache-key-lint`.
+      - name: Cache Playwright browsers (main saves)
+        id: pw_cache_save
+        if: github.ref == 'refs/heads/main'
         uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
@@ -93,8 +99,20 @@ jobs:
           restore-keys: |
             ms-playwright-${{ runner.os }}-${{ steps.pw_version.outputs.ver }}-
             ms-playwright-${{ runner.os }}-
+      - name: Restore Playwright browsers (no save off main)
+        id: pw_cache_restore
+        if: github.ref != 'refs/heads/main'
+        uses: actions/cache/restore@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: ms-playwright-${{ runner.os }}-${{ steps.pw_version.outputs.ver }}-chromium
+          restore-keys: |
+            ms-playwright-${{ runner.os }}-${{ steps.pw_version.outputs.ver }}-
+            ms-playwright-${{ runner.os }}-
       - name: Install Playwright browsers (cache miss)
-        if: steps.pw_cache.outputs.cache-hit != 'true'
+        # Exactly one of the two steps above ran; the other's outputs are empty,
+        # so this is a miss unless whichever ran reported a hit.
+        if: steps.pw_cache_save.outputs.cache-hit != 'true' && steps.pw_cache_restore.outputs.cache-hit != 'true'
         run: pnpm exec playwright install chromium
         working-directory: apps/vox-mental-tracker
       - name: Playwright
@@ -109,7 +127,7 @@ jobs:
           if-no-files-found: ignore
 
   contracts:
-    runs-on: [self-hosted, linux]
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -125,7 +143,7 @@ jobs:
 
   app-summary:
     needs: [vox-check, vitest, playwright, contracts]
-    runs-on: [self-hosted, linux]
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     if: always()
     steps:

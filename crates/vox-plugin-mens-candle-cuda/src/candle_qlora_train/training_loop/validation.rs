@@ -10,7 +10,7 @@ use vox_tensor::data::TrainingPair;
 use super::types::{MaskedCeForward, TryEncodeOutcome};
 use crate::{config::LoraTrainingConfig, qlora_preflight::QloraEmbedBundle, train_log};
 
-pub fn qlora_forward_logits_smoke(
+fn qlora_forward_logits_smoke(
     model: &crate::candle_qlora_train::TrainGraphModel,
     vocab: usize,
     device: &Device,
@@ -53,7 +53,24 @@ pub fn preflight_masked_ce_finite(
 
     let max_diff = super::curriculum::max_difficulty_for_epoch(start_epoch, config);
     let vocab = bundle.vocab;
+    // Each probe is a full forward pass; scanning all rows of a large corpus that
+    // can never supervise (e.g. a prompt that fills the window) took ~40 minutes
+    // before failing. Give up after this many encoded-but-unsupervised rows.
+    const MAX_UNSUPERVISED_PROBES: usize = 256;
+    let mut unsupervised = 0usize;
+    // Heartbeat: this scan runs a full forward per row until one row has
+    // supervised tokens, and used to be silent — a corpus whose rows are all
+    // masked out looked like a hang for the whole scan.
+    let mut last_beat = std::time::Instant::now();
     for (pair_idx, pair) in pairs.iter().enumerate() {
+        if last_beat.elapsed() >= train_log::PROGRESS_MAX_INTERVAL {
+            train_log::info(&format!(
+                "masked CE preflight: scanned {pair_idx}/{} rows, none with supervised tokens yet (seq_len={})",
+                pairs.len(),
+                config.seq_len
+            ));
+            last_beat = std::time::Instant::now();
+        }
         let enc = match super::encoding::try_encode_training_step(
             pair,
             system_prompt,
@@ -84,7 +101,20 @@ pub fn preflight_masked_ce_finite(
             config,
             device,
         )? {
-            MaskedCeForward::NoSupervision => continue,
+            MaskedCeForward::NoSupervision => {
+                unsupervised += 1;
+                if unsupervised >= MAX_UNSUPERVISED_PROBES {
+                    anyhow::bail!(
+                        "masked CE preflight: the first {unsupervised} encodable rows had no supervised \
+                         answer tokens inside --seq-len {} (last row: {} prompt tokens of {} kept). \
+                         Raise --seq-len or shorten the system prompt.",
+                        config.seq_len,
+                        enc.prefix_len.saturating_sub(enc.trunc_offset),
+                        enc.ids.len()
+                    );
+                }
+                continue;
+            }
             MaskedCeForward::NonFinite { kind, mask_sum } => {
                 anyhow::bail!(
                     "masked CE preflight failed: non-finite loss ({kind}) before training (mask_sum={mask_sum:.6}, pair_idx={pair_idx}); \
@@ -123,14 +153,18 @@ pub fn run_validation_pass(
         eval_pairs.len()
     ));
     for pair in eval_pairs {
-        let text = if let Some(ref turns) = pair.messages {
+        let messages = pair
+            .messages
+            .as_deref()
+            .map(|t| crate::training_text::with_system_turn(t, system_prompt, &config.chatml));
+        let text = if let Some(ref turns) = messages {
             crate::training_text::chatml_turns_text(turns, &config.chatml)
         } else if let (Some(p), Some(r)) = (pair.effective_prompt(), pair.effective_response()) {
             crate::training_text::chatml_supervised_text(system_prompt, p, r, &config.chatml)
         } else {
             continue;
         };
-        let prefix_text = if let Some(ref turns) = pair.messages {
+        let prefix_text = if let Some(ref turns) = messages {
             crate::training_text::chatml_turns_prefix_open_assistant(turns, &config.chatml)
         } else if let Some(p) = pair.effective_prompt() {
             crate::training_text::chatml_prefix_open_assistant(system_prompt, p, &config.chatml)
@@ -144,12 +178,11 @@ pub fn run_validation_pass(
         )
         .unwrap_or(0);
         if let Ok(enc) = tokenizer.encode(text.as_str(), true) {
-            let mut ids = enc.get_ids().to_vec();
-            let mut trunc_offset = 0usize;
-            if ids.len() > config.seq_len {
-                trunc_offset = ids.len() - config.seq_len;
-                ids = ids[trunc_offset..].to_vec();
-            }
+            let (ids, trunc_offset) = crate::training_text::fit_to_seq_len(
+                enc.get_ids().to_vec(),
+                prefix_len,
+                config.seq_len,
+            );
             if ids.len() >= 2
                 && let Ok(input_ids) = candle_core::Tensor::new(&ids[..ids.len() - 1], device)
                     .and_then(|t| t.unsqueeze(0))

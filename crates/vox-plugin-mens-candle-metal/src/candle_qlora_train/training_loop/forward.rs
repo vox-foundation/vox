@@ -75,13 +75,16 @@ pub fn forward_masked_ce(
         .gather(&targets_flat.unsqueeze(1)?, 1)?
         .flatten_all()?;
     let loss = (logprobs.broadcast_mul(&mask)?.sum_all()? / mask.sum_all()?)?;
-    let w = -sample_weight as f32;
+    // Report the plain per-token CE; only the backward loss carries the row's
+    // mix/trajectory weight (otherwise a 6x-weighted row logs 6x its real loss).
+    let unweighted = loss.neg()?;
+    let w = sample_weight as f32;
     let w_t = candle_core::Tensor::new(&[w], device)?;
-    let loss = loss.broadcast_mul(&w_t)?;
+    let loss = unweighted.broadcast_mul(&w_t)?;
 
-    let loss_scalar = match loss.rank() {
-        0 => loss.to_scalar::<f32>()?,
-        1 if loss.dim(0)? == 1 => loss.squeeze(0)?.to_scalar::<f32>()?,
+    let loss_scalar = match unweighted.rank() {
+        0 => unweighted.to_scalar::<f32>()?,
+        1 if unweighted.dim(0)? == 1 => unweighted.squeeze(0)?.to_scalar::<f32>()?,
         r => {
             anyhow::bail!("unexpected loss rank: expected scalar or [1], got rank={r}")
         }

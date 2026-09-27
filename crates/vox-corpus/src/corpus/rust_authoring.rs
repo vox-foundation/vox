@@ -318,7 +318,7 @@ mod verify_tests {
     use super::*;
 
     #[test]
-    #[ignore] // requires cargo + workspace; run locally with --ignored
+    #[ignore = "owner:corpus sunset:never requires cargo + workspace; run locally with --ignored"]
     fn batch_accepts_valid_rejects_invalid() {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .ancestors()

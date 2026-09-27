@@ -400,6 +400,20 @@ export function installTauriMock(viewKey: string): void {
           return { exit_code: 0, stdout: 'ok', stderr: '' };
         }
         case 'submit_orchestrator_task': return { ok: true, task_id: '101', message: 'submitted' };
+        // Single composer dispatch (dfb707f38): background turns return a task id to
+        // correlate the agent-event stream against; sync turns return the reply itself.
+        case 'chat_turn': {
+          const background = args?.input?.execution !== 'sync';
+          return {
+            id: 9001,
+            role: 'assistant',
+            content: background ? '' : 'Mock quick-chat reply.',
+            created_at: new Date().toISOString(),
+            task_id: background ? '101' : null,
+            model_id: args?.input?.model_override ?? 'opus-4-8',
+            events: [],
+          };
+        }
         case 'get_task_diff': return 'diff --git a/README.md b/README.md\n';
         case 'list_repo_files': {
           const mockFiles = [
@@ -447,7 +461,7 @@ export function installTauriMock(viewKey: string): void {
           if (hit) hit.state = 'done';
           return hit ? { ...hit } : null;
         }
-        case 'inference_provider_status': return [{ provider: 'OpenRouter', key_present: true, is_local: false, local_reachable: null, local_models: [] }, { provider: 'Ollama', key_present: true, is_local: true, local_reachable: true, local_models: ['llama3.2'] }];
+        case 'inference_provider_status': return [{ provider: 'OpenRouter', key_present: true, is_local: false, local_reachable: null, local_models: [] }, { provider: 'Ollama', key_present: true, is_local: true, local_reachable: true, local_models: ['llama3.2'] }, { provider: 'Mens', key_present: true, is_local: true, local_reachable: true, local_models: ['mens-8b', 'mens/e2e-smoke-metal'] }];
         case 'set_active_model': return null;
         case 'get_archive_status': return { swhid: null, swh_task_id: null, swh_task_status: null, zenodo_doi: null, zenodo_state: null };
         case 'get_completion_report': return { score: 100, warnings: [], is_complete: true };

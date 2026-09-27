@@ -153,6 +153,8 @@ pub async fn run(
 /// - `Build broker: …`: machine-wide opt-in infra
 ///   (`scripts/broker-install.vox`), not installed by default anywhere.
 /// - `GPU Discovery`: delegated to `vox mens probe`; most machines have no GPU.
+/// - `vox-ml-cli build`: stale ML sidecar — only affects ML commands, which
+///   also warn at runtime (see `checks_standard/ml_cli.rs`).
 /// - `docker: not installed`: Docker is optional for ordinary `vox` development.
 /// - `tier dep: …`: per-tier *runtime*-optional dependencies (already
 ///   advisory under `--probe`, see above).
@@ -168,6 +170,7 @@ const OPTIONAL_CHECK_NAMES: &[&str] = &[
     "Build broker: concurrency cap",
     "GPU Discovery",
     "docker: not installed",
+    "vox-ml-cli build",
 ];
 
 /// A check is optional when named in [`OPTIONAL_CHECK_NAMES`], or is a

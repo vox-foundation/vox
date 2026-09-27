@@ -1500,8 +1500,6 @@ dependencies = [
 [[package]]
 name = "candle-metal-kernels"
 version = "0.10.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b6b5a4cae6b4e1ab0efcee4dc05272d11b374a3d1ba121b3a961e36be54ab60"
 dependencies = [
  "half",
  "objc2",
@@ -17889,6 +17887,7 @@ dependencies = [
  "cpal",
  "dialoguer",
  "dirs",
+ "glob",
  "hex",
  "hound",
  "iroh",

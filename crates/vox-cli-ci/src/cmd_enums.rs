@@ -69,9 +69,6 @@ pub enum CiCmd {
     /// Documentation SSOT guard (required pages, doc-inventory schema, orphan inventory crate list).
     #[command(name = "check-docs-ssot")]
     CheckDocsSsot,
-    /// No-op since `crates/_frozen.md` was superseded by `layers.toml` and `contracts/db/data-storage-policy.v1.yaml`. Kept for backwards-compatibility.
-    #[command(name = "check-frozen")]
-    CheckFrozen,
     /// Codex / Arca SSOT file and OpenAPI substring guard.
     #[command(name = "check-codex-ssot")]
     CheckCodexSsot,
@@ -368,13 +365,6 @@ pub enum CiCmd {
     /// `cargo fmt --all` and stays robust as crates are added/removed.
     #[command(name = "fmt-check")]
     FmtCheck,
-    /// Warn when workflow YAML uses GitHub-hosted runners without a registered exception.
-    #[command(name = "runner-policy-check")]
-    RunnerPolicyCheck {
-        /// Fail (exit 1) instead of advisory warn.
-        #[arg(long)]
-        strict: bool,
-    },
     /// Require a `concurrency:` block on push/PR-triggered workflows (flood prevention);
     /// exceptions registered in docs/src/ci/concurrency-exceptions.md.
     #[command(name = "workflow-concurrency-guard")]
@@ -822,13 +812,6 @@ pub enum CiCmd {
         #[arg(long)]
         max_age_days: Option<u32>,
     },
-    /// Autoscale the ephemeral self-hosted CI runner pool to current demand (dry-run unless `--apply`).
-    #[command(name = "runner-scale")]
-    RunnerScale {
-        /// Actually spawn/reap runners (default is dry-run).
-        #[arg(long)]
-        apply: bool,
-    },
     /// Reproducible wall-clock build scenarios with a committed baseline; --compare emits a phase delta.
     #[command(name = "build-bench")]
     BuildBench {
@@ -913,39 +896,17 @@ pub enum CiCmd {
         #[arg(long)]
         github_output: Option<String>,
     },
-    /// Fail-fast: error immediately when no online self-hosted runner can serve the gate.
-    #[command(name = "runner-preflight")]
-    RunnerPreflight,
-    /// Print per-runner state (container + GitHub status), current queue depth, and recent
-    /// autoscaler decisions from the decision log. Read-only; never mutates fleet state.
-    #[command(name = "runner-status")]
-    RunnerStatus,
-    /// Run-centric CI queue snapshot: classifies runs active/superseded/stale, carries the
-    /// async failure signal, emits machine-readable `advice`, and clears cancellable backlog.
-    /// The SSOT queue interaction for agents under the local-first CI contract.
-    #[command(name = "queue")]
-    Queue {
-        /// Emit the full QueueSnapshot as JSON.
+    /// GitHub CI state for the current branch (failed/timed-out jobs, slowest
+    /// steps) plus open `nightly-failure` issues. Hooks call `--hook` /
+    /// `--changed-only`; agents never need to run it by hand.
+    #[command(name = "status")]
+    Status {
+        /// Hook mode: print the cached block (refresh in background if stale); never fails.
         #[arg(long)]
-        json: bool,
-        /// ≤7-line summary incl. FAILED lines (SessionStart hook uses this).
+        hook: bool,
+        /// Per-session hook mode: read hook JSON on stdin; print only if changed for this session.
         #[arg(long)]
-        brief: bool,
-        /// Read ~/.vox/ci-queue-snapshot.json (no network; refuses >10 min old).
-        #[arg(long)]
-        from_snapshot: bool,
-        /// Cancel superseded + stale runs (live data only; exempt-aware; ≤50/sweep).
-        #[arg(long)]
-        clear: bool,
-        /// With --clear: print the cancellation plan without cancelling.
-        #[arg(long)]
-        dry_run: bool,
-        /// Stale TTL in minutes for queued/pending runs (default 45).
-        #[arg(long)]
-        ttl_mins: Option<i64>,
-        /// PreToolUse hook mode: read hook JSON on stdin; exit 2 on banned remote-watch commands.
-        #[arg(long)]
-        hook_guard: bool,
+        changed_only: bool,
     },
     /// Measure CI job run-time (execution, not queue) and warn on anything over the budget (default 10m).
     #[command(name = "job-timings")]
@@ -979,29 +940,6 @@ pub enum CiCmd {
     /// Scan for retired symbols inside `docs/` using the list in `contracts/documentation/retired-symbols.v1.yaml`.
     #[command(name = "retired-symbol-check")]
     RetiredSymbolCheck,
-    /// **Placeholder:** prints a message only (no DB/corpus checks). Prefer `vox ci mesh-gate` and `vox mens corpus …` for real gates.
-    #[command(name = "mens-corpus-health")]
-    MensCorpusHealth {
-        #[arg(long, default_value_t = 1000)]
-        min_pairs: usize,
-        #[arg(long, default_value_t = 0.15)]
-        min_human_ratio: f64,
-    },
-    /// **Placeholder:** prints a message only (no GRPO validation).
-    #[command(name = "grpo-reward-baseline")]
-    GrpoRewardBaseline,
-    /// **Placeholder:** prints a message only (no eval suite).
-    #[command(name = "collateral-damage-gate")]
-    CollateralDamageGate {
-        #[arg(long, default_value_t = 0.05)]
-        max_damage_rate: f64,
-    },
-    /// **Placeholder:** prints a message only (no constrained generation).
-    #[command(name = "constrained-gen-smoke")]
-    ConstrainedGenSmoke {
-        #[arg(long, default_value_t = 50)]
-        n_samples: usize,
-    },
     /// Sync derived IDE ignore files (.cursorignore, .aiignore, .aiexclude) from .voxignore SSOT.
     #[command(name = "sync-ignore-files")]
     SyncIgnoreFiles {

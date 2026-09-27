@@ -4,6 +4,24 @@
   "suppressions": [
     {
       "rule_id_prefix": "skeleton/untested-pub-api",
+      "path_glob": "**/vox-plugin-mens-candle-*/src/candle_qlora_train/training_loop/forward.rs",
+      "reason": "forward_masked_ce predates the 2026-09-22 change that only separates the reported (unweighted) loss scalar from the weighted backward loss. It needs a loaded TrainGraphModel on a device, so it has no cheap unit seam; the Metal repeat_kv regression test and real training runs exercise it. Surfaced because tdd-guard re-scans the whole touched file.",
+      "owner": "robot"
+    },
+    {
+      "rule_id_prefix": "skeleton/untested-pub-api",
+      "path_glob": "**/vox-corpus/src/corpus/augment/part_mutate.rs",
+      "reason": "part_mutate.rs is include!()d into augment/mod.rs; augment_prompt is tested by augment/tests_mod.rs (also include!()d there), e.g. augment_produces_variants and typos_never_touch_identifiers_or_code_spans. tdd-guard scans files individually and cannot see across include!.",
+      "owner": "robot"
+    },
+    {
+      "rule_id_prefix": "skeleton/untested-pub-api",
+      "path_glob": "**/vox-plugin-mens-candle-*/src/candle_qlora_train/training_loop/validation.rs",
+      "reason": "preflight_masked_ce_finite and run_validation_pass predate the 2026-09-22 MENS training fixes, which only swapped their truncation/system-turn helpers for the tested ones in vox-plugin-mens-candle-core::training_text (with_system_turn, truncate_to_seq_len). Both need a loaded TrainGraphModel and an HF tokenizer, so they have no cheap unit seam; surfaced only because tdd-guard re-scans the whole touched file.",
+      "owner": "robot"
+    },
+    {
+      "rule_id_prefix": "skeleton/untested-pub-api",
       "path_glob": "**/vox-codegen/src/codegen_rust/emit/mod.rs",
       "reason": "generate() and emit_cargo_toml() are pre-existing (predate the 2026-09-21 generated-project-runtime-deps fix, which only edits their Cargo.toml-emission internals). Both are exercised by codegen_rust/mod.rs's sibling `#[cfg(test)] mod tests` (e.g. app_emit_cargo_toml_includes_rust_import_lines, tauri_emit_registers_sherpa_acl_in_build_rs) and by tests/generated_project_builds_outside_repo.rs / tests/ai_fixture_bundle_compiles.rs, which call generate() directly and run `cargo check` on the output. tdd-guard only looks for inline #[test] blocks in the same file, not this crate's established emit-source/test-file split (mirrors the existing vox-ml-cli/eval_gate/check_run.rs suppression below).",
       "owner": "robot"
@@ -112,8 +130,20 @@
     },
     {
       "rule_id_prefix": "skeleton/untested-pub-api",
+      "path_glob": "**/vox-db/src/temporal_claims.rs",
+      "reason": "normalize_semver and is_claim_valid_at_version are pre-existing, zero #[test] blocks in the file before this change, which only collapsed nested if-let chains into let-chains (clippy collapsible_if) further down the same file. Surfaced only because tdd-guard re-scans the whole touched file, not the diff.",
+      "owner": "robot"
+    },
+    {
+      "rule_id_prefix": "skeleton/untested-pub-api",
       "path_glob": "**/vox-term/src/app.rs",
       "reason": "run() is the pre-existing TUI entry point (crossterm event loop over a real terminal); predates two 2026-09-21 fixes that both touch it: wiring Enter-key dispatch through Session::submit inside its body, and adding is_headless()/run_plain() with an early return before crossterm init. It is an infinite interactive I/O loop and not unit-testable directly -- the per-keystroke dispatch logic it now calls (InputBox::submit -> Session::submit) is covered by crates/vox-term/tests/dispatch.rs and the session::tests module, and the headless branch is covered by the subprocess integration test crates/vox-term/tests/headless.rs. Surfaced only because tdd-guard re-scans the whole touched file, not the diff.",
+      "owner": "robot"
+    },
+    {
+      "rule_id_prefix": "skeleton/untested-pub-api",
+      "path_glob": "**/vox-search/src/mens_research_subagent.rs",
+      "reason": "normalize_for_matching and the other 8 pub fns are pre-existing, zero #[test] blocks in the file before this change, which only fixed two clippy manual_pattern_char_comparison findings a few lines above (`.find(|c| c == '{' || c == '[')` -> `.find(['{', '['])`). Surfaced only because tdd-guard re-scans the whole touched file, not the diff.",
       "owner": "robot"
     },
     {
@@ -124,8 +154,26 @@
     },
     {
       "rule_id_prefix": "skeleton/untested-pub-api",
+      "path_glob": "**/vox-search/src/parallel_exploration.rs",
+      "reason": "CancellationToken::new and the other 2 pub fns are pre-existing, zero #[test] blocks in the file before this change, which only collapsed a nested if-let (clippy collapsible_if) elsewhere in the same file. Surfaced only because tdd-guard re-scans the whole touched file, not the diff.",
+      "owner": "robot"
+    },
+    {
+      "rule_id_prefix": "skeleton/untested-pub-api",
+      "path_glob": "**/vox-search/src/search_circuit_breaker.rs",
+      "reason": "ProviderCircuitBreaker::record_failure and the other 7 pub fns are pre-existing, zero #[test] blocks in the file before this change, which only replaced a hand-written impl Default with #[derive(Default)] (clippy derivable_impls) a few lines above. Surfaced only because tdd-guard re-scans the whole touched file, not the diff.",
+      "owner": "robot"
+    },
+    {
+      "rule_id_prefix": "skeleton/untested-pub-api",
       "path_glob": "**/vox-cli/src/commands/plugin_bundle/apply.rs",
       "reason": "pub fn run() is the pre-existing `vox bundle apply` entry point (a thin loop calling install::run per plugin, which carries its own test coverage); this fix only threads a new `force` argument through that one call site. tdd-guard re-scans the whole touched file, not the diff.",
+      "owner": "robot"
+    },
+    {
+      "rule_id_prefix": "skeleton/untested-pub-api",
+      "path_glob": "**/vox-telemetry-otlp/src/project.rs",
+      "reason": "project_event, duration_bucket, token_bucket and the other pub fns are pre-existing; this change only replaced three intra-doc links to private helpers with code spans in project_event's doc comment (rustdoc -D warnings). Surfaced only because tdd-guard re-scans the whole touched file, not the diff.",
       "owner": "robot"
     }
   ]

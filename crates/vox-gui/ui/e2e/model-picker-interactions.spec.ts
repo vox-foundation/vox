@@ -3,8 +3,8 @@
  *
  * Ground truth: Loquela's "Choose model tier" (Run on) trigger is the
  * single picker. The pick is lifted via onModelPick and threaded into
- * the NEXT chat submit as `submit_orchestrator_task`'s `model_override`
- * (TaskEnqueueHints.model_override). ChatModelPicker is not mounted in
+ * the NEXT chat submit as `chat_turn`'s `input.model_override` (the single
+ * composer dispatch since dfb707f38). ChatModelPicker is not mounted in
  * App trailingSlot. The picker itself never calls `set_active_model`.
  */
 import { test, expect } from '@playwright/test';
@@ -31,13 +31,13 @@ test('picking a model updates the trigger label and threads model_override into 
     .poll(
       () =>
         page.evaluate(() =>
-          (window as any).__TAURI_CALLS__.filter((c: any) => c.cmd === 'submit_orchestrator_task').length,
+          (window as any).__TAURI_CALLS__.filter((c: any) => c.cmd === 'chat_turn').length,
         ),
       { timeout: 10_000 },
     )
     .toBeGreaterThan(0);
   const call = await page.evaluate(() =>
-    (window as any).__TAURI_CALLS__.find((c: any) => c.cmd === 'submit_orchestrator_task'),
+    (window as any).__TAURI_CALLS__.find((c: any) => c.cmd === 'chat_turn'),
   );
   expect(call.args.input).toMatchObject({ model_override: pickedId });
 

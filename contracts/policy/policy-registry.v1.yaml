@@ -108,7 +108,7 @@ policies:
   domain: arch-rule
   title: Per-crate lines-of-code budget
   group: Architecture
-  description: Per-crate lines-of-code budget (layers.toml [guards].loc_budget = "warn")
+  description: Per-crate lines-of-code budget (layers.toml [guards].loc_budget = "off")
   severity: warn
   blocking: false
   runs_on:
@@ -688,6 +688,38 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.affected-crates
+  domain: ci-gate
+  title: Ci Affected-crates
+  group: CI Gates / affected
+  description: CLI operation `vox ci affected-crates`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.affected-crates
+    detail: vox ci affected-crates
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.agentskills-compliance
+  domain: ci-gate
+  title: Ci Agentskills-compliance
+  group: CI Gates / agentskills
+  description: CLI operation `vox ci agentskills-compliance`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.agentskills-compliance
+    detail: vox ci agentskills-compliance
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.ai-fixtures-coverage
   domain: ci-gate
   title: Ci Ai-fixtures-coverage
@@ -736,6 +768,38 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.attention-config-parity
+  domain: ci-gate
+  title: Ci Attention-config-parity
+  group: CI Gates / attention
+  description: CLI operation `vox ci attention-config-parity`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.attention-config-parity
+    detail: vox ci attention-config-parity
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.attention-event-ledger-parity
+  domain: ci-gate
+  title: Ci Attention-event-ledger-parity
+  group: CI Gates / attention
+  description: CLI operation `vox ci attention-event-ledger-parity`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.attention-event-ledger-parity
+    detail: vox ci attention-event-ledger-parity
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.backend-tests
   domain: ci-gate
   title: Ci Backend-tests
@@ -752,6 +816,22 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.bom-check
+  domain: ci-gate
+  title: Ci Bom-check
+  group: CI Gates / bom
+  description: CLI operation `vox ci bom-check`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.bom-check
+    detail: vox ci bom-check
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.build-bench
   domain: ci-gate
   title: Ci Build-bench
@@ -765,6 +845,22 @@ policies:
     kind: command
     ref: contracts/operations/catalog.v1.yaml#ci.build-bench
     detail: vox ci build-bench
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.build-cache-doctor
+  domain: ci-gate
+  title: Ci Build-cache-doctor
+  group: CI Gates / build
+  description: CLI operation `vox ci build-cache-doctor`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.build-cache-doctor
+    detail: vox ci build-cache-doctor
   default_enabled: true
   protected: false
   origin: builtin
@@ -797,6 +893,54 @@ policies:
     kind: command
     ref: contracts/operations/catalog.v1.yaml#ci.build-timings
     detail: vox ci build-timings
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.cache-key-lint
+  domain: ci-gate
+  title: Ci Cache-key-lint
+  group: CI Gates / cache
+  description: CLI operation `vox ci cache-key-lint`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.cache-key-lint
+    detail: vox ci cache-key-lint
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.canonical-map-verify
+  domain: ci-gate
+  title: Ci Canonical-map-verify
+  group: CI Gates / canonical
+  description: CLI operation `vox ci canonical-map-verify`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.canonical-map-verify
+    detail: vox ci canonical-map-verify
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.capability-snapshot
+  domain: ci-gate
+  title: Ci Capability-snapshot
+  group: CI Gates / capability
+  description: CLI operation `vox ci capability-snapshot`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.capability-snapshot
+    detail: vox ci capability-snapshot
   default_enabled: true
   protected: false
   origin: builtin
@@ -848,6 +992,22 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.check-frozen
+  domain: ci-gate
+  title: Ci Check-frozen
+  group: CI Gates / check
+  description: CLI operation `vox ci check-frozen`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.check-frozen
+    detail: vox ci check-frozen
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.check-links
   domain: ci-gate
   title: Ci Check-links
@@ -880,6 +1040,22 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.collateral-damage-gate
+  domain: ci-gate
+  title: Ci Collateral-damage-gate
+  group: CI Gates / collateral
+  description: CLI operation `vox ci collateral-damage-gate`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.collateral-damage-gate
+    detail: vox ci collateral-damage-gate
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.command-compliance
   domain: ci-gate
   title: Ci Command-compliance
@@ -909,6 +1085,22 @@ policies:
     kind: command
     ref: contracts/operations/catalog.v1.yaml#ci.command-sync
     detail: vox ci command-sync
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.commit-lint
+  domain: ci-gate
+  title: Ci Commit-lint
+  group: CI Gates / commit
+  description: CLI operation `vox ci commit-lint`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.commit-lint
+    detail: vox ci commit-lint
   default_enabled: true
   protected: false
   origin: builtin
@@ -976,6 +1168,22 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.config-gui-codegen
+  domain: ci-gate
+  title: Ci Config-gui-codegen
+  group: CI Gates / config
+  description: CLI operation `vox ci config-gui-codegen`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.config-gui-codegen
+    detail: vox ci config-gui-codegen
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.config-hygiene
   domain: ci-gate
   title: Ci Config-hygiene
@@ -1005,6 +1213,22 @@ policies:
     kind: command
     ref: contracts/operations/catalog.v1.yaml#ci.config-registry-parity
     detail: vox ci config-registry-parity
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.constrained-gen-smoke
+  domain: ci-gate
+  title: Ci Constrained-gen-smoke
+  group: CI Gates / constrained
+  description: CLI operation `vox ci constrained-gen-smoke`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.constrained-gen-smoke
+    detail: vox ci constrained-gen-smoke
   default_enabled: true
   protected: false
   origin: builtin
@@ -1040,6 +1264,54 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.coolify-eval.discover
+  domain: ci-gate
+  title: Ci Coolify-eval Discover
+  group: CI Gates / coolify
+  description: CLI operation `vox ci coolify-eval discover`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.coolify-eval.discover
+    detail: vox ci coolify-eval discover
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.coolify-eval.sync-compose
+  domain: ci-gate
+  title: Ci Coolify-eval Sync-compose
+  group: CI Gates / coolify
+  description: CLI operation `vox ci coolify-eval sync-compose`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.coolify-eval.sync-compose
+    detail: vox ci coolify-eval sync-compose
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.corpus-decl-coverage
+  domain: ci-gate
+  title: Ci Corpus-decl-coverage
+  group: CI Gates / corpus
+  description: CLI operation `vox ci corpus-decl-coverage`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.corpus-decl-coverage
+    detail: vox ci corpus-decl-coverage
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.coverage-gates
   domain: ci-gate
   title: Ci Coverage-gates
@@ -1053,6 +1325,54 @@ policies:
     kind: command
     ref: contracts/operations/catalog.v1.yaml#ci.coverage-gates
     detail: vox ci coverage-gates
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.crate-budget
+  domain: ci-gate
+  title: Ci Crate-budget
+  group: CI Gates / crate
+  description: CLI operation `vox ci crate-budget`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.crate-budget
+    detail: vox ci crate-budget
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.crate-build-map-parity
+  domain: ci-gate
+  title: Ci Crate-build-map-parity
+  group: CI Gates / crate
+  description: CLI operation `vox ci crate-build-map-parity`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.crate-build-map-parity
+    detail: vox ci crate-build-map-parity
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.crate-edges
+  domain: ci-gate
+  title: Ci Crate-edges
+  group: CI Gates / crate
+  description: CLI operation `vox ci crate-edges`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.crate-edges
+    detail: vox ci crate-edges
   default_enabled: true
   protected: false
   origin: builtin
@@ -1104,6 +1424,22 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.data-storage-guard
+  domain: ci-gate
+  title: Ci Data-storage-guard
+  group: CI Gates / data
+  description: CLI operation `vox ci data-storage-guard`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.data-storage-guard
+    detail: vox ci data-storage-guard
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.db-schema-coverage
   domain: ci-gate
   title: Ci Db-schema-coverage
@@ -1133,6 +1469,70 @@ policies:
     kind: command
     ref: contracts/operations/catalog.v1.yaml#ci.dep-cycles
     detail: vox ci dep-cycles
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.dep-sprawl
+  domain: ci-gate
+  title: Ci Dep-sprawl
+  group: CI Gates / dep
+  description: CLI operation `vox ci dep-sprawl`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.dep-sprawl
+    detail: vox ci dep-sprawl
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.deploy-status
+  domain: ci-gate
+  title: Ci Deploy-status
+  group: CI Gates / deploy
+  description: CLI operation `vox ci deploy-status`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.deploy-status
+    detail: vox ci deploy-status
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.detect-rules-bench
+  domain: ci-gate
+  title: Ci Detect-rules-bench
+  group: CI Gates / detect
+  description: CLI operation `vox ci detect-rules-bench`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.detect-rules-bench
+    detail: vox ci detect-rules-bench
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.determinism-audit
+  domain: ci-gate
+  title: Ci Determinism-audit
+  group: CI Gates / determinism
+  description: CLI operation `vox ci determinism-audit`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.determinism-audit
+    detail: vox ci determinism-audit
   default_enabled: true
   protected: false
   origin: builtin
@@ -1168,6 +1568,38 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.doc-inventory.generate
+  domain: ci-gate
+  title: Ci Doc-inventory Generate
+  group: CI Gates / doc
+  description: CLI operation `vox ci doc-inventory generate`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.doc-inventory.generate
+    detail: vox ci doc-inventory generate
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.doc-inventory.verify
+  domain: ci-gate
+  title: Ci Doc-inventory Verify
+  group: CI Gates / doc
+  description: CLI operation `vox ci doc-inventory verify`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.doc-inventory.verify
+    detail: vox ci doc-inventory verify
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.docs-reality-audit
   domain: ci-gate
   title: Ci Docs-reality-audit
@@ -1181,6 +1613,54 @@ policies:
     kind: command
     ref: contracts/operations/catalog.v1.yaml#ci.docs-reality-audit
     detail: vox ci docs-reality-audit
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.docs-reality-audit.metrics
+  domain: ci-gate
+  title: Ci Docs-reality-audit Metrics
+  group: CI Gates / docs
+  description: CLI operation `vox ci docs-reality-audit metrics`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.docs-reality-audit.metrics
+    detail: vox ci docs-reality-audit metrics
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.docs-reality-audit.verify
+  domain: ci-gate
+  title: Ci Docs-reality-audit Verify
+  group: CI Gates / docs
+  description: CLI operation `vox ci docs-reality-audit verify`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.docs-reality-audit.verify
+    detail: vox ci docs-reality-audit verify
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.doctest-md
+  domain: ci-gate
+  title: Ci Doctest-md
+  group: CI Gates / doctest
+  description: CLI operation `vox ci doctest-md`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.doctest-md
+    detail: vox ci doctest-md
   default_enabled: true
   protected: false
   origin: builtin
@@ -1248,6 +1728,22 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.fan-in-budget
+  domain: ci-gate
+  title: Ci Fan-in-budget
+  group: CI Gates / fan
+  description: CLI operation `vox ci fan-in-budget`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.fan-in-budget
+    detail: vox ci fan-in-budget
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.feature-matrix
   domain: ci-gate
   title: Ci Feature-matrix
@@ -1280,6 +1776,54 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.fmt-check
+  domain: ci-gate
+  title: Ci Fmt-check
+  group: CI Gates / fmt
+  description: CLI operation `vox ci fmt-check`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.fmt-check
+    detail: vox ci fmt-check
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.free-binary
+  domain: ci-gate
+  title: Ci Free-binary
+  group: CI Gates / free
+  description: CLI operation `vox ci free-binary`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.free-binary
+    detail: vox ci free-binary
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.generate-plugin-catalog-docs
+  domain: ci-gate
+  title: Ci Generate-plugin-catalog-docs
+  group: CI Gates / generate
+  description: CLI operation `vox ci generate-plugin-catalog-docs`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.generate-plugin-catalog-docs
+    detail: vox ci generate-plugin-catalog-docs
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.grammar-drift
   domain: ci-gate
   title: Ci Grammar-drift
@@ -1293,6 +1837,86 @@ policies:
     kind: command
     ref: contracts/operations/catalog.v1.yaml#ci.grammar-drift
     detail: vox ci grammar-drift
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.grammar-export-check
+  domain: ci-gate
+  title: Ci Grammar-export-check
+  group: CI Gates / grammar
+  description: CLI operation `vox ci grammar-export-check`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.grammar-export-check
+    detail: vox ci grammar-export-check
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.grammar-ssot-parity
+  domain: ci-gate
+  title: Ci Grammar-ssot-parity
+  group: CI Gates / grammar
+  description: CLI operation `vox ci grammar-ssot-parity`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.grammar-ssot-parity
+    detail: vox ci grammar-ssot-parity
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.grpo-reward-baseline
+  domain: ci-gate
+  title: Ci Grpo-reward-baseline
+  group: CI Gates / grpo
+  description: CLI operation `vox ci grpo-reward-baseline`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.grpo-reward-baseline
+    detail: vox ci grpo-reward-baseline
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.gui-catalog-parity
+  domain: ci-gate
+  title: Ci Gui-catalog-parity
+  group: CI Gates / gui
+  description: CLI operation `vox ci gui-catalog-parity`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.gui-catalog-parity
+    detail: vox ci gui-catalog-parity
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.gui-honesty
+  domain: ci-gate
+  title: Ci Gui-honesty
+  group: CI Gates / gui
+  description: CLI operation `vox ci gui-honesty`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.gui-honesty
+    detail: vox ci gui-honesty
   default_enabled: true
   protected: false
   origin: builtin
@@ -1312,6 +1936,86 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.gui-surface-coverage
+  domain: ci-gate
+  title: Ci Gui-surface-coverage
+  group: CI Gates / gui
+  description: CLI operation `vox ci gui-surface-coverage`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.gui-surface-coverage
+    detail: vox ci gui-surface-coverage
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.gui-surface-registry
+  domain: ci-gate
+  title: Ci Gui-surface-registry
+  group: CI Gates / gui
+  description: CLI operation `vox ci gui-surface-registry`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.gui-surface-registry
+    detail: vox ci gui-surface-registry
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.gui-version-sync
+  domain: ci-gate
+  title: Ci Gui-version-sync
+  group: CI Gates / gui
+  description: CLI operation `vox ci gui-version-sync`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.gui-version-sync
+    detail: vox ci gui-version-sync
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.gui-visual-review
+  domain: ci-gate
+  title: Ci Gui-visual-review
+  group: CI Gates / gui
+  description: CLI operation `vox ci gui-visual-review`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.gui-visual-review
+    detail: vox ci gui-visual-review
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.harness-trust-guard
+  domain: ci-gate
+  title: Ci Harness-trust-guard
+  group: CI Gates / harness
+  description: CLI operation `vox ci harness-trust-guard`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.harness-trust-guard
+    detail: vox ci harness-trust-guard
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.ignored-test-age
   domain: ci-gate
   title: Ci Ignored-test-age
@@ -1325,6 +2029,86 @@ policies:
     kind: command
     ref: contracts/operations/catalog.v1.yaml#ci.ignored-test-age
     detail: vox ci ignored-test-age
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.install-hooks
+  domain: ci-gate
+  title: Ci Install-hooks
+  group: CI Gates / install
+  description: CLI operation `vox ci install-hooks`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.install-hooks
+    detail: vox ci install-hooks
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.job-timings
+  domain: ci-gate
+  title: Ci Job-timings
+  group: CI Gates / job
+  description: CLI operation `vox ci job-timings`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.job-timings
+    detail: vox ci job-timings
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.json-parse-check
+  domain: ci-gate
+  title: Ci Json-parse-check
+  group: CI Gates / json
+  description: CLI operation `vox ci json-parse-check`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.json-parse-check
+    detail: vox ci json-parse-check
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.k-complexity-budget
+  domain: ci-gate
+  title: Ci K-complexity-budget
+  group: CI Gates / k
+  description: CLI operation `vox ci k-complexity-budget`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.k-complexity-budget
+    detail: vox ci k-complexity-budget
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.kill-stuck-tests
+  domain: ci-gate
+  title: Ci Kill-stuck-tests
+  group: CI Gates / kill
+  description: CLI operation `vox ci kill-stuck-tests`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.kill-stuck-tests
+    detail: vox ci kill-stuck-tests
   default_enabled: true
   protected: false
   origin: builtin
@@ -1357,6 +2141,38 @@ policies:
     kind: command
     ref: contracts/operations/catalog.v1.yaml#ci.manifest
     detail: vox ci manifest
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.mcp-vox-surface-parity
+  domain: ci-gate
+  title: Ci Mcp-vox-surface-parity
+  group: CI Gates / mcp
+  description: CLI operation `vox ci mcp-vox-surface-parity`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.mcp-vox-surface-parity
+    detail: vox ci mcp-vox-surface-parity
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.mens-corpus-health
+  domain: ci-gate
+  title: Ci Mens-corpus-health
+  group: CI Gates / mens
+  description: CLI operation `vox ci mens-corpus-health`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.mens-corpus-health
+    detail: vox ci mens-corpus-health
   default_enabled: true
   protected: false
   origin: builtin
@@ -1472,6 +2288,22 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.model-routing-check
+  domain: ci-gate
+  title: Ci Model-routing-check
+  group: CI Gates / model
+  description: CLI operation `vox ci model-routing-check`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.model-routing-check
+    detail: vox ci model-routing-check
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.no-dei-import
   domain: ci-gate
   title: Ci No-dei-import
@@ -1485,6 +2317,54 @@ policies:
     kind: command
     ref: contracts/operations/catalog.v1.yaml#ci.no-dei-import
     detail: vox ci no-dei-import
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.no-plugin-cdylib-as-compile-dep
+  domain: ci-gate
+  title: Ci No-plugin-cdylib-as-compile-dep
+  group: CI Gates / no
+  description: CLI operation `vox ci no-plugin-cdylib-as-compile-dep`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.no-plugin-cdylib-as-compile-dep
+    detail: vox ci no-plugin-cdylib-as-compile-dep
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.no-tauri-in-core
+  domain: ci-gate
+  title: Ci No-tauri-in-core
+  group: CI Gates / no
+  description: CLI operation `vox ci no-tauri-in-core`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.no-tauri-in-core
+    detail: vox ci no-tauri-in-core
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.node-pnpm-ssot-guard
+  domain: ci-gate
+  title: Ci Node-pnpm-ssot-guard
+  group: CI Gates / node
+  description: CLI operation `vox ci node-pnpm-ssot-guard`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.node-pnpm-ssot-guard
+    detail: vox ci node-pnpm-ssot-guard
   default_enabled: true
   protected: false
   origin: builtin
@@ -1552,6 +2432,22 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.operator-env-guard
+  domain: ci-gate
+  title: Ci Operator-env-guard
+  group: CI Gates / operator
+  description: CLI operation `vox ci operator-env-guard`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.operator-env-guard
+    detail: vox ci operator-env-guard
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.parse-status
   domain: ci-gate
   title: Ci Parse-status
@@ -1581,6 +2477,102 @@ policies:
     kind: command
     ref: contracts/operations/catalog.v1.yaml#ci.pipeline-parity
     detail: vox ci pipeline-parity
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.plugin-abi-parity
+  domain: ci-gate
+  title: Ci Plugin-abi-parity
+  group: CI Gates / plugin
+  description: CLI operation `vox ci plugin-abi-parity`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.plugin-abi-parity
+    detail: vox ci plugin-abi-parity
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.plugin-catalog-parity
+  domain: ci-gate
+  title: Ci Plugin-catalog-parity
+  group: CI Gates / plugin
+  description: CLI operation `vox ci plugin-catalog-parity`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.plugin-catalog-parity
+    detail: vox ci plugin-catalog-parity
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.plugin-catalog-sync
+  domain: ci-gate
+  title: Ci Plugin-catalog-sync
+  group: CI Gates / plugin
+  description: CLI operation `vox ci plugin-catalog-sync`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.plugin-catalog-sync
+    detail: vox ci plugin-catalog-sync
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.plugin-dep-boundary
+  domain: ci-gate
+  title: Ci Plugin-dep-boundary
+  group: CI Gates / plugin
+  description: CLI operation `vox ci plugin-dep-boundary`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.plugin-dep-boundary
+    detail: vox ci plugin-dep-boundary
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.plugin-skill-parity
+  domain: ci-gate
+  title: Ci Plugin-skill-parity
+  group: CI Gates / plugin
+  description: CLI operation `vox ci plugin-skill-parity`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.plugin-skill-parity
+    detail: vox ci plugin-skill-parity
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.plugin-surface-sync
+  domain: ci-gate
+  title: Ci Plugin-surface-sync
+  group: CI Gates / plugin
+  description: CLI operation `vox ci plugin-surface-sync`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.plugin-surface-sync
+    detail: vox ci plugin-surface-sync
   default_enabled: true
   protected: false
   origin: builtin
@@ -1616,6 +2608,38 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.policy-registry
+  domain: ci-gate
+  title: Ci Policy-registry
+  group: CI Gates / policy
+  description: CLI operation `vox ci policy-registry`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.policy-registry
+    detail: vox ci policy-registry
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.policy-registry-parity
+  domain: ci-gate
+  title: Ci Policy-registry-parity
+  group: CI Gates / policy
+  description: CLI operation `vox ci policy-registry-parity`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.policy-registry-parity
+    detail: vox ci policy-registry-parity
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.policy-smoke
   domain: ci-gate
   title: Ci Policy-smoke
@@ -1648,6 +2672,22 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.profile-parity
+  domain: ci-gate
+  title: Ci Profile-parity
+  group: CI Gates / profile
+  description: CLI operation `vox ci profile-parity`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.profile-parity
+    detail: vox ci profile-parity
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.query-all-guard
   domain: ci-gate
   title: Ci Query-all-guard
@@ -1661,6 +2701,22 @@ policies:
     kind: command
     ref: contracts/operations/catalog.v1.yaml#ci.query-all-guard
     detail: vox ci query-all-guard
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.queue
+  domain: ci-gate
+  title: Ci Queue
+  group: CI Gates / queue
+  description: CLI operation `vox ci queue`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.queue
+    detail: vox ci queue
   default_enabled: true
   protected: false
   origin: builtin
@@ -1680,6 +2736,22 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.release-draft-guard
+  domain: ci-gate
+  title: Ci Release-draft-guard
+  group: CI Gates / release
+  description: CLI operation `vox ci release-draft-guard`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.release-draft-guard
+    detail: vox ci release-draft-guard
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.repo-guards
   domain: ci-gate
   title: Ci Repo-guards
@@ -1696,6 +2768,38 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.required-context-guard
+  domain: ci-gate
+  title: Ci Required-context-guard
+  group: CI Gates / required
+  description: CLI operation `vox ci required-context-guard`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.required-context-guard
+    detail: vox ci required-context-guard
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.retired-symbol-check
+  domain: ci-gate
+  title: Ci Retired-symbol-check
+  group: CI Gates / retired
+  description: CLI operation `vox ci retired-symbol-check`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.retired-symbol-check
+    detail: vox ci retired-symbol-check
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.retirement-audit
   domain: ci-gate
   title: Ci Retirement-audit
@@ -1709,6 +2813,86 @@ policies:
     kind: command
     ref: contracts/operations/catalog.v1.yaml#ci.retirement-audit
     detail: vox ci retirement-audit
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.row-serde-lint
+  domain: ci-gate
+  title: Ci Row-serde-lint
+  group: CI Gates / row
+  description: CLI operation `vox ci row-serde-lint`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.row-serde-lint
+    detail: vox ci row-serde-lint
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.runner-policy-check
+  domain: ci-gate
+  title: Ci Runner-policy-check
+  group: CI Gates / runner
+  description: CLI operation `vox ci runner-policy-check`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.runner-policy-check
+    detail: vox ci runner-policy-check
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.runner-preflight
+  domain: ci-gate
+  title: Ci Runner-preflight
+  group: CI Gates / runner
+  description: CLI operation `vox ci runner-preflight`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.runner-preflight
+    detail: vox ci runner-preflight
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.runner-scale
+  domain: ci-gate
+  title: Ci Runner-scale
+  group: CI Gates / runner
+  description: CLI operation `vox ci runner-scale`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.runner-scale
+    detail: vox ci runner-scale
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.runner-status
+  domain: ci-gate
+  title: Ci Runner-status
+  group: CI Gates / runner
+  description: CLI operation `vox ci runner-status`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.runner-status
+    detail: vox ci runner-status
   default_enabled: true
   protected: false
   origin: builtin
@@ -1808,6 +2992,22 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.scientia-heuristics-parity
+  domain: ci-gate
+  title: Ci Scientia-heuristics-parity
+  group: CI Gates / scientia
+  description: CLI operation `vox ci scientia-heuristics-parity`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.scientia-heuristics-parity
+    detail: vox ci scientia-heuristics-parity
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.scientia-novelty-ledger-contracts
   domain: ci-gate
   title: Ci Scientia-novelty-ledger-contracts
@@ -1840,6 +3040,22 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.script-hygiene
+  domain: ci-gate
+  title: Ci Script-hygiene
+  group: CI Gates / script
+  description: CLI operation `vox ci script-hygiene`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.script-hygiene
+    detail: vox ci script-hygiene
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.secret-env-guard
   domain: ci-gate
   title: Ci Secret-env-guard
@@ -1853,6 +3069,54 @@ policies:
     kind: command
     ref: contracts/operations/catalog.v1.yaml#ci.secret-env-guard
     detail: vox ci secret-env-guard
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.secrets-contracts
+  domain: ci-gate
+  title: Ci Secrets-contracts
+  group: CI Gates / secrets
+  description: CLI operation `vox ci secrets-contracts`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.secrets-contracts
+    detail: vox ci secrets-contracts
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.secrets-cutover-audit
+  domain: ci-gate
+  title: Ci Secrets-cutover-audit
+  group: CI Gates / secrets
+  description: CLI operation `vox ci secrets-cutover-audit`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.secrets-cutover-audit
+    detail: vox ci secrets-cutover-audit
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.secrets-cutover-gates
+  domain: ci-gate
+  title: Ci Secrets-cutover-gates
+  group: CI Gates / secrets
+  description: CLI operation `vox ci secrets-cutover-gates`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.secrets-cutover-gates
+    detail: vox ci secrets-cutover-gates
   default_enabled: true
   protected: false
   origin: builtin
@@ -1872,6 +3136,22 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.source-token-budget
+  domain: ci-gate
+  title: Ci Source-token-budget
+  group: CI Gates / source
+  description: CLI operation `vox ci source-token-budget`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.source-token-budget
+    detail: vox ci source-token-budget
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.speech-runtime-suite
   domain: ci-gate
   title: Ci Speech-runtime-suite
@@ -1885,6 +3165,22 @@ policies:
     kind: command
     ref: contracts/operations/catalog.v1.yaml#ci.speech-runtime-suite
     detail: vox ci speech-runtime-suite
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.spoke-check
+  domain: ci-gate
+  title: Ci Spoke-check
+  group: CI Gates / spoke
+  description: CLI operation `vox ci spoke-check`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.spoke-check
+    detail: vox ci spoke-check
   default_enabled: true
   protected: false
   origin: builtin
@@ -1904,6 +3200,22 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.ssot-audit
+  domain: ci-gate
+  title: Ci Ssot-audit
+  group: CI Gates / ssot
+  description: CLI operation `vox ci ssot-audit`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.ssot-audit
+    detail: vox ci ssot-audit
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.ssot-drift
   domain: ci-gate
   title: Ci Ssot-drift
@@ -1917,6 +3229,38 @@ policies:
     kind: command
     ref: contracts/operations/catalog.v1.yaml#ci.ssot-drift
     detail: vox ci ssot-drift
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.string-id-lint
+  domain: ci-gate
+  title: Ci String-id-lint
+  group: CI Gates / string
+  description: CLI operation `vox ci string-id-lint`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.string-id-lint
+    detail: vox ci string-id-lint
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.sync-ignore-files
+  domain: ci-gate
+  title: Ci Sync-ignore-files
+  group: CI Gates / sync
+  description: CLI operation `vox ci sync-ignore-files`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.sync-ignore-files
+    detail: vox ci sync-ignore-files
   default_enabled: true
   protected: false
   origin: builtin
@@ -1952,6 +3296,38 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.tier-budget-check
+  domain: ci-gate
+  title: Ci Tier-budget-check
+  group: CI Gates / tier
+  description: CLI operation `vox ci tier-budget-check`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.tier-budget-check
+    detail: vox ci tier-budget-check
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.toestub-budget
+  domain: ci-gate
+  title: Ci Toestub-budget
+  group: CI Gates / toestub
+  description: CLI operation `vox ci toestub-budget`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.toestub-budget
+    detail: vox ci toestub-budget
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.toestub-scoped
   domain: ci-gate
   title: Ci Toestub-scoped
@@ -1984,6 +3360,38 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.toolchain-ssot
+  domain: ci-gate
+  title: Ci Toolchain-ssot
+  group: CI Gates / toolchain
+  description: CLI operation `vox ci toolchain-ssot`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.toolchain-ssot
+    detail: vox ci toolchain-ssot
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.toolchain-workflow-lint
+  domain: ci-gate
+  title: Ci Toolchain-workflow-lint
+  group: CI Gates / toolchain
+  description: CLI operation `vox ci toolchain-workflow-lint`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.toolchain-workflow-lint
+    detail: vox ci toolchain-workflow-lint
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.turso-import-guard
   domain: ci-gate
   title: Ci Turso-import-guard
@@ -2000,6 +3408,54 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.vox-parse-check
+  domain: ci-gate
+  title: Ci Vox-parse-check
+  group: CI Gates / vox
+  description: CLI operation `vox ci vox-parse-check`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.vox-parse-check
+    detail: vox ci vox-parse-check
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.watch-run
+  domain: ci-gate
+  title: Ci Watch-run
+  group: CI Gates / watch
+  description: CLI operation `vox ci watch-run`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.watch-run
+    detail: vox ci watch-run
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.workflow-concurrency-guard
+  domain: ci-gate
+  title: Ci Workflow-concurrency-guard
+  group: CI Gates / workflow
+  description: CLI operation `vox ci workflow-concurrency-guard`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.workflow-concurrency-guard
+    detail: vox ci workflow-concurrency-guard
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.workflow-scripts
   domain: ci-gate
   title: Ci Workflow-scripts
@@ -2013,6 +3469,22 @@ policies:
     kind: command
     ref: contracts/operations/catalog.v1.yaml#ci.workflow-scripts
     detail: vox ci workflow-scripts
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.yaml-parse-check
+  domain: ci-gate
+  title: Ci Yaml-parse-check
+  group: CI Gates / yaml
+  description: CLI operation `vox ci yaml-parse-check`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.yaml-parse-check
+    detail: vox ci yaml-parse-check
   default_enabled: true
   protected: false
   origin: builtin

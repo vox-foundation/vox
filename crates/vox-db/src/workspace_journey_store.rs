@@ -153,6 +153,8 @@ mod tests {
     // mutex would change a lock type shared by many sync tests.
     #[allow(clippy::await_holding_lock)]
     #[tokio::test(flavor = "multi_thread")]
+    #[allow(unsafe_code)] // set_var/remove_var are unsafe on Rust 2024; TEST_ENV_LOCK serialises env mutators.
+    #[allow(clippy::await_holding_lock)] // the guard must span the await: it is what serialises the env mutation.
     async fn non_project_dir_gets_no_dot_vox_store() {
         let scratch = tempfile::tempdir().expect("scratch tempdir");
         let user_data = tempfile::tempdir().expect("user data tempdir");

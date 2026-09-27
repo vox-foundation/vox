@@ -55,13 +55,34 @@ permissions:
 jobs:
   umbrella:
     name: vox audit --gate all --strict-block-ga
-    runs-on: [self-hosted, linux]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
-      - name: Cache cargo registry
+      # Only `main` WRITES: a PR-scoped cache entry is unreadable from any
+      # other ref and evicts the main-scope entries every job restores from
+      # (the repository cache is a 10 GB LRU bucket). Machine-checked by
+      # `vox ci cache-key-lint`.
+      - name: Cache cargo registry (main saves)
+        if: github.ref == 'refs/heads/main'
         uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          # This job installs no toolchain of its own (relies on the self-hosted
+          # image's rustup auto-switching on rust-toolchain.toml), so there's no
+          # setup-rust `toolchain` output to key on. Hashing rust-toolchain.toml
+          # alongside Cargo.lock makes the key toolchain-sensitive without one --
+          # anchored to the top-level Cargo.lock only, per the setup-rust action's
+          # rationale (the `**/` glob also matches server/telemetry/Cargo.lock,
+          # a deliberately excluded separate workspace).
+          key: ${{ runner.os }}-cargo-cr-l-gates-${{ hashFiles('rust-toolchain.toml', 'Cargo.lock') }}
+      - name: Cache cargo registry (restore only, off main)
+        if: github.ref != 'refs/heads/main'
+        uses: actions/cache/restore@v5
         with:
           path: |
             ~/.cargo/registry
@@ -149,13 +170,30 @@ jobs:
 
   arch-check-evidence:
     name: vox-arch-check evidence-ledger lint
-    runs-on: [self-hosted, linux]
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
 
-      - name: Cache cargo
+      # Only `main` WRITES: a PR-scoped cache entry is unreadable from any
+      # other ref and evicts the main-scope entries every job restores from
+      # (the repository cache is a 10 GB LRU bucket). Machine-checked by
+      # `vox ci cache-key-lint`.
+      - name: Cache cargo (main saves)
+        if: github.ref == 'refs/heads/main'
         uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          # See the `umbrella` job's cache step for why rust-toolchain.toml is
+          # hashed alongside Cargo.lock here (no setup-rust toolchain output to
+          # key on in this job).
+          key: ${{ runner.os }}-cargo-arch-check-${{ hashFiles('rust-toolchain.toml', 'Cargo.lock') }}
+      - name: Cache cargo (restore only, off main)
+        if: github.ref != 'refs/heads/main'
+        uses: actions/cache/restore@v5
         with:
           path: |
             ~/.cargo/registry

@@ -153,8 +153,15 @@ runs:
         components: ${{ steps.union.outputs.components }}
         targets: ${{ steps.union.outputs.targets }}
 
-    - name: Cache cargo registry, git, and target directories
-      if: ${{ inputs.cache == 'true' }}
+    # Save/restore are split so only `main` WRITES. The repository Actions
+    # cache is a 10 GB LRU bucket: a cache saved from a PR run is scoped to
+    # `refs/pull/N/merge`, so no other ref can ever read it -- it is pure
+    # write-only churn that evicts the main-scope entries every job actually
+    # restores from. Both halves keep the same pinned SHA, path, key and
+    # restore-keys; `actions/cache/restore` is simply the read-only half of
+    # the same action. Machine-checked by `vox ci cache-key-lint`.
+    - name: Cache cargo registry, git, and target directories (main saves)
+      if: ${{ inputs.cache == 'true' && github.ref == 'refs/heads/main' }}
       uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809
       with:
         path: |
@@ -165,6 +172,20 @@ runs:
         # matches server/telemetry/Cargo.lock (a deliberately separate,
         # excluded workspace) and any Cargo.lock copied under target/, which
         # was silently poisoning 18 of the 26 pre-existing cache keys.
+        key: ${{ runner.os }}-cargo-${{ steps.ssot.outputs.toolchain }}-${{ hashFiles('Cargo.lock') }}${{ inputs.cache-key-suffix }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-${{ steps.ssot.outputs.toolchain }}-
+
+    - name: Restore cargo registry, git, and target directories (no save off main)
+      if: ${{ inputs.cache == 'true' && github.ref != 'refs/heads/main' }}
+      uses: actions/cache/restore@0400d5f644dc74513175e3cd8d07132dd4860809
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target/
+        # Identical key/restore-keys to the save half above -- see its comment
+        # for why this is the top-level Cargo.lock and not `**/Cargo.lock`.
         key: ${{ runner.os }}-cargo-${{ steps.ssot.outputs.toolchain }}-${{ hashFiles('Cargo.lock') }}${{ inputs.cache-key-suffix }}
         restore-keys: |
           ${{ runner.os }}-cargo-${{ steps.ssot.outputs.toolchain }}-

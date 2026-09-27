@@ -117,7 +117,7 @@ pub fn run_tsc_noemit(scratch: &Path, tsconfig_path: &Path) -> std::process::Out
 /// default. Under that path, two tests setting different values for the same var can race.
 static ENV_VAR_LOCK: Mutex<()> = Mutex::new(());
 
-/// RAII guard: holds [`ENV_VAR_LOCK`], sets each `(name, value)` pair, and restores each
+/// RAII guard: holds `ENV_VAR_LOCK`, sets each `(name, value)` pair, and restores each
 /// var to its prior value when dropped — including when dropped during a panic unwind
 /// (e.g. a panic inside a `rayon` batch running under this guard), so a failing test never
 /// leaves a mutated env var for the next test to observe.

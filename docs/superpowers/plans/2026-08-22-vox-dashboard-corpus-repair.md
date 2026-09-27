@@ -134,11 +134,11 @@ grep -n 'vox-dashboard\|vox dashboard' docs/src/reference/vox-web-stack.md
 ```
 
 Line 33-34 currently reads:
-> **`vox-dashboard` is the Single Source of Truth** for the Vox user-facing frontend experience (see [ADR 030](../adr/030-state-machine-ssot.md) and [ADR 031](../adr/031-deprecate-vox-vscode.md)).
+> **`vox-dashboard` is the Single Source of Truth** for the Vox user-facing frontend experience (see [ADR 030](../../src/adr/030-state-machine-ssot.md) and [ADR 031](../../src/adr/031-deprecate-vox-vscode.md)).
 > `apps/editor/vox-vscode/` is **deprecated** and retained only for its LSP client. Ship new MCP behavior, capability UX, and visualization in `crates/vox-dashboard/` — not in the VS Code extension.
 
 Replace with:
-> **`vox-gui` is the Single Source of Truth** for the Vox user-facing frontend experience (superseding the Axum `vox-dashboard` per [ADR-045](../adr/045-tauri-gui-replaces-axum-dashboard.md); see also [ADR 030](../adr/030-state-machine-ssot.md) and [ADR 031](../adr/031-deprecate-vox-vscode.md), both written when `vox-dashboard` was current).
+> **`vox-gui` is the Single Source of Truth** for the Vox user-facing frontend experience (superseding the Axum `vox-dashboard` per [ADR-045](../../src/adr/045-tauri-gui-replaces-axum-dashboard.md); see also [ADR 030](../../src/adr/030-state-machine-ssot.md) and [ADR 031](../../src/adr/031-deprecate-vox-vscode.md), both written when `vox-dashboard` was current).
 > `apps/editor/vox-vscode/` is **deprecated** and retained only for its LSP client. Ship new MCP behavior, capability UX, and visualization in `crates/vox-gui/` — not in the VS Code extension.
 
 Line 36:
@@ -280,7 +280,7 @@ review surfaces for four identical-shape edits.
    Task 5 renumbers two of them, so the file this plan cites becomes
    `045-tauri-gui-replaces-axum-dashboard.md` and only
    `037-tauri-convergence.md` keeps 037. Cite **045** everywhere here. Write
-   the prose as "per [ADR-045 (Tauri GUI replaces the Axum dashboard)](045-tauri-gui-replaces-axum-dashboard.md)"
+   the prose as `"per [ADR-045 (Tauri GUI replaces the Axum dashboard)](045-tauri-gui-replaces-axum-dashboard.md)"`
    so the reader cannot confuse it with the convergence ADR.
 
 - [ ] **Step 1: Add the note to `024-dashboard-axum-spa.md`**
@@ -403,7 +403,7 @@ after the frontmatter:
 ```markdown
 > **Historical note (2026-08):** written against `crates/vox-dashboard`
 > (deleted 2026-05-12, replaced by `crates/vox-gui` per
-> [ADR-045](../adr/045-tauri-gui-replaces-axum-dashboard.md)). The task-target
+> [ADR-045](../../src/adr/045-tauri-gui-replaces-axum-dashboard.md)). The task-target
 > file paths below are preserved as the historical planning record and are
 > not live paths in the current tree.
 ```
