@@ -1,6 +1,12 @@
 //! Task 9 review round 1 (B1, m2): the deep trace's provider table is the
 //! registry's log of EVERY search it ran — a later search's failure must show
-//! up next to an earlier search's success. Offline: wiremock providers only.
+//! up next to an earlier search's success.
+//!
+//! Hermetic in every build: the hit provider is a wiremock SearXNG whose result
+//! URL points back at the same mock, so when `vox-search/web-scrape` is
+//! feature-unified on (any workspace-wide build), `fetch_and_extract` scrapes
+//! the mock — never a real site. (A wiremock *Wikipedia* hit would not do: the
+//! Wikipedia client hard-codes `https://en.wikipedia.org/wiki/…` hit URLs.)
 
 use vox_research_shim::research::provider::ProviderRegistry;
 use vox_search::policy::{ResearchLane, SearchPolicy};
@@ -8,28 +14,49 @@ use vox_search::web_dispatcher::ProviderStatus;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-fn offline_policy(wiki: &MockServer) -> SearchPolicy {
+/// A SearXNG mock returning one hit whose URL is served by the same mock.
+async fn local_searxng() -> MockServer {
+    let s = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/search"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "results": [{
+                "url": format!("{}/page", s.uri()),
+                "title": "Gemini Flash release notes",
+                "content": "Gemini Flash model release notes and pricing details",
+                "engine": "mock",
+                "score": 1.0
+            }]
+        })))
+        .mount(&s)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/page"))
+        .respond_with(ResponseTemplate::new(200).set_body_string(
+            "<html><head><title>Gemini Flash</title></head><body><p>Gemini Flash model release notes and pricing details for the local mock page.</p></body></html>",
+        ))
+        .mount(&s)
+        .await;
+    s
+}
+
+fn offline_policy(searxng: &MockServer) -> SearchPolicy {
     SearchPolicy {
         deep_timeout_ms: 10_000,
         tavily_enabled: false,
-        searxng_url: None,
+        searxng_url: Some(searxng.uri()),
+        enable_wikipedia: false,
+        wikipedia_fallback_enabled: false,
         enable_arxiv: false,
         enable_openalex: false,
-        wikipedia_api_url: Some(format!("{}/w/api.php", wiki.uri())),
+        duckduckgo_fallback_enabled: false,
         ..Default::default()
     }
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn retrieval_log_covers_every_search_including_a_later_failure() {
-    let wiki = MockServer::start().await;
-    Mock::given(method("GET"))
-        .and(path("/w/api.php"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-            "query": {"search": [{"title": "Gemini (language model)", "pageid": 7, "snippet": "Gemini Flash"}]}
-        })))
-        .mount(&wiki)
-        .await;
+    let searxng = local_searxng().await;
     let openalex = MockServer::start().await;
     Mock::given(method("GET"))
         .and(path("/works"))
@@ -38,28 +65,37 @@ async fn retrieval_log_covers_every_search_including_a_later_failure() {
         .await;
 
     let registry = ProviderRegistry::default();
-    // Wave 1: wikipedia only.
+    // Wave 1: searxng only.
     let (hits, _) = registry
-        .search_with_lane("gemini flash", ResearchLane::Deep, &offline_policy(&wiki))
+        .search_with_lane(
+            "gemini flash",
+            ResearchLane::Deep,
+            &offline_policy(&searxng),
+        )
         .await;
     assert_eq!(hits.len(), 1);
+    assert!(
+        hits[0].url.starts_with(&searxng.uri()),
+        "the hit (and any scrape of it) stays on the mock: {}",
+        hits[0].url
+    );
     // A later wave: openalex now enabled and failing.
     let later = SearchPolicy {
         enable_openalex: true,
         openalex_api_url: Some(openalex.uri()),
-        ..offline_policy(&wiki)
+        ..offline_policy(&searxng)
     };
     registry
         .search_with_lane("gemini flash disambiguation", ResearchLane::Deep, &later)
         .await;
 
     let (rows, _credits) = registry.into_retrieval_log();
-    let wiki_row = rows
+    let hit_row = rows
         .iter()
-        .find(|r| r.provider == "wikipedia" && matches!(r.status, ProviderStatus::Ok { .. }))
-        .unwrap_or_else(|| panic!("wikipedia ok row: {rows:?}"));
-    assert_eq!(wiki_row.calls, 2);
-    assert_eq!(wiki_row.status, ProviderStatus::Ok { hits: 2 });
+        .find(|r| r.provider == "searxng" && matches!(r.status, ProviderStatus::Ok { .. }))
+        .unwrap_or_else(|| panic!("searxng ok row: {rows:?}"));
+    assert_eq!(hit_row.calls, 2);
+    assert_eq!(hit_row.status, ProviderStatus::Ok { hits: 2 });
     let failed = rows
         .iter()
         .find(|r| r.provider == "openalex" && matches!(r.status, ProviderStatus::Error { .. }))

@@ -26,26 +26,50 @@ fn query(text: &str) -> ResearchQuery {
     }
 }
 
-/// Only openalex (→ `openalex`) and optionally wikipedia (→ `wiki`) are live.
-fn config(openalex: &MockServer, wiki: Option<&MockServer>) -> ResearchConfig {
+/// Only openalex (→ `openalex`) and optionally a SearXNG mock are live.
+fn config(openalex: &MockServer, searxng: Option<&MockServer>) -> ResearchConfig {
     let mut cfg = ResearchConfig::default();
     let p = &mut cfg.search_policy;
     p.fast_timeout_ms = 10_000;
     p.deep_timeout_ms = 10_000;
     p.duckduckgo_fallback_enabled = false;
     p.tavily_enabled = false;
-    p.searxng_url = None;
     p.enable_arxiv = false;
+    p.enable_wikipedia = false;
+    p.wikipedia_fallback_enabled = false;
     p.enable_openalex = true;
     p.openalex_api_url = Some(openalex.uri());
-    match wiki {
-        Some(w) => p.wikipedia_api_url = Some(format!("{}/w/api.php", w.uri())),
-        None => {
-            p.enable_wikipedia = false;
-            p.wikipedia_fallback_enabled = false;
-        }
-    }
+    p.searxng_url = searxng.map(MockServer::uri);
     cfg
+}
+
+/// A SearXNG mock whose one hit URL is served by the same mock: with
+/// `vox-search/web-scrape` unified on, the scrape of that hit stays local
+/// (a wiremock Wikipedia hit would not — its URLs are hard-coded to
+/// `https://en.wikipedia.org/wiki/…`).
+async fn local_searxng() -> MockServer {
+    let s = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/search"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "results": [{
+                "url": format!("{}/page", s.uri()),
+                "title": "Gemini Flash release notes",
+                "content": "Gemini Flash model release notes and pricing details",
+                "engine": "mock",
+                "score": 1.0
+            }]
+        })))
+        .mount(&s)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/page"))
+        .respond_with(ResponseTemplate::new(200).set_body_string(
+            "<html><head><title>Gemini Flash</title></head><body><p>Gemini Flash model release notes and pricing details for the local mock page.</p></body></html>",
+        ))
+        .mount(&s)
+        .await;
+    s
 }
 
 async fn failing_openalex() -> MockServer {
@@ -121,18 +145,15 @@ async fn zero_hits_failure_keeps_the_failing_providers_row() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn synthesis_failure_keeps_the_whole_provider_log() {
     let openalex = failing_openalex().await;
-    let wiki = MockServer::start().await;
-    Mock::given(method("GET"))
-        .and(path("/w/api.php"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-            "query": {"search": [{"title": "Gemini (language model)", "pageid": 7, "snippet": "Gemini Flash"}]}
-        })))
-        .mount(&wiki)
-        .await;
+    let searxng = local_searxng().await;
 
-    let err = run_research(query("gemini flash"), None, &config(&openalex, Some(&wiki)))
-        .await
-        .expect_err("synthesis has no LLM without the runtime feature");
+    let err = run_research(
+        query("gemini flash"),
+        None,
+        &config(&openalex, Some(&searxng)),
+    )
+    .await
+    .expect_err("synthesis has no LLM without the runtime feature");
 
     assert!(err.to_string().contains("synthesis failed"), "{err}");
     let f = failure(&err);
@@ -140,8 +161,39 @@ async fn synthesis_failure_keeps_the_whole_provider_log() {
     // The kept sources travel too, so the trace header is not "0 sources".
     assert_eq!(f.sources.len(), 1, "{:?}", f.sources);
     assert!(
-        f.providers.iter().any(|r| r.provider == "wikipedia"
+        f.providers.iter().any(|r| r.provider == "searxng"
             && matches!(r.status, ProviderStatus::Ok { hits } if hits > 0)),
+        "{:?}",
+        f.providers
+    );
+}
+
+/// Task 9b r2: the research pipeline honours `web_research_enabled = false`
+/// (it goes through `WebSearchDispatcher`, which now checks it): no provider is
+/// contacted, and the carried log reports every provider as `Disabled`.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn web_research_disabled_run_contacts_no_provider_and_says_so() {
+    let openalex = failing_openalex().await;
+    let searxng = local_searxng().await;
+    let mut cfg = config(&openalex, Some(&searxng));
+    cfg.search_policy.web_research_enabled = false;
+
+    let err = run_research(query("web research disabled"), None, &cfg)
+        .await
+        .expect_err("no web research → zero hits");
+
+    assert!(
+        err.to_string().contains("Zero research hits retrieved"),
+        "{err}"
+    );
+    assert_eq!(openalex.received_requests().await.unwrap().len(), 0);
+    assert_eq!(searxng.received_requests().await.unwrap().len(), 0);
+    let f = failure(&err);
+    assert!(!f.providers.is_empty());
+    assert!(
+        f.providers
+            .iter()
+            .all(|r| r.status == ProviderStatus::Disabled),
         "{:?}",
         f.providers
     );

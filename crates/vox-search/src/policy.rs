@@ -148,7 +148,10 @@ pub struct SearchPolicy {
     /// already has its own numbered web evidence for this call — e.g. the chat
     /// preamble on a Quick/Deep research turn — clones the policy and sets this
     /// `false` so `execute_search_plan` skips `SearchCorpus::WebResearch` even
-    /// when the heuristic plan selected it.
+    /// when the heuristic plan selected it. `WebSearchDispatcher` honours it too
+    /// (Task 9b r2): with `false` it contacts no provider and reports each as
+    /// `Disabled`, so deep research, chat quick research and autonomous
+    /// research obey the switch as well.
     #[serde(default = "default_true")]
     pub web_research_enabled: bool,
     /// How many hits each web provider (SearXNG, Wikipedia, OpenAlex, arXiv) is asked for.

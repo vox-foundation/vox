@@ -49,7 +49,21 @@ async fn run_research_without_llm_fails_honestly_not_with_a_template() {
         waves: 1,
         lane: vox_search::policy::ResearchLane::Fast,
     };
-    let config = ResearchConfig::default();
+    // Hermetic: `ResearchConfig::default()` resolves `SearchPolicy::from_env()`,
+    // so with `ResearchScope::Both` it would reach real Wikipedia / OpenAlex /
+    // arXiv / DDG / SearXNG and a paid Tavily key if one resolves. Turn every
+    // web provider off (as `lane_orchestrator_test` does) and the web-research
+    // master switch too; the local snippet above still feeds synthesis.
+    let mut config = ResearchConfig::default();
+    let p = &mut config.search_policy;
+    p.web_research_enabled = false;
+    p.wikipedia_fallback_enabled = false;
+    p.enable_wikipedia = false;
+    p.enable_openalex = false;
+    p.enable_arxiv = false;
+    p.duckduckgo_fallback_enabled = false;
+    p.tavily_enabled = false;
+    p.searxng_url = None;
 
     // No LLM endpoint configured: synthesis honestly fails (D5 — no template fallback).
     let err = run_research(query, Some(&db), &config)

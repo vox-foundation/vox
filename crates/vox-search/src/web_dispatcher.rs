@@ -501,6 +501,24 @@ impl WebSearchDispatcher {
         if query.trim().is_empty() {
             return SearchReport::default();
         }
+        // The web-research master switch, honoured here — the one path every
+        // direct caller shares (deep research's ProviderRegistry, chat quick
+        // research, autonomous research), not only `execute_search_plan`. No
+        // provider is contacted; every provider still gets an honest row.
+        if !policy.web_research_enabled {
+            return SearchReport {
+                hits: Vec::new(),
+                providers: ["arxiv", "openalex", "wikipedia", "searxng", "tavily"]
+                    .into_iter()
+                    .map(|provider| ProviderOutcome {
+                        provider,
+                        status: ProviderStatus::Disabled,
+                        elapsed_ms: 0,
+                    })
+                    .collect(),
+                tavily_credits: None,
+            };
+        }
 
         let timeout_ms = match lane {
             ResearchLane::Fast => policy.fast_timeout_ms,
