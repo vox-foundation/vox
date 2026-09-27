@@ -48,10 +48,8 @@ pub fn asset_name(tag: &str) -> String {
 pub fn make_client() -> Result<Client> {
     let mut builder = Client::builder().timeout(CLIENT_TIMEOUT);
 
-    // Support GITHUB_TOKEN/GH_TOKEN for auth header
-    if let Ok(token) = std::env::var("GITHUB_TOKEN").or_else(|_| std::env::var("GH_TOKEN"))
-        && !token.trim().is_empty()
-    {
+    // Support FORGE_TOKEN/GITHUB_TOKEN/GH_TOKEN for auth header (Clavis: SecretId::ForgeToken).
+    if let Some(token) = vox_secrets::resolve_secret(vox_secrets::SecretId::ForgeToken).expose() {
         let mut headers = reqwest::header::HeaderMap::new();
         if let Ok(auth_val) = reqwest::header::HeaderValue::from_str(&format!("Bearer {token}")) {
             headers.insert(reqwest::header::AUTHORIZATION, auth_val);
