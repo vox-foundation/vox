@@ -14,7 +14,8 @@
 //! - **manifest parity**: for every code/composite `Plugin.toml`, each
 //!   `provides.extension-points` entry must name a real extension point from the SSOT (no
 //!   misspelled/removed points), and the `abi-version` literal must equal the host's
-//!   `VOX_PLUGIN_ABI_VERSION` (no stale per-manifest ABI literals).
+//!   `VOX_PLUGIN_ABI_VERSION` (no stale per-manifest ABI literals), and its `version` must
+//!   equal the workspace version (the host refuses to load any other).
 
 use anyhow::{Context, Result, anyhow, bail};
 use regex::Regex;
@@ -175,6 +176,7 @@ fn check_manifests(repo_root: &Path, surface: &Surface) -> Result<()> {
     if !crates_root.is_dir() {
         return Ok(());
     }
+    let ws_version = workspace_version(repo_root)?;
     let mut violations: Vec<String> = Vec::new();
     for entry in walkdir::WalkDir::new(&crates_root)
         .into_iter()
@@ -193,6 +195,7 @@ fn check_manifests(repo_root: &Path, surface: &Surface) -> Result<()> {
         let Some(payload) = val.get("plugin").and_then(|p| p.get("payload")) else {
             continue;
         };
+        violations.extend(version_violation(path, &val, &ws_version));
         // code → payload.{abi-version,provides} ; composite → payload.code.{abi-version,provides}
         let code = payload.get("code").unwrap_or(payload);
 
@@ -266,6 +269,43 @@ fn check_manifests(repo_root: &Path, surface: &Surface) -> Result<()> {
         );
     }
     Ok(())
+}
+
+/// `[workspace.package] version` from the repo's root `Cargo.toml` — the version every
+/// first-party crate (and so the host's `CARGO_PKG_VERSION`) inherits.
+fn workspace_version(repo_root: &Path) -> Result<String> {
+    let path = repo_root.join("Cargo.toml");
+    let raw = std::fs::read_to_string(&path).with_context(|| format!("read {}", path.display()))?;
+    let val: toml::Value = raw
+        .parse()
+        .with_context(|| format!("parse {}", path.display()))?;
+    val.get("workspace")
+        .and_then(|w| w.get("package"))
+        .and_then(|p| p.get("version"))
+        .and_then(|v| v.as_str())
+        .map(str::to_string)
+        .with_context(|| format!("{}: no [workspace.package] version", path.display()))
+}
+
+/// Version parity: `vox_plugin_host::load_code_plugin` refuses a code/composite plugin whose
+/// installed manifest `version` differs from the host's `CARGO_PKG_VERSION`, and `Plugin.toml`
+/// is hand-written, so a stale literal ships a plugin no release can load. Skill payloads are
+/// registered at discover time with no version check, so they are exempt.
+fn version_violation(path: &Path, val: &toml::Value, workspace_version: &str) -> Option<String> {
+    let plugin = val.get("plugin")?;
+    let kind = plugin.get("payload")?.get("kind")?.as_str()?;
+    if kind != "code" && kind != "composite" {
+        return None;
+    }
+    let declared = plugin.get("version").and_then(|v| v.as_str());
+    (declared != Some(workspace_version)).then(|| {
+        format!(
+            "{}: version = {} but the workspace version is {workspace_version:?} (the plugin host \
+             refuses to load a {kind} plugin whose version differs from its own)",
+            path.display(),
+            declared.map_or("<missing>".to_string(), |d| format!("{d:?}"))
+        )
+    })
 }
 
 /// The `<os>` segment of the canonical macOS target-triple keys. Triple keys are
@@ -478,7 +518,7 @@ pub fn run(repo_root: &Path, write: bool) -> Result<()> {
         );
     }
     println!(
-        "plugin-surface-sync OK ({} extension point(s); accessor + manifest provides/abi-version/artifact + impl parity clean)",
+        "plugin-surface-sync OK ({} extension point(s); accessor + manifest provides/abi-version/version/artifact + impl parity clean)",
         surface.extension_points.len()
     );
     Ok(())
@@ -617,6 +657,73 @@ skill-md = "git.skill.md"
             macos_artifact_violation(Path::new("crates/vox-plugin-skill-git/Plugin.toml"), &val)
                 .is_none()
         );
+    }
+
+    /// The host refuses to load a code/composite plugin whose manifest `version` differs
+    /// from its own; skill payloads are never version-checked, so they are exempt.
+    #[test]
+    fn code_and_composite_manifest_version_must_equal_the_workspace_version() {
+        let manifest = |version: &str, payload: &str| {
+            format!(
+                "[plugin]\nid = \"widget\"\nversion = \"{version}\"\n[plugin.payload]\n{payload}"
+            )
+        };
+        let code = "kind = \"code\"\nabi-version = 13\n";
+        let composite = "kind = \"composite\"\n[plugin.payload.code]\nabi-version = 13\n";
+        let skill = "kind = \"skill\"\nformat-version = 1\nskill-md = \"w.skill.md\"\n";
+        let p = Path::new("crates/vox-plugin-widget/Plugin.toml");
+        let check = |raw: String| version_violation(p, &raw.parse().expect("parse"), "0.6.0");
+
+        let v = check(manifest("0.1.0", code)).expect("stale code manifest is a violation");
+        assert!(v.contains("0.1.0") && v.contains("0.6.0"), "{v}");
+        assert!(check(manifest("0.1.0", composite)).is_some());
+        assert!(check(manifest("0.6.0", code)).is_none());
+        assert!(check(manifest("0.6.0", composite)).is_none());
+        assert!(
+            check(manifest("0.1.0", skill)).is_none(),
+            "skills are not version-checked"
+        );
+        assert!(
+            check(format!("[plugin]\nid = \"w\"\n[plugin.payload]\n{code}")).is_some(),
+            "a code manifest with no version cannot load either"
+        );
+    }
+
+    #[test]
+    fn workspace_version_is_read_from_the_root_manifest() {
+        let v = workspace_version(&repo_root()).expect("workspace version");
+        assert_eq!(
+            v,
+            env!("CARGO_PKG_VERSION"),
+            "vox-cli-ci inherits the workspace version"
+        );
+    }
+
+    /// The gate itself (not just the helper) must reject a stale code manifest version.
+    #[test]
+    fn check_manifests_rejects_a_stale_code_manifest_version() {
+        let surface = extract_surface(&repo_root()).expect("extract");
+        let root = tempfile::tempdir().expect("tempdir");
+        std::fs::write(
+            root.path().join("Cargo.toml"),
+            "[workspace.package]\nversion = \"9.9.9\"\n",
+        )
+        .expect("write Cargo.toml");
+        let dir = root.path().join("crates").join("vox-plugin-widget");
+        std::fs::create_dir_all(&dir).expect("mkdir");
+        let manifest = |version: &str| {
+            format!(
+                "[plugin]\nid = \"widget\"\nversion = \"{version}\"\n[plugin.payload]\n\
+                 kind = \"code\"\nabi-version = {}\n[plugin.payload.artifacts]\n\
+                 \"macos-aarch64\" = \"libvox_plugin_widget.dylib\"\n",
+                surface.abi_version
+            )
+        };
+        std::fs::write(dir.join("Plugin.toml"), manifest("9.9.9")).expect("write");
+        check_manifests(root.path(), &surface).expect("matching version passes");
+        std::fs::write(dir.join("Plugin.toml"), manifest("0.1.0")).expect("write");
+        let err = check_manifests(root.path(), &surface).expect_err("stale version fails");
+        assert!(err.to_string().contains("9.9.9"), "{err}");
     }
 
     #[test]
