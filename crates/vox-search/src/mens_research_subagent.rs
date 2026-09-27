@@ -67,8 +67,8 @@ fn strip_markdown_fences(text: &str) -> &str {
 
 fn extract_json_slice(text: &str) -> Option<&str> {
     let stripped = strip_markdown_fences(text);
-    let start = stripped.find(|c| c == '{' || c == '[')?;
-    let end = stripped.rfind(|c| c == '}' || c == ']')?;
+    let start = stripped.find(['{', '['])?;
+    let end = stripped.rfind(['}', ']'])?;
     if start <= end {
         Some(&stripped[start..=end])
     } else {
@@ -80,18 +80,18 @@ fn parse_envelope(raw_json: &str) -> Option<Vec<RawTriplet>> {
     let stripped = strip_markdown_fences(raw_json);
 
     // First attempt: try between first '{'/'[' and last '}'/']'
-    if let Some(slice) = extract_json_slice(stripped) {
-        if let Ok(env) = serde_json::from_str::<TripletEnvelope>(slice) {
-            return Some(match env {
-                TripletEnvelope::ClaimsObject { claims } => claims,
-                TripletEnvelope::TripletsObject { triplets } => triplets,
-                TripletEnvelope::Array(arr) => arr,
-            });
-        }
+    if let Some(slice) = extract_json_slice(stripped)
+        && let Ok(env) = serde_json::from_str::<TripletEnvelope>(slice)
+    {
+        return Some(match env {
+            TripletEnvelope::ClaimsObject { claims } => claims,
+            TripletEnvelope::TripletsObject { triplets } => triplets,
+            TripletEnvelope::Array(arr) => arr,
+        });
     }
 
     // Second attempt: parse first valid JSON value from start
-    if let Some(start) = stripped.find(|c| c == '{' || c == '[') {
+    if let Some(start) = stripped.find(['{', '[']) {
         let mut de =
             serde_json::Deserializer::from_str(&stripped[start..]).into_iter::<TripletEnvelope>();
         if let Some(Ok(env)) = de.next() {
@@ -327,4 +327,26 @@ pub fn build_local_claim_extraction_prompt(evidence: &str) -> String {
          {{\"claims\": [{{\"subject\": \"...\", \"predicate\": \"...\", \"object\": \"...\", \"confidence\": 0.95, \"evidence_snippet\": \"...\"}}]}}\n\n\
          Text:\n{evidence}"
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{normalize_for_matching, parse_envelope};
+
+    #[test]
+    fn parse_envelope_accepts_fenced_object_and_bare_array() {
+        let fenced = "Here:\n```json\n{\"claims\":[{\"subject\":\"a\",\"predicate\":\"b\",\"object\":\"c\"}]}\n```";
+        assert_eq!(parse_envelope(fenced).map(|v| v.len()), Some(1));
+        let array = "[{\"subject\":\"a\",\"predicate\":\"b\",\"object\":\"c\"}] trailing";
+        assert_eq!(parse_envelope(array).map(|v| v.len()), Some(1));
+        assert!(parse_envelope("no json here").is_none());
+    }
+
+    #[test]
+    fn normalize_for_matching_folds_dashes_and_quotes() {
+        assert_eq!(
+            normalize_for_matching("a—b “c”"),
+            normalize_for_matching("a-b \"c\"")
+        );
+    }
 }
