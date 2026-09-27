@@ -317,7 +317,7 @@
       "compile_s": 0.7,
       "dependents": 73,
       "blast_s": 620.0,
-      "fan_in": 23
+      "fan_in": 24
     },
     {
       "crate": "vox-identity",
