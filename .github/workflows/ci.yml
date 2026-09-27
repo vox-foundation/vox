@@ -1018,7 +1018,7 @@ jobs:
           fi
           if affected_has vox-orchestrator; then
             cargo nextest run -p vox-orchestrator --lib -E 'test(detect_layout_node_workspaces)'
-            cargo clippy -p vox-orchestrator --no-default-features --features runtime,toestub-gate --color never -- -D warnings
+            cargo clippy -p vox-orchestrator --no-default-features --features runtime,toestub-gate --all-targets --color never -- -D warnings
           fi
           if affected_has vox-orchestrator-mcp; then
             cargo nextest run -p vox-orchestrator-mcp --lib

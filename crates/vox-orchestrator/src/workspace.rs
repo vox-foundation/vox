@@ -418,6 +418,7 @@ impl Default for WorkspaceManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(feature = "jj")]
     use vox_config::timeouts::D_250MS;
 
     #[test]

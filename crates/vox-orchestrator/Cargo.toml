@@ -167,6 +167,10 @@ name = "skill_runtime_inproc"
 name = "mesh_ai_fixture_relay"
 required-features = ["populi-transport"]
 
+[[test]]
+name = "api_v2_health_test"
+required-features = ["http-server"]
+
 [lints]
 workspace = true
 
