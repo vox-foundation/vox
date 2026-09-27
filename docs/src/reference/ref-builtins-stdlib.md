@@ -113,6 +113,7 @@ Canonical naming follows Rust's `std::path::Path` (not the older
 | Signature | Description |
 |-----------|-------------|
 | `fn get(key: str) to Option[str]` | Retrieves an environment variable. |
+| `fn args() to list[str]` | The running script's own source path, followed by its CLI arguments. Dispatched in `eval/expr.rs`'s method-call intercept (not `eval/builtins.rs`) so it can read the interpreter's `source_path`/`script_args`, rather than the host `vox` process's own argv. |
 
 ## Process Execution (`std.process.*`)
 

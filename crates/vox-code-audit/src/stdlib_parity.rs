@@ -441,12 +441,21 @@ fn scan_corpus_call_sites(root: &Path) -> Result<BTreeMap<String, Vec<CorpusSite
 /// `docs/src/reference/ref-builtins-stdlib.md`. `corpus_root` at `scripts/`
 /// (the audit only covers committed automation scripts today; extend to
 /// `examples/` once the corpus is healthy).
+/// Builtins dispatched in `eval/expr.rs`'s method-call intercept rather than
+/// `call_builtin_method`'s match table, because they need `&Interpreter`
+/// state (`source_path`/`script_args`) that `parse_binary_registrations`'s
+/// AST walk over `eval/builtins.rs` never sees. Each entry needs its own
+/// `## `-level row in `ref-builtins-stdlib.md` too, since the doc side has
+/// no equivalent escape hatch.
+const EVAL_FAST_PATH_BUILTINS: &[&str] = &["env.args"];
+
 pub fn check_parity_at_paths(
     binary_source_path: &Path,
     doc_path: &Path,
     corpus_root: &Path,
 ) -> Result<ParityReport, ParityError> {
     let mut binary = parse_binary_registrations(binary_source_path)?;
+    binary.extend(EVAL_FAST_PATH_BUILTINS.iter().map(|s| s.to_string()));
 
     // Also fold in the registry-driven entries from
     // `crates/vox-compiler/src/builtin_registry.rs`. These are dispatched
@@ -612,6 +621,28 @@ mod tests {
             symbols.contains("path.join"),
             "expected `path.join` to be documented; got: {symbols:?}"
         );
+    }
+
+    #[test]
+    fn check_parity_at_paths_counts_env_args_as_registered_and_documented() {
+        let root = workspace_root();
+        let binary = root.join("crates/vox-compiler/src/eval/builtins.rs");
+        let doc = root.join("docs/src/reference/ref-builtins-stdlib.md");
+        let corpus = root.join("scripts");
+        let report = check_parity_at_paths(&binary, &doc, &corpus).expect("parity should run");
+        let unregistered = report.mismatches.iter().find(|m| {
+            m.symbol == "env.args" && matches!(m.kind, MismatchKind::CorpusUsesUnregistered)
+        });
+        assert!(
+            unregistered.is_none(),
+            "env.args is dispatched in expr.rs's method-call intercept (builtins.rs:1484-1488), \
+             invisible to parse_binary_registrations's AST walk over eval/builtins.rs; it must be \
+             folded in via EVAL_FAST_PATH_BUILTINS, or the fake-corpus-unregistered error returns"
+        );
+        let undoc = report.mismatches.iter().find(|m| {
+            m.symbol == "env.args" && matches!(m.kind, MismatchKind::DocClaimsUnregistered)
+        });
+        assert!(undoc.is_none(), "env.args must also be documented");
     }
 
     #[test]
