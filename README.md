@@ -184,7 +184,7 @@ Longer-horizon targets, mostly unbuilt: [v1.0 release criteria](docs/src/archite
 Newest first.
 
 - **2026-09-22**: Generated Axum handlers bind parameters as their declared types instead of raw JSON, and `vox-db`'s test target compiles with default features again.
-- **2026-09-22**: Generated mutations that write to the database compile now. Before this, none did: `db.T.insert(...)?` stacked a second `?`, and the transaction wrapper moved `db` while borrowing it.
+- **2026-09-22**: Generated mutations that write to the database compile now. Before this, none did: `db.T.insert(...)?` stacked a second `?`, and the transaction wrapper moved `db` while borrowing it. Also cleared the clippy lint wave that failed `cargo clippy -p vox-orchestrator-mcp` in its dependencies.
 - **2026-09-22**: Fixed four bugs from the audit. `vox run` routes the `vox init` starter to the app lane. The starter no longer trips its own `id`-column lint. `vox doctor` exits non-zero when a required check fails, while missing optional subsystems only warn. Generated servers find Vox's crates outside a checkout and depend only on the runtime crates they use. The audit's claim that an MCP tool had no dispatch arm was wrong; `vox_visual_rag_query` is now labeled as unimplemented.
 - **2026-09-21**: Audited the whole suite against the code ([findings and bug handoff](docs/src/architecture/suite-status-audit-2026-09-21.md)) and rewrote this README around it. The previous README called several areas "Stable" or "Mature" that aren't, and its quick start failed.
 - **2026-09-20**: MENS pipeline review. The trainer was discarding most gradients, and published eval numbers had no artifacts behind them.
