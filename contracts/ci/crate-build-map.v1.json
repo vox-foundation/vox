@@ -35,8 +35,8 @@
     {
       "crate": "vox-bounded-fs",
       "compile_s": 0.2,
-      "dependents": 75,
-      "blast_s": 618.0,
+      "dependents": 74,
+      "blast_s": 615.0,
       "fan_in": 24
     },
     {
@@ -147,15 +147,15 @@
     {
       "crate": "vox-config",
       "compile_s": 3.2,
-      "dependents": 70,
-      "blast_s": 614.0,
-      "fan_in": 50
+      "dependents": 69,
+      "blast_s": 611.0,
+      "fan_in": 45
     },
     {
       "crate": "vox-config-derive",
       "compile_s": 1.6,
-      "dependents": 70,
-      "blast_s": 614.0,
+      "dependents": 69,
+      "blast_s": 611.0,
       "fan_in": 1
     },
     {
@@ -189,8 +189,8 @@
     {
       "crate": "vox-crypto",
       "compile_s": 0.3,
-      "dependents": 74,
-      "blast_s": 617.0,
+      "dependents": 73,
+      "blast_s": 614.0,
       "fan_in": 13
     },
     {
@@ -280,8 +280,8 @@
     {
       "crate": "vox-git",
       "compile_s": 1.1,
-      "dependents": 71,
-      "blast_s": 615.0,
+      "dependents": 70,
+      "blast_s": 612.0,
       "fan_in": 8
     },
     {
@@ -364,15 +364,15 @@
     {
       "crate": "vox-llm-config",
       "compile_s": 0.2,
-      "dependents": 71,
-      "blast_s": 614.0,
+      "dependents": 70,
+      "blast_s": 611.0,
       "fan_in": 1
     },
     {
       "crate": "vox-llm-egress",
       "compile_s": 0.9,
-      "dependents": 70,
-      "blast_s": 614.0,
+      "dependents": 69,
+      "blast_s": 611.0,
       "fan_in": 5
     },
     {
@@ -406,8 +406,8 @@
     {
       "crate": "vox-mesh-types",
       "compile_s": 1.6,
-      "dependents": 79,
-      "blast_s": 621.0,
+      "dependents": 78,
+      "blast_s": 617.0,
       "fan_in": 12
     },
     {
@@ -427,8 +427,8 @@
     {
       "crate": "vox-openai",
       "compile_s": 0.5,
-      "dependents": 71,
-      "blast_s": 614.0,
+      "dependents": 70,
+      "blast_s": 611.0,
       "fan_in": 4
     },
     {
@@ -721,8 +721,8 @@
     {
       "crate": "vox-scaling-policy",
       "compile_s": 0.7,
-      "dependents": 76,
-      "blast_s": 619.0,
+      "dependents": 75,
+      "blast_s": 615.0,
       "fan_in": 6
     },
     {
@@ -749,8 +749,8 @@
     {
       "crate": "vox-secrets",
       "compile_s": 1.8,
-      "dependents": 72,
-      "blast_s": 616.0,
+      "dependents": 71,
+      "blast_s": 613.0,
       "fan_in": 35
     },
     {
@@ -819,8 +819,8 @@
     {
       "crate": "vox-telemetry",
       "compile_s": 2.3,
-      "dependents": 72,
-      "blast_s": 617.0,
+      "dependents": 71,
+      "blast_s": 613.0,
       "fan_in": 14
     },
     {
