@@ -25,15 +25,15 @@ fn if_else_in_let_binding_emits_expression_arms() {
         .expect("shipping_cost");
     let emitted = emit_fn(f, Some(&hir.inferred_types), &[]).replace("\r\n", "\n");
     assert!(
-        emitted.contains("if ((weight) > (10)) {\n    20\n    } else {\n    5\n    }"),
+        emitted.contains("if ((weight) > (10i64)) {\n    20i64\n    } else {\n    5i64\n    }"),
         "if/else arms must be tail expressions; got:\n{emitted}"
     );
     assert!(
-        !emitted.contains("    20;\n") && !emitted.contains("    5;\n"),
+        !emitted.contains("    20i64;\n") && !emitted.contains("    5i64;\n"),
         "expression if arms must not end with semicolon; got:\n{emitted}"
     );
     assert!(
-        emitted.contains("if express {\n    15\n    } else {\n    0\n    }"),
+        emitted.contains("if express {\n    15i64\n    } else {\n    0i64\n    }"),
         "bool if/else must also emit tail ints; got:\n{emitted}"
     );
 }

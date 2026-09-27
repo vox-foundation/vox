@@ -1,5 +1,6 @@
 ---
 source: crates/vox-codegen/tests/golden_corpus_ts_smoke_test.rs
+assertion_line: 105
 expression: combined
 ---
 === vox-app-contract.json ===
@@ -60,7 +61,6 @@ export function useVoxServerQuery<TData>(
 
 export interface UserProfile {
   _id: number;
-  id: number;
   name: string;
   bio: Option<string>;
   age: Option<number>;

@@ -1,5 +1,6 @@
 ---
 source: crates/vox-codegen/tests/golden_ts_test.rs
+assertion_line: 57
 expression: combined
 ---
 === vox-app-contract.json ===
@@ -61,7 +62,6 @@ export function useVoxServerQuery<TData>(
 
 export interface Session {
   _id: number;
-  id: number;
   token: string;
   user_id: string;
   admin: boolean;
