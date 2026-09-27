@@ -162,7 +162,6 @@
       "workspace-hack"
     ],
     "vox-cli-research": [
-      "vox-config",
       "vox-db",
       "vox-foundation",
       "vox-orchestrator",
@@ -176,7 +175,6 @@
     "vox-cli-review": [
       "vox-bounded-fs",
       "vox-code-audit",
-      "vox-config",
       "vox-corpus",
       "vox-db",
       "vox-forge",
@@ -187,7 +185,6 @@
       "workspace-hack"
     ],
     "vox-cli-share": [
-      "vox-config",
       "vox-http-client",
       "workspace-hack"
     ],
@@ -648,7 +645,6 @@
       "workspace-hack"
     ],
     "vox-plugin-mens-candle-core": [
-      "vox-config",
       "vox-db",
       "vox-hf-layout",
       "vox-tensor",
@@ -915,7 +911,6 @@
       "workspace-hack"
     ],
     "vox-term": [
-      "vox-config",
       "vox-terminal-core",
       "workspace-hack"
     ],
