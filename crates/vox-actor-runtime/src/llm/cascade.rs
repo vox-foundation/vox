@@ -391,6 +391,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[serial_test::serial(model_pin_env)]
     fn cascade_includes_local_candidate_when_profile_allows_it() {
         let candidates =
             cascade_for_research_stage(ResearchStage::Planner, &RouteResolutionInput::default());
@@ -415,6 +416,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial(model_pin_env)]
     fn manual_candidate_is_first_when_endpoint_and_model_are_supplied() {
         let candidates = cascade_with_optional_manual(
             ResearchStage::Verification,
@@ -433,6 +435,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial(model_pin_env)]
     fn synthesis_stage_does_not_force_1800_max_tokens() {
         use crate::model_resolution::RouteResolutionInput;
         let candidates = cascade_with_optional_manual(
@@ -453,6 +456,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial(model_pin_env)]
     fn verification_stage_uses_nonzero_temperature() {
         let candidates = cascade_with_optional_manual(
             ResearchStage::Verification,
@@ -468,6 +472,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial(model_pin_env)]
     fn claim_extraction_and_judge_stages_stay_deterministic() {
         let claim_extraction = cascade_with_optional_manual(
             ResearchStage::ClaimExtraction,
@@ -545,14 +550,17 @@ mod tests {
         );
     }
 
-    /// Task 13: the research cascade honours the stage's own role pin (a key
-    /// no other test in this crate touches, so the env mutation is isolated).
+    /// Task 13: the research cascade honours the stage's own role pin. Every
+    /// test in this module that builds a cascade (and so reads the pin env) is
+    /// `#[serial(model_pin_env)]`, so this env mutation cannot race them.
     #[test]
+    #[serial_test::serial(model_pin_env)]
     #[allow(unsafe_code)]
     fn research_cascade_uses_the_stage_role_pin() {
         let prev = std::env::var("VOX_MODEL_FORCE_JUDGE").ok();
-        // SAFETY: only this test reads or writes VOX_MODEL_FORCE_JUDGE.
+        // SAFETY: serialized with every pin-env reader in this module (above).
         unsafe { std::env::set_var("VOX_MODEL_FORCE_JUDGE", "vendor/judge-pin") };
+        vox_config::snapshot::bump(&["VOX_MODEL_FORCE_JUDGE"]);
         let judge =
             cascade_for_research_stage(ResearchStage::Judge, &RouteResolutionInput::default());
         unsafe {
@@ -561,6 +569,7 @@ mod tests {
                 None => std::env::remove_var("VOX_MODEL_FORCE_JUDGE"),
             }
         }
+        vox_config::snapshot::bump(&["VOX_MODEL_FORCE_JUDGE"]);
         assert_eq!(judge.len(), 1, "a pin is exactly one candidate");
         assert_eq!(judge[0].model, "vendor/judge-pin");
     }

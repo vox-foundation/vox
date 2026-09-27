@@ -1,5 +1,8 @@
 //! Phase 5.2: ActorRegistry register + dispatch.
 
+// Task 13: hermetic VOX_HOME (see tests/common/mod.rs).
+mod common;
+
 use serde_json::json;
 use std::sync::Arc;
 use vox_actor_runtime::registry::ActorRegistry;

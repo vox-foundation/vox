@@ -1,4 +1,3 @@
-use std::sync::Mutex;
 use vox_orchestrator::Orchestrator;
 use vox_orchestrator::config::{CostPreference, OrchestratorConfig};
 use vox_orchestrator::models::{
@@ -10,7 +9,12 @@ use super::{
     resolve_mcp_chat_model_sync,
 };
 
-static INFERENCE_PROFILE_TEST_LOCK: Mutex<()> = Mutex::new(());
+/// The crate's one env lock for chat-model resolution (Task 13 minor): these
+/// tests set `VOX_MODEL_FORCE*` / provider keys, and `message.rs` / `infer.rs`
+/// tests resolve chat models under `CHAT_MESSAGE_ENV_LOCK` — two separate
+/// mutexes let a pin set here leak into a resolution there. Sharing one lock
+/// serializes every writer against every reader.
+use crate::chat_tools::chat::agent_loop::CHAT_MESSAGE_ENV_LOCK as INFERENCE_PROFILE_TEST_LOCK;
 
 /// RAII guard that sets an env var and restores the prior value on drop
 /// (mirrors the vox-orchestrator select.rs test idiom). Callers must hold
@@ -220,10 +224,58 @@ fn chat_role_pin_is_strict_and_research_pin_does_not_reach_chat() {
     .expect("the chat pin resolves");
     assert_eq!(choice.model.id, "web-incapable-model");
     assert_eq!(
-        choice.rationale.as_deref(),
-        Some("strict pin: web-incapable-model"),
+        choice.pinned.as_deref(),
+        Some("web-incapable-model"),
         "resolved through the strict-pin branch, not free selection"
     );
+    drop(_chat);
+
+    // Second claim: with no chat pin, a global pin naming a real registry model
+    // wins for chat — and the research pin (a model missing from the registry)
+    // is never consulted, or this would error as "not in the model registry".
+    let _no_chat = EnvKeyGuard::set("VOX_MODEL_FORCE_CHAT", "");
+    let _global = EnvKeyGuard::set("VOX_MODEL_FORCE", "web-incapable-model");
+    let choice = super::resolve::resolve_mcp_chat_model_sync_with_rationale(
+        &orch,
+        "hello there",
+        None,
+        McpChatModelResolution {
+            complexity: 5,
+            allow_cheapest_fallback: true,
+            ..Default::default()
+        },
+    )
+    .expect("chat resolves on the global pin; the missing research pin is ignored");
+    assert_eq!(choice.model.id, "web-incapable-model");
+    assert_eq!(choice.pinned.as_deref(), Some("web-incapable-model"));
+}
+
+/// Task 13 minor: free selection (no pin anywhere) reports no pin.
+#[test]
+fn unpinned_chat_choice_reports_no_pin() {
+    let _g = INFERENCE_PROFILE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _key = EnvKeyGuard::set("OPENROUTER_API_KEY", "test-key");
+    let _chat = EnvKeyGuard::set("VOX_MODEL_FORCE_CHAT", "");
+    let _global = EnvKeyGuard::set("VOX_MODEL_FORCE", "");
+    let mut config = OrchestratorConfig::for_testing();
+    config.cost_preference = CostPreference::Performance;
+    let orch = Orchestrator::new(config);
+    *vox_orchestrator::sync_lock::rw_write(&*orch.models_handle()) =
+        registry_with_web_incapable_model();
+    let choice = super::resolve::resolve_mcp_chat_model_sync_with_rationale(
+        &orch,
+        "hello there",
+        None,
+        McpChatModelResolution {
+            complexity: 5,
+            allow_cheapest_fallback: true,
+            ..Default::default()
+        },
+    )
+    .expect("free selection resolves the only model");
+    assert_eq!(choice.pinned, None);
 }
 
 /// Companion to the above: `web_evidence_supplied` must drop ONLY

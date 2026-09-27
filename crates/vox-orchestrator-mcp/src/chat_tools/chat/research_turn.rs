@@ -69,12 +69,6 @@ pub struct ResearchTrace {
     started: Instant,
 }
 
-/// The pin the chat strict-pin branch applied, read back from its rationale
-/// (`resolve.rs` records exactly `strict pin: <pin>`).
-pub fn chat_pin_from_rationale(rationale: Option<&str>) -> Option<&str> {
-    rationale?.strip_prefix("strict pin: ")
-}
-
 impl ResearchTrace {
     /// Headline model: `resolved` when the provider reported one, else the
     /// requested id; the requested id is kept as `model_alias` when it differs
@@ -1431,18 +1425,6 @@ mod tests {
         );
         assert_eq!(e["model"], "vendor/chat-9");
         assert_eq!(e["model_alias"], "~vendor/chat-latest");
-    }
-
-    /// Task 13: the chat role's requested pin is the one the strict-pin branch
-    /// applied (its rationale), not a guess from config.
-    #[test]
-    fn chat_pin_comes_from_the_strict_pin_rationale() {
-        assert_eq!(
-            chat_pin_from_rationale(Some("strict pin: ~vendor/chat-latest")),
-            Some("~vendor/chat-latest")
-        );
-        assert_eq!(chat_pin_from_rationale(Some("scored: best value")), None);
-        assert_eq!(chat_pin_from_rationale(None), None);
     }
 
     #[test]

@@ -106,6 +106,8 @@ struct AgentTurnResult {
     /// when the rationale-carrying resolver produced one. Surfaced to the GUI as
     /// `data.selection_reason` for `ModelBadge`'s tooltip.
     selection_reason: Option<String>,
+    /// The strict pin the model was resolved through (Task 13), if any.
+    pinned: Option<String>,
     /// Chat-turn-visible events derived from tool results this turn (Phase E
     /// Task E1) — empty on every path except the real agent loop
     /// ([`super::agent_loop::run_agent_turn`]), which is the only path that
@@ -306,6 +308,7 @@ async fn try_run_agent_turn(
     let model = choice.model;
     let is_free = choice.is_free;
     let selection_reason = choice.rationale;
+    let pinned = choice.pinned;
 
     let mut llm_config = super::agent_loop::model_spec_to_llm_config(&model)?;
     // Thread sampling overrides through on the mapped path exactly as the
@@ -458,6 +461,7 @@ async fn try_run_agent_turn(
                 model_used: outcome.model_used,
                 tokens: outcome.total_tokens,
                 selection_reason,
+                pinned,
                 events: outcome.events,
             }))
         }
@@ -949,6 +953,9 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     );
     let llm_started = std::time::Instant::now();
 
+    // The strict pin the chat model resolved through (Task 13) — set only by
+    // the agent-loop path, the one that carries the resolver's `McpModelChoice`.
+    let mut chat_pin: Option<String> = None;
     let (response_text, model_used, tokens, selection_reason, mut events) = if let Some(deep) =
         deep_answer
     {
@@ -1162,7 +1169,10 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
             )
             .await
             {
-                Some(Ok(r)) => (r.text, r.model_used, r.tokens, r.selection_reason, r.events),
+                Some(Ok(r)) => {
+                    chat_pin = r.pinned;
+                    (r.text, r.model_used, r.tokens, r.selection_reason, r.events)
+                }
                 Some(Err(e)) => {
                     emit_turn_hop(
                         Some(session_id.as_str()),
@@ -1615,10 +1625,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     // strict-pin branch applied one) and the id that answered. A deep turn's
     // answer comes from the research roles, not chat.
     if intent.mode != super::research_intent::ResearchMode::Deep && !model_used.is_empty() {
-        research_trace.set_chat_model(
-            super::research_turn::chat_pin_from_rationale(selection_reason.as_deref()),
-            &model_used,
-        );
+        research_trace.set_chat_model(chat_pin.as_deref(), &model_used);
     }
     if intent.mode == super::research_intent::ResearchMode::Quick {
         let check =

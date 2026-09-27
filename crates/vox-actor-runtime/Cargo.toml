@@ -58,6 +58,9 @@ windows-sys = { workspace = true, features = ["Win32_System_Console"] }
 workspace = true
 
 [dev-dependencies]
+# Hermetic test home (`src/lib.rs` `hermetic_test_env`, `tests/common/mod.rs`).
+ctor = { workspace = true }
+dtor = { workspace = true }
 serial_test = { workspace = true }
 tempfile = { workspace = true }
 wiremock = { workspace = true }
