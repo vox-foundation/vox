@@ -527,7 +527,7 @@
       "compile_s": 1.8,
       "dependents": 52,
       "blast_s": 588.0,
-      "fan_in": 7
+      "fan_in": 8
     },
     {
       "crate": "vox-plugin-mens-candle-core",

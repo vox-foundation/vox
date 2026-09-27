@@ -20,6 +20,9 @@ async fn main() {
         .with_writer(std::io::stderr)
         .try_init();
 
+    // Whisper STT reaches vox-plugin-speech through the plugin host (loaded lazily on first use).
+    commands::speech_plugin_backend::register();
+
     let args: Vec<String> = std::env::args().collect();
     if args.iter().any(|arg| arg == "--drive-headless") {
         if let Err(err) = drive::headless::run_stdio() {

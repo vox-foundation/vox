@@ -386,6 +386,7 @@
       "vox-orchestrator",
       "vox-orchestrator-mcp",
       "vox-package-types",
+      "vox-plugin-host",
       "vox-publisher",
       "vox-repository",
       "vox-research-shim",

@@ -49,6 +49,7 @@ pub mod search;
 pub mod search_probe;
 pub mod secrets;
 pub mod signing;
+pub mod speech_plugin_backend;
 pub mod stt_config;
 pub mod terminal_core;
 pub mod user_config;

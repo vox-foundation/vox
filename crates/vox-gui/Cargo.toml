@@ -11,8 +11,9 @@ build = "build.rs"
 gui = []
 default = ["gui"]
 # Desktop speech-to-text: pulls cpal/hound mic capture (via vox-ml-cli's
-# `oratio-mic`) + the Oratio plugin host. Default-OFF to keep the stock GUI lean.
-oratio = ["dep:vox-ml-cli", "dep:vox-plugin-host"]
+# `oratio-mic`). Default-OFF to keep the stock GUI lean. The plugin host is always
+# linked: dictation's Whisper transcriber reaches the `oratio` plugin through it.
+oratio = ["dep:vox-ml-cli"]
 
 [dependencies]
 vox-cli = { workspace = true }
@@ -40,7 +41,7 @@ vox-identity = { workspace = true }
 vox-crypto = { workspace = true }
 vox-search = { workspace = true, features = ["web-scrape"] }
 vox-ml-cli = { workspace = true, optional = true, features = ["oratio-mic"] }
-vox-plugin-host = { workspace = true, optional = true }
+vox-plugin-host = { workspace = true }
 vox-speech = { workspace = true, features = ["stt-candle", "stt-sherpa", "compiler-rerank"] }
 cpal = { workspace = true }
 hound = { workspace = true }
