@@ -62,7 +62,9 @@ payload-kind = "code"
 description = "Audio capture + speech-to-text (Candle Whisper). Extracted from vox-speech in Unit 4."
 status = "beta"
 extension-points = ["AudioCapture", "SpeechToText"]
-default-source = "github:vox-foundation/vox-plugin-oratio"
+# First-party release asset (release-binaries.yml's oratio-plugin job), same
+# model as mens-candle-cuda: version and checksum derive at install time.
+default-source = "github:vox-foundation/vox"
 bundled-in = ["vox-dev"]
 
 # ── Cloud / mesh ───────────────────────────────────────────────────────────────

@@ -21,7 +21,7 @@ _Columns: `id`, `payload-kind`, `extension-points`/`exposes-tools`, `default-sou
 | `nvml-probe` | `HardwareProbe` | `local:crates/vox-plugin-nvml-probe` | `vox-ml`, `vox-dev` |
 | `mens-candle-cuda` | `MlBackend` | `github:vox-foundation/vox` | `vox-ml`, `vox-dev` |
 | `mens-candle-metal` | `MlBackend` | `github:vox-foundation/vox` | `vox-ml-metal`, `vox-dev` |
-| `oratio` | `AudioCapture`, `SpeechToText` | `github:vox-foundation/vox-plugin-oratio` | `vox-dev` |
+| `oratio` | `AudioCapture`, `SpeechToText` | `github:vox-foundation/vox` | `vox-dev` |
 | `webhook` | `HttpListener`, `WebhookInbox` | `local:crates/vox-plugin-webhook` | `vox-server`, `vox-dev` |
 | `browser` | `BrowserAutomation` | `github:vox-foundation/vox-plugin-browser` | `vox-dev` |
 | `runtime-wasm` | `SkillRuntime` | `local:crates/vox-plugin-runtime-wasm` | `vox-fullstack`, `vox-edge`, `vox-dev` |

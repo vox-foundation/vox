@@ -1093,7 +1093,7 @@ version = \"../../..\"
         // which set and remove the same process-global variable.
         let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         unsafe { std::env::remove_var(LOCAL_FALLBACK_ENV) };
-        let err = install_from_catalog("oratio", true, false)
+        let err = install_from_catalog("populi-mesh", true, false)
             .await
             .expect_err("unpinned catalog entry must not install");
         let m = err.to_string();

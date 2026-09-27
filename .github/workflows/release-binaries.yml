@@ -120,6 +120,7 @@ jobs:
             rm -f vox-ml-cli
             tar -xzf "$f"
             ./vox-ml-cli --help >/dev/null
+            ./vox-ml-cli oratio serve --help >/dev/null
           done
           for f in vox-langtool-*.tar.gz; do
             rm -f vox-langtool
@@ -141,6 +142,8 @@ jobs:
             if (Test-Path _smoke_mens) { Remove-Item -Recurse -Force _smoke_mens }
             Expand-Archive -Path $_.FullName -DestinationPath _smoke_mens -Force
             & ".\_smoke_mens\vox-ml-cli.exe" --help | Out-Null
+            & ".\_smoke_mens\vox-ml-cli.exe" oratio serve --help | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw "vox-ml-cli lacks the oratio feature" }
           }
           Get-ChildItem -Filter 'vox-langtool-*.zip' | ForEach-Object {
             if (Test-Path _smoke_langtool) { Remove-Item -Recurse -Force _smoke_langtool }
@@ -313,6 +316,69 @@ jobs:
           path: dist/mens-candle-cuda-v*.zip
           if-no-files-found: error
 
+  oratio-plugin:
+    name: Build oratio speech plugin (${{ matrix.triple }})
+    runs-on: ${{ fromJson(matrix.runs_on) }}
+    timeout-minutes: 240
+    # Same non-blocking contract as gpu-plugin-metal. `vox plugin install oratio`
+    # fetches oratio-v<version>-<triple>.zip from this release. The matrix must
+    # cover every triple in crates/vox-plugin-speech/Plugin.toml's artifacts;
+    # release_build.rs's tests check that.
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - triple: linux-x86_64
+            rust_target: x86_64-unknown-linux-gnu
+            runs_on: '["ubuntu-latest"]'
+            lib: libvox_plugin_speech.so
+          - triple: macos-aarch64
+            rust_target: aarch64-apple-darwin
+            runs_on: '["macos-latest"]'
+            lib: libvox_plugin_speech.dylib
+          - triple: windows-x86_64
+            rust_target: x86_64-pc-windows-msvc
+            runs_on: '["windows-latest"]'
+            lib: vox_plugin_speech.dll
+    env:
+      CARGO_BUILD_JOBS: "2"
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust toolchain
+        uses: ./.github/actions/setup-rust
+        with:
+          targets: ${{ matrix.rust_target }}
+
+      - name: Build the oratio cdylib
+        run: cargo build -p vox-plugin-speech --profile dist --locked --target ${{ matrix.rust_target }}
+
+      - name: Package the plugin zip
+        # Flat, like gpu-plugin-metal: install_from_path reads only top-level files.
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(cargo pkgid -p vox-plugin-speech | sed -E 's/.*[#@]//')"
+          staging="$(mktemp -d)"
+          cp crates/vox-plugin-speech/Plugin.toml "$staging/"
+          cp "target/${{ matrix.rust_target }}/dist/${{ matrix.lib }}" "$staging/"
+          mkdir -p dist
+          zip="dist/oratio-v${version}-${{ matrix.triple }}.zip"
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            pwsh -NoProfile -Command "Compress-Archive -Path '$(cygpath -w "$staging")\\*' -DestinationPath '$zip' -Force"
+          else
+            zip -j "$zip" "$staging"/*
+          fi
+          echo "Packaged: $zip"
+
+      - name: Upload plugin artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-oratio-${{ matrix.triple }}
+          path: dist/oratio-v*.zip
+          if-no-files-found: error
+
   dist-verify:
     name: dist verification (fat LTO)
     runs-on: ubuntu-latest
@@ -354,10 +420,10 @@ jobs:
     name: Publish GitHub release
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # gpu-plugin-* are continue-on-error, so listing them here only makes
+    # gpu-plugin-* and oratio-plugin are continue-on-error, so listing them here only makes
     # publish WAIT (so checksums.txt is generated after their zips exist) --
     # it does not make publish depend on their success.
-    needs: [build, dist-verify, gpu-plugin-metal, gpu-plugin-cuda]
+    needs: [build, dist-verify, gpu-plugin-metal, gpu-plugin-cuda, oratio-plugin]
     permissions:
       contents: write
     steps:

@@ -139,6 +139,22 @@ fn plugin_executable_name(target: &str, plugin: &str) -> String {
     }
 }
 
+/// Optional cargo features a shipped binary re-enables.
+///
+/// - `vox`: full on-disk retrieval (tantivy full-text + web-scrape) sits behind
+///   `heavy-retrieval`, OFF by default so lean dev/CI/mobile builds stay slim
+///   (WS2-T3).
+/// - `vox-ml-cli`: `oratio` (`vox oratio`, including `serve`). It adds only pure-Rust
+///   audio decoding (symphonia, rubato) and vox-speech; Candle Whisper stays in the
+///   `oratio` plugin.
+fn release_features(package_name: &str) -> Option<&'static str> {
+    match package_name {
+        "vox-cli" => Some("heavy-retrieval"),
+        "vox-ml-cli" => Some("oratio"),
+        _ => None,
+    }
+}
+
 fn build_and_package_binary(
     repo_root: &Path,
     out_dir_abs: &Path,
@@ -166,12 +182,8 @@ fn build_and_package_binary(
         "--target",
         target,
     ]);
-    // The shipped `vox` binary keeps full on-disk retrieval (tantivy full-text +
-    // web-scrape). That stack is gated behind the `heavy-retrieval` feature, which
-    // is OFF by default so lean dev/CI/mobile builds stay slim (WS2-T3). Re-enable
-    // it here so end users are unaffected. Other packages don't have the feature.
-    if package_name == "vox-cli" {
-        cmd.args(["--features", "heavy-retrieval"]);
+    if let Some(features) = release_features(package_name) {
+        cmd.args(["--features", features]);
     }
     let status = cmd
         .status()
@@ -383,6 +395,67 @@ mod tests {
                 "release_build shells `cargo build -p {pkg}`, absent from Cargo.lock"
             );
         }
+    }
+
+    /// Shipped binaries re-enable the optional features end users rely on: full
+    /// retrieval in `vox`, and `vox oratio` (incl. `serve`) in `vox-ml-cli`.
+    #[test]
+    fn release_features_cover_retrieval_and_oratio() {
+        assert_eq!(super::release_features("vox-cli"), Some("heavy-retrieval"));
+        assert_eq!(super::release_features("vox-ml-cli"), Some("oratio"));
+        assert_eq!(super::release_features("vox-langtool"), None);
+    }
+
+    /// The oratio (speech) plugin ships as a first-party release asset, so the
+    /// release workflow must build and zip it for every triple its Plugin.toml
+    /// declares, under the `{id}-v{version}-{triple}.zip` name `vox plugin install`
+    /// fetches, and publish must wait for it. A missing triple is a 404 for users.
+    #[test]
+    fn release_workflow_packages_the_oratio_plugin_for_every_declared_triple() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let manifest: toml::Value =
+            std::fs::read_to_string(root.join("crates/vox-plugin-speech/Plugin.toml"))
+                .expect("read Plugin.toml")
+                .parse()
+                .expect("Plugin.toml is TOML");
+        let declared = manifest["plugin"]["payload"]["artifacts"]
+            .as_table()
+            .expect("Plugin.toml declares artifacts");
+
+        let text = std::fs::read_to_string(root.join(".github/workflows/release-binaries.yml"))
+            .expect("read release-binaries.yml");
+        let v: serde_yaml::Value = serde_yaml::from_str(&text).expect("workflow is YAML");
+        let job = &v["jobs"]["oratio-plugin"];
+        assert!(
+            !job.is_null(),
+            "release-binaries.yml has no oratio-plugin job"
+        );
+        let include = job["strategy"]["matrix"]["include"]
+            .as_sequence()
+            .expect("oratio-plugin has a matrix include list");
+        for (triple, lib) in declared {
+            assert!(
+                include
+                    .iter()
+                    .any(|row| row["triple"].as_str() == Some(triple.as_str())
+                        && row["lib"].as_str() == lib.as_str()),
+                "oratio-plugin does not build {triple} ({lib:?}) declared in Plugin.toml"
+            );
+        }
+        assert!(
+            text.contains("oratio-v${version}-${{ matrix.triple }}.zip"),
+            "oratio zips must be named {{id}}-v{{version}}-{{triple}}.zip"
+        );
+        let needs: Vec<&str> = v["jobs"]["publish"]["needs"]
+            .as_sequence()
+            .expect("publish needs")
+            .iter()
+            .filter_map(|n| n.as_str())
+            .collect();
+        assert!(
+            needs.contains(&"oratio-plugin"),
+            "publish must wait for oratio-plugin, or checksums.txt misses its zips"
+        );
     }
 
     /// `--package all` must still parse, and the retired tiers must not.
