@@ -16626,6 +16626,7 @@ dependencies = [
  "vox-config",
  "vox-container",
  "vox-deploy-codegen",
+ "vox-http-client",
  "vox-package",
  "vox-project-scaffold",
  "vox-telemetry",
