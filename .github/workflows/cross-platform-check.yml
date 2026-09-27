@@ -178,7 +178,9 @@ jobs:
         run: |
           set -euo pipefail
           cargo check --all-targets -p vox-ml-cli
-          cargo check --all-targets -p vox-ml-cli --features populi
+          # clippy (a superset of check): workspace clippy runs default features only,
+          # so nothing else lints the populi-gated code (9 lints had accumulated).
+          cargo clippy --all-targets -p vox-ml-cli --features populi -- -D warnings
           cargo check --all-targets -p vox-gamify
           cargo check --all-targets -p vox-orchestrator-d
           # Installed by `vox plugin install`; both under-declared
