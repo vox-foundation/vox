@@ -91,7 +91,7 @@ pub async fn start_research_async(
 #[tauri::command]
 pub async fn flag_research_misleading(
     pool: tauri::State<'_, GuiDbPool>,
-    params: vox_db_types::RecordMisguidanceParams,
+    params: vox_db::RecordMisguidanceParams,
 ) -> Result<i64, String> {
     pool_db(&pool)?
         .record_research_misguidance(&params)
@@ -366,14 +366,14 @@ mod tests {
             "reporter": "user",
             "domain_penalty": 0.2
         }"#;
-        let params: vox_db_types::RecordMisguidanceParams =
+        let params: vox_db::RecordMisguidanceParams =
             serde_json::from_str(json_str).expect("deserialize RecordMisguidanceParams");
         assert_eq!(params.session_id, Some(1));
         assert_eq!(
             params.defect_class,
-            vox_db_types::ResearchDefectClass::InelegantCode
+            vox_db::ResearchDefectClass::InelegantCode
         );
         assert_eq!(params.culprit_domain, "flawed-docs.com");
-        assert_eq!(params.reporter, vox_db_types::MisguidanceReporter::User);
+        assert_eq!(params.reporter, vox_db::MisguidanceReporter::User);
     }
 }
