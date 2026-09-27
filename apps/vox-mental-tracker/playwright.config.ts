@@ -18,10 +18,15 @@ export default defineConfig({
           "pnpm build:web && pnpm exec vite preview --port 5173 --host 127.0.0.1 --strictPort",
         url,
         reuseExistingServer: true,
-        // `build:web` runs `cargo run --release -p vox-cli`; a cold build (cache
-        // miss, or a fresh toolchain) can take several minutes, well past the
-        // previous 180s budget. The CI job's own timeout-minutes (30) is the
-        // real backstop.
-        timeout: 600_000,
+        // `build:web` runs `cargo run --release -p vox-cli`; a cold build (no
+        // warm cargo/target cache yet for the current Cargo.lock, e.g. the
+        // first run after a lockfile change) can take well over 10 minutes on
+        // a GitHub-hosted 2-core runner (600_000ms wasn't enough, observed
+        // 2026-09-27). The CI job now carries a real Swatinem/rust-cache
+        // (see the workflow), and its own timeout-minutes is hard-capped at
+        // 30 by policy, so this leaves headroom for the rest of the job
+        // (checkout, deps, the actual Playwright run, artifact upload)
+        // rather than eating the whole budget itself.
+        timeout: 1_200_000,
       },
 });
