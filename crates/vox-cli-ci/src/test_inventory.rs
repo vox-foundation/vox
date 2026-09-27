@@ -843,7 +843,7 @@ fn emit_markdown(report: &TestInventoryReport) -> String {
     s.push_str("---\n");
     s.push_str("title: \"Workspace test inventory (2026)\"\n");
     s.push_str("description: \"Regenerable counts of Rust tests, ignores, and related harness patterns across the workspace (fully regenerated; refresh dates via git history).\"\n");
-    s.push_str("category: \"architecture\"\n");
+    s.push_str("category: \"Architecture SSOTs\"\n");
     s.push_str("status: \"current\"\n");
     s.push_str("training_eligible: false\n");
     s.push_str("---\n\n");
@@ -1054,6 +1054,21 @@ mod tests {
         assert_eq!(
             classify_rust_file("crates/foo/benches/x.rs"),
             RustFileKind::Bench
+        );
+    }
+
+    #[test]
+    fn markdown_frontmatter_uses_a_canonical_doc_category() {
+        // The page lands under docs/src/, whose lint rejects non-canonical categories;
+        // "architecture" failed it on every regen.
+        let json = include_str!("../../../contracts/reports/test-inventory.v1.json");
+        let report: TestInventoryReport =
+            serde_json::from_str(json).expect("committed report parses");
+        let md = emit_markdown(&report);
+        assert!(
+            md.contains("category: \"Architecture SSOTs\"\n"),
+            "{}",
+            &md[..md.len().min(400)]
         );
     }
 

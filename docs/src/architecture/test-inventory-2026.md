@@ -1,6 +1,6 @@
 ---
 title: "Workspace test inventory (2026)"
-description: "Regenerable counts of Rust tests, ignores, golden Vox, and app E2E paths across the workspace (fully regenerated; refresh dates via git history)."
+description: "Regenerable counts of Rust tests, ignores, and related harness patterns across the workspace (fully regenerated; refresh dates via git history)."
 category: "Architecture SSOTs"
 status: "current"
 training_eligible: false
@@ -8,7 +8,7 @@ training_eligible: false
 
 # Workspace test inventory
 
-Regenerate this page (full Rust-side metrics, ignores, harness patterns, and sorted JSON) with:
+Regenerate this page with:
 
 `cargo run -p vox-cli -- ci test-inventory --markdown docs/src/architecture/test-inventory-2026.md`
 
@@ -16,49 +16,81 @@ Machine-readable JSON:
 
 `cargo run -p vox-cli -- ci test-inventory --json`
 
-Regenerate the committed snapshot used by CI drift checks:
-
-`cargo run -p vox-cli -- ci test-inventory --output contracts/reports/test-inventory.v1.json`
-
-Verify a committed JSON snapshot (parses both sides and compares structured report data, not raw text):
-
-`cargo run -p vox-cli -- ci test-inventory --check contracts/reports/test-inventory.v1.json`
-
-## Runtime report from JUnit (slow tests / retries)
-
-After CI produces nextest JUnit (see [`runner-contract`](../ci/runner-contract.md)), summarize timings and retry heuristics:
-
-`cargo run -p vox-cli -- ci test-runtime-report --junit target/nextest/ci/junit.xml --json`
-
-(`--markdown <path>` writes a short advisory Markdown; optional `--fail-over-ms` / `--fail-retry-count` warn only.)
-
 ## Summary counts
 
-The authoritative numbers are emitted by `vox ci test-inventory`. Until you run it on a clean build, treat the rows below as **illustrative probes** from the repo layout (they align with what the scanner walks but do not replace JSON).
-
-| Metric | Probe / note |
+| Metric | Value |
 | --- | ---: |
-| Workspace crates (`crates/*/Cargo.toml`) | 107 |
-| Rust files under `crates/**/*.rs` (recursive; includes fixtures) | See JSON from generator |
-| Golden `.vox` files (`examples/golden/**/*.vox`) | 54 |
-| Lines containing `@test` in golden Vox (substring probe; generator counts line-leading `@test`) | 15 |
-| App E2E-style files (`apps/**/*.test.*` / `*.spec.*`) | 4 |
+| Workspace crates (`crates/*/Cargo.toml`) | 129 |
+| Rust files under `crates/**/*.rs` | 4067 |
+| Cargo unit tests (`#[test]` / `tokio::test` / `rstest` / `proptest` in `src/`) | 10507 |
+| Cargo integration tests (`crates/.../tests/`) | 3044 |
+| Cargo bench fns (`#[bench]` in scanned paths) | 0 |
+| Ignored test functions (best-effort parse) | 169 |
+| Golden `.vox` files (`examples/golden/**/*.vox`) | 87 |
+| `@test` lines in golden Vox | 87 |
+| App E2E-style files (`apps/**/*.test.*` / `*.spec.*`) | 692 |
+| Doctest candidate src files (rust/no_run doc fences) | 11 |
+| Doctest fence lines counted | 17 |
 
-After `cargo run … --markdown …`, this section should be overwritten with the generator table (unit vs integration vs bench vs ignored, doctest candidates, harness pattern totals).
+### Test harness patterns (Rust files in unit/integration/bench paths)
+
+| Pattern | Count |
+| --- | ---: |
+| `sleep` sites | 207 |
+| Env reads (`env::var` / `std::env::var`) | 776 |
+| Env mutations (`set_var` / `remove_var`) | 1016 |
+| `Command::new` | 571 |
+| `serial_test` | 92 |
+| `proptest::` | 9 |
+| `quickcheck::` | 2 |
+| `insta::` | 109 |
 
 ## Caveats
 
-- **WebIR / internal pipelines:** Ignored tests that mention WebIR (path or ignore reason) are treated as **active internal pipeline tests** unless the ignore reason clearly indicates tombstone, retired, or dropped parity language.
-- **Nextest vs doctests:** `cargo nextest` runs compiled test binaries for crates but does **not** replace `cargo test` doctests. This inventory lists doctest **candidates** separately (rust/no_run doc fences in `src` trees).
+- **WebIR / internal pipelines:** Ignored tests that mention WebIR are treated as active internal pipeline tests unless the ignore reason clearly indicates tombstone, retired, or dropped parity.
+- **Nextest vs doctests:** `cargo nextest` runs compiled test binaries (unit/integration in crates) but does not execute `cargo test` doctests; this inventory tracks doctest candidates separately via ```rust / ```no_run fences in crate src files.
+- **WebIR-related ignored tests (active heuristic):** 3
+- **WebIR ignores with retired/tombstone-style reasons:** 0
 
 ## Zero-test crates
 
-(Run the generator for the live list.)
+- `vox-cli-contracts`
+- `workspace-hack`
 
 ## Top ignored files
 
-(Run the generator for the ranked table.)
+| File | Ignored tests |
+| --- | ---: |
+| `crates/vox-mesh-transport/tests/interp_executor.rs` | 12 |
+| `crates/vox-compiler/tests/golden_dashboard_composites_test.rs` | 11 |
+| `crates/vox-compiler/tests/golden_dashboard_surfaces_test.rs` | 9 |
+| `crates/vox-compiler/tests/state_machine_integration_test.rs` | 9 |
+| `crates/vox-compiler/tests/golden_runs_surface_test.rs` | 6 |
+| `crates/vox-codegen/src/codegen_rust/mod.rs` | 5 |
+| `crates/vox-compiler/tests/golden_dashboard_chrome_test.rs` | 5 |
+| `crates/vox-compiler/tests/golden_mesh_surface_test.rs` | 5 |
+| `crates/vox-integration-tests/tests/orchestrator_e2e_test.rs` | 5 |
+| `crates/vox-integration-tests/tests/pipeline/includes/include_01.rs` | 5 |
+| `crates/vox-compiler/tests/golden_for_loop_test.rs` | 4 |
+| `crates/vox-compiler/tests/golden_svg_vuv_test.rs` | 4 |
+| `crates/vox-eval/src/lib.rs` | 4 |
+| `crates/vox-integration-tests/tests/parity_contracts_test.rs` | 4 |
+| `crates/vox-cli/tests/run_benchmark.rs` | 3 |
+| `crates/vox-cli/tests/run_mode_dispatch.rs` | 3 |
+| `crates/vox-compiler/tests/bug_handler_lambda_repro.rs` | 3 |
+| `crates/vox-compiler/tests/golden_svg_snake_case_test.rs` | 3 |
+| `crates/vox-integration-tests/tests/codegen_rust_test.rs` | 3 |
+| `crates/vox-plugin-mens-candle-metal/src/inference.rs` | 3 |
+| `crates/vox-codegen/tests/generated_project_builds_outside_repo.rs` | 2 |
+| `crates/vox-compiler/tests/tombstone_test.rs` | 2 |
+| `crates/vox-compiler/tests/web_ir_environment_gates_test.rs` | 2 |
+| `crates/vox-integration-tests/tests/cli_test.rs` | 2 |
+| `crates/vox-integration-tests/tests/ts_emit_typecheck_test.rs` | 2 |
 
 ## Rust files by kind
 
-(Run the generator for `unit_src` / `integration_tests` / `benches` / `other`.)
+- `benches`: 3
+- `integration_tests`: 755
+- `other`: 24
+- `unit_src`: 3285
+
