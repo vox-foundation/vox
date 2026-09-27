@@ -1,8 +1,8 @@
-#![cfg_attr(test, allow(unsafe_code))] // test-only std::env::set_var (unsafe on edition 2024)
 //! Vox plugin host: discovery, loading, registry.
 //!
 //! See: docs/src/architecture/plugin-system-redesign-2026.md
 
+#![cfg_attr(test, allow(unsafe_code))] // test-only std::env::set_var (unsafe on edition 2024)
 #![allow(clippy::result_large_err)]
 
 pub mod capability;
@@ -91,7 +91,9 @@ pub fn format_install_hint(plugin_id: &str, cargo_feature_hint: Option<&str>) ->
 /// Honors `VOX_WORKSPACE_ROOT` as an explicit override.
 #[must_use]
 pub fn workspace_local_plugin_source(plugin_id: &str) -> Option<std::path::PathBuf> {
-    let candidates_root = if let Ok(root) = std::env::var("VOX_WORKSPACE_ROOT") {
+    let candidates_root = if let Some(root) =
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxWorkspaceRoot).expose()
+    {
         vec![std::path::PathBuf::from(root)]
     } else if let Ok(cwd) = std::env::current_dir() {
         // Walk up at most 8 levels — covers both repo-root invocations and
