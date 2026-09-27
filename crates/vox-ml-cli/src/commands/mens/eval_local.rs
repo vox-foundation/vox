@@ -21,7 +21,10 @@ use vox_bounded_fs::read_utf8_path_capped;
 // (checked alongside this in `verify_completion`) are what actually catch a
 // stubbed body — this dimension only rejects the *degenerate* case of zero
 // declared constructs (parse failure or a fully empty module).
-pub use super::metrics::ANTI_STUB_MIN_CONSTRUCT_RICHNESS;
+// The const lives in `metrics` (where `verify_completion` applies it); only the
+// policy-parity tests below reference it here.
+#[cfg(test)]
+use super::metrics::ANTI_STUB_MIN_CONSTRUCT_RICHNESS;
 
 pub fn run_eval_local(
     model: Option<PathBuf>,

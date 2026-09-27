@@ -5,6 +5,10 @@ use std::collections::HashSet;
 use std::path::Path;
 use vox_compiler::pipeline::FrontendResult;
 
+/// Per-answer anti-stub floor on `ast_eval` construct richness: the most a single
+/// declaration can score (1/8). Re-exported by `eval_local`; rationale lives there.
+pub const ANTI_STUB_MIN_CONSTRUCT_RICHNESS: f64 = 0.125;
+
 static TOKEN_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r"[\w]+|[^\w\s]").expect("valid token regex"));
 
@@ -262,8 +266,6 @@ pub fn verify_completion(
             parse_error = Some(err.to_string());
         }
     }
-
-    pub const ANTI_STUB_MIN_CONSTRUCT_RICHNESS: f64 = 0.125;
 
     let pass_compile = non_empty && parse_ok && typecheck_ok;
     let placeholder_hits = placeholder_marker_hits(code);
