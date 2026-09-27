@@ -143,7 +143,9 @@ pub fn generate_script_with_target(
             .and_then(|p| p.parent())
             .map(|p| manifest_dependency_path(&p.join("vox-db")))
             .unwrap_or_else(|| "../vox-db".to_string());
-        format!("vox-db = {{ path = \"{vox_db_path}\" }}\n")
+        // `host-integration` gates `DbConfig::resolve_canonical`, which the
+        // script db glue (emit/script_db.rs) calls — same as the app manifests.
+        format!("vox-db = {{ path = \"{vox_db_path}\", features = [\"host-integration\"] }}\n")
     } else {
         String::new()
     };
