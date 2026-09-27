@@ -304,6 +304,24 @@ fn all_providers_disabled<'a>(statuses: impl IntoIterator<Item = &'a ProviderSta
     any
 }
 
+/// The context block injected into the quick-research prompt. When the
+/// web-research switch is off (every provider `Disabled`) it says so — the
+/// generic empty block ("web research ran … returned no sources") would be a
+/// falsehood the model repeats to the user.
+fn quick_context_block(
+    report: &vox_search::web_dispatcher::SearchReport,
+    sources: &[Source],
+) -> String {
+    if all_providers_disabled(report.providers.iter().map(|p| &p.status)) {
+        return "[WEB RESEARCH — DISABLED]\nWeb research is disabled in this environment, so no \
+                web search was run and no sources were fetched for this question. If the answer \
+                depends on current information, tell the user plainly that web research is \
+                disabled; do not invent citations or claim to have searched.\n"
+            .to_string();
+    }
+    sources_context_block(sources)
+}
+
 /// The quick-research retrieval stage for one dispatcher report.
 fn quick_retrieval_stage(
     report: &vox_search::web_dispatcher::SearchReport,
@@ -388,7 +406,7 @@ pub async fn run_quick(state: &crate::ServerState, trace: &mut ResearchTrace) ->
         format!("{} web sources kept", trace.sources.len()),
         json!({ "sources": trace.sources }),
     ));
-    sources_context_block(&trace.sources)
+    quick_context_block(&report, &trace.sources)
 }
 
 /// Deep research: the Scientia pipeline inline on the Deep lane (spec §4.4).
@@ -1215,6 +1233,36 @@ mod tests {
         let b = sources_context_block(&[]);
         assert!(b.starts_with("[WEB RESEARCH — 0 SOURCES]"), "{b}");
         assert!(b.contains("do not invent citations"), "{b}");
+    }
+
+    /// Follow-up to 9b: with the web-research switch off the model must not be
+    /// told that research "ran and returned no sources" — it would repeat that
+    /// falsehood to the user. Only the all-`Disabled` case changes.
+    #[test]
+    fn disabled_web_research_context_block_says_so_instead_of_claiming_a_search() {
+        use vox_search::web_dispatcher::{ProviderOutcome, SearchReport, WEB_PROVIDERS};
+        let disabled = SearchReport {
+            hits: vec![],
+            providers: WEB_PROVIDERS
+                .into_iter()
+                .map(|provider| ProviderOutcome {
+                    provider,
+                    status: ProviderStatus::Disabled,
+                    elapsed_ms: 0,
+                })
+                .collect(),
+            tavily_credits: None,
+        };
+        let b = quick_context_block(&disabled, &[]);
+        assert!(b.starts_with("[WEB RESEARCH — DISABLED]"), "{b}");
+        assert!(b.contains("web research is disabled"), "{b}");
+        assert!(b.contains("no sources were fetched"), "{b}");
+        assert!(!b.contains("ran for this question"), "{b}");
+        assert!(b.contains("do not invent citations"), "{b}");
+
+        // Any other outcome keeps the existing block verbatim.
+        let ran = SearchReport::default();
+        assert_eq!(quick_context_block(&ran, &[]), sources_context_block(&[]));
     }
 
     #[test]
