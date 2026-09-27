@@ -553,9 +553,9 @@
     {
       "crate": "vox-plugin-nvml-probe",
       "compile_s": 0.5,
-      "dependents": 17,
-      "blast_s": 374.0,
-      "fan_in": 1
+      "dependents": 0,
+      "blast_s": 1.0,
+      "fan_in": 0
     },
     {
       "crate": "vox-plugin-populi-mesh",
@@ -588,8 +588,8 @@
     {
       "crate": "vox-plugin-sdk",
       "compile_s": 0.2,
-      "dependents": 19,
-      "blast_s": 374.0,
+      "dependents": 2,
+      "blast_s": 1.0,
       "fan_in": 2
     },
     {

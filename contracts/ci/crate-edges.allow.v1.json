@@ -1235,10 +1235,6 @@
     ],
     [
       "vox-orchestrator",
-      "vox-plugin-nvml-probe"
-    ],
-    [
-      "vox-orchestrator",
       "vox-populi"
     ],
     [
