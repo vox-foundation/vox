@@ -44,9 +44,7 @@ fn build_adapter_manifest_v3(
     config: &LoraTrainingConfig,
     adapter_layer_order: &[String],
     base_key_map: &std::collections::HashMap<String, String>,
-    resolved_base_path: Option<String>,
 ) -> PopuliAdapterManifestV3 {
-    let base_model = resolved_base_path.or_else(|| config.base_model.clone());
     PopuliAdapterManifestV3::new(
         AdapterMethod::Qlora,
         BaseQuantMode::Nf4,
@@ -57,9 +55,26 @@ fn build_adapter_manifest_v3(
         d_model,
         rank,
         alpha,
-        base_model,
+        resolved_serve_base_model(config),
         adapter_provenance_from_config(config),
     )
+}
+
+/// Prefer a local snapshot directory for serve. HF ids like `Qwen/Qwen3-0.6B`
+/// are not loadable by the plugin inference engine (`base_model` must be a dir).
+fn resolved_serve_base_model(config: &LoraTrainingConfig) -> Option<String> {
+    if let Some(ref id) = config.base_model
+        && Path::new(id).is_dir()
+    {
+        return Some(id.clone());
+    }
+    if let Some((_, ref cfg)) = config.base_model_paths
+        && let Some(parent) = cfg.parent()
+        && parent.is_dir()
+    {
+        return Some(parent.display().to_string());
+    }
+    config.base_model.clone()
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -151,11 +166,6 @@ pub(super) fn finalize_training_run(
         ));
     }
 
-    let resolved_base_dir = bundle
-        .config_path
-        .parent()
-        .map(|p| p.to_string_lossy().to_string());
-
     let adapter_manifest_v3 = build_adapter_manifest_v3(
         bundle.vocab,
         bundle.d_model,
@@ -164,7 +174,6 @@ pub(super) fn finalize_training_run(
         config,
         adapter_layer_order,
         base_key_map,
-        resolved_base_dir,
     );
     let manifest_json = serde_json::to_string_pretty(&adapter_manifest_v3)?;
     std::fs::write(out.join("adapter_manifest.json"), &manifest_json)?;
@@ -293,4 +302,53 @@ pub(super) fn finalize_training_run(
         total_tokens,
         ms_per_step,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::resolved_serve_base_model;
+    use crate::config::LoraTrainingConfig;
+    use std::fs;
+
+    #[test]
+    fn resolved_serve_base_model_keeps_existing_directory() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().display().to_string();
+        let cfg = LoraTrainingConfig {
+            base_model: Some(path.clone()),
+            ..Default::default()
+        };
+        assert_eq!(resolved_serve_base_model(&cfg), Some(path));
+    }
+
+    #[test]
+    fn resolved_serve_base_model_uses_config_parent_for_hf_id() {
+        let snap = tempfile::tempdir().unwrap();
+        let cfg_path = snap.path().join("config.json");
+        fs::write(&cfg_path, "{}").unwrap();
+        let expected = snap.path().display().to_string();
+        let cfg = LoraTrainingConfig {
+            base_model: Some("Qwen/Qwen3-0.6B".into()),
+            base_model_paths: Some((vec![], cfg_path)),
+            ..Default::default()
+        };
+        assert_eq!(resolved_serve_base_model(&cfg), Some(expected));
+    }
+
+    /// The one case where this differs from `config.json`'s parent: a local
+    /// `base_model` directory wins over wherever config.json was read from.
+    #[test]
+    fn resolved_serve_base_model_prefers_a_local_base_model_dir() {
+        let local = tempfile::tempdir().unwrap();
+        let snap = tempfile::tempdir().unwrap();
+        let cfg_path = snap.path().join("config.json");
+        fs::write(&cfg_path, "{}").unwrap();
+        let path = local.path().display().to_string();
+        let cfg = LoraTrainingConfig {
+            base_model: Some(path.clone()),
+            base_model_paths: Some((vec![], cfg_path)),
+            ..Default::default()
+        };
+        assert_eq!(resolved_serve_base_model(&cfg), Some(path));
+    }
 }

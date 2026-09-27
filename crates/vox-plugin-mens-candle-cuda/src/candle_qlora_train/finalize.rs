@@ -355,6 +355,23 @@ mod tests {
         assert_eq!(resolved_serve_base_model(&cfg), Some(expected));
     }
 
+    /// The one case where this differs from `config.json`'s parent: a local
+    /// `base_model` directory wins over wherever config.json was read from.
+    #[test]
+    fn resolved_serve_base_model_prefers_a_local_base_model_dir() {
+        let local = tempfile::tempdir().unwrap();
+        let snap = tempfile::tempdir().unwrap();
+        let cfg_path = snap.path().join("config.json");
+        fs::write(&cfg_path, "{}").unwrap();
+        let path = local.path().display().to_string();
+        let cfg = LoraTrainingConfig {
+            base_model: Some(path.clone()),
+            base_model_paths: Some((vec![], cfg_path)),
+            ..Default::default()
+        };
+        assert_eq!(resolved_serve_base_model(&cfg), Some(path));
+    }
+
     #[test]
     fn stage_serve_sidecars_copies_tokenizer_and_config() {
         let src = tempfile::tempdir().unwrap();
