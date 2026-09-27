@@ -21,12 +21,18 @@ pub const OPENROUTER_FREE: &str = "openrouter/free";
 ///
 /// SSOT note: mirrors `vox-gamify`'s `OPENROUTER_FREE_MODELS`; the two should converge
 /// onto this constant (follow-up — see `docs/superpowers/antigravity-handoff-ledger.md` AGH-0006).
+///
+/// Free slugs churn: on 2026-09-20 none of the previous list (gemma-3, llama-3.3, qwen3-235b,
+/// mistral-7b, phi-3-mini) existed in `GET https://openrouter.ai/api/v1/models` any more, so every
+/// floor attempt 404'd. Entries below were checked against that catalog the same day and all
+/// advertise `response_format` (the planner and judge request JSON mode). Re-verify with
+/// `curl -s https://openrouter.ai/api/v1/models | jq -r '.data[].id | select(endswith(":free"))'`.
 pub const OPENROUTER_FREE_FALLBACK_MODELS: &[&str] = &[
-    "google/gemma-3-27b-it:free",
-    "meta-llama/llama-3.3-70b-instruct:free",
-    "qwen/qwen3-235b-a22b:free",
-    "mistralai/mistral-7b-instruct:free",
-    "microsoft/phi-3-mini-128k-instruct:free",
+    "nvidia/nemotron-3-super-120b-a12b:free",
+    "google/gemma-4-31b-it:free",
+    "google/gemma-4-26b-a4b-it:free",
+    "nex-agi/nex-n2.5-pro:free",
+    "nex-agi/nex-n2.5-mini:free",
 ];
 
 /// Research / planner / claim stages when no registry candidate exists.
