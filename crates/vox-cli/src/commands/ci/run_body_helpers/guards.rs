@@ -408,6 +408,13 @@ fn path_is_allowed_for_secret_guard(rel_norm: &str, hard_cut_strict: bool) -> bo
         "crates/vox-plugin-oratio/",
         "crates/vox-plugin-runtime-container/",
         "crates/vox-telemetry/",
+        // The canonical `Authorization: Bearer` builder (`bearer_auth_header[_string]`) must format
+        // the token into the header; it is the sanctioned sink every other caller should use.
+        "crates/vox-http-client/src/lib.rs",
+        // OpenRouterPanelClient::complete builds the same `Bearer {token}` header vox-http-client's
+        // canonical bearer_auth_header_string formats — vox-audit doesn't depend on vox-http-client
+        // (no crate edge authorized to add one), so the pattern can't be narrowed to a call site.
+        "crates/vox-audit/src/panel.rs",
     ];
     const HARD_CUT_ALLOWLIST: &[&str] = &[
         "crates/vox-secrets/",
@@ -626,18 +633,32 @@ fn managed_secret_env_regex() -> Result<regex::Regex> {
 }
 
 /// Whether `text` performs a direct secret env read: a `disallowed` match that does not start inside
-/// a string literal or comment (detector tests and docs quote such reads without performing them).
+/// a string literal or comment (detector tests and docs quote such reads without performing them)
+/// or inside a `#[cfg(test)] mod` (test harnesses save/restore env around `set_var`; never shipped).
 fn has_direct_secret_env_read(disallowed: &regex::Regex, text: &str) -> Result<bool> {
+    static TEST_MOD_RE: OnceLock<regex::Regex> = OnceLock::new();
     if !disallowed.is_match(text) {
         return Ok(false);
     }
-    let quoted: Vec<std::ops::Range<usize>> = rust_literal_or_comment_regex()?
-        .find_iter(text)
-        .map(|m| m.range())
-        .collect();
+    let literal_re = rust_literal_or_comment_regex()?;
+    let mut skipped: Vec<std::ops::Range<usize>> =
+        literal_re.find_iter(text).map(|m| m.range()).collect();
+    // Same byte offsets, literals and comments blanked, so their braces cannot unbalance a body.
+    let blank = literal_re.replace_all(text, |c: &regex::Captures<'_>| " ".repeat(c[0].len()));
+    let test_mod_re = cached_guard_regex(
+        &TEST_MOD_RE,
+        "cfg-test-module",
+        r"#\[cfg\(test\)\]\s*(?:pub(?:\([^)]*\))?\s+)?mod\s+\w+\s*",
+    )?;
+    for m in test_mod_re.find_iter(&blank) {
+        if let Some(body) = sink_args(&blank, m.end()) {
+            let start = body.as_ptr() as usize - blank.as_ptr() as usize;
+            skipped.push(m.start()..start + body.len());
+        }
+    }
     Ok(disallowed
         .find_iter(text)
-        .any(|m| !quoted.iter().any(|r| r.contains(&m.start()))))
+        .any(|m| !skipped.iter().any(|r| r.contains(&m.start()))))
 }
 
 /// Legacy Turso env aliases scheduled for removal; pattern built from `concat!` so this module
@@ -825,12 +846,12 @@ pub(crate) fn secret_dataflow_leak_categories(text: &str) -> Result<Vec<&'static
         "secret-dataflow-secret-word",
         r#"(api[_-]?key|access[_-]?token|bearer|secret|password|authorization|\.expose\(\))"#,
     )?;
-    // Clavis names, not values: the crate, `SecretId::<Variant>`, and its resolve/store API.
-    // `.expose()` (the plaintext accessor) stays a secret word above.
+    // Names, not values: the Clavis crate, `SecretId::<Variant>`, its resolve/store API, and the
+    // keys of a map (`secrets.keys()`). `.expose()` (the plaintext accessor) stays a secret word.
     let clavis_api_re = cached_guard_regex(
         &CLAVIS_API_RE,
         "secret-dataflow-clavis-api",
-        r#"vox_secrets|secretid(?:::\w+)?|resolve_secret|store_secret|secret_id\w*"#,
+        r#"vox_secrets|secretid(?:::\w+)?|resolve_secret|store_secret|secret_id\w*|\w+\s*\.\s*keys\(\)"#,
     )?;
 
     let secret_in = |sink: &regex::Regex, code: &str| {
@@ -1434,6 +1455,25 @@ mod sql_surface_tests {
             "crates/vox-telemetry/src/types.rs",
             false
         ));
+        // Only the canonical bearer-header module, not the rest of vox-http-client.
+        assert!(super::path_is_allowed_for_secret_guard(
+            "crates/vox-http-client/src/lib.rs",
+            false
+        ));
+        assert!(!super::path_is_allowed_for_secret_guard(
+            "crates/vox-http-client/src/retry.rs",
+            false
+        ));
+        // panel.rs builds the same Bearer-header pattern; vox-audit has no vox-http-client edge.
+        assert!(super::path_is_allowed_for_secret_guard(
+            "crates/vox-audit/src/panel.rs",
+            false
+        ));
+        // Not the hard-cut allowlist: this is a heuristic exemption, not a Clavis-managed source.
+        assert!(!super::path_is_allowed_for_secret_guard(
+            "crates/vox-audit/src/panel.rs",
+            true
+        ));
     }
 
     #[test]
@@ -1611,6 +1651,38 @@ mod sql_surface_tests {
         // A detector test's input and a comment mention the read; neither performs it.
         let fixture = format!("let src = r#\"let k = {read};\"#;\n// never call {read}\n");
         assert!(!super::has_direct_secret_env_read(&re, &fixture).unwrap());
+    }
+
+    #[test]
+    fn secret_dataflow_treats_map_keys_as_names() {
+        // Recording which secrets were injected (their names) is not serializing their values.
+        let names = r#"let out = json!({"injected_secrets": injected_secrets.keys().collect::<Vec<_>>()});"#;
+        assert!(
+            super::secret_dataflow_leak_categories(names)
+                .unwrap()
+                .is_empty()
+        );
+        let values = r#"let out = json!({"injected_secrets": injected_secrets.values().collect::<Vec<_>>()});"#;
+        assert!(
+            super::secret_dataflow_leak_categories(values)
+                .unwrap()
+                .contains(&"serialize-secret-material")
+        );
+    }
+
+    #[test]
+    fn direct_secret_env_read_skips_cfg_test_modules_only() {
+        let re = super::managed_secret_env_regex().unwrap();
+        let read = format!(r#"std::env::var("{}")"#, ["ACME", "_API_KEY"].concat());
+        // Test harnesses save and restore env around a set_var; that code never ships.
+        let in_tests = format!(
+            "fn prod() {{}}\n#[cfg(test)]\nmod tests {{\n    fn t() {{ let s = \"}}\"; let prev = {read}.ok(); }}\n}}\n"
+        );
+        assert!(!super::has_direct_secret_env_read(&re, &in_tests).unwrap());
+        let after_tests = format!("{in_tests}fn later() {{ let k = {read}.ok(); }}\n");
+        assert!(super::has_direct_secret_env_read(&re, &after_tests).unwrap());
+        let not_cfg_test = format!("#[cfg(feature = \"x\")]\nmod m {{ fn f() {{ {read}; }} }}\n");
+        assert!(super::has_direct_secret_env_read(&re, &not_cfg_test).unwrap());
     }
 
     #[test]
