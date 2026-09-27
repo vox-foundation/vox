@@ -25,12 +25,13 @@ fn emit_first_fn(src: &str) -> String {
 fn numeric_add_has_no_spurious_borrow() {
     let out = emit_first_fn("fn add() to int { return 1 + 2 }");
     assert!(
-        out.contains("1 + 2"),
-        "expected a clean `1 + 2`, got:\n{out}"
+        // Int literals carry an explicit `i64` suffix (tier parity, d9e5cd4c3).
+        out.contains("1i64 + 2i64"),
+        "expected a clean `1i64 + 2i64`, got:\n{out}"
     );
     assert!(
-        !out.contains("1 + &2"),
-        "numeric add must not borrow the RHS (`1 + &2`):\n{out}"
+        !out.contains("+ &2"),
+        "numeric add must not borrow the RHS (`1i64 + &2i64`):\n{out}"
     );
 }
 

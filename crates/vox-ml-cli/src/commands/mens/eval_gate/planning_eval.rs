@@ -29,7 +29,7 @@ pub struct PlanningEvalResult {
 ///   (each expected tool counted once; duplicate matching is counted correctly).
 ///
 /// # Examples
-/// ```
+/// ```text
 /// use vox_ml_cli::commands::mens::eval_gate::planning_eval::evaluate_plan_sequence;
 /// let result = evaluate_plan_sequence(&["a", "b", "c"], &["a", "b", "c"]);
 /// assert!(result.sequence_match);

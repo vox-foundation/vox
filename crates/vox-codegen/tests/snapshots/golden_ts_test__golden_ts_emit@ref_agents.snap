@@ -1,5 +1,6 @@
 ---
 source: crates/vox-codegen/tests/golden_ts_test.rs
+assertion_line: 57
 expression: combined
 ---
 === vox-app-contract.json ===
@@ -54,6 +55,5 @@ export function useVoxServerQuery<TData>(
 
 export interface MemoryBank {
   _id: number;
-  id: number;
   entries: List<string>;
 }
