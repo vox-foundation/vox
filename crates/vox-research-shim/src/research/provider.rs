@@ -12,24 +12,30 @@ use vox_search::web_dispatcher::{ProviderOutcome, ProviderStatus, WebSearchDispa
 use super::types::{ProviderCallSummary, ResearchHit, TavilyCredits};
 
 /// Every provider outcome seen by one registry (one research run), plus the
-/// latest Tavily credit counter. Shared across clones.
+/// latest Tavily credit counter.
 #[derive(Debug, Default)]
 struct RetrievalLog {
     calls: Vec<ProviderOutcome>,
     tavily_credits: Option<(usize, usize)>,
 }
 
+/// Distinct error messages shown per row before collapsing to "+N more".
+const MAX_ERROR_MESSAGES: usize = 3;
+
 /// Group outcomes by (provider, outcome kind) in first-seen order: `Ok` hits are
-/// summed, the first error message is kept, `elapsed_ms` is the slowest call.
+/// summed, distinct error messages are joined with "; " (capped at
+/// [`MAX_ERROR_MESSAGES`], then "+N more"), `elapsed_ms` is the slowest call.
 pub fn summarize_provider_calls(calls: &[ProviderOutcome]) -> Vec<ProviderCallSummary> {
     let mut rows: Vec<ProviderCallSummary> = Vec::new();
+    let mut messages: Vec<Vec<&str>> = Vec::new(); // distinct error messages per row
     for c in calls {
         let kind = std::mem::discriminant(&c.status);
-        match rows
-            .iter_mut()
-            .find(|r| r.provider == c.provider && std::mem::discriminant(&r.status) == kind)
+        let idx = match rows
+            .iter()
+            .position(|r| r.provider == c.provider && std::mem::discriminant(&r.status) == kind)
         {
-            Some(r) => {
+            Some(i) => {
+                let r = &mut rows[i];
                 r.calls += 1;
                 r.elapsed_ms = r.elapsed_ms.max(c.elapsed_ms);
                 if let (ProviderStatus::Ok { hits }, ProviderStatus::Ok { hits: more }) =
@@ -37,13 +43,32 @@ pub fn summarize_provider_calls(calls: &[ProviderOutcome]) -> Vec<ProviderCallSu
                 {
                     *hits += more;
                 }
+                i
             }
-            None => rows.push(ProviderCallSummary {
-                provider: c.provider.to_string(),
-                status: c.status.clone(),
-                elapsed_ms: c.elapsed_ms,
-                calls: 1,
-            }),
+            None => {
+                rows.push(ProviderCallSummary {
+                    provider: c.provider.to_string(),
+                    status: c.status.clone(),
+                    elapsed_ms: c.elapsed_ms,
+                    calls: 1,
+                });
+                messages.push(Vec::new());
+                rows.len() - 1
+            }
+        };
+        if let ProviderStatus::Error { message } = &c.status
+            && !messages[idx].contains(&message.as_str())
+        {
+            messages[idx].push(message);
+        }
+    }
+    for (row, msgs) in rows.iter_mut().zip(messages) {
+        if let ProviderStatus::Error { message } = &mut row.status {
+            let mut shown = msgs[..msgs.len().min(MAX_ERROR_MESSAGES)].join("; ");
+            if msgs.len() > MAX_ERROR_MESSAGES {
+                shown.push_str(&format!("; +{} more", msgs.len() - MAX_ERROR_MESSAGES));
+            }
+            *message = shown;
         }
     }
     rows
@@ -57,7 +82,9 @@ pub struct ProviderConfig {
 }
 
 /// Registry of web search providers used by the research pipeline.
-#[derive(Debug, Clone)]
+/// Deliberately not `Clone`: a clone would share the log and allow an early
+/// `into_retrieval_log` read (see there).
+#[derive(Debug)]
 pub struct ProviderRegistry {
     primary: String,
     log: Arc<Mutex<RetrievalLog>>,
@@ -99,8 +126,12 @@ impl ProviderRegistry {
 
     /// Per-provider outcomes of every search this registry ran, and the
     /// latest Tavily credit counter.
+    ///
+    /// Consumes the registry on purpose: the log must be read after the run's
+    /// LAST search (multi-wave retrieval searches again), and taking `self`
+    /// makes an early read a compile error at every later search call site.
     #[must_use]
-    pub fn retrieval_log(&self) -> (Vec<ProviderCallSummary>, Option<TavilyCredits>) {
+    pub fn into_retrieval_log(self) -> (Vec<ProviderCallSummary>, Option<TavilyCredits>) {
         let Ok(log) = self.log.lock() else {
             return (Vec::new(), None);
         };
@@ -239,7 +270,7 @@ mod tests {
                 (
                     "openalex",
                     &ProviderStatus::Error {
-                        message: "HTTP 429".into()
+                        message: "HTTP 429; HTTP 503".into()
                     },
                     2,
                     500
@@ -248,9 +279,31 @@ mod tests {
         );
     }
 
+    /// m1: every distinct error message in a group survives (deduped, capped).
+    #[test]
+    fn grouped_errors_keep_every_distinct_message_capped() {
+        let err = |m: &str| call("openalex", ProviderStatus::Error { message: m.into() }, 1);
+        let rows = summarize_provider_calls(&[err("HTTP 429"), err("HTTP 503"), err("HTTP 429")]);
+        assert_eq!(
+            rows[0].status,
+            ProviderStatus::Error {
+                message: "HTTP 429; HTTP 503".into()
+            }
+        );
+        assert_eq!(rows[0].calls, 3);
+
+        let rows = summarize_provider_calls(&["a", "b", "c", "d", "e"].map(err));
+        assert_eq!(
+            rows[0].status,
+            ProviderStatus::Error {
+                message: "a; b; c; +2 more".into()
+            }
+        );
+    }
+
     #[test]
     fn a_fresh_registry_has_an_empty_retrieval_log() {
-        let (rows, credits) = ProviderRegistry::default().retrieval_log();
+        let (rows, credits) = ProviderRegistry::default().into_retrieval_log();
         assert!(rows.is_empty());
         assert_eq!(credits, None);
     }

@@ -44,6 +44,7 @@ vox-publisher = { workspace = true, optional = true }
 [dev-dependencies]
 jsonschema = { workspace = true, default-features = false }
 vox-scientia = { workspace = true }
+wiremock = { workspace = true }
 
 [lints]
 workspace = true

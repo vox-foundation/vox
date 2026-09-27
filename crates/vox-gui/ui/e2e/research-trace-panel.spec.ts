@@ -4,6 +4,7 @@
  * The two `.derived.json` fixtures are real runs with one labelled edit each:
  * tavily swapped to budget_exhausted (no live run exhausted the budget), and a
  * deep run given the provider table deep traces only carry since Task 9.
+ * Screenshots taken from a derived fixture carry a `-derived` filename suffix.
  *
  * The base tauriMock is extended with a `chat_turn` handler returning the
  * fixture's reply, so the real App -> buildChatTurn -> chat_turn -> transcript
@@ -113,7 +114,11 @@ for (const theme of ['dark', 'light'] as const) {
       await expect(panel.locator('[data-provider="openalex"]')).toHaveText(/429 Too Many Requests/);
       await expect(panel.locator('[data-provider="searxng"]')).toHaveText(/circuit open/);
       await expect(panel.getByTestId('research-tavily-credits')).toHaveText(/50\/50 used · 0 left/);
-      await shot(page, `research-trace-budget-exhausted-${theme}`);
+      // m6: no viewport-height decorative ring inside the scrolling transcript
+      // (its bottom edge used to cut through a tall expanded panel).
+      await expect(page.getByRole('log', { name: 'Chat transcript' }).locator(':scope > .ring-inset'))
+        .toHaveCount(0);
+      await shot(page, `research-trace-budget-exhausted-derived-${theme}`);
     });
 
     test('deep research, slash command stays on the sync path', async ({ page }) => {
@@ -132,9 +137,9 @@ for (const theme of ['dark', 'light'] as const) {
       const panel = await expandedPanel(page);
       const retrieval = panel.getByTestId('research-stage-retrieval');
       await expect(retrieval.getByTestId('research-provider')).toHaveCount(5);
-      await expect(retrieval.locator('[data-provider="tavily"]')).toHaveText(/×4 calls/);
+      await expect(retrieval.locator('[data-provider="tavily"]')).toHaveText(/20 hits.*×4 calls/);
       await expect(retrieval.getByTestId('research-tavily-credits')).toHaveText(/4\/50 used · 46 left/);
-      await shot(page, `research-trace-deep-providers-${theme}`);
+      await shot(page, `research-trace-deep-providers-derived-${theme}`);
     });
 
     test('deep research pipeline failure is visible', async ({ page }) => {

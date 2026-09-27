@@ -1,5 +1,5 @@
 {
-  "source": ".superpowers/sdd/2026-09-22-chat-research-real-e2e/round15-live-deep.json (DERIVED: retrieval.detail.providers/tavily_credits spliced in from quick-ok.json provider outcomes, calls=4, to show the Task 9 deep provider table; recorded before deep traces carried it)",
+  "source": ".superpowers/sdd/2026-09-22-chat-research-real-e2e/round15-live-deep.json (DERIVED: retrieval.detail.providers/tavily_credits spliced in from quick-ok.json provider outcomes, calls=4 with each Ok hit count x4 (summed over the 4 calls, as ProviderCallSummary does), to show the Task 9 deep provider table; recorded before deep traces carried it)",
   "user": "/deepresearch compare SearXNG and Tavily for agent web search",
   "reply": {
     "content": "# Executive Summary\n\nGrounding modern AI agents with real-time web access has introduced a clear architectural divide between self-hosted open-source software and managed commercial APIs [1], [2]. **SearXNG** is an open-source metasearch engine that aggregates over 200 sources with zero API fees, shifting operational, scraping, and maintenance responsibilities onto the self-hoster [8], [20]. In contrast, **Tavily** is a commercial, managed API designed explicitly for agentic and retrieval-augmented generation (RAG) workflows, offering built-in search, page extraction, clean structured outputs, and framework defaults at a per-query credit cost [5], [6], [8]. The core tradeoff centers on **cost and control** versus **convenience, pre-processed context cleanliness, and out-of-the-box agent scores** [1], [8], [11].\n\n---\n\n## Architectural Tradeoffs\n\n| Architecture Dimension | SearXNG | Tavily |\n| :--- | :--- | :--- |\n| **Hosting & Delivery** | Self-hosted metasearch engine; deployed via Docker/VPS [8], [19], [21]. | Fully managed commercial SaaS API [2], [6]. |\n| **Search Mechanism** | Multi-engine aggregation of 200+ sources (including Google, Bing, DuckDuckGo) [8]. | Multi-source aggregation designed specifically for LLMs and agent workflows [6], [12]. |\n| **Pricing Model** | $0 API fees; compute costs only (typically $5–$10/month for a VPS) [8]. | Credit-based; ~$8 per 1,000 basic search requests with pay-as-you-go tiers and 1,000 free monthly credits [5], [12], [13], [14]. |\n| **Agent Readiness** | Returns raw search outputs via JSON; requires wrappers or secondary extraction layers for full-page parsing [8], [15], [21]. | Returns AI-optimized structured results, summaries, citations, and raw context directly ready for an LLM's context window [6], [7], [12]. |\n| **Ecosystem Integration** | Supported in LangChain via `SearxSearchWrapper` [8]. | Default search integration in LangChain via official `langchain-tavily` package [8], [14]. |\n\n---\n\n## Grounded Claims\n\n* **Cost Predictability and Scalability:** SearXNG carries no API fees; the primary financial cost is infrastructure hosting (typically a $5 to $10/month VPS) [8]. Conversely, Tavily's usage-based model charges approximately $8 per 1,000 searches [12], [14], which can become cost-prohibitive for high-volume, multi-action autonomous agents [5], [15].\n* **Integrated Extraction vs. Secondary Processing:** Tavily rolls search, crawl, and page extraction into a unified API call with endpoints such as `include_raw_content` and `include_answer` [6], [8], [12], [14]. Standard search APIs or raw search aggregators generally require an additional scraping call to understand the full page [15]. To bridge this gap with SearXNG, developers frequently combine it with dedicated extractors like Crawl4AI or custom wrapper layers [19], [21].\n* **LangChain Ecosystem Support:** Both platforms are supported in LangChain: Tavily maintains the official reference integration `langchain-tavily` (often serving as the default tool) [7], [8], [14], while SearXNG is natively supported via `SearxSearchWrapper` [8].\n* **Benchmark Performance:** In agentic search benchmarking, Tavily achieved the top Agent Score (14.89), demonstrating high retrieval quality and low latency compared to several general and agent search APIs [11].\n\n---\n\n## Contested Findings\n\n* **Context Window Efficiency and Token Bloat:** Tavily claims to optimize for \"efficiency per token\" to minimize context window pressure, reasoning noise, and downstream inference costs [9]. However, external comparative benchmarks challenge this claim: Tavily was observed averaging 1,928 tokens per result (compared to competing APIs such as Parallel at 918 tokens) [16]. Critics note that higher token counts risk diluting the context window with navigation boilerplate or loosely related text while escalating inference costs [16].\n* **Latency Benchmarks:** While Tavily reports a vendor p50 latency of ~180 ms on keyword queries [14] and markets low-latency/ultra-fast search depths [6], [9], independent benchmark sources record actual agent-eval latency higher (e.g., ~2.9 seconds for comparable agent tools, with faster services like Parallel reaching 348 ms mean latency) [3], [11].\n\n---\n\n## Implementation Implications\n\n* **When to Implement SearXNG:**\n  * **Cost-Sensitive or High-Volume Autonomous Agents:** Ideal when agents execute high-frequency search loops (e.g., hundreds or thousands of daily queries) that would make credit-based pricing economically unviable [8], [15].\n  * **Custom Architectures Requiring Full Data Ownership:** Best suited for teams willing to manage VPS deployments (e.g., Docker Compose) and pipeline their own deduplication, prompt injection scrubbing, and content extraction using complementary tools like Crawl4AI [8], [19], [21].\n* **When to Implement Tavily:**\n  * **Rapid Prototyping & Reference Frameworks:** Recommended for teams developing within LangChain or LangGraph seeking out-of-the-box compatibility without managing infrastructure [7], [8].\n  * **Direct Context Ingestion:** Suitable when projects require low development overhead for extraction, needing instant summaries and structured, LLM-ready snippets injected straight into model context windows [6], [7], [10].",
@@ -104,7 +104,7 @@
                   "provider": "arxiv",
                   "status": {
                     "state": "ok",
-                    "hits": 10
+                    "hits": 40
                   },
                   "elapsed_ms": 1402,
                   "calls": 4
@@ -113,7 +113,7 @@
                   "provider": "openalex",
                   "status": {
                     "state": "ok",
-                    "hits": 10
+                    "hits": 40
                   },
                   "elapsed_ms": 805,
                   "calls": 4
@@ -122,7 +122,7 @@
                   "provider": "wikipedia",
                   "status": {
                     "state": "ok",
-                    "hits": 10
+                    "hits": 40
                   },
                   "elapsed_ms": 941,
                   "calls": 4
@@ -131,7 +131,7 @@
                   "provider": "searxng",
                   "status": {
                     "state": "ok",
-                    "hits": 10
+                    "hits": 40
                   },
                   "elapsed_ms": 1102,
                   "calls": 4
@@ -140,7 +140,7 @@
                   "provider": "tavily",
                   "status": {
                     "state": "ok",
-                    "hits": 5
+                    "hits": 20
                   },
                   "elapsed_ms": 3871,
                   "calls": 4

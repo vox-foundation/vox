@@ -321,10 +321,11 @@ pub async fn run_research_with_context_and_session(
     };
     let (distinct_domain_count, citation_diversity_below_threshold) =
         evaluate_citation_diversity(&all_hits, config.min_distinct_domains);
-    let (providers, tavily_credits) = registry.retrieval_log();
+    // `providers` / `tavily_credits` are filled from the registry's log when the
+    // metadata is built, after the multi-wave loop's searches (see below).
     let diagnostics = RetrievalDiagnostics {
-        providers,
-        tavily_credits,
+        providers: Vec::new(),
+        tavily_credits: None,
         coverage_pct,
         subquery_coverage_pct,
         avg_provider_score: avg_score,
@@ -1016,10 +1017,21 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
     let confidence = confidence_signal.score as f64;
     let low_grounding_evidence = confidence < 0.35;
 
+    // The whole run's provider outcomes and final Tavily credits — read only
+    // now, after every search (waves 2..N included). `into_retrieval_log`
+    // consumes the registry, so reading it any earlier does not compile.
+    let provider_name = registry.primary_name().to_string();
+    let (providers, tavily_credits) = registry.into_retrieval_log();
+    let diagnostics = RetrievalDiagnostics {
+        providers,
+        tavily_credits,
+        ..diagnostics
+    };
+
     let metadata = ResearchMetadata {
         session_id,
         duration_ms,
-        provider: registry.primary_name().to_string(),
+        provider: provider_name,
         routing_tier,
         confidence,
         subquery_count: plan.subqueries.len(),

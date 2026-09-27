@@ -279,6 +279,16 @@ fn queries_stage(original: &str, search_query: &str) -> StageRecord {
     )
 }
 
+/// The retrieval-stage degrade rule shared by quick and deep research: a
+/// provider that errored or timed out. `BudgetExhausted` / `CircuitOpen` (and
+/// `NotConfigured` / `Disabled`) alone deliberately leave retrieval "ok" — no
+/// call was attempted, and the provider row already shows them with "!"/"–".
+fn any_provider_failed<'a>(statuses: impl IntoIterator<Item = &'a ProviderStatus>) -> bool {
+    statuses
+        .into_iter()
+        .any(|s| matches!(s, ProviderStatus::Error { .. } | ProviderStatus::Timeout))
+}
+
 /// Quick research: one retrieval wave on the Deep-lane deadline, numbered sources.
 /// Returns the context block to inject into the chat prompt.
 pub async fn run_quick(state: &crate::ServerState, trace: &mut ResearchTrace) -> String {
@@ -308,12 +318,7 @@ pub async fn run_quick(state: &crate::ServerState, trace: &mut ResearchTrace) ->
         .iter()
         .filter(|p| matches!(p.status, ProviderStatus::Ok { hits } if hits > 0))
         .count();
-    let failed = report.providers.iter().any(|p| {
-        matches!(
-            p.status,
-            ProviderStatus::Error { .. } | ProviderStatus::Timeout
-        )
-    });
+    let failed = any_provider_failed(report.providers.iter().map(|p| &p.status));
     let status = match (report.hits.is_empty(), failed) {
         (true, true) => "failed",
         (true, false) => "empty",
@@ -471,14 +476,9 @@ pub fn deep_stages(r: &vox_research_shim::research::ResearchResult) -> Vec<Stage
         ),
         json!({ "subqueries": m.subqueries }),
     ));
-    // Same rule as quick retrieval: an errored/timed-out provider degrades a
-    // stage that still found sources.
-    let provider_failed = m.retrieval_diagnostics.providers.iter().any(|p| {
-        matches!(
-            p.status,
-            ProviderStatus::Error { .. } | ProviderStatus::Timeout
-        )
-    });
+    // Same rule as quick retrieval (see `any_provider_failed`).
+    let provider_failed =
+        any_provider_failed(m.retrieval_diagnostics.providers.iter().map(|p| &p.status));
     out.push(StageRecord::new(
         "retrieval",
         match (m.source_count == 0, provider_failed) {
@@ -755,6 +755,24 @@ mod tests {
             retrieval.detail["tavily_credits"],
             json!({ "used": 50, "remaining": 0 })
         );
+    }
+
+    /// Task 9 review m3/m8: one degrade rule for quick and deep retrieval —
+    /// only Error/Timeout count; budget_exhausted / circuit_open alone do not.
+    #[test]
+    fn any_provider_failed_counts_only_error_and_timeout() {
+        use ProviderStatus::*;
+        assert!(any_provider_failed([&Ok { hits: 1 }, &Timeout]));
+        assert!(any_provider_failed([&Error {
+            message: "x".into()
+        }]));
+        assert!(!any_provider_failed([
+            &Ok { hits: 1 },
+            &BudgetExhausted,
+            &CircuitOpen,
+            &NotConfigured,
+            &Disabled,
+        ]));
     }
 
     /// Task 15d review round 1 minor, negative case: when nothing was

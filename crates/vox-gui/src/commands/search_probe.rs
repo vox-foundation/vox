@@ -77,7 +77,13 @@ pub struct ResearchEngineConfigDto {
 /// (`vox_search::tavily_budget::get_budget_db`) is never set in this process.
 async fn tavily_quota_from_db(db: Option<&vox_db::VoxDb>) -> Option<QuotaUsageDto> {
     let period = vox_db::store::ops_quota::current_period_key();
-    let usage = db?.get_quota_usage("tavily", &period).await.ok()??;
+    let usage = match db?.get_quota_usage("tavily", &period).await {
+        Ok(usage) => usage?,
+        Err(e) => {
+            tracing::warn!(error = %e, "tavily quota read from provider_quota_usage failed");
+            return None;
+        }
+    };
     Some(QuotaUsageDto {
         units_spent: usage.units_spent,
         units_limit: usage.units_limit,

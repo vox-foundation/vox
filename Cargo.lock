@@ -18878,6 +18878,7 @@ dependencies = [
  "vox-scientia",
  "vox-search",
  "vox-secrets",
+ "wiremock",
  "workspace-hack",
 ]
 
