@@ -2411,6 +2411,13 @@
       "reason": "grandfathered at 2026-07-03 bootstrap (pre-existing upward edge; Phase 2 decoupling target)",
       "date": "2026-07-03",
       "authorized_by": "brbrainerd (bootstrap grandfather, plan-approved)"
+    },
+    {
+      "from": "vox-audit",
+      "to": "vox-http-client",
+      "reason": "OpenRouterPanelClient::complete now builds its Authorization header via vox_http_client::bearer_auth_header instead of a hand-rolled format!, which also marks the header sensitive",
+      "date": "2026-09-27",
+      "authorized_by": "user (explicit chat approval, 2026-09-27)"
     }
   ]
 }
