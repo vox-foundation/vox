@@ -10,7 +10,7 @@ use super::super::discovery_bridge::{
     finding_candidate_from_research_result, persist_finding_candidate_from_research,
 };
 use super::super::gate::{GateInput, score_with_config};
-use super::super::planner::{decompose_query_with_config, plan_to_json};
+use super::super::planner::{decompose_query_with_config, passthrough_plan, plan_to_json};
 use super::super::provider::ProviderRegistry;
 use super::super::types::{
     Citation, CitationAuditResult, ClaimSupport, CompetenceSignal, ResearchDomainMode, ResearchHit,
@@ -136,13 +136,7 @@ pub async fn run_research_with_context_and_session(
 
     // ── (b) Query decomposition ──────────────────────────────────────────────
     let mut plan: ResearchPlan = if query.lane == vox_search::policy::ResearchLane::Fast {
-        ResearchPlan {
-            original_query: query.query.clone(),
-            subqueries: vec![query.query.clone()],
-            scope: query.scope.clone(),
-            max_sources_per_subquery: query.max_sources,
-            planner_degraded: false,
-        }
+        fast_lane_plan(&query)
     } else {
         decompose_query_with_config(
             &query,
@@ -153,13 +147,7 @@ pub async fn run_research_with_context_and_session(
             Some(config.planner_max_subqueries),
         )
         .await
-        .unwrap_or_else(|_| ResearchPlan {
-            original_query: query.query.clone(),
-            subqueries: vec![query.query.clone()],
-            scope: query.scope.clone(),
-            max_sources_per_subquery: query.max_sources,
-            planner_degraded: true,
-        })
+        .unwrap_or_else(|_| passthrough_plan(&query, true))
     };
 
     match query.domain_mode {
@@ -854,24 +842,20 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
     .await;
 
     // ── (i) Evaluate final quality via judge ──────────────────────────────────
-    let quality_score = judge_quality(JudgeParams {
-        query: &query.query,
-        answer: &answer,
-        citations: &citations,
-        endpoint: config.llm_endpoint.as_deref(),
-        api_key: config.api_key.as_deref(),
-        model: resolved_llm.judge_model.as_str(),
-        temperature: config.judge_temperature,
-        max_tokens: config.judge_max_tokens,
-        fallback_score: config.fallback_quality_score,
+    let quality_score = score_answer(template_fallback, config.fallback_quality_score, || {
+        judge_quality(JudgeParams {
+            query: &query.query,
+            answer: &answer,
+            citations: &citations,
+            endpoint: config.llm_endpoint.as_deref(),
+            api_key: config.api_key.as_deref(),
+            model: resolved_llm.judge_model.as_str(),
+            temperature: config.judge_temperature,
+            max_tokens: config.judge_max_tokens,
+            fallback_score: config.fallback_quality_score,
+        })
     })
     .await;
-    // A template fallback is raw evidence, not a synthesized answer: never let it clear a gate.
-    let quality_score = if template_fallback {
-        quality_score.min(super::stages::TEMPLATE_FALLBACK_QUALITY_CAP)
-    } else {
-        quality_score
-    };
 
     let self_verification_enabled = matches!(routing_tier, RoutingTier::DeepResearch);
 
@@ -1324,10 +1308,85 @@ fn render_research_report_markdown(
     out
 }
 
+/// Fast lane runs no LLM planner, but its single subquery still goes through the keyword
+/// condenser: a long conversational prompt sent verbatim matches unrelated pages.
+fn fast_lane_plan(query: &ResearchQuery) -> ResearchPlan {
+    passthrough_plan(query, false)
+}
+
+/// Quality score for a synthesized answer. A template fallback is raw evidence, not an
+/// answer: it never runs the LLM judge and is capped so it can never clear a gate.
+async fn score_answer<F, Fut>(template_fallback: bool, fallback_score: i32, judge: F) -> i32
+where
+    F: FnOnce() -> Fut,
+    Fut: std::future::Future<Output = i32>,
+{
+    if template_fallback {
+        return fallback_score.min(super::stages::TEMPLATE_FALLBACK_QUALITY_CAP);
+    }
+    judge().await
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::super::verifier::{EvidenceSpan, SpanType, Verdict};
     use super::*;
+
+    fn fast_query(text: &str) -> ResearchQuery {
+        ResearchQuery {
+            query: text.to_string(),
+            scope: ResearchScope::Web,
+            max_sources: 5,
+            persist_to_docs: false,
+            verify_claims: false,
+            site_scope: None,
+            domain_mode: Default::default(),
+            waves: 1,
+            lane: vox_search::policy::ResearchLane::Fast,
+        }
+    }
+
+    #[test]
+    fn fast_lane_plan_condenses_long_prompt_and_keeps_original() {
+        let long = "Find all high-value sources of data for events in Tucson that are updated \
+                    regularly so that I can build an aggregator app modeled after nerdyorkcity";
+        let plan = fast_lane_plan(&fast_query(long));
+        assert_eq!(plan.original_query, long);
+        assert_eq!(plan.subqueries.len(), 1);
+        let sub = &plan.subqueries[0];
+        assert_ne!(
+            sub, long,
+            "fast lane must not send the raw prompt to web search"
+        );
+        assert!(sub.split_whitespace().count() <= 8, "{sub}");
+        assert!(sub.contains("Tucson"), "{sub}");
+        assert!(!plan.planner_degraded);
+    }
+
+    #[test]
+    fn fast_lane_plan_passes_short_query_through() {
+        let plan = fast_lane_plan(&fast_query("tucson tech events"));
+        assert_eq!(plan.subqueries, vec!["tucson tech events".to_string()]);
+    }
+
+    #[tokio::test]
+    async fn template_fallback_skips_judge_and_caps_score() {
+        let calls = std::sync::atomic::AtomicUsize::new(0);
+        let judge = || async {
+            calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            95
+        };
+        let score = score_answer(true, 40, judge).await;
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 0);
+        assert!(
+            score <= super::super::stages::TEMPLATE_FALLBACK_QUALITY_CAP,
+            "{score}"
+        );
+
+        let score = score_answer(false, 40, judge).await;
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 1);
+        assert_eq!(score, 95);
+    }
 
     #[test]
     fn research_run_artifact_matches_report_schema() {
