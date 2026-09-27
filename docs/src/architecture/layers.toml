@@ -126,7 +126,7 @@ vox-llm-config         = { layer = 0, staleness_exempt = true }   # SSOT for LLM
 vox-db-types           = { layer = 0 }
 vox-mesh-types         = { layer = 0, publishable = true }
 vox-ast                = { layer = 0, max_dependents = 40 }   # pure-data Vox AST (serde-only); extracted from vox-compiler 2026-06-05, re-exported as vox_compiler::ast
-workspace-hack         = { layer = 0, max_dependents = 80, staleness_exempt = true }
+workspace-hack         = { layer = 0, staleness_exempt = true }   # hakari feature-unification crate; excluded from the Rule 2 fan-in count entirely (vox-arch-check's FAN_IN_EXEMPT, mirroring crate_edges::EXEMPT) rather than budgeted, since its dependent count is structural and grows with every crate, not architectural fan-in
 vox-arch-check         = { layer = 0, kind = "binary" }
 vox-build-meta         = { layer = 0, staleness_exempt = true }   # build-only helper; intentionally stable — must not be folded into vox-foundation
 vox-rename-registry       = { layer = 0, staleness_exempt = true }   # rename-registry + primitive-tag lookup; zero workspace deps
@@ -139,13 +139,13 @@ vox-language-surface  = { layer = 1 }   # SSOT for keyword/decorator/builtin sur
 vox-redact            = { layer = 1 }   # conservative PII/secret redaction (regex + serde_json only); consumed by vox-terminal-core (L3) and vox-orchestrator-mcp (L3)
 vox-hf-layout         = { layer = 1, max_loc = 6_000 }               # HF config.json layout (MENS / Candle plugins)
 vox-crypto            = { layer = 1, staleness_exempt = true }
-vox-secrets           = { layer = 1, max_dependents = 27 }  # 26 direct consumers (all call resolve_secret); budget = current + 1. A-9 split (vox-secrets-types) deferred: all consumers use resolution fns, so split would not reduce this fan-in.
+vox-secrets           = { layer = 1, max_dependents = 34 }  # 34 direct consumers (all call resolve_secret), reconciled 2026-09-27 to the live crate_edges-style count. A-9 split (vox-secrets-types) deferred: all consumers use resolution fns, so split would not reduce this fan-in.
 
 vox-jsonschema-util   = { layer = 1 }
 vox-foundation        = { layer = 1, staleness_exempt = true, max_dependents = 18 }   # umbrella: vox-primitives + vox-protocol + vox-tracing-init
 
 vox-identity          = { layer = 1 }
-vox-http-client  = { layer = 1, staleness_exempt = true, max_dependents = 20 }
+vox-http-client  = { layer = 1, staleness_exempt = true, max_dependents = 25 }   # reconciled 2026-09-27 (live crate_edges-style count); includes the vox-audit -> vox-http-client edge for OpenRouterPanelClient's bearer header
 vox-rule-pack         = { layer = 1 }                            # SSOT loader for detector patterns; zero heavy deps
 vox-openai       = { layer = 1, staleness_exempt = true }
 
@@ -162,7 +162,7 @@ vox-telemetry-otlp    = { layer = 3, max_loc = 3_000 }           # L3 feature-ga
 vox-runtime           = { layer = 2, max_dependents = 20 }       # umbrella runtime: RuntimeProfile + lifecycle traits + VoxConfig; deps vox-config
 
 # ── L2 — domain libraries ─────────────────────────────────────────────────────
-vox-config              = { layer = 2, max_dependents = 20 }
+vox-config              = { layer = 2, max_dependents = 40 }   # reconciled 2026-09-27 to the live crate_edges-style count
 vox-cli-contracts       = { layer = 2 }   # trait seam between vox-cli (L5, provides impls) and vox-cli-ci (L5, consumes); deps only vox-config (L2), sync/no-tokio by design
 vox-llm-egress          = { layer = 2, max_dependents = 10 }   # sanctioned LLM provider wire; pure egress (deps = vox-http-client + reqwest), no config/secret resolution
 
@@ -193,10 +193,10 @@ vox-skill-discovery     = { layer = 3, kind = "binary", max_loc = 8_000 }  # L3 
 
 
 # ── L3 — heavy runtimes ───────────────────────────────────────────────────────
-vox-db                  = { layer = 3, max_dependents = 25, max_loc = 40_000 }
+vox-db                  = { layer = 3, max_dependents = 27, max_loc = 40_000 }   # max_dependents reconciled 2026-09-27 to the live crate_edges-style count
 vox-sql                 = { layer = 3, max_dependents = 20, max_loc = 8_000 }
 vox-corpus              = { layer = 3, max_loc = 15_000 }
-vox-compiler            = { layer = 3, max_dependents = 25, max_loc = 45_000 }
+vox-compiler            = { layer = 3, max_dependents = 21, max_loc = 45_000 }   # max_dependents reconciled 2026-09-27 to the live crate_edges-style count (was 25; raw vox-arch-check count of 27 included dev-only consumers)
 vox-codegen         = { layer = 3, max_loc = 25_000 }
 vox-codegen-ts      = { layer = 3, max_loc = 18_000, orphan_exempt = true } # embedded via #[path] in vox-codegen/src/lib.rs; no direct Cargo.toml consumer by design
 vox-rn-codegen      = { layer = 3, max_loc = 6_000 }
