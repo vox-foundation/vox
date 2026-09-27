@@ -10,7 +10,6 @@
 //! independently, which is exactly the risk the negative-control test exists to catch.
 
 #![allow(missing_docs)]
-#![allow(unsafe_code)] // EnvVarGuard wraps set_var/remove_var, isolated behind a Mutex
 
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
@@ -117,36 +116,13 @@ pub fn run_tsc_noemit(scratch: &Path, tsconfig_path: &Path) -> std::process::Out
 /// default. Under that path, two tests setting different values for the same var can race.
 static ENV_VAR_LOCK: Mutex<()> = Mutex::new(());
 
-/// RAII guard: holds [`ENV_VAR_LOCK`], sets each `(name, value)` pair, and restores each
-/// var to its prior value when dropped — including when dropped during a panic unwind
-/// (e.g. a panic inside a `rayon` batch running under this guard), so a failing test never
-/// leaves a mutated env var for the next test to observe.
-pub struct EnvVarGuard {
-    _lock: MutexGuard<'static, ()>,
-    prior: Vec<(String, Option<String>)>,
-}
-
-impl EnvVarGuard {
-    pub fn set(vars: &[(&str, &str)]) -> Self {
-        let lock = ENV_VAR_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        let mut prior = Vec::with_capacity(vars.len());
-        for (name, value) in vars {
-            prior.push(((*name).to_string(), std::env::var(name).ok()));
-            unsafe { std::env::set_var(name, value) };
-        }
-        Self { _lock: lock, prior }
-    }
-}
-
-impl Drop for EnvVarGuard {
-    fn drop(&mut self) {
-        for (name, value) in self.prior.drain(..) {
-            match value {
-                Some(v) => unsafe { std::env::set_var(&name, v) },
-                None => unsafe { std::env::remove_var(&name) },
-            }
-        }
-    }
+/// Take [`ENV_VAR_LOCK`] (recovering from a poisoned lock), then mutate env vars
+/// through `vox_test_harness::env_scratch::EnvScratch`, the workspace's one
+/// reviewed `set_var` site. Bind the lock BEFORE the scratch. Locals drop in
+/// reverse order, so the vars are restored while the lock is still held, even
+/// during a panic unwind.
+pub fn env_var_lock() -> MutexGuard<'static, ()> {
+    ENV_VAR_LOCK.lock().unwrap_or_else(|e| e.into_inner())
 }
 
 #[cfg(test)]
@@ -233,35 +209,19 @@ mod tests {
     }
 
     #[test]
-    fn env_var_guard_restores_prior_value() {
-        // SAFETY: test-only setup for a var this guard will immediately manage.
-        unsafe { std::env::set_var("VOX_ENV_VAR_GUARD_TEST_PRIOR", "before") };
+    fn env_var_lock_is_exclusive_and_survives_poisoning() {
         {
-            let _guard = EnvVarGuard::set(&[("VOX_ENV_VAR_GUARD_TEST_PRIOR", "during")]);
-            assert_eq!(
-                std::env::var("VOX_ENV_VAR_GUARD_TEST_PRIOR").as_deref(),
-                Ok("during")
-            );
-        }
-        assert_eq!(
-            std::env::var("VOX_ENV_VAR_GUARD_TEST_PRIOR").as_deref(),
-            Ok("before")
-        );
-        // SAFETY: test-only cleanup.
-        unsafe { std::env::remove_var("VOX_ENV_VAR_GUARD_TEST_PRIOR") };
-    }
-
-    #[test]
-    fn env_var_guard_removes_var_that_was_previously_unset() {
-        // SAFETY: test-only, ensures a clean starting state regardless of test order.
-        unsafe { std::env::remove_var("VOX_ENV_VAR_GUARD_TEST_UNSET") };
-        {
-            let _guard = EnvVarGuard::set(&[("VOX_ENV_VAR_GUARD_TEST_UNSET", "during")]);
-            assert!(std::env::var("VOX_ENV_VAR_GUARD_TEST_UNSET").is_ok());
+            let _held = env_var_lock();
+            assert!(ENV_VAR_LOCK.try_lock().is_err(), "the lock must be held");
         }
         assert!(
-            std::env::var("VOX_ENV_VAR_GUARD_TEST_UNSET").is_err(),
-            "guard must remove a var that had no prior value, not leave it set"
+            ENV_VAR_LOCK.try_lock().is_ok(),
+            "dropping the guard releases it"
         );
+        let _ = std::panic::catch_unwind(|| {
+            let _held = env_var_lock();
+            panic!("poison the lock");
+        });
+        drop(env_var_lock()); // a poisoned lock must still be acquirable
     }
 }

@@ -935,8 +935,8 @@ mod export_gguf_message_tests {
     #[test]
     fn the_export_gguf_error_only_names_flags_that_exist() {
         let msg = export_gguf_not_implemented_message(
-            std::path::Path::new("/tmp/in.safetensors"),
-            std::path::Path::new("/tmp/out.gguf"),
+            std::path::Path::new("in.safetensors"),
+            std::path::Path::new("out.gguf"),
         );
 
         let merge_qlora_cmd = PopuliAction::augment_subcommands(clap::Command::new("populi"))

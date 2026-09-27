@@ -25,6 +25,8 @@ impl Repo {
     }
 
     pub fn git(&self, args: &[&str]) -> String {
+        // Throwaway repo in a per-test tempdir: no shared-repo concurrency to guard.
+        // vox-arch-check: allow git-exec
         let o = Command::new("git")
             .arg("-C")
             .arg(self.path())

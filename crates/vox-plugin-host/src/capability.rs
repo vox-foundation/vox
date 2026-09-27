@@ -63,6 +63,22 @@ pub fn probe() -> CapabilitySet {
     CapabilitySet(tags)
 }
 
+/// CUDA driver library names for this target. The prefix and suffix come from
+/// `libloading::library_filename`: `nvcuda.dll` on Windows, and `libcuda.so.1`
+/// (the soname) then `libcuda.so` elsewhere.
+fn cuda_driver_candidates() -> Vec<std::ffi::OsString> {
+    if cfg!(target_os = "windows") {
+        vec![libloading::library_filename("nvcuda")]
+    } else if cfg!(target_os = "macos") {
+        vec![] // CUDA ships no macOS driver on Apple Silicon or Intel since 2021.
+    } else {
+        let unversioned = libloading::library_filename("cuda");
+        let mut soname = unversioned.clone();
+        soname.push(".1");
+        vec![soname, unversioned]
+    }
+}
+
 /// Whether a CUDA-capable driver can be loaded on this host. Any load
 /// failure (missing library, no permissions, wrong arch, unsupported OS)
 /// means "not present", not an error to propagate.
@@ -70,14 +86,7 @@ pub fn probe() -> CapabilitySet {
 // this is the one deliberate FFI-adjacent exception for this task, see the
 // SAFETY comment on the unsafe block below.
 fn cuda_driver_present() -> bool {
-    let candidates: &[&str] = if cfg!(target_os = "windows") {
-        &["nvcuda.dll"]
-    } else if cfg!(target_os = "macos") {
-        &[] // CUDA ships no macOS driver on Apple Silicon or Intel since 2021.
-    } else {
-        &["libcuda.so.1", "libcuda.so"]
-    };
-    candidates.iter().any(|name| {
+    cuda_driver_candidates().iter().any(|name| {
         // SAFETY: `libloading::Library::new` is unsafe because loading a
         // shared library runs its initializers, but we only load
         // well-known system driver libraries by name to check whether they
@@ -105,6 +114,21 @@ mod tests {
         let caps = CapabilitySet::from_tags(["apple-silicon", "metal"]);
         assert!(caps.satisfies(Some("apple-silicon")));
         assert!(!caps.satisfies(Some("nvidia-gpu")));
+    }
+
+    /// The derived names must equal the literals they replaced.
+    #[test]
+    fn cuda_driver_candidates_match_the_platform_driver_names() {
+        let names: Vec<String> = cuda_driver_candidates()
+            .into_iter()
+            .map(|n| n.to_string_lossy().into_owned())
+            .collect();
+        #[cfg(target_os = "windows")]
+        assert_eq!(names, ["nvcuda.dll"]);
+        #[cfg(target_os = "macos")]
+        assert!(names.is_empty());
+        #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+        assert_eq!(names, ["libcuda.so.1", "libcuda.so"]);
     }
 
     #[test]

@@ -54,6 +54,11 @@ const PINNED: &[&str] = &[
 /// `git -C root`, isolated from the caller: every inherited `GIT_*` variable (hooks set
 /// `GIT_DIR`, `GIT_INDEX_FILE`, `GIT_CONFIG_PARAMETERS`, …) is removed, and `PINNED` config applies.
 fn git_cmd(root: &Path) -> Command {
+    // The single spawn point for history ingest. Every caller runs a read-only
+    // subcommand (rev-parse, merge-base, show, log, diff, ls-tree, cat-file), the
+    // same class vox-git's exempt `read_cmd.rs` allows. GitExec's concurrency policy
+    // guards writes, and this crate (L1) cannot depend on vox-git (L3).
+    // vox-arch-check: allow git-exec
     let mut c = Command::new("git");
     for (k, _) in std::env::vars_os() {
         if k.to_string_lossy().starts_with("GIT_") {

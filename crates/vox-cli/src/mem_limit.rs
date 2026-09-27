@@ -3,7 +3,10 @@
 //! Armed after CLI parse. Exceeding the ceiling writes a stack-formatted line
 //! and terminates via `_exit` / `TerminateProcess` — never `std::process::exit`,
 //! which runs atexit handlers that allocate and re-enter the allocator.
-#![allow(unsafe_code)]
+//!
+//! `unsafe` is allowed per item, not module-wide: the `GlobalAlloc` impl, the
+//! raw stderr write and the `_exit` / `TerminateProcess` call. Each block has
+//! a SAFETY comment.
 
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -27,6 +30,7 @@ struct Capped;
 #[global_allocator]
 static ALLOC: Capped = Capped;
 
+#[allow(unsafe_code)]
 unsafe impl GlobalAlloc for Capped {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         // SAFETY: `layout` is the caller's allocation request; forwarded to the system allocator.
@@ -88,6 +92,7 @@ fn uncharge(n: usize) {
     USED.0.fetch_sub(n, Ordering::Relaxed);
 }
 
+#[allow(unsafe_code)]
 fn write_limit_line() -> std::io::Result<()> {
     const MSG: &[u8] = b"vox: memory limit exceeded\n";
     #[cfg(unix)]
@@ -102,6 +107,8 @@ fn write_limit_line() -> std::io::Result<()> {
     }
     #[cfg(windows)]
     {
+        // SAFETY: `GetStdHandle` has no preconditions; `WriteFile` gets that handle, a
+        // static buffer with its exact length, a live `written` out-param and no OVERLAPPED.
         unsafe {
             let handle = windows_sys::Win32::System::Console::GetStdHandle(
                 windows_sys::Win32::System::Console::STD_ERROR_HANDLE,
@@ -129,6 +136,7 @@ fn write_limit_line() -> std::io::Result<()> {
     }
 }
 
+#[allow(unsafe_code)]
 fn die(code: i32) -> ! {
     #[cfg(unix)]
     // SAFETY: `_exit` does not run atexit handlers (which would allocate).
@@ -136,6 +144,8 @@ fn die(code: i32) -> ! {
         libc::_exit(code);
     }
     #[cfg(windows)]
+    // SAFETY: `TerminateProcess` on the current-process pseudo-handle; it does not run
+    // atexit handlers. The spin loop covers the window before the process is torn down.
     unsafe {
         windows_sys::Win32::System::Threading::TerminateProcess(
             windows_sys::Win32::System::Threading::GetCurrentProcess(),

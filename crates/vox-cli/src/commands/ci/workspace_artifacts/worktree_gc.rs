@@ -292,7 +292,7 @@ fn worktree_dirty_source(wt: &Path) -> bool {
         }
         let (status, path) = line.split_at(2);
         // `git status --porcelain` quotes (and octal-escapes) a path containing
-        // non-ASCII or other special characters, e.g. `?? "caf\303\251.dll"`.
+        // non-ASCII or other special characters, e.g. `?? "caf\303\251.<ext>"`.
         // Stripping only the leading quote left a trailing one on the string,
         // which defeated `is_build_junk`'s `ends_with(".ext")` checks below.
         let path = path.trim().trim_matches('"');
@@ -665,6 +665,9 @@ locked some reason
     // junk does not") is verified, not just asserted in a doc comment.
 
     fn git(dir: &Path, args: &[&str]) {
+        // Builds a throwaway repo inside a per-test tempdir: no shared-repo
+        // concurrency for GitExec's policy to protect.
+        // vox-arch-check: allow git-exec
         let status = Command::new("git")
             .current_dir(dir)
             .args(args)
