@@ -406,47 +406,116 @@ mod tests {
         assert_eq!(super::release_features("vox-langtool"), None);
     }
 
-    /// The oratio (speech) plugin ships as a first-party release asset, so the
-    /// release workflow must build and zip it for every triple its Plugin.toml
-    /// declares, under the `{id}-v{version}-{triple}.zip` name `vox plugin install`
-    /// fetches, and publish must wait for it. A missing triple is a 404 for users.
-    #[test]
-    fn release_workflow_packages_the_oratio_plugin_for_every_declared_triple() {
-        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-        let manifest: toml::Value =
-            std::fs::read_to_string(root.join("crates/vox-plugin-speech/Plugin.toml"))
-                .expect("read Plugin.toml")
-                .parse()
-                .expect("Plugin.toml is TOML");
-        let declared = manifest["plugin"]["payload"]["artifacts"]
-            .as_table()
-            .expect("Plugin.toml declares artifacts");
-
-        let text = std::fs::read_to_string(root.join(".github/workflows/release-binaries.yml"))
-            .expect("read release-binaries.yml");
-        let v: serde_yaml::Value = serde_yaml::from_str(&text).expect("workflow is YAML");
-        let job = &v["jobs"]["oratio-plugin"];
-        assert!(
-            !job.is_null(),
-            "release-binaries.yml has no oratio-plugin job"
-        );
-        let include = job["strategy"]["matrix"]["include"]
+    /// `(crate, id, triple, lib)` for each matrix row of `job` that packages through
+    /// `./.github/actions/package-plugin`, resolving `${{ matrix.<field> }}` inputs.
+    fn packaged_plugin_rows(
+        wf: &serde_yaml::Value,
+        job: &str,
+    ) -> Vec<(String, String, String, String)> {
+        let j = &wf["jobs"][job];
+        let step = j["steps"]
             .as_sequence()
-            .expect("oratio-plugin has a matrix include list");
-        for (triple, lib) in declared {
-            assert!(
-                include
-                    .iter()
-                    .any(|row| row["triple"].as_str() == Some(triple.as_str())
-                        && row["lib"].as_str() == lib.as_str()),
-                "oratio-plugin does not build {triple} ({lib:?}) declared in Plugin.toml"
-            );
+            .unwrap_or_else(|| panic!("job {job} has no steps"))
+            .iter()
+            .find(|s| s["uses"].as_str() == Some("./.github/actions/package-plugin"))
+            .unwrap_or_else(|| panic!("{job} does not package through package-plugin"));
+        let rows = j["strategy"]["matrix"]["include"]
+            .as_sequence()
+            .unwrap_or_else(|| panic!("{job} has no matrix include list"));
+        let input = |key: &str, row: &serde_yaml::Value| -> String {
+            let raw = step["with"][key]
+                .as_str()
+                .unwrap_or_else(|| panic!("{job}: package-plugin input {key} missing"));
+            match raw
+                .strip_prefix("${{ matrix.")
+                .and_then(|r| r.strip_suffix(" }}"))
+            {
+                Some(field) => row[field]
+                    .as_str()
+                    .unwrap_or_else(|| panic!("{job}: matrix row lacks {field}"))
+                    .to_string(),
+                None => raw.to_string(),
+            }
+        };
+        rows.iter()
+            .map(|row| {
+                (
+                    input("crate", row),
+                    input("id", row),
+                    input("triple", row),
+                    input("lib", row),
+                )
+            })
+            .collect()
+    }
+
+    /// Every plugin zip the release and nightly workflows build must install: its
+    /// id, triple and library must be what the crate's Plugin.toml declares, and
+    /// oratio must cover every declared triple (a missing one is a 404 for users).
+    /// The shared action names zips `{id}-v{version}-{triple}.zip` and ships
+    /// Plugin.toml next to the library.
+    #[test]
+    fn workflow_plugin_zips_match_their_plugin_manifests() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let action =
+            std::fs::read_to_string(root.join(".github/actions/package-plugin/action.yml"))
+                .expect("read package-plugin action");
+        assert!(action.contains("${PLUGIN_ID}-v${version}-${TRIPLE}.zip"));
+        assert!(action.contains("cp \"crates/$CRATE/Plugin.toml\" \"$staging/\""));
+
+        for (rel, job) in [
+            (".github/workflows/release-binaries.yml", "oratio-plugin"),
+            (
+                ".github/workflows/nightly-artifacts.yml",
+                "build-plugin-zips",
+            ),
+        ] {
+            let text = std::fs::read_to_string(root.join(rel)).expect("read workflow");
+            let wf: serde_yaml::Value = serde_yaml::from_str(&text).expect("workflow is YAML");
+            let rows = packaged_plugin_rows(&wf, job);
+            for (krate, id, triple, lib) in &rows {
+                let manifest: toml::Value =
+                    std::fs::read_to_string(root.join("crates").join(krate).join("Plugin.toml"))
+                        .unwrap_or_else(|e| panic!("{rel}: read {krate}/Plugin.toml: {e}"))
+                        .parse()
+                        .expect("Plugin.toml is TOML");
+                assert_eq!(
+                    manifest["plugin"]["id"].as_str(),
+                    Some(id.as_str()),
+                    "{rel}: {krate} zip id"
+                );
+                assert_eq!(
+                    manifest["plugin"]["payload"]["artifacts"]
+                        .get(triple.as_str())
+                        .and_then(|l| l.as_str()),
+                    Some(lib.as_str()),
+                    "{rel}: {krate} does not declare {lib} for {triple}"
+                );
+            }
+            let speech: toml::Value =
+                std::fs::read_to_string(root.join("crates/vox-plugin-speech/Plugin.toml"))
+                    .expect("read speech Plugin.toml")
+                    .parse()
+                    .expect("Plugin.toml is TOML");
+            for triple in speech["plugin"]["payload"]["artifacts"]
+                .as_table()
+                .expect("speech artifacts")
+                .keys()
+            {
+                assert!(
+                    rows.iter()
+                        .any(|(k, _, t, _)| k == "vox-plugin-speech" && t == triple),
+                    "{rel}: {job} does not package oratio for {triple}"
+                );
+            }
         }
-        assert!(
-            text.contains("oratio-v${version}-${{ matrix.triple }}.zip"),
-            "oratio zips must be named {{id}}-v{{version}}-{{triple}}.zip"
-        );
-        let needs: Vec<&str> = v["jobs"]["publish"]["needs"]
+
+        let release: serde_yaml::Value = serde_yaml::from_str(
+            &std::fs::read_to_string(root.join(".github/workflows/release-binaries.yml"))
+                .expect("read release-binaries.yml"),
+        )
+        .expect("workflow is YAML");
+        let needs: Vec<&str> = release["jobs"]["publish"]["needs"]
             .as_sequence()
             .expect("publish needs")
             .iter()

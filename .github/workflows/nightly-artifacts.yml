@@ -264,12 +264,14 @@ jobs:
           retention-days: 7
 
   build-plugin-zips:
-    name: Build plugin zip (${{ matrix.plugin }})
+    name: Build plugin zip (${{ matrix.plugin }} ${{ matrix.triple }})
     needs: compute-ref
     runs-on: ${{ fromJson(matrix.runs_on) }}
     timeout-minutes: 120
     strategy:
       fail-fast: false
+      # `triple` and `lib` are the plugin-triple key and artifact filename from
+      # the crate's Plugin.toml; release_build.rs's tests check each row.
       matrix:
         include:
           # nvidia-gpu tagged plugin — self-hosted GPU runner (see
@@ -279,13 +281,40 @@ jobs:
             crate: vox-plugin-mens-candle-cuda
             feature: cuda
             target: x86_64-unknown-linux-gnu
+            triple: linux-x86_64
+            lib: libvox_plugin_mens_candle_cuda.so
             runs_on: '["self-hosted","linux","x64","gpu"]'
           # apple-silicon tagged plugin — Metal only compiles on macOS.
           - plugin: mens-candle-metal
             crate: vox-plugin-mens-candle-metal
             feature: metal
             target: aarch64-apple-darwin
+            triple: macos-aarch64
+            lib: libvox_plugin_mens_candle_metal.dylib
             runs_on: '["macos-latest"]'
+          # oratio (speech): every triple its Plugin.toml declares, as in
+          # release-binaries.yml's oratio-plugin job.
+          - plugin: oratio
+            crate: vox-plugin-speech
+            feature: stt-candle
+            target: x86_64-unknown-linux-gnu
+            triple: linux-x86_64
+            lib: libvox_plugin_speech.so
+            runs_on: '["self-hosted","linux","x64"]'
+          - plugin: oratio
+            crate: vox-plugin-speech
+            feature: stt-candle
+            target: aarch64-apple-darwin
+            triple: macos-aarch64
+            lib: libvox_plugin_speech.dylib
+            runs_on: '["macos-latest"]'
+          - plugin: oratio
+            crate: vox-plugin-speech
+            feature: stt-candle
+            target: x86_64-pc-windows-msvc
+            triple: windows-x86_64
+            lib: vox_plugin_speech.dll
+            runs_on: '["windows-latest"]'
     steps:
       - uses: actions/checkout@v7
         with:
@@ -300,30 +329,21 @@ jobs:
         run: cargo build --profile dist --locked -p ${{ matrix.crate }} --features ${{ matrix.feature }} --target ${{ matrix.target }}
 
       - name: Package plugin zip
-        shell: bash
-        env:
-          VERSION: ${{ needs.compute-ref.outputs.version }}
-        run: |
-          set -euo pipefail
-          mkdir -p plugin-dist
-          zip_name="${{ matrix.plugin }}-v${VERSION}-${{ matrix.target }}.zip"
-          libdir="target/${{ matrix.target }}/dist"
-          shopt -s nullglob
-          libs=("$libdir"/*.so "$libdir"/*.dylib "$libdir"/*.dll)
-          if [ ${#libs[@]} -eq 0 ]; then
-            echo "::error::no built cdylib found under $libdir" >&2
-            exit 1
-          fi
-          zip -j "plugin-dist/${zip_name}" "${libs[@]}"
-          ( cd plugin-dist && sha256sum "${zip_name}" > "${zip_name}.sha256" ) 2>/dev/null || \
-            ( cd plugin-dist && shasum -a 256 "${zip_name}" > "${zip_name}.sha256" )
-          ls -la plugin-dist
+        # Same packaging as release-binaries.yml: Plugin.toml + cdylib, flat,
+        # named <id>-v<version>-<plugin triple>.zip so `vox plugin install` takes it.
+        uses: ./.github/actions/package-plugin
+        with:
+          crate: ${{ matrix.crate }}
+          id: ${{ matrix.plugin }}
+          triple: ${{ matrix.triple }}
+          rust-target: ${{ matrix.target }}
+          lib: ${{ matrix.lib }}
 
       - name: Upload plugin zip
         uses: actions/upload-artifact@v7
         with:
-          name: nightly-plugin-${{ matrix.plugin }}
-          path: plugin-dist/*
+          name: nightly-plugin-${{ matrix.plugin }}-${{ matrix.triple }}
+          path: dist/${{ matrix.plugin }}-v*.zip
           if-no-files-found: error
           retention-days: 7
 
@@ -381,5 +401,5 @@ jobs:
             gh release create "$NIGHTLY_REF" "${files[@]}" \
               --draft --prerelease \
               --title "Nightly exercise build ${NIGHTLY_REF}" \
-              --notes "Automated nightly exercise of the release pipeline (binaries, GUI bundles, mens-candle plugin zips). Draft only — never promoted automatically. Not a real Vox release."
+              --notes "Automated nightly exercise of the release pipeline (binaries, GUI bundles, plugin zips). Draft only — never promoted automatically. Not a real Vox release."
           fi

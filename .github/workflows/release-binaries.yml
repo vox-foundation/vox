@@ -355,22 +355,13 @@ jobs:
         run: cargo build -p vox-plugin-speech --profile dist --locked --target ${{ matrix.rust_target }}
 
       - name: Package the plugin zip
-        # Flat, like gpu-plugin-metal: install_from_path reads only top-level files.
-        shell: bash
-        run: |
-          set -euo pipefail
-          version="$(cargo pkgid -p vox-plugin-speech | sed -E 's/.*[#@]//')"
-          staging="$(mktemp -d)"
-          cp crates/vox-plugin-speech/Plugin.toml "$staging/"
-          cp "target/${{ matrix.rust_target }}/dist/${{ matrix.lib }}" "$staging/"
-          mkdir -p dist
-          zip="dist/oratio-v${version}-${{ matrix.triple }}.zip"
-          if [ "$RUNNER_OS" = "Windows" ]; then
-            pwsh -NoProfile -Command "Compress-Archive -Path '$(cygpath -w "$staging")\\*' -DestinationPath '$zip' -Force"
-          else
-            zip -j "$zip" "$staging"/*
-          fi
-          echo "Packaged: $zip"
+        uses: ./.github/actions/package-plugin
+        with:
+          crate: vox-plugin-speech
+          id: oratio
+          triple: ${{ matrix.triple }}
+          rust-target: ${{ matrix.rust_target }}
+          lib: ${{ matrix.lib }}
 
       - name: Upload plugin artifact
         uses: actions/upload-artifact@v7
