@@ -127,6 +127,12 @@
       "path_glob": "**/vox-cli-ci/src/gui_smoke.rs",
       "reason": "run() is pre-existing process-orchestration (predates the Clavis secrets migration, which only replaced two std::env::var reads with vox_secrets::resolve_secret for VOX_WEB_VITE_SMOKE/VOX_GUI_PLAYWRIGHT). The entire body spawns cargo nextest / pnpm subprocesses with no pure logic to extract; unit-testing it would mean mocking process execution, a separate, out-of-scope effort from the secrets fix. Surfaced only because tdd-guard re-scans the whole touched file, not the diff.",
       "owner": "robot"
+    },
+    {
+      "rule_id_prefix": "security/hardcoded-secret/aws-key",
+      "path_glob": "**/vox-code-audit/src/detectors/secrets.rs",
+      "reason": "The secret detector's own unit test (aws_synthetic_placeholder_only_for_repeated_16char_suffix, since aa2d7f136) needs a real-looking fake AWS key literal (AKIA1234567890ABCDEF) to prove the synthetic-placeholder filter does not swallow real keys. It is a documented test fixture, not a credential. Surfaced by pre-push toestub-scoped once vox-code-audit changed (397a22c0a).",
+      "owner": "robot"
     }
   ]
 }
