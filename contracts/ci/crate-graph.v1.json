@@ -224,7 +224,6 @@
     "vox-codegen-ts": [
       "vox-codegen",
       "vox-compiler",
-      "vox-config",
       "vox-deploy-codegen",
       "vox-secrets",
       "vox-sql",
@@ -325,7 +324,6 @@
       "vox-actor-runtime",
       "vox-config",
       "vox-git",
-      "vox-secrets",
       "vox-telemetry",
       "workspace-hack"
     ],
@@ -440,7 +438,6 @@
       "vox-codegen",
       "vox-compiler",
       "vox-config",
-      "vox-foundation",
       "vox-lsp",
       "workspace-hack"
     ],
@@ -457,7 +454,6 @@
       "workspace-hack"
     ],
     "vox-lsp": [
-      "vox-bounded-fs",
       "vox-compiler",
       "vox-db",
       "vox-foundation",
@@ -623,7 +619,6 @@
     ],
     "vox-orchestrator-types": [],
     "vox-package": [
-      "vox-compiler",
       "vox-config",
       "vox-db",
       "vox-http-client",
@@ -661,7 +656,6 @@
     "vox-plugin-mens-candle-cuda": [
       "vox-compiler",
       "vox-config",
-      "vox-db",
       "vox-eval",
       "vox-hf-layout",
       "vox-plugin-api",
@@ -673,7 +667,6 @@
     "vox-plugin-mens-candle-metal": [
       "vox-compiler",
       "vox-config",
-      "vox-db",
       "vox-eval",
       "vox-hf-layout",
       "vox-plugin-api",
@@ -746,7 +739,6 @@
     ],
     "vox-populi": [
       "vox-bounded-fs",
-      "vox-compiler",
       "vox-config",
       "vox-constrained-gen",
       "vox-corpus",

@@ -37,7 +37,7 @@
       "compile_s": 0.2,
       "dependents": 74,
       "blast_s": 617.0,
-      "fan_in": 25
+      "fan_in": 24
     },
     {
       "crate": "vox-build-meta",
@@ -142,14 +142,14 @@
       "compile_s": 25.4,
       "dependents": 51,
       "blast_s": 586.0,
-      "fan_in": 26
+      "fan_in": 24
     },
     {
       "crate": "vox-config",
       "compile_s": 3.2,
       "dependents": 70,
       "blast_s": 614.0,
-      "fan_in": 51
+      "fan_in": 50
     },
     {
       "crate": "vox-config-derive",
@@ -198,7 +198,7 @@
       "compile_s": 43.5,
       "dependents": 51,
       "blast_s": 586.0,
-      "fan_in": 29
+      "fan_in": 27
     },
     {
       "crate": "vox-db-types",
@@ -268,7 +268,7 @@
       "compile_s": 0.7,
       "dependents": 52,
       "blast_s": 587.0,
-      "fan_in": 15
+      "fan_in": 14
     },
     {
       "crate": "vox-gamify",
@@ -751,7 +751,7 @@
       "compile_s": 1.8,
       "dependents": 71,
       "blast_s": 616.0,
-      "fan_in": 34
+      "fan_in": 33
     },
     {
       "crate": "vox-shell-stdlib-types",

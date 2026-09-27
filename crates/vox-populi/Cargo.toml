@@ -75,7 +75,7 @@ mens-candle-qlora-metal = [
     "candle-core/metal",
     "candle-nn/metal",
 ]
-mens-train = ["mens", "mens-candle-qlora", "mens-hf-hub", "dep:vox-eval", "dep:vox-compiler", "dep:vox-plugin-host"]
+mens-train = ["mens", "mens-candle-qlora", "mens-hf-hub", "dep:vox-eval", "dep:vox-plugin-host"]
 mens-hf-hub = ["mens", "dep:hf-hub", "tokio/rt-multi-thread"]
 mens-cloud = [
     "mens",
@@ -151,7 +151,6 @@ tokenizers = { workspace = true, optional = true }
 qlora-rs = { workspace = true, optional = true }
 futures = { workspace = true }
 vox-eval = { workspace = true, optional = true }
-vox-compiler = { workspace = true, optional = true }
 vox-publisher = { workspace = true, optional = true }
 workspace-hack = { version = "0.6", path = "../workspace-hack" }
 hex = { workspace = true }

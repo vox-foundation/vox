@@ -31,7 +31,6 @@ vox-compiler = { workspace = true }
 # behind the feature, so enabling it is the correct fix rather than a workaround.
 vox-db = { workspace = true, optional = true, features = ["host-integration"] }
 vox-gamify = { workspace = true, optional = true }
-vox-bounded-fs = { workspace = true }
 vox-secrets.workspace = true
 anyhow = { workspace = true }
 workspace-hack = { version = "0.6", path = "../workspace-hack" }

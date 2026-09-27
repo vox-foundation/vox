@@ -615,10 +615,6 @@
     ],
     [
       "vox-codegen-ts",
-      "vox-config"
-    ],
-    [
-      "vox-codegen-ts",
       "vox-deploy-codegen"
     ],
     [
@@ -819,10 +815,6 @@
     ],
     [
       "vox-effort-audit",
-      "vox-secrets"
-    ],
-    [
-      "vox-effort-audit",
       "vox-telemetry"
     ],
     [
@@ -1011,10 +1003,6 @@
     ],
     [
       "vox-langtool",
-      "vox-foundation"
-    ],
-    [
-      "vox-langtool",
       "vox-lsp"
     ],
     [
@@ -1024,10 +1012,6 @@
     [
       "vox-llm-egress",
       "vox-openai"
-    ],
-    [
-      "vox-lsp",
-      "vox-bounded-fs"
     ],
     [
       "vox-lsp",
@@ -1511,10 +1495,6 @@
     ],
     [
       "vox-package",
-      "vox-compiler"
-    ],
-    [
-      "vox-package",
       "vox-config"
     ],
     [
@@ -1579,10 +1559,6 @@
     ],
     [
       "vox-plugin-mens-candle-cuda",
-      "vox-db"
-    ],
-    [
-      "vox-plugin-mens-candle-cuda",
       "vox-eval"
     ],
     [
@@ -1612,10 +1588,6 @@
     [
       "vox-plugin-mens-candle-metal",
       "vox-config"
-    ],
-    [
-      "vox-plugin-mens-candle-metal",
-      "vox-db"
     ],
     [
       "vox-plugin-mens-candle-metal",
@@ -1784,10 +1756,6 @@
     [
       "vox-populi",
       "vox-bounded-fs"
-    ],
-    [
-      "vox-populi",
-      "vox-compiler"
     ],
     [
       "vox-populi",

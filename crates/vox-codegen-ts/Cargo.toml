@@ -25,7 +25,6 @@ serde_yaml = { workspace = true }
 tracing = { workspace = true }
 chrono = { workspace = true }
 miette = { workspace = true }
-vox-config = { workspace = true }
 vox-sql = { workspace = true }
 vox-deploy-codegen = { workspace = true }
 vox-secrets = { workspace = true }
