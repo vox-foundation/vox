@@ -918,7 +918,7 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `share` | default | `commands::extras::share_cli` |
 | `codex` | default | `commands::codex` |
 | `repo` | default | `commands::repo` |
-| `research` | default | `commands::research`: infra **`vox research up`** / **`vox research down`** / **`vox research status`** / **`vox research eval`**; **`vox research run`** calls orchestrator `run_research` (`--json`, `--scope`, `--site-scope`, …) |
+| `research` | default | `commands::research`: infra **`vox research up`** / **`vox research down`** / **`vox research status`** / **`vox research eval`**; **`vox research run`** calls orchestrator `run_research` (`--json`, `--scope`, `--site-scope`, `--lane fast\|deep`, `--waves N`, `--domain-mode`, …); **`vox research search <query>`** full-text search over past research artifacts; **`vox research probe [query] [--provider P] [--json]`** sends a live query to the search providers and reports status, latency and remediation; **`vox research flag <session> --url <u> [--defect D] [--notes …]`** marks a cited source misleading (penalizes its domain in later retrieval); **`vox research publish <session> [--slug S]`** writes the session report to `docs/src/architecture/<slug>-2026.md` with frontmatter |
 | `db` | default | `commands::db` + `commands::db_cli` dispatch |
 | `scientia` | default | `commands::scientia` (facade over `db_cli` research helpers) |
 | `telemetry` | default | `commands::telemetry` (optional upload queue; ADR 023) |
