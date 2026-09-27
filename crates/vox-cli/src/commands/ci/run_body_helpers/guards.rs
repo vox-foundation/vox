@@ -616,9 +616,11 @@ fn managed_secret_env_regex() -> Result<regex::Regex> {
         .collect();
     names.sort();
     names.dedup();
+    // Every Clavis-managed name, plus unregistered names that are secret-shaped by suffix.
+    names.push(r"[A-Z][A-Z0-9_]*(?:_API_KEY|_ACCESS_TOKEN|_AUTH_TOKEN|_SECRET|_PASSWORD)".into());
+    let name = format!("\"(?:{})\"", names.join("|"));
     regex::Regex::new(&format!(
-        r#"std::env::var(?:_os)?\("(?:(?:{}))"\)"#,
-        names.join("|")
+        r#"(?:std::)?env::var(?:_os)?\s*\(\s*{name}\s*\)|\b(?:option_)?env!\s*\(\s*{name}"#
     ))
     .map_err(Into::into)
 }
@@ -691,11 +693,75 @@ fn collect_secrets_cutover_audit(
     })
 }
 
+/// Splits Rust source into statement-sized chunks (at `;` and at item starts such as `fn`, `impl`,
+/// `#[`), ignoring delimiters inside literals and comments. Returns `(raw, code)` per chunk, both
+/// lowercased: `raw` is the source text, `code` drops comments and literal text but keeps the
+/// identifiers a string captures inline (`"{api_key}"` -> ` api_key `).
+///
+/// ponytail: lexical, not a parser. A fn body with no `;` before the next item is one chunk, and
+/// nested raw strings beyond `r##"` are not recognised; move to a syn visitor if that bites.
+fn rust_statements(text: &str) -> Result<Vec<(String, String)>> {
+    static LITERAL_RE: OnceLock<regex::Regex> = OnceLock::new();
+    static DELIM_RE: OnceLock<regex::Regex> = OnceLock::new();
+    static CAPTURE_RE: OnceLock<regex::Regex> = OnceLock::new();
+    // Leftmost-first, so a `"` inside a comment belongs to the comment and vice versa.
+    let literal_re = cached_guard_regex(
+        &LITERAL_RE,
+        "rust-literal-or-comment",
+        r###"//[^\n]*|/\*[\s\S]*?\*/|r##"[\s\S]*?"##|r#"[\s\S]*?"#|r"[^"]*"|"(?:[^"\\]|\\[\s\S])*"|'(?:[^'\\\n]|\\[^'\n]{1,10})'"###,
+    )?;
+    let delim_re = cached_guard_regex(
+        &DELIM_RE,
+        "rust-statement-delimiter",
+        r";|\n[ \t]*(?:#|(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?(?:unsafe\s+)?(?:fn|impl|struct|enum|mod|use|trait)\b)",
+    )?;
+    let capture_re = cached_guard_regex(
+        &CAPTURE_RE,
+        "format-inline-capture",
+        r"\{([A-Za-z_][A-Za-z0-9_]*)",
+    )?;
+
+    let mut literals = literal_re.find_iter(text).map(|m| m.range()).peekable();
+    let mut cuts = vec![0];
+    for m in delim_re.find_iter(text) {
+        while literals.peek().is_some_and(|r| r.end <= m.start()) {
+            literals.next();
+        }
+        if !literals.peek().is_some_and(|r| r.contains(&m.start())) {
+            cuts.push(m.end());
+        }
+    }
+    cuts.push(text.len());
+
+    Ok(cuts
+        .windows(2)
+        .map(|w| {
+            let raw = &text[w[0]..w[1]];
+            let code = literal_re.replace_all(raw, |c: &regex::Captures<'_>| {
+                let lit = &c[0];
+                if lit.starts_with("//") || lit.starts_with("/*") || lit.starts_with('\'') {
+                    return " ".to_string();
+                }
+                let idents: Vec<&str> = capture_re
+                    .captures_iter(lit)
+                    .map(|cap| cap.get(1).map_or("", |m| m.as_str()))
+                    .collect();
+                format!(" {} ", idents.join(" "))
+            });
+            (raw.to_ascii_lowercase(), code.to_ascii_lowercase())
+        })
+        .collect())
+}
+
+/// Heuristic secret-dataflow scan, per statement: a secret-bearing identifier (not a literal's
+/// text, not the Clavis API itself) in the same statement as a serialize/format sink, a log
+/// macro, or model-context wording. Calling `vox_secrets` is the sanctioned path and is not a leak.
 pub(crate) fn secret_dataflow_leak_categories(text: &str) -> Result<Vec<&'static str>> {
     static SERIALIZE_RE: OnceLock<regex::Regex> = OnceLock::new();
     static LOG_RE: OnceLock<regex::Regex> = OnceLock::new();
     static CONTEXT_RE: OnceLock<regex::Regex> = OnceLock::new();
     static SECRET_WORD_RE: OnceLock<regex::Regex> = OnceLock::new();
+    static CLAVIS_API_RE: OnceLock<regex::Regex> = OnceLock::new();
 
     let serialize_re = cached_guard_regex(
         &SERIALIZE_RE,
@@ -715,20 +781,31 @@ pub(crate) fn secret_dataflow_leak_categories(text: &str) -> Result<Vec<&'static
     let secret_word_re = cached_guard_regex(
         &SECRET_WORD_RE,
         "secret-dataflow-secret-word",
-        r#"(api[_-]?key|access[_-]?token|bearer|secret|password|authorization)"#,
+        r#"(api[_-]?key|access[_-]?token|bearer|secret|password|authorization|\.expose\(\))"#,
+    )?;
+    // Clavis names, not values: the crate, `SecretId::<Variant>`, and its resolve/store API.
+    // `.expose()` (the plaintext accessor) stays a secret word above.
+    let clavis_api_re = cached_guard_regex(
+        &CLAVIS_API_RE,
+        "secret-dataflow-clavis-api",
+        r#"vox_secrets|secretid(?:::\w+)?|resolve_secret|store_secret|secret_id\w*"#,
     )?;
 
-    let lower = text.to_ascii_lowercase();
     let mut out = Vec::new();
-
-    if serialize_re.is_match(&lower) && secret_word_re.is_match(&lower) {
-        out.push("serialize-secret-material");
-    }
-    if log_re.is_match(&lower) && secret_word_re.is_match(&lower) {
-        out.push("log-secret-material");
-    }
-    if context_re.is_match(&lower) && secret_word_re.is_match(&lower) {
-        out.push("model-context-secret-material");
+    for (raw, code) in rust_statements(text)? {
+        let code = clavis_api_re.replace_all(&code, "");
+        if !secret_word_re.is_match(&code) {
+            continue;
+        }
+        for (hit, category) in [
+            (serialize_re.is_match(&code), "serialize-secret-material"),
+            (log_re.is_match(&code), "log-secret-material"),
+            (context_re.is_match(&raw), "model-context-secret-material"),
+        ] {
+            if hit && !out.contains(&category) {
+                out.push(category);
+            }
+        }
     }
     Ok(out)
 }
@@ -1376,6 +1453,103 @@ mod sql_surface_tests {
         assert!(serialize_cats.contains(&"serialize-secret-material"));
         assert!(log_cats.contains(&"log-secret-material"));
         assert!(context_cats.contains(&"model-context-secret-material"));
+    }
+
+    fn guard_fixture(rel: &str) -> String {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("fixtures")
+            .join(rel);
+        std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()))
+    }
+
+    /// `run_secret_env_guard` over a temp tree holding one non-allowlisted crate file.
+    fn secret_env_guard_over(src: &str) -> anyhow::Result<()> {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let dir = tmp
+            .path()
+            .join("crates")
+            .join("vox-guard-fixture")
+            .join("src");
+        std::fs::create_dir_all(&dir).expect("mkdir");
+        std::fs::write(dir.join("lib.rs"), src).expect("write fixture");
+        super::run_secret_env_guard(tmp.path(), true)
+    }
+
+    #[test]
+    fn secret_dataflow_ignores_clavis_call_sites() {
+        let src = guard_fixture("guard_positive/clavis_call_site_fixture.rs");
+        assert_eq!(
+            super::secret_dataflow_leak_categories(&src).unwrap(),
+            Vec::<&str>::new()
+        );
+    }
+
+    #[test]
+    fn secret_dataflow_still_flags_exposed_secret_in_a_sink() {
+        let src = r#"
+            fn leak() -> String {
+                format!("key={}", vox_secrets::resolve_secret(vox_secrets::SecretId::OpenRouterApiKey).expose().unwrap_or(""))
+            }
+        "#;
+        assert!(
+            super::secret_dataflow_leak_categories(src)
+                .unwrap()
+                .contains(&"serialize-secret-material")
+        );
+    }
+
+    #[test]
+    fn secret_env_guard_passes_clavis_call_site_and_fails_raw_env_read() {
+        let ok =
+            secret_env_guard_over(&guard_fixture("guard_positive/clavis_call_site_fixture.rs"));
+        assert!(ok.is_ok(), "Clavis call site flagged: {ok:?}");
+        let err = secret_env_guard_over(&guard_fixture(
+            "guard_negative/raw_secret_env_read_fixture.rs",
+        ))
+        .expect_err("raw secret env read must fail the guard");
+        assert!(err.to_string().contains("direct secret env reads"), "{err}");
+    }
+
+    #[test]
+    fn managed_secret_env_regex_covers_read_forms() {
+        let re = super::managed_secret_env_regex().unwrap();
+        let name = ["OPENROUTER", "_API_KEY"].concat();
+        for read in [
+            format!(r#"std::env::var("{name}")"#),
+            format!(r#"std::env::var_os("{name}")"#),
+            format!(r#"env::var( "{name}" )"#),
+            format!(r#"env!("{name}")"#),
+            format!(r#"option_env!("{name}")"#),
+        ] {
+            assert!(re.is_match(&read), "not flagged: {read}");
+        }
+        assert!(!re.is_match(r#"std::env::var("VOX_REPO_ROOT_HINT")"#));
+        // Unregistered, but secret-shaped by suffix.
+        let unregistered = ["ACME", "_API_KEY"].concat();
+        assert!(re.is_match(&format!(r#"std::env::var("{unregistered}")"#)));
+    }
+
+    #[test]
+    fn secret_dataflow_reads_identifiers_not_literal_text() {
+        let message_only = r#"let m = format!("could not store the secret for {provider}");"#;
+        assert!(
+            super::secret_dataflow_leak_categories(message_only)
+                .unwrap()
+                .is_empty()
+        );
+        let inline_capture = r#"let m = format!("key={api_key}");"#;
+        assert_eq!(
+            super::secret_dataflow_leak_categories(inline_capture).unwrap(),
+            vec!["serialize-secret-material"]
+        );
+        // A `;` inside a literal or comment does not split the statement.
+        let split = "let m = format!(\"a;b // c;\", /* ; */ api_key);";
+        assert!(
+            super::secret_dataflow_leak_categories(split)
+                .unwrap()
+                .contains(&"serialize-secret-material")
+        );
     }
 
     #[test]
