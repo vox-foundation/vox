@@ -163,6 +163,20 @@ fn compute_cosine_lr(step: u32, warmup: usize, total: u32, base_lr: f64) -> f64 
     }
 }
 
+/// Dense Qwen3's per-head q_norm/k_norm weight for a `..._proj.weight` key: frozen, not
+/// LoRA-adapted, and `None` when absent (pure Qwen2/Qwen2.5 checkpoints omit it). Always F32:
+/// `Qwen2Attention` runs the norm in F32 (`rms_norm_f32`) and inference loads it F32, and
+/// training and inference must agree or a served model drifts from what it trained against.
+/// Confirmed load-bearing: a real Qwen/Qwen3-0.6B checkpoint produced fluent-looking
+/// garbage without it.
+fn load_qk_norm(vb: &VarBuilder, proj_key: &str, head_dim: usize) -> Option<candle_nn::RmsNorm> {
+    // "...self_attn.q_proj.weight" -> "...self_attn.q_norm.weight" — NOT a plain ".weight"
+    // suffix replace, which would wrongly produce "q_proj_norm.weight".
+    let key = proj_key.replace("_proj.weight", "_norm.weight");
+    let w = vb.get((head_dim,), &key).ok()?.to_dtype(DType::F32).ok()?;
+    Some(candle_nn::RmsNorm::new(w, 1e-6))
+}
+
 // Moved to `vox-plugin-mens-candle-core::rope` — see that module's docs for
 // why (it used to be forked four ways: here, `inference.rs`, and both again
 // in the Metal plugin).
@@ -775,25 +789,8 @@ pub fn run_candle_qlora_train(
                 let k_bias = load_bias(&k_key, kv_dim, None);
                 let v_bias = load_bias(&v_key, kv_dim, None);
 
-                // Dense Qwen3's per-head q_norm/k_norm (frozen, not LoRA-adapted;
-                // optional — pure Qwen2/Qwen2.5 checkpoints omit them). Must match
-                // inference.rs's loader or a served model drifts from what it
-                // trained against — confirmed load-bearing: a real Qwen/Qwen3-0.6B
-                // checkpoint produced fluent-looking garbage at inference without
-                // this being applied consistently on both sides.
-                let load_norm = |key_w: &str| -> Option<candle_nn::RmsNorm> {
-                    // "...self_attn.q_proj.weight" -> "...self_attn.q_norm.weight"
-                    // (and same for k) — NOT a plain ".weight" suffix replace,
-                    // which would wrongly produce "q_proj_norm.weight".
-                    let norm_key = key_w.replace("_proj.weight", "_norm.weight");
-                    vb_mmap
-                        .get((head_dim,), &norm_key)
-                        .ok()
-                        .and_then(|t| t.to_dtype(DType::F32).ok())
-                        .map(|w| candle_nn::RmsNorm::new(w, 1e-6))
-                };
-                let q_norm = load_norm(&q_key);
-                let k_norm = load_norm(&k_key);
+                let q_norm = load_qk_norm(&vb_mmap, &q_key, head_dim);
+                let k_norm = load_qk_norm(&vb_mmap, &k_key, head_dim);
 
                 let q_label = format!("l{i}.q");
                 let k_label = format!("l{i}.k");
@@ -834,14 +831,6 @@ pub fn run_candle_qlora_train(
                     adapter_layer_order.push(lbl.clone());
                     base_key_map.insert(lbl.clone(), bk.clone());
                 }
-                let q_norm = vb_mmap
-                    .get(head_dim, &format!("{layer_prefix}.self_attn.q_norm.weight"))
-                    .ok()
-                    .map(|w| candle_nn::RmsNorm::new(w, 1e-6));
-                let k_norm = vb_mmap
-                    .get(head_dim, &format!("{layer_prefix}.self_attn.k_norm.weight"))
-                    .ok()
-                    .map(|w| candle_nn::RmsNorm::new(w, 1e-6));
                 let attn = crate::model::Qwen2Attention {
                     q_proj,
                     k_proj,
@@ -1144,6 +1133,29 @@ mod training_loop;
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Dense Qwen3 q_norm/k_norm: found from the `_proj.weight` key, returned F32 (the
+    /// attention runs the norm in F32 and inference loads it F32), absent => None.
+    #[test]
+    fn qk_norm_loads_f32_per_head_weight_from_the_proj_key() {
+        let dev = Device::Cpu;
+        let mut ts = std::collections::HashMap::new();
+        let w = Tensor::new(&[1.0f32, 2.0, 3.0, 4.0], &dev).unwrap();
+        ts.insert(
+            "m.layers.0.self_attn.q_norm.weight".to_string(),
+            w.to_dtype(DType::BF16).unwrap(),
+        );
+        let vb = VarBuilder::from_tensors(ts, DType::BF16, &dev);
+        let norm = load_qk_norm(&vb, "m.layers.0.self_attn.q_proj.weight", 4).expect("q_norm");
+        assert_eq!(norm.weight().dtype(), DType::F32);
+        assert_eq!(norm.weight().dims(), &[4]);
+        assert_eq!(
+            norm.weight().to_vec1::<f32>().unwrap(),
+            [1.0, 2.0, 3.0, 4.0]
+        );
+        assert!(load_qk_norm(&vb, "m.layers.0.self_attn.k_proj.weight", 4).is_none());
+        assert!(load_qk_norm(&vb, "m.layers.0.self_attn.q_proj.weight", 8).is_none());
+    }
 
     /// Serve prefers a real `lm_head.weight` over the embedding matrix when the
     /// checkpoint is untied (`tie_word_embeddings == false`); train must resolve
