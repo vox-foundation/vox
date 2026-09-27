@@ -34,7 +34,7 @@ on:
   workflow_dispatch: {}
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   # Not required by `vox ci workflow-concurrency-guard` (it only gates
@@ -51,7 +51,7 @@ env:
 jobs:
   compute-ref:
     name: Compute nightly ref
-    runs-on: [self-hosted, linux]
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
       nightly_ref: ${{ steps.vars.outputs.nightly_ref }}
@@ -79,7 +79,7 @@ jobs:
     name: Build ${{ matrix.target }}
     needs: compute-ref
     runs-on: ${{ fromJson(matrix.runs_on) }}
-    timeout-minutes: 240
+    timeout-minutes: 180  # clamped to slow-lane cap (workflow_policy_guard); was 240
     env:
       CARGO_BUILD_JOBS: "2"
     strategy:
@@ -87,7 +87,7 @@ jobs:
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
-            runs_on: '["self-hosted","linux","x64"]'
+            runs_on: '["ubuntu-latest"]'
           - target: x86_64-pc-windows-msvc
             runs_on: '["windows-latest"]'
           - target: x86_64-apple-darwin
@@ -170,7 +170,7 @@ jobs:
     name: Build GUI (${{ matrix.target }})
     needs: compute-ref
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 240
+    timeout-minutes: 180  # clamped to slow-lane cap (workflow_policy_guard); was 240
     strategy:
       fail-fast: false
       matrix:
@@ -272,14 +272,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # nvidia-gpu tagged plugin — self-hosted GPU runner (see
-          # ml_data_extraction.yml / runner-contract.md for the `gpu` label),
-          # not a GitHub-hosted runner, so no runner-policy-check row needed.
-          - plugin: mens-candle-cuda
-            crate: vox-plugin-mens-candle-cuda
-            feature: cuda
-            target: x86_64-unknown-linux-gnu
-            runs_on: '["self-hosted","linux","x64","gpu"]'
+          # mens-candle-cuda (nvidia-gpu, self-hosted) is deliberately absent:
+          # actionlint rejects a job-level `if:` referencing `matrix` (it isn't
+          # evaluated per-leg), and this include-only matrix has no `exclude:`
+          # escape hatch, so the CUDA row can't be conditionally skipped without
+          # breaking the workflow. Re-add the row (with `runs_on:
+          # '["self-hosted","linux","x64","gpu"]'`) once a GPU runner (hosted or
+          # self-hosted) actually exists — see ml_data_extraction.yml for the
+          # same GPU gap.
           # apple-silicon tagged plugin — Metal only compiles on macOS.
           - plugin: mens-candle-metal
             crate: vox-plugin-mens-candle-metal
@@ -330,8 +330,10 @@ jobs:
   publish:
     name: Publish draft nightly release
     needs: [compute-ref, build-binaries, build-gui, build-plugin-zips]
-    runs-on: [self-hosted, linux]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: write   # job-scoped override (workflow default is contents: read) — only this job creates/updates the draft release
     steps:
       - uses: actions/checkout@v7
 

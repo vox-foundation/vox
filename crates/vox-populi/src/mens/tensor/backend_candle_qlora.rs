@@ -70,12 +70,21 @@ impl TrainingBackend for CandleQloraBackend {
         let registry = vox_plugin_host::discover(&plugins_dir)
             .map_err(|e| anyhow::anyhow!("plugin discovery failed at {plugins_dir:?}: {e}"))?;
 
-        let plugin_id = plugin_id_for_device(device_kind);
+        let plugin_id =
+            super::backend_select::select_mens_backend(device_kind, &vox_plugin_host::probe());
         let loaded = vox_plugin_host::load_code_plugin(&registry, plugin_id).map_err(|e| {
-            anyhow::anyhow!(
-                "Could not load '{plugin_id}' plugin from {plugins_dir:?}: {e}\n\
-                 Install it with: vox plugin install {plugin_id}"
-            )
+            let hint = if super::backend_select::has_prebuilt_artifact(plugin_id) {
+                format!("Install it with: vox plugin install {plugin_id}")
+            } else {
+                format!(
+                    "No prebuilt '{plugin_id}' exists for this platform. Build it from source \
+                     (the vox-plugin-mens-candle-* crate; mens-candle-cpu is \
+                     vox-plugin-mens-candle-cuda without features, packaged with Plugin.cpu.toml), \
+                     add this platform to the manifest's [plugin.payload.artifacts] table, then: \
+                     vox plugin install --path <dir>"
+                )
+            };
+            anyhow::anyhow!("Could not load '{plugin_id}' plugin from {plugins_dir:?}: {e}\n{hint}")
         })?;
 
         let ml_backend = loaded.plugin.as_ml_backend().into_option().ok_or_else(|| {
@@ -124,16 +133,6 @@ fn device_kind_to_str(d: DeviceKind) -> &'static str {
     }
 }
 
-fn plugin_id_for_device(device_kind: DeviceKind) -> &'static str {
-    if device_kind == DeviceKind::Metal
-        || (cfg!(target_os = "macos") && device_kind != DeviceKind::Cuda)
-    {
-        "mens-candle-metal"
-    } else {
-        "mens-candle-cuda"
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::path::Path;
@@ -142,13 +141,7 @@ mod tests {
     use crate::mens::tensor::device::DeviceKind;
     use crate::mens::tensor::training_config::{LoraTrainingConfig, OptimizerExperimentMode};
 
-    use super::{CandleQloraBackend, plugin_id_for_device};
-
-    #[test]
-    fn candle_qlora_plugin_id_for_metal_is_mens_candle_metal() {
-        assert_eq!(plugin_id_for_device(DeviceKind::Metal), "mens-candle-metal");
-        assert_eq!(plugin_id_for_device(DeviceKind::Cuda), "mens-candle-cuda");
-    }
+    use super::CandleQloraBackend;
 
     #[test]
     fn experimental_optimizer_requires_env_guard() {

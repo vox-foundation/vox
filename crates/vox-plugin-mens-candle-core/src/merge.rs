@@ -389,7 +389,7 @@ pub fn merge_qlora_adapter(
 mod tests {
     use super::*;
     use candle_core::DType;
-    use safetensors::SafeTensors;
+    use safetensors::{SafeTensors, serialize};
 
     #[test]
     fn lora_delta_matches_manual_scale() {

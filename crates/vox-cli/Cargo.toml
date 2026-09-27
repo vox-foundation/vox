@@ -182,6 +182,7 @@ vox-skill-discovery = { workspace = true, optional = true }
 vox-gamify = { workspace = true, optional = true }
 vox-config = { workspace = true }
 vox-secrets = { workspace = true }
+dialoguer = { workspace = true }
 vox-oauth-pkce = { workspace = true }
 vox-db = { workspace = true, features = ["host-integration", "legacy-import"] }
 vox-sql = { workspace = true, features = ["postgres", "mysql"] }

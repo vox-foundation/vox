@@ -308,6 +308,13 @@ fn jaccard_ngrams(a: &HashSet<String>, b: &HashSet<String>) -> f64 {
 /// field are skipped (nothing to compare) rather than erroring, so older
 /// manifests without answers don't hard-fail the gate.
 pub fn load_bench_answers(bench_path: &Path) -> Result<Vec<BenchTask>> {
+    load_bench_texts(bench_path, "answer")
+}
+
+/// Like [`load_bench_answers`] but reads any string `field` of each bench task
+/// (e.g. `"description"`) into [`BenchTask::answer`]. Tasks lacking the field
+/// are skipped.
+pub fn load_bench_texts(bench_path: &Path, field: &str) -> Result<Vec<BenchTask>> {
     let content = vox_bounded_fs::read_utf8_path_capped(bench_path)?;
     let v: serde_json::Value = serde_json::from_str(&content)?;
     let benchmarks = v
@@ -319,11 +326,33 @@ pub fn load_bench_answers(bench_path: &Path) -> Result<Vec<BenchTask>> {
         .iter()
         .filter_map(|item| {
             let id = item.get("id")?.as_str()?.to_string();
-            let answer = item.get("answer")?.as_str()?.to_string();
+            let answer = item.get(field)?.as_str()?.to_string();
             Some(BenchTask { id, answer })
         })
         .collect();
     Ok(tasks)
+}
+
+/// Overlap of `other` against one bench text, using the adaptive gram size
+/// rule of [`assert_no_text_leakage`] (n = min(8, bench-text tokens)).
+fn bench_overlap(bench_tokens: &[String], other_tokens: &[String]) -> f64 {
+    let n = TEXT_NGRAM_SIZE.min(bench_tokens.len());
+    jaccard_ngrams(&word_ngrams(bench_tokens, n), &word_ngrams(other_tokens, n))
+}
+
+/// Per-row leakage check for corpus *producers* (synthesis stages): returns
+/// the first bench task whose text overlaps `text` at or above the leakage
+/// threshold, with its overlap score. `None` means the row is safe to emit.
+pub fn leaked_bench_task<'a>(text: &str, bench: &'a [BenchTask]) -> Option<(&'a str, f64)> {
+    let toks = tokenize(text);
+    bench.iter().find_map(|task| {
+        let task_tokens = tokenize(&task.answer);
+        if task_tokens.is_empty() {
+            return None;
+        }
+        let sim = bench_overlap(&task_tokens, &toks);
+        (sim >= TEXT_LEAK_THRESHOLD).then_some((task.id.as_str(), sim))
+    })
 }
 
 /// Scan every `*.jsonl` file directly under each of `corpus_dirs` for rows
@@ -402,13 +431,9 @@ pub fn assert_no_text_leakage(bench_path: &Path, corpus_dirs: &[&Path]) -> Resul
         // still be caught if it appears verbatim inside a longer completion,
         // so both sides are n-grammed at the SAME (possibly small) n rather
         // than a fixed n that would only ever match same-length text.
-        let n = TEXT_NGRAM_SIZE.min(task_tokens.len());
-        let task_grams = word_ngrams(&task_tokens, n);
-
         let mut best = 0.0_f64;
         for ctoks in &completion_tokens {
-            let cg = word_ngrams(ctoks, n);
-            let sim = jaccard_ngrams(&task_grams, &cg);
+            let sim = bench_overlap(&task_tokens, ctoks);
             if sim > best {
                 best = sim;
             }
@@ -430,6 +455,31 @@ pub fn assert_no_text_leakage(bench_path: &Path, corpus_dirs: &[&Path]) -> Resul
         );
     }
     Ok(())
+}
+
+/// Containment (not Jaccard) leakage check for a whole candidate *file*: the share of a
+/// bench answer's word n-grams that appear in `text`. Jaccard (used by
+/// [`assert_no_text_leakage`] for row-sized completions) dilutes toward 0 when a short
+/// answer is embedded in a long file, so the corpus source-pool guard uses containment.
+/// Same tokenizer and adaptive n as above. Returns the first task at/above
+/// [`TEXT_LEAK_THRESHOLD`] with its score.
+pub fn leaked_bench_task_contained(tasks: &[BenchTask], text: &str) -> Option<(String, f64)> {
+    let text_tokens = tokenize(text);
+    for task in tasks {
+        let task_tokens = tokenize(&task.answer);
+        if task_tokens.is_empty() {
+            continue;
+        }
+        let n = TEXT_NGRAM_SIZE.min(task_tokens.len());
+        let task_grams = word_ngrams(&task_tokens, n);
+        let text_grams = word_ngrams(&text_tokens, n);
+        let hit = task_grams.intersection(&text_grams).count() as f64;
+        let score = hit / task_grams.len() as f64;
+        if score >= TEXT_LEAK_THRESHOLD {
+            return Some((task.id.clone(), score));
+        }
+    }
+    None
 }
 
 // ---------------------------------------------------------------------------
@@ -642,6 +692,33 @@ mod tests {
             .expect("a missing (not-yet-built) corpus dir must not fail the gate");
     }
 
+    #[test]
+    fn leaked_bench_task_flags_verbatim_text_and_passes_distinct_text() {
+        let bench = vec![BenchTask {
+            id: "fn_add".into(),
+            answer: FN_ADD_BODY.into(),
+        }];
+        let hit = leaked_bench_task(&format!("// wrapper\n{FN_ADD_BODY}"), &bench);
+        assert_eq!(hit.map(|(id, _)| id), Some("fn_add"));
+        assert!(
+            leaked_bench_task("fn mul(a: int, b: int) to int { return a * b }", &bench).is_none()
+        );
+    }
+
+    #[test]
+    fn load_bench_texts_reads_any_string_field() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("manifest.json");
+        std::fs::write(
+            &path,
+            r#"{"benchmarks":[{"id":"a","description":"define fn a","answer":"fn a() {}"},{"id":"b"}]}"#,
+        )
+        .unwrap();
+        let descs = load_bench_texts(&path, "description").unwrap();
+        assert_eq!(descs.len(), 1);
+        assert_eq!(descs[0].answer, "define fn a");
+    }
+
     /// Step 5/6 mutation-verification companion: reproduces the 4 tasks
     /// named leaked in docs/superpowers/plans/2026-09-12-mens-end-to-end-completion.md
     /// (§L-4) — `fn_add`, `fn_greet`, `query_list_items`, `component_button`
@@ -686,5 +763,27 @@ mod tests {
         for id in ["fn_add", "fn_greet", "query_list_items", "component_button"] {
             assert!(msg.contains(id), "expected '{id}' in leakage error: {msg}");
         }
+    }
+
+    #[test]
+    fn leaked_bench_task_catches_answer_embedded_in_long_file() {
+        let tasks = vec![BenchTask {
+            id: "fn_add".into(),
+            answer: FN_ADD_BODY.into(),
+        }];
+        let mut file = String::new();
+        for i in 0..40 {
+            file.push_str(&format!(
+                "fn helper_{i}(x: int) to int {{\n    return x * {i} + 7\n}}\n"
+            ));
+        }
+        file.push_str(FN_ADD_BODY);
+        let hit =
+            leaked_bench_task_contained(&tasks, &file).expect("embedded answer must be caught");
+        assert_eq!(hit.0, "fn_add");
+        assert!(
+            leaked_bench_task_contained(&tasks, "fn other(y: str) to str {\n    return y\n}")
+                .is_none()
+        );
     }
 }

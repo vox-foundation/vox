@@ -1186,6 +1186,12 @@ async fn open_cloudless_connection() -> Result<turso::Connection, SecretError> {
     let db_url = resolve_cloudless_db_url();
     if db_url.starts_with("file:") {
         let local_path = file_url_to_local_path(&db_url)?;
+        // Fresh HOME: `~/.vox/` may not exist yet, and turso won't create parents.
+        if let Some(parent) = std::path::Path::new(&local_path).parent()
+            && !parent.as_os_str().is_empty()
+        {
+            std::fs::create_dir_all(parent).map_err(|e| SecretError::Io(e.to_string()))?;
+        }
         let db = turso::Builder::new_local(&local_path)
             .build()
             .await
@@ -2075,6 +2081,29 @@ mod vault_health_tests {
 
     #[test]
     #[allow(unsafe_code)]
+    fn open_creates_missing_vault_parent_dir() {
+        let _g = crate::TEST_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let tmp = tempfile::tempdir().expect("tempdir");
+        // Mirrors a fresh HOME where `~/.vox/` does not exist yet.
+        let db_path = tmp.path().join("fresh-home/.vox/clavis_vault.db");
+        unsafe {
+            std::env::set_var("VOX_SECRETS_VAULT_PATH", &db_path);
+        }
+        let opened = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .expect("tokio rt")
+            .block_on(super::open_cloudless_connection());
+        unsafe {
+            std::env::remove_var("VOX_SECRETS_VAULT_PATH");
+        }
+        opened.expect("open vault under missing parent dir");
+        assert!(db_path.parent().expect("parent").is_dir());
+    }
+
+    #[test]
+    #[allow(unsafe_code)]
     fn probe_vault_health_reports_empty_vault_as_ok() {
         let _g = crate::TEST_ENV_LOCK
             .lock()
@@ -2102,6 +2131,64 @@ mod vault_health_tests {
         }
         assert!(health.can_decrypt, "empty vault should probe OK");
         assert_eq!(health.row_count, 0);
+    }
+
+    /// Regression test for the 2026-09-21 `vox harness eval` panic: resolving a
+    /// vault secret from a current-thread Tokio runtime (e.g. a CLI subcommand
+    /// that opts into `#[tokio::main(flavor = "current_thread")]`) must not
+    /// panic. `run_secrets_future`'s `block_in_place` path only works on a
+    /// multi-threaded runtime; calling it from a current-thread runtime used to
+    /// panic with "can call blocking only when running on the multi-threaded
+    /// runtime".
+    #[tokio::test(flavor = "current_thread")]
+    #[allow(unsafe_code)]
+    async fn resolves_vault_secret_from_current_thread_runtime() {
+        use crate::backend::SecretBackend;
+        use secrecy::ExposeSecret;
+
+        let _g = crate::TEST_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let db_path = tmp.path().join("current_thread_vault.db");
+        unsafe {
+            std::env::set_var("VOX_SECRETS_VAULT_PATH", &db_path);
+            std::env::set_var("VOX_ACCOUNT_ID", "current-thread-test-account");
+        }
+
+        let backend =
+            super::VoxCloudBackend::new().expect("backend init on current-thread runtime");
+        backend
+            .write_secret("PROBE_CURRENT_THREAD", "current-thread-value")
+            .expect("write secret on current-thread runtime");
+
+        let spec = crate::spec::SecretSpec {
+            id: crate::spec::SecretId::VoxOrchestratorEnabled,
+            canonical_env: "PROBE_CURRENT_THREAD",
+            aliases: &[],
+            deprecated_aliases: &[],
+            backend_key: None,
+            auth_registry: None,
+            policy: crate::policy::SecretPolicy::optional_skip(),
+            remediation: "test",
+            scope_description: "test",
+        };
+        let resolved = backend.resolve(
+            crate::spec::SecretId::VoxOrchestratorEnabled,
+            spec,
+            None,
+            "test",
+        );
+
+        unsafe {
+            std::env::remove_var("VOX_SECRETS_VAULT_PATH");
+            std::env::remove_var("VOX_ACCOUNT_ID");
+        }
+
+        let secret = resolved
+            .expect("resolve secret on current-thread runtime")
+            .expect("secret should be present");
+        assert_eq!(secret.expose_secret(), "current-thread-value");
     }
 
     #[test]

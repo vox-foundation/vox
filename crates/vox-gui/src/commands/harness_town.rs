@@ -42,8 +42,7 @@ pub struct VcsTownDto {
     pub prs_available: bool,
 }
 
-/// Parse `gh api repos/<slug>/actions/runners` JSON (the same source
-/// vox-cli's runner_scale.rs reads).
+/// Parse `gh api repos/<slug>/actions/runners` JSON.
 pub(crate) fn parse_runners(json: &str) -> Result<Vec<CiRunnerDto>, String> {
     let v: serde_json::Value = serde_json::from_str(json).map_err(|e| e.to_string())?;
     let runners = v["runners"].as_array().ok_or("no .runners array")?;

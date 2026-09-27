@@ -18,7 +18,7 @@ jobs:
   build-tauri:
     name: Build Tauri GUI
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 240
+    timeout-minutes: 180  # clamped to slow-lane cap (workflow_policy_guard); was 240
     env:
       # Job-level, NOT step-level: a step's `if:` is evaluated before that
       # step's own env: block exists, so a step-scoped var reads empty in

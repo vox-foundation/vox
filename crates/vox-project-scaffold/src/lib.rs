@@ -11,13 +11,11 @@ const CHATBOT_TEMPLATE: &str = r#"# Vox Chatbot — OpenRouter-powered chat app
 # Run with: vox build src/main.vox -o dist && vox run src/main.vox
 
 table Conversation {
-    id: int
     user_id: str
     started_at: str
 }
 
 table MessageTrace {
-    id: int
     conversation_id: str
     role: str
     content: str
@@ -68,7 +66,6 @@ const DASHBOARD_TEMPLATE: &str = r#"# Vox Dashboard — data table with route pa
 # Run with: vox build src/main.vox -o dist && vox run src/main.vox
 
 table Item {
-    id: int
     name: str
     value: int
     created_at: str
@@ -107,7 +104,6 @@ const API_TEMPLATE: &str = r#"# Vox API — server functions with health + metri
 # Run with: vox build src/main.vox -o dist && vox run src/main.vox
 
 table Task {
-    id: int
     title: str
     done: bool
     created_at: str
@@ -139,7 +135,6 @@ const DEFAULT_FULL_STACK: &str = r#"# My Vox App — a full-stack starter
 # Run with: vox build src/main.vox -o dist && vox run src/main.vox
 
 table Note {
-    id: int
     title: str
     content: str
     created_at: str
@@ -174,7 +169,6 @@ const MOBILE_PWA_TEMPLATE: &str = r#"# Vox Mobile — web-first UI + native pack
 import std.mobile
 
 table Photo {
-    id: int
     url: str
     synced: bool
 }

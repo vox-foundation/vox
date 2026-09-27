@@ -205,6 +205,30 @@ impl OrchestratorDaemonEnsure {
     }
 }
 
+/// Best-effort check for an **already-running** `vox-orchestrator-d`, without
+/// spawning one. `None` if no daemon answers a token-authenticated ping at
+/// the configured/default address.
+///
+/// Unlike [`OrchestratorDaemonEnsure::ensure`], this never spawns a fresh
+/// daemon. Some callers (`vox rollback`) need the *specific* daemon instance
+/// whose in-memory operation log holds the thing to act on — a freshly
+/// spawned daemon would have an empty log, so silently starting one there
+/// would be worse than useless (and every stdio-mode spawn from
+/// `vox-orchestrator-d`'s own `main()` used to unconditionally rewrite the
+/// shared `orchestrator-daemon.token` file, which could rotate the token out
+/// from under an unrelated long-lived TCP daemon a GUI session was using —
+/// see `crates/vox-orchestrator-d/src/bin/vox_orchestrator_d.rs`).
+pub async fn ping_existing_daemon() -> Option<OrchDaemonClient> {
+    let addr = match std::env::var("VOX_ORCHESTRATOR_DAEMON_SOCKET") {
+        Ok(s) if s.contains(':') => s,
+        _ => DEFAULT_DAEMON_ADDR.to_string(),
+    };
+    let token = read_token_file()?;
+    let client = OrchDaemonClient::with_token(addr, token);
+    client.ping().await.ok()?;
+    Some(client)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -215,5 +239,34 @@ mod tests {
     async fn token_is_none_before_ensure() {
         let ensure = OrchestratorDaemonEnsure::default();
         assert_eq!(ensure.token().await, None);
+    }
+
+    /// RED test for the rollback-daemon-token fix: `ping_existing_daemon`
+    /// must NOT spawn anything, and must return `None` when nothing answers
+    /// at the configured address — even though a token file is present.
+    /// Points at an address nothing binds (`127.0.0.1:1`, a privileged port)
+    /// so the connection fails fast without relying on HOME isolation.
+    #[tokio::test]
+    #[serial_test::serial(orchestrator_daemon_socket_env)]
+    async fn ping_existing_daemon_is_none_when_nothing_listens() {
+        // SAFETY: serialized via `#[serial_test::serial]` on every test that
+        // mutates this env var.
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::set_var("VOX_ORCHESTRATOR_DAEMON_SOCKET", "127.0.0.1:1");
+        }
+
+        let result = ping_existing_daemon().await;
+
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::remove_var("VOX_ORCHESTRATOR_DAEMON_SOCKET");
+        }
+
+        assert!(
+            result.is_none(),
+            "ping_existing_daemon must return None (and must not spawn) when no daemon \
+             answers at the configured address"
+        );
     }
 }

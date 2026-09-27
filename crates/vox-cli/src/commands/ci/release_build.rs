@@ -28,7 +28,7 @@ pub(crate) fn built_binary_path(repo_root: &Path, target: &str, bin: &str) -> Pa
 
 /// Crates the release builder shells `cargo build -p` for. Asserted against the
 /// workspace by `every_release_package_exists_in_the_workspace`.
-pub(crate) const RELEASE_PACKAGES: &[&str] = &["vox-cli", "vox-ml-cli", "vox-langtool"];
+pub(crate) const RELEASE_PACKAGES: &[&str] = &["vox-cli", "vox-ml-cli", "vox-langtool", "vox-lsp"];
 
 pub(crate) fn validate_release_target(target: &str) -> Result<()> {
     if SUPPORTED_RELEASE_TARGETS.contains(&target) {
@@ -58,6 +58,7 @@ pub fn run(
     let want_vox = matches!(package, ReleasePackage::Vox | ReleasePackage::All);
     let want_mens = matches!(package, ReleasePackage::Mens | ReleasePackage::All);
     let want_langtool = matches!(package, ReleasePackage::Langtool | ReleasePackage::All);
+    let want_lsp = matches!(package, ReleasePackage::Lsp | ReleasePackage::All);
 
     if want_vox {
         let artifact_name = build_and_package_binary(
@@ -96,6 +97,20 @@ pub fn run(
             "vox-langtool",
             &langtool_bin,
             "vox-langtool",
+        )?;
+        let digest = sha256_file(&out_dir_abs.join(&artifact_name))?;
+        checksum_lines.push(checksum_line(&digest, &artifact_name));
+    }
+    if want_lsp {
+        let lsp_bin = plugin_executable_name(target, "vox-lsp");
+        let artifact_name = build_and_package_binary(
+            repo_root,
+            out_dir_abs.as_path(),
+            target,
+            artifact_version,
+            "vox-lsp",
+            &lsp_bin,
+            "vox-lsp",
         )?;
         let digest = sha256_file(&out_dir_abs.join(&artifact_name))?;
         checksum_lines.push(checksum_line(&digest, &artifact_name));
@@ -399,6 +414,7 @@ mod tests {
                 "vox".to_string(),
                 "mens".to_string(),
                 "langtool".to_string(),
+                "lsp".to_string(),
                 "all".to_string()
             ],
             "ReleasePackage tiers changed; `bootstrap` and `both` built a deleted crate"

@@ -22,10 +22,13 @@ env:
   CARGO_LOCKED: true
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
+permissions:
+  contents: read
+
 jobs:
   golden-differential-gate:
     name: golden_differential_gate (interp vs native, one generated crate)
-    runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
     # Cold-cache: building the `vox` CLI binary, the vox-integration-tests test
     # binary's own (large) dependency graph, AND the generated differential
     # bundle crate (one `[[bin]]` per EXPECT golden, sharing one
@@ -45,7 +48,12 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-differential-gate-${{ hashFiles('**/Cargo.lock') }}
+          # Hashing rust-toolchain.toml alongside Cargo.lock keeps the key
+          # toolchain-sensitive: this job installs Rust via dtolnay directly,
+          # so there is no setup-rust `toolchain` output to key on, and a
+          # lockfile-only key would restore object files built by the previous
+          # compiler after a toolchain bump. Enforced by `vox ci cache-key-lint`.
+          key: ${{ runner.os }}-cargo-differential-gate-${{ hashFiles('rust-toolchain.toml', '**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-differential-gate-
 

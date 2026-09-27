@@ -157,9 +157,33 @@ pub mod dei_method {
     pub const RESEARCH_PERSIST_CLAIMS: &str = "research.persist_claims";
 }
 
+/// Deserializes a JSON-RPC-style `id` that may be sent as either a string or
+/// a number, coercing either into a `String`. Some JSON-RPC clients emit
+/// numeric ids (the JSON-RPC 2.0 spec permits string, number, or null); a
+/// bare `id: String` field rejects those with a deserialize error instead of
+/// accepting the request. Always serializes back out as a string (matching
+/// this crate's existing wire shape); callers that need to echo the caller's
+/// original numeric-vs-string id distinction are not yet supported.
+fn deserialize_id_as_string<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum IdOrNumber {
+        String(String),
+        Number(serde_json::Number),
+    }
+    match IdOrNumber::deserialize(deserializer)? {
+        IdOrNumber::String(s) => Ok(s),
+        IdOrNumber::Number(n) => Ok(n.to_string()),
+    }
+}
+
 /// Outgoing request from thin clients to Dei-style JSON-line daemons.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DispatchRequest {
+    #[serde(deserialize_with = "deserialize_id_as_string")]
     pub id: String,
     pub method: String,
     pub params: Value,
@@ -232,4 +256,26 @@ pub enum DispatchPayload {
     Done {
         exit: i32,
     },
+}
+
+#[cfg(test)]
+mod dispatch_request_id_tests {
+    use super::*;
+
+    /// RED test: a JSON-RPC-style numeric `id` (permitted by the JSON-RPC 2.0
+    /// spec) must deserialize into `DispatchRequest`, not be rejected as a
+    /// type mismatch against a bare `id: String` field.
+    #[test]
+    fn numeric_id_deserializes_as_string() {
+        let json = r#"{"id":1,"method":"orch.ping","params":{}}"#;
+        let req: DispatchRequest = serde_json::from_str(json).expect("numeric id must parse");
+        assert_eq!(req.id, "1");
+    }
+
+    #[test]
+    fn string_id_still_deserializes() {
+        let json = r#"{"id":"abc","method":"orch.ping","params":{}}"#;
+        let req: DispatchRequest = serde_json::from_str(json).expect("string id must parse");
+        assert_eq!(req.id, "abc");
+    }
 }

@@ -40,8 +40,8 @@ pub fn atomic_write_secure(dest_path: &Path, content: &[u8]) -> io::Result<()> {
 
     #[cfg(windows)]
     let mut attempts = 0;
-    #[allow(clippy::never_loop)]
-    // the retry (`continue`) path is cfg(windows)-only; on non-Windows targets this loop always exits on the first iteration by design
+    // Only Windows retries (sharing violations); elsewhere the first rename is final.
+    #[cfg_attr(not(windows), allow(clippy::never_loop))]
     loop {
         match fs::rename(&tmp_path, dest_path) {
             Ok(_) => break,

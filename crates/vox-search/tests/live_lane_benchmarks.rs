@@ -5,7 +5,7 @@ use vox_search::policy::{ResearchLane, SearchPolicy};
 use vox_search::web_dispatcher::{WebSearchDispatcher, WebSearchDispatcherExt};
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-#[ignore = "live network benchmark requiring external search engine availability"]
+#[ignore = "owner:search sunset:never live network benchmark requiring external search engine availability"]
 async fn test_live_lane_comparative_benchmarks() {
     let queries = [
         "quantum computing fault tolerance surface code",

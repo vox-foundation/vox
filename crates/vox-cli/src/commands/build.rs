@@ -16,10 +16,24 @@ use std::path::{Path, PathBuf};
 use vox_bounded_fs::read_utf8_path_capped;
 use vox_codegen::codegen_rust::RustAppShell;
 
-fn generated_backend_dir(start: Option<&Path>) -> PathBuf {
+pub(crate) fn generated_backend_dir(start: Option<&Path>) -> PathBuf {
     crate::fs_utils::strip_windows_verbatim_path(
         crate::fs_utils::run_target_dir_for_workspace(start).join("generated"),
     )
+}
+
+/// Write `content` to `path`, creating parent directories first.
+///
+/// Codegen emits files under subdirectories (e.g. `components/<Name>.tsx` for
+/// `BuildMode::Library`) that don't necessarily exist under `out_dir` yet, so
+/// every write loop must create them before writing — this is the one place
+/// that does, so no loop can drift and reintroduce the missing-parent bug.
+fn write_generated_file(path: &Path, content: &str) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(path, content)
+        .with_context(|| format!("Failed to write output file: {}", path.display()))
 }
 
 /// Run the build pipeline for `file`, writing TS to `out_dir` and Rust to `target/generated`.
@@ -306,11 +320,7 @@ async fn run_inner(
                 crate::vox_note!(json, "  kept existing {}", path.display());
                 continue;
             }
-            if let Some(parent) = path.parent() {
-                fs::create_dir_all(parent)?;
-            }
-            fs::write(&path, content)
-                .with_context(|| format!("Failed to write output file: {}", path.display()))?;
+            write_generated_file(&path, content)?;
             crate::vox_note!(json, "  wrote {}", path.display());
         }
 
@@ -351,8 +361,7 @@ async fn run_inner(
 
         for (filename, content) in &ts_output.files {
             let path = out_dir.join(filename);
-            fs::write(&path, content)
-                .with_context(|| format!("Failed to write output file: {}", path.display()))?;
+            write_generated_file(&path, content)?;
             crate::vox_note!(json, "  wrote {}", path.display());
         }
 
@@ -427,8 +436,7 @@ async fn run_inner(
     // Write generated TS files
     for (filename, content) in &ts_output.files {
         let path = out_dir.join(filename);
-        fs::write(&path, content)
-            .with_context(|| format!("Failed to write output file: {}", path.display()))?;
+        write_generated_file(&path, content)?;
         crate::vox_note!(json, "  wrote {}", path.display());
     }
 
@@ -618,17 +626,21 @@ async fn run_inner(
 mod tests {
     use super::*;
 
+    /// `examples/compile-suite` carries its own `Vox.toml`, and since 441571a2c
+    /// `find_repo_root` stops at any `Vox.toml`, so a Vox workspace nested in the
+    /// repo gets its own `target/generated` rather than the repo's.
     #[test]
-    fn generated_backend_dir_uses_repo_target_from_nested_compile_suite() {
+    fn generated_backend_dir_uses_the_nested_vox_workspace_target() {
         let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .parent()
             .and_then(|p| p.parent())
             .expect("workspace root")
             .to_path_buf();
         let nested = repo.join("examples/compile-suite");
+        assert!(nested.join("Vox.toml").is_file(), "fixture precondition");
         assert_eq!(
             generated_backend_dir(Some(&nested)),
-            repo.join("target/generated")
+            crate::fs_utils::strip_windows_verbatim_path(nested.join("target/generated"))
         );
     }
 }

@@ -6,20 +6,17 @@ async fn test_empty_web_retrieval_halts_without_synthesis() {
         .await
         .expect("in-memory db");
 
-    let config = ResearchConfig {
+    let mut config = ResearchConfig {
         claim_detection_enabled: true,
-        search_policy: vox_search::policy::SearchPolicy {
-            wikipedia_fallback_enabled: false,
-            duckduckgo_fallback_enabled: false,
-            tavily_enabled: false,
-            searxng_url: None,
-            enable_wikipedia: false,
-            enable_openalex: false,
-            enable_arxiv: false,
-            ..Default::default()
-        },
         ..Default::default()
     };
+    config.search_policy.wikipedia_fallback_enabled = false;
+    config.search_policy.duckduckgo_fallback_enabled = false;
+    config.search_policy.tavily_enabled = false;
+    config.search_policy.searxng_url = None;
+    config.search_policy.enable_wikipedia = false;
+    config.search_policy.enable_openalex = false;
+    config.search_policy.enable_arxiv = false;
 
     // An obscure query with web scope that yields zero hits
     let query = ResearchQuery {

@@ -38,16 +38,18 @@ impl CapabilitySet {
 pub fn probe() -> CapabilitySet {
     let mut tags = BTreeSet::new();
     tags.insert("cpu-only".to_string());
-    if cfg!(target_arch = "aarch64") && cfg!(target_os = "macos") {
-        tags.insert("apple-silicon".to_string());
-        // Every Apple Silicon Mac has a Metal-capable GPU. There is no
-        // lightweight Metal-probe library in this tree (candle_core's Metal
-        // support requires its heavy `metal` cargo feature, which
-        // vox-plugin-host must not depend on just to answer "is there a
-        // GPU"), so `metal` is derived from `apple-silicon` at compile time
-        // rather than probed at runtime. Revisit only as a deliberate,
-        // separate follow-up if a false positive is ever observed.
+    if cfg!(target_os = "macos") {
+        // Every Mac vox can run on (macOS 11+, 2012 hardware onward) has a
+        // Metal-capable GPU, Intel ones included. There is no lightweight
+        // Metal-probe library in this tree (candle_core's Metal support needs
+        // its heavy `metal` feature, which vox-plugin-host must not depend on
+        // just to answer "is there a GPU"), so `metal` is derived from the
+        // target OS rather than probed at runtime. The Metal plugin still
+        // falls back to CPU with a warning if device creation fails.
         tags.insert("metal".to_string());
+        if cfg!(target_arch = "aarch64") {
+            tags.insert("apple-silicon".to_string());
+        }
     }
     if cuda_driver_present() {
         tags.insert("nvidia-gpu".to_string());
@@ -122,5 +124,21 @@ mod tests {
         // so this platform must never report nvidia-gpu.
         #[cfg(target_os = "macos")]
         assert!(!caps.satisfies(Some("nvidia-gpu")));
+    }
+
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn every_mac_is_tagged_metal() {
+        let caps = probe();
+        assert!(
+            caps.satisfies(Some("metal")),
+            "all Macs since 2012 support Metal: {caps:?}"
+        );
+    }
+
+    #[test]
+    #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
+    fn intel_mac_is_not_tagged_apple_silicon() {
+        assert!(!probe().satisfies(Some("apple-silicon")));
     }
 }

@@ -646,7 +646,7 @@ planning).
 Replace `AGENTS.md:224-252` (the full `## Grammar Unification (Vox Source
 Syntax)` section) with:
 
-```markdown
+````markdown
 ## Grammar Unification (Vox Source Syntax)
 
 Vox source follows one rule for top-level declarations:
@@ -696,7 +696,7 @@ Contract: [ADR-019](docs/src/adr/019-durable-workflow-journal-contract-v1.md),
 [ADR-041](docs/src/adr/041-durable-functions-completion-2026.md). Drift
 between this section and `pipeline.rs` is checked by the
 [`docs-reality-audit-program`](docs/src/contributors/docs-reality-audit-program.md).
-```
+````
 
 - [ ] **Step 4: Run test to verify it passes**
 

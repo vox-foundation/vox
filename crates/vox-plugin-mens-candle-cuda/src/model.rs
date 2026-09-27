@@ -23,7 +23,7 @@
 //! `CandleModel` and avoid the current memory leak on plugin unload.
 
 use candle_core::{DType, Device, Result, Tensor};
-use candle_nn::{Module, RmsNorm};
+use candle_nn::RmsNorm;
 use qlora_rs::qlora::QuantizedLinear;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -159,17 +159,6 @@ impl Qwen2Attention {
         let v = v
             .reshape((b, seq_len, self.n_kv_heads, self.head_dim))?
             .transpose(1, 2)?;
-
-        let q = if let Some(q_norm) = &self.q_norm {
-            q_norm.forward(&q)?
-        } else {
-            q
-        };
-        let k = if let Some(k_norm) = &self.k_norm {
-            k_norm.forward(&k)?
-        } else {
-            k
-        };
 
         let (q, k) = if let Some(inv_freq) = inv_freq {
             self.apply_rotary_emb(&q, &k, inv_freq, pos)?
@@ -833,8 +822,6 @@ mod gradient_checkpoint_tests {
             n_heads,
             n_kv_heads: n_heads,
             head_dim,
-            q_norm: None,
-            k_norm: None,
         };
         let mlp = Qwen2MLP {
             gate_proj: qlin(vb.pp("g"), d * 2, d, dev),
@@ -1008,8 +995,6 @@ mod bf16_activation_tests {
             n_heads: 2,
             n_kv_heads: 2,
             head_dim: 4,
-            q_norm: None,
-            k_norm: None,
         }
     }
 
@@ -1171,5 +1156,112 @@ mod bf16_activation_tests {
             "lm_head building with F32 cast should succeed but failed: {:?}",
             lm_head.err()
         );
+    }
+
+    /// Q/K RMSNorm must be applied exactly once, before RoPE. A second
+    /// application is invisible with a uniform norm weight (RMSNorm of an
+    /// already-normalised vector times a constant is idempotent), so this uses
+    /// a non-uniform weight like real Qwen3 checkpoints have, and compares the
+    /// forward pass against a reference built from the attention's own
+    /// projections with a single `rms_norm_f32` per side.
+    #[test]
+    fn qk_norm_is_applied_exactly_once() {
+        let device = Device::Cpu;
+        let (d, n_heads, head_dim) = (8usize, 2usize, 4usize);
+        let mut cfg = QLoraConfig::preset_all_bf16(4, 8);
+        cfg.quantization.compute_dtype = ComputeDType::F32;
+        let w = Tensor::arange(0u32, (d * d) as u32, &device)
+            .unwrap()
+            .to_dtype(DType::F32)
+            .unwrap()
+            .reshape((d, d))
+            .unwrap()
+            .affine(0.01, 0.0)
+            .unwrap();
+        let mk = || QuantizedLinear::from_weight(&w, None, &cfg, &device).unwrap();
+        let norm_w = Tensor::new(&[2.0f32, 0.5, 3.0, 1.5], &device).unwrap();
+        let attn = Qwen2Attention {
+            q_proj: mk(),
+            k_proj: mk(),
+            v_proj: mk(),
+            o_proj: mk(),
+            q_bias: None,
+            k_bias: None,
+            v_bias: None,
+            n_heads,
+            n_kv_heads: n_heads,
+            head_dim,
+            q_norm: Some(RmsNorm::new(norm_w.clone(), 1e-6)),
+            k_norm: Some(RmsNorm::new(norm_w, 1e-6)),
+        };
+
+        let x = Tensor::randn(0f32, 1f32, (1, 3, d), &device).unwrap();
+        let actual = attn.forward(&x, 0, None, None).unwrap();
+
+        // Reference: same projections, one norm per side, no RoPE (inv_freq = None),
+        // n_heads == n_kv_heads so repeat_kv is the identity.
+        let (b, s, _) = x.dims3().unwrap();
+        let q = attn
+            .q_proj
+            .forward(&x)
+            .unwrap()
+            .reshape((b, s, n_heads, head_dim))
+            .unwrap();
+        let q = rms_norm_f32(attn.q_norm.as_ref().unwrap(), &q)
+            .unwrap()
+            .transpose(1, 2)
+            .unwrap();
+        let k = attn
+            .k_proj
+            .forward(&x)
+            .unwrap()
+            .reshape((b, s, n_heads, head_dim))
+            .unwrap();
+        let k = rms_norm_f32(attn.k_norm.as_ref().unwrap(), &k)
+            .unwrap()
+            .transpose(1, 2)
+            .unwrap();
+        let v = attn
+            .v_proj
+            .forward(&x)
+            .unwrap()
+            .reshape((b, s, n_heads, head_dim))
+            .unwrap()
+            .transpose(1, 2)
+            .unwrap();
+        let scale = 1.0 / (head_dim as f64).sqrt();
+        let att = (q
+            .contiguous()
+            .unwrap()
+            .matmul(&k.transpose(2, 3).unwrap().contiguous().unwrap())
+            .unwrap()
+            * scale)
+            .unwrap();
+        let att = att
+            .broadcast_add(&causal_mask(s, &device).unwrap())
+            .unwrap();
+        let att = candle_nn::ops::softmax(&att, candle_core::D::Minus1).unwrap();
+        let y = att
+            .matmul(&v.contiguous().unwrap())
+            .unwrap()
+            .transpose(1, 2)
+            .unwrap()
+            .contiguous()
+            .unwrap()
+            .reshape((b, s, n_heads * head_dim))
+            .unwrap();
+        let expected = attn.o_proj.forward(&y).unwrap();
+
+        let (a, e) = (
+            actual.flatten_all().unwrap().to_vec1::<f32>().unwrap(),
+            expected.flatten_all().unwrap().to_vec1::<f32>().unwrap(),
+        );
+        assert_eq!(a.len(), e.len());
+        for (i, (av, ev)) in a.iter().zip(e.iter()).enumerate() {
+            assert!(
+                (av - ev).abs() < 1e-4,
+                "element {i}: forward={av} reference={ev} — Q/K norm is not applied exactly once"
+            );
+        }
     }
 }

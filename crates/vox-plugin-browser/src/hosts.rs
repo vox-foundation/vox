@@ -388,7 +388,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "requires a running Chrome with remote debugging on 9222"]
+    #[ignore = "owner:browser sunset:never requires a running Chrome with remote debugging on 9222"]
     async fn attach_connect_smoke() {
         let engine = BrowserEngine::new();
         let id = engine
@@ -408,7 +408,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "slow; requires local Chrome/Chromium binary"]
+    #[ignore = "owner:browser sunset:never slow; requires local Chrome/Chromium binary"]
     async fn named_profile_isolates_cookies_from_ephemeral() {
         let profiles = std::env::temp_dir().join(format!(
             "vox-named-smoke-{}-{}",

@@ -162,6 +162,41 @@ if [ -z "${__VOX_OSC633:-}" ]; then
 fi
 "#;
 
+/// Run `cmd` as a single line via the platform's default shell, capturing
+/// stdout/stderr and exit code. Blocking — callers on a UI event loop should
+/// expect this to stall redraws for the command's duration.
+///
+/// ponytail: raw shell pass-through, no exec-policy AST enforcement. This
+/// mirrors `vox shell repl`'s documented non-goal ("no ... policy-enforced
+/// passthrough of arbitrary shell lines", `vox-cli/src/commands/runtime/shell/mod.rs`).
+/// Upgrade path: route through `vox shell check` (`contracts/terminal/exec-policy.v1.yaml`)
+/// before exec once vox-term needs to gate agent-issued or untrusted commands.
+pub fn run_shell_capture(cmd: &str) -> (i32, String, String) {
+    let shell = default_shell();
+    let base = shell
+        .rsplit(['/', '\\'])
+        .next()
+        .unwrap_or(&shell)
+        .to_ascii_lowercase();
+    let flag = if base.starts_with("pwsh") || base.starts_with("powershell") {
+        "-Command"
+    } else {
+        "-c"
+    };
+    match std::process::Command::new(&shell)
+        .arg(flag)
+        .arg(cmd)
+        .output()
+    {
+        Ok(out) => (
+            out.status.code().unwrap_or(-1),
+            String::from_utf8_lossy(&out.stdout).into_owned(),
+            String::from_utf8_lossy(&out.stderr).into_owned(),
+        ),
+        Err(e) => (-1, String::new(), e.to_string()),
+    }
+}
+
 // ── ShellBackend trait (forward-compat seam for Track 6 Nushell) ─────────────
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -308,5 +343,21 @@ mod tests {
     fn detect_ai_shell_is_nonempty() {
         // nu may or may not be installed; either way we get a nonempty string.
         assert!(!detect_ai_shell().is_empty());
+    }
+
+    #[test]
+    fn run_shell_capture_returns_stdout_and_zero_exit() {
+        let (code, stdout, _stderr) = run_shell_capture("echo hello-vox-term");
+        assert_eq!(code, 0);
+        assert!(
+            stdout.contains("hello-vox-term"),
+            "unexpected stdout: {stdout:?}"
+        );
+    }
+
+    #[test]
+    fn run_shell_capture_reports_nonzero_exit() {
+        let (code, _stdout, _stderr) = run_shell_capture("exit 3");
+        assert_eq!(code, 3);
     }
 }

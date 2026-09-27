@@ -5,6 +5,12 @@ use std::collections::HashSet;
 use std::path::Path;
 use vox_compiler::pipeline::FrontendResult;
 
+/// Minimum AST construct richness for a completion to clear the anti-stub gate
+/// (re-exported by `eval_local`, whose policy test pins it against the
+/// eval-policy contract). Module scope: `4fce136c4` declared it inside
+/// `verify_completion`, which `pub use` cannot reach.
+pub const ANTI_STUB_MIN_CONSTRUCT_RICHNESS: f64 = 0.125;
+
 static TOKEN_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r"[\w]+|[^\w\s]").expect("valid token regex"));
 
@@ -262,8 +268,6 @@ pub fn verify_completion(
             parse_error = Some(err.to_string());
         }
     }
-
-    pub const ANTI_STUB_MIN_CONSTRUCT_RICHNESS: f64 = 0.125;
 
     let pass_compile = non_empty && parse_ok && typecheck_ok;
     let placeholder_hits = placeholder_marker_hits(code);

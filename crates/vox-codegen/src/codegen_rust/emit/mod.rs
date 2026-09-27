@@ -3,6 +3,7 @@
 //! Split from the historical single `emit.rs` (OP-0204).
 
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 use crate::projection_bundle::project_bundle_from_hir;
 use vox_compiler::hir::HirModule;
@@ -61,14 +62,115 @@ fn module_needs_vox_search_docs(module: &HirModule) -> bool {
         || module.foralls.iter().any(|forall| scan(&forall.func))
 }
 
+/// True iff `module` needs `vox-orchestrator`: an `@ai(subagent(...))`
+/// fixture (local or distributed dispatch both call
+/// `vox_orchestrator::subagent_dispatch` / `a2a::bus` — see
+/// `ai_fixture/llm.rs::emit_subagent_body`) or an
+/// `@ai(search(corpus: "memory"))` fixture
+/// (`vox_orchestrator::memory::manager::MemoryManager` — see
+/// `emit_search_memory_body`). Other search corpora (`web`, `docs`) and
+/// prompt/model-pin fixtures don't touch `vox-orchestrator`.
+fn module_needs_vox_orchestrator(module: &HirModule) -> bool {
+    use vox_compiler::hir::nodes::boilerplate_grafts::HirAiFixture;
+    let scan = |f: &vox_compiler::hir::HirFn| {
+        matches!(&f.ai_fixture, Some(HirAiFixture::Subagent(_)))
+            || matches!(
+                &f.ai_fixture,
+                Some(HirAiFixture::Search(s)) if s.corpus.eq_ignore_ascii_case("memory")
+            )
+    };
+    module.functions.iter().any(scan)
+        || module.tests.iter().any(scan)
+        || module.mcp_tools.iter().any(|t| scan(&t.func))
+        || module.mcp_resources.iter().any(|r| scan(&r.func))
+        || module.foralls.iter().any(|forall| scan(&forall.func))
+}
+
+/// True iff `module` calls the `Speech.transcribe(...)` builtin anywhere —
+/// the only thing `vox-speech` is for (see
+/// `method_emit.rs::emit_method_call`).
+///
+/// Detected as a substring search over the JSON-serialized HIR rather than
+/// a bespoke recursive `HirExpr`/`HirStmt` walker: the walker would have to
+/// track every enum variant (including ones nested inside `if`/`match`
+/// arms), and a variant it forgets silently under-detects, which breaks the
+/// generated build by dropping a dependency real code still references. A
+/// stray substring false positive here just keeps the dep — always safe.
+/// Reuses the same `serde_json::to_string(module)` call already made by
+/// `emit_hir_embed_helper` for the embedded-HIR const, so this costs
+/// nothing extra at runtime that the durable boot prelude doesn't already
+/// pay.
+fn module_needs_vox_speech(module: &HirModule) -> bool {
+    let json = serde_json::to_string(module).unwrap_or_default();
+    json.contains("\"Speech\"") && json.contains("\"transcribe\"")
+}
+
+/// Absolute path to the vox workspace root this `vox` binary was compiled
+/// from, embedded at `vox-codegen`'s own build time (see `build.rs`).
+/// Reliable only when `vox` was built
+/// locally from a checkout; see `resolve_vox_repo_root`.
+const COMPILED_REPO_ROOT: &str = env!("VOX_COMPILER_REPO_ROOT");
+
+/// A path "looks like" a vox checkout iff it has a `crates/vox-db/Cargo.toml`
+/// — cheap, and every candidate root below is validated against it before
+/// use so a wrong guess falls through to the next tier instead of emitting
+/// an absolute path to nowhere.
+fn looks_like_vox_checkout(root: &Path) -> bool {
+    root.join("crates")
+        .join("vox-db")
+        .join("Cargo.toml")
+        .is_file()
+}
+
+/// Resolve where the vox runtime crates (`vox-db`, `vox-actor-runtime`, …)
+/// live on disk, so a generated `Cargo.toml`'s path dependencies work when
+/// the generated project is built outside a vox checkout. See
+/// `docs/src/architecture/generated-project-runtime-deps.md` for the full
+/// design (including why a git dependency isn't tier 3 yet).
+///
+/// 1. `VOX_REPO_ROOT` env var — explicit override.
+/// 2. The path this `vox` binary was itself compiled from.
+/// 3. `None` — caller falls back to the historical repo-relative path,
+///    which still works when generating inside a vox checkout.
+fn resolve_vox_repo_root() -> Option<PathBuf> {
+    if let Ok(root) = std::env::var("VOX_REPO_ROOT") {
+        let p = PathBuf::from(root);
+        if looks_like_vox_checkout(&p) {
+            return Some(p);
+        }
+    }
+    let embedded = PathBuf::from(COMPILED_REPO_ROOT);
+    if looks_like_vox_checkout(&embedded) {
+        return Some(embedded);
+    }
+    None
+}
+
+/// Render a `<crate_name> = { path = "...", ... }` dependency line for a
+/// vox-owned runtime crate. Uses an absolute path via `resolve_vox_repo_root`
+/// when possible; otherwise falls back to `<relative_prefix>/crates/<crate_name>`
+/// (the historical behavior, e.g. `"../.."` for the Axum shell's
+/// `Cargo.toml` or `"../../.."` for Tauri's `src-tauri/Cargo.toml`).
+/// `extra` is appended verbatim inside the braces (e.g.
+/// `", default-features = false"`), or `""` for a bare path dep.
+fn vox_crate_dep_line(crate_name: &str, relative_prefix: &str, extra: &str) -> String {
+    let path = match resolve_vox_repo_root() {
+        Some(root) => root.join("crates").join(crate_name).display().to_string(),
+        None => format!("{relative_prefix}/crates/{crate_name}"),
+    };
+    format!("{crate_name} = {{ path = \"{path}\"{extra} }}\n")
+}
+
 fn emit_generated_extra_deps(module: &HirModule) -> String {
     let mut out = String::new();
-    out.push_str("vox-telemetry = { path = \"../../crates/vox-telemetry\" }\n");
+    out.push_str(&vox_crate_dep_line("vox-telemetry", "../..", ""));
     if module_needs_vox_search_docs(module) {
-        out.push_str(
-            "vox-search = { path = \"../../crates/vox-search\", default-features = false }\n",
-        );
-        out.push_str("vox-repository = { path = \"../../crates/vox-repository\" }\n");
+        out.push_str(&vox_crate_dep_line(
+            "vox-search",
+            "../..",
+            ", default-features = false",
+        ));
+        out.push_str(&vox_crate_dep_line("vox-repository", "../..", ""));
     }
     out
 }
@@ -543,9 +645,23 @@ fn emit_cargo_toml_tauri_app(name: &str, module: &HirModule, needs_stt: bool) ->
     let fixture_deps =
         adjust_crate_paths_for_src_tauri_manifest(&emit_generated_extra_deps(module));
     let stt_dep = if needs_stt {
-        "vox-tauri-stt = { path = \"../../../crates/vox-tauri-stt\", features = [\"tauri-plugin\"] }\n"
+        vox_crate_dep_line(
+            "vox-tauri-stt",
+            "../../..",
+            ", features = [\"tauri-plugin\"]",
+        )
     } else {
-        ""
+        String::new()
+    };
+    let orchestrator_dep = if module_needs_vox_orchestrator(module) {
+        vox_crate_dep_line("vox-orchestrator", "../../..", "")
+    } else {
+        String::new()
+    };
+    let speech_dep = if module_needs_vox_speech(module) {
+        vox_crate_dep_line("vox-speech", "../../..", "")
+    } else {
+        String::new()
     };
     let features_section = if module_has_distributed_subagent(module) {
         "[features]\ndefault = [\"populi-transport\"]\npopuli-transport = [\"vox-orchestrator/populi-transport\"]\n\n"
@@ -586,19 +702,12 @@ tokio = {{ version = "1", features = ["full"] }}
 serde = {{ version = "1", features = ["derive"] }}
 serde_json = "1"
 reqwest = {{ version = "0.12", default-features = false, features = ["rustls-tls"] }}
-vox-http-client = {{ path = "../../../crates/vox-http-client" }}
-tracing = "0.1"
+{vox_http_client_dep}tracing = "0.1"
 tracing-subscriber = "0.3"
 turso = {{ version = "0.6", default-features = false, features = ["sync"] }}
-vox-db = {{ path = "../../../crates/vox-db" }}
-vox-actor-runtime = {{ path = "../../../crates/vox-actor-runtime" }}
-vox-orchestrator = {{ path = "../../../crates/vox-orchestrator" }}
-vox-speech = {{ path = "../../../crates/vox-speech" }}
-{stt_dep}# P9 (2026-05-24): durable boot prelude — see vox-codegen emit/main_boot.rs.
+{vox_db_dep}{vox_actor_runtime_dep}{orchestrator_dep}{speech_dep}{stt_dep}# P9 (2026-05-24): durable boot prelude — see vox-codegen emit/main_boot.rs.
 # Tauri main.rs now emits the prelude (inside .setup) when @scheduled fns are present.
-vox-compiler = {{ path = "../../../crates/vox-compiler" }}
-vox-workflow-runtime = {{ path = "../../../crates/vox-workflow-runtime", default-features = false }}
-{fixture_deps}{rust_import_deps}
+{vox_compiler_dep}{vox_workflow_runtime_dep}{fixture_deps}{rust_import_deps}
 
 [dev-dependencies]
 proptest = "1"
@@ -608,6 +717,18 @@ proptest = "1"
         fixture_deps = fixture_deps,
         rust_import_deps = rust_import_deps,
         stt_dep = stt_dep,
+        orchestrator_dep = orchestrator_dep,
+        speech_dep = speech_dep,
+        vox_http_client_dep = vox_crate_dep_line("vox-http-client", "../../..", ""),
+        vox_db_dep =
+            vox_crate_dep_line("vox-db", "../../..", ", features = [\"host-integration\"]"),
+        vox_actor_runtime_dep = vox_crate_dep_line("vox-actor-runtime", "../../..", ""),
+        vox_compiler_dep = vox_crate_dep_line("vox-compiler", "../../..", ""),
+        vox_workflow_runtime_dep = vox_crate_dep_line(
+            "vox-workflow-runtime",
+            "../../..",
+            ", default-features = false"
+        ),
         mcp_bin = mcp_bin,
         edition = crate::codegen_rust::GENERATED_CARGO_EDITION,
     )
@@ -654,6 +775,16 @@ fn emit_rust_import_dependencies(module: &HirModule) -> String {
 pub fn emit_cargo_toml(name: &str, module: &HirModule) -> String {
     let rust_import_deps = emit_rust_import_dependencies(module);
     let fixture_deps = emit_generated_extra_deps(module);
+    let orchestrator_dep = if module_needs_vox_orchestrator(module) {
+        vox_crate_dep_line("vox-orchestrator", "../..", "")
+    } else {
+        String::new()
+    };
+    let speech_dep = if module_needs_vox_speech(module) {
+        vox_crate_dep_line("vox-speech", "../..", "")
+    } else {
+        String::new()
+    };
     let features_section = if module_has_distributed_subagent(module) {
         "[features]\ndefault = [\"populi-transport\"]\npopuli-transport = [\"vox-orchestrator/populi-transport\"]\n\n"
     } else {
@@ -695,23 +826,27 @@ governor = "0.10"
 rust-embed = "8"
 mime_guess = "2"
 reqwest = {{ version = "0.12", default-features = false, features = ["rustls-tls"] }}
-vox-http-client = {{ path = "../../crates/vox-http-client" }}
-tracing = "0.1"
+{vox_http_client_dep}tracing = "0.1"
 tracing-subscriber = "0.3"
 turso = {{ version = "0.6", default-features = false, features = ["sync"] }}
-vox-db = {{ path = "../../crates/vox-db" }}
-vox-actor-runtime = {{ path = "../../crates/vox-actor-runtime" }}
-vox-orchestrator = {{ path = "../../crates/vox-orchestrator" }}
-vox-speech = {{ path = "../../crates/vox-speech" }}
-# P9 (2026-05-24): durable boot prelude in main.rs references both — see
+{vox_db_dep}{vox_actor_runtime_dep}{orchestrator_dep}{speech_dep}# P9 (2026-05-24): durable boot prelude in main.rs references both — see
 # crates/vox-codegen/src/codegen_rust/emit/main_boot.rs (HirModule embed
 # + scheduled runner + set_current_hir_module).
-vox-compiler = {{ path = "../../crates/vox-compiler" }}
-vox-workflow-runtime = {{ path = "../../crates/vox-workflow-runtime", default-features = false }}
-{fixture_deps}{rust_import_deps}{mcp_bin}"#,
+{vox_compiler_dep}{vox_workflow_runtime_dep}{fixture_deps}{rust_import_deps}{mcp_bin}"#,
         features_section = features_section,
         fixture_deps = fixture_deps,
         rust_import_deps = rust_import_deps,
+        orchestrator_dep = orchestrator_dep,
+        speech_dep = speech_dep,
+        vox_http_client_dep = vox_crate_dep_line("vox-http-client", "../..", ""),
+        vox_db_dep = vox_crate_dep_line("vox-db", "../..", ", features = [\"host-integration\"]"),
+        vox_actor_runtime_dep = vox_crate_dep_line("vox-actor-runtime", "../..", ""),
+        vox_compiler_dep = vox_crate_dep_line("vox-compiler", "../..", ""),
+        vox_workflow_runtime_dep = vox_crate_dep_line(
+            "vox-workflow-runtime",
+            "../..",
+            ", default-features = false"
+        ),
         mcp_bin = mcp_bin,
         edition = crate::codegen_rust::GENERATED_CARGO_EDITION,
     )

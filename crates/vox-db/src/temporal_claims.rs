@@ -124,4 +124,15 @@ mod tests {
         // Unparseable target version
         assert!(is_claim_valid_at_version(None, None, None, "nonsense").is_err());
     }
+
+    #[test]
+    fn claim_validity_is_half_open_interval() {
+        let at = |v| is_claim_valid_at_version(Some("1.2"), Some("v2"), None, v).unwrap();
+        assert!(!at("1.1.9"));
+        assert!(at("1.2.0"));
+        assert!(at("1.9.9"));
+        assert!(!at("2.0.0"));
+        assert!(is_claim_valid_at_version(Some("not-a-version"), None, None, "0.1.0").unwrap());
+        assert_eq!(normalize_semver("= v1.0"), normalize_semver("1.0.0"));
+    }
 }

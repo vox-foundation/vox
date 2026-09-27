@@ -5,11 +5,7 @@
  */
 import { test, expect } from '@playwright/test';
 import { SURFACE_REGISTRY } from '../src/generated/surfaceRegistry.generated';
-import {
-  DEFAULT_CHILD_BY_PARENT,
-  TOP_LEVEL_VIEWS,
-  tabLabelFor,
-} from '../src/lib/navigation';
+import { DEFAULT_CHILD_BY_PARENT, TOP_LEVEL_VIEWS } from '../src/lib/navigation';
 import { sidebarParentLabel } from '../src/lib/lexicon';
 import { installTauriMock } from './lib/tauriMock';
 import { addMockInitScript } from './lib/tauriMockShared';
@@ -22,12 +18,13 @@ const LEAF_VIEWS: string[] = Array.from(
 
 const SIDEBAR_PARENTS = TOP_LEVEL_VIEWS.filter((k) => k !== 'settings');
 
-async function expectActiveWorkbenchTab(page: import('@playwright/test').Page, viewKey: string) {
-  const tabBar = page.getByTestId('workbench-tab-bar');
-  await expect(tabBar).toBeVisible();
-  const tab = tabBar.getByTestId(`workbench-tab-${viewKey}`);
-  await expect(tab).toBeVisible();
-  await expect(tab).toHaveAttribute('aria-selected', 'true');
+/**
+ * The workbench tab bar was removed in #460 (sidebar + breadcrumb nav shell);
+ * AppShell's <main data-testid="active-surface" data-view=…> is now the
+ * observable record of which surface is mounted.
+ */
+async function expectActiveSurface(page: import('@playwright/test').Page, viewKey: string) {
+  await expect(page.getByTestId('active-surface')).toHaveAttribute('data-view', viewKey);
 }
 
 test.describe('Workbench tabs — hash navigation', () => {
@@ -36,7 +33,7 @@ test.describe('Workbench tabs — hash navigation', () => {
       await addMockInitScript(page, installTauriMock, viewKey);
       await page.goto(`/#view=${encodeURIComponent(viewKey)}`);
       await page.waitForSelector('nav', { timeout: 15_000 });
-      await expectActiveWorkbenchTab(page, viewKey);
+      await expectActiveSurface(page, viewKey);
       await expect(page.locator('[data-surface-error]')).toHaveCount(0);
       await expect
         .poll(async () => page.evaluate(() => window.location.hash))
@@ -63,7 +60,7 @@ test.describe('Workbench tabs — sidebar parents', () => {
       await expect
         .poll(async () => page.evaluate(() => window.location.hash))
         .toContain(`view=${encodeURIComponent(defaultChild)}`);
-      await expectActiveWorkbenchTab(page, defaultChild);
+      await expectActiveSurface(page, defaultChild);
       await expect(page.locator('[data-surface-error]')).toHaveCount(0);
     });
   }
@@ -74,7 +71,7 @@ test.describe('Workbench tabs — sidebar parents', () => {
     await page.waitForSelector('aside nav', { timeout: 15_000 });
     await page.locator('aside').first().getByRole('button', { name: /^Settings/ }).scrollIntoViewIfNeeded();
     await page.locator('aside').first().getByRole('button', { name: /^Settings/ }).click();
-    await expectActiveWorkbenchTab(page, 'settings');
+    await expectActiveSurface(page, 'settings');
   });
 
   test('footer Coverage opens coverage tab', async ({ page }) => {
@@ -83,47 +80,14 @@ test.describe('Workbench tabs — sidebar parents', () => {
     await page.waitForSelector('aside nav', { timeout: 15_000 });
     await page.locator('aside').first().getByRole('button', { name: /^Coverage/ }).scrollIntoViewIfNeeded();
     await page.locator('aside').first().getByRole('button', { name: /^Coverage/ }).click();
-    await expectActiveWorkbenchTab(page, 'coverage');
+    await expectActiveSurface(page, 'coverage');
   });
 });
 
-test.describe('Workbench tabs — tab bar interactions', () => {
-  test('switching tabs updates hash and aria-selected', async ({ page }) => {
-    await addMockInitScript(page, installTauriMock, 'dashboard');
-    await page.goto('/');
-    await page.waitForSelector('nav', { timeout: 15_000 });
-
-    const tabBar = page.getByTestId('workbench-tab-bar');
-    await tabBar.getByRole('tab', { name: tabLabelFor('chat') }).click();
-    await expectActiveWorkbenchTab(page, 'chat');
-    await expect.poll(async () => page.evaluate(() => window.location.hash)).toContain('view=chat');
-
-    await tabBar.getByRole('tab', { name: tabLabelFor('dashboard') }).click();
-    await expectActiveWorkbenchTab(page, 'dashboard');
-  });
-
-  test('closing a non-pinned tab removes it from the tab bar', async ({ page }) => {
-    await addMockInitScript(page, installTauriMock, 'console');
-    await page.goto('/#view=console');
-    await page.waitForSelector('nav', { timeout: 15_000 });
-
-    const tabBar = page.getByTestId('workbench-tab-bar');
-    await expect(tabBar.getByTestId('workbench-tab-console')).toBeVisible();
-    await tabBar.getByTestId('workbench-tab-close-console').click();
-    await expect(tabBar.getByTestId('workbench-tab-console')).toHaveCount(0);
-  });
-
-  test('chat tab is pinned and has no close button', async ({ page }) => {
-    await addMockInitScript(page, installTauriMock, 'dashboard');
-    await page.goto('/');
-    await page.waitForSelector('nav', { timeout: 15_000 });
-
-    const tabBar = page.getByTestId('workbench-tab-bar');
-    await expect(tabBar.getByTestId('workbench-tab-chat')).toBeVisible();
-    await expect(tabBar.getByTestId('workbench-tab-close-chat')).toHaveCount(0);
-  });
-
-  test('help omnibar search opens doc reader tab', async ({ page }) => {
+// The former "tab bar interactions" tests (switch/close/pinned-chat tabs) were
+// removed with the tab bar itself in #460; sidebar navigation is covered above.
+test.describe('Workbench tabs — omnibar', () => {
+  test('help omnibar search opens the doc viewer', async ({ page }) => {
     await addMockInitScript(page, installTauriMock, 'dashboard');
     await page.goto('/');
     await page.waitForSelector('nav', { timeout: 15_000 });
@@ -135,18 +99,10 @@ test.describe('Workbench tabs — tab bar interactions', () => {
     await expect(page.getByRole('button', { name: /CLI Reference/i })).toBeVisible({ timeout: 15_000 });
     await page.getByRole('button', { name: /CLI Reference/i }).click();
 
-    await expect(page.getByTestId('doc-reader')).toBeVisible();
-    await expect(
-      tabBarDocTab(page, 'docs/src/reference/cli.md'),
-    ).toHaveAttribute('aria-selected', 'true');
+    // Docs open in DocViewerDrawer (a dialog) rather than a workbench tab since #460.
+    await expect(page.getByRole('dialog').getByTestId('doc-reader')).toBeVisible();
   });
 });
-
-/** Doc tabs use ids like `doc:docs/src/reference/cli.md`. */
-function tabBarDocTab(page: import('@playwright/test').Page, docPath: string) {
-  const id = `doc:${docPath.replace(/\\/g, '/')}`;
-  return page.getByTestId('workbench-tab-bar').getByTestId(`workbench-tab-${id}`);
-}
 
 /** Surfaces with stable smoke testids for canary depth beyond tab selection. */
 const SURFACE_SMOKE: Record<string, string> = {
@@ -160,7 +116,7 @@ test.describe('Workbench tabs — surface smoke', () => {
       await addMockInitScript(page, installTauriMock, viewKey);
       await page.goto(`/#view=${encodeURIComponent(viewKey)}`);
       await page.waitForSelector('nav', { timeout: 15_000 });
-      await expectActiveWorkbenchTab(page, viewKey);
+      await expectActiveSurface(page, viewKey);
       await expect(page.getByTestId(testId)).toBeVisible();
     });
   }

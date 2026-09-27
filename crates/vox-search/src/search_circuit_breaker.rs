@@ -115,4 +115,11 @@ mod tests {
         assert_eq!(r.cooldown_remaining(SearchProviderId::Tavily), None);
         assert!(r.is_available(SearchProviderId::Tavily));
     }
+
+    #[test]
+    fn default_breaker_is_closed() {
+        let b = ProviderCircuitBreaker::default();
+        assert_eq!(b.consecutive_failures, 0);
+        assert!(b.cooldown_until.is_none());
+    }
 }

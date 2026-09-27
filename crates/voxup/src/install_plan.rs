@@ -58,7 +58,7 @@ mod tests {
     fn default_ships_vox() {
         let p = parse(PROFILES_YAML).unwrap();
         let bins = binaries_for_tier(&p, "default").unwrap();
-        assert_eq!(bins, &["vox".to_string()]);
+        assert_eq!(bins, &["vox".to_string(), "vox-lsp".to_string()]);
     }
 
     #[test]
@@ -67,6 +67,7 @@ mod tests {
         let bins = binaries_for_tier(&p, "full").unwrap();
         assert!(bins.iter().any(|b| b == "vox-ml-cli"), "got {bins:?}");
         assert!(bins.iter().any(|b| b == "vox"), "got {bins:?}");
+        assert!(bins.iter().any(|b| b == "vox-lsp"), "got {bins:?}");
         assert!(bins.iter().any(|b| b == "voxup"), "got {bins:?}");
     }
 

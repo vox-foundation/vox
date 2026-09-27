@@ -90,7 +90,7 @@ where
                 .unwrap_or_else(|| "serde_json::json!({})".to_string());
             if fallible {
                 format!(
-                    "{{ let item: {table_name} = serde_json::from_value({val}).map_err(|e| vox_db::StoreError::Serialization(format!(\"{{}}\", e)))?; {table_name}::insert({db}, &item).await?; }}"
+                    "{{ let item: {table_name} = serde_json::from_value({val}).map_err(|e| vox_db::StoreError::Serialization(format!(\"{{}}\", e)))?; {table_name}::insert({db}, &item).await? }}"
                 )
             } else {
                 format!(
@@ -777,6 +777,33 @@ fn insert_result_already_unwrapped(
     })
 }
 
+fn db_table_op_for_method(method: &str) -> Option<HirDbTableOp> {
+    Some(match method {
+        "insert" => HirDbTableOp::Insert,
+        "get" | "find" => HirDbTableOp::Get,
+        "update" => HirDbTableOp::Update,
+        "delete" => HirDbTableOp::Delete,
+        "all" => HirDbTableOp::All,
+        "count" => HirDbTableOp::Count,
+        "query" => HirDbTableOp::UnsafeQueryRawClause,
+        _ => return None,
+    })
+}
+
+/// True for `db.Table.op(...)`. Codegen already peels the op's `Result`
+/// (inner `.await?` when fallible, `.expect` otherwise), so a Vox `?` on it
+/// must not add a second propagation.
+pub(super) fn is_db_table_op_call(expr: &HirExpr) -> bool {
+    let HirExpr::MethodCall(obj, method, _, plan, _) = expr else {
+        return false;
+    };
+    let HirExpr::FieldAccess(inner, _, _) = obj.as_ref() else {
+        return false;
+    };
+    matches!(inner.as_ref(), HirExpr::Ident(n, _) if n == "db")
+        && (plan.is_some() || db_table_op_for_method(method).is_some())
+}
+
 /// Try to emit a `db.Table.method(...)` call. When HIR attached a query plan
 /// (e.g. `filter({ col: val })` → `FilterRecord`), use `plan.op` so we do not
 /// fall through to list `.filter` lowerings on `db.User`.
@@ -800,19 +827,9 @@ where
     if n != "db" {
         return None;
     }
-    let op = if let Some(p) = plan {
-        p.op
-    } else {
-        match method {
-            "insert" => HirDbTableOp::Insert,
-            "get" | "find" => HirDbTableOp::Get,
-            "update" => HirDbTableOp::Update,
-            "delete" => HirDbTableOp::Delete,
-            "all" => HirDbTableOp::All,
-            "count" => HirDbTableOp::Count,
-            "query" => HirDbTableOp::UnsafeQueryRawClause,
-            _ => return None,
-        }
+    let op = match plan {
+        Some(p) => p.op,
+        None => db_table_op_for_method(method)?,
     };
     Some(emit_db_table_op(
         emit_expr,
@@ -1221,7 +1238,7 @@ fn try_emit_str_method(method: &str, o: &str, arg_exprs: &[String]) -> Option<St
 mod tests {
     use super::{
         HashMap, HirExpr, HirType, Span, SqlDialect, dialect_for_backend_kind, dialect_from_urls,
-        emit_method_call, obj_is_record,
+        emit_method_call, is_db_table_op_call, obj_is_record,
     };
     use vox_sql::BackendKind;
 
@@ -1398,5 +1415,21 @@ mod tests {
             dialect_from_urls(Some("nope"), Some("also-nope")).placeholder_style,
             SqlDialect::sqlite().placeholder_style
         );
+    }
+
+    #[test]
+    fn is_db_table_op_call_only_matches_db_table_ops() {
+        let sp = Span::new(0, 1);
+        let call = |obj: HirExpr, method: &str| {
+            HirExpr::MethodCall(Box::new(obj), method.to_string(), vec![], None, sp)
+        };
+        let db_note = || HirExpr::FieldAccess(Box::new(ident("db", sp)), "Note".into(), sp);
+        for op in ["insert", "get", "update", "delete", "all", "count"] {
+            assert!(is_db_table_op_call(&call(db_note(), op)), "db.Note.{op}");
+        }
+        assert!(!is_db_table_op_call(&call(db_note(), "frobnicate")));
+        let other_note = HirExpr::FieldAccess(Box::new(ident("store", sp)), "Note".into(), sp);
+        assert!(!is_db_table_op_call(&call(other_note, "insert")));
+        assert!(!is_db_table_op_call(&call(ident("items", sp), "insert")));
     }
 }

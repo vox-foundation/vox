@@ -73,7 +73,7 @@ pub async fn run(args: ChatArgs) -> Result<()> {
         Err(e) => {
             if is_local && is_connection_error(&e) {
                 bail!(
-                    "Error: Local inference server is not running on {}. Start it with 'vox ai serve --model-dir <checkpoint>' or specify a cloud model.",
+                    "Error: Local inference server is not running on {}. Start it with 'vox mens serve' or specify a cloud model.",
                     base_url.trim_end_matches('/')
                 );
             }

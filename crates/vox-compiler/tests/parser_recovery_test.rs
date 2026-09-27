@@ -39,3 +39,15 @@ fn nested_unclosed_errors_without_panic() {
     let r = parse(tokens);
     assert!(r.is_err(), "expected failure for unclosed block");
 }
+
+/// Real bug found via `vox mens corpus rft`: an LLM completion truncated
+/// mid `type` body (EOF inside an open `{`) was reported as a clean parse
+/// with zero errors, letting truncated code masquerade as verified,
+/// compile-clean training data.
+#[test]
+fn type_struct_body_truncated_at_eof_is_a_parse_error() {
+    let src = "type Payload {\n    items: List[Item]\n";
+    let tokens = lex(src);
+    let err = parse(tokens).expect_err("EOF inside an open struct body must be a parse error");
+    assert!(!err.is_empty(), "expected at least one error");
+}

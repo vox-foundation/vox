@@ -1654,7 +1654,7 @@ tools:
   http_read_role_eligible: false
   tier: core
 - name: vox_visual_rag_query
-  description: Dispatches a multi-modal visual RAG query to the configured intelligence backend.
+  description: 'NOT IMPLEMENTED: multimodal RAG is planned but not wired up; this tool always returns an error. Use vox_search or memory retrieval tools instead.'
   product_lane: ai
   http_read_role_eligible: false
   tier: core

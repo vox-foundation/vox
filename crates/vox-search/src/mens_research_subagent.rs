@@ -383,4 +383,20 @@ mod tests {
         assert!(prompt.contains("some evidence text"));
         assert!(prompt.contains("evidence_snippet"));
     }
+    #[test]
+    fn parse_envelope_accepts_fenced_object_and_bare_array() {
+        let fenced = "Here:\n```json\n{\"claims\":[{\"subject\":\"a\",\"predicate\":\"b\",\"object\":\"c\"}]}\n```";
+        assert_eq!(parse_envelope(fenced).map(|v| v.len()), Some(1));
+        let array = "[{\"subject\":\"a\",\"predicate\":\"b\",\"object\":\"c\"}] trailing";
+        assert_eq!(parse_envelope(array).map(|v| v.len()), Some(1));
+        assert!(parse_envelope("no json here").is_none());
+    }
+
+    #[test]
+    fn normalize_for_matching_folds_dashes_and_quotes() {
+        assert_eq!(
+            normalize_for_matching("a—b “c”"),
+            normalize_for_matching("a-b \"c\"")
+        );
+    }
 }

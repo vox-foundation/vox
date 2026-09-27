@@ -15,6 +15,7 @@ audit/code
 audit/core
 audit/effort
 audit/effort-route
+audit/research-parity
 audit/retirement
 auth
 auth/connect
@@ -58,10 +59,8 @@ ci/capability-snapshot
 ci/capability-sync
 ci/check-codex-ssot
 ci/check-docs-ssot
-ci/check-frozen
 ci/check-links
 ci/check-summary-drift
-ci/collateral-damage-gate
 ci/command-compliance
 ci/command-sync
 ci/commit-lint
@@ -72,7 +71,6 @@ ci/completion-ingest
 ci/config-gui-codegen
 ci/config-hygiene
 ci/config-registry-parity
-ci/constrained-gen-smoke
 ci/contracts-index
 ci/coolify-eval
 ci/coolify-eval/discover
@@ -113,7 +111,6 @@ ci/generate-plugin-catalog-docs
 ci/grammar-drift
 ci/grammar-export-check
 ci/grammar-ssot-parity
-ci/grpo-reward-baseline
 ci/gui-catalog-parity
 ci/gui-honesty
 ci/gui-smoke
@@ -131,7 +128,6 @@ ci/kill-stuck-tests
 ci/line-endings
 ci/manifest
 ci/mcp-vox-surface-parity
-ci/mens-corpus-health
 ci/mens-scorecard
 ci/mens-scorecard/burn-rnd
 ci/mens-scorecard/decide
@@ -165,7 +161,6 @@ ci/policy-smoke
 ci/pre-push
 ci/profile-parity
 ci/query-all-guard
-ci/queue
 ci/release-build
 ci/release-draft-guard
 ci/repo-guards
@@ -173,10 +168,6 @@ ci/required-context-guard
 ci/retired-symbol-check
 ci/retirement-audit
 ci/row-serde-lint
-ci/runner-policy-check
-ci/runner-preflight
-ci/runner-scale
-ci/runner-status
 ci/runtime-regress
 ci/rust-ecosystem-policy
 ci/safety-inventory
@@ -198,6 +189,7 @@ ci/spoke-check
 ci/sql-surface-guard
 ci/ssot-audit
 ci/ssot-drift
+ci/status
 ci/string-id-lint
 ci/sync-ignore-files
 ci/test-inventory
@@ -463,6 +455,7 @@ research/history
 research/preview
 research/result
 research/run
+research/search
 research/show
 research/status
 research/up

@@ -11,6 +11,211 @@ use crate::commands::populi_lifecycle::{
 use anyhow::Context;
 use clap::{Subcommand, ValueEnum};
 
+/// Bearer-token handling for the mesh control plane.
+///
+/// The token itself must never land in `~/.vox/config.toml` (plaintext on disk)
+/// or on stdout (plaintext in scrollback/logs) — see AGENTS.md's Secret
+/// Management policy. It is generated here, then stored via
+/// `vox_secrets::store_secret(SecretId::VoxMeshToken, ..)` (the Clavis vault),
+/// and only a non-secret fingerprint is ever shown to the operator.
+mod mesh_token {
+    /// Generate a fresh 192-bit mesh bearer token (48 hex chars).
+    pub(crate) fn generate() -> String {
+        let raw =
+            uuid::Uuid::new_v4().simple().to_string() + &uuid::Uuid::new_v4().simple().to_string();
+        raw[..48].to_string()
+    }
+
+    /// Non-secret diagnostic fingerprint for a mesh token: the first 8 bytes of
+    /// `secure_hash(b"vox-mesh-token-fp:" + token)` as hex. Not reversible to
+    /// the plaintext token, and safe to print or log.
+    pub(crate) fn fingerprint(token: &str) -> String {
+        let mut data = b"vox-mesh-token-fp:".to_vec();
+        data.extend_from_slice(token.as_bytes());
+        let hash = vox_crypto::secure_hash(&data);
+        hash.iter().take(8).map(|b| format!("{b:02x}")).collect()
+    }
+
+    /// What to do about the mesh token, given what secrets-resolution found and
+    /// what (if anything) the legacy `~/.vox/config.toml` `mesh.token` key holds.
+    /// Pure decision logic, kept separate from the I/O that gathers its inputs
+    /// and the I/O it triggers, so it can be unit-tested directly.
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub(crate) enum Plan {
+        /// A token already resolves via secrets (env var or vault). Use it as-is.
+        UseResolved(String),
+        /// No secrets-resolved token, but a legacy plaintext token sits in
+        /// config.toml. Migrate it into the vault and remove it from the file.
+        MigrateLegacy(String),
+        /// Nothing exists anywhere. Generate a new token and persist it to the
+        /// vault (subject to operator confirmation).
+        GenerateNew,
+    }
+
+    pub(crate) fn plan(
+        resolved_from_secrets: Option<String>,
+        legacy_config_value: Option<String>,
+    ) -> Plan {
+        match resolved_from_secrets {
+            Some(t) => Plan::UseResolved(t),
+            None => match legacy_config_value {
+                Some(t) => Plan::MigrateLegacy(t),
+                None => Plan::GenerateNew,
+            },
+        }
+    }
+
+    /// Whether to go ahead and persist a freshly generated token without an
+    /// interactive prompt: either the operator passed `--yes`, or stdin isn't a
+    /// TTY (headless/CI/systemd — there's nobody to ask, so proceed and say so
+    /// rather than hang).
+    pub(crate) fn auto_confirm(yes_flag: bool, stdin_is_tty: bool) -> bool {
+        yes_flag || !stdin_is_tty
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn generate_produces_48_hex_chars() {
+            let t = generate();
+            assert_eq!(t.len(), 48);
+            assert!(t.chars().all(|c| c.is_ascii_hexdigit()), "not hex: {t}");
+        }
+
+        #[test]
+        fn generate_is_not_constant() {
+            assert_ne!(generate(), generate());
+        }
+
+        #[test]
+        fn fingerprint_is_stable_for_same_input() {
+            assert_eq!(fingerprint("abc"), fingerprint("abc"));
+        }
+
+        #[test]
+        fn fingerprint_differs_for_different_tokens() {
+            assert_ne!(fingerprint("abc"), fingerprint("xyz"));
+        }
+
+        #[test]
+        fn fingerprint_does_not_leak_the_token() {
+            let token = "supersecrettoken1234567890abcdef01234567";
+            let fp = fingerprint(token);
+            assert!(!fp.contains(token));
+            assert_eq!(fp.len(), 16, "8 bytes as hex");
+        }
+
+        #[test]
+        fn plan_prefers_resolved_secret_over_legacy_and_generation() {
+            assert_eq!(
+                plan(
+                    Some("from-vault".to_string()),
+                    Some("from-file".to_string())
+                ),
+                Plan::UseResolved("from-vault".to_string())
+            );
+            assert_eq!(
+                plan(Some("from-vault".to_string()), None),
+                Plan::UseResolved("from-vault".to_string())
+            );
+        }
+
+        #[test]
+        fn plan_migrates_legacy_when_no_resolved_secret() {
+            assert_eq!(
+                plan(None, Some("from-file".to_string())),
+                Plan::MigrateLegacy("from-file".to_string())
+            );
+        }
+
+        #[test]
+        fn plan_generates_when_nothing_exists() {
+            assert_eq!(plan(None, None), Plan::GenerateNew);
+        }
+
+        #[test]
+        fn auto_confirm_true_when_yes_flag_set() {
+            assert!(auto_confirm(true, true));
+            assert!(auto_confirm(true, false));
+        }
+
+        #[test]
+        fn auto_confirm_true_when_headless() {
+            assert!(auto_confirm(false, false));
+        }
+
+        #[test]
+        fn auto_confirm_false_when_interactive_and_not_yes() {
+            assert!(!auto_confirm(false, true));
+        }
+
+        /// End-to-end: a freshly generated mesh token round-trips through the real
+        /// Clavis vault (`vox_secrets::store_secret` / `resolve_secret`), the same
+        /// path `vox populi serve` and `vox populi pair` use. Hermetic: isolates the
+        /// vault DB to a temp dir and pins a throwaway account, mirroring the
+        /// pattern in `vox-secrets/src/tests.rs::store_secret_round_trips_*`.
+        #[test]
+        #[allow(unsafe_code)]
+        fn generated_token_round_trips_through_the_vault() {
+            // `store_secret`/`resolve_secret` are sync fns, but internally require an
+            // active Tokio runtime handle (`run_secrets_future` uses `block_in_place`,
+            // which needs a multi-threaded runtime). `enter()` supplies that handle
+            // for this scope without needing an async test fn.
+            let rt = tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .build()
+                .expect("build a throwaway multi-threaded runtime for the vault call");
+            let _rt_guard = rt.enter();
+
+            static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+            let _g = ENV_LOCK.lock().expect("env lock");
+
+            let tmp_dir = tempfile::tempdir().expect("tempdir");
+            let db_path = tmp_dir.path().join("mesh_token_vault.db");
+
+            unsafe {
+                std::env::set_var("VOX_SECRETS_VAULT_PATH", &db_path);
+                std::env::set_var("VOX_ACCOUNT_ID", "populi-mesh-token-test-account");
+                std::env::set_var("VOX_SECRETS_CUTOVER_PHASE", "decommission");
+            }
+
+            let token = generate();
+            let stored =
+                vox_secrets::store_secret(vox_secrets::SecretId::VoxMeshToken, &token, None);
+
+            match stored {
+                Ok(()) => {
+                    let resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshToken)
+                        .expose()
+                        .map(|s| s.to_string());
+                    assert_eq!(resolved, Some(token));
+                }
+                // Keyring/vault unavailable in this sandbox (no OS keyring) — skip
+                // cleanly only for that documented case; anything else is a real
+                // regression and must fail.
+                Err(e) => {
+                    let msg = e.to_string().to_lowercase();
+                    let sandbox_unavailable = ["vault", "keyring", "invalid filename"]
+                        .iter()
+                        .any(|s| msg.contains(s));
+                    assert!(
+                        sandbox_unavailable,
+                        "unexpected store_secret error (not a sandbox-unavailable case): {e}"
+                    );
+                }
+            }
+
+            unsafe {
+                std::env::remove_var("VOX_SECRETS_VAULT_PATH");
+                std::env::remove_var("VOX_ACCOUNT_ID");
+                std::env::remove_var("VOX_SECRETS_CUTOVER_PHASE");
+            }
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, ValueEnum)]
 pub enum PopuliAdminSwitch {
     On,
@@ -125,7 +330,10 @@ pub enum PopuliCli {
     /// Run the HTTP populi control plane (`GET /v1/populi/nodes`, `POST` join/heartbeat).
     Serve {
         /// Explicitly opt-in to running a mesh control plane (required).
-        /// On first run, a bearer token is auto-generated and saved to `~/.vox/config.toml`.
+        /// On first run, a bearer token is auto-generated and stored in the
+        /// Clavis vault; any local `vox populi`/orchestrator process resolves
+        /// it automatically (`vox secrets get VOX_MESH_TOKEN` confirms it's
+        /// set, redacted — it does not print the plaintext).
         #[arg(long, default_value_t = false)]
         enable: bool,
         /// Listen address (e.g. `127.0.0.1:9847` or `0.0.0.0:9847`).
@@ -143,6 +351,11 @@ pub enum PopuliCli {
         /// and returns the long-lived mesh token to the caller.
         #[arg(long)]
         bootstrap_token: Option<String>,
+        /// Skip the interactive confirmation before storing a freshly generated
+        /// mesh token in the Clavis vault (for headless/CI use; a non-TTY stdin
+        /// already skips the prompt automatically).
+        #[arg(long, short = 'y', default_value_t = false)]
+        yes: bool,
     },
     /// Inspect or validate the resolved mesh configuration.
     Config {
@@ -647,19 +860,22 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                 .await
                 .map_err(|e| anyhow::anyhow!("bootstrap exchange failed: {}", e))?;
 
-            const MESH_TOKEN_KEY: &str = "mesh.token";
             const MESH_SCOPE_KEY: &str = "mesh.scope_id";
 
-            if let Err(e) =
-                vox_config::toml_config::set_user_config_value(MESH_TOKEN_KEY, &resp.mesh_token)
-            {
-                anyhow::bail!("failed to save mesh token: {}", e);
-            }
-            println!("vox populi pair: mesh token saved to ~/.vox/config.toml");
+            vox_secrets::store_secret(vox_secrets::SecretId::VoxMeshToken, &resp.mesh_token, None)
+                .context("failed to store the paired mesh token in the Clavis vault")?;
             println!(
-                "  Set VOX_MESH_TOKEN={} in your environment to use it now.",
-                resp.mesh_token
+                "vox populi pair: mesh token stored in the Clavis vault (fingerprint {}).",
+                mesh_token::fingerprint(&resp.mesh_token)
             );
+            println!(
+                "  Any local `vox populi`/orchestrator process resolves it automatically \
+                 (`vox secrets get VOX_MESH_TOKEN` confirms it's set, redacted)."
+            );
+            #[allow(unsafe_code)]
+            unsafe {
+                std::env::set_var("VOX_MESH_TOKEN", &resp.mesh_token);
+            }
 
             if let Some(scope) = &resp.scope_id {
                 if !scope.is_empty() {
@@ -846,45 +1062,92 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
             registry,
             bootstrap_peers,
             bootstrap_token,
+            yes,
         } => {
             if !enable {
                 anyhow::bail!(
                     "Pass `--enable` to start the mesh control plane.\n\
-                     On first run a bearer token is auto-generated and saved to ~/.vox/config.toml.\n\
+                     On first run a bearer token is auto-generated and stored in the Clavis vault.\n\
                      See `vox populi config show` to view the resolved configuration.\n\
                      See docs/src/how-to/populi-quickstart.md for a step-by-step guide."
                 );
             }
 
-            // Token resolution: secrets → config (`mesh.token`) → auto-generate (then inject env).
+            // Token resolution: secrets (env/vault) → legacy config.toml `mesh.token`
+            // (migrated into the vault, then removed from the file) → freshly
+            // generated (stored in the vault, subject to confirmation). Never
+            // written to config.toml and never printed in plaintext — see
+            // AGENTS.md's Secret Management policy.
             const MESH_TOKEN_KEY: &str = "mesh.token";
-            let cfg_mesh = vox_config::toml_config::load_user_config();
-            let saved_mesh = cfg_mesh
+            let legacy_mesh = vox_config::toml_config::load_user_config()
                 .values
                 .get(MESH_TOKEN_KEY)
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
             let resolved_mesh = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshToken)
                 .expose()
-                .map(|s| s.to_string())
-                .or(saved_mesh);
+                .map(|s| s.to_string());
 
-            if resolved_mesh.is_none() {
-                let raw = uuid::Uuid::new_v4().simple().to_string()
-                    + &uuid::Uuid::new_v4().simple().to_string();
-                let token = raw[..48].to_string(); // 48 hex chars = 192 bits
-                if let Err(e) =
-                    vox_config::toml_config::set_user_config_value(MESH_TOKEN_KEY, &token)
-                {
-                    tracing::warn!(error = %e, "failed to persist mesh.token to config");
+            let token = match mesh_token::plan(resolved_mesh, legacy_mesh) {
+                mesh_token::Plan::UseResolved(t) => t,
+                mesh_token::Plan::MigrateLegacy(t) => {
+                    eprintln!(
+                        "vox populi: found a mesh token in ~/.vox/config.toml (deprecated storage). \
+                         Migrating it into the Clavis vault and removing the plaintext copy."
+                    );
+                    if let Err(e) =
+                        vox_secrets::store_secret(vox_secrets::SecretId::VoxMeshToken, &t, None)
+                    {
+                        tracing::warn!(
+                            error = %e,
+                            "failed to migrate legacy mesh.token into the vault; leaving it in config.toml for now"
+                        );
+                    } else if let Err(e) =
+                        vox_config::toml_config::unset_user_config_value(MESH_TOKEN_KEY)
+                    {
+                        tracing::warn!(
+                            error = %e,
+                            "migrated mesh.token to the vault but failed to remove the plaintext copy from config.toml"
+                        );
+                    }
+                    t
                 }
-                println!("vox populi: generated mesh bearer token (saved to ~/.vox/config.toml):");
-                println!("  VOX_MESH_TOKEN={token}");
-                println!("  Keep this secret — it authenticates all control-plane requests.");
-                #[allow(unsafe_code)]
-                unsafe {
-                    std::env::set_var("VOX_MESH_TOKEN", &token);
+                mesh_token::Plan::GenerateNew => {
+                    let stdin_is_tty = std::io::IsTerminal::is_terminal(&std::io::stdin());
+                    if !mesh_token::auto_confirm(yes, stdin_is_tty) {
+                        let ok = dialoguer::Confirm::new()
+                            .with_prompt(
+                                "No mesh token found. Generate one and store it in the Clavis vault?",
+                            )
+                            .default(true)
+                            .interact()
+                            .unwrap_or(false);
+                        if !ok {
+                            anyhow::bail!(
+                                "no mesh token available and generating one was declined; \
+                                 set VOX_MESH_TOKEN or run `vox secrets set VOX_MESH_TOKEN --stdin`"
+                            );
+                        }
+                    }
+                    let token = mesh_token::generate();
+                    vox_secrets::store_secret(vox_secrets::SecretId::VoxMeshToken, &token, None)
+                        .context("failed to store the generated mesh token in the Clavis vault")?;
+                    println!(
+                        "vox populi: generated a mesh bearer token and stored it in the Clavis vault \
+                         (fingerprint {}).",
+                        mesh_token::fingerprint(&token)
+                    );
+                    println!(
+                        "  Any local `vox populi`/orchestrator process resolves it automatically \
+                         (`vox secrets get VOX_MESH_TOKEN` confirms it's set, redacted)."
+                    );
+                    println!("  Keep it secret — it authenticates all control-plane requests.");
+                    token
                 }
+            };
+            #[allow(unsafe_code)]
+            unsafe {
+                std::env::set_var("VOX_MESH_TOKEN", &token);
             }
 
             let addr: SocketAddr = bind
@@ -974,17 +1237,18 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                     println!("  bind           : 127.0.0.1:0 (default; override with --bind)");
 
                     // Token source
-                    let token_source =
-                        if vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshToken)
-                            .expose()
-                            .is_some()
-                        {
-                            "secrets-resolved mesh token (env / vault)"
-                        } else if cfg.values.contains_key(MESH_TOKEN_KEY) {
-                            "file: ~/.vox/config.toml (mesh.token)"
-                        } else {
-                            "unset (will be auto-generated on first `vox populi serve --enable`)"
-                        };
+                    let token_source = if vox_secrets::resolve_secret(
+                        vox_secrets::SecretId::VoxMeshToken,
+                    )
+                    .expose()
+                    .is_some()
+                    {
+                        "secrets-resolved mesh token (env / vault)"
+                    } else if cfg.values.contains_key(MESH_TOKEN_KEY) {
+                        "file: ~/.vox/config.toml (mesh.token) — DEPRECATED, will migrate into the Clavis vault on next `vox populi serve --enable`"
+                    } else {
+                        "unset (will be auto-generated on first `vox populi serve --enable`)"
+                    };
                     println!("  mesh.token     : {token_source}");
 
                     // Bootstrap peers
@@ -1008,17 +1272,22 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                     let ok = true;
                     println!("Checking mesh configuration...");
 
-                    let has_token =
+                    let resolved_token =
                         vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshToken)
                             .expose()
-                            .is_some()
-                            || cfg.values.contains_key(MESH_TOKEN_KEY);
-                    if !has_token {
+                            .is_some();
+                    let legacy_token = cfg.values.contains_key(MESH_TOKEN_KEY);
+                    if resolved_token {
+                        println!("  OK    mesh.token is set (secrets-resolved: env / vault)");
+                    } else if legacy_token {
+                        println!(
+                            "  WARN  mesh.token found only in ~/.vox/config.toml (deprecated) — \
+                             will migrate into the Clavis vault on next `vox populi serve --enable`"
+                        );
+                    } else {
                         println!(
                             "  WARN  mesh.token not set — a token will be auto-generated on first serve"
                         );
-                    } else {
-                        println!("  OK    mesh.token is set");
                     }
 
                     // Check that the config file is writable

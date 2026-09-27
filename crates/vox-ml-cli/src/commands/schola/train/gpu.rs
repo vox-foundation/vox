@@ -62,7 +62,13 @@ pub(super) async fn run_gpu_training(
     let mix_path = mix_config.unwrap_or_else(|| {
         vox_corpus::training::mix_prepare::resolve_mix_config_path(workspace_root.as_deref())
     });
-    if !skip_mix && mix_path.is_file() {
+    if !skip_mix
+        && mix_path.is_file()
+        && vox_corpus::training::mix_prepare::is_canonical_data_dir(
+            workspace_root.as_deref(),
+            &data_dir,
+        )
+    {
         eprintln!(
             "  {} Running corpus mix to refresh training data...",
             "🔄".cyan()
@@ -73,7 +79,6 @@ pub(super) async fn run_gpu_training(
             workspace_root.as_deref(),
             &data_dir,
             skip_mix,
-            true,
             Some(&mix_path),
         )?;
 
@@ -121,7 +126,7 @@ pub(super) async fn run_gpu_training(
         vox_populi::mens::PopuliTrainBackend::CandleQlora
     ) {
         let k = qlora_ce_last_k;
-        if k > 0 && k > 64 {
+        if k > 64 {
             anyhow::bail!("--qlora-ce-last-k must be at most 64 (got {k})");
         }
         if k > seq_len {
@@ -169,7 +174,7 @@ pub(super) async fn run_gpu_training(
         .unwrap_or(false);
     let gc_auto_large = model
         .as_deref()
-        .and_then(|m| vox_populi::mens::tensor::memory_budget::params_b_from_model_hint(m))
+        .and_then(vox_populi::mens::tensor::memory_budget::params_b_from_model_hint)
         .map(|b| b >= 2.9)
         .unwrap_or(false);
     let gradient_checkpointing = gc_explicit || gc_auto_large;
@@ -305,7 +310,29 @@ pub(super) async fn run_gpu_training(
         }
 
         if let Ok(arch) = vox_populi::mens::tensor::hf_load::detect_hf_architecture(&files.config) {
-            eprintln!("  {} Architecture: {:?}", "📐".cyan(), arch);
+            // `HfArchitecture::Qwen35` is the generic stacked-causal-LM bucket
+            // (Qwen2/3/3.5, Llama, Mistral) — printing it made dense Qwen3 read
+            // as Qwen3.5. Show the checkpoint's own model_type and attention mix.
+            let label =
+                match vox_populi::mens::tensor::hf_load::HfTransformerLayout::from_config_path(
+                    &files.config,
+                ) {
+                    Ok(l) => {
+                        let linear = l
+                            .layer_types
+                            .iter()
+                            .filter(|t| t.as_str() == "linear_attention")
+                            .count();
+                        format!(
+                            "{} ({} layers, {} full-attention, {linear} linear-attention)",
+                            l.model_type,
+                            l.num_hidden_layers,
+                            l.layer_types.len() - linear
+                        )
+                    }
+                    Err(_) => format!("{arch:?}"),
+                };
+            eprintln!("  {} Architecture: {label}", "📐".cyan());
             let cfg = vox_populi::mens::tensor::hf_load::config_dims_for_architecture(
                 &files.config,
                 arch,

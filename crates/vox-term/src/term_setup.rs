@@ -48,7 +48,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "requires interactive terminal session"]
+    #[ignore = "owner:term sunset:never requires interactive terminal session"]
     fn term_setup_new_and_drop_does_not_panic() {
         let _ = TermSetup::new();
     }

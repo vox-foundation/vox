@@ -126,8 +126,12 @@ fn installer_plan_honours_tier_binaries_and_resolved_bundle() {
     let p = load();
     let cases: &[(&str, &[&str], &str)] = &[
         ("minimal", &["vox-langtool"], "vox-base"),
-        ("default", &["vox"], "vox-fullstack"),
-        ("full", &["vox", "vox-ml-cli", "voxup"], "vox-dev"),
+        ("default", &["vox", "vox-lsp"], "vox-fullstack"),
+        (
+            "full",
+            &["vox", "vox-lsp", "vox-ml-cli", "voxup"],
+            "vox-dev",
+        ),
     ];
     for (tier, expected_bins, expected_bundle) in cases {
         let bins = voxup::install_plan::binaries_for_tier(&p, tier)

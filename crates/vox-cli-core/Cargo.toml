@@ -41,3 +41,4 @@ workspace-hack = { version = "0.6", path = "../workspace-hack" }
 [dev-dependencies]
 vox-bounded-fs = { workspace = true }
 vox-jsonschema-util = { workspace = true }
+serial_test = { workspace = true }

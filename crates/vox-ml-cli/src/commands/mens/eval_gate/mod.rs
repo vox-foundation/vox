@@ -25,8 +25,8 @@ pub use baseline::{
 pub use bfcl::{BfclGate, check_bfcl};
 pub use check_run::{GateResult, check_run};
 pub use leakage::{
-    BenchTask, SplitManifest, assert_no_leakage, assert_no_text_leakage, load_bench_answers,
-    load_split_manifest,
+    BenchTask, SplitManifest, assert_no_leakage, assert_no_text_leakage, leaked_bench_task,
+    load_bench_answers, load_bench_texts, load_split_manifest,
 };
 #[cfg(all(feature = "mens-dei", feature = "gpu"))]
 pub(crate) use legacy::{

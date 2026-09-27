@@ -220,7 +220,7 @@ impl Default for LoraTrainingConfig {
             qlora_max_skip_rate: None,
             qlora_lm_head_only: false,
             qlora_proxy_max_layers: None,
-            qlora_ce_last_k: 64,
+            qlora_ce_last_k: 0,
             checkpoint_every: Some(500),
             force_restart: false,
             deployment_target: TrainingDeploymentTarget::default(),
@@ -447,14 +447,12 @@ mod semcov_wave26_tests {
     }
 
     #[test]
-    fn lora_training_config_qlora_ce_last_k_default_nonzero() {
-        // Catches: qlora_ce_last_k=0 default that would compute CE loss over
-        // zero positions per row, producing NaN loss on the first step.
+    fn lora_training_config_qlora_ce_last_k_default_supervises_whole_response() {
+        // 0 means "no last-K restriction" (forward_masked_ce uses the full row,
+        // still masked to the assistant turn). A K > 0 default trains only the
+        // tail of each answer (closing braces, `<|im_end|>`), never its start.
         let cfg = LoraTrainingConfig::default();
-        assert!(
-            cfg.qlora_ce_last_k > 0,
-            "qlora_ce_last_k=0 produces NaN loss"
-        );
+        assert_eq!(cfg.qlora_ce_last_k, 0);
     }
 
     #[test]

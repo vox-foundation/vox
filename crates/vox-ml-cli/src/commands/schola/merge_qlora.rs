@@ -13,29 +13,6 @@ use serde::{Deserialize, Serialize};
 use vox_bounded_fs::read_utf8_path_capped;
 use vox_populi::mens::MERGE_QLORA_REJECTS_BURN_BIN;
 
-// Candidate plugins for the `MlBackend` extension point, mirroring
-// catalog.toml's `mens-candle-cuda`/`mens-candle-metal` entries (id +
-// requires-tag). vox-plugin-host is deliberately dependency-free and cannot
-// read catalog.toml itself, so this is the caller-supplied SSOT-mirror
-// `resolve_extension_point` needs. Both plugins implement `merge_adapter`
-// (unlike QLoRA *training*, which has no Metal backend yet — see run_train.rs).
-// Shared with `commands::mens::eval_local`, which dispatches the same
-// `MlBackend` extension point for inference — see that file's use of this
-// constant. `crates/vox-plugin-catalog/tests/catalog_validation.rs` pins the
-// two `requires-tag` literals on the catalog side so this mirror can't drift
-// silently.
-// vox:defactored-from vox-plugin-catalog 2026-09-05
-pub(crate) const ML_BACKEND_CANDIDATES: &[vox_plugin_host::ExtensionCandidate] = &[
-    vox_plugin_host::ExtensionCandidate {
-        plugin_id: "mens-candle-cuda",
-        requires_tag: Some("nvidia-gpu"),
-    },
-    vox_plugin_host::ExtensionCandidate {
-        plugin_id: "mens-candle-metal",
-        requires_tag: Some("apple-silicon"),
-    },
-];
-
 // ---------------------------------------------------------------------------
 // Inline serde-only schema types (no candle deps).
 // These match the on-disk JSON layout produced by vox-plugin-mens-candle-cuda.
@@ -137,16 +114,13 @@ pub fn run_merge_qlora(
         .map(std::path::Path::to_path_buf)
         .unwrap_or_else(|| std::path::PathBuf::from("."));
 
-    // Dispatch to whichever MlBackend plugin matches this host's capabilities
-    // (CUDA on an NVIDIA host, Metal on Apple Silicon), not a hardcoded id —
-    // see vox_plugin_host::resolve_extension_point.
+    // Dispatch to the MlBackend plugin this host should use (CUDA on an NVIDIA
+    // host, Metal on a Mac, CPU otherwise) — see vox_populi::mens::select_mens_backend.
     let result = (|| -> anyhow::Result<()> {
-        let plugin_id = vox_plugin_host::resolve_extension_point(
-            "MlBackend",
-            ML_BACKEND_CANDIDATES,
+        let plugin_id = vox_populi::mens::select_mens_backend(
+            vox_populi::mens::DeviceKind::Best,
             &vox_plugin_host::probe(),
-        )
-        .context("no ML backend plugin matches this host's capabilities")?;
+        );
         let plugin = vox_plugin_host::cached_code_plugin(plugin_id).with_context(|| {
             format!("{plugin_id} plugin not found — install vox-plugin-{plugin_id}")
         })?;

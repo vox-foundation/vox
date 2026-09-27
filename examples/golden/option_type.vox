@@ -13,7 +13,6 @@
 // @training_prompt: Show how to use Option[T] in Vox: Some, None, and match-based unwrapping.
 // ANCHOR: display
 table UserProfile {
-    id: int
     name: str
     bio: Option[str]
     age: Option[int]
@@ -51,8 +50,8 @@ fn greet_user(name: str) to str {
 
 @test
 fn test_display_bio_and_age() {
-    db.UserProfile.insert({ id: 1, name: "Alice", bio: Some("Loves Vox"), age: Some(30) })
-    db.UserProfile.insert({ id: 2, name: "Bob", bio: None, age: None })
+    db.UserProfile.insert({ name: "Alice", bio: Some("Loves Vox"), age: Some(30) })
+    db.UserProfile.insert({ name: "Bob", bio: None, age: None })
     let bio_result = match db.UserProfile.get(0).unwrap() {
         Some(row) => display_bio(row)
         None => "missing"
