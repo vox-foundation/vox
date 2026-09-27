@@ -869,15 +869,15 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                 std::env::set_var("VOX_MESH_TOKEN", &resp.mesh_token);
             }
 
-            if let Some(scope) = &resp.scope_id {
-                if !scope.is_empty() {
-                    if let Err(e) =
-                        vox_config::toml_config::set_user_config_value(MESH_SCOPE_KEY, scope)
-                    {
-                        tracing::warn!(error = %e, "failed to save mesh scope_id");
-                    } else {
-                        println!("  Scope ID: {}", scope);
-                    }
+            if let Some(scope) = &resp.scope_id
+                && !scope.is_empty()
+            {
+                if let Err(e) =
+                    vox_config::toml_config::set_user_config_value(MESH_SCOPE_KEY, scope)
+                {
+                    tracing::warn!(error = %e, "failed to save mesh scope_id");
+                } else {
+                    println!("  Scope ID: {}", scope);
                 }
             }
             Ok(())
@@ -1199,13 +1199,12 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                             if let Ok(affected) = db_for_decay
                                 .process_reputation_decay(&grantor_decay, 10)
                                 .await
+                                && affected > 0
                             {
-                                if affected > 0 {
-                                    tracing::warn!(
-                                        "Reputation decay: removed {} trust grants",
-                                        affected
-                                    );
-                                }
+                                tracing::warn!(
+                                    "Reputation decay: removed {} trust grants",
+                                    affected
+                                );
                             }
                         }
                     });
@@ -1434,13 +1433,12 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                             if let Ok(affected) = db_for_decay
                                 .process_reputation_decay(&grantor_decay, 10)
                                 .await
+                                && affected > 0
                             {
-                                if affected > 0 {
-                                    tracing::warn!(
-                                        "Reputation decay: removed {} trust grants",
-                                        affected
-                                    );
-                                }
+                                tracing::warn!(
+                                    "Reputation decay: removed {} trust grants",
+                                    affected
+                                );
                             }
                         }
                     });
@@ -1551,15 +1549,15 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
             let mut target_triple = None;
             if let Some(node_id) = &node {
                 // Query node metadata to find target triple
-                if let Ok(reg) = client.list_nodes().await {
-                    if let Some(n) = reg.nodes.iter().find(|n| n.id == *node_id) {
-                        target_triple = n.host_triple.clone();
-                    }
+                if let Ok(reg) = client.list_nodes().await
+                    && let Some(n) = reg.nodes.iter().find(|n| n.id == *node_id)
+                {
+                    target_triple = n.host_triple.clone();
                 }
             }
 
             let (b64_source, is_bundle, source_blake3_hex) =
-                if bundle && script.extension().map_or(false, |ext| ext == "vox") {
+                if bundle && script.extension().is_some_and(|ext| ext == "vox") {
                     // Auto-bundle source to a temp dir
                     let tmp_bundle_dir = std::env::temp_dir().join("vox-bundle-dispatch");
                     let _ = std::fs::remove_dir_all(&tmp_bundle_dir);
