@@ -13,7 +13,7 @@ Vox is a mature, working system; this roadmap is not a build-from-zero journey b
 
 - [x] **Phase 1: Dead Crate Cleanup — Remove & Confirm** - Delete zero-consumer crates, confirm frozen crates need no action, verify catalog hygiene (completed 2026-09-22)
 - [x] **Phase 2: Wire Up & Reclassify Dormant Crates** - Activate functionally-complete but never-adopted crates in their intended call path (completed 2026-09-25)
-- [ ] **Phase 3: Extract Misplaced Crates to Plugin Architecture** - Move CORE-inappropriate crates into the plugin system
+- [x] **Phase 3: Extract Misplaced Crates to Plugin Architecture** - Move CORE-inappropriate crates into the plugin system (completed 2026-09-27)
 - [x] **Phase 4: GUI/Dashboard Architecture Consolidation** - Ratify ADR-045, verify CommandCatalog SSOT alignment, enforce the Vox-native/React interop UI boundary, confirm Tauri desktop convergence (completed 2026-09-25)
 - [ ] **Phase 5: Multi-Agent Coordination & Trust Hardening** - Ship ResourceLockManager and HMAC tool-call receipts
 - [ ] **Phase 6: Model Routing Transparency & ML Dependency Health** - Ship Pareto-frontier model reporting and unify the Candle/QLoRA dependency stack
@@ -166,7 +166,7 @@ Phases 1 → 2 → 3 form a dependency chain (crate surgery). Phase 4 is indepen
 |-------|----------------|--------|-----------|
 | 1. Dead Crate Cleanup — Remove & Confirm | 2/2 | Complete    | 2026-09-22 |
 | 2. Wire Up & Reclassify Dormant Crates | 2/2 | Complete    | 2026-09-25 |
-| 3. Extract Misplaced Crates to Plugin Architecture | 6/6 | Executed — live UAT pending (03-UAT.md) | - |
+| 3. Extract Misplaced Crates to Plugin Architecture | 6/6 | Complete    | 2026-09-27 |
 | 4. GUI/Dashboard Architecture Consolidation | 2/2 | Complete    | 2026-09-25 |
 | 5. Multi-Agent Coordination & Trust Hardening | 0/TBD | Not started | - |
 | 6. Model Routing Transparency & ML Dependency Health | 0/TBD | Not started | - |

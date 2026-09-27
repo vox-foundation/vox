@@ -1,8 +1,8 @@
 ---
 phase: 03-extract-misplaced-crates-to-plugin-architecture
-verified: 2026-09-26T00:00:00Z
-status: human_needed
-score: 6/8 must-haves verified
+verified: 2026-09-27T00:00:00Z
+status: passed
+score: 8/8 must-haves verified
 covered_files:
 
   - ".planning/REQUIREMENTS.md"
@@ -42,40 +42,17 @@ covered_files:
   - "crates/vox-speech/src/backend_dispatch.rs"
   - "crates/vox-speech/src/lib.rs"
 
-covered_digest: "v1:sha256:62b2f3179dcd53f20da6dfbd0de6a4170b4177bc08bcf270fd10e33ec81939db"
-behavior_unverified: 2
+covered_digest: "v1:sha256:226b2489c5b6ee279a6430070d5ad3cbca517a05692806f525e601d88855c4d2"
+behavior_unverified: 0
 overrides_applied: 0
-behavior_unverified_items:
-
-  - truth: "SC#2 end to end: a webhook delivered over HTTP to the real vox-plugin-webhook dylib reaches the orchestrator hopper as IntakeSource::Webhook"
-    test: "Install vox-plugin-webhook, set VOX_WEBHOOK_INGRESS_TOKEN, add [orchestrator.webhook] bind_addr = \"127.0.0.1:9080\" to Vox.toml, start the MCP server, POST /webhooks/github with Authorization: Bearer <token> and X-GitHub-Event: push; then repeat without the header"
-    expected: "A Webhook-sourced item appears in the hopper inbox; the header-less request gets 401 and produces no item"
-    why_human: "run_poller/start_listener (dlopen via cached_code_plugin, start_listening, poll loop) and the router's bearer middleware are exercised by no test; unit tests cover the plan/gating, the JSON->hopper submission and the in-process inbox separately"
-  - truth: "SC#4 functionality kept: Whisper transcription in vox-gui dictation and `vox oratio serve` actually runs through vox-plugin-speech"
-    test: "vox plugin install oratio; run vox-gui with STT backend = whisper and dictate; build vox-ml-cli --features oratio, run `vox oratio serve --port 0`, POST multipart PCM to /transcribe"
-    expected: "Dictated text appears; serve returns JSON text"
-    why_human: "The seam is tested with a fake transcriber and the registration is tested, but the real abi_stable SpeechToText call into the plugin dylib needs an installed plugin, a model and (for GUI) a microphone"
-human_verification:
-
-  - test: "Webhook end to end through the real dylib over HTTP (03-VALIDATION.md manual row 2)"
-    expected: "Bearer-authenticated POST lands as a Webhook hopper item; missing header -> 401, no item"
-    why_human: "Needs the built/installed plugin, a token and an HTTP client; no automated test covers the dlopen + poll loop"
-  - test: "Live GUI dictation via the oratio plugin (03-VALIDATION.md manual row 1)"
-    expected: "With STT backend = whisper, dictated sentence is transcribed"
-    why_human: "Needs a microphone and an installed speech plugin"
-  - test: "`vox oratio serve` through the plugin (03-VALIDATION.md manual row 3)"
-    expected: "POST /transcribe returns JSON text"
-    why_human: "Needs the installed speech plugin and a Whisper model"
-  - test: "Decide whether bearer-only ingress is acceptable for provider webhooks"
-    expected: "Either accept that GitHub/Slack/Discord deliveries need a relay that injects Authorization: Bearer, or schedule per-source HMAC (WebhookHandler::with_secret) as an alternative auth path"
-    why_human: "Design decision: the host-started listener uses WebhookHandler::new() (no HMAC secret) and requires a bearer header that GitHub/Slack/Discord cannot send natively"
+human_verification: []
 ---
 
 # Phase 3: Extract Misplaced Crates to Plugin Architecture — Verification Report
 
 **Phase Goal:** Crates that don't belong in the CORE compile graph move to the plugin architecture without losing functionality, and CORE loses its last direct Candle dependency bleed (SC text as amended by D-05, D-09..D-14).
 **Verified:** 2026-09-26
-**Status:** human_needed
+**Status:** passed (re-verified 2026-09-27; see the re-verification section at the end)
 **Re-verification:** No (initial verification)
 
 All evidence below was read from committed objects (`git show HEAD:<path>`) or produced by commands run in this session. Phase-owned paths were clean in the working tree. Other sessions had uncommitted edits in `crates/vox-orchestrator-mcp/src/{lib,dispatch,input_schemas}.rs`, `Cargo.lock` (+19 lines) and elsewhere, so cargo runs compiled those edits too. None of them touch the files verified here.
@@ -217,3 +194,37 @@ _Verifier: Claude (gsd-verifier)_
   `Authorization: Bearer`. Per-source HMAC verification is a recorded follow-up, not in scope.
 - **Follow-ups closed after verification:** constant-time bearer compare and the stale dead-code comment
   (`e5c269ada`); vox-plugin-sdk README ABI sample and the vox-gui sidecar package (`4840ff1b7`).
+
+## Re-verification (2026-09-27, orchestrator, at HEAD after the fix-forward pass)
+
+The two behavior-unverified truths above were exercised live and are now verified. The recorded UAT is in
+`03-UAT.md`, with 3/3 tests passing (commits 9777a1911 and e63afbfc1). The bearer-only design question was
+decided by the user: bearer-only is accepted, and per-source HMAC is a recorded follow-up.
+
+Checks re-run at HEAD:
+
+- **SC#1:** `crates/vox-plugin-grammar-export` and `crates/vox-grammar-export/src/automaton.rs` are absent.
+  `crates/vox-populi/Cargo.toml` has 0 `vox-grammar-export` lines.
+- **SC#2:**
+  - All 10 code-plugin `Plugin.toml` files are at `version = "0.6.0"`, and `ci plugin-surface-sync` is OK.
+  - `cargo test -p vox-plugin-webhook`: 55 passed.
+  - `cargo test -p vox-orchestrator-mcp --test webhook_plugin_e2e`: `hopper item Webhook: webhook git_push: github/push`, 1 passed. This loads the real built cdylib through the `vox plugin install` layout and checks 401 without the header and 202 with it. The test comes from f77a59adc.
+  - The router bearer check is constant-time and has its own mutation-checked test (e5c269ada).
+- **SC#3:** `crates/vox-ssg` is absent. `crates/vox-cli/src/utils/ssg/mod.rs` is present, and vox-cli is at layer 5 in
+  `docs/src/architecture/layers.toml`, now the single layer SSOT (276852014).
+- **SC#4:**
+  - The Candle scan (non-optional, normal-kind `candle*` deps, joined with `layers.toml`) lists only
+    `vox-plugin-mens-candle-{core,cuda,metal}` at L4, so no L0–L3 crate has one.
+  - `vox-quantize`'s `candle-core` is `optional = true`, and vox-speech's Cargo.toml has 0 Candle or `stt-candle` lines.
+  - The live Whisper-through-plugin checks for GUI dictation and `vox oratio serve` passed (03-UAT tests 2 and 3,
+    98fca8371 and c2350c4c3). Live microphone capture itself was not exercised.
+- **Gates at HEAD:** crate-edges OK (0 violations), fan-in-budget no regressions, vox-arch-check exit 0,
+  secret-env-guard `--all` OK, secrets-cutover-gates (enforce) OK, crate-build-map-parity OK,
+  affected-crates `--check` OK, test-inventory `--check` OK.
+
+Follow-ups found live and fixed during the pass:
+- Plugin manifests at 0.1.0 made production unable to load them (df57ca69c, 98fca8371, 9ea29029b). A new gate in plugin-surface-sync now catches this (5135057cc).
+- Speech sample-rate and timestamp bugs (98fca8371).
+- A CUDA Qwen3 double Q/K RMSNorm (68907ab25).
+
+The remaining open items are listed in `deferred-items.md`.
