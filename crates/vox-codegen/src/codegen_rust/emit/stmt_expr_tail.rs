@@ -265,6 +265,9 @@ where
             s.push('}');
             s
         }
+        HirExpr::Try(h) if super::method_emit::is_db_table_op_call(h.target.as_ref()) => {
+            emit(h.target.as_ref(), OwnershipMode::Owned)
+        }
         HirExpr::Try(h) => format!("({})?", emit(h.target.as_ref(), OwnershipMode::Owned)),
 
         _ => return None,
