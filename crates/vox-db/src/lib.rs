@@ -665,7 +665,7 @@ mod codex_contract {
 /// Shared mutex that serialises all tests that mutate process-level environment
 /// variables (`VOX_DB_URL`, `VOX_DB_TOKEN`, `VOX_SECRETS_*`, …). Both
 /// `config::tests` and `local_tests` acquire this lock before touching env.
-#[cfg(test)]
+#[cfg(all(test, feature = "host-integration"))]
 pub(crate) static TEST_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 #[cfg(all(test, feature = "local"))]
