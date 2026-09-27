@@ -36,8 +36,13 @@ fn match_arm_block_trailing_expr_has_no_semicolon() {
         !out.contains("Some(str(y));\n    }"),
         "trailing match-arm expression must not get a semicolon; got:\n{out}"
     );
+    // `str(x)` now emits through the generic JSON-round-trip display path
+    // (`emit_generic_display` in codegen_rust/emit/stmt_expr.rs), not `as_string`.
     assert!(
-        out.contains("Some(as_string(&(y)))\n") || out.contains("Some(str(y))\n"),
+        out.contains(
+            "Some(vox_actor_runtime::builtins::vox_display(&serde_json::to_value(&(y)).unwrap_or_default()))\n"
+        ) || out.contains("Some(as_string(&(y)))\n")
+            || out.contains("Some(str(y))\n"),
         "expected tail expression without semicolon; got:\n{out}"
     );
 }
