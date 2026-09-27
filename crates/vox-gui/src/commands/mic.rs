@@ -6,8 +6,9 @@
 //!   stores the live stream handle in Tauri managed state.
 //! - [`stop_mic_capture_and_transcribe`] tears the stream down, writes the
 //!   captured samples to a 16 kHz mono WAV (Whisper's expected format) with
-//!   `hound`, runs [`vox_speech::transcribe_path_detailed`], and returns the
-//!   refined transcript. The temp WAV is always cleaned up.
+//!   `hound`, runs [`vox_speech::transcribe_path_detailed`] (Sherpa in-process, or
+//!   Candle Whisper through the `oratio` plugin), and returns the refined
+//!   transcript. The temp WAV is always cleaned up.
 //!
 //! The cpal capture itself cannot be unit-tested without an audio device, so the
 //! testable surface — turning a WAV/transcript file on disk into refined text —
@@ -28,7 +29,7 @@ const TARGET_SAMPLE_RATE: u32 = 16_000;
 /// a live microphone, only on the file path.
 ///
 /// Returns the refined transcript text. Errors are surfaced verbatim (e.g. a
-/// missing `stt-candle` backend or an undecodable file) — never a panic.
+/// missing `oratio` plugin or model, or an undecodable file) — never a panic.
 pub fn transcribe_audio_file(path: &Path) -> Result<String, String> {
     // Built from a FRESH `OratioRuntimeConfig::resolve()` (not the
     // process-cached `vox_speech::resolved_runtime_config()`, and not
@@ -377,9 +378,10 @@ mod tests {
     }
 
     /// A synthetic WAV is written correctly by the hound glue (valid 16 kHz mono
-    /// 16-bit file) and is accepted by the transcription seam. With `stt-candle`
-    /// compiled, a real Whisper backend runs; if a model isn't fetchable at test
-    /// time we still must get a clear error string, never a panic.
+    /// 16-bit file) and is accepted by the transcription seam. A real backend runs
+    /// (Sherpa, or Whisper through the `oratio` plugin); if the plugin or a model
+    /// isn't available at test time we still must get a clear error string, never
+    /// a panic.
     #[test]
     fn synthetic_wav_is_well_formed_and_routed() {
         let dir = tempfile::tempdir().unwrap();
