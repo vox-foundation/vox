@@ -2,7 +2,7 @@ use serde_json::json;
 
 #[test]
 fn test_compact_ax_probe_bounds() {
-    let fixture = vec![
+    let fixture = [
         json!({ "role": { "type": "role", "value": "button" }, "name": { "value": "Submit" } }),
         json!({ "role": { "type": "role", "value": "paragraph" }, "name": { "value": "Static text" } }),
     ];
