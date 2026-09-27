@@ -143,7 +143,9 @@ pub fn generate_script_with_target(
             .and_then(|p| p.parent())
             .map(|p| manifest_dependency_path(&p.join("vox-db")))
             .unwrap_or_else(|| "../vox-db".to_string());
-        format!("vox-db = {{ path = \"{vox_db_path}\" }}\n")
+        // `host-integration` gates `DbConfig::resolve_canonical`, which the script
+        // table boot (`emit/script_db.rs`) calls; same feature the app shells request.
+        format!("vox-db = {{ path = \"{vox_db_path}\", features = [\"host-integration\"] }}\n")
     } else {
         String::new()
     };
@@ -487,5 +489,22 @@ mod tests {
             "WASI script lane was retired: {cargo}"
         );
         assert_eq!(ScriptTarget::Native, ScriptTarget::Native);
+    }
+
+    /// Script table boot calls `DbConfig::resolve_canonical`, which vox-db gates
+    /// behind `host-integration`; without the feature the generated crate fails E0599.
+    #[test]
+    fn script_with_tables_enables_vox_db_host_integration() {
+        let src = "table Note { title: str }\nfn main() { print(\"hi\") }";
+        let module =
+            vox_compiler::parser::parse_script(vox_compiler::lexer::lex(src)).expect("parse");
+        let hir = vox_compiler::hir::lower_module(&module);
+        let out = generate_script(&hir, "vox-script", None).expect("generate");
+        let cargo = out.files.get("Cargo.toml").expect("Cargo.toml");
+        let line = cargo
+            .lines()
+            .find(|l| l.starts_with("vox-db = "))
+            .unwrap_or_else(|| panic!("no vox-db dep:\n{cargo}"));
+        assert!(line.contains("\"host-integration\""), "{line}");
     }
 }
