@@ -22,7 +22,7 @@ Machine-readable JSON:
 | --- | ---: |
 | Workspace crates (`crates/*/Cargo.toml`) | 129 |
 | Rust files under `crates/**/*.rs` | 4067 |
-| Cargo unit tests (`#[test]` / `tokio::test` / `rstest` / `proptest` in `src/`) | 10507 |
+| Cargo unit tests (`#[test]` / `tokio::test` / `rstest` / `proptest` in `src/`) | 10513 |
 | Cargo integration tests (`crates/.../tests/`) | 3044 |
 | Cargo bench fns (`#[bench]` in scanned paths) | 0 |
 | Ignored test functions (best-effort parse) | 169 |
