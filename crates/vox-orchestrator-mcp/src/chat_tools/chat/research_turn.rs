@@ -289,6 +289,64 @@ fn any_provider_failed<'a>(statuses: impl IntoIterator<Item = &'a ProviderStatus
         .any(|s| matches!(s, ProviderStatus::Error { .. } | ProviderStatus::Timeout))
 }
 
+/// Trace summary when every provider row is `Disabled` — the web-research
+/// kill switch (`SearchPolicy::web_research_enabled = false`) is on.
+const WEB_RESEARCH_DISABLED: &str = "web research disabled — no providers contacted";
+
+fn all_providers_disabled<'a>(statuses: impl IntoIterator<Item = &'a ProviderStatus>) -> bool {
+    let mut any = false;
+    for s in statuses {
+        if *s != ProviderStatus::Disabled {
+            return false;
+        }
+        any = true;
+    }
+    any
+}
+
+/// The quick-research retrieval stage for one dispatcher report.
+fn quick_retrieval_stage(
+    report: &vox_search::web_dispatcher::SearchReport,
+    elapsed_ms: u64,
+) -> StageRecord {
+    let statuses = || report.providers.iter().map(|p| &p.status);
+    let answered = report
+        .providers
+        .iter()
+        .filter(|p| matches!(p.status, ProviderStatus::Ok { hits } if hits > 0))
+        .count();
+    let failed = any_provider_failed(statuses());
+    let (status, summary) = if all_providers_disabled(statuses()) {
+        ("skipped", WEB_RESEARCH_DISABLED.to_string())
+    } else {
+        (
+            match (report.hits.is_empty(), failed) {
+                (true, true) => "failed",
+                (true, false) => "empty",
+                (false, true) => "degraded",
+                (false, false) => "ok",
+            },
+            format!(
+                "{} hits from {answered}/{} providers",
+                report.hits.len(),
+                report.providers.len()
+            ),
+        )
+    };
+    StageRecord::new(
+        "retrieval",
+        status,
+        Some(elapsed_ms),
+        summary,
+        json!({
+            "providers": report.providers,
+            "tavily_credits": report
+                .tavily_credits
+                .map(|(used, remaining)| json!({ "used": used, "remaining": remaining })),
+        }),
+    )
+}
+
 /// Quick research: one retrieval wave on the Deep-lane deadline, numbered sources.
 /// Returns the context block to inject into the chat prompt.
 pub async fn run_quick(state: &crate::ServerState, trace: &mut ResearchTrace) -> String {
@@ -313,33 +371,9 @@ pub async fn run_quick(state: &crate::ServerState, trace: &mut ResearchTrace) ->
         &policy,
     )
     .await;
-    let answered = report
-        .providers
-        .iter()
-        .filter(|p| matches!(p.status, ProviderStatus::Ok { hits } if hits > 0))
-        .count();
-    let failed = any_provider_failed(report.providers.iter().map(|p| &p.status));
-    let status = match (report.hits.is_empty(), failed) {
-        (true, true) => "failed",
-        (true, false) => "empty",
-        (false, true) => "degraded",
-        (false, false) => "ok",
-    };
-    trace.push(StageRecord::new(
-        "retrieval",
-        status,
-        Some(t.elapsed().as_millis() as u64),
-        format!(
-            "{} hits from {answered}/{} providers",
-            report.hits.len(),
-            report.providers.len()
-        ),
-        json!({
-            "providers": report.providers,
-            "tavily_credits": report
-                .tavily_credits
-                .map(|(used, remaining)| json!({ "used": used, "remaining": remaining })),
-        }),
+    trace.push(quick_retrieval_stage(
+        &report,
+        t.elapsed().as_millis() as u64,
     ));
 
     trace.sources = sources_from_hits(&report.hits, 8);
@@ -486,26 +520,36 @@ pub fn failed_deep_stages(e: &anyhow::Error, elapsed_ms: u64) -> Vec<StageRecord
         let total = distinct(&|_| true);
         // Same rule as quick retrieval (see `any_provider_failed`).
         let failed = any_provider_failed(f.providers.iter().map(|p| &p.status));
+        let (status, summary) = if all_providers_disabled(f.providers.iter().map(|p| &p.status)) {
+            ("skipped", WEB_RESEARCH_DISABLED.to_string())
+        } else {
+            (
+                match (kept == 0, failed) {
+                    (true, true) => "failed",
+                    (true, false) => "empty",
+                    (false, true) => "degraded",
+                    (false, false) => "ok",
+                },
+                format!(
+                    "{raw} raw hits, {kept} kept after filtering, from {answered}/{total} providers"
+                ),
+            )
+        };
         out.push(StageRecord::new(
             "retrieval",
-            match (kept == 0, failed) {
-                (true, true) => "failed",
-                (true, false) => "empty",
-                (false, true) => "degraded",
-                (false, false) => "ok",
-            },
+            status,
             None,
-            format!(
-                "{raw} raw hits, {kept} kept after filtering, from {answered}/{total} providers"
-            ),
+            summary,
             json!({ "providers": f.providers, "tavily_credits": f.tavily_credits }),
         ));
     }
+    // `{:#}`: the whole error chain, so a cause the pipeline attaches below
+    // the top-level message (e.g. web research disabled) is visible.
     out.push(StageRecord::new(
         "deep_pipeline",
         "failed",
         Some(elapsed_ms),
-        e.to_string(),
+        format!("{e:#}"),
         json!({}),
     ));
     out
@@ -880,6 +924,66 @@ mod tests {
         assert_eq!(plain.len(), 1);
         assert_eq!(plain[0].stage, "deep_pipeline");
         assert!(failed_run_sources(&anyhow::anyhow!("boom")).is_empty());
+    }
+
+    /// Task 9b follow-up: when every provider is `Disabled` (the web-research
+    /// kill switch), both the quick and the failed-deep retrieval stages name
+    /// the cause instead of reading as a generic empty/failed retrieval, and
+    /// the deep failure stage shows the cause carried in the error chain.
+    #[test]
+    fn web_research_disabled_is_named_in_quick_and_deep_traces() {
+        use vox_research_shim::research::types::{ProviderCallSummary, ResearchRunFailure};
+        use vox_search::web_dispatcher::{ProviderOutcome, SearchReport, WEB_PROVIDERS};
+
+        let report = SearchReport {
+            hits: vec![],
+            providers: WEB_PROVIDERS
+                .into_iter()
+                .map(|provider| ProviderOutcome {
+                    provider,
+                    status: ProviderStatus::Disabled,
+                    elapsed_ms: 0,
+                })
+                .collect(),
+            tavily_credits: None,
+        };
+        let quick = quick_retrieval_stage(&report, 3);
+        assert_eq!(
+            quick.summary,
+            "web research disabled — no providers contacted"
+        );
+        assert_eq!(quick.status, "skipped");
+        assert_eq!(quick.detail["providers"].as_array().unwrap().len(), 5);
+
+        let err = anyhow::Error::new(ResearchRunFailure {
+            error: anyhow::anyhow!("web research disabled — no providers contacted")
+                .context("Zero research hits retrieved. Halting."),
+            providers: WEB_PROVIDERS
+                .into_iter()
+                .map(|p| ProviderCallSummary {
+                    provider: p.into(),
+                    status: ProviderStatus::Disabled,
+                    elapsed_ms: 0,
+                    calls: 1,
+                })
+                .collect(),
+            tavily_credits: None,
+            sources: vec![],
+        });
+        let deep = failed_deep_stages(&err, 9);
+        assert_eq!(
+            deep[0].summary,
+            "web research disabled — no providers contacted"
+        );
+        assert_eq!(deep[0].status, "skipped");
+        assert_eq!(
+            deep[1].summary,
+            "Zero research hits retrieved. Halting.: web research disabled — no providers contacted"
+        );
+
+        // A normal empty report still reads as a count, not as "disabled".
+        let normal = quick_retrieval_stage(&SearchReport::default(), 1);
+        assert_eq!(normal.summary, "0 hits from 0/0 providers");
     }
 
     /// Task 9b review minors 1, 2, 4: the provider denominator counts distinct

@@ -162,3 +162,33 @@ async fn dispatcher_honours_web_research_disabled_with_honest_disabled_rows() {
     );
     assert_eq!(r.tavily_credits, None);
 }
+
+/// Task 9b follow-up: the kill-switch report lists exactly the providers the
+/// normal path reports, from one shared list — a new provider cannot silently
+/// drop out of the disabled report.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn disabled_report_lists_the_same_providers_as_the_normal_path() {
+    use vox_search::policy::ResearchLane;
+    use vox_search::web_dispatcher::{WEB_PROVIDERS, WebSearchDispatcher};
+
+    // Normal path, every provider individually off: no network, full report.
+    let mut policy = SearchPolicy {
+        searxng_url: None,
+        enable_wikipedia: false,
+        wikipedia_fallback_enabled: false,
+        enable_openalex: false,
+        enable_arxiv: false,
+        tavily_enabled: false,
+        duckduckgo_fallback_enabled: false,
+        ..Default::default()
+    };
+    let normal = WebSearchDispatcher::search_with_report("q", ResearchLane::Deep, &policy).await;
+    policy.web_research_enabled = false;
+    let killed = WebSearchDispatcher::search_with_report("q", ResearchLane::Deep, &policy).await;
+
+    let names = |r: &vox_search::web_dispatcher::SearchReport| {
+        r.providers.iter().map(|p| p.provider).collect::<Vec<_>>()
+    };
+    assert_eq!(names(&normal), WEB_PROVIDERS.to_vec());
+    assert_eq!(names(&killed), WEB_PROVIDERS.to_vec());
+}

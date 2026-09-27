@@ -22,6 +22,11 @@ pub enum ProviderStatus {
     BudgetExhausted,
 }
 
+/// Every web provider `search_core` reports on, in report order. The kill-switch
+/// early return iterates this list; a test pins the normal path to the same
+/// list, so a new provider cannot silently drop out of either report.
+pub const WEB_PROVIDERS: [&str; 5] = ["arxiv", "openalex", "wikipedia", "searxng", "tavily"];
+
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ProviderOutcome {
     pub provider: &'static str,
@@ -508,7 +513,7 @@ impl WebSearchDispatcher {
         if !policy.web_research_enabled {
             return SearchReport {
                 hits: Vec::new(),
-                providers: ["arxiv", "openalex", "wikipedia", "searxng", "tavily"]
+                providers: WEB_PROVIDERS
                     .into_iter()
                     .map(|provider| ProviderOutcome {
                         provider,

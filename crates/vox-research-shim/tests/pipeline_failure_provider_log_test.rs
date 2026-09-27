@@ -186,6 +186,12 @@ async fn web_research_disabled_run_contacts_no_provider_and_says_so() {
         err.to_string().contains("Zero research hits retrieved"),
         "{err}"
     );
+    // The cause rides in the error chain; the top-level text callers match on
+    // ("Zero research hits retrieved") is unchanged.
+    assert!(
+        format!("{err:#}").contains("web research disabled — no providers contacted"),
+        "{err:#}"
+    );
     assert_eq!(openalex.received_requests().await.unwrap().len(), 0);
     assert_eq!(searxng.received_requests().await.unwrap().len(), 0);
     let f = failure(&err);

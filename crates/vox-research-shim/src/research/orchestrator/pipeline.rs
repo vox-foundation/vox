@@ -287,13 +287,17 @@ pub async fn run_research_with_context_and_session(
 
     if all_hits.is_empty() {
         set_session_stage(db, session_id, ResearchStage::Failed).await;
-        return Err(failed_with_provider_log(
-            anyhow::anyhow!(
-                "Zero research hits retrieved. Halting to prevent hallucinated synthesis."
-            ),
-            registry,
-            Vec::new(),
-        ));
+        const ZERO_HITS: &str =
+            "Zero research hits retrieved. Halting to prevent hallucinated synthesis.";
+        // Name the cause when the web-research switch is off. It goes in the
+        // error CHAIN (visible via `{:#}` / `chain()`), so the top-level text
+        // every caller and test matches on stays exactly `ZERO_HITS`.
+        let error = if do_web && !search_policy.web_research_enabled {
+            anyhow::anyhow!("web research disabled — no providers contacted").context(ZERO_HITS)
+        } else {
+            anyhow::anyhow!(ZERO_HITS)
+        };
+        return Err(failed_with_provider_log(error, registry, Vec::new()));
     }
 
     // ── (d) Retrieval diagnostics ─────────────────────────────────────────────
