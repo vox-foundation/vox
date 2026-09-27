@@ -77,9 +77,9 @@ async fn test_research_doc_draft_and_publish_flow() {
     let written = std::fs::read_to_string(&published_file).expect("read written doc");
     assert_eq!(written, draft.markdown_content);
 
-    // 3. Verify research-index.md updated
-    let updated_index = std::fs::read_to_string(&index_path).expect("read index");
-    assert!(updated_index.contains("session-42-research-2026.md"));
+    // 3. research-index.md is retired (AGENTS.md): publishing must not touch it.
+    let index_after = std::fs::read_to_string(&index_path).expect("read index");
+    assert_eq!(index_after, initial_index);
 
     // 4. Verify slug ending with -2026.md is handled idempotently
     let result2 = publish_research_doc(

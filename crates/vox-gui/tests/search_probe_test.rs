@@ -40,65 +40,10 @@ async fn test_probe_search_provider_rejects_unknown_provider() {
     assert!(result.err().unwrap().contains("Unknown provider"));
 }
 
-#[tokio::test(flavor = "multi_thread")]
-async fn test_probe_unconfigured_searxng_returns_remediation() {
-    let prev = std::env::var("VOX_SEARCH_SEARXNG_URL").ok();
-    unsafe {
-        std::env::remove_var("VOX_SEARCH_SEARXNG_URL");
-    }
-    let result = probe_search_provider("searxng".to_string(), "rust".to_string()).await;
-    if let Some(val) = prev {
-        unsafe {
-            std::env::set_var("VOX_SEARCH_SEARXNG_URL", val);
-        }
-    }
-    assert!(
-        result.is_ok(),
-        "Unconfigured SearXNG should return Ok(ProviderProbeResult)"
-    );
-    let probe = result.unwrap();
-    assert_eq!(probe.provider, "searxng");
-    assert_eq!(probe.http_status, 0);
-    assert!(!probe.success);
-    assert!(probe.error_message.is_some());
-    assert!(
-        probe
-            .remediation_tip
-            .as_deref()
-            .unwrap_or("")
-            .contains("VOX_SEARCH_SEARXNG_URL")
-    );
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn test_probe_unconfigured_tavily_returns_remediation() {
-    let prev = std::env::var("TAVILY_API_KEY").ok();
-    unsafe {
-        std::env::remove_var("TAVILY_API_KEY");
-    }
-    let result = probe_search_provider("tavily".to_string(), "rust".to_string()).await;
-    if let Some(val) = prev {
-        unsafe {
-            std::env::set_var("TAVILY_API_KEY", val);
-        }
-    }
-    assert!(
-        result.is_ok(),
-        "Unconfigured Tavily should return Ok(ProviderProbeResult)"
-    );
-    let probe = result.unwrap();
-    assert_eq!(probe.provider, "tavily");
-    assert_eq!(probe.http_status, 0);
-    assert!(!probe.success);
-    assert!(probe.error_message.is_some());
-    assert!(
-        probe
-            .remediation_tip
-            .as_deref()
-            .unwrap_or("")
-            .contains("Tavily API key")
-    );
-}
+// The unconfigured-SearXNG / unconfigured-Tavily remediation paths are covered where the probe
+// now lives (`vox_search::probe::tests::test_unconfigured_{searxng,tavily}_returns_helpful_remediation`).
+// They were dropped here: clearing the env var does not unconfigure a provider whose value is
+// also held in the Clavis vault, so on such a machine they probed the live endpoint and failed.
 
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -201,13 +146,14 @@ impl MockSearchCluster {
     }
 
     fn policy(&self) -> vox_search::policy::SearchPolicy {
-        let mut policy = vox_search::policy::SearchPolicy::default();
-        policy.wikipedia_api_url = Some(format!("{}/w/api.php", self.wikipedia.uri()));
-        policy.openalex_api_url = Some(self.openalex.uri());
-        policy.arxiv_api_url = Some(format!("{}/api/query", self.arxiv.uri()));
-        policy.tavily_api_url = Some(self.tavily.uri());
-        policy.searxng_url = Some(self.searxng.uri());
-        policy
+        vox_search::policy::SearchPolicy {
+            wikipedia_api_url: Some(format!("{}/w/api.php", self.wikipedia.uri())),
+            openalex_api_url: Some(self.openalex.uri()),
+            arxiv_api_url: Some(format!("{}/api/query", self.arxiv.uri())),
+            tavily_api_url: Some(self.tavily.uri()),
+            searxng_url: Some(self.searxng.uri()),
+            ..Default::default()
+        }
     }
 }
 

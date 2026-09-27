@@ -13,7 +13,7 @@ use std::sync::Arc;
 use serde_json::{Value, json};
 use tauri::State;
 use vox_db::VoxDb;
-use vox_db::research_doc_io::{atomic_write_secure, update_research_index_md};
+use vox_db::research_doc_io::atomic_write_secure;
 use vox_foundation::protocol::dei_method;
 use vox_orchestrator::orch_daemon::OrchDaemonClient;
 
@@ -22,6 +22,15 @@ use crate::commands::gui_db_pool::GuiDbPool;
 
 fn pool_db(pool: &GuiDbPool) -> Result<Arc<VoxDb>, String> {
     pool.handle()
+}
+
+/// Repository root for research-doc writes: Clavis `VoxRepositoryRoot` (`VOX_REPO_ROOT`, alias
+/// `VOX_REPOSITORY_ROOT`), else the current directory.
+fn research_repo_root() -> std::path::PathBuf {
+    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxRepositoryRoot)
+        .expose()
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_default())
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -126,10 +135,10 @@ pub async fn save_research_doc(
     } else {
         format!("{slug}-research-2026.md")
     };
-    let repo_root = std::env::var("VOX_REPOSITORY_ROOT")
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|_| std::env::current_dir().unwrap_or_default());
-    let target_dir = repo_root.join("docs").join("src").join("architecture");
+    let target_dir = research_repo_root()
+        .join("docs")
+        .join("src")
+        .join("architecture");
     let target_path = target_dir.join(&filename);
 
     tokio::fs::create_dir_all(&target_dir)
@@ -216,8 +225,8 @@ pub async fn generate_research_doc_draft(
     })
 }
 
-/// Atomically publishes a research document to `docs/src/architecture/`, updates
-/// `research-index.md`, and persists to VoxDB knowledgebase.
+/// Atomically publishes a research document to `docs/src/architecture/` and persists it to the
+/// VoxDB knowledgebase. `research-index.md` is retired: the Starlight sidebar derives from frontmatter.
 #[tauri::command]
 pub async fn publish_research_doc(
     pool: State<'_, GuiDbPool>,
@@ -231,43 +240,23 @@ pub async fn publish_research_doc(
         return Err("Invalid slug: path traversal characters are not permitted".to_string());
     }
 
-    let repo_root = std::env::var("VOX_REPOSITORY_ROOT")
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|_| std::env::current_dir().unwrap_or_default());
-    let target_dir = repo_root.join("docs").join("src").join("architecture");
+    let target_dir = research_repo_root()
+        .join("docs")
+        .join("src")
+        .join("architecture");
     let filename = if slug.ends_with("-2026.md") {
         slug.clone()
     } else {
         format!("{slug}-2026.md")
     };
     let target_path = target_dir.join(&filename);
-    let index_path = target_dir.join("research-index.md");
 
-    // Offload blocking atomic write and index update
+    // Offload the blocking atomic write.
     let target_path_clone = target_path.clone();
-    let index_path_clone = index_path.clone();
-    let filename_clone = filename.clone();
     let content_clone = content.clone();
 
     tokio::task::spawn_blocking(move || {
-        atomic_write_secure(&target_path_clone, content_clone.as_bytes())
-            .map_err(|e| e.to_string())?;
-
-        let title = format!("Research Session #{session_id} Architecture SSOT (2026)");
-        let desc = "Empirically verified architecture findings and benchmarks.";
-        if let Err(e) = update_research_index_md(
-            &index_path_clone,
-            "Strategic & Value Proposition",
-            &filename_clone,
-            &title,
-            desc,
-        ) {
-            tracing::warn!(
-                "Failed to update research index at {}: {e}",
-                index_path_clone.display()
-            );
-        }
-        Ok::<(), String>(())
+        atomic_write_secure(&target_path_clone, content_clone.as_bytes()).map_err(|e| e.to_string())
     })
     .await
     .map_err(|e| e.to_string())??;
