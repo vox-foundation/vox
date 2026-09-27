@@ -41,8 +41,9 @@ fn indexed_for_loop_binds_index_in_body() {
         out.contains("let i = i as i64"),
         "index binding must be shadowed as i64 for Vox int arithmetic; got:\n{out}"
     );
+    // Not `(i + 1)`: integer literals now emit an explicit `i64` suffix.
     assert!(
-        out.contains("(i + 1)"),
+        out.contains("(i + 1i64)"),
         "loop body must reference the index binding; got:\n{out}"
     );
 }
@@ -60,8 +61,13 @@ fn indexed_for_loop_index_used_in_string_concat() {
         }",
     );
 
+    // `str(i)` now emits through the generic JSON-round-trip display path
+    // (`emit_generic_display` in codegen_rust/emit/stmt_expr.rs), not `as_string`.
     assert!(
-        out.contains(".enumerate()") && out.contains("as_string(&(i))"),
+        out.contains(".enumerate()")
+            && (out.contains(
+                "vox_actor_runtime::builtins::vox_display(&serde_json::to_value(&(i)).unwrap_or_default())"
+            ) || out.contains("as_string(&(i))")),
         "indexed loop body must reference index in expressions; got:\n{out}"
     );
 }

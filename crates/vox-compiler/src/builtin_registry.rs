@@ -1567,7 +1567,12 @@ mod namespace_builtin_parity_tests {
             ("path", "file_name", vec![s("a/b")]),
             ("path", "stem", vec![s("a.txt")]),
             ("path", "is_absolute", vec![s("/a")]),
-            ("path", "resolve", vec![s(".")]),
+            // Not `s(".")`: `fs_resolve_allowed` denies a bare `.`/`..` file
+            // name unconditionally (even under `developer_default`'s unscoped
+            // fs) to avoid trivially disclosing the process's absolute cwd —
+            // that's a deliberate guard, not a parity gap, so probe with an
+            // ordinary relative path that resolves normally instead.
+            ("path", "resolve", vec![s("Cargo.toml")]),
             ("regex", "replace", vec![s("a1"), s(r"\d"), s("X")]),
             ("regex", "find", vec![s("a1"), s(r"\d")]),
             ("regex", "is_match", vec![s("a1"), s(r"\d")]),
