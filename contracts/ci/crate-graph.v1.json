@@ -643,6 +643,7 @@
       "vox-config",
       "vox-plugin-api",
       "vox-plugin-types",
+      "vox-secrets",
       "vox-telemetry",
       "workspace-hack"
     ],
@@ -953,6 +954,7 @@
     ],
     "voxup": [
       "vox-plugin-catalog",
+      "vox-secrets",
       "workspace-hack"
     ],
     "workspace-hack": []
