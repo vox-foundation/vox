@@ -151,7 +151,6 @@ mod tests {
     // async connect. Other users of the lock are sync tests on their own threads, so the
     // usual single-thread-runtime deadlock hazard doesn't apply; swapping in a tokio
     // mutex would change a lock type shared by many sync tests.
-    #[allow(clippy::await_holding_lock)]
     #[tokio::test(flavor = "multi_thread")]
     #[allow(unsafe_code)] // set_var/remove_var are unsafe on Rust 2024; TEST_ENV_LOCK serialises env mutators.
     #[allow(clippy::await_holding_lock)] // the guard must span the await: it is what serialises the env mutation.
