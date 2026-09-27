@@ -357,6 +357,13 @@ graph
 graph/coverage
 graph/crate-map
 graph/gc
+graph/history
+graph/history/brief
+graph/history/focus
+graph/history/forgotten
+graph/history/log
+graph/history/search
+graph/history/timeline
 graph/index
 graph/ingest
 graph/query

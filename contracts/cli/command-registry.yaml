@@ -1814,6 +1814,18 @@ operations:
 - surface: vox-cli
   path:
   - graph
+  - history
+  status: active
+  latin_ns: pm
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::graphify
+- surface: vox-cli
+  path:
+  - graph
   - ingest
   status: active
   latin_ns: pm

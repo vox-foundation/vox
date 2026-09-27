@@ -4654,6 +4654,27 @@
       "curated": true
     },
     {
+      "capability_id": "cli.graph.history",
+      "cli_path": [
+        "graph",
+        "history"
+      ],
+      "implicit": false,
+      "title": "Vox Graph History",
+      "description_model": "First-parent origin/main history with lineage and mechanical-change flags (log, focus, forgotten, search, timeline, brief); lazily ingests new commits into a store under the git common dir.",
+      "intent_tags": [
+        "retrieval",
+        "graph"
+      ],
+      "side_effect_class": "writes_files",
+      "scope_kind": "repository",
+      "reversible": true,
+      "requires_repo": true,
+      "preferred_for_models": true,
+      "human_takeover_friendly": true,
+      "curated": true
+    },
+    {
       "capability_id": "cli.graph.ingest",
       "cli_path": [
         "graph",

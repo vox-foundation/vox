@@ -6388,6 +6388,35 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: null
+- id: graph.history
+  title: Vox Graph History
+  description: First-parent origin/main history with lineage and mechanical-change flags (log, focus, forgotten, search, timeline, brief); lazily ingests new commits into a store under the git common dir.
+  description_human: null
+  product_lane: platform
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: writes_files
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - graph
+    - history
+    status: active
+    latin_ns: pm
+    handler_rust: commands::graphify
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
 - id: graph.query
   title: Vox Search Neighbors
   description: BFS neighbor expansion from seed node IDs (read-only; layered navigation).

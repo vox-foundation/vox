@@ -10,6 +10,8 @@ use vox_config::graphify::{
     write_manifest,
 };
 
+mod history;
+
 /// Returns the cache directory for a corpus: `<repo_root>/.vox/cache/vox-graph/<corpus_id>`.
 ///
 /// Note: the Rebuild/Index/IngestAll paths do NOT call this — they write to the
@@ -153,6 +155,11 @@ pub enum GraphifyCmd {
         /// Write classification JSON here.
         #[arg(long, default_value = "graphify-out/rebuild_causes.json")]
         out: String,
+    },
+    /// First-parent repo history: log, focus, forgotten, search, timeline, brief.
+    History {
+        #[command(subcommand)]
+        cmd: history::HistoryCmd,
     },
 }
 
@@ -1269,6 +1276,13 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                 );
             }
             println!("{}", serde_json::to_string_pretty(&payload)?);
+        }
+        GraphifyCmd::History { cmd } => {
+            let code_graph = load_graphify_corpora(repo_root)
+                .ok()
+                .and_then(|r| r.corpora.into_iter().find(|c| c.id == "repo-code-graph"))
+                .map(|c| repo_root.join(c.graph_path));
+            history::run(cmd, repo_root, code_graph)?;
         }
     }
     Ok(())
