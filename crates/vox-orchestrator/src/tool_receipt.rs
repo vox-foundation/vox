@@ -95,6 +95,19 @@ impl ToolReceiptLedger {
             .collect()
     }
 
+    fn receipt_mac(&self, r: &ToolReceipt) -> [u8; 32] {
+        let mut buf = Vec::new();
+        buf.extend_from_slice(r.receipt_id.as_bytes());
+        buf.extend_from_slice(&r.agent_id.0.to_le_bytes());
+        buf.extend_from_slice(r.tool_name.as_bytes());
+        buf.extend_from_slice(r.call_args_hash.as_bytes());
+        if let Some(ref res) = r.result_hash {
+            buf.extend_from_slice(res.as_bytes());
+        }
+        buf.extend_from_slice(&r.executed_at_ms.to_le_bytes());
+        vox_crypto::facades::keyed_hash(&self.session_key, &buf)
+    }
+
     /// Issue a new receipt for a tool execution intent.
     ///
     /// Fails closed: returns `Err(ToolReceiptError::UnknownTool)` without recording anything
@@ -113,25 +126,20 @@ impl ToolReceiptLedger {
         let receipt_id = Uuid::now_v7().to_string();
         let executed_at_ms = chrono::Utc::now().timestamp_millis() as u64;
 
-        let args_hash = blake3::hash(args_json.as_bytes()).to_string();
+        let args_hash = vox_crypto::facades::hex_encode(&vox_crypto::facades::secure_hash(
+            args_json.as_bytes(),
+        ));
 
-        let mut hasher = blake3::Hasher::new_keyed(&self.session_key);
-        hasher.update(receipt_id.as_bytes());
-        hasher.update(&agent_id.0.to_le_bytes());
-        hasher.update(tool_name.as_bytes());
-        hasher.update(args_hash.as_bytes());
-        hasher.update(&executed_at_ms.to_le_bytes());
-        let hmac_tag = hasher.finalize().into();
-
-        let receipt = ToolReceipt {
+        let mut receipt = ToolReceipt {
             receipt_id: receipt_id.clone(),
             agent_id,
             tool_name: tool_name.to_string(),
             call_args_hash: args_hash,
             result_hash: None,
             executed_at_ms,
-            hmac_tag,
+            hmac_tag: [0u8; 32],
         };
+        receipt.hmac_tag = self.receipt_mac(&receipt);
 
         let mut map = self.receipts.write();
         map.insert(receipt_id, receipt.clone());
@@ -147,18 +155,11 @@ impl ToolReceiptLedger {
         let mut map = self.receipts.write();
         let receipt = map.get_mut(receipt_id).ok_or("Receipt not found")?;
 
-        let res_hash = blake3::hash(result_json.as_bytes()).to_string();
-        receipt.result_hash = Some(res_hash.clone());
-
-        // Re-compute tag with result
-        let mut hasher = blake3::Hasher::new_keyed(&self.session_key);
-        hasher.update(receipt.receipt_id.as_bytes());
-        hasher.update(&receipt.agent_id.0.to_le_bytes());
-        hasher.update(receipt.tool_name.as_bytes());
-        hasher.update(receipt.call_args_hash.as_bytes());
-        hasher.update(res_hash.as_bytes());
-        hasher.update(&receipt.executed_at_ms.to_le_bytes());
-        receipt.hmac_tag = hasher.finalize().into();
+        let res_hash = vox_crypto::facades::hex_encode(&vox_crypto::facades::secure_hash(
+            result_json.as_bytes(),
+        ));
+        receipt.result_hash = Some(res_hash);
+        receipt.hmac_tag = self.receipt_mac(receipt);
 
         Ok(receipt.clone())
     }
@@ -182,16 +183,7 @@ impl ToolReceiptLedger {
         let map = self.receipts.read();
         let receipt = map.get(receipt_id).ok_or("Receipt not found in ledger")?;
 
-        let mut hasher = blake3::Hasher::new_keyed(&self.session_key);
-        hasher.update(receipt.receipt_id.as_bytes());
-        hasher.update(&receipt.agent_id.0.to_le_bytes());
-        hasher.update(receipt.tool_name.as_bytes());
-        hasher.update(receipt.call_args_hash.as_bytes());
-        if let Some(ref res) = receipt.result_hash {
-            hasher.update(res.as_bytes());
-        }
-        hasher.update(&receipt.executed_at_ms.to_le_bytes());
-        let expected_tag: [u8; 32] = hasher.finalize().into();
+        let expected_tag: [u8; 32] = self.receipt_mac(receipt);
 
         if expected_tag == receipt.hmac_tag {
             Ok(())
