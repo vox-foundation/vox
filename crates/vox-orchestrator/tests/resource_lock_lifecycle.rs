@@ -440,3 +440,230 @@ async fn sqlite_hopper_contention_releases_and_dispatches_the_waiter() {
         tokio::time::sleep(vox_config::timeouts::D_20MS).await;
     }
 }
+
+#[tokio::test]
+async fn cancelling_the_holder_releases_the_lock() {
+    let orch = Orchestrator::new(OrchestratorConfig::for_testing());
+    let _agent_id = orch.spawn_agent("locks").expect("spawn_agent must succeed");
+
+    let mut rx = orch.event_bus.subscribe();
+
+    let hopper = orch.hopper();
+    let item_a = hopper
+        .submit_with_resource(
+            "task A".into(),
+            vec![],
+            PriorityHint::Normal,
+            IntakeSource::Developer,
+            Some("chat-s3".into()),
+            Some("db://orders/8".into()),
+        )
+        .await;
+
+    let item_b = hopper
+        .submit_with_resource(
+            "task B".into(),
+            vec![],
+            PriorityHint::Normal,
+            IntakeSource::Developer,
+            Some("chat-s4".into()),
+            Some("db://orders/8".into()),
+        )
+        .await;
+
+    let task_id_a = TaskId(vox_orchestrator::orchestrator::dispatch::stable_hash(
+        &item_a.item_id.0,
+    ));
+    let task_id_b = TaskId(vox_orchestrator::orchestrator::dispatch::stable_hash(
+        &item_b.item_id.0,
+    ));
+
+    // Wait until A holds the lock and B's LockWaiting arrives (bounded poll, D_10S)
+    let deadline = tokio::time::Instant::now() + vox_config::timeouts::D_10S;
+    let mut b_waiting = false;
+    loop {
+        let is_locked = orch.resource_locks().is_locked("db://orders/8");
+        let assigned = hopper.assigned().await;
+        let a_assigned = assigned.iter().any(|i| i.item_id == item_a.item_id);
+
+        while let Ok(event) = rx.try_recv() {
+            if let AgentEventKind::LockWaiting {
+                task_id,
+                resource_id,
+                ..
+            } = &event.kind
+                && *task_id == task_id_b
+                && resource_id == "db://orders/8"
+            {
+                b_waiting = true;
+            }
+        }
+
+        if is_locked && a_assigned && b_waiting {
+            break;
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "timed out waiting for task A to hold the lock and B to wait"
+        );
+        tokio::time::sleep(vox_config::timeouts::D_20MS).await;
+    }
+
+    // Cancel A's task directly (it is queued, not dequeued)
+    orch.cancel_task(task_id_a).expect("cancel task A");
+
+    // Assert LockReleased { session_id: Some("chat-s3"), task_id: Some(task_id_a), .. }
+    let deadline = tokio::time::Instant::now() + vox_config::timeouts::D_10S;
+    let mut lock_released = false;
+    while tokio::time::Instant::now() < deadline {
+        if let Ok(Ok(event)) = tokio::time::timeout(vox_config::timeouts::D_100MS, rx.recv()).await
+            && let AgentEventKind::LockReleased {
+                session_id,
+                task_id,
+                path,
+                ..
+            } = &event.kind
+            && path.to_str() == Some("db://orders/8")
+            && session_id.as_deref() == Some("chat-s3")
+            && *task_id == Some(task_id_a)
+        {
+            lock_released = true;
+            break;
+        }
+    }
+    assert!(
+        lock_released,
+        "did not receive expected LockReleased event for task A"
+    );
+
+    // Then (bounded poll) B is assigned and resource_locks() holds db://orders/8 again
+    let deadline = tokio::time::Instant::now() + vox_config::timeouts::D_10S;
+    loop {
+        let is_locked = orch.resource_locks().is_locked("db://orders/8");
+        let assigned = hopper.assigned().await;
+        let b_assigned = assigned.iter().any(|i| i.item_id == item_b.item_id);
+        if is_locked && b_assigned {
+            break;
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "timed out waiting for task B to be assigned and lock held"
+        );
+        tokio::time::sleep(vox_config::timeouts::D_20MS).await;
+    }
+}
+
+#[tokio::test]
+async fn cancelling_the_hopper_item_releases_the_lock() {
+    let orch = Orchestrator::new(OrchestratorConfig::for_testing());
+    let _agent_id = orch.spawn_agent("locks").expect("spawn_agent must succeed");
+
+    let mut rx = orch.event_bus.subscribe();
+
+    let hopper = orch.hopper();
+    let item_a = hopper
+        .submit_with_resource(
+            "task A".into(),
+            vec![],
+            PriorityHint::Normal,
+            IntakeSource::Developer,
+            Some("chat-s3".into()),
+            Some("db://orders/8".into()),
+        )
+        .await;
+
+    let item_b = hopper
+        .submit_with_resource(
+            "task B".into(),
+            vec![],
+            PriorityHint::Normal,
+            IntakeSource::Developer,
+            Some("chat-s4".into()),
+            Some("db://orders/8".into()),
+        )
+        .await;
+
+    let task_id_a = TaskId(vox_orchestrator::orchestrator::dispatch::stable_hash(
+        &item_a.item_id.0,
+    ));
+    let task_id_b = TaskId(vox_orchestrator::orchestrator::dispatch::stable_hash(
+        &item_b.item_id.0,
+    ));
+
+    // Wait until A holds the lock and B's LockWaiting arrives (bounded poll, D_10S)
+    let deadline = tokio::time::Instant::now() + vox_config::timeouts::D_10S;
+    let mut b_waiting = false;
+    loop {
+        let is_locked = orch.resource_locks().is_locked("db://orders/8");
+        let assigned = hopper.assigned().await;
+        let a_assigned = assigned.iter().any(|i| i.item_id == item_a.item_id);
+
+        while let Ok(event) = rx.try_recv() {
+            if let AgentEventKind::LockWaiting {
+                task_id,
+                resource_id,
+                ..
+            } = &event.kind
+                && *task_id == task_id_b
+                && resource_id == "db://orders/8"
+            {
+                b_waiting = true;
+            }
+        }
+
+        if is_locked && a_assigned && b_waiting {
+            break;
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "timed out waiting for task A to hold the lock and B to wait"
+        );
+        tokio::time::sleep(vox_config::timeouts::D_20MS).await;
+    }
+
+    // Cancel A through the hopper
+    orch.hopper()
+        .cancel(&item_a.item_id)
+        .await
+        .expect("cancel hopper item A");
+
+    // Assert LockReleased { session_id: Some("chat-s3"), task_id: Some(task_id_a), .. }
+    let deadline = tokio::time::Instant::now() + vox_config::timeouts::D_10S;
+    let mut lock_released = false;
+    while tokio::time::Instant::now() < deadline {
+        if let Ok(Ok(event)) = tokio::time::timeout(vox_config::timeouts::D_100MS, rx.recv()).await
+            && let AgentEventKind::LockReleased {
+                session_id,
+                task_id,
+                path,
+                ..
+            } = &event.kind
+            && path.to_str() == Some("db://orders/8")
+            && session_id.as_deref() == Some("chat-s3")
+            && *task_id == Some(task_id_a)
+        {
+            lock_released = true;
+            break;
+        }
+    }
+    assert!(
+        lock_released,
+        "did not receive expected LockReleased event for task A"
+    );
+
+    // Then (bounded poll) B is assigned and resource_locks() holds db://orders/8 again
+    let deadline = tokio::time::Instant::now() + vox_config::timeouts::D_10S;
+    loop {
+        let is_locked = orch.resource_locks().is_locked("db://orders/8");
+        let assigned = hopper.assigned().await;
+        let b_assigned = assigned.iter().any(|i| i.item_id == item_b.item_id);
+        if is_locked && b_assigned {
+            break;
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "timed out waiting for task B to be assigned and lock held"
+        );
+        tokio::time::sleep(vox_config::timeouts::D_20MS).await;
+    }
+}

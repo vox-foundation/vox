@@ -106,13 +106,23 @@ impl crate::orchestrator::Orchestrator {
             };
 
         let cancel_agents = Arc::clone(&agents);
+        let cancel_resource_gate = resource_gate.clone();
         let cancel_closure = move |task_id: crate::types::TaskId| {
             let agents_lock = cancel_agents.read().unwrap();
             let mut found = false;
-            for queue_arc in agents_lock.values() {
+            for (&agent_id, queue_arc) in agents_lock.iter() {
                 let mut queue = queue_arc.write().unwrap();
-                if queue.cancel(task_id).is_some() {
+                if let Some(task) = queue.cancel(task_id) {
                     found = true;
+                    drop(queue);
+                    if let Some(ref resource) = task.resource_id {
+                        cancel_resource_gate.release(
+                            agent_id,
+                            resource,
+                            task.session_id.as_deref(),
+                            Some(task.id),
+                        );
+                    }
                     break;
                 }
             }

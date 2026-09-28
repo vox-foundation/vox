@@ -147,6 +147,9 @@ impl crate::orchestrator::Orchestrator {
                         crate::sync_lock::rw_write(&*self.scope_guard).revoke_file(agent_id, path);
                     }
                 }
+                // Release resource lock while queue is held; release never touches agent queues (Phase 5 D-08).
+                let held = t.resource_id.clone().map(|r| (r, t.session_id.clone()));
+                self.release_task_resource_lock(agent_id, t.id, held);
             }
             crate::sync_lock::rw_write(&self.task_assignments).remove(&task_id);
             tracing::info!(
@@ -297,6 +300,12 @@ impl crate::orchestrator::Orchestrator {
                     crate::sync_lock::rw_write(&*self.scope_guard).revoke_file(agent_id, path);
                 }
             }
+            // Release resource lock while queue is held; release never touches agent queues (Phase 5 D-08).
+            let held = task
+                .resource_id
+                .clone()
+                .map(|r| (r, task.session_id.clone()));
+            self.release_task_resource_lock(agent_id, task.id, held);
             crate::sync_lock::rw_write(&self.task_assignments).remove(&task_id);
             tracing::info!("Cancelled task {} from agent {}", task_id, agent_id);
             emit_task_cancelled(task_id, agent_id, "queue");
@@ -495,5 +504,19 @@ impl crate::orchestrator::Orchestrator {
         crate::sync_lock::rw_write(queue_lock).resume();
         tracing::info!("Agent {} resumed", agent_id);
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cancel_nonexistent_task_returns_not_found() {
+        let orch = crate::Orchestrator::new(crate::OrchestratorConfig::for_testing());
+        assert!(matches!(
+            orch.cancel_task(TaskId(999999)),
+            Err(OrchestratorError::TaskNotFound(_))
+        ));
     }
 }
