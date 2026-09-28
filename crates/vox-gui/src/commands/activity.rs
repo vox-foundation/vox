@@ -12,6 +12,7 @@ use vox_db::{DbConnectSurface, connect_workspace_journey_optional};
 pub struct ActivityFilter {
     pub agent_id: Option<String>,
     pub kind: Option<String>,
+    pub session_id: Option<String>,
     pub limit: u32,
     pub before_id: Option<i64>,
 }
@@ -44,6 +45,10 @@ pub fn build_where(filter: &ActivityFilter) -> (String, Vec<turso::Value>) {
     if let Some(kind) = &filter.kind {
         clauses.push("kind = ?");
         params.push(kind.clone().into());
+    }
+    if let Some(session_id) = &filter.session_id {
+        clauses.push("session_id = ?");
+        params.push(session_id.clone().into());
     }
     if let Some(before_id) = filter.before_id {
         clauses.push("id < ?");
@@ -118,6 +123,7 @@ mod tests {
         let filter = ActivityFilter {
             agent_id: Some("A1".to_string()),
             kind: Some("TaskCompleted".to_string()),
+            session_id: None,
             limit: 50,
             before_id: Some(100),
         };
@@ -126,5 +132,19 @@ mod tests {
         assert!(sql.contains("kind = ?"));
         assert!(sql.contains("id < ?"));
         assert_eq!(params.len(), 3);
+    }
+
+    #[test]
+    fn filter_by_session() {
+        let filter = ActivityFilter {
+            agent_id: None,
+            kind: None,
+            session_id: Some("chat-s1".to_string()),
+            limit: 50,
+            before_id: None,
+        };
+        let (sql, params) = build_where(&filter);
+        assert!(sql.contains("session_id = ?"));
+        assert_eq!(params.len(), 1);
     }
 }

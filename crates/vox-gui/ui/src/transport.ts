@@ -899,6 +899,7 @@ export interface ActivityRowDto {
 export interface ActivityFilterDto {
   agent_id: string | null;
   kind: string | null;
+  session_id?: string | null;
   limit: number;
   before_id: number | null;
 }

@@ -3,9 +3,58 @@ import { decode } from '@msgpack/msgpack';
 import { filterBySession, type TaskRow } from '../components/surfaces/Tasks/tasksHelpers';
 import type { ChatExecutionTask } from '../components/surfaces/Chat/ChatExecutionRail';
 import type { OrchestratorStatus, RoutingSummary } from '../types/tauri';
-import { voxTransport } from '../transport';
+import { voxTransport, activityQuery, type ActivityRowDto } from '../transport';
 
 export const CHAT_EXECUTION_POLL_MS = 5_000;
+export const CHAT_LOCK_ACTIVITY_LIMIT = 200;
+
+function boundResourceId(raw: string, maxLen = 64): string {
+  if (raw.length <= maxLen) return raw;
+  return raw.slice(0, maxLen - 3) + '...';
+}
+
+export function lockStatesFromActivity(
+  rows: ActivityRowDto[],
+): Map<string, NonNullable<ChatExecutionTask['lock']>> {
+  const result = new Map<string, NonNullable<ChatExecutionTask['lock']>>();
+  if (!Array.isArray(rows)) return result;
+
+  const seen = new Set<string>();
+
+  for (const row of rows) {
+    if (row.kind !== 'LockAcquired' && row.kind !== 'LockReleased') {
+      continue;
+    }
+    if (!row.detail_json) continue;
+    let detail: Record<string, unknown>;
+    try {
+      const parsed = JSON.parse(row.detail_json);
+      if (!parsed || typeof parsed !== 'object') continue;
+      detail = parsed as Record<string, unknown>;
+    } catch {
+      continue;
+    }
+
+    if (typeof detail.task_id !== 'number' || typeof detail.path !== 'string') {
+      continue;
+    }
+
+    const taskIdKey = String(detail.task_id);
+    if (seen.has(taskIdKey)) {
+      continue;
+    }
+    seen.add(taskIdKey);
+
+    if (row.kind === 'LockAcquired') {
+      result.set(taskIdKey, {
+        resourceId: boundResourceId(detail.path),
+        state: 'holding',
+      });
+    }
+  }
+
+  return result;
+}
 
 export function mapOrchestratorTasksForSession(
   rows: TaskRow[],
@@ -72,13 +121,27 @@ export function useChatExecutionData(sessionId: string | undefined): ChatExecuti
 
     const refresh = async () => {
       try {
-        const [rows, summary, statusBin] = await Promise.all([
+        // ponytail: client-side kind filter over the newest 200 session rows; add a multi-kind server filter if a busy session pushes an old still-held lock out of that window.
+        const [rows, summary, statusBin, activityRows] = await Promise.all([
           voxTransport.listOrchestratorTasks(),
           voxTransport.getRoutingSummaryLive(),
           voxTransport.getOrchestratorStatusBin().catch(() => null),
+          activityQuery({
+            agent_id: null,
+            kind: null,
+            session_id: sessionId,
+            limit: CHAT_LOCK_ACTIVITY_LIMIT,
+            before_id: null,
+          }).catch(() => []),
         ]);
         if (cancelled) return;
-        setTasks(mapOrchestratorTasksForSession(rows, sessionId));
+        const mappedTasks = mapOrchestratorTasksForSession(rows, sessionId);
+        const lockMap = lockStatesFromActivity(activityRows);
+        const tasksWithLocks = mappedTasks.map(t => {
+          const lock = lockMap.get(t.id);
+          return lock ? { ...t, lock } : t;
+        });
+        setTasks(tasksWithLocks);
         setIntents(intentsFromRoutingSummary(summary));
         setMeshPeers(meshPeersFromStatusBin(statusBin));
       } catch {

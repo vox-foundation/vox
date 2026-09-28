@@ -13,6 +13,8 @@ export interface ChatExecutionTask {
   id: string;
   title: string;
   status?: string;
+  /** Derived from orchestrator lock activity, Phase 5 D-13. */
+  lock?: { resourceId: string; state: 'holding' | 'waiting' };
 }
 
 export interface ChatExecutionRailKpis {
