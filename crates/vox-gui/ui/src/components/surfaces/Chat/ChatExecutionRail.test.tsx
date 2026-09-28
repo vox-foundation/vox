@@ -481,5 +481,67 @@ describe('ChatExecutionRail', () => {
       expect(meter.getAttribute('aria-valuenow')).toBe('250');
     });
   });
+
+  it('renders execution-rail-lock-chip with holding state and resource id', () => {
+    render(
+      <LanguageProvider>
+        <ChatExecutionRail
+          tasks={[
+            {
+              id: 't1',
+              title: 'Migrate orders table',
+              status: 'running',
+              lock: { resourceId: 'db://orders/42', state: 'holding' },
+            },
+          ]}
+          kpis={sampleKpis}
+          onNavigate={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+    const chip = screen.getByTestId('execution-rail-lock-chip');
+    expect(chip).toBeInTheDocument();
+    expect(chip).toHaveAttribute('data-lock-state', 'holding');
+    expect(chip).toHaveAttribute('title', 'db://orders/42');
+    expect(chip).toHaveTextContent('holding db://orders/42');
+  });
+
+  it('renders execution-rail-lock-chip with waiting state', () => {
+    render(
+      <LanguageProvider>
+        <ChatExecutionRail
+          tasks={[
+            {
+              id: 't1',
+              title: 'Migrate orders table',
+              status: 'pending',
+              lock: { resourceId: 'db://orders/42', state: 'waiting' },
+            },
+          ]}
+          kpis={sampleKpis}
+          onNavigate={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+    const chip = screen.getByTestId('execution-rail-lock-chip');
+    expect(chip).toBeInTheDocument();
+    expect(chip).toHaveAttribute('data-lock-state', 'waiting');
+    expect(chip).toHaveAttribute('title', 'db://orders/42');
+    expect(chip).toHaveTextContent('waiting on db://orders/42');
+  });
+
+  it('renders no lock chip for a task without lock', () => {
+    render(
+      <LanguageProvider>
+        <ChatExecutionRail
+          tasks={[{ id: 't1', title: 'Task without lock', status: 'running' }]}
+          kpis={sampleKpis}
+          onNavigate={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+    expect(screen.queryByTestId('execution-rail-lock-chip')).toBeNull();
+  });
 });
+
 

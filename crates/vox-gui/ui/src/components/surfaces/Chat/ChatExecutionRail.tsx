@@ -211,6 +211,16 @@ export function ChatExecutionRail({
                       {task.status}
                     </p>
                   )}
+                  {task.lock && (
+                    <span
+                      data-testid="execution-rail-lock-chip"
+                      data-lock-state={task.lock.state}
+                      title={task.lock.resourceId}
+                      className="mt-1 inline-flex items-center gap-1 rounded-full border border-border-subtle bg-overlay-subtle px-2 py-0.5 font-mono text-[10px] text-text-secondary max-w-full truncate"
+                    >
+                      {task.lock.state === 'holding' ? `holding ${task.lock.resourceId}` : `waiting on ${task.lock.resourceId}`}
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>

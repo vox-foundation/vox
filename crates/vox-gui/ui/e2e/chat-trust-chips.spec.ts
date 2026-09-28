@@ -205,3 +205,89 @@ test('claims verdict renders and flags fabricated claims', async ({ page }) => {
   });
 });
 
+test('holding lock renders under its task in the chat rail', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+
+  await installTrustOverrides(page, {
+    responses: {
+      chat_list_sessions: [
+        {
+          session_id: 'trust-session',
+          title: 'Trust chips',
+          updated_at: 'now',
+          message_count: 0,
+          conversation_id: 1,
+        },
+      ],
+      list_orchestrator_tasks: [
+        {
+          id: 77,
+          description: 'Migrate orders table',
+          priority: 'normal',
+          lifecycle: 'in_progress',
+          agent_id: 3,
+          session_id: 'trust-session',
+          estimated_complexity: 1,
+          depends_on: [],
+          write_files: [],
+          remote_node: null,
+          origin: 'orchestrator',
+        },
+      ],
+      activity_query: [
+        {
+          id: 10,
+          ts_ms: 1,
+          agent_id: '3',
+          session_id: 'trust-session',
+          kind: 'LockAcquired',
+          summary: 'Lock acquired',
+          detail_json: JSON.stringify({
+            type: 'lock_acquired',
+            agent_id: 3,
+            path: 'db://orders/42',
+            exclusive: true,
+            session_id: 'trust-session',
+            task_id: 77,
+          }),
+        },
+      ],
+    },
+  });
+
+  await page.goto('/');
+  await page.waitForSelector('nav', { timeout: 15_000 });
+
+  // If the app does not auto-select trust-session, click it in the session rail
+  const sessionTab = page.getByRole('tab', { name: /Trust chips/i });
+  if (await sessionTab.isVisible()) {
+    await sessionTab.click();
+  }
+
+  const activeTasksRegion = page.getByRole('region', { name: /Active tasks/i });
+  await expect(activeTasksRegion).toBeVisible();
+  await expect(activeTasksRegion.getByText('Migrate orders table')).toBeVisible();
+
+  const lockChip = activeTasksRegion.getByTestId('execution-rail-lock-chip');
+  await expect(lockChip).toBeVisible();
+  await expect(lockChip).toHaveAttribute('data-lock-state', 'holding');
+  await expect(lockChip).toContainText('holding db://orders/42');
+
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        (window as any).__TAURI_CALLS__.some(
+          (c: any) =>
+            c.cmd === 'activity_query' && c.args?.filter?.session_id === 'trust-session',
+        ),
+      ),
+    )
+    .toBe(true);
+
+  mkdirSync(OUT_DIR, { recursive: true });
+  await page.screenshot({
+    path: join(OUT_DIR, 'chat-trust-lock-holding.png'),
+  });
+});
+
+
