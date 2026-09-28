@@ -2353,19 +2353,23 @@ mod receipt_wrap_tests {
 
     #[tokio::test]
     async fn gate_rejected_call_gets_no_receipt() {
+        // The tool must be registered: an unregistered one never gets a receipt
+        // wherever issue_intent sits, so it cannot catch a receipt issued before
+        // the gates. The budget gate rejects every tool, registered ones included.
         let state = ServerState::new_test().await;
+        {
+            let bm = state.orchestrator.budget_manager_handle();
+            let bm = vox_orchestrator::sync_lock::rw_read(&*bm);
+            bm.reset(vox_orchestrator::types::AgentId(0), 10);
+            bm.record_usage(vox_orchestrator::types::AgentId(0), 100);
+        }
         let handle = state.orchestrator.tool_ledger_handle();
         let initial_len = vox_orchestrator::sync_lock::rw_read(&*handle).len();
-        let (res, receipt) = handle_tool_call_with_receipt(
-            &state,
-            "vox_write_file",
-            json!({ "path": "x.rs", "content": "todo!()" }),
-            None,
-        )
-        .await;
+        let (res, receipt) =
+            handle_tool_call_with_receipt(&state, "vox_skill_list", json!({}), None).await;
         let res = res.expect("dispatch returns error envelope, not Err");
         assert!(crate::server_state::tool_json_envelope_is_error(&res));
-        assert!(res.contains("LAZY_GENERATION_DETECTED"));
+        assert!(res.contains("SYSTEM_INTERVENTION"));
         assert!(receipt.is_none());
         let final_len = vox_orchestrator::sync_lock::rw_read(&*handle).len();
         assert_eq!(initial_len, final_len);
