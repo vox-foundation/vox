@@ -1,5 +1,12 @@
 # Chat Surface Trace and Latest-Model Routing — Implementation Plan
 
+> **Status (2026-09-28): index.** This document is being split into one full-fidelity plan per subsystem
+> (exact code per step, interface blocks, no placeholders — the `superpowers:writing-plans` standard, which suits a
+> transcribing agent). Track B tasks 1–12 are **superseded** by
+> [`2026-09-28-model-routing-latest-and-honest.md`](2026-09-28-model-routing-latest-and-honest.md); drive that file,
+> not tasks 1–12 below. Track A (tasks 13–18, 28) and tracks C/D (tasks 19–27) get their own plans next; until then
+> the task list below records scope and order only.
+
 > **Execution method (binding).** Claude Code drives Gemini Flash through the `agy` CLI, one `<task>` per headless run,
 > and verifies, reviews and commits each result itself. Driver rules, guard hook and the `/drive-task` skill live in
 > the local `.agents/` kit described in
