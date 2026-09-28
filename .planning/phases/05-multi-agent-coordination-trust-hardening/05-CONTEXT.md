@@ -87,6 +87,21 @@ built than the ROADMAP text implies):
 - **D-09 (housekeeping):** Ratify ADR-025 the same way as D-05, once the sweep (D-06) and the real
   caller (D-08) are implemented.
 
+### Chat-GUI surfacing (added 2026-09-28, user directive mid-planning)
+- **D-10:** Nothing in this phase ships orchestrator-only. Tool receipts (D-01/D-03) and resource-lock
+  state/contention (D-06/D-08) MUST surface in the `vox-gui` chat surface — the user must be able to
+  see, from the chat, which tool calls in a turn carry a verified receipt (and any fabricated/unverified
+  claim), and when a task is waiting on / holding a `resource_id` lock. Reuse the existing chat
+  transcript/tool-call rendering and event plumbing (bulletin → event bus → GUI transport) rather than
+  adding a new panel, unless research shows no existing surface fits.
+- **D-11:** "Testable with our instruments" = every D-10 surface is covered by a deterministic
+  Playwright spec under `crates/vox-gui/ui/e2e/` driven by the mock IPC harness
+  (`installTauriMock`/`installTauriMockRich`), capturing screenshots into
+  `crates/vox-gui/ui/review-bundle/latest/` per AGENTS.md §GUI Visual Verification Invariant, plus
+  `pnpm --dir crates/vox-gui/ui typecheck` green. Where the real backend path is cheap to exercise
+  (e.g. an MCP tool-call round trip producing a receipt), prefer an end-to-end check over mock-only.
+  Phase verification must include a live look at the chat GUI, not just unit tests.
+
 ### Claude's Discretion
 - Exact MCP tool name/schema for the D-03 verify surface (`vox_verify_task_claims` is a working
   name, not locked).
@@ -162,8 +177,8 @@ built than the ROADMAP text implies):
 <specifics>
 ## Specific Ideas
 
-No specific UI or behavioral references beyond the decisions above — this phase has no user-facing
-surface beyond the new MCP tool (D-03).
+The user-facing surface is the `vox-gui` chat (D-10/D-11): receipt status on tool-call entries in
+the transcript, and lock wait/hold state on tasks, both visually verified via Playwright.
 
 </specifics>
 

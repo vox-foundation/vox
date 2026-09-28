@@ -72,6 +72,12 @@ The user selected all four areas to discuss given this, plus both housekeeping i
 | Ratify ADR-025 and ADR-029 | ✓ |
 | Fix tool_receipt.rs's crypto-policy violation | ✓ |
 
+## Chat-GUI surfacing (user directive, mid-planning)
+
+User: changes and orchestration must surface at the chat level, testable with our instruments —
+not the orchestrator built in isolation, but surfaced up to the chat GUI so chat changes can be
+worked with and visualized. Captured as D-10/D-11.
+
 ## Claude's Discretion
 - Exact MCP tool name/schema for the verify surface (working name `vox_verify_task_claims`).
 - Exact shape of the `resource_id` field addition to the task/intake spec.
