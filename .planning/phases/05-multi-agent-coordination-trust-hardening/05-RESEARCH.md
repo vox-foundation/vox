@@ -423,7 +423,9 @@ Not applicable — this is not a rename/refactor/migration phase. No strings are
 | A4 | The double-issue-receipt risk described in Pattern 6 (if agent_loop.rs independently calls issue/fulfill) is reasoned from `issue_intent`'s non-idempotent signature (`tool_receipt.rs:102-139`, always mints a fresh UUIDv7) rather than from an explicit locked decision against it — this is architectural reasoning, not a verified prohibition. | Pattern 6 | If the planner instead prefers the double-issue approach for simplicity, it should be an explicit, acknowledged tradeoff (extra ledger entries per chat-dispatched call), not an accidental side effect. |
 | A5 | Whether any CI gate (`vox ci ssot-drift` or similar) actually cross-checks dispatch.rs's match table against `TOOL_REGISTRY` (asserted in Pitfall 5) was not directly verified — reasoned from the existence of `vox ci ssot-drift` as a general SSOT-drift gate named in AGENTS.md, not from reading its specific rule set. | Pitfall 5 | Low risk either way — the registration sequence in Pattern 4 is correct regardless of whether a CI gate catches a skipped step; worst case is the gate doesn't exist and the only symptom is the fail-closed `TOOL_REGISTRY` rejection already described. |
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+> Both resolved in 05-CONTEXT.md: Q1 (lock TTL) by D-13 — reuse `OrchestratorConfig.task_timeout_ms`; Q2 (receipt→chat bridge) by D-12 — sibling `handle_tool_call_with_receipt`, not the event-bus approach recommended below.
 
 1. **D-08 lock TTL value**
    - What we know: `ResourceLockManager::try_acquire` requires an explicit `ttl_ms` (mandatory per ADR-025's "lease-based expiration" decision); no default exists in the codebase to inherit.
