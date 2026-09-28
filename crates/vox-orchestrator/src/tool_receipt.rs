@@ -261,4 +261,67 @@ mod tests {
         assert!(r.result_hash.is_some());
         assert!(l.verify(&r.receipt_id).is_ok());
     }
+
+    const PINNED_ARGS_HASH: &str =
+        "6e46dd10defc9b56c29a6ec56b508c21f54c08192194e4df25bf36f0c9c3c279";
+    const PINNED_FULFILLED_TAG: &str =
+        "2334110e88f7970cfd3bb8105e9c8cf3f1574a6289d7bf1ed55e5116e77a0066";
+
+    #[test]
+    fn args_hash_is_pinned() {
+        let l = ledger();
+        let r = l.issue_intent(AgentId(1), "vox_git_status", "{}").unwrap();
+        assert_eq!(r.call_args_hash, PINNED_ARGS_HASH);
+    }
+
+    #[test]
+    fn receipt_mac_bytes_are_pinned() {
+        let l = ledger();
+        let receipt = ToolReceipt {
+            receipt_id: "pinned-receipt".to_string(),
+            agent_id: AgentId(42),
+            tool_name: "vox_git_status".to_string(),
+            call_args_hash: PINNED_ARGS_HASH.to_string(),
+            result_hash: None,
+            executed_at_ms: 1_700_000_000_000,
+            hmac_tag: [0u8; 32],
+        };
+        l.receipts
+            .write()
+            .insert("pinned-receipt".to_string(), receipt);
+
+        let fulfilled = l.fulfill_intent("pinned-receipt", "{\"ok\":true}").unwrap();
+        let tag_hex = hex::encode(fulfilled.hmac_tag);
+        assert_eq!(tag_hex, PINNED_FULFILLED_TAG);
+        assert!(l.verify("pinned-receipt").is_ok());
+    }
+
+    #[test]
+    fn validate_agent_claims_splits_valid_fabricated_unverified() {
+        let l = ledger();
+        let valid_receipt = l
+            .issue(AgentId(1), "vox_git_status", "{}", "{\"ok\":true}")
+            .unwrap();
+        let unverified_receipt = l
+            .issue(AgentId(1), "vox_git_status", "{}", "{\"ok\":true}")
+            .unwrap();
+
+        {
+            let mut map = l.receipts.write();
+            let r = map.get_mut(&unverified_receipt.receipt_id).unwrap();
+            r.hmac_tag = [1u8; 32];
+        }
+
+        let fabricated_id = "completely-unknown-receipt-id".to_string();
+
+        let claims = vec![
+            valid_receipt.receipt_id.clone(),
+            fabricated_id.clone(),
+            unverified_receipt.receipt_id.clone(),
+        ];
+        let result = l.validate_agent_claims(&claims);
+        assert_eq!(result.valid, vec![valid_receipt.receipt_id]);
+        assert_eq!(result.fabricated, vec![fabricated_id]);
+        assert_eq!(result.unverified, vec![unverified_receipt.receipt_id]);
+    }
 }
