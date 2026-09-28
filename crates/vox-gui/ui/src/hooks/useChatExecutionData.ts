@@ -22,7 +22,11 @@ export function lockStatesFromActivity(
   const seen = new Set<string>();
 
   for (const row of rows) {
-    if (row.kind !== 'LockAcquired' && row.kind !== 'LockReleased') {
+    if (
+      row.kind !== 'LockAcquired' &&
+      row.kind !== 'LockReleased' &&
+      row.kind !== 'LockWaiting'
+    ) {
       continue;
     }
     if (!row.detail_json) continue;
@@ -35,7 +39,14 @@ export function lockStatesFromActivity(
       continue;
     }
 
-    if (typeof detail.task_id !== 'number' || typeof detail.path !== 'string') {
+    const resourcePath =
+      typeof detail.resource_id === 'string'
+        ? detail.resource_id
+        : typeof detail.path === 'string'
+          ? detail.path
+          : null;
+
+    if (typeof detail.task_id !== 'number' || !resourcePath) {
       continue;
     }
 
@@ -47,8 +58,13 @@ export function lockStatesFromActivity(
 
     if (row.kind === 'LockAcquired') {
       result.set(taskIdKey, {
-        resourceId: boundResourceId(detail.path),
+        resourceId: boundResourceId(resourcePath),
         state: 'holding',
+      });
+    } else if (row.kind === 'LockWaiting') {
+      result.set(taskIdKey, {
+        resourceId: boundResourceId(resourcePath),
+        state: 'waiting',
       });
     }
   }
@@ -141,7 +157,19 @@ export function useChatExecutionData(sessionId: string | undefined): ChatExecuti
           const lock = lockMap.get(t.id);
           return lock ? { ...t, lock } : t;
         });
-        setTasks(tasksWithLocks);
+        const mappedTaskIds = new Set(mappedTasks.map(t => t.id));
+        const syntheticTasks: ChatExecutionTask[] = [];
+        for (const [taskId, lock] of lockMap.entries()) {
+          if (lock.state === 'waiting' && !mappedTaskIds.has(taskId)) {
+            syntheticTasks.push({
+              id: taskId,
+              title: 'Waiting for resource lock',
+              status: 'waiting',
+              lock,
+            });
+          }
+        }
+        setTasks([...tasksWithLocks, ...syntheticTasks]);
         setIntents(intentsFromRoutingSummary(summary));
         setMeshPeers(meshPeersFromStatusBin(statusBin));
       } catch {

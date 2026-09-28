@@ -171,6 +171,80 @@ describe('lockStatesFromActivity', () => {
     expect(lock?.resourceId.length).toBe(64);
     expect(lock?.resourceId.endsWith('...')).toBe(true);
   });
+
+  it('derives waiting lock state from LockWaiting and handles supersession by LockAcquired and clearing by LockReleased', () => {
+    const waitingRows = [
+      activityRow({
+        id: 1,
+        kind: 'LockWaiting',
+        session_id: 'sess-a',
+        detail_json: JSON.stringify({
+          type: 'lock_waiting',
+          resource_id: 'db://orders/42',
+          task_id: 88,
+          session_id: 'sess-a',
+        }),
+      }),
+    ];
+    const waitingResult = lockStatesFromActivity(waitingRows);
+    expect(waitingResult.get('88')).toEqual({
+      resourceId: 'db://orders/42',
+      state: 'waiting',
+    });
+
+    const acquiredSuperRows = [
+      activityRow({
+        id: 2,
+        kind: 'LockAcquired',
+        session_id: 'sess-a',
+        detail_json: JSON.stringify({
+          task_id: 88,
+          path: 'db://orders/42',
+        }),
+      }),
+      activityRow({
+        id: 1,
+        kind: 'LockWaiting',
+        session_id: 'sess-a',
+        detail_json: JSON.stringify({
+          type: 'lock_waiting',
+          resource_id: 'db://orders/42',
+          task_id: 88,
+          session_id: 'sess-a',
+        }),
+      }),
+    ];
+    const superResult = lockStatesFromActivity(acquiredSuperRows);
+    expect(superResult.get('88')).toEqual({
+      resourceId: 'db://orders/42',
+      state: 'holding',
+    });
+
+    const releasedSuperRows = [
+      activityRow({
+        id: 3,
+        kind: 'LockReleased',
+        session_id: 'sess-a',
+        detail_json: JSON.stringify({
+          task_id: 88,
+          path: 'db://orders/42',
+        }),
+      }),
+      activityRow({
+        id: 1,
+        kind: 'LockWaiting',
+        session_id: 'sess-a',
+        detail_json: JSON.stringify({
+          type: 'lock_waiting',
+          resource_id: 'db://orders/42',
+          task_id: 88,
+          session_id: 'sess-a',
+        }),
+      }),
+    ];
+    const releasedResult = lockStatesFromActivity(releasedSuperRows);
+    expect(releasedResult.has('88')).toBe(false);
+  });
 });
 
 describe('useChatExecutionData', () => {
@@ -282,6 +356,59 @@ describe('useChatExecutionData', () => {
     });
     expect(mockListOrchestratorTasks).toHaveBeenCalledTimes(2);
     expect(mockGetRoutingSummaryLive).toHaveBeenCalledTimes(2);
+  });
+
+  it('appends a synthetic task when a waiting task is absent from listOrchestratorTasks, and avoids duplicate when row exists', async () => {
+    mockListOrchestratorTasks.mockResolvedValue([
+      taskRow({ id: 7, session_id: 'sess-a', description: 'Task 7' }),
+    ]);
+    mockActivityQuery.mockResolvedValue([
+      activityRow({
+        id: 2,
+        kind: 'LockWaiting',
+        session_id: 'sess-a',
+        detail_json: JSON.stringify({
+          type: 'lock_waiting',
+          resource_id: 'db://orders/42',
+          task_id: 88,
+          session_id: 'sess-a',
+        }),
+      }),
+    ]);
+
+    const { result, unmount } = renderHook(() => useChatExecutionData('sess-a'));
+
+    await waitFor(() => expect(result.current.tasks).toHaveLength(2));
+    expect(result.current.tasks[0]).toEqual({
+      id: '7',
+      title: 'Task 7',
+      status: 'in_progress',
+    });
+    expect(result.current.tasks[1]).toEqual({
+      id: '88',
+      title: 'Waiting for resource lock',
+      status: 'waiting',
+      lock: { resourceId: 'db://orders/42', state: 'waiting' },
+    });
+
+    unmount();
+
+    mockListOrchestratorTasks.mockResolvedValue([
+      taskRow({ id: 7, session_id: 'sess-a', description: 'Task 7' }),
+      taskRow({ id: 88, session_id: 'sess-a', description: 'Task 88 real' }),
+    ]);
+
+    const { result: resultWithRow } = renderHook(() => useChatExecutionData('sess-a'));
+    await waitFor(() => expect(resultWithRow.current.tasks).toHaveLength(2));
+    expect(resultWithRow.current.tasks).toEqual([
+      { id: '7', title: 'Task 7', status: 'in_progress' },
+      {
+        id: '88',
+        title: 'Task 88 real',
+        status: 'in_progress',
+        lock: { resourceId: 'db://orders/42', state: 'waiting' },
+      },
+    ]);
   });
 });
 

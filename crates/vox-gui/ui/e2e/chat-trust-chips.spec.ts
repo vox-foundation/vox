@@ -290,4 +290,112 @@ test('holding lock renders under its task in the chat rail', async ({ page }) =>
   });
 });
 
+test('waiting lock renders for a parked hopper task', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+
+  await installTrustOverrides(page, {
+    responses: {
+      chat_list_sessions: [
+        {
+          session_id: 'trust-session',
+          title: 'Trust chips',
+          updated_at: 'now',
+          message_count: 0,
+          conversation_id: 1,
+        },
+      ],
+      list_orchestrator_tasks: [
+        {
+          id: 77,
+          description: 'Migrate orders table',
+          priority: 'normal',
+          lifecycle: 'in_progress',
+          agent_id: 3,
+          session_id: 'trust-session',
+          estimated_complexity: 1,
+          depends_on: [],
+          write_files: [],
+          remote_node: null,
+          origin: 'orchestrator',
+        },
+      ],
+      activity_query: [
+        {
+          id: 11,
+          ts_ms: 2,
+          agent_id: null,
+          session_id: 'trust-session',
+          kind: 'LockWaiting',
+          summary: 'Task #88 waiting for lock on db://orders/42',
+          detail_json: JSON.stringify({
+            type: 'lock_waiting',
+            resource_id: 'db://orders/42',
+            task_id: 88,
+            session_id: 'trust-session',
+          }),
+        },
+        {
+          id: 10,
+          ts_ms: 1,
+          agent_id: '3',
+          session_id: 'trust-session',
+          kind: 'LockAcquired',
+          summary: 'Lock acquired',
+          detail_json: JSON.stringify({
+            type: 'lock_acquired',
+            agent_id: 3,
+            path: 'db://orders/42',
+            exclusive: true,
+            session_id: 'trust-session',
+            task_id: 77,
+          }),
+        },
+      ],
+    },
+  });
+
+  await page.goto('/');
+  await page.waitForSelector('nav', { timeout: 15_000 });
+
+  // If the app does not auto-select trust-session, click it in the session rail
+  const sessionTab = page.getByRole('tab', { name: /Trust chips/i });
+  if (await sessionTab.isVisible()) {
+    await sessionTab.click();
+  }
+
+  const activeTasksRegion = page.getByRole('region', { name: /Active tasks/i });
+  await expect(activeTasksRegion).toBeVisible();
+  await expect(activeTasksRegion.getByText('Migrate orders table')).toBeVisible();
+  await expect(activeTasksRegion.getByText('Waiting for resource lock')).toBeVisible();
+
+  const task77Row = activeTasksRegion.locator('li', { hasText: 'Migrate orders table' });
+  const task77LockChip = task77Row.getByTestId('execution-rail-lock-chip');
+  await expect(task77LockChip).toBeVisible();
+  await expect(task77LockChip).toHaveAttribute('data-lock-state', 'holding');
+  await expect(task77LockChip).toContainText('holding db://orders/42');
+
+  const task88Row = activeTasksRegion.locator('li', { hasText: 'Waiting for resource lock' });
+  const task88LockChip = task88Row.getByTestId('execution-rail-lock-chip');
+  await expect(task88LockChip).toBeVisible();
+  await expect(task88LockChip).toHaveAttribute('data-lock-state', 'waiting');
+  await expect(task88LockChip).toContainText('waiting on db://orders/42');
+
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        (window as any).__TAURI_CALLS__.some(
+          (c: any) =>
+            c.cmd === 'activity_query' && c.args?.filter?.session_id === 'trust-session',
+        ),
+      ),
+    )
+    .toBe(true);
+
+  mkdirSync(OUT_DIR, { recursive: true });
+  await page.screenshot({
+    path: join(OUT_DIR, 'chat-trust-lock-waiting.png'),
+  });
+});
+
+
 
