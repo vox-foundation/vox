@@ -184,6 +184,24 @@ impl crate::VoxDb {
                     .await;
             }
 
+            // Schema baseline 94 (Phase 5 D-08): hopper_inbox.resource_id for resource-locked hopper tasks.
+            let has_hopper_resource_id = {
+                let mut cols = conn.query("PRAGMA table_info(hopper_inbox)", ()).await?;
+                let mut found = false;
+                while let Some(row) = cols.next().await? {
+                    let name: String = row.get(1)?;
+                    if name == "resource_id" {
+                        found = true;
+                        break;
+                    }
+                }
+                found
+            };
+            if !has_hopper_resource_id {
+                conn.execute_batch("ALTER TABLE hopper_inbox ADD COLUMN resource_id TEXT;")
+                    .await?;
+            }
+
             crate::schema_extensions::apply_schema_extensions(conn).await?;
 
             conn.execute(

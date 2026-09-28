@@ -4,7 +4,7 @@ schema_version: 1
 
 policy:
   # Integer stored in DB `schema_version` table after baseline migration succeeds.
-  repository_baseline_integer: 93
+  repository_baseline_integer: 94
   # Keccak-256 of baseline_sql() — updated for 83: skill_candidates.lifecycle_state + source_hash (Task 3.3, harness parity plan);
   # re-updated for a comment fix (source_hash is blake3-only, not Keccak/blake3 — code-review finding on cd3f7e8736);
   # re-updated for skill_identities table (Task 3.4, harness parity plan — skill namespace/identity FCFS uniqueness);
@@ -32,7 +32,8 @@ policy:
   # re-updated for 91: web_cache table and indexes (Task 1.3, deep research local web cache).
   # re-updated for 92: covering indexes idx_knowledge_edges_src_rel and idx_knowledge_edges_dst_rel for recursive CTE (Task 4.1, cycle-safe relational epistemic graph CTE traversal).
   # re-updated for 93: research_misguidance_events (with status and resolved_at_ms) and research_domain_reputation tables in scientia domain (Task 1), and provider_quota_usage table in knowledge domain (Task 2).
-  repository_baseline_digest_hex: "0x1375eb9589bf712da351ddedbe188a4f1eea941363d52b2cc332c43332ebd306"
+  # re-updated for 94: hopper_inbox.resource_id (Phase 5 D-08).
+  repository_baseline_digest_hex: "0xbff88457a314ab5447acf62bcdde7ca00405a878c8aecb47acb521246054ba00"
   # Keccak-256 over `vox_db::schema::baseline_sql()` (= ordered SCHEMA_FRAGMENTS + spec append DDL).
   digest_source: vox_db_schema_manifest_baseline_sql
   # Human-facing product name for the DB API layer.

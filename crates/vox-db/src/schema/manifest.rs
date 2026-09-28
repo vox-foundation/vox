@@ -31,7 +31,8 @@ use std::sync::OnceLock;
 // 91: feat(db): add web_cache table and indexes to knowledge domain
 // 92: feat(db): add covering indexes idx_knowledge_edges_src_rel and idx_knowledge_edges_dst_rel for recursive CTE
 // 93: feat(vox-db): add research_misguidance_events, research_domain_reputation, and provider_quota_usage tables (Tasks 1 & 2)
-pub const BASELINE_VERSION: i64 = 93;
+// 94: feat(vox-db): add hopper_inbox.resource_id for resource-locked hopper tasks (Phase 5 D-08)
+pub const BASELINE_VERSION: i64 = 94;
 
 /// One ordered SQL slice (domain-scoped DDL); empty bodies are skipped in [`baseline_sql`].
 #[derive(Debug, Clone, Copy)]

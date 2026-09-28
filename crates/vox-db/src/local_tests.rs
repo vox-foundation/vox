@@ -780,6 +780,86 @@ async fn migrate_adds_archived_at_to_a_pre_existing_conversations_table() {
     );
 }
 
+#[tokio::test]
+async fn hopper_inbox_has_resource_id_on_a_fresh_database() {
+    let db = VoxDb::connect(DbConfig::Memory).await.expect("memory db");
+    let conn = db.connection();
+    let mut cols = conn
+        .query("PRAGMA table_info(hopper_inbox)", ())
+        .await
+        .unwrap();
+    let mut found = false;
+    while let Some(row) = cols.next().await.unwrap() {
+        let name: String = row.get(1).unwrap();
+        if name == "resource_id" {
+            found = true;
+            break;
+        }
+    }
+    assert!(
+        found,
+        "fresh database hopper_inbox must have resource_id column"
+    );
+}
+
+#[tokio::test]
+async fn migrate_adds_resource_id_to_a_pre_existing_hopper_inbox() {
+    let db = VoxDb::connect(DbConfig::Memory).await.expect("memory db");
+    let conn = db.connection();
+
+    // Simulate pre-94 shape (8 columns, no resource_id)
+    conn.execute_batch("DROP TABLE hopper_inbox;")
+        .await
+        .unwrap();
+    conn.execute_batch(
+        "CREATE TABLE hopper_inbox (
+            item_id TEXT PRIMARY KEY,
+            intent TEXT NOT NULL,
+            affinity_json TEXT NOT NULL,
+            priority INTEGER NOT NULL,
+            source TEXT NOT NULL,
+            session_id TEXT,
+            state TEXT NOT NULL,
+            submitted_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_hopper_inbox_state ON hopper_inbox(state);",
+    )
+    .await
+    .unwrap();
+
+    // Reset schema_version so migrate() runs the upgrade branch.
+    conn.execute_batch("DELETE FROM schema_version;")
+        .await
+        .unwrap();
+
+    // Run migrate
+    crate::VoxDb::migrate(conn)
+        .await
+        .expect("migrate should backfill resource_id");
+
+    let mut cols = conn
+        .query("PRAGMA table_info(hopper_inbox)", ())
+        .await
+        .unwrap();
+    let mut found = false;
+    while let Some(row) = cols.next().await.unwrap() {
+        let name: String = row.get(1).unwrap();
+        if name == "resource_id" {
+            found = true;
+            break;
+        }
+    }
+    assert!(
+        found,
+        "migrate() must add resource_id to pre-existing hopper_inbox"
+    );
+
+    // Second migrate call succeeds (idempotent)
+    crate::VoxDb::migrate(conn)
+        .await
+        .expect("second migrate call must be idempotent");
+}
+
 /// Phase D Task D1 (chat-harness delegation lineage durability): a delegation
 /// edge's `chat_session_id`/`origin_turn_id` must survive a daemon restart.
 /// `spawn_dynamic_agent_with_parent` writes them via

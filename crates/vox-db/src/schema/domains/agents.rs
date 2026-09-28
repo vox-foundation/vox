@@ -487,6 +487,7 @@ CREATE TABLE IF NOT EXISTS hopper_inbox (
     priority INTEGER NOT NULL,
     source TEXT NOT NULL,
     session_id TEXT,
+    resource_id TEXT,
     state TEXT NOT NULL,
     submitted_at INTEGER NOT NULL
 );
