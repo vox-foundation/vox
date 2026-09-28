@@ -1,4 +1,8 @@
 use crate::budget::DriftDecision;
+use crate::bulletin::BulletinBoard;
+use crate::events::EventBus;
+use crate::hopper::types::IntakeItem;
+use crate::locks::{ResourceLockKind, ResourceLockManager};
 use crate::orchestrator::Orchestrator;
 use crate::types::{AgentId, TaskId};
 
@@ -71,6 +75,25 @@ impl Orchestrator {
     ///
     /// Optional `session_id` and `task_id` correlate the lock acquisition to a chat/workflow
     /// session and task (Phase 5 D-13).
+    /// Returns a [`ResourceGate`] sharing this orchestrator's lock manager, bulletin, event bus, and task timeout.
+    pub(crate) fn resource_gate(&self) -> ResourceGate {
+        let task_ttl_ms = self
+            .config
+            .read()
+            .map(|c| c.task_timeout_ms)
+            .unwrap_or(1_800_000);
+        ResourceGate::new(
+            self.resource_locks.clone(),
+            self.bulletin.clone(),
+            self.event_bus.clone(),
+            task_ttl_ms,
+        )
+    }
+
+    /// Acquires a generic resource lock and broadcasts the event to the bulletin board.
+    ///
+    /// Optional `session_id` and `task_id` correlate the lock acquisition to a chat/workflow
+    /// session and task (Phase 5 D-13).
     pub fn acquire_resource_lock(
         &self,
         agent_id: AgentId,
@@ -80,29 +103,8 @@ impl Orchestrator {
         session_id: Option<&str>,
         task_id: Option<TaskId>,
     ) -> bool {
-        match self
-            .resource_locks
-            .try_acquire(resource_id, agent_id, kind, ttl_ms)
-        {
-            Ok(_) => {
-                self.bulletin
-                    .publish(crate::types::AgentMessage::ResourceLockAcquired {
-                        agent_id,
-                        resource_id: resource_id.to_string(),
-                    });
-                // Wire LockAcquired to the event bus so activity_log receives it.
-                self.event_bus
-                    .emit(crate::events::AgentEventKind::LockAcquired {
-                        agent_id,
-                        path: std::path::PathBuf::from(resource_id),
-                        exclusive: matches!(kind, crate::locks::ResourceLockKind::Exclusive),
-                        session_id: session_id.map(str::to_string),
-                        task_id,
-                    });
-                true
-            }
-            Err(_) => false,
-        }
+        self.resource_gate()
+            .acquire(agent_id, resource_id, kind, ttl_ms, session_id, task_id)
     }
 
     /// Releases a generic resource lock and broadcasts the event to the bulletin board.
@@ -116,20 +118,120 @@ impl Orchestrator {
         session_id: Option<&str>,
         task_id: Option<TaskId>,
     ) {
-        self.resource_locks.release(resource_id, agent_id);
+        self.resource_gate()
+            .release(agent_id, resource_id, session_id, task_id);
+    }
+}
+
+/// Shared gate for resource lock acquisition, release, parking, and holding.
+///
+/// Exists because the hopper dispatcher is spawned in `Orchestrator::new` before
+/// `Orchestrator` (`Self`) exists and needs the exact same lock management,
+/// bulletin board notification, and event bus publish path.
+#[derive(Clone)]
+pub struct ResourceGate {
+    locks: ResourceLockManager,
+    bulletin: BulletinBoard,
+    events: EventBus,
+    task_ttl_ms: u64,
+}
+
+impl ResourceGate {
+    /// Creates a new `ResourceGate` over the shared lock manager, bulletin board, event bus, and task timeout.
+    pub fn new(
+        locks: ResourceLockManager,
+        bulletin: BulletinBoard,
+        events: EventBus,
+        task_ttl_ms: u64,
+    ) -> Self {
+        Self {
+            locks,
+            bulletin,
+            events,
+            task_ttl_ms,
+        }
+    }
+
+    /// Acquires a generic resource lock and broadcasts the event to the bulletin board and event bus.
+    pub fn acquire(
+        &self,
+        agent_id: AgentId,
+        resource_id: &str,
+        kind: ResourceLockKind,
+        ttl_ms: u64,
+        session_id: Option<&str>,
+        task_id: Option<TaskId>,
+    ) -> bool {
+        match self.locks.try_acquire(resource_id, agent_id, kind, ttl_ms) {
+            Ok(_) => {
+                self.bulletin
+                    .publish(crate::types::AgentMessage::ResourceLockAcquired {
+                        agent_id,
+                        resource_id: resource_id.to_string(),
+                    });
+                // Wire LockAcquired to the event bus so activity_log receives it.
+                self.events
+                    .emit(crate::events::AgentEventKind::LockAcquired {
+                        agent_id,
+                        path: std::path::PathBuf::from(resource_id),
+                        exclusive: matches!(kind, ResourceLockKind::Exclusive),
+                        session_id: session_id.map(str::to_string),
+                        task_id,
+                    });
+                true
+            }
+            Err(_) => false,
+        }
+    }
+
+    /// Releases a generic resource lock and broadcasts the event to the bulletin board and event bus.
+    pub fn release(
+        &self,
+        agent_id: AgentId,
+        resource_id: &str,
+        session_id: Option<&str>,
+        task_id: Option<TaskId>,
+    ) {
+        self.locks.release(resource_id, agent_id);
         self.bulletin
             .publish(crate::types::AgentMessage::ResourceLockReleased {
                 agent_id,
                 resource_id: resource_id.to_string(),
             });
         // Wire LockReleased to the event bus so activity_log receives it.
-        self.event_bus
+        self.events
             .emit(crate::events::AgentEventKind::LockReleased {
                 agent_id,
                 path: std::path::PathBuf::from(resource_id),
                 session_id: session_id.map(str::to_string),
                 task_id,
             });
+    }
+
+    /// True when the item declares a resource that `locks.is_locked` reports held (the caller leaves the item in the inbox).
+    pub fn park(&self, item: &IntakeItem) -> bool {
+        if let Some(ref res) = item.resource_id {
+            self.locks.is_locked(res)
+        } else {
+            false
+        }
+    }
+
+    /// True when the item declares no resource; otherwise acquires an exclusive lock for `self.task_ttl_ms`.
+    pub fn hold(&self, agent_id: AgentId, item: &IntakeItem) -> bool {
+        if let Some(ref res) = item.resource_id {
+            let task_id = TaskId(crate::orchestrator::dispatch::stable_hash(&item.item_id.0));
+            self.acquire(
+                agent_id,
+                res,
+                ResourceLockKind::Exclusive,
+                self.task_ttl_ms,
+                item.session_id.as_deref(),
+                Some(task_id),
+            )
+        } else {
+            true
+        }
     }
 }
 
@@ -271,5 +373,55 @@ mod tests {
         let json = serde_json::to_string(&event.kind).unwrap();
         assert!(!json.contains("session_id"));
         assert!(!json.contains("task_id"));
+    }
+
+    #[tokio::test]
+    async fn resource_gate_park_and_hold_unit_tests() {
+        use crate::hopper::types::{IntakeItem, IntakeSource, PriorityHint};
+        use crate::locks::ResourceLockManager;
+
+        let manager = ResourceLockManager::new();
+        let bulletin = crate::bulletin::BulletinBoard::new(10);
+        let bus = crate::events::EventBus::new(16);
+        let gate = ResourceGate::new(manager.clone(), bulletin, bus, 60_000);
+
+        let mut item = IntakeItem::new(
+            "intent".into(),
+            vec![],
+            PriorityHint::Normal,
+            IntakeSource::Developer,
+            Some("chat-s1".into()),
+        );
+        item.resource_id = Some("db://orders/1".into());
+
+        // Initially not locked, so park returns false
+        assert!(!gate.park(&item));
+
+        // Hold acquires the lock
+        assert!(gate.hold(AgentId(1), &item));
+        assert!(manager.is_locked("db://orders/1"));
+
+        // Now park returns true for a contender on the same resource
+        let mut item2 = IntakeItem::new(
+            "intent 2".into(),
+            vec![],
+            PriorityHint::Normal,
+            IntakeSource::Developer,
+            Some("chat-s2".into()),
+        );
+        item2.resource_id = Some("db://orders/1".into());
+        assert!(gate.park(&item2));
+
+        // An item without a resource never parks and hold always returns true
+        let mut no_res_item = IntakeItem::new(
+            "no res".into(),
+            vec![],
+            PriorityHint::Normal,
+            IntakeSource::Developer,
+            None,
+        );
+        no_res_item.resource_id = None;
+        assert!(!gate.park(&no_res_item));
+        assert!(gate.hold(AgentId(2), &no_res_item));
     }
 }

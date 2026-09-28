@@ -50,6 +50,17 @@ impl crate::orchestrator::Orchestrator {
             crate::types::AgentId,
         >::new()));
 
+        // Constructed here (rather than only in the `Self { .. }` literal below) so the
+        // hopper dispatcher — spawned before `Self` exists — can share the same resource
+        // lock manager the rest of the orchestrator uses (Phase 5 D-08 / D-13).
+        let resource_locks = crate::locks::ResourceLockManager::new();
+        let resource_gate = crate::orchestrator::safety::ResourceGate::new(
+            resource_locks.clone(),
+            bulletin.clone(),
+            event_bus.clone(),
+            config.task_timeout_ms,
+        );
+
         let enqueue_agents = Arc::clone(&agents);
         let enqueue_assignments = Arc::clone(&task_assignments);
         let enqueue_closure =
@@ -126,6 +137,7 @@ impl crate::orchestrator::Orchestrator {
                 enqueue_closure,
                 None,
                 Some(dispatcher_oplog),
+                Some(resource_gate.clone()),
             ));
 
             let cascade_rx = event_bus.subscribe();
@@ -198,7 +210,7 @@ impl crate::orchestrator::Orchestrator {
             tool_ledger: Arc::new(RwLock::new(
                 crate::tool_receipt::ToolReceiptLedger::from_config(&config),
             )),
-            resource_locks: crate::locks::ResourceLockManager::new(),
+            resource_locks,
             privacy_router: Arc::new(RwLock::new(crate::privacy_router::PrivacyRouter::new(
                 crate::privacy_router::PrivacyRoutingPolicy::default(),
             ))),
