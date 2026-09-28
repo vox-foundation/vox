@@ -211,7 +211,18 @@ impl ResourceGate {
     /// True when the item declares a resource that `locks.is_locked` reports held (the caller leaves the item in the inbox).
     pub fn park(&self, item: &IntakeItem) -> bool {
         if let Some(ref res) = item.resource_id {
-            self.locks.is_locked(res)
+            if self.locks.is_locked(res) {
+                let task_id = TaskId(crate::orchestrator::dispatch::stable_hash(&item.item_id.0));
+                self.events
+                    .emit(crate::events::AgentEventKind::LockWaiting {
+                        resource_id: res.clone(),
+                        task_id,
+                        session_id: item.session_id.clone(),
+                    });
+                true
+            } else {
+                false
+            }
         } else {
             false
         }
@@ -423,5 +434,66 @@ mod tests {
         no_res_item.resource_id = None;
         assert!(!gate.park(&no_res_item));
         assert!(gate.hold(AgentId(2), &no_res_item));
+    }
+
+    #[tokio::test]
+    async fn park_announces_waiting_with_session_and_task() {
+        use crate::hopper::types::{IntakeItem, IntakeSource, PriorityHint};
+        use crate::locks::ResourceLockManager;
+
+        let manager = ResourceLockManager::new();
+        let bulletin = crate::bulletin::BulletinBoard::new(10);
+        let bus = crate::events::EventBus::new(16);
+        let gate = ResourceGate::new(manager.clone(), bulletin, bus.clone(), 60_000);
+        let mut rx = bus.subscribe();
+
+        let mut item = IntakeItem::new(
+            "intent".into(),
+            vec![],
+            PriorityHint::Normal,
+            IntakeSource::Developer,
+            Some("chat-s2".into()),
+        );
+        item.resource_id = Some("db://orders/1".into());
+
+        // With resource free: park returns false and emits nothing
+        assert!(!gate.park(&item));
+        assert!(rx.try_recv().is_err());
+
+        // Hold the lock
+        assert!(gate.hold(AgentId(1), &item));
+        // Discard the LockAcquired event from hold
+        let _ = rx.recv().await;
+
+        // Contender item with session chat-s2 on db://orders/1
+        let mut item2 = IntakeItem::new(
+            "intent 2".into(),
+            vec![],
+            PriorityHint::Normal,
+            IntakeSource::Developer,
+            Some("chat-s2".into()),
+        );
+        item2.resource_id = Some("db://orders/1".into());
+        let expected_task_id = TaskId(crate::orchestrator::dispatch::stable_hash(&item2.item_id.0));
+
+        // When locked: park returns true and emits LockWaiting
+        assert!(gate.park(&item2));
+
+        let event = tokio::time::timeout(vox_config::timeouts::D_1S, rx.recv())
+            .await
+            .expect("timeout waiting for LockWaiting")
+            .expect("recv");
+        match &event.kind {
+            crate::events::AgentEventKind::LockWaiting {
+                resource_id,
+                task_id,
+                session_id,
+            } => {
+                assert_eq!(resource_id, "db://orders/1");
+                assert_eq!(*task_id, expected_task_id);
+                assert_eq!(session_id.as_deref(), Some("chat-s2"));
+            }
+            other => panic!("expected LockWaiting, got {other:?}"),
+        }
     }
 }

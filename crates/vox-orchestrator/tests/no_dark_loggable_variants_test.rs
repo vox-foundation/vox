@@ -61,6 +61,11 @@ fn loggable_samples() -> Vec<AgentEventKind> {
             session_id: None,
             task_id: None,
         },
+        LockWaiting {
+            resource_id: "db://orders/1".into(),
+            task_id: TaskId(1),
+            session_id: Some("s1".into()),
+        },
         ConflictDetected {
             path: std::path::PathBuf::from("foo.rs"),
             agent_ids: vec![AgentId(1)],

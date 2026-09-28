@@ -169,6 +169,16 @@ pub fn project(kind: &AgentEventKind) -> ActivityRow {
             "LockReleased",
             format!("Lock released on {path:?}"),
         ),
+        LockWaiting {
+            resource_id,
+            task_id,
+            session_id,
+        } => (
+            None,
+            session_id.clone(),
+            "LockWaiting",
+            format!("Task #{task_id} waiting for lock on {resource_id}"),
+        ),
         ConflictDetected {
             path,
             agent_ids,
@@ -276,5 +286,23 @@ mod tests {
             temporal_context: None,
         });
         assert_eq!(row.kind, "CostIncurred");
+    }
+
+    #[test]
+    fn lock_waiting_projects_with_real_fields() {
+        let row = project(&AgentEventKind::LockWaiting {
+            resource_id: "db://orders/1".into(),
+            task_id: TaskId(88),
+            session_id: Some("chat-s2".into()),
+        });
+        assert_eq!(row.kind, "LockWaiting");
+        assert_eq!(row.session_id.as_deref(), Some("chat-s2"));
+        assert!(row.summary.contains("db://orders/1"));
+        assert!(row.summary.contains("88"));
+        assert!(row.detail_json.contains("\"task_id\":88"));
+        assert!(
+            row.detail_json
+                .contains("\"resource_id\":\"db://orders/1\"")
+        );
     }
 }
