@@ -251,6 +251,7 @@ pub struct HopperInboxRow {
     pub priority: i64,
     pub source: String,
     pub session_id: Option<String>,
+    pub resource_id: Option<String>,
     pub state: String,
     pub submitted_at: i64,
 }
@@ -265,6 +266,7 @@ impl crate::VoxDb {
         priority: i64,
         source: &str,
         session_id: Option<&str>,
+        resource_id: Option<&str>,
         state: &str,
         submitted_at: i64,
     ) -> Result<(), StoreError> {
@@ -275,6 +277,7 @@ impl crate::VoxDb {
         let affinity_json = affinity_json.to_string();
         let source = source.to_string();
         let session_id = session_id.map(String::from);
+        let resource_id = resource_id.map(String::from);
         let state = state.to_string();
         breaker
             .call(move || {
@@ -283,13 +286,14 @@ impl crate::VoxDb {
                 let affinity_json = affinity_json.clone();
                 let source = source.clone();
                 let session_id = session_id.clone();
+                let resource_id = resource_id.clone();
                 let state = state.clone();
                 async move {
                     conn.execute(
-                        "INSERT INTO hopper_inbox (item_id, intent, affinity_json, priority, source, session_id, state, submitted_at)
-                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+                        "INSERT INTO hopper_inbox (item_id, intent, affinity_json, priority, source, session_id, resource_id, state, submitted_at)
+                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
                          ON CONFLICT(item_id) DO NOTHING",
-                        params![item_id, intent, affinity_json, priority, source, session_id, state, submitted_at],
+                        params![item_id, intent, affinity_json, priority, source, session_id, resource_id, state, submitted_at],
                     )
                     .await?;
                     Ok(())
@@ -301,7 +305,7 @@ impl crate::VoxDb {
     /// Read all hopper items in Inbox state.
     pub async fn hopper_inbox_list(&self) -> Result<Vec<HopperInboxRow>, StoreError> {
         let mut rows = self.conn.query(
-            "SELECT item_id, intent, affinity_json, priority, source, session_id, state, submitted_at
+            "SELECT item_id, intent, affinity_json, priority, source, session_id, resource_id, state, submitted_at
              FROM hopper_inbox
              WHERE state = '\"inbox\"'
              ORDER BY submitted_at ASC",
@@ -316,8 +320,9 @@ impl crate::VoxDb {
                 priority: row.get(3)?,
                 source: row.get(4)?,
                 session_id: row.get(5)?,
-                state: row.get(6)?,
-                submitted_at: row.get(7)?,
+                resource_id: row.get(6)?,
+                state: row.get(7)?,
+                submitted_at: row.get(8)?,
             });
         }
         Ok(out)
@@ -326,7 +331,7 @@ impl crate::VoxDb {
     /// Read all hopper items in Assigned state.
     pub async fn hopper_assigned_list(&self) -> Result<Vec<HopperInboxRow>, StoreError> {
         let mut rows = self.conn.query(
-            "SELECT item_id, intent, affinity_json, priority, source, session_id, state, submitted_at
+            "SELECT item_id, intent, affinity_json, priority, source, session_id, resource_id, state, submitted_at
              FROM hopper_inbox
              WHERE state LIKE '{\"assigned\":%'
              ORDER BY submitted_at ASC",
@@ -341,8 +346,9 @@ impl crate::VoxDb {
                 priority: row.get(3)?,
                 source: row.get(4)?,
                 session_id: row.get(5)?,
-                state: row.get(6)?,
-                submitted_at: row.get(7)?,
+                resource_id: row.get(6)?,
+                state: row.get(7)?,
+                submitted_at: row.get(8)?,
             });
         }
         Ok(out)
@@ -351,7 +357,7 @@ impl crate::VoxDb {
     /// Read all hopper items in terminal states (Done | Overridden | Cancelled).
     pub async fn hopper_history_list(&self) -> Result<Vec<HopperInboxRow>, StoreError> {
         let mut rows = self.conn.query(
-            "SELECT item_id, intent, affinity_json, priority, source, session_id, state, submitted_at
+            "SELECT item_id, intent, affinity_json, priority, source, session_id, resource_id, state, submitted_at
              FROM hopper_inbox
              WHERE state IN ('\"done\"', '\"overridden\"', '\"cancelled\"')
              ORDER BY submitted_at ASC",
@@ -366,8 +372,9 @@ impl crate::VoxDb {
                 priority: row.get(3)?,
                 source: row.get(4)?,
                 session_id: row.get(5)?,
-                state: row.get(6)?,
-                submitted_at: row.get(7)?,
+                resource_id: row.get(6)?,
+                state: row.get(7)?,
+                submitted_at: row.get(8)?,
             });
         }
         Ok(out)
@@ -385,7 +392,7 @@ impl crate::VoxDb {
         // genuinely completed items out of the window entirely if those
         // states churn faster than completions (see F7 follow-up).
         let mut rows = self.conn.query(
-            "SELECT item_id, intent, affinity_json, priority, source, session_id, state, submitted_at
+            "SELECT item_id, intent, affinity_json, priority, source, session_id, resource_id, state, submitted_at
              FROM hopper_inbox
              WHERE state = '\"done\"'
              ORDER BY submitted_at DESC LIMIT ?1",
@@ -400,8 +407,9 @@ impl crate::VoxDb {
                 priority: row.get(3)?,
                 source: row.get(4)?,
                 session_id: row.get(5)?,
-                state: row.get(6)?,
-                submitted_at: row.get(7)?,
+                resource_id: row.get(6)?,
+                state: row.get(7)?,
+                submitted_at: row.get(8)?,
             });
         }
         Ok(out)
@@ -481,5 +489,51 @@ impl crate::VoxDb {
             .await
             .map_err(StoreError::Turso)?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod hopper_resource_tests {
+    use crate::{DbConfig, VoxDb};
+
+    #[tokio::test]
+    async fn hopper_rows_round_trip_the_resource_id() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("memory db");
+        // `state` is stored JSON-quoted (`"inbox"`), matching what SqliteHopper writes.
+        db.hopper_submit(
+            "a",
+            "with resource",
+            "[]",
+            1,
+            "developer",
+            Some("chat-s1"),
+            Some("db://orders/1"),
+            "\"inbox\"",
+            10,
+        )
+        .await
+        .expect("submit a");
+        db.hopper_submit(
+            "b",
+            "without resource",
+            "[]",
+            1,
+            "developer",
+            None,
+            None,
+            "\"inbox\"",
+            11,
+        )
+        .await
+        .expect("submit b");
+        let rows = db.hopper_inbox_list().await.expect("inbox");
+        let a = rows.iter().find(|r| r.item_id == "a").expect("row a");
+        let b = rows.iter().find(|r| r.item_id == "b").expect("row b");
+        assert_eq!(a.resource_id.as_deref(), Some("db://orders/1"));
+        assert_eq!(a.session_id.as_deref(), Some("chat-s1"));
+        assert_eq!(
+            b.resource_id, None,
+            "an absent resource stays NULL, not an empty string"
+        );
     }
 }

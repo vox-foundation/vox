@@ -678,6 +678,8 @@ pub struct HopperSubmitBody {
     pub source: vox_orchestrator::hopper::IntakeSource,
     #[serde(default)]
     pub session_id: Option<String>,
+    #[serde(default)]
+    pub resource_id: Option<String>,
 }
 
 fn default_priority_hint() -> vox_orchestrator::hopper::PriorityHint {
@@ -701,14 +703,20 @@ pub async fn post_hopper_submit(
     if body.intent.trim().is_empty() {
         return err("bad_request", "intent must not be empty");
     }
+    if let Some(ref rid) = body.resource_id {
+        if let Err(e) = vox_orchestrator::hopper::types::validate_resource_id(rid) {
+            return err("bad_request", &e);
+        }
+    }
     let item = gs
         .hopper
-        .submit(
+        .submit_with_resource(
             body.intent,
             body.affinity_hints,
             body.priority_hint,
             body.source,
             body.session_id,
+            body.resource_id,
         )
         .await;
     ok(serde_json::to_value(&item).unwrap_or_else(|e| json!({ "error": e.to_string() })))
@@ -774,4 +782,24 @@ pub fn router() -> Router<GatewayState> {
         .route("/hopper/inbox", get(get_hopper_inbox))
         .route("/hopper/assigned", get(get_hopper_assigned))
         .route("/hopper/history", get(get_hopper_history))
+}
+
+#[cfg(test)]
+mod hopper_body_tests {
+    use super::HopperSubmitBody;
+
+    #[test]
+    fn resource_id_is_opt_in() {
+        let plain: HopperSubmitBody =
+            serde_json::from_value(serde_json::json!({ "intent": "x" })).unwrap();
+        assert_eq!(
+            plain.resource_id, None,
+            "existing callers that send no resource_id are unchanged"
+        );
+        let with: HopperSubmitBody = serde_json::from_value(
+            serde_json::json!({ "intent": "x", "resource_id": "db://orders/1" }),
+        )
+        .unwrap();
+        assert_eq!(with.resource_id.as_deref(), Some("db://orders/1"));
+    }
 }

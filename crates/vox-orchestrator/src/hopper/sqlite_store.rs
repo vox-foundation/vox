@@ -64,7 +64,7 @@ fn row_to_item(row: HopperInboxRow) -> IntakeItem {
         priority_hint,
         source,
         session_id,
-        resource_id: None,
+        resource_id: row.resource_id,
         classified_priority,
         priority_source,
         confidence: 0.85,
@@ -93,12 +93,6 @@ impl HopperIntake for SqliteHopper {
         let mut item = IntakeItem::new(intent, affinity_hints, priority_hint, source, session_id);
         item.resource_id = resource_id;
 
-        if item.resource_id.is_some() {
-            tracing::warn!(
-                "SQLite hopper does not persist resource_id yet (pending Phase 5 schema 94)"
-            );
-        }
-
         let affinity_json = serde_json::to_string(&item.affinity_hints).unwrap();
         let source_json = serde_json::to_string(&item.source).unwrap();
         let state_json = serde_json::to_string(&item.state).unwrap();
@@ -114,6 +108,7 @@ impl HopperIntake for SqliteHopper {
                 priority_int,
                 &source_json,
                 item.session_id.as_deref(),
+                item.resource_id.as_deref(),
                 &state_json,
                 submitted_at_int,
             )
@@ -361,6 +356,7 @@ impl HopperIntake for SqliteHopper {
                 priority_int,
                 &source_json,
                 item.session_id.as_deref(),
+                item.resource_id.as_deref(),
                 &state_json,
                 submitted_at_int,
             )
@@ -479,6 +475,36 @@ mod tests {
         let inbox = reloaded.inbox().await;
         assert_eq!(inbox.len(), 1);
         assert_eq!(inbox[0].intent, "persist me");
+    }
+
+    #[tokio::test]
+    async fn submit_with_resource_survives_a_reload() {
+        let db = Arc::new(
+            vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
+                .await
+                .expect("db"),
+        );
+        let hopper = SqliteHopper::new(db.clone());
+        let item = hopper
+            .submit_with_resource(
+                "persist me with resource".into(),
+                vec![],
+                PriorityHint::Normal,
+                IntakeSource::Developer,
+                Some("chat-s1".into()),
+                Some("db://orders/1".into()),
+            )
+            .await;
+        assert_eq!(item.resource_id.as_deref(), Some("db://orders/1"));
+        assert_eq!(item.session_id.as_deref(), Some("chat-s1"));
+
+        // Drop and rebuild over the same DB to simulate a restart.
+        let reloaded = SqliteHopper::new(db);
+        let inbox = reloaded.inbox().await;
+        assert_eq!(inbox.len(), 1);
+        assert_eq!(inbox[0].intent, "persist me with resource");
+        assert_eq!(inbox[0].resource_id.as_deref(), Some("db://orders/1"));
+        assert_eq!(inbox[0].session_id.as_deref(), Some("chat-s1"));
     }
 
     #[tokio::test]

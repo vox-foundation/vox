@@ -903,6 +903,114 @@ mod tests {
         );
     }
 
+    #[tokio::test]
+    async fn hopper_submit_carries_resource_id() {
+        use axum::body::to_bytes;
+        use axum::extract::ConnectInfo;
+        use dashboard_api::{HopperSubmitBody, get_hopper_inbox, post_hopper_submit};
+        let state = GatewayState::for_test().await;
+        let peer: SocketAddr = "127.0.0.1:1234".parse().unwrap();
+
+        let body: HopperSubmitBody = serde_json::from_value(serde_json::json!({
+            "intent": "resource item",
+            "affinity_hints": [],
+            "priority_hint": "normal",
+            "source": "developer",
+            "resource_id": "db://orders/42"
+        }))
+        .unwrap();
+        let submit_resp = post_hopper_submit(
+            State(state.clone()),
+            ConnectInfo(peer),
+            HeaderMap::new(),
+            Json(body),
+        )
+        .await;
+        let bytes = to_bytes(submit_resp.into_response().into_body(), 64 * 1024)
+            .await
+            .unwrap();
+        let submitted: Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(submitted["data"]["resource_id"], "db://orders/42");
+        let item_id = submitted["data"]["item_id"]
+            .as_str()
+            .expect("submit returns item_id");
+
+        let inbox_resp =
+            get_hopper_inbox(State(state.clone()), ConnectInfo(peer), HeaderMap::new()).await;
+        let bytes = to_bytes(inbox_resp.into_response().into_body(), 64 * 1024)
+            .await
+            .unwrap();
+        let inbox: Value = serde_json::from_slice(&bytes).unwrap();
+        let item = inbox["data"]
+            .as_array()
+            .expect("inbox data is an array")
+            .iter()
+            .find(|i| i["item_id"].as_str() == Some(item_id))
+            .expect("item in inbox");
+        assert_eq!(item["resource_id"], "db://orders/42");
+    }
+
+    #[tokio::test]
+    async fn hopper_submit_rejects_invalid_resource_id() {
+        use axum::body::to_bytes;
+        use axum::extract::ConnectInfo;
+        use dashboard_api::{HopperSubmitBody, get_hopper_inbox, post_hopper_submit};
+        let state = GatewayState::for_test().await;
+        let peer: SocketAddr = "127.0.0.1:1234".parse().unwrap();
+
+        // 1. Whitespace-only resource_id
+        let body_blank: HopperSubmitBody = serde_json::from_value(serde_json::json!({
+            "intent": "bad resource",
+            "resource_id": "   "
+        }))
+        .unwrap();
+        let resp_blank = post_hopper_submit(
+            State(state.clone()),
+            ConnectInfo(peer),
+            HeaderMap::new(),
+            Json(body_blank),
+        )
+        .await;
+        let bytes = to_bytes(resp_blank.into_response().into_body(), 64 * 1024)
+            .await
+            .unwrap();
+        let val_blank: Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(val_blank["error"]["code"], "bad_request");
+
+        // 2. 300-char resource_id (exceeds MAX_RESOURCE_ID_BYTES = 256)
+        let long_resource = "a".repeat(300);
+        let body_long: HopperSubmitBody = serde_json::from_value(serde_json::json!({
+            "intent": "long resource",
+            "resource_id": long_resource
+        }))
+        .unwrap();
+        let resp_long = post_hopper_submit(
+            State(state.clone()),
+            ConnectInfo(peer),
+            HeaderMap::new(),
+            Json(body_long),
+        )
+        .await;
+        let bytes = to_bytes(resp_long.into_response().into_body(), 64 * 1024)
+            .await
+            .unwrap();
+        let val_long: Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(val_long["error"]["code"], "bad_request");
+
+        // Verify nothing was added to the inbox
+        let inbox_resp =
+            get_hopper_inbox(State(state.clone()), ConnectInfo(peer), HeaderMap::new()).await;
+        let bytes = to_bytes(inbox_resp.into_response().into_body(), 64 * 1024)
+            .await
+            .unwrap();
+        let inbox: Value = serde_json::from_slice(&bytes).unwrap();
+        let items = inbox["data"].as_array().expect("inbox data is an array");
+        assert!(
+            items.is_empty(),
+            "inbox must be empty after rejected submissions"
+        );
+    }
+
     /// T2.4 RED test: gateway single-spawn cross-visibility. A dangerous tool
     /// call routed through the HTTP gateway's `/v1/tools/call` parks a pending
     /// approval; a separate `orch.tool_call`-style consumer (a daemon
