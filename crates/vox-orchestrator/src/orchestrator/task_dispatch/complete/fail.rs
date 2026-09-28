@@ -26,6 +26,7 @@ impl Orchestrator {
             .get(&task_id)
             .copied()
             .ok_or(OrchestratorError::TaskNotFound(task_id))?;
+        let held_lock = self.task_resource_lock(agent_id, task_id);
 
         let (
             session_id,
@@ -271,6 +272,7 @@ impl Orchestrator {
             crate::sync_lock::rw_write(&*self.scope_guard).revoke_file(agent_id, path);
         }
         self.lock_manager.release_all(agent_id);
+        self.release_task_resource_lock(agent_id, task_id, held_lock);
 
         // Find pre-task snapshots to link this failure
         let (snap_before, db_snap_before) =

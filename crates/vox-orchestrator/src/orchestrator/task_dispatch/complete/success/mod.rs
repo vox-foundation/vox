@@ -107,6 +107,7 @@ impl Orchestrator {
             .get(&task_id)
             .copied()
             .ok_or(OrchestratorError::TaskNotFound(task_id))?;
+        let held_lock = self.task_resource_lock(agent_id, task_id);
 
         self.record_activity();
         crate::sync_lock::rw_write(&self.monitor).record_progress(agent_id);
@@ -600,6 +601,7 @@ impl Orchestrator {
         for path in &write_files {
             self.lock_manager.release(path, agent_id);
         }
+        self.release_task_resource_lock(agent_id, task_id, held_lock);
 
         // Opt-in, non-blocking post-reply grounding/hallucination check
         // (T1.5 follow-up): runs after the task's own work is already done —

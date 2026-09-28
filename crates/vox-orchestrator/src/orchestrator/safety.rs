@@ -121,6 +121,52 @@ impl Orchestrator {
         self.resource_gate()
             .release(agent_id, resource_id, session_id, task_id);
     }
+
+    /// Looks up any resource lock declared by the given task on this agent's queue (Phase 5 D-08).
+    ///
+    /// Reads the agent's queue (current task if its id matches, else the queued task with that id)
+    /// and returns `(resource_id, session_id)` when a resource is declared.
+    pub(crate) fn task_resource_lock(
+        &self,
+        agent_id: AgentId,
+        task_id: TaskId,
+    ) -> Option<(String, Option<String>)> {
+        let agents = crate::sync_lock::rw_read(&*self.agents);
+        let queue_lock = agents.get(&agent_id)?;
+        let queue = crate::sync_lock::rw_read(&**queue_lock);
+        if let Some(current) = queue.current_task() {
+            if current.id == task_id {
+                return current
+                    .resource_id
+                    .as_ref()
+                    .map(|res| (res.clone(), current.session_id.clone()));
+            }
+        }
+        queue
+            .tasks()
+            .iter()
+            .find(|t| t.id == task_id)
+            .and_then(|t| {
+                t.resource_id
+                    .as_ref()
+                    .map(|res| (res.clone(), t.session_id.clone()))
+            })
+    }
+
+    /// Releases a task's resource lock if one was held (Phase 5 D-08).
+    ///
+    /// No-op if `held` is `None`. The queue lock must never be held when calling this.
+    pub(crate) fn release_task_resource_lock(
+        &self,
+        agent_id: AgentId,
+        task_id: TaskId,
+        held: Option<(String, Option<String>)>,
+    ) {
+        if let Some((resource, session)) = held {
+            self.resource_gate()
+                .release(agent_id, &resource, session.as_deref(), Some(task_id));
+        }
+    }
 }
 
 /// Shared gate for resource lock acquisition, release, parking, and holding.
@@ -495,5 +541,76 @@ mod tests {
             }
             other => panic!("expected LockWaiting, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn task_resource_lock_reads_the_queued_or_current_task() {
+        let orch = Orchestrator::new(OrchestratorConfig::for_testing());
+        let agent_id = orch.spawn_agent("agent-1").expect("spawn_agent");
+
+        let mut task1 = crate::types::AgentTask::new(
+            TaskId(101),
+            "task with resource",
+            crate::types::TaskPriority::Normal,
+            vec![],
+        );
+        task1.resource_id = Some("db://orders/10".to_string());
+        task1.session_id = Some("sess-1".to_string());
+
+        let mut task2 = crate::types::AgentTask::new(
+            TaskId(102),
+            "task queued",
+            crate::types::TaskPriority::Normal,
+            vec![],
+        );
+        task2.resource_id = Some("db://orders/11".to_string());
+        task2.session_id = Some("sess-2".to_string());
+
+        // Enqueue task1 and task2
+        {
+            let queue_arc = orch.agent_queue(agent_id).expect("queue");
+            let mut q = queue_arc.write().unwrap();
+            q.enqueue(task1);
+            q.enqueue(task2);
+        }
+
+        // Before dequeue, task1 is in queued tasks
+        assert_eq!(
+            orch.task_resource_lock(agent_id, TaskId(101)),
+            Some(("db://orders/10".to_string(), Some("sess-1".to_string())))
+        );
+        assert_eq!(
+            orch.task_resource_lock(agent_id, TaskId(102)),
+            Some(("db://orders/11".to_string(), Some("sess-2".to_string())))
+        );
+        assert_eq!(orch.task_resource_lock(agent_id, TaskId(999)), None);
+
+        // Dequeue task1 -> now task1 is current_task (in_progress)
+        {
+            let queue_arc = orch.agent_queue(agent_id).expect("queue");
+            let mut q = queue_arc.write().unwrap();
+            let deq = q.dequeue();
+            assert_eq!(deq.map(|t| t.id), Some(TaskId(101)));
+        }
+
+        // Now task1 is in_progress, task2 is still queued
+        assert_eq!(
+            orch.task_resource_lock(agent_id, TaskId(101)),
+            Some(("db://orders/10".to_string(), Some("sess-1".to_string())))
+        );
+        assert_eq!(
+            orch.task_resource_lock(agent_id, TaskId(102)),
+            Some(("db://orders/11".to_string(), Some("sess-2".to_string())))
+        );
+    }
+
+    #[test]
+    fn release_task_resource_lock_is_a_no_op_without_a_resource() {
+        let orch = Orchestrator::new(OrchestratorConfig::for_testing());
+        let mut rx = orch.event_bus.subscribe();
+
+        orch.release_task_resource_lock(AgentId(1), TaskId(101), None);
+
+        assert!(rx.try_recv().is_err());
     }
 }
