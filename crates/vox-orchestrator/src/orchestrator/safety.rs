@@ -68,12 +68,17 @@ impl Orchestrator {
     }
 
     /// Acquires a generic resource lock and broadcasts the event to the bulletin board.
+    ///
+    /// Optional `session_id` and `task_id` correlate the lock acquisition to a chat/workflow
+    /// session and task (Phase 5 D-13).
     pub fn acquire_resource_lock(
         &self,
         agent_id: AgentId,
         resource_id: &str,
         kind: crate::locks::ResourceLockKind,
         ttl_ms: u64,
+        session_id: Option<&str>,
+        task_id: Option<TaskId>,
     ) -> bool {
         match self
             .resource_locks
@@ -91,6 +96,8 @@ impl Orchestrator {
                         agent_id,
                         path: std::path::PathBuf::from(resource_id),
                         exclusive: matches!(kind, crate::locks::ResourceLockKind::Exclusive),
+                        session_id: session_id.map(str::to_string),
+                        task_id,
                     });
                 true
             }
@@ -99,7 +106,16 @@ impl Orchestrator {
     }
 
     /// Releases a generic resource lock and broadcasts the event to the bulletin board.
-    pub fn release_resource_lock(&self, agent_id: AgentId, resource_id: &str) {
+    ///
+    /// Optional `session_id` and `task_id` correlate the lock release to a chat/workflow
+    /// session and task (Phase 5 D-13).
+    pub fn release_resource_lock(
+        &self,
+        agent_id: AgentId,
+        resource_id: &str,
+        session_id: Option<&str>,
+        task_id: Option<TaskId>,
+    ) {
         self.resource_locks.release(resource_id, agent_id);
         self.bulletin
             .publish(crate::types::AgentMessage::ResourceLockReleased {
@@ -111,6 +127,8 @@ impl Orchestrator {
             .emit(crate::events::AgentEventKind::LockReleased {
                 agent_id,
                 path: std::path::PathBuf::from(resource_id),
+                session_id: session_id.map(str::to_string),
+                task_id,
             });
     }
 }
@@ -138,5 +156,120 @@ mod tests {
         assert!(orch.verify_tool_receipt(&id));
         assert!(orch.fulfill_tool_receipt(&id, "{}"));
         assert!(orch.verify_tool_receipt(&id));
+    }
+
+    #[tokio::test]
+    async fn lock_events_carry_session_and_task_into_the_activity_row() {
+        use crate::activity::project::project;
+        use crate::events::AgentEventKind;
+        use crate::locks::ResourceLockKind;
+
+        let orch = Orchestrator::new(OrchestratorConfig::for_testing());
+        let mut rx = orch.event_bus.subscribe();
+
+        let ok = orch.acquire_resource_lock(
+            AgentId(3),
+            "db://orders/1",
+            ResourceLockKind::Exclusive,
+            60_000,
+            Some("chat-s1"),
+            Some(TaskId(77)),
+        );
+        assert!(ok);
+
+        let event = tokio::time::timeout(vox_config::timeouts::D_1S, rx.recv())
+            .await
+            .expect("timeout waiting for LockAcquired")
+            .expect("recv");
+        match &event.kind {
+            AgentEventKind::LockAcquired {
+                agent_id,
+                path,
+                exclusive,
+                session_id,
+                task_id,
+            } => {
+                assert_eq!(*agent_id, AgentId(3));
+                assert_eq!(path.to_str().unwrap(), "db://orders/1");
+                assert!(*exclusive);
+                assert_eq!(session_id.as_deref(), Some("chat-s1"));
+                assert_eq!(*task_id, Some(TaskId(77)));
+
+                let row = project(&event.kind);
+                assert_eq!(row.session_id.as_deref(), Some("chat-s1"));
+                assert_eq!(row.kind, "LockAcquired");
+                assert!(row.detail_json.contains("\"task_id\":77"));
+                assert!(row.detail_json.contains("db://orders/1"));
+            }
+            other => panic!("expected LockAcquired, got {other:?}"),
+        }
+
+        orch.release_resource_lock(
+            AgentId(3),
+            "db://orders/1",
+            Some("chat-s1"),
+            Some(TaskId(77)),
+        );
+
+        let event = tokio::time::timeout(vox_config::timeouts::D_1S, rx.recv())
+            .await
+            .expect("timeout waiting for LockReleased")
+            .expect("recv");
+        match &event.kind {
+            AgentEventKind::LockReleased {
+                agent_id,
+                path,
+                session_id,
+                task_id,
+            } => {
+                assert_eq!(*agent_id, AgentId(3));
+                assert_eq!(path.to_str().unwrap(), "db://orders/1");
+                assert_eq!(session_id.as_deref(), Some("chat-s1"));
+                assert_eq!(*task_id, Some(TaskId(77)));
+
+                let row = project(&event.kind);
+                assert_eq!(row.session_id.as_deref(), Some("chat-s1"));
+                assert_eq!(row.kind, "LockReleased");
+                assert!(row.detail_json.contains("\"task_id\":77"));
+                assert!(row.detail_json.contains("db://orders/1"));
+            }
+            other => panic!("expected LockReleased, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn lock_events_without_context_serialize_without_the_new_keys() {
+        use crate::locks::ResourceLockKind;
+
+        let orch = Orchestrator::new(OrchestratorConfig::for_testing());
+        let mut rx = orch.event_bus.subscribe();
+
+        let ok = orch.acquire_resource_lock(
+            AgentId(3),
+            "db://orders/2",
+            ResourceLockKind::Shared,
+            60_000,
+            None,
+            None,
+        );
+        assert!(ok);
+
+        let event = tokio::time::timeout(vox_config::timeouts::D_1S, rx.recv())
+            .await
+            .expect("timeout waiting for LockAcquired")
+            .expect("recv");
+        let json = serde_json::to_string(&event.kind).unwrap();
+        assert!(!json.contains("session_id"));
+        assert!(!json.contains("task_id"));
+
+        orch.release_resource_lock(AgentId(3), "db://orders/2", None, None);
+
+        let event = tokio::time::timeout(vox_config::timeouts::D_1S, rx.recv())
+            .await
+            .expect("timeout waiting for LockReleased")
+            .expect("recv");
+        let json = serde_json::to_string(&event.kind).unwrap();
+        assert!(!json.contains("session_id"));
+        assert!(!json.contains("task_id"));
     }
 }

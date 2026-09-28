@@ -150,15 +150,22 @@ pub fn project(kind: &AgentEventKind) -> ActivityRow {
             agent_id,
             path,
             exclusive,
+            session_id,
+            ..
         } => (
             Some(agent_id.to_string()),
-            None,
+            session_id.clone(),
             "LockAcquired",
             format!("Lock acquired on {path:?} (exclusive: {exclusive})"),
         ),
-        LockReleased { agent_id, path } => (
+        LockReleased {
+            agent_id,
+            path,
+            session_id,
+            ..
+        } => (
             Some(agent_id.to_string()),
-            None,
+            session_id.clone(),
             "LockReleased",
             format!("Lock released on {path:?}"),
         ),

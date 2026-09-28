@@ -244,11 +244,23 @@ pub enum AgentEventKind {
         agent_id: AgentId,
         path: PathBuf,
         exclusive: bool,
+        /// Chat or workflow session holding the resource (Phase 5 D-13).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        session_id: Option<String>,
+        /// Task holding the resource (Phase 5 D-13).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        task_id: Option<TaskId>,
     },
     /// A file lock was released.
     LockReleased {
         agent_id: AgentId,
         path: PathBuf,
+        /// Chat or workflow session releasing the resource (Phase 5 D-13).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        session_id: Option<String>,
+        /// Task releasing the resource (Phase 5 D-13).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        task_id: Option<TaskId>,
     },
 
     /// An agent went idle (no pending tasks).
@@ -1336,10 +1348,14 @@ mod tests {
                 agent_id: AgentId(1),
                 path: PathBuf::from("f"),
                 exclusive: true,
+                session_id: None,
+                task_id: None,
             },
             AgentEventKind::LockReleased {
                 agent_id: AgentId(1),
                 path: PathBuf::from("f"),
+                session_id: None,
+                task_id: None,
             },
         ];
         for kind in &tier_b_kinds {

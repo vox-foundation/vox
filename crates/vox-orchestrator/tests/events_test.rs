@@ -14,6 +14,8 @@ async fn test_event_bus() {
         agent_id: AgentId(1),
         path: PathBuf::from("src/main.rs"),
         exclusive: true,
+        session_id: None,
+        task_id: None,
     });
 
     let event = timeout(vox_config::timeouts::D_1S, rx.recv())
@@ -24,6 +26,7 @@ async fn test_event_bus() {
         agent_id,
         path,
         exclusive,
+        ..
     } = event.kind
     {
         assert_eq!(agent_id, AgentId(1));

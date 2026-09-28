@@ -52,10 +52,14 @@ fn loggable_samples() -> Vec<AgentEventKind> {
             agent_id: AgentId(1),
             path: std::path::PathBuf::from("db://row/1"),
             exclusive: true,
+            session_id: None,
+            task_id: None,
         },
         LockReleased {
             agent_id: AgentId(1),
             path: std::path::PathBuf::from("db://row/1"),
+            session_id: None,
+            task_id: None,
         },
         ConflictDetected {
             path: std::path::PathBuf::from("foo.rs"),
