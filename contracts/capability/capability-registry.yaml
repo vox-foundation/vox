@@ -11056,6 +11056,22 @@ curated:
   mcp_tool: vox_vcs_status
   cli_path: null
   parameters: null
+- id: mcp.vox_verify_task_claims
+  title: Verify Task Claims
+  description_human: null
+  description_model: Check receipt ids an agent claims against the orchestrator's receipt ledger; returns which are valid, fabricated (no ledger entry) or unverified (tag mismatch). Read-only.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_verify_task_claims
+  cli_path: null
+  parameters: null
 - id: mcp.vox_visual_rag_query
   title: Visual Rag Query
   description_human: null

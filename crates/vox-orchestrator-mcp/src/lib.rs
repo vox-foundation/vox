@@ -105,6 +105,8 @@ pub mod project_init_tools;
 pub mod questioning_tools;
 /// Multi-modal Visual Retrieval-Augmented Generation RAG handler.
 pub mod rag_tools;
+/// Tool execution receipt claim verification.
+pub mod receipt_tools;
 pub mod registry;
 /// Explicit repo catalog + read-only polyrepo query tools.
 pub mod repo_catalog_tools;

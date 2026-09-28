@@ -1229,6 +1229,7 @@
     "validate.file",
     "validate.source",
     "vcs.status",
+    "verify.task.claims",
     "visual.rag.query",
     "visus.audit",
     "visus.baseline",

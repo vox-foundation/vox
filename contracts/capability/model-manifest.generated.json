@@ -2910,6 +2910,14 @@
       "curated": true
     },
     {
+      "capability_id": "mcp.vox_verify_task_claims",
+      "mcp_tool": "vox_verify_task_claims",
+      "implicit": false,
+      "title": "Verify Task Claims",
+      "description_model": "Check receipt ids an agent claims against the orchestrator's receipt ledger; returns which are valid, fabricated (no ledger entry) or unverified (tag mismatch). Read-only.",
+      "curated": true
+    },
+    {
       "capability_id": "mcp.vox_visual_rag_query",
       "mcp_tool": "vox_visual_rag_query",
       "implicit": false,

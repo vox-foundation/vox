@@ -17,8 +17,8 @@ use crate::{
     agent_tools, benchmark_tools, chat_tools, code_validator, codex_tools, compiler_tools,
     db_tools, exec_time_tools, feedback_tools, git_tools, grammar_tools, introspection_tools,
     openclaw_tools, persistence_tools, populi_tools, project_init_tools, questioning_tools,
-    rag_tools, repo_catalog_tools, repo_index, secrets_tools, task_tools, toestub_tools,
-    tool_aliases, training_tools, trust_tools, vcs_tools,
+    rag_tools, receipt_tools, repo_catalog_tools, repo_index, secrets_tools, task_tools,
+    toestub_tools, tool_aliases, training_tools, trust_tools, vcs_tools,
 };
 #[cfg(feature = "news-publish")]
 use crate::{news_tools, scientia_tools};
@@ -814,6 +814,9 @@ async fn handle_tool_call_inner(
         }
         "vox_fail_task" => Ok(task_tools::fail_task(state, serde_json::from_value(args)?).await),
         "vox_doubt_task" => Ok(task_tools::doubt_task(state, serde_json::from_value(args)?).await),
+        "vox_verify_task_claims" => {
+            Ok(receipt_tools::verify_task_claims(state, serde_json::from_value(args)?).await)
+        }
         "vox_propose_skill" => {
             Ok(feedback_tools::propose_skill(state, serde_json::from_value(args)?).await)
         }
