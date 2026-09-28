@@ -322,6 +322,33 @@ pub(crate) fn turn_event_for_result(
                 "contradictions_resolved": data.get("contradictions_resolved").and_then(serde_json::Value::as_u64).unwrap_or(0),
             }))
         }
+        "vox_verify_task_claims" => {
+            // Receipt IDs are model-supplied (fabricated ones by definition), so the
+            // chip shows counts only, never the strings.
+            let envelope: serde_json::Value = serde_json::from_str(result_content).ok()?;
+            let data = envelope.get("data")?;
+            let valid = data
+                .get("valid")
+                .and_then(|v| v.as_array())
+                .map(|a| a.len())
+                .unwrap_or(0);
+            let fabricated = data
+                .get("fabricated")
+                .and_then(|v| v.as_array())
+                .map(|a| a.len())
+                .unwrap_or(0);
+            let unverified = data
+                .get("unverified")
+                .and_then(|v| v.as_array())
+                .map(|a| a.len())
+                .unwrap_or(0);
+            Some(serde_json::json!({
+                "kind": "receipt_claims",
+                "valid": valid,
+                "fabricated": fabricated,
+                "unverified": unverified,
+            }))
+        }
         _ => None,
     }
 }
@@ -431,6 +458,47 @@ mod turn_event_tests {
             turn_event_for_result("vox_research_run", &args, &result_content, true).unwrap();
         assert_eq!(event_run["kind"], "research_milestone");
         assert_eq!(event_run["tool"], "vox_research_run");
+    }
+
+    #[test]
+    fn claims_verdict_event_reports_counts_only() {
+        let args = json!({ "receipt_ids": ["evil <b>id</b>"] });
+        let result_content = json!({
+            "success": true,
+            "data": {
+                "valid": ["a", "b"],
+                "fabricated": ["evil <b>id</b>"],
+                "unverified": []
+            }
+        })
+        .to_string();
+        let ev = turn_event_for_result("vox_verify_task_claims", &args, &result_content, true)
+            .expect("claims verdict event");
+        assert_eq!(ev["kind"], "receipt_claims");
+        assert_eq!(ev["valid"], 2);
+        assert_eq!(ev["fabricated"], 1);
+        assert_eq!(ev["unverified"], 0);
+        let serialized = serde_json::to_string(&ev).unwrap();
+        assert!(!serialized.contains("evil"));
+    }
+
+    #[test]
+    fn claims_verdict_event_requires_success() {
+        let result = json!({
+            "success": true,
+            "data": {
+                "valid": ["a"],
+                "fabricated": [],
+                "unverified": []
+            }
+        })
+        .to_string();
+        assert!(
+            turn_event_for_result("vox_verify_task_claims", &json!({}), &result, false).is_none()
+        );
+        assert!(
+            turn_event_for_result("vox_verify_task_claims", &json!({}), "not json", true).is_none()
+        );
     }
 }
 

@@ -63,6 +63,37 @@ export function ChatTurnEventRow({ event, onExcludeSkill }: ChatTurnEventRowProp
     );
   }
 
+  if (event.kind === 'receipt_claims') {
+    if (
+      typeof event.valid !== 'number' ||
+      !Number.isFinite(event.valid) ||
+      typeof event.fabricated !== 'number' ||
+      !Number.isFinite(event.fabricated) ||
+      typeof event.unverified !== 'number' ||
+      !Number.isFinite(event.unverified)
+    ) {
+      return null;
+    }
+    const valid = event.valid;
+    const fabricated = event.fabricated;
+    const unverified = event.unverified;
+    const flagged = fabricated > 0 || unverified > 0;
+    return (
+      <div
+        data-testid="chat-turn-claims-row"
+        data-flagged={flagged ? 'true' : 'false'}
+        className={`flex items-center gap-2 self-start rounded-full border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] ${
+          flagged ? 'text-amber-300' : 'text-text-secondary'
+        }`}
+      >
+        <span>
+          claims · {valid} valid · {fabricated} fabricated · {unverified} unverified
+        </span>
+      </div>
+    );
+  }
+
   return null;
 }
+
 

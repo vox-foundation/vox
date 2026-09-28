@@ -128,3 +128,80 @@ test('receipt chips render on the assistant turn', async ({ page }) => {
     path: join(OUT_DIR, 'chat-trust-receipts.png'),
   });
 });
+
+test('claims verdict renders and flags fabricated claims', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+
+  await installTrustOverrides(page, {
+    responses: {
+      chat_turn: {
+        id: 9002,
+        role: 'assistant',
+        content: 'Verified claimed receipts.',
+        created_at: '2026-09-28T12:05:00.000Z',
+        task_id: null,
+        model_id: 'opus-4-8',
+        events: [
+          {
+            kind: 'tool_receipt',
+            tool: 'vox_verify_task_claims',
+            receipt_id: '01920000-aaaa-7bbb-8ccc-000000000003',
+            fulfilled: true,
+            verified: true,
+          },
+          {
+            kind: 'receipt_claims',
+            valid: 2,
+            fabricated: 1,
+            unverified: 0,
+          },
+        ],
+      },
+    },
+  });
+
+  await page.goto('/');
+  await page.waitForSelector('nav', { timeout: 15_000 });
+
+  // ensure Quick chat mode (open the send-mode menu and click Set send mode: Quick chat if the menu is present)
+  const chooseModeBtn = page.getByLabel('Choose send mode');
+  if (await chooseModeBtn.isVisible()) {
+    const isExpanded = await chooseModeBtn.getAttribute('aria-expanded');
+    if (isExpanded !== 'true') {
+      await chooseModeBtn.click();
+    }
+    const quickChatBtn = page.getByLabel('Set send mode: Quick chat');
+    if (await quickChatBtn.isVisible()) {
+      await quickChatBtn.click();
+    }
+  }
+
+  const composer = page.getByLabel('Task composer');
+  await composer.fill('Verify the task claims');
+  await composer.press('Enter');
+
+  const claimsRow = page.getByTestId('chat-turn-claims-row');
+  await expect(claimsRow).toHaveCount(1);
+  await expect(claimsRow).toContainText('claims · 2 valid · 1 fabricated · 0 unverified');
+  await expect(claimsRow).toHaveAttribute('data-flagged', 'true');
+
+  const receiptRows = page.getByTestId('chat-turn-receipt-row');
+  await expect(receiptRows).toHaveCount(1);
+  await expect(receiptRows.nth(0)).toContainText('vox_verify_task_claims');
+
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        (window as any).__TAURI_CALLS__.some((c: any) => c.cmd === 'chat_turn'),
+      ),
+    )
+    .toBe(true);
+
+  await page.waitForFunction(() => (window as any).__VOX_IPC_ACTIVE_COUNT__ === 0);
+
+  mkdirSync(OUT_DIR, { recursive: true });
+  await page.screenshot({
+    path: join(OUT_DIR, 'chat-trust-claims.png'),
+  });
+});
+

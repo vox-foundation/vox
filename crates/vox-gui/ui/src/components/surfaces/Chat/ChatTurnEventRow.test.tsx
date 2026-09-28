@@ -109,5 +109,76 @@ describe('ChatTurnEventRow', () => {
     );
     expect(c3).toBeEmptyDOMElement();
   });
+
+  it('renders a claims chip with counts and flags when fabricated or unverified > 0', () => {
+    render(
+      <ChatTurnEventRow
+        event={{
+          kind: 'receipt_claims',
+          valid: 2,
+          fabricated: 1,
+          unverified: 0,
+        }}
+      />,
+    );
+    const row = screen.getByTestId('chat-turn-claims-row');
+    expect(row).toHaveTextContent('claims · 2 valid · 1 fabricated · 0 unverified');
+    expect(row).toHaveAttribute('data-flagged', 'true');
+  });
+
+  it('renders a claims chip with data-flagged false when fabricated and unverified are 0', () => {
+    render(
+      <ChatTurnEventRow
+        event={{
+          kind: 'receipt_claims',
+          valid: 3,
+          fabricated: 0,
+          unverified: 0,
+        }}
+      />,
+    );
+    const row = screen.getByTestId('chat-turn-claims-row');
+    expect(row).toHaveTextContent('claims · 3 valid · 0 fabricated · 0 unverified');
+    expect(row).toHaveAttribute('data-flagged', 'false');
+  });
+
+  it('renders nothing when claims counts are non-numeric or missing', () => {
+    const { container: c1 } = render(
+      <ChatTurnEventRow
+        event={{
+          kind: 'receipt_claims',
+          valid: '2' as unknown as number,
+          fabricated: 0,
+          unverified: 0,
+        }}
+      />,
+    );
+    expect(c1).toBeEmptyDOMElement();
+
+    const { container: c2 } = render(
+      <ChatTurnEventRow
+        event={{
+          kind: 'receipt_claims',
+          valid: 2,
+          fabricated: undefined as unknown as number,
+          unverified: 0,
+        }}
+      />,
+    );
+    expect(c2).toBeEmptyDOMElement();
+
+    const { container: c3 } = render(
+      <ChatTurnEventRow
+        event={{
+          kind: 'receipt_claims',
+          valid: 2,
+          fabricated: 0,
+          unverified: NaN,
+        }}
+      />,
+    );
+    expect(c3).toBeEmptyDOMElement();
+  });
 });
+
 
