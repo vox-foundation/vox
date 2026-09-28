@@ -632,6 +632,11 @@ pub struct AgentTask {
     /// Optional session link (for chat/workflow grouping in Mens).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session_id: Option<String>,
+    /// Optional resource the task needs exclusive use of (Phase 5 D-08).
+    ///
+    /// Set from the intake item; the completion/failure paths release its lock (05-06).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resource_id: Option<String>,
     /// Chat session that issued the submit call (Phase D Task D1 durable
     /// lineage). Distinct from `session_id` above (Mens telemetry grouping,
     /// caller-supplied) — this one is injected server-side by `run_agent_turn`
@@ -783,6 +788,7 @@ impl AgentTask {
             socrates: None,
             capability_requirements: None,
             session_id: None,
+            resource_id: None,
             chat_session_id: None,
             thread_id: None,
             attention_weight: 0.0,

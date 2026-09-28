@@ -129,6 +129,11 @@ pub struct IntakeItem {
     pub source: IntakeSource,
     /// Optional session context (chat session, CLI session, etc.).
     pub session_id: Option<String>,
+    /// Optional resource the task needs exclusive use of (Phase 5 D-08).
+    ///
+    /// Caller-supplied string that becomes a lock-map key and a chat-visible label.
+    #[serde(default)]
+    pub resource_id: Option<String>,
     /// Classified priority assigned by the intake classifier.
     pub classified_priority: TaskPriority,
     /// Who last set `classified_priority` (Hp-T3 typed partial order).
@@ -155,6 +160,35 @@ fn default_priority_source() -> PrioritySource {
     PrioritySource::Orchestrator
 }
 
+pub const MAX_RESOURCE_ID_BYTES: usize = 256;
+
+/// Validate a caller-supplied resource identifier at the intake boundary.
+///
+/// Caller-supplied string that becomes a lock-map key and a chat-visible label —
+/// bound it at the intake boundary:
+/// - Must not be empty or whitespace-only
+/// - Must not exceed 256 bytes in length
+/// - Must not contain control characters (including newlines and null bytes)
+pub fn validate_resource_id(id: &str) -> Result<(), String> {
+    if id.is_empty() {
+        return Err("resource_id must not be empty".to_string());
+    }
+    if id.trim().is_empty() {
+        return Err("resource_id must not be blank".to_string());
+    }
+    if id.len() > MAX_RESOURCE_ID_BYTES {
+        return Err(format!(
+            "resource_id length {} exceeds maximum allowed length of {} bytes",
+            id.len(),
+            MAX_RESOURCE_ID_BYTES
+        ));
+    }
+    if id.chars().any(|c| c.is_control()) {
+        return Err("resource_id must not contain control characters".to_string());
+    }
+    Ok(())
+}
+
 impl IntakeItem {
     pub fn new(
         intent: String,
@@ -174,6 +208,7 @@ impl IntakeItem {
             priority_hint,
             source,
             session_id,
+            resource_id: None,
             classified_priority: classified,
             priority_source: PrioritySource::Orchestrator,
             confidence: 0.85,
@@ -206,6 +241,7 @@ impl IntakeItem {
                 node_id: origin_node_id,
             },
             session_id: None,
+            resource_id: None,
             classified_priority,
             priority_source: PrioritySource::Orchestrator,
             confidence: 1.0,
@@ -222,4 +258,45 @@ pub fn now_micros() -> u64 {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_micros() as u64)
         .unwrap_or(0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn validate_resource_id_bounds_untrusted_ids() {
+        assert!(validate_resource_id("db://orders/42").is_ok());
+
+        let err_empty = validate_resource_id("").unwrap_err();
+        assert!(
+            err_empty.contains("empty") || err_empty.contains("blank"),
+            "empty err: {err_empty}"
+        );
+
+        let err_blank = validate_resource_id("   ").unwrap_err();
+        assert!(
+            err_blank.contains("blank") || err_blank.contains("empty"),
+            "blank err: {err_blank}"
+        );
+
+        let long_id = "a".repeat(257);
+        let err_len = validate_resource_id(&long_id).unwrap_err();
+        assert!(
+            err_len.contains("256") || err_len.contains("length") || err_len.contains("byte"),
+            "len err: {err_len}"
+        );
+
+        let err_newline = validate_resource_id("db://orders\n42").unwrap_err();
+        assert!(
+            err_newline.contains("control") || err_newline.contains("newline"),
+            "newline err: {err_newline}"
+        );
+
+        let err_null = validate_resource_id("db://orders\042").unwrap_err();
+        assert!(
+            err_null.contains("control") || err_null.contains("null"),
+            "null err: {err_null}"
+        );
+    }
 }

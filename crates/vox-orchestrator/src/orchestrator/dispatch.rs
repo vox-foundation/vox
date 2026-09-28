@@ -17,12 +17,15 @@ pub fn stable_hash(s: &str) -> u64 {
 /// Pure + deterministic so it is unit-testable in isolation.
 pub fn intake_to_task(item: &IntakeItem) -> AgentTask {
     let task_id = TaskId(stable_hash(&item.item_id.0));
-    AgentTask::new(
+    let mut task = AgentTask::new(
         task_id,
         item.intent.clone(),
         item.classified_priority,
         vec![], // file_manifest
-    )
+    );
+    task.session_id = item.session_id.clone();
+    task.resource_id = item.resource_id.clone();
+    task
 }
 
 /// Runs the admit→enqueue loop: every HopperItemAdmitted becomes an enqueued task.
@@ -321,16 +324,24 @@ mod tests {
         fn as_any(&self) -> &dyn std::any::Any {
             self
         }
-        async fn submit(
+        async fn submit_with_resource(
             &self,
             intent: String,
             affinity_hints: Vec<String>,
             priority_hint: PriorityHint,
             source: IntakeSource,
             session_id: Option<String>,
+            resource_id: Option<String>,
         ) -> crate::hopper::types::IntakeItem {
             self.inner
-                .submit(intent, affinity_hints, priority_hint, source, session_id)
+                .submit_with_resource(
+                    intent,
+                    affinity_hints,
+                    priority_hint,
+                    source,
+                    session_id,
+                    resource_id,
+                )
                 .await
         }
         async fn inbox(&self) -> Vec<crate::hopper::types::IntakeItem> {

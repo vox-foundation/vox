@@ -64,6 +64,7 @@ fn row_to_item(row: HopperInboxRow) -> IntakeItem {
         priority_hint,
         source,
         session_id,
+        resource_id: None,
         classified_priority,
         priority_source,
         confidence: 0.85,
@@ -80,15 +81,23 @@ impl HopperIntake for SqliteHopper {
         self
     }
 
-    async fn submit(
+    async fn submit_with_resource(
         &self,
         intent: String,
         affinity_hints: Vec<String>,
         priority_hint: PriorityHint,
         source: IntakeSource,
         session_id: Option<String>,
+        resource_id: Option<String>,
     ) -> IntakeItem {
-        let item = IntakeItem::new(intent, affinity_hints, priority_hint, source, session_id);
+        let mut item = IntakeItem::new(intent, affinity_hints, priority_hint, source, session_id);
+        item.resource_id = resource_id;
+
+        if item.resource_id.is_some() {
+            tracing::warn!(
+                "SQLite hopper does not persist resource_id yet (pending Phase 5 schema 94)"
+            );
+        }
 
         let affinity_json = serde_json::to_string(&item.affinity_hints).unwrap();
         let source_json = serde_json::to_string(&item.source).unwrap();
