@@ -142,6 +142,7 @@ Plans:
 
   1. `ResourceLockManager` exists and is used for multi-agent resource coordination, correctly handling lease expiration and contention per ADR-025.
   2. Agent tool calls produce HMAC receipts that the two-tier formal-intent verification system (ADR-029) can independently check for authenticity.
+  3. Receipt status on tool calls and resource-lock wait/hold state are visible in the `vox-gui` chat surface, covered by Playwright specs with review-bundle screenshots (CONTEXT D-10/D-11).
 
 **Plans**: TBD
 

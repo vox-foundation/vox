@@ -102,6 +102,24 @@ built than the ROADMAP text implies):
   (e.g. an MCP tool-call round trip producing a receipt), prefer an end-to-end check over mock-only.
   Phase verification must include a live look at the chat GUI, not just unit tests.
 
+### Resolved research open questions (2026-09-28, orchestrator)
+- **D-12 (receipt → chat bridge):** Add a sibling fn in `vox-orchestrator-mcp/src/dispatch.rs`
+  (e.g. `handle_tool_call_with_receipt`) that performs D-01's issue/fulfill wrap and returns
+  `(Result<String>, Option<receipt_id>)`. `handle_tool_call_with_mode` becomes a thin wrapper that
+  discards the receipt, so no existing caller's signature changes. Only `chat/agent_loop.rs` calls
+  the new fn and pushes a `kind: "tool_receipt"` turn event (tool name, receipt_id, fulfilled/verified
+  state) through the existing `turn_event_for_result` → `TurnEventDto` → `ChatTurnEventRow` path.
+  Rejected: re-issuing receipts from agent_loop.rs (double-issue), and event-bus emission + re-query
+  (extra moving parts for data already in hand one frame up).
+- **D-13 (lock TTL + lock state in chat):** D-08's lock TTL reuses an existing task-timeout config
+  value if one exists; otherwise a 30-minute constant marked `ponytail:` as tunable. The TTL is only
+  crash insurance — success/failure paths release explicitly. Lock wait/hold state reaches the chat via
+  the existing bulletin → event_bus → activity_log path: thread `session_id` through
+  `acquire_resource_lock`/`release_resource_lock` and the activity projection, add a `session_id`
+  filter to `activity_query`, and render lock chips in the chat surface (planner reads
+  `ChatExecutionRail.tsx` to pick the host component). If the intake item carries no session, the
+  chip still renders under the task, correlated by task id.
+
 ### Claude's Discretion
 - Exact MCP tool name/schema for the D-03 verify surface (`vox_verify_task_claims` is a working
   name, not locked).
