@@ -199,7 +199,7 @@ pub struct AgentTurnOutcome {
     /// Chat-turn-visible events derived from tool RESULTS during this turn (see
     /// [`turn_event_for_result`]) — e.g. a skill activation chip. Empty unless a
     /// dispatched tool call both matches a known event-worthy tool AND actually
-    /// succeeded.
+    /// succeeded. Dispatched calls also emit `tool_receipt` events for cryptographic ledger verification.
     pub events: Vec<serde_json::Value>,
     /// Wall-clock latency of the final iteration's `llm_chat`/`stream_final_answer` call, in
     /// ms. `None` only if every iteration failed before any response was received (in which
@@ -324,6 +324,25 @@ pub(crate) fn turn_event_for_result(
         }
         _ => None,
     }
+}
+
+/// Builds a `tool_receipt` event for the chat transcript.
+///
+/// Security rationale: every field in this event is server-derived
+/// (registry-validated tool name, server-minted UUIDv7, ledger verification)
+/// and nothing comes from `call.arguments`, matching [`turn_event_for_result`]'s
+/// rule against echoing unvetted model payloads into trusted UI chrome.
+fn receipt_turn_event(
+    r: &crate::dispatch::ToolReceiptOutcome,
+    verified: bool,
+) -> serde_json::Value {
+    serde_json::json!({
+        "kind": "tool_receipt",
+        "tool": r.tool_name,
+        "receipt_id": r.receipt_id,
+        "fulfilled": r.fulfilled,
+        "verified": verified,
+    })
 }
 
 #[cfg(test)]
@@ -884,7 +903,7 @@ pub(crate) async fn run_agent_turn(
                         }
                     }
                 }
-                let result = crate::dispatch::handle_tool_call_with_mode(
+                let (result, receipt) = crate::dispatch::handle_tool_call_with_receipt(
                     state,
                     &call.name,
                     dispatch_args,
@@ -907,6 +926,12 @@ pub(crate) async fn run_agent_turn(
                     turn_event_for_result(&call.name, &call.arguments, &content, call_succeeded)
                 {
                     events.push(ev);
+                }
+                if let Some(r) = receipt {
+                    events.push(receipt_turn_event(
+                        &r,
+                        state.orchestrator.verify_tool_receipt(&r.receipt_id),
+                    ));
                 }
 
                 if harness_detection_enabled {
@@ -1424,6 +1449,67 @@ mod tests {
             .expect("a role:tool message must be present in the follow-up request");
         assert_eq!(tool_msg["tool_call_id"], "call_1");
         assert_eq!(tool_msg["name"], "vox_git_status");
+    }
+
+    #[tokio::test]
+    async fn tool_call_emits_a_verifiable_tool_receipt_event() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(tool_call_response_body()))
+            .up_to_n_times(1)
+            .mount(&server)
+            .await;
+        Mock::given(method("POST"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(plain_response_body("done, saw the tool result")),
+            )
+            .mount(&server)
+            .await;
+
+        let state = test_state();
+        let config = test_config(format!("{}/chat/completions", server.uri()));
+        let outcome = run_agent_turn(
+            &state,
+            None,
+            vec![],
+            "system prompt".to_string(),
+            "what's the git status?".to_string(),
+            None,
+            None,
+            config,
+            DEFAULT_MAX_ITERATIONS,
+            false,
+        )
+        .await
+        .expect("run_agent_turn should succeed");
+
+        assert_eq!(outcome.final_text, "done, saw the tool result");
+        assert_eq!(outcome.tool_calls_made, 1);
+        assert!(!outcome.hit_iteration_limit);
+
+        let receipt_events: Vec<&serde_json::Value> = outcome
+            .events
+            .iter()
+            .filter(|e| e["kind"] == "tool_receipt")
+            .collect();
+        assert_eq!(
+            receipt_events.len(),
+            1,
+            "outcome.events must hold exactly one tool_receipt event"
+        );
+        let ev = receipt_events[0];
+        assert_eq!(ev["tool"], "vox_git_status");
+        let receipt_id = ev["receipt_id"]
+            .as_str()
+            .expect("receipt_id must be a string");
+        assert!(!receipt_id.is_empty());
+        assert_eq!(ev["fulfilled"], true);
+        assert_eq!(ev["verified"], true);
+        assert!(
+            state.orchestrator.verify_tool_receipt(receipt_id),
+            "state.orchestrator must verify the receipt id"
+        );
     }
 
     /// Recursion-safety regression: `vox_chat_message` (and any other `vox_chat_*`

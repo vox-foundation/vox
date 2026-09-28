@@ -49,11 +49,78 @@ pub async fn handle_tool_call(
 /// be sourced from `args` (tool-call params the LLM agent composes) — only
 /// from this explicit parameter, which callers populate from the
 /// authenticated transport layer, never from caller-supplied JSON.
+/// Receipts are issued and dropped here; callers that need the outcome use [`handle_tool_call_with_receipt`].
 pub async fn handle_tool_call_with_mode(
     state: &ServerState,
     name: &str,
     args: serde_json::Value,
     permission_mode: Option<&str>,
+) -> Result<String, anyhow::Error> {
+    handle_tool_call_with_receipt(state, name, args, permission_mode)
+        .await
+        .0
+}
+
+/// Outcome of issuing and fulfilling a receipt for a dispatched tool call.
+///
+/// `tool_name` is the canonical, registry-validated name — a receipt only
+/// exists when `issue_intent` accepted it.
+#[derive(Debug, Clone)]
+pub struct ToolReceiptOutcome {
+    /// Server-minted unique receipt identifier (UUIDv7).
+    pub receipt_id: String,
+    /// Canonical, registry-validated tool name.
+    pub tool_name: String,
+    /// Whether fulfillment was recorded in the orchestrator ledger.
+    pub fulfilled: bool,
+}
+
+/// Same as [`handle_tool_call_with_mode`], but also returns any [`ToolReceiptOutcome`]
+/// issued for the call.
+pub async fn handle_tool_call_with_receipt(
+    state: &ServerState,
+    name: &str,
+    args: serde_json::Value,
+    permission_mode: Option<&str>,
+) -> (Result<String, anyhow::Error>, Option<ToolReceiptOutcome>) {
+    let mut receipt_out = None;
+    let result = dispatch_tool_call(state, name, args, permission_mode, &mut receipt_out).await;
+    (result, receipt_out)
+}
+
+fn issue_dispatch_receipt(
+    state: &ServerState,
+    agent_id: Option<&str>,
+    tool: &str,
+    args: &serde_json::Value,
+) -> Option<String> {
+    // ponytail: the ledger is an in-memory map that grows by one small record per
+    // dispatched call for the life of the process; bound it (evict by executed_at_ms)
+    // if a long-lived server shows growth.
+    let aid = agent_id.and_then(|s| s.parse::<u64>().ok()).unwrap_or(0u64);
+    match state.orchestrator.issue_tool_receipt(
+        vox_orchestrator::types::AgentId(aid),
+        tool,
+        &args.to_string(),
+    ) {
+        Ok(id) => Some(id),
+        Err(e) => {
+            tracing::warn!(
+                tool,
+                error = %e,
+                "tool receipt not issued; executing anyway (fail-open, Phase 5 D-02)"
+            );
+            None
+        }
+    }
+}
+
+async fn dispatch_tool_call(
+    state: &ServerState,
+    name: &str,
+    args: serde_json::Value,
+    permission_mode: Option<&str>,
+    receipt_out: &mut Option<ToolReceiptOutcome>,
 ) -> Result<String, anyhow::Error> {
     let start_time = std::time::Instant::now();
     let name_canonical = tool_aliases::canonical_tool_name(name);
@@ -349,6 +416,7 @@ pub async fn handle_tool_call_with_mode(
     // `vox_db::TimedExecution` (the `te` used below) only measures duration
     // for telemetry and never bounded it, so a hung tool implementation
     // previously blocked this handler (and the MCP connection) indefinitely.
+    let receipt_id = issue_dispatch_receipt(state, agent_id, name_canonical, &args);
     let call_timeout = crate::dispatch_timeout::timeout_for(name_canonical);
     let result = te
         .run(|| {
@@ -381,6 +449,26 @@ pub async fn handle_tool_call_with_mode(
             }
         })
         .await;
+
+    if let Some(id) = receipt_id {
+        let text: std::borrow::Cow<'_, str> = match &result {
+            Ok(s) => std::borrow::Cow::Borrowed(s.as_str()),
+            Err(e) => std::borrow::Cow::Owned(e.to_string()),
+        };
+        let fulfilled = state.orchestrator.fulfill_tool_receipt(&id, &text);
+        if !fulfilled {
+            tracing::warn!(
+                receipt_id = %id,
+                tool = name_canonical,
+                "failed to fulfill tool receipt"
+            );
+        }
+        *receipt_out = Some(ToolReceiptOutcome {
+            receipt_id: id,
+            tool_name: name_canonical.to_string(),
+            fulfilled,
+        });
+    }
 
     // AgentOS: fold MCP mutation_kind into live orchestrator policy ledger (D5 overlay input).
     {
@@ -2198,5 +2286,88 @@ mod dispatch_timeout_tests {
             !crate::server_state::tool_json_envelope_is_error(&res),
             "fast tool unexpectedly failed: {res}"
         );
+    }
+}
+
+// ── Phase 5 TRUST-01: tool receipt wrapping tests ───────────────────────────
+#[cfg(test)]
+mod receipt_wrap_tests {
+    use super::handle_tool_call_with_receipt;
+    use crate::server_state::ServerState;
+    use serde_json::json;
+
+    #[tokio::test]
+    async fn registered_tool_call_gets_a_fulfilled_verifiable_receipt() {
+        let state = ServerState::new_test().await;
+        let (res, receipt) =
+            handle_tool_call_with_receipt(&state, "vox_skill_list", json!({}), None).await;
+        let res = res.expect("dispatch must succeed");
+        assert!(!crate::server_state::tool_json_envelope_is_error(&res));
+        let receipt = receipt.expect("must issue receipt for registered tool");
+        assert_eq!(receipt.tool_name, "vox_skill_list");
+        assert!(receipt.fulfilled);
+        assert!(state.orchestrator.verify_tool_receipt(&receipt.receipt_id));
+        let handle = state.orchestrator.tool_ledger_handle();
+        let ledger = vox_orchestrator::sync_lock::rw_read(&*handle);
+        let snapshot = ledger.snapshot();
+        assert_eq!(
+            snapshot.get(&receipt.receipt_id),
+            Some(&(
+                vox_orchestrator::types::AgentId(0),
+                "vox_skill_list".to_string()
+            ))
+        );
+    }
+
+    #[tokio::test]
+    async fn errored_call_is_still_fulfilled() {
+        let state = ServerState::new_test().await;
+        let (res, receipt) =
+            handle_tool_call_with_receipt(&state, "vox_fail_task", json!({}), None).await;
+        let is_err =
+            res.is_err() || crate::server_state::tool_json_envelope_is_error(res.as_ref().unwrap());
+        assert!(is_err, "vox_fail_task with empty args should fail");
+        let receipt = receipt.expect("must issue receipt even for failing call");
+        assert!(receipt.fulfilled);
+        assert!(state.orchestrator.verify_tool_receipt(&receipt.receipt_id));
+    }
+
+    #[tokio::test]
+    async fn unregistered_tool_still_executes_without_a_receipt() {
+        let state = ServerState::new_test().await;
+        let handle = state.orchestrator.tool_ledger_handle();
+        let initial_len = vox_orchestrator::sync_lock::rw_read(&*handle).len();
+        let (res, receipt) = handle_tool_call_with_receipt(
+            &state,
+            "vox_test_agy_like_long_running",
+            json!({ "sleep_ms": 0 }),
+            None,
+        )
+        .await;
+        let res = res.expect("dispatch must succeed");
+        assert!(res.contains("agy-like delegation completed"));
+        assert!(receipt.is_none());
+        let final_len = vox_orchestrator::sync_lock::rw_read(&*handle).len();
+        assert_eq!(initial_len, final_len);
+    }
+
+    #[tokio::test]
+    async fn gate_rejected_call_gets_no_receipt() {
+        let state = ServerState::new_test().await;
+        let handle = state.orchestrator.tool_ledger_handle();
+        let initial_len = vox_orchestrator::sync_lock::rw_read(&*handle).len();
+        let (res, receipt) = handle_tool_call_with_receipt(
+            &state,
+            "vox_write_file",
+            json!({ "path": "x.rs", "content": "todo!()" }),
+            None,
+        )
+        .await;
+        let res = res.expect("dispatch returns error envelope, not Err");
+        assert!(crate::server_state::tool_json_envelope_is_error(&res));
+        assert!(res.contains("LAZY_GENERATION_DETECTED"));
+        assert!(receipt.is_none());
+        let final_len = vox_orchestrator::sync_lock::rw_read(&*handle).len();
+        assert_eq!(initial_len, final_len);
     }
 }

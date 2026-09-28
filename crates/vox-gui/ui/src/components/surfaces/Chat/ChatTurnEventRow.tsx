@@ -10,8 +10,8 @@ interface ChatTurnEventRowProps {
 
 /**
  * Renders a single chat-turn event derived from a tool call's RESULT (see
- * Rust `turn_event_for_result`) — e.g. a chip naming a skill the model
- * loaded. Deliberately separate from `ChatAgentEventRow` (which owns the
+ * Rust `turn_event_for_result` and `receipt_turn_event`) — e.g. a chip naming a skill the model
+ * loaded or a tool execution receipt chip. Deliberately separate from `ChatAgentEventRow` (which owns the
  * three HITL plan/verify controls) — this component owns nothing but
  * read-only chips plus the skill-exclusion action.
  *
@@ -40,5 +40,29 @@ export function ChatTurnEventRow({ event, onExcludeSkill }: ChatTurnEventRowProp
       </div>
     );
   }
+
+  if (event.kind === 'tool_receipt') {
+    if (typeof event.tool !== 'string' || typeof event.receipt_id !== 'string') {
+      return null;
+    }
+    const tool = event.tool;
+    const receiptId = event.receipt_id;
+    const verified = event.verified === true;
+    return (
+      <div
+        data-testid="chat-turn-receipt-row"
+        data-verified={verified ? 'true' : 'false'}
+        className="flex items-center gap-2 self-start rounded-full border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary"
+        title={`receipt ${receiptId}`}
+      >
+        <span>
+          receipt · {tool} · {verified ? 'verified' : 'unverified'}
+        </span>
+        <span className="text-text-muted">{receiptId.slice(0, 8)}</span>
+      </div>
+    );
+  }
+
   return null;
 }
+
