@@ -178,18 +178,13 @@ async fn dispatch_tool_call(
     }
 
     // Unenforced LLM "Laziness" Ingestion Gate
-    if matches!(
-        name_canonical,
-        "vox_write_file"
-            | "vox_patch_file"
-            | "vox_inline_edit_file"
-            | "vox_multi_replace"
-            | "vox_multi_replace_file"
-    ) {
-        let args_str = args.to_string();
-        if args_str.contains("todo!()")
-            || args_str.contains("unimplemented!()")
-            || args_str.contains("// TODO")
+    if let Some(code) = crate::scope_guard::LAZY_SCAN_FIELDS
+        .iter()
+        .find(|(tool, _)| *tool == name_canonical)
+        .and_then(|(_, key)| args.get(*key))
+        .and_then(|v| v.as_str())
+    {
+        if code.contains("todo!()") || code.contains("unimplemented!()") || code.contains("// TODO")
         {
             return Ok(crate::params::ToolResult::<()>::err("LAZY_GENERATION_DETECTED: The system intercepted a TOESTUB pattern (e.g. todo!(), unimplemented!(), or // TODO) in your code output. You must emit the complete, fully-implemented code. Re-run your action with the actual logic.").to_json_compact());
         }
@@ -548,20 +543,15 @@ async fn dispatch_tool_call(
         // edit_pattern — only on successful file mutations (envelope success).
         if call_succeeded && is_file_mutation(name_canonical) {
             let op_type = file_op_type(name_canonical);
-            let file_kind = args
-                .get("path")
-                .and_then(|v| v.as_str())
+            let file_kind = crate::scope_guard::PATH_ARG_KEYS
+                .iter()
+                .find_map(|key| args.get(*key).and_then(|v| v.as_str()))
                 .map(file_kind_from_path)
                 .unwrap_or("unknown");
-            let content_len = args
-                .get("content")
-                .and_then(|v| v.as_str())
-                .map(|s| s.len())
-                .or_else(|| {
-                    args.get("new_content")
-                        .and_then(|v| v.as_str())
-                        .map(|s| s.len())
-                })
+            let content_len = ["content", "new_content", "replacement_code"]
+                .iter()
+                .find_map(|key| args.get(*key).and_then(|v| v.as_str()))
+                .map(str::len)
                 .unwrap_or(0);
             let size_bucket = content_size_bucket(content_len);
             vox_telemetry::record_event!(&TelemetryEvent::EditPattern(EditPatternEvent {
@@ -1953,6 +1943,7 @@ fn tool_call_kind_for(name: &str) -> &'static str {
         || name.starts_with("vox_inline_edit")
         || name.starts_with("vox_multi_replace")
         || name.starts_with("vox_delete")
+        || crate::scope_guard::WRITE_TOOLS.contains(&name)
     {
         "edit"
     } else if name.starts_with("vox_read")
@@ -1971,22 +1962,13 @@ fn tool_call_kind_for(name: &str) -> &'static str {
 }
 
 fn is_file_mutation(name: &str) -> bool {
-    matches!(
-        name,
-        "vox_write_file"
-            | "vox_patch_file"
-            | "vox_inline_edit_file"
-            | "vox_multi_replace"
-            | "vox_multi_replace_file"
-    )
+    crate::scope_guard::WRITE_TOOLS.contains(&name)
 }
 
 fn file_op_type(name: &str) -> &'static str {
     match name {
-        "vox_write_file" => "write",
-        "vox_patch_file" => "patch",
-        "vox_inline_edit_file" => "inline_edit",
-        "vox_multi_replace" | "vox_multi_replace_file" => "multi_replace",
+        "vox_apply_structured_edit" => "structured_edit",
+        "vox_generate_code" => "generate",
         _ => "other",
     }
 }
@@ -2045,6 +2027,7 @@ fn subsystem_from_tool(name: &str) -> &'static str {
         || name.starts_with("vox_patch")
         || name.starts_with("vox_inline_edit")
         || name.starts_with("vox_multi_replace")
+        || crate::scope_guard::WRITE_TOOLS.contains(&name)
     {
         "file_ops"
     } else if name.starts_with("vox_git") || name.starts_with("vox_vcs") {

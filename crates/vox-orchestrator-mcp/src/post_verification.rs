@@ -13,24 +13,16 @@ use crate::code_validator;
 use crate::params::VoxCheckParams;
 use crate::server_state::ServerState;
 
-/// File-mutating MCP tools whose successful result should trigger auto-verification.
-/// Mirrors the write-tool set already gated in [`crate::dispatch`].
-const MUTATING_FILE_TOOLS: &[&str] = &[
-    "vox_write_file",
-    "vox_patch_file",
-    "vox_inline_edit_file",
-    "vox_multi_replace",
-    "vox_multi_replace_file",
-    "vox_apply_structured_edit",
-];
-
 /// Returns the workspace-relative `.vox` path to verify, iff `name` is a file-mutating
-/// tool that touched a `.vox` file. Pure; performs no I/O.
+/// tool (the write-tool set gated in [`crate::scope_guard`]) that touched a `.vox` file.
+/// Pure; performs no I/O.
 pub fn verifiable_vox_path(name: &str, args: &serde_json::Value) -> Option<String> {
-    if !MUTATING_FILE_TOOLS.contains(&name) {
+    if !crate::scope_guard::WRITE_TOOLS.contains(&name) {
         return None;
     }
-    let path = args.get("path").and_then(|v| v.as_str())?;
+    let path = crate::scope_guard::PATH_ARG_KEYS
+        .iter()
+        .find_map(|key| args.get(*key).and_then(|v| v.as_str()))?;
     let is_vox = std::path::Path::new(path)
         .extension()
         .and_then(|e| e.to_str())
@@ -141,9 +133,10 @@ mod tests {
 
     #[test]
     fn verifiable_path_is_some_for_vox_write_of_vox_file() {
-        let args = json!({ "path": "src/foo.vox", "content": "x" });
+        // The real tool's key is `file_path`, not `path`.
+        let args = json!({ "file_path": "src/foo.vox", "replacement_code": "x" });
         assert_eq!(
-            verifiable_vox_path("vox_write_file", &args),
+            verifiable_vox_path("vox_apply_structured_edit", &args),
             Some("src/foo.vox".to_string())
         );
     }
@@ -157,13 +150,19 @@ mod tests {
     #[test]
     fn verifiable_path_is_none_for_non_vox_extension() {
         let args = json!({ "path": "src/foo.rs" });
-        assert_eq!(verifiable_vox_path("vox_write_file", &args), None);
+        assert_eq!(
+            verifiable_vox_path("vox_apply_structured_edit", &args),
+            None
+        );
     }
 
     #[test]
     fn verifiable_path_is_none_when_path_missing() {
         let args = json!({ "content": "x" });
-        assert_eq!(verifiable_vox_path("vox_write_file", &args), None);
+        assert_eq!(
+            verifiable_vox_path("vox_apply_structured_edit", &args),
+            None
+        );
     }
 
     #[test]
@@ -241,8 +240,13 @@ mod tests {
         let bad_path = root.join(bad_name);
         std::fs::write(&bad_path, "fn ( {").expect("write bad probe");
         let bad_args = serde_json::json!({ "path": bad_name });
-        let bad_out =
-            verify_and_attach(&state, "vox_write_file", &bad_args, ok_payload.clone()).await;
+        let bad_out = verify_and_attach(
+            &state,
+            "vox_apply_structured_edit",
+            &bad_args,
+            ok_payload.clone(),
+        )
+        .await;
         let _ = std::fs::remove_file(&bad_path);
         let bad_v: serde_json::Value =
             serde_json::from_str(&bad_out).expect("broken-file output is still JSON");
@@ -257,8 +261,13 @@ mod tests {
         let ok_path = root.join(ok_name);
         std::fs::write(&ok_path, "let answer = 42\n").expect("write ok probe");
         let ok_args = serde_json::json!({ "path": ok_name });
-        let ok_out =
-            verify_and_attach(&state, "vox_write_file", &ok_args, ok_payload.clone()).await;
+        let ok_out = verify_and_attach(
+            &state,
+            "vox_apply_structured_edit",
+            &ok_args,
+            ok_payload.clone(),
+        )
+        .await;
         let _ = std::fs::remove_file(&ok_path);
         assert_eq!(
             ok_out, ok_payload,
