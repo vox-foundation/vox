@@ -293,7 +293,7 @@ mod tests {
             "newline err: {err_newline}"
         );
 
-        let err_null = validate_resource_id("db://orders\042").unwrap_err();
+        let err_null = validate_resource_id("db://orders\u{0}42").unwrap_err();
         assert!(
             err_null.contains("control") || err_null.contains("null"),
             "null err: {err_null}"
