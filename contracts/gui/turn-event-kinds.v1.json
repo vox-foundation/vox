@@ -42,7 +42,6 @@
     },
     {
       "kind": "routing_decision",
-      "status": "planned",
       "required": ["family", "resolved_id", "resolved_from", "reason"],
       "example": {
         "kind": "routing_decision",

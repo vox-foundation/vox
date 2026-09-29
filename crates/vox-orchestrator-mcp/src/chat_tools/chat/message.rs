@@ -298,6 +298,23 @@ async fn try_run_agent_turn(
     let model = choice.model;
     let is_free = choice.is_free;
     let selection_reason = choice.rationale;
+    // One `routing_decision` per assistant turn, first in `events`, built only from the resolved
+    // spec, the composer's mode (if it sent one) and a reason that never echoes a requested id
+    // (docs/superpowers/plans/2026-09-28-chat-turn-trace.md).
+    let routing_event = super::turn_events::routing_decision_event(
+        &model,
+        clutch.and_then(vox_orchestrator::mode::ClutchProfile::from_label),
+        &super::turn_events::routing_reason(
+            selection_reason.as_deref(),
+            SelectionSource::classify(
+                request_model_override
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty()),
+                Some(model.id.as_str()),
+                global_pref.as_deref(),
+            ),
+        ),
+    );
 
     let mut llm_config = super::agent_loop::model_spec_to_llm_config(&model)?;
     // Thread sampling overrides through on the mapped path exactly as the
@@ -450,7 +467,9 @@ async fn try_run_agent_turn(
                 model_used: outcome.model_used,
                 tokens: outcome.total_tokens,
                 selection_reason,
-                events: outcome.events,
+                events: std::iter::once(routing_event)
+                    .chain(outcome.events)
+                    .collect(),
             }))
         }
         Err(e) => Some(Err(e)),
@@ -2144,3 +2163,7 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "message_turn_trace_tests.rs"]
+mod turn_trace_tests;

@@ -272,6 +272,9 @@ mod routing_tests {
 #[cfg(test)]
 mod contract_tests {
     use serde_json::{Value, json};
+    use vox_orchestrator::mode::ClutchProfile;
+    use vox_orchestrator::models::ProviderType;
+    use vox_orchestrator::models::spec::PricingSource;
 
     use super::super::agent_loop::{receipt_turn_event, turn_event_for_result};
     use crate::dispatch::ToolReceiptOutcome;
@@ -310,7 +313,18 @@ mod contract_tests {
 
     /// Events Rust emits outside `turn_event_for_result`, one per producer.
     fn standalone_events() -> Vec<Value> {
-        vec![receipt_turn_event(&sample_receipt(), true)]
+        vec![
+            receipt_turn_event(&sample_receipt(), true),
+            super::routing_decision_event(
+                &super::test_spec(
+                    "acme/widget-5.5",
+                    ProviderType::OpenRouter,
+                    PricingSource::OpenRouter,
+                ),
+                None,
+                "r",
+            ),
+        ]
     }
 
     /// What the real producer emits for each contract kind, from fixed inputs.
@@ -338,6 +352,15 @@ mod contract_tests {
                 r#"{"success":true,"data":{"valid":["a","b"],"fabricated":["x"],"unverified":[]}}"#,
                 true,
             ),
+            "routing_decision" => Some(super::routing_decision_event(
+                &super::test_spec(
+                    "acme/widget-5.5",
+                    ProviderType::OpenRouter,
+                    PricingSource::OpenRouter,
+                ),
+                Some(ClutchProfile::Efficiency),
+                "Chosen by the model scorer as the best match for your request",
+            )),
             _ => None,
         }
     }
