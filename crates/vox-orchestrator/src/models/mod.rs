@@ -12,6 +12,7 @@ pub mod mode_select;
 mod pareto;
 pub mod policy;
 pub mod prompt_profiles;
+pub mod provenance;
 pub mod reference;
 mod registry;
 pub mod routing_table;
