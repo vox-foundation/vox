@@ -104,6 +104,15 @@ pub fn is_superseded(m: &ModelSpec, newest: &HashMap<String, (u64, Vec<u32>)>) -
         .is_some_and(|best| *best > (at, version_tuple(&m.id)))
 }
 
+impl crate::models::ModelRegistry {
+    /// True when the registry holds a newer dated member of `m`'s family.
+    #[must_use]
+    pub fn is_superseded_in_registry(&self, m: &ModelSpec) -> bool {
+        // ponytail: O(models) per call; only used on the premium-alias path.
+        is_superseded(m, &newest_per_family(self.models_iter()))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -239,5 +248,15 @@ mod tests {
         let newest = newest_per_family([&a, &b]);
         assert!(is_superseded(&a, &newest));
         assert!(!is_superseded(&b, &newest));
+    }
+
+    #[test]
+    fn registry_reports_a_superseded_member() {
+        use crate::models::ModelRegistry;
+        let mut r = ModelRegistry::default();
+        r.register(dated("acme/widget-4.8", Some(1_700_000_000)));
+        r.register(dated("acme/widget-5.5", Some(1_760_000_000)));
+        assert!(r.is_superseded_in_registry(&dated("acme/widget-4.8", Some(1_700_000_000))));
+        assert!(!r.is_superseded_in_registry(&dated("acme/widget-5.5", Some(1_760_000_000))));
     }
 }

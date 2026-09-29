@@ -791,6 +791,10 @@ impl ModelRegistry {
         self.models.insert(spec.id.clone(), spec);
     }
 
+    pub(crate) fn models_iter(&self) -> impl Iterator<Item = &ModelSpec> {
+        self.models.values()
+    }
+
     /// Remove all registered models. Useful in tests to isolate a clean registry from
     /// any on-disk cache that `new()` seeds automatically.
     pub fn clear(&mut self) {
@@ -1531,5 +1535,16 @@ mod tests {
         assert!(reg.get("vox-local/mens/runs/test_run_1").is_some());
         assert!(reg.get("voxlocal/runs/test_run_1").is_some());
         assert!(reg.get("vox-local/runs/test_run_1").is_some());
+    }
+
+    #[test]
+    fn models_iter_yields_all_registered_models() {
+        let mut reg = ModelRegistry::default();
+        reg.register(spec("test/model-1", ProviderType::Ollama));
+        reg.register(spec("test/model-2", ProviderType::Ollama));
+        let ids: Vec<_> = reg.models_iter().map(|m| m.id.as_str()).collect();
+        assert_eq!(ids.len(), 2);
+        assert!(ids.contains(&"test/model-1"));
+        assert!(ids.contains(&"test/model-2"));
     }
 }

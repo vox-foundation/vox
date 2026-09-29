@@ -806,6 +806,9 @@ fn select_via_premium_alias(
     let key = crate::models::task_category_premium_key(intent.task);
     let alias = registry.premium_alias_for(key)?.to_string();
     let model = registry.get(&alias)?;
+    if registry.is_superseded_in_registry(&model) {
+        return None;
+    }
     if !supports_intent_constraints(&model, intent) {
         return None;
     }
@@ -1713,6 +1716,35 @@ mod tests {
                 None => std::env::remove_var("ANTHROPIC_API_KEY"),
             }
         }
+    }
+
+    #[test]
+    #[file_serial]
+    fn select_skips_a_premium_alias_pin_that_a_newer_family_member_supersedes() {
+        // ModelRegistry::new() carries the codegen pin `anthropic/claude-3-7-sonnet`. Re-register it as a
+        // dated local-provider spec (no key needed) and add a newer member of the same family.
+        let mut registry = ModelRegistry::new();
+        let mut pin = registry
+            .get("anthropic/claude-3-7-sonnet")
+            .expect("bootstrap pin");
+        pin.provider_type = crate::models::ProviderType::Ollama;
+        pin.capabilities.released_at = Some(1_700_000_000);
+        let mut newer = pin.clone();
+        newer.id = "anthropic/claude-sonnet-5.5".into();
+        newer.canonical_slug = newer.id.clone();
+        newer.capabilities.released_at = Some(1_790_000_000);
+        registry.register(pin);
+        registry.register(newer);
+        let intent = SelectionIntent {
+            axes: SelectionAxes::QUALITY_FIRST,
+            ..SelectionIntent::for_task(TaskCategory::CodeGen)
+        };
+        let outcome = select(&intent, &registry).expect("a model exists");
+        assert!(
+            !matches!(outcome.reason, SelectionReason::PremiumAlias { .. }),
+            "the superseded pin must not be honoured, got {:?}",
+            outcome.reason
+        );
     }
 }
 
