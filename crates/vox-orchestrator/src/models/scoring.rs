@@ -7,11 +7,10 @@ const QUALITY_FREE_PAID_COMPONENT: f64 = 0.35;
 const QUALITY_PAID_COMPONENT: f64 = 0.95;
 const QUALITY_TOKEN_WEIGHT: f64 = 0.6;
 const QUALITY_PAID_WEIGHT: f64 = 0.4;
-/// Artificial Analysis intelligence-index value treated as quality 1.0 (the best model in
+/// Fallback for `RoutingReference::quality_reference` (the best model in
 /// OpenRouter's catalog scored 57.6 on 2026-09-28).
-// ponytail: fixed reference; derive from the registry maximum if the scale drifts.
 pub(super) const QUALITY_INDEX_REFERENCE: f64 = 60.0;
-/// Scale applied to the paid/free + context-length proxy for unbenchmarked OpenRouter models, so an
+/// Fallback for `RoutingReference::unbenchmarked_scale`: scale applied to the paid/free + context-length proxy for unbenchmarked OpenRouter models, so an
 /// unknown long-tail model cannot outrank a strongly benchmarked one on the proxy alone. Only
 /// OpenRouter's catalog carries the index; direct-provider and local models have no benchmark to
 /// be missing, so their proxy is left unscaled (scaling it demoted every Anthropic-direct flagship).
@@ -160,22 +159,26 @@ pub(super) fn model_budget_hint(
 
 #[must_use]
 pub(super) fn quality_score(m: &ModelSpec) -> f64 {
-    if let Some(i) = m.capabilities.intelligence_index {
-        return (f64::from(i) / QUALITY_INDEX_REFERENCE).clamp(0.0, 1.0);
-    }
+    m.capabilities.quality_prior.as_ref().map_or_else(
+        || {
+            super::reference::RoutingReference::FALLBACK
+                .quality_prior(m, None)
+                .value
+        },
+        |prior| prior.value,
+    )
+}
+
+/// The unscaled context-length + paid/free proxy used for a model with no benchmark.
+#[must_use]
+pub(super) fn proxy_quality(m: &ModelSpec) -> f64 {
     let token_component = (m.max_tokens as f64).log10().clamp(1.0, 7.0) / 7.0;
     let paid_component = if m.is_free {
         QUALITY_FREE_PAID_COMPONENT
     } else {
         QUALITY_PAID_COMPONENT
     };
-    let scale = if m.provider_type == crate::models::ProviderType::OpenRouter {
-        UNBENCHMARKED_QUALITY_SCALE
-    } else {
-        1.0
-    };
-    (((token_component * QUALITY_TOKEN_WEIGHT) + (paid_component * QUALITY_PAID_WEIGHT)) * scale)
-        .clamp(0.0, 1.0)
+    (token_component * QUALITY_TOKEN_WEIGHT) + (paid_component * QUALITY_PAID_WEIGHT)
 }
 
 #[must_use]

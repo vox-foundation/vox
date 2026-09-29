@@ -91,6 +91,10 @@ pub struct ModelCapabilities {
     /// (`benchmarks.artificial_analysis.intelligence_index`, ~0–60 today). `None` = unbenchmarked.
     #[serde(default)]
     pub intelligence_index: Option<f32>,
+    /// Quality prior stamped by the registry (`ModelRegistry::register` / `apply_routing_reference`).
+    /// `None` on a spec that was never registered; scoring then uses the fixed-constant formula.
+    #[serde(default)]
+    pub quality_prior: Option<QualityPrior>,
     /// Parameter count in billions, when known (e.g. parsed from Ollama's
     /// `/api/tags` `details.parameter_size` field, "8.2B" -> `8.2`). Used only
     /// as an advisory VRAM-fit signal (see `models::vram`); `None` means no
@@ -127,6 +131,26 @@ impl ModelCapabilities {
         self.supports_audio_input |= flags.supports_audio_input;
         self.supports_audio_output |= flags.supports_audio_output;
     }
+}
+
+/// A model's quality prior (0–1) and where it came from, so every surface can say why a model is
+/// rated as it is. Stamped by the registry from its `models::reference::RoutingReference`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct QualityPrior {
+    pub value: f64,
+    pub source: QualitySource,
+}
+
+/// Provenance of a [`QualityPrior`].
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum QualitySource {
+    /// The model's own Artificial Analysis intelligence index.
+    Benchmark { index: f32 },
+    /// The index of the newest benchmarked member of its family (`models::family`).
+    Inherited { index: f32, from: String },
+    /// No benchmark: the context-length and paid/free proxy.
+    Estimate,
 }
 
 /// Specification for an LLM model in the registry.

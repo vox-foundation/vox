@@ -9,18 +9,34 @@ pub const ELITE_MIN_OUTPUT_USD_PER_1K: f64 = 0.020;
 pub const PRO_MIN_OUTPUT_USD_PER_1K: f64 = 0.004;
 
 /// Tier from price alone. `Unknown` when the price is not known (zero or NaN on a non-free model).
-// ponytail: fixed bands; move to model-routing.v1.yaml when the council wants to tune them.
 #[must_use]
 pub fn derive_tier(is_free: bool, cost_per_1k_output: f64) -> ModelTier {
+    derive_tier_with(
+        is_free,
+        cost_per_1k_output,
+        ELITE_MIN_OUTPUT_USD_PER_1K,
+        PRO_MIN_OUTPUT_USD_PER_1K,
+    )
+}
+
+/// [`derive_tier`] with explicit bands (USD per 1k output tokens), e.g. a registry's derived
+/// `RoutingReference`.
+#[must_use]
+pub fn derive_tier_with(
+    is_free: bool,
+    cost_per_1k_output: f64,
+    elite_min_out: f64,
+    pro_min_out: f64,
+) -> ModelTier {
     if is_free {
         return ModelTier::Free;
     }
     if !cost_per_1k_output.is_finite() || cost_per_1k_output <= 0.0 {
         return ModelTier::Unknown;
     }
-    if cost_per_1k_output >= ELITE_MIN_OUTPUT_USD_PER_1K {
+    if cost_per_1k_output >= elite_min_out {
         ModelTier::Elite
-    } else if cost_per_1k_output >= PRO_MIN_OUTPUT_USD_PER_1K {
+    } else if cost_per_1k_output >= pro_min_out {
         ModelTier::Pro
     } else {
         ModelTier::Fast
