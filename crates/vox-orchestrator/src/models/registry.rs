@@ -362,7 +362,7 @@ impl ModelRegistry {
         self.scoreboard.get(model_id)
     }
 
-    fn matches_strength(m: &ModelSpec, strength: crate::models::StrengthTag) -> bool {
+    pub(crate) fn matches_strength(m: &ModelSpec, strength: crate::models::StrengthTag) -> bool {
         m.strengths
             .iter()
             .any(|s| *s == strength || *s == crate::models::StrengthTag::Generalist)
@@ -879,18 +879,12 @@ impl ModelRegistry {
         preference: CostPreference,
         pred: impl FnMut(&ModelSpec) -> bool,
     ) -> Option<ModelSpec> {
-        let mut complexity = task.estimated_complexity;
-        let mut task_type = task.task_category;
-
-        if !task.research_hints.is_empty() && task_type != TaskCategory::Research {
-            task_type = TaskCategory::Research;
-        }
-
-        if task.tool_hints.len() >= 2 && complexity < 7 {
-            complexity = 7;
-        }
-
-        self.best_for_with_filter(task_type, complexity, preference, false, pred, Some(task))
+        let mut pred = pred;
+        self.rank_task_with_filter(task, preference, |m| {
+            (!pred(m)).then_some(super::ranking::Exclusion::Filtered)
+        })
+        .chosen()
+        .cloned()
     }
 
     /// Return the best model for a given task category and complexity.
@@ -914,186 +908,18 @@ impl ModelRegistry {
         mut pred: impl FnMut(&ModelSpec) -> bool,
         task: Option<&AgentTask>,
     ) -> Option<ModelSpec> {
-        let effective_pref = if complexity <= 3 && preference == CostPreference::Economy {
-            CostPreference::Economy
-        } else {
-            preference
-        };
-
-        let strength = task_category_strength(task_type);
-
-        // First pass: Respect penalties
-        let result = self.best_for_internal(
+        self.rank_with_filter(
             task_type,
-            strength,
             complexity,
-            effective_pref,
+            preference,
             allow_free_in_performance_mode,
-            &mut pred,
-            true,
-            task,
-        );
-        if result.is_some() {
-            return result;
-        }
-
-        // Second pass: Ignore penalties if no other options
-        self.best_for_internal(
-            task_type,
-            strength,
-            complexity,
-            effective_pref,
-            allow_free_in_performance_mode,
-            &mut pred,
-            false,
+            |m| (!pred(m)).then_some(super::ranking::Exclusion::Filtered),
             task,
         )
-    }
-
-    fn best_for_internal(
-        &self,
-        task_type: TaskCategory,
-        strength: crate::models::StrengthTag,
-        complexity: u8,
-        preference: CostPreference,
-        allow_free_in_performance_mode: bool,
-        pred: &mut impl FnMut(&ModelSpec) -> bool,
-        respect_penalties: bool,
-        task: Option<&AgentTask>,
-    ) -> Option<ModelSpec> {
-        let candidates: Vec<&ModelSpec> = self
-            .models
-            .values()
-            .filter(|m| {
-                if respect_penalties && self.is_penalized(&m.id, task_type) {
-                    return false;
-                }
-                // Removed W1-2 block. The runtime filter will handle dropping Unknown models
-                // if the daily exploration budget is exceeded.
-                if preference == CostPreference::Performance
-                    && m.is_free
-                    && !allow_free_in_performance_mode
-                {
-                    return false; // Skip free models in performance mode unless they are explicitly mapped
-                }
-
-                let safety_cap = vox_config::load_model_routing_config()
-                    .safety
-                    .max_cost_usd_per_request;
-                let est_tokens = task.map(|t| t.estimated_token_count()).unwrap_or(1024) as f64;
-                let est_cost = (est_tokens / 1000.0)
-                    * if m.cost_per_1k_input > 0.0 || m.cost_per_1k_output > 0.0 {
-                        (m.cost_per_1k_input + m.cost_per_1k_output) / 2.0
-                    } else {
-                        m.cost_per_1k
-                    };
-                if est_cost > safety_cap {
-                    return false;
-                }
-
-                // Budget Gating (FIX-18)
-                if let (Some(t), Some(budget)) = (task, task.and_then(|t| t.budget.as_ref())) {
-                    let est_tokens = t.estimated_token_count();
-                    // Use scoreboard cost if available for more empirical gating
-                    let cost_basis = self
-                        .scoreboard
-                        .get(&m.id)
-                        .and_then(|s| s.cost_per_success_usd)
-                        .unwrap_or(m.cost_per_1k);
-
-                    let est_cost = (est_tokens as f64 / 1000.0) * cost_basis;
-                    if let Some(max) = budget.max_cost_usd {
-                        if est_cost > max {
-                            return false;
-                        }
-                    }
-                }
-
-                if !crate::route_policy::route_policy_allows_model(m) {
-                    return false;
-                }
-                if !crate::route_policy::privacy_allows_model_for_mode(
-                    m,
-                    crate::route_policy::inference_privacy_local_only_from_env(),
-                ) {
-                    return false;
-                }
-
-                Self::matches_strength(m, strength) && pred(m)
-            })
-            .collect();
-        // ponytail: recomputed per call (O(candidates)); the filter above already loads config per model.
-        let newest = super::family::newest_per_family(candidates.iter().copied());
-        candidates
-            .into_iter()
-            .filter(|m| !super::family::is_superseded(m, &newest))
-            .max_by(|a, b| {
-                let score_a = super::scoring::auto_score_model(
-                    a,
-                    complexity,
-                    false,
-                    None,
-                    preference,
-                    None,
-                    self.scoreboard.get(&a.id),
-                );
-                let score_b = super::scoring::auto_score_model(
-                    b,
-                    complexity,
-                    false,
-                    None,
-                    preference,
-                    None,
-                    self.scoreboard.get(&b.id),
-                );
-
-                score_a.total_cmp(&score_b).then_with(|| {
-                    let cost_a = a.cost_per_1k;
-                    let cost_b = b.cost_per_1k;
-
-                    cost_b.total_cmp(&cost_a).then_with(|| {
-                        let a_sr = self
-                            .scoreboard
-                            .get(&a.id)
-                            .map(|s| s.success_rate)
-                            .unwrap_or(0.5);
-                        let b_sr = self
-                            .scoreboard
-                            .get(&b.id)
-                            .map(|s| s.success_rate)
-                            .unwrap_or(0.5);
-                        a_sr.total_cmp(&b_sr).then_with(|| {
-                            let a_lat = self
-                                .scoreboard
-                                .get(&a.id)
-                                .and_then(|s| s.p50_latency_ms)
-                                .unwrap_or(2000);
-                            let b_lat = self
-                                .scoreboard
-                                .get(&b.id)
-                                .and_then(|s| s.p50_latency_ms)
-                                .unwrap_or(2000);
-
-                            b_lat.cmp(&a_lat).then_with(|| {
-                                let prefer_mesh = vox_secrets::resolve_secret(
-                                    vox_secrets::SecretId::VoxRoutingPreferMesh,
-                                )
-                                .expose()
-                                .map(|s: &str| s.trim() == "true")
-                                .unwrap_or(false);
-                                if prefer_mesh {
-                                    let a_is_mesh = a.provider_type == ProviderType::PopuliMesh;
-                                    let b_is_mesh = b.provider_type == ProviderType::PopuliMesh;
-                                    a_is_mesh.cmp(&b_is_mesh)
-                                } else {
-                                    std::cmp::Ordering::Equal
-                                }
-                            })
-                        })
-                    })
-                })
-            })
-            .cloned()
+        .ranked
+        .into_iter()
+        .next()
+        .map(|r| r.spec)
     }
 
     /// Return all models matching the criteria, sorted by the effective score (priority order).
@@ -1130,7 +956,7 @@ impl ModelRegistry {
                 // This mirrors `best_for_with_filter`'s existing low-complexity
                 // preference-downgrade logic (see `effective_pref` above), but is
                 // deliberately scoped to `explain_selection` only —
-                // `best_for_internal` (real production routing) doesn't thread
+                // `rank_pass` (real production routing) doesn't thread
                 // `complexity` through this filter today and changing that is out
                 // of scope for this fix.
                 if preference == crate::config::CostPreference::Performance
@@ -1144,7 +970,7 @@ impl ModelRegistry {
                 }
                 // Code-review fix: this ranking backs `vox model explain`, which
                 // must reflect the same eligibility as the real selection path
-                // (best_for_internal) — otherwise `explain` shows cloud models
+                // (rank_pass) — otherwise `explain` shows cloud models
                 // as viable/ranked even under VOX_INFERENCE_PRIVACY=local_only.
                 if !crate::route_policy::privacy_allows_model_for_mode(
                     m,
