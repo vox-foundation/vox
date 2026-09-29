@@ -31,8 +31,8 @@
 
 ### Multi-Agent Trust
 
-- [ ] **MESH-01**: The locks subsystem is extended with `ResourceLockManager` for multi-agent resource coordination, lease propagation, and contention handling per ADR-025.
-- [ ] **TRUST-01**: Agent tool calls emit cryptographically verifiable HMAC receipts, checkable under the two-tier formal-intent verification system defined in ADR-029.
+- [x] **MESH-01**: The locks subsystem is extended with `ResourceLockManager` for multi-agent resource coordination, lease propagation, and contention handling per ADR-025.
+- [x] **TRUST-01**: Agent tool calls emit cryptographically verifiable HMAC receipts, checkable under the two-tier formal-intent verification system defined in ADR-029.
 
 ### Model Routing & ML Health
 
@@ -80,8 +80,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GUI-02 | Phase 4 | Complete |
 | GUI-03 | Phase 4 | Complete |
 | GUI-04 | Phase 4 | Complete |
-| MESH-01 | Phase 5 | Pending |
-| TRUST-01 | Phase 5 | Pending |
+| MESH-01 | Phase 5 | Complete |
+| TRUST-01 | Phase 5 | Complete |
 | MODEL-01 | Phase 6 | Pending |
 | ML-01 | Phase 6 | Pending |
 

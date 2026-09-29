@@ -15,7 +15,7 @@ Vox is a mature, working system; this roadmap is not a build-from-zero journey b
 - [x] **Phase 2: Wire Up & Reclassify Dormant Crates** - Activate functionally-complete but never-adopted crates in their intended call path (completed 2026-09-25)
 - [x] **Phase 3: Extract Misplaced Crates to Plugin Architecture** - Move CORE-inappropriate crates into the plugin system (completed 2026-09-27)
 - [x] **Phase 4: GUI/Dashboard Architecture Consolidation** - Ratify ADR-045, verify CommandCatalog SSOT alignment, enforce the Vox-native/React interop UI boundary, confirm Tauri desktop convergence (completed 2026-09-25)
-- [ ] **Phase 5: Multi-Agent Coordination & Trust Hardening** - Ship ResourceLockManager and HMAC tool-call receipts
+- [x] **Phase 5: Multi-Agent Coordination & Trust Hardening** - Ship ResourceLockManager and HMAC tool-call receipts (completed 2026-09-29)
 - [ ] **Phase 6: Model Routing Transparency & ML Dependency Health** - Ship Pareto-frontier model reporting and unify the Candle/QLoRA dependency stack
 
 ## Phase Details
@@ -151,31 +151,31 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 05-01-PLAN.md — TRUST-01 tracer: issue/fulfill a receipt around every MCP dispatch (fail-open), `tool_receipt` chat event and chip, Playwright screenshot, mutation proofs (D-01/D-02/D-10/D-11/D-12)
+- [x] 05-01-PLAN.md — TRUST-01 tracer: issue/fulfill a receipt around every MCP dispatch (fail-open), `tool_receipt` chat event and chip, Playwright screenshot, mutation proofs (D-01/D-02/D-10/D-11/D-12)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 05-02-PLAN.md — `vox_verify_task_claims` via the generated registry chain; tool_receipt.rs MACs routed through vox-crypto with pinned bytes; claims-verdict chat chip (D-03/D-04/D-10/D-11)
+- [x] 05-02-PLAN.md — `vox_verify_task_claims` via the generated registry chain; tool_receipt.rs MACs routed through vox-crypto with pinned bytes; claims-verdict chat chip (D-03/D-04/D-10/D-11)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 05-03-PLAN.md — Lock events carry session and task into the activity log; `activity_query` session filter; lock chips under chat-rail tasks (D-10/D-11/D-13)
+- [x] 05-03-PLAN.md — Lock events carry session and task into the activity log; `activity_query` session filter; lock chips under chat-rail tasks (D-10/D-11/D-13)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 05-04-PLAN.md — `resource_id` on the hopper intake spec and the dispatched task; schema baseline 94; validated HTTP intake field (D-08/D-13)
+- [x] 05-04-PLAN.md — `resource_id` on the hopper intake spec and the dispatched task; schema baseline 94; validated HTTP intake field (D-08/D-13)
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 05-05-PLAN.md — Hopper dispatcher holds exclusive resource locks, parks contenders and retries on release (shared `ResourceGate`); `LockWaiting` event; waiting chips in chat (D-08/D-10/D-11/D-13)
+- [x] 05-05-PLAN.md — Hopper dispatcher holds exclusive resource locks, parks contenders and retries on release (shared `ResourceGate`); `LockWaiting` event; waiting chips in chat (D-08/D-10/D-11/D-13)
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
-- [ ] 05-06-PLAN.md — Release on completion, failure and cancellation; D-06 lazy sweep; lock-lifecycle mutation proofs and MESH-01 gates (D-06/D-08)
+- [x] 05-06-PLAN.md — Release on completion, failure and cancellation; D-06 lazy sweep; lock-lifecycle mutation proofs and MESH-01 gates (D-06/D-08)
 
 **Wave 7** *(blocked on Wave 6 completion)*
 
-- [ ] 05-07-PLAN.md — Ratify ADR-025/ADR-029 as built with intel sync; where-things-live rows; `pre-push --complete`; overview screenshot and human live look at the chat GUI (D-05/D-09/D-11)
+- [x] 05-07-PLAN.md — Ratify ADR-025/ADR-029 as built with intel sync; where-things-live rows; `pre-push --complete`; overview screenshot and human live look at the chat GUI (D-05/D-09/D-11)
 
 ### Phase 6: Model Routing Transparency & ML Dependency Health
 
