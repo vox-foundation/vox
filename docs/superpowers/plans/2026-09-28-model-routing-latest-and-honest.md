@@ -1272,6 +1272,10 @@ git commit -m "fix(models): a premium-alias pin superseded by a newer family mem
 4. **Research-shim tier shift:** accepted. Tier stamped from price at registration now feeds `vox-research-shim`'s tier scoring (Free −0.8, Pro +1.0); that is the intended behaviour, since those scores were built for populated tiers.
 5. **Static seed contract:** dropped in favour of OpenRouter's live `benchmarks` + `created` + `expiration_date`; the offline fallback is the bootstrap catalog (refreshed by a follow-up `.vox` script), where unbenchmarked models score via the scaled-down proxy.
 
+## Execution record (2026-09-29)
+
+Tasks 1–6 committed: `a7004ce11`, `7577241f6`, `b6976a1d0`, `1eedbd7bc`, `fefa01d7a`, `5ed86c47e`. Every guard was mutation-proven (see the R4 note for the one execution-time amendment). Two flaky tests found in passing and fixed separately (`vram` hint tests now `file_serial`).
+
 ## Deferred (next plans)
 
 - **Chat lane, `explain_selection`, `best_free_for*` / `cheapest*`, the Thompson fallback in `registry_model_resolve.rs`, GUI `suggest_model_for_task`** do not yet honour recency or the key gate; the chat-lane plan covers the first, the rest follow it.
@@ -1290,7 +1294,7 @@ git commit -m "fix(models): a premium-alias pin superseded by a newer family mem
   - R1 supersession judged among eligible candidates — ruling: settled
   - R2 `:free` is its own family — ruling: settled
   - R3 parameter sizes are part of the family — ruling: settled
-  - R4 unbenchmarked quality scaled by 0.6 — ruling: settled
+  - R4 unbenchmarked quality scaled by 0.6 — ruling: settled, **amended at execution (2026-09-29): the scale applies to `ProviderType::OpenRouter` models only.** Only OpenRouter's catalog carries the index, so for direct-provider and local models a missing index means "no benchmark exists here", not "unbenchmarked long tail". Scaling them demoted every Anthropic-direct flagship below unbenchmarked local models and broke the pre-existing guard `models::scoring::tests::free_local_model_does_not_win_high_complexity`. Proven by mutation (scale applied to all providers fails that guard). The three Step 2 quality tests were also moved out of the `populi-transport`-gated `donations_vox_wiring_tests` module (where the driven agent appended them, so they never ran) into `mod tests`.
   - R5 tier derived from price at registration when `Unknown`, cloud providers only — ruling: settled
   - R6 key gate in the dispatch selector with a thread-local override — ruling: settled
   - R7 Task 3 fixture cost within the safety cap — ruling: settled
