@@ -782,8 +782,8 @@ mod tests {
     /// as "doesn't exist for this session" rather than defaulting to fits/
     /// doesn't-fit. Uses the crate's real global hint accessor
     /// (`free_vram_mb_hint`), which defaults to `None` absent an explicit
-    /// `set_free_vram_mb_hint` call — this test makes none, so it can't race
-    /// other tests over that global.
+    /// `set_free_vram_mb_hint` call — this test makes none, and in test builds
+    /// the hint is per-thread, so it can't race other tests over that global.
     #[test]
     fn vram_unknown_signal_is_true_noop_through_auto_score_model() {
         let mut baseline = make_spec(ProviderType::Ollama, 0.0, true);

@@ -18,6 +18,7 @@
 //! signal is simply absent, which is the correct graceful-degradation
 //! behavior, not a bug.
 
+#[cfg(not(test))]
 use std::sync::RwLock;
 
 use super::ModelSpec;
@@ -94,11 +95,23 @@ pub fn estimate_vram_fit(m: &ModelSpec, free_vram_mb: Option<u64>) -> VramFit {
 /// (megabytes), refreshed once per catalog-refresh cycle rather than probed
 /// per scoring call. `None` means "no signal" (no NVML/GPU, or probe hasn't
 /// run yet) — scoring must treat that identically to a probe failure.
+#[cfg(not(test))]
 static FREE_VRAM_MB_HINT: RwLock<Option<u64>> = RwLock::new(None);
+
+// Test builds keep the hint and the probe per thread: tests run in parallel in one process, so a
+// test that registers a probe or refreshes the hint must not change what every scoring test reads.
+#[cfg(test)]
+thread_local! {
+    static TEST_FREE_VRAM_MB_HINT: std::cell::Cell<Option<u64>> = const { std::cell::Cell::new(None) };
+    static TEST_VRAM_PROBE: std::cell::Cell<Option<VramProbe>> = const { std::cell::Cell::new(None) };
+}
 
 /// Install (or clear, with `None`) the cached free-VRAM hint. Called once per
 /// discovery/refresh pass after probing NVML — never per scoring call.
 pub fn set_free_vram_mb_hint(v: Option<u64>) {
+    #[cfg(test)]
+    TEST_FREE_VRAM_MB_HINT.with(|h| h.set(v));
+    #[cfg(not(test))]
     if let Ok(mut g) = FREE_VRAM_MB_HINT.write() {
         *g = v;
     }
@@ -107,6 +120,9 @@ pub fn set_free_vram_mb_hint(v: Option<u64>) {
 /// The cached free-VRAM hint (megabytes), or `None` if unavailable.
 #[must_use]
 pub fn free_vram_mb_hint() -> Option<u64> {
+    #[cfg(test)]
+    return TEST_FREE_VRAM_MB_HINT.with(std::cell::Cell::get);
+    #[cfg(not(test))]
     FREE_VRAM_MB_HINT.read().ok().and_then(|g| *g)
 }
 
@@ -122,22 +138,31 @@ pub struct VramProbe {
     pub device_metrics_json: fn() -> Result<String, String>,
 }
 
+#[cfg(not(test))]
 static VRAM_PROBE: RwLock<Option<VramProbe>> = RwLock::new(None);
 
 /// Install the host's GPU probe (replaces any earlier one).
 pub fn register_vram_probe(probe: VramProbe) {
-    *VRAM_PROBE.write().unwrap_or_else(|p| p.into_inner()) = Some(probe);
+    #[cfg(test)]
+    TEST_VRAM_PROBE.with(|p| p.set(Some(probe)));
+    #[cfg(not(test))]
+    {
+        *VRAM_PROBE.write().unwrap_or_else(|p| p.into_inner()) = Some(probe);
+    }
 }
 
 /// The registered GPU probe, or `None` when no host registered one.
 #[must_use]
 pub fn registered_vram_probe() -> Option<VramProbe> {
+    #[cfg(test)]
+    return TEST_VRAM_PROBE.with(std::cell::Cell::get);
+    #[cfg(not(test))]
     *VRAM_PROBE.read().unwrap_or_else(|p| p.into_inner())
 }
 
 #[cfg(test)]
 pub(crate) fn clear_vram_probe_for_test() {
-    *VRAM_PROBE.write().unwrap_or_else(|p| p.into_inner()) = None;
+    TEST_VRAM_PROBE.with(|p| p.set(None));
 }
 
 /// Serializes the tests that register a probe (they share the process-wide slot).
