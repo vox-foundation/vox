@@ -227,11 +227,38 @@ pub fn decide(
             })
         })?;
 
-    let alternatives: Vec<String> = candidates
+    // The candidates in the scorer's own order, under this request's axes and chat's flagship rule
+    // (the same guard and rule as `select_via_scorer`), so "alternatives" are the real runners-up
+    // rather than HashMap order.
+    let scored = {
+        let _axes = crate::models::scoring::AxesOverrideGuard::set(
+            intent.axes.to_routing_priority(intent.prefer_local),
+        );
+        registry.rank_with_filter(
+            intent.task,
+            intent.complexity,
+            intent.axes.to_cost_preference(),
+            intent.allow_free_in_performance_mode,
+            |m| {
+                if !candidate_ids.contains(&m.id) {
+                    Some(super::ranking::Exclusion::Filtered)
+                } else if intent.axes.intelligence < 50
+                    && m.capabilities.tier == super::ModelTier::Elite
+                {
+                    Some(super::ranking::Exclusion::FlagshipExcludedByMode)
+                } else {
+                    None
+                }
+            },
+            None,
+        )
+    };
+    let alternatives: Vec<String> = scored
+        .ranked
         .iter()
-        .filter(|m| m.id != selected.model_id)
+        .filter(|r| r.spec.id != selected.model_id)
         .take(5)
-        .map(|m| m.id.clone())
+        .map(|r| r.spec.id.clone())
         .collect();
 
     let cap_match = request
@@ -1878,6 +1905,60 @@ mod tests {
         let out =
             select(&intent, &r).expect("must not return None when the only candidate is Elite");
         assert_eq!(out.model_id, "acme/flagship-9");
+    }
+
+    #[test]
+    #[file_serial]
+    fn decide_alternatives_follow_the_ranking() {
+        fn confirmed(id: &str, cost: f64, released_at: Option<u64>) -> crate::models::ModelSpec {
+            crate::models::ModelSpec {
+                id: id.into(),
+                canonical_slug: id.into(),
+                provider: "test".into(),
+                provider_type: crate::models::ProviderType::Ollama,
+                max_tokens: 64_000,
+                cost_per_1k: cost,
+                cost_per_1k_input: cost,
+                cost_per_1k_output: cost,
+                is_free: false,
+                observed_cost_per_1k: None,
+                strengths: vec![
+                    crate::models::StrengthTag::Codegen,
+                    crate::models::StrengthTag::Generalist,
+                ],
+                capabilities: crate::models::ModelCapabilities {
+                    released_at,
+                    ..Default::default()
+                },
+                cache_creation_cost_per_1k: 0.0,
+                cache_read_cost_per_1k: 0.0,
+                supports_prompt_caching: false,
+                pricing_source: crate::models::spec::PricingSource::UserConfig,
+                supported_parameters: vec![],
+            }
+        }
+        let mut registry = ModelRegistry::default();
+        registry.register(confirmed("acme/widget-4.8", 0.001, Some(1_700_000_000)));
+        registry.register(confirmed("acme/widget-5.5", 0.02, Some(1_760_000_000)));
+        registry.register(confirmed("acme/gadget", 0.005, None));
+        registry.register(confirmed("acme/gizmo", 0.01, None));
+        let req =
+            ModelSelectionRequest::from_intent(SelectionIntent::for_task(TaskCategory::CodeGen));
+        let decision = decide(&req, &registry).expect("confirmed local candidates");
+        assert!(
+            !decision
+                .alternatives
+                .contains(&"acme/widget-4.8".to_string()),
+            "a superseded model is not an alternative: {:?}",
+            decision.alternatives
+        );
+        assert!(!decision.alternatives.contains(&decision.selected_model));
+        assert_eq!(
+            decision.alternatives.len(),
+            2,
+            "{:?}",
+            decision.alternatives
+        );
     }
 }
 

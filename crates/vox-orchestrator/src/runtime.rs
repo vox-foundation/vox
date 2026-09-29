@@ -741,46 +741,12 @@ impl TaskProcessor for AiTaskProcessor {
                 .exploration
                 .budget_usd_per_day;
 
-            if allowed_providers.is_empty() {
-                registry.best_for_task_in_mode(&task, cost_pref, clutch, |m| {
-                    if m.pricing_source == crate::models::spec::PricingSource::Unknown
-                        && exploration_spent >= exploration_limit
-                    {
-                        return false;
-                    }
-                    if force_free_pool && !m.is_free {
-                        return false;
-                    }
-                    true
-                })
-            } else {
-                registry.best_for_task_in_mode(&task, cost_pref, clutch, |m| {
-                    if m.pricing_source == crate::models::spec::PricingSource::Unknown
-                        && exploration_spent >= exploration_limit
-                    {
-                        return false;
-                    }
-                    if force_free_pool && !m.is_free {
-                        return false;
-                    }
-                    let provider_str = match m.provider_type {
-                        crate::models::ProviderType::OpenRouter => "openrouter",
-                        crate::models::ProviderType::Ollama => "ollama",
-                        crate::models::ProviderType::GoogleDirect => "google",
-                        crate::models::ProviderType::Groq => "groq",
-                        crate::models::ProviderType::Cerebras => "cerebras",
-                        crate::models::ProviderType::Mistral => "mistral",
-                        crate::models::ProviderType::DeepSeek => "deepseek",
-                        crate::models::ProviderType::SambaNova => "sambanova",
-                        crate::models::ProviderType::Anthropic => "anthropic",
-                        crate::models::ProviderType::PopuliMesh => "populimesh",
-                        crate::models::ProviderType::HuggingFaceRouter => "huggingface",
-                        crate::models::ProviderType::Custom(_) => "custom",
-                        crate::models::ProviderType::VoxLocal => "vox_local",
-                    };
-                    allowed_providers.contains(provider_str)
-                })
-            }
+            let gate = crate::models::mode_select::DispatchGate {
+                force_free_pool,
+                unknown_price_blocked: exploration_spent >= exploration_limit,
+                allowed_providers: (!allowed_providers.is_empty()).then_some(allowed_providers),
+            };
+            registry.best_for_task_under_gate(&task, cost_pref, clutch, &gate)
         }
         .map(|sel| {
             if sel.only_candidate {
