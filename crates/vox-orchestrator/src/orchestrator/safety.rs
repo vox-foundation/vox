@@ -180,6 +180,9 @@ pub struct ResourceGate {
     bulletin: BulletinBoard,
     events: EventBus,
     task_ttl_ms: u64,
+    /// Items that already announced `LockWaiting`, so the dispatcher's retry loop announces
+    /// each wait once. Cleared when the item stops waiting (its resource is free again).
+    announced: std::sync::Arc<std::sync::Mutex<std::collections::HashSet<String>>>,
 }
 
 impl ResourceGate {
@@ -195,6 +198,7 @@ impl ResourceGate {
             bulletin,
             events,
             task_ttl_ms,
+            announced: Default::default(),
         }
     }
 
@@ -258,15 +262,27 @@ impl ResourceGate {
     pub fn park(&self, item: &IntakeItem) -> bool {
         if let Some(ref res) = item.resource_id {
             if self.locks.is_locked(res) {
-                let task_id = TaskId(crate::orchestrator::dispatch::stable_hash(&item.item_id.0));
-                self.events
-                    .emit(crate::events::AgentEventKind::LockWaiting {
-                        resource_id: res.clone(),
-                        task_id,
-                        session_id: item.session_id.clone(),
-                    });
+                let first = self
+                    .announced
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .insert(item.item_id.0.clone());
+                if first {
+                    let task_id =
+                        TaskId(crate::orchestrator::dispatch::stable_hash(&item.item_id.0));
+                    self.events
+                        .emit(crate::events::AgentEventKind::LockWaiting {
+                            resource_id: res.clone(),
+                            task_id,
+                            session_id: item.session_id.clone(),
+                        });
+                }
                 true
             } else {
+                self.announced
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .remove(&item.item_id.0);
                 false
             }
         } else {
@@ -541,6 +557,58 @@ mod tests {
             }
             other => panic!("expected LockWaiting, got {other:?}"),
         }
+    }
+
+    #[tokio::test]
+    async fn park_announces_each_wait_once() {
+        use crate::hopper::types::{IntakeItem, IntakeSource, PriorityHint};
+        use crate::locks::ResourceLockManager;
+
+        let manager = ResourceLockManager::new();
+        let bus = crate::events::EventBus::new(16);
+        let gate = ResourceGate::new(
+            manager.clone(),
+            crate::bulletin::BulletinBoard::new(10),
+            bus.clone(),
+            60_000,
+        );
+        let mut rx = bus.subscribe();
+        let mk = |intent: &str| {
+            let mut i = IntakeItem::new(
+                intent.into(),
+                vec![],
+                PriorityHint::Normal,
+                IntakeSource::Developer,
+                Some("chat-s3".into()),
+            );
+            i.resource_id = Some("db://orders/9".into());
+            i
+        };
+        let holder = mk("holder");
+        let waiter = mk("waiter");
+        let waiting_count =
+            |rx: &mut tokio::sync::broadcast::Receiver<crate::events::AgentEvent>| {
+                let mut n = 0;
+                while let Ok(ev) = rx.try_recv() {
+                    if matches!(ev.kind, crate::events::AgentEventKind::LockWaiting { .. }) {
+                        n += 1;
+                    }
+                }
+                n
+            };
+
+        assert!(gate.hold(AgentId(1), &holder));
+        assert!(gate.park(&waiter));
+        assert!(gate.park(&waiter));
+        assert!(gate.park(&waiter));
+        assert_eq!(waiting_count(&mut rx), 1, "retries must not re-announce");
+
+        // The wait ends (lock freed), then a later, separate wait announces again.
+        gate.release(AgentId(1), "db://orders/9", None, None);
+        assert!(!gate.park(&waiter));
+        assert!(gate.hold(AgentId(2), &holder));
+        assert!(gate.park(&waiter));
+        assert_eq!(waiting_count(&mut rx), 1, "a new wait announces once more");
     }
 
     #[test]
