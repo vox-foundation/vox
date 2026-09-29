@@ -666,4 +666,64 @@ mod tests {
         );
         assert_eq!(req.intent.axes, SelectionAxes::QUALITY_FIRST);
     }
+
+    /// Chat is what the GUI shows: on the default (cost-leaning) axes it must not resolve to a flagship
+    /// while a cheaper-tier model is registered, even when the flagship is the cheapest candidate.
+    #[test]
+    fn chat_lane_does_not_pick_a_flagship_on_default_axes() {
+        use vox_orchestrator::models::spec::PricingSource;
+        use vox_orchestrator::models::{
+            ModelCapabilities, ModelRegistry, ModelSpec, ModelTier, ProviderType,
+        };
+
+        let cfg = vox_orchestrator::OrchestratorConfig::for_testing();
+        let groups = vox_orchestrator::AffinityGroupRegistry::new(vec![]);
+        let orch = vox_orchestrator::Orchestrator::with_groups(cfg, groups);
+
+        let mk = |id: &str, tier: ModelTier, cost: f64| ModelSpec {
+            id: id.into(),
+            canonical_slug: id.into(),
+            provider: "test".into(),
+            provider_type: ProviderType::PopuliMesh,
+            max_tokens: 200_000,
+            cost_per_1k: cost,
+            cost_per_1k_input: cost,
+            cost_per_1k_output: cost,
+            is_free: false,
+            observed_cost_per_1k: None,
+            strengths: vec![vox_orchestrator::models::StrengthTag::Generalist],
+            capabilities: ModelCapabilities {
+                tier,
+                ..Default::default()
+            },
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: PricingSource::UserConfig,
+            supported_parameters: vec![],
+        };
+        {
+            let handle = orch.models_handle();
+            let mut registry: std::sync::RwLockWriteGuard<'_, ModelRegistry> =
+                vox_orchestrator::sync_lock::rw_write(&*handle);
+            registry.register(mk("chat-lane-flagship", ModelTier::Elite, 0.0005));
+            registry.register(mk("chat-lane-workhorse", ModelTier::Pro, 0.02));
+        }
+        let res = McpChatModelResolution {
+            allow_cheapest_fallback: false,
+            task_category: TaskCategory::Research,
+            complexity: 10,
+            ..Default::default()
+        };
+        let mut rationale = None;
+        let (model, _free) = resolve_mcp_chat_model_sync_inner(
+            &orch,
+            "explain this design",
+            None,
+            res,
+            &mut rationale,
+        )
+        .expect("a model resolves");
+        assert_eq!(model.id, "chat-lane-workhorse", "picked {}", model.id);
+    }
 }

@@ -198,14 +198,27 @@ pub fn decide(
             // hardcodes this field `false`, so decide()'s fallback stays inert for
             // chat/coding/etc. traffic today — this is a deliberate, not incidental,
             // consequence of threading the flag through by intent rather than by caller.
-            let model = registry.best_for_with_filter(
-                intent.task,
-                intent.complexity,
-                intent.axes.to_cost_preference(),
-                intent.allow_free_in_performance_mode,
-                |m| candidate_ids.contains(&m.id),
-                None,
-            )?;
+            // Same flagship rule as `select_via_scorer`: on cost- or speed-leaning axes the
+            // fallback must not resolve to a flagship while another candidate fits.
+            let no_flagship = intent.axes.intelligence < 50;
+            let pick = |exclude_elite: bool| {
+                registry.best_for_with_filter(
+                    intent.task,
+                    intent.complexity,
+                    intent.axes.to_cost_preference(),
+                    intent.allow_free_in_performance_mode,
+                    |m| {
+                        candidate_ids.contains(&m.id)
+                            && (!exclude_elite || m.capabilities.tier != super::ModelTier::Elite)
+                    },
+                    None,
+                )
+            };
+            let model = if no_flagship {
+                pick(true).or_else(|| pick(false))
+            } else {
+                pick(false)
+            }?;
             Some(SelectionOutcome {
                 model_id: model.id.clone(),
                 model_spec: model,
@@ -849,14 +862,28 @@ fn select_via_scorer(
     // of the pass, so per-task SelectionAxes actually drive the choice (not just
     // the global VOX_AUTO_ROUTING_PRIORITY env). Restored on drop.
     let _axes_guard = crate::models::scoring::AxesOverrideGuard::set(effective_axes);
-    let model = registry.best_for_with_filter(
-        intent.task,
-        intent.complexity,
-        cost_pref,
-        intent.allow_free_in_performance_mode,
-        |m| supports_intent_constraints(m, &intent_clone) && ModelRegistry::key_is_present_for(m),
-        None,
-    )?;
+    // Cost- or speed-leaning intents (intelligence axis below the premium-alias threshold of 50) must
+    // not resolve to a flagship while another candidate fits; fall back only when nothing else does.
+    let no_flagship = intent.axes.intelligence < 50;
+    let pick = |exclude_elite: bool| {
+        registry.best_for_with_filter(
+            intent.task,
+            intent.complexity,
+            cost_pref,
+            intent.allow_free_in_performance_mode,
+            |m| {
+                (!exclude_elite || m.capabilities.tier != crate::models::ModelTier::Elite)
+                    && supports_intent_constraints(m, &intent_clone)
+                    && ModelRegistry::key_is_present_for(m)
+            },
+            None,
+        )
+    };
+    let model = if no_flagship {
+        pick(true).or_else(|| pick(false))
+    } else {
+        pick(false)
+    }?;
     drop(_axes_guard);
     Some(SelectionOutcome {
         model_id: model.id.clone(),
@@ -1745,6 +1772,112 @@ mod tests {
             "the superseded pin must not be honoured, got {:?}",
             outcome.reason
         );
+    }
+
+    fn tiered_spec(
+        id: &str,
+        tier: crate::models::ModelTier,
+        cost: f64,
+    ) -> crate::models::ModelSpec {
+        crate::models::ModelSpec {
+            id: id.into(),
+            canonical_slug: id.into(),
+            provider: "test".into(),
+            provider_type: crate::models::ProviderType::Ollama,
+            max_tokens: 200_000,
+            cost_per_1k: cost,
+            cost_per_1k_input: cost,
+            cost_per_1k_output: cost,
+            is_free: false,
+            observed_cost_per_1k: None,
+            strengths: vec![
+                crate::models::StrengthTag::Codegen,
+                crate::models::StrengthTag::Generalist,
+            ],
+            capabilities: crate::models::ModelCapabilities {
+                tier,
+                ..Default::default()
+            },
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: crate::models::spec::PricingSource::Bootstrap,
+            supported_parameters: vec![],
+        }
+    }
+
+    /// The Elite model is the CHEAPEST here, so without the exclusion it wins under cost-leaning axes.
+    fn flagship_registry() -> ModelRegistry {
+        let mut r = ModelRegistry::default();
+        r.register(tiered_spec(
+            "acme/flagship-9",
+            crate::models::ModelTier::Elite,
+            0.0005,
+        ));
+        r.register(tiered_spec(
+            "acme/workhorse-9",
+            crate::models::ModelTier::Pro,
+            0.02,
+        ));
+        r
+    }
+
+    #[test]
+    #[file_serial]
+    fn scorer_excludes_a_flagship_on_cost_first_axes() {
+        let intent = SelectionIntent {
+            axes: SelectionAxes::COST_FIRST,
+            complexity: 10,
+            ..SelectionIntent::for_task(TaskCategory::CodeGen)
+        };
+        let out = select(&intent, &flagship_registry()).expect("a model exists");
+        assert_eq!(out.model_id, "acme/workhorse-9");
+    }
+
+    #[test]
+    #[file_serial]
+    fn scorer_excludes_a_flagship_on_balanced_axes() {
+        let intent = SelectionIntent {
+            axes: SelectionAxes::BALANCED,
+            complexity: 10,
+            ..SelectionIntent::for_task(TaskCategory::CodeGen)
+        };
+        let out = select(&intent, &flagship_registry()).expect("a model exists");
+        assert_eq!(out.model_id, "acme/workhorse-9");
+    }
+
+    #[test]
+    #[file_serial]
+    fn scorer_allows_a_flagship_on_quality_first_axes() {
+        let intent = SelectionIntent {
+            axes: SelectionAxes::QUALITY_FIRST,
+            complexity: 10,
+            ..SelectionIntent::for_task(TaskCategory::CodeGen)
+        };
+        let out = select(&intent, &flagship_registry()).expect("a model exists");
+        assert_eq!(
+            out.model_id, "acme/flagship-9",
+            "quality-first applies no tier exclusion"
+        );
+    }
+
+    #[test]
+    #[file_serial]
+    fn scorer_falls_back_to_a_flagship_when_it_is_the_only_candidate() {
+        let mut r = ModelRegistry::default();
+        r.register(tiered_spec(
+            "acme/flagship-9",
+            crate::models::ModelTier::Elite,
+            0.0005,
+        ));
+        let intent = SelectionIntent {
+            axes: SelectionAxes::COST_FIRST,
+            complexity: 10,
+            ..SelectionIntent::for_task(TaskCategory::CodeGen)
+        };
+        let out =
+            select(&intent, &r).expect("must not return None when the only candidate is Elite");
+        assert_eq!(out.model_id, "acme/flagship-9");
     }
 }
 
