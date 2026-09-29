@@ -142,6 +142,8 @@ pub struct ModelRegistry {
     /// In-memory penalty map for models that abstain (FIX-12).
     /// Key: (model_id, task_category). Value: Expiry time.
     penalty_map: HashMap<(String, TaskCategory), SystemTime>,
+    /// Catalog-derived scales (`models::reference`); re-derived by [`Self::apply_routing_reference`].
+    reference: super::reference::RoutingReference,
 }
 
 impl ModelRegistry {
@@ -219,6 +221,7 @@ impl ModelRegistry {
                 }
             }
         }
+        self.apply_routing_reference();
     }
 
     /// Inject observed p50 latency from the `model_scoreboard` into each matching
@@ -533,6 +536,7 @@ impl ModelRegistry {
                         scoreboard: HashMap::new(),
                         arm_stats: HashMap::new(),
                         penalty_map: HashMap::new(),
+                        reference: super::reference::RoutingReference::FALLBACK,
                     };
                     tmp.apply_litellm_pricing(&litellm_entries);
                     models = tmp.list_models();
@@ -596,6 +600,7 @@ impl ModelRegistry {
             scoreboard: HashMap::new(),
             arm_stats: HashMap::new(),
             penalty_map: HashMap::new(),
+            reference: super::reference::RoutingReference::FALLBACK,
         };
 
         if let Some(mut config_path) = vox_db::paths::config_dir() {
@@ -638,6 +643,7 @@ impl ModelRegistry {
         }
 
         registry.register_mens_local_candidates();
+        registry.apply_routing_reference();
         registry
     }
 
@@ -650,6 +656,7 @@ impl ModelRegistry {
             scoreboard: HashMap::new(),
             arm_stats: HashMap::new(),
             penalty_map: HashMap::new(),
+            reference: super::reference::RoutingReference::FALLBACK,
         };
 
         // In test mode, keep tests hermetic on ModelConfig::default().
@@ -711,6 +718,9 @@ impl ModelRegistry {
         registry.maybe_refresh_catalogs();
 
         registry.register_mens_local_candidates();
+        // Test builds stay on the fixed constants (hermetic, like `maybe_refresh_catalogs`).
+        #[cfg(not(test))]
+        registry.apply_routing_reference();
         registry
     }
 
@@ -772,9 +782,14 @@ impl ModelRegistry {
                     | super::ProviderType::VoxLocal
             )
         {
-            spec.capabilities.tier =
-                super::tiering::derive_tier(spec.is_free, spec.cost_per_1k_output);
+            spec.capabilities.tier = super::tiering::derive_tier_with(
+                spec.is_free,
+                spec.cost_per_1k_output,
+                self.reference.elite_min_out,
+                self.reference.pro_min_out,
+            );
         }
+        spec.capabilities.quality_prior = Some(self.reference.quality_prior(&spec, None));
         use super::spec::PricingSource;
         if let Some(existing) = self.models.get(&spec.id) {
             if existing.pricing_source == PricingSource::Telemetry {
@@ -789,6 +804,49 @@ impl ModelRegistry {
             }
         }
         self.models.insert(spec.id.clone(), spec);
+    }
+
+    /// The routing reference this registry scores against.
+    #[must_use]
+    pub fn routing_reference(&self) -> super::reference::RoutingReference {
+        self.reference
+    }
+
+    /// Re-derive the routing reference from the registered models, restamp every model's
+    /// quality prior, and re-derive the tier of every model whose price came from a live
+    /// catalog or from observed spend (an entry no catalog prices, and an unknown price, keep
+    /// their tier). Call after every catalog merge and after injecting observed prices.
+    pub fn apply_routing_reference(&mut self) -> super::reference::RoutingReference {
+        use super::spec::PricingSource;
+        let reference = super::reference::RoutingReference::derive(self.models.values());
+        self.reference = reference;
+        for spec in self.models.values_mut() {
+            let prior = reference.quality_prior(spec, None);
+            spec.capabilities.quality_prior = Some(prior);
+            let priced = matches!(
+                spec.pricing_source,
+                PricingSource::OpenRouter
+                    | PricingSource::LiteLLM
+                    | PricingSource::AnthropicDirect
+                    | PricingSource::Telemetry
+            );
+            let local = matches!(
+                spec.provider_type,
+                ProviderType::Ollama | ProviderType::PopuliMesh | ProviderType::VoxLocal
+            );
+            if priced && !local {
+                let tier = super::tiering::derive_tier_with(
+                    spec.is_free,
+                    spec.cost_per_1k_output,
+                    reference.elite_min_out,
+                    reference.pro_min_out,
+                );
+                if tier != super::ModelTier::Unknown {
+                    spec.capabilities.tier = tier;
+                }
+            }
+        }
+        reference
     }
 
     pub(crate) fn models_iter(&self) -> impl Iterator<Item = &ModelSpec> {

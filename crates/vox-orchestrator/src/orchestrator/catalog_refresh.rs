@@ -143,6 +143,7 @@ async fn refresh_once(orch: &Arc<Orchestrator>) {
         if !litellm_entries.is_empty() {
             registry.apply_litellm_pricing(&litellm_entries);
         }
+        registry.apply_routing_reference();
         count
     };
 
@@ -175,6 +176,7 @@ async fn refresh_once(orch: &Arc<Orchestrator>) {
                         registry.register(m.clone());
                     }
                 }
+                registry.apply_routing_reference();
             }
             Err(e) => {
                 tracing::warn!(target: "vox.orchestrator.catalog_refresh", error = %e, "model admission filter failed");
@@ -423,6 +425,7 @@ pub async fn run_unified_catalog_refresh(_force: bool) -> anyhow::Result<Unified
         ));
     }
 
+    registry.apply_routing_reference();
     let mut snapshot = registry.list_models();
     crate::catalog_classifier::classify_models(&mut snapshot).await;
 
@@ -440,6 +443,7 @@ pub async fn run_unified_catalog_refresh(_force: bool) -> anyhow::Result<Unified
                         registry.register(m.clone());
                     }
                 }
+                registry.apply_routing_reference();
             }
         }
     }
@@ -509,4 +513,16 @@ fn jitter_secs(max_secs: u64) -> u64 {
         .unwrap_or_default()
         .subsec_nanos() as u64;
     nanos % (max_secs + 1)
+}
+
+#[cfg(test)]
+mod tests {
+    /// `vox doctor` and the startup refresh read this key; the doctor once read a different one.
+    #[test]
+    fn the_refresh_timestamp_key_is_stable() {
+        assert_eq!(
+            super::MODEL_CATALOG_LAST_REFRESH_KEY,
+            "model_catalog_last_refresh"
+        );
+    }
 }

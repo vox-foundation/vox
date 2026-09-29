@@ -1571,3 +1571,242 @@ mod tier_stamp_tests {
         );
     }
 }
+
+#[cfg(test)]
+mod routing_reference_tests {
+    use crate::models::reference::{ReferenceSource, RoutingReference};
+    use crate::models::spec::{PricingSource, QualitySource};
+    use crate::models::{
+        ModelCapabilities, ModelRegistry, ModelSpec, ModelTier, ProviderType, StrengthTag,
+    };
+
+    fn spec(
+        id: &str,
+        provider_type: ProviderType,
+        out: f64,
+        index: Option<f32>,
+        source: PricingSource,
+    ) -> ModelSpec {
+        ModelSpec {
+            id: id.into(),
+            canonical_slug: id.into(),
+            provider: "test".into(),
+            provider_type,
+            max_tokens: 128_000,
+            cost_per_1k: out,
+            cost_per_1k_input: out / 4.0,
+            cost_per_1k_output: out,
+            is_free: false,
+            observed_cost_per_1k: None,
+            strengths: vec![StrengthTag::Generalist],
+            capabilities: ModelCapabilities {
+                intelligence_index: index,
+                ..Default::default()
+            },
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: source,
+            supported_parameters: vec![],
+        }
+    }
+
+    /// 40 paid, benchmarked OpenRouter models (derived bands: Elite 0.0365, Pro 0.0275 per 1k).
+    fn catalog_registry() -> ModelRegistry {
+        let mut r = ModelRegistry::default();
+        for i in 0..40 {
+            r.register(spec(
+                &format!("acme/m-{i}"),
+                ProviderType::OpenRouter,
+                0.0005 + 0.001 * f64::from(i),
+                Some((10 + i) as f32),
+                PricingSource::OpenRouter,
+            ));
+        }
+        r
+    }
+
+    #[test]
+    fn a_registry_starts_on_the_fallback_reference() {
+        assert_eq!(
+            ModelRegistry::default().routing_reference(),
+            RoutingReference::FALLBACK
+        );
+    }
+
+    #[test]
+    fn register_stamps_a_quality_prior() {
+        let mut r = ModelRegistry::default();
+        r.register(spec(
+            "acme/b",
+            ProviderType::OpenRouter,
+            0.01,
+            Some(30.0),
+            PricingSource::OpenRouter,
+        ));
+        let prior = r
+            .get("acme/b")
+            .unwrap()
+            .capabilities
+            .quality_prior
+            .expect("stamped");
+        assert_eq!(prior.source, QualitySource::Benchmark { index: 30.0 });
+        assert!(
+            (prior.value - 0.5).abs() < 1e-12,
+            "fallback reference is 60"
+        );
+    }
+
+    #[test]
+    fn apply_derives_the_reference_and_restamps_priors() {
+        let mut r = catalog_registry();
+        let before = r
+            .get("acme/m-39")
+            .unwrap()
+            .capabilities
+            .quality_prior
+            .unwrap()
+            .value;
+        let reference = r.apply_routing_reference();
+        assert_eq!(reference.quality_source, ReferenceSource::Derived);
+        assert_eq!(r.routing_reference(), reference);
+        let after = r
+            .get("acme/m-39")
+            .unwrap()
+            .capabilities
+            .quality_prior
+            .unwrap()
+            .value;
+        assert!((before - 49.0 / 60.0).abs() < 1e-12);
+        assert!(
+            (after - 1.0).abs() < 1e-12,
+            "the top benchmark is 1.0 under the derived reference"
+        );
+    }
+
+    #[test]
+    fn apply_restamps_priced_tiers_and_nothing_else() {
+        let mut r = catalog_registry();
+        let mut hand = spec(
+            "acme/hand-tiered",
+            ProviderType::OpenRouter,
+            0.0385,
+            None,
+            PricingSource::Bootstrap,
+        );
+        hand.capabilities.tier = ModelTier::Pro;
+        let mut unpriced = spec(
+            "acme/direct-flagship",
+            ProviderType::Anthropic,
+            0.0,
+            None,
+            PricingSource::AnthropicDirect,
+        );
+        unpriced.capabilities.tier = ModelTier::Elite;
+        let mut stale = spec(
+            "acme/m-stale",
+            ProviderType::OpenRouter,
+            0.0385,
+            None,
+            PricingSource::OpenRouter,
+        );
+        stale.capabilities.tier = ModelTier::Fast;
+        let mut observed = spec(
+            "acme/observed",
+            ProviderType::OpenRouter,
+            0.0385,
+            None,
+            PricingSource::Telemetry,
+        );
+        observed.capabilities.tier = ModelTier::Fast;
+        r.register(hand);
+        r.register(unpriced);
+        r.register(stale);
+        r.register(observed);
+        r.apply_routing_reference();
+        assert_eq!(
+            r.get("acme/hand-tiered").unwrap().capabilities.tier,
+            ModelTier::Pro,
+            "an entry no catalog prices keeps its tier"
+        );
+        assert_eq!(
+            r.get("acme/direct-flagship").unwrap().capabilities.tier,
+            ModelTier::Elite,
+            "an unknown price keeps the tier"
+        );
+        assert_eq!(
+            r.get("acme/m-stale").unwrap().capabilities.tier,
+            ModelTier::Elite,
+            "a catalog price decides the tier"
+        );
+        assert_eq!(
+            r.get("acme/observed").unwrap().capabilities.tier,
+            ModelTier::Elite,
+            "an observed price decides the tier"
+        );
+    }
+
+    /// A high-confidence observed price (`ModelPricingCatalogRow` derives no `Default`).
+    fn observed_row(model_id: &str, per_1k: f64) -> vox_db::store::types::ModelPricingCatalogRow {
+        vox_db::store::types::ModelPricingCatalogRow {
+            model_id: model_id.into(),
+            provider: "acme".into(),
+            observed_blended_per_1k: Some(per_1k),
+            observed_input_per_1k: Some(per_1k / 4.0),
+            observed_output_per_1k: Some(per_1k),
+            catalog_input_per_1k: 0.00025,
+            catalog_output_per_1k: 0.001,
+            n_provider_reported: 10,
+            n_estimated: 0,
+            n_free: 0,
+            confidence: "high".into(),
+            last_observed_at_ms: Some(0),
+            updated_at_ms: 0,
+        }
+    }
+    #[test]
+    fn injecting_observed_prices_re_derives_the_tier() {
+        let mut r = catalog_registry();
+        r.register(spec(
+            "acme/listed",
+            ProviderType::OpenRouter,
+            0.001,
+            None,
+            PricingSource::OpenRouter,
+        ));
+        r.apply_routing_reference();
+        assert_eq!(
+            r.get("acme/listed").unwrap().capabilities.tier,
+            ModelTier::Fast
+        );
+        r.inject_pricing_catalog(vec![observed_row("acme/listed", 0.05)]);
+        assert_eq!(
+            r.get("acme/listed").unwrap().capabilities.tier,
+            ModelTier::Elite,
+            "the observed price decides"
+        );
+    }
+
+    #[test]
+    fn a_model_registered_after_apply_uses_the_derived_bands() {
+        let mut r = catalog_registry();
+        r.apply_routing_reference();
+        r.register(spec(
+            "acme/new",
+            ProviderType::OpenRouter,
+            0.025,
+            None,
+            PricingSource::OpenRouter,
+        ));
+        assert_eq!(
+            crate::models::tiering::derive_tier(false, 0.025),
+            ModelTier::Elite,
+            "fixed bands say Elite"
+        );
+        assert_eq!(
+            r.get("acme/new").unwrap().capabilities.tier,
+            ModelTier::Fast,
+            "derived bands say Fast"
+        );
+    }
+}
