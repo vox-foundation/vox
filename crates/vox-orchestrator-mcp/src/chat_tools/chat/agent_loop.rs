@@ -359,7 +359,7 @@ pub(crate) fn turn_event_for_result(
 /// (registry-validated tool name, server-minted UUIDv7, ledger verification)
 /// and nothing comes from `call.arguments`, matching [`turn_event_for_result`]'s
 /// rule against echoing unvetted model payloads into trusted UI chrome.
-fn receipt_turn_event(
+pub(crate) fn receipt_turn_event(
     r: &crate::dispatch::ToolReceiptOutcome,
     verified: bool,
 ) -> serde_json::Value {

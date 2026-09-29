@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "description": "Chat turn events: every kind Rust puts in a vox_chat_message reply's data.events, with its required fields and one example. Checked from Rust by crates/vox-orchestrator-mcp/src/chat_tools/chat/turn_events.rs and from the GUI by crates/vox-gui/ui/src/components/surfaces/Chat/turnEventContract.test.tsx. Examples use a fictional model family (acme/widget), never a real versioned model id. routing_decision carries mode and objective only when the composer sent a mode.",
+  "kinds": [
+    {
+      "kind": "skill_activated",
+      "required": ["skill_id"],
+      "example": { "kind": "skill_activated", "skill_id": "ponytail" }
+    },
+    {
+      "kind": "delegation_spawned",
+      "required": ["tool", "agent_id"],
+      "example": { "kind": "delegation_spawned", "tool": "vox_submit_task", "agent_id": 3, "task_id": 812 }
+    },
+    {
+      "kind": "research_milestone",
+      "required": ["tool", "waves_executed", "claims_verified", "contradictions_resolved"],
+      "example": {
+        "kind": "research_milestone",
+        "tool": "vox_deep_research",
+        "query": "SQLite JSONB performance",
+        "waves_executed": 3,
+        "claims_verified": 12,
+        "contradictions_resolved": 1
+      }
+    },
+    {
+      "kind": "tool_receipt",
+      "required": ["tool", "receipt_id", "fulfilled", "verified"],
+      "example": {
+        "kind": "tool_receipt",
+        "tool": "vox_git_status",
+        "receipt_id": "01920000-aaaa-7bbb-8ccc-000000000001",
+        "fulfilled": true,
+        "verified": true
+      }
+    },
+    {
+      "kind": "receipt_claims",
+      "required": ["valid", "fabricated", "unverified"],
+      "example": { "kind": "receipt_claims", "valid": 2, "fabricated": 1, "unverified": 0 }
+    },
+    {
+      "kind": "routing_decision",
+      "status": "planned",
+      "required": ["family", "resolved_id", "resolved_from", "reason"],
+      "example": {
+        "kind": "routing_decision",
+        "family": "acme/widget",
+        "resolved_id": "acme/widget-5.5",
+        "resolved_from": "catalog",
+        "mode": "efficiency",
+        "objective": "Most quality per dollar; no flagship while another model fits",
+        "reason": "Chosen by the model scorer as the best match for your request"
+      }
+    }
+  ]
+}
