@@ -26,7 +26,7 @@ from strings.
 | `severity` | `success` · `info` · `warning` · `error` (engine events also `debug`) | How much it matters. `debug` is never shown outside the Activity log and Verbose trace. |
 | `scope` | `action` · `turn` · `session` · `engine` · `app` | What it is about: the user's own click, one chat turn, the open chat session, the engine as a whole, or the app shell itself. |
 | `needs` | `none` · `review` · `decision` | Whether a human must look (`review`) or choose (`decision`). |
-| `source` | producer id (`chat`, `routing`, `budget`, `harness`, `ipc`, …) | Who said it; used for grouping and filtering. |
+| `source` | producer id (`engine`, a toast's `cause` such as `backend-error`; later `routing`, `budget`, `harness`, …) | Who said it; used for grouping and filtering. |
 
 Engine events get their severity from one exhaustive Rust function (`AgentEventKind::severity`), so a new event kind
 cannot ship unclassified.
@@ -38,7 +38,7 @@ cannot ship unclassified.
 | **Chat transcript** | Conversation, one collapsed trace row per turn, and inline interrupt chips | Session | `turn` notices as trace steps; `needs: decision` for this session as an interrupt chip. Nothing else. |
 | **Chat rail** | This session: its tasks, locks, next-turn routing, context meter | Session | `session` notices |
 | **Status bar cards** | Global engine facts (Engine, Spend, Mesh, Routing, Needs you) and the notification bell | Live | A card shows a status dot when its fact is degraded or has a `warning`/`error`; the bell shows unread `warning`/`error` count |
-| **Notification center** (bell → drawer) | Every notice except `debug`, newest first, coalesced (`×N`), filterable by severity and source, mark-as-read | App session (bounded) | All `action`, `engine` and `app` notices; a copy of every toast |
+| **Notification center** (bell → drawer) | Every notice except `debug`, newest first, coalesced (`×N`), filterable by severity (by source once there are per-fact sources), mark-as-read | App session (bounded) | All `action`, `engine` and `app` notices; a copy of every toast |
 | **Toast** | Immediate feedback for the user's own action | 5 s | Only `scope: action`. Also recorded in the center, so nothing is lost when it expires. |
 | **Banner** | App-level conditions that block work (backend unreachable, version mismatch) | Until resolved | `scope: app` with `severity ≥ warning` |
 | **Needs-you inbox** | Everything awaiting a human | Until resolved | `needs: decision` / `review` |
@@ -77,8 +77,8 @@ Measured by reading the code at `f50e9fa26`:
 
 - Toasts have tones `ok | warn | info` only (`types/tauri.ts`); every error is `warn`. They expire after 5 s and are
   kept nowhere else.
-- Engine events and activity rows carry **no severity**; about 70 of ~85 event kinds reach only the dashboard stream
-  or nothing.
+- Engine events and activity rows carry **no severity**; about 70 of the 88 event kinds reach only the dashboard
+  stream or nothing.
 - About 49 `.catch(() => …)` sites swallow errors. Some make a surface look healthy: failed approvals zero the Review
   badge (`useAttentionInbox.ts`), and the research popover says "Online" on failure (`StatusBarCluster.tsx`).
 - Duplicated polling: harness issues ×3, pending approvals ×3. Global KPIs are duplicated between the status bar and
@@ -87,7 +87,7 @@ Measured by reading the code at `f50e9fa26`:
   event, including streamed tokens.
 - The chat status line always reads "Working", because `mapAgentEvent` drops `phase` from the metadata the timeline
   reads.
-- `pushToast` is typed `(t: any)` in 12 files, which bypasses the required `cause`.
+- `pushToast` is untyped (`(t: any)`, once `(t: unknown)`) in 12 files, which bypasses the required `cause`.
 - None of the trace, surfaces or visual-language plans' files exist yet.
 
 ## Implementation
@@ -106,3 +106,6 @@ Measured by reading the code at `f50e9fa26`:
 - **OS notifications** for `needs: decision` while the window is unfocused (needs `tauri-plugin-notification`, a new
   dependency).
 - **Severity on durable activity rows** (a schema change); rows are classified by kind at read time until then.
+- **One poll per fact** (rule 4) as its own plan, after the trace and surfaces plans land.
+- **Source filter and status-card dots**, once notices carry per-fact sources (`routing`, `budget`, `mesh`).
+- **App banners recorded in the center**, and the research popover's hard-coded "Online" (rule 3).
