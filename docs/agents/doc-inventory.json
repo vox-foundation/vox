@@ -1,6 +1,6 @@
 {
   "schema_version": 3,
-  "generated_at": "2026-09-27T21:54:48.160Z",
+  "generated_at": "2026-09-29T00:25:09.909Z",
   "description": "Per-file comment/doc counts for LLM batch targeting. Rust: lines_triple_slash=///, lines_inner_doc=//!, lines_plain_comment=// excluding doc. Markdown: lines_total=all lines; lines_other_doc_signal=# heading count. hotspot_tier: 1=plan-listed path, 2=high-density heuristic, 0=other. symbol_hints (schema v3): plan-hotspot Rust only; /// or //! linked to next item; containing_symbol, doc_preview, comment_type, quality_tag (mechanical|operational|section_divider|user_help|narrative|ssot_sensitive).",
   "first_read_for_agents": [
     "AGENTS.md",
@@ -198,6 +198,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/superpowers/plans/2026-09-28-chat-surfaces-consolidation.md",
+      "kind": "markdown",
+      "lines_total": 3385,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 18,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/superpowers/plans/2026-09-01-vox-efficacy-benchmark-and-leaderboard.md",
       "kind": "markdown",
       "lines_total": 3294,
@@ -249,6 +260,17 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 79,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-28-chat-turn-trace.md",
+      "kind": "markdown",
+      "lines_total": 2933,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 54,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -1056,6 +1078,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/superpowers/plans/2026-09-28-chat-visual-language.md",
+      "kind": "markdown",
+      "lines_total": 1324,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 26,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/superpowers/plans/2026-09-11-3-cloud-training.md",
       "kind": "markdown",
       "lines_total": 1322,
@@ -1085,6 +1118,17 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 67,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-28-model-routing-latest-and-honest.md",
+      "kind": "markdown",
+      "lines_total": 1299,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 70,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -1388,7 +1432,7 @@
     {
       "path": "crates/vox-gui/ui/src/transport.ts",
       "kind": "typescript",
-      "lines_total": 1120,
+      "lines_total": 1121,
       "lines_triple_slash": 0,
       "lines_inner_doc": 0,
       "lines_plain_comment": 34,
@@ -4323,6 +4367,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/src/architecture/where-things-live.md",
+      "kind": "markdown",
+      "lines_total": 433,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 19,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/superpowers/specs/2026-09-08-chat-harness-research-loop-design.md",
       "kind": "markdown",
       "lines_total": 432,
@@ -4330,17 +4385,6 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 29,
-      "hotspot_tier": 2,
-      "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
-      "path": "docs/src/architecture/where-things-live.md",
-      "kind": "markdown",
-      "lines_total": 431,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 19,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -6915,6 +6959,17 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 21,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-28-model-routing-chat-lane.md",
+      "kind": "markdown",
+      "lines_total": 257,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 15,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -9625,6 +9680,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/src/architecture/chat-surface-design-critique-2026-09-28.md",
+      "kind": "markdown",
+      "lines_total": 141,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 11,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/superpowers/specs/2026-06-18-gamification-surfacing-and-minimap-design.md",
       "kind": "markdown",
       "lines_total": 141,
@@ -11205,6 +11271,17 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 13,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "docs/src/contributors/antigravity-driven-execution.md",
+      "kind": "markdown",
+      "lines_total": 97,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 8,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -13301,8 +13378,8 @@
     {
       "path": "crates/vox-orchestrator/src/events.rs",
       "kind": "rust",
-      "lines_total": 1349,
-      "lines_triple_slash": 201,
+      "lines_total": 1378,
+      "lines_triple_slash": 206,
       "lines_inner_doc": 5,
       "lines_plain_comment": 63,
       "lines_other_doc_signal": 0,
@@ -13356,7 +13433,7 @@
     {
       "path": "crates/vox-orchestrator-mcp/src/input_schemas.rs",
       "kind": "rust",
-      "lines_total": 1200,
+      "lines_total": 1203,
       "lines_triple_slash": 3,
       "lines_inner_doc": 12,
       "lines_plain_comment": 35,
@@ -13444,10 +13521,10 @@
     {
       "path": "crates/vox-orchestrator-mcp/src/chat_tools/chat/agent_loop.rs",
       "kind": "rust",
-      "lines_total": 2247,
-      "lines_triple_slash": 314,
+      "lines_total": 2401,
+      "lines_triple_slash": 320,
       "lines_inner_doc": 21,
-      "lines_plain_comment": 170,
+      "lines_plain_comment": 172,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -13499,8 +13576,8 @@
     {
       "path": "crates/vox-orchestrator/src/types/tasks.rs",
       "kind": "rust",
-      "lines_total": 1509,
-      "lines_triple_slash": 228,
+      "lines_total": 1515,
+      "lines_triple_slash": 231,
       "lines_inner_doc": 1,
       "lines_plain_comment": 12,
       "lines_other_doc_signal": 0,
@@ -15554,6 +15631,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-orchestrator-mcp/src/lib.rs",
+      "kind": "rust",
+      "lines_total": 218,
+      "lines_triple_slash": 62,
+      "lines_inner_doc": 3,
+      "lines_plain_comment": 1,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-compiler/src/typeck/mod.rs",
       "kind": "rust",
       "lines_total": 684,
@@ -15593,17 +15681,6 @@
       "lines_triple_slash": 63,
       "lines_inner_doc": 1,
       "lines_plain_comment": 8,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-orchestrator-mcp/src/lib.rs",
-      "kind": "rust",
-      "lines_total": 216,
-      "lines_triple_slash": 61,
-      "lines_inner_doc": 3,
-      "lines_plain_comment": 1,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -15923,6 +16000,17 @@
       "lines_triple_slash": 26,
       "lines_inner_doc": 32,
       "lines_plain_comment": 10,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-orchestrator/src/hopper/types.rs",
+      "kind": "rust",
+      "lines_total": 302,
+      "lines_triple_slash": 53,
+      "lines_inner_doc": 5,
+      "lines_plain_comment": 6,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -16896,17 +16984,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-orchestrator/src/hopper/types.rs",
-      "kind": "rust",
-      "lines_total": 225,
-      "lines_triple_slash": 43,
-      "lines_inner_doc": 5,
-      "lines_plain_comment": 6,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-runtime/src/profile.rs",
       "kind": "rust",
       "lines_total": 203,
@@ -16931,10 +17008,10 @@
     {
       "path": "crates/vox-orchestrator-mcp/src/http_gateway/mod.rs",
       "kind": "rust",
-      "lines_total": 1039,
+      "lines_total": 1147,
       "lines_triple_slash": 42,
       "lines_inner_doc": 5,
-      "lines_plain_comment": 23,
+      "lines_plain_comment": 26,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -16945,6 +17022,17 @@
       "lines_total": 1011,
       "lines_triple_slash": 42,
       "lines_inner_doc": 5,
+      "lines_plain_comment": 14,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-orchestrator/src/hopper/store.rs",
+      "kind": "rust",
+      "lines_total": 804,
+      "lines_triple_slash": 38,
+      "lines_inner_doc": 9,
       "lines_plain_comment": 14,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
@@ -17336,6 +17424,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "kind": "rust",
+      "lines_total": 2363,
+      "lines_triple_slash": 38,
+      "lines_inner_doc": 6,
+      "lines_plain_comment": 144,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-db/src/store/ops_codex/codex_graph.rs",
       "kind": "rust",
       "lines_total": 601,
@@ -17600,17 +17699,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-orchestrator/src/hopper/store.rs",
-      "kind": "rust",
-      "lines_total": 675,
-      "lines_triple_slash": 33,
-      "lines_inner_doc": 9,
-      "lines_plain_comment": 14,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-db/src/store/ops_skill_candidates.rs",
       "kind": "rust",
       "lines_total": 402,
@@ -17745,7 +17833,7 @@
     {
       "path": "crates/vox-orchestrator/src/orchestrator/task_dispatch/complete/success/mod.rs",
       "kind": "rust",
-      "lines_total": 981,
+      "lines_total": 983,
       "lines_triple_slash": 41,
       "lines_inner_doc": 0,
       "lines_plain_comment": 54,
@@ -17771,6 +17859,17 @@
       "lines_triple_slash": 37,
       "lines_inner_doc": 4,
       "lines_plain_comment": 18,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-orchestrator/src/orchestrator/safety.rs",
+      "kind": "rust",
+      "lines_total": 616,
+      "lines_triple_slash": 41,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 17,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -18240,10 +18339,10 @@
     {
       "path": "crates/vox-orchestrator/src/orchestrator/agent/lifecycle_ops.rs",
       "kind": "rust",
-      "lines_total": 499,
+      "lines_total": 522,
       "lines_triple_slash": 38,
       "lines_inner_doc": 0,
-      "lines_plain_comment": 19,
+      "lines_plain_comment": 21,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -18365,17 +18464,6 @@
       "lines_triple_slash": 33,
       "lines_inner_doc": 4,
       "lines_plain_comment": 9,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-orchestrator/src/orchestrator/dispatch.rs",
-      "kind": "rust",
-      "lines_total": 507,
-      "lines_triple_slash": 36,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 12,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -18526,7 +18614,7 @@
     {
       "path": "crates/vox-orchestrator-mcp/src/http_gateway/dashboard_api.rs",
       "kind": "rust",
-      "lines_total": 777,
+      "lines_total": 805,
       "lines_triple_slash": 27,
       "lines_inner_doc": 9,
       "lines_plain_comment": 8,
@@ -19041,17 +19129,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
-      "kind": "rust",
-      "lines_total": 2202,
-      "lines_triple_slash": 28,
-      "lines_inner_doc": 6,
-      "lines_plain_comment": 137,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-orchestrator/src/a2a/remote_worker.rs",
       "kind": "rust",
       "lines_total": 926,
@@ -19525,17 +19602,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-orchestrator-mcp/src/post_verification.rs",
-      "kind": "rust",
-      "lines_total": 268,
-      "lines_triple_slash": 22,
-      "lines_inner_doc": 10,
-      "lines_plain_comment": 4,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-effort-audit/src/hybrid/transcripts.rs",
       "kind": "rust",
       "lines_total": 258,
@@ -19723,6 +19789,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-db/src/store/ops_orchestrator.rs",
+      "kind": "rust",
+      "lines_total": 539,
+      "lines_triple_slash": 29,
+      "lines_inner_doc": 2,
+      "lines_plain_comment": 8,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-cli/src/commands/db/publication/discovery.rs",
       "kind": "rust",
       "lines_total": 520,
@@ -19740,17 +19817,6 @@
       "lines_triple_slash": 29,
       "lines_inner_doc": 2,
       "lines_plain_comment": 36,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-db/src/store/ops_orchestrator.rs",
-      "kind": "rust",
-      "lines_total": 485,
-      "lines_triple_slash": 29,
-      "lines_inner_doc": 2,
-      "lines_plain_comment": 7,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -19850,6 +19916,17 @@
       "lines_triple_slash": 18,
       "lines_inner_doc": 13,
       "lines_plain_comment": 3,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-orchestrator-mcp/src/post_verification.rs",
+      "kind": "rust",
+      "lines_total": 277,
+      "lines_triple_slash": 21,
+      "lines_inner_doc": 10,
+      "lines_plain_comment": 5,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -20081,6 +20158,17 @@
       "lines_triple_slash": 30,
       "lines_inner_doc": 0,
       "lines_plain_comment": 13,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-orchestrator/src/orchestrator/dispatch.rs",
+      "kind": "rust",
+      "lines_total": 255,
+      "lines_triple_slash": 29,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 12,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -22310,10 +22398,10 @@
     {
       "path": "crates/vox-db/src/schema/manifest.rs",
       "kind": "rust",
-      "lines_total": 266,
+      "lines_total": 267,
       "lines_triple_slash": 20,
       "lines_inner_doc": 4,
-      "lines_plain_comment": 28,
+      "lines_plain_comment": 29,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -22671,23 +22759,23 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-db/src/store/open.rs",
+      "kind": "rust",
+      "lines_total": 355,
+      "lines_triple_slash": 15,
+      "lines_inner_doc": 8,
+      "lines_plain_comment": 20,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-code-audit/src/detectors/weak_test.rs",
       "kind": "rust",
       "lines_total": 344,
       "lines_triple_slash": 7,
       "lines_inner_doc": 16,
       "lines_plain_comment": 17,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-db/src/store/open.rs",
-      "kind": "rust",
-      "lines_total": 337,
-      "lines_triple_slash": 15,
-      "lines_inner_doc": 8,
-      "lines_plain_comment": 19,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -24233,6 +24321,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-orchestrator/src/tool_receipt.rs",
+      "kind": "rust",
+      "lines_total": 319,
+      "lines_triple_slash": 20,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 7,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-cli/src/commands/diagnostics/doctor/project_check.rs",
       "kind": "rust",
       "lines_total": 312,
@@ -24305,17 +24404,6 @@
       "lines_triple_slash": 6,
       "lines_inner_doc": 14,
       "lines_plain_comment": 5,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-orchestrator/src/tool_receipt.rs",
-      "kind": "rust",
-      "lines_total": 264,
-      "lines_triple_slash": 20,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 8,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -25454,6 +25542,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-orchestrator-queue/src/locks/resource.rs",
+      "kind": "rust",
+      "lines_total": 197,
+      "lines_triple_slash": 18,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 1,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-populi/src/mens/tensor/training_text.rs",
       "kind": "rust",
       "lines_total": 197,
@@ -26230,6 +26329,17 @@
       "lines_triple_slash": 10,
       "lines_inner_doc": 7,
       "lines_plain_comment": 1,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-orchestrator-mcp/src/scope_guard.rs",
+      "kind": "rust",
+      "lines_total": 166,
+      "lines_triple_slash": 12,
+      "lines_inner_doc": 5,
+      "lines_plain_comment": 0,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -27522,6 +27632,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-gui/src/commands/activity.rs",
+      "kind": "rust",
+      "lines_total": 150,
+      "lines_triple_slash": 12,
+      "lines_inner_doc": 3,
+      "lines_plain_comment": 1,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-cli/src/commands/extras/ars/skill_suggest.rs",
       "kind": "rust",
       "lines_total": 148,
@@ -27549,17 +27670,6 @@
       "lines_total": 134,
       "lines_triple_slash": 14,
       "lines_inner_doc": 1,
-      "lines_plain_comment": 1,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-gui/src/commands/activity.rs",
-      "kind": "rust",
-      "lines_total": 130,
-      "lines_triple_slash": 12,
-      "lines_inner_doc": 3,
       "lines_plain_comment": 1,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
@@ -28017,23 +28127,23 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-orchestrator/src/orchestrator/core/mod.rs",
+      "kind": "rust",
+      "lines_total": 379,
+      "lines_triple_slash": 14,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 15,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-publisher/src/publication_preflight/worthiness_extraction.rs",
       "kind": "rust",
       "lines_total": 377,
       "lines_triple_slash": 14,
       "lines_inner_doc": 0,
       "lines_plain_comment": 6,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-orchestrator/src/orchestrator/core/mod.rs",
-      "kind": "rust",
-      "lines_total": 357,
-      "lines_triple_slash": 14,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 12,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -29062,17 +29172,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-orchestrator/src/orchestrator/safety.rs",
-      "kind": "rust",
-      "lines_total": 142,
-      "lines_triple_slash": 13,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 4,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-db/src/legacy_import_extras.rs",
       "kind": "rust",
       "lines_total": 141,
@@ -29975,17 +30074,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-orchestrator-queue/src/locks/resource.rs",
-      "kind": "rust",
-      "lines_total": 109,
-      "lines_triple_slash": 12,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 1,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-orchestrator-mcp/src/server_state/vram_probe.rs",
       "kind": "rust",
       "lines_total": 108,
@@ -30428,10 +30516,10 @@
     {
       "path": "crates/vox-db/src/local_tests.rs",
       "kind": "rust",
-      "lines_total": 837,
+      "lines_total": 917,
       "lines_triple_slash": 10,
       "lines_inner_doc": 1,
-      "lines_plain_comment": 47,
+      "lines_plain_comment": 51,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -32439,6 +32527,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-orchestrator/src/orchestrator/dispatch_tests.rs",
+      "kind": "rust",
+      "lines_total": 522,
+      "lines_triple_slash": 9,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 7,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-publisher/src/distribution_compile.rs",
       "kind": "rust",
       "lines_total": 452,
@@ -32885,6 +32984,17 @@
       "lines_triple_slash": 0,
       "lines_inner_doc": 9,
       "lines_plain_comment": 10,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-orchestrator-mcp/src/receipt_tools.rs",
+      "kind": "rust",
+      "lines_total": 165,
+      "lines_triple_slash": 7,
+      "lines_inner_doc": 2,
+      "lines_plain_comment": 2,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -33473,17 +33583,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-orchestrator-mcp/src/scope_guard.rs",
-      "kind": "rust",
-      "lines_total": 52,
-      "lines_triple_slash": 4,
-      "lines_inner_doc": 5,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-cli/src/commands/emit/openapi.rs",
       "kind": "rust",
       "lines_total": 51,
@@ -33816,7 +33915,7 @@
     {
       "path": "crates/vox-db/src/schema/domains/agents.rs",
       "kind": "rust",
-      "lines_total": 494,
+      "lines_total": 495,
       "lines_triple_slash": 0,
       "lines_inner_doc": 8,
       "lines_plain_comment": 0,
@@ -39050,6 +39149,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-orchestrator/tests/no_dark_loggable_variants_test.rs",
+      "kind": "rust",
+      "lines_total": 155,
+      "lines_triple_slash": 5,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 2,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-publisher/src/scholarly/osf.rs",
       "kind": "rust",
       "lines_total": 151,
@@ -39067,17 +39177,6 @@
       "lines_triple_slash": 4,
       "lines_inner_doc": 1,
       "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-orchestrator/tests/no_dark_loggable_variants_test.rs",
-      "kind": "rust",
-      "lines_total": 146,
-      "lines_triple_slash": 5,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 2,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -39756,7 +39855,7 @@
     {
       "path": "crates/vox-orchestrator/src/activity/mod.rs",
       "kind": "rust",
-      "lines_total": 58,
+      "lines_total": 59,
       "lines_triple_slash": 4,
       "lines_inner_doc": 1,
       "lines_plain_comment": 5,
@@ -42572,10 +42671,10 @@
     {
       "path": "crates/vox-orchestrator/src/hopper/sqlite_store.rs",
       "kind": "rust",
-      "lines_total": 580,
+      "lines_total": 615,
       "lines_triple_slash": 2,
       "lines_inner_doc": 1,
-      "lines_plain_comment": 21,
+      "lines_plain_comment": 22,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -45102,7 +45201,7 @@
     {
       "path": "crates/vox-orchestrator/src/orchestrator/task_dispatch/complete/fail.rs",
       "kind": "rust",
-      "lines_total": 518,
+      "lines_total": 520,
       "lines_triple_slash": 2,
       "lines_inner_doc": 0,
       "lines_plain_comment": 6,
@@ -47883,6 +47982,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-orchestrator/src/activity/project.rs",
+      "kind": "rust",
+      "lines_total": 308,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-compiler/src/hir/lower/contracts.rs",
       "kind": "rust",
       "lines_total": 295,
@@ -47941,17 +48051,6 @@
       "path": "crates/vox-orchestrator-mcp/src/attention_policy.rs",
       "kind": "rust",
       "lines_total": 277,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-orchestrator/src/activity/project.rs",
-      "kind": "rust",
-      "lines_total": 273,
       "lines_triple_slash": 0,
       "lines_inner_doc": 1,
       "lines_plain_comment": 0,
@@ -52349,6 +52448,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-orchestrator/tests/resource_lock_lifecycle.rs",
+      "kind": "rust",
+      "lines_total": 669,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 23,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "docs/superpowers/plans/2026-07-20-dockview-panel-ux.md",
       "kind": "markdown",
       "lines_total": 655,
@@ -52393,6 +52503,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-gui/ui/e2e/chat-trust-chips.spec.ts",
+      "kind": "typescript",
+      "lines_total": 527,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 4,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "approx // and block comments"
+    },
+    {
       "path": "crates/vox-cli-research/src/eval.rs",
       "kind": "rust",
       "lines_total": 511,
@@ -52402,6 +52523,17 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-28-chat-surface-trace-and-latest-models.md",
+      "kind": "markdown",
+      "lines_total": 507,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 4,
+      "hotspot_tier": 0,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
       "path": ".github/workflows/release-binaries.yml",
@@ -52545,6 +52677,17 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-gui/ui/src/hooks/useChatExecutionData.test.ts",
+      "kind": "typescript",
+      "lines_total": 414,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 1,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "approx // and block comments"
     },
     {
       "path": "crates/vox-sql/src/type_map.rs",
@@ -53845,6 +53988,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-gui/ui/src/hooks/useChatExecutionData.ts",
+      "kind": "typescript",
+      "lines_total": 193,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 1,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "approx // and block comments"
+    },
+    {
       "path": "docs/superpowers/plans/2026-06-19-soft-hitl-phase0-attention-strip.md",
       "kind": "markdown",
       "lines_total": 193,
@@ -54404,17 +54558,6 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-gui/ui/src/hooks/useChatExecutionData.test.ts",
-      "kind": "typescript",
-      "lines_total": 165,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 1,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "approx // and block comments"
     },
     {
       "path": "crates/vox-gui/ui/src/lib/backendGuard.ts",
@@ -55999,17 +56142,6 @@
       "lines_other_doc_signal": 2,
       "hotspot_tier": 0,
       "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
-      "path": "crates/vox-gui/ui/src/hooks/useChatExecutionData.ts",
-      "kind": "typescript",
-      "lines_total": 102,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "approx // and block comments"
     },
     {
       "path": "docs/src/contributors/publishing-crates.md",
@@ -62326,6 +62458,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/agents/agy-driver-kit/rules/00-core.md",
+      "kind": "markdown",
+      "lines_total": 42,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 1,
+      "hotspot_tier": 0,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/src/adr/038-ai-fixture-prompt-decorator.md",
       "kind": "markdown",
       "lines_total": 42,
@@ -62498,6 +62641,17 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 6,
+      "hotspot_tier": 0,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "docs/src/adr/025-multi-agent-lock-coherence.md",
+      "kind": "markdown",
+      "lines_total": 41,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 7,
       "hotspot_tier": 0,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -63140,6 +63294,28 @@
       "notes": "approx // and block comments"
     },
     {
+      "path": "crates/vox-orchestrator/tests/events_test.rs",
+      "kind": "rust",
+      "lines_total": 38,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "docs/src/adr/029-formal-intent.md",
+      "kind": "markdown",
+      "lines_total": 38,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 7,
+      "hotspot_tier": 0,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/src/architecture/language-formatter-semantics-findings-2026.md",
       "kind": "markdown",
       "lines_total": 38,
@@ -63699,17 +63875,6 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "approx // and block comments"
-    },
-    {
-      "path": "crates/vox-orchestrator/tests/events_test.rs",
-      "kind": "rust",
-      "lines_total": 35,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
     },
     {
       "path": "crates/vox-plugin-skill-testing/testing.skill.md",
@@ -64324,6 +64489,17 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 5,
+      "hotspot_tier": 0,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "docs/agents/agy-driver-kit/skills/drive-task/SKILL.md",
+      "kind": "markdown",
+      "lines_total": 32,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 1,
       "hotspot_tier": 0,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -65538,17 +65714,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "docs/src/adr/029-formal-intent.md",
-      "kind": "markdown",
-      "lines_total": 25,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 5,
-      "hotspot_tier": 0,
-      "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
       "path": "docs/src/architecture/context-isolation-ssot-2026.md",
       "kind": "markdown",
       "lines_total": 25,
@@ -65712,17 +65877,6 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "docs/src/adr/025-multi-agent-lock-coherence.md",
-      "kind": "markdown",
-      "lines_total": 24,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 5,
-      "hotspot_tier": 0,
-      "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
       "path": "docs/src/archive/research-2026-q1/research-agent-handoff-failure-catalog-2026.md",
@@ -66097,6 +66251,17 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "approx // and block comments"
+    },
+    {
+      "path": "docs/agents/agy-driver-kit/scripts/agy-watchdog.sh",
+      "kind": "shell",
+      "lines_total": 21,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 2,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "comments"
     },
     {
       "path": "docs/src/architecture/telemetry-trust-ssot.md",
@@ -67032,6 +67197,17 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "docs/agents/agy-driver-kit/scripts/drift-fix.sh",
+      "kind": "shell",
+      "lines_total": 14,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 2,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "comments"
     },
     {
       "path": "docs/src/ref-cli.md",
@@ -68066,6 +68242,17 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "docs/agents/agy-driver-kit/README.md",
+      "kind": "markdown",
+      "lines_total": 4,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 1,
+      "hotspot_tier": 0,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
       "path": "apps/editor/vox-vscode/out/commands/canonicalJourneyChecklist.d.ts",
@@ -72438,8 +72625,26 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 248,
+          "doc_line": 247,
           "item_line": 249,
+          "item_preview": "session_id: Option<String>,",
+          "containing_symbol": null,
+          "doc_preview": "Chat or workflow session holding the resource (Phase 5 D-13).",
+          "comment_type": "outer_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 250,
+          "item_line": 252,
+          "item_preview": "task_id: Option<TaskId>,",
+          "containing_symbol": null,
+          "doc_preview": "Task holding the resource (Phase 5 D-13).",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 254,
+          "item_line": 255,
           "item_preview": "LockReleased {",
           "containing_symbol": null,
           "doc_preview": "A file lock was released.",
@@ -72447,8 +72652,35 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 254,
-          "item_line": 255,
+          "doc_line": 258,
+          "item_line": 260,
+          "item_preview": "session_id: Option<String>,",
+          "containing_symbol": null,
+          "doc_preview": "Chat or workflow session releasing the resource (Phase 5 D-13).",
+          "comment_type": "outer_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 261,
+          "item_line": 263,
+          "item_preview": "task_id: Option<TaskId>,",
+          "containing_symbol": null,
+          "doc_preview": "Task releasing the resource (Phase 5 D-13).",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 265,
+          "item_line": 266,
+          "item_preview": "LockWaiting {",
+          "containing_symbol": null,
+          "doc_preview": "A hopper task is waiting for a resource lock held by another task (Phase 5 D-08/D-10).",
+          "comment_type": "outer_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 273,
+          "item_line": 274,
           "item_preview": "AgentIdle {",
           "containing_symbol": null,
           "doc_preview": "An agent went idle (no pending tasks).",
@@ -72456,8 +72688,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 258,
-          "item_line": 259,
+          "doc_line": 277,
+          "item_line": 278,
           "item_preview": "AgentBusy {",
           "containing_symbol": null,
           "doc_preview": "An agent started working again.",
@@ -72465,8 +72697,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 263,
-          "item_line": 264,
+          "doc_line": 282,
+          "item_line": 283,
           "item_preview": "MessageSent {",
           "containing_symbol": null,
           "doc_preview": "An inter-agent message was sent.",
@@ -72474,8 +72706,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 270,
-          "item_line": 274,
+          "doc_line": 289,
+          "item_line": 293,
           "item_preview": "CostIncurred {",
           "containing_symbol": null,
           "doc_preview": "A cost was incurred (LLM API call).",
@@ -72483,8 +72715,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 271,
-          "item_line": 274,
+          "doc_line": 290,
+          "item_line": 293,
           "item_preview": "CostIncurred {",
           "containing_symbol": null,
           "doc_preview": "",
@@ -72492,8 +72724,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 272,
-          "item_line": 274,
+          "doc_line": 291,
+          "item_line": 293,
           "item_preview": "CostIncurred {",
           "containing_symbol": null,
           "doc_preview": "**MCP:** when Codex is attached, persisted usage is SSOT in `provider_usage`; bus emission is",
@@ -72501,8 +72733,8 @@
           "quality_tag": "ssot_sensitive"
         },
         {
-          "doc_line": 273,
-          "item_line": 274,
+          "doc_line": 292,
+          "item_line": 293,
           "item_preview": "CostIncurred {",
           "containing_symbol": null,
           "doc_preview": "gated by **`VOX_MCP_LLM_COST_EVENTS`** (default off with DB) to avoid dashboards double-counting.",
@@ -72510,8 +72742,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 281,
-          "item_line": 283,
+          "doc_line": 300,
+          "item_line": 302,
           "item_preview": "temporal_context: Option<serde_json::Value>,",
           "containing_symbol": null,
           "doc_preview": "Structured temporal context (date, server_idle_secs)",
@@ -72519,8 +72751,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 286,
-          "item_line": 287,
+          "doc_line": 305,
+          "item_line": 306,
           "item_preview": "EmergencyStop {",
           "containing_symbol": null,
           "doc_preview": "Global emergency stop triggered.",
@@ -72528,8 +72760,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 291,
-          "item_line": 292,
+          "doc_line": 310,
+          "item_line": 311,
           "item_preview": "ContinuationTriggered {",
           "containing_symbol": null,
           "doc_preview": "Auto-continuation was triggered for an idle agent.",
@@ -72537,8 +72769,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 299,
-          "item_line": 300,
+          "doc_line": 318,
+          "item_line": 319,
           "item_preview": "PlanHandoff {",
           "containing_symbol": null,
           "doc_preview": "A plan handoff between agents.",
@@ -72546,8 +72778,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 312,
-          "item_line": 315,
+          "doc_line": 331,
+          "item_line": 334,
           "item_preview": "from_role: Option<crate::topology::AgentRole>,",
           "containing_symbol": null,
           "doc_preview": "NNT Wave 1: Consumers must sort available agent pools by the shortest affinity distance",
@@ -72555,8 +72787,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 313,
-          "item_line": 315,
+          "doc_line": 332,
+          "item_line": 334,
           "item_preview": "from_role: Option<crate::topology::AgentRole>,",
           "containing_symbol": null,
           "doc_preview": "from this role when `to` is AgentId(0) (any available agent).",
@@ -72564,8 +72796,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 318,
-          "item_line": 319,
+          "doc_line": 337,
+          "item_line": 338,
           "item_preview": "ScopeViolation {",
           "containing_symbol": null,
           "doc_preview": "A scope violation was detected.",
@@ -72573,8 +72805,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 325,
-          "item_line": 326,
+          "doc_line": 344,
+          "item_line": 345,
           "item_preview": "CompactionTriggered {",
           "containing_symbol": null,
           "doc_preview": "Context window compaction was triggered.",
@@ -72582,8 +72814,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 333,
-          "item_line": 334,
+          "doc_line": 352,
+          "item_line": 353,
           "item_preview": "MemoryFlushed {",
           "containing_symbol": null,
           "doc_preview": "Pre-compaction memory flush completed.",
@@ -72591,8 +72823,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 339,
-          "item_line": 340,
+          "doc_line": 358,
+          "item_line": 359,
           "item_preview": "SessionCreated {",
           "containing_symbol": null,
           "doc_preview": "A new session was created.",
@@ -72600,8 +72832,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 345,
-          "item_line": 346,
+          "doc_line": 364,
+          "item_line": 365,
           "item_preview": "SessionReset {",
           "containing_symbol": null,
           "doc_preview": "A session was reset.",
@@ -72609,8 +72841,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 352,
-          "item_line": 353,
+          "doc_line": 371,
+          "item_line": 372,
           "item_preview": "SnapshotCaptured {",
           "containing_symbol": null,
           "doc_preview": "Workspace / DB snapshot captured for undo or conflict tracking.",
@@ -72618,8 +72850,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 358,
-          "item_line": 359,
+          "doc_line": 377,
+          "item_line": 378,
           "item_preview": "session_id: Option<String>,",
           "containing_symbol": null,
           "doc_preview": "Optional session link (for chat/workflow grouping in Mens).",
@@ -72627,8 +72859,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 361,
-          "item_line": 362,
+          "doc_line": 380,
+          "item_line": 381,
           "item_preview": "ConflictDetected {",
           "containing_symbol": null,
           "doc_preview": "Overlapping edits detected between agents.",
@@ -72636,8 +72868,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 367,
-          "item_line": 368,
+          "doc_line": 386,
+          "item_line": 387,
           "item_preview": "OperationUndone {",
           "containing_symbol": null,
           "doc_preview": "Undo stack applied.",
@@ -72645,8 +72877,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 372,
-          "item_line": 373,
+          "doc_line": 391,
+          "item_line": 392,
           "item_preview": "OperationRedone {",
           "containing_symbol": null,
           "doc_preview": "Redo stack applied.",
@@ -72654,8 +72886,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 377,
-          "item_line": 378,
+          "doc_line": 396,
+          "item_line": 397,
           "item_preview": "AgentHandoffRejected {",
           "containing_symbol": null,
           "doc_preview": "Handoff could not be completed (e.g. spawn failure).",
@@ -72663,8 +72895,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 382,
-          "item_line": 383,
+          "doc_line": 401,
+          "item_line": 402,
           "item_preview": "AgentHandoffAccepted {",
           "containing_symbol": null,
           "doc_preview": "Handoff completed; target agent resumed work.",
@@ -72672,8 +72904,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 396,
-          "item_line": 397,
+          "doc_line": 415,
+          "item_line": 416,
           "item_preview": "UrgentRebalanceTriggered {",
           "containing_symbol": null,
           "doc_preview": "Load balancer moved tasks due to urgent queue depth.",
@@ -72681,8 +72913,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 400,
-          "item_line": 401,
+          "doc_line": 419,
+          "item_line": 420,
           "item_preview": "TokenStreamed {",
           "containing_symbol": null,
           "doc_preview": "Streaming LLM token chunk (debug / UI).",
@@ -72690,8 +72922,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 404,
-          "item_line": 412,
+          "doc_line": 423,
+          "item_line": 431,
           "item_preview": "session_id: Option<String>,",
           "containing_symbol": null,
           "doc_preview": "Chat session this token belongs to (Task G1). `None` for the",
@@ -72699,8 +72931,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 405,
-          "item_line": 412,
+          "doc_line": 424,
+          "item_line": 431,
           "item_preview": "session_id: Option<String>,",
           "containing_symbol": null,
           "doc_preview": "pre-existing background-task streaming path",
@@ -72708,8 +72940,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 406,
-          "item_line": 412,
+          "doc_line": 425,
+          "item_line": 431,
           "item_preview": "session_id: Option<String>,",
           "containing_symbol": null,
           "doc_preview": "(`Orchestrator::run_phase_stream_with_bus`), which has no chat",
@@ -72717,8 +72949,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 407,
-          "item_line": 412,
+          "doc_line": 426,
+          "item_line": 431,
           "item_preview": "session_id: Option<String>,",
           "containing_symbol": null,
           "doc_preview": "session concept — only the sync `vox_chat_message` path",
@@ -72726,8 +72958,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 408,
-          "item_line": 412,
+          "doc_line": 427,
+          "item_line": 431,
           "item_preview": "session_id: Option<String>,",
           "containing_symbol": null,
           "doc_preview": "(`agent_loop::run_agent_turn`) sets this, so the frontend's",
@@ -72735,8 +72967,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 409,
-          "item_line": 412,
+          "doc_line": 428,
+          "item_line": 431,
           "item_preview": "session_id: Option<String>,",
           "containing_symbol": null,
           "doc_preview": "`resolveSessionForEvent` can route the frame directly instead of",
@@ -72744,8 +72976,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 410,
-          "item_line": 412,
+          "doc_line": 429,
+          "item_line": 431,
           "item_preview": "session_id: Option<String>,",
           "containing_symbol": null,
           "doc_preview": "falling back to the `agentToTask` scan.",
@@ -72753,8 +72985,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 414,
-          "item_line": 417,
+          "doc_line": 433,
+          "item_line": 436,
           "item_preview": "GroundingCheckCompleted {",
           "containing_symbol": null,
           "doc_preview": "Opt-in, non-blocking post-reply grounding/hallucination check",
@@ -72762,8 +72994,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 415,
-          "item_line": 417,
+          "doc_line": 434,
+          "item_line": 436,
           "item_preview": "GroundingCheckCompleted {",
           "containing_symbol": null,
           "doc_preview": "(chat gate policy) completed for a chat task. Never delays the",
@@ -72771,8 +73003,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 416,
-          "item_line": 417,
+          "doc_line": 435,
+          "item_line": 436,
           "item_preview": "GroundingCheckCompleted {",
           "containing_symbol": null,
           "doc_preview": "reply — it is emitted after the reply has already streamed.",
@@ -72780,8 +73012,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 424,
-          "item_line": 425,
+          "doc_line": 443,
+          "item_line": 444,
           "item_preview": "InjectionDetected {",
           "containing_symbol": null,
           "doc_preview": "Prompt injection / safety gate rejected input (MCP).",
@@ -72789,8 +73021,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 428,
-          "item_line": 429,
+          "doc_line": 447,
+          "item_line": 448,
           "item_preview": "PromptConflictDetected {",
           "containing_symbol": null,
           "doc_preview": "Canonicalized prompt produced warnings (MCP task submit).",
@@ -72798,8 +73030,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 433,
-          "item_line": 434,
+          "doc_line": 452,
+          "item_line": 453,
           "item_preview": "PlanningRouted {",
           "containing_symbol": null,
           "doc_preview": "Planning router chose a strategy for a submitted goal.",
@@ -72807,8 +73039,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 440,
-          "item_line": 441,
+          "doc_line": 459,
+          "item_line": 460,
           "item_preview": "PlanSessionCreated {",
           "containing_symbol": null,
           "doc_preview": "A new plan session was created.",
@@ -72816,8 +73048,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 446,
-          "item_line": 447,
+          "doc_line": 465,
+          "item_line": 466,
           "item_preview": "PlanVersionCreated {",
           "containing_symbol": null,
           "doc_preview": "A branch/replan version was created.",
@@ -72825,8 +73057,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 452,
-          "item_line": 453,
+          "doc_line": 471,
+          "item_line": 472,
           "item_preview": "ReplanTriggered {",
           "containing_symbol": null,
           "doc_preview": "Failure triggered a replan branch.",
@@ -72834,8 +73066,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 459,
-          "item_line": 460,
+          "doc_line": 478,
+          "item_line": 479,
           "item_preview": "WorkflowHandoffRequested {",
           "containing_symbol": null,
           "doc_preview": "Planner requested workflow runtime handoff.",
@@ -72843,8 +73075,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 464,
-          "item_line": 465,
+          "doc_line": 483,
+          "item_line": 484,
           "item_preview": "WorkflowHandoffCompleted {",
           "containing_symbol": null,
           "doc_preview": "Workflow handoff finished and yielded a task id.",
@@ -72852,8 +73084,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 469,
-          "item_line": 470,
+          "doc_line": 488,
+          "item_line": 489,
           "item_preview": "WorkflowStarted {",
           "containing_symbol": null,
           "doc_preview": "Durable workflow lifecycle (MCP / dashboard).",
@@ -72861,8 +73093,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 498,
-          "item_line": 499,
+          "doc_line": 517,
+          "item_line": 518,
           "item_preview": "EndpointReliabilityObservation {",
           "containing_symbol": null,
           "doc_preview": "Endpoint reliability observation from LLM call (feeds EWMA in Codex).",
@@ -72870,8 +73102,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 500,
-          "item_line": 501,
+          "doc_line": 519,
+          "item_line": 520,
           "item_preview": "endpoint_url: String,",
           "containing_symbol": null,
           "doc_preview": "Provider endpoint URL.",
@@ -72879,8 +73111,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 502,
-          "item_line": 503,
+          "doc_line": 521,
+          "item_line": 522,
           "item_preview": "model_id: String,",
           "containing_symbol": null,
           "doc_preview": "Model identifier.",
@@ -72888,8 +73120,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 504,
-          "item_line": 505,
+          "doc_line": 523,
+          "item_line": 524,
           "item_preview": "hallucination_proxy: f64,",
           "containing_symbol": null,
           "doc_preview": "Proxy signal for hallucination risk (0.0–1.0).",
@@ -72897,8 +73129,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 506,
-          "item_line": 507,
+          "doc_line": 525,
+          "item_line": 526,
           "item_preview": "contradiction_ratio: f64,",
           "containing_symbol": null,
           "doc_preview": "Ratio of contradictory claims detected (0.0–1.0).",
@@ -72906,8 +73138,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 508,
-          "item_line": 509,
+          "doc_line": 527,
+          "item_line": 528,
           "item_preview": "infra_failure: f64,",
           "containing_symbol": null,
           "doc_preview": "1.0 for infra failures (rate-limit/timeout), 0.0 otherwise.",
@@ -72915,8 +73147,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 510,
-          "item_line": 511,
+          "doc_line": 529,
+          "item_line": 530,
           "item_preview": "rate_limit_hit: bool,",
           "containing_symbol": null,
           "doc_preview": "True when the failure was a rate-limit response.",
@@ -72924,8 +73156,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 512,
-          "item_line": 513,
+          "doc_line": 531,
+          "item_line": 532,
           "item_preview": "timeout_hit: bool,",
           "containing_symbol": null,
           "doc_preview": "True when the call timed out.",
@@ -72933,8 +73165,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 515,
-          "item_line": 516,
+          "doc_line": 534,
+          "item_line": 535,
           "item_preview": "OrchestratorIdle {",
           "containing_symbol": null,
           "doc_preview": "The entire orchestrator (all agents) has been idle.",
@@ -72942,8 +73174,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 517,
-          "item_line": 518,
+          "doc_line": 536,
+          "item_line": 537,
           "item_preview": "idle_ms: u64,",
           "containing_symbol": null,
           "doc_preview": "Milliseconds of absolute silence across all agents.",
@@ -72951,8 +73183,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 520,
-          "item_line": 521,
+          "doc_line": 539,
+          "item_line": 540,
           "item_preview": "TaskExpired {",
           "containing_symbol": null,
           "doc_preview": "A task was timed out and removed from the queue.",
@@ -72960,8 +73192,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 522,
-          "item_line": 523,
+          "doc_line": 541,
+          "item_line": 542,
           "item_preview": "task_id: TaskId,",
           "containing_symbol": null,
           "doc_preview": "Expired task ID.",
@@ -72969,8 +73201,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 524,
-          "item_line": 525,
+          "doc_line": 543,
+          "item_line": 544,
           "item_preview": "agent_id: AgentId,",
           "containing_symbol": null,
           "doc_preview": "Agent ID that was holding it.",
@@ -72978,8 +73210,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 526,
-          "item_line": 527,
+          "doc_line": 545,
+          "item_line": 546,
           "item_preview": "age_ms: u64,",
           "containing_symbol": null,
           "doc_preview": "Age in milliseconds.",
@@ -72987,8 +73219,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 530,
-          "item_line": 531,
+          "doc_line": 549,
+          "item_line": 550,
           "item_preview": "MensObserverObservation {",
           "containing_symbol": null,
           "doc_preview": "OAPV Observer anomaly detected (mens_observer_observations) for MCP dashboards.",
@@ -72996,8 +73228,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 537,
-          "item_line": 538,
+          "doc_line": 556,
+          "item_line": 557,
           "item_preview": "AutoHealApplied {",
           "containing_symbol": null,
           "doc_preview": "AST Healing was applied automatically on a file.",
@@ -73005,8 +73237,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 540,
-          "item_line": 541,
+          "doc_line": 559,
+          "item_line": 560,
           "item_preview": "path: PathBuf,",
           "containing_symbol": null,
           "doc_preview": "Path of the healed file",
@@ -73014,8 +73246,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 542,
-          "item_line": 543,
+          "doc_line": 561,
+          "item_line": 562,
           "item_preview": "description: String,",
           "containing_symbol": null,
           "doc_preview": "Description of the healing action",
@@ -73023,8 +73255,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 544,
-          "item_line": 545,
+          "doc_line": 563,
+          "item_line": 564,
           "item_preview": "new_source: String,",
           "containing_symbol": null,
           "doc_preview": "The new source after healing",
@@ -73032,8 +73264,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 547,
-          "item_line": 548,
+          "doc_line": 566,
+          "item_line": 567,
           "item_preview": "AutoHealSuggested {",
           "containing_symbol": null,
           "doc_preview": "A fix was suggested automatically for a diagnostic error.",
@@ -73041,8 +73273,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 555,
-          "item_line": 556,
+          "doc_line": 574,
+          "item_line": 575,
           "item_preview": "AttentionBudgetAlert {",
           "containing_symbol": null,
           "doc_preview": "Attention budget threshold alert",
@@ -73050,8 +73282,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 562,
-          "item_line": 563,
+          "doc_line": 581,
+          "item_line": 582,
           "item_preview": "BudgetAlert {",
           "containing_symbol": null,
           "doc_preview": "A general budget alert for tokens/cost self-correction",
@@ -73059,8 +73291,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 567,
-          "item_line": 568,
+          "doc_line": 586,
+          "item_line": 587,
           "item_preview": "AttentionBudgetReset {",
           "containing_symbol": null,
           "doc_preview": "Attention budget was explicitly reset",
@@ -73068,8 +73300,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 573,
-          "item_line": 574,
+          "doc_line": 592,
+          "item_line": 593,
           "item_preview": "TrustOverride {",
           "containing_symbol": null,
           "doc_preview": "Agent trust level was manually overridden",
@@ -73077,8 +73309,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 579,
-          "item_line": 580,
+          "doc_line": 598,
+          "item_line": 599,
           "item_preview": "AttentionConfigReloaded,",
           "containing_symbol": null,
           "doc_preview": "Attention policy configuration was hot-reloaded",
@@ -73086,8 +73318,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 582,
-          "item_line": 583,
+          "doc_line": 601,
+          "item_line": 602,
           "item_preview": "ContextTruncated {",
           "containing_symbol": null,
           "doc_preview": "Warning emitted when context bytes are dropped due to limits",
@@ -73095,8 +73327,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 589,
-          "item_line": 590,
+          "doc_line": 608,
+          "item_line": 609,
           "item_preview": "LlmCallCompleted {",
           "containing_symbol": null,
           "doc_preview": "LLM request completed inside planning or context phases",
@@ -73104,8 +73336,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 596,
-          "item_line": 597,
+          "doc_line": 615,
+          "item_line": 616,
           "item_preview": "ObservationRecorded {",
           "containing_symbol": null,
           "doc_preview": "Observer recorded a structural health report for a file (Task 56).",
@@ -73113,8 +73345,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 606,
-          "item_line": 607,
+          "doc_line": 625,
+          "item_line": 626,
           "item_preview": "OrientCompleted {",
           "containing_symbol": null,
           "doc_preview": "The Orient phase completed its risk analysis.",
@@ -73122,8 +73354,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 613,
-          "item_line": 614,
+          "doc_line": 632,
+          "item_line": 633,
           "item_preview": "ResearchExecuted {",
           "containing_symbol": null,
           "doc_preview": "Autonomous research was performed (Tavily).",
@@ -73131,8 +73363,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 620,
-          "item_line": 621,
+          "doc_line": 639,
+          "item_line": 640,
           "item_preview": "ResearchSynthesisExecuted {",
           "containing_symbol": null,
           "doc_preview": "Lane G synthesized research evidence.",
@@ -73140,8 +73372,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 631,
-          "item_line": 632,
+          "doc_line": 650,
+          "item_line": 651,
           "item_preview": "DoubtReported {",
           "containing_symbol": null,
           "doc_preview": "A task was flagged for potential drift or doubt (Doom-loop protection).",
@@ -73149,8 +73381,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 637,
-          "item_line": 638,
+          "doc_line": 656,
+          "item_line": 657,
           "item_preview": "SemanticDriftDetected {",
           "containing_symbol": null,
           "doc_preview": "Semantic drift was confirmed; agent may be halted.",
@@ -73158,8 +73390,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 647,
-          "item_line": 650,
+          "doc_line": 666,
+          "item_line": 669,
           "item_preview": "BuildStage {",
           "containing_symbol": null,
           "doc_preview": "A compiler stage transitioned (lex → parse → hir → typecheck → codegen).",
@@ -73167,63 +73399,9 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 648,
-          "item_line": 650,
-          "item_preview": "BuildStage {",
-          "containing_symbol": null,
-          "doc_preview": "",
-          "comment_type": "outer_doc",
-          "quality_tag": "mechanical"
-        },
-        {
-          "doc_line": 649,
-          "item_line": 650,
-          "item_preview": "BuildStage {",
-          "containing_symbol": null,
-          "doc_preview": "Powers the Forge pipeline view on the dashboard.",
-          "comment_type": "outer_doc",
-          "quality_tag": "mechanical"
-        },
-        {
-          "doc_line": 658,
-          "item_line": 661,
-          "item_preview": "ThroughputTick {",
-          "containing_symbol": null,
-          "doc_preview": "Throttled ~1 Hz throughput tick for mesh activity / status-bar queue indicator.",
-          "comment_type": "outer_doc",
-          "quality_tag": "narrative"
-        },
-        {
-          "doc_line": 659,
-          "item_line": 661,
-          "item_preview": "ThroughputTick {",
-          "containing_symbol": null,
-          "doc_preview": "",
-          "comment_type": "outer_doc",
-          "quality_tag": "mechanical"
-        },
-        {
-          "doc_line": 660,
-          "item_line": 661,
-          "item_preview": "ThroughputTick {",
-          "containing_symbol": null,
-          "doc_preview": "Powers the Mesh activity strip and status-bar queue indicator.",
-          "comment_type": "outer_doc",
-          "quality_tag": "narrative"
-        },
-        {
-          "doc_line": 666,
-          "item_line": 669,
-          "item_preview": "CostTick {",
-          "containing_symbol": null,
-          "doc_preview": "Per-model cost tick emitted when cost crosses a batching boundary.",
-          "comment_type": "outer_doc",
-          "quality_tag": "narrative"
-        },
-        {
           "doc_line": 667,
           "item_line": 669,
-          "item_preview": "CostTick {",
+          "item_preview": "BuildStage {",
           "containing_symbol": null,
           "doc_preview": "",
           "comment_type": "outer_doc",
@@ -73232,6 +73410,60 @@
         {
           "doc_line": 668,
           "item_line": 669,
+          "item_preview": "BuildStage {",
+          "containing_symbol": null,
+          "doc_preview": "Powers the Forge pipeline view on the dashboard.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 677,
+          "item_line": 680,
+          "item_preview": "ThroughputTick {",
+          "containing_symbol": null,
+          "doc_preview": "Throttled ~1 Hz throughput tick for mesh activity / status-bar queue indicator.",
+          "comment_type": "outer_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 678,
+          "item_line": 680,
+          "item_preview": "ThroughputTick {",
+          "containing_symbol": null,
+          "doc_preview": "",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 679,
+          "item_line": 680,
+          "item_preview": "ThroughputTick {",
+          "containing_symbol": null,
+          "doc_preview": "Powers the Mesh activity strip and status-bar queue indicator.",
+          "comment_type": "outer_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 685,
+          "item_line": 688,
+          "item_preview": "CostTick {",
+          "containing_symbol": null,
+          "doc_preview": "Per-model cost tick emitted when cost crosses a batching boundary.",
+          "comment_type": "outer_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 686,
+          "item_line": 688,
+          "item_preview": "CostTick {",
+          "containing_symbol": null,
+          "doc_preview": "",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 687,
+          "item_line": 688,
           "item_preview": "CostTick {",
           "containing_symbol": null,
           "doc_preview": "Powers the Models cost horizon and status-bar cost display.",
@@ -73239,8 +73471,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 675,
-          "item_line": 678,
+          "doc_line": 694,
+          "item_line": 697,
           "item_preview": "FileDiagChanged {",
           "containing_symbol": null,
           "doc_preview": "A file's diagnostic counts changed.",
@@ -73248,8 +73480,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 676,
-          "item_line": 678,
+          "doc_line": 695,
+          "item_line": 697,
           "item_preview": "FileDiagChanged {",
           "containing_symbol": null,
           "doc_preview": "",
@@ -73257,8 +73489,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 677,
-          "item_line": 678,
+          "doc_line": 696,
+          "item_line": 697,
           "item_preview": "FileDiagChanged {",
           "containing_symbol": null,
           "doc_preview": "Powers the Code surface file-tree diagnostic dots.",
@@ -73266,8 +73498,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 683,
-          "item_line": 686,
+          "doc_line": 702,
+          "item_line": 705,
           "item_preview": "MeshTopologyChanged {",
           "containing_symbol": null,
           "doc_preview": "Mesh topology changed: agents joined/left or an edge became active/inactive.",
@@ -73275,8 +73507,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 684,
-          "item_line": 686,
+          "doc_line": 703,
+          "item_line": 705,
           "item_preview": "MeshTopologyChanged {",
           "containing_symbol": null,
           "doc_preview": "",
@@ -73284,8 +73516,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 685,
-          "item_line": 686,
+          "doc_line": 704,
+          "item_line": 705,
           "item_preview": "MeshTopologyChanged {",
           "containing_symbol": null,
           "doc_preview": "Powers the Mesh topology re-render on the dashboard.",
@@ -73293,8 +73525,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 695,
-          "item_line": 696,
+          "doc_line": 714,
+          "item_line": 715,
           "item_preview": "TaskReprioritized {",
           "containing_symbol": null,
           "doc_preview": "Emitted when a developer or policy reorders a task in flight.",
@@ -73302,8 +73534,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 705,
-          "item_line": 706,
+          "doc_line": 724,
+          "item_line": 725,
           "item_preview": "HopperItemAdmitted {",
           "containing_symbol": null,
           "doc_preview": "Emitted when the hopper admits an intake item and binds it to an agent queue.",
@@ -73311,8 +73543,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 714,
-          "item_line": 715,
+          "doc_line": 733,
+          "item_line": 734,
           "item_preview": "HopperItemOverridden {",
           "containing_symbol": null,
           "doc_preview": "Emitted when a developer overrides the orchestrator's classified priority.",
@@ -73320,8 +73552,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 722,
-          "item_line": 723,
+          "doc_line": 741,
+          "item_line": 742,
           "item_preview": "HopperItemCancelled {",
           "containing_symbol": null,
           "doc_preview": "Emitted when a developer cancels an item in the hopper.",
@@ -73329,8 +73561,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 730,
-          "item_line": 732,
+          "doc_line": 749,
+          "item_line": 751,
           "item_preview": "MeshNodeBudget {",
           "containing_symbol": null,
           "doc_preview": "Per-node budget tick — emitted at most once per second per node.",
@@ -73338,8 +73570,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 731,
-          "item_line": 732,
+          "doc_line": 750,
+          "item_line": 751,
           "item_preview": "MeshNodeBudget {",
           "containing_symbol": null,
           "doc_preview": "Powers the spend gauges (P4-T6) on the topology canvas.",
@@ -73347,8 +73579,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 739,
-          "item_line": 741,
+          "doc_line": 758,
+          "item_line": 760,
           "item_preview": "MeshActionCommitted {",
           "containing_symbol": null,
           "doc_preview": "A destructive mesh action (kill/pause/drain/replay) was committed.",
@@ -73356,8 +73588,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 740,
-          "item_line": 741,
+          "doc_line": 759,
+          "item_line": 760,
           "item_preview": "MeshActionCommitted {",
           "containing_symbol": null,
           "doc_preview": "Always paired with a signed audit-log entry.",
@@ -73365,8 +73597,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 751,
-          "item_line": 754,
+          "doc_line": 770,
+          "item_line": 773,
           "item_preview": "PavPhaseChanged {",
           "containing_symbol": null,
           "doc_preview": "A task's PAV (Plan/Act/Verify) phase advanced. Distinct from",
@@ -73374,8 +73606,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 752,
-          "item_line": 754,
+          "doc_line": 771,
+          "item_line": 773,
           "item_preview": "PavPhaseChanged {",
           "containing_symbol": null,
           "doc_preview": "`TaskPhaseChanged` which carries the OOPAV debug phase (`TaskPhase`).",
@@ -73383,8 +73615,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 753,
-          "item_line": 754,
+          "doc_line": 772,
+          "item_line": 773,
           "item_preview": "PavPhaseChanged {",
           "containing_symbol": null,
           "doc_preview": "The GUI subscribes via the same agent-events broadcast stream.",
@@ -73392,8 +73624,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 760,
-          "item_line": 763,
+          "doc_line": 779,
+          "item_line": 782,
           "item_preview": "pub enum MeshAction {",
           "containing_symbol": null,
           "doc_preview": "Destructive mesh actions that trigger a confirmation modal and signed audit-log entry.",
@@ -73401,8 +73633,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 802,
-          "item_line": 807,
+          "doc_line": 821,
+          "item_line": 826,
           "item_preview": "pub fn is_tier_a(kind: &AgentEventKind) -> bool {",
           "containing_symbol": null,
           "doc_preview": "Returns `true` if `kind` is a **Tier A** event: a dispatch-lifecycle",
@@ -73410,8 +73642,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 803,
-          "item_line": 807,
+          "doc_line": 822,
+          "item_line": 826,
           "item_preview": "pub fn is_tier_a(kind: &AgentEventKind) -> bool {",
           "containing_symbol": null,
           "doc_preview": "transition that must be durably recorded (via `Orchestrator::record_operation`)",
@@ -73419,8 +73651,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 804,
-          "item_line": 807,
+          "doc_line": 823,
+          "item_line": 826,
           "item_preview": "pub fn is_tier_a(kind: &AgentEventKind) -> bool {",
           "containing_symbol": null,
           "doc_preview": "*before* being broadcast on the [`EventBus`]. See the module-level tier",
@@ -73428,8 +73660,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 805,
-          "item_line": 807,
+          "doc_line": 824,
+          "item_line": 826,
           "item_preview": "pub fn is_tier_a(kind: &AgentEventKind) -> bool {",
           "containing_symbol": null,
           "doc_preview": "documentation above.",
@@ -73437,8 +73669,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 906,
-          "item_line": 920,
+          "doc_line": 926,
+          "item_line": 940,
           "item_preview": "pub const TIER_B_KIND_NAMES: &[&str] = &[",
           "containing_symbol": null,
           "doc_preview": "Bare variant names of every Tier-B `AgentEventKind` (the `false` arms of",
@@ -73446,8 +73678,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 907,
-          "item_line": 920,
+          "doc_line": 927,
+          "item_line": 940,
           "item_preview": "pub const TIER_B_KIND_NAMES: &[&str] = &[",
           "containing_symbol": null,
           "doc_preview": "[`is_tier_a`]), for consumers that need the set as strings rather than",
@@ -73455,8 +73687,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 908,
-          "item_line": 920,
+          "doc_line": 928,
+          "item_line": 940,
           "item_preview": "pub const TIER_B_KIND_NAMES: &[&str] = &[",
           "containing_symbol": null,
           "doc_preview": "pattern-matchable values (e.g. `tests/tier_b_never_durable_guard.rs`'s",
@@ -73464,8 +73696,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 909,
-          "item_line": 920,
+          "doc_line": 929,
+          "item_line": 940,
           "item_preview": "pub const TIER_B_KIND_NAMES: &[&str] = &[",
           "containing_symbol": null,
           "doc_preview": "source-grep, which checks for these names appearing as `OperationKind::`",
@@ -73473,8 +73705,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 910,
-          "item_line": 920,
+          "doc_line": 930,
+          "item_line": 940,
           "item_preview": "pub const TIER_B_KIND_NAMES: &[&str] = &[",
           "containing_symbol": null,
           "doc_preview": "constructor arguments at durable-write call sites — `OperationKind` is a",
@@ -73482,8 +73714,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 911,
-          "item_line": 920,
+          "doc_line": 931,
+          "item_line": 940,
           "item_preview": "pub const TIER_B_KIND_NAMES: &[&str] = &[",
           "containing_symbol": null,
           "doc_preview": "different, `#[non_exhaustive]` enum in another crate with no structural",
@@ -73491,8 +73723,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 912,
-          "item_line": 920,
+          "doc_line": 932,
+          "item_line": 940,
           "item_preview": "pub const TIER_B_KIND_NAMES: &[&str] = &[",
           "containing_symbol": null,
           "doc_preview": "link to `AgentEventKind`, so this can't be derived via a shared trait/derive",
@@ -73500,8 +73732,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 913,
-          "item_line": 920,
+          "doc_line": 933,
+          "item_line": 940,
           "item_preview": "pub const TIER_B_KIND_NAMES: &[&str] = &[",
           "containing_symbol": null,
           "doc_preview": "without adding an `EnumIter`-style dependency).",
@@ -73509,8 +73741,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 914,
-          "item_line": 920,
+          "doc_line": 934,
+          "item_line": 940,
           "item_preview": "pub const TIER_B_KIND_NAMES: &[&str] = &[",
           "containing_symbol": null,
           "doc_preview": "",
@@ -73518,8 +73750,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 915,
-          "item_line": 920,
+          "doc_line": 935,
+          "item_line": 940,
           "item_preview": "pub const TIER_B_KIND_NAMES: &[&str] = &[",
           "containing_symbol": null,
           "doc_preview": "**Keep in sync with [`is_tier_a`]'s match arms by hand** — there is no",
@@ -73527,8 +73759,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 916,
-          "item_line": 920,
+          "doc_line": 936,
+          "item_line": 940,
           "item_preview": "pub const TIER_B_KIND_NAMES: &[&str] = &[",
           "containing_symbol": null,
           "doc_preview": "compiler enforcement linking this list to the match. If you add a new",
@@ -73536,8 +73768,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 917,
-          "item_line": 920,
+          "doc_line": 937,
+          "item_line": 940,
           "item_preview": "pub const TIER_B_KIND_NAMES: &[&str] = &[",
           "containing_symbol": null,
           "doc_preview": "`AgentEventKind` variant, update `is_tier_a`'s match (compiler-enforced,",
@@ -73545,8 +73777,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 918,
-          "item_line": 920,
+          "doc_line": 938,
+          "item_line": 940,
           "item_preview": "pub const TIER_B_KIND_NAMES: &[&str] = &[",
           "containing_symbol": null,
           "doc_preview": "since it's exhaustive) *and*, if the variant is Tier B, add its name here.",
@@ -73554,8 +73786,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 947,
-          "item_line": 950,
+          "doc_line": 967,
+          "item_line": 970,
           "item_preview": "pub fn is_tier_b(kind: &AgentEventKind) -> bool {",
           "containing_symbol": null,
           "doc_preview": "Returns `true` if `kind` is a **Tier B** event (broadcast-only, never",
@@ -73563,8 +73795,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 948,
-          "item_line": 950,
+          "doc_line": 968,
+          "item_line": 970,
           "item_preview": "pub fn is_tier_b(kind: &AgentEventKind) -> bool {",
           "containing_symbol": null,
           "doc_preview": "durably journaled). The exact complement of [`is_tier_a`].",
@@ -73572,8 +73804,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 958,
-          "item_line": 963,
+          "doc_line": 978,
+          "item_line": 983,
           "item_preview": "pub struct EventBus {",
           "containing_symbol": null,
           "doc_preview": "Thread-safe event bus for broadcasting agent events.",
@@ -73581,8 +73813,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 959,
-          "item_line": 963,
+          "doc_line": 979,
+          "item_line": 983,
           "item_preview": "pub struct EventBus {",
           "containing_symbol": null,
           "doc_preview": "",
@@ -73590,8 +73822,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 960,
-          "item_line": 963,
+          "doc_line": 980,
+          "item_line": 983,
           "item_preview": "pub struct EventBus {",
           "containing_symbol": null,
           "doc_preview": "Uses a tokio broadcast channel under the hood. Multiple consumers",
@@ -73599,8 +73831,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 961,
-          "item_line": 963,
+          "doc_line": 981,
+          "item_line": 983,
           "item_preview": "pub struct EventBus {",
           "containing_symbol": null,
           "doc_preview": "(dashboard, monitor, gamify hooks) can subscribe independently.",
@@ -73608,8 +73840,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 969,
-          "item_line": 970,
+          "doc_line": 989,
+          "item_line": 990,
           "item_preview": "pub fn new(capacity: usize) -> Self {",
           "containing_symbol": null,
           "doc_preview": "Create a new event bus with the given channel capacity.",
@@ -73617,8 +73849,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 978,
-          "item_line": 979,
+          "doc_line": 998,
+          "item_line": 999,
           "item_preview": "pub fn emit(&self, kind: AgentEventKind) -> EventId {",
           "containing_symbol": null,
           "doc_preview": "Emit an event. Returns the assigned EventId.",
@@ -73626,8 +73858,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 997,
-          "item_line": 998,
+          "doc_line": 1017,
+          "item_line": 1018,
           "item_preview": "pub fn subscribe(&self) -> broadcast::Receiver<AgentEvent> {",
           "containing_symbol": null,
           "doc_preview": "Subscribe to events. Returns a receiver for all future events.",
@@ -73635,8 +73867,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 1002,
-          "item_line": 1003,
+          "doc_line": 1022,
+          "item_line": 1023,
           "item_preview": "pub fn subscriber_count(&self) -> usize {",
           "containing_symbol": null,
           "doc_preview": "Number of active subscribers.",
@@ -73644,8 +73876,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 1007,
-          "item_line": 1008,
+          "doc_line": 1027,
+          "item_line": 1028,
           "item_preview": "pub fn next_event_id(&self) -> u64 {",
           "containing_symbol": null,
           "doc_preview": "Get the next event ID that will be assigned.",
@@ -73653,8 +73885,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 1190,
-          "item_line": 1196,
+          "doc_line": 1210,
+          "item_line": 1216,
           "item_preview": "fn token_streamed_carries_session_id_when_set() {",
           "containing_symbol": null,
           "doc_preview": "Task G1: the sync chat path needs `TokenStreamed` to carry `session_id`",
@@ -73662,8 +73894,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 1191,
-          "item_line": 1196,
+          "doc_line": 1211,
+          "item_line": 1216,
           "item_preview": "fn token_streamed_carries_session_id_when_set() {",
           "containing_symbol": null,
           "doc_preview": "so the GUI's `resolveSessionForEvent` can route a frame directly to the",
@@ -73671,8 +73903,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 1192,
-          "item_line": 1196,
+          "doc_line": 1212,
+          "item_line": 1216,
           "item_preview": "fn token_streamed_carries_session_id_when_set() {",
           "containing_symbol": null,
           "doc_preview": "chat bubble, instead of only being reachable via the background-task",
@@ -73680,8 +73912,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 1193,
-          "item_line": 1196,
+          "doc_line": 1213,
+          "item_line": 1216,
           "item_preview": "fn token_streamed_carries_session_id_when_set() {",
           "containing_symbol": null,
           "doc_preview": "`agentToTask` scan. Field must serialize (not `skip_serializing_if`",
@@ -73689,8 +73921,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 1194,
-          "item_line": 1196,
+          "doc_line": 1214,
+          "item_line": 1216,
           "item_preview": "fn token_streamed_carries_session_id_when_set() {",
           "containing_symbol": null,
           "doc_preview": "away a `Some`) so the wire frame the GUI reads actually carries it.",
@@ -73698,8 +73930,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 1220,
-          "item_line": 1225,
+          "doc_line": 1240,
+          "item_line": 1245,
           "item_preview": "fn token_streamed_omits_session_id_when_absent() {",
           "containing_symbol": null,
           "doc_preview": "`session_id: None` (the pre-existing background-task streaming path)",
@@ -73707,8 +73939,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 1221,
-          "item_line": 1225,
+          "doc_line": 1241,
+          "item_line": 1245,
           "item_preview": "fn token_streamed_omits_session_id_when_absent() {",
           "containing_symbol": null,
           "doc_preview": "must NOT serialize a `session_id` key at all — additive change,",
@@ -73716,8 +73948,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 1222,
-          "item_line": 1225,
+          "doc_line": 1242,
+          "item_line": 1245,
           "item_preview": "fn token_streamed_omits_session_id_when_absent() {",
           "containing_symbol": null,
           "doc_preview": "existing consumers that don't know the field must see the same wire",
@@ -73725,8 +73957,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 1223,
-          "item_line": 1225,
+          "doc_line": 1243,
+          "item_line": 1245,
           "item_preview": "fn token_streamed_omits_session_id_when_absent() {",
           "containing_symbol": null,
           "doc_preview": "shape as before.",
