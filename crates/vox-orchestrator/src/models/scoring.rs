@@ -7,6 +7,15 @@ const QUALITY_FREE_PAID_COMPONENT: f64 = 0.35;
 const QUALITY_PAID_COMPONENT: f64 = 0.95;
 const QUALITY_TOKEN_WEIGHT: f64 = 0.6;
 const QUALITY_PAID_WEIGHT: f64 = 0.4;
+/// Artificial Analysis intelligence-index value treated as quality 1.0 (the best model in
+/// OpenRouter's catalog scored 57.6 on 2026-09-28).
+// ponytail: fixed reference; derive from the registry maximum if the scale drifts.
+pub(super) const QUALITY_INDEX_REFERENCE: f64 = 60.0;
+/// Scale applied to the paid/free + context-length proxy for unbenchmarked OpenRouter models, so an
+/// unknown long-tail model cannot outrank a strongly benchmarked one on the proxy alone. Only
+/// OpenRouter's catalog carries the index; direct-provider and local models have no benchmark to
+/// be missing, so their proxy is left unscaled (scaling it demoted every Anthropic-direct flagship).
+pub(super) const UNBENCHMARKED_QUALITY_SCALE: f64 = 0.6;
 const EFFICIENCY_COST_SCALER: f64 = 100.0;
 pub(super) const COMPLEXITY_HIGH_CUTOFF: u8 = 8;
 const COMPLEXITY_LOW_CUTOFF: u8 = 3;
@@ -151,13 +160,21 @@ pub(super) fn model_budget_hint(
 
 #[must_use]
 pub(super) fn quality_score(m: &ModelSpec) -> f64 {
+    if let Some(i) = m.capabilities.intelligence_index {
+        return (f64::from(i) / QUALITY_INDEX_REFERENCE).clamp(0.0, 1.0);
+    }
     let token_component = (m.max_tokens as f64).log10().clamp(1.0, 7.0) / 7.0;
     let paid_component = if m.is_free {
         QUALITY_FREE_PAID_COMPONENT
     } else {
         QUALITY_PAID_COMPONENT
     };
-    ((token_component * QUALITY_TOKEN_WEIGHT) + (paid_component * QUALITY_PAID_WEIGHT))
+    let scale = if m.provider_type == crate::models::ProviderType::OpenRouter {
+        UNBENCHMARKED_QUALITY_SCALE
+    } else {
+        1.0
+    };
+    (((token_component * QUALITY_TOKEN_WEIGHT) + (paid_component * QUALITY_PAID_WEIGHT)) * scale)
         .clamp(0.0, 1.0)
 }
 
@@ -859,6 +876,38 @@ mod tests {
             "applying the Exceeds penalty on top of the no-signal score must \
              strictly lower it — it must never cancel out to neutral"
         );
+    }
+    #[test]
+    fn quality_score_follows_the_live_intelligence_index() {
+        let mut hi = make_spec(ProviderType::OpenRouter, 1.0, false);
+        hi.capabilities.intelligence_index = Some(57.6);
+        let mut lo = make_spec(ProviderType::OpenRouter, 1.0, false);
+        lo.capabilities.intelligence_index = Some(37.3);
+        assert!(
+            quality_score(&hi) > quality_score(&lo),
+            "paid models must no longer score equal"
+        );
+        assert!((quality_score(&hi) - 57.6 / QUALITY_INDEX_REFERENCE).abs() < 1e-6);
+    }
+
+    #[test]
+    fn a_free_model_with_a_high_index_beats_a_paid_one_without() {
+        let mut free = make_spec(ProviderType::OpenRouter, 0.0, true);
+        free.capabilities.intelligence_index = Some(45.0);
+        let paid_unbenchmarked = make_spec(ProviderType::OpenRouter, 5.0, false);
+        assert!(quality_score(&free) > quality_score(&paid_unbenchmarked));
+    }
+
+    #[test]
+    fn unbenchmarked_quality_is_scaled_below_strong_benchmarked_models() {
+        let mut unknown = make_spec(ProviderType::OpenRouter, 1.0, false);
+        unknown.max_tokens = 1_000_000;
+        assert!(
+            quality_score(&unknown) > 0.0 && quality_score(&unknown) <= UNBENCHMARKED_QUALITY_SCALE
+        );
+        let mut strong = make_spec(ProviderType::OpenRouter, 1.0, false);
+        strong.capabilities.intelligence_index = Some(47.5);
+        assert!(quality_score(&strong) > quality_score(&unknown));
     }
 }
 

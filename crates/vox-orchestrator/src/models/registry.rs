@@ -763,7 +763,18 @@ impl ModelRegistry {
     }
 
     /// Register a new model specification.
-    pub fn register(&mut self, spec: ModelSpec) {
+    pub fn register(&mut self, mut spec: ModelSpec) {
+        if spec.capabilities.tier == super::ModelTier::Unknown
+            && !matches!(
+                spec.provider_type,
+                super::ProviderType::Ollama
+                    | super::ProviderType::PopuliMesh
+                    | super::ProviderType::VoxLocal
+            )
+        {
+            spec.capabilities.tier =
+                super::tiering::derive_tier(spec.is_free, spec.cost_per_1k_output);
+        }
         use super::spec::PricingSource;
         if let Some(existing) = self.models.get(&spec.id) {
             if existing.pricing_source == PricingSource::Telemetry {

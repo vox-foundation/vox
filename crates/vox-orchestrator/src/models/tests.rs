@@ -1498,3 +1498,76 @@ mod superseded_selection_tests {
         assert_eq!(pick(&r, |_| true), Some("acme/widget-4.8".to_string()));
     }
 }
+
+#[cfg(test)]
+mod tier_stamp_tests {
+    use crate::models::spec::PricingSource;
+    use crate::models::{ModelCapabilities, ModelRegistry, ModelSpec, ModelTier, ProviderType};
+
+    fn priced(id: &str, provider_type: ProviderType, out_per_1k: f64, is_free: bool) -> ModelSpec {
+        ModelSpec {
+            id: id.into(),
+            canonical_slug: id.into(),
+            provider: "test".into(),
+            provider_type,
+            max_tokens: 8192,
+            cost_per_1k: out_per_1k,
+            cost_per_1k_input: out_per_1k / 5.0,
+            cost_per_1k_output: out_per_1k,
+            is_free,
+            observed_cost_per_1k: None,
+            strengths: vec![],
+            capabilities: ModelCapabilities::default(),
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: PricingSource::OpenRouter,
+            supported_parameters: vec![],
+        }
+    }
+
+    #[test]
+    fn register_derives_the_tier_from_price_when_unknown() {
+        let mut r = ModelRegistry::default();
+        r.register(priced(
+            "acme/flagship",
+            ProviderType::OpenRouter,
+            0.025,
+            false,
+        ));
+        r.register(priced("acme/mid", ProviderType::OpenRouter, 0.010, false));
+        r.register(priced(
+            "acme/cheap",
+            ProviderType::OpenRouter,
+            0.0005,
+            false,
+        ));
+        assert_eq!(
+            r.get("acme/flagship").unwrap().capabilities.tier,
+            ModelTier::Elite
+        );
+        assert_eq!(r.get("acme/mid").unwrap().capabilities.tier, ModelTier::Pro);
+        assert_eq!(
+            r.get("acme/cheap").unwrap().capabilities.tier,
+            ModelTier::Fast
+        );
+    }
+
+    #[test]
+    fn register_keeps_an_explicit_tier_and_leaves_local_models_alone() {
+        let mut r = ModelRegistry::default();
+        let mut explicit = priced("acme/pinned", ProviderType::OpenRouter, 0.025, false);
+        explicit.capabilities.tier = ModelTier::Pro;
+        r.register(explicit);
+        r.register(priced("local/qwen", ProviderType::Ollama, 0.0, true));
+        assert_eq!(
+            r.get("acme/pinned").unwrap().capabilities.tier,
+            ModelTier::Pro
+        );
+        assert_ne!(
+            r.get("local/qwen").unwrap().capabilities.tier,
+            ModelTier::Free,
+            "local models are not cloud-free"
+        );
+    }
+}

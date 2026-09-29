@@ -18,6 +18,7 @@ pub mod select;
 pub mod spec;
 #[cfg(test)]
 mod tests;
+pub mod tiering;
 pub mod vram;
 
 pub use auto_select::{
