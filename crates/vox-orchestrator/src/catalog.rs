@@ -46,6 +46,11 @@ struct OpenRouterArtificialAnalysis {
 }
 
 #[derive(serde::Deserialize)]
+struct OpenRouterAliasTarget {
+    slug: String,
+}
+
+#[derive(serde::Deserialize)]
 struct OpenRouterModelData {
     id: String,
     pricing: OpenRouterPricing,
@@ -75,6 +80,8 @@ struct OpenRouterModelData {
     expiration_date: Option<String>,
     #[serde(default)]
     benchmarks: Option<OpenRouterBenchmarks>,
+    #[serde(default)]
+    alias_target: Option<OpenRouterAliasTarget>,
 }
 
 #[derive(serde::Deserialize)]
@@ -188,6 +195,13 @@ pub(crate) fn specs_from_openrouter_json_at(
     today: &str,
 ) -> anyhow::Result<Vec<ModelSpec>> {
     let body: OpenRouterModelsResponse = serde_json::from_str(json)?;
+    // `~vendor/…-latest` entries are skipped as models, but they name each line's current model.
+    let alias_targets: std::collections::HashSet<String> = body
+        .data
+        .iter()
+        .filter(|m| m.id.starts_with('~'))
+        .filter_map(|m| m.alias_target.as_ref().map(|t| t.slug.clone()))
+        .collect();
     let mut models = Vec::new();
 
     for m in body.data {
@@ -255,6 +269,7 @@ pub(crate) fn specs_from_openrouter_json_at(
                 .as_ref()
                 .and_then(|b| b.artificial_analysis.as_ref())
                 .and_then(|a| a.intelligence_index),
+            is_alias_target: alias_targets.contains(&m.id),
             ..Default::default()
         };
         let inferred = crate::models::infer_capabilities(
@@ -1619,5 +1634,27 @@ mod mens_catalog_tests {
             !mens_run_dir_is_listable(&run).expect("listable"),
             "checkpoint-* without serveable artifacts must not list"
         );
+    }
+
+    #[test]
+    fn alias_targets_are_flagged() {
+        let json = r#"{"data":[
+          {"id":"~acme/widget-latest","created":1780000000,"pricing":{"prompt":"0.000001","completion":"0.000002"},
+           "context_length":1000,"alias_target":{"name":"Widget","slug":"acme/widget-4.8"}},
+          {"id":"acme/widget-4.8","created":1700000000,"pricing":{"prompt":"0.000001","completion":"0.000002"},"context_length":1000},
+          {"id":"acme/widget-5.5","created":1760000000,"pricing":{"prompt":"0.000001","completion":"0.000002"},"context_length":1000}
+        ]}"#;
+        let specs = specs_from_openrouter_json_at(json, "2026-09-29").expect("parse");
+        let flag = |id: &str| {
+            specs
+                .iter()
+                .find(|s| s.id == id)
+                .unwrap()
+                .capabilities
+                .is_alias_target
+        };
+        assert!(flag("acme/widget-4.8"));
+        assert!(!flag("acme/widget-5.5"));
+        assert_eq!(specs.len(), 2, "the alias entry itself is still skipped");
     }
 }

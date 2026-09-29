@@ -1810,3 +1810,163 @@ mod routing_reference_tests {
         );
     }
 }
+
+#[cfg(test)]
+mod family_inheritance_tests {
+    use crate::models::reference::RoutingReference;
+    use crate::models::spec::{PricingSource, QualitySource};
+    use crate::models::{ModelCapabilities, ModelRegistry, ModelSpec, ProviderType, StrengthTag};
+
+    fn spec(
+        id: &str,
+        provider_type: ProviderType,
+        index: Option<f32>,
+        released_at: Option<u64>,
+    ) -> ModelSpec {
+        ModelSpec {
+            id: id.into(),
+            canonical_slug: id.into(),
+            provider: "test".into(),
+            provider_type,
+            max_tokens: 128_000,
+            cost_per_1k: 0.01,
+            cost_per_1k_input: 0.0025,
+            cost_per_1k_output: 0.01,
+            is_free: false,
+            observed_cost_per_1k: None,
+            strengths: vec![StrengthTag::Generalist],
+            capabilities: ModelCapabilities {
+                intelligence_index: index,
+                released_at,
+                ..Default::default()
+            },
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: PricingSource::OpenRouter,
+            supported_parameters: vec![],
+        }
+    }
+
+    fn prior_source(r: &ModelRegistry, id: &str) -> QualitySource {
+        r.get(id)
+            .unwrap()
+            .capabilities
+            .quality_prior
+            .unwrap()
+            .source
+    }
+
+    fn registry_with_benchmarked_5_0() -> ModelRegistry {
+        let mut r = ModelRegistry::default();
+        r.register(spec(
+            "acme/widget-5.0",
+            ProviderType::OpenRouter,
+            Some(38.0),
+            Some(1_750_000_000),
+        ));
+        r
+    }
+
+    #[test]
+    fn a_new_release_inherits_its_familys_benchmark() {
+        let mut r = registry_with_benchmarked_5_0();
+        r.register(spec(
+            "acme/widget-5.5",
+            ProviderType::OpenRouter,
+            None,
+            Some(1_760_000_000),
+        ));
+        r.apply_routing_reference();
+        assert_eq!(
+            prior_source(&r, "acme/widget-5.5"),
+            QualitySource::Inherited {
+                index: 38.0,
+                from: "acme/widget-5.0".into()
+            }
+        );
+        assert_eq!(
+            prior_source(&r, "acme/widget-5.0"),
+            QualitySource::Benchmark { index: 38.0 }
+        );
+    }
+
+    #[test]
+    fn a_direct_provider_model_joins_its_openrouter_family() {
+        let mut r = registry_with_benchmarked_5_0();
+        let mut direct = spec("widget-5-5-20260101", ProviderType::Anthropic, None, None);
+        direct.canonical_slug = "acme/widget-5-5-20260101".into();
+        direct.pricing_source = PricingSource::AnthropicDirect;
+        r.register(direct);
+        r.apply_routing_reference();
+        assert_eq!(
+            prior_source(&r, "widget-5-5-20260101"),
+            QualitySource::Inherited {
+                index: 38.0,
+                from: "acme/widget-5.0".into()
+            }
+        );
+    }
+
+    #[test]
+    fn local_models_never_inherit() {
+        let mut r = registry_with_benchmarked_5_0();
+        r.register(spec(
+            "acme/widget-5.9",
+            ProviderType::Ollama,
+            None,
+            Some(1_770_000_000),
+        ));
+        r.apply_routing_reference();
+        assert_eq!(prior_source(&r, "acme/widget-5.9"), QualitySource::Estimate);
+    }
+
+    #[test]
+    fn an_openrouter_inherited_prior_outranks_its_estimate() {
+        let mut r = registry_with_benchmarked_5_0();
+        let fresh = spec(
+            "acme/widget-5.5",
+            ProviderType::OpenRouter,
+            None,
+            Some(1_760_000_000),
+        );
+        let estimate = RoutingReference::FALLBACK.quality_prior(&fresh, None).value;
+        r.register(fresh);
+        r.apply_routing_reference();
+        let inherited = r
+            .get("acme/widget-5.5")
+            .unwrap()
+            .capabilities
+            .quality_prior
+            .unwrap()
+            .value;
+        assert!(inherited > estimate, "{inherited} vs {estimate}");
+    }
+
+    // The invariant is "same line, same prior, whichever key the user has"; for a
+    // direct-provider model inheritance can LOWER the prior (its unscaled context proxy is ~0.83).
+    #[test]
+    fn a_direct_model_scores_like_its_openrouter_sibling() {
+        let mut r = registry_with_benchmarked_5_0();
+        r.register(spec(
+            "acme/widget-5.5",
+            ProviderType::OpenRouter,
+            None,
+            Some(1_760_000_000),
+        ));
+        let mut direct = spec("widget-5-5-20260101", ProviderType::Anthropic, None, None);
+        direct.canonical_slug = "acme/widget-5-5-20260101".into();
+        direct.pricing_source = PricingSource::AnthropicDirect;
+        let direct_estimate = RoutingReference::FALLBACK
+            .quality_prior(&direct, None)
+            .value;
+        r.register(direct);
+        r.apply_routing_reference();
+        let prior = |id: &str| r.get(id).unwrap().capabilities.quality_prior.unwrap().value;
+        assert_eq!(prior("widget-5-5-20260101"), prior("acme/widget-5.5"));
+        assert!(
+            prior("widget-5-5-20260101") < direct_estimate,
+            "the family's measured index replaces the proxy"
+        );
+    }
+}

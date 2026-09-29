@@ -95,6 +95,10 @@ pub struct ModelCapabilities {
     /// `None` on a spec that was never registered; scoring then uses the fixed-constant formula.
     #[serde(default)]
     pub quality_prior: Option<QualityPrior>,
+    /// OpenRouter lists this model as the current target of a `~vendor/…-latest` alias. An alias
+    /// target is never treated as superseded, whatever `models::family::family_key` infers.
+    #[serde(default)]
+    pub is_alias_target: bool,
     /// Parameter count in billions, when known (e.g. parsed from Ollama's
     /// `/api/tags` `details.parameter_size` field, "8.2B" -> `8.2`). Used only
     /// as an advisory VRAM-fit signal (see `models::vram`); `None` means no

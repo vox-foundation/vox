@@ -96,12 +96,55 @@ pub fn newest_per_family<'a>(
 /// specs (bootstrap, local MENS) are never superseded.
 #[must_use]
 pub fn is_superseded(m: &ModelSpec, newest: &HashMap<String, (u64, Vec<u32>)>) -> bool {
+    if m.capabilities.is_alias_target {
+        return false;
+    }
     let Some(at) = m.capabilities.released_at else {
         return false;
     };
     newest
         .get(&family_key(&m.id))
         .is_some_and(|best| *best > (at, version_tuple(&m.id)))
+}
+
+/// Family key for joining a model to its family's benchmark: a direct-provider id has no `org/`
+/// prefix (`widget-5-5-…`), so its dated `canonical_slug` is used; a `:free` variant is the same
+/// weights as its paid sibling, so it shares the paid family's benchmark.
+#[must_use]
+pub fn join_key(m: &ModelSpec) -> String {
+    let slug = if m.id.contains('/') || m.canonical_slug.is_empty() {
+        &m.id
+    } else {
+        &m.canonical_slug
+    };
+    family_key(slug).trim_end_matches(":free").to_string()
+}
+
+/// The newest benchmarked member of each family (by [`join_key`]): `(index, id)`.
+#[must_use]
+pub fn family_benchmarks<'a>(
+    specs: impl IntoIterator<Item = &'a ModelSpec>,
+) -> HashMap<String, (f32, String)> {
+    let mut best: HashMap<String, ((u64, Vec<u32>), f32, String)> = HashMap::new();
+    for m in specs {
+        let Some(index) = m.capabilities.intelligence_index.filter(|i| i.is_finite()) else {
+            continue;
+        };
+        let key = join_key(m);
+        let rank = (
+            m.capabilities.released_at.unwrap_or(0),
+            version_tuple(&m.id),
+        );
+        match best.get(&key) {
+            Some((cur, _, _)) if *cur >= rank => {}
+            _ => {
+                best.insert(key, (rank, index, m.id.clone()));
+            }
+        }
+    }
+    best.into_iter()
+        .map(|(k, (_, index, id))| (k, (index, id)))
+        .collect()
 }
 
 impl crate::models::ModelRegistry {
@@ -184,7 +227,7 @@ mod tests {
 
     #[test]
     fn family_key_keeps_free_variants_and_sizes_apart() {
-        // <!-- AMENDED: R2/R3 — :free and parameter sizes are distinct families -->
+        // :free and parameter sizes are distinct families
         assert_eq!(family_key("qwen/qwen3.8-27b:free"), "qwen/qwen-27b:free");
         assert_eq!(family_key("qwen/qwen3.8-27b"), "qwen/qwen-27b");
         assert_eq!(family_key("qwen/qwen3.8-max-0902"), "qwen/qwen-max");
@@ -258,5 +301,40 @@ mod tests {
         r.register(dated("acme/widget-5.5", Some(1_760_000_000)));
         assert!(r.is_superseded_in_registry(&dated("acme/widget-4.8", Some(1_700_000_000))));
         assert!(!r.is_superseded_in_registry(&dated("acme/widget-5.5", Some(1_760_000_000))));
+    }
+
+    #[test]
+    fn an_alias_target_is_never_superseded() {
+        let mut old = dated("acme/widget-4.8", Some(1_700_000_000));
+        old.capabilities.is_alias_target = true;
+        let new = dated("acme/widget-5.5", Some(1_760_000_000));
+        let newest = newest_per_family([&old, &new]);
+        assert!(!is_superseded(&old, &newest));
+    }
+
+    #[test]
+    fn join_key_uses_the_canonical_slug_for_direct_ids_and_ignores_free() {
+        let mut direct = dated("widget-5-5-20260101", Some(1));
+        direct.canonical_slug = "acme/widget-5-5-20260101".into();
+        assert_eq!(join_key(&direct), "acme/widget");
+        assert_eq!(
+            join_key(&dated("acme/widget-5.5:free", None)),
+            "acme/widget"
+        );
+        assert_eq!(join_key(&dated("acme/widget-4.8", None)), "acme/widget");
+    }
+
+    #[test]
+    fn family_benchmarks_pick_the_newest_benchmarked_member() {
+        let mut a = dated("acme/widget-4.8", Some(1_700_000_000));
+        a.capabilities.intelligence_index = Some(30.0);
+        let mut b = dated("acme/widget-5.0", Some(1_750_000_000));
+        b.capabilities.intelligence_index = Some(38.0);
+        let c = dated("acme/widget-5.5", Some(1_760_000_000));
+        let fb = family_benchmarks([&a, &b, &c]);
+        assert_eq!(
+            fb.get("acme/widget"),
+            Some(&(38.0, "acme/widget-5.0".to_string()))
+        );
     }
 }

@@ -820,8 +820,21 @@ impl ModelRegistry {
         use super::spec::PricingSource;
         let reference = super::reference::RoutingReference::derive(self.models.values());
         self.reference = reference;
+        let family = super::family::family_benchmarks(self.models.values());
         for spec in self.models.values_mut() {
-            let prior = reference.quality_prior(spec, None);
+            let local = matches!(
+                spec.provider_type,
+                ProviderType::Ollama | ProviderType::PopuliMesh | ProviderType::VoxLocal
+            );
+            let inherited = if local || spec.capabilities.intelligence_index.is_some() {
+                None
+            } else {
+                family
+                    .get(&super::family::join_key(spec))
+                    .filter(|(_, from)| *from != spec.id)
+                    .map(|(index, from)| (*index, from.as_str()))
+            };
+            let prior = reference.quality_prior(spec, inherited);
             spec.capabilities.quality_prior = Some(prior);
             let priced = matches!(
                 spec.pricing_source,
@@ -829,10 +842,6 @@ impl ModelRegistry {
                     | PricingSource::LiteLLM
                     | PricingSource::AnthropicDirect
                     | PricingSource::Telemetry
-            );
-            let local = matches!(
-                spec.provider_type,
-                ProviderType::Ollama | ProviderType::PopuliMesh | ProviderType::VoxLocal
             );
             if priced && !local {
                 let tier = super::tiering::derive_tier_with(
