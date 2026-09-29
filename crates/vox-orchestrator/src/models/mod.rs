@@ -8,6 +8,7 @@ pub mod generated;
 pub mod key_guard;
 #[cfg(feature = "populi-transport")]
 pub mod mesh_directory;
+pub mod mode_select;
 mod pareto;
 pub mod policy;
 pub mod prompt_profiles;

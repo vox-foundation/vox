@@ -71,6 +71,7 @@ fn resolve_task_cost_policy(
     crate::config::CostPreference,
     bool,
     crate::mode::RiskPosture,
+    crate::mode::ClutchProfile,
 ) {
     let (category_clutch, category_risk) =
         crate::mode::effective_category_policy(overrides, task.task_category);
@@ -87,10 +88,10 @@ fn resolve_task_cost_policy(
         source_risk,
     );
     if task.clutch_profile.is_none() && category_clutch.is_none() && source_clutch.is_none() {
-        return (global_default, false, risk);
+        return (global_default, false, risk, clutch);
     }
     let rc = clutch.resolve();
-    (rc.cost_preference, rc.force_free_pool, risk)
+    (rc.cost_preference, rc.force_free_pool, risk, clutch)
 }
 
 /// Returns the first hyphen-delimited segment of `s`, or the first 8 bytes if
@@ -711,7 +712,7 @@ impl TaskProcessor for AiTaskProcessor {
             let cfg = crate::sync_lock::rw_read(&*self.orchestrator.config);
             (cfg.task_policy.clone(), cfg.cost_preference)
         };
-        let (mut cost_pref, force_free_pool, resolved_risk) =
+        let (mut cost_pref, force_free_pool, resolved_risk, clutch) =
             resolve_task_cost_policy(&task, &overrides, global_default);
         if matches!(
             resolved_risk.resolve().model_lean,
@@ -741,7 +742,7 @@ impl TaskProcessor for AiTaskProcessor {
                 .budget_usd_per_day;
 
             if allowed_providers.is_empty() {
-                registry.best_for_task_with_filter(&task, cost_pref, |m| {
+                registry.best_for_task_in_mode(&task, cost_pref, clutch, |m| {
                     if m.pricing_source == crate::models::spec::PricingSource::Unknown
                         && exploration_spent >= exploration_limit
                     {
@@ -753,7 +754,7 @@ impl TaskProcessor for AiTaskProcessor {
                     true
                 })
             } else {
-                registry.best_for_task_with_filter(&task, cost_pref, |m| {
+                registry.best_for_task_in_mode(&task, cost_pref, clutch, |m| {
                     if m.pricing_source == crate::models::spec::PricingSource::Unknown
                         && exploration_spent >= exploration_limit
                     {
@@ -780,7 +781,13 @@ impl TaskProcessor for AiTaskProcessor {
                     allowed_providers.contains(provider_str)
                 })
             }
-        };
+        }
+        .map(|sel| {
+            if sel.only_candidate {
+                tracing::info!(model = %sel.spec.id, ?clutch, "mode fallback: only candidate outside the mode's preferred tiers");
+            }
+            sel.spec
+        });
         // Code-review fix: `routed == None` (no eligible model in the registry,
         // e.g. no local model registered under local_only privacy) used to fall
         // straight through to `StreamRoute::Cascade` below regardless of
@@ -2170,7 +2177,7 @@ mod task_policy_wiring_tests {
         let task = AgentTask::new(TaskId(1), "t", TaskPriority::Normal, vec![]);
         let overrides = TaskPolicyOverrides::default();
         let global_default = crate::config::OrchestratorConfig::default().cost_preference;
-        let (cost_pref, force_free_pool, risk) =
+        let (cost_pref, force_free_pool, risk, clutch) =
             resolve_task_cost_policy(&task, &overrides, global_default);
         assert_eq!(
             cost_pref, global_default,
@@ -2178,6 +2185,10 @@ mod task_policy_wiring_tests {
         );
         assert!(!force_free_pool);
         assert_eq!(risk, crate::mode::RiskPosture::Moderate);
+        assert_eq!(
+            clutch,
+            crate::mode::resolve_task_policy(None, None, None, None, None, None).0
+        );
     }
 
     #[test]
@@ -2196,7 +2207,7 @@ mod task_policy_wiring_tests {
             category: std::collections::HashMap::new(),
             source,
         };
-        let (_cost_pref, force_free_pool, risk) = resolve_task_cost_policy(
+        let (_cost_pref, force_free_pool, risk, _clutch) = resolve_task_cost_policy(
             &task,
             &overrides,
             crate::config::OrchestratorConfig::default().cost_preference,
@@ -2231,7 +2242,7 @@ mod task_policy_wiring_tests {
             source,
         };
         let global_default = crate::config::OrchestratorConfig::default().cost_preference;
-        let (cost_pref, force_free_pool, risk) =
+        let (cost_pref, force_free_pool, risk, _clutch) =
             resolve_task_cost_policy(&task, &overrides, global_default);
         assert_eq!(
             cost_pref, global_default,

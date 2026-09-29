@@ -65,6 +65,34 @@ pub fn provider_secret_is_available(ptype: &ProviderType) -> bool {
     vox_secrets::resolve_secret(secret_id).expose().is_some()
 }
 
+// Test-only provider-key availability, per thread (selection is synchronous and runs on
+// the calling thread), so tests that set it cannot leak into tests running in parallel.
+// `None` means "use the real Clavis check", exactly like
+// `route_policy::set_test_privacy_override`.
+thread_local! {
+    static TEST_KEY_OVERRIDE: std::cell::RefCell<Option<Vec<ProviderType>>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+#[cfg(any(test, feature = "test-support"))]
+pub fn set_test_key_availability(providers: Option<Vec<ProviderType>>) {
+    TEST_KEY_OVERRIDE.with(|o| *o.borrow_mut() = providers);
+}
+
+/// Provider-key availability as seen by dispatch-path model selection.
+#[must_use]
+pub(crate) fn selection_key_available(ptype: &ProviderType) -> bool {
+    if matches!(
+        ptype,
+        ProviderType::Ollama | ProviderType::PopuliMesh | ProviderType::VoxLocal
+    ) {
+        return true;
+    }
+    TEST_KEY_OVERRIDE
+        .with(|o| o.borrow().as_ref().map(|list| list.contains(ptype)))
+        .unwrap_or_else(|| provider_secret_is_available(ptype))
+}
+
 #[cfg(test)]
 mod avail_tests {
     use super::*;
@@ -92,5 +120,17 @@ mod avail_tests {
                 assert!(*present, "local provider {p:?} must always report present");
             }
         }
+    }
+
+    #[test]
+    fn selection_key_override_restricts_and_resets() {
+        set_test_key_availability(Some(vec![ProviderType::DeepSeek]));
+        assert!(selection_key_available(&ProviderType::DeepSeek));
+        assert!(!selection_key_available(&ProviderType::OpenRouter));
+        assert!(
+            selection_key_available(&ProviderType::Ollama),
+            "local providers never need a key"
+        );
+        set_test_key_availability(None);
     }
 }
