@@ -10,14 +10,21 @@ pre-commit:
     # Auto-format and re-stage so a format slip never becomes a separate `style:`
     # follow-up commit. WRITE side of the fmt gate; the read-side verification
     # (`vox ci fmt-check`, the "Format Check" step in ci.yml) stays in CI for
-    # contributors without this hook. scripts/fmt.vox chunks `cargo fmt` per crate
-    # because `cargo fmt --all` overflows the Windows command-line limit (os error
-    # 206) on this large workspace. On already-formatted code it no-ops; when the
-    # dev's edited file is misformatted it formats + `stage_fixed` re-stages it.
+    # contributors without this hook. Formats only the STAGED .rs files with the
+    # toolchain's rustfmt directly (never `cargo fmt --all`, which overflows the
+    # Windows command-line limit, os error 206, on this workspace; a commit's staged
+    # set is small). This used to be `cargo run -p vox-cli -- run scripts/fmt.vox`,
+    # which rebuilt the whole vox-cli binary on every commit that touched a crate it
+    # depends on (2-32 minutes per commit) just to run rustfmt on the same files.
+    # The full-workspace check is unchanged: `vox ci pre-push` and CI run
+    # `rustfmt --check` over every target root, and `vox run scripts/fmt.vox -- --all`
+    # is still the fix. On already-formatted code this no-ops; when a staged file is
+    # misformatted it formats + `stage_fixed` re-stages it.
     fmt-fix:
-      run: cargo run -p vox-cli --quiet -- run scripts/fmt.vox
+      run: rustfmt --config-path . {staged_files}
       stage_fixed: true
       glob: "**/*.rs"
+      exclude: "**/vox-plugin-cloud/**"
       fail_text: "rustfmt could not format (likely a syntax error). Fix the parse error, then re-commit."
 
     sync-ignore-files:
