@@ -56,6 +56,8 @@ pub fn virtual_models() -> Vec<ModelSpec> {
                 latency_p50_ms: None,
                 is_moderated: false,
                 uptime_score: None,
+                released_at: None,
+                intelligence_index: None,
                 param_count_b: None,
             },
         },
@@ -102,6 +104,8 @@ pub fn virtual_models() -> Vec<ModelSpec> {
                 latency_p50_ms: None,
                 is_moderated: false,
                 uptime_score: None,
+                released_at: None,
+                intelligence_index: None,
                 param_count_b: None,
             },
         },
@@ -123,5 +127,28 @@ pub fn openrouter_free_model(has_openrouter_models: bool) -> Option<ModelSpec> {
         virtual_models().into_iter().nth(1)
     } else {
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn virtual_models_are_undated_and_unbenchmarked() {
+        let models = virtual_models();
+        assert_eq!(models.len(), 2);
+        for m in &models {
+            assert_eq!(m.capabilities.released_at, None, "{}", m.id);
+            assert_eq!(m.capabilities.intelligence_index, None, "{}", m.id);
+        }
+    }
+
+    #[test]
+    fn auto_and_free_models_need_openrouter_models() {
+        assert!(openrouter_auto_model(false).is_none());
+        assert!(openrouter_free_model(false).is_none());
+        assert_eq!(openrouter_auto_model(true).unwrap().id, OPENROUTER_AUTO);
+        assert_eq!(openrouter_free_model(true).unwrap().id, OPENROUTER_FREE);
     }
 }

@@ -33,6 +33,18 @@ struct OpenRouterModelsResponse {
     data: Vec<OpenRouterModelData>,
 }
 
+#[derive(serde::Deserialize, Default)]
+struct OpenRouterBenchmarks {
+    #[serde(default)]
+    artificial_analysis: Option<OpenRouterArtificialAnalysis>,
+}
+
+#[derive(serde::Deserialize, Default)]
+struct OpenRouterArtificialAnalysis {
+    #[serde(default)]
+    intelligence_index: Option<f32>,
+}
+
 #[derive(serde::Deserialize)]
 struct OpenRouterModelData {
     id: String,
@@ -52,6 +64,17 @@ struct OpenRouterModelData {
     /// Provider latency statistics surfaced by the OpenRouter catalog.
     #[serde(default)]
     latency: Option<OpenRouterLatency>,
+    /// Provider-published unix time; the only recency signal OpenRouter exposes.
+    #[serde(default)]
+    created: Option<u64>,
+    /// Stable dated slug when OpenRouter provides one; falls back to `id`.
+    #[serde(default)]
+    canonical_slug: Option<String>,
+    /// `YYYY-MM-DD` after which OpenRouter stops serving the model.
+    #[serde(default)]
+    expiration_date: Option<String>,
+    #[serde(default)]
+    benchmarks: Option<OpenRouterBenchmarks>,
 }
 
 #[derive(serde::Deserialize)]
@@ -129,101 +152,146 @@ impl ModelCatalog for OpenRouterCatalog {
             ));
         }
 
-        let body: OpenRouterModelsResponse = resp.json().await?;
-        let mut models = Vec::new();
+        let text = resp.text().await?;
+        specs_from_openrouter_json(&text)
+    }
+}
 
-        for m in body.data {
-            let cost_input = (m.pricing.prompt.parse::<f64>().unwrap_or(0.0) * 1000.0).max(0.0);
-            let cost_output =
-                (m.pricing.completion.parse::<f64>().unwrap_or(0.0) * 1000.0).max(0.0);
-            let p_zero = m.pricing.prompt == "0"
-                || m.pricing.prompt == "0.0"
-                || m.pricing.prompt.starts_with("-")
-                || m.pricing.prompt.is_empty();
-            let c_zero = m.pricing.completion == "0"
-                || m.pricing.completion == "0.0"
-                || m.pricing.completion.starts_with("-")
-                || m.pricing.completion.is_empty();
-            let is_free = p_zero && c_zero;
+/// Civil date (`YYYY-MM-DD`, UTC) for a unix time (Howard Hinnant's days-to-civil).
+fn utc_date_iso(unix_secs: u64) -> String {
+    let z = (unix_secs / 86_400) as i64 + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z.rem_euclid(146_097);
+    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = yoe + era * 400 + i64::from(m <= 2);
+    format!("{y:04}-{m:02}-{d:02}")
+}
 
-            // True tokenomics tracked separately via cost_per_1k_input and cost_per_1k_output.
-            // The cost_per_1k legacy field defaults to output cost for registry sorting.
-            let cost_per_1k = cost_output;
+/// Map an OpenRouter `/api/v1/models` JSON body to specs (today's UTC date drives expiry).
+pub(crate) fn specs_from_openrouter_json(json: &str) -> anyhow::Result<Vec<ModelSpec>> {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or_default();
+    specs_from_openrouter_json_at(json, &utc_date_iso(now))
+}
 
-            let provider_prefix = m.id.split('/').next().unwrap_or("unknown");
+/// Pure mapping used by [`OpenRouterCatalog::refresh`] and by tests. Skips `:batch`
+/// variants (asynchronous), `~vendor/…-latest` alias entries (they duplicate a real
+/// model) and models whose `expiration_date` is on or before `today`.
+pub(crate) fn specs_from_openrouter_json_at(
+    json: &str,
+    today: &str,
+) -> anyhow::Result<Vec<ModelSpec>> {
+    let body: OpenRouterModelsResponse = serde_json::from_str(json)?;
+    let mut models = Vec::new();
 
-            let architecture = m.architecture.unwrap_or_default();
-            let supports_vision = architecture
-                .input_modalities
-                .iter()
-                .any(|v| v.eq_ignore_ascii_case("image"));
-            let supports_json = m
-                .supported_parameters
-                .iter()
-                .any(|p| p == "response_format" || p == "structured_outputs");
-
-            // ── Capabilities: rate limits, latency, moderation, uptime ─────────────────────────
-            let (rate_limit_rpm, rate_limit_rpd) = m
-                .per_request_limits
-                .as_ref()
-                .map(|r| (r.requests_per_minute, r.requests_per_day))
-                .unwrap_or((None, None));
-
-            let latency_p50_ms = m.latency.as_ref().and_then(|l| l.p50);
-            let is_moderated = m
-                .top_provider
-                .as_ref()
-                .map(|tp| tp.is_moderated)
-                .unwrap_or(false);
-
-            let mut capabilities = ModelCapabilities {
-                supports_json,
-                supports_vision,
-                max_context: m.context_length,
-                rate_limit_rpm,
-                rate_limit_rpd,
-                latency_p50_ms,
-                is_moderated,
-                uptime_score: None, // populated later by catalog_classifier
-                ..Default::default()
-            };
-            let inferred = crate::models::infer_capabilities(
-                &m.supported_parameters,
-                &architecture.input_modalities,
-                &architecture.output_modalities,
-            );
-            capabilities.merge_capability_flags(&inferred);
-            let strengths =
-                infer_strengths(&m.id, m.description.as_deref(), &m.supported_parameters);
-            let max_tokens = m
-                .top_provider
-                .and_then(|tp| tp.max_completion_tokens)
-                .filter(|n| *n > 0)
-                .unwrap_or(m.context_length);
-
-            models.push(ModelSpec {
-                id: m.id.clone(),
-                canonical_slug: m.id.clone(),
-                provider: provider_prefix.to_string(),
-                provider_type: ProviderType::OpenRouter,
-                max_tokens,
-                cost_per_1k,
-                cost_per_1k_input: cost_input,
-                cost_per_1k_output: cost_output,
-                is_free,
-                strengths,
-                capabilities,
-                supported_parameters: m.supported_parameters,
-                observed_cost_per_1k: None,
-                cache_creation_cost_per_1k: 0.0,
-                cache_read_cost_per_1k: 0.0,
-                supports_prompt_caching: false, // LiteLLM oracle fills this in
-                pricing_source: crate::models::spec::PricingSource::OpenRouter,
-            });
+    for m in body.data {
+        if m.id.ends_with(":batch") || m.id.starts_with('~') {
+            continue;
+        }
+        if m.expiration_date.as_deref().is_some_and(|d| d <= today) {
+            continue;
         }
 
-        Ok(models)
+        let cost_input = (m.pricing.prompt.parse::<f64>().unwrap_or(0.0) * 1000.0).max(0.0);
+        let cost_output = (m.pricing.completion.parse::<f64>().unwrap_or(0.0) * 1000.0).max(0.0);
+        let p_zero = m.pricing.prompt == "0"
+            || m.pricing.prompt == "0.0"
+            || m.pricing.prompt.starts_with("-")
+            || m.pricing.prompt.is_empty();
+        let c_zero = m.pricing.completion == "0"
+            || m.pricing.completion == "0.0"
+            || m.pricing.completion.starts_with("-")
+            || m.pricing.completion.is_empty();
+        let is_free = p_zero && c_zero;
+
+        // True tokenomics tracked separately via cost_per_1k_input and cost_per_1k_output.
+        // The cost_per_1k legacy field defaults to output cost for registry sorting.
+        let cost_per_1k = cost_output;
+
+        let provider_prefix = m.id.split('/').next().unwrap_or("unknown");
+
+        let architecture = m.architecture.unwrap_or_default();
+        let supports_vision = architecture
+            .input_modalities
+            .iter()
+            .any(|v| v.eq_ignore_ascii_case("image"));
+        let supports_json = m
+            .supported_parameters
+            .iter()
+            .any(|p| p == "response_format" || p == "structured_outputs");
+
+        // ── Capabilities: rate limits, latency, moderation, uptime ─────────────────────────
+        let (rate_limit_rpm, rate_limit_rpd) = m
+            .per_request_limits
+            .as_ref()
+            .map(|r| (r.requests_per_minute, r.requests_per_day))
+            .unwrap_or((None, None));
+
+        let latency_p50_ms = m.latency.as_ref().and_then(|l| l.p50);
+        let is_moderated = m
+            .top_provider
+            .as_ref()
+            .map(|tp| tp.is_moderated)
+            .unwrap_or(false);
+
+        let mut capabilities = ModelCapabilities {
+            supports_json,
+            supports_vision,
+            max_context: m.context_length,
+            rate_limit_rpm,
+            rate_limit_rpd,
+            latency_p50_ms,
+            is_moderated,
+            uptime_score: None, // populated later by catalog_classifier
+            released_at: m.created,
+            intelligence_index: m
+                .benchmarks
+                .as_ref()
+                .and_then(|b| b.artificial_analysis.as_ref())
+                .and_then(|a| a.intelligence_index),
+            ..Default::default()
+        };
+        let inferred = crate::models::infer_capabilities(
+            &m.supported_parameters,
+            &architecture.input_modalities,
+            &architecture.output_modalities,
+        );
+        capabilities.merge_capability_flags(&inferred);
+        let strengths = infer_strengths(&m.id, m.description.as_deref(), &m.supported_parameters);
+        let max_tokens = m
+            .top_provider
+            .and_then(|tp| tp.max_completion_tokens)
+            .filter(|n| *n > 0)
+            .unwrap_or(m.context_length);
+
+        models.push(ModelSpec {
+            id: m.id.clone(),
+            canonical_slug: m.canonical_slug.clone().unwrap_or_else(|| m.id.clone()),
+            provider: provider_prefix.to_string(),
+            provider_type: ProviderType::OpenRouter,
+            max_tokens,
+            cost_per_1k,
+            cost_per_1k_input: cost_input,
+            cost_per_1k_output: cost_output,
+            is_free,
+            strengths,
+            capabilities,
+            supported_parameters: m.supported_parameters,
+            observed_cost_per_1k: None,
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false, // LiteLLM oracle fills this in
+            pricing_source: crate::models::spec::PricingSource::OpenRouter,
+        });
     }
+
+    Ok(models)
 }
 
 #[cfg(test)]
@@ -460,6 +528,93 @@ mod tests {
             !mens_run_dir_is_listable(&run).expect("listable"),
             "empty final/ subdir must not register"
         );
+    }
+
+    const SAMPLE_MODELS_JSON: &str = r#"{"data":[
+      {"id":"anthropic/claude-sonnet-4.6","canonical_slug":"anthropic/claude-4.6-sonnet-20260101","created":1767225600,
+       "pricing":{"prompt":"0.000003","completion":"0.000015"},"context_length":200000,
+       "benchmarks":{"artificial_analysis":{"intelligence_index":47.5,"coding_index":null,"agentic_index":null},"design_arena":[]}},
+      {"id":"anthropic/claude-sonnet-4.6:batch","created":1767225600,
+       "pricing":{"prompt":"0.0000015","completion":"0.0000075"},"context_length":200000},
+      {"id":"~deepseek/deepseek-flash-latest","created":1780000000,
+       "pricing":{"prompt":"0.0000003","completion":"0.0000012"},"context_length":1048576,
+       "alias_target":{"name":"DeepSeek: DeepSeek V4.1 Flash","slug":"deepseek/deepseek-v4.1-flash"}},
+      {"id":"qwen/qwen3-coder:free","created":1760000000,
+       "pricing":{"prompt":"0","completion":"0"},"context_length":131072},
+      {"id":"acme/undated-model",
+       "pricing":{"prompt":"0.000001","completion":"0.000002"},"context_length":32000},
+      {"id":"acme/expired-model","created":1700000000,"expiration_date":"2026-09-01",
+       "pricing":{"prompt":"0.000001","completion":"0.000002"},"context_length":32000},
+      {"id":"acme/retiring-later","created":1700000000,"expiration_date":"2026-12-31",
+       "pricing":{"prompt":"0.000001","completion":"0.000002"},"context_length":32000}
+    ]}"#;
+
+    #[test]
+    fn specs_read_created_canonical_slug_and_intelligence_index() {
+        let specs = specs_from_openrouter_json_at(SAMPLE_MODELS_JSON, "2026-09-28").expect("parse");
+        let sonnet = specs
+            .iter()
+            .find(|s| s.id == "anthropic/claude-sonnet-4.6")
+            .unwrap();
+        assert_eq!(sonnet.capabilities.released_at, Some(1_767_225_600));
+        assert_eq!(
+            sonnet.canonical_slug,
+            "anthropic/claude-4.6-sonnet-20260101"
+        );
+        assert_eq!(sonnet.capabilities.intelligence_index, Some(47.5));
+        let free = specs
+            .iter()
+            .find(|s| s.id == "qwen/qwen3-coder:free")
+            .unwrap();
+        assert!(free.is_free);
+        assert_eq!(
+            free.canonical_slug, "qwen/qwen3-coder:free",
+            "missing canonical_slug falls back to id"
+        );
+        assert_eq!(
+            free.capabilities.intelligence_index, None,
+            "no benchmarks block means None, not 0"
+        );
+    }
+
+    #[test]
+    fn missing_created_stays_none() {
+        let specs = specs_from_openrouter_json_at(SAMPLE_MODELS_JSON, "2026-09-28").expect("parse");
+        let undated = specs.iter().find(|s| s.id == "acme/undated-model").unwrap();
+        assert_eq!(
+            undated.capabilities.released_at, None,
+            "absent created must not become 0 or now"
+        );
+    }
+
+    #[test]
+    fn batch_alias_and_expired_entries_are_skipped() {
+        let specs = specs_from_openrouter_json_at(SAMPLE_MODELS_JSON, "2026-09-28").expect("parse");
+        let ids: Vec<&str> = specs.iter().map(|s| s.id.as_str()).collect();
+        assert!(
+            !ids.iter().any(|i| i.ends_with(":batch")),
+            "batch variants are asynchronous: {ids:?}"
+        );
+        assert!(
+            !ids.iter().any(|i| i.starts_with('~')),
+            "alias entries duplicate real models: {ids:?}"
+        );
+        assert!(
+            !ids.contains(&"acme/expired-model"),
+            "expired model kept: {ids:?}"
+        );
+        assert!(
+            ids.contains(&"acme/retiring-later"),
+            "a future expiry is still selectable: {ids:?}"
+        );
+        assert_eq!(specs.len(), 4);
+    }
+
+    #[test]
+    fn utc_date_iso_formats_known_instants() {
+        assert_eq!(utc_date_iso(0), "1970-01-01");
+        assert_eq!(utc_date_iso(1_767_225_600), "2026-01-01");
+        assert_eq!(utc_date_iso(1_790_618_686), "2026-09-28");
     }
 }
 /// Parses Ollama's `details.parameter_size` field (e.g. `"8.2B"`, `"70M"`,

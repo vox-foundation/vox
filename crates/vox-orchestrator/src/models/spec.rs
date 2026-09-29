@@ -82,6 +82,15 @@ pub struct ModelCapabilities {
     /// Provider-reported uptime score 0.0–1.0 (1.0 = fully available).
     #[serde(default)]
     pub uptime_score: Option<f32>,
+    /// Unix time the provider published this model (OpenRouter `/models` `created`).
+    /// `None` when the source does not report it; never defaulted to 0 or "now",
+    /// because recency ordering (`models::family`) must not invent a date.
+    #[serde(default)]
+    pub released_at: Option<u64>,
+    /// Artificial Analysis intelligence index as published in OpenRouter's catalog
+    /// (`benchmarks.artificial_analysis.intelligence_index`, ~0–60 today). `None` = unbenchmarked.
+    #[serde(default)]
+    pub intelligence_index: Option<f32>,
     /// Parameter count in billions, when known (e.g. parsed from Ollama's
     /// `/api/tags` `details.parameter_size` field, "8.2B" -> `8.2`). Used only
     /// as an advisory VRAM-fit signal (see `models::vram`); `None` means no
