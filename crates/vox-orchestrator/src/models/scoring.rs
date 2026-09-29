@@ -337,8 +337,57 @@ fn base_routing_weights() -> AutoRoutingPriority {
     AutoRoutingPriority::from_env()
 }
 
+/// One weighted axis of [`ScoreParts`]: its weight and its 0–1 value.
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize)]
+pub struct AxisPart {
+    pub weight: u8,
+    pub value: f64,
+}
+
+const ZERO_AXIS: AxisPart = AxisPart {
+    weight: 0,
+    value: 0.0,
+};
+
+/// Every term of [`auto_score_model`], so an explanation shows why a model scored what it did
+/// without re-implementing the formula. [`auto_score_model`] returns `total`.
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize)]
+pub struct ScoreParts {
+    pub total: f64,
+    /// A provider budget hint marked the model rate-limited: `total` is the floor and the parts are all zero,
+    /// so this is the one case where the parts do not add up to `total`.
+    pub rate_limited: bool,
+    pub efficiency: AxisPart,
+    pub quality: AxisPart,
+    pub latency: AxisPart,
+    pub availability: AxisPart,
+    pub balance: AxisPart,
+    pub mobile: AxisPart,
+    /// Sum of the six weights (at least 1); the weighted axes are divided by it.
+    pub weight_sum: f64,
+    pub fill_in_middle: f64,
+    pub free_bonus: f64,
+    pub off_peak_bonus: f64,
+    pub telemetry: f64,
+    pub vram: f64,
+}
+
+impl ScoreParts {
+    /// The weighted-axis share of `total`, summed in the scorer's own order.
+    #[must_use]
+    pub fn weighted(&self) -> f64 {
+        (f64::from(self.efficiency.weight) * self.efficiency.value
+            + f64::from(self.quality.weight) * self.quality.value
+            + f64::from(self.latency.weight) * self.latency.value
+            + f64::from(self.availability.weight) * self.availability.value
+            + f64::from(self.balance.weight) * self.balance.value
+            + f64::from(self.mobile.weight) * self.mobile.value)
+            / self.weight_sum
+    }
+}
+
 #[must_use]
-pub fn auto_score_model(
+pub fn auto_score_parts(
     m: &ModelSpec,
     complexity: u8,
     free_tier_fill_in_middle: bool,
@@ -346,7 +395,7 @@ pub fn auto_score_model(
     preference: CostPreference,
     hints: Option<&[RemainingBudget]>,
     scoreboard: Option<&super::registry::ModelScore>,
-) -> f64 {
+) -> ScoreParts {
     let mut w = base_routing_weights();
     if complexity >= COMPLEXITY_HIGH_CUTOFF {
         w.precision = w.precision.saturating_add(COMPLEXITY_PRECISION_BONUS);
@@ -393,7 +442,22 @@ pub fn auto_score_model(
 
     let (remaining, rate_limited) = model_budget_hint(m, hints);
     if rate_limited {
-        return RATE_LIMITED_SCORE_FLOOR;
+        return ScoreParts {
+            total: RATE_LIMITED_SCORE_FLOOR,
+            rate_limited: true,
+            efficiency: ZERO_AXIS,
+            quality: ZERO_AXIS,
+            latency: ZERO_AXIS,
+            availability: ZERO_AXIS,
+            balance: ZERO_AXIS,
+            mobile: ZERO_AXIS,
+            weight_sum: 1.0,
+            fill_in_middle: 0.0,
+            free_bonus: 0.0,
+            off_peak_bonus: 0.0,
+            telemetry: 0.0,
+            vram: 0.0,
+        };
     }
 
     let balance_bias = 1.0_f64 - f64::from(context_fill_ratio.unwrap_or(0.0).clamp(0.0, 1.0));
@@ -418,12 +482,14 @@ pub fn auto_score_model(
             + u16::from(w.mobile),
     )
     .max(1.0);
-    let score = f64::from(w.efficiency) * efficiency_score(m)
-        + f64::from(w.precision) * quality_score(m)
+    let (eff, qual, bal) = (efficiency_score(m), quality_score(m), balance_bias);
+    let mob = mobile_score(m);
+    let score = f64::from(w.efficiency) * eff
+        + f64::from(w.precision) * qual
         + f64::from(w.latency) * live_latency
         + f64::from(w.availability) * availability_score
-        + f64::from(w.balance) * balance_bias
-        + f64::from(w.mobile) * mobile_score(m);
+        + f64::from(w.balance) * bal
+        + f64::from(w.mobile) * mob;
 
     let prefer_mesh = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxRoutingPreferMesh)
         .expose()
@@ -502,7 +568,71 @@ pub fn auto_score_model(
     let telemetry_boost = scoreboard_feedback_boost(m, scoreboard, &routing_cfg.quality_weights);
     let vram_penalty = vram_score_delta(m, super::vram::free_vram_mb_hint());
 
-    (score / total_w) + fim_bias + mens_bonus + off_peak_bonus + telemetry_boost + vram_penalty
+    let parts = ScoreParts {
+        total: 0.0,
+        rate_limited: false,
+        efficiency: AxisPart {
+            weight: w.efficiency,
+            value: eff,
+        },
+        quality: AxisPart {
+            weight: w.precision,
+            value: qual,
+        },
+        latency: AxisPart {
+            weight: w.latency,
+            value: live_latency,
+        },
+        availability: AxisPart {
+            weight: w.availability,
+            value: availability_score,
+        },
+        balance: AxisPart {
+            weight: w.balance,
+            value: bal,
+        },
+        mobile: AxisPart {
+            weight: w.mobile,
+            value: mob,
+        },
+        weight_sum: total_w,
+        fill_in_middle: fim_bias,
+        free_bonus: mens_bonus,
+        off_peak_bonus,
+        telemetry: telemetry_boost,
+        vram: vram_penalty,
+    };
+    ScoreParts {
+        total: (score / total_w)
+            + fim_bias
+            + mens_bonus
+            + off_peak_bonus
+            + telemetry_boost
+            + vram_penalty,
+        ..parts
+    }
+}
+
+#[must_use]
+pub fn auto_score_model(
+    m: &ModelSpec,
+    complexity: u8,
+    free_tier_fill_in_middle: bool,
+    context_fill_ratio: Option<f32>,
+    preference: CostPreference,
+    hints: Option<&[RemainingBudget]>,
+    scoreboard: Option<&super::registry::ModelScore>,
+) -> f64 {
+    auto_score_parts(
+        m,
+        complexity,
+        free_tier_fill_in_middle,
+        context_fill_ratio,
+        preference,
+        hints,
+        scoreboard,
+    )
+    .total
 }
 
 /// Advisory VRAM-fit contribution to the score (Task 2.6): a small
@@ -911,6 +1041,98 @@ mod tests {
         let mut strong = make_spec(ProviderType::OpenRouter, 1.0, false);
         strong.capabilities.intelligence_index = Some(47.5);
         assert!(quality_score(&strong) > quality_score(&unknown));
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn score_parts_add_up_to_the_total() {
+        let cases = [
+            (
+                make_spec(ProviderType::OpenRouter, 1.0, false),
+                2,
+                CostPreference::Economy,
+            ),
+            (
+                make_spec(ProviderType::Ollama, 0.0, true),
+                5,
+                CostPreference::Economy,
+            ),
+            (
+                make_spec(ProviderType::Anthropic, 0.045, false),
+                9,
+                CostPreference::Performance,
+            ),
+        ];
+        for (m, complexity, pref) in cases {
+            let p = auto_score_parts(&m, complexity, false, None, pref, None, None);
+            let recomputed = p.weighted()
+                + p.fill_in_middle
+                + p.free_bonus
+                + p.off_peak_bonus
+                + p.telemetry
+                + p.vram;
+            assert_eq!(
+                p.total.to_bits(),
+                recomputed.to_bits(),
+                "{:?}",
+                m.provider_type
+            );
+            assert_eq!(
+                p.total,
+                auto_score_model(&m, complexity, false, None, pref, None, None)
+            );
+            assert_eq!(p.quality.value, quality_score(&m));
+            assert_eq!(p.efficiency.value, efficiency_score(&m));
+            assert!(!p.rate_limited);
+        }
+    }
+
+    #[test]
+    fn a_free_model_below_the_high_cutoff_shows_its_bonus() {
+        let free = make_spec(ProviderType::Ollama, 0.0, true);
+        assert_eq!(
+            auto_score_parts(&free, 5, false, None, CostPreference::Economy, None, None).free_bonus,
+            ZERO_COST_BASE_BONUS
+        );
+        assert_eq!(
+            auto_score_parts(
+                &free,
+                COMPLEXITY_HIGH_CUTOFF,
+                false,
+                None,
+                CostPreference::Economy,
+                None,
+                None
+            )
+            .free_bonus,
+            0.0
+        );
+    }
+
+    #[test]
+    fn a_rate_limited_model_reports_the_floor_and_why() {
+        let spec = make_spec(ProviderType::OpenRouter, 0.01, false);
+        let hints = vec![crate::usage::RemainingBudget {
+            provider: "openrouter".into(),
+            model: "test/model".into(),
+            calls_used: 50,
+            daily_limit: 100,
+            remaining: 50,
+            cost_today: 0.5,
+            rate_limited: true,
+        }];
+        let p = auto_score_parts(
+            &spec,
+            5,
+            false,
+            None,
+            CostPreference::Economy,
+            Some(&hints),
+            None,
+        );
+        assert!(p.rate_limited);
+        assert_eq!(p.total, RATE_LIMITED_SCORE_FLOOR);
+        assert_eq!(p.quality.weight, 0);
     }
 }
 
