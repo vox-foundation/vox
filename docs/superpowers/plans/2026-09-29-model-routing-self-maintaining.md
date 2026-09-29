@@ -3893,6 +3893,11 @@ test.describe('Routing explainer', () => {
   (`best_for_task_under_gate`, `DispatchGate`); trace T3 → 7 → 8 → 9 → 11; the whole trace plan → 8 (G12);
   surfaces T8 → 9; surfaces T2 and visual-language T1, T4–T6 → 10 → 11. <!-- AMENDED: R15 --> Rust tasks never run concurrently with other Rust plans (shared working tree and build).
 - **Batch candidates:** none; each Rust task ends with a full `--lib` run.
+- **Build loop (added 2026-09-29):** the agent runs only the filtered tests; Claude runs the crate suite once and clippy once per batch, and
+  applies mutants that fail different named tests in one build. A producer task and the task that wires it (trace 2a and 2b) are the one
+  case where clippy `dead_code` is expected between them. After Task 6, the [build-loop plan](2026-09-29-rust-build-loop-and-models-crate.md)
+  measures whether extracting `models/` into its own crate is worth doing (Tasks A1–A4); its Part B moves `models/` and must not start while
+  any task here is uncommitted.
 - **Pre-flight per task:** working tree clean for the task's files; HEAD on `main`; chat-lane Task 1 committed
   before Task 5; trace plan Task 4 committed before Task 8.
 - **SDD ledger:**
