@@ -397,5 +397,131 @@ test('waiting lock renders for a parked hopper task', async ({ page }) => {
   });
 });
 
+test('overview: receipts, claims and lock chips in one chat view', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
 
+  await installTrustOverrides(page, {
+    responses: {
+      chat_list_sessions: [
+        {
+          session_id: 'trust-session',
+          title: 'Trust chips',
+          updated_at: 'now',
+          message_count: 0,
+          conversation_id: 1,
+        },
+      ],
+      list_orchestrator_tasks: [
+        {
+          id: 77,
+          description: 'Migrate orders table',
+          priority: 'normal',
+          lifecycle: 'in_progress',
+          agent_id: 3,
+          session_id: 'trust-session',
+          estimated_complexity: 1,
+          depends_on: [],
+          write_files: [],
+          remote_node: null,
+          origin: 'orchestrator',
+        },
+      ],
+      activity_query: [
+        {
+          id: 11,
+          ts_ms: 2,
+          agent_id: null,
+          session_id: 'trust-session',
+          kind: 'LockWaiting',
+          summary: 'Task #88 waiting for lock on db://orders/42',
+          detail_json: JSON.stringify({
+            type: 'lock_waiting',
+            resource_id: 'db://orders/42',
+            task_id: 88,
+            session_id: 'trust-session',
+          }),
+        },
+        {
+          id: 10,
+          ts_ms: 1,
+          agent_id: '3',
+          session_id: 'trust-session',
+          kind: 'LockAcquired',
+          summary: 'Lock acquired',
+          detail_json: JSON.stringify({
+            type: 'lock_acquired',
+            agent_id: 3,
+            path: 'db://orders/42',
+            exclusive: true,
+            session_id: 'trust-session',
+            task_id: 77,
+          }),
+        },
+      ],
+      chat_turn: {
+        id: 9003,
+        role: 'assistant',
+        content: 'Verified claimed receipts.',
+        created_at: '2026-09-28T12:10:00.000Z',
+        task_id: null,
+        model_id: 'opus-4-8',
+        events: [
+          {
+            kind: 'tool_receipt',
+            tool: 'vox_git_status',
+            receipt_id: '01920000-aaaa-7bbb-8ccc-000000000004',
+            fulfilled: true,
+            verified: true,
+          },
+          {
+            kind: 'receipt_claims',
+            valid: 2,
+            fabricated: 1,
+            unverified: 0,
+          },
+        ],
+      },
+    },
+  });
 
+  await page.goto('/');
+  await page.waitForSelector('nav', { timeout: 15_000 });
+
+  const sessionTab = page.getByRole('tab', { name: /Trust chips/i });
+  if (await sessionTab.isVisible()) {
+    await sessionTab.click();
+  }
+
+  const chooseModeBtn = page.getByLabel('Choose send mode');
+  if (await chooseModeBtn.isVisible()) {
+    if ((await chooseModeBtn.getAttribute('aria-expanded')) !== 'true') {
+      await chooseModeBtn.click();
+    }
+    const quickChatBtn = page.getByLabel('Set send mode: Quick chat');
+    if (await quickChatBtn.isVisible()) {
+      await quickChatBtn.click();
+    }
+  }
+
+  const composer = page.getByLabel('Task composer');
+  await composer.fill('Check the repo status');
+  await composer.press('Enter');
+
+  await expect(page.getByTestId('chat-turn-receipt-row').first()).toBeVisible();
+  await expect(page.getByTestId('chat-turn-claims-row')).toHaveAttribute('data-flagged', 'true');
+
+  const activeTasksRegion = page.getByRole('region', { name: /Active tasks/i });
+  await expect(
+    activeTasksRegion.locator('[data-lock-state="holding"]'),
+  ).toContainText('holding db://orders/42');
+  await expect(
+    activeTasksRegion.locator('[data-lock-state="waiting"]'),
+  ).toContainText('waiting on db://orders/42');
+
+  await page.waitForFunction(() => (window as any).__VOX_IPC_ACTIVE_COUNT__ === 0);
+
+  mkdirSync(OUT_DIR, { recursive: true });
+  await page.screenshot({
+    path: join(OUT_DIR, 'chat-trust-overview.png'),
+  });
+});
