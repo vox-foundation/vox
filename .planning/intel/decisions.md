@@ -152,9 +152,10 @@ Synthesized from ADR classifications. One entry per ADR. LOCKED status means the
 
 ## ADR-025: Multi-Agent Lock Coherence and Lease Propagation
 - source: docs/src/adr/025-multi-agent-lock-coherence.md
-- status: proposed
+- status: locked
 - decision: Extends locks subsystem with ResourceLockManager for multi-agent resource coordination and contention.
 - scope: multi-agent, lock coherence, resource management, bulletin board, lease expiration, agent coordination
+- note: Ratified 2026-09-29 after Phase 5 (ResourceLockManager, hopper resource_id, dispatch-time ResourceGate, LockWaiting events). The ADR body carries an `Accepted (2026-09-29)` line under `## Status` and frontmatter `status: "current"`; limitations are listed in its `### Known limitations`.
 
 ## ADR-026: Third-Party Code Provenance Policy
 - source: docs/src/adr/026-third-party-code-provenance.md
@@ -177,9 +178,10 @@ Synthesized from ADR classifications. One entry per ADR. LOCKED status means the
 
 ## ADR-029: Formal Intent and Tool Receipt Auditing
 - source: docs/src/adr/029-formal-intent.md
-- status: proposed
+- status: locked
 - decision: Two-tier verification system for agent tool calls with cryptographic HMAC receipts for auditing.
 - scope: formal intent, tool receipts, agent verification, auditing, hallucination defense, Socrates
+- note: Ratified 2026-09-29 after Phase 5 (HMAC tool receipts, vox_verify_task_claims, chat chips). The ADR body carries an `Accepted (2026-09-29)` line under `## Status` and frontmatter `status: "current"`; limitations are listed in its `### Known limitations`.
 
 ## ADR 030 — state_machine as Single Source of Truth for reactive UI state
 - source: docs/src/adr/030-state-machine-ssot.md

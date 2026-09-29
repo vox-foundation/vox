@@ -7,6 +7,6 @@
   "summary": "Extends locks subsystem with ResourceLockManager for multi-agent resource coordination and contention.",
   "scope": ["multi-agent", "lock coherence", "resource management", "bulletin board", "lease expiration", "agent coordination"],
   "cross_refs": [],
-  "locked": false,
+  "locked": true,
   "precedence": null
 }
