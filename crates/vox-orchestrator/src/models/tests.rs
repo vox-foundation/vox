@@ -1426,3 +1426,75 @@ mod semcov_wave34_tests {
         );
     }
 }
+
+#[cfg(test)]
+mod superseded_selection_tests {
+    use crate::config::CostPreference;
+    use crate::models::spec::PricingSource;
+    use crate::models::{ModelCapabilities, ModelRegistry, ModelSpec, ProviderType, StrengthTag};
+    use crate::types::TaskCategory;
+
+    fn dated(id: &str, released_at: Option<u64>, cost: f64) -> ModelSpec {
+        ModelSpec {
+            id: id.into(),
+            canonical_slug: id.into(),
+            provider: "test".into(),
+            provider_type: ProviderType::Ollama,
+            max_tokens: 8192,
+            cost_per_1k: cost,
+            cost_per_1k_input: cost,
+            cost_per_1k_output: cost,
+            is_free: false,
+            observed_cost_per_1k: None,
+            strengths: vec![StrengthTag::Codegen, StrengthTag::Generalist],
+            capabilities: ModelCapabilities {
+                released_at,
+                ..Default::default()
+            },
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: PricingSource::Bootstrap,
+            supported_parameters: vec![],
+        }
+    }
+
+    fn pick(r: &ModelRegistry, pred: impl FnMut(&ModelSpec) -> bool) -> Option<String> {
+        r.best_for_with_filter(
+            TaskCategory::CodeGen,
+            5,
+            CostPreference::Economy,
+            false,
+            pred,
+            None,
+        )
+        .map(|m| m.id)
+    }
+
+    #[test]
+    fn older_member_of_a_family_is_never_selected() {
+        let mut r = ModelRegistry::default();
+        // The older member is cheaper, so it wins on cost today unless recency filters it.
+        r.register(dated("acme/widget-4.8", Some(1_700_000_000), 0.1));
+        r.register(dated("acme/widget-5.5", Some(1_760_000_000), 1.0));
+        assert_eq!(pick(&r, |_| true), Some("acme/widget-5.5".to_string()));
+    }
+
+    #[test]
+    fn a_filtered_out_newest_member_does_not_hide_the_family() {
+        let mut r = ModelRegistry::default();
+        r.register(dated("acme/widget-4.8", Some(1_700_000_000), 0.1));
+        r.register(dated("acme/widget-5.5", Some(1_760_000_000), 1.0));
+        assert_eq!(
+            pick(&r, |m| m.id != "acme/widget-5.5"),
+            Some("acme/widget-4.8".to_string())
+        );
+    }
+
+    #[test]
+    fn undated_specs_still_compete() {
+        let mut r = ModelRegistry::default();
+        r.register(dated("acme/widget-4.8", None, 0.1));
+        assert_eq!(pick(&r, |_| true), Some("acme/widget-4.8".to_string()));
+    }
+}

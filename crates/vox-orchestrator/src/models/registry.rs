@@ -879,7 +879,8 @@ impl ModelRegistry {
         respect_penalties: bool,
         task: Option<&AgentTask>,
     ) -> Option<ModelSpec> {
-        self.models
+        let candidates: Vec<&ModelSpec> = self
+            .models
             .values()
             .filter(|m| {
                 if respect_penalties && self.is_penalized(&m.id, task_type) {
@@ -938,6 +939,12 @@ impl ModelRegistry {
 
                 Self::matches_strength(m, strength) && pred(m)
             })
+            .collect();
+        // ponytail: recomputed per call (O(candidates)); the filter above already loads config per model.
+        let newest = super::family::newest_per_family(candidates.iter().copied());
+        candidates
+            .into_iter()
+            .filter(|m| !super::family::is_superseded(m, &newest))
             .max_by(|a, b| {
                 let score_a = super::scoring::auto_score_model(
                     a,
