@@ -85,6 +85,7 @@ reqwest.workspace = true
 owo-colors.workspace = true
 regex.workspace = true
 walkdir.workspace = true
+glob.workspace = true
 vox-corpus.workspace = true
 dialoguer = { workspace = true }
 vox-actor-runtime.workspace = true

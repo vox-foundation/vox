@@ -894,12 +894,6 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
-  - name: "VOX_HOOK_GUARD_DISABLE"
-    owner_crate: "vox-cli"
-    kind: "string"
-    required: false
-    introduced_in: "0.6.0"
-    description: "Maintainer escape hatch: when set, `vox ci queue --hook-guard` always exits 0 (the PreToolUse hook fails open)."
   - name: "VOX_HOOK_IDENT_PREFIX"
     owner_crate: "vox-compiler"
     kind: "string"
@@ -3235,24 +3229,6 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
-  - name: "VOX_RUNNER_IDLE_REAP_SECS"
-    owner_crate: "vox-cli"
-    kind: "string"
-    required: false
-    introduced_in: "0.6.0"
-    description: "CI runner autoscaler: idle grace window in seconds before reaping a registered-but-never-assigned ephemeral runner (default 300)."
-  - name: "VOX_RUNNER_MAX"
-    owner_crate: "vox-cli"
-    kind: "string"
-    required: false
-    introduced_in: "0.6.0"
-    description: "CI runner autoscaler: hard ceiling on concurrent managed ephemeral runners (default 2)."
-  - name: "VOX_RUNNER_WARM_POOL"
-    owner_crate: "vox-cli"
-    kind: "string"
-    required: false
-    introduced_in: "0.6.0"
-    description: "CI runner autoscaler: idle runners to keep registered for instant dispatch (default 1)."
   - name: "VOX_RUNPOD_API_KEY"
     owner_crate: "vox-populi"
     kind: "string"

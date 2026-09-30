@@ -157,8 +157,9 @@ pub enum PopuliAction {
         /// Candle QLoRA: reserved/deferred partial-depth flag; values below model depth are currently rejected by trainer.
         #[arg(long)]
         qlora_proxy_max_layers: Option<usize>,
-        /// Candle QLoRA: next-token CE on the last **K** positions per JSONL row (default 64). Capped by effective `--seq-len` and 64.
-        #[arg(long, default_value_t = 64)]
+        /// Candle QLoRA: restrict next-token CE to the last **K** positions of each row (still masked to the
+        /// assistant turn). Default 0 = supervise the whole assistant response. Capped by effective `--seq-len` and 64.
+        #[arg(long, default_value_t = 0)]
         qlora_ce_last_k: usize,
         /// Steps between mid-epoch checkpoints. Saves adapter and resume state to `--output-dir/checkpoint_state.json`. Default: 500.
         #[arg(long, default_value = "500")]
@@ -471,7 +472,10 @@ pub enum PopuliAction {
 
     /// Export merged safetensors weights to GGUF (not yet implemented).
     ///
-    /// Prerequisite: run `vox mens merge-qlora` to produce merged `.safetensors` first.
+    /// Prerequisite: run `vox mens merge-qlora` to produce merged `.safetensors`
+    /// first. `merge-qlora` is only available in GPU-enabled builds (`--features
+    /// gpu`, or the `gpu` distribution bundle) — it does not appear in a
+    /// non-GPU build's `vox mens --help`.
     #[command(name = "export-gguf")]
     ExportGguf {
         /// Merged safetensors path (output of `merge-qlora`).

@@ -1500,8 +1500,6 @@ dependencies = [
 [[package]]
 name = "candle-metal-kernels"
 version = "0.10.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b6b5a4cae6b4e1ab0efcee4dc05272d11b374a3d1ba121b3a961e36be54ab60"
 dependencies = [
  "half",
  "objc2",
@@ -16890,6 +16888,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml_ng",
+ "serial_test",
  "sysinfo 0.39.3",
  "thiserror 2.0.18",
  "tokio",
@@ -17883,6 +17882,7 @@ dependencies = [
  "cpal",
  "dialoguer",
  "dirs",
+ "glob",
  "hex",
  "hound",
  "iroh",
@@ -18276,6 +18276,7 @@ dependencies = [
  "vox-db",
  "vox-http-client",
  "vox-package-types",
+ "wiremock",
  "workspace-hack",
 ]
 

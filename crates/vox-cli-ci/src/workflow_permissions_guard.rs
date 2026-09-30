@@ -14,8 +14,8 @@ pub fn top_level_permissions(yml: &str) -> Option<serde_yaml::Value> {
     (!p.is_null()).then(|| p.clone())
 }
 
-/// Check every workflow. In `strict` mode a missing block is an error.
-pub fn run(root: &Path, strict: bool) -> Result<()> {
+/// Check every workflow. A missing top-level `permissions:` block is an error.
+pub fn run(root: &Path) -> Result<()> {
     let dir = root.join(".github/workflows");
     // A checkout without workflows is not a violation — `read_dir` on a missing
     // path is an Err, which would fail every pre-push in such a tree.
@@ -36,10 +36,7 @@ pub fn run(root: &Path, strict: bool) -> Result<()> {
     offenders.sort();
     if !offenders.is_empty() {
         let list = offenders.join(", ");
-        if strict {
-            bail!("workflows without an explicit top-level `permissions:` block: {list}");
-        }
-        eprintln!("warning: workflows without `permissions:`: {list}");
+        bail!("workflows without an explicit top-level `permissions:` block: {list}");
     }
     Ok(())
 }
@@ -57,6 +54,26 @@ mod tests {
     fn a_job_level_block_does_not_count() {
         let yml = "jobs:\n  build:\n    permissions:\n      contents: read\n";
         assert!(top_level_permissions(yml).is_none());
+    }
+
+    #[test]
+    fn repo_workflows_pass_in_strict_mode() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        run(&root).unwrap();
+    }
+
+    #[test]
+    fn workflow_without_permissions_block_fails() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let workflows = dir.path().join(".github/workflows");
+        std::fs::create_dir_all(&workflows).unwrap();
+        std::fs::write(
+            workflows.join("bad.yml"),
+            "on:\n  push:\njobs:\n  a:\n    steps: []\n",
+        )
+        .unwrap();
+        let err = run(dir.path()).expect_err("missing permissions: block must fail");
+        assert!(err.to_string().contains("bad.yml"), "{err}");
     }
 
     /// The real assertion: top-level defaults to read, and `contents: write`

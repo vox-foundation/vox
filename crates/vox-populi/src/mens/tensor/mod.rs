@@ -42,6 +42,8 @@ pub mod backend;
 #[cfg(feature = "mens-train")]
 mod backend_candle_qlora;
 #[cfg(feature = "mens-train")]
+pub mod backend_select;
+#[cfg(feature = "mens-train")]
 pub mod checkpoint_state;
 // SP3-D: candle_qlora_train, candle_qlora_weights, qlora_preflight, candle_qlora_graph extracted
 // to vox-plugin-mens-candle-cuda.

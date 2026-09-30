@@ -3,6 +3,27 @@ mod tests {
     use super::*;
 
     #[test]
+    fn typos_never_touch_identifiers_or_code_spans() {
+        let cfg = AugmentConfig {
+            typo_char_rate: 1.0,
+            ..AugmentConfig::default()
+        };
+        let prompt = "Show the `vox_budget_status` tool and vox_queue_status for MensTrain v2.0";
+        for seed in 0..50 {
+            for v in augment_prompt(prompt, &cfg, seed) {
+                for tok in [
+                    "`vox_budget_status`",
+                    "vox_queue_status",
+                    "MensTrain",
+                    "v2.0",
+                ] {
+                    assert!(v.contains(tok), "seed {seed}: {tok} mangled in {v:?}");
+                }
+            }
+        }
+    }
+
+    #[test]
     fn augment_produces_variants() {
         let cfg = AugmentConfig::default();
         let variants = augment_prompt("Write a Vox function called greet", &cfg, 42);

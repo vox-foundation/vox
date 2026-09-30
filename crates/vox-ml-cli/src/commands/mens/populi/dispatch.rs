@@ -116,7 +116,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 None,  // qlora_max_skip_rate
                 false, // qlora_lm_head_only
                 None,  // qlora_proxy_max_layers
-                64,    // qlora_ce_last_k
+                0,     // qlora_ce_last_k (whole assistant response)
                 Some(checkpoint_every),
                 force_restart,
                 false, // curriculum (dogfood default: off)
@@ -388,7 +388,8 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 };
                 // run_serve creates its own Tokio runtime; call it from a blocking thread
                 // so it doesn't conflict with the outer async executor.
-                tokio::task::block_in_place(|| crate::commands::ai::serve::run_serve(&cfg))
+                #[allow(clippy::needless_return)] // load-bearing without execution-api
+                return tokio::task::block_in_place(|| crate::commands::ai::serve::run_serve(&cfg));
             }
 
             #[cfg(not(feature = "execution-api"))]

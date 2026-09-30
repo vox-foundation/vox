@@ -204,7 +204,7 @@ tree-sitter-vox/GRAMMAR_SSOT.md                   # Regenerate via vox grammar -
 
 ## Mixed branch scope (read before reviewing diff)
 
-Integration review ([diff agent](dd9aeb22-9c07-4bec-a39b-7aea053d3ae3)) found **no conflicts** between the four review-fix agents, but the **overall diff is huge**. Pipeline-relevant changes integrate via `pipeline-parity` wiring; everything else is orthogonal.
+Integration review (diff agent, session `dd9aeb22-9c07-4bec-a39b-7aea053d3ae3`) found **no conflicts** between the four review-fix agents, but the **overall diff is huge**. Pipeline-relevant changes integrate via `pipeline-parity` wiring; everything else is orthogonal.
 
 **Suggested PR split:**
 

@@ -1,0 +1,66 @@
+# Opens (or comments on) a `nightly-failure` issue when a scheduled workflow
+# fails, times out, or is cancelled; closes it when that workflow passes again.
+# `vox ci status` (git + Claude hooks) lists open ones, so a broken nightly is
+# surfaced the next time anyone works on vox.
+# workflow_policy_guard fails ssot-drift if a scheduled workflow is missing here.
+name: Nightly report
+
+on:
+  workflow_run:
+    workflows:
+      - Benchmarks (nightly, vox-compiler)
+      - Cross-Platform Check (Windows + macOS + Ubuntu)
+      - Docs Link Checker
+      - OS Compatibility Report
+      - Setup Pipeline E2E
+      - Build & Push vox-eval Docker Image
+      - CR-L gates
+      - CodeQL
+      - Secret scan (gitleaks)
+      - Differential gate (nightly, interp vs native)
+      - Mutation (nightly, vox-compiler)
+      - Harness Eval (Nightly Live)
+      - Mobile E2E (iOS)
+      - Mobile E2E - Android
+      - GUI Cross-Platform Build (Win/macOS/Ubuntu)
+      - Nightly Artifacts
+      - Nightly
+      - OpenSSF Scorecard
+      - CI liveness
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    if: github.event.workflow_run.event == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          TITLE: "Nightly failing: ${{ github.event.workflow_run.name }}"
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          set -euo pipefail
+          gh label create nightly-failure --color B60205 \
+            --description "A scheduled workflow is failing" --force >/dev/null
+          num=$(gh issue list --label nightly-failure --state open --limit 100 \
+            --json number,title --jq 'map(select(.title == env.TITLE))[0].number // empty')
+          case "$CONCLUSION" in
+            success|skipped|neutral)
+              if [ -n "$num" ]; then gh issue close "$num" --comment "Recovered: $RUN_URL"; fi ;;
+            *)
+              if [ -n "$num" ]; then
+                gh issue comment "$num" --body "Still failing ($CONCLUSION): $RUN_URL"
+              else
+                gh issue create --label nightly-failure --title "$TITLE" --body \
+                  "Scheduled run ended \`$CONCLUSION\`: $RUN_URL. Closes itself when the workflow passes again. For timeouts check the slowest steps before touching any cap (workflow-policy-guard)."
+              fi ;;
+          esac

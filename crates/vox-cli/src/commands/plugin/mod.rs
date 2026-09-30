@@ -38,6 +38,10 @@ pub enum PluginCmd {
         /// loaded as native code — only use this for a source you trust.
         #[arg(long)]
         allow_unverified: bool,
+        /// Install even when the plugin's declared `requires-tag` (e.g.
+        /// `nvidia-gpu`) does not match this host's detected capabilities.
+        #[arg(long)]
+        force: bool,
     },
     /// Remove an installed plugin.
     Remove {
@@ -80,6 +84,7 @@ pub async fn run(cmd: PluginCmd) -> anyhow::Result<()> {
             url,
             yes,
             allow_unverified,
+            force,
         } => {
             install::run(
                 id.as_deref(),
@@ -87,6 +92,7 @@ pub async fn run(cmd: PluginCmd) -> anyhow::Result<()> {
                 url.as_deref(),
                 yes,
                 allow_unverified,
+                force,
             )
             .await
         }
