@@ -110,3 +110,18 @@ describe('TurnTrace', () => {
     expect(screen.getByTestId('chat-trace-steps')).toBeVisible();
   });
 });
+
+describe('golden turn (same example the Rust golden test checks)', () => {
+  it('renders the Rust-verified golden turn: resolved model, one tool, one verified receipt', () => {
+    const golden = CONTRACT.golden_turn;
+    if (!golden) throw new Error('contract has no golden_turn');
+    render(<TurnTrace events={golden.events} verbosity="normal" />);
+    const summary = screen.getByTestId('chat-trace-summary');
+    expect(summary).toHaveTextContent('acme/widget-5.5 · 1 tool · 1 receipt ✓');
+    expect(summary).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getAllByTestId('chat-trace-step').map((li) => li.getAttribute('data-kind'))).toEqual([
+      'routing_decision',
+      'tool_receipt',
+    ]);
+  });
+});

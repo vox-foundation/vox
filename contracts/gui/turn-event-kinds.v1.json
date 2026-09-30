@@ -53,5 +53,26 @@
         "reason": "Chosen by the model scorer as the best match for your request"
       }
     }
-  ]
+  ],
+  "golden_turn": {
+    "description": "What try_run_agent_turn emits for one tool-calling turn: acme/widget-5.5 pinned by the global override, Efficient mode, one vox_git_status call. receipt_id is normalised by the Rust test.",
+    "events": [
+      {
+        "kind": "routing_decision",
+        "family": "acme/widget",
+        "resolved_id": "acme/widget-5.5",
+        "resolved_from": "catalog",
+        "mode": "efficiency",
+        "objective": "Most quality per dollar; no flagship while another model fits",
+        "reason": "Pinned by the global model override"
+      },
+      {
+        "kind": "tool_receipt",
+        "tool": "vox_git_status",
+        "receipt_id": "01920000-aaaa-7bbb-8ccc-000000000001",
+        "fulfilled": true,
+        "verified": true
+      }
+    ]
+  }
 }
