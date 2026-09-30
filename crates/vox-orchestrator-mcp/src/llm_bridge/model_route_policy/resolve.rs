@@ -669,9 +669,54 @@ mod tests {
 
     /// Chat is what the GUI shows: on the default (cost-leaning) axes it must not resolve to a flagship
     /// while a cheaper-tier model is registered, even when the flagship is the cheapest candidate.
+    /// Removes env vars for its lifetime and restores their prior values on drop. Callers hold
+    /// `INFERENCE_PROFILE_TEST_LOCK`, which every test that sets these variables also holds.
+    struct UnsetEnv(Vec<(&'static str, Option<String>)>);
+
+    impl UnsetEnv {
+        #[allow(unsafe_code)]
+        fn new(keys: &[&'static str]) -> Self {
+            let prior = keys.iter().map(|k| (*k, std::env::var(k).ok())).collect();
+            for k in keys {
+                // SAFETY: serialized with `INFERENCE_PROFILE_TEST_LOCK` (held by the caller).
+                unsafe { std::env::remove_var(k) };
+            }
+            Self(prior)
+        }
+    }
+
+    impl Drop for UnsetEnv {
+        #[allow(unsafe_code)]
+        fn drop(&mut self) {
+            for (k, v) in &self.0 {
+                // SAFETY: the same lock is still held by the caller.
+                unsafe {
+                    match v {
+                        Some(v) => std::env::set_var(k, v),
+                        None => std::env::remove_var(k),
+                    }
+                }
+            }
+        }
+    }
+
     #[test]
     fn chat_lane_does_not_pick_a_flagship_on_default_axes() {
         use vox_orchestrator::models::spec::PricingSource;
+
+        // The fixture models are `PopuliMesh`, a local-HTTP lane that a `restricted` route-policy profile
+        // blocks. Other tests set that profile and the inference profile under
+        // `INFERENCE_PROFILE_TEST_LOCK`; hold it and pin those variables to unset so neither a test
+        // running concurrently nor the caller's environment changes the pick.
+        let _lock = super::super::tests::INFERENCE_PROFILE_TEST_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let _env = UnsetEnv::new(&[
+            "VOX_ROUTE_POLICY_PROFILE",
+            "VOX_ROUTE_ALLOW_LOCAL_MODEL_HTTP",
+            "vox_populi::inference_PROFILE",
+        ]);
+
         use vox_orchestrator::models::{
             ModelCapabilities, ModelRegistry, ModelSpec, ModelTier, ProviderType,
         };

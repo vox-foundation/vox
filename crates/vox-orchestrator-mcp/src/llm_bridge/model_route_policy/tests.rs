@@ -10,7 +10,7 @@ use super::{
     resolve_mcp_chat_model_sync,
 };
 
-static INFERENCE_PROFILE_TEST_LOCK: Mutex<()> = Mutex::new(());
+pub(super) static INFERENCE_PROFILE_TEST_LOCK: Mutex<()> = Mutex::new(());
 
 /// RAII guard that sets an env var and restores the prior value on drop
 /// (mirrors the vox-orchestrator select.rs test idiom). Callers must hold
