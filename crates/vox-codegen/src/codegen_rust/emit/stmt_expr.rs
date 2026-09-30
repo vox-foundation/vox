@@ -63,11 +63,13 @@ pub(super) fn emit_stmt(
             // needed for `Result<i64, _>`), so annotate the binding when the
             // declared type is `Result` — the only shape this collapses for.
             // `Option`/other types never hit this: `Some(x)` fully pins `T`.
-            let ty_ann_str = match type_ann {
-                Some(ty @ HirType::Generic(name, _)) if name == "Result" => {
-                    format!(": {}", super::types::emit_type(ty))
-                }
-                _ => String::new(),
+            // No annotation (empty) is the normal case, not a dropped construct.
+            let ty_ann_str = if let Some(ty @ HirType::Generic(name, _)) = type_ann
+                && name == "Result"
+            {
+                format!(": {}", super::types::emit_type(ty))
+            } else {
+                String::new()
             };
             if is_actor {
                 format!(

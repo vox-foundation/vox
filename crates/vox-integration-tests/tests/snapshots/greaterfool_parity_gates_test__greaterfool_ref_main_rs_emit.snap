@@ -531,9 +531,18 @@ _id INTEGER PRIMARY KEY AUTOINCREMENT,
 }
 
 async fn handle_sf_chat(Extension(vox_rid): Extension<Option<String>>, Extension(db): Extension<Arc<Codex>>, Json(request): Json<serde_json::Value>) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    let prompt = request["prompt"].clone();
-    let request_id = request["request_id"].clone();
-    let conversation_id = request["conversation_id"].clone();
+    let prompt: String = match serde_json::from_value(request["prompt"].clone()) {
+        Ok(v) => v,
+        Err(e) => return Err((StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": format!("invalid parameter `prompt`: {}", e) })))),
+    };
+    let request_id: String = match serde_json::from_value(request["request_id"].clone()) {
+        Ok(v) => v,
+        Err(e) => return Err((StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": format!("invalid parameter `request_id`: {}", e) })))),
+    };
+    let conversation_id: String = match serde_json::from_value(request["conversation_id"].clone()) {
+        Ok(v) => v,
+        Err(e) => return Err((StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": format!("invalid parameter `conversation_id`: {}", e) })))),
+    };
     let _ = start_run(request_id.clone(), conversation_id.clone());
     return Ok(Json(serde_json::to_value(process_chat(prompt, request_id, conversation_id)).map_err(|e| (
     StatusCode::INTERNAL_SERVER_ERROR,
