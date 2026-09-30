@@ -55,6 +55,7 @@ import { contextRefsFromPayload } from './lib/loquelaContext';
 import { overallWorst, worstCount } from './components/surfaces/Policies/policyTree';
 import type { PolicyRow, PolicyStatus, BranchInfo, RunStatus } from './components/surfaces/Policies/types';
 import { voxTransport, listenAgentEvents, chatTurn as sendChatTurnRaw, type AgentEventFrame } from './transport';
+import { useQuery } from '@tanstack/react-query';
 import { useAttentionInbox } from './hooks/useAttentionInbox';
 import { useKeybinds } from './hooks/useKeybinds';
 import { parseBindings, DEFAULT_BINDINGS, type Bindings } from './lib/keybinds';
@@ -400,6 +401,12 @@ export default function App() {
   // need MeshView's fast cadence, which would add permanent steady-state
   // load on the orchestrator daemon.
   const meshNodes = useMeshNodes(20_000);
+  // Global routing pick for the status bar's Routing card (same 20 s cadence as the mesh card).
+  const routingSummaryQuery = useQuery({
+    queryKey: ['routing-summary-live'],
+    queryFn: () => voxTransport.getRoutingSummaryLive(),
+    refetchInterval: 20_000,
+  });
   const activeModel = useMemo(() => {
     const status = orchQuery.data as (OrchestratorStatus & { active_model?: string | null }) | undefined;
     return status?.active_model ?? null;
@@ -1901,7 +1908,6 @@ export default function App() {
         appVersion={appVersion}
         policyBadge={policyBadge}
         needsYouCount={attention.totalCount}
-        pendingApprovals={attention.approvals.length}
         kpis={kpis}
         onOpenCommandPalette={() => setIsCommandOpen(true)}
         lastOrchEventAt={lastOrchEventAt}
@@ -1911,8 +1917,9 @@ export default function App() {
         surfaceLabel={labelForNavKey(activeView)}
         chatDocked={chatDocked}
         chatDock={chatDock}
-        activeModel={activeModel}
+        routingSummary={routingSummaryQuery.data ?? null}
         openrouterSpendUsd={openrouterSpendUsd}
+        sessionSpentUsd={sessionSpentUsd}
         gamifyEnabled={gamifySettings.enabled}
         onOpenAchievements={openAchievements}
         onOpenResearchDrawer={openResearchDrawer}

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Glass } from '../ui/Glass';
 import { Icon } from '../ui/Icons';
-import { formatBudgetCap } from '../../config/budget';
+import { formatSpend } from '../../config/budget';
 import { useFreshness } from '../../hooks/useFreshness';
 import {
   resolveVisibleHudTiles,
@@ -12,6 +12,8 @@ import {
 } from '../../hooks/useHudTiles';
 import { INITIAL_KPIS } from '../../data/initialState';
 import { WORKBENCH_TABBAR_TRAILING_SLOT_ID } from '../../lib/domIds';
+import { routingCardValue } from '../../lib/routingSummary';
+import type { RoutingSummary } from '../../types/tauri';
 import type { MeshNode } from '../surfaces/Mesh/MeshView';
 import { StatusBarCluster } from '../common/StatusBarCluster';
 
@@ -25,9 +27,13 @@ export interface BottomStatusBarProps {
   lastOrchEventAt: number | null;
   orchUsesPolling: boolean;
   liveFreshMs: number;
-  activeModel?: string | null;
+  /** Global routing pick (get_routing_summary_live); a version is shown only when catalog-resolved. */
+  routingSummary?: RoutingSummary | null;
   openrouterSpendUsd?: number | null;
-  pendingApprovals?: number | null;
+  /** This chat session's spend (get_llm_spend sessionUsd), shown in the Spend popover. */
+  sessionSpentUsd?: number | null;
+  /** Approvals plus open questions (attention inbox `totalCount`). */
+  needsYouCount?: number | null;
   meshNodes?: MeshNode[];
   gamifyEnabled?: boolean;
   onOpenAchievements?: () => void;
@@ -40,6 +46,7 @@ function freshnessClasses(tone: 'live' | 'poll' | 'stale') {
       pill: 'border-emerald-400/20 bg-emerald-400/4 text-emerald-300',
       dot: 'bg-emerald-400',
       label: 'Live',
+      title: 'Live: receiving engine events',
     };
   }
   if (tone === 'poll') {
@@ -47,12 +54,14 @@ function freshnessClasses(tone: 'live' | 'poll' | 'stale') {
       pill: 'border-amber-400/20 bg-amber-400/4 text-amber-300',
       dot: 'bg-amber-400',
       label: 'Poll',
+      title: 'Polling: no event stream, refreshing on a timer',
     };
   }
   return {
     pill: 'border-border-subtle bg-overlay-subtle text-text-muted',
     dot: 'bg-text-muted',
     label: 'Offline',
+    title: 'Offline: no engine data recently',
   };
 }
 
@@ -61,21 +70,35 @@ function Segment({
   label,
   value,
   onClick,
+  expanded,
+  buttonRef,
 }: {
   testId: string;
   label: string;
   value: string;
   onClick: () => void;
+  /** Set only on a card that opens a popover. */
+  expanded?: boolean;
+  buttonRef?: React.Ref<HTMLButtonElement>;
 }) {
   return (
     <button
+      ref={buttonRef}
       type="button"
       data-testid={testId}
       onClick={onClick}
+      aria-haspopup={expanded === undefined ? undefined : 'dialog'}
+      aria-expanded={expanded}
       className="inline-flex items-center gap-1.5 rounded-sm px-2 py-0.5 text-[10px] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
     >
-      <span className="uppercase tracking-[0.14em] text-text-muted">{label}</span>
-      <span className="font-mono tabular-nums text-text-secondary">{value}</span>
+      <span data-card-label className="uppercase tracking-[0.14em] text-text-muted">{label}</span>
+      <span
+        data-card-value
+        title={value}
+        className="inline-block max-w-[28ch] truncate align-bottom font-mono tabular-nums text-text-secondary"
+      >
+        {value}
+      </span>
     </button>
   );
 }
@@ -88,9 +111,10 @@ export function BottomStatusBar({
   lastOrchEventAt,
   orchUsesPolling,
   liveFreshMs,
-  activeModel = null,
+  routingSummary = null,
   openrouterSpendUsd = null,
-  pendingApprovals = null,
+  sessionSpentUsd = null,
+  needsYouCount = null,
   meshNodes,
   gamifyEnabled = false,
   onOpenAchievements,
@@ -103,22 +127,25 @@ export function BottomStatusBar({
   const fresh = freshnessClasses(tone);
   const visible = resolveVisibleHudTiles(hudTilesConfig);
 
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+  // One popover at a time: the Configure menu or the Spend card's detail.
+  const [openPanel, setOpenPanel] = useState<'configure' | 'spend' | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const spendTriggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    if (!menuOpen) return;
+    if (openPanel === null) return;
+    const activeTrigger = openPanel === 'spend' ? spendTriggerRef : triggerRef;
     const onOutside = (e: MouseEvent) => {
       const target = e.target as Node;
-      if (menuRef.current?.contains(target)) return;
-      if (triggerRef.current?.contains(target)) return;
-      setMenuOpen(false);
+      if (panelRef.current?.contains(target)) return;
+      if (activeTrigger.current?.contains(target)) return;
+      setOpenPanel(null);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setMenuOpen(false);
-        triggerRef.current?.focus();
+        setOpenPanel(null);
+        activeTrigger.current?.focus();
       }
     };
     document.addEventListener('mousedown', onOutside);
@@ -127,96 +154,73 @@ export function BottomStatusBar({
       document.removeEventListener('mousedown', onOutside);
       document.removeEventListener('keydown', onKey);
     };
-  }, [menuOpen]);
+  }, [openPanel]);
 
-  const budgetSource = kpis.budgetBurn?.source ?? 'fallback';
-  const capDisplay = formatBudgetCap(
-    budgetSource === 'daemon' ? kpis.budgetBurn.cap : null,
-    budgetSource,
-  );
-  const budgetValue = `$${kpis.budgetBurn.value.toFixed(2)}/${capDisplay}`;
+  const budget = kpis.budgetBurn;
+  // A cap only when the daemon reported a positive one: never `/ $0`, never the fallback placeholder.
+  const spendValue = formatSpend(budget.value, budget.source === 'daemon' ? budget.cap : null);
+  const usd = (v: number | null) => (v == null || Number.isNaN(v) ? 'unknown' : `$${v.toFixed(2)}`);
+  const agentsN = kpis.activeAgents.value;
+  const engineValue = `${agentsN} ${agentsN === 1 ? 'agent' : 'agents'} · ${kpis.queueDepth.value} queued`;
+  // Mesh has one source (vox_mesh_nodes via useMeshNodes); until it answers, show a dash, not a second count.
+  const meshValue =
+    meshNodes == null
+      ? '—'
+      : `${meshNodes.filter((n) => n.status === 'online').length}/${meshNodes.length} online`;
 
   const renderSegment = (kind: HudTileKind): React.ReactNode => {
+    const label = HUD_TILE_LABELS[kind];
     switch (kind) {
       case 'active_agents':
         return (
           <Segment
             key={kind}
-            testId="bottom-status-bar-agents"
-            label="Agents"
-            value={String(kpis.activeAgents.value)}
+            testId="bottom-status-bar-engine"
+            label={label}
+            value={engineValue}
             onClick={() => onNavigate('agents')}
-          />
-        );
-      case 'queue_depth':
-        return (
-          <Segment
-            key={kind}
-            testId="bottom-status-bar-queue"
-            label="Queue"
-            value={String(kpis.queueDepth.value)}
-            onClick={() => onNavigate('runs')}
           />
         );
       case 'budget_burn':
         return (
           <Segment
             key={kind}
-            testId="bottom-status-bar-budget"
-            label="Budget"
-            value={budgetValue}
-            onClick={() => onNavigate('settings')}
+            testId="bottom-status-bar-spend"
+            label={label}
+            value={spendValue}
+            expanded={openPanel === 'spend'}
+            buttonRef={spendTriggerRef}
+            onClick={() => setOpenPanel((p) => (p === 'spend' ? null : 'spend'))}
           />
         );
-      case 'mesh_peers': {
-        // Keep the trailing "online" wording stable across both states so the
-        // segment doesn't visibly change shape once richer node data loads —
-        // before meshNodes arrives we don't know the online/offline split,
-        // so show the peer count as a single figure rather than switching
-        // from "N peers" to "X/Y online" (two different phrasings for what
-        // reads as the same kind of number).
-        const onlineCount = meshNodes?.filter((n) => n.status === 'online').length ?? 0;
-        const totalCount = meshNodes?.length ?? 0;
-        const meshValue =
-          meshNodes == null ? `${kpis.mesh.peers} online` : `${onlineCount}/${totalCount} online`;
+      case 'mesh_peers':
         return (
           <Segment
             key={kind}
             testId="bottom-status-bar-mesh"
-            label="Mesh"
+            label={label}
             value={meshValue}
             onClick={() => onNavigate('mesh')}
           />
         );
-      }
       case 'active_model':
         return (
           <Segment
             key={kind}
-            testId="bottom-status-bar-model"
-            label="Model"
-            value={activeModel ?? 'auto-route'}
+            testId="bottom-status-bar-routing"
+            label={label}
+            value={routingCardValue(routingSummary)}
             onClick={() => onNavigate('models')}
-          />
-        );
-      case 'openrouter_spend':
-        return (
-          <Segment
-            key={kind}
-            testId="bottom-status-bar-openrouter"
-            label="OR Spend"
-            value={openrouterSpendUsd == null ? '—' : `$${openrouterSpendUsd.toFixed(2)}`}
-            onClick={() => onNavigate('settings')}
           />
         );
       case 'pending_approvals':
         return (
           <Segment
             key={kind}
-            testId="bottom-status-bar-approvals"
-            label="Approvals"
-            value={String(pendingApprovals ?? 0)}
-            onClick={() => onNavigate('approvals')}
+            testId="bottom-status-bar-needs-you"
+            label={label}
+            value={String(needsYouCount ?? 0)}
+            onClick={() => onNavigate('needs-you')}
           />
         );
       default:
@@ -231,8 +235,40 @@ export function BottomStatusBar({
       aria-label="Operator status"
       className="flex h-7 w-full items-center gap-1 p-0 px-3 rounded-none border-x-0 border-b-0 shadow-none text-[10px] text-text-muted"
     >
-      <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
-        {visible.map((kind) => renderSegment(kind))}
+      <div className="relative flex min-w-0 flex-1">
+        <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
+          {visible.map((kind) => renderSegment(kind))}
+        </div>
+        {openPanel === 'spend' ? (
+          <div
+            ref={panelRef}
+            role="dialog"
+            aria-label="Spend detail"
+            data-testid="bottom-status-bar-spend-popover"
+            className="absolute bottom-full left-0 z-50 mb-1 w-64 rounded-lg border border-border-subtle bg-bg-base p-3 shadow-2xl"
+          >
+            <dl className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 text-[11px]">
+              <dt className="text-text-muted">Engine total</dt>
+              <dd className="font-mono tabular-nums text-text-secondary">{spendValue}</dd>
+              <dt className="text-text-muted">OpenRouter</dt>
+              <dd className="font-mono tabular-nums text-text-secondary">{usd(openrouterSpendUsd)}</dd>
+              <dt className="text-text-muted">This session</dt>
+              <dd className="font-mono tabular-nums text-text-secondary">{usd(sessionSpentUsd)}</dd>
+              <dt className="text-text-muted">Local models</dt>
+              <dd className="font-mono tabular-nums text-text-secondary">not metered</dd>
+            </dl>
+            <button
+              type="button"
+              onClick={() => {
+                setOpenPanel(null);
+                onNavigate('settings');
+              }}
+              className="mt-2 w-full rounded-sm border border-border-subtle px-2 py-1 text-[11px] text-text-secondary hover:bg-overlay-subtle"
+            >
+              Budget settings
+            </button>
+          </div>
+        ) : null}
       </div>
       {gamifyEnabled && onOpenAchievements && (
         <button
@@ -250,16 +286,16 @@ export function BottomStatusBar({
         <button
           ref={triggerRef}
           type="button"
-          onClick={() => setMenuOpen((o) => !o)}
-          aria-expanded={menuOpen}
+          onClick={() => setOpenPanel((p) => (p === 'configure' ? null : 'configure'))}
+          aria-expanded={openPanel === 'configure'}
           aria-label="Configure status bar"
           className="rounded-sm px-1.5 py-0.5 text-[10px] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
         >
           Configure ▾
         </button>
-        {menuOpen ? (
+        {openPanel === 'configure' ? (
           <div
-            ref={menuRef}
+            ref={panelRef}
             className="absolute bottom-full right-0 z-50 mb-1 w-56 rounded-lg border border-border-subtle bg-bg-base p-2 shadow-2xl"
           >
             {hudTilesConfig.tiles.map((tile) => (
@@ -283,6 +319,7 @@ export function BottomStatusBar({
       </div>
       <div
         data-testid="bottom-status-bar-freshness"
+        title={fresh.title}
         className={`ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-sm border px-2 py-0.5 ${fresh.pill}`}
       >
         <span className={`size-1.5 rounded-full ${fresh.dot}`} />

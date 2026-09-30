@@ -31,14 +31,6 @@ export function budgetStateFromStatus(
   };
 }
 
-/** Format cap for display; shows em-dash when unknown. */
-export function formatBudgetCap(cap: number | null, source: BudgetSource): string {
-  if (source === 'daemon' && cap != null) {
-    return `$${cap.toFixed(2)}`;
-  }
-  return '—';
-}
-
 /** `$12.34 / $50.00` when a positive cap is known, else `$12.34` — never `/ $0`. */
 export function formatSpend(spent: number, cap: number | null): string {
   const s = `$${spent.toFixed(2)}`;

@@ -8,7 +8,7 @@ import { SurfaceErrorBoundary } from '../ui/ErrorBoundary';
 import type { DashboardData } from '../../types/dashboard';
 import type { PolicyBadge } from './Sidebar';
 import type { HudTilesConfig } from '../../hooks/useHudTiles';
-import type { Toast } from '../../types/tauri';
+import type { RoutingSummary, Toast } from '../../types/tauri';
 import type { MeshNode } from '../surfaces/Mesh/MeshView';
 import { INITIAL_KPIS } from '../../data/initialState';
 import type { ChatSession } from '../../lib/useChatSessions';
@@ -28,7 +28,6 @@ export interface AppShellProps {
   appVersion: string;
   policyBadge: PolicyBadge;
   needsYouCount: number;
-  pendingApprovals: number;
   kpis: KpiState;
   onOpenCommandPalette: () => void;
   lastOrchEventAt: number | null;
@@ -40,8 +39,11 @@ export interface AppShellProps {
   chatDocked: boolean;
   chatDock?: React.ReactNode;
   children: React.ReactNode;
-  activeModel?: string | null;
   openrouterSpendUsd?: number | null;
+  /** Global routing pick for the status bar's Routing card. */
+  routingSummary?: RoutingSummary | null;
+  /** This chat session's spend, for the Spend popover. */
+  sessionSpentUsd?: number | null;
   gamifyEnabled?: boolean;
   onOpenAchievements?: () => void;
   onOpenResearchDrawer?: () => void;
@@ -77,7 +79,6 @@ export function AppShell({
   appVersion,
   policyBadge,
   needsYouCount,
-  pendingApprovals,
   kpis,
   onOpenCommandPalette,
   lastOrchEventAt,
@@ -88,8 +89,9 @@ export function AppShell({
   chatDocked,
   chatDock,
   children,
-  activeModel,
   openrouterSpendUsd,
+  routingSummary,
+  sessionSpentUsd,
   gamifyEnabled,
   onOpenAchievements,
   onOpenResearchDrawer,
@@ -175,9 +177,10 @@ export function AppShell({
         lastOrchEventAt={lastOrchEventAt}
         orchUsesPolling={orchUsesPolling}
         liveFreshMs={liveFreshMs}
-        activeModel={activeModel}
+        routingSummary={routingSummary}
         openrouterSpendUsd={openrouterSpendUsd}
-        pendingApprovals={pendingApprovals}
+        sessionSpentUsd={sessionSpentUsd}
+        needsYouCount={needsYouCount}
         meshNodes={meshNodes}
         gamifyEnabled={gamifyEnabled}
         onOpenAchievements={onOpenAchievements}

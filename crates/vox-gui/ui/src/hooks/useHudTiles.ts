@@ -5,25 +5,28 @@
 
 export const HUD_TILE_KINDS = [
   'active_agents',
-  'queue_depth',
   'budget_burn',
   'mesh_peers',
   'active_model',
-  'openrouter_spend',
   'pending_approvals',
 ] as const;
 
 export type HudTileKind = (typeof HUD_TILE_KINDS)[number];
 
+/** Card names — the Configure menu shows exactly these, so menu and cards cannot drift. */
 export const HUD_TILE_LABELS: Record<HudTileKind, string> = {
-  active_agents: 'Active agents',
-  queue_depth: 'Queue depth',
-  budget_burn: 'Budget burn',
-  mesh_peers: 'Mesh peers',
-  active_model: 'Active model',
-  openrouter_spend: 'OpenRouter spend',
-  pending_approvals: 'Pending approvals',
+  active_agents: 'Engine',
+  budget_burn: 'Spend',
+  mesh_peers: 'Mesh',
+  active_model: 'Routing',
+  pending_approvals: 'Needs you',
 };
+
+/**
+ * Tile ids retired 2026-09-28: queue depth merged into the Engine card, OpenRouter spend into the Spend
+ * card's popover. A stored config that still lists them loads with those entries dropped (other choices kept).
+ */
+export const RETIRED_HUD_TILE_IDS: ReadonlySet<string> = new Set(['queue_depth', 'openrouter_spend']);
 
 export interface HudTileEntry {
   id: string;
@@ -64,7 +67,9 @@ export function validateHudTilesConfig(raw: unknown): HudTilesConfig {
     throw new Error('hud tiles config tiles must be an array');
   }
 
-  const tiles: HudTileEntry[] = raw.tiles.map((entry, index) => {
+  const tiles: HudTileEntry[] = raw.tiles
+    .filter((entry) => !(isRecord(entry) && typeof entry.id === 'string' && RETIRED_HUD_TILE_IDS.has(entry.id)))
+    .map((entry, index) => {
     const path = `tiles[${index}]`;
     if (!isRecord(entry)) {
       throw new Error(`${path}: tile must be an object`);
