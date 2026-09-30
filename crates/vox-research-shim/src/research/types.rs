@@ -124,6 +124,63 @@ pub struct RetrievalDiagnostics {
     /// True when `distinct_domain_count` is below `ResearchConfig::min_distinct_domains`.
     #[serde(default)]
     pub citation_diversity_below_threshold: bool,
+    /// Per-provider web-search outcomes across every subquery of the run —
+    /// the deep chat trace's provider table (same shape as quick mode's).
+    #[serde(default)]
+    pub providers: Vec<ProviderCallSummary>,
+    /// Session Tavily credits after the run's last web search; `None` when
+    /// Tavily is not configured.
+    #[serde(default)]
+    pub tavily_credits: Option<TavilyCredits>,
+}
+
+/// One (provider, outcome) row aggregated over a run's web-search calls.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ProviderCallSummary {
+    pub provider: String,
+    /// Representative status; for `Ok` the hits are summed over `calls`.
+    pub status: vox_search::web_dispatcher::ProviderStatus,
+    /// Slowest call in this row.
+    pub elapsed_ms: u64,
+    pub calls: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TavilyCredits {
+    pub used: usize,
+    pub remaining: usize,
+}
+
+/// A research run that failed after retrieval started, carrying the run's
+/// per-provider log (and the sources it had kept) so a trace can show which
+/// provider failed. Recover it with
+/// `anyhow::Error::downcast_ref::<ResearchRunFailure>()`.
+///
+/// Transparent for printing: `Display` and `source()` are the wrapped error's,
+/// so `{}`, `{:#}`, `chain()` and `root_cause()` read exactly as before.
+/// NOT transparent for type inspection: `err.downcast_ref::<InnerType>()` on
+/// the outer error now returns `None` (downcast `.error` instead), and the
+/// captured backtrace is the wrapper's, not the inner error's.
+#[derive(Debug)]
+pub struct ResearchRunFailure {
+    pub error: anyhow::Error,
+    pub providers: Vec<ProviderCallSummary>,
+    pub tavily_credits: Option<TavilyCredits>,
+    /// Hits kept after dedupe/filtering when the run failed (empty on the
+    /// zero-hits halt).
+    pub sources: Vec<ResearchHit>,
+}
+
+impl std::fmt::Display for ResearchRunFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(&*self.error, f)
+    }
+}
+
+impl std::error::Error for ResearchRunFailure {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        self.error.source()
+    }
 }
 
 impl Default for RetrievalDiagnostics {
@@ -137,6 +194,8 @@ impl Default for RetrievalDiagnostics {
             hit_rate: 0.0,
             distinct_domain_count: 0,
             citation_diversity_below_threshold: false,
+            providers: Vec::new(),
+            tavily_credits: None,
         }
     }
 }

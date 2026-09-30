@@ -46,16 +46,71 @@ pub struct Source {
     pub snippet: String,
 }
 
+/// One model role's requested id (a pin, possibly a `~vendor/…-latest` alias)
+/// and the concrete id that answered (Task 13).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct RoleModel {
+    pub role: &'static str,
+    pub requested: Option<String>,
+    pub resolved: String,
+}
+
 #[derive(Debug)]
 pub struct ResearchTrace {
     pub intent: ResearchIntent,
     pub stages: Vec<StageRecord>,
     pub sources: Vec<Source>,
+    /// The headline model: the id that actually answered (see [`Self::set_model`]).
     pub model: Option<String>,
+    /// The id it was requested as, when that differs (an alias).
+    pub model_alias: Option<String>,
+    /// Per-role requested vs resolved models, in first-use order.
+    pub models: Vec<RoleModel>,
     started: Instant,
 }
 
 impl ResearchTrace {
+    /// Headline model: `resolved` when the provider reported one, else the
+    /// requested id; the requested id is kept as `model_alias` when it differs
+    /// (e.g. `~vendor/model-latest` resolved to a concrete version).
+    pub fn set_model(&mut self, requested: &str, resolved: Option<&str>) {
+        let resolved = resolved.map(str::trim).filter(|r| !r.is_empty());
+        self.model = Some(resolved.unwrap_or(requested).to_string());
+        self.model_alias = resolved
+            .filter(|r| *r != requested)
+            .map(|_| requested.to_string());
+    }
+
+    fn push_role_model(&mut self, m: RoleModel) {
+        if !self.models.contains(&m) {
+            self.models.push(m);
+        }
+    }
+
+    /// Record the research stages' requested/resolved models (deduped per role).
+    pub fn record_role_models(
+        &mut self,
+        uses: &[vox_actor_runtime::llm::cascade::ResearchModelUse],
+    ) {
+        for u in uses {
+            self.push_role_model(RoleModel {
+                role: u.stage.model_role().label(),
+                requested: Some(u.requested.clone()),
+                resolved: u.resolved.clone(),
+            });
+        }
+    }
+
+    /// Record the chat reply's model: the pin it was requested as (if any) and
+    /// the id that answered; also the headline model.
+    pub fn set_chat_model(&mut self, requested: Option<&str>, resolved: &str) {
+        self.push_role_model(RoleModel {
+            role: vox_config::inference::ModelRole::Chat.label(),
+            requested: requested.map(str::to_string),
+            resolved: resolved.to_string(),
+        });
+        self.set_model(requested.unwrap_or(resolved), Some(resolved));
+    }
     pub fn new(intent: ResearchIntent) -> Self {
         let detection = StageRecord::new(
             "detection",
@@ -69,6 +124,8 @@ impl ResearchTrace {
             stages: vec![detection],
             sources: Vec::new(),
             model: None,
+            model_alias: None,
+            models: Vec::new(),
             started: Instant::now(),
         }
     }
@@ -95,6 +152,8 @@ impl ResearchTrace {
             "query": self.intent.query,
             "source_count": self.sources.len(),
             "model": self.model,
+            "model_alias": self.model_alias,
+            "models": self.models,
             "total_ms": self.started.elapsed().as_millis() as u64,
             "status": status,
             "stages": self.stages,
@@ -296,6 +355,92 @@ fn queries_stage(original: &str, search_query: &str) -> StageRecord {
     )
 }
 
+/// The retrieval-stage degrade rule shared by quick and deep research: a
+/// provider that errored or timed out. `BudgetExhausted` / `CircuitOpen` (and
+/// `NotConfigured` / `Disabled`) alone deliberately leave retrieval "ok" — no
+/// call was attempted, and the provider row already shows them with "!"/"–".
+fn any_provider_failed<'a>(statuses: impl IntoIterator<Item = &'a ProviderStatus>) -> bool {
+    statuses
+        .into_iter()
+        .any(|s| matches!(s, ProviderStatus::Error { .. } | ProviderStatus::Timeout))
+}
+
+/// Trace summary when every provider row is `Disabled` — the web-research
+/// kill switch (`SearchPolicy::web_research_enabled = false`) is on.
+const WEB_RESEARCH_DISABLED: &str = "web research disabled — no providers contacted";
+
+fn all_providers_disabled<'a>(statuses: impl IntoIterator<Item = &'a ProviderStatus>) -> bool {
+    let mut any = false;
+    for s in statuses {
+        if *s != ProviderStatus::Disabled {
+            return false;
+        }
+        any = true;
+    }
+    any
+}
+
+/// The context block injected into the quick-research prompt. When the
+/// web-research switch is off (every provider `Disabled`) it says so — the
+/// generic empty block ("web research ran … returned no sources") would be a
+/// falsehood the model repeats to the user.
+fn quick_context_block(
+    report: &vox_search::web_dispatcher::SearchReport,
+    sources: &[Source],
+) -> String {
+    if all_providers_disabled(report.providers.iter().map(|p| &p.status)) {
+        return "[WEB RESEARCH — DISABLED]\nWeb research is disabled in this environment, so no \
+                web search was run and no sources were fetched for this question. If the answer \
+                depends on current information, tell the user plainly that web research is \
+                disabled; do not invent citations or claim to have searched.\n"
+            .to_string();
+    }
+    sources_context_block(sources)
+}
+
+/// The quick-research retrieval stage for one dispatcher report.
+fn quick_retrieval_stage(
+    report: &vox_search::web_dispatcher::SearchReport,
+    elapsed_ms: u64,
+) -> StageRecord {
+    let statuses = || report.providers.iter().map(|p| &p.status);
+    let answered = report
+        .providers
+        .iter()
+        .filter(|p| matches!(p.status, ProviderStatus::Ok { hits } if hits > 0))
+        .count();
+    let failed = any_provider_failed(statuses());
+    let (status, summary) = if all_providers_disabled(statuses()) {
+        ("skipped", WEB_RESEARCH_DISABLED.to_string())
+    } else {
+        (
+            match (report.hits.is_empty(), failed) {
+                (true, true) => "failed",
+                (true, false) => "empty",
+                (false, true) => "degraded",
+                (false, false) => "ok",
+            },
+            format!(
+                "{} hits from {answered}/{} providers",
+                report.hits.len(),
+                report.providers.len()
+            ),
+        )
+    };
+    StageRecord::new(
+        "retrieval",
+        status,
+        Some(elapsed_ms),
+        summary,
+        json!({
+            "providers": report.providers,
+            "tavily_credits": report
+                .tavily_credits
+                .map(|(used, remaining)| json!({ "used": used, "remaining": remaining })),
+        }),
+    )
+}
+
 /// Quick research: one retrieval wave on the Deep-lane deadline, numbered sources.
 /// Returns the context block to inject into the chat prompt.
 pub async fn run_quick(state: &crate::ServerState, trace: &mut ResearchTrace) -> String {
@@ -320,38 +465,9 @@ pub async fn run_quick(state: &crate::ServerState, trace: &mut ResearchTrace) ->
         &policy,
     )
     .await;
-    let answered = report
-        .providers
-        .iter()
-        .filter(|p| matches!(p.status, ProviderStatus::Ok { hits } if hits > 0))
-        .count();
-    let failed = report.providers.iter().any(|p| {
-        matches!(
-            p.status,
-            ProviderStatus::Error { .. } | ProviderStatus::Timeout
-        )
-    });
-    let status = match (report.hits.is_empty(), failed) {
-        (true, true) => "failed",
-        (true, false) => "empty",
-        (false, true) => "degraded",
-        (false, false) => "ok",
-    };
-    trace.push(StageRecord::new(
-        "retrieval",
-        status,
-        Some(t.elapsed().as_millis() as u64),
-        format!(
-            "{} hits from {answered}/{} providers",
-            report.hits.len(),
-            report.providers.len()
-        ),
-        json!({
-            "providers": report.providers,
-            "tavily_credits": report
-                .tavily_credits
-                .map(|(used, remaining)| json!({ "used": used, "remaining": remaining })),
-        }),
+    trace.push(quick_retrieval_stage(
+        &report,
+        t.elapsed().as_millis() as u64,
     ));
 
     trace.sources = sources_from_hits(&report.hits, 8);
@@ -366,7 +482,7 @@ pub async fn run_quick(state: &crate::ServerState, trace: &mut ResearchTrace) ->
         format!("{} web sources kept", trace.sources.len()),
         json!({ "sources": trace.sources }),
     ));
-    sources_context_block(&trace.sources)
+    quick_context_block(&report, &trace.sources)
 }
 
 /// Deep research: the Scientia pipeline inline on the Deep lane (spec §4.4).
@@ -411,7 +527,12 @@ pub async fn run_deep(
         state.orchestrator_config.memory.log_dir.clone(),
         state.orchestrator_config.memory.memory_md_path.clone(),
     );
-    let outcome = run_research_with_context(rq, Some(&ctx), state.db.as_deref(), &config).await;
+    // Record each research role's requested vs resolved model (Task 13).
+    let (outcome, model_uses) = vox_actor_runtime::llm::cascade::record_research_model_uses(
+        run_research_with_context(rq, Some(&ctx), state.db.as_deref(), &config),
+    )
+    .await;
+    trace.record_role_models(&model_uses);
     let timeline = progress.lock().map(|v| v.clone()).unwrap_or_default();
     trace.push(StageRecord::new(
         "pipeline_progress",
@@ -430,32 +551,115 @@ pub async fn run_deep(
             for s in deep_stages(&r) {
                 trace.push(s);
             }
-            trace.sources = r
-                .sources
+            trace.sources = pipeline_sources(&r.sources);
+            // Headline: the synthesis model that answered, with the id it was
+            // requested as (a pin or alias) when the stage was recorded.
+            let requested = model_uses
                 .iter()
-                .enumerate()
-                .map(|(i, h)| Source {
-                    n: i + 1,
-                    url: h.url.clone(),
-                    title: h.title.clone(),
-                    engine: "pipeline".into(),
-                    snippet: h.snippet.chars().take(600).collect(),
-                })
-                .collect();
-            trace.model = Some(r.research_metadata.synthesis_model.clone());
+                .rev()
+                .find(|u| u.stage == vox_actor_runtime::llm::cascade::ResearchStage::Synthesis)
+                .map(|u| u.requested.clone())
+                .unwrap_or_else(|| r.research_metadata.synthesis_model.clone());
+            trace.set_model(&requested, Some(&r.research_metadata.synthesis_model));
             Ok(r.answer)
         }
         Err(e) => {
-            trace.push(StageRecord::new(
-                "deep_pipeline",
-                "failed",
-                Some(t.elapsed().as_millis() as u64),
-                e.to_string(),
-                json!({}),
-            ));
+            for s in failed_deep_stages(&e, t.elapsed().as_millis() as u64) {
+                trace.push(s);
+            }
+            // The sources the run had kept when it failed, so the header's
+            // source count matches the retrieval stage (not a blanket 0).
+            trace.sources = failed_run_sources(&e);
             Err(e.to_string())
         }
     }
+}
+
+fn pipeline_sources(hits: &[vox_research_shim::research::types::ResearchHit]) -> Vec<Source> {
+    hits.iter()
+        .enumerate()
+        .map(|(i, h)| Source {
+            n: i + 1,
+            url: h.url.clone(),
+            title: h.title.clone(),
+            engine: "pipeline".into(),
+            snippet: h.snippet.chars().take(600).collect(),
+        })
+        .collect()
+}
+
+/// Sources a failed deep run had kept (`ResearchRunFailure::sources`); empty
+/// for a failure that carries no log.
+pub fn failed_run_sources(e: &anyhow::Error) -> Vec<Source> {
+    e.downcast_ref::<vox_research_shim::research::types::ResearchRunFailure>()
+        .map(|f| pipeline_sources(&f.sources))
+        .unwrap_or_default()
+}
+
+/// Trace stages for a failed deep run: the retrieval stage from the provider
+/// log the pipeline carries on its error (`ResearchRunFailure`) when it failed
+/// after retrieval started, then the failure itself.
+pub fn failed_deep_stages(e: &anyhow::Error, elapsed_ms: u64) -> Vec<StageRecord> {
+    use vox_research_shim::research::types::ResearchRunFailure;
+    let mut out = Vec::new();
+    if let Some(f) = e.downcast_ref::<ResearchRunFailure>() {
+        // Raw provider hits (before dedupe/filtering) vs. hits the run kept:
+        // a zero-hits halt can follow non-zero raw hits and must not read "ok".
+        let raw: usize = f
+            .providers
+            .iter()
+            .map(|p| match p.status {
+                ProviderStatus::Ok { hits } => hits,
+                _ => 0,
+            })
+            .sum();
+        let kept = f.sources.len();
+        // Rows are (provider, outcome) pairs — count distinct providers.
+        let distinct = |pred: &dyn Fn(&ProviderStatus) -> bool| {
+            f.providers
+                .iter()
+                .filter(|p| pred(&p.status))
+                .map(|p| p.provider.as_str())
+                .collect::<BTreeSet<_>>()
+                .len()
+        };
+        let answered = distinct(&|s| matches!(s, ProviderStatus::Ok { hits } if *hits > 0));
+        let total = distinct(&|_| true);
+        // Same rule as quick retrieval (see `any_provider_failed`).
+        let failed = any_provider_failed(f.providers.iter().map(|p| &p.status));
+        let (status, summary) = if all_providers_disabled(f.providers.iter().map(|p| &p.status)) {
+            ("skipped", WEB_RESEARCH_DISABLED.to_string())
+        } else {
+            (
+                match (kept == 0, failed) {
+                    (true, true) => "failed",
+                    (true, false) => "empty",
+                    (false, true) => "degraded",
+                    (false, false) => "ok",
+                },
+                format!(
+                    "{raw} raw hits, {kept} kept after filtering, from {answered}/{total} providers"
+                ),
+            )
+        };
+        out.push(StageRecord::new(
+            "retrieval",
+            status,
+            None,
+            summary,
+            json!({ "providers": f.providers, "tavily_credits": f.tavily_credits }),
+        ));
+    }
+    // `{:#}`: the whole error chain, so a cause the pipeline attaches below
+    // the top-level message (e.g. web research disabled) is visible.
+    out.push(StageRecord::new(
+        "deep_pipeline",
+        "failed",
+        Some(elapsed_ms),
+        format!("{e:#}"),
+        json!({}),
+    ));
+    out
 }
 
 /// Map a completed pipeline result onto trace stages.
@@ -488,9 +692,16 @@ pub fn deep_stages(r: &vox_research_shim::research::ResearchResult) -> Vec<Stage
         ),
         json!({ "subqueries": m.subqueries }),
     ));
+    // Same rule as quick retrieval (see `any_provider_failed`).
+    let provider_failed =
+        any_provider_failed(m.retrieval_diagnostics.providers.iter().map(|p| &p.status));
     out.push(StageRecord::new(
         "retrieval",
-        if m.source_count == 0 { "empty" } else { "ok" },
+        match (m.source_count == 0, provider_failed) {
+            (true, _) => "empty",
+            (false, true) => "degraded",
+            (false, false) => "ok",
+        },
         None,
         format!(
             "{} sources, {} distinct domains",
@@ -685,6 +896,298 @@ mod tests {
         );
     }
 
+    /// Task 9: the deep trace's retrieval stage carries the same per-provider
+    /// table as quick mode (real provider names + every outcome, including
+    /// budget_exhausted) plus the Tavily credit counter, and degrades when a
+    /// provider errored or timed out — the same rule as quick retrieval.
+    #[test]
+    fn deep_stages_retrieval_reports_per_provider_outcomes_and_tavily_credits() {
+        use vox_research_shim::research::types::{
+            ProviderCallSummary, ResearchMetadata, ResearchResult, RetrievalDiagnostics,
+            RoutingTier, TavilyCredits,
+        };
+
+        let row = |provider: &str, status: ProviderStatus, calls: usize| ProviderCallSummary {
+            provider: provider.into(),
+            status,
+            elapsed_ms: 100,
+            calls,
+        };
+        let result = ResearchResult {
+            answer: "answer".to_string(),
+            sources: vec![],
+            citations: vec![],
+            research_metadata: ResearchMetadata {
+                session_id: 1,
+                duration_ms: 1,
+                provider: "test".to_string(),
+                routing_tier: RoutingTier::Direct,
+                confidence: 0.5,
+                subquery_count: 2,
+                source_count: 7,
+                claim_verdicts: vec![],
+                retrieval_diagnostics: RetrievalDiagnostics {
+                    providers: vec![
+                        row("searxng", ProviderStatus::Ok { hits: 7 }, 2),
+                        row("tavily", ProviderStatus::BudgetExhausted, 2),
+                        row("openalex", ProviderStatus::Timeout, 1),
+                    ],
+                    tavily_credits: Some(TavilyCredits {
+                        used: 50,
+                        remaining: 0,
+                    }),
+                    ..RetrievalDiagnostics::default()
+                },
+                quality_score: 50,
+                planner_degraded: false,
+                competence: None,
+                self_verification: None,
+                citation_audit: None,
+                corroboration_counts: vec![],
+                wave_count: 1,
+                wave_stability: None,
+                low_grounding_evidence: false,
+                subqueries: vec![],
+                synthesis_model: String::new(),
+                judge_error: None,
+                served_from_cache: false,
+                claims_extracted_count: 0,
+                claims_verified_count: 0,
+            },
+        };
+
+        let stages = deep_stages(&result);
+        let retrieval = stages
+            .iter()
+            .find(|s| s.stage == "retrieval")
+            .expect("retrieval stage present");
+        assert_eq!(retrieval.status, "degraded", "openalex timed out");
+        let providers = retrieval.detail["providers"]
+            .as_array()
+            .expect("providers table");
+        let states: Vec<(&str, &str)> = providers
+            .iter()
+            .map(|p| {
+                (
+                    p["provider"].as_str().unwrap(),
+                    p["status"]["state"].as_str().unwrap(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            states,
+            vec![
+                ("searxng", "ok"),
+                ("tavily", "budget_exhausted"),
+                ("openalex", "timeout")
+            ]
+        );
+        assert_eq!(providers[0]["calls"], 2);
+        assert_eq!(
+            retrieval.detail["tavily_credits"],
+            json!({ "used": 50, "remaining": 0 })
+        );
+    }
+
+    /// Task 9b: a failed deep run still renders its provider table and credits
+    /// (from the `ResearchRunFailure` the pipeline attaches), then the failure.
+    #[test]
+    fn failed_deep_run_renders_retrieval_from_the_carried_provider_log() {
+        use vox_research_shim::research::types::{
+            ProviderCallSummary, ResearchRunFailure, TavilyCredits,
+        };
+        let row = |provider: &str, status: ProviderStatus| ProviderCallSummary {
+            provider: provider.into(),
+            status,
+            elapsed_ms: 10,
+            calls: 1,
+        };
+        let err = anyhow::Error::new(ResearchRunFailure {
+            error: anyhow::anyhow!("Zero research hits retrieved. Halting."),
+            providers: vec![
+                row(
+                    "openalex",
+                    ProviderStatus::Error {
+                        message: "HTTP 503".into(),
+                    },
+                ),
+                row("tavily", ProviderStatus::BudgetExhausted),
+            ],
+            tavily_credits: Some(TavilyCredits {
+                used: 50,
+                remaining: 0,
+            }),
+            sources: vec![],
+        });
+
+        let stages = failed_deep_stages(&err, 1234);
+        let names: Vec<&str> = stages.iter().map(|s| s.stage).collect();
+        assert_eq!(names, vec!["retrieval", "deep_pipeline"]);
+        let retrieval = &stages[0];
+        assert_eq!(retrieval.status, "failed", "0 hits and openalex errored");
+        assert_eq!(
+            retrieval.summary,
+            "0 raw hits, 0 kept after filtering, from 0/2 providers"
+        );
+        assert_eq!(retrieval.detail["providers"][0]["status"]["state"], "error");
+        assert_eq!(
+            retrieval.detail["providers"][1]["status"]["state"],
+            "budget_exhausted"
+        );
+        assert_eq!(
+            retrieval.detail["tavily_credits"],
+            json!({ "used": 50, "remaining": 0 })
+        );
+        assert_eq!(stages[1].status, "failed");
+        assert_eq!(stages[1].summary, "Zero research hits retrieved. Halting.");
+        assert_eq!(stages[1].elapsed_ms, Some(1234));
+
+        // A failure without a carried log (e.g. before retrieval) stays one stage.
+        let plain = failed_deep_stages(&anyhow::anyhow!("boom"), 5);
+        assert_eq!(plain.len(), 1);
+        assert_eq!(plain[0].stage, "deep_pipeline");
+        assert!(failed_run_sources(&anyhow::anyhow!("boom")).is_empty());
+    }
+
+    /// Task 9b follow-up: when every provider is `Disabled` (the web-research
+    /// kill switch), both the quick and the failed-deep retrieval stages name
+    /// the cause instead of reading as a generic empty/failed retrieval, and
+    /// the deep failure stage shows the cause carried in the error chain.
+    #[test]
+    fn web_research_disabled_is_named_in_quick_and_deep_traces() {
+        use vox_research_shim::research::types::{ProviderCallSummary, ResearchRunFailure};
+        use vox_search::web_dispatcher::{ProviderOutcome, SearchReport, WEB_PROVIDERS};
+
+        let report = SearchReport {
+            hits: vec![],
+            providers: WEB_PROVIDERS
+                .into_iter()
+                .map(|provider| ProviderOutcome {
+                    provider,
+                    status: ProviderStatus::Disabled,
+                    elapsed_ms: 0,
+                })
+                .collect(),
+            tavily_credits: None,
+        };
+        let quick = quick_retrieval_stage(&report, 3);
+        assert_eq!(
+            quick.summary,
+            "web research disabled — no providers contacted"
+        );
+        assert_eq!(quick.status, "skipped");
+        assert_eq!(quick.detail["providers"].as_array().unwrap().len(), 5);
+
+        let err = anyhow::Error::new(ResearchRunFailure {
+            error: anyhow::anyhow!("web research disabled — no providers contacted")
+                .context("Zero research hits retrieved. Halting."),
+            providers: WEB_PROVIDERS
+                .into_iter()
+                .map(|p| ProviderCallSummary {
+                    provider: p.into(),
+                    status: ProviderStatus::Disabled,
+                    elapsed_ms: 0,
+                    calls: 1,
+                })
+                .collect(),
+            tavily_credits: None,
+            sources: vec![],
+        });
+        let deep = failed_deep_stages(&err, 9);
+        assert_eq!(
+            deep[0].summary,
+            "web research disabled — no providers contacted"
+        );
+        assert_eq!(deep[0].status, "skipped");
+        assert_eq!(
+            deep[1].summary,
+            "Zero research hits retrieved. Halting.: web research disabled — no providers contacted"
+        );
+
+        // A normal empty report still reads as a count, not as "disabled".
+        let normal = quick_retrieval_stage(&SearchReport::default(), 1);
+        assert_eq!(normal.summary, "0 hits from 0/0 providers");
+    }
+
+    /// Task 9b review minors 1, 2, 4: the provider denominator counts distinct
+    /// providers; raw provider hits are told apart from the hits kept after
+    /// filtering (a zero-hits halt with raw hits must not read "ok"); and the
+    /// kept sources travel with the failure so the header is not "0 sources".
+    #[test]
+    fn failed_deep_run_counts_are_honest() {
+        use vox_research_shim::research::types::{
+            ProviderCallSummary, ResearchHit, ResearchRunFailure,
+        };
+        let row = |provider: &str, status: ProviderStatus| ProviderCallSummary {
+            provider: provider.into(),
+            status,
+            elapsed_ms: 10,
+            calls: 1,
+        };
+        let hit = |url: &str| ResearchHit {
+            url: url.into(),
+            title: format!("t {url}"),
+            snippet: "s".into(),
+            score: 1.0,
+            http_status: 0,
+            trust_score: 1.0,
+            raw_content: String::new(),
+        };
+        let failure = |sources: Vec<ResearchHit>| {
+            anyhow::Error::new(ResearchRunFailure {
+                error: anyhow::anyhow!("stop"),
+                providers: vec![
+                    row("openalex", ProviderStatus::Ok { hits: 4 }),
+                    row("openalex", ProviderStatus::Timeout),
+                    row("wikipedia", ProviderStatus::Ok { hits: 3 }),
+                ],
+                tavily_credits: None,
+                sources,
+            })
+        };
+
+        // Zero-hits halt after 7 raw hits: filtered to nothing, not "ok".
+        let halt = failed_deep_stages(&failure(vec![]), 1);
+        assert_eq!(
+            halt[0].summary,
+            "7 raw hits, 0 kept after filtering, from 2/2 providers"
+        );
+        assert_eq!(halt[0].status, "failed", "0 kept + an openalex timeout");
+
+        // Synthesis failure that kept 2 sources.
+        let synth = failure(vec![hit("https://a.example/1"), hit("https://b.example/2")]);
+        let stages = failed_deep_stages(&synth, 1);
+        assert_eq!(
+            stages[0].summary,
+            "7 raw hits, 2 kept after filtering, from 2/2 providers"
+        );
+        assert_eq!(stages[0].status, "degraded");
+        let sources = failed_run_sources(&synth);
+        assert_eq!(sources.len(), 2);
+        assert_eq!(
+            (sources[1].n, sources[1].url.as_str()),
+            (2, "https://b.example/2")
+        );
+    }
+
+    /// Task 9 review m3/m8: one degrade rule for quick and deep retrieval —
+    /// only Error/Timeout count; budget_exhausted / circuit_open alone do not.
+    #[test]
+    fn any_provider_failed_counts_only_error_and_timeout() {
+        use ProviderStatus::*;
+        assert!(any_provider_failed([&Ok { hits: 1 }, &Timeout]));
+        assert!(any_provider_failed([&Error {
+            message: "x".into()
+        }]));
+        assert!(!any_provider_failed([
+            &Ok { hits: 1 },
+            &BudgetExhausted,
+            &CircuitOpen,
+            &NotConfigured,
+            &Disabled,
+        ]));
+    }
+
     /// Task 15d review round 1 minor, negative case: when nothing was
     /// capped (verified == extracted), the trace must not fabricate a cap
     /// note that didn't apply.
@@ -837,6 +1340,36 @@ mod tests {
         assert!(b.contains("do not invent citations"), "{b}");
     }
 
+    /// Follow-up to 9b: with the web-research switch off the model must not be
+    /// told that research "ran and returned no sources" — it would repeat that
+    /// falsehood to the user. Only the all-`Disabled` case changes.
+    #[test]
+    fn disabled_web_research_context_block_says_so_instead_of_claiming_a_search() {
+        use vox_search::web_dispatcher::{ProviderOutcome, SearchReport, WEB_PROVIDERS};
+        let disabled = SearchReport {
+            hits: vec![],
+            providers: WEB_PROVIDERS
+                .into_iter()
+                .map(|provider| ProviderOutcome {
+                    provider,
+                    status: ProviderStatus::Disabled,
+                    elapsed_ms: 0,
+                })
+                .collect(),
+            tavily_credits: None,
+        };
+        let b = quick_context_block(&disabled, &[]);
+        assert!(b.starts_with("[WEB RESEARCH — DISABLED]"), "{b}");
+        assert!(b.contains("web research is disabled"), "{b}");
+        assert!(b.contains("no sources were fetched"), "{b}");
+        assert!(!b.contains("ran for this question"), "{b}");
+        assert!(b.contains("do not invent citations"), "{b}");
+
+        // Any other outcome keeps the existing block verbatim.
+        let ran = SearchReport::default();
+        assert_eq!(quick_context_block(&ran, &[]), sources_context_block(&[]));
+    }
+
     #[test]
     fn citation_check_finds_valid_and_invalid_markers() {
         let c = check_citations("Gemini 3.8 Flash [1][3]. Also [2, 9] and [x] and [10].", 3);
@@ -850,6 +1383,81 @@ mod tests {
         assert_eq!(st.status, "failed");
         let ok = citation_stage(&check_citations("fact [1]", 4), 4);
         assert_eq!(ok.status, "ok");
+    }
+
+    /// Task 13 (plan Step 1, vendor-neutral ids): the headline model is the id
+    /// that actually answered; the alias it was requested as rides alongside.
+    #[test]
+    fn trace_records_the_resolved_model_not_the_alias_when_they_differ() {
+        let mut t = ResearchTrace::new(classify_research_intent("/research x y z", None, None));
+        t.set_model("~vendor/model-latest", Some("vendor/model-1.2"));
+        let e = t.to_event();
+        assert_eq!(e["model"], "vendor/model-1.2");
+        assert_eq!(e["model_alias"], "~vendor/model-latest");
+
+        // A provider that echoes the requested id: no separate alias.
+        t.set_model("vendor/model-1.2", Some("vendor/model-1.2"));
+        let e = t.to_event();
+        assert_eq!(e["model"], "vendor/model-1.2");
+        assert!(e["model_alias"].is_null());
+        // No resolved id reported: fall back to what was requested.
+        t.set_model("~vendor/model-latest", None);
+        assert_eq!(t.to_event()["model"], "~vendor/model-latest");
+    }
+
+    /// Task 13: the trace lists, per role, the model requested (pin/alias) and
+    /// the one that answered — deduped, in first-use order.
+    #[test]
+    fn trace_lists_requested_and_resolved_model_per_role() {
+        use vox_actor_runtime::llm::cascade::{ResearchModelUse, ResearchStage};
+        let use_ = |stage, requested: &str, resolved: &str| ResearchModelUse {
+            stage,
+            requested: requested.into(),
+            resolved: resolved.into(),
+        };
+        let mut t = ResearchTrace::new(classify_research_intent("/deepresearch x y", None, None));
+        t.record_role_models(&[
+            use_(
+                ResearchStage::Planner,
+                "~vendor/fast-latest",
+                "vendor/fast-2",
+            ),
+            use_(
+                ResearchStage::ClaimExtraction,
+                "vendor/verify-1",
+                "vendor/verify-1",
+            ),
+            use_(
+                ResearchStage::Verification,
+                "vendor/verify-1",
+                "vendor/verify-1",
+            ),
+            use_(
+                ResearchStage::Verification,
+                "vendor/verify-1",
+                "vendor/verify-1",
+            ),
+            use_(
+                ResearchStage::Synthesis,
+                "~vendor/big-latest",
+                "vendor/big-7",
+            ),
+            use_(ResearchStage::Judge, "vendor/judge-3", "vendor/judge-3"),
+        ]);
+        t.set_chat_model(Some("~vendor/chat-latest"), "vendor/chat-9");
+        let e = t.to_event();
+        assert_eq!(
+            e["models"],
+            json!([
+                {"role": "planner", "requested": "~vendor/fast-latest", "resolved": "vendor/fast-2"},
+                {"role": "verifier", "requested": "vendor/verify-1", "resolved": "vendor/verify-1"},
+                {"role": "synthesis", "requested": "~vendor/big-latest", "resolved": "vendor/big-7"},
+                {"role": "judge", "requested": "vendor/judge-3", "resolved": "vendor/judge-3"},
+                {"role": "chat", "requested": "~vendor/chat-latest", "resolved": "vendor/chat-9"},
+            ])
+        );
+        assert_eq!(e["model"], "vendor/chat-9");
+        assert_eq!(e["model_alias"], "~vendor/chat-latest");
     }
 
     #[test]

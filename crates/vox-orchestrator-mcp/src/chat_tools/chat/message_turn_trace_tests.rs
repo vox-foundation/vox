@@ -133,6 +133,7 @@ async fn plain_turn_events(clutch: Option<&str>) -> Vec<serde_json::Value> {
         &state,
         "system prompt",
         "hello there",
+        "hello there",
         "trace-session",
         None,
         false,
@@ -142,6 +143,7 @@ async fn plain_turn_events(clutch: Option<&str>) -> Vec<serde_json::Value> {
         None,
         clutch,
         None,
+        false,
     )
     .await;
     restore_openrouter(prev);
@@ -256,6 +258,7 @@ async fn the_golden_turn_matches_the_contract() {
         &state,
         "system prompt",
         "what's the git status?",
+        "what's the git status?",
         "golden-session",
         None,
         false,
@@ -265,6 +268,7 @@ async fn the_golden_turn_matches_the_contract() {
         None,
         Some("efficiency"),
         None,
+        false,
     )
     .await;
     restore_openrouter(prev);

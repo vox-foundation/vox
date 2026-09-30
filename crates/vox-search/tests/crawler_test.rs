@@ -1,3 +1,6 @@
+// Task 9c: no real web host from any test (see tests/common/mod.rs).
+mod common;
+
 use url::Url;
 use vox_search::crawler::{
     crawl_domain_depth, extract_candidate_links, normalize_crawl_url, score_and_prioritize_links,

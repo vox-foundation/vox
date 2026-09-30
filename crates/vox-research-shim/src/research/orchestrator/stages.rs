@@ -504,8 +504,10 @@ pub(crate) async fn chat_stage_with_model(
         }
         ResearchStage::Verification => vox_orchestrator::models::SelectionIntent::nli_classifier(),
     };
-    let primary =
-        crate::research::orchestrator::model_dispatch::primary_candidate_for_intent(intent);
+    let primary = crate::research::orchestrator::model_dispatch::primary_candidate_for_intent(
+        intent,
+        stage.model_role(),
+    );
     let mut candidates: Vec<vox_actor_runtime::llm::LlmConfig> = primary.into_iter().collect();
     candidates.extend(cascade_with_optional_manual(
         stage,
@@ -529,7 +531,9 @@ pub(crate) async fn chat_stage_with_model(
         })
         .collect();
     let opts = ActivityOptions::new().with_timeout_secs(45);
-    chat_with_cascade(&opts, messages, candidates, None)
+    // `Some(stage)`: labels telemetry and lets a trace record the requested vs
+    // resolved model for this role (`record_research_model_uses`).
+    chat_with_cascade(&opts, messages, candidates, Some(stage))
         .await
         .map(response_to_content_and_model)
         .map_err(|e| anyhow::anyhow!(e))

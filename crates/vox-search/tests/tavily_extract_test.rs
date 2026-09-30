@@ -1,5 +1,8 @@
 //! Wiremock stub for Tavily `/extract` uplift (`tavily_extract`).
 
+// Task 9c: no real web host from any test (see tests/common/mod.rs).
+mod common;
+
 use vox_search::policy::SearchPolicy;
 use vox_search::search_circuit_breaker::{SearchProviderCircuitRegistry, SearchProviderId};
 use vox_search::tavily::{TavilyClient, TavilySessionBudget};

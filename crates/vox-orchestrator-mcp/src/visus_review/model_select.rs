@@ -1,28 +1,23 @@
 //! Pick a vision-capable model: first config-preference the registry marks
-//! supports_vision; else fall back to preference\[0\].
+//! supports_vision; else (or with no registry at all) fall back to
+//! preference\[0\].
 
 pub trait VisionCatalog {
     fn supports_vision(&self, model_id: &str) -> Option<bool>;
 }
 
-pub fn choose_vision_model(preference: &[String], catalog: &dyn VisionCatalog) -> String {
-    for m in preference {
-        if catalog.supports_vision(m) == Some(true) {
-            return m.clone();
+pub fn choose_vision_model(preference: &[String], catalog: Option<&dyn VisionCatalog>) -> String {
+    if let Some(catalog) = catalog {
+        for m in preference {
+            if catalog.supports_vision(m) == Some(true) {
+                return m.clone();
+            }
         }
     }
-    preference
-        .first()
-        .cloned()
-        .unwrap_or_else(|| "google/gemini-2.5-flash".into())
-}
-
-/// Catalog that never knows (always falls back). Used when the registry can't load.
-pub struct NullCatalog;
-impl VisionCatalog for NullCatalog {
-    fn supports_vision(&self, _m: &str) -> Option<bool> {
-        None
-    }
+    preference.first().cloned().unwrap_or_else(|| {
+        // Contract role `visual_review` (model-defaults.v1.yaml).
+        vox_config::model_defaults::VISUAL_REVIEW[0].to_string()
+    })
 }
 
 /// Registry-backed catalog. `ModelRegistry` is re-exported at
@@ -50,13 +45,25 @@ mod tests {
     #[test]
     fn picks_first_vision_capable() {
         let c = Fake(HashMap::from([("a".into(), false), ("b".into(), true)]));
-        assert_eq!(choose_vision_model(&["a".into(), "b".into()], &c), "b");
+        assert_eq!(
+            choose_vision_model(&["a".into(), "b".into()], Some(&c)),
+            "b"
+        );
     }
     #[test]
     fn falls_back_to_first_when_registry_silent() {
+        let silent = Fake(HashMap::new());
         assert_eq!(
-            choose_vision_model(&["x".into(), "y".into()], &NullCatalog),
+            choose_vision_model(&["x".into(), "y".into()], Some(&silent)),
             "x"
+        );
+        assert_eq!(choose_vision_model(&["x".into(), "y".into()], None), "x");
+    }
+    #[test]
+    fn empty_preference_falls_back_to_the_contract_default() {
+        assert_eq!(
+            choose_vision_model(&[], None),
+            vox_config::model_defaults::VISUAL_REVIEW[0]
         );
     }
 }

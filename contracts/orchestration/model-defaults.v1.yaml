@@ -1,0 +1,111 @@
+# Model defaults — the SINGLE source of every default / fallback model id (Task 14).
+#
+# Code never hard-codes a vendor model id: `crates/vox-config/build.rs` generates
+# `vox_config::model_defaults::<ROLE>` consts (SCREAMING_SNAKE of `role`) from this
+# file, and `crates/vox-config/tests/model_defaults_test.rs` fails on any vendor id
+# literal outside it (catalogs that *list* models are exempt).
+#
+# These are FALLBACKS: registry selection, operator pins (VOX_MODEL_FORCE*) and
+# user config still win. Each entry: `role`, `model` (or `models` for an ordered
+# list), `rationale`, `verified_on` (date the id was seen in the live OpenRouter
+# catalog, or why it was not).
+#
+# Roles prefixed `premium_` feed `premium_alias` (model-routing / model-pins
+# loaders); `classifier_*` feed `model-pins` `classifier`.
+schema_version: 1
+defaults:
+  - role: chat
+    model: "google/gemini-3.8-flash"
+    rationale: "Default chat model (VoxConfig.model). Plan Task 14 seed: the only candidate taking audio/video/file input."
+    verified_on: "2026-09-27"
+  - role: research
+    model: "~deepseek/deepseek-flash-latest"
+    rationale: "Research planner/claim/synthesis fallback and Lane G fallback. Plan Task 14 seed: ~8x cheaper than the Gemini pin per deep run."
+    verified_on: "2026-09-27"
+  - role: judge
+    model: "~deepseek/deepseek-pro-latest"
+    rationale: "Research judge / review premium fallback. Plan Task 14 seed."
+    verified_on: "2026-09-27"
+  - role: claim_extraction
+    model: "google/gemini-3.1-flash-lite"
+    rationale: "NLI / claim verifier fallback (was NLI_FALLBACK): cheapest classifier-grade model with structured output."
+    verified_on: "2026-09-27"
+  - role: code_repair
+    model: "anthropic/claude-sonnet-4.6"
+    rationale: "`vox repair` loop (was REPAIR_LOOP_PREFERRED): price/quality optimum with prompt caching."
+    verified_on: "2026-09-27"
+  - role: code_review
+    model: "anthropic/claude-sonnet-4.6"
+    rationale: "vox-code-audit review via OpenRouter."
+    verified_on: "2026-09-27"
+  - role: openai_direct
+    model: "gpt-5-mini"
+    rationale: "OpenAI API directly (OpenAI-native id) when OPENAI_MODEL is unset: vox-code-audit's OpenAI default and the OPENAI_MODEL registry default."
+    verified_on: "2026-09-27 (as openai/gpt-5-mini)"
+  - role: gemini_openrouter
+    model: "google/gemini-2.5-flash"
+    rationale: "Gemini route target via OpenRouter when OPENROUTER_GEMINI_MODEL is unset."
+    verified_on: "2026-09-27"
+  - role: gemini_direct
+    model: "gemini-2.5-flash"
+    rationale: "Gemini route target via the Google API directly (Google-native id) when GEMINI_DIRECT_MODEL / GEMINI_MODEL is unset; also vox-code-audit's Gemini default."
+    verified_on: "2026-09-27 (as google/gemini-2.5-flash)"
+  - role: free_floor
+    models:
+      - "google/gemma-3-27b-it:free"
+      - "meta-llama/llama-3.3-70b-instruct:free"
+      - "qwen/qwen3-235b-a22b:free"
+      - "mistralai/mistral-7b-instruct:free"
+      - "microsoft/phi-3-mini-128k-instruct:free"
+    rationale: "Research free-tier floor (was OPENROUTER_FREE_FALLBACK_MODELS): concrete dispatchable :free slugs, most capable first."
+    verified_on: "NOT in the 2026-09-27 live catalog (all five) — moved unchanged; replacement pending controller decision"
+  - role: premium_codegen
+    model: "anthropic/claude-3-7-sonnet"
+    rationale: "premium_alias codegen (moved from model-pins/model-routing)."
+    verified_on: "NOT in the 2026-09-27 live catalog — moved unchanged; replacement pending controller decision"
+  - role: premium_debugging
+    model: "anthropic/claude-3-7-sonnet"
+    rationale: "premium_alias debugging (moved from model-pins/model-routing)."
+    verified_on: "NOT in the 2026-09-27 live catalog — moved unchanged; replacement pending controller decision"
+  - role: premium_security
+    model: "anthropic/claude-3-7-sonnet"
+    rationale: "premium_alias security (moved from model-pins/model-routing)."
+    verified_on: "NOT in the 2026-09-27 live catalog — moved unchanged; replacement pending controller decision"
+  - role: premium_research
+    model: "google/gemini-2.0-flash"
+    rationale: "premium_alias research (moved from model-pins/model-routing)."
+    verified_on: "NOT in the 2026-09-27 live catalog — moved unchanged; replacement pending controller decision"
+  - role: premium_planning
+    model: "openai/o3-mini"
+    rationale: "premium_alias planning (moved from model-pins/model-routing)."
+    verified_on: "2026-09-27"
+  - role: premium_review
+    model: "anthropic/claude-3-7-sonnet"
+    rationale: "premium_alias review (moved from model-pins/model-routing)."
+    verified_on: "NOT in the 2026-09-27 live catalog — moved unchanged; replacement pending controller decision"
+  - role: premium_logic
+    model: "deepseek/deepseek-r1"
+    rationale: "premium_alias logic (moved from model-pins/model-routing)."
+    verified_on: "2026-09-27"
+  - role: premium_visus
+    model: "google/gemini-2.0-flash"
+    rationale: "premium_alias visus (moved from model-pins/model-routing)."
+    verified_on: "NOT in the 2026-09-27 live catalog — moved unchanged; replacement pending controller decision"
+  - role: visual_review
+    models:
+      - "google/gemini-3-flash-preview"
+      - "google/gemini-2.5-flash"
+    rationale: "GUI visual review vision-model preference, first vision-capable wins (moved from visual-review.config.v1.json model_preference)."
+    verified_on: "2026-09-27"
+  - role: visual_review_escalation
+    model: "anthropic/claude-opus-4.8"
+    rationale: "GUI visual review escalation model (moved from visual-review.config.v1.json escalation_model)."
+    verified_on: "2026-09-27"
+  - role: classifier_primary
+    model: "anthropic/claude-haiku-4.5"
+    rationale: "L2 auto-classifier (moved from model-pins classifier.primary): cheapest classifier-grade model with structured output + prompt caching."
+    verified_on: "2026-09-27"
+  - role: classifier_fallback
+    model: "google/gemini-3.1-flash-lite"
+    rationale: "L2 auto-classifier backup (moved from model-pins classifier.fallback): JSON-schema mode."
+    verified_on: "2026-09-27"

@@ -3,6 +3,9 @@
 //! Owns its own test binary so the process-wide `set_global_recorder`
 //! `OnceLock` write doesn't collide with siblings.
 
+// Task 13: hermetic VOX_HOME (see tests/common/mod.rs).
+mod common;
+
 use std::sync::{Arc, Mutex, OnceLock};
 
 use vox_actor_runtime::activity::{

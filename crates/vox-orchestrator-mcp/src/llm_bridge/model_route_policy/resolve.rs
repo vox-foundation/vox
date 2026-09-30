@@ -166,6 +166,10 @@ pub struct McpModelChoice {
     pub model: ModelSpec,
     pub is_free: bool,
     pub rationale: Option<String>,
+    /// The strict pin this choice was resolved through (routing hard pin, chat
+    /// role pin, or global pin) exactly as configured — possibly an alias.
+    /// `None` when the model was selected freely.
+    pub pinned: Option<String>,
 }
 
 /// Public sync resolver (unchanged signature) — drops any rationale. Existing
@@ -176,24 +180,32 @@ pub fn resolve_mcp_chat_model_sync(
     pref: Option<&str>,
     res: McpChatModelResolution,
 ) -> Result<(ModelSpec, bool), String> {
-    let mut _rationale = None;
-    resolve_mcp_chat_model_sync_inner(orch, user_prompt, pref, res, &mut _rationale)
+    let (mut _rationale, mut _pinned) = (None, None);
+    resolve_mcp_chat_model_sync_inner(orch, user_prompt, pref, res, &mut _rationale, &mut _pinned)
 }
 
-/// Sync resolver that also surfaces the selection rationale (for telemetry).
+/// Sync resolver that also surfaces the selection rationale (for telemetry)
+/// and the strict pin it applied, if any.
 pub fn resolve_mcp_chat_model_sync_with_rationale(
     orch: &Orchestrator,
     user_prompt: &str,
     pref: Option<&str>,
     res: McpChatModelResolution,
 ) -> Result<McpModelChoice, String> {
-    let mut rationale = None;
-    let (model, is_free) =
-        resolve_mcp_chat_model_sync_inner(orch, user_prompt, pref, res, &mut rationale)?;
+    let (mut rationale, mut pinned) = (None, None);
+    let (model, is_free) = resolve_mcp_chat_model_sync_inner(
+        orch,
+        user_prompt,
+        pref,
+        res,
+        &mut rationale,
+        &mut pinned,
+    )?;
     Ok(McpModelChoice {
         model,
         is_free,
         rationale,
+        pinned,
     })
 }
 
@@ -208,7 +220,7 @@ pub(crate) fn check_strict_pin(
 ) -> Result<(), String> {
     match found {
         None => Err(format!(
-            "pinned model {pin} (VOX_MODEL_FORCE / VOX_ROUTING_HARD_PIN_MODEL) is not in the model registry; \
+            "pinned model {pin} (VOX_MODEL_FORCE_CHAT / VOX_MODEL_FORCE / VOX_ROUTING_HARD_PIN_MODEL) is not in the model registry; \
              refresh the catalog (`vox model`) or fix the pin"
         )),
         Some(_) if !gates_ok => Err(format!(
@@ -241,6 +253,7 @@ fn resolve_mcp_chat_model_sync_inner(
     pref: Option<&str>,
     res: McpChatModelResolution,
     rationale_out: &mut Option<String>,
+    pinned_out: &mut Option<String>,
 ) -> Result<(ModelSpec, bool), String> {
     if crate::llm_bridge::infer_test_stub::infer_stub_env_active() {
         return Ok((
@@ -372,10 +385,11 @@ fn resolve_mcp_chat_model_sync_inner(
     let task = res.task_category;
     let vox_local_route_preferred = VOX_LOCAL_PREFERRED_TASKS.contains(&task);
 
-    let strict_pin = routing_policy
-        .hard_pin_model_id
-        .clone()
-        .or_else(vox_config::inference::forced_model);
+    // Chat role pin (Task 13): VOX_MODEL_FORCE_CHAT, then VOX_MODEL_FORCE. A
+    // research-role pin never reaches chat.
+    let strict_pin = routing_policy.hard_pin_model_id.clone().or_else(|| {
+        vox_config::inference::forced_model_for(vox_config::inference::ModelRole::Chat)
+    });
     if let Some(pin) = strict_pin.as_deref() {
         let found = registry.get(pin);
         let gates_ok = found
@@ -386,6 +400,7 @@ fn resolve_mcp_chat_model_sync_inner(
         let enforced = enforce_free_tier_if_needed(&registry, &res, m.clone())?;
         check_pin_survives_free_tier(pin, &m, &enforced)?;
         *rationale_out = Some(format!("strict pin: {pin}"));
+        *pinned_out = Some(pin.to_string());
         return Ok((m.clone(), m.is_free));
     }
     if let Some(pin) = secrets_capability_pin_model_id(&required_capabilities, task, user_prompt) {
@@ -596,6 +611,10 @@ mod tests {
     fn resolve_with_rationale_populates_reason_on_decide_branch() {
         use vox_orchestrator::models::spec::PricingSource;
         use vox_orchestrator::models::{ModelRegistry, ModelSpec, ProviderType};
+        // Reads the chat pin env: serialize with every pin-env writer.
+        let _env = crate::chat_tools::chat::agent_loop::CHAT_MESSAGE_ENV_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
 
         let cfg = vox_orchestrator::OrchestratorConfig::for_testing();
         let groups = vox_orchestrator::AffinityGroupRegistry::new(vec![]);
@@ -648,8 +667,14 @@ mod tests {
             ..Default::default()
         };
         let mut rationale = None;
-        let result =
-            resolve_mcp_chat_model_sync_inner(&orch, "hello there", None, res, &mut rationale);
+        let result = resolve_mcp_chat_model_sync_inner(
+            &orch,
+            "hello there",
+            None,
+            res,
+            &mut rationale,
+            &mut None,
+        );
         let (model, _is_free) =
             result.expect("decide() branch should resolve the sole hermetic candidate model");
         assert_eq!(model.id, "decide-branch-rationale-test");
@@ -779,12 +804,14 @@ mod tests {
             ..Default::default()
         };
         let mut rationale = None;
+        let mut pinned = None;
         let (model, _free) = resolve_mcp_chat_model_sync_inner(
             &orch,
             "explain this design",
             None,
             res,
             &mut rationale,
+            &mut pinned,
         )
         .expect("a model resolves");
         assert_eq!(model.id, "chat-lane-workhorse", "picked {}", model.id);

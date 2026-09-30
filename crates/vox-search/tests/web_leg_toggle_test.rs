@@ -7,6 +7,9 @@
 //! nonzero/zero request count on the mock is an unambiguous, deterministic
 //! signal — not a hope that `heuristic_search_plan` picked a particular corpus.
 
+// Task 9c: no real web host from any test (see tests/common/mod.rs).
+mod common;
+
 use std::path::PathBuf;
 
 use vox_db::heuristic_search_plan;
@@ -109,4 +112,83 @@ async fn web_research_enabled_false_skips_the_web_leg_entirely() {
         1,
         "web_research_enabled=true (unchanged default) must still call the web provider"
     );
+}
+
+/// Task 9b r2: `web_research_enabled = false` is honoured by the dispatcher
+/// itself — the one path every direct caller shares (the deep research
+/// pipeline's `ProviderRegistry`, chat quick research, autonomous research) —
+/// not only by `execute_search_plan`. No provider is contacted, and the report
+/// says so honestly: every provider row is `Disabled`, none is hidden.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn dispatcher_honours_web_research_disabled_with_honest_disabled_rows() {
+    use vox_search::policy::ResearchLane;
+    use vox_search::web_dispatcher::{ProviderStatus, WebSearchDispatcher};
+
+    let searxng = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/search"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "results": [{"url": "https://example.org/a", "title": "t", "content": "c", "engine": "e", "score": 1.0}]
+        })))
+        .mount(&searxng)
+        .await;
+    let wiki = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/w/api.php"))
+        .respond_with(ResponseTemplate::new(200))
+        .mount(&wiki)
+        .await;
+
+    let mut policy = searxng_only_policy(&searxng.uri());
+    policy.enable_wikipedia = true;
+    policy.wikipedia_api_url = Some(format!("{}/w/api.php", wiki.uri()));
+    policy.web_research_enabled = false;
+
+    let r =
+        WebSearchDispatcher::search_with_report("gemini flash", ResearchLane::Deep, &policy).await;
+
+    assert!(r.hits.is_empty());
+    assert_eq!(searxng.received_requests().await.unwrap().len(), 0);
+    assert_eq!(wiki.received_requests().await.unwrap().len(), 0);
+    let rows: Vec<(&str, &ProviderStatus)> = r
+        .providers
+        .iter()
+        .map(|p| (p.provider, &p.status))
+        .collect();
+    assert_eq!(rows.len(), 5, "every provider is reported: {rows:?}");
+    assert!(
+        rows.iter().all(|(_, s)| **s == ProviderStatus::Disabled),
+        "{rows:?}"
+    );
+    assert_eq!(r.tavily_credits, None);
+}
+
+/// Task 9b follow-up: the kill-switch report lists exactly the providers the
+/// normal path reports, from one shared list — a new provider cannot silently
+/// drop out of the disabled report.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn disabled_report_lists_the_same_providers_as_the_normal_path() {
+    use vox_search::policy::ResearchLane;
+    use vox_search::web_dispatcher::{WEB_PROVIDERS, WebSearchDispatcher};
+
+    // Normal path, every provider individually off: no network, full report.
+    let mut policy = SearchPolicy {
+        searxng_url: None,
+        enable_wikipedia: false,
+        wikipedia_fallback_enabled: false,
+        enable_openalex: false,
+        enable_arxiv: false,
+        tavily_enabled: false,
+        duckduckgo_fallback_enabled: false,
+        ..Default::default()
+    };
+    let normal = WebSearchDispatcher::search_with_report("q", ResearchLane::Deep, &policy).await;
+    policy.web_research_enabled = false;
+    let killed = WebSearchDispatcher::search_with_report("q", ResearchLane::Deep, &policy).await;
+
+    let names = |r: &vox_search::web_dispatcher::SearchReport| {
+        r.providers.iter().map(|p| p.provider).collect::<Vec<_>>()
+    };
+    assert_eq!(names(&normal), WEB_PROVIDERS.to_vec());
+    assert_eq!(names(&killed), WEB_PROVIDERS.to_vec());
 }

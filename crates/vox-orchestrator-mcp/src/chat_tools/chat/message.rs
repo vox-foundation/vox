@@ -106,6 +106,8 @@ struct AgentTurnResult {
     /// when the rationale-carrying resolver produced one. Surfaced to the GUI as
     /// `data.selection_reason` for `ModelBadge`'s tooltip.
     selection_reason: Option<String>,
+    /// The strict pin the model was resolved through (Task 13), if any.
+    pinned: Option<String>,
     /// Chat-turn-visible events derived from tool results this turn (Phase E
     /// Task E1) — empty on every path except the real agent loop
     /// ([`super::agent_loop::run_agent_turn`]), which is the only path that
@@ -323,6 +325,7 @@ async fn try_run_agent_turn(
             ),
         ),
     );
+    let pinned = choice.pinned;
 
     let mut llm_config = super::agent_loop::model_spec_to_llm_config(&model)?;
     // Thread sampling overrides through on the mapped path exactly as the
@@ -475,6 +478,7 @@ async fn try_run_agent_turn(
                 model_used: outcome.model_used,
                 tokens: outcome.total_tokens,
                 selection_reason,
+                pinned,
                 events: std::iter::once(routing_event)
                     .chain(outcome.events)
                     .collect(),
@@ -972,6 +976,9 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     );
     let llm_started = std::time::Instant::now();
 
+    // The strict pin the chat model resolved through (Task 13) — set only by
+    // the agent-loop path, the one that carries the resolver's `McpModelChoice`.
+    let mut chat_pin: Option<String> = None;
     let (response_text, model_used, tokens, selection_reason, mut events) = if let Some(deep) =
         deep_answer
     {
@@ -1185,7 +1192,10 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
             )
             .await
             {
-                Some(Ok(r)) => (r.text, r.model_used, r.tokens, r.selection_reason, r.events),
+                Some(Ok(r)) => {
+                    chat_pin = r.pinned;
+                    (r.text, r.model_used, r.tokens, r.selection_reason, r.events)
+                }
                 Some(Err(e)) => {
                     emit_turn_hop(
                         Some(session_id.as_str()),
@@ -1634,8 +1644,13 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         selection_reason.clone(),
     );
 
+    // Task 13: the chat role's model — the pin it was requested as (if the
+    // strict-pin branch applied one) and the id that answered. A deep turn's
+    // answer comes from the research roles, not chat.
+    if intent.mode != super::research_intent::ResearchMode::Deep && !model_used.is_empty() {
+        research_trace.set_chat_model(chat_pin.as_deref(), &model_used);
+    }
     if intent.mode == super::research_intent::ResearchMode::Quick {
-        research_trace.model = Some(model_used.clone());
         let check =
             super::research_turn::check_citations(&response_text, research_trace.sources.len());
         research_trace.push(super::research_turn::citation_stage(
@@ -2226,6 +2241,15 @@ mod tests {
              evidence this turn",
             "{preamble}"
         );
+        // Task 13: the chat role's model is recorded as the id the provider
+        // reported ("test-model" in the mock body) — not a strict pin here
+        // (sticky override), so no requested pin.
+        assert_eq!(
+            ev["models"],
+            serde_json::json!([{"role": "chat", "requested": null, "resolved": "test-model"}]),
+            "{ev}"
+        );
+        assert_eq!(ev["model"], "test-model", "{ev}");
     }
 
     /// Regression test for the "attention budget meter never increments during

@@ -16562,6 +16562,8 @@ dependencies = [
  "blake3",
  "bytes",
  "csv",
+ "ctor 1.0.13",
+ "dtor",
  "futures-util",
  "glob",
  "regex",
@@ -17180,6 +17182,7 @@ version = "0.6.0"
 dependencies = [
  "chrono",
  "dirs",
+ "regex",
  "serde",
  "serde_json",
  "serde_yaml_ng",
@@ -17193,6 +17196,7 @@ dependencies = [
  "vox-llm-egress",
  "vox-secrets",
  "vox-telemetry",
+ "walkdir",
  "workspace-hack",
 ]
 
@@ -18912,6 +18916,7 @@ dependencies = [
  "vox-scientia",
  "vox-search",
  "vox-secrets",
+ "wiremock",
  "workspace-hack",
 ]
 
@@ -19045,6 +19050,7 @@ version = "0.6.0"
 dependencies = [
  "anyhow",
  "blake3",
+ "ctor 1.0.13",
  "deadpool",
  "futures",
  "html2text",

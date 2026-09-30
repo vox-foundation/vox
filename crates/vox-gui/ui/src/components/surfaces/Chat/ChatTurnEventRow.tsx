@@ -1,6 +1,7 @@
 import React from 'react';
 import type { TurnEventDto } from '../../../types/dashboard';
 import { isKnownTurnEvent, modeLabel, routingModelLabel } from '../../../lib/turnEvents';
+import { ResearchTracePanel, type ResearchTrace } from './ResearchTracePanel';
 
 const CHIP =
   'flex items-center gap-2 self-start rounded-full border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[11px] text-text-secondary';
@@ -45,7 +46,6 @@ export function ChatTurnEventRow({ event, onExcludeSkill }: ChatTurnEventRowProp
       </div>
     );
   }
-
   if (event.kind === 'tool_receipt') {
     if (typeof event.tool !== 'string' || typeof event.receipt_id !== 'string') {
       return null;
@@ -139,6 +139,9 @@ export function ChatTurnEventRow({ event, onExcludeSkill }: ChatTurnEventRowProp
     );
   }
 
+  if (event.kind === 'research_trace') {
+    return <ResearchTracePanel trace={event as unknown as ResearchTrace} />;
+  }
   return null;
 }
 

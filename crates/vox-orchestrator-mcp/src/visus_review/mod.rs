@@ -248,11 +248,8 @@ pub struct RunArgs<'a> {
 fn default_config() -> VisualReviewConfig {
     VisualReviewConfig {
         schema_version: 1,
-        model_preference: vec![
-            "google/gemini-3-flash-preview".into(),
-            "google/gemini-2.5-flash".into(),
-        ],
-        escalation_model: "anthropic/claude-opus-4.8".into(),
+        model_preference: types::default_model_preference(),
+        escalation_model: types::default_escalation_model(),
         per_surface_review_budget_ms: 8_000,
         total_review_budget_ms: 90_000,
         max_concurrent_reviews: 3,
@@ -281,20 +278,18 @@ pub async fn review_image(
 }
 
 /// Pick the vision model to review with: registry-backed if the registry
-/// loads, else the always-fallback `NullCatalog`. Extracted from `run()` so
+/// loads, else the preference-order fallback. Extracted from `run()` so
 /// `run_bundle` shares the exact same selection policy.
 pub fn select_review_model(cfg: &VisualReviewConfig) -> String {
     let registry =
         std::panic::catch_unwind(vox_orchestrator::models::ModelRegistry::from_cache).ok();
-    match &registry {
-        Some(reg) => model_select::choose_vision_model(
-            &cfg.model_preference,
-            &model_select::RegistryCatalog(reg),
-        ),
-        None => {
-            model_select::choose_vision_model(&cfg.model_preference, &model_select::NullCatalog)
-        }
-    }
+    let catalog = registry.as_ref().map(model_select::RegistryCatalog);
+    model_select::choose_vision_model(
+        &cfg.model_preference,
+        catalog
+            .as_ref()
+            .map(|c| c as &dyn model_select::VisionCatalog),
+    )
 }
 
 pub async fn run(args: &RunArgs<'_>) -> RunReport {
@@ -324,8 +319,8 @@ pub async fn run(args: &RunArgs<'_>) -> RunReport {
             .and_then(|s| serde_json::from_str(&s).ok())
             .unwrap_or_else(default_config);
 
-    // Model selection: try the registry; on any failure use the NullCatalog
-    // (always-fallback).
+    // Model selection: try the registry; on any failure fall back to the
+    // preference order.
     let model = select_review_model(&cfg);
 
     let mut surfaces = Vec::new();

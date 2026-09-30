@@ -4,12 +4,22 @@
 //! synthesis honestly fails (Task 7 / D5: the template-answer fallback was removed). Each
 //! test now asserts that honest failure instead of a template-backed "success" — the earlier
 //! pipeline stages (session creation, event emission) still ran and are checked where they did.
+//!
+//! Every test that expects synthesis to fail is ignored under `runtime`: that
+//! feature is on in any workspace-wide build (vox-cli / vox-orchestrator-mcp
+//! enable it), and then synthesis runs the real model cascade — an explicit
+//! `llm_endpoint` only prepends a candidate, it does not replace the cascade —
+//! so the run could make a paid call and even succeed.
 
 use vox_research_shim::research::types::{ResearchQuery, ResearchScope};
 use vox_research_shim::research::{
     BroadcastEmitter, ResearchConfig, run_research, run_research_with_context_and_session,
 };
 
+#[cfg_attr(
+    feature = "runtime",
+    ignore = "needs a no-LLM build: with `runtime` synthesis would call real model providers"
+)]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn run_research_without_llm_fails_honestly_not_with_a_template() {
     let db = vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
@@ -39,7 +49,21 @@ async fn run_research_without_llm_fails_honestly_not_with_a_template() {
         waves: 1,
         lane: vox_search::policy::ResearchLane::Fast,
     };
-    let config = ResearchConfig::default();
+    // Hermetic: `ResearchConfig::default()` resolves `SearchPolicy::from_env()`,
+    // so with `ResearchScope::Both` it would reach real Wikipedia / OpenAlex /
+    // arXiv / DDG / SearXNG and a paid Tavily key if one resolves. Turn every
+    // web provider off (as `lane_orchestrator_test` does) and the web-research
+    // master switch too; the local snippet above still feeds synthesis.
+    let mut config = ResearchConfig::default();
+    let p = &mut config.search_policy;
+    p.web_research_enabled = false;
+    p.wikipedia_fallback_enabled = false;
+    p.enable_wikipedia = false;
+    p.enable_openalex = false;
+    p.enable_arxiv = false;
+    p.duckduckgo_fallback_enabled = false;
+    p.tavily_enabled = false;
+    p.searxng_url = None;
 
     // No LLM endpoint configured: synthesis honestly fails (D5 — no template fallback).
     let err = run_research(query, Some(&db), &config)
@@ -48,6 +72,10 @@ async fn run_research_without_llm_fails_honestly_not_with_a_template() {
     assert!(err.to_string().contains("synthesis failed"), "{err}");
 }
 
+#[cfg_attr(
+    feature = "runtime",
+    ignore = "needs a no-LLM build: with `runtime` synthesis would call real model providers"
+)]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn run_research_with_codex_persists_session_row() {
     let db = vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
@@ -101,6 +129,10 @@ async fn run_research_with_codex_persists_session_row() {
     assert_eq!(session.status, "failed");
 }
 
+#[cfg_attr(
+    feature = "runtime",
+    ignore = "needs a no-LLM build: with `runtime` synthesis would call real model providers"
+)]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn run_research_with_codex_persists_durable_artifact() {
     let db = vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
@@ -156,6 +188,10 @@ async fn run_research_with_codex_persists_durable_artifact() {
     );
 }
 
+#[cfg_attr(
+    feature = "runtime",
+    ignore = "needs a no-LLM build: with `runtime` synthesis would call real model providers"
+)]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn run_research_emits_scientia_events() {
     let db = vox_db::VoxDb::connect(vox_db::DbConfig::Memory)

@@ -77,7 +77,10 @@ export function buildTurnTrace(
   const inline: TurnEventDto[] = [];
   for (const e of events ?? []) {
     if (!isKnownTurnEvent(e)) continue;
-    if (e.kind === 'skill_activated') {
+    if (e.kind === 'skill_activated' || e.kind === 'research_trace') {
+      if (e.kind === 'research_trace' && summary.modelLabel === null && typeof e.model === 'string' && e.model.length > 0) {
+        summary.modelLabel = e.model;
+      }
       inline.push(e);
       continue;
     }

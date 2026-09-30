@@ -132,6 +132,7 @@ pub async fn extract_claims_with_model(
         }
         let primary = crate::research::orchestrator::model_dispatch::primary_candidate_for_intent(
             vox_orchestrator::models::SelectionIntent::claim_extraction(),
+            vox_config::inference::ModelRole::Verifier,
         );
         let mut candidates: Vec<LlmConfig> = primary.into_iter().collect();
         candidates.extend(cascade_with_optional_manual(

@@ -31,9 +31,16 @@ serde_yaml = { workspace = true }
 dirs = { workspace = true }
 chrono = { workspace = true }
 
+[build-dependencies]
+# build.rs generates `model_defaults` consts from contracts/orchestration/model-defaults.v1.yaml.
+serde_yaml = { workspace = true }
+
 [dev-dependencies]
 serde_json = { workspace = true }
 tempfile = { workspace = true }
+# model_defaults_test.rs: workspace scan for hard-coded vendor model ids.
+regex = { workspace = true }
+walkdir = { workspace = true }
 
 [lints]
 workspace = true

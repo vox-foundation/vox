@@ -78,3 +78,36 @@ pub use subscription::SubscriptionManager;
 pub use vox_foundation::primitives::backoff;
 /// Re-exported cheap hex ids ([`vox_foundation::primitives::id`]).
 pub use vox_foundation::primitives::id as simple_id;
+
+/// Task 13: keep this crate's unit tests hermetic — none may read the
+/// developer's real `~/.vox/config.toml`. `vox_config`'s user-config cache is
+/// populated once per process from `dot_vox_user_dir()` (which honours
+/// `VOX_HOME`); on a machine whose config pins `VOX_MODEL_FORCE`, a cascade
+/// test would otherwise see that pin. Pointing `VOX_HOME` at an empty
+/// per-process temp dir before `main()` closes that gap for every test (a
+/// lazily-invoked guard could not run ahead of all parallel tests). Mirrors
+/// `vox-orchestrator-mcp`'s `hermetic_test_env`.
+#[cfg(test)]
+#[allow(unsafe_code)] // test-only std::env::set_var, run pre-main by #[ctor]
+mod hermetic_test_env {
+    fn vox_home_dir() -> std::path::PathBuf {
+        std::env::temp_dir().join(format!(
+            "vox-actor-runtime-test-home-{}",
+            std::process::id()
+        ))
+    }
+
+    #[ctor::ctor(unsafe)]
+    fn set_hermetic_vox_home() {
+        let dir = vox_home_dir();
+        let _ = std::fs::create_dir_all(&dir);
+        // SAFETY: ctors run before any other code in the binary, including
+        // test threads, so this cannot race a concurrent env read/write.
+        unsafe { std::env::set_var("VOX_HOME", &dir) };
+    }
+
+    #[dtor::dtor]
+    fn remove_hermetic_vox_home() {
+        let _ = std::fs::remove_dir_all(vox_home_dir());
+    }
+}

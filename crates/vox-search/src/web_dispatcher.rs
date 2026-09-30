@@ -4,7 +4,7 @@ use tracing::{info, warn};
 
 use crate::policy::{ResearchLane, SearchPolicy};
 
-#[derive(Debug, Clone, serde::Serialize, PartialEq)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
 #[serde(tag = "state", rename_all = "snake_case")]
 pub enum ProviderStatus {
     Ok {
@@ -21,6 +21,11 @@ pub enum ProviderStatus {
     /// the call was not made.
     BudgetExhausted,
 }
+
+/// Every web provider `search_core` reports on, in report order. The kill-switch
+/// early return iterates this list; a test pins the normal path to the same
+/// list, so a new provider cannot silently drop out of either report.
+pub const WEB_PROVIDERS: [&str; 5] = ["arxiv", "openalex", "wikipedia", "searxng", "tavily"];
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ProviderOutcome {
@@ -500,6 +505,24 @@ impl WebSearchDispatcher {
     ) -> SearchReport {
         if query.trim().is_empty() {
             return SearchReport::default();
+        }
+        // The web-research master switch, honoured here — the one path every
+        // direct caller shares (deep research's ProviderRegistry, chat quick
+        // research, autonomous research), not only `execute_search_plan`. No
+        // provider is contacted; every provider still gets an honest row.
+        if !policy.web_research_enabled {
+            return SearchReport {
+                hits: Vec::new(),
+                providers: WEB_PROVIDERS
+                    .into_iter()
+                    .map(|provider| ProviderOutcome {
+                        provider,
+                        status: ProviderStatus::Disabled,
+                        elapsed_ms: 0,
+                    })
+                    .collect(),
+                tavily_credits: None,
+            };
         }
 
         let timeout_ms = match lane {
@@ -1954,7 +1977,23 @@ mod tests {
     /// Run manually (needs network): `cargo test -p vox-search -- --ignored --nocapture deep_lane_probe`
     #[tokio::test]
     #[ignore = "live network probe — run manually with --ignored"]
+    #[allow(unsafe_code)]
     async fn deep_lane_probe_searxng_vs_tavily_subquery() {
+        // This probe is deliberately live: lift the unit-test egress guard
+        // (`crate::test_egress_guard`) for it. Only ever run on its own, by hand.
+        // SAFETY: a manual `--ignored` single-test run; nothing else reads env concurrently.
+        unsafe {
+            for key in [
+                "HTTP_PROXY",
+                "HTTPS_PROXY",
+                "ALL_PROXY",
+                "http_proxy",
+                "https_proxy",
+                "all_proxy",
+            ] {
+                std::env::remove_var(key);
+            }
+        }
         let policy = crate::SearchPolicy::from_env();
         let report = WebSearchDispatcher::search_with_report(
             "SearXNG vs Tavily comparison for AI agents",

@@ -34,7 +34,7 @@ export class ConfigManager {
     static get uiTheme(): string { return this._config().get<string>('ui.theme', 'auto'); }
 
     // Model
-    static get activeModel(): string { return this._config().get<string>('ai.model', 'gemini-2.0-flash-lite'); }
+    static get activeModel(): string { return this._config().get<string>('ai.model', 'openrouter/auto'); }
     static async setActiveModel(model: string): Promise<void> {
         await this._config().update('ai.model', model, vscode.ConfigurationTarget.Global);
     }

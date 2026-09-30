@@ -1,3 +1,6 @@
+// Task 9c: no real web host from any test (see tests/common/mod.rs).
+mod common;
+
 use std::sync::Arc;
 use std::thread;
 use vox_search::search_circuit_breaker::{

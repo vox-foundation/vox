@@ -23,47 +23,19 @@ lifecycle: stable
 
 schema: vox.orchestration.pins/v1
 
-# Premium-alias map: task-category → pinned model id.
+# Premium-alias map (task-category → model id): moved to
+# contracts/orchestration/model-defaults.v1.yaml as the `premium_<category>` roles
+# (Task 14). `vox_config::load_model_pins_config()` fills `premium_alias` from there.
 # When SelectionIntent.axes.intelligence >= 50, `select()` honors these pins
-# over scorer output. This is how a council-chosen model wins over a
-# higher-scoring discovered alternative.
+# over scorer output.
 #
-# Migration note: this duplicates `premium_alias:` in model-routing.v1.yaml during the
-# 2026-Q2 transition. When `select()` migrates to read pins.yaml directly, the routing.yaml
-# entries become aliases of these.
-premium_alias:
-  codegen: "anthropic/claude-3-7-sonnet"
-  debugging: "anthropic/claude-3-7-sonnet"
-  security: "anthropic/claude-3-7-sonnet"
-  research: "google/gemini-2.0-flash"
-  planning: "openai/o3-mini"
-  review: "anthropic/claude-3-7-sonnet"
-  logic: "deepseek/deepseek-r1"
-  visus: "google/gemini-2.0-flash"
+# Eval-panel version pins (formerly `version_pins:` here, read by no code) live
+# only in contracts/eval/llm-panel.v1.yaml (members.*.version_pinned).
 
-# Version pins for reproducibility-critical contexts (CR-L0 eval panel members).
-# When the council requires that "version X must produce identical eval outputs on
-# Tuesday and Friday," pin the exact upstream version here.
-#
-# These are consulted by:
-#   - contracts/eval/llm-panel.v1.yaml (members.*.version_pinned)
-#   - CR-L0 benchmark runners
-#
-# Format: {panel_member_id}: {upstream_version_string}
-version_pins:
-  llm-panel.claude-sonnet: "claude-sonnet-4-6"
-  llm-panel.gpt-frontier: "gpt-5.4"
-  # CR-L0 panel substitute (used when primary is rate-limited):
-  llm-panel.gpt-frontier-substitute: "gpt-5.5-pro"
-
-# CR-L8 corpus-feedback flywheel pins the *classifier* used for L2 auto-classification.
-# This is a budget-critical pin: classifier runs on every newly discovered model id.
+# CR-L8 corpus-feedback flywheel: the *classifier* used for L2 auto-classification.
+# Its model ids (primary / fallback) are the `classifier_primary` / `classifier_fallback`
+# roles in model-defaults.v1.yaml (Task 14); the loader fills them in.
 classifier:
-  # Cheapest classifier-grade model with structured output + prompt caching.
-  # Trade-off: Haiku 4.5 has 200K ctx and cache-hit pricing at $0.075/MTok input.
-  primary: "anthropic/claude-haiku-4.5"
-  # Backup if Anthropic is unreachable (Gemini 3.1 Flash-Lite supports JSON-schema mode).
-  fallback: "google/gemini-3.1-flash-lite"
   # Promotion-threshold defaults (override per-deployment via env).
   promotion_thresholds:
     # Minimum successful calls before Provisional → Shadowed.

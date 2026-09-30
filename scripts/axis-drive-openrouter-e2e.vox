@@ -82,9 +82,9 @@ fn main() {
     let catalog = drive_state.get("catalog").and_then(fn(x: Json) to Option[list[Json]] { x.as_array() }).unwrap_or([])
 
     let mut chosen = ""
-    // Prefer a known-fast OpenRouter slug when present so e2e is not pinned to
+    // Prefer OpenRouter's router slug when present so e2e is not pinned to
     // the first alphabetical catalog row (often a cold / flaky model).
-    let preferred = ["anthropic/claude-3-haiku", "openrouter/auto", "openai/gpt-4o-mini"]
+    let preferred = ["openrouter/auto"]
     for pref in preferred {
         for row in catalog {
             let id = string_field(row, "id")

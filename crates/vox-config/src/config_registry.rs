@@ -1318,7 +1318,7 @@ pub const CONFIG_KEYS: &[ConfigKey] = &[
     ConfigKey {
         key: "GEMINI_MODEL",
         kind: ConfigKind::String,
-        default: DefaultValue::Literal("gemini-1.5-pro"),
+        default: DefaultValue::Literal(crate::model_defaults::GEMINI_DIRECT),
         bound: None,
         group: Group::General,
         class: ConfigClass::UserPreference,
@@ -1346,7 +1346,7 @@ pub const CONFIG_KEYS: &[ConfigKey] = &[
     ConfigKey {
         key: "OPENAI_MODEL",
         kind: ConfigKind::String,
-        default: DefaultValue::Literal("gpt-4o"),
+        default: DefaultValue::Literal(crate::model_defaults::OPENAI_DIRECT),
         bound: None,
         group: Group::General,
         class: ConfigClass::UserPreference,
@@ -1978,6 +1978,93 @@ pub const CONFIG_KEYS: &[ConfigKey] = &[
         label: "Axis Drive allow store reset",
         hint: "With VOX_GUI_DRIVE=1, wipe LegacySchemaChain store.db under VOX_GUI_DRIVE_STORE_ROOT only.",
     },
+    // Task 13: per-role strict model pins (`vox_config::inference::forced_model_for`).
+    // Unset = fall back (role → VOX_MODEL_FORCE_RESEARCH for research roles →
+    // VOX_MODEL_FORCE). Read env-first, then ~/.vox/config.toml.
+    ConfigKey {
+        key: "VOX_MODEL_FORCE_CHAT",
+        kind: ConfigKind::String,
+        default: DefaultValue::Literal(""),
+        bound: None,
+        group: Group::ModelsAndEndpoints,
+        class: ConfigClass::UserPreference,
+        home: Home::Env,
+        gui: None,
+        secret: false,
+        status: Status::Active,
+        label: "Chat model pin",
+        hint: "Strict model pin for chat replies; falls back to VOX_MODEL_FORCE.",
+    },
+    ConfigKey {
+        key: "VOX_MODEL_FORCE_RESEARCH",
+        kind: ConfigKind::String,
+        default: DefaultValue::Literal(""),
+        bound: None,
+        group: Group::ModelsAndEndpoints,
+        class: ConfigClass::UserPreference,
+        home: Home::Env,
+        gui: None,
+        secret: false,
+        status: Status::Active,
+        label: "Research model pin",
+        hint: "Strict model pin for every research role without its own pin; falls back to VOX_MODEL_FORCE.",
+    },
+    ConfigKey {
+        key: "VOX_MODEL_FORCE_PLANNER",
+        kind: ConfigKind::String,
+        default: DefaultValue::Literal(""),
+        bound: None,
+        group: Group::ModelsAndEndpoints,
+        class: ConfigClass::UserPreference,
+        home: Home::Env,
+        gui: None,
+        secret: false,
+        status: Status::Active,
+        label: "Research planner model pin",
+        hint: "Strict model pin for research planning; falls back to VOX_MODEL_FORCE_RESEARCH.",
+    },
+    ConfigKey {
+        key: "VOX_MODEL_FORCE_SYNTHESIS",
+        kind: ConfigKind::String,
+        default: DefaultValue::Literal(""),
+        bound: None,
+        group: Group::ModelsAndEndpoints,
+        class: ConfigClass::UserPreference,
+        home: Home::Env,
+        gui: None,
+        secret: false,
+        status: Status::Active,
+        label: "Research synthesis model pin",
+        hint: "Strict model pin for research answer synthesis; falls back to VOX_MODEL_FORCE_RESEARCH.",
+    },
+    ConfigKey {
+        key: "VOX_MODEL_FORCE_JUDGE",
+        kind: ConfigKind::String,
+        default: DefaultValue::Literal(""),
+        bound: None,
+        group: Group::ModelsAndEndpoints,
+        class: ConfigClass::UserPreference,
+        home: Home::Env,
+        gui: None,
+        secret: false,
+        status: Status::Active,
+        label: "Research judge model pin",
+        hint: "Strict model pin for the research quality judge; falls back to VOX_MODEL_FORCE_RESEARCH.",
+    },
+    ConfigKey {
+        key: "VOX_MODEL_FORCE_VERIFIER",
+        kind: ConfigKind::String,
+        default: DefaultValue::Literal(""),
+        bound: None,
+        group: Group::ModelsAndEndpoints,
+        class: ConfigClass::UserPreference,
+        home: Home::Env,
+        gui: None,
+        secret: false,
+        status: Status::Active,
+        label: "Research verifier model pin",
+        hint: "Strict model pin for claim extraction and verification; falls back to VOX_MODEL_FORCE_RESEARCH.",
+    },
 ];
 
 /// All registered keys (for the parity gate).
@@ -1988,6 +2075,19 @@ pub fn registered_keys() -> impl Iterator<Item = &'static str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Task 13: every per-role model pin key `forced_model_for` reads is a row.
+    #[test]
+    fn per_role_model_pin_keys_are_registered() {
+        use crate::inference::ModelRole;
+        let keys: std::collections::BTreeSet<&str> = CONFIG_KEYS.iter().map(|k| k.key).collect();
+        for role in ModelRole::ALL {
+            assert!(keys.contains(role.env_key()), "{}", role.env_key());
+            if let Some(group) = role.group_key() {
+                assert!(keys.contains(group), "{group}");
+            }
+        }
+    }
 
     #[test]
     fn wave1_search_mesh_rows_migrated() {

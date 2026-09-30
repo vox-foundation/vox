@@ -15,7 +15,7 @@ use super::super::provider::ProviderRegistry;
 use super::super::types::{
     Citation, CitationAuditResult, ClaimSupport, CompetenceSignal, ResearchDomainMode, ResearchHit,
     ResearchMetadata, ResearchPlan, ResearchQuery, ResearchResult, ResearchRunArtifact,
-    ResearchScope, ResearchStage, RetrievalDiagnostics, RoutingTier,
+    ResearchRunFailure, ResearchScope, ResearchStage, RetrievalDiagnostics, RoutingTier,
 };
 use super::super::verifier::verify_claims_with_config;
 use super::config::ResearchConfig;
@@ -275,9 +275,17 @@ pub async fn run_research_with_context_and_session(
 
     if all_hits.is_empty() {
         set_session_stage(db, session_id, ResearchStage::Failed).await;
-        return Err(anyhow::anyhow!(
-            "Zero research hits retrieved. Halting to prevent hallucinated synthesis."
-        ));
+        const ZERO_HITS: &str =
+            "Zero research hits retrieved. Halting to prevent hallucinated synthesis.";
+        // Name the cause when the web-research switch is off. It goes in the
+        // error CHAIN (visible via `{:#}` / `chain()`), so the top-level text
+        // every caller and test matches on stays exactly `ZERO_HITS`.
+        let error = if do_web && !search_policy.web_research_enabled {
+            anyhow::anyhow!("web research disabled — no providers contacted").context(ZERO_HITS)
+        } else {
+            anyhow::anyhow!(ZERO_HITS)
+        };
+        return Err(failed_with_provider_log(error, registry, Vec::new()));
     }
 
     // ── (d) Retrieval diagnostics ─────────────────────────────────────────────
@@ -309,7 +317,11 @@ pub async fn run_research_with_context_and_session(
     };
     let (distinct_domain_count, citation_diversity_below_threshold) =
         evaluate_citation_diversity(&all_hits, config.min_distinct_domains);
+    // `providers` / `tavily_credits` are filled from the registry's log when the
+    // metadata is built, after the multi-wave loop's searches (see below).
     let diagnostics = RetrievalDiagnostics {
+        providers: Vec::new(),
+        tavily_credits: None,
         coverage_pct,
         subquery_coverage_pct,
         avg_provider_score: avg_score,
@@ -856,7 +868,7 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
         Ok(a) => a,
         Err(e) => {
             set_session_stage(db, session_id, ResearchStage::Failed).await;
-            return Err(e);
+            return Err(failed_with_provider_log(e, registry, all_hits));
         }
     };
 
@@ -1001,10 +1013,21 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
     let confidence = confidence_signal.score as f64;
     let low_grounding_evidence = confidence < 0.35;
 
+    // The whole run's provider outcomes and final Tavily credits — read only
+    // now, after every search (waves 2..N included). `into_retrieval_log`
+    // consumes the registry, so reading it any earlier does not compile.
+    let provider_name = registry.primary_name().to_string();
+    let (providers, tavily_credits) = registry.into_retrieval_log();
+    let diagnostics = RetrievalDiagnostics {
+        providers,
+        tavily_credits,
+        ..diagnostics
+    };
+
     let metadata = ResearchMetadata {
         session_id,
         duration_ms,
-        provider: registry.primary_name().to_string(),
+        provider: provider_name,
         routing_tier,
         confidence,
         subquery_count: plan.subqueries.len(),
@@ -1092,6 +1115,23 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
     }
 
     Ok(result)
+}
+
+/// Wrap a run failure with the provider log gathered so far and the sources
+/// kept at that point (see [`ResearchRunFailure`]); the error text callers see
+/// is unchanged.
+fn failed_with_provider_log(
+    error: anyhow::Error,
+    registry: ProviderRegistry,
+    sources: Vec<ResearchHit>,
+) -> anyhow::Error {
+    let (providers, tavily_credits) = registry.into_retrieval_log();
+    anyhow::Error::new(ResearchRunFailure {
+        error,
+        providers,
+        tavily_credits,
+        sources,
+    })
 }
 
 /// Best-effort stage status update. Errors are logged and swallowed so a

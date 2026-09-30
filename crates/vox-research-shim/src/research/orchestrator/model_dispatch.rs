@@ -38,9 +38,15 @@ fn shared_registry() -> &'static ModelRegistry {
 /// any eligible provider) — callers should fall back to
 /// `cascade_for_research_stage`'s local+OpenRouter lanes in that case,
 /// never treat `None` as a hard error.
-pub fn primary_candidate_for_intent(intent: SelectionIntent) -> Option<LlmConfig> {
+///
+/// `role` selects the strict pin (Task 13): the role's own key, then
+/// `VOX_MODEL_FORCE_RESEARCH`, then `VOX_MODEL_FORCE`.
+pub fn primary_candidate_for_intent(
+    intent: SelectionIntent,
+    role: vox_config::inference::ModelRole,
+) -> Option<LlmConfig> {
     let task_type = intent.task;
-    if let Some(forced) = vox_config::inference::forced_model() {
+    if let Some(forced) = vox_config::inference::forced_model_for(role) {
         // Tag exactly as `llm_config_for_spec` would for the unforced path,
         // so `chat_stage`'s dedup (which keeps this, the first/primary
         // entry) doesn't silently drop telemetry attribution relative to
@@ -60,6 +66,7 @@ pub fn primary_candidate_for_intent(intent: SelectionIntent) -> Option<LlmConfig
 #[allow(unsafe_code)] // serialized env mutation under ENV_LOCK, mirrors vox-config's test idiom
 mod tests {
     use super::*;
+    use vox_config::inference::ModelRole;
 
     #[test]
     fn returns_none_or_some_without_panicking_for_research_intent() {
@@ -68,7 +75,33 @@ mod tests {
         // configured), so both None (nothing selectable) and Some (a
         // local/keyless candidate wins) are valid outcomes. What matters
         // is that this never panics.
-        let _ = primary_candidate_for_intent(SelectionIntent::research());
+        let _ = primary_candidate_for_intent(SelectionIntent::research(), ModelRole::Planner);
+    }
+
+    /// Task 13: the primary candidate honours the role's own pin, and only for
+    /// that role.
+    #[test]
+    fn primary_candidate_uses_the_role_pin_only_for_its_role() {
+        let _guard = ENV_LOCK.lock().expect("env lock");
+        let prior = std::env::var("VOX_MODEL_FORCE_PLANNER").ok();
+        unsafe { std::env::set_var("VOX_MODEL_FORCE_PLANNER", "vendor/planner-pin") };
+
+        let planner = primary_candidate_for_intent(SelectionIntent::research(), ModelRole::Planner);
+        let synthesis =
+            primary_candidate_for_intent(SelectionIntent::research(), ModelRole::Synthesis);
+
+        unsafe {
+            match prior {
+                Some(v) => std::env::set_var("VOX_MODEL_FORCE_PLANNER", v),
+                None => std::env::remove_var("VOX_MODEL_FORCE_PLANNER"),
+            }
+        }
+        assert_eq!(planner.expect("pinned").model, "vendor/planner-pin");
+        assert_ne!(
+            synthesis.map(|c| c.model).as_deref(),
+            Some("vendor/planner-pin"),
+            "a planner pin must not leak into synthesis"
+        );
     }
 
     #[test]
@@ -84,7 +117,7 @@ mod tests {
             std::env::set_var("VOX_MODEL_FORCE", "google/gemini-3.8-flash");
         }
 
-        let cfg = primary_candidate_for_intent(SelectionIntent::research())
+        let cfg = primary_candidate_for_intent(SelectionIntent::research(), ModelRole::Synthesis)
             .expect("a strict pin must always resolve to a candidate");
 
         assert_eq!(cfg.model, "google/gemini-3.8-flash");

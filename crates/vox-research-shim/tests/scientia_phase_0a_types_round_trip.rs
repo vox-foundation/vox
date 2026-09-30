@@ -31,6 +31,7 @@ fn retrieval_diagnostics_serializes() {
         hit_rate: 0.0,
         distinct_domain_count: 2,
         citation_diversity_below_threshold: true,
+        ..RetrievalDiagnostics::default()
     };
     let json = serde_json::to_value(&d).expect("serializes");
     assert!(json.is_object());

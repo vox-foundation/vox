@@ -64,8 +64,8 @@ fn default_ollama_model() -> String {
 }
 
 fn default_gemini_model() -> String {
-    // 2026-Q2 refresh: Gemini 3 Flash (1M ctx, cheaper, faster).
-    "gemini-3-flash".to_string()
+    // Contract role `gemini_direct` (model-defaults.v1.yaml).
+    vox_config::model_defaults::GEMINI_DIRECT.to_string()
 }
 
 fn default_pollinations_model() -> String {
