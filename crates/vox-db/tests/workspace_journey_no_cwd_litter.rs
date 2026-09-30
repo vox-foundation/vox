@@ -1,3 +1,4 @@
+#![cfg(feature = "host-integration")]
 //! Regression test for the 2026-09-21 cwd-litter bug: `vox term` / `vox shell repl` /
 //! `vox init` (via the shared telemetry-DB open at CLI startup) writing `.vox/store.db`
 //! into a fresh, non-project directory. See `crates/vox-db/src/workspace_journey_store.rs`.
@@ -23,6 +24,7 @@ async fn non_project_dir_gets_no_dot_vox_store() {
     // Isolate the canonical fallback to a throwaway dir too, so this test never touches
     // the real $HOME/.vox and can assert the fallback path was actually exercised.
     // SAFETY: test-only process, single test in this binary, no concurrent env/cwd readers.
+    #[allow(unsafe_code)]
     unsafe {
         std::env::set_var("VOX_DATA_DIR", user_data.path());
     }
@@ -31,6 +33,7 @@ async fn non_project_dir_gets_no_dot_vox_store() {
     let _ = connect_workspace_journey_optional(DbConnectSurface::CliWorkspace, true).await;
 
     std::env::set_current_dir(&original_cwd).expect("restore cwd");
+    #[allow(unsafe_code)]
     unsafe {
         std::env::remove_var("VOX_DATA_DIR");
     }

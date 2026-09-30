@@ -146,6 +146,11 @@ mod tests {
     /// `vox init` writing `.vox/store.db` outside any project). See also the integration
     /// test in `crates/vox-db/tests/workspace_journey_no_cwd_litter.rs`, which actually
     /// `chdir`s to reproduce this the way the real bug manifests.
+    // `TEST_ENV_LOCK` is a `std::sync::Mutex` held across the `.await` on purpose: it
+    // serializes process-wide env + cwd mutation for the whole test body, including the
+    // async connect. Other users of the lock are sync tests on their own threads, so the
+    // usual single-thread-runtime deadlock hazard doesn't apply; swapping in a tokio
+    // mutex would change a lock type shared by many sync tests.
     #[tokio::test(flavor = "multi_thread")]
     #[allow(unsafe_code)] // set_var/remove_var are unsafe on Rust 2024; TEST_ENV_LOCK serialises env mutators.
     #[allow(clippy::await_holding_lock)] // the guard must span the await: it is what serialises the env mutation.
@@ -160,6 +165,7 @@ mod tests {
         let _guard = crate::TEST_ENV_LOCK
             .lock()
             .unwrap_or_else(|e| e.into_inner());
+        #[allow(unsafe_code)]
         unsafe {
             std::env::set_var("VOX_DATA_DIR", user_data.path());
         }
@@ -168,6 +174,7 @@ mod tests {
         let _ = connect_workspace_journey_optional(DbConnectSurface::CliWorkspace, true).await;
 
         std::env::set_current_dir(&original_cwd).expect("restore cwd");
+        #[allow(unsafe_code)]
         unsafe {
             std::env::remove_var("VOX_DATA_DIR");
         }
