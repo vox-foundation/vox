@@ -331,8 +331,58 @@ pub fn build_local_claim_extraction_prompt(evidence: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{normalize_for_matching, parse_envelope};
+    use super::*;
 
+    #[test]
+    fn normalize_for_matching_lowercases_and_collapses_whitespace_and_smart_quotes() {
+        assert_eq!(
+            normalize_for_matching("Hello \u{2014} “World”\n\tfoo"),
+            "hello - \"world\" foo"
+        );
+    }
+
+    #[test]
+    fn count_negations_in_str_counts_known_negation_words() {
+        assert_eq!(count_negations_in_str("This is not never going to work"), 2);
+        assert_eq!(count_negations_in_str("This is going to work"), 0);
+    }
+
+    #[test]
+    fn negation_parity_matches_compares_parity_not_count() {
+        // "not" (1 negation, odd) vs "never no" (2 negations, even) -> parity differs
+        assert!(!negation_parity_matches("not a claim", "never no claim"));
+        // "not" (1, odd) vs "no claim" (1, odd) -> parity matches
+        assert!(negation_parity_matches("not a claim", "no claim"));
+    }
+
+    #[test]
+    fn evaluate_span_grounding_finds_verbatim_and_normalized_matches() {
+        let source = "The sky is blue on a clear day.";
+        assert_eq!(
+            evaluate_span_grounding("sky is blue", source),
+            Some(GroundingQuality::VerbatimExact)
+        );
+        assert_eq!(evaluate_span_grounding("purple elephants", source), None);
+    }
+
+    #[test]
+    fn parse_and_ground_claim_triplets_drops_ungrounded_claims() {
+        let source = "Rust is a systems programming language.";
+        let raw_json = r#"{"claims": [
+            {"subject": "Rust", "predicate": "is", "object": "a systems programming language", "evidence_snippet": "Rust is a systems programming language"},
+            {"subject": "Rust", "predicate": "is", "object": "a fruit", "evidence_snippet": "Rust is a delicious fruit"}
+        ]}"#;
+        let claims = parse_and_ground_claim_triplets(raw_json, source);
+        assert_eq!(claims.len(), 1);
+        assert_eq!(claims[0].object, "a systems programming language");
+    }
+
+    #[test]
+    fn build_local_claim_extraction_prompt_embeds_the_evidence_text() {
+        let prompt = build_local_claim_extraction_prompt("some evidence text");
+        assert!(prompt.contains("some evidence text"));
+        assert!(prompt.contains("evidence_snippet"));
+    }
     #[test]
     fn parse_envelope_accepts_fenced_object_and_bare_array() {
         let fenced = "Here:\n```json\n{\"claims\":[{\"subject\":\"a\",\"predicate\":\"b\",\"object\":\"c\"}]}\n```";

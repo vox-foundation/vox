@@ -748,12 +748,9 @@ pub fn select_with_policy(
 }
 
 fn select_inner(intent: &SelectionIntent, registry: &ModelRegistry) -> Option<SelectionOutcome> {
-    // 1. VOX_MODEL_FORCE env override.
-    if let Ok(force) = std::env::var("VOX_MODEL_FORCE") {
-        let force = force.trim().to_string();
-        if !force.is_empty()
-            && let Some(model) = registry.get(&force)
-        {
+    // 1. VOX_MODEL_FORCE strict pin (env var, then ~/.vox/config.toml).
+    if let Some(force) = vox_config::inference::forced_model() {
+        if let Some(model) = registry.get(&force) {
             return Some(SelectionOutcome {
                 model_id: force,
                 model_spec: model,
@@ -763,6 +760,7 @@ fn select_inner(intent: &SelectionIntent, registry: &ModelRegistry) -> Option<Se
                 effective_axes: intent.axes.to_routing_priority(intent.prefer_local),
             });
         }
+        tracing::warn!(pin = %force, "VOX_MODEL_FORCE model not in registry; selection continues unpinned");
     }
 
     // 2. Local-only path.

@@ -13,9 +13,7 @@ use crate::chat_socrates_meta::{
 };
 use crate::journey_envelope;
 use crate::llm_bridge::{McpChatModelResolution, McpInferRouting, call_llm, call_llm_with_pref};
-use crate::memory::{
-    RetrievalTriggerMode, run_retrieval_bundle, should_trigger_autonomous_research,
-};
+use crate::memory::{RetrievalTriggerMode, run_retrieval_bundle};
 use crate::params::ToolResult;
 use crate::server_state::ServerState;
 use crate::session_identity::normalize_chat_session_id;
@@ -218,10 +216,17 @@ pub fn resolution_for_tier(
 /// `params.temperature`/`params.top_p` straight from the request, applied to the
 /// mapped `LlmConfig` exactly as the `call_llm` fallback applies them via
 /// `temperature_override`/`top_p_override`.
+#[allow(clippy::too_many_arguments)]
 async fn try_run_agent_turn(
     state: &ServerState,
     system_prompt: &str,
     user_prompt: &str,
+    // Task 8f: the user's own message for this turn (post-`@mention`-expansion,
+    // pre-context-assembly) — used ONLY for capability-requirement inference
+    // (`McpChatModelResolution::capability_prompt`). `user_prompt` above still
+    // carries the full assembled prompt (history/files/retrieved context) for
+    // everything else, including the actual LLM call below.
+    capability_prompt: &str,
     session_id: &str,
     active_skill_id: Option<String>,
     has_attachment: bool,
@@ -231,6 +236,7 @@ async fn try_run_agent_turn(
     tier: Option<&str>,
     clutch: Option<&str>,
     risk: Option<&str>,
+    web_evidence_supplied: bool,
 ) -> Option<Result<AgentTurnResult, String>> {
     if has_attachment {
         return None;
@@ -265,6 +271,8 @@ async fn try_run_agent_turn(
             context_fill_ratio,
             clutch: clutch.and_then(vox_orchestrator::mode::ClutchProfile::from_label),
             risk: risk.and_then(vox_orchestrator::mode::RiskPosture::from_label),
+            web_evidence_supplied,
+            capability_prompt: Some(capability_prompt.to_string()),
             ..Default::default()
         },
     );
@@ -517,6 +525,30 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         .unwrap_or_else(|| std::path::PathBuf::from("."));
     let (expanded_prompt, mention_files) =
         resolve_mentions(&params.prompt, &workspace_root, &state.mention_path_cache);
+    // Research (spec §4) classifies and searches from THIS prompt — the user's own
+    // words, NOT the @mention-expanded text (a mention inlines up to 8000 chars of
+    // file content, whose words must not trip research cues; and dispatch's
+    // `timeout_for_chat_message_args` classifies this same raw prompt, so the two
+    // must agree or a Deep turn gets the ordinary timeout) — and before
+    // `canonicalize_prompt` below wraps it in "Objectives
+    // (treat as a single set; order does not imply priority):\n\n1. ..."
+    // boilerplate for the LLM's own framing. That boilerplate is not the user's
+    // question: fed into a search engine verbatim it returns garbage (observed
+    // live: an astrophysics arXiv dump for a Gemini-model question), and it
+    // swallows a leading `/deepresearch`/`/research` slash command so
+    // `classify_research_intent`'s `strip_command` never matches, forcing every
+    // command onto the heuristic-cue fallback instead of the explicit path.
+    let raw_prompt_for_research = params.prompt.clone();
+    // Research (spec §4): classify from the RAW (pre-canonicalization) prompt —
+    // see the doc comment above — and do it *before* the autonomous-retrieval
+    // preamble below, so the preamble knows whether this turn's numbered
+    // research sources (quick/deep) will already supply web evidence (Task 8d).
+    let intent = super::research_intent::classify_research_intent(
+        &raw_prompt_for_research,
+        params.force_research,
+        params.research_scope.as_deref(),
+    );
+    let mut research_trace = super::research_turn::ResearchTrace::new(intent.clone());
     let (expanded_prompt, canonical_meta) = match prompt_canonical::canonicalize_prompt(
         &expanded_prompt,
         true, // order_invariant
@@ -699,12 +731,30 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                     .map(str::trim)
                     .filter(|s| !s.is_empty())
             });
+        // Task 8d: when this turn's research intent is Quick or Deep, the
+        // numbered research sources below are this turn's web evidence — the
+        // preamble must not inject a second, unnumbered web block the
+        // citation check can't verify. Its memory/KG/chunk/repo/KB legs are
+        // unrelated to web evidence and stay on for every intent.
+        let skip_preamble_web = intent.mode != super::research_intent::ResearchMode::None;
+        if skip_preamble_web {
+            research_trace.push(super::research_turn::StageRecord::new(
+                "preamble",
+                "skipped",
+                None,
+                "autonomous web retrieval skipped: numbered research sources are the web \
+                 evidence this turn"
+                    .to_string(),
+                serde_json::json!({}),
+            ));
+        }
         match run_retrieval_bundle(
             state,
             &expanded_prompt,
             RetrievalTriggerMode::AutoChatPreamble,
             3,
             retrieval_trace,
+            skip_preamble_web,
         )
         .await
         {
@@ -766,90 +816,6 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                 }
                 retrieval_evidence = Some(bundle.evidence.clone());
 
-                // Check if autonomous deep research should be triggered
-                let is_research_slash = expanded_prompt.trim_start().starts_with("/research")
-                    || expanded_prompt.trim_start().starts_with("/deepresearch");
-                let is_forced_research = params.force_research == Some(true);
-                if vox_orchestrator::is_chat_research_enabled()
-                    && (is_research_slash
-                        || is_forced_research
-                        || should_trigger_autonomous_research(
-                            &expanded_prompt,
-                            &bundle,
-                            params.force_research,
-                        ))
-                {
-                    tracing::info!("Triggering autonomous research for additional context");
-                    let scope = params.research_scope.as_deref().unwrap_or("both");
-
-                    let clean_prompt = if let Some(stripped) =
-                        expanded_prompt.trim_start().strip_prefix("/research")
-                    {
-                        stripped.trim().to_string()
-                    } else {
-                        expanded_prompt.clone()
-                    };
-
-                    let query_str = if clean_prompt.is_empty() {
-                        expanded_prompt.clone()
-                    } else {
-                        clean_prompt
-                    };
-
-                    let search_query = if let Some(ref site) = params.site_scope {
-                        if !query_str.contains("site:") {
-                            format!("{query_str} site:{site}")
-                        } else {
-                            query_str
-                        }
-                    } else {
-                        query_str
-                    };
-
-                    // Spawn autonomous research execution
-                    let queries = vec![search_query];
-                    let mut trigger_reason = format!(
-                        "Chat context injection (forced: {:?}, scope: {})",
-                        params
-                            .force_research
-                            .or(if is_research_slash { Some(true) } else { None }),
-                        scope
-                    );
-                    if let Some(ref dm) = params.domain_mode {
-                        trigger_reason.push_str(&format!(", domain_mode: {dm}"));
-                    }
-                    if let Some(ref ss) = params.site_scope {
-                        trigger_reason.push_str(&format!(", site_scope: {ss}"));
-                    }
-
-                    let task_id = params
-                        .session_id
-                        .as_deref()
-                        .and_then(|s| s.parse::<u64>().ok())
-                        .map(vox_orchestrator::types::TaskId);
-
-                    match state
-                        .orchestrator
-                        .perform_autonomous_research(None, task_id, queries, &trigger_reason)
-                        .await
-                    {
-                        Ok(results) => {
-                            if !results.is_empty() {
-                                let formatted = results.join("\n");
-                                context_parts.push(format!(
-                                    "[AUTONOMOUS RESEARCH — SYNTHESIS SUMMARY]:\n{formatted}"
-                                ));
-                                tracing::info!(
-                                    count = results.len(),
-                                    "Autonomous research results injected successfully"
-                                );
-                            }
-                        }
-                        Err(err) => {
-                            tracing::warn!(error = %err, "Autonomous research execution failed");
-                        }
-                    }
-                }
                 if !bundle.kb_lines.is_empty() {
                     let formatted = bundle
                         .kb_lines
@@ -871,6 +837,30 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
             }
         }
     }
+
+    // Research (spec §4): intent was classified above (before the preamble);
+    // run quick/deep now — every turn already has a trace.
+    let mut deep_answer: Option<Result<String, String>> = None;
+    if explicit_search_result.is_none() && vox_orchestrator::is_chat_research_enabled() {
+        match intent.mode {
+            super::research_intent::ResearchMode::None => {}
+            super::research_intent::ResearchMode::Quick => {
+                let block = super::research_turn::run_quick(state, &mut research_trace).await;
+                context_parts.push(block);
+            }
+            super::research_intent::ResearchMode::Deep => {
+                deep_answer =
+                    Some(super::research_turn::run_deep(state, &mut research_trace).await);
+            }
+        }
+    }
+    // Slash commands: the model sees the question, not "/research …".
+    let expanded_prompt =
+        if intent.explicit && intent.mode != super::research_intent::ResearchMode::None {
+            intent.query.clone()
+        } else {
+            expanded_prompt
+        };
 
     let kb_mention_lines = if let Some(db) = state.db.clone() {
         use vox_orchestrator::knowledge_base::store::KbStore;
@@ -982,9 +972,29 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     );
     let llm_started = std::time::Instant::now();
 
-    let (response_text, model_used, tokens, selection_reason, events) = if let Some(local_res) =
-        explicit_search_result
+    let (response_text, model_used, tokens, selection_reason, mut events) = if let Some(deep) =
+        deep_answer
     {
+        match deep {
+            Ok(answer) => (
+                answer,
+                research_trace.model.clone().unwrap_or_default(),
+                0u64,
+                Some("deep research pipeline synthesis".to_string()),
+                vec![],
+            ),
+            Err(e) => (
+                // Status message, not an answer: the trace shows the failing stage and the sources.
+                format!(
+                    "Deep research failed: {e}\n\nNo answer was generated. The research trace below shows which stage failed and what was retrieved."
+                ),
+                "none".to_string(),
+                0u64,
+                Some("deep research failed".to_string()),
+                vec![],
+            ),
+        }
+    } else if let Some(local_res) = explicit_search_result {
         (
             local_res,
             "local/knowledgebase-fts5".to_string(),
@@ -1002,6 +1012,13 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                         "creative" => 7,
                         _ => 5,
                     },
+                    // See `try_run_agent_turn`'s call site: same reasoning, quick
+                    // research already supplied evidence for this turn.
+                    web_evidence_supplied: !research_trace.sources.is_empty(),
+                    // Task 8f: infer capability requirements from the user's own
+                    // message, not the assembled `user_prompt` used below for the
+                    // actual LLM call.
+                    capability_prompt: Some(expanded_prompt.clone()),
                     ..Default::default()
                 };
                 let profile_complexity = resolution_template.complexity;
@@ -1102,6 +1119,11 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                             params.temperature,
                             params.top_p,
                             params.attachment_manifest.clone(),
+                            // Task 8f: cognitive-profile resolution failed, but this
+                            // fallback still infers capabilities from the user's own
+                            // message, not from `user_prompt` (the assembled prompt
+                            // with injected history/open-files/retrieved/web context).
+                            Some(&expanded_prompt),
                         )
                         .await
                         {
@@ -1141,6 +1163,11 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                 state,
                 &system_prompt,
                 &user_prompt,
+                // Task 8f: capability requirements come from the user's own
+                // message (`expanded_prompt`), not the assembled `user_prompt`
+                // above (which carries `[CONVERSATION HISTORY]`/`[OPEN FILES]`/
+                // retrieved and web-research context).
+                &expanded_prompt,
                 session_id.as_str(),
                 params.skill.clone(),
                 params.attachment_manifest.is_some(),
@@ -1150,6 +1177,11 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                 params.tier.as_deref(),
                 params.clutch.as_deref(),
                 params.risk.as_deref(),
+                // Quick research already ran web retrieval and injected numbered
+                // sources into `user_prompt` — the model doesn't need its own
+                // built-in web search capability for this turn (D-fix: see
+                // `McpChatModelResolution::web_evidence_supplied`).
+                !research_trace.sources.is_empty(),
             )
             .await
             {
@@ -1187,6 +1219,12 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                     params.attachment_manifest.clone(),
                     params.model_override.as_deref(),
                     params.tier.as_deref(),
+                    // Task 8f: this is the attachment/non-agent-loop fallback
+                    // (`try_run_agent_turn` returned `None`) — it must infer
+                    // capability requirements from the user's own message too,
+                    // not from `user_prompt` (the assembled prompt with
+                    // history/open-files/retrieved/web context).
+                    Some(&expanded_prompt),
                 )
                 .await
                 {
@@ -1596,6 +1634,17 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         selection_reason.clone(),
     );
 
+    if intent.mode == super::research_intent::ResearchMode::Quick {
+        research_trace.model = Some(model_used.clone());
+        let check =
+            super::research_turn::check_citations(&response_text, research_trace.sources.len());
+        research_trace.push(super::research_turn::citation_stage(
+            &check,
+            research_trace.sources.len(),
+        ));
+    }
+    events.insert(0, research_trace.to_event());
+
     let result = serde_json::json!({
         "message": asst_msg,
         "history": history,
@@ -1783,6 +1832,7 @@ mod tests {
             &state,
             "system prompt",
             "hello",
+            "hello",
             "default-path-test",
             None,
             false,
@@ -1792,6 +1842,7 @@ mod tests {
             None,
             None,
             None,
+            false,
         )
         .await;
 
@@ -1815,6 +1866,113 @@ mod tests {
             crate::chat_hop::turn_outcome_for_dispatch_err(&err),
             crate::chat_hop::TurnOutcome::BudgetDenied,
             "budget guard refusal must classify as BudgetDenied, not LlmError"
+        );
+    }
+
+    /// Task 8f, fix round 2: when `resolve_chat_llm_model` errors, `chat_message`'s
+    /// `cognitive_profile` branch falls through to plain `call_llm(state,
+    /// &system_prompt, &user_prompt, ...)` — `user_prompt` there is the fully
+    /// assembled prompt (history/open-files/`[SELECTED TEXT]`/retrieved/web
+    /// context). This must still infer capabilities from the user's own message
+    /// (`expanded_prompt`), not from that assembled prompt.
+    ///
+    /// Forces `resolve_chat_llm_model` to error via an exceeded daily budget —
+    /// `resolve_chat_llm_model` calls `enforce_budget_guard` *before* any model
+    /// resolution work, so it fails deterministically and hermetically (no
+    /// network reachable: no HTTP mock is even needed, since the fallback
+    /// `call_llm` call below also hits `mcp_infer_completion`'s own budget gate
+    /// before any dispatch). `params.selected_text` injects "latest news" into
+    /// `context_parts` (`[SELECTED TEXT]`) without needing multi-turn history —
+    /// the user's actual message (`prompt`) is "refactor this", with no
+    /// web-search cue. An error mentioning "budget" (not "capability"/"not
+    /// allowed") proves resolution accepted the pinned web-incapable model
+    /// despite "latest news" sitting in the injected `[SELECTED TEXT]` block.
+    #[tokio::test]
+    #[serial]
+    async fn cognitive_profile_fallback_infers_capabilities_from_users_message_not_injected_context()
+     {
+        let prior = std::env::var("VOX_BUDGET_USD").ok();
+        // SAFETY: `#[serial]` — no concurrent env mutation in this crate's tests.
+        unsafe { std::env::set_var("VOX_BUDGET_USD", "0.01") };
+        vox_config::snapshot::bump(&["VOX_BUDGET_USD"]);
+
+        let db = VoxDb::connect(DbConfig::Memory)
+            .await
+            .expect("open in-memory db");
+        db.record_llm_outcome(ModelOutcome {
+            session_id: "cognitive-fallback-capability-test",
+            user_id: None,
+            tenant_id: None,
+            prompt: "p",
+            response: "r",
+            model_id: "m",
+            provider: "openrouter",
+            task_category: "general",
+            strength_tag: "generalist",
+            latency_ms: Some(10),
+            input_tokens: Some(5),
+            output_tokens: Some(5),
+            cache_read_tokens: Some(0),
+            trace_id: None,
+            context_utilization_pct: None,
+            success: true,
+            cost_usd: Some(0.02),
+            quality_score: Some(1.0),
+            ttft_ms: None,
+            tpot_ms: None,
+        })
+        .await
+        .expect("record spend");
+
+        let state = ServerState::new_test()
+            .await
+            .with_db_initialized(Arc::new(db))
+            .await;
+
+        // Web-incapable model, pinned via the sticky override so the fallback
+        // `call_llm`'s resolution takes the id-lookup branch (no scored
+        // selection, no API key dependency).
+        let model_id = "cognitive-fallback-web-incapable";
+        {
+            let handle = state.orchestrator.models_handle();
+            handle
+                .write()
+                .expect("models lock")
+                .register(model_spec(ProviderType::OpenRouter, model_id));
+        }
+        *state.mcp_chat_model_override.write() = Some(model_id.to_string());
+
+        let params: ChatMessageParams = serde_json::from_value(serde_json::json!({
+            "prompt": "refactor this",
+            "selected_text": "what's the latest news on rust async?",
+            "cognitive_profile": "fast",
+            "session_id": "cognitive-fallback-capability-test",
+        }))
+        .expect("chat message params");
+
+        let response_json = chat_message(&state, params).await;
+
+        // SAFETY: `#[serial]` — restore prior env state before asserting/panicking.
+        unsafe {
+            match &prior {
+                Some(v) => std::env::set_var("VOX_BUDGET_USD", v),
+                None => std::env::remove_var("VOX_BUDGET_USD"),
+            }
+        }
+        vox_config::snapshot::bump(&["VOX_BUDGET_USD"]);
+
+        let parsed: serde_json::Value =
+            serde_json::from_str(&response_json).expect("chat_message must return valid JSON");
+        assert_eq!(
+            parsed["success"], false,
+            "budget-exceeded turn must fail: {response_json}"
+        );
+        let err = parsed["error"].as_str().unwrap_or_default();
+        assert!(
+            err.to_lowercase().contains("budget"),
+            "expected a budget error (proving capability resolution accepted the pinned \
+             web-incapable model despite \"latest news\" in injected [SELECTED TEXT]) — got a \
+             capability-gate or other error instead: {response_json}"
         );
     }
 
@@ -1885,6 +2043,188 @@ mod tests {
         assert!(
             data.get("latency_ms").and_then(|v| v.as_u64()).is_some(),
             "chat_message envelope `data` must carry a `latency_ms` field for ModelBadge: {response_json}"
+        );
+    }
+
+    #[tokio::test]
+    #[allow(unsafe_code)]
+    #[allow(clippy::await_holding_lock)]
+    async fn every_turn_carries_a_research_trace_event() {
+        let _env_guard = CHAT_MESSAGE_ENV_LOCK.lock().expect("env lock");
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(plain_response_body("hello back")),
+            )
+            .mount(&server)
+            .await;
+        let prev_base = std::env::var("OPENROUTER_BASE_URL").ok();
+        let prev_key = std::env::var("OPENROUTER_API_KEY").ok();
+        unsafe {
+            std::env::set_var("OPENROUTER_BASE_URL", server.uri());
+            std::env::set_var("OPENROUTER_API_KEY", "test-key");
+        }
+        vox_config::snapshot::bump(&["OPENROUTER_BASE_URL"]);
+        let state = test_state();
+        let model_id = "test-openrouter-model-trace";
+        {
+            let handle = state.orchestrator.models_handle();
+            handle
+                .write()
+                .expect("models lock")
+                .register(model_spec(ProviderType::OpenRouter, model_id));
+        }
+        *state.mcp_chat_model_override.write() = Some(model_id.to_string());
+
+        let params: ChatMessageParams =
+            serde_json::from_value(serde_json::json!({ "prompt": "hi" })).expect("params");
+        let response_json = chat_message(&state, params).await;
+
+        unsafe {
+            match prev_base {
+                Some(v) => std::env::set_var("OPENROUTER_BASE_URL", v),
+                None => std::env::remove_var("OPENROUTER_BASE_URL"),
+            }
+            match prev_key {
+                Some(v) => std::env::set_var("OPENROUTER_API_KEY", v),
+                None => std::env::remove_var("OPENROUTER_API_KEY"),
+            }
+        }
+        vox_config::snapshot::bump(&["OPENROUTER_BASE_URL"]);
+
+        let parsed: serde_json::Value = serde_json::from_str(&response_json).expect("json");
+        assert_eq!(parsed["success"], true, "{response_json}");
+        let ev = &parsed["data"]["events"][0];
+        assert_eq!(ev["kind"], "research_trace", "{response_json}");
+        assert_eq!(ev["mode"], "none");
+        assert_eq!(ev["stages"][0]["stage"], "detection");
+        // D1 regression: a greeting must not reach web retrieval.
+        assert!(
+            ev["stages"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|s| s["stage"] != "retrieval"),
+            "{ev}"
+        );
+        // Task 8d: a None-intent turn has no numbered research sources to
+        // conflict with, so the autonomous-retrieval preamble keeps its web
+        // leg and must NOT record a "preamble" skipped stage.
+        assert!(
+            ev["stages"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|s| s["stage"] != "preamble"),
+            "{ev}"
+        );
+    }
+
+    /// Task 8d: on a Quick-intent turn, the numbered research sources
+    /// (`run_quick`) are this turn's web evidence, so the autonomous-retrieval
+    /// preamble must skip its own web leg and record why. Mutation guard: if
+    /// the `skip_preamble_web` gate in `chat_message` (or the
+    /// `web_research_enabled` seam it sets on `run_retrieval_bundle`'s policy)
+    /// is removed, this test's `preamble` stage assertion fails.
+    #[tokio::test]
+    #[allow(unsafe_code)]
+    #[allow(clippy::await_holding_lock)]
+    async fn quick_research_turn_skips_the_preamble_web_leg() {
+        let _env_guard = CHAT_MESSAGE_ENV_LOCK.lock().expect("env lock");
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(plain_response_body("no sources found")),
+            )
+            .mount(&server)
+            .await;
+        let prev_base = std::env::var("OPENROUTER_BASE_URL").ok();
+        let prev_key = std::env::var("OPENROUTER_API_KEY").ok();
+        let model_id = "test-openrouter-model-preamble-skip";
+        unsafe {
+            std::env::set_var("OPENROUTER_BASE_URL", server.uri());
+            std::env::set_var("OPENROUTER_API_KEY", "test-key");
+        }
+        vox_config::snapshot::bump(&["OPENROUTER_BASE_URL"]);
+        let state = test_state();
+        {
+            let handle = state.orchestrator.models_handle();
+            let mut spec = model_spec(ProviderType::OpenRouter, model_id);
+            // Task 8e fix round 1: this test used to also force the process
+            // env var `VOX_MODEL_FORCE` to this model id, purely to keep
+            // resolution deterministic against a host `~/.vox/config.toml`
+            // pin (see the removed comment in git blame). That workaround is
+            // now redundant — `vox-orchestrator-mcp`'s hermetic test ctor
+            // (`src/lib.rs`) points `VOX_HOME` at an empty temp dir before any
+            // test runs, so `~/.vox/config.toml` can never supply
+            // `VOX_MODEL_FORCE` here — and it raced: mutating a process-wide
+            // env var under `CHAT_MESSAGE_ENV_LOCK` does not serialize
+            // against `llm_bridge::model_route_policy::tests`' *different*
+            // `INFERENCE_PROFILE_TEST_LOCK`, so those tests could
+            // transiently observe this model id as a strict pin and fail.
+            // `mcp_chat_model_override` below (private per-`ServerState`
+            // state, no cross-test env race) is exactly the sticky-pref path
+            // every other test in this file already uses, and reaches the
+            // same capability gate `caps_ok` enforces on the strict-pin path
+            // — so keep the full-capability grant to prove this test's
+            // subject (the research trace) does not accidentally depend on
+            // it.
+            spec.capabilities = vox_orchestrator::models::ModelCapabilities {
+                supports_json: true,
+                supports_vision: true,
+                supports_native_tools: true,
+                supports_tool_use: true,
+                supports_reasoning: true,
+                supports_web_search: true,
+                supports_image_generation: true,
+                supports_audio_input: true,
+                supports_audio_output: true,
+                supports_file_input: true,
+                supports_jsonl: true,
+                writes_vox: true,
+                ..vox_orchestrator::models::ModelCapabilities::default()
+            };
+            handle.write().expect("models lock").register(spec);
+        }
+        *state.mcp_chat_model_override.write() = Some(model_id.to_string());
+
+        // Explicit `/research` is classified Quick regardless of heuristic
+        // cues (see `research_intent::classify_research_intent`), so this
+        // turn's mode is deterministic without depending on wording heuristics.
+        let params: ChatMessageParams = serde_json::from_value(serde_json::json!({
+            "prompt": "/research latest tokio release"
+        }))
+        .expect("params");
+        let response_json = chat_message(&state, params).await;
+
+        unsafe {
+            match prev_base {
+                Some(v) => std::env::set_var("OPENROUTER_BASE_URL", v),
+                None => std::env::remove_var("OPENROUTER_BASE_URL"),
+            }
+            match prev_key {
+                Some(v) => std::env::set_var("OPENROUTER_API_KEY", v),
+                None => std::env::remove_var("OPENROUTER_API_KEY"),
+            }
+        }
+        vox_config::snapshot::bump(&["OPENROUTER_BASE_URL"]);
+
+        let parsed: serde_json::Value = serde_json::from_str(&response_json).expect("json");
+        assert_eq!(parsed["success"], true, "{response_json}");
+        let ev = &parsed["data"]["events"][0];
+        assert_eq!(ev["kind"], "research_trace", "{response_json}");
+        assert_eq!(ev["mode"], "quick", "{ev}");
+        let stages = ev["stages"].as_array().unwrap();
+        let preamble = stages
+            .iter()
+            .find(|s| s["stage"] == "preamble")
+            .unwrap_or_else(|| panic!("expected a preamble stage in the trace: {ev}"));
+        assert_eq!(preamble["status"], "skipped", "{preamble}");
+        assert_eq!(
+            preamble["summary"],
+            "autonomous web retrieval skipped: numbered research sources are the web \
+             evidence this turn",
+            "{preamble}"
         );
     }
 

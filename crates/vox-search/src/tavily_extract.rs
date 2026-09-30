@@ -1,11 +1,7 @@
 //! Tavily `/extract` uplift when search snippets are too thin for grounding.
 
-use tracing::{info, warn};
-
-use vox_secrets::{SecretId, resolve_secret};
-
 #[cfg(feature = "tavily")]
-use tavily::Tavily;
+use tracing::{info, warn};
 
 /// Heuristic: snippet is too short or mostly non-alphanumeric noise for reliable grounding.
 #[must_use]
@@ -31,92 +27,39 @@ pub struct ExtractHit {
     pub content: String,
 }
 
-#[cfg(feature = "tavily")]
-pub struct TavilyExtractClient {
-    inner: Tavily,
-}
-
-#[cfg(feature = "tavily")]
-impl TavilyExtractClient {
-    pub fn from_env() -> Option<Self> {
-        Self::with_optional_base_url(None)
-    }
-
-    pub fn with_base_url(api_key: &str, base_url: &str) -> Option<Self> {
-        let client = Tavily::builder(api_key)
-            .base_url(base_url)
-            .timeout(vox_config::timeouts::D_30S)
-            .build()
-            .ok()?;
-        Some(Self { inner: client })
-    }
-
-    fn with_optional_base_url(base_url: Option<&str>) -> Option<Self> {
-        let binding = resolve_secret(SecretId::TavilyApiKey);
-        let key_str = binding.expose()?;
-        let mut builder = Tavily::builder(key_str).timeout(vox_config::timeouts::D_30S);
-        if let Some(url) = base_url {
-            builder = builder.base_url(url);
-        }
-        let client = builder.build().ok()?;
-        Some(Self { inner: client })
-    }
-
-    pub async fn extract_urls(
-        &self,
-        urls: &[String],
-        query: Option<&str>,
-    ) -> Result<Vec<ExtractHit>, String> {
-        if urls.is_empty() {
-            return Ok(Vec::new());
-        }
-        tracing::debug!(
-            query = query.unwrap_or(""),
-            url_count = urls.len(),
-            "tavily_extract_request"
-        );
-        let resp = self
-            .inner
-            .extract(urls.iter().map(String::as_str))
-            .await
-            .map_err(|e| format!("tavily_extract_failed:{e}"))?;
-        Ok(resp
-            .results
-            .into_iter()
-            .map(|r| ExtractHit {
-                url: r.url,
-                content: r.raw_content,
-            })
-            .collect())
-    }
-}
-
-/// Replace thin `content` fields on search rows via Tavily extract (fail-open).
+/// Replace thin `content` on the kept **Tavily** rows via Tavily `/extract` (fail-open).
+///
+/// Only rows whose engine is `tavily`: extract credits are not spent on Wikipedia,
+/// arXiv or SearXNG snippets. Charged to `budget` (1 credit per 5 URLs, Tavily's basic
+/// extract rate) and skipped when the budget cannot cover it. Failures feed the same
+/// circuit breaker as `/search` (429/432/433 arm the rate-limit cooldown). Callers pass
+/// only the rows they will keep, so no credit is spent on a row the final cap drops.
 #[cfg(feature = "tavily")]
 pub async fn uplift_low_quality_snippets(
     results: &mut [crate::searxng::SearxngResult],
-    query: &str,
     max_urls: usize,
+    client: &crate::tavily::TavilyClient,
+    budget: &crate::tavily_budget::TavilySessionBudget,
+    registry: &crate::search_circuit_breaker::SearchProviderCircuitRegistry,
 ) {
-    let Some(client) = tokio::task::spawn_blocking(TavilyExtractClient::from_env)
-        .await
-        .ok()
-        .flatten()
-    else {
-        return;
-    };
+    use crate::search_circuit_breaker::SearchProviderId;
     let urls: Vec<String> = results
         .iter()
-        .filter(|r| snippet_quality_low(&r.content))
+        .filter(|r| r.engine.as_deref() == Some("tavily") && snippet_quality_low(&r.content))
         .take(max_urls.max(1))
         .map(|r| r.url.clone())
         .collect();
     if urls.is_empty() {
         return;
     }
-    match client.extract_urls(&urls, Some(query)).await {
+    if !budget.try_consume(urls.len().div_ceil(5)) {
+        warn!("tavily extract uplift skipped: session credit budget exhausted");
+        return;
+    }
+    match client.extract(&urls).await {
         Ok(extracted) => {
             info!(count = extracted.len(), "tavily extract uplift succeeded");
+            registry.record_success(SearchProviderId::Tavily);
             for hit in extracted {
                 if let Some(row) = results.iter_mut().find(|r| r.url == hit.url)
                     && !hit.content.trim().is_empty()
@@ -131,16 +74,12 @@ pub async fn uplift_low_quality_snippets(
                 }
             }
         }
-        Err(e) => warn!(error = %e, "tavily extract uplift failed (fail-open)"),
+        Err(e) => {
+            let is_rate_limit = crate::tavily::is_quota_error(&e);
+            registry.record_failure(SearchProviderId::Tavily, is_rate_limit);
+            warn!(error = %e, is_rate_limit, "tavily extract uplift failed (fail-open)");
+        }
     }
-}
-
-#[cfg(not(feature = "tavily"))]
-pub async fn uplift_low_quality_snippets(
-    _results: &mut [crate::searxng::SearxngResult],
-    _query: &str,
-    _max_urls: usize,
-) {
 }
 
 #[cfg(test)]

@@ -15,6 +15,7 @@ fn test_wave_plan_apply_sandbox_self_correction_resolves_contradictions() {
             is_numeric: false,
             is_recent: false,
             is_named_event: false,
+            salience_score: 0.5,
         },
         verdict: Verdict::Unverified,
         confidence: 0.5,

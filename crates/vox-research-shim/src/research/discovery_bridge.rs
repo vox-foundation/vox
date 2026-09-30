@@ -274,6 +274,7 @@ mod tests {
                         is_numeric: false,
                         is_recent: false,
                         is_named_event: false,
+                        salience_score: 0.5,
                     },
                     verdict: Verdict::Supported,
                     confidence: 0.91,
@@ -298,6 +299,12 @@ mod tests {
                 wave_count: 1,
                 wave_stability: None,
                 low_grounding_evidence: false,
+                subqueries: vec![],
+                synthesis_model: String::new(),
+                judge_error: None,
+                served_from_cache: false,
+                claims_extracted_count: 0,
+                claims_verified_count: 0,
             },
         }
     }

@@ -486,11 +486,35 @@ pub fn ollama_tuning_num_ctx() -> Option<i32> {
     })
 }
 
+/// Strict model pin shared by chat and research: `VOX_MODEL_FORCE`, read from the
+/// environment first, then `~/.vox/config.toml`. `None` when unset or blank.
+#[must_use]
+pub fn forced_model() -> Option<String> {
+    forced_model_from(&crate::env_parse::resolve_config_str("VOX_MODEL_FORCE", ""))
+}
+
+/// Pure half of [`forced_model`]: trims, and treats blank as unset.
+#[must_use]
+pub fn forced_model_from(raw: &str) -> Option<String> {
+    let v = raw.trim();
+    (!v.is_empty()).then(|| v.to_string())
+}
+
 #[cfg(test)]
 #[allow(unsafe_code)] // serialized with TEST_ENV_LOCK
 mod tests {
     use super::*;
     use crate::toml_config::test_support::{CONFIG_TEST_LOCK as TEST_ENV_LOCK, HomeGuard};
+
+    #[test]
+    fn forced_model_from_trims_and_rejects_blank() {
+        assert_eq!(
+            super::forced_model_from("  google/gemini-3.8-flash \n"),
+            Some("google/gemini-3.8-flash".to_string())
+        );
+        assert_eq!(super::forced_model_from("   "), None);
+        assert_eq!(super::forced_model_from(""), None);
+    }
 
     #[test]
     fn local_base_prefers_populi_then_ollama() {

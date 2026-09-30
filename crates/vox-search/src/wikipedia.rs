@@ -55,6 +55,7 @@ impl WikipediaClient {
                     content: clean_snippet,
                     engine: Some("wikipedia".to_string()),
                     score: Some(0.85),
+                    provider: None,
                 }
             })
             .collect();

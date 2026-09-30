@@ -2,6 +2,9 @@
 //! orch.resolve_approval / orch.list_pending_approvals via an ExtraDispatch hook
 //! carrying the daemon's MCP ServerState.
 
+// Task 8e fix round 1: pull in the hermetic-VOX_HOME ctor (see tests/common/mod.rs).
+mod common;
+
 use std::sync::Arc;
 
 use vox_orchestrator::orch_daemon::{self, ExtraDispatch};

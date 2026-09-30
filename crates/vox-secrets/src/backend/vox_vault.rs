@@ -10,8 +10,8 @@
 //! **Remote token:** `VOX_SECRETS_VAULT_TOKEN`, then compat `VOX_TURSO_TOKEN` / `TURSO_AUTH_TOKEN`
 //! when allowed. Codex uses `VOX_DB_URL` / `VOX_DB_TOKEN`; do not conflate with this vault plane.
 
+use std::future::Future;
 use std::sync::Mutex;
-use std::{future::Future, panic};
 
 use rand::RngCore;
 use secrecy::SecretString;
@@ -74,6 +74,67 @@ pub struct AgentDelegationRecord {
     pub expires_at_ms: i64,
 }
 
+/// Keyring service name used to store/retrieve the vault master key.
+/// `VOX_SECRETS_VAULT_KEYRING_SERVICE` overrides the default
+/// `"vox-secrets-vault"` — set by [`isolate_vault_tests_from_real_home`] (and
+/// by the `vox_vault_tests` integration binary) to a dedicated test-only
+/// service name so a test can never read or overwrite the real developer's
+/// OS keychain entry. An env var (not `cfg(test)`) because the integration
+/// test binary in `tests/` links this crate as a normal, non-test
+/// dependency, so `cfg(test)` inside this crate never applies there.
+fn master_keyring_service() -> String {
+    std::env::var("VOX_SECRETS_VAULT_KEYRING_SERVICE")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .unwrap_or_else(|| "vox-secrets-vault".to_string())
+}
+
+/// Test-only safety net: every [`VoxCloudBackend::new`] call in `cfg(test)`
+/// redirects `HOME`/`USERPROFILE` — and therefore [`crate::sources::auth_json::vox_dir`],
+/// the default vault path, and the master-key file fallback — to a
+/// per-process temp directory, pins `VOX_ACCOUNT_ID` to a dedicated test
+/// account, and points the master-key keyring lookup at a dedicated test
+/// service name (see [`master_keyring_service`]). This exists because D13
+/// (`run_secrets_future` panicking on a current_thread runtime) previously
+/// made `VoxCloudBackend::new()` always fail in every unit/integration test
+/// that didn't run under a multi-thread Tokio runtime, so these tests
+/// silently skipped forever — masking the fact that several of them
+/// construct a real `VoxCloudBackend` with no isolation at all. Fixing D13
+/// made them actually run, and they wrote into (and nearly corrupted) a real
+/// developer's `~/.vox` vault. This must run before any other
+/// environment-dependent step, so unit tests can never read, write, or
+/// corrupt a developer's real `~/.vox` vault, master key, or OS keychain
+/// entry again. Runs exactly once per test binary via `Once`; safe to call
+/// redundantly from every test/every call to `new()`.
+#[cfg(test)]
+pub(crate) fn isolate_vault_tests_from_real_home() {
+    static INIT: std::sync::Once = std::sync::Once::new();
+    INIT.call_once(|| {
+        let home = tempfile::tempdir()
+            .expect("tempdir for isolated vault test HOME")
+            .keep();
+        // `open_cloudless_connection` doesn't create the `.vox` parent
+        // directory itself (the real `~/.vox` already exists in practice) —
+        // pre-create it here so the isolated tempdir behaves the same way.
+        std::fs::create_dir_all(home.join(".vox")).expect("create isolated .vox dir");
+        // SAFETY: gated by `Once::call_once` — this runs exactly once, and no
+        // other thread can observe a partially-applied environment: every
+        // caller of `isolate_vault_tests_from_real_home` blocks here until
+        // the first call finishes, and no vault-touching code runs before
+        // this function returns.
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::set_var("HOME", &home);
+            std::env::set_var("USERPROFILE", &home);
+            std::env::set_var("VOX_ACCOUNT_ID", "vox-secrets-test-isolated-account");
+            std::env::set_var(
+                "VOX_SECRETS_VAULT_KEYRING_SERVICE",
+                "vox-secrets-vault-test",
+            );
+        }
+    });
+}
+
 pub struct VoxCloudBackend {
     conn: Mutex<turso::Connection>,
     master_key: [u8; 32],
@@ -85,6 +146,9 @@ pub struct VoxCloudBackend {
 impl VoxCloudBackend {
     #[allow(clippy::new_ret_no_self)]
     pub fn new() -> Result<Self, SecretError> {
+        #[cfg(test)]
+        isolate_vault_tests_from_real_home();
+
         let conn = run_secrets_future(open_cloudless_connection())?;
         run_secrets_future(ensure_schema(&conn))?;
         let account_id = std::env::var(crate::OPERATOR_ACCOUNT_ID)
@@ -218,6 +282,9 @@ impl VoxCloudBackend {
                         kek_ref = excluded.kek_ref,
                         kek_version = excluded.kek_version,
                         updated_at_ms = excluded.updated_at_ms,
+                        rotation_epoch = excluded.rotation_epoch,
+                        rotated_at_ms = excluded.rotated_at_ms,
+                        consistency_version = excluded.consistency_version,
                         checksum_hash = excluded.checksum_hash",
                     turso::params![account_id.clone(), sec_id_str.clone(), ciphertext.clone(), nonce.clone(), dek_wrapped.clone(), kek_ref.clone(), kek_version, now, checksum.clone()],
                 ).await.map_err(|e: turso::Error| SecretError::BackendQueryFailed(e.to_string()))?;
@@ -771,7 +838,7 @@ pub struct VaultHealth {
 
 pub fn probe_vault_health(backend: &VoxCloudBackend) -> Result<VaultHealth, SecretError> {
     let vault_path_display = cloudless_vault_env_diagnostic();
-    let keyring_entry_present = keyring::Entry::new("vox-secrets-vault", "master")
+    let keyring_entry_present = keyring::Entry::new(&master_keyring_service(), "master")
         .ok()
         .and_then(|e| e.get_password().ok())
         .is_some_and(|p| !p.is_empty());
@@ -1378,7 +1445,7 @@ pub(crate) fn derive_master_key_with_fallback(
 ) -> Result<[u8; 32], SecretError> {
     use keyring::Entry;
     // 1. Try the OS keyring first (happy path in interactive shells).
-    let entry = Entry::new("vox-secrets-vault", "master")
+    let entry = Entry::new(&master_keyring_service(), "master")
         .map_err(|e| SecretError::BackendMisconfigured(e.to_string()))?;
     match entry.get_password() {
         Ok(pw) if !pw.is_empty() => {
@@ -1470,57 +1537,95 @@ where
     F: Future<Output = Result<T, SecretError>> + Send,
     T: Send,
 {
-    let Ok(handle) = tokio::runtime::Handle::try_current() else {
-        return Err(SecretError::BackendMisconfigured(
-            "run_secrets_future requires an active Tokio runtime".to_string(),
-        ));
-    };
-
-    if handle.runtime_flavor() != tokio::runtime::RuntimeFlavor::MultiThread {
-        // `block_in_place` panics unless the active runtime is multi-threaded
-        // (it needs another worker to hand the remaining tasks to). A
-        // current-thread runtime has none, so run the future to completion on
-        // a throwaway OS thread with its own runtime instead. A scoped thread
-        // lets the future keep borrowing caller-local state (e.g. a held
-        // `MutexGuard`) instead of requiring `'static`.
-        let outcome = std::thread::scope(|scope| {
+    use tokio::runtime::{Handle, RuntimeFlavor};
+    match Handle::try_current() {
+        // block_in_place is only legal on the multi-thread scheduler.
+        // A panic inside the future becomes a SecretError here (as the scoped-thread
+        // arm below already does), never an unwind through the resolver's caller.
+        Ok(handle) if handle.runtime_flavor() == RuntimeFlavor::MultiThread => {
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                tokio::task::block_in_place(|| handle.block_on(future))
+            }))
+            .map_err(|_| {
+                SecretError::BackendMisconfigured("secrets async operation panicked".to_string())
+            })?
+        }
+        // current_thread runtime (block_in_place would panic — D13) or no runtime:
+        // drive the future on a dedicated thread with its own runtime.
+        _ => std::thread::scope(|scope| {
             scope
                 .spawn(|| {
-                    panic::catch_unwind(panic::AssertUnwindSafe(|| {
-                        tokio::runtime::Builder::new_current_thread()
-                            .enable_all()
-                            .build()
-                            .map_err(|e| SecretError::Io(e.to_string()))?
-                            .block_on(future)
-                    }))
+                    tokio::runtime::Builder::new_current_thread()
+                        .enable_all()
+                        .build()
+                        .map_err(|e| {
+                            SecretError::BackendMisconfigured(format!("secrets runtime: {e}"))
+                        })?
+                        .block_on(future)
                 })
                 .join()
-        });
-        return match outcome {
-            Ok(Ok(inner)) => inner,
-            Ok(Err(_panic)) => Err(SecretError::BackendMisconfigured(
-                "failed to execute secrets async operation from active runtime".to_string(),
-            )),
-            Err(_thread_panic) => Err(SecretError::BackendMisconfigured(
-                "secrets async operation thread panicked".to_string(),
-            )),
-        };
+                .map_err(|_| {
+                    SecretError::BackendMisconfigured("secrets worker thread panicked".to_string())
+                })?
+        }),
     }
-
-    let result = panic::catch_unwind(panic::AssertUnwindSafe(|| {
-        tokio::task::block_in_place(|| handle.block_on(future))
-    }));
-    result.map_err(|_| {
-        SecretError::BackendMisconfigured(
-            "failed to execute secrets async operation from active runtime".to_string(),
-        )
-    })?
 }
 
 #[cfg(test)]
 mod semcov_wave2_tests {
     #![allow(unused_imports)]
     use super::*;
+
+    #[test]
+    fn run_secrets_future_turns_a_panic_on_the_multi_thread_runtime_into_an_error() {
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .expect("rt");
+        let out: Result<(), SecretError> = rt.block_on(async {
+            tokio::spawn(async {
+                #[allow(unreachable_code)]
+                run_secrets_future(async {
+                    panic!("driver exploded");
+                    Ok::<(), SecretError>(())
+                })
+            })
+            .await
+            .expect("task must not unwind")
+        });
+        assert!(matches!(out, Err(SecretError::BackendMisconfigured(_))));
+    }
+
+    #[test]
+    fn run_secrets_future_inside_current_thread_runtime_does_not_fail() {
+        // D13: ModelRegistry::maybe_refresh_catalogs resolves secrets on a
+        // current_thread runtime; block_in_place panics there and the panic
+        // was converted into a silent "missing secret".
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("rt");
+        let got = rt.block_on(async { run_secrets_future(async { Ok::<_, SecretError>(7) }) });
+        assert_eq!(got.expect("must resolve on current_thread runtime"), 7);
+    }
+
+    #[test]
+    fn run_secrets_future_without_runtime_resolves() {
+        let got = run_secrets_future(async { Ok::<_, SecretError>(9) });
+        assert_eq!(got.expect("must resolve with no ambient runtime"), 9);
+    }
+
+    #[test]
+    fn run_secrets_future_inside_multi_thread_runtime_resolves() {
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .enable_all()
+            .build()
+            .expect("rt");
+        let got = rt.block_on(async { run_secrets_future(async { Ok::<_, SecretError>(3) }) });
+        assert_eq!(got.expect("multi-thread path unchanged"), 3);
+    }
 
     #[test]
     fn compute_checksum_is_deterministic() {
@@ -1781,9 +1886,9 @@ mod path_url_tests {
     #[test]
     #[allow(unsafe_code)]
     fn default_cloudless_url_is_absolute_under_home() {
-        use std::sync::Mutex;
-        static ENV_LOCK: Mutex<()> = Mutex::new(());
-        let _g = ENV_LOCK.lock().expect("env lock");
+        let _g = crate::TEST_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
 
         let prev_path = std::env::var_os("VOX_SECRETS_VAULT_PATH");
         let prev_url = std::env::var_os("VOX_SECRETS_VAULT_URL");
@@ -1819,9 +1924,9 @@ mod path_url_tests {
     #[test]
     #[allow(unsafe_code)]
     fn absolute_vault_path_opens_with_turso() {
-        use std::sync::Mutex;
-        static ENV_LOCK: Mutex<()> = Mutex::new(());
-        let _g = ENV_LOCK.lock().expect("env lock");
+        let _g = crate::TEST_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
 
         let tmp_dir = tempfile::tempdir().expect("tempdir");
         let db_path = tmp_dir.path().join("turso_abs_vault.db");
@@ -1914,9 +2019,9 @@ mod path_url_tests {
     #[test]
     #[allow(unsafe_code)]
     fn write_present_then_delete_absent_round_trips() {
-        use std::sync::Mutex;
-        static ENV_LOCK: Mutex<()> = Mutex::new(());
-        let _g = ENV_LOCK.lock().expect("env lock");
+        let _g = crate::TEST_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
 
         let tmp_dir = tempfile::tempdir().expect("tempdir");
         let db_path = tmp_dir.path().join("delete_vault.db");
@@ -2005,8 +2110,9 @@ mod vault_health_tests {
     #[test]
     #[allow(unsafe_code)]
     fn open_creates_missing_vault_parent_dir() {
-        static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-        let _g = ENV_LOCK.lock().expect("env lock");
+        let _g = crate::TEST_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let tmp = tempfile::tempdir().expect("tempdir");
         // Mirrors a fresh HOME where `~/.vox/` does not exist yet.
         let db_path = tmp.path().join("fresh-home/.vox/clavis_vault.db");
@@ -2027,8 +2133,9 @@ mod vault_health_tests {
     #[test]
     #[allow(unsafe_code)]
     fn probe_vault_health_reports_empty_vault_as_ok() {
-        static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-        let _g = ENV_LOCK.lock().expect("env lock");
+        let _g = crate::TEST_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let tmp = tempfile::tempdir().expect("tempdir");
         let db_path = tmp.path().join("health_empty.db");
         unsafe {
@@ -2067,8 +2174,9 @@ mod vault_health_tests {
         use crate::backend::SecretBackend;
         use secrecy::ExposeSecret;
 
-        static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-        let _g = ENV_LOCK.lock().expect("env lock");
+        let _g = crate::TEST_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let tmp = tempfile::tempdir().expect("tempdir");
         let db_path = tmp.path().join("current_thread_vault.db");
         unsafe {
@@ -2114,8 +2222,9 @@ mod vault_health_tests {
     #[test]
     #[allow(unsafe_code)]
     fn probe_vault_health_fails_after_simulated_master_drift() {
-        static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-        let _g = ENV_LOCK.lock().expect("env lock");
+        let _g = crate::TEST_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let tmp = tempfile::tempdir().expect("tempdir");
         let db_path = tmp.path().join("health_drift.db");
         unsafe {

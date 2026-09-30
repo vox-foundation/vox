@@ -154,6 +154,7 @@ fn test_true_rrf_source_weights_and_k_clamping() {
         content: "ArXiv snippet".to_string(),
         engine: Some("arxiv".to_string()),
         score: None,
+        provider: None,
     };
     let openalex_item = SearxngResult {
         url: "https://openalex.org/W123".to_string(),
@@ -161,6 +162,7 @@ fn test_true_rrf_source_weights_and_k_clamping() {
         content: "OpenAlex snippet".to_string(),
         engine: Some("openalex".to_string()),
         score: None,
+        provider: None,
     };
     let wiki_item = SearxngResult {
         url: "https://en.wikipedia.org/wiki/Science".to_string(),
@@ -168,6 +170,7 @@ fn test_true_rrf_source_weights_and_k_clamping() {
         content: "Wikipedia snippet".to_string(),
         engine: Some("wikipedia".to_string()),
         score: None,
+        provider: None,
     };
 
     let lists = vec![vec![arxiv_item], vec![openalex_item], vec![wiki_item]];
@@ -208,6 +211,7 @@ fn test_true_rrf_deduplication_score_summing() {
         content: "ArXiv snippet".to_string(),
         engine: Some("arxiv".to_string()),
         score: None,
+        provider: None,
     };
     let item2 = SearxngResult {
         url: "https://arxiv.org/abs/2206.05503".to_string(),
@@ -215,6 +219,7 @@ fn test_true_rrf_deduplication_score_summing() {
         content: "OpenAlex snippet".to_string(),
         engine: Some("openalex".to_string()),
         score: None,
+        provider: None,
     };
 
     let lists = vec![vec![item1], vec![item2]];

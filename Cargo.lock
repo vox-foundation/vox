@@ -14649,17 +14649,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tavily"
-version = "2.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2cb3ae3821be99e0cae0eb10531e720b43b2b55e7445565ea3496d692966b152"
-dependencies = [
- "reqwest 0.12.28",
- "serde",
- "tokio",
-]
-
-[[package]]
 name = "tempfile"
 version = "3.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -18168,7 +18157,9 @@ dependencies = [
  "blake3",
  "chrono",
  "crossbeam-queue",
+ "ctor 1.0.13",
  "dirs",
+ "dtor",
  "futures-util",
  "glob",
  "globset",
@@ -18999,6 +18990,7 @@ dependencies = [
  "chrono",
  "feed-rs",
  "flate2",
+ "futures",
  "gix",
  "hex",
  "nanopub",
@@ -19065,7 +19057,6 @@ dependencies = [
  "serde_yaml_ng",
  "strsim",
  "tantivy",
- "tavily",
  "tempfile",
  "tokio",
  "tracing",

@@ -217,6 +217,24 @@ impl SessionInfo {
     }
 }
 
+#[cfg(test)]
+mod session_info_tests {
+    use super::SessionInfo;
+
+    #[test]
+    fn from_session_copies_identity_and_counters() {
+        let session = vox_orchestrator::session::Session::new(vox_orchestrator::AgentId(7), None);
+        let info = SessionInfo::from_session(&session);
+
+        assert_eq!(info.id, session.id);
+        assert_eq!(info.agent_id, "7");
+        assert_eq!(info.tenant_id, None);
+        assert_eq!(info.turn_count, session.turn_count);
+        assert_eq!(info.token_count, session.total_tokens);
+        assert_eq!(info.created_at, session.created_at);
+    }
+}
+
 /// MCP arguments: read one `user_preferences` row.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct PreferenceGetParams {

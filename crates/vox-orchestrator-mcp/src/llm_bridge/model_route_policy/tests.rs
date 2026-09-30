@@ -87,6 +87,318 @@ fn tiny_registry_with_free_and_paid() -> ModelRegistry {
     r
 }
 
+/// A single OpenRouter model whose catalog entry does NOT advertise its own
+/// built-in web search (`supports_web_search: false`) and does not advertise
+/// tool use either — used to test `web_evidence_supplied` dropping
+/// `Capability::SupportsWebSearch` from `required_capabilities` without
+/// relaxing any other capability gate.
+fn registry_with_web_incapable_model() -> ModelRegistry {
+    let mut r = ModelRegistry::default();
+    r.register(ModelSpec {
+        id: "web-incapable-model".into(),
+        canonical_slug: "test/web-incapable-model".into(),
+        provider: "test".into(),
+        provider_type: ProviderType::OpenRouter,
+        max_tokens: 1000,
+        cost_per_1k: 0.0,
+        cost_per_1k_input: 0.0,
+        cost_per_1k_output: 0.0,
+        is_free: true,
+        observed_cost_per_1k: None,
+        strengths: vec![vox_orchestrator::models::generated::StrengthTag::Codegen],
+        capabilities: Default::default(), // supports_web_search: false, supports_tool_use: false
+        cache_creation_cost_per_1k: 0.0,
+        cache_read_cost_per_1k: 0.0,
+        supports_prompt_caching: false,
+        pricing_source: vox_orchestrator::models::spec::PricingSource::Bootstrap,
+        supported_parameters: vec![],
+    });
+    r
+}
+
+/// D-fix regression (Task 8 fix round 1): quick research already ran web
+/// retrieval and injected numbered sources — the resolved model doesn't need
+/// its OWN `supports_web_search` catalog flag for that turn.
+/// `resolve_mcp_chat_model_sync_inner` (`resolve.rs`) must drop
+/// `Capability::SupportsWebSearch` from `required_capabilities` when
+/// `McpChatModelResolution::web_evidence_supplied` is set, so a model with
+/// `supports_web_search: false` (e.g. `google/gemini-3.8-flash`'s real
+/// catalog entry) still passes the capability gate for a "latest ..." prompt.
+///
+/// Pins via `VOX_MODEL_FORCE` (rather than free selection through `decide()`)
+/// for two reasons: (1) it exercises exactly the strict-pin branch that
+/// produced the live failure — `check_strict_pin`'s "is not allowed for this
+/// request (local/routing/capability gate)" message below is verbatim what
+/// the live daemon returned; (2) `VOX_MODEL_FORCE` set as a non-blank env var
+/// takes precedence over `~/.vox/config.toml` in
+/// `vox_config::inference::forced_model` (`resolve_config_str` checks env
+/// first), so the test is deterministic regardless of any machine-level pin
+/// in that file.
+#[test]
+fn web_evidence_supplied_drops_web_search_capability_requirement() {
+    let _g = INFERENCE_PROFILE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _key = EnvKeyGuard::set("OPENROUTER_API_KEY", "test-key");
+    let _pin = EnvKeyGuard::set("VOX_MODEL_FORCE", "web-incapable-model");
+    let mut config = OrchestratorConfig::for_testing();
+    config.cost_preference = CostPreference::Performance;
+    let orch = Orchestrator::new(config);
+    *vox_orchestrator::sync_lock::rw_write(&*orch.models_handle()) =
+        registry_with_web_incapable_model();
+
+    let prompt = "What is the latest Gemini Flash model on OpenRouter?";
+
+    // Flag unset (default): the "latest" cue infers the web_search prompt
+    // intent, which requires `Capability::SupportsWebSearch`; the pinned
+    // model doesn't advertise it, so resolution must fail with the exact
+    // capability-gate error the live daemon returned.
+    let without_flag = resolve_mcp_chat_model_sync(
+        &orch,
+        prompt,
+        None,
+        McpChatModelResolution {
+            complexity: 5,
+            allow_cheapest_fallback: true,
+            ..Default::default()
+        },
+    );
+    let err = without_flag.expect_err(
+        "a model with supports_web_search=false must fail the capability gate \
+         for a web-search-cue prompt when web_evidence_supplied is unset",
+    );
+    assert!(
+        err.contains("is not allowed for this request (local/routing/capability gate)"),
+        "{err}"
+    );
+
+    // Flag set: Vox already supplied web evidence for this turn, so the same
+    // pinned model must now resolve successfully.
+    let with_flag = resolve_mcp_chat_model_sync(
+        &orch,
+        prompt,
+        None,
+        McpChatModelResolution {
+            complexity: 5,
+            allow_cheapest_fallback: true,
+            web_evidence_supplied: true,
+            ..Default::default()
+        },
+    )
+    .expect("web_evidence_supplied must drop the SupportsWebSearch requirement");
+    assert_eq!(with_flag.0.id, "web-incapable-model");
+}
+
+/// Companion to the above: `web_evidence_supplied` must drop ONLY
+/// `Capability::SupportsWebSearch`. A prompt that also infers `tool_calling`
+/// (`Capability::SupportsToolUse`) against a model that supports neither must
+/// still fail even with the flag set — every other capability requirement
+/// stays strict.
+#[test]
+fn web_evidence_supplied_does_not_relax_other_capability_requirements() {
+    let _g = INFERENCE_PROFILE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _key = EnvKeyGuard::set("OPENROUTER_API_KEY", "test-key");
+    let _pin = EnvKeyGuard::set("VOX_MODEL_FORCE", "web-incapable-model");
+    let mut config = OrchestratorConfig::for_testing();
+    config.cost_preference = CostPreference::Performance;
+    let orch = Orchestrator::new(config);
+    *vox_orchestrator::sync_lock::rw_write(&*orch.models_handle()) =
+        registry_with_web_incapable_model();
+
+    // "latest" infers web_search; "use a tool" infers tool_calling. The
+    // pinned model supports neither.
+    let prompt = "use a tool to find the latest release date";
+
+    let resolved = resolve_mcp_chat_model_sync(
+        &orch,
+        prompt,
+        None,
+        McpChatModelResolution {
+            complexity: 5,
+            allow_cheapest_fallback: true,
+            web_evidence_supplied: true,
+            ..Default::default()
+        },
+    );
+    let err =
+        resolved.expect_err("web_evidence_supplied must not relax the SupportsToolUse requirement");
+    assert!(
+        err.contains("is not allowed for this request (local/routing/capability gate)"),
+        "{err}"
+    );
+}
+
+/// A single hermetic, non-free candidate with no advertised capabilities
+/// (`ModelCapabilities::default()`: no web search, no JSON mode). Mirrors
+/// `resolve_with_rationale_populates_reason_on_decide_branch`'s pattern
+/// (`PopuliMesh` + `PricingSource::UserConfig` skips the provider-key gate;
+/// non-free survives `CostPreference::Performance`'s free-skip filter) so
+/// these tests exercise the real `decide()` scorer path with zero env-var
+/// mutation — no `VOX_MODEL_FORCE` pin, no shared-lock coordination with
+/// other test modules across the crate needed.
+fn hermetic_capability_test_registry() -> vox_orchestrator::models::ModelRegistry {
+    use vox_orchestrator::models::spec::PricingSource;
+    let mut r = vox_orchestrator::models::ModelRegistry::default();
+    r.register(ModelSpec {
+        id: "capability-test-model".into(),
+        canonical_slug: "capability-test-model".into(),
+        provider: "test".into(),
+        provider_type: ProviderType::PopuliMesh,
+        max_tokens: 32_000,
+        cost_per_1k: 0.001,
+        cost_per_1k_input: 0.001,
+        cost_per_1k_output: 0.001,
+        is_free: false,
+        observed_cost_per_1k: None,
+        strengths: vec![vox_orchestrator::models::generated::StrengthTag::Generalist],
+        capabilities: Default::default(), // no web search, no json mode
+        cache_creation_cost_per_1k: 0.0,
+        cache_read_cost_per_1k: 0.0,
+        supports_prompt_caching: false,
+        pricing_source: PricingSource::UserConfig,
+        supported_parameters: vec![],
+    });
+    r
+}
+
+/// Task 8f: capability *requirements* must be inferred from the user's own
+/// message for this turn (`McpChatModelResolution::capability_prompt`), never
+/// from injected context that also lives in the assembled `user_prompt`
+/// (conversation history, open files, retrieved/web text). Here the user's
+/// message is "refactor this function" (no web-search cue) but the assembled
+/// prompt also carries a `[CONVERSATION HISTORY]` block mentioning "latest
+/// news" — a real production case where a prior turn's words could otherwise
+/// force a `SupportsWebSearch` requirement onto an unrelated turn.
+#[test]
+fn capability_requirements_ignore_injected_context_web_search_cue() {
+    let mut config = OrchestratorConfig::for_testing();
+    config.cost_preference = CostPreference::Performance;
+    let orch = Orchestrator::new(config);
+    *vox_orchestrator::sync_lock::rw_write(&*orch.models_handle()) =
+        hermetic_capability_test_registry();
+
+    let capability_prompt = "refactor this function";
+    let assembled_prompt = format!(
+        "[CONVERSATION HISTORY]\nUser: what's the latest news on rust async?\n\n{capability_prompt}"
+    );
+
+    let resolved = resolve_mcp_chat_model_sync(
+        &orch,
+        &assembled_prompt,
+        None,
+        McpChatModelResolution {
+            complexity: 5,
+            allow_cheapest_fallback: false,
+            task_category: vox_orchestrator::types::TaskCategory::Research,
+            capability_prompt: Some(capability_prompt.to_string()),
+            ..Default::default()
+        },
+    )
+    .expect(
+        "a turn whose OWN message has no web-search cue must not require \
+         SupportsWebSearch just because injected history mentions \"latest news\"",
+    );
+    assert_eq!(resolved.0.id, "capability-test-model");
+}
+
+/// Companion: when the user's OWN message asks for a web search, the
+/// requirement still applies — injected context is excluded, not the user's
+/// real request.
+#[test]
+fn capability_requirements_still_apply_from_users_own_message_web_search() {
+    let mut config = OrchestratorConfig::for_testing();
+    config.cost_preference = CostPreference::Performance;
+    let orch = Orchestrator::new(config);
+    *vox_orchestrator::sync_lock::rw_write(&*orch.models_handle()) =
+        hermetic_capability_test_registry();
+
+    let capability_prompt = "search the web for the latest news on rust async";
+
+    let resolved = resolve_mcp_chat_model_sync(
+        &orch,
+        capability_prompt,
+        None,
+        McpChatModelResolution {
+            complexity: 5,
+            allow_cheapest_fallback: false,
+            task_category: vox_orchestrator::types::TaskCategory::Research,
+            capability_prompt: Some(capability_prompt.to_string()),
+            ..Default::default()
+        },
+    );
+    let err = resolved.expect_err(
+        "a turn whose OWN message asks for a web search must still require SupportsWebSearch",
+    );
+    assert!(err.contains("No LLM model available"), "{err}");
+}
+
+/// Same pair for a second intent (`json_mode` -> `Capability::SupportsJson`):
+/// injected context (e.g. an open file) mentioning "json" must not force the
+/// requirement onto a turn whose own message doesn't ask for it.
+#[test]
+fn capability_requirements_ignore_injected_context_json_cue() {
+    let mut config = OrchestratorConfig::for_testing();
+    config.cost_preference = CostPreference::Performance;
+    let orch = Orchestrator::new(config);
+    *vox_orchestrator::sync_lock::rw_write(&*orch.models_handle()) =
+        hermetic_capability_test_registry();
+
+    let capability_prompt = "refactor this function";
+    let assembled_prompt = format!(
+        "[OPEN FILES]\nconfig.json: {{\"schema\": \"strict json structured object\"}}\n\n{capability_prompt}"
+    );
+
+    let resolved = resolve_mcp_chat_model_sync(
+        &orch,
+        &assembled_prompt,
+        None,
+        McpChatModelResolution {
+            complexity: 5,
+            allow_cheapest_fallback: false,
+            task_category: vox_orchestrator::types::TaskCategory::Research,
+            capability_prompt: Some(capability_prompt.to_string()),
+            ..Default::default()
+        },
+    )
+    .expect(
+        "a turn whose OWN message has no json cue must not require SupportsJson just \
+         because an open file mentions \"json\"/\"structured\"",
+    );
+    assert_eq!(resolved.0.id, "capability-test-model");
+}
+
+/// Companion: the user's own message asking for JSON/structured output still
+/// requires `Capability::SupportsJson`.
+#[test]
+fn capability_requirements_still_apply_from_users_own_message_json() {
+    let mut config = OrchestratorConfig::for_testing();
+    config.cost_preference = CostPreference::Performance;
+    let orch = Orchestrator::new(config);
+    *vox_orchestrator::sync_lock::rw_write(&*orch.models_handle()) =
+        hermetic_capability_test_registry();
+
+    let capability_prompt = "return a valid json schema for this object";
+
+    let resolved = resolve_mcp_chat_model_sync(
+        &orch,
+        capability_prompt,
+        None,
+        McpChatModelResolution {
+            complexity: 5,
+            allow_cheapest_fallback: false,
+            task_category: vox_orchestrator::types::TaskCategory::Research,
+            capability_prompt: Some(capability_prompt.to_string()),
+            ..Default::default()
+        },
+    );
+    let err = resolved.expect_err(
+        "a turn whose OWN message asks for json/schema must still require SupportsJson",
+    );
+    assert!(err.contains("No LLM model available"), "{err}");
+}
+
 #[test]
 fn mcp_global_llm_context_fill_ratio_none_without_budget() {
     let mut config = OrchestratorConfig::for_testing();
@@ -354,6 +666,16 @@ fn sticky_ollama_rejected_when_inference_profile_disallows() {
 
 #[test]
 fn sticky_mens_synthesizes_vox_local_when_absent_from_registry() {
+    // Holds no `VOX_MODEL_FORCE` pin itself, but `resolve_mcp_chat_model_sync`
+    // reads that process-global env var unconditionally (`strict_pin` check in
+    // `resolve_mcp_chat_model_sync_inner`), so this test must still serialize
+    // against every test in this module that sets it via `EnvKeyGuard` —
+    // otherwise a concurrently-running pin test can make this resolve call see
+    // a foreign pin mid-test and fail with an unrelated "not in the model
+    // registry" error.
+    let _g = INFERENCE_PROFILE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let mut config = OrchestratorConfig::for_testing();
     config.cost_preference = CostPreference::Performance;
     let orch = Orchestrator::new(config);
@@ -922,4 +1244,48 @@ fn restricted_route_overrides_allow_cloud_not_local_http_until_local_enabled() {
         std::env::remove_var("VOX_ROUTE_ALLOW_PROVIDER_NETWORK");
         std::env::remove_var("VOX_ROUTE_ALLOW_LOCAL_MODEL_HTTP");
     }
+}
+
+#[test]
+fn strict_pin_missing_from_registry_is_an_error_naming_the_pin() {
+    let err = super::resolve::check_strict_pin("google/gemini-3.8-flash", None, true).unwrap_err();
+    assert!(err.contains("google/gemini-3.8-flash"), "{err}");
+    assert!(err.contains("not in the model registry"), "{err}");
+}
+
+#[test]
+fn strict_pin_blocked_by_gate_is_an_error() {
+    let spec = crate::llm_bridge::infer_test_stub::stub_plan_model_spec();
+    let err = super::resolve::check_strict_pin(&spec.id, Some(&spec), false).unwrap_err();
+    assert!(err.contains("not allowed"), "{err}");
+}
+
+#[test]
+fn strict_pin_ok_when_found_and_allowed() {
+    let spec = crate::llm_bridge::infer_test_stub::stub_plan_model_spec();
+    assert!(super::resolve::check_strict_pin(&spec.id, Some(&spec), true).is_ok());
+}
+
+#[test]
+fn pin_survives_free_tier_when_enforced_matches_requested() {
+    let spec = crate::llm_bridge::infer_test_stub::stub_plan_model_spec();
+    assert!(super::resolve::check_pin_survives_free_tier(&spec.id, &spec, &spec).is_ok());
+}
+
+#[test]
+fn pin_swapped_by_free_tier_enforcement_is_an_error_naming_the_pin() {
+    // Simulates what `enforce_free_tier_if_needed` does when a paid pin meets
+    // a free-tier-only turn: it silently substitutes a different, free model.
+    // A strict pin must reject that swap rather than accept it silently.
+    let requested = crate::llm_bridge::infer_test_stub::stub_plan_model_spec();
+    let swapped_free = vox_orchestrator::models::ModelSpec {
+        id: "some-other-free-model".to_string(),
+        is_free: true,
+        ..requested.clone()
+    };
+    let err =
+        super::resolve::check_pin_survives_free_tier(&requested.id, &requested, &swapped_free)
+            .unwrap_err();
+    assert!(err.contains(&requested.id), "{err}");
+    assert!(err.contains("free-tier"), "{err}");
 }

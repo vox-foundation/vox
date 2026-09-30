@@ -285,12 +285,18 @@ fn format_backend_mix(backends: &[vox_db::SearchBackend]) -> Vec<String> {
 }
 
 /// Unified retrieval trigger used by chat preamble + explicit search tools.
+///
+/// `skip_web` disables only this call's web leg (Task 8d) — e.g. the chat
+/// preamble sets it for a Quick/Deep research turn, whose numbered sources
+/// are already this turn's web evidence. Other legs (memory/KG/chunks/repo/KB)
+/// are unaffected. Pass `false` to keep prior behavior.
 pub async fn run_retrieval_bundle(
     state: &ServerState,
     query: &str,
     trigger: RetrievalTriggerMode,
     limit: usize,
     trace_id: Option<&str>,
+    skip_web: bool,
 ) -> Result<RetrievalBundle, String> {
     let sqlite_cap = match (&state.sqlite_capabilities, state.db.as_ref()) {
         (Some(s), _) => Some(s.clone()),
@@ -298,7 +304,10 @@ pub async fn run_retrieval_bundle(
         _ => None,
     };
 
-    let policy = SearchPolicy::from_env();
+    let mut policy = SearchPolicy::from_env();
+    if skip_web {
+        policy.web_research_enabled = false;
+    }
     let trace = trace_id
         .map(str::trim)
         .filter(|s| !s.is_empty())
@@ -404,55 +413,6 @@ pub async fn run_retrieval_bundle(
     })
 }
 
-/// Helper to determine if autonomous research should be triggered based on query and retrieval hits.
-pub fn should_trigger_autonomous_research(
-    query: &str,
-    bundle: &RetrievalBundle,
-    force_research: Option<bool>,
-) -> bool {
-    if let Some(forced) = force_research {
-        return forced;
-    }
-
-    // Explicit tag request
-    if query.contains("[[research:") || query.contains("[[category:research]]") {
-        return true;
-    }
-
-    // Evaluate confidence score using the confidence gate
-    use vox_research_shim::research::gate::{GateConfig, GateInput, score_with_config};
-
-    let claims: Vec<vox_research_shim::research::claims::Claim> = Vec::new(); // empty claims for initial heuristic score
-    let min_citations = 5;
-    let min_domains = 4;
-
-    let citation_count = bundle.rrf_fused_lines.len()
-        + bundle.memory_lines.len()
-        + bundle.knowledge_lines.len()
-        + bundle.chunk_lines.len();
-
-    let distinct_domain_count = 1; // lightweight fallback
-
-    let gate_input = GateInput {
-        claims: &claims,
-        citation_count,
-        trust_weighted_citation_score: citation_count as f32,
-        supported_claim_count: 0.0,
-        distinct_domain_count,
-        no_retrieval_hits: citation_count == 0,
-        answer_is_empty: false,
-    };
-
-    let config = GateConfig {
-        min_citations_for_full_score: Some(min_citations),
-        min_domains_for_full_score: Some(min_domains),
-    };
-
-    let signal = score_with_config(&gate_input, &config);
-    // Trigger research if the confidence score is below 0.65
-    signal.score < 0.65
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -466,6 +426,7 @@ mod tests {
             RetrievalTriggerMode::VerificationPass,
             3,
             Some("test-trace-retrieval"),
+            false,
         )
         .await
         .expect("retrieval bundle");
@@ -480,31 +441,6 @@ mod tests {
         assert_eq!(bundle.evidence.search_intent, "verification");
         assert_eq!(bundle.evidence.selected_mode, "hybrid");
         assert!(!bundle.evidence.retrieval_tier.is_empty());
-    }
-
-    #[test]
-    fn should_trigger_autonomous_research_on_forced_flag() {
-        let bundle = RetrievalBundle::default();
-        assert!(super::should_trigger_autonomous_research(
-            "test",
-            &bundle,
-            Some(true)
-        ));
-        assert!(!super::should_trigger_autonomous_research(
-            "test",
-            &bundle,
-            Some(false)
-        ));
-    }
-
-    #[test]
-    fn should_trigger_autonomous_research_on_explicit_tag() {
-        let bundle = RetrievalBundle::default();
-        assert!(super::should_trigger_autonomous_research(
-            "do some [[research:topic]] here",
-            &bundle,
-            None
-        ));
     }
 
     #[test]

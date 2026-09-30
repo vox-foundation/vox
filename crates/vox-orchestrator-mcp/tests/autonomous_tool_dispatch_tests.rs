@@ -15,6 +15,9 @@
 //!   durable `ApprovalRequested.run_id`, and that a model-supplied
 //!   `args["task_id"]` cannot override it.
 
+// Task 8e fix round 1: pull in the hermetic-VOX_HOME ctor (see tests/common/mod.rs).
+mod common;
+
 use std::sync::Arc;
 
 use vox_orchestrator::ApprovalOutcome;

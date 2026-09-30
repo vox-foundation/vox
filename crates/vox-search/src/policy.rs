@@ -47,6 +47,10 @@ fn default_rrf_k() -> f64 {
     60.0
 }
 
+fn default_candidate_depth() -> usize {
+    10
+}
+
 #[inline]
 fn default_persist_web_hits() -> bool {
     true
@@ -124,7 +128,8 @@ pub struct SearchPolicy {
     pub tantivy_index_root: Option<std::path::PathBuf>,
     /// Enable reciprocal rank fusion across corpus hit lists (`VOX_SEARCH_PREFER_RRF`).
     pub prefer_rrf_merge: bool,
-    /// Master switch for live web retrieval.
+    /// Tavily master switch. `false` in `Default`; `from_env` enables it when a key is
+    /// present unless `VOX_SEARCH_TAVILY_ENABLED` says otherwise.
     pub tavily_enabled: bool,
     /// API depth: basic or advanced.
     pub tavily_search_depth: String,
@@ -136,12 +141,34 @@ pub struct SearchPolicy {
     pub tavily_fire_on_weak: bool,
     /// Max credits per session (safety rail).
     pub tavily_credit_budget_per_session: usize,
-    /// SearXNG base URL (`None` disables Tier 2).
+    /// SearXNG base URL (`None` disables Tier 2). `None` in `Default`; `from_env`
+    /// resolves `VOX_SEARCH_SEARXNG_URL`.
     pub searxng_url: Option<String>,
     /// Max search results to request from SearXNG/DDG.
     pub searxng_max_results: usize,
     /// Max top hits to deep-scrape for markdown extraction.
     pub searxng_max_urls_to_scrape: usize,
+    /// Overrides the pipeline's final kept-hit count
+    /// (`max(searxng_max_results, searxng_max_urls_to_scrape)` when `None`).
+    /// Task 8c: lets a caller that already fetched a deep-enough candidate
+    /// pool (via `candidate_depth`) ask for more than the scrape-driven
+    /// default — e.g. quick research's spec-mandated top N=8 (`run_quick`
+    /// sets this on its own policy clone rather than on the shared default).
+    #[serde(default)]
+    pub kept_limit: Option<usize>,
+    /// Master switch for the web leg of `execute_search_plan` (Task 8d). `true`
+    /// by default, matching every existing caller's behavior. A caller that
+    /// already has its own numbered web evidence for this call — e.g. the chat
+    /// preamble on a Quick/Deep research turn — clones the policy and sets this
+    /// `false` so `execute_search_plan` skips `SearchCorpus::WebResearch` even
+    /// when the heuristic plan selected it.
+    #[serde(default = "default_true")]
+    pub web_research_enabled: bool,
+    /// How many hits each web provider (SearXNG, Wikipedia, OpenAlex, arXiv) is asked for.
+    /// Deeper than the kept output (`max(searxng_max_results, searxng_max_urls_to_scrape)`)
+    /// so the relevance rerank chooses from a real candidate pool (Task 15 Step 3b).
+    #[serde(default = "default_candidate_depth")]
+    pub candidate_depth: usize,
     /// SearXNG `engines=` query parameter (comma-separated engine ids).
     pub searxng_engines: String,
     /// SearXNG `language=` query parameter (short language tag).
@@ -269,15 +296,11 @@ impl Default for SearchPolicy {
             prefer_rrf_merge: parse_prefer_rrf_merge(
                 vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchPreferRrf).expose(),
             ),
-            tavily_enabled: {
-                let key = vox_secrets::resolve_secret(vox_secrets::SecretId::TavilyApiKey);
-                let override_val =
-                    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchTavilyEnabled);
-                crate::tavily_research::tavily_research_enabled_with_values(
-                    key.expose(),
-                    override_val.expose(),
-                )
-            },
+            // Network providers that spend credits or reach the operator's instance are
+            // off in `Default` and resolved from Clavis only in `from_env` (Task 15 fix
+            // round 1): a test built on `SearchPolicy::default()` must never reach
+            // api.tavily.com or the local SearXNG because of what the vault holds.
+            tavily_enabled: false,
             tavily_search_depth: vox_secrets::resolve_secret(
                 vox_secrets::SecretId::VoxSearchTavilyDepth,
             )
@@ -311,10 +334,16 @@ impl Default for SearchPolicy {
             .expose()
             .and_then(|v| v.parse().ok())
             .unwrap_or(50),
-            searxng_url: vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchSearxngUrl)
-                .expose()
-                .filter(|s| !s.trim().is_empty())
-                .map(|s| s.to_string()),
+            searxng_url: None,
+            // NOTE (D9, Task 8 fix round 2 diagnosis): raising this alone does NOT
+            // fix arXiv dominating the fused top-N (tried 10, still 100% arXiv —
+            // see the fix-round-2 report). At `rrf_k=60`, arXiv's 1.20 authority
+            // weight beats every rank of an equal-size 1.00-weighted competing
+            // list as long as the list size stays under `k` (`1.2*(k+1) >
+            // 1.0*(k+list_len)`), so widening the cap alone can't out-run it.
+            // Left at the original default; a real fix needs to touch
+            // `true_rrf_fuse`'s weights/k in web_dispatcher.rs, which is out of
+            // this round's scope (reported, not fixed — see finding (c) part 2).
             searxng_max_results: vox_secrets::resolve_secret(
                 vox_secrets::SecretId::VoxSearchSearxngMaxResults,
             )
@@ -327,6 +356,9 @@ impl Default for SearchPolicy {
             .expose()
             .and_then(|v| v.parse().ok())
             .unwrap_or(3),
+            kept_limit: None,
+            web_research_enabled: true,
+            candidate_depth: default_candidate_depth(),
             searxng_engines: searxng_embedded.engines.clone(),
             searxng_language: searxng_embedded.language.clone(),
             duckduckgo_fallback_enabled: !parse_falsy_env(
@@ -400,6 +432,17 @@ impl SearchPolicy {
     #[must_use]
     pub fn from_env() -> Self {
         let mut p = Self::default();
+        // Task 8e: test-hermeticity kill switch. `run_retrieval_bundle`'s
+        // "unified autonomous retrieval injection" preamble calls
+        // `from_env()` fresh on every chat turn regardless of research
+        // intent, so a plain `skip_web` per-call override (Task 8d) does not
+        // stop it for turns that never asked for research — a "unit" test
+        // could still make a real, non-deterministic web request. Never set
+        // by production code; `vox-orchestrator-mcp`'s hermetic test ctors
+        // (`src/lib.rs`, `tests/common/mod.rs`) set it for every test.
+        if parse_truthy_env(vox_secrets::SecretId::VoxSearchWebResearchDisabled) {
+            p.web_research_enabled = false;
+        }
         if let Some(v) =
             vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchPolicyVersion).expose()
             && let Ok(n) = v.parse::<u32>()
@@ -444,6 +487,10 @@ impl SearchPolicy {
                 p.repo_inventory_skip_dirs = dirs;
             }
         }
+        p.searxng_url = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchSearxngUrl)
+            .expose()
+            .filter(|s| !s.trim().is_empty())
+            .map(|s| s.to_string());
         {
             let key = vox_secrets::resolve_secret(vox_secrets::SecretId::TavilyApiKey);
             let override_val =
@@ -580,6 +627,11 @@ impl SearchPolicy {
             } else if lane.eq_ignore_ascii_case("fast") {
                 p.default_lane = ResearchLane::Fast;
             }
+        }
+        if let Ok(v) = std::env::var("VOX_SEARCH_CANDIDATE_DEPTH")
+            && let Ok(n) = v.parse::<usize>()
+        {
+            p.candidate_depth = n.max(1);
         }
         if let Ok(v) = std::env::var("VOX_SEARCH_FAST_TIMEOUT_MS")
             && let Ok(n) = v.parse::<u64>()
@@ -786,6 +838,15 @@ mod tests {
         assert!(!parse_prefer_rrf_merge(Some("no")));
         assert!(!parse_prefer_rrf_merge(Some("off")));
         assert!(!parse_prefer_rrf_merge(Some("anything_else")));
+    }
+
+    #[test]
+    fn default_policy_never_enables_vault_backed_network_providers() {
+        // Holds whatever the machine's Clavis vault contains: only `from_env` may turn
+        // Tavily or SearXNG on, so tests built on `Default` cannot spend or reach them.
+        let d = SearchPolicy::default();
+        assert!(!d.tavily_enabled);
+        assert_eq!(d.searxng_url, None);
     }
 
     #[test]

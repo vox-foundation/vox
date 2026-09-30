@@ -959,7 +959,22 @@ pub async fn browser_extract(state: &ServerState, p: BrowserExtractParams) -> St
         "Instruction:\n{}\n\nVisible page text (truncated):\n{}",
         p.instruction, summary
     );
-    match call_llm(state, sys, &user, None, p.temperature, p.top_p, None).await {
+    // Task 8f: `user` above mixes `p.instruction` (the caller's real intent)
+    // with `summary` (fetched, untrusted page text) — capability inference
+    // must run over the instruction alone, or a page mentioning "json"/
+    // "latest news"/etc. could force a spurious capability requirement.
+    match call_llm(
+        state,
+        sys,
+        &user,
+        None,
+        p.temperature,
+        p.top_p,
+        None,
+        Some(&p.instruction),
+    )
+    .await
+    {
         Ok((text, model, _)) => ToolResult::ok(serde_json::json!({
             "extraction": text,
             "model": model,
@@ -999,7 +1014,21 @@ pub async fn browser_extract_json(state: &ServerState, p: BrowserExtractJsonPara
         "Schema (JSON Schema):\n{}\n\nTask:\n{}\n\nVisible page text:\n{}",
         p.schema_json, p.instruction, summary
     );
-    match call_llm(state, sys, &user, None, p.temperature, p.top_p, None).await {
+    // Task 8f: same reasoning as `browser_extract` above — `user` mixes
+    // `p.schema_json`/`p.instruction` (caller-supplied) with fetched page
+    // text; infer capabilities from the instruction alone.
+    match call_llm(
+        state,
+        sys,
+        &user,
+        None,
+        p.temperature,
+        p.top_p,
+        None,
+        Some(&p.instruction),
+    )
+    .await
+    {
         Ok((text, model, _)) => {
             let trimmed = text.trim();
             let val: Result<serde_json::Value, _> = serde_json::from_str(trimmed);
@@ -1139,7 +1168,21 @@ pub async fn browser_act(state: &ServerState, p: BrowserActParams) -> String {
     }
     let sys = browser_act_system_prompt();
     let user = format!("Goal:\n{}\n\n{}", p.instruction, tree);
-    let Ok((text, model, _)) = call_llm(state, sys, &user, None, None, None, None).await else {
+    // Task 8f: same class as `browser_extract`/`browser_extract_json` — `user`
+    // mixes `p.instruction` with `tree` (fetched page snapshot text); infer
+    // capabilities from the instruction alone.
+    let Ok((text, model, _)) = call_llm(
+        state,
+        sys,
+        &user,
+        None,
+        None,
+        None,
+        None,
+        Some(&p.instruction),
+    )
+    .await
+    else {
         return ToolResult::<serde_json::Value>::err_with_remediation(
             "LLM call failed (check model / keys)",
             "Configure MCP chat model (`vox_set_active_model`) and Secrets.",

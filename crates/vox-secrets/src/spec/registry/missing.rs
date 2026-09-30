@@ -1975,6 +1975,17 @@ pub const SPECS_MISSING_TAIL: &[SecretSpec] = &[
         scope_description: "",
     },
     SecretSpec {
+        id: SecretId::VoxSearchWebResearchDisabled,
+        canonical_env: "VOX_SEARCH_WEB_RESEARCH_DISABLED",
+        aliases: &[],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "true | false — force-disable SearchPolicy::web_research_enabled (test hermeticity kill switch; never set in production).",
+        scope_description: "Task 8e: lets test-only ctors guarantee no search path reaches a live web engine.",
+    },
+    SecretSpec {
         id: SecretId::VoxSearchScraperTimeout,
         canonical_env: "VOX_SEARCH_SCRAPER_TIMEOUT",
         aliases: &[],

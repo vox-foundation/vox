@@ -123,6 +123,13 @@
       "owner": "robot"
     },
     {
+      "rule_id_prefix": "skeleton/hollow-fn",
+      "path_glob": "**/vox-research-shim/src/research/claims.rs",
+      "reason": "Task 15d review round 1: extract_claims_from_text's `not(feature = \"scientia-claims\")` fallback (pre-existing, unrelated to this task's Claim::salience_score field addition to the other cfg branch in the same file) is a deliberate no-op -- without that feature vox-scientia's extractor isn't linked in, so there is no deterministic path to fall back to; extract_claims_with_model already treats an empty result as \"try the LLM cascade next\". Surfaced only because tdd-guard re-scans the whole touched file, not the diff.",
+      "owner": "robot"
+    },
+    {
+
       "rule_id_prefix": "skeleton/untested-pub-api",
       "path_glob": "**/vox-cli-ci/src/gui_smoke.rs",
       "reason": "run() is pre-existing process-orchestration (predates the Clavis secrets migration, which only replaced two std::env::var reads with vox_secrets::resolve_secret for VOX_WEB_VITE_SMOKE/VOX_GUI_PLAYWRIGHT). The entire body spawns cargo nextest / pnpm subprocesses with no pure logic to extract; unit-testing it would mean mocking process execution, a separate, out-of-scope effort from the secrets fix. Surfaced only because tdd-guard re-scans the whole touched file, not the diff.",
@@ -162,6 +169,12 @@
       "rule_id_prefix": "skeleton/untested-pub-api",
       "path_glob": "**/vox-db/src/temporal_claims.rs",
       "reason": "normalize_semver and is_claim_valid_at_version are pre-existing, zero #[test] blocks in the file before this change, which only collapsed nested if-let chains into let-chains (clippy collapsible_if) further down the same file. Surfaced only because tdd-guard re-scans the whole touched file, not the diff.",
+      "owner": "robot"
+    },
+    {
+      "rule_id_prefix": "skeleton/untested-pub-api",
+      "path_glob": "**/vox-search/src/searxng.rs",
+      "reason": "Task 8c only added a field to the sibling SearxngResult struct in this file; SearxngSearchClient::new/search are pre-existing and untouched. Covered by tests/web_dispatcher_searxng_mock.rs and tests/deterministic_lanes_ci_test.rs, just not by an in-file #[cfg(test)] module. Surfaced only because tdd-guard re-scans the whole touched file, not the diff.",
       "owner": "robot"
     },
     {

@@ -177,6 +177,7 @@ impl ArXivClient {
                                     content,
                                     engine: Some("arxiv".to_string()),
                                     score: Some(0.85),
+                                    provider: None,
                                 });
 
                                 if results.len() >= limit {

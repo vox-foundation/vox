@@ -9,6 +9,9 @@
 //! stdio server itself now routes through the daemon" without driving actual
 //! stdio framing.
 
+// Task 8e fix round 1: pull in the hermetic-VOX_HOME ctor (see tests/common/mod.rs).
+mod common;
+
 use std::sync::Arc;
 
 use vox_cli_core::daemon_ipc::orchestrator_daemon_ensure::OrchestratorDaemonEnsure;

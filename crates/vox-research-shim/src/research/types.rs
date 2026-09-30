@@ -252,6 +252,39 @@ pub struct ResearchMetadata {
     pub wave_stability: Option<f64>,
     #[serde(default)]
     pub low_grounding_evidence: bool,
+    #[serde(default)]
+    pub subqueries: Vec<String>,
+    /// Model that produced `answer` (the pin when `VOX_MODEL_FORCE` is set).
+    #[serde(default)]
+    pub synthesis_model: String,
+    /// Set when the judge could not score the answer; `quality_score` is then 0, never a synthetic default.
+    #[serde(default)]
+    pub judge_error: Option<String>,
+    #[serde(default)]
+    pub served_from_cache: bool,
+    /// Task 15d: total claims extracted (`draft_claims.len()` in
+    /// `orchestrator/pipeline.rs`) before the per-run verification cap
+    /// (`verifier::MAX_CLAIMS_VERIFIED_PER_RUN`) was applied. Review round 1
+    /// correction: this is **not** always equal to `claim_verdicts.len()` —
+    /// when `query.verify_claims` is false, or when there is no retrieval
+    /// evidence at all (`verify_claims_with_config` returns an empty `Vec` for
+    /// an empty `evidence_hits`), claims were extracted but never verified, so
+    /// `claim_verdicts` stays empty while this count does not.
+    #[serde(default)]
+    pub claims_extracted_count: usize,
+    /// Task 15d: how many of `claims_extracted_count` actually went through a
+    /// real verification this run — at most `verifier::MAX_CLAIMS_VERIFIED_PER_RUN`
+    /// fresh LLM calls, **plus every cache hit** (`cached_verdicts.len()` in
+    /// `orchestrator/pipeline.rs` — a cache hit is a real verification from a
+    /// prior run, not a fresh one, but it is not capped and it is not
+    /// "unverified"). Review round 1 correction: this can therefore exceed
+    /// `verifier::MAX_CLAIMS_VERIFIED_PER_RUN` when most claims are cache
+    /// hits — it is not itself capped at that constant, only the *fresh* LLM
+    /// calls within it are. The remainder of `claims_extracted_count` were
+    /// capped out and marked `Unverified`. Surfaced in the chat "claims" trace
+    /// stage as "K verified of M extracted".
+    #[serde(default)]
+    pub claims_verified_count: usize,
 }
 
 /// Final research result.

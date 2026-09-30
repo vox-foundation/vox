@@ -7,6 +7,9 @@
 //!   - `agy` v1.0.9+ on PATH, interactive Google login complete
 //!   - Run from the repo root (a git work tree with committed HEAD)
 
+// Task 8e fix round 1: pull in the hermetic-VOX_HOME ctor (see tests/common/mod.rs).
+mod common;
+
 use vox_orchestrator_mcp::agy_doctor::{AgyStatus, detect};
 use vox_orchestrator_mcp::agy_exec::{AgyExec, AgySpec};
 use vox_orchestrator_mcp::agy_worktree::DelegationWorktree;

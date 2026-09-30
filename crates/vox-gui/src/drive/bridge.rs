@@ -9,7 +9,18 @@ use std::path::PathBuf;
 use std::sync::mpsc::{self, RecvTimeoutError};
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, Manager, Runtime};
-use vox_config::timeouts::D_180S;
+
+/// Task 15d review round 1 (B1): the Drive bridge's own recv-timeout must
+/// outlive the GUI's internal `chat_turn`/`chat_send_message` client deadline
+/// (`vox_orchestrator_mcp::dispatch_timeout::CHAT_MESSAGE_CLIENT_DEADLINE`,
+/// 330s) plus a small hop margin, or a Deep turn's HTTP request gets cut off
+/// here — with a `504`/`timeout` body — before the GUI's own orch-daemon
+/// client even gives up. Was `vox_config::timeouts::D_180S` (180s), which
+/// predates the Deep budget and is exactly the "Axis Drive bridge recv"
+/// `dispatch_timeout.rs` used to warn about staying aligned with.
+const DRIVE_BRIDGE_RECV_DEADLINE: std::time::Duration = std::time::Duration::from_secs(
+    vox_orchestrator_mcp::dispatch_timeout::CHAT_MESSAGE_CLIENT_DEADLINE.as_secs() + 10,
+);
 
 /// Injected before page JS so drive never reads/writes the user's pin key.
 pub const DRIVE_ISOLATION_SCRIPT: &str = r#"
@@ -110,9 +121,11 @@ pub fn start_live<R: Runtime>(
                 body,
             },
         );
-        // Sync chat_turn can exceed 90s (cold orch + LLM). Drive `wait
-        // --until reply_ok` is the long poll; the HTTP hop must outlive it.
-        match rx.recv_timeout(D_180S) {
+        // Sync chat_turn can exceed 90s (cold orch + LLM), and a Deep-intent
+        // turn can approach `CHAT_MESSAGE_CLIENT_DEADLINE` (330s — see that
+        // constant's doc comment). Drive `wait --until reply_ok` is the long
+        // poll; the HTTP hop must outlive it.
+        match rx.recv_timeout(DRIVE_BRIDGE_RECV_DEADLINE) {
             Ok(resp) => resp,
             Err(RecvTimeoutError::Timeout) => DriveHttpResponse {
                 status: 504,
@@ -236,5 +249,17 @@ mod tests {
         assert!(DRIVE_ISOLATION_SCRIPT.contains("__VOX_DRIVE_LIVE__"));
         assert!(DRIVE_ISOLATION_SCRIPT.contains("vox_chat_model.v1"));
         assert!(DRIVE_ISOLATION_SCRIPT.contains("proto.setItem"));
+    }
+
+    /// Task 15d review round 1 (B1): the Drive bridge's own recv-timeout
+    /// must outlive the GUI's internal chat client deadline, or a Deep-intent
+    /// `drive send` still gets cut off here (504/timeout) even after the
+    /// server- and orch-client-side fixes.
+    #[test]
+    fn drive_bridge_recv_deadline_exceeds_chat_client_deadline() {
+        assert!(
+            DRIVE_BRIDGE_RECV_DEADLINE
+                > vox_orchestrator_mcp::dispatch_timeout::CHAT_MESSAGE_CLIENT_DEADLINE
+        );
     }
 }

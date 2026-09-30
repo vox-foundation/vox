@@ -303,10 +303,18 @@ async fn run_sync(
         None => vox_orchestrator::orch_daemon::OrchDaemonClient::new(addr),
     };
     let _in_flight = daemon.in_flight_guard();
+    // Task 15d review round 1 (B1): `vox_chat_message` needs its own,
+    // longer-than-generic client read deadline — a Deep-intent turn's
+    // server-side budget (`dispatch_timeout::DEEP_CHAT_MESSAGE_TIMEOUT`,
+    // 300s) exceeds `OrchDaemonClient`'s generic default
+    // (`ORCH_CLIENT_READ_DEADLINE`, 195s), so without this every Deep chat
+    // turn would still time out client-side even after the server-side fix.
+    // See `CHAT_MESSAGE_CLIENT_DEADLINE`'s doc comment.
     let envelope = client
-        .call(
+        .call_with_deadline(
             vox_foundation::protocol::orch_daemon_method::TOOL_CALL,
             serde_json::json!({ "name": "vox_chat_message", "args": sync_tool_args(&input) }),
+            vox_orchestrator_mcp::dispatch_timeout::CHAT_MESSAGE_CLIENT_DEADLINE,
         )
         .await
         .map_err(|e| e.to_string())?;

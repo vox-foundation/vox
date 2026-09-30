@@ -63,8 +63,12 @@ pub async fn run_research_with_context_and_session(
     let persist_enabled = true;
 
     if let Some(db) = db
-        && let Some(cached) = research_cache_short_circuit(&query, db, config).await
+        && let Some(mut cached) = research_cache_short_circuit(&query, db, config).await
     {
+        cached.research_metadata.served_from_cache = true;
+        if let Some(id) = precreated_session_id {
+            set_session_stage(Some(db), id, ResearchStage::Completed).await;
+        }
         return Ok(cached);
     }
 
@@ -390,6 +394,12 @@ pub async fn run_research_with_context_and_session(
     // Set status → verifying_claims before NLI classification.
     set_session_stage(db, session_id, ResearchStage::VerifyingClaims).await;
     report_progress("Verifying research claims...".to_string(), Some(0.60));
+    // Task 15d: how many of `draft_claims` actually went through a real (fresh
+    // or cached) verification this run vs. were skipped by the per-run cap.
+    // `claims_extracted_count` == `draft_claims.len()` whenever verification ran
+    // at all; both feed the "claims" trace stage's "K verified of M extracted".
+    let mut claims_verified_count: usize = 0;
+    let claims_extracted_count = draft_claims.len();
     let mut claim_verdicts = if query.verify_claims && !draft_claims.is_empty() {
         let max_age_ms: i64 = 14 * 24 * 60 * 60 * 1000; // 14 days
         let mut cached_verdicts = Vec::new();
@@ -453,7 +463,7 @@ pub async fn run_research_with_context_and_session(
             claims_to_verify = draft_claims.clone();
         }
 
-        let fresh_verdicts = if !claims_to_verify.is_empty() {
+        let (fresh_verdicts, fresh_verified_count) = if !claims_to_verify.is_empty() {
             verify_claims_with_config(
                 &claims_to_verify,
                 &query.query,
@@ -465,8 +475,10 @@ pub async fn run_research_with_context_and_session(
             )
             .await
         } else {
-            vec![]
+            (vec![], 0)
         };
+        // Cache hits are genuinely verified too (just cheaply, from a prior run).
+        claims_verified_count = cached_verdicts.len() + fresh_verified_count;
 
         if let Some(db) = db
             && session_id > 0
@@ -828,7 +840,7 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
         ),
         ResearchDomainMode::General => query.query.clone(),
     };
-    let (answer, template_fallback) = synthesize_answer_with_llm(SynthesisParams {
+    let (answer, winning_synthesis_model) = match synthesize_answer_with_llm(SynthesisParams {
         query: &synthesis_query,
         hits: &all_hits,
         verdicts: &claim_verdicts,
@@ -839,23 +851,34 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
         max_tokens: config.synthesis_max_tokens,
         context_max_chars: config.synthesis_context_max_chars,
     })
-    .await;
+    .await
+    {
+        Ok(a) => a,
+        Err(e) => {
+            set_session_stage(db, session_id, ResearchStage::Failed).await;
+            return Err(e);
+        }
+    };
 
     // ── (i) Evaluate final quality via judge ──────────────────────────────────
-    let quality_score = score_answer(template_fallback, config.fallback_quality_score, || {
-        judge_quality(JudgeParams {
-            query: &query.query,
-            answer: &answer,
-            citations: &citations,
-            endpoint: config.llm_endpoint.as_deref(),
-            api_key: config.api_key.as_deref(),
-            model: resolved_llm.judge_model.as_str(),
-            temperature: config.judge_temperature,
-            max_tokens: config.judge_max_tokens,
-            fallback_score: config.fallback_quality_score,
-        })
+    let (quality_score, judge_error) = match judge_quality(JudgeParams {
+        query: &query.query,
+        answer: &answer,
+        citations: &citations,
+        endpoint: config.llm_endpoint.as_deref(),
+        api_key: config.api_key.as_deref(),
+        model: resolved_llm.judge_model.as_str(),
+        temperature: config.judge_temperature,
+        max_tokens: config.judge_max_tokens,
     })
-    .await;
+    .await
+    {
+        Ok(s) => (s, None),
+        Err(e) => {
+            tracing::warn!(error = %e, "research judge failed");
+            (config.fallback_quality_score, Some(e))
+        }
+    };
 
     let self_verification_enabled = matches!(routing_tier, RoutingTier::DeepResearch);
 
@@ -997,6 +1020,16 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
         wave_count: wave_plan.as_ref().map(|w| w.current_wave).unwrap_or(1),
         wave_stability: wave_plan.as_ref().map(|w| w.compute_stability()),
         low_grounding_evidence,
+        subqueries: plan.subqueries.clone(),
+        // The candidate that actually produced `answer` — not necessarily
+        // `resolved_llm.synthesis_model`, since `chat_with_cascade` may fall
+        // through to a different candidate. Under a pin (`VOX_MODEL_FORCE`)
+        // this equals the pin, because the cascade collapses to one candidate.
+        synthesis_model: winning_synthesis_model,
+        judge_error,
+        served_from_cache: false,
+        claims_extracted_count,
+        claims_verified_count,
     };
 
     let result = ResearchResult {
@@ -1314,19 +1347,6 @@ fn fast_lane_plan(query: &ResearchQuery) -> ResearchPlan {
     passthrough_plan(query, false)
 }
 
-/// Quality score for a synthesized answer. A template fallback is raw evidence, not an
-/// answer: it never runs the LLM judge and is capped so it can never clear a gate.
-async fn score_answer<F, Fut>(template_fallback: bool, fallback_score: i32, judge: F) -> i32
-where
-    F: FnOnce() -> Fut,
-    Fut: std::future::Future<Output = i32>,
-{
-    if template_fallback {
-        return fallback_score.min(super::stages::TEMPLATE_FALLBACK_QUALITY_CAP);
-    }
-    judge().await
-}
-
 #[cfg(test)]
 mod tests {
     use super::super::super::verifier::{EvidenceSpan, SpanType, Verdict};
@@ -1367,25 +1387,6 @@ mod tests {
     fn fast_lane_plan_passes_short_query_through() {
         let plan = fast_lane_plan(&fast_query("tucson tech events"));
         assert_eq!(plan.subqueries, vec!["tucson tech events".to_string()]);
-    }
-
-    #[tokio::test]
-    async fn template_fallback_skips_judge_and_caps_score() {
-        let calls = std::sync::atomic::AtomicUsize::new(0);
-        let judge = || async {
-            calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            95
-        };
-        let score = score_answer(true, 40, judge).await;
-        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 0);
-        assert!(
-            score <= super::super::stages::TEMPLATE_FALLBACK_QUALITY_CAP,
-            "{score}"
-        );
-
-        let score = score_answer(false, 40, judge).await;
-        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 1);
-        assert_eq!(score, 95);
     }
 
     #[test]
@@ -1431,6 +1432,12 @@ mod tests {
                 wave_count: 1,
                 wave_stability: None,
                 low_grounding_evidence: false,
+                subqueries: vec![],
+                synthesis_model: String::new(),
+                judge_error: None,
+                served_from_cache: false,
+                claims_extracted_count: 0,
+                claims_verified_count: 0,
             },
         };
         let report_markdown = render_research_report_markdown(&query, &plan, &result);
@@ -1467,6 +1474,7 @@ mod tests {
                 is_numeric: false,
                 is_recent: false,
                 is_named_event: false,
+                salience_score: 0.5,
             },
             verdict: Verdict::Supported,
             confidence: 0.9,
@@ -1527,6 +1535,7 @@ mod tests {
                 is_numeric: false,
                 is_recent: false,
                 is_named_event: false,
+                salience_score: 0.5,
             },
             verdict: Verdict::Supported,
             confidence: 0.9,
@@ -1564,6 +1573,7 @@ mod tests {
                 is_numeric: false,
                 is_recent: false,
                 is_named_event: false,
+                salience_score: 0.5,
             },
             verdict: Verdict::Supported,
             confidence: 0.9,
@@ -1593,6 +1603,7 @@ mod tests {
                 is_numeric: false,
                 is_recent: false,
                 is_named_event: false,
+                salience_score: 0.5,
             },
             verdict: Verdict::Supported,
             confidence: 0.9,
@@ -1608,6 +1619,7 @@ mod tests {
                 is_numeric: false,
                 is_recent: false,
                 is_named_event: false,
+                salience_score: 0.5,
             },
             verdict: Verdict::Supported,
             confidence: 0.6,
