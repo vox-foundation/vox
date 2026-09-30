@@ -24,9 +24,9 @@ import { VoxGraphStatusPanel } from '../surfaces/VoxGraph/VoxGraphStatusPanel';
 import { Mercatus } from '../surfaces/Mercatus';
 import { ChatSurface } from '../surfaces/Chat/ChatSurface';
 import type {
-  ChatExecutionRailKpis,
   ChatExecutionTask,
 } from '../surfaces/Chat/ChatExecutionRail';
+import type { RailRouting } from '../../lib/routingSummary';
 import { Console } from '../surfaces/Console/Console';
 import type { DashboardData, Agent, LudusAlert, StreamItem } from '../../types/dashboard';
 import type { CatalogEntry, Toast, AttentionBudgetSnapshot } from '../../types/tauri';
@@ -59,13 +59,9 @@ export interface SurfaceProps {
   chatMessages?: ChatMessage[];
   onFocusComposer?: () => void;
   chatTasks?: ChatExecutionTask[];
-  chatIntents?: string[];
-  chatExecutionKpis?: ChatExecutionRailKpis;
-  chatActiveModel?: string | null;
-  chatOpenrouterSpendUsd?: number | null;
+  chatRouting?: RailRouting | null;
   chatSessionSpentUsd?: number | null;
   chatAgentStreamItems?: StreamItem[];
-  onOpenAgentInFlow?: (agentId: string) => void;
   chatComposer?: React.ReactNode;
   gamifyEnabled?: boolean;
   hudTilesConfig?: HudTilesConfig;
@@ -195,16 +191,9 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
           activeSessionId={props.activeSessionId}
           onSessionChange={props.onSessionChange}
           tasks={props.chatTasks}
-          intents={props.chatIntents}
-          executionKpis={props.chatExecutionKpis}
-          activeModel={props.chatActiveModel}
-          openrouterSpendUsd={props.chatOpenrouterSpendUsd}
+          routing={props.chatRouting}
           sessionSpentUsd={props.chatSessionSpentUsd}
           agentStreamItems={props.chatAgentStreamItems}
-          onOpenAgentInFlow={props.onOpenAgentInFlow}
-          flowAgents={props.data.agents}
-          flowSelectedAgentId={props.selectedAgentId}
-          onFlowSelectAgent={props.setSelectedAgentId}
           composer={props.chatComposer}
           focusedFeedbackId={props.focusedFeedbackId}
           gamifyEnabled={props.gamifyEnabled}

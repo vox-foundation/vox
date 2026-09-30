@@ -81,6 +81,51 @@ describe('ChatSurface', () => {
     localStorage.removeItem('vox.metric.series.v1.chat.session-spend');
   });
 
+  it('hands the rail its routing and re-reads the context budget when a turn completes (plan 3a)', async () => {
+    const base = invokeMock.getMockImplementation()!;
+    invokeMock.mockImplementation((cmd: string, ...rest: unknown[]) =>
+      cmd === 'get_context_budget'
+        ? Promise.resolve({
+            max_context_tokens: 1000,
+            reserved_tokens: 0,
+            threshold_tokens: 800,
+            usable_tokens: 1000,
+            strategy: 'balanced',
+            used_tokens: 10,
+          })
+        : base(cmd, ...rest),
+    );
+    const reply = (status: 'streaming' | 'done'): ChatMessage => ({
+      id: 'a1',
+      role: 'assistant',
+      text: 'x',
+      status,
+      runId: 'r1',
+    });
+    const routing = { model: 'deepseek/deepseek-flash (offline)', reason: null, state: null, alternatives: [] };
+    const ui = (messages: ChatMessage[]) => (
+      <LanguageProvider>
+        <ChatSurface
+          pushToast={noopToast}
+          onNavigate={vi.fn()}
+          messages={messages}
+          composer={<div>composer</div>}
+          activeSessionId="sess-a"
+          routing={routing}
+        />
+      </LanguageProvider>
+    );
+    const budgetCalls = () => invokeMock.mock.calls.filter(([c]) => c === 'get_context_budget').length;
+    const { rerender } = render(ui([reply('streaming')]));
+    expect(await screen.findByTestId('execution-rail-routing')).toHaveTextContent(
+      'Routes to deepseek/deepseek-flash (offline)',
+    );
+    await waitFor(() => expect(budgetCalls()).toBeGreaterThan(0));
+    const before = budgetCalls();
+    rerender(ui([reply('done')]));
+    await waitFor(() => expect(budgetCalls()).toBe(before + 1));
+  });
+
   it('has exactly one accessible h1 for the surface root (axe page-has-heading-one)', async () => {
     render(
       <LanguageProvider>

@@ -7,7 +7,6 @@ import type { ActivityRowDto } from '../transport';
 import {
   useChatExecutionData,
   mapOrchestratorTasksForSession,
-  intentsFromRoutingSummary,
   CHAT_EXECUTION_POLL_MS,
   CHAT_LOCK_ACTIVITY_LIMIT,
   lockStatesFromActivity,
@@ -47,7 +46,7 @@ const taskRow = (over: Partial<TaskRow>): TaskRow => ({
 });
 
 const routingSummary = (preview: RoutingSummary['decision_preview']): RoutingSummary => ({
-  active_model: 'claude-sonnet-4',
+  active_model: 'deepseek/deepseek-flash',
   exploration_spent_usd: 0,
   exploration_budget_usd: 1,
   routing_priority: {
@@ -79,30 +78,6 @@ describe('mapOrchestratorTasksForSession', () => {
   it('returns no tasks when session_id is empty', () => {
     const rows = [taskRow({ id: 1 })];
     expect(mapOrchestratorTasksForSession(rows, '')).toEqual([]);
-  });
-});
-
-describe('intentsFromRoutingSummary', () => {
-  it('maps routing summary decision_preview into intent labels for rail', () => {
-    const summary = routingSummary({
-      selected_model: 'claude-sonnet-4',
-      discovery_state: 'exploit',
-      alternatives: ['gpt-4o', 'gemini-pro', 'mistral-large'],
-      rejection_reasons: ['latency cap'],
-      intelligence_score: 0.82,
-      efficiency_score: 0.71,
-      latency_score: 0.9,
-    });
-
-    expect(intentsFromRoutingSummary(summary)).toEqual([
-      'claude-sonnet-4 · exploit',
-      'Alt: gpt-4o',
-      'Alt: gemini-pro',
-    ]);
-  });
-
-  it('returns empty intents when decision_preview is null', () => {
-    expect(intentsFromRoutingSummary(routingSummary(null))).toEqual([]);
   });
 });
 
@@ -273,7 +248,7 @@ describe('useChatExecutionData', () => {
     vi.useRealTimers();
   });
 
-  it('loads tasks and intents for the active session', async () => {
+  it("loads tasks for the active session; routing and mesh are not this hook's job", async () => {
     const { result } = renderHook(() => useChatExecutionData('sess-a'));
 
     await waitFor(() => expect(result.current.tasks).toHaveLength(1));
@@ -282,10 +257,10 @@ describe('useChatExecutionData', () => {
       title: 'Rail task',
       status: 'in_progress',
     });
-    expect(result.current.intents).toEqual(['mens-v1 · explore']);
-    expect(result.current.meshPeers).toBe(2);
+    expect(Object.keys(result.current)).toEqual(['tasks']);
     expect(mockListOrchestratorTasks).toHaveBeenCalled();
-    expect(mockGetRoutingSummaryLive).toHaveBeenCalled();
+    expect(mockGetRoutingSummaryLive).not.toHaveBeenCalled();
+    expect(mockGetOrchestratorStatusBin).not.toHaveBeenCalled();
   });
 
   it('queries activity log with session_id and attaches holding lock to matching task', async () => {
@@ -355,7 +330,6 @@ describe('useChatExecutionData', () => {
       await vi.advanceTimersByTimeAsync(CHAT_EXECUTION_POLL_MS);
     });
     expect(mockListOrchestratorTasks).toHaveBeenCalledTimes(2);
-    expect(mockGetRoutingSummaryLive).toHaveBeenCalledTimes(2);
   });
 
   it('appends a synthetic task when a waiting task is absent from listOrchestratorTasks, and avoids duplicate when row exists', async () => {

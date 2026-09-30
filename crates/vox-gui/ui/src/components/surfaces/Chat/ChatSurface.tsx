@@ -7,11 +7,8 @@ import { ChatTranscript } from './ChatTranscript';
 import type { StreamItem } from '../../../types/dashboard';
 import { EmptyState } from '../../ui/EmptyState';
 import { Icon } from '../../ui/Icons';
-import {
-  ChatExecutionRail,
-  type ChatExecutionRailKpis,
-  type ChatExecutionTask,
-} from './ChatExecutionRail';
+import { ChatExecutionRail, countCompletedTurns, type ChatExecutionTask } from './ChatExecutionRail';
+import type { RailRouting } from '../../../lib/routingSummary';
 import { PlanPanel, type PlanNodeView } from './PlanPanel';
 import { listPlanNodes } from '../../../transport';
 import { labelForNavKey } from '../../../lib/navigation';
@@ -24,7 +21,6 @@ import { listenSecretaryProposed, type SecretaryProposedPayload, feedbackList } 
 import { Matrix } from '../Matrix/Matrix';
 import { DockWorkspaceShell, layoutStorageKeyFor } from '../../dock/DockWorkspaceShell';
 import type { DockviewApi, IDockviewPanelProps, IDockviewPanelHeaderProps } from 'dockview';
-import type { Agent } from '../../../types/dashboard';
 import { NeedsYouSurface } from '../NeedsYou/NeedsYouSurface';
 import type { AttentionInbox } from '../../../hooks/useAttentionInbox';
 import { VoxGraphStatusPanel } from '../VoxGraph/VoxGraphStatusPanel';
@@ -281,21 +277,9 @@ interface ChatSurfaceProps {
   activeSessionId?: string;
   onSessionChange?: (sessionId: string) => void;
   tasks?: ChatExecutionTask[];
-  intents?: string[];
-  executionKpis?: ChatExecutionRailKpis;
-  activeModel?: string | null;
-  openrouterSpendUsd?: number | null;
+  routing?: RailRouting | null;
   sessionSpentUsd?: number | null;
   agentStreamItems?: StreamItem[];
-  onOpenAgentInFlow?: (agentId: string) => void;
-  /**
-   * Same agent-graph data that feeds Agents → Flow
-   * (`surfaceComponents.tsx` `case 'flow'`). Shown as a roster on the
-   * Execution rail; "Open topology" jumps to the full surface.
-   */
-  flowAgents?: Agent[];
-  flowSelectedAgentId?: string;
-  onFlowSelectAgent?: (id: string) => void;
   /** Primary Loquela composer — embedded when global shell dock is hidden on Chat. */
   composer?: React.ReactNode;
   focusedFeedbackId?: string | null;
@@ -325,16 +309,9 @@ export function ChatSurface({
   activeSessionId,
   onSessionChange,
   tasks = [],
-  intents,
-  executionKpis,
-  activeModel,
-  openrouterSpendUsd,
+  routing,
   sessionSpentUsd,
   agentStreamItems,
-  onOpenAgentInFlow,
-  flowAgents = [],
-  flowSelectedAgentId,
-  onFlowSelectAgent,
   composer,
   focusedFeedbackId,
   gamifyEnabled,
@@ -615,29 +592,14 @@ export function ChatSurface({
     }
   };
 
-  const railKpis = executionKpis ?? {
-    activeAgents: { value: 0 },
-    queueDepth: { value: 0 },
-    mesh: { peers: 0 },
-  };
-
   const executionRailNode = onNavigate ? (
     <ChatExecutionRail
       tasks={tasks}
-      kpis={railKpis}
-      intents={intents}
-      activeModel={activeModel}
-      openrouterSpendUsd={openrouterSpendUsd}
+      routing={routing}
       sessionSpentUsd={sessionSpentUsd}
-      onNavigate={onNavigate}
       sessionId={activeSessionId}
       onOpenRouting={() => setRoutingOpen(true)}
-      agents={flowAgents}
-      selectedAgentId={flowSelectedAgentId}
-      onOpenAgent={(id) => {
-        onFlowSelectAgent?.(id);
-        onOpenAgentInFlow?.(id);
-      }}
+      turnsCompleted={countCompletedTurns(messages)}
     />
   ) : null;
 

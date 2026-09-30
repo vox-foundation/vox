@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Glass } from '../../ui/Glass';
-import { Pill } from '../../ui/Pill';
 import { ContextWindowMeter } from './ContextWindowMeter';
 import { useLabel } from '../../../hooks/useLanguage';
 import { useMetricSeries, type MetricPoint } from '../../../hooks/useMetricSeries';
 import { getContextBudget, type ContextBudgetPayload } from '../../../transport';
-import type { Agent } from '../../../types/dashboard';
+import type { ChatMessage } from '../../../lib/chatCorrelation';
+import { modelStateHint, type RailRouting } from '../../../lib/routingSummary';
 
 
 
@@ -17,30 +17,23 @@ export interface ChatExecutionTask {
   lock?: { resourceId: string; state: 'holding' | 'waiting' };
 }
 
-export interface ChatExecutionRailKpis {
-  activeAgents: { value: number };
-  queueDepth: { value: number };
-  mesh: { peers: number };
-}
-
 export interface ChatExecutionRailProps {
   tasks: ChatExecutionTask[];
-  kpis: ChatExecutionRailKpis;
-  intents?: string[];
-  activeModel?: string | null;
-  openrouterSpendUsd?: number | null;
-  /** Session budget burn (DriveConsole $spent) — sparkled separately from OpenRouter. */
+  /** The engine's routing pick for the next turn (App's one routing query); the section is hidden when null. */
+  routing?: RailRouting | null;
+  /** This session's spend — the one money figure the rail owns (global spend lives in the status bar). */
   sessionSpentUsd?: number | null;
-  onNavigate: (viewKey: string) => void;
   /** Active chat session id — passed to get_context_budget so the meter shows real token usage. */
   sessionId?: string | null;
   /** Opens the inline Routing panel (folded Matrix surface — gui-ia-blueprint: matrix → chat rail). */
   onOpenRouting?: () => void;
-  /** Live agent shards — the topology the retired chat Flow dock used to draw. */
-  agents?: Agent[];
-  selectedAgentId?: string;
-  /** Open an agent on the Agents → Flow surface (full topology). */
-  onOpenAgent?: (agentId: string) => void;
+  /** Completed assistant turns in this session (`countCompletedTurns`); each change re-reads the context budget. */
+  turnsCompleted?: number;
+}
+
+/** Finished assistant replies (done or failed): the rail re-reads the context budget when this grows. */
+export function countCompletedTurns(messages: ChatMessage[]): number {
+  return messages.filter((m) => m.role === 'assistant' && (m.status === 'done' || m.status === 'failed')).length;
 }
 
 export function sessionSpendSeriesKey(sessionId?: string | null): string {
@@ -153,23 +146,22 @@ function SessionSpendTrack({
 
 export function ChatExecutionRail({
   tasks,
-  kpis,
-  intents,
-  activeModel,
-  openrouterSpendUsd,
+  routing = null,
   sessionSpentUsd,
-  onNavigate,
   sessionId,
   onOpenRouting,
-  agents = [],
-  selectedAgentId,
-  onOpenAgent,
+  turnsCompleted = 0,
 }: ChatExecutionRailProps) {
   const [budget, setBudget] = useState<ContextBudgetPayload | null>(null);
+  const budgetSessionRef = useRef(sessionId);
 
+  // Re-read the context budget on every session change and every completed turn (read once per session, it went stale).
   useEffect(() => {
     let cancelled = false;
-    setBudget(null);
+    if (budgetSessionRef.current !== sessionId) {
+      budgetSessionRef.current = sessionId;
+      setBudget(null); // a new session never shows the previous session's reading
+    }
     getContextBudget(sessionId)
       .then((next) => {
         if (!cancelled) setBudget(next);
@@ -180,9 +172,12 @@ export function ChatExecutionRail({
     return () => {
       cancelled = true;
     };
-  }, [sessionId]);
+  }, [sessionId, turnsCompleted]);
 
-  const peerLabel = kpis.mesh.peers === 1 ? '1 peer' : `${kpis.mesh.peers} peers`;
+  const stateHint = modelStateHint(routing?.state);
+  const routingLine = routing
+    ? `Routes to ${routing.model}${routing.reason ? ` — ${routing.reason}` : ''}`
+    : '';
 
   return (
     <aside aria-label="Execution rail" className="w-full min-w-0">
@@ -227,114 +222,59 @@ export function ChatExecutionRail({
           )}
         </section>
 
-        {intents != null && intents.length > 0 && (
-          <section
-            role="region"
-            aria-label="Intent map"
-            className="flex flex-col gap-1 pt-3"
-          >
-            <div className="mb-1.5 border-b border-border-subtle pb-1 font-display text-[9px] uppercase tracking-[0.28em] text-text-muted">
-              Intents
-            </div>
-            {intents.slice(0, 3).map(intent => (
-              <button
-                key={intent}
-                type="button"
-                aria-label={intent}
-                onClick={() => onOpenRouting?.()}
-                className="rounded-sm px-2 py-1 text-left text-[11px] text-text-secondary transition hover:bg-overlay-subtle hover:text-brass"
+        {routing && (
+          <section role="region" aria-label="Routing" className="flex flex-col gap-1 pt-3">
+            <div className="mb-1.5 flex items-baseline justify-between gap-2 border-b border-border-subtle pb-1">
+              <span className="font-display text-[9px] uppercase tracking-[0.28em] text-text-muted">Routing</span>
+              <span
+                data-testid="execution-rail-routing-scope"
+                title="The engine's current pick for the next turn; each reply's own routing is in its trace"
+                className="text-[9px] text-text-muted"
               >
-                {intent}
-              </button>
-            ))}
-          </section>
-        )}
-
-        {agents.length > 0 && (
-          <section aria-label="Agent shards" className="flex flex-col gap-1.5 pt-1">
-            <div className="flex items-center justify-between gap-2 border-b border-border-subtle pb-1">
-              <div className="font-display text-[9px] uppercase tracking-[0.28em] text-text-muted">
-                Agents
-              </div>
-              <button
-                type="button"
-                onClick={() => onNavigate('flow')}
-                className="font-mono text-[10px] text-text-muted hover:text-brass"
-              >
-                Open topology
-              </button>
+                next turn
+              </span>
             </div>
-            <ul className="flex flex-col gap-1">
-              {agents.map(agent => (
-                <li key={agent.id}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (onOpenAgent) onOpenAgent(agent.id);
-                      else onNavigate('flow');
-                    }}
-                    className={`flex w-full min-w-0 items-center gap-2 rounded-md px-1.5 py-1 text-left hover:bg-overlay-subtle ${
-                      selectedAgentId === agent.id ? 'bg-overlay-subtle' : ''
-                    }`}
-                  >
-                    <Pill phase={agent.phase} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[11px] text-text-primary">{agent.codename}</span>
-                      <span className="block truncate font-mono text-[10px] text-text-muted">{agent.task}</span>
+            <button
+              type="button"
+              data-testid="execution-rail-routing"
+              title={routingLine}
+              onClick={() => onOpenRouting?.()}
+              className="truncate rounded-sm px-2 py-1 text-left text-[11px] text-text-secondary transition hover:bg-overlay-subtle hover:text-brass"
+            >
+              {routingLine}
+            </button>
+            {(routing.state || routing.alternatives.length > 0) && (
+              <details className="px-2 text-[10px] text-text-muted">
+                <summary className="cursor-pointer select-none">Why this model</summary>
+                {routing.state && (
+                  <p className="mt-1">
+                    State:{' '}
+                    <span
+                      data-testid="execution-rail-routing-state"
+                      title={stateHint ?? undefined}
+                      className="underline decoration-dotted"
+                    >
+                      {routing.state}
                     </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+                  </p>
+                )}
+                {routing.alternatives.length > 0 && (
+                  <p className="mt-0.5">Alternatives: {routing.alternatives.join(', ')}</p>
+                )}
+              </details>
+            )}
           </section>
         )}
 
-        <section aria-label="Resource strip" className="flex flex-col gap-1 pt-3">
-          <div className="mb-1.5 border-b border-border-subtle pb-1 font-display text-[9px] uppercase tracking-[0.28em] text-text-muted">
-            Resources
-          </div>
-          <Segment
-            testId="execution-rail-agents"
-            label="Agents"
-            value={String(kpis.activeAgents.value)}
-            onClick={() => onNavigate('agents')}
-          />
-          <Segment
-            testId="execution-rail-queue"
-            label="Queue"
-            value={String(kpis.queueDepth.value)}
-            onClick={() => onNavigate('runs')}
-          />
-          <Segment
-            testId="execution-rail-mesh"
-            label="Mesh"
-            value={peerLabel}
-            onClick={() => onNavigate('mesh')}
-          />
-          {activeModel != null && activeModel !== '' && (
-            <Segment
-              testId="execution-rail-model"
-              label="Model"
-              value={activeModel}
-              onClick={() => onNavigate('models')}
-            />
-          )}
-          {openrouterSpendUsd != null && !Number.isNaN(openrouterSpendUsd) && (
-            <Segment
-              testId="execution-rail-openrouter"
-              label="OpenRouter"
-              value={formatOpenRouterSpend(openrouterSpendUsd)}
-              onClick={() => onNavigate('settings')}
-            />
-          )}
-          {sessionSpentUsd != null && !Number.isNaN(sessionSpentUsd) && (
+        {sessionSpentUsd != null && !Number.isNaN(sessionSpentUsd) && (
+          <section aria-label="Session spend" className="flex flex-col gap-1 pt-3">
             <SessionSpendTrack
               key={sessionId ?? 'none'}
               sessionId={sessionId}
               sessionSpentUsd={sessionSpentUsd}
             />
-          )}
-        </section>
+          </section>
+        )}
 
         {budget && (
           <ContextWindowMeter

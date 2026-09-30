@@ -56,6 +56,7 @@ import { overallWorst, worstCount } from './components/surfaces/Policies/policyT
 import type { PolicyRow, PolicyStatus, BranchInfo, RunStatus } from './components/surfaces/Policies/types';
 import { voxTransport, listenAgentEvents, chatTurn as sendChatTurnRaw, type AgentEventFrame } from './transport';
 import { useQuery } from '@tanstack/react-query';
+import { railRoutingFromSummary } from './lib/routingSummary';
 import { useAttentionInbox } from './hooks/useAttentionInbox';
 import { useKeybinds } from './hooks/useKeybinds';
 import { parseBindings, DEFAULT_BINDINGS, type Bindings } from './lib/keybinds';
@@ -407,10 +408,11 @@ export default function App() {
     queryFn: () => voxTransport.getRoutingSummaryLive(),
     refetchInterval: 20_000,
   });
-  const activeModel = useMemo(() => {
-    const status = orchQuery.data as (OrchestratorStatus & { active_model?: string | null }) | undefined;
-    return status?.active_model ?? null;
-  }, [orchQuery.data]);
+  // The rail's Routing section reads the same one query as the status bar's Routing card.
+  const chatRouting = useMemo(
+    () => railRoutingFromSummary(routingSummaryQuery.data ?? null),
+    [routingSummaryQuery.data],
+  );
   const installedSkills = useInstalledSkills(true);
   const installedSkillEntries = useMemo(
     () => installedSkills.map(installedSkillToCatalogEntry),
@@ -471,11 +473,7 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- validate once on mount only
   }, []);
   const [groundingCheckEnabled, setGroundingCheckEnabled] = useGroundingCheck(activeSessionId);
-  const {
-    tasks: chatTasks,
-    intents: chatIntents,
-    meshPeers: chatMeshPeers,
-  } = useChatExecutionData(activeSessionId);
+  const { tasks: chatTasks } = useChatExecutionData(activeSessionId);
   const attention = useAttentionInbox();
   const [diffOpen, setDiffOpen] = useState(false);
   const [diffText, setDiffText] = useState('');
@@ -1695,14 +1693,6 @@ export default function App() {
   }, [data, installedSkillEntries, handlePause, handleResume, handleAckAlert, handleLoquelaSubmit, pushToast, navigateTo, focusComposer]);
 
 
-  const chatExecutionKpis = useMemo(
-    () => ({
-      activeAgents: { value: kpis.activeAgents.value },
-      queueDepth: { value: kpis.queueDepth.value },
-      mesh: { peers: chatMeshPeers > 0 ? chatMeshPeers : kpis.mesh.peers },
-    }),
-    [kpis, chatMeshPeers],
-  );
 
   // Derive the in-flight task from the shared chat transcript: the latest
   // assistant bubble still streaming/pending whose task_id has resolved is the
@@ -1838,9 +1828,7 @@ export default function App() {
     chatMessages: activeChatMessages,
     onFocusComposer: focusComposer,
     chatTasks,
-    chatIntents,
-    chatExecutionKpis,
-    chatActiveModel: activeModel,
+    chatRouting,
     groundingCheckEnabled,
     // Re-resolved on every `activeSessionId` change via `latest_plan_session_for_chat`.
     // Null is the honest empty state for a chat with no live plan — never a leftover
@@ -1858,13 +1846,8 @@ export default function App() {
     },
     chatActiveSkillId: activeSkill?.id ?? null,
     onExcludeSkill: excludeSkillAndRetry,
-    chatOpenrouterSpendUsd: openrouterSpendUsd,
     chatSessionSpentUsd: sessionSpentUsd,
     chatAgentStreamItems: activeChatAgentItems,
-    onOpenAgentInFlow: (agentId: string) => {
-      setSelectedAgentId(agentId);
-      navigateTo('flow');
-    },
     chatComposer: loquelaComposer,
     gamifyEnabled: gamifySettings.enabled,
     hudTilesConfig,
