@@ -5,6 +5,7 @@ pub mod cost_tier;
 pub mod discovery_pipeline;
 pub mod family;
 pub mod generated;
+pub mod health;
 pub mod key_guard;
 #[cfg(feature = "populi-transport")]
 pub mod mesh_directory;

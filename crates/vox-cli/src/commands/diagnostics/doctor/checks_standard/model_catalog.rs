@@ -11,7 +11,13 @@ pub async fn run(checks: &mut Vec<Check>) {
 
     if let Some(db) = db_opt {
         // Check for catalog freshness
-        match db.get_user_preference("global", "catalog_refresh").await {
+        match db
+            .get_user_preference(
+                "global",
+                vox_orchestrator::models::health::MODEL_CATALOG_LAST_REFRESH_KEY,
+            )
+            .await
+        {
             Ok(Some(last_str)) => {
                 if let Ok(last_secs) = last_str.parse::<u64>() {
                     let now_secs = SystemTime::now()
@@ -71,10 +77,117 @@ pub async fn run(checks: &mut Vec<Check>) {
                 ));
             }
         }
+        checks.push(routing_health_check(
+            db.get_user_preference(
+                "global",
+                vox_orchestrator::models::health::ROUTING_HEALTH_KEY,
+            )
+            .await
+            .ok()
+            .flatten()
+            .as_deref(),
+        ));
     } else {
         checks.push(Check::fail(
             "Model Catalog",
             "Database not available; skipping freshness check.".to_string(),
         ));
+    }
+}
+
+/// The "Model routing" doctor row from the persisted [`RoutingHealth`] JSON.
+pub(crate) fn routing_health_check(json: Option<&str>) -> Check {
+    use vox_orchestrator::models::health::RoutingHealth;
+    use vox_orchestrator::models::reference::ReferenceSource;
+    const NAME: &str = "Model routing";
+    let Some(json) = json else {
+        return Check::fail(
+            NAME,
+            "No routing health recorded yet. Run `vox model discover`.",
+        );
+    };
+    let Ok(h) = serde_json::from_str::<RoutingHealth>(json) else {
+        return Check::fail(
+            NAME,
+            "Routing health record is unreadable. Run `vox model discover`.",
+        );
+    };
+    let source = |s: ReferenceSource| {
+        if s == ReferenceSource::Derived {
+            "live catalog"
+        } else {
+            "built-in fallback"
+        }
+    };
+    let summary = format!(
+        "{} of {} cloud models benchmarked ({} inherited); quality scale: {}; price bands: {}; Efficient picks {}",
+        h.benchmarked,
+        h.cloud_models,
+        h.inherited,
+        source(h.quality_scale),
+        source(h.price_bands),
+        h.efficient_pick.as_deref().unwrap_or("nothing")
+    );
+    if h.violations.is_empty() {
+        Check::pass(NAME, summary)
+    } else {
+        let problems: Vec<String> = h
+            .violations
+            .iter()
+            .map(|v| format!("{}: {}", v.invariant, v.detail))
+            .collect();
+        Check::fail(
+            NAME,
+            format!("{summary}. Problems: {}", problems.join("; ")),
+        )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn routing_health_passes_without_violations() {
+        let json = r#"{"schema_version":1,"checked_at_unix":0,"models":9,"cloud_models":7,"benchmarked":3,
+          "inherited":1,"unknown_tier_cloud":0,"quality_scale":"derived","price_bands":"fallback","violations":[]}"#;
+        let c = routing_health_check(Some(json));
+        assert!(c.pass, "{}", c.detail);
+        assert!(
+            c.detail.contains("3 of 7 cloud models benchmarked"),
+            "{}",
+            c.detail
+        );
+        assert!(
+            c.detail.contains("price bands: built-in fallback"),
+            "{}",
+            c.detail
+        );
+    }
+
+    #[test]
+    fn routing_health_fails_and_names_each_violation() {
+        let json = r#"{"schema_version":1,"checked_at_unix":0,"models":9,"cloud_models":7,"benchmarked":3,
+          "inherited":1,"unknown_tier_cloud":5,"quality_scale":"derived","price_bands":"derived",
+          "violations":[{"invariant":"tiers_known","detail":"5 of 7 cloud models have no tier"}]}"#;
+        let c = routing_health_check(Some(json));
+        assert!(!c.pass);
+        assert!(
+            c.detail
+                .contains("tiers_known: 5 of 7 cloud models have no tier"),
+            "{}",
+            c.detail
+        );
+    }
+
+    #[test]
+    fn routing_health_missing_or_unreadable_fails_with_the_fix() {
+        assert!(!routing_health_check(None).pass);
+        assert!(
+            routing_health_check(None)
+                .detail
+                .contains("vox model discover")
+        );
+        assert!(!routing_health_check(Some("not json")).pass);
     }
 }

@@ -6,13 +6,11 @@ use crate::catalog::{ModelCatalog, OpenRouterCatalog};
 use crate::config::CostPreference;
 use crate::types::{AgentTask, TaskCategory};
 
+use super::health::MODEL_CATALOG_LAST_REFRESH_KEY;
 use super::key_guard::provider_secret_is_available;
 use super::spec::{
     ModelCapabilities, ModelConfig, ModelSpec, PricingSource, ProviderType, task_category_strength,
 };
-
-const MODEL_CATALOG_LAST_REFRESH_KEY: &str = "model_catalog_last_refresh";
-
 /// A performance score from the `model_scoreboard`.
 #[derive(Debug, Clone, Default)]
 pub struct ModelScore {

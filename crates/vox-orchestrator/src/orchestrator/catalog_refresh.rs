@@ -154,6 +154,13 @@ async fn refresh_once(orch: &Arc<Orchestrator>) {
         "background catalog refresh applied"
     );
 
+    let health = {
+        let registry = orch.models.read().unwrap();
+        crate::models::health::check_routing_health(&registry, unix_now())
+    };
+    persist_routing_health(&health).await;
+    persist_catalog_refresh_timestamp().await;
+
     // ── 5. Run Admission Filter & Persist updated catalog ─────────────────────
     let mut snapshot: Vec<crate::models::ModelSpec> = {
         let registry = orch.models.read().unwrap();
@@ -239,7 +246,7 @@ pub struct UnifiedCatalogReport {
     pub pending_eval_ids: Vec<String>,
 }
 
-pub const MODEL_CATALOG_LAST_REFRESH_KEY: &str = "model_catalog_last_refresh";
+pub use crate::models::health::MODEL_CATALOG_LAST_REFRESH_KEY;
 
 async fn persist_catalog_refresh_timestamp() {
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -258,6 +265,34 @@ async fn persist_catalog_refresh_timestamp() {
             )
             .await;
     }
+}
+
+/// Log each routing-health violation and persist the report for `vox doctor` and the GUI.
+async fn persist_routing_health(health: &crate::models::health::RoutingHealth) {
+    for v in &health.violations {
+        tracing::warn!(
+            target: "vox.orchestrator.catalog_refresh",
+            invariant = %v.invariant,
+            detail = %v.detail,
+            "model routing health violation"
+        );
+    }
+    if let (Ok(json), Ok(cfg)) = (
+        serde_json::to_string(health),
+        vox_db::DbConfig::resolve_canonical(),
+    ) && let Ok(db) = vox_db::VoxDb::connect(cfg).await
+    {
+        let _ = db
+            .set_user_preference("global", crate::models::health::ROUTING_HEALTH_KEY, &json)
+            .await;
+    }
+}
+
+fn unix_now() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
 }
 
 async fn register_supplemental_catalogs(
@@ -454,6 +489,11 @@ pub async fn run_unified_catalog_refresh(_force: bool) -> anyhow::Result<Unified
     }
     std::fs::write(&cache_file, serde_json::to_string_pretty(&snapshot)?)?;
     persist_catalog_refresh_timestamp().await;
+    persist_routing_health(&crate::models::health::check_routing_health(
+        &registry,
+        unix_now(),
+    ))
+    .await;
 
     // Discovery backlog: discovered-but-unconfirmed models that still owe an eval
     // (no scoreboard row), excluding council-retired ids. Pure derivation over the
