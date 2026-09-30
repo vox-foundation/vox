@@ -39,9 +39,20 @@ jobs:
 
   vitest:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+      # See the playwright job's identical steps for why: `build:vox` is a
+      # `cargo run --release -p vox-cli` with no pre-installed toolchain or
+      # cache otherwise. Mirrors mobile-eas-build.yml's `bundle` job, which
+      # does an equivalent release build of vox-cli inside the same 30-minute
+      # fast-workflow cap (workflow-policy-guard) using this exact pairing.
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache: "false"   # Swatinem below is the only Rust cache; PRs never write it
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
       - uses: pnpm/action-setup@v6
@@ -66,6 +77,22 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+      # Playwright's webServer runs `pnpm build:vox`, which compiles and runs
+      # `vox-cli` (`cargo run --release`). Without a real Rust cache this is a
+      # cold build of the whole workspace's `vox-cli`, which took over 600s
+      # here (2026-09-27, GitHub-hosted 2-core runner) even with the
+      # toolchain pre-installed — and PR/branch-push workflows are hard-capped
+      # at 30 minutes total (workflow-policy-guard), so raising timeouts
+      # alone can't fix this. `Swatinem/rust-cache` (matching
+      # mobile-eas-build.yml's `bundle` job, which does an equivalent release
+      # build inside the same 30-minute cap today) gives real target-dir
+      # caching instead.
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache: "false"   # Swatinem below is the only Rust cache; PRs never write it
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
       - uses: pnpm/action-setup@v6

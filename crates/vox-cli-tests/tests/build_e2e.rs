@@ -296,6 +296,14 @@ fn build_mobile_routes_emits_expo_router_file_tree() {
         pkg.contains("\"expo-router\""),
         "package.json must include the expo-router dep; got:\n{pkg}"
     );
+    assert!(
+        pkg.contains("\"query-string\""),
+        "package.json must declare query-string explicitly — expo-router's \
+         vendored getPathFromState.js needs it unconditionally, but expo-router \
+         itself doesn't depend on it, so it only appears transitively via \
+         whichever @react-navigation/core patch npm's floating range resolves; \
+         got:\n{pkg}"
+    );
 
     let app_json = std::fs::read_to_string(run.out_dir.path().join("app.json")).expect("app.json");
     assert!(
