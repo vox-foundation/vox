@@ -2,6 +2,7 @@
 
 use std::fmt;
 
+use futures::stream::{self, StreamExt};
 use serde::{Deserialize, Serialize};
 
 use super::claims::Claim;
@@ -151,6 +152,94 @@ fn majority_verdict(verdicts: &[Verdict]) -> Verdict {
 // `resample_stability` field on `ClaimVerdict`.
 const RESAMPLE_COUNT: usize = 3;
 
+/// Task 15d: a live deep-research run verifying ~50 claims sequentially (up to
+/// `RESAMPLE_COUNT` LLM calls each) took 322s and blew the 180s chat dispatch
+/// timeout. Two independent bounds fix this: verify claims concurrently
+/// (`VERIFY_CONCURRENCY`), and cap how many claims get a real LLM verification
+/// per run (`MAX_CLAIMS_VERIFIED_PER_RUN`) — the rest are reported honestly as
+/// `Unverified` rather than silently dropped or (wrongly) shown as supported.
+pub const MAX_CLAIMS_VERIFIED_PER_RUN: usize = 24;
+/// Max in-flight claim verifications at once. `buffered` (not
+/// `buffer_unordered`) so the output stays aligned with input order.
+pub const VERIFY_CONCURRENCY: usize = 8;
+const CAP_REASON: &str = "not verified: over per-run verification cap";
+
+/// Selects at most `cap` claims to actually verify — the highest
+/// `Claim::salience_score` first (carried through from
+/// `AtomicClaim::verifiability_score` by `claims::extract_claims_from_text`;
+/// see that field's doc comment — not a new ranker), ties broken by original
+/// position for determinism — and produces an honest `Unverified` verdict for
+/// every claim beyond the cap. Returns `(indices_to_verify, capped_verdicts)`,
+/// both indexed against `claims`; `indices_to_verify` is sorted back into
+/// original claim order so a caller verifying them preserves that order too.
+/// No claim is ever dropped: every index in `0..claims.len()` ends up in
+/// exactly one of the two outputs.
+fn select_claims_for_verification(
+    claims: &[Claim],
+    cap: usize,
+) -> (Vec<usize>, Vec<(usize, ClaimVerdict)>) {
+    if claims.len() <= cap {
+        return ((0..claims.len()).collect(), Vec::new());
+    }
+    let mut by_salience: Vec<usize> = (0..claims.len()).collect();
+    // Stable sort: ties keep their original relative order, so selection
+    // among equally-salient claims is deterministic rather than arbitrary.
+    by_salience.sort_by(|&a, &b| {
+        claims[b]
+            .salience_score
+            .partial_cmp(&claims[a].salience_score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    let mut to_verify: Vec<usize> = by_salience[..cap].to_vec();
+    to_verify.sort_unstable();
+    let selected: std::collections::HashSet<usize> = to_verify.iter().copied().collect();
+    let capped = (0..claims.len())
+        .filter(|i| !selected.contains(i))
+        .map(|i| {
+            tracing::info!(
+                claim_id = claims[i].claim_id,
+                cap,
+                extracted = claims.len(),
+                "{CAP_REASON}"
+            );
+            (i, unverified(claims[i].clone()))
+        })
+        .collect();
+    (to_verify, capped)
+}
+
+/// Runs `verify_one` over `claims[indices]` with at most `concurrency`
+/// in-flight at a time, returning `(original_index, verdict)` pairs.
+/// `buffered` (not `buffer_unordered`) preserves the order `indices` was
+/// given in — always compiled and generic over `verify_one` so it is unit
+/// testable with a stub, independent of the `runtime` feature / real LLM.
+async fn verify_indices_concurrently<F, Fut>(
+    claims: &[Claim],
+    indices: &[usize],
+    concurrency: usize,
+    verify_one: F,
+) -> Vec<(usize, ClaimVerdict)>
+where
+    F: Fn(Claim) -> Fut,
+    Fut: std::future::Future<Output = ClaimVerdict>,
+{
+    // Collect into an owned Vec first (rather than piping a closure that
+    // borrows `claims` straight into `stream::iter`): otherwise rustc infers
+    // an over-specific higher-ranked lifetime for that closure that later
+    // fails "implementation of Send/FnOnce is not general enough" wherever
+    // this async fn's future gets composed into a `'static` future (e.g. a
+    // caller's `tokio::spawn`).
+    let pairs: Vec<(usize, Claim)> = indices.iter().map(|&i| (i, claims[i].clone())).collect();
+    stream::iter(pairs)
+        .map(|(i, claim)| {
+            let fut = verify_one(claim);
+            async move { (i, fut.await) }
+        })
+        .buffered(concurrency.max(1))
+        .collect()
+        .await
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct ResampleCheck {
     pub verdict: Verdict,
@@ -199,6 +288,14 @@ fn resample_candidates(
 /// `docs/superpowers/plans/2026-08-01-deep-research-trust-novelty-core.md`.
 /// This file's module-level SciFact-taxonomy note above still has the
 /// open Verdict naming reconciliation, which resampling does not address.
+///
+/// Claims are verified concurrently (bounded by [`VERIFY_CONCURRENCY`]) and
+/// capped at [`MAX_CLAIMS_VERIFIED_PER_RUN`] real LLM verifications per run
+/// (Task 15d — a live 50-claim sequential run took 322s and blew the 180s
+/// chat dispatch timeout). Returns `(verdicts, verified_count)`: `verdicts`
+/// has exactly one entry per input claim in the same order, and
+/// `verified_count` is how many of them actually went through the LLM cascade
+/// this call (the rest were capped out and marked `Unverified`).
 pub async fn verify_claims_with_config(
     claims: &[Claim],
     query: &str,
@@ -207,9 +304,9 @@ pub async fn verify_claims_with_config(
     config: &VerifierConfig,
     endpoint: Option<&str>,
     api_key: Option<&str>,
-) -> Vec<ClaimVerdict> {
+) -> (Vec<ClaimVerdict>, usize) {
     if claims.is_empty() || evidence_hits.is_empty() {
-        return Vec::new();
+        return (Vec::new(), 0);
     }
 
     #[cfg(feature = "runtime")]
@@ -230,7 +327,6 @@ pub async fn verify_claims_with_config(
         let abstain_threshold = config.abstain_threshold.unwrap_or(0.5);
         let evidence = evidence_context(evidence_hits, 8);
         let opts = ActivityOptions::new().with_timeout_secs(30);
-        let mut verdicts = Vec::new();
 
         let sample_claim = |claim: &Claim| {
             let claim = claim.clone();
@@ -241,6 +337,7 @@ pub async fn verify_claims_with_config(
                 let primary =
                     crate::research::orchestrator::model_dispatch::primary_candidate_for_intent(
                         vox_orchestrator::models::SelectionIntent::nli_classifier(),
+                        vox_config::inference::ModelRole::Verifier,
                     );
                 let fallback = cascade_with_optional_manual(
                     ResearchStage::Verification,
@@ -295,29 +392,44 @@ pub async fn verify_claims_with_config(
             }
         };
 
-        for claim in claims {
-            let s1 = sample_claim(claim).await;
-            let sampled = if should_early_exit_after_sample_1(s1.confidence) {
-                vec![s1]
-            } else {
-                let s2 = sample_claim(claim).await;
-                if should_early_exit_after_sample_2(s1.verdict, s2.verdict) {
-                    vec![s1, s2]
-                } else {
-                    let s3 = sample_claim(claim).await;
-                    vec![s1, s2, s3]
-                }
-            };
-            verdicts.push(assemble_resampled_verdict(sampled));
-        }
+        let (to_verify, capped) =
+            select_claims_for_verification(claims, MAX_CLAIMS_VERIFIED_PER_RUN);
+        let verified_count = to_verify.len();
 
-        verdicts
+        let verify_one = |claim: Claim| {
+            let sample_claim = &sample_claim;
+            async move {
+                let s1 = sample_claim(&claim).await;
+                let sampled = if should_early_exit_after_sample_1(s1.confidence) {
+                    vec![s1]
+                } else {
+                    let s2 = sample_claim(&claim).await;
+                    if should_early_exit_after_sample_2(s1.verdict, s2.verdict) {
+                        vec![s1, s2]
+                    } else {
+                        let s3 = sample_claim(&claim).await;
+                        vec![s1, s2, s3]
+                    }
+                };
+                assemble_resampled_verdict(sampled)
+            }
+        };
+
+        let mut results =
+            verify_indices_concurrently(claims, &to_verify, VERIFY_CONCURRENCY, verify_one).await;
+        results.extend(capped);
+        results.sort_by_key(|(i, _)| *i);
+
+        (
+            results.into_iter().map(|(_, v)| v).collect(),
+            verified_count,
+        )
     }
 
     #[cfg(not(feature = "runtime"))]
     {
         let _ = (query, endpoint, api_key, config);
-        claims.iter().cloned().map(unverified).collect()
+        (claims.iter().cloned().map(unverified).collect(), 0)
     }
 }
 
@@ -476,6 +588,7 @@ mod tests {
             is_numeric: false,
             is_recent: false,
             is_named_event: true,
+            salience_score: 0.5,
         }
     }
 
@@ -653,6 +766,112 @@ mod tests {
             Verdict::Contradicted,
         ];
         assert_eq!(majority_verdict(&verdicts), Verdict::Supported);
+    }
+
+    /// Task 15d concurrency proof: with `VERIFY_CONCURRENCY` in-flight at a
+    /// time, verifying 16 claims that each take a fixed 200ms must finish in
+    /// well under the 16 * 200ms a sequential loop would take. Mutation
+    /// guard: setting `VERIFY_CONCURRENCY` to 1 makes this fail (16 * 200ms =
+    /// 3.2s > the 1.5s bound), proving the bound is real, not vacuous.
+    #[tokio::test]
+    async fn verify_indices_concurrently_bounds_wall_clock_time() {
+        let claims: Vec<Claim> = (0..16)
+            .map(|i| Claim {
+                text: format!("claim {i}"),
+                claim_id: i as u64,
+                is_numeric: false,
+                is_recent: false,
+                is_named_event: false,
+                salience_score: 0.5,
+            })
+            .collect();
+        let indices: Vec<usize> = (0..claims.len()).collect();
+
+        let start = std::time::Instant::now();
+        let results = verify_indices_concurrently(
+            &claims,
+            &indices,
+            VERIFY_CONCURRENCY,
+            |claim| async move {
+                tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                let mut v = unverified(claim.clone());
+                v.verdict = Verdict::Supported;
+                v.confidence = 0.9;
+                v
+            },
+        )
+        .await;
+        let elapsed = start.elapsed();
+
+        assert!(
+            elapsed < std::time::Duration::from_millis(1500),
+            "16 claims at 200ms each with concurrency {VERIFY_CONCURRENCY} took {elapsed:?}, expected well under 16*200ms"
+        );
+        // verdicts stay aligned with claim order (`buffered`, not `buffer_unordered`).
+        let ids: Vec<u64> = results.iter().map(|(_, v)| v.claim.claim_id).collect();
+        assert_eq!(ids, (0..16).collect::<Vec<u64>>());
+        assert!(results.iter().all(|(_, v)| v.verdict == Verdict::Supported));
+    }
+
+    /// Task 15d cap (review round 1, B1 minor: rank by the real
+    /// `Claim::salience_score`, carried through from
+    /// `AtomicClaim::verifiability_score`, not the old boolean-sum
+    /// heuristic): extracting more claims than the per-run cap allows must
+    /// still verify exactly `cap` of them (the highest-scored ones) and mark
+    /// the rest `Unverified` rather than dropping them or showing them as
+    /// supported.
+    #[test]
+    fn select_claims_for_verification_caps_to_highest_salience() {
+        let claims: Vec<Claim> = (0..40)
+            .map(|i| Claim {
+                text: format!("claim {i}"),
+                claim_id: i as u64,
+                is_numeric: false,
+                is_recent: false,
+                is_named_event: false,
+                // Strictly decreasing score by index: the top 24 by score
+                // (ties impossible here) are exactly 0..24.
+                salience_score: 1.0 - (i as f64) * 0.01,
+            })
+            .collect();
+
+        let (to_verify, capped) = select_claims_for_verification(&claims, 24);
+
+        assert_eq!(to_verify.len(), 24, "exactly the cap gets verified");
+        assert_eq!(capped.len(), 16, "the rest are capped, never dropped");
+        assert_eq!(to_verify, (0..24).collect::<Vec<usize>>());
+        for (_, verdict) in &capped {
+            assert_eq!(
+                verdict.verdict,
+                Verdict::Unverified,
+                "capped claims must be honestly Unverified, never shown as supported"
+            );
+        }
+        // Every original claim index appears in exactly one of the two outputs.
+        let mut all_idx: Vec<usize> = to_verify
+            .iter()
+            .copied()
+            .chain(capped.iter().map(|(i, _)| *i))
+            .collect();
+        all_idx.sort_unstable();
+        assert_eq!(all_idx, (0..40).collect::<Vec<usize>>());
+    }
+
+    #[test]
+    fn select_claims_for_verification_is_a_no_op_under_the_cap() {
+        let claims: Vec<Claim> = (0..5)
+            .map(|i| Claim {
+                text: format!("claim {i}"),
+                claim_id: i as u64,
+                is_numeric: false,
+                is_recent: false,
+                is_named_event: false,
+                salience_score: 0.5,
+            })
+            .collect();
+        let (to_verify, capped) = select_claims_for_verification(&claims, 24);
+        assert_eq!(to_verify, (0..5).collect::<Vec<usize>>());
+        assert!(capped.is_empty());
     }
 
     #[test]

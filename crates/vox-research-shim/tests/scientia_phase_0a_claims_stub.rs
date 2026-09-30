@@ -64,6 +64,7 @@ fn claim_default_fields_set() {
         is_numeric: false,
         is_recent: false,
         is_named_event: false,
+        salience_score: 0.5,
     };
     assert_eq!(c.text, "X");
 }

@@ -1,17 +1,15 @@
 name: Build & Push vox-telemetry-server Docker Image
 
 # Builds the telemetry ingest server image and pushes it to GHCR. vox is a PUBLIC
-# repo → unlimited free GitHub-hosted minutes, so the deploy critical path runs on
-# ubuntu-latest and never waits on the local self-hosted fleet. See
+# repo → unlimited free GitHub-hosted minutes, so this runs on ubuntu-latest.
+# The self-hosted runner fleet this comment used to contrast against has since
+# been removed; there is no fleet to wait on either way. See
 # docs/src/ci/compute-placement.md.
 
+# workflow_dispatch-only (no schedule, no push trigger): dormant until the
+# telemetry stack is revived (never deployed successfully; see
+# docs/src/architecture/ci-cd-audit-findings-2026.md).
 on:
-  push:
-    branches: [main]
-    paths:
-      - "server/telemetry/**"
-      - "docker/vox-telemetry.compose.yml"
-      - ".github/workflows/docker-telemetry.yml"
   workflow_dispatch:
 
 concurrency:
@@ -31,7 +29,9 @@ jobs:
   build-and-push:
     name: Build vox-telemetry-server image
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # Recent runs finish in 1-3m (layer-cached); 25m covers a cold-cache
+    # rebuild while staying under the fast-lane 30-min cap (workflow_policy_guard).
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
 
@@ -76,3 +76,8 @@ jobs:
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: true
           exit-code: '0'
+          # Don't persist the trivy vuln DB in the Actions cache. Its default
+          # daily-rotating `cache-trivy-<date>` keys accumulate ~7 x 85 MB in a
+          # 10 GB LRU bucket that the Rust caches actually need; one DB download
+          # per daily run is the cheaper trade.
+          cache: 'false'

@@ -44,6 +44,7 @@ fn build_adapter_manifest_v3(
     config: &LoraTrainingConfig,
     adapter_layer_order: &[String],
     base_key_map: &std::collections::HashMap<String, String>,
+    resolved_base_path: Option<String>,
 ) -> PopuliAdapterManifestV3 {
     PopuliAdapterManifestV3::new(
         AdapterMethod::Qlora,
@@ -55,7 +56,8 @@ fn build_adapter_manifest_v3(
         d_model,
         rank,
         alpha,
-        resolved_serve_base_model(config),
+        // The snapshot dir training loaded, else a loadable dir derived from config.
+        resolved_base_path.or_else(|| resolved_serve_base_model(config)),
         adapter_provenance_from_config(config),
     )
 }
@@ -188,6 +190,11 @@ pub(super) fn finalize_training_run(
         ));
     }
 
+    let resolved_base_dir = bundle
+        .config_path
+        .parent()
+        .map(|p| p.to_string_lossy().to_string());
+
     let adapter_manifest_v3 = build_adapter_manifest_v3(
         bundle.vocab,
         bundle.d_model,
@@ -196,6 +203,7 @@ pub(super) fn finalize_training_run(
         config,
         adapter_layer_order,
         base_key_map,
+        resolved_base_dir,
     );
     let manifest_json = serde_json::to_string_pretty(&adapter_manifest_v3)?;
     std::fs::write(out.join("adapter_manifest.json"), &manifest_json)?;
@@ -326,9 +334,30 @@ pub(super) fn finalize_training_run(
 
 #[cfg(test)]
 mod tests {
-    use super::{resolved_serve_base_model, stage_serve_sidecars};
+    use super::{build_adapter_manifest_v3, resolved_serve_base_model, stage_serve_sidecars};
     use crate::config::LoraTrainingConfig;
     use std::fs;
+
+    /// The snapshot directory training actually loaded wins over anything
+    /// derived from the config (merge a7cdfdb8e silently dropped it).
+    #[test]
+    fn manifest_base_model_is_the_resolved_snapshot_dir() {
+        let cfg = LoraTrainingConfig {
+            base_model: Some("Qwen/Qwen3-0.6B".into()),
+            ..Default::default()
+        };
+        let m = build_adapter_manifest_v3(
+            8,
+            8,
+            4,
+            8,
+            &cfg,
+            &[],
+            &Default::default(),
+            Some("/snapshots/qwen3".into()),
+        );
+        assert_eq!(m.base_model.as_deref(), Some("/snapshots/qwen3"));
+    }
 
     #[test]
     fn resolved_serve_base_model_keeps_existing_directory() {
@@ -353,23 +382,6 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(resolved_serve_base_model(&cfg), Some(expected));
-    }
-
-    /// The one case where this differs from `config.json`'s parent: a local
-    /// `base_model` directory wins over wherever config.json was read from.
-    #[test]
-    fn resolved_serve_base_model_prefers_a_local_base_model_dir() {
-        let local = tempfile::tempdir().unwrap();
-        let snap = tempfile::tempdir().unwrap();
-        let cfg_path = snap.path().join("config.json");
-        fs::write(&cfg_path, "{}").unwrap();
-        let path = local.path().display().to_string();
-        let cfg = LoraTrainingConfig {
-            base_model: Some(path.clone()),
-            base_model_paths: Some((vec![], cfg_path)),
-            ..Default::default()
-        };
-        assert_eq!(resolved_serve_base_model(&cfg), Some(path));
     }
 
     #[test]

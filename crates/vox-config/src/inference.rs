@@ -486,11 +486,241 @@ pub fn ollama_tuning_num_ctx() -> Option<i32> {
     })
 }
 
+/// Strict model pin shared by chat and research: `VOX_MODEL_FORCE`, read from the
+/// environment first, then `~/.vox/config.toml`. `None` when unset or blank.
+#[must_use]
+pub fn forced_model() -> Option<String> {
+    forced_model_from(&crate::env_parse::resolve_config_str("VOX_MODEL_FORCE", ""))
+}
+
+/// Pure half of [`forced_model`]: trims, and treats blank as unset.
+#[must_use]
+pub fn forced_model_from(raw: &str) -> Option<String> {
+    let v = raw.trim();
+    (!v.is_empty()).then(|| v.to_string())
+}
+
+/// A role a model can be pinned for independently (Task 13). Each role reads
+/// its own key first; research roles then fall back to the research group pin;
+/// every role finally falls back to the single global pin (`VOX_MODEL_FORCE`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ModelRole {
+    /// The chat reply model.
+    Chat,
+    /// Research query planner / subquery decomposition.
+    Planner,
+    /// Research answer synthesis.
+    Synthesis,
+    /// Research LLM-as-judge quality score.
+    Judge,
+    /// Research claim extraction and claim verification.
+    Verifier,
+}
+
+impl ModelRole {
+    pub const ALL: [Self; 5] = [
+        Self::Chat,
+        Self::Planner,
+        Self::Synthesis,
+        Self::Judge,
+        Self::Verifier,
+    ];
+
+    /// The role's own pin key.
+    #[must_use]
+    pub const fn env_key(self) -> &'static str {
+        match self {
+            Self::Chat => "VOX_MODEL_FORCE_CHAT",
+            Self::Planner => "VOX_MODEL_FORCE_PLANNER",
+            Self::Synthesis => "VOX_MODEL_FORCE_SYNTHESIS",
+            Self::Judge => "VOX_MODEL_FORCE_JUDGE",
+            Self::Verifier => "VOX_MODEL_FORCE_VERIFIER",
+        }
+    }
+
+    /// The group pin a research role falls back to before the global pin.
+    #[must_use]
+    pub const fn group_key(self) -> Option<&'static str> {
+        match self {
+            Self::Chat => None,
+            _ => Some("VOX_MODEL_FORCE_RESEARCH"),
+        }
+    }
+
+    /// Lower-case label used in traces (`chat`, `planner`, …).
+    #[must_use]
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Chat => "chat",
+            Self::Planner => "planner",
+            Self::Synthesis => "synthesis",
+            Self::Judge => "judge",
+            Self::Verifier => "verifier",
+        }
+    }
+}
+
+/// Pure half of the role-scoped pin: the role value wins, else the fallback;
+/// blanks are unset.
+#[must_use]
+pub fn resolve_role_pin(role_value: Option<&str>, fallback: Option<&str>) -> Option<String> {
+    forced_model_from(role_value.unwrap_or(""))
+        .or_else(|| forced_model_from(fallback.unwrap_or("")))
+}
+
+/// Strict model pin for `role`: its own key, then (research roles) the
+/// `VOX_MODEL_FORCE_RESEARCH` group pin, then the global [`forced_model`].
+/// Every key is read env-first, then `~/.vox/config.toml`. Strictness is the
+/// caller's: a pinned model that is missing or gated must still error.
+#[must_use]
+pub fn forced_model_for(role: ModelRole) -> Option<String> {
+    let read = |key: &str| crate::env_parse::resolve_config_str(key, "");
+    let global = read("VOX_MODEL_FORCE");
+    let fallback = match role.group_key() {
+        Some(group) => resolve_role_pin(Some(&read(group)), Some(&global)),
+        None => forced_model_from(&global),
+    };
+    resolve_role_pin(Some(&read(role.env_key())), fallback.as_deref())
+}
+
 #[cfg(test)]
 #[allow(unsafe_code)] // serialized with TEST_ENV_LOCK
 mod tests {
     use super::*;
     use crate::toml_config::test_support::{CONFIG_TEST_LOCK as TEST_ENV_LOCK, HomeGuard};
+
+    #[test]
+    fn forced_model_from_trims_and_rejects_blank() {
+        assert_eq!(
+            super::forced_model_from("  google/gemini-3.8-flash \n"),
+            Some("google/gemini-3.8-flash".to_string())
+        );
+        assert_eq!(super::forced_model_from("   "), None);
+        assert_eq!(super::forced_model_from(""), None);
+    }
+
+    /// Task 13: pure pin precedence — the role value wins, else the fallback;
+    /// blanks are unset at every level.
+    #[test]
+    fn role_pin_falls_back_to_the_global_pin() {
+        assert_eq!(
+            super::resolve_role_pin(Some("vendor/role-model"), Some("vendor/global-model")),
+            Some("vendor/role-model".to_string()),
+            "role-specific pin wins"
+        );
+        assert_eq!(
+            super::resolve_role_pin(None, Some("vendor/global-model")),
+            Some("vendor/global-model".to_string()),
+            "falls back to the global pin"
+        );
+        assert_eq!(super::resolve_role_pin(None, None), None);
+        assert_eq!(
+            super::resolve_role_pin(Some("  "), Some("vendor/global-model")),
+            Some("vendor/global-model".to_string())
+        );
+    }
+
+    /// Task 13: every research role falls back role → `VOX_MODEL_FORCE_RESEARCH`
+    /// → `VOX_MODEL_FORCE`; chat falls back straight to `VOX_MODEL_FORCE`; each
+    /// key is read env-first, then `~/.vox/config.toml` (a temp `VOX_HOME`/`HOME`
+    /// here — never the user's real config).
+    #[test]
+    fn forced_model_for_walks_role_then_group_then_global_through_env_and_toml() {
+        let _g = TEST_ENV_LOCK.lock().expect("env lock");
+        let home = HomeGuard::new();
+        let prev_vox_home = std::env::var("VOX_HOME").ok();
+        let all_keys = [
+            "VOX_MODEL_FORCE",
+            "VOX_MODEL_FORCE_RESEARCH",
+            "VOX_MODEL_FORCE_CHAT",
+            "VOX_MODEL_FORCE_PLANNER",
+            "VOX_MODEL_FORCE_SYNTHESIS",
+            "VOX_MODEL_FORCE_JUDGE",
+            "VOX_MODEL_FORCE_VERIFIER",
+        ];
+        let prev_env: Vec<_> = all_keys
+            .iter()
+            .map(|k| (*k, std::env::var(k).ok()))
+            .collect();
+        unsafe {
+            std::env::set_var("VOX_HOME", home.home());
+            for k in all_keys {
+                std::env::remove_var(k);
+            }
+        }
+        // Drop any cached real-config values; from here reads/writes hit the temp home.
+        crate::toml_config::reload_user_config();
+        assert!(crate::paths::dot_vox_user_dir().starts_with(home.home()));
+
+        assert_eq!(forced_model_for(ModelRole::Judge), None);
+
+        unsafe { std::env::set_var("VOX_MODEL_FORCE", "vendor/global") };
+        crate::snapshot::bump(&["VOX_MODEL_FORCE"]);
+        for role in ModelRole::ALL {
+            assert_eq!(
+                forced_model_for(role).as_deref(),
+                Some("vendor/global"),
+                "{role:?}"
+            );
+        }
+
+        // Group pin from the config file covers the research roles, not chat.
+        crate::toml_config::set_user_config_value("VOX_MODEL_FORCE_RESEARCH", "vendor/research")
+            .expect("temp config write");
+        for role in [
+            ModelRole::Planner,
+            ModelRole::Synthesis,
+            ModelRole::Judge,
+            ModelRole::Verifier,
+        ] {
+            assert_eq!(
+                forced_model_for(role).as_deref(),
+                Some("vendor/research"),
+                "{role:?}"
+            );
+        }
+        assert_eq!(
+            forced_model_for(ModelRole::Chat).as_deref(),
+            Some("vendor/global")
+        );
+
+        // Each role key wins for its own role only.
+        unsafe {
+            std::env::set_var("VOX_MODEL_FORCE_JUDGE", "vendor/judge");
+            std::env::set_var("VOX_MODEL_FORCE_CHAT", "~vendor/chat-latest");
+        }
+        crate::snapshot::bump(&["VOX_MODEL_FORCE_JUDGE", "VOX_MODEL_FORCE_CHAT"]);
+        assert_eq!(
+            forced_model_for(ModelRole::Judge).as_deref(),
+            Some("vendor/judge")
+        );
+        assert_eq!(
+            forced_model_for(ModelRole::Planner).as_deref(),
+            Some("vendor/research")
+        );
+        assert_eq!(
+            forced_model_for(ModelRole::Chat).as_deref(),
+            Some("~vendor/chat-latest")
+        );
+        // The unscoped reader keeps meaning exactly `VOX_MODEL_FORCE`.
+        assert_eq!(forced_model().as_deref(), Some("vendor/global"));
+
+        let _ = crate::toml_config::unset_user_config_value("VOX_MODEL_FORCE_RESEARCH");
+        unsafe {
+            for (k, v) in &prev_env {
+                match v {
+                    Some(v) => std::env::set_var(k, v),
+                    None => std::env::remove_var(k),
+                }
+            }
+            match &prev_vox_home {
+                Some(v) => std::env::set_var("VOX_HOME", v),
+                None => std::env::remove_var("VOX_HOME"),
+            }
+        }
+        drop(home);
+        crate::toml_config::reload_user_config();
+    }
 
     #[test]
     fn local_base_prefers_populi_then_ollama() {

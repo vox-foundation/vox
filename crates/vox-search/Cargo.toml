@@ -11,7 +11,8 @@ default = ["qdrant-vector", "tavily"]
 tantivy-lexical = ["dep:tantivy"]
 web-scrape = ["dep:scraper", "dep:html2text"]
 qdrant-vector = []
-tavily = ["dep:tavily"]
+# Tavily leg: direct HTTP via reqwest (Task 15 dropped the `tavily` crate wrapper).
+tavily = []
 
 [dependencies]
 futures = { workspace = true }
@@ -38,7 +39,6 @@ vox-http-client = { workspace = true }
 scraper = { workspace = true, optional = true }
 html2text = { workspace = true, optional = true }
 workspace-hack = { version = "0.6", path = "../workspace-hack" }
-tavily = { workspace = true, optional = true }
 quick-xml = { workspace = true }
 
 [dev-dependencies]
@@ -46,6 +46,8 @@ serde_json = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true, features = ["test-util"] }
 wiremock = { workspace = true }
+# Test egress guard ctor (tests/common/mod.rs, src/lib.rs `test_egress_guard`).
+ctor = { workspace = true }
 # Force deadpool's `rt_tokio_1` feature (see root Cargo.toml).
 deadpool = { workspace = true }
 

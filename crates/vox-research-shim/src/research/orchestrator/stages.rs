@@ -51,7 +51,6 @@ pub(super) struct JudgeParams<'a> {
     pub model: &'a str,
     pub temperature: f32,
     pub max_tokens: u32,
-    pub fallback_score: i32,
 }
 
 pub(super) fn build_judge_system_prompt() -> String {
@@ -72,7 +71,7 @@ Schema required:
     .replace("{}", RESEARCH_COMPLETENESS_RIDER)
 }
 
-pub(super) async fn judge_quality(params: JudgeParams<'_>) -> i32 {
+pub(super) async fn judge_quality(params: JudgeParams<'_>) -> Result<i32, String> {
     let citation_snippets: String = params
         .citations
         .iter()
@@ -106,7 +105,7 @@ Scoring rubric:
         sanitize_evidence(&citation_snippets)
     );
 
-    if let Ok(content) = chat_stage(
+    let content = chat_stage(
         vox_actor_runtime::llm::cascade::ResearchStage::Judge,
         params.endpoint,
         params.api_key,
@@ -120,38 +119,42 @@ Scoring rubric:
         Some(serde_json::json!({"type": "json_object"})),
     )
     .await
-    {
-        let mut block = content.as_str();
-        if let Some(start) = content.find("```json") {
-            let rest = &content[start + 7..];
-            if let Some(end) = rest.find("```") {
-                block = &rest[..end];
-            } else {
-                block = rest;
-            }
-        } else if let Some(start) = content.find("```") {
-            let rest = &content[start + 3..];
-            if let Some(end) = rest.find("```") {
-                block = &rest[..end];
-            } else {
-                block = rest;
-            }
-        }
+    .map_err(|e| format!("judge call failed: {e}"))?;
 
-        #[derive(serde::Deserialize)]
-        struct JudgeResponse {
-            #[serde(default)]
-            total_score: i32,
+    let mut block = content.as_str();
+    if let Some(start) = content.find("```json") {
+        let rest = &content[start + 7..];
+        if let Some(end) = rest.find("```") {
+            block = &rest[..end];
+        } else {
+            block = rest;
         }
-
-        if let Ok(parsed) = serde_json::from_str::<JudgeResponse>(block.trim())
-            && parsed.total_score > 0
-        {
-            return parsed.total_score.clamp(1, 100);
+    } else if let Some(start) = content.find("```") {
+        let rest = &content[start + 3..];
+        if let Some(end) = rest.find("```") {
+            block = &rest[..end];
+        } else {
+            block = rest;
         }
     }
 
-    params.fallback_score
+    #[derive(serde::Deserialize)]
+    struct JudgeResponse {
+        #[serde(default)]
+        total_score: i32,
+    }
+
+    let parsed = serde_json::from_str::<JudgeResponse>(block.trim()).map_err(|_| {
+        format!(
+            "judge returned unparseable JSON: {}",
+            content.chars().take(200).collect::<String>()
+        )
+    })?;
+
+    if parsed.total_score <= 0 {
+        return Err("judge returned no score".into());
+    }
+    Ok(parsed.total_score.clamp(1, 100))
 }
 
 pub(super) struct SynthesisParams<'a> {
@@ -166,30 +169,21 @@ pub(super) struct SynthesisParams<'a> {
     pub context_max_chars: usize,
 }
 
-/// Quality score ceiling when synthesis fell back to the template: nothing was synthesized or
-/// judged, so the report must not read as a passing result.
-pub(super) const TEMPLATE_FALLBACK_QUALITY_CAP: i32 = 20;
-
-const TEMPLATE_FALLBACK_WARNING: &str = "> ⚠️ WARNING: LLM synthesis cascade failed. \
-     Showing unverified raw evidence snippets, not a synthesized answer.\n";
-
-/// LLM-backed synthesis. Returns `(answer, template_fallback)`; the flag is `true` when every
-/// synthesis candidate failed and the answer is the raw-evidence template.
-pub(super) async fn synthesize_answer_with_llm(params: SynthesisParams<'_>) -> (String, bool) {
-    // Try LLM synthesis first.
-    match call_synthesis_llm(&params).await {
-        Ok(answer) => return (answer, false),
-        Err(e) => tracing::warn!("LLM synthesis failed: {e}, falling back to template"),
-    }
-
-    // Template fallback.
-    (
-        synthesize_answer_template(params.query, params.hits, params.verdicts),
-        true,
-    )
+/// LLM-backed synthesis. There is deliberately no template fallback (spec §5):
+/// a failed synthesis is an error the caller must surface. Returns
+/// `(answer, model)`, where `model` is the id of the candidate that actually
+/// produced the answer — not necessarily `params.model`, since the cascade
+/// (`chat_with_cascade`) may fall through to a different candidate (e.g. a
+/// free-tier fallback) when the first choice fails or is unavailable.
+pub(super) async fn synthesize_answer_with_llm(
+    params: SynthesisParams<'_>,
+) -> anyhow::Result<(String, String)> {
+    call_synthesis_llm(&params)
+        .await
+        .map_err(|e| anyhow::anyhow!("synthesis failed: {e}"))
 }
 
-async fn call_synthesis_llm(params: &SynthesisParams<'_>) -> anyhow::Result<String> {
+async fn call_synthesis_llm(params: &SynthesisParams<'_>) -> anyhow::Result<(String, String)> {
     use crate::research::distillation::{
         ClaimEvidenceUnit, EpistemicModality, EvidenceKind, extract_registrable_domain,
         pack_rag_budget,
@@ -324,7 +318,7 @@ async fn call_synthesis_llm(params: &SynthesisParams<'_>) -> anyhow::Result<Stri
         }
     );
 
-    chat_stage(
+    chat_stage_with_model(
         vox_actor_runtime::llm::cascade::ResearchStage::Synthesis,
         params.endpoint,
         params.api_key,
@@ -335,95 +329,6 @@ async fn call_synthesis_llm(params: &SynthesisParams<'_>) -> anyhow::Result<Stri
         None,
     )
     .await
-}
-
-/// Template synthesis fallback (always succeeds, no network call).
-fn synthesize_answer_template(
-    query: &str,
-    hits: &[ResearchHit],
-    verdicts: &[super::super::types::ClaimVerdict],
-) -> String {
-    let mut parts: Vec<String> = Vec::new();
-    parts.push(TEMPLATE_FALLBACK_WARNING.to_string());
-    parts.push(format!(
-        "# Executive Summary\n\nResearch findings for: {query}\n"
-    ));
-
-    parts.push(
-        "## Architectural Tradeoffs\n\nKey architectural considerations based on gathered evidence.\n"
-            .to_string(),
-    );
-
-    parts.push("## Grounded Claims\n".to_string());
-    if !verdicts.is_empty() {
-        for verdict in verdicts {
-            let icon = match verdict.verdict {
-                super::super::types::Verdict::Supported => "✅",
-                super::super::types::Verdict::Contradicted => "❌",
-                super::super::types::Verdict::Contested => "⚠️",
-                super::super::types::Verdict::Unverified => "❓",
-            };
-            parts.push(format!(
-                "- {icon} **{}**: {} (confidence: {:.0}%)",
-                verdict.claim.text,
-                verdict.verdict,
-                verdict.confidence * 100.0
-            ));
-        }
-        parts.push(String::new());
-    } else {
-        parts.push("No explicit claims evaluated.\n".to_string());
-    }
-
-    parts.push("## Contested Findings\n".to_string());
-    let contested: Vec<_> = verdicts
-        .iter()
-        .filter(|v| {
-            matches!(
-                v.verdict,
-                super::super::types::Verdict::Contradicted
-                    | super::super::types::Verdict::Contested
-            )
-        })
-        .collect();
-    if !contested.is_empty() {
-        for v in contested {
-            parts.push(format!("- ⚠️ **{}**: {}\n", v.claim.text, v.verdict));
-        }
-    } else {
-        parts.push("No contested findings identified.\n".to_string());
-    }
-
-    parts.push("## Implementation Implications\n".to_string());
-    for (i, hit) in hits.iter().take(5).enumerate() {
-        let snippet = hit.snippet.chars().take(500).collect::<String>();
-        parts.push(format!(
-            "### [{}] {}\n\nSource: <{}>\n\n{}\n",
-            i + 1,
-            hit.title,
-            hit.url,
-            snippet
-        ));
-    }
-    if hits.len() > 5 {
-        parts.push(format!(
-            "*And {} other sources examined.*\n",
-            hits.len() - 5
-        ));
-    }
-
-    parts.push("## Citations\n".to_string());
-    for (i, hit) in hits.iter().take(10).enumerate() {
-        parts.push(format!(
-            "{}. [^source{}]: {} - <{}>",
-            i + 1,
-            i + 1,
-            hit.title,
-            hit.url
-        ));
-    }
-
-    parts.join("\n")
 }
 
 /// CoVE-style self-verification step.
@@ -540,6 +445,37 @@ pub(crate) async fn chat_stage(
     messages: Vec<(String, String)>,
     response_format: Option<serde_json::Value>,
 ) -> anyhow::Result<String> {
+    chat_stage_with_model(
+        stage,
+        endpoint,
+        api_key,
+        model,
+        temperature,
+        max_tokens,
+        messages,
+        response_format,
+    )
+    .await
+    .map(|(content, _model)| content)
+}
+
+/// Like [`chat_stage`], but also returns the model id that actually produced the
+/// response (`LlmResponse::model` — the winning candidate, not necessarily the
+/// first-choice `model` argument: `chat_with_cascade` may fall through to a
+/// different candidate). Callers that need to record which model answered
+/// (e.g. synthesis, for an honest `ResearchMetadata::synthesis_model`) should
+/// use this instead of `chat_stage` and discarding the model id.
+#[cfg(feature = "runtime")]
+pub(crate) async fn chat_stage_with_model(
+    stage: vox_actor_runtime::llm::cascade::ResearchStage,
+    endpoint: Option<&str>,
+    api_key: Option<&str>,
+    model: &str,
+    temperature: f32,
+    max_tokens: u32,
+    messages: Vec<(String, String)>,
+    response_format: Option<serde_json::Value>,
+) -> anyhow::Result<(String, String)> {
     use vox_actor_runtime::ActivityOptions;
     use vox_actor_runtime::llm::LlmChatMessage;
     use vox_actor_runtime::llm::cascade::{
@@ -568,8 +504,10 @@ pub(crate) async fn chat_stage(
         }
         ResearchStage::Verification => vox_orchestrator::models::SelectionIntent::nli_classifier(),
     };
-    let primary =
-        crate::research::orchestrator::model_dispatch::primary_candidate_for_intent(intent);
+    let primary = crate::research::orchestrator::model_dispatch::primary_candidate_for_intent(
+        intent,
+        stage.model_role(),
+    );
     let mut candidates: Vec<vox_actor_runtime::llm::LlmConfig> = primary.into_iter().collect();
     candidates.extend(cascade_with_optional_manual(
         stage,
@@ -578,6 +516,7 @@ pub(crate) async fn chat_stage(
         api_key,
         Some(model),
     ));
+    candidates.dedup_by(|a, b| a.provider == b.provider && a.model == b.model);
     for candidate in &mut candidates {
         candidate.temperature = Some(temperature);
         candidate.max_tokens = Some(max_tokens.into());
@@ -592,14 +531,59 @@ pub(crate) async fn chat_stage(
         })
         .collect();
     let opts = ActivityOptions::new().with_timeout_secs(45);
-    chat_with_cascade(&opts, messages, candidates, None)
+    // `Some(stage)`: labels telemetry and lets a trace record the requested vs
+    // resolved model for this role (`record_research_model_uses`).
+    chat_with_cascade(&opts, messages, candidates, Some(stage))
         .await
-        .map(|response| response.content)
+        .map(response_to_content_and_model)
         .map_err(|e| anyhow::anyhow!(e))
+}
+
+/// Extracts `(content, model)` from a cascade response. `LlmResponse::model` is the
+/// id of the candidate that actually answered (from the response body, or the
+/// configured model as fallback) — this is the seam the synthesis-honesty fix
+/// depends on: `chat_with_cascade` may fall through past the first-choice candidate
+/// (e.g. to a free-tier fallback), so the caller must read the model off the
+/// response, never assume it matches whichever candidate was listed first.
+///
+/// Compiled whenever `runtime` is enabled (the production call site) or under
+/// `cfg(test)` (so it stays unit-testable without the `runtime` feature — see
+/// `winning_candidate_model_is_threaded_through_not_the_configured_one` below),
+/// rather than only `#[cfg(feature = "runtime")]` like `chat_stage_with_model`.
+#[cfg(any(feature = "runtime", test))]
+fn response_to_content_and_model(
+    response: vox_actor_runtime::llm::LlmResponse,
+) -> (String, String) {
+    (response.content, response.model)
 }
 
 #[cfg(not(feature = "runtime"))]
 pub(crate) async fn chat_stage(
+    stage: vox_actor_runtime::llm::cascade::ResearchStage,
+    endpoint: Option<&str>,
+    api_key: Option<&str>,
+    model: &str,
+    temperature: f32,
+    max_tokens: u32,
+    messages: Vec<(String, String)>,
+    response_format: Option<serde_json::Value>,
+) -> anyhow::Result<String> {
+    chat_stage_with_model(
+        stage,
+        endpoint,
+        api_key,
+        model,
+        temperature,
+        max_tokens,
+        messages,
+        response_format,
+    )
+    .await
+    .map(|(content, _model)| content)
+}
+
+#[cfg(not(feature = "runtime"))]
+pub(crate) async fn chat_stage_with_model(
     _stage: vox_actor_runtime::llm::cascade::ResearchStage,
     _endpoint: Option<&str>,
     _api_key: Option<&str>,
@@ -608,12 +592,13 @@ pub(crate) async fn chat_stage(
     _max_tokens: u32,
     _messages: Vec<(String, String)>,
     _response_format: Option<serde_json::Value>,
-) -> anyhow::Result<String> {
+) -> anyhow::Result<(String, String)> {
     anyhow::bail!("research runtime feature is disabled")
 }
 
 #[cfg(test)]
 mod citation_diversity_tests {
+    use super::super::model_dispatch::ENV_LOCK;
     use super::evaluate_citation_diversity;
     use crate::research::types::ResearchHit;
 
@@ -645,6 +630,38 @@ mod citation_diversity_tests {
     }
 
     #[test]
+    fn winning_candidate_model_is_threaded_through_not_the_configured_one() {
+        // Regression seed for the D5 follow-up: `chat_with_cascade` may fall through
+        // past the first-choice candidate (e.g. a free-tier fallback), so the model
+        // recorded on `ResearchMetadata::synthesis_model` must come from the response
+        // that actually answered (`LlmResponse::model`), never the configured/first
+        // candidate's model string. The `runtime` feature gates the live HTTP path
+        // (impractical to stub here), so this exercises the plumbing seam directly:
+        // `response_to_content_and_model` is the sole place `chat_stage_with_model`
+        // extracts `(content, model)` from a cascade response.
+        let response = vox_actor_runtime::llm::LlmResponse {
+            content: "synthesized answer".to_string(),
+            prompt_tokens: 10,
+            completion_tokens: 20,
+            model: "openrouter/some-fallback-model".to_string(),
+            cost_usd: None,
+            tool_calls: None,
+            latency_ms: 0,
+            cache_read_tokens: 0,
+            ttft_ms: None,
+            tpot_ms: None,
+        };
+
+        let (content, model) = super::response_to_content_and_model(response);
+
+        assert_eq!(content, "synthesized answer");
+        assert_eq!(
+            model, "openrouter/some-fallback-model",
+            "the winning candidate's model must be threaded through, not the configured/first-choice one"
+        );
+    }
+
+    #[test]
     fn judge_prompt_has_no_code_generation_boilerplate() {
         let sys_prompt = super::build_judge_system_prompt();
         assert!(
@@ -655,21 +672,6 @@ mod citation_diversity_tests {
             sys_prompt.contains("Cite every material claim"),
             "judge prompt should use research-appropriate completeness language: {sys_prompt}"
         );
-    }
-
-    #[test]
-    fn template_fallback_is_labelled_as_unverified_evidence() {
-        let answer = super::synthesize_answer_template("q", &[], &[]);
-        assert!(
-            answer.starts_with("> ⚠️ WARNING: LLM synthesis cascade failed"),
-            "template output must lead with the failure warning: {answer}"
-        );
-    }
-
-    #[test]
-    fn template_fallback_cap_is_below_every_persistence_gate() {
-        // discovery bridge / pipeline gates open at quality >= 50.
-        const { assert!(super::TEMPLATE_FALLBACK_QUALITY_CAP < 50) };
     }
 
     #[test]
@@ -690,61 +692,254 @@ mod citation_diversity_tests {
         assert!(cfg.judge_max_tokens >= 256, "{}", cfg.judge_max_tokens);
     }
 
-    #[test]
-    fn test_synthesis_preserves_claim_verdicts_on_full_budget() {
-        use crate::research::claims::Claim;
-        use crate::research::verifier::{ClaimVerdict, Verdict};
-
-        let verdicts = vec![ClaimVerdict {
-            claim: Claim {
-                claim_id: 42,
-                text: "Target API requires usize parameter".into(),
-                is_numeric: false,
-                is_recent: false,
-                is_named_event: false,
-            },
-            verdict: Verdict::Contradicted,
-            confidence: 0.95,
-            supporting_count: 0,
-            contradicting_count: 1,
-            evidence_spans: vec![],
-            resample_stability: 1.0,
-        }];
-
-        // Giant evidence string that exceeds standard context budget
-        let giant_evidence = "Evidence snippet details. ".repeat(500); // ~13,000 chars
+    #[tokio::test]
+    #[allow(unsafe_code)]
+    // ENV_LOCK is a test-only, never-production std::sync::Mutex that must stay held across
+    // the `.await` below to actually serialize this test's env mutation against every other
+    // test in the crate that reads/writes VOX_MODEL_FORCE / OPENROUTER_BASE_URL — releasing it
+    // sooner would defeat its purpose. Single-threaded within the critical section, so no
+    // executor-blocking risk in practice.
+    #[allow(clippy::await_holding_lock)]
+    async fn synthesis_failure_is_an_error_not_a_template() {
+        let _guard = ENV_LOCK.lock().expect("env lock");
+        let prior_force = std::env::var("VOX_MODEL_FORCE").ok();
+        let prior_base = std::env::var("OPENROUTER_BASE_URL").ok();
+        // No key + unreachable pinned model => every candidate fails.
+        unsafe {
+            std::env::set_var("VOX_MODEL_FORCE", "nonexistent/model-for-test");
+        }
+        unsafe {
+            std::env::set_var("OPENROUTER_BASE_URL", "http://127.0.0.1:9");
+        }
         let hits = vec![crate::research::types::ResearchHit {
-            url: "https://docs.rs/example".into(),
-            title: "Docs".into(),
-            snippet: giant_evidence,
-            score: 0.9,
+            url: "https://a.example".into(),
+            title: "a".into(),
+            snippet: "s".into(),
+            score: 1.0,
             http_status: 200,
             trust_score: 1.0,
             raw_content: String::new(),
         }];
-
-        let params = super::SynthesisParams {
-            query: "What parameter does Target API require?",
+        let r = super::synthesize_answer_with_llm(super::SynthesisParams {
+            query: "q",
             hits: &hits,
-            verdicts: &verdicts,
+            verdicts: &[],
             endpoint: None,
             api_key: None,
-            model: "test-model",
+            model: "nonexistent/model-for-test",
             temperature: 0.2,
-            max_tokens: 500,
+            max_tokens: 100,
             context_max_chars: 4000,
-        };
+        })
+        .await;
+        unsafe {
+            match prior_force {
+                Some(v) => std::env::set_var("VOX_MODEL_FORCE", v),
+                None => std::env::remove_var("VOX_MODEL_FORCE"),
+            }
+            match prior_base {
+                Some(v) => std::env::set_var("OPENROUTER_BASE_URL", v),
+                None => std::env::remove_var("OPENROUTER_BASE_URL"),
+            }
+        }
+        let err = r.expect_err("a failed synthesis must be Err — never template prose");
+        assert!(err.to_string().contains("synthesis failed"), "{err}");
+    }
 
-        // Even with a tight budget (4,000 chars) and 13,000 chars of evidence,
-        // the template synthesis output must still contain the claim text and verdict!
-        let answer = super::synthesize_answer_template(params.query, params.hits, params.verdicts);
+    #[test]
+    fn judge_budget_fits_its_schema() {
+        let c = super::super::config::ResearchConfig::default();
         assert!(
-            answer.contains("Target API requires usize parameter"),
-            "Answer must retain verified claim even when evidence exceeds context budget: {answer}"
+            c.judge_max_tokens >= c.synthesis_max_tokens,
+            "judge_max_tokens {} does not leave room for google/gemini-3.8-flash's \
+             reasoning tokens ahead of the visible JSON (D8 — see judge_probe_max_tokens_400_vs_4000). \
+             The judge reads the synthesis output, so its budget must scale with \
+             synthesis_max_tokens (D9)",
+            c.judge_max_tokens
         );
+    }
+
+    #[test]
+    fn synthesis_budget_fits_its_five_mandated_sections() {
+        let c = super::super::config::ResearchConfig::default();
         assert!(
-            answer.contains("contradicted"),
-            "Answer must retain contradiction verdict even when evidence exceeds context budget: {answer}"
+            c.synthesis_max_tokens >= 2400,
+            "synthesis_max_tokens {} truncates the five mandated markdown sections at live \
+             evidence scale (D9 — see synthesis_probe_max_tokens_budget_vs_visible_output: \
+             1200 exhausted the budget at 1202 completion tokens mid-sentence; the natural \
+             length is ~1800)",
+            c.synthesis_max_tokens
         );
+    }
+
+    /// D8 live diagnostic (Task 8 fix round 2, finding (b)): the live daemon's
+    /// deep-research judge stage failed with `judge returned unparseable JSON:
+    /// {\n  "factual_accuracy_` — ~20 visible characters, far short of the
+    /// 400-token budget that was configured, so `max_tokens` itself wasn't the
+    /// literal ceiling being hit at the API framing level; something was
+    /// consuming the budget before the JSON could be written out. Probes
+    /// `judge_quality` directly against the real OpenRouter endpoint at the
+    /// old 400-token budget (reproduce) and then at a much larger budget
+    /// (diagnose), printing whether each attempt parses.
+    ///
+    /// Run manually (needs a live `OPENROUTER_API_KEY` and network):
+    /// `cargo test -p vox-research-shim --features runtime -- --ignored --nocapture judge_probe`
+    #[cfg(feature = "runtime")]
+    #[tokio::test]
+    #[ignore = "live OpenRouter network probe — run manually with --ignored --features runtime"]
+    async fn judge_probe_max_tokens_400_vs_4000() {
+        let Some(api_key) = vox_secrets::resolve_secret(vox_secrets::SecretId::OpenRouterApiKey)
+            .expose()
+            .map(|s| s.to_string())
+        else {
+            eprintln!("SKIP: OPENROUTER_API_KEY does not resolve; cannot probe live judge stage");
+            return;
+        };
+        let citations = vec![crate::research::types::Citation {
+            source_id: 1,
+            url: "https://arxiv.org/abs/0000.00000".into(),
+            title: "Example paper".into(),
+            snippet: "An example finding about search infrastructure.".into(),
+            confidence: 0.9,
+        }];
+        let query = "compare SearXNG and Tavily for agent web search";
+        let answer = "SearXNG is a self-hosted open-source metasearch engine; Tavily is a \
+                       commercial API purpose-built for LLM agents. [1]";
+
+        for max_tokens in [400u32, 1200u32, 1600u32, 4000u32] {
+            let result = super::judge_quality(super::JudgeParams {
+                query,
+                answer,
+                citations: &citations,
+                endpoint: None,
+                api_key: Some(&api_key),
+                model: "google/gemini-3.8-flash",
+                temperature: 0.0,
+                max_tokens,
+            })
+            .await;
+            eprintln!("--- max_tokens={max_tokens} ---\n{result:?}\n");
+        }
+    }
+
+    /// D9 live diagnostic (Task 8 fix round 4): the live daemon's deep-research
+    /// synthesis stage returned a 202-character fragment that stopped
+    /// mid-sentence ("**Tavily** is a managed, purpose-built \"agent-native\"
+    /// search"), which made the judge score it 5/100 and citation_audit report
+    /// 0/35. Same class as the round-2 judge truncation (D8), but for
+    /// synthesis. Probes the real synthesis path against the real
+    /// `google/gemini-3.8-flash` at the shipped budget and larger ones,
+    /// printing the visible answer length AND `completion_tokens` — if
+    /// `completion_tokens` sits at the budget while the visible text is a few
+    /// hundred characters, the model spent the budget on reasoning tokens
+    /// before writing any answer.
+    ///
+    /// Run manually (needs a live `OPENROUTER_API_KEY` and network):
+    /// `cargo test -p vox-research-shim --features runtime -- --ignored --nocapture synthesis_probe`
+    #[cfg(feature = "runtime")]
+    #[tokio::test]
+    #[ignore = "live OpenRouter network probe — run manually with --ignored --features runtime"]
+    async fn synthesis_probe_max_tokens_budget_vs_visible_output() {
+        use vox_actor_runtime::ActivityOptions;
+        use vox_actor_runtime::llm::LlmChatMessage;
+        use vox_actor_runtime::llm::cascade::{
+            ResearchStage, cascade_with_optional_manual, chat_with_cascade,
+        };
+        use vox_actor_runtime::model_resolution::RouteResolutionInput;
+
+        let Some(api_key) = vox_secrets::resolve_secret(vox_secrets::SecretId::OpenRouterApiKey)
+            .expose()
+            .map(|s| s.to_string())
+        else {
+            eprintln!("SKIP: OPENROUTER_API_KEY does not resolve; cannot probe live synthesis");
+            return;
+        };
+        let model = "google/gemini-3.8-flash";
+
+        // The real synthesis framing (five mandated markdown sections), with a
+        // small but realistic SearXNG-vs-Tavily evidence set — the live shape.
+        let system = format!(
+            "You are a precise research synthesizer. Using ONLY the provided evidence \
+             snippets, write a thorough, well-structured answer to the user's question.\n\n\
+             You MUST structure your synthesis with the following comprehensive markdown sections:\n\
+             # Executive Summary\n\
+             ## Architectural Tradeoffs\n\
+             ## Grounded Claims\n\
+             ## Contested Findings\n\
+             ## Implementation Implications\n\n\
+             Cite sources inline as [1], [2], etc. matching the evidence numbers.\n\
+             If evidence is insufficient, say so clearly.\n{}",
+            super::RESEARCH_COMPLETENESS_RIDER
+        );
+        let user = "Question: compare SearXNG and Tavily for agent web search\n\n\
+             Evidence:\n\
+             [1] Tavily vs SearXNG: which wins on the bench?\nURL: https://trytested.com/a\n\
+             Tavily is a managed search API purpose-built for LLM agents, billed per call.\n\n\
+             [2] Replacing Tavily with self-hosted SearXNG\nURL: https://note.com/b\n\
+             SearXNG is a self-hosted metasearch aggregator with no per-call cost but \
+             requires operating upstream engines yourself.\n\n\
+             [3] The True Cost of Self-Hosted Web Search for AI Agents\nURL: https://tavily.com/c\n\
+             Self-hosting shifts cost from per-query billing to operational maintenance.\n"
+            .to_string();
+        // The live failure had 35 sources packed into `synthesis_context_max_chars`
+        // (24000). Reproduce that scale — a three-source prompt is far smaller than
+        // what the daemon actually sends, and the truncation is input-size sensitive.
+        let mut user = user;
+        let mut n = 4;
+        while user.chars().count() < 24_000 {
+            user.push_str(&format!(
+                "[{n}] Benchmarking LLM search APIs: latency, cost and recall\n\
+                 URL: https://example{n}.dev/post\n\
+                 Measured p50 latency, per-query price and answer recall across managed \
+                 and self-hosted search backends for agent workloads, with notes on \
+                 rate limits, caching, and upstream engine availability.\n\n"
+            ));
+            n += 1;
+        }
+        eprintln!("evidence prompt chars = {}", user.chars().count());
+
+        for max_tokens in [1200u32, 2400u32, 4000u32, 8000u32] {
+            let input = RouteResolutionInput {
+                openrouter_model: model.to_string(),
+                ..RouteResolutionInput::default()
+            };
+            let mut candidates = cascade_with_optional_manual(
+                ResearchStage::Synthesis,
+                &input,
+                None,
+                Some(&api_key),
+                Some(model),
+            );
+            candidates.truncate(1);
+            for candidate in &mut candidates {
+                candidate.temperature = Some(0.2);
+                candidate.max_tokens = Some(max_tokens.into());
+                candidate.response_format = None;
+            }
+            let messages = vec![
+                LlmChatMessage {
+                    role: "system".to_string(),
+                    content: system.clone(),
+                    ..Default::default()
+                },
+                LlmChatMessage {
+                    role: "user".to_string(),
+                    content: user.clone(),
+                    ..Default::default()
+                },
+            ];
+            let opts = ActivityOptions::new().with_timeout_secs(120);
+            match chat_with_cascade(&opts, messages, candidates, None).await {
+                Ok(r) => eprintln!(
+                    "--- max_tokens={max_tokens} --- chars={} completion_tokens={} model={}\n\
+                     tail: {:?}\n",
+                    r.content.chars().count(),
+                    r.completion_tokens,
+                    r.model,
+                    r.content.chars().rev().take(90).collect::<String>()
+                ),
+                Err(e) => eprintln!("--- max_tokens={max_tokens} --- Err: {e}\n"),
+            }
+        }
     }
 }

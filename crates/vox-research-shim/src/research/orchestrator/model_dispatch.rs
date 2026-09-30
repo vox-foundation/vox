@@ -10,9 +10,19 @@ use std::sync::OnceLock;
 use vox_actor_runtime::llm::LlmConfig;
 use vox_orchestrator::models::{
     ModelRegistry, ModelSelectionRequest, SelectionIntent, decide, llm_config_for_spec,
+    task_category_strength,
 };
 
 static SHARED_REGISTRY: OnceLock<ModelRegistry> = OnceLock::new();
+
+/// Crate-wide lock serializing tests that mutate process env vars consumed by
+/// research model resolution (`VOX_MODEL_FORCE`, `OPENROUTER_BASE_URL`, ...).
+/// Every such test in this crate must acquire this lock — a private,
+/// module-local lock does not serialize against env mutation in another
+/// module, since `std::env` is process-global regardless of which mutex
+/// guards the call site.
+#[cfg(test)]
+pub(crate) static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 /// Returns a process-wide shared `ModelRegistry`, loaded from disk once on
 /// first use. Prefer this over `ModelRegistry::from_cache()` in hot paths
@@ -28,17 +38,35 @@ fn shared_registry() -> &'static ModelRegistry {
 /// any eligible provider) — callers should fall back to
 /// `cascade_for_research_stage`'s local+OpenRouter lanes in that case,
 /// never treat `None` as a hard error.
-pub fn primary_candidate_for_intent(intent: SelectionIntent) -> Option<LlmConfig> {
-    let registry = shared_registry();
+///
+/// `role` selects the strict pin (Task 13): the role's own key, then
+/// `VOX_MODEL_FORCE_RESEARCH`, then `VOX_MODEL_FORCE`.
+pub fn primary_candidate_for_intent(
+    intent: SelectionIntent,
+    role: vox_config::inference::ModelRole,
+) -> Option<LlmConfig> {
     let task_type = intent.task;
+    if let Some(forced) = vox_config::inference::forced_model_for(role) {
+        // Tag exactly as `llm_config_for_spec` would for the unforced path,
+        // so `chat_stage`'s dedup (which keeps this, the first/primary
+        // entry) doesn't silently drop telemetry attribution relative to
+        // the cascade's copy of the same pinned model.
+        let mut cfg = LlmConfig::openrouter(forced);
+        cfg.telemetry_task_category = Some(task_type.to_string());
+        cfg.telemetry_strength_tag = Some(task_category_strength(task_type).to_string());
+        return Some(cfg);
+    }
+    let registry = shared_registry();
     let request = ModelSelectionRequest::from_intent(intent);
     let decision = decide(&request, registry)?;
     Some(llm_config_for_spec(&decision.outcome.model_spec, task_type))
 }
 
 #[cfg(test)]
+#[allow(unsafe_code)] // serialized env mutation under ENV_LOCK, mirrors vox-config's test idiom
 mod tests {
     use super::*;
+    use vox_config::inference::ModelRole;
 
     #[test]
     fn returns_none_or_some_without_panicking_for_research_intent() {
@@ -47,6 +75,67 @@ mod tests {
         // configured), so both None (nothing selectable) and Some (a
         // local/keyless candidate wins) are valid outcomes. What matters
         // is that this never panics.
-        let _ = primary_candidate_for_intent(SelectionIntent::research());
+        let _ = primary_candidate_for_intent(SelectionIntent::research(), ModelRole::Planner);
+    }
+
+    /// Task 13: the primary candidate honours the role's own pin, and only for
+    /// that role.
+    #[test]
+    fn primary_candidate_uses_the_role_pin_only_for_its_role() {
+        let _guard = ENV_LOCK.lock().expect("env lock");
+        let prior = std::env::var("VOX_MODEL_FORCE_PLANNER").ok();
+        unsafe { std::env::set_var("VOX_MODEL_FORCE_PLANNER", "vendor/planner-pin") };
+
+        let planner = primary_candidate_for_intent(SelectionIntent::research(), ModelRole::Planner);
+        let synthesis =
+            primary_candidate_for_intent(SelectionIntent::research(), ModelRole::Synthesis);
+
+        unsafe {
+            match prior {
+                Some(v) => std::env::set_var("VOX_MODEL_FORCE_PLANNER", v),
+                None => std::env::remove_var("VOX_MODEL_FORCE_PLANNER"),
+            }
+        }
+        assert_eq!(planner.expect("pinned").model, "vendor/planner-pin");
+        assert_ne!(
+            synthesis.map(|c| c.model).as_deref(),
+            Some("vendor/planner-pin"),
+            "a planner pin must not leak into synthesis"
+        );
+    }
+
+    #[test]
+    fn forced_primary_candidate_carries_telemetry_tags_like_the_unforced_path() {
+        // Regression test: `chat_stage`'s dedup keeps this (the first/primary)
+        // entry over the cascade's tagged copy of the same pinned model, so a
+        // pin must carry the same telemetry attribution the unforced
+        // `llm_config_for_spec` path would set, or that attribution is
+        // silently dropped for every pinned research call.
+        let _guard = ENV_LOCK.lock().expect("env lock");
+        let prior = std::env::var("VOX_MODEL_FORCE").ok();
+        unsafe {
+            std::env::set_var("VOX_MODEL_FORCE", "google/gemini-3.8-flash");
+        }
+
+        let cfg = primary_candidate_for_intent(SelectionIntent::research(), ModelRole::Synthesis)
+            .expect("a strict pin must always resolve to a candidate");
+
+        assert_eq!(cfg.model, "google/gemini-3.8-flash");
+        assert_eq!(cfg.provider, LlmConfig::openrouter("x").provider);
+        assert!(
+            cfg.telemetry_task_category.is_some(),
+            "pinned primary candidate must carry telemetry_task_category"
+        );
+        assert!(
+            cfg.telemetry_strength_tag.is_some(),
+            "pinned primary candidate must carry telemetry_strength_tag"
+        );
+
+        unsafe {
+            match prior {
+                Some(v) => std::env::set_var("VOX_MODEL_FORCE", v),
+                None => std::env::remove_var("VOX_MODEL_FORCE"),
+            }
+        }
     }
 }

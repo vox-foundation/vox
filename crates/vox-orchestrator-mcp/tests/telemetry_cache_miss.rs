@@ -4,6 +4,9 @@
 //! `OnceLock` write doesn't collide with the sibling `trace_propagation`
 //! binary (each integration test file is its own binary).
 
+// Task 8e fix round 1: pull in the hermetic-VOX_HOME ctor (see tests/common/mod.rs).
+mod common;
+
 use std::sync::{Arc, Mutex, OnceLock};
 
 use vox_orchestrator_mcp::llm_bridge::emit_cache_miss_if_applicable;

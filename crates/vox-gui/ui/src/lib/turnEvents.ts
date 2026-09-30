@@ -11,6 +11,7 @@ export const TURN_EVENT_KINDS: readonly string[] = [
   'tool_receipt',
   'receipt_claims',
   'routing_decision',
+  'research_trace',
 ];
 
 const isText = (v: unknown): v is string => typeof v === 'string' && v.length > 0;
@@ -47,6 +48,15 @@ const VALIDATORS = new Map<string, (e: TurnEventDto) => boolean>([
       isText(e.reason) &&
       optionalText(e.mode) &&
       optionalText(e.objective),
+  ],
+  [
+    'research_trace',
+    (e) =>
+      isText(e.mode) &&
+      isText(e.status) &&
+      isCount(e.source_count) &&
+      Array.isArray(e.stages) &&
+      Array.isArray(e.sources),
   ],
 ]);
 

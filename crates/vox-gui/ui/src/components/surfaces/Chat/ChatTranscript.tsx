@@ -135,7 +135,13 @@ export function ChatTranscript({ messages, agentStreamItems, sessionId, onExclud
   if (timeline.length === 0 && harnessIssues.length === 0) return null;
 
   return (
+    // `inset={false}`: Glass's decorative inset ring is `absolute inset-0`, and
+    // inside this scroller it only spans the first viewport of content — a
+    // tall reply (e.g. an expanded research trace) scrolled past it showed the
+    // ring's bottom edge as a line cutting through the content. The Glass
+    // border already frames the transcript.
     <Glass
+      inset={false}
       role="log"
       aria-live="polite"
       aria-relevant="additions text"

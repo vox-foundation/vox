@@ -21,6 +21,7 @@ import { redirectSearchViewToOmnibar } from './components/layout/omnibarRedirect
 import { Loquela } from './components/surfaces/Loquela/Loquela';
 import { AxisDriveHost } from './components/drive/AxisDriveHost';
 import { GroundingCheckToggle } from './components/surfaces/Chat/GroundingCheckToggle';
+import { ResearchModeDropdown, type ResearchMode } from './components/surfaces/Chat/ResearchModeDropdown';
 import { useGroundingCheck } from './hooks/useGroundingCheck';
 import { Toasts, ToastItem } from './components/ui/Toasts';
 import { coalesceToast } from './lib/toastQueue';
@@ -473,6 +474,7 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- validate once on mount only
   }, []);
   const [groundingCheckEnabled, setGroundingCheckEnabled] = useGroundingCheck(activeSessionId);
+  const [researchMode, setResearchMode] = useState<ResearchMode>('auto');
   const { tasks: chatTasks } = useChatExecutionData(activeSessionId);
   const attention = useAttentionInbox();
   const [diffOpen, setDiffOpen] = useState(false);
@@ -1749,7 +1751,9 @@ export default function App() {
     session_id: p.execution_mode === 'task' ? newBackgroundSessionId() : activeSessionId,
     model_override: p.model_override ?? chatModelOverride,
     grounding_check_enabled: groundingCheckEnabled,
-  }), [handleLoquelaSubmit, activeSessionId, chatModelOverride, groundingCheckEnabled]);
+    force_research: researchMode === 'off' ? false : researchMode === 'auto' ? null : true,
+    research_scope: researchMode === 'deep' ? 'deep' : researchMode === 'fast' ? 'quick' : researchMode === 'auto' ? 'auto' : null,
+  }), [handleLoquelaSubmit, activeSessionId, chatModelOverride, groundingCheckEnabled, researchMode]);
 
   // Stable setters object so AxisDriveHost's drive://request effect does not
   // re-subscribe on every App render (double-listen → "reply still in progress").
@@ -1791,6 +1795,12 @@ export default function App() {
         <GroundingCheckToggle
           enabled={groundingCheckEnabled}
           onToggle={setGroundingCheckEnabled}
+        />
+      }
+      trailingSlot={
+        <ResearchModeDropdown
+          mode={researchMode}
+          onChange={setResearchMode}
         />
       }
     />

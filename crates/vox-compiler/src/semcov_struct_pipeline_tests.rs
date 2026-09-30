@@ -234,7 +234,7 @@ mod semcov_struct_pipeline_tests {
     // collect ALL leading decorators first, then dispatch on the decl-kind keyword.
     // This test pins the DESIRED behavior; remove `#[ignore]` once the refactor lands.
     #[test]
-    #[ignore = "R5: needs collect-all-leading-decorators-then-dispatch refactor in parser/descent/mod.rs"]
+    #[ignore = "owner:compiler sunset:2026-12-31 R5: needs collect-all-leading-decorators-then-dispatch refactor in parser/descent/mod.rs"]
     fn pure_before_example_should_parse_and_stay_pure() {
         // Catches (post-fix): decorator order changing acceptance or dropping @pure.
         let m = parse(lex("@pure\n@example\nfn ef() to int { 1 }")).expect(

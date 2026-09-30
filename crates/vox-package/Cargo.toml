@@ -32,6 +32,7 @@ workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+wiremock = { workspace = true }
 
 
 [lints]

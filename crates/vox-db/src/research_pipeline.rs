@@ -988,10 +988,13 @@ impl VoxDb {
 
                     let elapsed_days = ((now - last_incident_at_ms) as f64 / 86_400_000.0).max(0.0);
                     let decayed = current_penalty * (-elapsed_days * std::f64::consts::LN_2 / 30.0).exp();
-                    let new_pen = (decayed + params.domain_penalty).clamp(0.0, 2.0);
+                    #[allow(clippy::manual_clamp)] // .max().min() intentionally maps NaN to the lower bound; .clamp() would propagate NaN
+                    let new_pen = (decayed + params.domain_penalty).max(0.0).min(2.0);
                     (current_count + 1, new_pen)
                 } else {
-                    (1i64, params.domain_penalty.clamp(0.0, 2.0))
+                    #[allow(clippy::manual_clamp)] // .max().min() intentionally maps NaN to the lower bound; .clamp() would propagate NaN
+                    let new_pen = params.domain_penalty.max(0.0).min(2.0);
+                    (1i64, new_pen)
                 };
 
                 let is_blacklisted: i64 = if new_count >= 5 && new_penalty >= 1.0 { 1 } else { 0 };

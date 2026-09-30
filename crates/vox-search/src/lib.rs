@@ -91,3 +91,30 @@ pub use web_dispatcher::{WebSearchDispatcher, WebSearchDispatcherExt};
 
 #[cfg(test)]
 mod semcov_wave21_tests;
+
+/// Task 9c: the unit-test twin of `tests/common/mod.rs` — routes every
+/// non-loopback request through a dead local proxy so no unit test (e.g. a
+/// `web-scrape` scrape of a hard-coded `en.wikipedia.org` / `arxiv.org` hit
+/// URL) can reach a real web host. Wiremock on loopback is exempt.
+#[cfg(test)]
+mod test_egress_guard {
+    #[ctor::ctor(unsafe)]
+    #[allow(unsafe_code)] // SAFETY: ctors run pre-main, single-threaded, before any test thread.
+    fn block_non_loopback_egress() {
+        unsafe {
+            for key in [
+                "HTTP_PROXY",
+                "HTTPS_PROXY",
+                "ALL_PROXY",
+                "http_proxy",
+                "https_proxy",
+                "all_proxy",
+            ] {
+                std::env::set_var(key, "http://127.0.0.1:9");
+            }
+            for key in ["NO_PROXY", "no_proxy"] {
+                std::env::set_var(key, "127.0.0.1,localhost,::1");
+            }
+        }
+    }
+}

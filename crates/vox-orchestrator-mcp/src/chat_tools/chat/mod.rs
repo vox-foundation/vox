@@ -6,6 +6,8 @@ mod history;
 mod hydrate;
 pub(crate) mod mentions;
 pub(crate) mod message;
+pub mod research_intent;
+pub mod research_turn;
 mod turn_events;
 
 pub use history::chat_history;

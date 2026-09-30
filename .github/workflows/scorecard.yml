@@ -15,6 +15,13 @@ jobs:
     name: Scorecard analysis
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # OIDC token is required for publish_results: true (the action signs the
+    # result before publishing). SARIF is only uploaded as an artifact here,
+    # so security-events: write is deliberately NOT granted.
+    permissions:
+      id-token: write
+      contents: read
+      actions: read
     steps:
       - name: Checkout
         uses: actions/checkout@v7

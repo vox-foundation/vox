@@ -67,11 +67,17 @@ vox-test-harness = { path = "../vox-test-harness" }
 # the shipped lib, so vox-db's runtime decoupling from the compiler is preserved.
 vox-compiler = { workspace = true }
 vox-codegen = { workspace = true }
+rusqlite = { version = "0.32", default-features = false, features = ["bundled"] }
+criterion = { workspace = true }
 
 [[test]]
 name = "sync_embedded_replica_integration"
 path = "tests/sync_embedded_replica_integration.rs"
 required-features = ["replication"]
+
+[[bench]]
+name = "concurrency_bench"
+harness = false
 
 [lints]
 workspace = true

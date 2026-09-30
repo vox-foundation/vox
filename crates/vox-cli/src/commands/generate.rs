@@ -161,7 +161,7 @@ async fn run_via_orchestrator(
     .await
     .map_err(|e| {
         eprintln!("⚠️  VoxLocal inference unavailable: {e}");
-        eprintln!("   Start it with: vox run scripts/vox_populi::inference.vox --serve");
+        eprintln!("   Start it with: vox mens serve");
         anyhow::anyhow!(e)
     })?;
 
@@ -174,6 +174,23 @@ async fn run_via_orchestrator(
     ))
 }
 
+/// Probe whether an inference server is reachable at `url`, trying each
+/// backend's real health route in turn: `/health` (MENS/VoxLocal server) then
+/// `/api/tags` (Ollama, which does not serve `/health`). Both backends can
+/// share the same default port (`127.0.0.1:11434`), so a single fixed path
+/// misreports one of them as down.
+async fn probe_reachable(client: &reqwest::Client, url: &str) -> bool {
+    let base = url.trim_end_matches('/');
+    for path in ["/health", "/api/tags"] {
+        if let Ok(resp) = client.get(format!("{base}{path}")).send().await {
+            if resp.status().is_success() {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 async fn run_legacy_direct(
     client: &reqwest::Client,
     prompt: &str,
@@ -184,20 +201,12 @@ async fn run_legacy_direct(
     let url = resolve_inference_url(server_url);
     let endpoint = format!("{}/generate", url);
 
-    match client.get(format!("{}/health", url)).send().await {
-        Ok(resp) if resp.status().is_success() => {
-            eprintln!("📡 Connected to inference server at {}", url);
-        }
-        _ => {
-            eprintln!("⚠️  Inference server not running at {}", url);
-            eprintln!("   Start it with: vox run scripts/vox_populi::inference.vox --serve");
-            eprintln!();
-            eprintln!(
-                "   Or generate directly: vox run scripts/vox_populi::inference.vox --prompt \"{}\"",
-                prompt
-            );
-            anyhow::bail!("Inference server not available");
-        }
+    if probe_reachable(client, &url).await {
+        eprintln!("📡 Connected to inference server at {}", url);
+    } else {
+        eprintln!("⚠️  Inference server not running at {}", url);
+        eprintln!("   Start it with: vox mens serve");
+        anyhow::bail!("Inference server not available");
     }
 
     eprintln!("🔮 Generating Vox code...");
@@ -279,5 +288,67 @@ mod tests {
             resolve_inference_url_from(Some("http://explicit:1"), Some("http://env:2")),
             "http://explicit:1"
         );
+    }
+}
+
+#[cfg(test)]
+mod probe_tests {
+    use super::*;
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    /// An Ollama-shaped server (no `/health`, only `/api/tags`) must be
+    /// detected as reachable — this is the reported bug: the old code only
+    /// ever checked `/health`, so a real Ollama instance was reported as
+    /// "not available" despite running and listening on the same default port.
+    #[tokio::test]
+    async fn probe_reachable_detects_ollama_via_api_tags() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/health"))
+            .respond_with(ResponseTemplate::new(404))
+            .mount(&server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path("/api/tags"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(r#"{"models":[]}"#))
+            .mount(&server)
+            .await;
+
+        let client = reqwest::Client::new();
+        assert!(probe_reachable(&client, &server.uri()).await);
+    }
+
+    /// A MENS/VoxLocal-shaped server (`/health` only) must still be detected.
+    #[tokio::test]
+    async fn probe_reachable_detects_mens_via_health() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/health"))
+            .respond_with(ResponseTemplate::new(200))
+            .mount(&server)
+            .await;
+
+        let client = reqwest::Client::new();
+        assert!(probe_reachable(&client, &server.uri()).await);
+    }
+
+    /// Neither route responding ⇒ genuinely unreachable.
+    #[tokio::test]
+    async fn probe_reachable_false_when_nothing_serves_either_route() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/health"))
+            .respond_with(ResponseTemplate::new(404))
+            .mount(&server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path("/api/tags"))
+            .respond_with(ResponseTemplate::new(404))
+            .mount(&server)
+            .await;
+
+        let client = reqwest::Client::new();
+        assert!(!probe_reachable(&client, &server.uri()).await);
     }
 }

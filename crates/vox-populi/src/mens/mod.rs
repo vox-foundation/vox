@@ -94,6 +94,9 @@ pub use tensor::{
 };
 
 #[cfg(feature = "mens-train")]
+pub use tensor::backend_select::{has_prebuilt_artifact, select_mens_backend};
+
+#[cfg(feature = "mens-train")]
 pub use tensor::artifact_bridge::MERGE_QLORA_REJECTS_BURN_BIN;
 #[cfg(feature = "mens-train")]
 pub use tensor::operator_messages;

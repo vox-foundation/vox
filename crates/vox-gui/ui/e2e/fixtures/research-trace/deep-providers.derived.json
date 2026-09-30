@@ -1,0 +1,496 @@
+{
+  "source": ".superpowers/sdd/2026-09-22-chat-research-real-e2e/round15-live-deep.json (DERIVED: retrieval.detail.providers/tavily_credits spliced in from quick-ok.json provider outcomes, calls=4 with each Ok hit count x4 (summed over the 4 calls, as ProviderCallSummary does), to show the Task 9 deep provider table; recorded before deep traces carried it)",
+  "user": "/deepresearch compare SearXNG and Tavily for agent web search",
+  "reply": {
+    "content": "# Executive Summary\n\nGrounding modern AI agents with real-time web access has introduced a clear architectural divide between self-hosted open-source software and managed commercial APIs [1], [2]. **SearXNG** is an open-source metasearch engine that aggregates over 200 sources with zero API fees, shifting operational, scraping, and maintenance responsibilities onto the self-hoster [8], [20]. In contrast, **Tavily** is a commercial, managed API designed explicitly for agentic and retrieval-augmented generation (RAG) workflows, offering built-in search, page extraction, clean structured outputs, and framework defaults at a per-query credit cost [5], [6], [8]. The core tradeoff centers on **cost and control** versus **convenience, pre-processed context cleanliness, and out-of-the-box agent scores** [1], [8], [11].\n\n---\n\n## Architectural Tradeoffs\n\n| Architecture Dimension | SearXNG | Tavily |\n| :--- | :--- | :--- |\n| **Hosting & Delivery** | Self-hosted metasearch engine; deployed via Docker/VPS [8], [19], [21]. | Fully managed commercial SaaS API [2], [6]. |\n| **Search Mechanism** | Multi-engine aggregation of 200+ sources (including Google, Bing, DuckDuckGo) [8]. | Multi-source aggregation designed specifically for LLMs and agent workflows [6], [12]. |\n| **Pricing Model** | $0 API fees; compute costs only (typically $5–$10/month for a VPS) [8]. | Credit-based; ~$8 per 1,000 basic search requests with pay-as-you-go tiers and 1,000 free monthly credits [5], [12], [13], [14]. |\n| **Agent Readiness** | Returns raw search outputs via JSON; requires wrappers or secondary extraction layers for full-page parsing [8], [15], [21]. | Returns AI-optimized structured results, summaries, citations, and raw context directly ready for an LLM's context window [6], [7], [12]. |\n| **Ecosystem Integration** | Supported in LangChain via `SearxSearchWrapper` [8]. | Default search integration in LangChain via official `langchain-tavily` package [8], [14]. |\n\n---\n\n## Grounded Claims\n\n* **Cost Predictability and Scalability:** SearXNG carries no API fees; the primary financial cost is infrastructure hosting (typically a $5 to $10/month VPS) [8]. Conversely, Tavily's usage-based model charges approximately $8 per 1,000 searches [12], [14], which can become cost-prohibitive for high-volume, multi-action autonomous agents [5], [15].\n* **Integrated Extraction vs. Secondary Processing:** Tavily rolls search, crawl, and page extraction into a unified API call with endpoints such as `include_raw_content` and `include_answer` [6], [8], [12], [14]. Standard search APIs or raw search aggregators generally require an additional scraping call to understand the full page [15]. To bridge this gap with SearXNG, developers frequently combine it with dedicated extractors like Crawl4AI or custom wrapper layers [19], [21].\n* **LangChain Ecosystem Support:** Both platforms are supported in LangChain: Tavily maintains the official reference integration `langchain-tavily` (often serving as the default tool) [7], [8], [14], while SearXNG is natively supported via `SearxSearchWrapper` [8].\n* **Benchmark Performance:** In agentic search benchmarking, Tavily achieved the top Agent Score (14.89), demonstrating high retrieval quality and low latency compared to several general and agent search APIs [11].\n\n---\n\n## Contested Findings\n\n* **Context Window Efficiency and Token Bloat:** Tavily claims to optimize for \"efficiency per token\" to minimize context window pressure, reasoning noise, and downstream inference costs [9]. However, external comparative benchmarks challenge this claim: Tavily was observed averaging 1,928 tokens per result (compared to competing APIs such as Parallel at 918 tokens) [16]. Critics note that higher token counts risk diluting the context window with navigation boilerplate or loosely related text while escalating inference costs [16].\n* **Latency Benchmarks:** While Tavily reports a vendor p50 latency of ~180 ms on keyword queries [14] and markets low-latency/ultra-fast search depths [6], [9], independent benchmark sources record actual agent-eval latency higher (e.g., ~2.9 seconds for comparable agent tools, with faster services like Parallel reaching 348 ms mean latency) [3], [11].\n\n---\n\n## Implementation Implications\n\n* **When to Implement SearXNG:**\n  * **Cost-Sensitive or High-Volume Autonomous Agents:** Ideal when agents execute high-frequency search loops (e.g., hundreds or thousands of daily queries) that would make credit-based pricing economically unviable [8], [15].\n  * **Custom Architectures Requiring Full Data Ownership:** Best suited for teams willing to manage VPS deployments (e.g., Docker Compose) and pipeline their own deduplication, prompt injection scrubbing, and content extraction using complementary tools like Crawl4AI [8], [19], [21].\n* **When to Implement Tavily:**\n  * **Rapid Prototyping & Reference Frameworks:** Recommended for teams developing within LangChain or LangGraph seeking out-of-the-box compatibility without managing infrastructure [7], [8].\n  * **Direct Context Ingestion:** Suitable when projects require low development overhead for extraction, needing instant summaries and structured, LLM-ready snippets injected straight into model context windows [6], [7], [10].",
+    "model_used": "google/gemini-3.8-flash",
+    "latency_ms": 88,
+    "selection_reason": "deep research pipeline synthesis",
+    "events": [
+      {
+        "kind": "research_trace",
+        "mode": "deep",
+        "explicit": true,
+        "reasons": [
+          "explicit: /deepresearch"
+        ],
+        "query": "compare SearXNG and Tavily for agent web search",
+        "source_count": 40,
+        "model": "google/gemini-3.8-flash",
+        "total_ms": 78652,
+        "status": "degraded",
+        "stages": [
+          {
+            "stage": "detection",
+            "status": "ok",
+            "elapsed_ms": null,
+            "summary": "deep — explicit: /deepresearch",
+            "detail": {
+              "explicit": true,
+              "reasons": [
+                "explicit: /deepresearch"
+              ]
+            }
+          },
+          {
+            "stage": "preamble",
+            "status": "skipped",
+            "elapsed_ms": null,
+            "summary": "autonomous web retrieval skipped: numbered research sources are the web evidence this turn",
+            "detail": {}
+          },
+          {
+            "stage": "pipeline_progress",
+            "status": "ok",
+            "elapsed_ms": 74918,
+            "summary": "4 progress events",
+            "detail": [
+              {
+                "message": "Decomposing query into subqueries...",
+                "pct": 0.05000000074505806,
+                "at_ms": 107
+              },
+              {
+                "message": "Running 4 subqueries...",
+                "pct": 0.15000000596046448,
+                "at_ms": 3071
+              },
+              {
+                "message": "Verifying research claims...",
+                "pct": 0.6000000238418579,
+                "at_ms": 50617
+              },
+              {
+                "message": "Synthesizing final research report...",
+                "pct": 0.8500000238418579,
+                "at_ms": 54149
+              }
+            ]
+          },
+          {
+            "stage": "planning",
+            "status": "ok",
+            "elapsed_ms": null,
+            "summary": "4 subqueries",
+            "detail": {
+              "subqueries": [
+                "SearXNG vs Tavily comparison AI agents LLM web search",
+                "Tavily search API features architecture for RAG and AI agents",
+                "SearXNG API integration LLM agent self-hosted search engine",
+                "SearXNG Tavily performance latency pricing rate limits agent search"
+              ]
+            }
+          },
+          {
+            "stage": "retrieval",
+            "status": "ok",
+            "elapsed_ms": null,
+            "summary": "40 sources, 27 distinct domains",
+            "detail": {
+              "coverage_pct": 1.0,
+              "subquery_coverage_pct": 3.0,
+              "avg_provider_score": 0.5094036837439438,
+              "fusion_weights": [
+                0.65,
+                0.5,
+                0.8
+              ],
+              "dropped_source_count": 25,
+              "hit_rate": 0.6153846153846154,
+              "distinct_domain_count": 27,
+              "citation_diversity_below_threshold": false,
+              "providers": [
+                {
+                  "provider": "arxiv",
+                  "status": {
+                    "state": "ok",
+                    "hits": 40
+                  },
+                  "elapsed_ms": 1402,
+                  "calls": 4
+                },
+                {
+                  "provider": "openalex",
+                  "status": {
+                    "state": "ok",
+                    "hits": 40
+                  },
+                  "elapsed_ms": 805,
+                  "calls": 4
+                },
+                {
+                  "provider": "wikipedia",
+                  "status": {
+                    "state": "ok",
+                    "hits": 40
+                  },
+                  "elapsed_ms": 941,
+                  "calls": 4
+                },
+                {
+                  "provider": "searxng",
+                  "status": {
+                    "state": "ok",
+                    "hits": 40
+                  },
+                  "elapsed_ms": 1102,
+                  "calls": 4
+                },
+                {
+                  "provider": "tavily",
+                  "status": {
+                    "state": "ok",
+                    "hits": 20
+                  },
+                  "elapsed_ms": 3871,
+                  "calls": 4
+                }
+              ],
+              "tavily_credits": {
+                "used": 4,
+                "remaining": 46
+              }
+            }
+          },
+          {
+            "stage": "claims",
+            "status": "ok",
+            "elapsed_ms": null,
+            "summary": "2 claims: 1 supported, 0 contested, 0 contradicted, 1 unverified",
+            "detail": [
+              {
+                "claim": {
+                  "text": "Tavily for agent web search\n\nEvidence Sources:\n- The Agentic Internet: A Clean Web for Machines: Episode summary: In 2026, the bottleneck for AI agents isn't reasoning—it's grounding.",
+                  "claim_id": 16384515470096852618,
+                  "is_numeric": true,
+                  "is_recent": true,
+                  "is_named_event": true
+                },
+                "verdict": "supported",
+                "confidence": 0.95
+              },
+              {
+                "claim": {
+                  "text": "Topic: compare SearXNG",
+                  "claim_id": 13302392564123901075,
+                  "is_numeric": false,
+                  "is_recent": false,
+                  "is_named_event": true
+                },
+                "verdict": "unverified",
+                "confidence": 0.99
+              }
+            ]
+          },
+          {
+            "stage": "synthesis",
+            "status": "ok",
+            "elapsed_ms": null,
+            "summary": "synthesized by google/gemini-3.8-flash",
+            "detail": {
+              "model": "google/gemini-3.8-flash"
+            }
+          },
+          {
+            "stage": "judge",
+            "status": "ok",
+            "elapsed_ms": null,
+            "summary": "quality 69/100",
+            "detail": {
+              "quality_score": 69
+            }
+          },
+          {
+            "stage": "citation_audit",
+            "status": "degraded",
+            "elapsed_ms": null,
+            "summary": "4/40 citations supported (precision 0.10)",
+            "detail": {
+              "unsupported": [
+                2,
+                3,
+                5,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23,
+                24,
+                25,
+                26,
+                27,
+                28,
+                29,
+                30,
+                31,
+                32,
+                33,
+                34,
+                35,
+                36,
+                37,
+                38,
+                39
+              ],
+              "precision": 0.1
+            }
+          }
+        ],
+        "sources": [
+          {
+            "n": 1,
+            "url": "https://doi.org/10.5281/zenodo.19323964",
+            "title": "The Agentic Internet: A Clean Web for Machines",
+            "engine": "pipeline"
+          },
+          {
+            "n": 2,
+            "url": "https://alphacorp.ai/blog/perplexity-search-api-vs-tavily-the-better-choice-for-rag-and-agents-in-2025",
+            "title": "Perplexity Search API vs. Tavily: The Better Choice for RAG ...",
+            "engine": "pipeline"
+          },
+          {
+            "n": 3,
+            "url": "https://www.techrxiv.org/doi/pdf/10.36227/techrxiv.174681482.27435614/v1",
+            "title": "A Review on Vibe Coding: Fundamentals, State-of-the-art, Challenges and Future Directions",
+            "engine": "pipeline"
+          },
+          {
+            "n": 4,
+            "url": "https://chemrxiv.org/engage/api-gateway/chemrxiv/assets/orp/resource/item/6763fa746dde43c9089bfac8/original/ai-agents-in-chemical-research-an-intelligent-research-assistant-system.pdf",
+            "title": "AI Agents in Chemical Research: An Intelligent Research Assistant System",
+            "engine": "pipeline"
+          },
+          {
+            "n": 5,
+            "url": "https://www.tavily.com/blog/tavily-101-ai-powered-search-for-developers",
+            "title": "Tavily 101: AI-powered Search for Developers | Tavily Blog",
+            "engine": "pipeline"
+          },
+          {
+            "n": 6,
+            "url": "https://fastcrw.com/alternatives/exa-vs-tavily",
+            "title": "Exa vs Tavily — Neural Search vs Agent Web Access (2026)",
+            "engine": "pipeline"
+          },
+          {
+            "n": 7,
+            "url": "https://www.olostep.com/blog/tavily-alternatives",
+            "title": "8 Best Tavily Alternatives for AI Agents and RAG in 2026",
+            "engine": "pipeline"
+          },
+          {
+            "n": 8,
+            "url": "https://www.ssdnodes.com/learn/lang/pcm/searxng-rate-limits-and-429-errors",
+            "title": "How to Fix SearXNG 429 Errors and Rate Limits",
+            "engine": "pipeline"
+          },
+          {
+            "n": 9,
+            "url": "https://codenote.net/en/posts/tavily-alternatives-cost-comparison-search-extract-api",
+            "title": "Cost-Optimizing Search and Extraction APIs for AI Agents",
+            "engine": "pipeline"
+          },
+          {
+            "n": 10,
+            "url": "https://take-a-deep-breath0.com/en/blog/ai-agent-search-api-guide",
+            "title": "AI Agent Search API Buyer's Guide: Brave vs Tavily vs Exa vs DDG",
+            "engine": "pipeline"
+          },
+          {
+            "n": 11,
+            "url": "https://www.nimbleway.com/blog/nimble-retriever-vs-tavily-boosting-your-llm-rag-agents-with-real-time-data",
+            "title": "Nimble Retriever vs. Tavily: Boosting Your LLM, RAG, Agents ...",
+            "engine": "pipeline"
+          },
+          {
+            "n": 12,
+            "url": "https://www.d5n.xyz/en/posts/openclaw-search-solutions-comparison/",
+            "title": "Search Solutions for AI Agents: SearXNG vs. Tavily vs. Custom",
+            "engine": "pipeline"
+          },
+          {
+            "n": 13,
+            "url": "https://aclanthology.org/2026.acl-demo.36.pdf",
+            "title": "FactSearch: An Interactive Agentic Fact Search System for Verifying Large Language Model Outputs",
+            "engine": "pipeline"
+          },
+          {
+            "n": 14,
+            "url": "https://docs.litellm.ai/docs/search/searxng",
+            "title": "SearXNG Search | liteLLM",
+            "engine": "pipeline"
+          },
+          {
+            "n": 15,
+            "url": "https://github.com/brcrusoe72/agent-search",
+            "title": "GitHub - brcrusoe72/agent-search: Self-hosted search API ...",
+            "engine": "pipeline"
+          },
+          {
+            "n": 16,
+            "url": "https://arxiv.org/abs/2605.18805",
+            "title": "RecoAtlas: From Semantic Plausibility to Set-Level Utility in LLM Recommendation Agents",
+            "engine": "pipeline"
+          },
+          {
+            "n": 17,
+            "url": "https://www.tavily.com/blog/how-we-built-the-fastest-web-search-in-the-world",
+            "title": "How we built the fastest web search in the world",
+            "engine": "pipeline"
+          },
+          {
+            "n": 18,
+            "url": "https://openbenchmarks.com/web-search/best-web-search-api-for-ai",
+            "title": "Best Web Search APIs for AI Agents: 2026 Comparison & Benchmark",
+            "engine": "pipeline"
+          },
+          {
+            "n": 19,
+            "url": "https://arxiv.org/abs/2502.17443",
+            "title": "AI Agentic workflows and Enterprise APIs: Adapting API architectures for the age of AI agents",
+            "engine": "pipeline"
+          },
+          {
+            "n": 20,
+            "url": "https://parallel.ai/articles/openai-web-search-vs-parallel-vs-exa-vs-tavily-how-to-choose",
+            "title": "OpenAI Web Search vs Parallel vs Exa vs Tavily: Best API | Parallel",
+            "engine": "pipeline"
+          },
+          {
+            "n": 21,
+            "url": "https://apiserpent.com/blog/best-web-search-api-ai-agents-rag",
+            "title": "Best Web Search API for AI Agents & RAG (2026, 5 Compared)",
+            "engine": "pipeline"
+          },
+          {
+            "n": 22,
+            "url": "https://finance.yahoo.com/news/tavily-raises-25-million-power-143000693.html",
+            "title": "Tavily Raises $25 Million to Power the Internet of Agents",
+            "engine": "pipeline"
+          },
+          {
+            "n": 23,
+            "url": "https://aimultiple.com/agentic-search",
+            "title": "Agentic Search: Benchmark 8 Search APIs for Agents",
+            "engine": "pipeline"
+          },
+          {
+            "n": 24,
+            "url": "https://arxiv.org/abs/2402.13753",
+            "title": "LongRoPE: Extending LLM Context Window Beyond 2 Million Tokens",
+            "engine": "pipeline"
+          },
+          {
+            "n": 25,
+            "url": "https://www.reddit.com/r/Rag/comments/1gr8jnr/which_search_api_should_i_use_between_tavilycom",
+            "title": "Which search API should I use between Tavily.com, Exa.ai ...",
+            "engine": "pipeline"
+          },
+          {
+            "n": 26,
+            "url": "https://www.firecrawl.dev/blog/tavily-alternatives",
+            "title": "5 Tavily Alternatives for Better Pricing, Performance, and ...",
+            "engine": "pipeline"
+          },
+          {
+            "n": 27,
+            "url": "https://github.com/jianjungki/tavily-open",
+            "title": "GitHub - jianjungki/tavily-open: Open-source replacement for ...",
+            "engine": "pipeline"
+          },
+          {
+            "n": 28,
+            "url": "https://arxiv.org/abs/2502.20383",
+            "title": "Why Are Web AI Agents More Vulnerable Than Standalone LLMs? A Security Analysis",
+            "engine": "pipeline"
+          },
+          {
+            "n": 29,
+            "url": "https://openclawlaunch.com/guides/openclaw-searxng",
+            "title": "OpenClaw SearXNG Setup — Free Self-Hosted Search for ...",
+            "engine": "pipeline"
+          },
+          {
+            "n": 30,
+            "url": "https://github.com/siosig/searxng-crawl4ai-mcp",
+            "title": "GitHub - siosig/searxng-crawl4ai-mcp",
+            "engine": "pipeline"
+          },
+          {
+            "n": 31,
+            "url": "https://deepwiki.com/searxng/searxng/11.2-limiter-and-valkey-integration",
+            "title": "Limiter and Valkey Integration | searxng/searxng | DeepWiki",
+            "engine": "pipeline"
+          },
+          {
+            "n": 32,
+            "url": "https://arxiv.org/abs/2502.11228",
+            "title": "Vendi-RAG: Adaptively Trading-Off Diversity And Quality Significantly Improves Retrieval Augmented Generation With LLMs",
+            "engine": "pipeline"
+          },
+          {
+            "n": 33,
+            "url": "https://arxiv.org/abs/2508.08322",
+            "title": "Context Engineering for Multi-Agent LLM Code Assistants Using Elicit, NotebookLM, ChatGPT, and Claude Code",
+            "engine": "pipeline"
+          },
+          {
+            "n": 34,
+            "url": "https://arxiv.org/abs/2511.02841",
+            "title": "AI Agents with Decentralized Identifiers and Verifiable Credentials",
+            "engine": "pipeline"
+          },
+          {
+            "n": 35,
+            "url": "https://www.serverspan.com/en/blog/searxng-on-a-vps-how-to-run-private-search-without-getting-rate-limited-into-uselessness",
+            "title": "SearXNG on a VPS: how to run private search without getting ...",
+            "engine": "pipeline"
+          },
+          {
+            "n": 36,
+            "url": "https://arxiv.org/abs/2606.26122",
+            "title": "DocArena: Turning Raw Documents into Controllable Training Environments for Document Search Agents",
+            "engine": "pipeline"
+          },
+          {
+            "n": 37,
+            "url": "https://codenote.net/en/posts/tavily-alternatives-cost-comparison-search-extract-api/",
+            "title": "Tavily Alternatives Compared — Cost-Optimizing Search and ...",
+            "engine": "pipeline"
+          },
+          {
+            "n": 38,
+            "url": "https://en.wikipedia.org/wiki/List_of_free_and_open-source_software_packages",
+            "title": "List of free and open-source software packages",
+            "engine": "pipeline"
+          },
+          {
+            "n": 39,
+            "url": "https://arxiv.org/abs/2412.02266",
+            "title": "BOTracle: A framework for Discriminating Bots and Humans",
+            "engine": "pipeline"
+          },
+          {
+            "n": 40,
+            "url": "https://www.techrxiv.org/doi/pdf/10.36227/techrxiv.174495492.22752319/v1",
+            "title": "A Survey on Model Context Protocol: Architecture, State-of-the-art, Challenges and Future Directions",
+            "engine": "pipeline"
+          }
+        ]
+      }
+    ]
+  }
+}

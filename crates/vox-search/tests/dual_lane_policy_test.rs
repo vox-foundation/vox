@@ -1,5 +1,8 @@
 //! Dual-lane policy and ResearchLane serde verification tests.
 
+// Task 9c: no real web host from any test (see tests/common/mod.rs).
+mod common;
+
 use vox_search::ResearchLane as ReExportedResearchLane;
 use vox_search::policy::{ResearchLane, SearchPolicy};
 

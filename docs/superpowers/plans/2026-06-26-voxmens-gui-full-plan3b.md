@@ -10,7 +10,7 @@ status: plan
 **Goal.** Ship the *complete* `mens` ("Model Lab") and `populi` ("Mesh") GUI
 surfaces in one plan — **full launch + monitor**, not a v1/v2 split. This
 supersedes both the v1 monitor-only plan
-[`2026-06-26-voxmens-gui-v1-plan3b.md`](2026-06-26-voxmens-gui-v1-plan3b.md) and
+`2026-06-26-voxmens-gui-v1-plan3b.md` (never committed) and
 its deferred "v2" section. We build, in one program: (a) all read/light-action
 coverage from the prior v1; (b) the 4–5 **streaming Tauri wrappers** that launch
 long jobs (`mens train`/`serve`, `populi up`/`down`) emitting `vox://…` progress

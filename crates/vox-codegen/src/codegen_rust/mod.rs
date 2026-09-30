@@ -45,6 +45,26 @@ mod tests {
         HirModule::default()
     }
 
+    /// Script-mode db glue calls `vox_db::DbConfig::resolve_canonical`, which only
+    /// exists under vox-db's `host-integration` feature — so the script manifest
+    /// must enable it, as the app manifests already do.
+    #[test]
+    fn script_manifest_enables_vox_db_host_integration_for_tables() {
+        let mut module = empty_module();
+        module.tables.push(simple_task_table());
+        let out = super::pipeline::generate_script(&module, "vox-script", None)
+            .expect("table module emits a script crate");
+        let cargo = &out.files["Cargo.toml"];
+        let line = cargo
+            .lines()
+            .find(|l| l.starts_with("vox-db ="))
+            .unwrap_or_else(|| panic!("script with a table must depend on vox-db: {cargo}"));
+        assert!(
+            line.contains("\"host-integration\""),
+            "vox-db dep must enable host-integration for resolve_canonical: {line}"
+        );
+    }
+
     fn simple_task_table() -> HirTable {
         HirTable {
             id: DefId(1),

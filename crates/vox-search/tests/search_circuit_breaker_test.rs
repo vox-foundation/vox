@@ -1,3 +1,6 @@
+// Task 9c: no real web host from any test (see tests/common/mod.rs).
+mod common;
+
 use std::sync::Arc;
 use std::thread;
 use vox_search::search_circuit_breaker::{
@@ -136,7 +139,12 @@ async fn test_dispatcher_records_failure_on_error() {
         enable_wikipedia: false,
         enable_openalex: false,
         enable_arxiv: false,
-        fast_timeout_ms: 100,
+        // Generous on purpose: this test asserts the genuine-connection-error path (which arms
+        // the breaker regardless of lane per Task 8a), not the Fast-lane deadline itself. A tight
+        // budget here races the connection-refused response against scheduler contention and can
+        // misclassify it as ProviderStatus::Timeout (which — correctly, post-8a — does NOT arm
+        // the breaker on the default Fast lane), producing a false failure unrelated to this test's intent.
+        fast_timeout_ms: 5000,
         ..SearchPolicy::default()
     };
 

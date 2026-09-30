@@ -52,19 +52,10 @@ pub fn spawn_inference_worker(
     std::thread::spawn(move || {
         let ready = ready_for_worker;
         // Load the plugin once; keep it alive for the worker's lifetime.
-        let plugin_id = match resolve_ml_backend_plugin(&vox_plugin_host::probe()) {
-            Ok(id) => id,
-            Err(e) => {
-                tracing::error!("no ML backend plugin matches this host: {e}");
-                ready.store(false, Ordering::SeqCst);
-                while let Ok(req) = rx.recv() {
-                    let _ = req
-                        .reply
-                        .send(Err(format!("no ML backend plugin matches this host: {e}")));
-                }
-                return;
-            }
-        };
+        let plugin_id = vox_populi::mens::select_mens_backend(
+            vox_populi::mens::DeviceKind::Best,
+            &vox_plugin_host::probe(),
+        );
         let plugin_result = vox_plugin_host::cached_code_plugin(plugin_id);
         let plugin = match plugin_result {
             Ok(p) => p,
@@ -153,30 +144,9 @@ fn inference_payload(default_system_prompt: &str, req: &InferenceRequest) -> Str
     .to_string()
 }
 
-#[cfg(feature = "execution-api")]
-fn resolve_ml_backend_plugin(
-    capabilities: &vox_plugin_host::CapabilitySet,
-) -> Result<&'static str, vox_plugin_host::errors::LoadError> {
-    vox_plugin_host::resolve_extension_point(
-        "MlBackend",
-        crate::commands::schola::merge_qlora::ML_BACKEND_CANDIDATES,
-        capabilities,
-    )
-}
-
 #[cfg(all(test, feature = "execution-api"))]
 mod tests {
-    use super::{InferenceRequest, inference_payload, resolve_ml_backend_plugin};
-
-    #[test]
-    fn metal_capability_selects_metal_serve_plugin() {
-        let capabilities =
-            vox_plugin_host::CapabilitySet::from_tags(["cpu-only", "apple-silicon", "metal"]);
-        assert_eq!(
-            resolve_ml_backend_plugin(&capabilities).unwrap(),
-            "mens-candle-metal"
-        );
-    }
+    use super::{InferenceRequest, inference_payload};
 
     #[test]
     fn the_payload_carries_the_system_prompt_and_the_sampling_parameters() {

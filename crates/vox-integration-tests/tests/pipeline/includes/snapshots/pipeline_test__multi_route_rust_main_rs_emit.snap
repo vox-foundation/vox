@@ -146,7 +146,7 @@ async fn handle_m_create_todo(Extension(vox_rid): Extension<Option<String>>, Jso
 }
 
 async fn handle_sf_get_stats(Extension(vox_rid): Extension<Option<String>>, Json(request): Json<serde_json::Value>) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    return Ok(Json(serde_json::to_value(42).map_err(|e| (
+    return Ok(Json(serde_json::to_value(42i64).map_err(|e| (
     StatusCode::INTERNAL_SERVER_ERROR,
     Json(vox_http_client::envelope::error_json("SERIALIZATION_ERROR", format!("{}", e), vox_rid.clone(), None)),
 ))?));

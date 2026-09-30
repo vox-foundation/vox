@@ -5,7 +5,7 @@ use vox_orchestrator_mcp::{ServerState, handle_tool_call};
 use vox_skills::{SkillManifest, VoxSkillBundle};
 
 #[tokio::test]
-#[ignore = "slow; needs docker"]
+#[ignore = "owner:integration-tests sunset:never slow; needs docker"]
 async fn skill_run_mcp_matches_sandbox_exit_semantics() {
     let state = ServerState::new_full(OrchestratorConfig::default());
     let bundle = VoxSkillBundle::new(

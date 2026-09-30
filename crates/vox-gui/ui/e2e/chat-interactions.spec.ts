@@ -1,89 +1,82 @@
 /**
- * Chat submit -> stream -> persist against the tauriMock, driving the
- * `vox://agent-events` stream with the __TAURI_EMIT__ helper (tauriMockShared).
- * Guards two distinct contracts:
+ * Chat composer submit -> `chat_turn` -> persist against the tauriMock.
+ * Guards three contracts:
  *  - frontend double-dispatch (e.g. duplicate Enter handling): exactly ONE
- *    `submit_orchestrator_task` per submit;
+ *    `chat_turn` per submit (the single composer dispatch since dfb707f38);
  *  - the C2 `already_submitted` contract: the persisted user row must carry
  *    `already_submitted: true` — that flag is what stops the Rust backend's
  *    secretary re-submit (the re-submit itself happens daemon-side and is
- *    invisible to this mock, so the flag IS the observable C2 guard here).
+ *    invisible to this mock, so the flag IS the observable C2 guard here);
+ *  - `chat_turn` already persists the sync reply server-side, so the GUI must
+ *    NOT re-persist it via `chat_append_message` (double row on reload).
+ *
+ * The former "stream tokens into the transcript" flow no longer exists from
+ * the composer: Quick chat is request/response, and Background task runs in a
+ * throwaway `bg-task-*` session (App.tsx submitFromComposer) so its stream is
+ * deliberately not folded into the active chat transcript.
  */
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { installTauriMock } from './lib/tauriMock';
 import { addMockInitScript } from './lib/tauriMockShared';
 
-test('submit streams tokens into the transcript and persists the assistant row', async ({ page }) => {
+type Call = { cmd: string; args?: any };
+const calls = async (page: Page, pred: (c: Call) => boolean): Promise<Call[]> =>
+  ((await page.evaluate(() => (window as any).__TAURI_CALLS__)) as Call[]).filter(pred);
+const isTurn = (c: Call) => c.cmd === 'chat_turn';
+
+async function submit(page: Page, text: string) {
+  const composer = page.getByLabel('Task composer');
+  await composer.fill(text);
+  await composer.press('Enter');
+}
+
+async function expectUserRowPersisted(page: Page, text: string) {
+  await expect
+    .poll(async () =>
+      (await calls(
+        page,
+        (c) =>
+          c.cmd === 'chat_append_message' &&
+          c.args?.input?.role === 'user' &&
+          c.args?.input?.content === text &&
+          c.args?.input?.already_submitted === true,
+      )).length,
+    )
+    .toBe(1);
+}
+
+test.beforeEach(async ({ page }) => {
   await addMockInitScript(page, installTauriMock, 'chat');
   await page.goto('/');
   await page.waitForSelector('nav', { timeout: 15_000 });
+});
 
-  const composer = page.getByLabel('Task composer');
-  await composer.fill('Summarize the repository layout');
-  await composer.press('Enter');
+test('quick chat submits one sync chat_turn, renders the reply, and does not re-persist it', async ({ page }) => {
+  await submit(page, 'Summarize the repository layout');
 
-  // Optimistic user bubble + exactly one dispatch (guards FRONTEND
-  // double-dispatch, e.g. duplicate Enter handling — NOT C2; the C2
-  // re-submit is daemon-side and never crosses the Tauri invoke boundary).
   await expect(page.getByText('Summarize the repository layout')).toBeVisible();
-  await expect
-    .poll(() =>
-      page.evaluate(() =>
-        (window as any).__TAURI_CALLS__.filter((c: any) => c.cmd === 'submit_orchestrator_task').length,
-      ),
-    )
-    .toBe(1);
-  // User row persisted on submit, carrying the C2 contract flag: Phase 1
-  // makes App.tsx send already_submitted: true, which is exactly what stops
-  // the backend secretary from re-submitting — the only mock-visible C2 guard.
-  expect(
-    await page.evaluate(() =>
-      (window as any).__TAURI_CALLS__.some(
-        (c: any) =>
-          c.cmd === 'chat_append_message' &&
-          c.args?.input?.role === 'user' &&
-          c.args?.input?.content === 'Summarize the repository layout' &&
-          c.args?.input?.already_submitted === true,
-      ),
-    ),
-  ).toBe(true);
+  await expect.poll(async () => (await calls(page, isTurn)).length).toBe(1);
+  const [turn] = await calls(page, isTurn);
+  expect(turn.args.input).toMatchObject({ execution: 'sync', content: 'Summarize the repository layout' });
+  await expectUserRowPersisted(page, 'Summarize the repository layout');
 
-  // Drive the stream for task 101 (mock submit_orchestrator_task returns task_id '101').
-  const emit = (kind: Record<string, unknown>, id: number) =>
-    page.evaluate(
-      ([k, i]) =>
-        (window as any).__TAURI_EMIT__('vox://agent-events', {
-          id: i,
-          timestamp_ms: Date.now(),
-          kind: k,
-        }),
-      [kind, id] as const,
-    );
-  await emit({ type: 'task_started', agent_id: 7, task_id: 101 }, 1);
-  await emit({ type: 'token_streamed', agent_id: 7, text: 'Hello from the mock stream.' }, 2);
-  // Scoped to the message bubble itself (id="msg-<id>"): the same streamed
-  // text also renders as the execution rail's "agent stream item" button,
-  // which lives inside the same role="log" region, so even scoping to the
-  // log is a Playwright strict-mode violation (matches 2 elements).
-  const messageBubble = page.locator('[id^="msg-"]').filter({ hasText: 'Hello from the mock stream.' });
-  await expect(messageBubble).toBeVisible();
-  await emit({ type: 'task_completed', task_id: 101 }, 3);
+  await expect(page.getByText('Mock quick-chat reply.')).toBeVisible();
+  // Settle, then confirm the reply was never appended a second time client-side.
+  await page.waitForTimeout(500);
+  expect(await calls(page, (c) => c.cmd === 'chat_append_message' && c.args?.input?.role === 'assistant')).toHaveLength(0);
+});
 
-  // Completed assistant bubble persists exactly once, tagged with the task id.
-  await expect
-    .poll(() =>
-      page.evaluate(() =>
-        (window as any).__TAURI_CALLS__.filter(
-          (c: any) => c.cmd === 'chat_append_message' && c.args?.input?.role === 'assistant',
-        ).length,
-      ),
-    )
-    .toBe(1);
-  const persisted = await page.evaluate(() =>
-    (window as any).__TAURI_CALLS__.find(
-      (c: any) => c.cmd === 'chat_append_message' && c.args?.input?.role === 'assistant',
-    ),
-  );
-  expect(persisted.args.input.content).toContain('Hello from the mock stream.');
-  expect(String(persisted.args.input.task_id)).toBe('101');
+test('background task submits one background chat_turn carrying the originating chat session', async ({ page }) => {
+  await page.getByRole('button', { name: 'Choose send mode' }).click();
+  await page.getByRole('button', { name: 'Set send mode: Background task' }).click();
+  await submit(page, 'Harden the crypto invariants');
+
+  await expect.poll(async () => (await calls(page, isTurn)).length).toBe(1);
+  const [turn] = await calls(page, isTurn);
+  expect(turn.args.input.execution).toBe('background');
+  // Dispatched under a throwaway session, but lineage points at the real chat.
+  expect(turn.args.input.session_id).toMatch(/^bg-task-/);
+  expect(turn.args.input.chat_session_id).not.toMatch(/^bg-task-/);
+  expect(turn.args.input.chat_session_id).toBeTruthy();
+  await expectUserRowPersisted(page, 'Harden the crypto invariants');
 });

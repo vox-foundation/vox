@@ -667,6 +667,16 @@ fn degenerate_paths_are_denied_not_degraded_to_the_parent() {
     }
 }
 
+/// Reading `.` means the CWD, not a degenerate path: it must still be scoped.
+/// The test process's CWD is the crate dir, outside this tempdir root.
+#[test]
+fn scoped_read_of_dot_is_checked_against_the_roots() {
+    let d = tempfile::tempdir().unwrap();
+    let caps = CapabilitySet::from_roots(vec![d.path().to_path_buf()], vec![], &[]).unwrap();
+    let r = run_with(caps, r#"pub fn main() { return fs.exists(".") }"#);
+    assert!(denied(&r, "fs"), "CWD outside the ro root: {r:?}");
+}
+
 #[test]
 fn frozen_time_and_seeded_random_are_what_the_receiver_said() {
     let r = run_with(

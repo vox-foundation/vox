@@ -467,7 +467,7 @@ pub fn upload_model_folder_blocking(
         .map_err(|_| anyhow::anyhow!("HF upload thread exited without sending result"))?
 }
 
-/// True iff `repo_id` (its pin-stripped name; see [`repo_name_without_revision`])
+/// True iff `repo_id` (its pin-stripped name; see `repo_name_without_revision`)
 /// already has at least one cached revision on disk — a purely local
 /// filesystem scan (`HFClient::scan_cache`), no network call. Lets a caller
 /// (e.g. `vox mens probe --detailed --model <repo>`) decide whether checking
@@ -731,6 +731,46 @@ mod tests {
             !required.contains("model-00002-of-00002.safetensors"),
             "must exclude the vision/mtp-only shard: {required:?}"
         );
+    }
+
+    #[tokio::test]
+    async fn download_model_from_local_dir_finds_optional_tokenizer_config_and_chat_template() {
+        // Offline: a local model directory returns before `ensure_download_allowed`
+        // is ever reached, so this needs no network and no env-var guard.
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(dir.path().join("config.json"), "{}").expect("write config.json");
+        std::fs::write(dir.path().join("model.safetensors"), b"").expect("write weights");
+        std::fs::write(dir.path().join("tokenizer.json"), "{}").expect("write tokenizer.json");
+        std::fs::write(dir.path().join("tokenizer_config.json"), "{}")
+            .expect("write tokenizer_config.json");
+        std::fs::write(dir.path().join("chat_template.jinja"), "").expect("write chat_template");
+
+        let files = super::download_model(dir.path().to_str().expect("utf8 tempdir path"))
+            .await
+            .expect("local directory with config.json + weights must resolve");
+
+        assert_eq!(
+            files.tokenizer_config,
+            Some(dir.path().join("tokenizer_config.json"))
+        );
+        assert_eq!(
+            files.chat_template,
+            Some(dir.path().join("chat_template.jinja"))
+        );
+    }
+
+    #[tokio::test]
+    async fn download_model_from_local_dir_leaves_missing_optional_files_as_none() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(dir.path().join("config.json"), "{}").expect("write config.json");
+        std::fs::write(dir.path().join("model.safetensors"), b"").expect("write weights");
+
+        let files = super::download_model(dir.path().to_str().expect("utf8 tempdir path"))
+            .await
+            .expect("local directory with config.json + weights must resolve");
+
+        assert_eq!(files.tokenizer_config, None);
+        assert_eq!(files.chat_template, None);
     }
 
     #[test]

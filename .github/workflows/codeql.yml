@@ -10,10 +10,11 @@
 name: "CodeQL"
 
 on:
-  # Off per-PR: CodeQL's Rust extractor is a ~60-min analysis and OOMs on large PR
-  # diff-ranges. Coverage retained via merge_group (pre-merge) and the
-  # weekly schedule — the per-PR critical path keeps its fast signal instead.
-  merge_group:
+  # Off per-PR and off merge_group: CodeQL's Rust extractor is a ~60-min
+  # analysis, which exceeds the fast-lane (PR/merge_group) 30-min cap
+  # (workflow_policy_guard) and OOMs on large PR diff-ranges anyway.
+  # Coverage is the weekly schedule below — the per-PR critical path keeps
+  # its fast signal instead.
   schedule:
     # Weekly, Monday 04:30 UTC.
     - cron: "30 4 * * 1"

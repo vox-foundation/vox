@@ -45,6 +45,7 @@ Use **`vox_config::env_parse`** for numeric defaults and operator tuning (e.g. H
 | `VOX_APP_DB_URL` | App data-plane SQL URL (postgres/mysql/libsql/sqlite) | Optional | `vox-sql` backend selection for app-plane execution |
 | `VOX_TELEMETRY_UPLOAD_URL`, `VOX_TELEMETRY_UPLOAD_TOKEN` | Optional telemetry ingest (explicit `vox telemetry upload`) | Optional | `vox-cli` resolves via `SecretId::VoxTelemetryUploadUrl` / `VoxTelemetryUploadToken`; see [ADR 023](../adr/023-optional-telemetry-remote-upload.md) |
 | `VOX_SEARCH_QDRANT_API_KEY` | Qdrant HTTP `api-key` (optional RAG sidecar) | Optional | [`vox_search::vector_qdrant`](../../../crates/vox-search/src/vector_qdrant.rs) via `SecretId::VoxSearchQdrantApiKey` |
+| `VOX_SEARCH_WEB_RESEARCH_DISABLED` | **Not a credential** — an operator/test kill switch. When truthy (`1`/`true`/`yes`/`on`), forces `SearchPolicy::web_research_enabled = false`, so no search leg (SearXNG, Tavily, Wikipedia/arXiv/DuckDuckGo fallbacks) can reach a live network endpoint regardless of research intent. Default: unset, i.e. web research **enabled** | Optional (operator/CI/test hermeticity only) | [`vox_search::policy::SearchPolicy::from_env`](../../../crates/vox-search/src/policy.rs) via `SecretId::VoxSearchWebResearchDisabled`; set by `vox-orchestrator-mcp`'s hermetic test init (`src/lib.rs`, `tests/common/mod.rs`) so no test process ever reaches a live search engine — never set by production code |
 | `VOX_MESH_TOKEN` | Populi control-plane auth (legacy full-access token) | Workflow-specific required (any mesh-class token) | Mesh transport/auth |
 | `VOX_MESH_WORKER_TOKEN` | Worker-scoped populi HTTP bearer | Optional (advance pools) | `POST` join/heartbeat/inbox/ack |
 | `VOX_MESH_SUBMITTER_TOKEN` | Submitter-scoped populi HTTP bearer | Optional | `POST` A2A deliver only |
@@ -89,6 +90,13 @@ master-key fallback. **Never** commit vault files or `.env` import fragments.
 - `local` mode requires no cloud key; `auto` resolves from `VOX_INFERENCE_PROFILE`.
 - Optional keys are reported separately as capability unlocks (not startup blockers).
 - OpenRouter does not replace RunPod/Vast keys: LLM gateway credentials and cloud GPU credentials are distinct domains.
+
+### Tavily web search (optional)
+
+- **Add the key (user action — agents never enter keys):** create one at <https://app.tavily.com>, copy it, then run `pbpaste | vox secrets set TAVILY_API_KEY --stdin` and confirm `vox secrets get TAVILY_API_KEY` shows a redacted `tvly-…`. Restart the daemon so the web dispatcher picks it up.
+- **Free tier:** 1,000 API credits per month. A `basic` search costs 1 credit, `advanced` costs 2 (`VOX_SEARCH_TAVILY_DEPTH`); `/extract` snippet uplift costs 1 credit per 5 URLs.
+- **Session budget:** `VOX_SEARCH_TAVILY_BUDGET` (default 50) caps credits per process (one daemon or CLI run). Once spent, the Tavily leg reports `budget_exhausted` and makes no request; the research trace's retrieval stage shows `tavily_credits: {used, remaining}`.
+- **Switches:** a present key auto-enables the Tavily leg; `VOX_SEARCH_TAVILY_ENABLED=0` turns it off (reported as `disabled`). `VOX_SEARCH_TAVILY_URL` points the client at a mirror or mock. `VOX_TAVILY_RESEARCH=1` opts into the `/research` tier, which is **not** auto-enabled by the key because its async polling is not implemented yet.
 
 ## Canonical Bundles
 

@@ -309,6 +309,13 @@ governor           = "0.10"
 strum              = { version = "0.28", features = ["derive"] }
 serial_test        = { version = "3", features = ["file_locks"] }
 wiremock           = "0.6"
+# Test-only pre-main initializer: used to set `VOX_HOME` before any test in a
+# binary can lazily initialize vox-config's process-wide user-config cache.
+# See crates/vox-orchestrator-mcp/src/lib.rs `hermetic_test_env`.
+ctor               = "1"
+# Companion to `ctor` above: process-exit cleanup for the same test-only
+# hermetic `VOX_HOME` temp directories (ctor 1.x dropped its own `#[dtor]`).
+dtor               = "0.3"
 tantivy            = { version = "0.22", default-features = false }
 scraper            = "0.20"
 html2text          = "0.12"
@@ -340,7 +347,6 @@ self_update        = "0.44"
 landlock           = "0.4.4"
 win32job           = "2"
 windows-sys        = "0.59"
-tavily             = "2.1.0"
 quick-xml          = "0.41"
 flate2             = { version = "1", default-features = false, features = ["rust_backend"] }
 bzip2              = "0.6.1"
@@ -424,6 +430,8 @@ qlora-rs = { path = "patches/qlora-rs-1.0.5" }
 peft-rs = { path = "patches/peft-rs-1.0.3" }
 # Vox: enable pure-rust crypto on all targets so MSVC builds do not require clang-cl (aegis C backend).
 aegis = { path = "patches/aegis-0.9.8" }
+# Vox: fix rank>4 strided reduce indexing on Metal (broke GQA K/V grads in QLoRA training).
+candle-metal-kernels = { path = "patches/candle-metal-kernels-0.10.2" }
 
 [profile.release]
 lto = "thin"

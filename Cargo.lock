@@ -1500,8 +1500,6 @@ dependencies = [
 [[package]]
 name = "candle-metal-kernels"
 version = "0.10.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b6b5a4cae6b4e1ab0efcee4dc05272d11b374a3d1ba121b3a961e36be54ab60"
 dependencies = [
  "half",
  "objc2",
@@ -3938,6 +3936,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2acce4a10f12dc2fb14a218589d4f1f62ef011b2d0cc4b3cb1bba8e94da14649"
 
 [[package]]
+name = "fallible-streaming-iterator"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7360491ce676a36bf9bb3c56c1aa791658183a54d2744120f27285738d90465a"
+
+[[package]]
 name = "fancy-regex"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6125,6 +6129,15 @@ dependencies = [
 
 [[package]]
 name = "hashlink"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ba4ff7128dee98c7dc9794b6a411377e1404dba1c97deb8d1a55297bd25d8af"
+dependencies = [
+ "hashbrown 0.14.5",
+]
+
+[[package]]
+name = "hashlink"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "824e001ac4f3012dd16a264bec811403a67ca9deb6c102fc5049b32c4574b35f"
@@ -7828,6 +7841,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f02ab6bace2054fb888a3c16f990117b579d14a3088e472d63c6011fa185c9d3"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "libsqlite3-sys"
+version = "0.30.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2e99fb7a497b1e3339bc746195567ed8d3e24945ecd636e3619d20b9de9e9149"
+dependencies = [
+ "cc",
+ "pkg-config",
+ "vcpkg",
 ]
 
 [[package]]
@@ -11918,6 +11942,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "rusqlite"
+version = "0.32.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7753b721174eb8ff87a9a0e799e2d7bc3749323e773db92e0984debb00019d6e"
+dependencies = [
+ "bitflags 2.13.0",
+ "fallible-iterator",
+ "fallible-streaming-iterator",
+ "hashlink 0.9.1",
+ "libsqlite3-sys",
+ "smallvec",
+]
+
+[[package]]
 name = "rust-stemmers"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -13306,7 +13344,7 @@ dependencies = [
  "futures-io",
  "futures-util",
  "hashbrown 0.16.1",
- "hashlink",
+ "hashlink 0.11.1",
  "indexmap 2.14.0",
  "log",
  "memchr",
@@ -14608,17 +14646,6 @@ dependencies = [
  "dunce",
  "embed-resource",
  "toml 1.1.2+spec-1.1.0",
-]
-
-[[package]]
-name = "tavily"
-version = "2.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2cb3ae3821be99e0cae0eb10531e720b43b2b55e7445565ea3496d692966b152"
-dependencies = [
- "reqwest 0.12.28",
- "serde",
- "tokio",
 ]
 
 [[package]]
@@ -16535,6 +16562,8 @@ dependencies = [
  "blake3",
  "bytes",
  "csv",
+ "ctor 1.0.13",
+ "dtor",
  "futures-util",
  "glob",
  "regex",
@@ -16890,6 +16919,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml_ng",
+ "serial_test",
  "sysinfo 0.39.3",
  "thiserror 2.0.18",
  "tokio",
@@ -17152,6 +17182,7 @@ version = "0.6.0"
 dependencies = [
  "chrono",
  "dirs",
+ "regex",
  "serde",
  "serde_json",
  "serde_yaml_ng",
@@ -17165,6 +17196,7 @@ dependencies = [
  "vox-llm-egress",
  "vox-secrets",
  "vox-telemetry",
+ "walkdir",
  "workspace-hack",
 ]
 
@@ -17270,10 +17302,12 @@ dependencies = [
  "bincode 2.0.1",
  "blake3",
  "chrono",
+ "criterion",
  "data-encoding",
  "hex",
  "keyring",
  "regex",
+ "rusqlite",
  "semver",
  "serde",
  "serde_json",
@@ -17883,6 +17917,7 @@ dependencies = [
  "cpal",
  "dialoguer",
  "dirs",
+ "glob",
  "hex",
  "hound",
  "iroh",
@@ -18126,7 +18161,9 @@ dependencies = [
  "blake3",
  "chrono",
  "crossbeam-queue",
+ "ctor 1.0.13",
  "dirs",
+ "dtor",
  "futures-util",
  "glob",
  "globset",
@@ -18276,6 +18313,7 @@ dependencies = [
  "vox-db",
  "vox-http-client",
  "vox-package-types",
+ "wiremock",
  "workspace-hack",
 ]
 
@@ -18878,6 +18916,7 @@ dependencies = [
  "vox-scientia",
  "vox-search",
  "vox-secrets",
+ "wiremock",
  "workspace-hack",
 ]
 
@@ -18956,6 +18995,7 @@ dependencies = [
  "chrono",
  "feed-rs",
  "flate2",
+ "futures",
  "gix",
  "hex",
  "nanopub",
@@ -19010,6 +19050,7 @@ version = "0.6.0"
 dependencies = [
  "anyhow",
  "blake3",
+ "ctor 1.0.13",
  "deadpool",
  "futures",
  "html2text",
@@ -19022,7 +19063,6 @@ dependencies = [
  "serde_yaml_ng",
  "strsim",
  "tantivy",
- "tavily",
  "tempfile",
  "tokio",
  "tracing",

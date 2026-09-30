@@ -170,7 +170,7 @@ mod tests {
     /// `VOX_REAL_MODEL_DIR=/tmp/qwen3-0.6b-q4 cargo test -p vox-populi --lib \
     ///   --features mens-train real_qwen3_checkpoint_produces_real_text -- --ignored --nocapture`
     #[tokio::test]
-    #[ignore]
+    #[ignore = "owner:mens sunset:never needs a real quantized Qwen3 checkpoint in VOX_REAL_MODEL_DIR; run manually with --ignored"]
     async fn real_qwen3_checkpoint_produces_real_text() {
         let dir = std::env::var("VOX_REAL_MODEL_DIR")
             .expect("set VOX_REAL_MODEL_DIR to a real quantized Qwen3 checkpoint directory");

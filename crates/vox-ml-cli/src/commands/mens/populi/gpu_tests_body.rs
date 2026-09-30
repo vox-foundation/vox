@@ -86,21 +86,19 @@ fn merge_qlora_rejects_burn_bin_adapter() {
 /// The `MlBackend` plugin for this host, taken from the workspace build (the dylib next to
 /// this test binary's profile dir) and installed into a temp root. The user's plugin
 /// install dir is never consulted, so a stale or ABI-mismatched install cannot be loaded.
-/// `None` (after a SKIP line) when this host has no backend candidate, the plugin is not
+/// `None` (after a SKIP line) when the selected backend plugin is not
 /// built, or the build does not load against this host.
 fn fresh_ml_backend() -> Option<(
     &'static str,
     vox_plugin_host::LoadedCodePlugin,
     tempfile::TempDir,
 )> {
-    let Ok(id) = vox_plugin_host::resolve_extension_point(
-        "MlBackend",
-        merge_qlora::ML_BACKEND_CANDIDATES,
+    // The same selector the CLI uses; it always names a backend (CPU fallback), so the
+    // only SKIP left is "plugin not built" below.
+    let id = vox_populi::mens::select_mens_backend(
+        vox_populi::mens::DeviceKind::Best,
         &vox_plugin_host::probe(),
-    ) else {
-        eprintln!("SKIP merge-qlora roundtrip: no MlBackend plugin candidate for this host");
-        return None;
-    };
+    );
     let lib = format!(
         "{}vox_plugin_{}{}",
         std::env::consts::DLL_PREFIX,
@@ -138,6 +136,7 @@ fn fresh_ml_backend() -> Option<(
 }
 
 #[test]
+#[ignore = "owner:mens sunset:never dispatches to an installed MlBackend plugin (vox plugin install mens-candle-metal / -cuda / -cpu); run with --ignored. Merge math is covered hermetically by vox-plugin-mens-candle-core merge::tests"]
 fn merge_qlora_cli_roundtrip_lm_head_subset() {
     use std::collections::HashMap;
 
@@ -256,6 +255,7 @@ fn merge_qlora_cli_roundtrip_lm_head_subset() {
 }
 
 #[test]
+#[ignore = "owner:mens sunset:never dispatches to an installed MlBackend plugin (vox plugin install mens-candle-metal / -cuda / -cpu); run with --ignored. Merge math is covered hermetically by vox-plugin-mens-candle-core merge::tests"]
 fn merge_qlora_cli_roundtrip_lm_head_subset_adapter_manifest_v3() {
     use std::collections::HashMap;
 

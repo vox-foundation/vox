@@ -8,7 +8,8 @@ use crate::duckduckgo::DuckDuckGoClient;
 use crate::openalex::OpenAlexClient;
 use crate::policy::SearchPolicy;
 use crate::searxng::SearxngSearchClient;
-use crate::tavily::TavilySearchClient;
+#[cfg(feature = "tavily")]
+use crate::tavily::TavilyClient;
 use crate::wikipedia::WikipediaClient;
 use vox_secrets::{SecretId, resolve_secret};
 
@@ -192,7 +193,7 @@ pub async fn probe_search_provider_with_policy(
                     }),
                 }
             } else {
-                let client = match TavilySearchClient::from_env() {
+                let client = match TavilyClient::from_env(policy.tavily_api_url.as_deref()) {
                     Some(c) => c,
                     None => {
                         return Ok(ProviderProbeResult {

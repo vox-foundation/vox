@@ -20,3 +20,23 @@ fn plugin_toml_version_matches_crate_version() {
         env!("CARGO_PKG_VERSION")
     );
 }
+
+/// The CPU build ships with Plugin.cpu.toml; the installer derives the asset
+/// name from its version, so it must track the crate and Plugin.toml too.
+#[test]
+fn plugin_cpu_toml_matches_plugin_toml() {
+    let get = |src: &str| -> (String, i64) {
+        let v: toml::Value = src.parse().unwrap();
+        (
+            v["plugin"]["version"].as_str().unwrap().to_string(),
+            v["plugin"]["payload"]["abi-version"].as_integer().unwrap(),
+        )
+    };
+    let main = get(include_str!("../Plugin.toml"));
+    let cpu = get(include_str!("../Plugin.cpu.toml"));
+    assert_eq!(
+        cpu, main,
+        "Plugin.cpu.toml version/abi-version must match Plugin.toml"
+    );
+    assert_eq!(cpu.0, env!("CARGO_PKG_VERSION"));
+}

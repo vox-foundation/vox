@@ -40,7 +40,7 @@ pub const CONTEXT_EXCEEDED_PREFIX: &str = "CONTEXT_LENGTH_EXCEEDED: ";
 /// `error_class` tag `map_egress_error` assigns to `vox_llm_egress::EgressError::RateLimited`.
 /// Kept `pub` (and re-exported via `vox_actor_runtime::llm`) so downstream callers —
 /// e.g. `vox-cli`'s `vox doctor` rate-limit check, which reads this same tag back out of
-/// the `llm_attempts.error_class` DB column written by [`record_telemetry_attempt`] —
+/// the `llm_attempts.error_class` DB column written by `record_telemetry_attempt` —
 /// can match on this constant instead of re-guessing the string literal.
 pub const RATE_LIMITED_ERROR_CLASS: &str = "rate-limited";
 

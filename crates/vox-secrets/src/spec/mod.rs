@@ -302,6 +302,35 @@ pub const fn secret_reads_populi_env_file(id: SecretId) -> bool {
 }
 
 #[cfg(test)]
+mod remediation_tests {
+    use super::*;
+
+    /// `vox secrets set` takes the canonical env name and `--stdin`, never a
+    /// lowercase alias with a positional token (`vox secrets set openrouter
+    /// <token>` fails with "not a canonical managed secret name" — a real user
+    /// hit this from `OpenRouterApiKey`'s remediation text before this fix).
+    #[test]
+    fn remediation_set_commands_use_the_real_command_shape() {
+        let mut bad = Vec::new();
+        for spec in all_specs() {
+            let Some(cmd_start) = spec.remediation.find("vox secrets set ") else {
+                continue;
+            };
+            let rest = &spec.remediation[cmd_start + "vox secrets set ".len()..];
+            let arg = rest.split(['`', ' ']).next().unwrap_or("");
+            if arg != spec.canonical_env || !rest.starts_with(&format!("{arg} --stdin")) {
+                bad.push(format!("{}: {:?}", spec.canonical_env, spec.remediation));
+            }
+        }
+        assert!(
+            bad.is_empty(),
+            "remediation text must say `vox secrets set <CANONICAL_ENV> --stdin`:\n{}",
+            bad.join("\n")
+        );
+    }
+}
+
+#[cfg(test)]
 mod taxonomy_tests {
     use super::*;
 

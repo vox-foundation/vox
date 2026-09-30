@@ -1,11 +1,13 @@
 name: GUI Cross-Platform Build (Win/macOS/Ubuntu)
 
 on:
-  pull_request:
-    paths:
-      - 'crates/vox-gui/**'
-      - '.github/workflows/gui-cross-build.yml'
-  merge_group:
+  # Not on pull_request/merge_group: the full Win/macOS/Ubuntu matrix
+  # (gui-cross-build 90m) exceeds the fast-lane (PR/merge_group) 30-min cap
+  # (workflow_policy_guard). Runs nightly instead, mirroring mobile-e2e-ios's
+  # move off push/PR (per-PR compile signal for vox-gui is still covered by
+  # ci.yml's own Linux build).
+  schedule:
+    - cron: '0 5 * * *'   # Nightly, staggered from other 03:00-06:00 UTC lanes
   workflow_dispatch:
 
 concurrency:
@@ -16,14 +18,15 @@ env:
   CARGO_TERM_COLOR: always
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
+permissions:
+  contents: read
+
 jobs:
-  # Emit the build matrix: Linux (WebKitGTK) every event for per-PR GUI compile signal;
-  # Win/macOS only off-PR (merge_group + dispatch) — they cannot run on the Linux fleet
-  # and their per-PR cost buys little over the Linux compile.
+  # Emit the build matrix: full Win/macOS/Ubuntu on every (nightly/dispatch) run.
   matrix-setup:
-    name: Compute GUI matrix (Win/macOS off per-PR)
+    name: Compute GUI matrix
     # Pure-bash compute job — runs on the local fleet per local-first policy.
-    runs-on: [self-hosted, linux]
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
       include: ${{ steps.gen.outputs.include }}
@@ -35,11 +38,7 @@ jobs:
           linux='{"os":"ubuntu-latest","target":"x86_64-unknown-linux-gnu","sidecar_src":"target/x86_64-unknown-linux-gnu/release/vox","sidecar_dst":"target/release/vox-x86_64-unknown-linux-gnu"}'
           win='{"os":"windows-latest","target":"x86_64-pc-windows-msvc","sidecar_src":"target/x86_64-pc-windows-msvc/release/vox.exe","sidecar_dst":"target/release/vox-x86_64-pc-windows-msvc.exe"}'
           mac='{"os":"macos-latest","target":"aarch64-apple-darwin","sidecar_src":"target/aarch64-apple-darwin/release/vox","sidecar_dst":"target/release/vox-aarch64-apple-darwin"}'
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "include=[$linux]" >> "$GITHUB_OUTPUT"
-          else
-            echo "include=[$linux,$win,$mac]" >> "$GITHUB_OUTPUT"
-          fi
+          echo "include=[$linux,$win,$mac]" >> "$GITHUB_OUTPUT"
 
   gui-cross-build:
     name: GUI Build (${{ matrix.os }})
@@ -113,6 +112,9 @@ jobs:
         run: |
           mkdir -p target/release
           cp ${{ matrix.sidecar_src }} ${{ matrix.sidecar_dst }}
+
+      - name: vox-gui tests
+        run: cargo test -p vox-gui --locked
 
       - name: Build vox-gui (Tauri)
         run: cargo build -p vox-gui

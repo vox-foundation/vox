@@ -52,6 +52,59 @@
         "objective": "Most quality per dollar; no flagship while another model fits",
         "reason": "Chosen by the model scorer as the best match for your request"
       }
+    },
+    {
+      "kind": "research_trace",
+      "status": "planned",
+      "required": ["mode", "status", "source_count", "stages", "sources"],
+      "example": {
+        "kind": "research_trace",
+        "mode": "quick",
+        "explicit": false,
+        "reasons": ["question + time-sensitive cue: \"latest\""],
+        "query": "SQLite JSONB performance",
+        "source_count": 2,
+        "model": "acme/widget-5.5",
+        "total_ms": 1200,
+        "status": "ok",
+        "stages": [
+          {
+            "stage": "detection",
+            "status": "ok",
+            "summary": "quick — question + time-sensitive cue",
+            "detail": {}
+          },
+          {
+            "stage": "retrieval",
+            "status": "ok",
+            "elapsed_ms": 800,
+            "summary": "2 hits from 1/1 providers",
+            "detail": {
+              "providers": [
+                {
+                  "provider": "searxng",
+                  "status": { "state": "ok", "hits": 2 },
+                  "elapsed_ms": 800
+                }
+              ]
+            }
+          }
+        ],
+        "sources": [
+          {
+            "n": 1,
+            "url": "https://example.com/sqlite-jsonb",
+            "title": "SQLite JSONB",
+            "engine": "searxng"
+          },
+          {
+            "n": 2,
+            "url": "https://example.com/jsonb-perf",
+            "title": "JSONB Performance",
+            "engine": "searxng"
+          }
+        ]
+      }
     }
   ],
   "golden_turn": {

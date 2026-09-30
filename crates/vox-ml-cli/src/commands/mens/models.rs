@@ -87,12 +87,12 @@ pub fn run_models(_verbose: bool) -> Result<()> {
 mod tests {
     use super::*;
 
+    /// A fresh checkout has no training runs: listing must report that and
+    /// succeed, not error. (cargo runs tests from the crate dir, which has no
+    /// `mens/runs`; the guard keeps this from passing vacuously if it ever does.)
     #[test]
-    fn run_models_does_not_panic() {
-        // DEFAULT_MENS_RUNS_ROOT ("mens/runs", relative to cwd) may or may not
-        // exist on the test host; either branch (missing-dir early return, or
-        // a real scan of whatever is there) must succeed without panicking.
+    fn listing_without_a_runs_dir_is_ok() {
+        assert!(!std::path::Path::new(vox_scaling_policy::DEFAULT_MENS_RUNS_ROOT).exists());
         assert!(run_models(false).is_ok());
-        assert!(run_models(true).is_ok());
     }
 }

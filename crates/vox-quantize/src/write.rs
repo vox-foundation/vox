@@ -40,7 +40,7 @@ pub struct ArtifactWriter {
     owns_scratch: bool,
     /// Whether `out_dir` has actually been created on disk yet. For
     /// `owns_scratch = true` (constructed via [`Self::new`]) this starts
-    /// `false`: creation is deferred to the first call to [`Self::stage`],
+    /// `false`: creation is deferred to the first call to `Self::stage`,
     /// which can return `Err`, instead of happening in `new()`, which
     /// cannot. Always `true` for `with_shard_budget`, which creates its
     /// (caller-supplied) directory eagerly since it can fail there.
@@ -89,7 +89,7 @@ impl ArtifactWriter {
     ///
     /// Creating the scratch directory can fail (disk full, no writable temp
     /// root, ...), but `new()` can't return `Result`, so that creation is
-    /// deferred to the first call to [`Self::stage`] (from `add_quantized`
+    /// deferred to the first call to `Self::stage` (from `add_quantized`
     /// or `add_f32`), which already returns `Result` and can propagate it
     /// via `QuantizeError::Io` instead of panicking.
     pub fn new() -> Self {
@@ -109,7 +109,7 @@ impl ArtifactWriter {
     /// Test-only seam: build a `new()`-shaped writer (streaming into a
     /// scratch dir, `finish` moves shards out) but with an explicit,
     /// possibly-uncreatable scratch path, so the lazy-creation error path in
-    /// [`Self::stage`] can be exercised without depending on the real OS
+    /// `Self::stage` can be exercised without depending on the real OS
     /// temp directory ever failing to create.
     #[cfg(test)]
     fn new_with_scratch_dir(out_dir: PathBuf) -> Self {

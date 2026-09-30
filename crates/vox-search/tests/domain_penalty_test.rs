@@ -1,3 +1,6 @@
+// Task 9c: no real web host from any test (see tests/common/mod.rs).
+mod common;
+
 use vox_search::policy::SearchPolicy;
 use vox_search::searxng::SearxngResult;
 use vox_search::web_dispatcher::{WebSearchDispatcher, extract_registrable_domain};
@@ -16,6 +19,7 @@ fn test_blacklisted_domain_results_are_pruned() {
             content: "...".into(), // AMENDED #5: uses content, not snippet
             score: Some(1.0),
             engine: Some("searxng".into()),
+            provider: None,
         },
         SearxngResult {
             url: "https://docs.rs/tokio".into(),
@@ -23,6 +27,7 @@ fn test_blacklisted_domain_results_are_pruned() {
             content: "...".into(),
             score: Some(0.8),
             engine: Some("searxng".into()),
+            provider: None,
         },
     ];
 
@@ -45,6 +50,7 @@ fn test_domain_penalty_scales_score() {
             content: "...".into(),
             score: Some(1.0),
             engine: Some("searxng".into()),
+            provider: None,
         },
         SearxngResult {
             url: "https://docs.rs/tokio".into(),
@@ -52,6 +58,7 @@ fn test_domain_penalty_scales_score() {
             content: "...".into(),
             score: Some(0.8),
             engine: Some("searxng".into()),
+            provider: None,
         },
     ];
 
@@ -100,6 +107,7 @@ fn test_domain_penalty_clamping_floor() {
         content: "...".into(),
         score: Some(1.0),
         engine: Some("searxng".into()),
+        provider: None,
     }];
 
     WebSearchDispatcher::filter_and_penalize_results(&mut results, &policy);

@@ -127,8 +127,9 @@ fn fs_resolve_allowed(
     {
         return None;
     }
-    let name = p.file_name()?;
-    if name == "." || name == ".." {
+    // A write needs a named target: writing `.` or `/` must not degrade to the
+    // parent directory. A read of `.` is the CWD and is scoped like any path below.
+    if write && p.file_name().is_none() {
         return None;
     }
     if fs_unscoped(caps) {

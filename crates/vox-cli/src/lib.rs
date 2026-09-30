@@ -640,7 +640,7 @@ pub enum Cli {
         cmd: commands::snapshot::SnapshotCmd,
     },
 
-    /// Roll back the orchestration stack or task execution state using the vox-bounded-fs ledger.
+    /// Undo an operation recorded in the live vox-orchestrator-d daemon's operation log (requires a running daemon).
     Rollback {
         /// Optional specific task or transaction ID to roll back.
         #[arg(long)]
@@ -685,8 +685,48 @@ impl vox_telemetry::TelemetryRecorder for StderrDebugSink {
 ///
 /// `db` is `Some` when the workspace journey DB opened successfully at startup.
 pub fn init_telemetry_sinks(db: Option<vox_db::VoxDb>) {
+    let cfg = vox_telemetry::TelemetryConfig::from_env();
+    init_telemetry_sinks_for(db, &cfg);
+}
+
+/// Whether any sink should be registered at all. Pure predicate — split out
+/// of [`init_telemetry_sinks_for`] so the gating logic is unit-testable
+/// without touching the process-wide global-recorder `OnceLock`.
+fn sinks_enabled(cfg: &vox_telemetry::TelemetryConfig) -> bool {
+    cfg.enabled
+}
+
+/// Whether the local upload spool ([`crate::telemetry_sink::SpoolSink`])
+/// should be registered. The spool (ADR 023) exists to feed
+/// `vox telemetry upload`, not as a general local event log — registering it
+/// regardless of `remote_upload` spooled every event for every command even
+/// with remote upload off, growing the queue without bound (8,605 pending
+/// files / 34 MB observed in the wild).
+fn spool_sink_enabled(cfg: &vox_telemetry::TelemetryConfig) -> bool {
+    cfg.enabled && cfg.remote_upload
+}
+
+/// Sink-selection logic for [`init_telemetry_sinks`], parameterized on an
+/// explicit config so it's testable without racing the process-wide
+/// `VOX_TELEMETRY` env var / global recorder `OnceLock`.
+///
+/// Master-off (`VOX_TELEMETRY=off`, org policy, or the user kill switch —
+/// see `TelemetryConfig::from_env`) registers no sinks at all, so
+/// `record_event!` stays a true no-op rather than silently fanning out to
+/// sinks that happened to be wired up before the check ran.
+///
+/// The [`crate::telemetry_sink::SpoolSink`] is registered only when
+/// `cfg.remote_upload` is set: the spool (ADR 023) exists to feed
+/// `vox telemetry upload`, not as a general local event log, so spooling
+/// every event regardless of upload intent grew the queue without bound
+/// (8,605 pending files / 34 MB observed with remote upload off).
+fn init_telemetry_sinks_for(db: Option<vox_db::VoxDb>, cfg: &vox_telemetry::TelemetryConfig) {
     use std::sync::Arc;
     use vox_telemetry::{CompositeRecorder, TelemetryRecorder};
+
+    if !sinks_enabled(cfg) {
+        return;
+    }
 
     let mut sinks: Vec<Arc<dyn TelemetryRecorder>> = Vec::new();
 
@@ -696,9 +736,11 @@ pub fn init_telemetry_sinks(db: Option<vox_db::VoxDb>) {
         )));
     }
 
-    sinks.push(Arc::new(crate::telemetry_sink::SpoolSink::new(
-        crate::telemetry_spool::spool_root(),
-    )));
+    if spool_sink_enabled(cfg) {
+        sinks.push(Arc::new(crate::telemetry_sink::SpoolSink::new(
+            crate::telemetry_spool::spool_root(),
+        )));
+    }
 
     // CR-L8 corpus-feedback events sink (P2.1c, ratified 2026-05-15).
     // Filters to the four CR-L8 telemetry variants (LintFinding, LintAutofix,
@@ -706,7 +748,8 @@ pub fn init_telemetry_sinks(db: Option<vox_db::VoxDb>) {
     // `<cwd>/contracts/reports/corpus-feedback-events/<YYYY-MM-DD>.jsonl`. The
     // `vox audit corpus-feedback` subcommand reads these files to aggregate
     // the quarterly substantive report. Override / disable via
-    // `$VOX_CORPUS_FEEDBACK_EVENTS_DIR`.
+    // `$VOX_CORPUS_FEEDBACK_EVENTS_DIR`. This sink is local-only (never
+    // uploaded), so it stays on regardless of `remote_upload`.
     if let Some(root) = crate::telemetry_corpus_feedback_sink::resolve_events_root() {
         sinks.push(Arc::new(
             crate::telemetry_corpus_feedback_sink::CorpusFeedbackJsonlSink::new(root),
@@ -714,12 +757,13 @@ pub fn init_telemetry_sinks(db: Option<vox_db::VoxDb>) {
     }
 
     // Phase D: if VOX_TELEMETRY=debug, also emit every event as JSON to stderr.
-    let cfg = vox_telemetry::TelemetryConfig::from_env();
     if cfg.debug_to_stderr {
         sinks.push(Arc::new(StderrDebugSink));
     }
 
-    vox_telemetry::set_global_recorder(Arc::new(CompositeRecorder::new(sinks)));
+    if !sinks.is_empty() {
+        vox_telemetry::set_global_recorder(Arc::new(CompositeRecorder::new(sinks)));
+    }
 }
 
 /// Run the `vox` CLI (parsed from `std::env::args`).
@@ -763,5 +807,45 @@ mod tests {
     #[test]
     fn mem_limit_module_is_linked() {
         crate::mem_limit::arm(usize::MAX);
+    }
+
+    fn cfg(enabled: bool, remote_upload: bool) -> vox_telemetry::TelemetryConfig {
+        let mut c = vox_telemetry::TelemetryConfig::default_on();
+        c.enabled = enabled;
+        c.remote_upload = remote_upload;
+        c
+    }
+
+    /// Regression: `init_telemetry_sinks` used to ignore the master switch
+    /// entirely (only `debug_to_stderr` was ever checked), so
+    /// `VOX_TELEMETRY=off` did not stop sinks from being registered.
+    #[test]
+    fn sinks_disabled_when_master_switch_off() {
+        assert!(!super::sinks_enabled(&cfg(false, true)));
+        assert!(!super::sinks_enabled(&cfg(false, false)));
+    }
+
+    #[test]
+    fn sinks_enabled_when_master_switch_on() {
+        assert!(super::sinks_enabled(&cfg(true, false)));
+    }
+
+    /// Regression: `SpoolSink` was registered unconditionally regardless of
+    /// `remote_upload`, spooling every event even with remote upload off
+    /// (8,605 pending files / 34 MB observed). The spool (ADR 023) should
+    /// only collect events destined for `vox telemetry upload`.
+    #[test]
+    fn spool_sink_disabled_when_remote_upload_off() {
+        assert!(!super::spool_sink_enabled(&cfg(true, false)));
+    }
+
+    #[test]
+    fn spool_sink_enabled_when_remote_upload_on() {
+        assert!(super::spool_sink_enabled(&cfg(true, true)));
+    }
+
+    #[test]
+    fn spool_sink_disabled_when_master_switch_off_even_if_remote_upload_on() {
+        assert!(!super::spool_sink_enabled(&cfg(false, true)));
     }
 }

@@ -600,75 +600,76 @@ pub async fn execute_search_plan(
         }
     };
 
-    let web_lines = if plan.corpora.contains(&SearchCorpus::WebResearch) {
-        match crate::web_dispatcher::WebSearchDispatcher::search(query, policy).await {
-            Ok(hits) => {
-                if policy.persist_web_hits
-                    && let Some(db) = db_opt.as_ref()
-                {
-                    for h in &hits {
-                        let db_arc = db.clone();
-                        let engine_name = h
-                            .provenance
-                            .iter()
-                            .find_map(|p| p.strip_prefix("engine:"))
-                            .unwrap_or("unknown")
-                            .to_string();
-                        let source_uri = format!("web-ingest:{engine_name}:{}", h.path);
-                        let title = h.title.clone();
-                        let body = h.content_snippet.clone();
-                        tokio::spawn(async move {
-                            let _ = crate::ingest::persist_text_document_chunk(
-                                db_arc.as_ref(),
-                                &source_uri,
-                                &title,
-                                &body,
-                                "text/plain",
+    let web_lines =
+        if plan.corpora.contains(&SearchCorpus::WebResearch) && policy.web_research_enabled {
+            match crate::web_dispatcher::WebSearchDispatcher::search(query, policy).await {
+                Ok(hits) => {
+                    if policy.persist_web_hits
+                        && let Some(db) = db_opt.as_ref()
+                    {
+                        for h in &hits {
+                            let db_arc = db.clone();
+                            let engine_name = h
+                                .provenance
+                                .iter()
+                                .find_map(|p| p.strip_prefix("engine:"))
+                                .unwrap_or("unknown")
+                                .to_string();
+                            let source_uri = format!("web-ingest:{engine_name}:{}", h.path);
+                            let title = h.title.clone();
+                            let body = h.content_snippet.clone();
+                            tokio::spawn(async move {
+                                let _ = crate::ingest::persist_text_document_chunk(
+                                    db_arc.as_ref(),
+                                    &source_uri,
+                                    &title,
+                                    &body,
+                                    "text/plain",
+                                )
+                                .await;
+                            });
+                        }
+                    }
+                    if !hits.is_empty() {
+                        backend_mix.push(SearchBackend::Web);
+                        if top_score.is_none() {
+                            top_score = hits.first().map(|h| h.score);
+                        }
+                    }
+                    hits.into_iter()
+                        .map(|h| {
+                            let engine = h
+                                .provenance
+                                .iter()
+                                .find_map(|p| p.strip_prefix("engine:"))
+                                .unwrap_or("unknown");
+                            unified_hits.push(UnifiedHit {
+                                source: "web".to_string(),
+                                kind: "web".to_string(),
+                                path: Some(h.path.clone()),
+                                title: (!h.title.is_empty()).then(|| h.title.clone()),
+                                snippet: h.content_snippet.replace('\n', " "),
+                                score: h.score,
+                                provenance: h.provenance.clone(),
+                            });
+                            format!(
+                                "[web:{}] {} (score {:.3}; engine: {})",
+                                h.path,
+                                h.content_snippet.replace('\n', " "),
+                                h.score,
+                                engine
                             )
-                            .await;
-                        });
-                    }
+                        })
+                        .collect()
                 }
-                if !hits.is_empty() {
-                    backend_mix.push(SearchBackend::Web);
-                    if top_score.is_none() {
-                        top_score = hits.first().map(|h| h.score);
-                    }
+                Err(e) => {
+                    warnings.push(format!("web_search_failed:{}", e));
+                    Vec::new()
                 }
-                hits.into_iter()
-                    .map(|h| {
-                        let engine = h
-                            .provenance
-                            .iter()
-                            .find_map(|p| p.strip_prefix("engine:"))
-                            .unwrap_or("unknown");
-                        unified_hits.push(UnifiedHit {
-                            source: "web".to_string(),
-                            kind: "web".to_string(),
-                            path: Some(h.path.clone()),
-                            title: (!h.title.is_empty()).then(|| h.title.clone()),
-                            snippet: h.content_snippet.replace('\n', " "),
-                            score: h.score,
-                            provenance: h.provenance.clone(),
-                        });
-                        format!(
-                            "[web:{}] {} (score {:.3}; engine: {})",
-                            h.path,
-                            h.content_snippet.replace('\n', " "),
-                            h.score,
-                            engine
-                        )
-                    })
-                    .collect()
             }
-            Err(e) => {
-                warnings.push(format!("web_search_failed:{}", e));
-                Vec::new()
-            }
-        }
-    } else {
-        Vec::new()
-    };
+        } else {
+            Vec::new()
+        };
 
     let symbol_proximity_lines = if plan.corpora.contains(&SearchCorpus::SymbolProximity) {
         let hits = crate::symbol_proximity::scan_symbol_proximity(

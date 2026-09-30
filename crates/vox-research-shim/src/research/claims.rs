@@ -2,6 +2,12 @@
 
 use serde::{Deserialize, Serialize};
 
+/// Neutral default for [`Claim::salience_score`] when no real score is
+/// available (LLM-parsed claims — see [`parse_claims_response`]).
+fn default_salience_score() -> f64 {
+    0.5
+}
+
 /// One extracted research claim.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Claim {
@@ -15,6 +21,20 @@ pub struct Claim {
     pub is_recent: bool,
     /// Heuristic flag: claim mentions a named entity / event.
     pub is_named_event: bool,
+    /// Task 15d review round 1 (minor): the per-claim salience score already
+    /// computed by the atomic decomposer
+    /// (`vox_scientia::claim_extractor::types::AtomicClaim::verifiability_score`),
+    /// carried through unchanged when claims come from `extract_claims_from_text`
+    /// so `verifier::select_claims_for_verification`'s per-run cap ranks by
+    /// that existing score literally, not a new boolean-sum heuristic. LLM-parsed
+    /// claims (`parse_claims_response`) have no equivalent per-claim score from
+    /// the model, so they get the neutral default (0.5) via
+    /// `default_salience_score` — same as the atomic decomposer's own
+    /// non-numeric-tuple default (`AtomicDecomposer::decompose`'s `0.6` less
+    /// its numeric-tuple bonus is `Semantic`'s baseline; 0.5 here is a
+    /// deliberately neutral fallback, not a copy of that specific value).
+    #[serde(default = "default_salience_score")]
+    pub salience_score: f64,
 }
 
 /// Extract claims from arbitrary source text via `vox-scientia` when enabled.
@@ -33,6 +53,7 @@ pub async fn extract_claims_from_text(source: &str, context_passages: &[&str]) -
             let (is_numeric, is_recent, is_named_event) = heuristics_from_atomic_claim(&claim);
             Claim {
                 claim_id: claim.id,
+                salience_score: claim.verifiability_score,
                 text: claim.text,
                 is_numeric,
                 is_recent,
@@ -42,6 +63,13 @@ pub async fn extract_claims_from_text(source: &str, context_passages: &[&str]) -
         .collect()
 }
 
+// Deliberate feature-gate fallback (suppressed in
+// contracts/toestub/suppressions.v1.json): this is the
+// `not(feature = "scientia-claims")` twin of the real implementation above.
+// Without that feature, `vox-scientia`'s extractor isn't linked in at all, so
+// there is no deterministic extraction path to fall back to; callers
+// (`extract_claims_with_model`) already treat an empty result as "try the LLM
+// cascade next" via the `if !claims.is_empty()` check just above it.
 #[cfg(not(feature = "scientia-claims"))]
 pub async fn extract_claims_from_text(_source: &str, _context_passages: &[&str]) -> Vec<Claim> {
     Vec::new()
@@ -104,6 +132,7 @@ pub async fn extract_claims_with_model(
         }
         let primary = crate::research::orchestrator::model_dispatch::primary_candidate_for_intent(
             vox_orchestrator::models::SelectionIntent::claim_extraction(),
+            vox_config::inference::ModelRole::Verifier,
         );
         let mut candidates: Vec<LlmConfig> = primary.into_iter().collect();
         candidates.extend(cascade_with_optional_manual(
@@ -195,6 +224,7 @@ fn parse_claims_response(response: &str) -> anyhow::Result<Vec<Claim>> {
             is_numeric: claim.is_numeric,
             is_recent: claim.is_recent,
             is_named_event: claim.is_named_event,
+            salience_score: default_salience_score(),
         });
     }
     Ok(out)

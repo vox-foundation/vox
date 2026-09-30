@@ -81,15 +81,8 @@ latency_bands:
   excellent_ms: 500
   poor_ms: 8000
 
-premium_alias:
-  codegen: "anthropic/claude-3-7-sonnet"
-  debugging: "anthropic/claude-3-7-sonnet"
-  security: "anthropic/claude-3-7-sonnet"
-  research: "google/gemini-2.0-flash"
-  planning: "openai/o3-mini"
-  review: "anthropic/claude-3-7-sonnet"
-  logic: "deepseek/deepseek-r1"
-  visus: "google/gemini-2.0-flash"
+# premium_alias (task-category → model id) lives in model-defaults.v1.yaml as the
+# `premium_<category>` roles (Task 14); `load_model_routing_config()` fills it in.
 
 economy_cost_ceiling_usd_per_1k: 0.0015
 

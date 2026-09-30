@@ -1,6 +1,6 @@
 # MCP / Skills Code Review Cleanup — HANDOFF (start here)
 
-> **You do NOT need any prior conversation.** Read this document first. Authoritative task checklist lives in [`.cursor/plans/mcp_skills_review_cleanup_3b12660f.plan.md`](../../../.cursor/plans/mcp_skills_review_cleanup_3b12660f.plan.md) (do **not** edit the plan file). For branch-wide context (vault, graphify, GUI WIP), see [`2026-06-16-feat-vault-decryption-recovery-SESSION-HANDOFF.md`](2026-06-16-feat-vault-decryption-recovery-SESSION-HANDOFF.md). SSOT for federation semantics: [`docs/src/architecture/mcp-vox-language-exposure.md`](../../src/architecture/mcp-vox-language-exposure.md).
+> **You do NOT need any prior conversation.** Read this document first. Authoritative task checklist lives in `.cursor/plans/mcp_skills_review_cleanup_3b12660f.plan.md` (IDE-local, not tracked in this repo; do **not** edit the plan file). For branch-wide context (vault, graphify, GUI WIP), see [`2026-06-16-feat-vault-decryption-recovery-SESSION-HANDOFF.md`](2026-06-16-feat-vault-decryption-recovery-SESSION-HANDOFF.md). SSOT for federation semantics: [`docs/src/architecture/mcp-vox-language-exposure.md`](../../src/architecture/mcp-vox-language-exposure.md).
 
 **Branch:** `feat/vault-decryption-recovery` (MCP/skills work is **interleaved** with unrelated tracks — prefer a **scoped MCP/skills commit or PR** when shipping)  
 **Plan tasks 1–10:** **implemented in working tree** (mostly **uncommitted**)  
@@ -186,7 +186,7 @@ Expect drift in `contracts/mcp/tool-registry.canonical.yaml` only if catalog ent
 ### Task 11 — Close-out
 
 1. Run verification script above — all green.
-2. Walk the [self-review table in the plan](../../../.cursor/plans/mcp_skills_review_cleanup_3b12660f.plan.md) — each H/M/L finding maps to a commit or file.
+2. Walk the self-review table in `.cursor/plans/mcp_skills_review_cleanup_3b12660f.plan.md` — each H/M/L finding maps to a commit or file.
 3. **PR description** should include:
    - Summary of federation + allowlist + CI gate
    - Test commands run (paste `test result` lines)

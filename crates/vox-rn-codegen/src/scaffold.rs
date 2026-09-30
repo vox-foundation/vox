@@ -192,7 +192,15 @@ fn emit_package_json(name: &str, has_routes: bool) -> String {
         "node_modules/expo/AppEntry.js"
     };
     let router_dep = if has_routes {
-        ",\n    \"expo-router\": \"~4.0.0\",\n    \"expo-linking\": \"~7.0.0\",\n    \"expo-constants\": \"~17.0.0\",\n    \"react-native-screens\": \"~4.4.0\""
+        // `query-string` is required unconditionally by expo-router's vendored
+        // `build/fork/getPathFromState.js`, but expo-router doesn't declare it
+        // itself — it rides in only via whichever `@react-navigation/core`
+        // patch npm's floating `^7.0.0` range happens to resolve, and that
+        // range has drifted in and out of depending on it. Declare it
+        // explicitly so `npm install` always materializes it (observed
+        // 2026-09-26: "Unable to resolve module query-string" broke Metro
+        // bundling in CI once the range drifted to a core version without it).
+        ",\n    \"expo-router\": \"~4.0.0\",\n    \"expo-linking\": \"~7.0.0\",\n    \"expo-constants\": \"~17.0.0\",\n    \"react-native-screens\": \"~4.4.0\",\n    \"query-string\": \"^7.1.3\""
     } else {
         ""
     };

@@ -1,3 +1,6 @@
+// Task 9c: no real web host from any test (see tests/common/mod.rs).
+mod common;
+
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;

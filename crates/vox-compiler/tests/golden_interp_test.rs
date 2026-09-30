@@ -212,7 +212,20 @@ fn all_runnable_goldens_execute_under_interp() {
 
         // Only call main if the lowered module has a fn named "main"
         let has_main = lowered.functions.iter().any(|f| f.name == "main");
-        if has_main {
+        // `// EXPECT-EXIT: nonzero-both` goldens (division by zero, overflow)
+        // must fault — an Ok main is the regression there.
+        let fault_expected = src
+            .lines()
+            .any(|l| l.trim() == "// EXPECT-EXIT: nonzero-both");
+        if has_main && fault_expected {
+            match interp.call("main", vec![]) {
+                Err(_) => eprintln!("OK (faulted as declared) {}", path.display()),
+                Ok(_) => failures.push(format!(
+                    "{}: declares EXPECT-EXIT nonzero-both but main returned Ok",
+                    path.display()
+                )),
+            }
+        } else if has_main {
             if let Err(e) = interp.call("main", vec![]) {
                 let msg = format!("{e:?}");
                 if msg.contains("not supported in --mode interp") {

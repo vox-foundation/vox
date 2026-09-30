@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ChatTurnEventRow } from './ChatTurnEventRow';
 import type { TurnEventDto } from '../../../types/dashboard';
+import quickOk from '../../../../e2e/fixtures/research-trace/quick-ok.json';
 
 describe('ChatTurnEventRow', () => {
   it('renders a chip naming the activated skill', () => {
@@ -31,6 +32,11 @@ describe('ChatTurnEventRow', () => {
       />,
     );
     expect(screen.queryByText('not this one')).not.toBeInTheDocument();
+  });
+
+  it('renders the research trace panel for research_trace events', () => {
+    render(<ChatTurnEventRow event={quickOk.reply.events[0] as TurnEventDto} />);
+    expect(screen.getByTestId('research-trace')).toHaveAttribute('data-mode', 'quick');
   });
 
   it('renders without throwing on an unrecognized event kind', () => {

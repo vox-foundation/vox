@@ -171,7 +171,7 @@ fn emit_search_docs_body(out: &mut String, query: &str, top_k: usize, top_k_tele
     out.push_str(
         "    let plan = vox_db::retrieval::heuristic_search_plan(search_query, false, None);\n",
     );
-    out.push_str("    let policy = vox_search::SearchPolicy::default();\n");
+    out.push_str("    let policy = vox_search::SearchPolicy::from_env();\n");
     out.push_str(&format!(
         "    let exec = vox_search::execution::execute_search_plan(&ctx, search_query, &plan, {}, &policy, None).await.expect(\"ai @search docs execute_search_plan\");\n",
         top_k

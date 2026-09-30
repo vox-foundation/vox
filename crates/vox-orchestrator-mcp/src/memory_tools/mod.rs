@@ -24,7 +24,7 @@ pub use handlers_session::*;
 pub use params::*;
 pub use retrieval::{
     RetrievalBundle, RetrievalEvidenceEnvelope, RetrievalTriggerMode, parse_kb_mentions,
-    run_retrieval_bundle, should_trigger_autonomous_research,
+    run_retrieval_bundle,
 };
 
 use std::path::Path;

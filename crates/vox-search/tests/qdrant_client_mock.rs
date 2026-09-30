@@ -1,5 +1,8 @@
 //! Qdrant REST search response parsing (`qdrant-vector` feature).
 
+// Task 9c: no real web host from any test (see tests/common/mod.rs).
+mod common;
+
 #[cfg(feature = "qdrant-vector")]
 use vox_search::vector_qdrant::QdrantSemanticClient;
 #[cfg(feature = "qdrant-vector")]

@@ -19,8 +19,6 @@ use candle_nn::VarBuilder;
 use peft_rs::training::{AdapterTrainingConfig, LrSchedule};
 use qlora_rs::QLoraConfig;
 use qlora_rs::training::{QLoraTrainer, QLoraTrainingConfig};
-use rand::SeedableRng;
-use rand::seq::SliceRandom;
 use tokenizers::Tokenizer;
 
 use crate::config::LoraTrainingConfig;
@@ -87,7 +85,7 @@ impl Drop for PeakSampler {
     }
 }
 
-#[cfg(feature = "metal")]
+#[cfg(any(feature = "metal", target_os = "macos"))]
 fn spawn_peak_sampler_thread(
     device: &Device,
     interval: Duration,
@@ -113,7 +111,7 @@ fn spawn_peak_sampler_thread(
     }))
 }
 
-#[cfg(not(feature = "metal"))]
+#[cfg(not(any(feature = "metal", target_os = "macos")))]
 #[rustfmt::skip] // keeps the toestub-ignore comment pinned to the fn signature line
 fn spawn_peak_sampler_thread( // toestub-ignore(skeleton/hollow-fn): honest "unmeasured" stub for builds without the `metal` feature, matching accel_budget::query_accel_budget's non-macOS `None` — there is no allocated-bytes reading to take.
     _device: &Device,
@@ -190,20 +188,6 @@ fn compute_cosine_lr(step: u32, warmup: usize, total: u32, base_lr: f64) -> f64 
         let progress = progress.clamp(0.0, 1.0);
         base_lr * 0.5 * (1.0 + (std::f64::consts::PI * progress).cos())
     }
-}
-
-/// Dense Qwen3's per-head q_norm/k_norm weight for a `..._proj.weight` key: frozen, not
-/// LoRA-adapted, and `None` when absent (pure Qwen2/Qwen2.5 checkpoints omit it). Always F32:
-/// `Qwen2Attention` runs the norm in F32 (`rms_norm_f32`) and inference loads it F32, and
-/// training and inference must agree or a served model drifts from what it trained against.
-/// Confirmed load-bearing: a real Qwen/Qwen3-0.6B checkpoint produced fluent-looking
-/// garbage without it.
-fn load_qk_norm(vb: &VarBuilder, proj_key: &str, head_dim: usize) -> Option<candle_nn::RmsNorm> {
-    // "...self_attn.q_proj.weight" -> "...self_attn.q_norm.weight" — NOT a plain ".weight"
-    // suffix replace, which would wrongly produce "q_proj_norm.weight".
-    let key = proj_key.replace("_proj.weight", "_norm.weight");
-    let w = vb.get((head_dim,), &key).ok()?.to_dtype(DType::F32).ok()?;
-    Some(candle_nn::RmsNorm::new(w, 1e-6))
 }
 
 // Moved to `vox-plugin-mens-candle-core::rope` — see that module's docs for
@@ -374,6 +358,11 @@ pub fn run_candle_qlora_train(
         vox_tensor::data::load_all_with_policy(&train_path, config.min_rating, jsonl_policy)
             .with_context(|| format!("load training data from {}", train_path.display()))?;
     train_log::info(&format!("Loaded {} pairs.", pairs.len()));
+    // Stamped once, here, so every checkpoint written below (and the resume-time
+    // guard) can tell whether a later run is resuming against the same data.
+    let mut config = config.clone();
+    config.data_fingerprint = crate::checkpoint_state::fingerprint_file(&train_path);
+    let config = &config;
     let mut computed_contamination = None;
     if let Some(filter) = config.context_filter.as_ref() {
         let before = pairs.len();
@@ -482,13 +471,12 @@ pub fn run_candle_qlora_train(
             pct_count
         }
     };
-    let eval_pairs = if val_count > 0 && pairs.len() > val_count {
-        let mut rng = rand::rngs::StdRng::seed_from_u64(config.seed ^ 0xA1B2_C3D4_E5F6_1122);
-        pairs.shuffle(&mut rng);
-        pairs.split_off(pairs.len() - val_count)
-    } else {
-        Vec::new()
-    };
+    let (pairs, eval_pairs) =
+        vox_plugin_mens_candle_core::candle_qlora_train::validation::split_validation_by_response(
+            pairs,
+            val_count,
+            config.seed ^ 0xA1B2_C3D4_E5F6_1122,
+        );
 
     // ── GQA-aware dimensions ─────────────────────────────────────────────────
     let n_heads = bundle.layout.num_attention_heads;
@@ -778,8 +766,16 @@ pub fn run_candle_qlora_train(
                 let k_bias = load_bias(&k_key, kv_dim, None);
                 let v_bias = load_bias(&v_key, kv_dim, None);
 
-                let q_norm = load_qk_norm(&vb_mmap, &q_key, head_dim);
-                let k_norm = load_qk_norm(&vb_mmap, &k_key, head_dim);
+                // Dense Qwen3's per-head q_norm/k_norm (frozen, not LoRA-adapted;
+                // optional — pure Qwen2/Qwen2.5 checkpoints omit them). Must match
+                // inference.rs's loader or a served model drifts from what it
+                // trained against — confirmed load-bearing: a real Qwen/Qwen3-0.6B
+                // checkpoint produced fluent-looking garbage at inference without
+                // this being applied consistently on both sides.
+                let q_norm =
+                    vox_plugin_mens_candle_core::qk_norm::load_qk_norm(&vb_mmap, &q_key, head_dim);
+                let k_norm =
+                    vox_plugin_mens_candle_core::qk_norm::load_qk_norm(&vb_mmap, &k_key, head_dim);
 
                 let q_label = format!("l{i}.q");
                 let k_label = format!("l{i}.k");
@@ -1113,6 +1109,7 @@ mod training_loop;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use vox_plugin_mens_candle_core::qk_norm::load_qk_norm;
 
     /// Dense Qwen3 q_norm/k_norm: found from the `_proj.weight` key, returned F32 (the
     /// attention runs the norm in F32 and inference loads it F32), absent => None.

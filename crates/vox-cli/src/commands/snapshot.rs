@@ -4,7 +4,7 @@
 //! line (insta format), and verifies the referenced test function still exists in the source file.
 //! Orphans are printed; `--clean` deletes them.
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::Subcommand;
 use std::path::{Path, PathBuf};
 
@@ -27,14 +27,28 @@ pub fn run(cmd: &SnapshotCmd) -> Result<()> {
     }
 }
 
+/// Resolve the cargo workspace root that contains `root`, via `cargo metadata`.
+/// insta's `source:` header is written relative to this root, not to the
+/// snapshot file's own directory.
+fn resolve_workspace_root(root: &Path) -> Result<PathBuf> {
+    let meta = cargo_metadata::MetadataCommand::new()
+        .current_dir(root)
+        .no_deps()
+        .exec()
+        .context("cargo metadata (to resolve workspace root for snapshot `source:` paths)")?;
+    Ok(meta.workspace_root.into_std_path_buf())
+}
+
 fn run_orphans(root: &Path, clean: bool) -> Result<()> {
+    let workspace_root = resolve_workspace_root(root)?;
     let snaps = collect_snap_files(root)?;
     let mut orphan_count = 0usize;
+    let mut unresolvable_count = 0usize;
     let mut checked = 0usize;
 
     for snap_path in &snaps {
         checked += 1;
-        match snap_is_orphan(snap_path)? {
+        match snap_is_orphan(snap_path, &workspace_root)? {
             OrphanResult::Orphan {
                 source_file,
                 test_name,
@@ -59,14 +73,26 @@ fn run_orphans(root: &Path, clean: bool) -> Result<()> {
             }
             OrphanResult::Ok => {}
             OrphanResult::Unresolvable(reason) => {
+                unresolvable_count += 1;
                 eprintln!("warn: {} — {}", snap_path.display(), reason);
             }
         }
     }
 
-    println!("{checked} snapshots checked, {orphan_count} orphan(s) found.");
+    println!(
+        "{checked} snapshots checked, {orphan_count} orphan(s) found, {unresolvable_count} unresolvable."
+    );
     if orphan_count > 0 && !clean {
         println!("Re-run with --clean to delete them.");
+    }
+    // Unresolvable snapshots mean the orphan count is not trustworthy — never delete
+    // anything and never report success in that case (an unresolvable `source:` path
+    // most often means every snapshot is being mis-resolved, not that everything is fine).
+    if unresolvable_count > 0 {
+        anyhow::bail!(
+            "{unresolvable_count} snapshot(s) had an unresolvable `source:` path — refusing to \
+             report orphan status. Nothing was deleted."
+        );
     }
     if orphan_count > 0 {
         anyhow::bail!("{orphan_count} orphan snapshot(s) detected");
@@ -74,6 +100,7 @@ fn run_orphans(root: &Path, clean: bool) -> Result<()> {
     Ok(())
 }
 
+#[derive(Debug)]
 enum OrphanResult {
     Ok,
     Orphan {
@@ -117,15 +144,17 @@ fn collect_recursive(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
 }
 
 /// Parse a `.snap` file and check whether its referenced test function still exists.
-fn snap_is_orphan(snap_path: &Path) -> Result<OrphanResult> {
+fn snap_is_orphan(snap_path: &Path, workspace_root: &Path) -> Result<OrphanResult> {
     let content = std::fs::read_to_string(snap_path)?;
 
     // Insta snapshot header format:
     //   ---
-    //   source: "../../src/tests/foo.rs"
+    //   source: crates/foo/tests/bar.rs
     //   assertion_line: 42
     //   expression: "some_value"
     //   ---
+    // `source:` is written by insta relative to the cargo *workspace* root, not to the
+    // snapshot file's own directory (which is typically `<crate>/tests/snapshots/`).
     let source_rel = match parse_insta_source_header(&content) {
         Some(s) => s,
         None => {
@@ -135,9 +164,7 @@ fn snap_is_orphan(snap_path: &Path) -> Result<OrphanResult> {
         }
     };
 
-    // Resolve source file relative to snapshot file's location.
-    let snap_dir = snap_path.parent().unwrap_or(Path::new("."));
-    let source_file = snap_dir.join(&source_rel);
+    let source_file = workspace_root.join(&source_rel);
     let source_file = match source_file.canonicalize() {
         Ok(p) => p,
         Err(_) => {
@@ -234,5 +261,61 @@ value"#;
         // "fn my_test" IS a substring of "fn my_test_extra", so it returns true.
         // Callers must supply exact stems (insta uses `__`-delimited stems).
         assert!(source_contains_test(src, "my_test"));
+    }
+
+    /// Build a fake workspace: `<root>/crates/foo/tests/bar_test.rs` (the source) and
+    /// `<root>/crates/foo/tests/snapshots/bar_test__some_test.snap` (the snapshot), with
+    /// `source:` written the way insta actually writes it — relative to the workspace root.
+    fn make_fixture_workspace(source_body: &str) -> (tempfile::TempDir, PathBuf) {
+        let dir = tempfile::tempdir().unwrap();
+        let tests_dir = dir.path().join("crates/foo/tests");
+        let snaps_dir = tests_dir.join("snapshots");
+        std::fs::create_dir_all(&snaps_dir).unwrap();
+        std::fs::write(tests_dir.join("bar_test.rs"), source_body).unwrap();
+
+        let snap_path = snaps_dir.join("bar_test__some_test.snap");
+        std::fs::write(
+            &snap_path,
+            "---\nsource: crates/foo/tests/bar_test.rs\nexpression: \"x\"\n---\nvalue",
+        )
+        .unwrap();
+        (dir, snap_path)
+    }
+
+    #[test]
+    fn snap_is_orphan_resolves_source_against_workspace_root_not_snap_dir() {
+        // Regression test for the bug where `source:` (workspace-root-relative, as insta
+        // writes it) was joined against the snapshot file's own directory instead, producing
+        // a doubled, nonexistent path (e.g. `.../tests/snapshots/crates/foo/tests/bar_test.rs`)
+        // and making every snapshot "unresolvable" rather than correctly checked.
+        let (dir, snap_path) = make_fixture_workspace("#[test]\nfn some_test() {}");
+        let result = snap_is_orphan(&snap_path, dir.path()).unwrap();
+        assert!(matches!(result, OrphanResult::Ok));
+    }
+
+    #[test]
+    fn snap_is_orphan_detects_real_orphan_via_workspace_root() {
+        let (dir, snap_path) = make_fixture_workspace("#[test]\nfn some_other_test() {}");
+        let result = snap_is_orphan(&snap_path, dir.path()).unwrap();
+        match result {
+            OrphanResult::Orphan { test_name, .. } => assert_eq!(test_name, "some_test"),
+            other => panic!("expected Orphan, got a different result variant: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn snap_is_orphan_unresolvable_when_workspace_root_is_wrong() {
+        // Mutation check: resolving against the WRONG root (the old, buggy behavior of
+        // joining against the snapshot file's own directory) must NOT report `Ok` or
+        // `Orphan` — it must come back `Unresolvable`, proving the fix actually changed
+        // resolution behavior rather than coincidentally passing both ways.
+        let (dir, snap_path) = make_fixture_workspace("#[test]\nfn some_test() {}");
+        let wrong_root = snap_path.parent().unwrap(); // the snapshots/ dir — the old (buggy) base
+        let result = snap_is_orphan(&snap_path, wrong_root).unwrap();
+        assert!(
+            matches!(result, OrphanResult::Unresolvable(_)),
+            "expected Unresolvable when resolving against the wrong root, got {result:?}"
+        );
+        let _ = dir; // keep TempDir alive for the duration of the assertions above
     }
 }
