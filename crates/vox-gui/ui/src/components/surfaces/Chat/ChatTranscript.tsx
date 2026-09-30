@@ -4,9 +4,8 @@ import type { ChatMessage } from '../../../lib/chatCorrelation';
 import type { StreamItem } from '../../../types/dashboard';
 import { buildChatOnlyTimeline } from '../../../lib/chatTranscriptTimeline';
 import { StatusLine } from './StatusLine';
-import { ModelBadge } from './ModelBadge';
-import { ChatTurnEventRow } from './ChatTurnEventRow';
-import { useChatVerbosity } from '../../../hooks/useChatVerbosity';
+import { TurnTrace } from './TurnTrace';
+import { useChatVerbosity, type ChatVerbosity } from '../../../hooks/useChatVerbosity';
 import { listHarnessIssuesForSession, type HarnessIssueRow } from '../Scientia/harnessIssuesApi';
 
 interface ChatTranscriptProps {
@@ -20,9 +19,11 @@ interface ChatTranscriptProps {
 export function MessageBubble({
   message,
   onExcludeSkill,
+  verbosity = 'normal',
 }: {
   message: ChatMessage;
   onExcludeSkill?: (skillId: string) => void;
+  verbosity?: ChatVerbosity;
 }) {
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
@@ -45,7 +46,7 @@ export function MessageBubble({
           You
         </div>
       )}
-      {!isSystem && !isUser && !message.modelId && (
+      {!isSystem && !isUser && (
         <div className="mb-0.5 font-mono text-[9px] uppercase tracking-wide text-text-muted">
           Assistant
         </div>
@@ -62,20 +63,6 @@ export function MessageBubble({
           error: {message.error ?? 'task failed'}
         </div>
       )}
-      {message.role === 'assistant' && message.status === 'done' && message.modelId && (
-        <div className="mt-1 flex justify-end">
-          <ModelBadge
-            model={message.modelId}
-            // ponytail: derived from the id prefix, not the backend's actual
-            // provider/cost record — chat.rs's ParsedChatReply /
-            // parse_chat_message_envelope would be the honest source.
-            provider={message.modelId.startsWith('mens/') ? 'local' : undefined}
-            costUsd={message.modelId.startsWith('mens/') ? 0 : undefined}
-            latencyMs={message.latencyMs}
-            selectionReason={message.selectionReason}
-          />
-        </div>
-      )}
       {message.role === 'assistant' && message.groundingFlagged && (
         <div className="mt-1 flex justify-end">
           <span className="rounded-sm border border-amber-400/30 bg-amber-400/8 px-1.5 py-0.5 font-mono text-[9px] text-amber-300">
@@ -83,13 +70,16 @@ export function MessageBubble({
           </span>
         </div>
       )}
-      {message.role === 'assistant' && message.events && message.events.length > 0 && (
-        <div className="mt-1 flex flex-wrap justify-end gap-1">
-          {message.events.map((ev, i) => (
-            <ChatTurnEventRow key={i} event={ev} onExcludeSkill={onExcludeSkill} />
-          ))}
-        </div>
-      )}
+      {message.role === 'assistant' &&
+        ((message.events?.length ?? 0) > 0 || (message.status === 'done' && !!message.modelId)) && (
+          <TurnTrace
+            events={message.events}
+            verbosity={verbosity}
+            latencyMs={message.latencyMs}
+            modelId={message.modelId}
+            onExcludeSkill={onExcludeSkill}
+          />
+        )}
     </div>
   );
 }
@@ -161,7 +151,7 @@ export function ChatTranscript({ messages, agentStreamItems, sessionId, onExclud
         )}
         {timeline.map((row) => {
           if (row.kind === 'message') {
-            return <MessageBubble key={row.id} message={row.message} onExcludeSkill={onExcludeSkill} />;
+            return <MessageBubble key={row.id} message={row.message} onExcludeSkill={onExcludeSkill} verbosity={verbosity} />;
           }
           if (row.kind === 'status') {
             return <StatusLine key={row.id} phase={row.phase} elapsedMs={row.elapsedMs} />;

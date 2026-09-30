@@ -4,6 +4,23 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MessageBubble, ChatTranscript } from './ChatTranscript';
 import type { ChatMessage } from '../../../lib/chatCorrelation';
 import { listHarnessIssuesForSession } from '../Scientia/harnessIssuesApi';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import type { TurnEventDto } from '../../../types/dashboard';
+
+const CONTRACT_KINDS: Array<{ kind: string; example: TurnEventDto }> = JSON.parse(
+  readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), '../../../../../../../contracts/gui/turn-event-kinds.v1.json'),
+    'utf8',
+  ),
+).kinds;
+
+function example(kind: string): TurnEventDto {
+  const entry = CONTRACT_KINDS.find((k) => k.kind === kind);
+  if (!entry) throw new Error(`contract has no kind ${kind}`);
+  return { ...entry.example };
+}
 
 vi.mock('../Scientia/harnessIssuesApi', () => ({
   listHarnessIssuesForSession: vi.fn(),
@@ -44,15 +61,20 @@ describe('MessageBubble grounding-check badge', () => {
   });
 });
 
-describe('MessageBubble local-model badge', () => {
-  // Task C4: a `mens/`-prefixed model id ran locally and cost the user
-  // nothing. Surface that as a real ModelBadge affordance (provider + $0.00),
-  // not just an unlabeled prefix in the model id string.
-  it('marks a mens/ model as local with zero cost', () => {
-    render(<MessageBubble message={msg({ modelId: 'mens/e2e-smoke-metal' })} />);
-    fireEvent.click(screen.getByRole('button', { name: /e2e-smoke-metal/i }));
-    expect(screen.getByText(/provider: local/i)).toBeInTheDocument();
-    expect(screen.getByText(/\$0\.00/)).toBeInTheDocument();
+describe('MessageBubble routing trace (replaces ModelBadge)', () => {
+  it('shows a local pick as its local id in the trace summary, with no model badge', () => {
+    const local = { ...example('routing_decision'), resolved_from: 'local', resolved_id: 'mens/e2e-smoke-metal' };
+    render(<MessageBubble message={msg({ modelId: 'mens/e2e-smoke-metal', events: [local] })} />);
+    expect(screen.getByTestId('chat-trace-summary')).toHaveTextContent('mens/e2e-smoke-metal (local)');
+    expect(screen.queryByRole('button', { name: /Completed by/ })).not.toBeInTheDocument();
+  });
+
+  it('a hydrated reply (modelId and latency, no events) keeps its attribution and the Assistant header', () => {
+    render(<MessageBubble message={msg({ modelId: 'mens/e2e-smoke-metal', latencyMs: 1200 })} />);
+    expect(screen.getByText('Assistant')).toBeInTheDocument();
+    const summary = screen.getByTestId('chat-trace-summary');
+    expect(summary).toHaveTextContent('mens/e2e-smoke-metal · 1.2s');
+    expect(summary).not.toHaveTextContent('latest');
   });
 });
 
