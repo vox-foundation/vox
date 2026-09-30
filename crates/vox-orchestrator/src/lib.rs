@@ -117,6 +117,7 @@ pub mod continuation;
 pub mod contract;
 /// Agent activity events and pub/sub bus.
 pub mod events;
+pub mod events_severity;
 /// Developer mental fatigue monitoring and cognitive pacing.
 pub mod fatigue_monitor;
 /// Pre/post task gates (including TOESTUB quality checks).
