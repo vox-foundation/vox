@@ -26,7 +26,6 @@ import {
 import { ModelPickerSearch } from '../Chat/ModelPickerSearch';
 import type { ActiveSkill, CatalogEntry, ChatPayload, Toast } from '../../../types/tauri';
 import {
-  formatSessionBudget,
   isAppSlashCommand,
   resolveInternalModeSlash,
 } from '../../../lib/slashRouter';
@@ -166,6 +165,13 @@ interface LoquelaProps {
   /** Current App-level override so "Run on" stays in sync with ChatModelPicker. */
   selectedModelId?: string | null;
 }
+
+/** Send modes. `plan` is a real execution (buildChatTurn → `execution: 'plan'`), so it gets a menu entry. */
+const SEND_MODES: { id: 'chat' | 'task' | 'plan'; label: string; hint: string }[] = [
+  { id: 'chat', label: 'Quick chat', hint: 'Synchronous reply, no background task' },
+  { id: 'task', label: 'Background task', hint: 'Dispatch as an autonomous task, not blocking' },
+  { id: 'plan', label: 'Plan', hint: 'Draft a plan first' },
+];
 
 export function Loquela({
   chips,
@@ -823,7 +829,7 @@ export function Loquela({
             >
               <Icon.send className="size-3.5" />
               Run
-              <kbd className="rounded-sm border border-current px-1 text-[9px] opacity-75">⌘↵</kbd>
+              <kbd className="rounded-sm border border-current px-1 text-[9px] opacity-75">↵</kbd>
             </button>
           )}
         </div>
@@ -962,22 +968,18 @@ export function Loquela({
 
           <div className="relative">
             <button type="button" aria-expanded={modeOpen} aria-label="Choose send mode" onClick={() => { setModeOpen(o => !o); setTierOpen(false); setSkillOpen(false); }} className="inline-flex items-center gap-1 rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 text-text-secondary hover:border-white/20">
-              <Icon.bolt className="size-3" /><span>{executionMode === 'chat' ? 'Quick chat' : 'Background task'}</span>
+              <Icon.bolt className="size-3" /><span>{SEND_MODES.find(m => m.id === executionMode)?.label}</span>
               <Icon.chevR className="size-2.5 text-text-muted rotate-90" />
             </button>
             <Popover open={modeOpen}>
-              <button type="button" aria-label="Set send mode: Quick chat" onClick={() => { setExecutionMode('chat'); setModeOpen(false); }} className={`flex w-full items-start gap-2 rounded-sm px-2 py-1.5 text-left hover:bg-overlay-subtle ${executionMode === 'chat' ? "bg-overlay-subtle" : ""}`}>
-                <div className="flex-1">
-                  <div className="text-[11px] text-text-primary">Quick chat</div>
-                  <div className="font-mono text-[9px] text-text-muted">Synchronous reply, no background task</div>
-                </div>
-              </button>
-              <button type="button" aria-label="Set send mode: Background task" onClick={() => { setExecutionMode('task'); setModeOpen(false); }} className={`flex w-full items-start gap-2 rounded-sm px-2 py-1.5 text-left hover:bg-overlay-subtle ${executionMode === 'task' ? "bg-overlay-subtle" : ""}`}>
-                <div className="flex-1">
-                  <div className="text-[11px] text-text-primary">Background task</div>
-                  <div className="font-mono text-[9px] text-text-muted">Dispatch as an autonomous task, not blocking</div>
-                </div>
-              </button>
+              {SEND_MODES.map(m => (
+                <button key={m.id} type="button" aria-label={`Set send mode: ${m.label}`} onClick={() => { setExecutionMode(m.id); setModeOpen(false); }} className={`flex w-full items-start gap-2 rounded-sm px-2 py-1.5 text-left hover:bg-overlay-subtle ${executionMode === m.id ? "bg-overlay-subtle" : ""}`}>
+                  <div className="flex-1">
+                    <div className="text-[11px] text-text-primary">{m.label}</div>
+                    <div className="font-mono text-[9px] text-text-muted">{m.hint}</div>
+                  </div>
+                </button>
+              ))}
             </Popover>
           </div>
 
@@ -990,17 +992,11 @@ export function Loquela({
             </span>
           )}
 
-          {(estCost != null || sessionBudget || trailingSlot != null) && (
+          {(estCost != null || trailingSlot != null) && (
             <div className="ml-auto flex items-center gap-2">
-              {(estCost != null || sessionBudget) && (
+              {estCost != null && (
                 <span className="font-mono text-[9px] text-text-muted tabular-nums">
-                  {estCost != null && (
-                    <>~{tokens} tok · ~${estCost.toFixed(3)}</>
-                  )}
-                  {estCost != null && sessionBudget && sessionBudget.cap > 0 && ' · '}
-                  {sessionBudget && sessionBudget.cap > 0 && (
-                    <>{formatSessionBudget(sessionBudget.spent, sessionBudget.cap)}</>
-                  )}
+                  ~{tokens} tok · ~${estCost.toFixed(3)}
                 </span>
               )}
               {trailingSlot}

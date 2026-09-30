@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  formatSessionBudget,
   isAppSlashCommand,
   parseResearchSlashCommand,
   resolveInternalModeSlash,
@@ -26,10 +25,6 @@ describe('slashRouter', () => {
     expect(isAppSlashCommand('/memory')).toBe(true);
     expect(isAppSlashCommand('/rollback now')).toBe(true);
     expect(isAppSlashCommand('/plan')).toBe(true);
-  });
-
-  it('formats session budget for display', () => {
-    expect(formatSessionBudget(1.234, 50)).toBe('session $1.23 / $50.00');
   });
 
   it('parses research slash commands with typed flags', () => {

@@ -70,6 +70,7 @@ libc = { workspace = true }
 [dev-dependencies]
 tempfile = { workspace = true }
 tauri = { workspace = true, features = ["test"] }
+vox-orchestrator = { workspace = true, features = ["test-support"] }
 wiremock = { workspace = true }
 
 [build-dependencies]

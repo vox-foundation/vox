@@ -53,6 +53,18 @@ pub enum VisusCmd {
         #[arg(long)]
         limit: Option<usize>,
     },
+    /// Review a captured review-bundle with VLM visual intelligence.
+    Review {
+        /// Path to review-bundle directory.
+        #[arg(long)]
+        bundle: std::path::PathBuf,
+        /// Enable UX clarity rubric (jargon retirement, readability, missing features).
+        #[arg(long)]
+        ux_mode: bool,
+        /// Run AI model reviews (default true).
+        #[arg(long, default_value_t = true)]
+        ai: bool,
+    },
 }
 
 pub async fn dispatch(cmd: VisusCmd) -> miette::Result<()> {
@@ -455,6 +467,45 @@ pub async fn dispatch(cmd: VisusCmd) -> miette::Result<()> {
                 "✓".green(),
                 samples.len(),
                 corpus_path.bold()
+            );
+        }
+        VisusCmd::Review {
+            bundle,
+            ux_mode,
+            ai,
+        } => {
+            println!(
+                "{} Executing Vox Visus GUI Review on bundle: {}",
+                "▶".blue(),
+                bundle.display()
+            );
+            let default_cache = if ux_mode {
+                "contracts/reports/gui-visual-review/bundle-ux-cache.v1.json"
+            } else {
+                "contracts/reports/gui-visual-review/bundle-cache.v1.json"
+            };
+            let cache_path = std::path::PathBuf::from(default_cache);
+            let report_dir = std::path::PathBuf::from("contracts/reports/gui-visual-review");
+            let args = vox_orchestrator_mcp::visus_review::BundleRunArgs {
+                bundle_dir: &bundle,
+                cache_path: &cache_path,
+                report_dir: &report_dir,
+                now_iso: chrono::Utc::now().to_rfc3339(),
+                do_ai: ai,
+                ux_mode,
+                total_budget_ms: 180_000,
+                max_reviews: None,
+                browsers: vec!["chromium".to_string()],
+            };
+            let report = vox_orchestrator_mcp::visus_review::run_bundle(&args).await;
+            println!(
+                "{} GUI review complete: {} reviewed, {} cached, {} deferred, {} findings across {} surfaces.",
+                "✓".green(),
+                report.reviewed,
+                report.cached,
+                report.deferred,
+                report.defects_found,
+                report.total_surfaces
             );
         }
     }

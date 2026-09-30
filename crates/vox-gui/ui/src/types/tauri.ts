@@ -269,3 +269,28 @@ export interface GraphifyStatusDto {
   corpora: CorpusStatusDto[];
 }
 
+export interface RouteQuality {
+  value: number;
+  source: 'benchmark' | 'inherited' | 'estimate' | 'unknown';
+  index: number | null;
+  inherited_from: string | null;
+}
+export interface RouteScoreParts { quality: number; efficiency: number; latency: number; other: number; bonuses: number }
+export interface RouteCandidate {
+  id: string; provider: string; tier: string; is_free: boolean;
+  price_out_per_m: number | null; score: number; quality: RouteQuality; parts: RouteScoreParts;
+}
+export interface RouteExclusionGroup { reason: string; count: number; examples: string[] }
+export interface RouteExplanation {
+  mode: string; task: string; complexity: number; chosen: string | null; only_candidate: boolean;
+  total_models: number; candidates: RouteCandidate[]; excluded: RouteExclusionGroup[];
+}
+export interface RoutingHealthViolation { invariant: string; detail: string }
+export interface RoutingHealth {
+  schema_version: number; checked_at_unix: number; models: number; cloud_models: number;
+  benchmarked: number; inherited: number; unknown_tier_cloud: number;
+  quality_scale: 'derived' | 'fallback'; price_bands: 'derived' | 'fallback';
+  efficient_pick: string | null;
+  violations: RoutingHealthViolation[];
+}
+

@@ -274,6 +274,8 @@ async fn main() {
             commands::models::get_model_scoreboard,
             commands::models::explain_model_selection,
             commands::models::suggest_model_for_task,
+            commands::routing_explain::explain_routing,
+            commands::routing_explain::get_routing_health,
             commands::memory::get_memory_status,
             commands::memory::mnemosyne_recall,
             commands::memory::mnemosyne_reindex,

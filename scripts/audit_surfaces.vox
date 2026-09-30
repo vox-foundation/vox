@@ -1,0 +1,82 @@
+// vox:caps subprocess env
+// scripts/audit_surfaces.vox — Headless GUI surface & UX clarity audit pipeline.
+
+fn run_pnpm(args: list[str]) to int {
+    let mut proc = process.run("pnpm", args)
+    if proc.is_none() {
+        proc = process.run("pnpm.cmd", args)
+    }
+    if proc.is_none() {
+        print("audit-surfaces: could not spawn pnpm — is it on PATH?")
+        process.exit(1)
+    }
+    let res = proc.unwrap()
+    if res.stdout is not "" { print(res.stdout) }
+    if res.stderr is not "" { print(res.stderr) }
+    return res.code
+}
+
+fn run_cargo(args: list[str]) to int {
+    let proc = process.run("cargo", args)
+    if proc.is_none() {
+        print("audit-surfaces: could not spawn cargo")
+        process.exit(1)
+    }
+    let res = proc.unwrap()
+    if res.stdout is not "" { print(res.stdout) }
+    if res.stderr is not "" { print(res.stderr) }
+    return res.code
+}
+
+fn has_dry_run(argv: list[str]) to bool {
+    for arg in argv {
+        if arg is "--dry-run" or arg is "--dry_run" or arg is "-n" {
+            return true
+        }
+    }
+    return false
+}
+
+fn main() {
+    print("▶ Vox GUI Surface & UX Clarity Audit")
+
+    let argv = env.args()
+    if has_dry_run(argv) {
+        print("[dry-run] Planned steps:")
+        print("  1. Capture review bundle with Playwright:")
+        print("     Command: pnpm --dir crates/vox-gui/ui run review:capture")
+        print("  2. Execute visual review via gui-visual-review binary:")
+        print("     Command: cargo run -p vox-orchestrator-mcp --features gui-visual-review --bin gui-visual-review -- --bundle crates/vox-gui/ui/review-bundle/latest --ai --ux-mode")
+        print("  Report location: contracts/reports/gui-visual-review/")
+        return
+    }
+
+    print("Step 1: Capturing review bundle with Playwright...")
+    let capture_code = run_pnpm(["--dir", "crates/vox-gui/ui", "run", "review:capture"])
+    if capture_code is not 0 {
+        print("audit-surfaces: capture reported non-zero status (" + str(capture_code) + "), continuing...")
+    }
+
+    print("Step 2: Executing visual review via gui-visual-review...")
+    let cargo_args = [
+        "run",
+        "-p",
+        "vox-orchestrator-mcp",
+        "--features",
+        "gui-visual-review",
+        "--bin",
+        "gui-visual-review",
+        "--",
+        "--bundle",
+        "crates/vox-gui/ui/review-bundle/latest",
+        "--ai",
+        "--ux-mode"
+    ]
+    let review_code = run_cargo(cargo_args)
+    if review_code is not 0 {
+        print("audit-surfaces: visual review exited with code " + str(review_code))
+        process.exit(review_code)
+    }
+
+    print("Audit complete. Reports located in contracts/reports/gui-visual-review/")
+}

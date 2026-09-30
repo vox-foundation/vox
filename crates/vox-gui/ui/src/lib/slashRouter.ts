@@ -44,11 +44,6 @@ export function isAppSlashCommand(cmd: string): boolean {
   return (APP_SLASH_COMMANDS as readonly string[]).includes(base);
 }
 
-/** Display string for session budget next to token estimate. */
-export function formatSessionBudget(spent: number, cap: number): string {
-  return `session $${spent.toFixed(2)} / $${cap.toFixed(2)}`;
-}
-
 export interface ParsedResearchSlashCommand {
   query: string;
   isDeep: boolean;

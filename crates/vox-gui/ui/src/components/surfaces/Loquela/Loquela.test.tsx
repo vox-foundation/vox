@@ -216,7 +216,7 @@ describe('Loquela', () => {
   it('the Run button carries its own keyboard-shortcut hint, with no other disconnected shortcut hint elsewhere', () => {
     renderLoquela();
     const runButton = screen.getByRole('button', { name: /^run/i });
-    expect(runButton).toHaveTextContent('⌘↵');
+    expect(runButton).toHaveTextContent('↵');
     // Reproduces a live bug: a bare "⌘↵" kbd hint used to render alone at
     // the end of the toolbar row, disconnected from any button — it must
     // not exist anywhere outside the Run button now.
@@ -473,6 +473,30 @@ describe('Loquela', () => {
     expect(screen.queryByText('Check replies: off')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: /^risk: /i }));
     expect(screen.getByText('Check replies: off')).toBeTruthy();
+  });
+
+  it('does not repeat global spend as "session $x / $y" in the toolbar', () => {
+    renderLoquela({ sessionBudget: { spent: 1.23, cap: 50, source: 'daemon' } });
+    expect(screen.queryByText(/session \$/i)).toBeNull();
+  });
+
+  it('the Run button aria text and its visible shortcut hint agree', () => {
+    renderLoquela();
+    const run = screen.getByRole('button', { name: 'Run (Enter)' });
+    expect(run.querySelector('kbd')?.textContent).toBe('↵');
+  });
+
+  it('offers Plan as a send mode, labels the trigger with it, and submits execution_mode "plan"', () => {
+    const onSubmit = vi.fn();
+    renderLoquela({ onSubmit });
+    fireEvent.click(screen.getByRole('button', { name: /choose send mode/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Set send mode: Plan' }));
+    expect(screen.getByRole('button', { name: /choose send mode/i })).toHaveTextContent('Plan');
+    expect(screen.queryByLabelText('Interaction mode')).toBeNull();
+    const ta = screen.getByLabelText('Task composer');
+    fireEvent.change(ta, { target: { value: 'draft the migration' } });
+    fireEvent.keyDown(ta, { key: 'Enter' });
+    expect(onSubmit.mock.calls[0][0].execution_mode).toBe('plan');
   });
 });
 

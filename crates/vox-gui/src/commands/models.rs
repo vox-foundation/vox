@@ -144,7 +144,7 @@ fn registry_from_cache() -> ModelRegistry {
 /// per-model observed statistic on the Models surface rendered as a blank. Degrades to
 /// the bare cached registry when no workspace DB is reachable — a GUI surface must not
 /// fail to list models just because telemetry is unavailable.
-async fn registry_with_scoreboard() -> ModelRegistry {
+pub(crate) async fn registry_with_scoreboard() -> ModelRegistry {
     let mut reg = registry_from_cache();
     let Some(db) =
         vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Runtime, true).await
@@ -152,6 +152,7 @@ async fn registry_with_scoreboard() -> ModelRegistry {
         return reg;
     };
     if let Ok(rows) = db.get_model_scoreboard(7).await {
+        reg.inject_scoreboard_latency(&rows);
         reg.inject_scoreboard(
             rows.into_iter()
                 .map(|row| {
@@ -163,6 +164,10 @@ async fn registry_with_scoreboard() -> ModelRegistry {
                 .collect(),
         );
     }
+    if let Ok(pricing) = db.get_pricing_catalog().await {
+        reg.inject_pricing_catalog(pricing);
+    }
+    reg.apply_routing_reference();
     reg
 }
 
