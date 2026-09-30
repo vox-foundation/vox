@@ -113,3 +113,30 @@ describe('ChatTranscript harness issue summary strip', () => {
     expect(screen.queryByTestId(/transcript-harness-issue-/)).not.toBeInTheDocument();
   });
 });
+
+describe('ChatTranscript verbosity control', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.mocked(listHarnessIssuesForSession).mockReset();
+  });
+
+  it('Verbose opens a clean trace that Normal leaves collapsed, and persists the choice', () => {
+    render(<ChatTranscript messages={[msg({ events: [example('routing_decision'), example('tool_receipt')] })]} />);
+    expect(screen.getByTestId('chat-trace-steps')).not.toBeVisible();
+    fireEvent.click(screen.getByRole('radio', { name: 'Verbose' }));
+    expect(screen.getByTestId('chat-trace-steps')).toBeVisible();
+    expect(localStorage.getItem('gui.chat.verbosity.v1')).toBe('"verbose"');
+  });
+
+  it('Quiet keeps a failed turn collapsed', () => {
+    render(
+      <ChatTranscript
+        messages={[msg({ events: [example('routing_decision'), { ...example('tool_receipt'), verified: false }] })]}
+      />,
+    );
+    expect(screen.getByTestId('chat-trace-steps')).toBeVisible();
+    fireEvent.click(screen.getByRole('radio', { name: 'Quiet' }));
+    expect(screen.getByTestId('chat-trace-steps')).not.toBeVisible();
+  });
+});
+

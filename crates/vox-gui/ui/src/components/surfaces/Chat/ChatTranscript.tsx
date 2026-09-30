@@ -5,6 +5,7 @@ import type { StreamItem } from '../../../types/dashboard';
 import { buildChatOnlyTimeline } from '../../../lib/chatTranscriptTimeline';
 import { StatusLine } from './StatusLine';
 import { TurnTrace } from './TurnTrace';
+import { ChatVerbosityControl } from './ChatVerbosityControl';
 import { useChatVerbosity, type ChatVerbosity } from '../../../hooks/useChatVerbosity';
 import { listHarnessIssuesForSession, type HarnessIssueRow } from '../Scientia/harnessIssuesApi';
 
@@ -99,7 +100,7 @@ function HarnessIssueSummary({ issue }: { issue: HarnessIssueRow }) {
 
 /** Merged chat bubbles + inline agent execution rows for the active session. */
 export function ChatTranscript({ messages, agentStreamItems, sessionId, onExcludeSkill }: ChatTranscriptProps) {
-  const [verbosity] = useChatVerbosity();
+  const [verbosity, setVerbosity] = useChatVerbosity();
   const timeline = buildChatOnlyTimeline(messages, agentStreamItems ?? [], { verbosity });
   const [harnessIssues, setHarnessIssues] = useState<HarnessIssueRow[]>([]);
 
@@ -142,6 +143,7 @@ export function ChatTranscript({ messages, agentStreamItems, sessionId, onExclud
       className="mb-3 min-h-0 flex-1 overflow-y-auto custom-scrollbar p-3 pb-6"
     >
       <div className="mx-auto flex w-full max-w-[900px] flex-col gap-2">
+        <ChatVerbosityControl value={verbosity} onChange={setVerbosity} />
         {harnessIssues.length > 0 && (
           <div className="mb-1 flex flex-col gap-1 border-b border-border-subtle pb-2">
             {harnessIssues.map((issue) => (
