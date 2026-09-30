@@ -1,5 +1,9 @@
 import React from 'react';
 import type { TurnEventDto } from '../../../types/dashboard';
+import { isKnownTurnEvent, modeLabel, routingModelLabel } from '../../../lib/turnEvents';
+
+const CHIP =
+  'flex items-center gap-2 self-start rounded-full border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[11px] text-text-secondary';
 
 interface ChatTurnEventRowProps {
   event: TurnEventDto;
@@ -20,6 +24,7 @@ interface ChatTurnEventRowProps {
  * on an unknown one.
  */
 export function ChatTurnEventRow({ event, onExcludeSkill }: ChatTurnEventRowProps) {
+  if (!isKnownTurnEvent(event)) return null;
   if (event.kind === 'skill_activated') {
     const skillId = typeof event.skill_id === 'string' ? event.skill_id : 'unknown';
     return (
@@ -88,6 +93,47 @@ export function ChatTurnEventRow({ event, onExcludeSkill }: ChatTurnEventRowProp
       >
         <span>
           claims · {valid} valid · {fabricated} fabricated · {unverified} unverified
+        </span>
+      </div>
+    );
+  }
+
+  if (event.kind === 'delegation_spawned') {
+    const taskId = typeof event.task_id === 'number' ? event.task_id : null;
+    return (
+      <div data-testid="chat-turn-delegation-row" className={CHIP}>
+        <span>
+          delegated · agent {String(event.agent_id)}
+          {taskId != null ? ` · task ${taskId}` : ''}
+        </span>
+      </div>
+    );
+  }
+
+  if (event.kind === 'research_milestone') {
+    // `query` is model-supplied and never rendered; counts only.
+    return (
+      <div data-testid="chat-turn-research-row" className={CHIP}>
+        <span>
+          research · {String(event.waves_executed)} waves · {String(event.claims_verified)} claims
+          verified · {String(event.contradictions_resolved)} contradictions resolved
+        </span>
+      </div>
+    );
+  }
+
+  if (event.kind === 'routing_decision') {
+    const mode = typeof event.mode === 'string' ? event.mode : null;
+    return (
+      <div
+        data-testid="chat-turn-routing-row"
+        data-resolved-from={String(event.resolved_from)}
+        title={typeof event.objective === 'string' ? event.objective : undefined}
+        className={CHIP}
+      >
+        <span>
+          routed to {routingModelLabel(event)}
+          {mode ? ` · ${modeLabel(mode)}` : ''} — {String(event.reason)}
         </span>
       </div>
     );
