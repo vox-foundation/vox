@@ -3,8 +3,8 @@ import { RISK_POSTURES, type RiskId, type ControlState } from '../../../lib/driv
 
 const COPY: Record<RiskId, string> = {
   high: 'Break things — auto-approve more, gates shadow-only, fewer safety tokens.',
-  moderate: 'Confirm + enforce grounding. Balanced safety.',
-  low: 'Enforce verification + grounding, raise approval, spend safety tokens, lean model up.',
+  moderate: 'Confirm, and check replies. Balanced safety.',
+  low: 'Enforce verification, check replies, raise approval, spend safety tokens, lean model up.',
 };
 
 interface RiskPopoverProps {
@@ -12,9 +12,10 @@ interface RiskPopoverProps {
   open: boolean;
   onChange: (next: Partial<ControlState>) => void;
   onClose: () => void;
+  children?: React.ReactNode;
 }
 
-export function RiskPopover({ risk, open, onChange, onClose }: RiskPopoverProps) {
+export function RiskPopover({ risk, open, onChange, onClose, children }: RiskPopoverProps) {
   const activeBtnRef = useRef<HTMLButtonElement>(null);
 
   // Move focus into the dialog when it opens so keyboard users land on the
@@ -52,6 +53,12 @@ export function RiskPopover({ risk, open, onChange, onClose }: RiskPopoverProps)
           <span className="text-zinc-400">{COPY[p.id]}</span>
         </button>
       ))}
+      {children ? (
+        <div className="mt-2 border-t border-white/10 pt-2">
+          <div className="mb-1 text-[10px] uppercase tracking-widest text-zinc-500">After each reply</div>
+          {children}
+        </div>
+      ) : null}
     </div>
   );
 }

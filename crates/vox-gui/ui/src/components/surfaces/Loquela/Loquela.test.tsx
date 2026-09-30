@@ -451,4 +451,28 @@ describe('Loquela', () => {
     renderLoquela();
     expect(await screen.findByTestId('model-load-status')).toHaveTextContent(/models unavailable/i);
   });
+
+  it('shows full mode names and still sends the wire value "efficiency"', () => {
+    const onSubmit = vi.fn();
+    renderLoquela({ onSubmit });
+    fireEvent.click(screen.getByRole('radio', { name: 'Balanced' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Efficient' }));
+    const ta = screen.getByLabelText('Task composer');
+    fireEvent.change(ta, { target: { value: 'ship it' } });
+    fireEvent.keyDown(ta, { key: 'Enter' });
+    expect(onSubmit.mock.calls[0][0].clutch).toBe('efficiency');
+  });
+
+  it('never shows a spend cap the daemon did not report (fallback source)', () => {
+    renderLoquela({ sessionBudget: { spent: 1, cap: 50, source: 'fallback' } });
+    expect(screen.getByTestId('drive-console-spend').textContent).toBe('Spend$1.00');
+  });
+
+  it('renders riskSlot inside the Risk popover', () => {
+    renderLoquela({ riskSlot: <button type="button">Check replies: off</button> });
+    expect(screen.queryByText('Check replies: off')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /^risk: /i }));
+    expect(screen.getByText('Check replies: off')).toBeTruthy();
+  });
 });
+

@@ -19,16 +19,16 @@ export function GroundingCheckToggle({
     <button
       type="button"
       aria-pressed={enabled}
-      aria-label={`Grounding check ${enabled ? 'on' : 'off'}`}
+      aria-label={`Check replies ${enabled ? 'on' : 'off'}`}
       onClick={() => onToggle(!enabled)}
-      title="When on, replies get a non-blocking post-reply confidence check"
+      title="When on, each reply gets a background check for unsupported claims; it never blocks the reply"
       className={`rounded-lg border px-2 py-1 font-mono text-[10px] ${
         enabled
           ? 'border-brass/40 text-brass'
           : 'border-border-subtle text-text-muted hover:text-brass'
       }`}
     >
-      grounding: {enabled ? 'on' : 'off'}
+      Check replies: {enabled ? 'on' : 'off'}
     </button>
   );
 }

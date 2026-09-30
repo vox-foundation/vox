@@ -1,8 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import { render, fireEvent, screen } from '@testing-library/react';
+import { within } from '@testing-library/react';
 import { DriveConsole } from './DriveConsole';
 import { defaultControl } from '../../../lib/driveConsole';
+import { CLUTCH_DETENTS } from '../../../lib/driveConsole';
+import { modeLabel } from '../../../lib/turnEvents';
 
 describe('DriveConsole', () => {
   const base = {
@@ -82,3 +85,60 @@ describe('DriveConsole', () => {
     expect(bar).toBeTruthy();
   });
 });
+
+describe('DriveConsole vocabulary (plan 3a)', () => {
+  const base = {
+    control: defaultControl(),
+    onControlChange: vi.fn(),
+    spentUsd: 0.42,
+    budgetUsd: 1.0,
+  };
+
+  it('takes every mode name from MODE_NAMES (one source with the turn trace)', () => {
+    expect(CLUTCH_DETENTS.map((d) => d.label)).toEqual(CLUTCH_DETENTS.map((d) => modeLabel(d.id)));
+  });
+
+  it('names every mode in full inside a "Mode" radiogroup', () => {
+    render(<DriveConsole {...base} />);
+    expect(screen.getAllByRole('radio').map((r) => r.textContent)).toEqual(['Free', 'Efficient', 'Balanced', 'Genius']);
+    expect(screen.getByRole('radiogroup', { name: /^Mode/ })).toBeTruthy();
+  });
+
+  it("shows the hovered or focused mode's one-line hint, and hides it after", () => {
+    render(<DriveConsole {...base} />);
+    expect(screen.queryByTestId('drive-mode-hint')).toBeNull();
+    const genius = screen.getByRole('radio', { name: 'Genius' });
+    fireEvent.mouseEnter(genius);
+    expect(screen.getByTestId('drive-mode-hint')).toHaveTextContent('Most intelligent solutions');
+    fireEvent.mouseLeave(genius);
+    expect(screen.queryByTestId('drive-mode-hint')).toBeNull();
+    const efficient = screen.getByRole('radio', { name: 'Efficient' });
+    fireEvent.focus(efficient);
+    const hint = screen.getByTestId('drive-mode-hint');
+    expect(hint).toHaveTextContent('Most out of the tokens you spend');
+    expect(efficient).toHaveAttribute('aria-describedby', hint.id);
+    fireEvent.blur(efficient);
+    expect(screen.queryByTestId('drive-mode-hint')).toBeNull();
+  });
+
+  it('labels the risk trigger "Risk: LEVEL"', () => {
+    render(<DriveConsole {...base} />);
+    expect(screen.getByRole('button', { name: /risk: moderate/i })).toHaveTextContent('Risk: Moderate');
+  });
+
+  it('puts extra risk controls (Check replies) inside the Risk popover, not in the strip', () => {
+    render(<DriveConsole {...base} riskExtra={<button type="button">Check replies: off</button>} />);
+    expect(screen.queryByText('Check replies: off')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /risk: moderate/i }));
+    const dialog = screen.getByRole('dialog', { name: /acceptable risk/i });
+    expect(within(dialog).getByText('Check replies: off')).toBeTruthy();
+  });
+
+  it('Spend shows the cap only when it is positive', () => {
+    const { rerender } = render(<DriveConsole {...base} spentUsd={12.34} budgetUsd={50} />);
+    expect(screen.getByTestId('drive-console-spend')).toHaveTextContent('Spend$12.34 / $50.00');
+    rerender(<DriveConsole {...base} spentUsd={12.34} budgetUsd={0} />);
+    expect(screen.getByTestId('drive-console-spend').textContent).toBe('Spend$12.34');
+  });
+});
+

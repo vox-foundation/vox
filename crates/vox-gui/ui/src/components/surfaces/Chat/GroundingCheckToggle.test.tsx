@@ -11,29 +11,29 @@ import { GroundingCheckToggle } from './GroundingCheckToggle';
 describe('GroundingCheckToggle', () => {
   it('renders off by default and reflects the hook-backed state', () => {
     render(<GroundingCheckToggle enabled={false} onToggle={vi.fn()} />);
-    const btn = screen.getByRole('button', { name: /grounding check off/i });
+    const btn = screen.getByRole('button', { name: /check replies off/i });
     expect(btn).toHaveAttribute('aria-pressed', 'false');
-    expect(btn).toHaveTextContent('grounding: off');
+    expect(btn).toHaveTextContent('Check replies: off');
   });
 
   it('renders on when the persisted preference is true', () => {
     render(<GroundingCheckToggle enabled={true} onToggle={vi.fn()} />);
-    const btn = screen.getByRole('button', { name: /grounding check on/i });
+    const btn = screen.getByRole('button', { name: /check replies on/i });
     expect(btn).toHaveAttribute('aria-pressed', 'true');
-    expect(btn).toHaveTextContent('grounding: on');
+    expect(btn).toHaveTextContent('Check replies: on');
   });
 
   it('calls onToggle with the flipped value on click', async () => {
     const user = userEvent.setup();
     const onToggle = vi.fn();
     render(<GroundingCheckToggle enabled={false} onToggle={onToggle} />);
-    await user.click(screen.getByRole('button', { name: /grounding check off/i }));
+    await user.click(screen.getByRole('button', { name: /check replies off/i }));
     expect(onToggle).toHaveBeenCalledWith(true);
   });
 
   it('is a real <button type="button">, not a link or div', () => {
     render(<GroundingCheckToggle enabled={false} onToggle={vi.fn()} />);
-    const btn = screen.getByRole('button', { name: /grounding check off/i });
+    const btn = screen.getByRole('button', { name: /check replies off/i });
     expect(btn.tagName).toBe('BUTTON');
     expect(btn).toHaveAttribute('type', 'button');
   });

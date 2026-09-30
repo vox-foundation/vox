@@ -1,12 +1,16 @@
 // Mirror of contracts/gui/drive-console.v1.yaml (kept in sync by the BE parity gate).
+import { modeLabel } from './turnEvents';
 export type ClutchId = 'free' | 'efficiency' | 'balanced' | 'genius';
 export type RiskId = 'high' | 'moderate' | 'low';
 
+/** Canonical mode name for a clutch id — one source: `MODE_NAMES` in `lib/turnEvents.ts` (the turn trace uses it too). */
+const modeName = (id: ClutchId): string => modeLabel(id);
+
 export const CLUTCH_DETENTS: { id: ClutchId; label: string; hint: string }[] = [
-  { id: 'free',       label: 'Free',   hint: 'Free models only' },
-  { id: 'efficiency', label: 'Effic.', hint: 'Most out of the tokens you spend; delegates to free agents on simple tasks' },
-  { id: 'balanced',   label: 'Bal.',   hint: 'Balanced cost/quality' },
-  { id: 'genius',     label: 'Genius', hint: 'Most intelligent solutions; budget relaxed' },
+  { id: 'free',       label: modeName('free'),       hint: 'Free models only' },
+  { id: 'efficiency', label: modeName('efficiency'), hint: 'Most out of the tokens you spend; delegates to free agents on simple tasks' },
+  { id: 'balanced',   label: modeName('balanced'),   hint: 'Balanced cost/quality' },
+  { id: 'genius',     label: modeName('genius'),     hint: 'Most intelligent solutions; budget relaxed' },
 ];
 
 export const RISK_POSTURES: { id: RiskId; label: string; tone: 'rose' | 'amber' | 'emerald' }[] = [

@@ -159,6 +159,8 @@ interface LoquelaProps {
    * model state.
    */
   trailingSlot?: React.ReactNode;
+  /** Rendered inside the Risk popover (App passes the Check replies toggle). */
+  riskSlot?: React.ReactNode;
   /** Lift a concrete model pick into App `chatModelOverride`. */
   onModelPick?: (modelId: string | null) => void;
   /** Current App-level override so "Run on" stays in sync with ChatModelPicker. */
@@ -185,6 +187,7 @@ export function Loquela({
   currentAgent,
   onResume,
   trailingSlot,
+  riskSlot,
   onModelPick,
   selectedModelId = null,
 }: LoquelaProps) {
@@ -865,7 +868,8 @@ export function Loquela({
               setControl(c => ({ ...c, ...n }));
             }}
             spentUsd={sessionBudget?.spent ?? 0}
-            budgetUsd={sessionBudget?.cap ?? 0}
+            budgetUsd={sessionBudget?.source === 'daemon' ? sessionBudget.cap : 0}
+            riskExtra={riskSlot}
           />
 
           {typeof queueDepth === 'number' && queueDepth > 0 && (

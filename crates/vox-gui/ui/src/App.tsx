@@ -1787,7 +1787,7 @@ export default function App() {
       skills={installedSkillEntries}
       toast={pushToast}
       agents={data.agents}
-      trailingSlot={
+      riskSlot={
         <GroundingCheckToggle
           enabled={groundingCheckEnabled}
           onToggle={setGroundingCheckEnabled}

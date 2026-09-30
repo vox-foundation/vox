@@ -1012,7 +1012,7 @@ describe('App shell', () => {
   // (default off) must actually reach `chat_turn`'s
   // `grounding_check_enabled` arg for a plain chat send — before this fix the
   // toggle's state was never threaded into the synchronous send path at all.
-  it('enabling the grounding check toggle forwards grounding_check_enabled=true to chat_turn', async () => {
+  it('enabling Check replies in the Risk popover forwards grounding_check_enabled=true to chat_turn', async () => {
     invokeMock.mockImplementation((cmd: string) => {
       if (cmd === 'chat_list_sessions') return Promise.resolve([]);
       if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
@@ -1035,10 +1035,9 @@ describe('App shell', () => {
     const composer = await screen.findByPlaceholderText(/describe a task/i);
     const user = userEvent.setup();
 
-    // Accessible name comes from the button's `aria-label` ("Grounding check
-    // on/off"), not its visible text ("grounding: on/off") — RTL's `name`
-    // matcher matches the accessible name, so the pattern must include "check".
-    const groundingToggle = await screen.findByRole('button', { name: /grounding check (on|off)/i });
+    // The toggle lives inside the Risk popover as "Check replies" (chat-surfaces plan 3a).
+    await user.click(await screen.findByRole('button', { name: /^risk: /i }));
+    const groundingToggle = await screen.findByRole('button', { name: /check replies (on|off)/i });
     expect(groundingToggle).toHaveAttribute('aria-pressed', 'false');
     await user.click(groundingToggle);
     expect(groundingToggle).toHaveAttribute('aria-pressed', 'true');

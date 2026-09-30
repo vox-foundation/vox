@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import { render, fireEvent, screen } from '@testing-library/react';
+import { within } from '@testing-library/react';
 import { RiskPopover } from './RiskPopover';
 
 describe('RiskPopover', () => {
@@ -45,3 +46,25 @@ describe('RiskPopover', () => {
     expect(document.activeElement).toBe(screen.getByRole('button', { name: /low risk/i }));
   });
 });
+
+describe('RiskPopover extra controls', () => {
+  it('renders children below the postures', () => {
+    render(
+      <RiskPopover risk="moderate" onChange={() => {}} open onClose={() => {}}>
+        <button type="button">Check replies: off</button>
+      </RiskPopover>,
+    );
+    expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Check replies: off' })).toBeTruthy();
+  });
+
+  it('uses the canonical "check replies", never the retired "grounding"', () => {
+    for (const risk of ['high', 'moderate', 'low'] as const) {
+      const { unmount } = render(<RiskPopover risk={risk} onChange={() => {}} open onClose={() => {}} />);
+      expect(screen.getByRole('dialog').textContent).not.toMatch(/grounding/i);
+      unmount();
+    }
+    render(<RiskPopover risk="moderate" onChange={() => {}} open onClose={() => {}} />);
+    expect(screen.getByRole('dialog')).toHaveTextContent(/check replies/i);
+  });
+});
+

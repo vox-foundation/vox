@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { CLUTCH_DETENTS, RISK_POSTURES, type ControlState } from '../../../lib/driveConsole';
+import React, { useEffect, useId, useRef, useState } from 'react';
+import { CLUTCH_DETENTS, RISK_POSTURES, type ClutchId, type ControlState } from '../../../lib/driveConsole';
+import { formatSpend } from '../../../config/budget';
 import { RiskPopover } from './RiskPopover';
 
 const TONE_BG: Record<string, string> = {
@@ -12,8 +13,11 @@ interface DriveConsoleProps {
   control: ControlState;
   onControlChange: (next: Partial<ControlState>) => void;
   spentUsd: number;
+  /** Positive only when the daemon reported a cap; 0 hides the cap and the bar. */
   budgetUsd: number;
   burnPerMin?: number;
+  /** Extra controls shown inside the Risk popover (App passes Check replies). */
+  riskExtra?: React.ReactNode;
 }
 
 export function DriveConsole({
@@ -22,11 +26,15 @@ export function DriveConsole({
   spentUsd,
   budgetUsd,
   burnPerMin,
+  riskExtra,
 }: DriveConsoleProps) {
   const [riskOpen, setRiskOpen] = useState(false);
+  const [hintFor, setHintFor] = useState<ClutchId | null>(null);
+  const hintId = useId();
   const riskAnchorRef = useRef<HTMLSpanElement>(null);
   const risk = RISK_POSTURES.find(r => r.id === control.risk)!;
   const pct = budgetUsd > 0 ? Math.min(100, (spentUsd / budgetUsd) * 100) : 0;
+  const hint = hintFor ? CLUTCH_DETENTS.find(d => d.id === hintFor)?.hint ?? null : null;
 
   // Dismiss the risk popover on any interaction outside the trigger+popover
   // (same pattern as ChatSessionRail's row-menu dismiss) — otherwise only
@@ -42,18 +50,22 @@ export function DriveConsole({
 
   return (
     <div className="relative flex items-stretch rounded-lg border border-white/10 text-[11px]">
-      {/* ① Clutch */}
-      <div className="flex items-center gap-1 border-r border-white/[0.07] px-2.5 py-1.5">
+      {/* ① Mode */}
+      <div className="relative flex items-center gap-1 border-r border-white/[0.07] px-2.5 py-1.5">
         <span className="text-zinc-500" aria-hidden>⚙</span>
-        <div role="radiogroup" aria-label="Clutch — how much to spend" className="flex gap-0.5">
+        <div role="radiogroup" aria-label="Mode — how much to spend" className="flex gap-0.5">
           {CLUTCH_DETENTS.map(d => (
             <button
               key={d.id}
               type="button"
               role="radio"
-              title={d.hint}
               aria-checked={control.clutch === d.id}
+              aria-describedby={hintFor === d.id ? hintId : undefined}
               onClick={() => onControlChange({ clutch: d.id })}
+              onMouseEnter={() => setHintFor(d.id)}
+              onMouseLeave={() => setHintFor(null)}
+              onFocus={() => setHintFor(d.id)}
+              onBlur={() => setHintFor(null)}
               className={`min-h-[24px] rounded px-1.5 font-medium ${
                 control.clutch === d.id
                   ? 'bg-brass/16 text-brass'
@@ -64,21 +76,34 @@ export function DriveConsole({
             </button>
           ))}
         </div>
+        {hint && (
+          <span
+            id={hintId}
+            role="tooltip"
+            data-testid="drive-mode-hint"
+            className="pointer-events-none absolute bottom-full left-0 z-40 mb-1 whitespace-nowrap rounded border border-white/10 bg-bg-base px-2 py-0.5 text-[10px] text-text-secondary"
+          >
+            {hint}
+          </span>
+        )}
       </div>
 
-      {/* ② Cost */}
+      {/* ② Spend — engine-wide; the status bar's Spend card has the breakdown */}
       <div
+        data-testid="drive-console-spend"
         className="flex items-center gap-2 border-r border-white/[0.07] px-2.5 py-1.5"
-        title="Live spend"
+        title="Engine spend across all sessions"
       >
-        <span className="font-mono text-brass">${spentUsd.toFixed(2)}</span>
-        <span className="font-mono text-zinc-500">/{budgetUsd.toFixed(2)}</span>
-        <span className="relative h-[3px] w-12 rounded-sm bg-white/8">
-          <span
-            className="absolute inset-y-0 left-0 rounded-sm bg-linear-to-r from-emerald-400 to-brass"
-            style={{ width: `${pct}%` }}
-          />
-        </span>
+        <span className="text-zinc-500">Spend</span>
+        <span className="font-mono text-brass">{formatSpend(spentUsd, budgetUsd > 0 ? budgetUsd : null)}</span>
+        {budgetUsd > 0 && (
+          <span className="relative h-[3px] w-12 rounded-sm bg-white/8">
+            <span
+              className="absolute inset-y-0 left-0 rounded-sm bg-linear-to-r from-emerald-400 to-brass"
+              style={{ width: `${pct}%` }}
+            />
+          </span>
+        )}
         {burnPerMin != null && (
           <span className="text-zinc-500">↑${burnPerMin.toFixed(2)}/m</span>
         )}
@@ -96,7 +121,7 @@ export function DriveConsole({
           className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-white/3"
         >
           <span className={`h-3.5 w-[3px] rounded-sm ${TONE_BG[risk.tone]}`} aria-hidden />
-          <span>{risk.label}</span>
+          <span>Risk: {risk.label}</span>
           <span className="text-zinc-600">▾</span>
         </button>
         <RiskPopover
@@ -104,7 +129,9 @@ export function DriveConsole({
           risk={control.risk}
           onChange={(n) => { onControlChange(n); setRiskOpen(false); }}
           onClose={() => setRiskOpen(false)}
-        />
+        >
+          {riskExtra}
+        </RiskPopover>
       </span>
     </div>
   );
