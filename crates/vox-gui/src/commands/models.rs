@@ -101,6 +101,13 @@ pub struct RoutingSummaryDto {
     pub arm_count: usize,
     pub model_count: usize,
     pub decision_preview: Option<DecisionPreviewDto>,
+    /// Family of the preview pick (`models::family::family_key`); `None` without a pick.
+    pub family: Option<String>,
+    /// `catalog` | `bootstrap` | `local` (`models::provenance::resolved_from`). The GUI shows a
+    /// concrete version only for `catalog`.
+    pub resolved_from: Option<String>,
+    /// `SelectionReason` display text of the preview pick.
+    pub reason: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -303,23 +310,43 @@ pub async fn get_auto_model_recommendation()
     Ok(vox_orchestrator::models::auto_select::select_optimal_local_model_for_host())
 }
 
+/// Family, provenance and reason of a routing pick, for [`RoutingSummaryDto`].
+fn routing_provenance(
+    spec: &ModelSpec,
+    reason: &vox_orchestrator::models::select::SelectionReason,
+) -> (String, &'static str, String) {
+    (
+        vox_orchestrator::models::family::family_key(&spec.id),
+        vox_orchestrator::models::provenance::resolved_from(spec).as_str(),
+        reason.to_string(),
+    )
+}
+
 pub async fn get_routing_summary(daemon: &PersistentDaemon) -> Result<RoutingSummaryDto, String> {
     let reg = registry_from_cache();
     let cfg = vox_config::load_model_routing_config();
     let active = get_active_model().await.ok().flatten();
-    let decision_preview = {
-        let req =
-            ModelSelectionRequest::from_intent(SelectionIntent::for_task(TaskCategory::CodeGen));
-        decide(&req, &reg).map(|d| DecisionPreviewDto {
-            selected_model: d.selected_model,
-            discovery_state: d.discovery_state.as_str().to_string(),
-            alternatives: d.alternatives,
-            rejection_reasons: d.rejection_reasons,
-            intelligence_score: d.score_breakdown.intelligence_score,
-            efficiency_score: d.score_breakdown.efficiency_score,
-            latency_score: d.score_breakdown.latency_score,
-        })
+    let decision = decide(
+        &ModelSelectionRequest::from_intent(SelectionIntent::for_task(TaskCategory::CodeGen)),
+        &reg,
+    );
+    let (family, resolved_from, reason) = match &decision {
+        Some(d) => {
+            let (family, from, reason) =
+                routing_provenance(&d.outcome.model_spec, &d.outcome.reason);
+            (Some(family), Some(from.to_string()), Some(reason))
+        }
+        None => (None, None, None),
     };
+    let decision_preview = decision.map(|d| DecisionPreviewDto {
+        selected_model: d.selected_model,
+        discovery_state: d.discovery_state.as_str().to_string(),
+        alternatives: d.alternatives,
+        rejection_reasons: d.rejection_reasons,
+        intelligence_score: d.score_breakdown.intelligence_score,
+        efficiency_score: d.score_breakdown.efficiency_score,
+        latency_score: d.score_breakdown.latency_score,
+    });
     let exploration_spent_usd = async {
         let addr = daemon.ensure().await.ok()?;
         let client = match daemon.token().await {
@@ -350,6 +377,9 @@ pub async fn get_routing_summary(daemon: &PersistentDaemon) -> Result<RoutingSum
         arm_count: reg.arm_stats_snapshot().len(),
         model_count: reg.list_models().len(),
         decision_preview,
+        family,
+        resolved_from,
+        reason,
     })
 }
 
@@ -889,5 +919,73 @@ mod tests {
             reg.get("mens/stale-run").expect("stale-run").max_tokens,
             8192
         );
+    }
+
+    fn provenance_spec(pricing_source: vox_orchestrator::models::spec::PricingSource) -> ModelSpec {
+        ModelSpec {
+            id: "acme/widget-5.5".into(),
+            canonical_slug: "acme/widget-5.5".into(),
+            provider: "test".into(),
+            provider_type: vox_orchestrator::models::ProviderType::OpenRouter,
+            max_tokens: 32_000,
+            cost_per_1k: 0.001,
+            cost_per_1k_input: 0.001,
+            cost_per_1k_output: 0.001,
+            is_free: false,
+            observed_cost_per_1k: None,
+            strengths: vec![vox_orchestrator::models::StrengthTag::Generalist],
+            capabilities: vox_orchestrator::models::ModelCapabilities::default(),
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source,
+            supported_parameters: vec![],
+        }
+    }
+
+    #[test]
+    fn routing_provenance_reports_family_catalog_source_and_reason() {
+        let (family, from, reason) = routing_provenance(
+            &provenance_spec(vox_orchestrator::models::spec::PricingSource::OpenRouter),
+            &vox_orchestrator::models::select::SelectionReason::Scored,
+        );
+        assert_eq!(family, "acme/widget");
+        assert_eq!(from, "catalog");
+        assert_eq!(
+            reason,
+            "Chosen by the model scorer as the best match for your request"
+        );
+    }
+
+    #[test]
+    fn routing_provenance_marks_a_bootstrap_pick_as_bootstrap() {
+        let (_, from, _) = routing_provenance(
+            &provenance_spec(vox_orchestrator::models::spec::PricingSource::Bootstrap),
+            &vox_orchestrator::models::select::SelectionReason::Scored,
+        );
+        assert_eq!(from, "bootstrap");
+    }
+
+    #[test]
+    fn routing_summary_serializes_absent_provenance_as_null() {
+        let dto = RoutingSummaryDto {
+            active_model: None,
+            exploration_spent_usd: 0.0,
+            exploration_budget_usd: 0.0,
+            routing_priority: sample_priority(),
+            arm_count: 0,
+            model_count: 0,
+            decision_preview: None,
+            family: None,
+            resolved_from: None,
+            reason: None,
+        };
+        let v = serde_json::to_value(&dto).expect("serialize");
+        for key in ["family", "resolved_from", "reason"] {
+            assert!(
+                v.get(key).is_some_and(serde_json::Value::is_null),
+                "{key} must serialize as null, got {v}"
+            );
+        }
     }
 }

@@ -114,6 +114,12 @@ export interface RoutingSummary {
   arm_count: number;
   model_count: number;
   decision_preview: DecisionPreview | null;
+  /** Family of the preview pick (Rust `models::family::family_key`). */
+  family?: string | null;
+  /** Where the pick's id came from; show a concrete version only for `catalog`. */
+  resolved_from?: 'catalog' | 'bootstrap' | 'local' | null;
+  /** `SelectionReason` display text of the preview pick. */
+  reason?: string | null;
 }
 
 /** Raw agent row from orchestrator status before `mapAgent`. */
