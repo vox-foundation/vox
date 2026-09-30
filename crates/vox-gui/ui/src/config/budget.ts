@@ -38,3 +38,9 @@ export function formatBudgetCap(cap: number | null, source: BudgetSource): strin
   }
   return '—';
 }
+
+/** `$12.34 / $50.00` when a positive cap is known, else `$12.34` — never `/ $0`. */
+export function formatSpend(spent: number, cap: number | null): string {
+  const s = `$${spent.toFixed(2)}`;
+  return cap != null && cap > 0 ? `${s} / $${cap.toFixed(2)}` : s;
+}
