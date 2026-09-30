@@ -1,9 +1,9 @@
 //! `vox repl` — interactive read-eval-print loop for Vox expressions.
 //!
-//! Session state (see [`ReplSession`]) persists across lines: a `fn`/`type`/etc.
+//! Session state (see `ReplSession`) persists across lines: a `fn`/`type`/etc.
 //! declared on one line stays callable on later lines, and the interpreter
 //! keeps its scope across calls. Bare top-level statements (`let x = 5`,
-//! `sq(4)`) are *not* persisted as declarations — see [`ReplSession::eval_line`].
+//! `sq(4)`) are *not* persisted as declarations — see `ReplSession::eval_line`.
 
 use anyhow::Result;
 use std::io::{self, Write};

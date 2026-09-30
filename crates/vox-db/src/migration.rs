@@ -232,14 +232,14 @@ pub async fn precheck_quarantine_tables_empty(conn: &turso::Connection) -> Resul
 }
 
 /// Phase 2 + orchestration: drop every quarantined table (Phase 1 permitting) and advance
-/// `schema_version` to [`crate::schema::BASELINE_VERSION`] via the normal [`crate::VoxDb::migrate`]
+/// `schema_version` to `crate::schema::BASELINE_VERSION` via the normal `crate::VoxDb::migrate`
 /// path.
 ///
 /// Runs [`precheck_quarantine_tables_empty`] first. If it errors, this function returns that same
 /// error immediately — no `DROP TABLE` is issued and the database is left completely untouched
 /// (including `schema_version`, which does not advance). If it passes, issues an unconditional
 /// `DROP TABLE IF EXISTS` for every table in [`QUARANTINE_DROP_TABLES`], then calls
-/// [`crate::VoxDb::migrate`] to bring `schema_version` to exactly `BASELINE_VERSION` — the same
+/// `crate::VoxDb::migrate` to bring `schema_version` to exactly `BASELINE_VERSION` — the same
 /// version fresh installs reach, via the same single code path.
 ///
 /// **No automated rollback and no backup taken here** — see the module-level note above. Callers

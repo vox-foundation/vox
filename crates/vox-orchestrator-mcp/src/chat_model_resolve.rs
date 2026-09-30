@@ -23,7 +23,7 @@
 //! `resolve_chat_llm_model` (below) is *not* on the critical path for either: callers
 //! that use it (see list above) still separately call into funnel (1) afterward, and
 //! `try_run_agent_turn` (funnel 2) resolves its model via `resolve_mcp_chat_model`
-//! directly, bypassing this function entirely. So [`enforce_budget_guard`] is called
+//! directly, bypassing this function entirely. So `enforce_budget_guard` is called
 //! from three places: here (fail-fast, before any registry work — intentionally
 //! redundant with (2) below for callers that go through both), inside
 //! `mcp_infer_tool_completion` itself (the actual universal point for funnel 1 —

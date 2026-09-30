@@ -153,6 +153,15 @@ runs:
         components: ${{ steps.union.outputs.components }}
         targets: ${{ steps.union.outputs.targets }}
 
+    # The retired self-hosted image shipped cargo-nextest; hosted images don't,
+    # and six jobs across nightly.yml / ts-emit-noemit.yml ran `cargo nextest`
+    # with no install step ("no such command: `nextest`"). Every Rust job goes
+    # through this action, so install it once here (prebuilt binary, seconds).
+    - name: Install cargo-nextest
+      uses: taiki-e/install-action@v2
+      with:
+        tool: cargo-nextest
+
     # Save/restore are split so only `main` WRITES. The repository Actions
     # cache is a 10 GB LRU bucket: a cache saved from a PR run is scoped to
     # `refs/pull/N/merge`, so no other ref can ever read it -- it is pure

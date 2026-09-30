@@ -34,7 +34,7 @@ fn find_boundary_match(haystack: &[u8], phrase: &[u8], from: usize) -> Option<us
 
 /// Replace common spoken symbol phrases with ASCII (conservative list).
 ///
-/// Word-boundary-checked (via [`find_boundary_match`]): a bare substring
+/// Word-boundary-checked (via `find_boundary_match`): a bare substring
 /// search here would corrupt ordinary English words that merely contain a
 /// phrase as a substring — e.g. "comma" inside "command"/"commander", or
 /// "dot" inside "anecdote"/"dotted" — exactly the bug class already fixed

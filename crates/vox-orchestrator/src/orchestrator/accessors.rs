@@ -117,7 +117,7 @@ impl Orchestrator {
 
     /// Debit the pilot attention budget for a completed chat turn.
     ///
-    /// [`crate::chat_processor::ChatTaskProcessor`] deliberately bypasses the
+    /// `crate::chat_processor::ChatTaskProcessor` deliberately bypasses the
     /// full agentic gate cascade (behavioral/approval/trust/etc.), which is
     /// also the only place that historically debited `AttentionBudget` —
     /// via MCP approval/questioning tool calls

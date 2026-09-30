@@ -470,7 +470,7 @@ pub fn upload_model_folder_blocking(
         .map_err(|_| anyhow::anyhow!("HF upload thread exited without sending result"))?
 }
 
-/// True iff `repo_id` (its pin-stripped name; see [`repo_name_without_revision`])
+/// True iff `repo_id` (its pin-stripped name; see `repo_name_without_revision`)
 /// already has at least one cached revision on disk — a purely local
 /// filesystem scan (`HFClient::scan_cache`), no network call. Lets a caller
 /// (e.g. `vox mens probe --detailed --model <repo>`) decide whether checking

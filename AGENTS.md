@@ -459,7 +459,10 @@ the single layer SSOT).
   licenses/bans/sources on dependency changes, and `cargo clippy`/`rustdoc -D
   warnings` on a detected toolchain bump. `tests` runs nextest on the same
   affected set in 3 parallel `--partition hash:K/3` shards (a skipped `tests`
-  counts only when `linux` planned none). `ui` (typecheck + vitest +
+  counts only when `linux` planned none), under nextest profile `ci-gate`:
+  `ci` minus a quarantine of tests red on `main` (issue #569; nightly still
+  runs them). Never add a test to the quarantine to make your own PR green —
+  only remove entries as they get fixed. `ui` (typecheck + vitest +
   Playwright) is required only on PRs that change `crates/vox-gui/**` or
   `orch_daemon/mod.rs` (it fails closed when the base SHA is missing). The
   merge queue additionally runs an **advisory** (non-blocking) Windows compile
