@@ -181,9 +181,6 @@ pub async fn download_model(repo_id: &str) -> anyhow::Result<DownloadedModelFile
                 break;
             }
         }
-        let tokenizer_config =
-            Some(local_path.join("tokenizer_config.json")).filter(|p| p.exists());
-        let chat_template = Some(local_path.join("chat_template.jinja")).filter(|p| p.exists());
         let mut weights = Vec::new();
         if let Ok(entries) = std::fs::read_dir(&local_path) {
             for entry in entries.flatten() {
