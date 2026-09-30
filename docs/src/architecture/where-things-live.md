@@ -254,6 +254,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | Privacy classifier — sensitivity detection (D8) | `crates/vox-orchestrator/src/privacy_classifier.rs` |
 | Cache predictor — prefix cache routing (D7) | `crates/vox-orchestrator/src/cache_predictor.rs` |
 | Budget gate — token/cost limits (D7) | `crates/vox-orchestrator/src/budget_gate.rs` |
+| Chat turn trace (turn events, routing decision) | contract `contracts/gui/turn-event-kinds.v1.json`; producers `crates/vox-orchestrator-mcp/src/chat_tools/chat/{agent_loop,turn_events}.rs`; provenance `crates/vox-orchestrator/src/models/provenance.rs`; GUI `crates/vox-gui/ui/src/lib/turnEvents.ts` (model and mode label owner), `lib/turnTrace.ts`, `components/surfaces/Chat/TurnTrace.tsx` |
 | Compaction trigger — strategy selection (D7) | `crates/vox-orchestrator/src/compaction_trigger.rs` |
 | Calibration — drift detection + bandit (D10) | `crates/vox-orchestrator/src/calibration.rs` |
 | Sub-agent dispatch — spawn vs. inline (D4) | `crates/vox-orchestrator/src/subagent_dispatch.rs` |

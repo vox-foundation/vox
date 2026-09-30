@@ -49,7 +49,7 @@ Generated: 2026-06-25. Awaiting Gate G2 human approval.
 | Chat | ChatSessionRail.tsx:101 | New chat session Button onClick | works | — | chat_create_session | **KEEP** |
 | Chat | SecretaryToast.tsx:54 | View task button onClick | works | — | none (navigation) | **KEEP** |
 | Chat | SecretaryToast.tsx:63 | Dismiss button onClick | works | — | none (local state) | **KEEP** |
-| Chat | ModelBadge.tsx:33 | model badge toggle button onClick | works | — | none (local state) | **KEEP** |
+| Chat | TurnTrace.tsx:56 | trace summary toggle button onClick | works | — | none (local state) | **KEEP** |
 | Dashboard | Dashboard/Dashboard.tsx:303 | Open Chat CTA button | works | — | none (navigation) | **KEEP** |
 | Dashboard | Dashboard/Dashboard.tsx:349 | Customize dashboard toggle | works | — | none (local state) | **KEEP** |
 | Dashboard | Dashboard/Dashboard.tsx:330 | Add widget button | works | — | none (local state) | **KEEP** |
@@ -192,10 +192,6 @@ Generated: 2026-06-25. Awaiting Gate G2 human approval.
 | Chat | ChatTranscript.tsx:38 | ds-token | Streaming indicator uses text-cyan-300 / bg-cyan-300 — not ds token | med |
 | Chat | ChatAgentEventRow.tsx:18 | ds-token | Doubted item bar uses from-amber-400/40 to-amber-400/0 gradient — not a ds token | med |
 | Chat | ChatAgentEventRow.tsx:19 | ds-token | Token item bar uses from-cyan-400/40 to-cyan-400/0 gradient — not a ds token | med |
-| Chat | ModelBadge.tsx:25 | ds-token | Fallback 'model unknown' uses text-zinc-600 — not a ds token | low |
-| Chat | ModelBadge.tsx:39 | ds-token | Token counts and cost use text-zinc-500 — not a ds token | low |
-| Chat | ModelBadge.tsx:49 | ds-token | Detail popover background hardcoded hex bg-[#0b0b0e] — should use bg-bg-base | high |
-| Chat | ModelBadge.tsx:50 | ds-token | Popover uses text-zinc-300 and border-white/10 — not ds tokens | med |
 | Chat | PhaseChip.tsx:48 | ds-token | Intervention buttons use text-zinc-400 hover:text-zinc-200 — not ds tokens | low |
 | Chat | PhaseChip.tsx:78 | ds-token | Done checkmark uses text-emerald-400 — not a ds token | med |
 | Chat | ContextWindowMeter.tsx:23 | ds-token | Zone fill colors use arbitrary bracket oklch values — not ds tokens | med |
