@@ -15,9 +15,11 @@ The current model pipeline mixes three concerns into one hand-edited file:
 the bootstrap catalog is simultaneously (a) the cold-start fallback, (b) the
 SSOT humans edit when a new model ships, and (c) the pin list for
 reproducibility. Result: every new frontier model release blocks on a manual
-PR to `model-catalog.bootstrap.v1.json`, and selection logic is scattered
-across two parallel paths (`select()` + `resolve_model_with_registry_fallbacks`)
-plus several provider-default constants.
+PR to `model-catalog.bootstrap.v1.json`. Production selection runs through
+`models::select::decide` and registry routing; provider-default constants remain
+as fallbacks. `resolve_model_with_registry_fallbacks` has no production callers
+and is not a maintained routing surface, as verified by
+[ADR-046](../adr/046-pareto-frontier-reporting.md).
 
 ## 1. The three loops
 
@@ -174,8 +176,11 @@ are gated behind feature flags until council approves go-live.
   the hot path.
 - `model-catalog.bootstrap.v1.json` kept at its filename for one release
   with a deprecation pointer to `catalog-fallback.v1.json`.
-- `resolve_model_with_registry_fallbacks` retained as a thin wrapper over
-  `select()` so older callers don't break.
+- Production routing remains in `models::select::decide` and registry routing.
+  `resolve_model_with_registry_fallbacks` has no production callers and is not
+  a maintained routing surface; see
+  [ADR-046](../adr/046-pareto-frontier-reporting.md). Pareto-frontier behavior
+  is reporting-only and does not change model eligibility, promotion, or routing.
 
 ## 8. Open questions
 

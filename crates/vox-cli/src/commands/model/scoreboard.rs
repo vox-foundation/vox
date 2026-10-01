@@ -168,9 +168,9 @@ fn render_budget_line(
 /// the sentence that stops a reader reading `*` as *answer* quality, and naming the Wilson lower
 /// bound stops them trying to reproduce the ranking from the raw `Success %` column beside it.
 pub(super) fn pareto_legend() -> &'static str {
-    "* Pareto-optimal: no other row is at least as good on success rate, cost and latency \
-     while being strictly better on at least one. Ranked on the Wilson lower bound of the \
-     success rate, not the raw percentage shown. Success counts non-error provider responses, \
+    "* Pareto-optimal: no other row is at least as good on reliability, cost and latency \
+     while being strictly better on at least one. Reliability is ranked on the Wilson lower \
+     bound of the success rate, not the raw percentage shown. Success counts non-error provider responses, \
      not answer correctness. Rows below the observation threshold are never marked."
 }
 

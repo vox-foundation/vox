@@ -174,6 +174,9 @@ pub async fn ingest_url(pool: State<'_, GuiDbPool>, url: String) -> Result<Strin
     if clean_url.is_empty() {
         return Err("URL cannot be empty".to_string());
     }
+    if !clean_url.starts_with("http://") && !clean_url.starts_with("https://") {
+        return Err("URL must start with http:// or https://".to_string());
+    }
 
     let policy = vox_search::policy::SearchPolicy::from_env();
     let timeout_ms = policy.scraper_timeout_ms.max(1000);
@@ -204,9 +207,15 @@ pub async fn ingest_url(pool: State<'_, GuiDbPool>, url: String) -> Result<Strin
     })
     .to_string();
 
+    let label = if doc.title.trim().is_empty() {
+        clean_url
+    } else {
+        doc.title.trim()
+    };
+
     db.upsert_knowledge_node(
         &node_id,
-        &doc.title,
+        label,
         &doc.markdown,
         Some("web_scrape"),
         Some(&meta),
@@ -281,7 +290,7 @@ pub async fn save_research_session_to_kb(
         Some(db.as_ref()),
         &session.query_text,
         &sources,
-        artifact.report_markdown.as_deref(),
+        Some(artifact.report_markdown.as_str()),
     )
     .await;
 

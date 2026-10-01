@@ -540,7 +540,7 @@ mod tests {
         .expect("upsert node-3");
 
         // 2. Create edge
-        db.create_knowledge_edge("node-1", "node-2", "references", None)
+        db.create_knowledge_edge("node-1", "node-2", "references", 1.0, None)
             .await
             .expect("create edge");
 

@@ -31,6 +31,7 @@ vox-gamify = { path = "../vox-gamify" }
 vox-secrets = { workspace = true }
 vox-oauth-pkce = { workspace = true }
 vox-http-client = { workspace = true }
+reqwest = { workspace = true }
 vox-scientia = { workspace = true }
 vox-research-shim = { workspace = true }
 vox-publisher = { workspace = true }
