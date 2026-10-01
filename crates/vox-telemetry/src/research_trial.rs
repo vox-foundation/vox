@@ -13,7 +13,13 @@ pub const RESEARCH_TRIAL_METRIC_PREFIX: &str = "research_trial.";
 /// Maximum length of any string value in a research-trial row.
 pub const RESEARCH_TRIAL_STRING_MAX_CHARS: usize = 128;
 
-const IDENTITY_KEYS: &[&str] = &["campaign_id", "run_id", "arm_id", "attempt", "replicate_id"];
+const IDENTITY_KEYS: &[&str] = &[
+    "campaign_id",
+    "run_id",
+    "arm_id",
+    "attempt_index",
+    "replicate_id",
+];
 
 /// Allowed keys per research-trial metric type (identity keys are allowed everywhere).
 pub const RESEARCH_TRIAL_ALLOWLIST: &[(&str, &[&str])] = &[
@@ -96,10 +102,42 @@ fn allowed_keys(metric_type: &str) -> Option<&'static [&'static str]> {
         .map(|(_, keys)| *keys)
 }
 
-fn structural_string(s: &str) -> bool {
+/// Model ids keep their `org/name@revision` form; every other value stays slash-free so
+/// URLs and emails cannot pass as structural strings.
+fn structural_string(key: &str, s: &str) -> bool {
+    let model_id = key.ends_with("_model_id");
     s.len() <= RESEARCH_TRIAL_STRING_MAX_CHARS
-        && s.chars()
-            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-' | ':' | '+'))
+        && s.chars().all(|c| {
+            c.is_ascii_alphanumeric()
+                || matches!(c, '_' | '.' | '-' | ':' | '+')
+                || (model_id && matches!(c, '/' | '@'))
+        })
+}
+
+/// Top-level object entries in source order; unlike `serde_json::Map`, duplicates survive.
+struct ObjectEntries(Vec<(String, serde_json::Value)>);
+
+impl<'de> serde::Deserialize<'de> for ObjectEntries {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        struct V;
+        impl<'de> serde::de::Visitor<'de> for V {
+            type Value = ObjectEntries;
+            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                f.write_str("a JSON object")
+            }
+            fn visit_map<A: serde::de::MapAccess<'de>>(
+                self,
+                mut map: A,
+            ) -> Result<ObjectEntries, A::Error> {
+                let mut entries = Vec::new();
+                while let Some(entry) = map.next_entry()? {
+                    entries.push(entry);
+                }
+                Ok(ObjectEntries(entries))
+            }
+        }
+        d.deserialize_map(V)
+    }
 }
 
 fn reject(msg: String) -> Result<(), TelemetryError> {
@@ -118,21 +156,22 @@ pub fn validate_research_trial_metadata(
     let Some(raw) = metadata_json else {
         return reject(format!("{metric_type} requires metadata_json"));
     };
-    let value: serde_json::Value = match serde_json::from_str(raw) {
-        Ok(v) => v,
-        Err(e) => return reject(format!("metadata_json is not valid JSON: {e}")),
+    let entries = match serde_json::from_str::<ObjectEntries>(raw) {
+        Ok(ObjectEntries(entries)) => entries,
+        Err(e) => return reject(format!("metadata_json must be a JSON object: {e}")),
     };
-    let Some(obj) = value.as_object() else {
-        return reject("metadata_json must be a JSON object".into());
-    };
-    for (key, val) in obj {
+    let mut seen = std::collections::HashSet::new();
+    for (key, val) in &entries {
+        if !seen.insert(key.as_str()) {
+            return reject(format!("duplicate key {key:?}"));
+        }
         if !IDENTITY_KEYS.contains(&key.as_str()) && !keys.contains(&key.as_str()) {
             return reject(format!("key {key:?} is not allowlisted for {metric_type}"));
         }
         match val {
             serde_json::Value::Null | serde_json::Value::Bool(_) | serde_json::Value::Number(_) => {
             }
-            serde_json::Value::String(s) if structural_string(s) => {}
+            serde_json::Value::String(s) if structural_string(key, s) => {}
             serde_json::Value::String(_) => {
                 return reject(format!(
                     "value of {key:?} is not a bounded structural string"
@@ -165,6 +204,55 @@ mod tests {
     }
 
     #[test]
+    fn model_ids_keep_org_and_revision() {
+        let raw = r#"{"run_id":"r-1","resolved_model_id":"Qwen/Qwen3-8B@b968826d","requested_model_id":"openrouter/auto"}"#;
+        assert!(validate_research_trial_metadata("research_trial.model_call", Some(raw)).is_ok());
+    }
+
+    #[test]
+    fn slash_and_at_are_rejected_outside_model_ids() {
+        for raw in [
+            r#"{"status":"https/evil.example/x"}"#,
+            r#"{"reason_code":"user@example.com"}"#,
+        ] {
+            assert!(
+                validate_research_trial_metadata("research_trial.run", Some(raw)).is_err(),
+                "{raw} must be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn attempt_index_is_the_identity_key() {
+        assert!(
+            validate_research_trial_metadata("research_trial.run", Some(r#"{"attempt_index":2}"#))
+                .is_ok()
+        );
+        assert!(
+            validate_research_trial_metadata("research_trial.run", Some(r#"{"attempt":2}"#))
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn duplicate_keys_are_rejected() {
+        // The raw string is stored, so a shadowed first value must not slip past validation.
+        for raw in [
+            r#"{"status":"user asked about X","status":"ok"}"#,
+            r#"{"status":"ok","status":"failed"}"#,
+        ] {
+            assert!(
+                validate_research_trial_metadata("research_trial.run", Some(raw)).is_err(),
+                "{raw} must be rejected"
+            );
+        }
+        assert!(
+            validate_research_trial_metadata("research_trial.run", Some(r#"{"status":"ok"}"#))
+                .is_ok()
+        );
+    }
+
+    #[test]
     fn contract_schema_matches_allowlist() {
         let schema: serde_json::Value = serde_json::from_str(include_str!(
             "../../../contracts/telemetry/research-trial.v1.schema.json"
@@ -175,6 +263,18 @@ mod tests {
         for (metric_type, keys) in RESEARCH_TRIAL_ALLOWLIST {
             let def = &defs[*metric_type];
             assert_eq!(def["additionalProperties"], serde_json::Value::Bool(false));
+            for (key, prop) in def["properties"].as_object().expect("properties") {
+                let expected = if key.ends_with("_model_id") {
+                    "^[A-Za-z0-9_.:+@/-]*$"
+                } else {
+                    "^[A-Za-z0-9_.:+-]*$"
+                };
+                assert_eq!(
+                    prop["pattern"], expected,
+                    "pattern drift for {metric_type}.{key}"
+                );
+                assert_eq!(prop["maxLength"], RESEARCH_TRIAL_STRING_MAX_CHARS);
+            }
             let mut props: Vec<&str> = def["properties"]
                 .as_object()
                 .expect("properties")
