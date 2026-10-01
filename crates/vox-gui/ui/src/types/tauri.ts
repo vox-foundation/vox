@@ -79,6 +79,10 @@ export interface ChatPayload {
   turn_id?: string | null;
   /** Drive-minted trace id; when set, App must not re-mint. */
   trace_id?: string | null;
+  /** Explicit research override (true to force, false to bypass, null/undefined for auto). */
+  force_research?: boolean | null;
+  /** Research scope mode ('auto', 'quick', 'deep', 'none'). */
+  research_scope?: string | null;
 }
 
 /** What `handleLoquelaSubmit` returns so Drive send can parse last_error. */

@@ -2,9 +2,11 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   getResearchEngineStatus,
   saveResearchEngineConfig,
+  probeAllSearchProviders,
   type ResearchEngineStatusDto,
   type FreeTierOffer,
   type ProviderStatusDto,
+  type ProviderProbeResult,
 } from './researchActions';
 import { SafeExternalLink } from './SafeExternalLink';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
@@ -42,6 +44,8 @@ export function ResearchEngineDrawer({
   const [deepTimeout, setDeepTimeout] = useState<number>(15000);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [testingAll, setTestingAll] = useState(false);
+  const [probeResults, setProbeResults] = useState<Record<string, ProviderProbeResult>>({});
   const drawerRef = useRef<HTMLDivElement>(null);
 
   const loadStatus = useCallback(async () => {
@@ -198,6 +202,33 @@ export function ResearchEngineDrawer({
     }
   };
 
+  const handleTestAll = async () => {
+    setTestingAll(true);
+    try {
+      const results = await probeAllSearchProviders('test');
+      const map: Record<string, ProviderProbeResult> = {};
+      for (const r of results) {
+        map[r.provider] = r;
+      }
+      setProbeResults(map);
+      pushToast?.({
+        tone: 'ok',
+        title: 'Providers Probed',
+        body: `Tested ${results.length} search providers with canary query`,
+        cause: 'backend-ok',
+      });
+    } catch (err) {
+      pushToast?.({
+        tone: 'warn',
+        title: 'Probe Failed',
+        body: sanitizeErrorForToast(err),
+        cause: 'backend-error',
+      });
+    } finally {
+      setTestingAll(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   const offers = status?.free_key_offers?.length ? status.free_key_offers : DEFAULT_OFFERS;
@@ -313,14 +344,34 @@ export function ResearchEngineDrawer({
                   </p>
 
                   {quota && (
-                    <div className="text-[11px] font-mono text-text-muted">
-                      Usage this month:{' '}
-                      <span className="text-text-primary">
-                        {quota.units_spent} / {quota.units_limit}
-                      </span>
-                      {remaining !== null && (
-                        <span className="text-brass ml-1">({remaining} remaining)</span>
-                      )}
+                    <div className="space-y-1.5">
+                      <div className="text-[11px] font-mono text-text-muted flex items-center justify-between">
+                        <span>
+                          Usage this month:{' '}
+                          <span className="text-text-primary">
+                            {quota.units_spent} / {quota.units_limit}
+                          </span>
+                        </span>
+                        {remaining !== null && (
+                          <span className="text-brass ml-1">({remaining} remaining)</span>
+                        )}
+                      </div>
+                      <div
+                        data-testid={`quota-gauge-${offer.provider_id}`}
+                        role="progressbar"
+                        aria-valuenow={quota.units_spent}
+                        aria-valuemin={0}
+                        aria-valuemax={quota.units_limit}
+                        aria-label={`Monthly quota usage for ${offer.name}`}
+                        className="h-1.5 w-full overflow-hidden rounded-full bg-black/40 border border-border-subtle"
+                      >
+                        <div
+                          className="h-full bg-brass transition-all duration-300"
+                          style={{
+                            width: `${Math.min(100, Math.round((quota.units_limit > 0 ? quota.units_spent / quota.units_limit : 0) * 100))}%`,
+                          }}
+                        />
+                      </div>
                     </div>
                   )}
 
@@ -352,38 +403,66 @@ export function ResearchEngineDrawer({
 
         {/* Engine Toggles & Lane Policy */}
         <div className="space-y-3">
-          <div className="border-b border-border-subtle pb-1">
-            <h3 className="font-display text-sm font-semibold text-text-primary uppercase tracking-wider">
-              Search Engines &amp; Timeouts
-            </h3>
-            <p className="text-[11px] text-text-muted">
-              Enable or disable specific engines and adjust timeout constraints per lane.
-            </p>
+          <div className="flex items-center justify-between border-b border-border-subtle pb-1">
+            <div>
+              <h3 className="font-display text-sm font-semibold text-text-primary uppercase tracking-wider">
+                Search Engines &amp; Timeouts
+              </h3>
+              <p className="text-[11px] text-text-muted">
+                Enable or disable specific engines and adjust timeout constraints per lane.
+              </p>
+            </div>
+            <button
+              type="button"
+              data-testid="test-all-providers-btn"
+              disabled={testingAll}
+              onClick={handleTestAll}
+              className="rounded-lg border border-border-subtle bg-overlay-subtle px-2.5 py-1 text-xs font-medium text-text-secondary hover:text-text-primary hover:border-brass/40 transition-colors disabled:opacity-50"
+            >
+              {testingAll ? 'Testing…' : 'Test All Providers'}
+            </button>
           </div>
 
           <div className="space-y-2">
-            {status?.providers.map((p) => (
-              <div
-                key={p.id}
-                className="flex items-center justify-between rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-2 text-xs"
-              >
-                <div>
-                  <span className="font-medium text-text-primary">{p.name}</span>
-                  <span className="text-[10px] text-text-muted ml-2 font-mono">
-                    {p.is_keyless ? 'Keyless' : p.has_key ? 'Key active' : 'Key missing'}
-                  </span>
+            {status?.providers.map((p) => {
+              const probeRes = probeResults[p.id];
+              return (
+                <div
+                  key={p.id}
+                  className="flex items-center justify-between rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-2 text-xs"
+                >
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-medium text-text-primary">{p.name}</span>
+                    <span className="text-[10px] text-text-muted font-mono">
+                      {p.is_keyless ? 'Keyless' : p.has_key ? 'Key active' : 'Key missing'}
+                    </span>
+                    {probeRes && (
+                      <span
+                        data-testid={`probe-result-${p.id}`}
+                        className={`rounded px-1.5 py-0.5 text-[10px] font-mono ${
+                          probeRes.success
+                            ? 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+                            : 'border border-red-500/30 bg-red-500/10 text-red-400'
+                        }`}
+                      >
+                        {probeRes.success
+                          ? `✓ Pass (${probeRes.latency_ms}ms, ${probeRes.hit_count} hits)`
+                          : `✗ Fail: ${probeRes.error_message || 'error'}`}
+                      </span>
+                    )}
+                  </div>
+                  <input
+                    type="checkbox"
+                    aria-label={`Enable ${p.name}`}
+                    checked={enabledMap[p.id] ?? p.is_enabled}
+                    onChange={(e) =>
+                      setEnabledMap((prev) => ({ ...prev, [p.id]: e.target.checked }))
+                    }
+                    className="rounded border-border-subtle bg-black/40 text-brass focus:ring-brass/40 size-4"
+                  />
                 </div>
-                <input
-                  type="checkbox"
-                  aria-label={`Enable ${p.name}`}
-                  checked={enabledMap[p.id] ?? p.is_enabled}
-                  onChange={(e) =>
-                    setEnabledMap((prev) => ({ ...prev, [p.id]: e.target.checked }))
-                  }
-                  className="rounded border-border-subtle bg-black/40 text-brass focus:ring-brass/40 size-4"
-                />
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="grid grid-cols-2 gap-3 pt-2">

@@ -274,6 +274,165 @@ impl crate::VoxDb {
             .await?;
         collect_knowledge_node_rows(&mut rows).await
     }
+
+    /// List knowledge nodes with optional node_type filter and pagination
+    pub async fn list_knowledge_nodes(
+        &self,
+        node_type: Option<&str>,
+        page: usize,
+        limit: usize,
+    ) -> Result<Vec<KnowledgeNodeRecord>, StoreError> {
+        let lim = limit.clamp(1, 1000) as i64;
+        let offset = (page.saturating_mul(lim as usize)) as i64;
+
+        let mut rows =
+            match node_type {
+                Some(nt) => self
+                    .conn
+                    .query(
+                        "SELECT id, label, COALESCE(content, ''), node_type, metadata, created_at \
+                         FROM knowledge_nodes \
+                         WHERE node_type = ?1 \
+                         ORDER BY created_at DESC LIMIT ?2 OFFSET ?3",
+                        params![nt, lim, offset],
+                    )
+                    .await?,
+                None => self
+                    .conn
+                    .query(
+                        "SELECT id, label, COALESCE(content, ''), node_type, metadata, created_at \
+                         FROM knowledge_nodes \
+                         ORDER BY created_at DESC LIMIT ?1 OFFSET ?2",
+                        params![lim, offset],
+                    )
+                    .await?,
+            };
+
+        let mut out = Vec::new();
+        while let Some(row) = rows.next().await? {
+            let id: String = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+            let label: String = row.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
+            let content: String = row.get(2).map_err(|e| StoreError::Db(e.to_string()))?;
+            let node_type: Option<String> =
+                row.get(3).map_err(|e| StoreError::Db(e.to_string()))?;
+            let metadata: Option<String> = row.get(4).map_err(|e| StoreError::Db(e.to_string()))?;
+            let created_at: String = row.get(5).map_err(|e| StoreError::Db(e.to_string()))?;
+            out.push(KnowledgeNodeRecord {
+                id,
+                label,
+                content,
+                node_type,
+                metadata,
+                created_at,
+            });
+        }
+        Ok(out)
+    }
+
+    /// Delete a knowledge node and all its incident edges in one transaction.
+    /// FTS5 index is kept consistent via the SQLite `knowledge_nodes_fts_ad` trigger.
+    pub async fn delete_knowledge_node(&self, id: &str) -> Result<(), StoreError> {
+        let id_str = id.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute("BEGIN IMMEDIATE", ())
+                    .await
+                    .map_err(StoreError::from)?;
+
+                let result = async {
+                    conn.execute(
+                        "DELETE FROM knowledge_edges WHERE src_id = ?1 OR dst_id = ?1",
+                        params![id_str.as_str()],
+                    )
+                    .await?;
+                    conn.execute(
+                        "DELETE FROM knowledge_nodes WHERE id = ?1",
+                        params![id_str.as_str()],
+                    )
+                    .await?;
+                    conn.execute("COMMIT", ()).await?;
+                    Ok::<(), StoreError>(())
+                }
+                .await;
+
+                if result.is_err() {
+                    let _ = conn.execute("ROLLBACK", ()).await;
+                }
+                result
+            })
+            .await
+    }
+
+    /// Fetch statistics and health metrics for the knowledge base
+    pub async fn get_knowledge_health(&self) -> Result<KnowledgeHealthInfo, StoreError> {
+        let mut node_rows = self
+            .conn
+            .query("SELECT COUNT(1) FROM knowledge_nodes", ())
+            .await?;
+        let node_count = if let Some(row) = node_rows.next().await? {
+            let count: i64 = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+            count as usize
+        } else {
+            0
+        };
+
+        let mut edge_rows = self
+            .conn
+            .query("SELECT COUNT(1) FROM knowledge_edges", ())
+            .await?;
+        let edge_count = if let Some(row) = edge_rows.next().await? {
+            let count: i64 = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+            count as usize
+        } else {
+            0
+        };
+
+        let fts_available = self.knowledge_nodes_fts_ready().await.unwrap_or(false);
+
+        let mut corpus_rows = self
+            .conn
+            .query(
+                "SELECT COALESCE(node_type, 'unknown'), COUNT(1) \
+                 FROM knowledge_nodes \
+                 GROUP BY node_type",
+                (),
+            )
+            .await?;
+
+        let mut corpus_counts = std::collections::HashMap::new();
+        while let Some(row) = corpus_rows.next().await? {
+            let nt: String = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+            let count: i64 = row.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
+            corpus_counts.insert(nt, count as usize);
+        }
+
+        Ok(KnowledgeHealthInfo {
+            node_count,
+            edge_count,
+            fts_available,
+            corpus_counts,
+        })
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct KnowledgeNodeRecord {
+    pub id: String,
+    pub label: String,
+    pub content: String,
+    pub node_type: Option<String>,
+    pub metadata: Option<String>,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct KnowledgeHealthInfo {
+    pub node_count: usize,
+    pub edge_count: usize,
+    pub fts_available: bool,
+    pub corpus_counts: std::collections::HashMap<String, usize>,
 }
 
 async fn collect_knowledge_node_rows(
@@ -337,4 +496,95 @@ async fn find_reachable_knowledge_nodes_fallback(
     }
 
     Ok(distinct_nodes)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::VoxDb;
+
+    #[tokio::test]
+    async fn test_knowledge_node_lifecycle_and_ops() {
+        let db = VoxDb::in_memory().await.expect("in_memory db");
+
+        // 1. Upsert nodes
+        db.upsert_knowledge_node(
+            "node-1",
+            "Node One",
+            "Content for node one",
+            Some("doc"),
+            None,
+            None,
+        )
+        .await
+        .expect("upsert node-1");
+        db.upsert_knowledge_node(
+            "node-2",
+            "Node Two",
+            "Content for node two",
+            Some("doc"),
+            None,
+            None,
+        )
+        .await
+        .expect("upsert node-2");
+        db.upsert_knowledge_node(
+            "node-3",
+            "Node Three",
+            "Web page content",
+            Some("web"),
+            None,
+            None,
+        )
+        .await
+        .expect("upsert node-3");
+
+        // 2. Create edge
+        db.create_knowledge_edge("node-1", "node-2", "references", None)
+            .await
+            .expect("create edge");
+
+        // 3. Test list_knowledge_nodes with filter and pagination
+        let docs = db
+            .list_knowledge_nodes(Some("doc"), 0, 10)
+            .await
+            .expect("list doc nodes");
+        assert_eq!(docs.len(), 2);
+
+        let paged = db
+            .list_knowledge_nodes(None, 0, 2)
+            .await
+            .expect("page 0 limit 2");
+        assert_eq!(paged.len(), 2);
+        let paged_next = db
+            .list_knowledge_nodes(None, 1, 2)
+            .await
+            .expect("page 1 limit 2");
+        assert_eq!(paged_next.len(), 1);
+
+        // 4. Test get_knowledge_health
+        let health = db.get_knowledge_health().await.expect("health");
+        assert_eq!(health.node_count, 3);
+        assert_eq!(health.edge_count, 1);
+        assert_eq!(health.corpus_counts.get("doc").copied().unwrap_or(0), 2);
+        assert_eq!(health.corpus_counts.get("web").copied().unwrap_or(0), 1);
+
+        // 5. Test delete_knowledge_node (deletes node and incident edge)
+        db.delete_knowledge_node("node-1")
+            .await
+            .expect("delete node-1");
+        let remaining_docs = db
+            .list_knowledge_nodes(Some("doc"), 0, 10)
+            .await
+            .expect("list docs after delete");
+        assert_eq!(remaining_docs.len(), 1);
+        assert_eq!(remaining_docs[0].id, "node-2");
+
+        let health_after = db
+            .get_knowledge_health()
+            .await
+            .expect("health after delete");
+        assert_eq!(health_after.node_count, 2);
+        assert_eq!(health_after.edge_count, 0);
+    }
 }

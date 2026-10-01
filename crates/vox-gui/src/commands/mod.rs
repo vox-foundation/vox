@@ -23,6 +23,7 @@ pub mod harness_eval;
 pub mod harness_issues;
 pub mod harness_town;
 pub mod identity;
+pub mod knowledge;
 pub mod llm_settings;
 pub mod mcp;
 pub mod memory;

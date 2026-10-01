@@ -6,6 +6,8 @@ mod knowledge;
 mod retention;
 mod search;
 
+pub use knowledge::{KnowledgeHealthInfo, KnowledgeNodeRecord};
+
 pub(crate) fn sanitize_fts_query(input: &str) -> String {
     let cleaned = input
         .chars()

@@ -64,6 +64,7 @@ const defaultInvokeHandler = (cmd: string) => {
   if (cmd === 'get_research_session_detail') return Promise.resolve(detailResponse);
   if (cmd === 'get_research_engine_status') return Promise.resolve(DEFAULT_ENGINE_STATUS);
   if (cmd === 'start_research_async') return Promise.resolve({ session_id: 2, task_id: 't2', status: 'running' });
+  if (cmd === 'save_research_session_to_kb') return Promise.resolve(3);
   return Promise.resolve(null);
 };
 
@@ -426,6 +427,146 @@ describe('ResearchView', () => {
       await waitFor(() => {
         expect(screen.getByTestId('research-engine-drawer')).toBeInTheDocument();
         expect(screen.getByText(/Zero-Key Guarantee/i)).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Phase 1 Observability & UX Enhancements', () => {
+    it('renders degraded-setup-banner when Tavily has no key and SearXNG is disabled (P1.2)', async () => {
+      invokeMock.mockImplementation((cmd: string) => {
+        if (cmd === 'get_research_engine_status') {
+          return Promise.resolve({
+            active_lane: 'fast',
+            fast_timeout_ms: 2500,
+            deep_timeout_ms: 15000,
+            providers: [
+              { id: 'wikipedia', name: 'Wikipedia', is_keyless: true, is_enabled: true, has_key: false },
+              { id: 'searxng', name: 'SearXNG', is_keyless: true, is_enabled: false, has_key: false },
+              { id: 'tavily', name: 'Tavily', is_keyless: false, is_enabled: true, has_key: false },
+            ],
+            free_key_offers: [],
+          });
+        }
+        if (cmd === 'list_research_sessions') return Promise.resolve([]);
+        return Promise.resolve(null);
+      });
+
+      render(<ResearchView />);
+      await waitFor(() => {
+        expect(screen.getByTestId('degraded-setup-banner')).toBeInTheDocument();
+        expect(screen.getByText(/Research quality degraded/i)).toBeInTheDocument();
+      });
+    });
+
+    it('pre-fills query input when clicking re-run button on a past session (P1.8)', async () => {
+      render(<ResearchView />);
+      await waitFor(() => expect(screen.getByTestId('rerun-session-1')).toBeInTheDocument());
+
+      const input = screen.getByLabelText('Research question') as HTMLInputElement;
+      expect(input.value).toBe('');
+
+      fireEvent.click(screen.getByTestId('rerun-session-1'));
+      expect(input.value).toBe('What is Vox?');
+    });
+
+    it('renders metadata statistics (subqueries, waves, stability) in detail header (P1.3)', async () => {
+      detailResponse = {
+        session: SESSIONS[0],
+        report_markdown: 'Full findings on Vox architecture.',
+        artifact_json: JSON.stringify({
+          result: {
+            research_metadata: {
+              wave_count: 3,
+              subquery_count: 6,
+              wave_stability: 0.85,
+            },
+          },
+        }),
+      };
+
+      render(<ResearchView />);
+      await waitFor(() => expect(screen.getByText('What is Vox?')).toBeInTheDocument());
+      fireEvent.click(screen.getByText('What is Vox?'));
+
+      await waitFor(() => {
+        const stats = screen.getByTestId('session-metadata-stats');
+        expect(stats).toBeInTheDocument();
+        expect(stats).toHaveTextContent(/6 subqueries · 3 waves · stability 85%/i);
+      });
+    });
+
+    it('renders planner-degraded-chip when planner_degraded is true in artifact_json (P1.6)', async () => {
+      detailResponse = {
+        session: SESSIONS[0],
+        report_markdown: 'Report content',
+        artifact_json: JSON.stringify({
+          result: {
+            research_metadata: {
+              planner_degraded: true,
+            },
+          },
+        }),
+      };
+
+      render(<ResearchView />);
+      await waitFor(() => expect(screen.getByText('What is Vox?')).toBeInTheDocument());
+      fireEvent.click(screen.getByText('What is Vox?'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('planner-degraded-chip')).toBeInTheDocument();
+        expect(screen.getByText(/Planner degraded/i)).toBeInTheDocument();
+      });
+    });
+
+    it('renders dropped-source-count in Citations & Sources header (P1.4)', async () => {
+      detailResponse = {
+        session: SESSIONS[0],
+        report_markdown: 'Report with citations',
+        citations: [{ url: 'https://example.com/one' }],
+        artifact_json: JSON.stringify({
+          result: {
+            research_metadata: {
+              retrieval_diagnostics: {
+                dropped_source_count: 4,
+              },
+            },
+          },
+        }),
+      };
+
+      render(<ResearchView />);
+      await waitFor(() => expect(screen.getByText('What is Vox?')).toBeInTheDocument());
+      fireEvent.click(screen.getByText('What is Vox?'));
+
+      await waitFor(() => {
+        const droppedChip = screen.getByTestId('dropped-source-count');
+        expect(droppedChip).toBeInTheDocument();
+        expect(droppedChip).toHaveTextContent(/4 sources filtered by novelty/i);
+      });
+    });
+
+    it('calls save_research_session_to_kb and toasts on clicking Save to KB (P2.4)', async () => {
+      detailResponse = {
+        session: SESSIONS[0],
+        report_markdown: 'Report with citations',
+        citations: [{ url: 'https://example.com/one' }],
+      };
+
+      const pushToast = vi.fn();
+      render(<ResearchView pushToast={pushToast} />);
+      await waitFor(() => expect(screen.getByText('What is Vox?')).toBeInTheDocument());
+      fireEvent.click(screen.getByText('What is Vox?'));
+
+      await waitFor(() => expect(screen.getByTestId('save-to-kb-button')).toBeInTheDocument());
+      fireEvent.click(screen.getByTestId('save-to-kb-button'));
+
+      await waitFor(() => {
+        expect(invokeMock).toHaveBeenCalledWith('save_research_session_to_kb', { sessionId: 1 });
+        expect(pushToast).toHaveBeenCalledWith(expect.objectContaining({
+          tone: 'ok',
+          title: 'Saved to Knowledge Base',
+          cause: 'backend-ok',
+        }));
       });
     });
   });

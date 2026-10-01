@@ -152,5 +152,19 @@ export async function saveResearchEngineConfig(
   return invoke<void>('save_research_engine_config', { config });
 }
 
+/**
+ * Robust JSON parser that handles undefined, null, empty strings, and malformed JSON
+ * without throwing unhandled exceptions.
+ */
+export function safeParseJson<T = any>(raw: string | null | undefined): T | null {
+  if (!raw || typeof raw !== 'string' || !raw.trim()) return null;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
+
 
 

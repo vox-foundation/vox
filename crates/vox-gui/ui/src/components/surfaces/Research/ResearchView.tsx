@@ -9,6 +9,7 @@ import { RESEARCH_STAGES, deriveStages } from '../../../lib/pipeline';
 import {
   startResearchAsync,
   getResearchEngineStatus,
+  safeParseJson,
   type ResearchEngineStatusDto,
 } from './researchActions';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
@@ -278,6 +279,7 @@ export function ResearchView({
   const [showJudgeInspector, setShowJudgeInspector] = useState(false);
   const [isFlagModalOpen, setIsFlagModalOpen] = useState(false);
   const [flagTargetUrl, setFlagTargetUrl] = useState<string | null>(null);
+  const [isSavingToKb, setIsSavingToKb] = useState(false);
 
   const [lane, setLane] = useState<'fast' | 'deep'>(initialLane);
   const [engineStatus, setEngineStatus] = useState<ResearchEngineStatusDto | null>(null);
@@ -506,6 +508,35 @@ export function ResearchView({
         </div>
       )}
 
+      {(() => {
+        const tavilyUnconfigured = !engineStatus?.providers.find((p) => p.id === 'tavily')?.has_key;
+        const searxngUnconfigured = !engineStatus?.providers.find((p) => p.id === 'searxng')?.is_enabled;
+        const isDegraded = Boolean(engineStatus && tavilyUnconfigured && searxngUnconfigured);
+        if (!isDegraded) return null;
+        return (
+          <div
+            data-testid="degraded-setup-banner"
+            className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300 flex items-center justify-between gap-3"
+            role="alert"
+          >
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-amber-400 shrink-0">⚠️ Research quality degraded</span>
+              <span className="text-amber-200/90 leading-relaxed">
+                No premium search providers configured (Tavily key missing and SearXNG unconfigured). Research will rely on fallback sources.
+              </span>
+            </div>
+            <button
+              type="button"
+              data-testid="degraded-setup-configure-btn"
+              onClick={openEngineDrawer}
+              className="rounded border border-amber-500/40 bg-amber-500/20 px-2.5 py-1 text-[11px] font-medium text-amber-200 hover:bg-amber-500/30 transition-colors shrink-0"
+            >
+              Configure Keys
+            </button>
+          </div>
+        );
+      })()}
+
       {lowEvidence && (
         <div
           data-testid="empty-results-notice"
@@ -580,12 +611,29 @@ export function ResearchView({
           </div>
         ) : (
           <ul className="space-y-1">
-            {sessions.map(s => (
-              <li key={s.id}>
-                <button type="button" onClick={() => openDetail(s.id)}
-                  className="flex w-full items-center justify-between rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-2 text-left hover:bg-overlay-subtle">
+            {sessions.map((s) => (
+              <li key={s.id} className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => openDetail(s.id)}
+                  className="flex flex-1 items-center justify-between rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-2 text-left hover:bg-overlay-subtle transition-colors"
+                >
                   <span className="truncate text-[12px] text-text-secondary">{s.query_text}</span>
                   <span className="ml-3 shrink-0 font-mono text-[10px] text-text-muted">{s.status}</span>
+                </button>
+                <button
+                  type="button"
+                  data-testid={`rerun-session-${s.id}`}
+                  title="Re-run query"
+                  aria-label={`Re-run query "${s.query_text}"`}
+                  onClick={() => {
+                    setQuery(s.query_text);
+                    const inputEl = document.querySelector<HTMLInputElement>('input[aria-label="Research question"]');
+                    inputEl?.focus();
+                  }}
+                  className="rounded-lg border border-border-subtle bg-overlay-subtle p-2 text-text-muted hover:text-brass hover:border-brass/40 transition-colors text-xs leading-none shrink-0"
+                >
+                  ↺
                 </button>
               </li>
             ))}
@@ -593,51 +641,106 @@ export function ResearchView({
         )}
       </div>
 
-      {detail && (
-        <div className="rounded-lg border border-border-subtle bg-overlay-subtle p-3">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-[12px] text-text-secondary">Session {detail.session.id}</span>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                data-testid="toggle-judge-btn"
-                onClick={() => setShowJudgeInspector(prev => !prev)}
-                className={`rounded border px-2.5 py-1 text-[11px] transition-colors ${
-                  showJudgeInspector
-                    ? 'border-brass bg-brass/20 text-brass'
-                    : 'border-border-subtle bg-black/40 text-text-secondary hover:text-text-primary hover:bg-black/60'
-                }`}
-              >
-                Judge Inspector
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsReplModalOpen(true)}
-                className="rounded border border-border-subtle bg-black/40 px-2.5 py-1 text-[11px] text-text-secondary hover:text-text-primary hover:bg-black/60"
-              >
-                Sandbox REPL
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsPublishModalOpen(true)}
-                className="rounded border border-brass/40 bg-brass/10 px-2.5 py-1 text-[11px] text-brass hover:bg-brass/20"
-              >
-                Publish Architecture SSOT
-              </button>
-              <button type="button" onClick={() => setDetail(null)} className="text-[11px] text-text-muted hover:text-text-secondary">Close</button>
+      {detail && (() => {
+        const parsedMeta = safeParseJson<any>(detail.artifact_json)?.result?.research_metadata;
+        return (
+          <div className="rounded-lg border border-border-subtle bg-overlay-subtle p-3">
+            <div className="mb-2 flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[12px] font-medium text-text-primary">Session {detail.session.id}</span>
+                {(parsedMeta?.subquery_count != null || parsedMeta?.wave_count != null || parsedMeta?.wave_stability != null) && (
+                  <span data-testid="session-metadata-stats" className="text-[11px] font-mono text-text-muted">
+                    {[
+                      parsedMeta.subquery_count != null ? `${parsedMeta.subquery_count} subqueries` : null,
+                      parsedMeta.wave_count != null ? `${parsedMeta.wave_count} waves` : null,
+                      parsedMeta.wave_stability != null ? `stability ${Math.round(parsedMeta.wave_stability * 100)}%` : null,
+                    ].filter(Boolean).join(' · ')}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  data-testid="toggle-judge-btn"
+                  onClick={() => setShowJudgeInspector(prev => !prev)}
+                  className={`rounded border px-2.5 py-1 text-[11px] transition-colors ${
+                    showJudgeInspector
+                      ? 'border-brass bg-brass/20 text-brass'
+                      : 'border-border-subtle bg-black/40 text-text-secondary hover:text-text-primary hover:bg-black/60'
+                  }`}
+                >
+                  Judge Inspector
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsReplModalOpen(true)}
+                  className="rounded border border-border-subtle bg-black/40 px-2.5 py-1 text-[11px] text-text-secondary hover:text-text-primary hover:bg-black/60"
+                >
+                  Sandbox REPL
+                </button>
+                <button
+                  type="button"
+                  data-testid="save-to-kb-button"
+                  disabled={isSavingToKb}
+                  onClick={async () => {
+                    if (!detail?.session?.id) return;
+                    setIsSavingToKb(true);
+                    try {
+                      const count = await invoke<number>('save_research_session_to_kb', { sessionId: detail.session.id });
+                      pushToast?.({
+                        tone: 'ok',
+                        title: 'Saved to Knowledge Base',
+                        body: `${count} source(s) saved to knowledge base.`,
+                        cause: 'backend-ok',
+                      });
+                    } catch (err) {
+                      pushToast?.({
+                        tone: 'warn',
+                        title: 'Save to KB failed',
+                        body: sanitizeErrorForToast(err),
+                        cause: 'backend-error',
+                      });
+                    } finally {
+                      setIsSavingToKb(false);
+                    }
+                  }}
+                  className="rounded border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1 text-[11px] text-emerald-300 hover:bg-emerald-500/20 disabled:opacity-50 transition"
+                >
+                  {isSavingToKb ? 'Saving…' : 'Save to KB'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsPublishModalOpen(true)}
+                  className="rounded border border-brass/40 bg-brass/10 px-2.5 py-1 text-[11px] text-brass hover:bg-brass/20"
+                >
+                  Publish Architecture SSOT
+                </button>
+                <button type="button" onClick={() => setDetail(null)} className="text-[11px] text-text-muted hover:text-text-secondary">Close</button>
+              </div>
             </div>
-          </div>
-          <PipelineTimeline stages={RESEARCH_STAGES} statuses={deriveStages(detail.session.status)} />
-          {showJudgeInspector && (
-            <div className="mt-2">
-              <JudgeInspector
-                confidenceTier={detail.confidence_tier}
-                sourceCount={detail.source_count}
-                citationPrecision={detail.citation_precision}
-                claims={detail.claims}
-              />
-            </div>
-          )}
+            <PipelineTimeline stages={RESEARCH_STAGES} statuses={deriveStages(detail.session.status)} />
+            {parsedMeta?.planner_degraded && (
+              <div
+                data-testid="planner-degraded-chip"
+                role="status"
+                className="mt-2 flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-300"
+              >
+                <span className="font-semibold">⚠️ Planner degraded</span>
+                <span className="text-amber-200/90 text-[11px]">
+                  Subquery quality may be reduced due to degraded planner mode.
+                </span>
+              </div>
+            )}
+            {showJudgeInspector && (
+              <div className="mt-2">
+                <JudgeInspector
+                  confidenceTier={detail.confidence_tier}
+                  sourceCount={detail.source_count}
+                  citationPrecision={detail.citation_precision}
+                  claims={detail.claims}
+                />
+              </div>
+            )}
           {(() => {
             const claimRows = toClaimRows(detail.claims);
             const distinctCorroboratingSources = new Set(
@@ -702,8 +805,17 @@ export function ResearchView({
                 )}
                 {allCitations.length > 0 && (
                   <div className="mt-3 rounded-lg border border-border-subtle bg-black/20 p-3">
-                    <div className="mb-2 text-[11px] font-mono uppercase tracking-wider text-text-muted">
-                      Citations & Sources
+                    <div className="mb-2 text-[11px] font-mono uppercase tracking-wider text-text-muted flex items-center justify-between">
+                      <span>Citations & Sources</span>
+                      {parsedMeta?.retrieval_diagnostics?.dropped_source_count != null &&
+                        parsedMeta.retrieval_diagnostics.dropped_source_count > 0 && (
+                          <span
+                            data-testid="dropped-source-count"
+                            className="text-amber-300/90 font-normal lowercase tracking-normal"
+                          >
+                            {parsedMeta.retrieval_diagnostics.dropped_source_count} sources filtered by novelty
+                          </span>
+                        )}
                     </div>
                     <ul className="space-y-2" role="list">
                       {allCitations.map((url) => (
@@ -767,8 +879,9 @@ export function ResearchView({
             culpritUrl={flagTargetUrl}
             pushToast={pushToast}
           />
-        </div>
-      )}
+          </div>
+        );
+      })()}
       <ResearchEngineDrawer
         isOpen={isEngineDrawerOpen}
         onClose={() => setIsEngineDrawerOpen(false)}

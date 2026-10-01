@@ -5,7 +5,7 @@ import React from 'react';
 import { ResearchEngineDrawer } from './ResearchEngineDrawer';
 
 vi.mock('@tauri-apps/api/core', () => ({
-  invoke: vi.fn(async (cmd: string) => {
+  invoke: vi.fn(async (cmd: string, args?: unknown) => {
     if (cmd === 'get_research_engine_status') {
       return {
         active_lane: 'fast',
@@ -13,7 +13,14 @@ vi.mock('@tauri-apps/api/core', () => ({
         deep_timeout_ms: 15000,
         providers: [
           { id: 'wikipedia', name: 'Wikipedia', is_keyless: true, is_enabled: true, has_key: false },
-          { id: 'tavily', name: 'Tavily', is_keyless: false, is_enabled: true, has_key: false },
+          {
+            id: 'tavily',
+            name: 'Tavily',
+            is_keyless: false,
+            is_enabled: true,
+            has_key: true,
+            quota_usage: { units_spent: 250, units_limit: 1000, last_synced_at: '2026-09-30' },
+          },
         ],
         free_key_offers: [
           {
@@ -27,6 +34,26 @@ vi.mock('@tauri-apps/api/core', () => ({
           },
         ],
       };
+    }
+    if (cmd === 'probe_all_search_providers') {
+      return [
+        {
+          provider: 'wikipedia',
+          http_status: 200,
+          latency_ms: 85,
+          success: true,
+          hit_count: 5,
+          sample_titles: ['Test Wikipedia'],
+        },
+        {
+          provider: 'tavily',
+          http_status: 200,
+          latency_ms: 210,
+          success: true,
+          hit_count: 8,
+          sample_titles: ['Test Tavily'],
+        },
+      ];
     }
     return null;
   }),
@@ -98,4 +125,30 @@ describe('ResearchEngineDrawer', () => {
     expect(screen.getByLabelText(/API key for Tavily/i)).toBeInTheDocument();
     expect(await screen.findByLabelText(/Enable Wikipedia/i)).toBeInTheDocument();
   });
+
+  it('renders Tavily quota progress bar with correct aria values and fill percentage (P1.5)', async () => {
+    render(<ResearchEngineDrawer isOpen={true} onClose={vi.fn()} />);
+    const gauge = await screen.findByTestId('quota-gauge-tavily');
+    expect(gauge).toBeInTheDocument();
+    expect(gauge).toHaveAttribute('aria-valuenow', '250');
+    expect(gauge).toHaveAttribute('aria-valuemax', '1000');
+    expect(screen.getByText(/250 \/ 1000/i)).toBeInTheDocument();
+    expect(screen.getByText(/\(750 remaining\)/i)).toBeInTheDocument();
+  });
+
+  it('calls probeAllSearchProviders with canary query "test" when Test All clicked and displays inline results (P1.1)', async () => {
+    const { invoke } = await import('@tauri-apps/api/core');
+    render(<ResearchEngineDrawer isOpen={true} onClose={vi.fn()} />);
+
+    const testBtn = await screen.findByTestId('test-all-providers-btn');
+    expect(testBtn).toBeInTheDocument();
+
+    const { fireEvent } = await import('@testing-library/react');
+    fireEvent.click(testBtn);
+
+    expect(invoke).toHaveBeenCalledWith('probe_all_search_providers', { query: 'test' });
+    expect(await screen.findByTestId('probe-result-wikipedia')).toHaveTextContent(/Pass \(85ms, 5 hits\)/i);
+    expect(await screen.findByTestId('probe-result-tavily')).toHaveTextContent(/Pass \(210ms, 8 hits\)/i);
+  });
 });
+
