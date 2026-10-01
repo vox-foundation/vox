@@ -88,13 +88,22 @@ pub fn calculate_groundedness(model_answer: &str, evidence_snippets: &[String]) 
     grounded_count as f64 / model_clusters.len() as f64
 }
 
+/// Function words long enough to pass the keyword length filter but carrying no claim.
+/// "without" is deliberately absent: it changes meaning.
+const FILLER_WORDS: &[&str] = &[
+    "about", "above", "after", "again", "among", "because", "before", "being", "below", "between",
+    "could", "during", "every", "might", "other", "shall", "should", "since", "still", "their",
+    "there", "these", "those", "though", "through", "under", "until", "where", "which", "while",
+    "whose", "would",
+];
+
 /// A clause is grounded by one snippet sentence that contains at least half of its
 /// leading keywords and shares its negation polarity.
 fn cluster_grounded(cluster: &str, snippets: &[String]) -> bool {
     let lower = cluster.to_lowercase();
     let keywords: Vec<&str> = lower
-        .split_whitespace()
-        .filter(|s| s.len() > 4)
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|w| w.chars().count() > 4 && !FILLER_WORDS.contains(w))
         .take(5)
         .collect();
     if keywords.is_empty() {

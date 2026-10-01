@@ -298,6 +298,26 @@ mod semcov_wave21_tests {
     }
 
     #[test]
+    fn groundedness_ignores_punctuation_and_citation_markers() {
+        // Catches: "tokio," and "schedules[1]" failing to match supporting evidence
+        let g = calculate_groundedness(
+            "Tokio, schedules[1], lightweight[2] tasks.",
+            &["Tokio schedules lightweight tasks cooperatively.".to_string()],
+        );
+        assert_eq!(g, 1.0);
+    }
+
+    #[test]
+    fn groundedness_ignores_filler_words() {
+        // Catches: a fabricated claim grounded by shared function words alone
+        let g = calculate_groundedness(
+            "Their findings about which there would be quantum entanglement.",
+            &["Their study, which ran there, would say nothing about cats.".to_string()],
+        );
+        assert_eq!(g, 0.0);
+    }
+
+    #[test]
     fn groundedness_rejects_single_keyword_overlap() {
         // Catches: one shared keyword anywhere in the evidence grounding an unrelated claim
         let g = calculate_groundedness(
