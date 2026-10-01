@@ -389,6 +389,8 @@ pub async fn run(args: &RunArgs<'_>) -> RunReport {
                                 model: report.model.clone().unwrap_or_else(|| model.clone()),
                                 reviewed_at: args.now_iso.clone(),
                                 prompt_version: prompt::PROMPT_VERSION.to_string(),
+                                defects: Vec::new(),
+                                ux_report: None,
                             },
                         );
                     }
@@ -976,7 +978,7 @@ pub async fn run_bundle(args: &BundleRunArgs<'_>) -> BundleReport {
                                 CacheEntry {
                                     screenshot_sha256: e.sha256.clone(),
                                     score: ux.score,
-                                    verdict: ux.verdict,
+                                    verdict: ux.verdict.clone(),
                                     model: model.clone(),
                                     reviewed_at: args.now_iso.clone(),
                                     prompt_version: prompt_ver.to_string(),

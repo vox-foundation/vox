@@ -287,3 +287,79 @@ pub async fn save_research_session_to_kb(
 
     Ok(saved)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_robots_url_parsing() {
+        assert_eq!(
+            get_robots_url("https://example.com/docs/guide"),
+            Some((
+                "https://example.com/robots.txt".to_string(),
+                "/docs/guide".to_string()
+            ))
+        );
+        assert_eq!(
+            get_robots_url("http://sub.domain.org/"),
+            Some((
+                "http://sub.domain.org/robots.txt".to_string(),
+                "/".to_string()
+            ))
+        );
+        assert_eq!(
+            get_robots_url("http://domain.org"),
+            Some(("http://domain.org/robots.txt".to_string(), "/".to_string()))
+        );
+        assert_eq!(get_robots_url("invalid-url"), None);
+    }
+
+    #[test]
+    fn test_dto_serialization() {
+        let row = KnowledgeNodeRow {
+            id: "doc:123".into(),
+            label: "Test Doc".into(),
+            snippet: "Test snippet".into(),
+            node_type: Some("document".into()),
+            created_at: "2026-09-30T12:00:00Z".into(),
+        };
+        let row_json = serde_json::to_value(&row).expect("serialize KnowledgeNodeRow");
+        assert_eq!(row_json["id"], "doc:123");
+        assert_eq!(row_json["label"], "Test Doc");
+
+        let mut corpus_counts = std::collections::HashMap::new();
+        corpus_counts.insert("document".to_string(), 5);
+        let health = KbHealthDto {
+            node_count: 5,
+            edge_count: 2,
+            fts_available: true,
+            corpus_counts,
+        };
+        let health_json = serde_json::to_value(&health).expect("serialize KbHealthDto");
+        assert_eq!(health_json["node_count"], 5);
+        assert_eq!(health_json["fts_available"], true);
+    }
+
+    #[test]
+    fn test_minimal_artifact_deserialization() {
+        let json_str = r#"{
+            "result": {
+                "citations": [
+                    {
+                        "url": "https://example.com/a",
+                        "title": "Example A",
+                        "snippet": "Snippet A"
+                    }
+                ]
+            }
+        }"#;
+        let parsed: MinimalArtifact =
+            serde_json::from_str(json_str).expect("deserialize MinimalArtifact");
+        assert!(parsed.result.is_some());
+        let citations = parsed.result.unwrap().citations;
+        assert_eq!(citations.len(), 1);
+        assert_eq!(citations[0].url, "https://example.com/a");
+        assert_eq!(citations[0].title, "Example A");
+    }
+}
