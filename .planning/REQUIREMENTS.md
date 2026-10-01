@@ -36,8 +36,8 @@
 
 ### Model Routing & ML Health
 
-- [ ] **MODEL-01**: Model scoreboards present a Pareto-frontier view over reliability, cost, and latency (reporting-only — no routing behavior change) per ADR-046.
-- [ ] **ML-01**: Candle, peft-rs, and qlora-rs dependency versions are unified across the workspace via a dedicated upgrade train and validated by fail-closed CUDA-toolchain compilation on GitHub-hosted `ubuntu-latest`; physical-GPU runtime coverage is explicitly out of scope for this closure, per ADR-034.
+- [x] **MODEL-01**: Model scoreboards present a Pareto-frontier view over reliability, cost, and latency (reporting-only — no routing behavior change) per ADR-046.
+- [x] **ML-01**: Candle, peft-rs, and qlora-rs dependency versions are unified across the workspace via a dedicated upgrade train and validated by fail-closed CUDA-toolchain compilation on GitHub-hosted `ubuntu-latest`; physical-GPU runtime coverage is explicitly out of scope for this closure, per ADR-034.
 
 ## v2 Requirements
 
@@ -82,8 +82,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GUI-04 | Phase 4 | Complete |
 | MESH-01 | Phase 5 | Complete |
 | TRUST-01 | Phase 5 | Complete |
-| MODEL-01 | Phase 6 | Pending |
-| ML-01 | Phase 6 | Pending |
+| MODEL-01 | Phase 6 | Complete |
+| ML-01 | Phase 6 | Complete |
 
 **Coverage:**
 

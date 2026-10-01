@@ -9,7 +9,7 @@ provides:
   - Workflow contract test pinning the job's compile-only, fail-closed shape
 affects: [06-04]
 completed: 2026-09-30
-status: local-complete-remote-evidence-pending
+status: complete
 ---
 
 # Phase 6 Plan 03 Summary
@@ -22,7 +22,7 @@ status: local-complete-remote-evidence-pending
 
 ## Remote Evidence
 
-- PENDING: no hosted run exists yet. Producing one requires pushing the branch and dispatching `nightly.yml`, which needs explicit user authorization. 06-04 (ADR-034 acceptance) is blocked on the successful run URL and head SHA.
+- PASS: `ML CUDA dependency health` succeeded in https://github.com/vox-foundation/vox/actions/runs/36821415478 at head SHA `bc3214504f981e31817da3d9b4dbeae1b6cb0892`. Compile-only: no CUDA device or runtime kernels were exercised.
 
 ## Deviations
 

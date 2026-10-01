@@ -192,7 +192,7 @@ Plans:
 - [x] 06-01-PLAN.md
 - [x] 06-02-PLAN.md
 - [x] 06-03-PLAN.md
-- [ ] 06-04-PLAN.md
+- [x] 06-04-PLAN.md
 
 ## Progress
 
@@ -205,5 +205,5 @@ Phases 1 → 2 → 3 form a dependency chain (crate surgery). Phase 4 is indepen
 | 2. Wire Up & Reclassify Dormant Crates | 2/2 | Complete    | 2026-09-25 |
 | 3. Extract Misplaced Crates to Plugin Architecture | 6/6 | Complete    | 2026-09-27 |
 | 4. GUI/Dashboard Architecture Consolidation | 2/2 | Complete    | 2026-09-25 |
-| 5. Multi-Agent Coordination & Trust Hardening | 0/7 | Planned | - |
-| 6. Model Routing Transparency & ML Dependency Health | 3/4 | In progress |  |
+| 5. Multi-Agent Coordination & Trust Hardening | 7/7 | Complete    | 2026-09-29 |
+| 6. Model Routing Transparency & ML Dependency Health | 4/4 | Complete    | 2026-10-01 |
