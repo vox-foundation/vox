@@ -690,7 +690,8 @@ fn ml_cuda_health_is_hosted_compile_only_and_fail_closed() {
     assert!(job.contains("    runs-on: ubuntu-latest"));
     assert!(job.contains("    timeout-minutes: 180"));
     assert!(job.contains("uses: Jimver/cuda-toolkit@v0.2.36"));
-    assert!(job.contains(r#"cuda: "12.4.0""#));
+    assert!(job.contains(r#"cuda: "12.6.3""#));
+    assert!(job.contains(r#"sub-packages: '["toolkit"]'"#));
     assert!(job.contains(r#"CUDA_COMPUTE_CAP: "80""#));
     assert!(job.contains("nvcc --version"));
     assert!(job.contains("cargo test --no-run -p vox-plugin-mens-candle-cuda --features cuda"));

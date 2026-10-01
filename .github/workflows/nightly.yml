@@ -1665,8 +1665,10 @@ jobs:
       - name: Install CUDA toolkit
         uses: Jimver/cuda-toolkit@v0.2.36
         with:
-          cuda: "12.4.0"
+          cuda: "12.6.3"
           method: "network"
+          # Toolkit only: the bare `cuda-12-6` meta-package also pulls drivers.
+          sub-packages: '["toolkit"]'
 
       # Compile-only validation: this proves the CUDA toolchain and feature
       # graph compile, but does not exercise a CUDA device or runtime kernels.

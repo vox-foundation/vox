@@ -16,7 +16,7 @@ status: local-complete-remote-evidence-pending
 
 ## Accomplishments
 
-- Added the `ml-cuda-health` job to `.github/workflows/nightly.yml`: `ubuntu-latest`, 180-minute cap, `Jimver/cuda-toolkit@v0.2.36` with CUDA 12.4.0, `CUDA_COMPUTE_CAP=80`, `nvcc --version` gate, then `cargo test --no-run -p vox-plugin-mens-candle-cuda --features cuda`, `vox ci cuda-features`, and `vox ci cuda-release-build`.
+- Added the `ml-cuda-health` job to `.github/workflows/nightly.yml`: `ubuntu-latest`, 180-minute cap, `Jimver/cuda-toolkit@v0.2.36` with the CUDA 12.6.3 toolkit sub-package (12.4 has no Ubuntu 24.04 apt package; first hosted run failed on `cuda-12-4`), `CUDA_COMPUTE_CAP=80`, `nvcc --version` gate, then `cargo test --no-run -p vox-plugin-mens-candle-cuda --features cuda`, `vox ci cuda-features`, and `vox ci cuda-release-build`.
 - Added `ml_cuda_health_is_hosted_compile_only_and_fail_closed` to `crates/vox-cli/tests/ci_workflow_contract.rs`, rejecting `continue-on-error`, `VOX_CI_ALLOW_CUDA_SKIP`, `--features cpu`, `if: false`, and `self-hosted` inside the job.
 - The job is documented in-line as compile-only: it does not exercise a CUDA device or runtime kernels.
 
