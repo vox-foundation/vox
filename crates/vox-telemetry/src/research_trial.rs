@@ -144,6 +144,23 @@ fn reject(msg: String) -> Result<(), TelemetryError> {
     Err(TelemetryError::Validation(format!("research_trial: {msg}")))
 }
 
+/// Trial checks for one `research_metrics` row. Any metric type that begins with
+/// `research_trial` in any case is a trial row, so prefix variants cannot skip the allowlist.
+pub(crate) fn validate_research_trial_row(
+    session_id: &str,
+    metric_type: &str,
+    metadata_json: Option<&str>,
+) -> Result<(), TelemetryError> {
+    let stem = RESEARCH_TRIAL_METRIC_PREFIX.trim_end_matches('.');
+    if !metric_type.to_ascii_lowercase().starts_with(stem) {
+        return Ok(());
+    }
+    if !structural_string("session_id", session_id) {
+        return reject("session_id is not a bounded structural string".into());
+    }
+    validate_research_trial_metadata(metric_type, metadata_json)
+}
+
 /// Validate a `research_trial.*` row: known metric type, flat JSON object, allowlisted keys,
 /// scalar values, and bounded structural strings only.
 pub fn validate_research_trial_metadata(
