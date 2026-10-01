@@ -2,12 +2,12 @@
 gsd_state_version: "1.0"
 current_phase: 6
 current_phase_name: Model Routing Transparency & ML Dependency Health
-status: planning
-stopped_at: Phase 5 complete
-last_updated: "2026-09-28T12:24:51.613Z"
-last_activity: 2026-09-29
-last_activity_desc: Phase 5 complete (MESH-01, TRUST-01), transitioned to Phase 06
-state_head: 75fabf9a80ebb471ddd855fba8f16a34f2360ef3
+status: executing
+stopped_at: 06-01..06-03 complete locally — 06-04 blocked on hosted ml-cuda-health run evidence
+last_updated: "2026-10-01T00:12:09.111Z"
+last_activity: 2026-09-30
+last_activity_desc: 06-01, 06-02, 06-03 committed; awaiting authorized push + nightly dispatch for ADR-034 evidence
+state_head: f3420b35e29118434ede70d723d51203061df08b
 progress:
   total_phases: 6
   completed_phases: 5
@@ -23,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-22)
 
 **Core value:** The compiler, orchestrator, and runtime that everything else depends on must keep building and passing CI throughout this cleanup — no crate disposition or architecture-decision closure is worth a broken workspace.
-**Current focus:** Phase 1 — Dead Crate Cleanup — Remove & Confirm
+**Current focus:** Phase 6 — Model Routing Transparency & ML Dependency Health
 
 ## Current Position
 
 Phase: 6 — Model Routing Transparency & ML Dependency Health
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-09-29 — Phase 5 complete, transitioned to Phase 06
+Plan: 06-04 (blocked on hosted CUDA compile run)
+Status: Blocked — needs push authorization
+Last activity: 2026-09-30 — 06-01..06-03 committed; 06-04 awaits hosted run URL/SHA
 
 Progress: [████████░░] 83%
 
@@ -89,5 +89,5 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-09-28T12:24:51.586Z
-Stopped at: Phase 5 context gathered
-Resume file: .planning/phases/05-multi-agent-coordination-trust-hardening/05-CONTEXT.md
+Stopped at: 06-04 blocked on hosted ml-cuda-health run evidence
+Resume file: .planning/phases/06-model-routing-transparency-ml-dependency-health/06-04-PLAN.md

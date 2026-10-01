@@ -179,15 +179,20 @@ Plans:
 
 ### Phase 6: Model Routing Transparency & ML Dependency Health
 
-**Goal**: Model selection is observable as a cost/latency/reliability tradeoff, and the local ML training stack runs on a unified, GPU-CI-verified dependency set.
+**Goal**: Model selection is observable as a cost/latency/reliability tradeoff, and the local ML training stack uses a unified dependency set validated by fail-closed CUDA-toolchain compilation on GitHub-hosted CI.
 **Depends on**: Phase 3 (advisory — file overlap: both land work in crates/vox-orchestrator; not a semantic dependency)
 **Requirements**: MODEL-01, ML-01
 **Success Criteria** (what must be TRUE):
 
   1. Model scoreboards render as a Pareto frontier over reliability, cost, and latency, with no change to actual model-routing behavior (ADR-046).
-  2. Candle, peft-rs, and qlora-rs resolve to a single unified version set across the workspace, verified passing on a GPU-backed CI lane (ADR-034).
+  2. Candle, peft-rs, and qlora-rs resolve to a single unified version set across the workspace, verified by fail-closed CUDA-toolchain compilation on GitHub-hosted `ubuntu-latest`; this does not claim physical-GPU runtime coverage (ADR-034).
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+- [x] 06-01-PLAN.md
+- [x] 06-02-PLAN.md
+- [x] 06-03-PLAN.md
+- [ ] 06-04-PLAN.md
 
 ## Progress
 
@@ -201,4 +206,4 @@ Phases 1 → 2 → 3 form a dependency chain (crate surgery). Phase 4 is indepen
 | 3. Extract Misplaced Crates to Plugin Architecture | 6/6 | Complete    | 2026-09-27 |
 | 4. GUI/Dashboard Architecture Consolidation | 2/2 | Complete    | 2026-09-25 |
 | 5. Multi-Agent Coordination & Trust Hardening | 0/7 | Planned | - |
-| 6. Model Routing Transparency & ML Dependency Health | 0/TBD | Not started | - |
+| 6. Model Routing Transparency & ML Dependency Health | 3/4 | In progress |  |

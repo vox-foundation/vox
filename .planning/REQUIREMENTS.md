@@ -37,7 +37,7 @@
 ### Model Routing & ML Health
 
 - [ ] **MODEL-01**: Model scoreboards present a Pareto-frontier view over reliability, cost, and latency (reporting-only — no routing behavior change) per ADR-046.
-- [ ] **ML-01**: Candle, peft-rs, and qlora-rs dependency versions are unified across the workspace via a dedicated upgrade train, validated on GPU CI, per ADR-034.
+- [ ] **ML-01**: Candle, peft-rs, and qlora-rs dependency versions are unified across the workspace via a dedicated upgrade train and validated by fail-closed CUDA-toolchain compilation on GitHub-hosted `ubuntu-latest`; physical-GPU runtime coverage is explicitly out of scope for this closure, per ADR-034.
 
 ## v2 Requirements
 
