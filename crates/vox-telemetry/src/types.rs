@@ -243,6 +243,9 @@ pub fn validate_research_metric_row(
             "research_metrics: metric_type {metric_type:?} contains disallowed characters"
         )));
     }
+    if metric_type.starts_with(crate::research_trial::RESEARCH_TRIAL_METRIC_PREFIX) {
+        crate::research_trial::validate_research_trial_metadata(metric_type, metadata_json)?;
+    }
     if let Some(m) = metadata_json {
         if m.len() > RESEARCH_METRICS_METADATA_JSON_MAX_BYTES {
             return Err(TelemetryError::Validation(format!(
@@ -1182,6 +1185,57 @@ mod tests {
     #[test]
     fn accepts_colon_in_metric_type() {
         assert!(validate_research_metric_row("sess", "mcp:foo_bar", None).is_ok());
+    }
+
+    #[test]
+    fn research_trial_metadata_rejects_content_key() {
+        let err = validate_research_metric_row(
+            "run-1",
+            "research_trial.run",
+            Some(r#"{"run_id":"r1","query":"what is rust"}"#),
+        );
+        assert!(err.is_err(), "content-bearing key must be rejected");
+    }
+
+    #[test]
+    fn research_trial_metadata_rejects_unknown_key() {
+        let err = validate_research_metric_row(
+            "run-1",
+            "research_trial.run",
+            Some(r#"{"run_id":"r1","favourite_colour":"blue"}"#),
+        );
+        assert!(err.is_err(), "keys outside the allowlist must be rejected");
+    }
+
+    #[test]
+    fn research_trial_rejects_unknown_metric_type() {
+        assert!(
+            validate_research_metric_row("run-1", "research_trial.gossip", Some("{}")).is_err()
+        );
+    }
+
+    #[test]
+    fn research_trial_metadata_rejects_nested_or_long_values() {
+        let nested = validate_research_metric_row(
+            "run-1",
+            "research_trial.run",
+            Some(r#"{"run_id":{"inner":"x"}}"#),
+        );
+        assert!(nested.is_err());
+        let long = format!(r#"{{"run_id":"{}"}}"#, "a".repeat(200));
+        assert!(validate_research_metric_row("run-1", "research_trial.run", Some(&long)).is_err());
+    }
+
+    #[test]
+    fn research_trial_metadata_accepts_structural_row() {
+        let ok = validate_research_metric_row(
+            "run-1",
+            "research_trial.run",
+            Some(
+                r#"{"campaign_id":"c1","run_id":"r1","arm_id":"a1","status":"completed","duration_ms":1200,"tokens_in":10,"cost_usd_micros":42,"served_from_cache":false}"#,
+            ),
+        );
+        assert!(ok.is_ok(), "{ok:?}");
     }
 
     #[test]

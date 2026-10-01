@@ -70,33 +70,47 @@ pub fn calculate_groundedness(model_answer: &str, evidence_snippets: &[String]) 
         return 0.0;
     }
 
-    let evidence_corpus = evidence_snippets.join(" ").to_lowercase();
+    let snippets: Vec<String> = evidence_snippets.iter().map(|s| s.to_lowercase()).collect();
     let model_clusters: Vec<_> = model_answer
         .split('.')
         .filter(|s| s.trim().len() > 10)
         .collect();
 
     if model_clusters.is_empty() {
-        return 1.0;
+        return 0.0;
     }
 
-    let mut grounded_count = 0;
-    for cluster in &model_clusters {
-        let keywords: Vec<_> = cluster
-            .split_whitespace()
-            .filter(|s| s.len() > 4)
-            .take(5)
-            .collect();
-
-        if keywords
-            .iter()
-            .any(|k| evidence_corpus.contains(&k.to_lowercase()))
-        {
-            grounded_count += 1;
-        }
-    }
+    let grounded_count = model_clusters
+        .iter()
+        .filter(|cluster| cluster_grounded(cluster, &snippets))
+        .count();
 
     grounded_count as f64 / model_clusters.len() as f64
+}
+
+/// A clause is grounded by one snippet that contains at least half of its leading
+/// keywords and shares its negation polarity.
+fn cluster_grounded(cluster: &str, snippets: &[String]) -> bool {
+    let lower = cluster.to_lowercase();
+    let keywords: Vec<&str> = lower
+        .split_whitespace()
+        .filter(|s| s.len() > 4)
+        .take(5)
+        .collect();
+    if keywords.is_empty() {
+        return false;
+    }
+    let needed = keywords.len().div_ceil(2);
+    let negated = has_negation(&lower);
+    snippets.iter().any(|snippet| {
+        has_negation(snippet) == negated
+            && keywords.iter().filter(|k| snippet.contains(**k)).count() >= needed
+    })
+}
+
+fn has_negation(text: &str) -> bool {
+    text.split(|c: char| !c.is_alphanumeric() && c != '\'')
+        .any(|w| matches!(w, "not" | "no" | "never" | "cannot") || w.ends_with("n't"))
 }
 
 #[cfg(test)]

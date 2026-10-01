@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox.dev/contracts/telemetry/research-trial.v1.schema.json",
+  "title": "Research trial telemetry metadata (structural only)",
+  "description": "Allowlisted metadata_json keys per research_trial.* metric type. Mirrors vox_telemetry::research_trial::RESEARCH_TRIAL_ALLOWLIST; content keys are forbidden.",
+  "x-vox-version": 1,
+  "$defs": {
+    "research_trial.campaign": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "arm_count": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "arm_id": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "attempt": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "campaign_id": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "cost_cap_usd_micros": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "prereg_digest": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "reason_code": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "replicate_id": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "run_id": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "status": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" }
+      }
+    },
+    "research_trial.run": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "arm_id": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "attempt": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "build_version": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "campaign_id": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "config_hash": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "cost_usd_micros": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "duration_ms": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "evidence_manifest_hash": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "llm_calls": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "query_hash": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "replicate_id": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "retry_of_run_id": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "run_id": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "served_from_cache": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "status": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "tokens_in": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "tokens_out": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "tool_calls": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" }
+      }
+    },
+    "research_trial.stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "arm_id": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "attempt": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "campaign_id": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "duration_ms": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "reason_code": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "replicate_id": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "run_id": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "seq": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "stage": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "started_at_ms": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "status": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" }
+      }
+    },
+    "research_trial.model_call": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "arm_id": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "attempt": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "cache_read_tokens": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "campaign_id": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "completion_tokens": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "cost_source": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "cost_usd_micros": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "error_class": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "latency_ms": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "prompt_tokens": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "provider_id": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "replicate_id": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "request_hash": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "requested_model_id": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "resolved_model_id": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "response_hash": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "run_id": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "stage": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "ttft_ms": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "ttft_source": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" }
+      }
+    },
+    "research_trial.tool_call": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "arm_id": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "attempt": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "campaign_id": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "elapsed_ms": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "replicate_id": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "response_hash": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "result_count": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "run_id": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "stage": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "status": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" },
+        "tool_id": { "type": ["string", "number", "boolean", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9_.:+-]*$" }
+      }
+    }
+  }
+}

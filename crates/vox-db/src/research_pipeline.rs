@@ -36,10 +36,19 @@ impl VoxDb {
                     params![key.as_str(), now, q.as_str()],
                 )
                 .await?;
-                Ok::<(), StoreError>(())
+                let mut rows = conn
+                    .query(
+                        "SELECT id FROM scientia_research_sessions WHERE session_key = ?1",
+                        params![key.as_str()],
+                    )
+                    .await?;
+                let row = rows
+                    .next()
+                    .await?
+                    .ok_or_else(|| StoreError::NotFound(format!("research session {key}")))?;
+                Ok::<i64, StoreError>(row.get::<i64>(0)?)
             })
-            .await?;
-        Ok(self.conn.last_insert_rowid())
+            .await
     }
 
     /// Update the status of a research session.
@@ -1233,6 +1242,19 @@ pub fn sanitize_telemetry_string(s: &str) -> String {
 mod tests {
     use crate::store::ReviewDecisionRow;
     use crate::{DbConfig, VoxDb};
+
+    #[tokio::test]
+    async fn create_research_session_returns_existing_id_for_repeated_key() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
+        let first = db.create_research_session("k:one", "q1").await.unwrap();
+        let second = db.create_research_session("k:two", "q2").await.unwrap();
+        assert_ne!(first, second);
+        let repeat = db.create_research_session("k:one", "q1").await.unwrap();
+        assert_eq!(
+            repeat, first,
+            "a repeated key must not return the last-inserted row's id"
+        );
+    }
 
     /// Seed helper: store a claim row under the given session.
     async fn seed_claim(db: &VoxDb, session_id: i64, claim_id: u64) {

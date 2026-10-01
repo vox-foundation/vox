@@ -77,7 +77,12 @@ pub async fn evaluate_single_query_pipeline(
             let prec = citation_precision_from_answer(&model_answer, evidence_snippets.len());
             (prec, result.citations.len(), 0)
         };
-    let abstained = answer_abstained(&model_answer, evidence_snippets.is_empty());
+    let abstained = answer_abstained(&model_answer);
+    let citation_precision = if citations_found == 0 && !abstained {
+        0.0
+    } else {
+        citation_precision
+    };
     let multi_hop_score = multi_hop_pipeline_score(
         &item.query,
         result.research_metadata.subquery_count,
@@ -90,7 +95,7 @@ pub async fn evaluate_single_query_pipeline(
         .as_ref()
         .map(|gold| compute_token_recall(gold, &model_answer));
 
-    let quality_score = (groundedness + citation_precision + recall.unwrap_or(0.5)) / 3.0;
+    let quality_score = legacy_quality_score(groundedness, citation_precision, recall);
 
     let sample = ResearchEvalSampleRecord {
         run_id: run_id.to_string(),
@@ -236,13 +241,17 @@ pub async fn run_eval(
     Ok(())
 }
 
+/// Display-only legacy aggregate; a missing gold answer is excluded rather than imputed.
+fn legacy_quality_score(groundedness: f64, citation_precision: f64, recall: Option<f64>) -> f64 {
+    match recall {
+        Some(r) => (groundedness + citation_precision + r) / 3.0,
+        None => (groundedness + citation_precision) / 2.0,
+    }
+}
+
 fn citation_precision_from_answer(answer: &str, evidence_count: usize) -> f64 {
     if evidence_count == 0 {
-        return if answer_abstained(answer, true) {
-            1.0
-        } else {
-            0.0
-        };
+        return if answer_abstained(answer) { 1.0 } else { 0.0 };
     }
     let mut cited = 0usize;
     let mut supported = 0usize;
@@ -264,10 +273,9 @@ fn citation_precision_from_answer(answer: &str, evidence_count: usize) -> f64 {
     }
 }
 
-fn answer_abstained(answer: &str, no_evidence: bool) -> bool {
+fn answer_abstained(answer: &str) -> bool {
     let lower = answer.to_ascii_lowercase();
-    no_evidence
-        || lower.contains("insufficient evidence")
+    lower.contains("insufficient evidence")
         || lower.contains("not enough evidence")
         || lower.contains("no external sources were found")
 }
@@ -477,9 +485,30 @@ mod tests {
     }
 
     #[test]
-    fn abstention_counts_empty_evidence_as_valid_abstention() {
-        assert!(answer_abstained("No external sources were found.", true));
-        assert!(!answer_abstained("The answer is well-supported.", false));
+    fn abstention_is_judged_from_the_answer_text() {
+        assert!(answer_abstained("No external sources were found."));
+        assert!(!answer_abstained("The answer is well-supported."));
+    }
+
+    #[test]
+    fn hallucinated_answer_without_evidence_is_not_an_abstention() {
+        let answer = "Paris has been the capital of Australia since 1901.";
+        assert!(!answer_abstained(answer));
+        assert_eq!(citation_precision_from_answer(answer, 0), 0.0);
+    }
+
+    #[test]
+    fn genuine_abstention_without_evidence_keeps_full_precision() {
+        assert_eq!(
+            citation_precision_from_answer("Insufficient evidence to answer.", 0),
+            1.0
+        );
+    }
+
+    #[test]
+    fn legacy_quality_score_does_not_impute_missing_gold() {
+        assert_eq!(legacy_quality_score(0.9, 0.6, None), 0.75);
+        assert_eq!(legacy_quality_score(0.9, 0.6, Some(0.0)), 0.5);
     }
 
     #[test]
