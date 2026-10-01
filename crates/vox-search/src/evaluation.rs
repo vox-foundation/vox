@@ -88,8 +88,8 @@ pub fn calculate_groundedness(model_answer: &str, evidence_snippets: &[String]) 
     grounded_count as f64 / model_clusters.len() as f64
 }
 
-/// A clause is grounded by one snippet that contains at least half of its leading
-/// keywords and shares its negation polarity.
+/// A clause is grounded by one snippet sentence that contains at least half of its
+/// leading keywords and shares its negation polarity.
 fn cluster_grounded(cluster: &str, snippets: &[String]) -> bool {
     let lower = cluster.to_lowercase();
     let keywords: Vec<&str> = lower
@@ -102,10 +102,13 @@ fn cluster_grounded(cluster: &str, snippets: &[String]) -> bool {
     }
     let needed = keywords.len().div_ceil(2);
     let negated = has_negation(&lower);
-    snippets.iter().any(|snippet| {
-        has_negation(snippet) == negated
-            && keywords.iter().filter(|k| snippet.contains(**k)).count() >= needed
-    })
+    snippets
+        .iter()
+        .flat_map(|snippet| snippet.split(['.', '!', '?', '\n']))
+        .any(|sentence| {
+            has_negation(sentence) == negated
+                && keywords.iter().filter(|k| sentence.contains(**k)).count() >= needed
+        })
 }
 
 fn has_negation(text: &str) -> bool {

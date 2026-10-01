@@ -142,6 +142,7 @@ impl VoxDb {
     /// Record a single research pipeline metric.
     ///
     /// Maps onto the existing `research_metrics` table (column `metric_value`, `created_at`).
+    /// Rows pass [`vox_telemetry::validate_research_metric_row`] like every other writer.
     pub async fn record_research_metric(
         &self,
         session_id: i64,
@@ -150,6 +151,8 @@ impl VoxDb {
         metadata_json: Option<&str>,
     ) -> Result<(), StoreError> {
         let sid = session_id.to_string();
+        vox_telemetry::validate_research_metric_row(&sid, metric_type, metadata_json)
+            .map_err(|e| StoreError::Db(e.to_string()))?;
         let mt = metric_type.to_string();
         let meta = metadata_json.map(|s| s.to_string());
         let breaker = self.breaker.clone();
@@ -1254,6 +1257,32 @@ mod tests {
             repeat, first,
             "a repeated key must not return the last-inserted row's id"
         );
+    }
+
+    #[tokio::test]
+    async fn record_research_metric_enforces_trial_allowlist() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
+        let sid = db.create_research_session("k:trial", "q").await.unwrap();
+        let leaked = db
+            .record_research_metric(
+                sid,
+                "research_trial.run",
+                1.0,
+                Some(r#"{"query":"what did the user ask"}"#),
+            )
+            .await;
+        assert!(
+            leaked.is_err(),
+            "content keys must not reach research_metrics"
+        );
+        db.record_research_metric(
+            sid,
+            "research_trial.run",
+            1.0,
+            Some(r#"{"run_id":"r-1","status":"ok"}"#),
+        )
+        .await
+        .expect("structural trial row is accepted");
     }
 
     /// Seed helper: store a claim row under the given session.

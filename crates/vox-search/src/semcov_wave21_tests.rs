@@ -274,6 +274,30 @@ mod semcov_wave21_tests {
     }
 
     #[test]
+    fn groundedness_rejects_negation_flip_in_multi_sentence_snippet() {
+        // Catches: polarity read from the whole snippet, where an unrelated sentence has "not"
+        let g = calculate_groundedness(
+            "Rust does not guarantee memory safety without unsafe blocks.",
+            &[
+                "Rust guarantees memory safety without unsafe blocks. It is not garbage collected."
+                    .to_string(),
+            ],
+        );
+        assert_eq!(g, 0.0);
+    }
+
+    #[test]
+    fn groundedness_accepts_claim_despite_unrelated_negation_in_snippet() {
+        // Catches: a supported claim rejected because another sentence in the snippet has "not"
+        let g = calculate_groundedness(
+            "Rust guarantees memory safety without unsafe blocks.",
+            &["Rust guarantees memory safety without unsafe blocks. It does not use a garbage collector."
+                .to_string()],
+        );
+        assert_eq!(g, 1.0);
+    }
+
+    #[test]
     fn groundedness_rejects_single_keyword_overlap() {
         // Catches: one shared keyword anywhere in the evidence grounding an unrelated claim
         let g = calculate_groundedness(
