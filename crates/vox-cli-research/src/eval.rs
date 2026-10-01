@@ -78,11 +78,8 @@ pub async fn evaluate_single_query_pipeline(
             (prec, result.citations.len(), 0)
         };
     let abstained = answer_abstained(&model_answer);
-    let citation_precision = if citations_found == 0 && !abstained {
-        0.0
-    } else {
-        citation_precision
-    };
+    let citation_precision =
+        effective_citation_precision(citation_precision, citations_found, abstained);
     let multi_hop_score = multi_hop_pipeline_score(
         &item.query,
         result.research_metadata.subquery_count,
@@ -353,11 +350,19 @@ fn citation_precision_from_answer(answer: &str, evidence_count: usize) -> f64 {
     }
 }
 
+/// An answer with no citations earns no precision credit unless it abstained.
+fn effective_citation_precision(precision: f64, citations_found: usize, abstained: bool) -> f64 {
+    if citations_found == 0 && !abstained {
+        0.0
+    } else {
+        precision
+    }
+}
+
 fn answer_abstained(answer: &str) -> bool {
-    let lower = answer.to_ascii_lowercase();
-    lower.contains("insufficient evidence")
-        || lower.contains("not enough evidence")
-        || lower.contains("no external sources were found")
+    answer
+        .trim_start()
+        .starts_with(vox_research_shim::research::ABSTENTION_MARKER)
 }
 
 fn multi_hop_pipeline_score(query: &str, subquery_count: usize, sources_count: usize) -> f64 {
@@ -566,8 +571,26 @@ mod tests {
 
     #[test]
     fn abstention_is_judged_from_the_answer_text() {
-        assert!(answer_abstained("No external sources were found."));
+        use vox_research_shim::research::ABSTENTION_MARKER;
+        assert!(answer_abstained(&format!(
+            "{ABSTENTION_MARKER}\nThe sources do not cover this."
+        )));
+        assert!(answer_abstained(&format!(
+            "  {ABSTENTION_MARKER} none found"
+        )));
         assert!(!answer_abstained("The answer is well-supported."));
+        // An abstention phrase buried in a claim-bearing answer is not an abstention.
+        assert!(!answer_abstained(
+            "There is insufficient evidence for A; however B happened in 1901 [1]."
+        ));
+    }
+
+    #[test]
+    fn zero_citations_score_zero_unless_abstained() {
+        // The citation audit reports precision 1.0 when it checked nothing.
+        assert_eq!(effective_citation_precision(1.0, 0, false), 0.0);
+        assert_eq!(effective_citation_precision(1.0, 0, true), 1.0);
+        assert_eq!(effective_citation_precision(0.5, 4, false), 0.5);
     }
 
     #[test]
@@ -580,7 +603,13 @@ mod tests {
     #[test]
     fn genuine_abstention_without_evidence_keeps_full_precision() {
         assert_eq!(
-            citation_precision_from_answer("Insufficient evidence to answer.", 0),
+            citation_precision_from_answer(
+                &format!(
+                    "{} No sources.",
+                    vox_research_shim::research::ABSTENTION_MARKER
+                ),
+                0
+            ),
             1.0
         );
     }

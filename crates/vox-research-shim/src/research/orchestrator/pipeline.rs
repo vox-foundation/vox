@@ -19,7 +19,7 @@ use super::super::types::{
 };
 use super::super::verifier::verify_claims_with_config;
 use super::config::ResearchConfig;
-use super::helpers::{fnv1a_hash, verifier_config_for_research_run};
+use super::helpers::{attempt_session_key, fnv1a_hash, verifier_config_for_research_run};
 use super::pipeline_cache::{research_cache_short_circuit, research_cache_store};
 use super::stages::{
     JudgeParams, SynthesisParams, chat_stage, evaluate_citation_diversity, judge_quality,
@@ -103,10 +103,7 @@ pub async fn run_research_with_context_and_session(
     let session_id: i64 = if let Some(id) = precreated_session_id {
         id
     } else if let Some(db) = db {
-        let session_key = format!(
-            "research:{:016x}",
-            fnv1a_hash(&format!("{}|{:?}", query.query, query.scope))
-        );
+        let session_key = attempt_session_key(&query.query, &format!("{:?}", query.scope));
         db.create_research_session(&session_key, &query.query)
             .await
             .unwrap_or(0)

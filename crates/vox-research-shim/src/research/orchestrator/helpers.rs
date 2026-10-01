@@ -81,9 +81,38 @@ pub(crate) fn fnv1a_hash(text: &str) -> u64 {
     hash
 }
 
+/// `research:<query hash>:<attempt nonce>` — the hash groups reruns of one query, the nonce
+/// gives every attempt its own session row.
+pub(crate) fn attempt_session_key(query: &str, scope: &str) -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static SEQ: AtomicU64 = AtomicU64::new(0);
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    format!(
+        "research:{:016x}:{nanos:x}-{:x}-{:x}",
+        fnv1a_hash(&format!("{query}|{scope}")),
+        std::process::id(),
+        SEQ.fetch_add(1, Ordering::Relaxed)
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn attempt_session_keys_are_unique_per_attempt_but_share_the_query_prefix() {
+        let a = attempt_session_key("what is rust", "Some(Web)");
+        let b = attempt_session_key("what is rust", "Some(Web)");
+        let other = attempt_session_key("what is go", "Some(Web)");
+        assert_ne!(a, b, "reruns of one query must not share a session row");
+        let prefix = |k: &str| k.rsplit_once(':').map(|(p, _)| p.to_string()).unwrap();
+        assert_eq!(prefix(&a), prefix(&b));
+        assert_ne!(prefix(&a), prefix(&other));
+        assert!(a.starts_with("research:"));
+    }
 
     #[test]
     fn test_sanitize_evidence_neutralizes_multi_provider_injection_and_bidi_steganography() {
