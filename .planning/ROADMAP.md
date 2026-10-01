@@ -1,209 +1,130 @@
 # Roadmap: Vox
 
+## Milestones
+
+- ✅ **v1.0 Architectural Housekeeping** — Phases 1–6 (shipped 2026-10-01) — [archive](milestones/v1.0-ROADMAP.md)
+- 🚧 **v1.1 Research Trial Flywheel** — Phases 7–11 (in progress)
+
 ## Overview
 
-Vox is a mature, working system; this roadmap is not a build-from-zero journey but a closure pass. It starts with the lowest-risk work (deleting confirmed-dead crates and confirming catalog hygiene), moves through progressively more invasive crate surgery (activating dormant code, then extracting misplaced crates into the plugin architecture), and finishes by formally closing out four clusters of "current but not yet locked" architecture decisions that a full-corpus ADR/SPEC ingest surfaced as open: GUI/dashboard architecture, multi-agent trust, and model/ML routing health.
+v1.1 turns Vox's existing research pipeline, telemetry, evaluation, model routing, and retrieval into a governed measure–compare–promote–replay loop. It builds bottom-up: one trial identity and atomic persistence first, then the race harness and scorecards that consume it, then the knowledge loop whose ablations need the harness, then promotion and replay that need all three, and finally adversarial hardening across the whole loop. Each phase is usable on its own: Phase 7 already yields an observational baseline.
 
 ## Phases
 
 **Phase Numbering:**
 
-- Integer phases (1, 2, 3): Planned milestone work
-- Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
+- Integer phases (7, 8, 9): Planned milestone work
+- Decimal phases (7.1, 7.2): Urgent insertions (marked with INSERTED)
 
-- [x] **Phase 1: Dead Crate Cleanup — Remove & Confirm** - Delete zero-consumer crates, confirm frozen crates need no action, verify catalog hygiene (completed 2026-09-22)
-- [x] **Phase 2: Wire Up & Reclassify Dormant Crates** - Activate functionally-complete but never-adopted crates in their intended call path (completed 2026-09-25)
-- [x] **Phase 3: Extract Misplaced Crates to Plugin Architecture** - Move CORE-inappropriate crates into the plugin system (completed 2026-09-27)
-- [x] **Phase 4: GUI/Dashboard Architecture Consolidation** - Ratify ADR-045, verify CommandCatalog SSOT alignment, enforce the Vox-native/React interop UI boundary, confirm Tauri desktop convergence (completed 2026-09-25)
-- [x] **Phase 5: Multi-Agent Coordination & Trust Hardening** - Ship ResourceLockManager and HMAC tool-call receipts (completed 2026-09-29)
-- [ ] **Phase 6: Model Routing Transparency & ML Dependency Health** - Ship Pareto-frontier model reporting and unify the Candle/QLoRA dependency stack
+<details>
+<summary>✅ v1.0 Architectural Housekeeping (Phases 1–6) — shipped 2026-10-01</summary>
+
+- [x] Phase 1: Dead Crate Cleanup — Remove & Confirm (2/2 plans)
+- [x] Phase 2: Wire Up & Reclassify Dormant Crates (2/2 plans)
+- [x] Phase 3: Extract Misplaced Crates to Plugin Architecture (6/6 plans)
+- [x] Phase 4: GUI/Dashboard Architecture Consolidation (2/2 plans)
+- [x] Phase 5: Multi-Agent Coordination & Trust Hardening (7/7 plans)
+- [x] Phase 6: Model Routing Transparency & ML Dependency Health (4/4 plans)
+
+</details>
+
+### 🚧 v1.1 Research Trial Flywheel
+
+- [ ] **Phase 7: Trial Identity, Contracts & Observational Baseline** - One signed campaign/run identity, atomic Tier A persistence, structural telemetry, hermetic fixtures, and a no-policy-change baseline
+- [ ] **Phase 8: Race Harness & Multidimensional Scorecards** - Bounded parallel condition matrix with spend reservations, arm isolation, group-sequential stopping, hard-gate + Pareto scoring, and reports
+- [ ] **Phase 9: Verified Knowledge Loop** - Tier C evidence decision, authoritative findings with provenance, acknowledged projections, frozen per-arm manifests, and memory ablations
+- [ ] **Phase 10: Promotion Governance & Replay** - Offline replay, shadow challengers, two-campaign confirmation, dual-control scoped designation, and suspension
+- [ ] **Phase 11: Adversarial Trials & Hardening** - Adversarial/stress trials, mutation-tested gates, evidence bundles, and full gate pass
 
 ## Phase Details
 
-### Phase 1: Dead Crate Cleanup — Remove & Confirm
+### Phase 7: Trial Identity, Contracts & Observational Baseline
 
-**Goal**: The workspace no longer carries zero-consumer crates or stale catalog entries; frozen crates are explicitly documented as intentionally inactive.
-**Depends on**: Nothing (first phase)
-**Requirements**: REQ-dead-crate-delete, REQ-dead-crate-catalog-cleanup, REQ-dead-crate-keep-frozen
+**Goal**: Every research run is attributable to a signed, immutable campaign and persisted atomically, with structural-only telemetry and hermetic tests, so a baseline can be captured without changing any policy.
+**Depends on**: Nothing (first v1.1 phase)
+**Requirements**: TRIAL-01, TRIAL-02, TRIAL-03, TRIAL-04, TRIAL-05, STORE-01, STORE-02, TELEM-01, TELEM-02, METER-01, SCORE-04, TEST-01, BASE-01
+**Gate**: Human approval of the canonical campaign/run Tier A schema before any migration (STORE-01).
 **Success Criteria** (what must be TRUE):
 
-  1. `cargo tree -p vox-cli` and workspace-wide `cargo metadata` show no reference to vox-schola, vox-scientia-core, vox-scientia-social, vox-scientia-ingest, vox-socrates-policy, vox-spool, vox-tools, vox-mcp-meta, vox-browser, or vox-audio-ingress.
-  2. `ConfidencePolicy`/`ComplexityBand`/`RiskBand` types live in vox-orchestrator-types with zero remaining `vox_socrates_policy::*` imports anywhere in the workspace.
-  3. vox-scientia-ingest's functionality (scholarly-external-jobs) is reachable from vox-publisher with no crate requiring a `vox-cli` dependency to use it.
-  4. `catalog.toml` shows execution-api and stub-check as already-removed, and vox-workflow-runtime/vox-integration-tests/vox-test-harness remain present, unmodified, and annotated as intentionally frozen.
+  1. Signing a campaign freezes it; any tampered field fails verification; supersession yields a new linked `campaign_id`.
+  2. `campaign_id`/`run_id`/`replicate_id`/`attempt_index`/`retry_of_run_id` appear consistently in pipeline, eval, telemetry, and DB rows for the same attempt.
+  3. A forced mid-write failure leaves no partial campaign/run/sample batch in the database.
+  4. The telemetry allowlist rejects unknown and content-bearing keys, and default tests pass with network access disabled.
+  5. The production runner refuses an unsigned campaign or one signed by a non-allowlisted key (mutation-tested).
+  6. Every LLM call in one run shares one trace context, and two attempts of the same query get distinct session IDs.
+  7. Run results carry tokens, cost, latency, TTFT, and tool-call counts; a hallucinated no-evidence answer is not scored as an abstention.
+  8. A baseline campaign records every BASE-01 metric with no policy change.
 
-**Plans**: 2/2 plans executed
+**Plans**: TBD
+**Research**: `.planning/research/TRIAL-DESIGN.md`, `OBSERVABILITY.md`, `QUALITY-EVAL.md`
 
-> **Scope note (from 01-RESEARCH.md, 2026-09-22):** all ten crates named in Success Criterion 1 were already deleted in commits `e828828a9`, `72bde3718`, and `0a6aae51e` (2026-05), and the type/logic migrations behind Criteria 2 and 3 already landed. This phase is therefore a *confirmation-and-residue-cleanup* phase, not a deletion phase. Its only file diffs are one CI matrix line and one `catalog.toml` comment block.
+### Phase 8: Race Harness & Multidimensional Scorecards
 
-Plans:
-**Wave 1**
-
-- [x] 01-01-PLAN.md — D-03 verification pass proving Success Criteria 1-3, plus the stale `all-features check` CI matrix fix (wave 1)
-
-**Wave 2** *(blocked on Wave 1 completion)*
-
-- [x] 01-02-PLAN.md — Success Criterion 4: verify catalog ghost entries, annotate the three KEEP-FROZEN crates in `catalog.toml` per D-02 (wave 2)
-
-### Phase 2: Wire Up & Reclassify Dormant Crates
-
-**Goal**: Functionally-complete crates that were never adopted are active in their intended call path, and crate classification matches actual usage.
-**Depends on**: Phase 1
-**Requirements**: REQ-dead-crate-wire-up
+**Goal**: One `vox research eval` invocation races preregistered conditions in parallel within a hard budget and produces comparable, statistically honest scorecards.
+**Depends on**: Phase 7
+**Requirements**: RACE-01, RACE-02, RACE-03, RACE-04, SCORE-01, SCORE-02, SCORE-03, REPORT-01
 **Success Criteria** (what must be TRUE):
 
-  1. The exec-policy gate (vox-container or vox-cli-core) calls `vox_exec_grammar::risk::classify`, matching the ADR-026 contract in `contracts/terminal/exec-policy.v1.yaml`.
-  2. vox-orchestrator depends on vox-mcp-registry and validates/enumerates MCP tool names via `TOOL_REGISTRY`; vox-mcp-meta no longer exists in the workspace.
-  3. The crate catalog lists vox-search and vox-doc-inventory as CORE, matching their existing unconditional use by vox-cli and vox-orchestrator.
+  1. Concurrent arms never exceed the campaign's reserved token/call/cost budget, including under reservation races, because admission goes through a durable ledger rather than the in-memory `BudgetManager`.
+  2. Two arms with different configs never share result-cache, verdict-cache, or learned-search-policy state.
+  3. Stopping boundaries are evaluated only at completed batches; spend, safety, and wall-time stops halt immediately and fail closed.
+  4. Scorecards show hard gates and a Pareto frontier with versioned metrics; a hallucinated no-evidence answer fails a hard gate; the legacy `quality_score` cannot drive eligibility.
+  5. The campaign report compares each arm against baseline and champion in JSON and a concise CLI summary.
 
-**Plans**: 2 plans
+**Plans**: TBD
 
-> **Scope note (from 02-RESEARCH.md, 2026-09-23):** SC#1 is already satisfied (`risk::classify` is called from `check_terminal.rs::run_check_rust_fallback` and `vox-container::log_exec_risk`; `vox-exec-grammar` never existed as a crate), vox-mcp-meta is already deleted, and vox-search is already CORE. The real work is SC#2's fail-closed `TOOL_REGISTRY` guard in `vox-orchestrator` (one user-authorized crate-edge exception, 2026-09-25) and one doc row for vox-doc-inventory. Live MCP-dispatch wiring of tool receipts is Phase 5 (TRUST-01).
+### Phase 9: Verified Knowledge Loop
 
-Plans:
-**Wave 1**
-
-- [x] 02-01-PLAN.md — SC#2: vox-orchestrator depends on vox-mcp-registry; `ToolReceiptLedger::issue_intent` fails closed on names absent from `TOOL_REGISTRY` (test-first tracer, mutation-proven); `crate-graph.v1.json` regenerated in the same commit (wave 1)
-
-**Wave 2** *(blocked on Wave 1 completion — shared git index, not shared files)*
-
-- [x] 02-02-PLAN.md — Verify SC#1 and vox-mcp-meta absence; reclassify vox-doc-inventory DEAD -> CORE in `crate-classification-2026-05-08.md` (SC#3) (wave 2)
-
-### Phase 3: Extract Misplaced Crates to Plugin Architecture
-
-**Goal**: Crates that don't belong in the CORE compile graph move to the plugin architecture without losing functionality, and CORE loses its last direct Candle dependency bleed.
-**Depends on**: Phase 2
-**Requirements**: REQ-dead-crate-extract-to-plugin, REQ-dead-crate-misplaced
+**Goal**: Verified findings accumulate authoritatively and searchably, and trials measure whether that knowledge helps later runs without contaminating evaluations.
+**Depends on**: Phase 8
+**Requirements**: STORE-03, KNOW-01, KNOW-02, KNOW-03, KNOW-04, KNOW-05
+**Gate**: Human decision on Tier C evidence-artifact ownership and retention (STORE-03) before replay- or promotion-eligible live campaigns.
 **Success Criteria** (what must be TRUE):
 
-  1. vox-grammar-export stays a CORE library: crate-audit decision D-4/D-18 (docs/src/architecture/crate-audit-and-plan-2026.md; commit 0a8d1518c, 2026-05-24) deleted the 61-LoC vox-plugin-grammar-export pass-through and its ABI extension, superseding the 2026-05-08 PRD's EXTRACT disposition (Phase 3 D-11). Its zero-consumer automaton module and vox-populi's unused dependency on it are removed.
-  2. vox-webhook ships as vox-plugin-webhook, and its events reach the orchestrator through the plugin host with no crate dependency on the plugin: an opt-in [orchestrator.webhook] section makes vox-orchestrator-mcp load the plugin, start its token-authenticated listener, poll its WebhookInbox extension, route each event with the OrchestratorInboxItem kind table (re-derived under the defactor rule) and submit it to the HopperIntake as IntakeSource::Webhook (Phase 3 D-03/D-04/D-10/D-13/D-14).
-  3. vox-ssg is not a CORE crate: it was folded into vox-cli/src/utils/ssg/ (vox-cli is layer 5) by 9d385a60b (2026-05-12) and has no `[crates]` entry in docs/src/architecture/layers.toml (Phase 3 D-05).
-  4. The vox-oratio extraction is complete — Candle Whisper STT is reachable only through vox-plugin-speech and vox-speech has no Candle feature (D-08/D-12) — and no CORE crate (layers 0-3 per docs/src/architecture/layers.toml, D-09) declares an unconditional Candle dependency; optional, feature-gated Candle dependencies remain allowed (D-06).
+  1. A verified finding is retrievable through research queries with full provenance; negative findings are retrievable too.
+  2. A failed memory or search projection is visible with status and is reconciled on retry.
+  3. A finding written after signing never appears in that campaign's arms.
+  4. All four memory ablations run and report knowledge-reuse impact.
 
-**Plans**: 6 plans
+**Plans**: TBD
 
-> **Scope note (from 03-CONTEXT.md D-09..D-14, 2026-09-25):** D-11 supersedes D-01/D-02 — there is no grammar-export plugin; SC#1 closes by citing crate-audit D-4/D-18 plus dead-code cleanup. SC#3 is evidence-only (D-05). SC#2 uses a new `WebhookInbox` poll extension (ABI 12 -> 13) and an opt-in poller in vox-orchestrator-mcp (D-10/D-13/D-14). SC#4's CORE half was vox-quantize alone (D-09). D-09 follow-up (2026-09-27, `276852014`, `2a2a7e477`): `docs/src/architecture/layers.toml` is now the only layer map. `vox ci crate-edges` reads it and `contracts/ci/crate-layers.v1.json` is deleted. `vox-plugin-mens-candle-core` moved to L4, so SC#4 still holds: no CORE crate has an unconditional Candle dependency. Plans run one per wave: they share the git index and the lockfile / crate-graph / build-map / ROADMAP files.
+### Phase 10: Promotion Governance & Replay
 
-Plans:
-**Wave 1**
-
-- [x] 03-01-PLAN.md — SC#1 per D-11 (drop grammar-export's dead automaton module and vox-populi's unused edge, with derived contracts) and SC#3 per D-05 (evidence, where-things-live row, SC/REQUIREMENTS wording) (wave 1)
-
-**Wave 2** *(blocked on Wave 1 completion)*
-
-- [x] 03-02-PLAN.md — SC#4 CORE half: vox-quantize's Candle dependency behind an `engine` feature, consumers opt in, CORE Candle scan proven load-bearing (wave 2)
-
-**Wave 3** *(blocked on Wave 2 completion)*
-
-- [x] 03-03-PLAN.md — SC#2 plugin side: `WebhookInbox` poll extension (ABI 12 -> 13, eleven manifests in lockstep) and a fail-closed, token-only webhook listener (wave 3)
-
-**Wave 4** *(blocked on Wave 3 completion)*
-
-- [x] 03-04-PLAN.md — SC#2 host side: opt-in `[orchestrator.webhook]` section and vox-orchestrator-mcp poller routing events into the hopper as `IntakeSource::Webhook` (wave 4)
-
-**Wave 5** *(blocked on Wave 4 completion)*
-
-- [x] 03-05-PLAN.md — SC#4 oratio half, repoint: host-registered Whisper transcriber seam in vox-speech; vox-gui and vox-ml-cli route Candle STT through vox-plugin-speech (wave 5)
-
-**Wave 6** *(blocked on Wave 5 completion)*
-
-- [x] 03-06-PLAN.md — SC#4 oratio half, delete: vox-speech's in-process Candle Whisper, feature and deps removed; decoding re-homed to `audio-decode`; final SC#4 evidence (wave 6)
-
-### Phase 4: GUI/Dashboard Architecture Consolidation
-
-**Goal**: The Tauri GUI is the ratified, sole orchestration surface, with a clear, enforced boundary between Vox-native and React/TanStack interop UI code.
-**Depends on**: Nothing (independent — can run in parallel with the crate-cleanup chain)
-**Requirements**: GUI-01, GUI-02, GUI-03, GUI-04
+**Goal**: The system proposes and validates its next experiment but cannot promote a worse or unaudited policy, and any campaign can be replayed offline.
+**Depends on**: Phase 9
+**Requirements**: REPLAY-01, PROMO-01, PROMO-02, PROMO-03, PROMO-04, PROMO-05
 **Success Criteria** (what must be TRUE):
 
-  1. `docs/src/adr/045-tauri-gui-replaces-axum-dashboard.md` carries an explicit "Status: Accepted" line and its classification changes from `locked: false`/medium-confidence to locked.
-  2. Every command `vox-gui` exposes traces back to `vox-cli`'s `CommandCatalog` SSOT — an audit finds no orphaned or duplicated command surface between the two.
-  3. A documented rule (per `external-frontend-interop-plan-2026.md`, which superseded ADR-027 on 2026-05-03) states which UI primitives are Vox-native vs React/TanStack interop, and existing components are checked against it with no undocumented crossovers.
-  4. ADR-037's desktop-convergence clause is confirmed complete and its own status reflects "Accepted" for that clause, independent of the already-superseded mobile clause.
+  1. Replay with provider access disabled reproduces a campaign's scores from captured evidence.
+  2. A challenger lacking holdout confirmation, replay success, or provenance completeness is never eligible.
+  3. Designation fails without two independent authorized approvers, rejects role conflicts, and never mutates runtime policy.
+  4. The safety principal can suspend a champion alone; revocation or reinstatement requires the quorum; evidence expiry suspends eligibility.
 
-**Plans**: 2/2 plans executed
+**Plans**: TBD
 
-Plans:
-**Wave 1**
+### Phase 11: Adversarial Trials & Hardening
 
-- [x] 04-01-PLAN.md — Ratify ADR-045 (body Status line + intel sync) and close out ADR-037's desktop clause with cited code evidence (GUI-01, GUI-04)
-
-**Wave 2** *(blocked on Wave 1 completion)*
-
-- [x] 04-02-PLAN.md — Audit the vox-gui command surface against the CommandCatalog SSOT and write the Vox-native/React boundary rule in both halves (GUI-02, GUI-03)
-
-### Phase 5: Multi-Agent Coordination & Trust Hardening
-
-**Goal**: Multiple concurrent agents can safely contend for shared resources, and every tool call they make is independently auditable.
-**Depends on**: Phase 3 (advisory — file overlap: both land work in crates/vox-orchestrator; not a semantic dependency)
-**Requirements**: MESH-01, TRUST-01
+**Goal**: The whole loop survives adversarial conditions, every guard is proven by mutation, and each campaign ships an auditable evidence bundle.
+**Depends on**: Phase 10
+**Requirements**: AUDIT-01, AUDIT-02, AUDIT-03, AUDIT-04
 **Success Criteria** (what must be TRUE):
 
-  1. `ResourceLockManager` exists and is used for multi-agent resource coordination, correctly handling lease expiration and contention per ADR-025.
-  2. Agent tool calls produce HMAC receipts that the two-tier formal-intent verification system (ADR-029) can independently check for authenticity.
-  3. Receipt status on tool calls and resource-lock wait/hold state are visible in the `vox-gui` chat surface, covered by Playwright specs with review-bundle screenshots (CONTEXT D-10/D-11).
+  1. Adversarial trials (hallucination, conflicting memory, provider failure, budget exhaustion, cancellation) all end in the expected fail-closed state.
+  2. Removing any security/reliability guard makes its test fail.
+  3. Every campaign emits an evidence bundle with a working replay command.
+  4. `vox ci data-storage-guard`, drift checks, docs lint, and `vox ci pre-push --complete` pass.
 
-**Plans**: 7 plans
-
-> **Scope note (from 05-RESEARCH.md / 05-PATTERNS.md, 2026-09-28):** `ToolReceiptLedger` and `ResourceLockManager` already exist with zero production callers; this phase wires them into MCP dispatch and hopper task dispatch, and every capability lands with its chat-GUI surface and a Playwright spec (vertical slices, D-10/D-11). Planning found two things the research did not: hopper-dispatched tasks are the only lock caller (`vox_submit_task` bypasses the hopper), and the production hopper is SQLite-backed, so D-08's `resource_id` needs schema baseline 94 to survive storage. Plans run one per wave: they share the working tree and git index and mostly the same crates (a RED step in one would break another's build).
-
-Plans:
-**Wave 1**
-
-- [x] 05-01-PLAN.md — TRUST-01 tracer: issue/fulfill a receipt around every MCP dispatch (fail-open), `tool_receipt` chat event and chip, Playwright screenshot, mutation proofs (D-01/D-02/D-10/D-11/D-12)
-
-**Wave 2** *(blocked on Wave 1 completion)*
-
-- [x] 05-02-PLAN.md — `vox_verify_task_claims` via the generated registry chain; tool_receipt.rs MACs routed through vox-crypto with pinned bytes; claims-verdict chat chip (D-03/D-04/D-10/D-11)
-
-**Wave 3** *(blocked on Wave 2 completion)*
-
-- [x] 05-03-PLAN.md — Lock events carry session and task into the activity log; `activity_query` session filter; lock chips under chat-rail tasks (D-10/D-11/D-13)
-
-**Wave 4** *(blocked on Wave 3 completion)*
-
-- [x] 05-04-PLAN.md — `resource_id` on the hopper intake spec and the dispatched task; schema baseline 94; validated HTTP intake field (D-08/D-13)
-
-**Wave 5** *(blocked on Wave 4 completion)*
-
-- [x] 05-05-PLAN.md — Hopper dispatcher holds exclusive resource locks, parks contenders and retries on release (shared `ResourceGate`); `LockWaiting` event; waiting chips in chat (D-08/D-10/D-11/D-13)
-
-**Wave 6** *(blocked on Wave 5 completion)*
-
-- [x] 05-06-PLAN.md — Release on completion, failure and cancellation; D-06 lazy sweep; lock-lifecycle mutation proofs and MESH-01 gates (D-06/D-08)
-
-**Wave 7** *(blocked on Wave 6 completion)*
-
-- [x] 05-07-PLAN.md — Ratify ADR-025/ADR-029 as built with intel sync; where-things-live rows; `pre-push --complete`; overview screenshot and human live look at the chat GUI (D-05/D-09/D-11)
-
-### Phase 6: Model Routing Transparency & ML Dependency Health
-
-**Goal**: Model selection is observable as a cost/latency/reliability tradeoff, and the local ML training stack uses a unified dependency set validated by fail-closed CUDA-toolchain compilation on GitHub-hosted CI.
-**Depends on**: Phase 3 (advisory — file overlap: both land work in crates/vox-orchestrator; not a semantic dependency)
-**Requirements**: MODEL-01, ML-01
-**Success Criteria** (what must be TRUE):
-
-  1. Model scoreboards render as a Pareto frontier over reliability, cost, and latency, with no change to actual model-routing behavior (ADR-046).
-  2. Candle, peft-rs, and qlora-rs resolve to a single unified version set across the workspace, verified by fail-closed CUDA-toolchain compilation on GitHub-hosted `ubuntu-latest`; this does not claim physical-GPU runtime coverage (ADR-034).
-
-**Plans**: 4 plans
-
-- [x] 06-01-PLAN.md
-- [x] 06-02-PLAN.md
-- [x] 06-03-PLAN.md
-- [x] 06-04-PLAN.md
+**Plans**: TBD
 
 ## Progress
 
-**Execution Order:**
-Phases 1 → 2 → 3 form a dependency chain (crate surgery). Phase 4 is independent of everything else and can run any time, including in parallel with the crate-cleanup chain. Phases 5 and 6 each depend on Phase 3 (advisory — file overlap on `crates/vox-orchestrator`, not a semantic dependency) but are independent of each other, so both can start once Phase 3 completes.
+**Execution Order:** Phases execute in numeric order: 7 → 8 → 9 → 10 → 11
 
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 1. Dead Crate Cleanup — Remove & Confirm | 2/2 | Complete    | 2026-09-22 |
-| 2. Wire Up & Reclassify Dormant Crates | 2/2 | Complete    | 2026-09-25 |
-| 3. Extract Misplaced Crates to Plugin Architecture | 6/6 | Complete    | 2026-09-27 |
-| 4. GUI/Dashboard Architecture Consolidation | 2/2 | Complete    | 2026-09-25 |
-| 5. Multi-Agent Coordination & Trust Hardening | 7/7 | Complete    | 2026-09-29 |
-| 6. Model Routing Transparency & ML Dependency Health | 4/4 | Complete    | 2026-10-01 |
+| Phase | Milestone | Plans Complete | Status | Completed |
+|-------|-----------|----------------|--------|-----------|
+| 1–6 | v1.0 | 23/23 | Complete | 2026-10-01 |
+| 7. Trial Identity, Contracts & Observational Baseline | v1.1 | 0/TBD | Not started | - |
+| 8. Race Harness & Multidimensional Scorecards | v1.1 | 0/TBD | Not started | - |
+| 9. Verified Knowledge Loop | v1.1 | 0/TBD | Not started | - |
+| 10. Promotion Governance & Replay | v1.1 | 0/TBD | Not started | - |
+| 11. Adversarial Trials & Hardening | v1.1 | 0/TBD | Not started | - |

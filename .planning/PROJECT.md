@@ -4,11 +4,25 @@
 
 Vox is a mature, actively-developed cross-platform Rust workspace (138 crates) that implements its own programming language — the `.vox` frontend, compiler, and interpreter — plus the surfaces built on top of it: `vox-cli` (the `vox` binary), `vox-gui` (a Tauri 2 desktop application), a multi-agent orchestrator with MCP tool exposure, a local-first mesh (iroh QUIC) for distributed agent/model work, and a native-Rust ML training stack (Candle/QLoRA) for its own fine-tuned model ("Mens"). It is developed and stewarded as a FOSS project under an in-formation Vox Foundation, not a monetized product.
 
-This milestone is not a new-feature push — it is architectural housekeeping on an existing, working system: disposing of 20 audited dead/misplaced crates per a standing PRD, and closing out a handful of "current but not formally locked" architecture decisions that a full-corpus ADR/SPEC ingest surfaced as open.
+v1.0 (Architectural Housekeeping, shipped 2026-10-01) disposed of 20 audited dead/misplaced crates and closed the open architecture decisions a full-corpus ADR/SPEC ingest surfaced. The current milestone, v1.1 Research Trial Flywheel, turns Vox's existing research, telemetry, evaluation, model-routing, and retrieval infrastructure into a governed measure–compare–promote–replay loop for its research agents.
 
 ## Core Value
 
 The compiler, orchestrator, and runtime that everything else depends on must keep building and passing CI throughout this cleanup — no crate disposition or architecture-decision closure is worth a broken workspace.
+
+## Current Milestone: v1.1 Research Trial Flywheel
+
+**Goal:** Race research-agent conditions under preregistered, budgeted campaigns; rate answer quality, speed, and efficiency; accumulate verified, searchable knowledge; and propose — never silently apply — the next improvement.
+
+**Milestone value:** Each research run produces reproducible evidence, comparable quality/latency/cost metrics, searchable verified knowledge, and a safe proposal for the next experiment.
+
+**Target features:**
+- One signed campaign/run identity (campaign, run, replicate, attempt, retry lineage) propagated through the research pipeline, eval runner, telemetry, and Tier A rows.
+- `vox research eval` as a bounded-concurrency matrix runner with spend reservations, arm isolation, hard-gate + Pareto scorecards, group-sequential stopping, and offline replay.
+- Verified findings persisted authoritatively with provenance, projected into memory and search, frozen per arm, and measured via memory ablations.
+- Shadow challengers and dual-control, scope-bound champion designation with safety suspension — no automatic runtime mutation.
+
+Reuses existing infrastructure; adds one trial identity instead of a parallel stack. No GUI/dashboard work.
 
 ## Requirements
 
@@ -25,18 +39,22 @@ The compiler, orchestrator, and runtime that everything else depends on must kee
 - ✓ Native Rust ML training (Candle + qlora-rs) replacing the earlier Python/Unsloth path (ADR-003/006, locked)
 - ✓ Codex/Arca/Turso as the sole database stack (ADR-004, locked)
 - ✓ Secrets resolution exclusively through `vox_secrets::resolve_secret(...)` (Clavis/`vox-secrets`)
+- ✓ 20 audited dead/misplaced crates disposed (delete, wire-up, plugin extraction, reclassification, frozen confirmation) — v1.0
+- ✓ ADR-045 ratified; `vox-gui` command surface sourced from `CommandCatalog`; Vox-native vs React interop boundary enforced — v1.0
+- ✓ `ResourceLockManager` multi-agent resource coordination (ADR-025) — v1.0
+- ✓ HMAC tool-call receipts under two-tier formal-intent verification (ADR-029) — v1.0
+- ✓ Reporting-only Pareto frontier for model scoreboards (ADR-046) — v1.0
+- ✓ Candle/peft-rs/qlora-rs unified and compile-validated by a fail-closed hosted CUDA lane (ADR-034) — v1.0
 
 ### Active
 
-<!-- Current scope for this milestone. -->
+<!-- Current scope for v1.1 Research Trial Flywheel. Detailed, phase-mapped requirements live in REQUIREMENTS.md. -->
 
-- [ ] Dispose of the 20 crates audited in the dead-crate-fate plan: delete zero-consumer crates, wire up functionally-complete-but-unadopted crates, extract plugin-appropriate crates out of CORE, fix misplaced-tier crates, confirm frozen crates need no action, and verify catalog hygiene
-- [x] Formally ratify ADR-045 (Tauri GUI replaces Axum dashboard) and verify `vox-gui`'s command surface is fully sourced from `vox-cli`'s `CommandCatalog` SSOT
-- [x] Establish and enforce the documented boundary between Vox-native and React/TanStack interop UI primitives (external-frontend-interop-plan-2026; ADR-027 is superseded), and confirm the Tauri desktop-convergence clause of ADR-037 as complete
-- [ ] Extend the locks subsystem with `ResourceLockManager` for multi-agent resource coordination (ADR-025)
-- [ ] Ship HMAC tool-call receipts under the two-tier formal-intent verification system (ADR-029)
-- [ ] Ship Pareto-frontier reporting for model scoreboards (ADR-046, reporting-only)
-- [ ] Unify Candle/peft-rs/qlora-rs dependency versions via a GPU-CI-verified upgrade train (ADR-034)
+- [ ] Trial identity, signed campaign preregistration, structural telemetry, and atomic Tier A persistence with an observational baseline
+- [ ] Bounded parallel condition matrix with spend reservations, arm isolation, hard-gate + Pareto scorecards, and replayable reports
+- [ ] Verified, provenance-rich, searchable knowledge accumulation with frozen per-arm manifests and memory ablations
+- [ ] Shadow challengers, two-campaign confirmation, and dual-control scoped champion designation
+- [ ] Adversarial/stress trials, mutation testing of gates, and operational hardening
 
 ### Out of Scope
 
@@ -82,10 +100,11 @@ The compiler, orchestrator, and runtime that everything else depends on must kee
 | ADR-037: Tauri Convergence (desktop clause) | Desktop shell convergence on Tauri 2 remains Accepted; only the mobile clause was superseded | ⚠️ Revisit — this milestone confirms the desktop clause complete |
 | adr-NNN: Scope Tauri to desktop only; RN+Expo+uniffi for mobile | Supersedes ADR-037's mobile clause specifically | ✓ Good — locked |
 | ADR-027: Dual-Track UI Surfaces | Split UI primitives into Vox-native vs React/TanStack interop tracks. Superseded 2026-05-03 by external-frontend-interop-plan-2026 | Boundary established and enforced in Phase 4 under the superseding plan (`authoring_track` in contracts/frontend/surface-ownership.v1.yaml) |
-| ADR-025: Multi-Agent Lock Coherence | Extends locks subsystem with `ResourceLockManager` for multi-agent contention | — Pending — this milestone implements it |
-| ADR-029: Formal Intent and Tool Receipt Auditing | Two-tier verification with HMAC receipts for agent tool calls | — Pending — this milestone implements it |
-| ADR-046: Pareto-Frontier Model Reporting | Reporting-only Pareto view over reliability/cost/latency; not a routing change | — Pending — this milestone implements it |
-| ADR-034: Candle/QLoRA stack upgrades | Defers version unification to a dedicated GPU-CI-verified upgrade train | — Pending — this milestone runs that upgrade train |
+| ADR-025: Multi-Agent Lock Coherence | Extends locks subsystem with `ResourceLockManager` for multi-agent contention | ✓ Good — implemented in v1.0 Phase 5 |
+| ADR-029: Formal Intent and Tool Receipt Auditing | Two-tier verification with HMAC receipts for agent tool calls | ✓ Good — implemented in v1.0 Phase 5 |
+| ADR-046: Pareto-Frontier Model Reporting | Reporting-only Pareto view over reliability/cost/latency; not a routing change | ✓ Good — closed in v1.0 Phase 6 |
+| ADR-034: Candle/QLoRA stack upgrades | Versions verified unified; compile-validated by fail-closed hosted CUDA lane | ✓ Good — accepted 2026-10-01 (compile-only, no physical-GPU claim) |
+| v1.1 trial governance (grill G1–G25, R1–R9) | Signed immutable campaigns, atomic spend reservations, group-sequential stats, two-campaign promotion, dual-control designation, structural-only telemetry, linked retries instead of resume | — Pending — v1.1 implements it |
 
 ---
-*Last updated: 2026-09-22 after initial roadmap creation (full-corpus ADR/SPEC/PRD ingest)*
+*Last updated: 2026-10-01 after v1.0 completion and v1.1 Research Trial Flywheel initialization*
