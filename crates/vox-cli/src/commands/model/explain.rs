@@ -593,6 +593,18 @@ mod tests {
     }
 
     #[test]
+    fn render_candidate_sections_marks_a_row_saved_only_by_latency() {
+        let (reliable, fast) = marks_with_scores(
+            model_score(95, 100, 0.02, 900),
+            model_score(70, 100, 0.02, 100),
+        );
+        assert!(
+            reliable && fast,
+            "equal cost means lower latency alone must preserve the less reliable row"
+        );
+    }
+
+    #[test]
     fn render_candidate_sections_marks_both_halves_of_a_genuine_tradeoff() {
         // a/x is more reliable, b/y is cheaper and faster: neither dominates, so both are marked.
         let (a, b) = marks_with_scores(
@@ -614,6 +626,7 @@ mod tests {
         assert!(out.contains("[pareto-optimal]"), "{out}");
         assert!(out.contains("Wilson lower bound"), "{out}");
         assert!(out.contains("not answer correctness"), "{out}");
+        assert!(out.contains("reliability"), "{out}");
         // F4: the per-model figures are one arbitrary triple slice, and must say so.
         assert!(out.contains("(task_category, strength_tag)"), "{out}");
     }
