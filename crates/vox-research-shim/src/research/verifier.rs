@@ -275,6 +275,7 @@ fn resample_candidates(
         candidate.response_format = Some(serde_json::json!({"type": "json_object"}));
         candidate.temperature = Some(0.3);
     }
+    crate::research::metering::tag_candidates(&mut candidates);
     candidates
 }
 

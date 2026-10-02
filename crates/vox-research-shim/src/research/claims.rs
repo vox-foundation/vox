@@ -147,6 +147,7 @@ pub async fn extract_claims_with_model(
             candidate.max_tokens = Some(u64::from(max_tokens.unwrap_or(900)));
             candidate.response_format = Some(serde_json::json!({"type": "json_object"}));
         }
+        crate::research::metering::tag_candidates(&mut candidates);
 
         let messages = vec![
             LlmChatMessage {

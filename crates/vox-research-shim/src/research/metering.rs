@@ -6,11 +6,14 @@
 //! including `buffered` claim verification on the same task — accumulate into
 //! one [`RunUsage`]. Calls outside a scope are not metered. Work moved onto a
 //! separately spawned task leaves the scope and is not metered either.
+//!
+//! The scope is also one trace, and [`tag_candidates`] stamps the run's session
+//! onto each call so LLM telemetry rows name the research session.
 
 use std::cell::RefCell;
 
 use serde::{Deserialize, Serialize};
-use vox_actor_runtime::llm::LlmResponse;
+use vox_actor_runtime::llm::{LlmConfig, LlmResponse};
 
 /// Time to first token for a run.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -73,32 +76,55 @@ impl RunUsage {
     }
 }
 
-tokio::task_local! {
-    static RUN_USAGE: RefCell<RunUsage>;
+#[derive(Default)]
+struct RunState {
+    usage: RunUsage,
+    session_label: Option<String>,
 }
 
-/// Runs `fut` with a fresh usage accumulator.
+tokio::task_local! {
+    static RUN_STATE: RefCell<RunState>;
+}
+
+/// Runs `fut` with a fresh usage accumulator inside one trace.
 pub async fn scope<F: std::future::Future>(fut: F) -> F::Output {
-    RUN_USAGE
-        .scope(RefCell::new(RunUsage::default()), fut)
+    vox_actor_runtime::llm::run_trace_scope(RUN_STATE.scope(RefCell::new(RunState::default()), fut))
         .await
 }
 
 /// Usage recorded so far in the current scope; default outside one.
 pub fn snapshot() -> RunUsage {
-    RUN_USAGE
-        .try_with(|usage| usage.borrow().clone())
+    RUN_STATE
+        .try_with(|state| state.borrow().usage.clone())
         .unwrap_or_default()
 }
 
 /// Records a successful non-streaming call into the current scope.
 pub fn meter_response(response: &LlmResponse) {
-    let _ = RUN_USAGE.try_with(|usage| usage.borrow_mut().record(response, false));
+    let _ = RUN_STATE.try_with(|state| state.borrow_mut().usage.record(response, false));
 }
 
 /// Records a call whose cascade failed into the current scope.
 pub fn meter_failure() {
-    let _ = RUN_USAGE.try_with(|usage| usage.borrow_mut().record_failure());
+    let _ = RUN_STATE.try_with(|state| state.borrow_mut().usage.record_failure());
+}
+
+/// Names the run's session for LLM telemetry attribution.
+pub fn set_run_session(label: String) {
+    let _ = RUN_STATE.try_with(|state| state.borrow_mut().session_label = Some(label));
+}
+
+/// Attributes `candidates` to the current run's session unless a caller already did.
+pub fn tag_candidates(candidates: &mut [LlmConfig]) {
+    let Ok(Some(label)) = RUN_STATE.try_with(|state| state.borrow().session_label.clone()) else {
+        return;
+    };
+    for candidate in candidates
+        .iter_mut()
+        .filter(|c| c.telemetry_session_id.is_none())
+    {
+        candidate.telemetry_session_id = Some(label.clone());
+    }
 }
 
 #[cfg(test)]
@@ -168,6 +194,33 @@ mod tests {
         assert_eq!(inside.llm_calls, 1);
         assert_eq!(inside.failed_llm_calls, 1);
         assert_eq!(snapshot(), RunUsage::default());
+    }
+
+    fn candidate(session: Option<&str>) -> LlmConfig {
+        LlmConfig {
+            telemetry_session_id: session.map(str::to_string),
+            ..LlmConfig::ollama("m")
+        }
+    }
+
+    #[tokio::test]
+    async fn candidates_carry_the_run_session_not_anon() {
+        let tagged = scope(async {
+            set_run_session("research_session:42".into());
+            let mut candidates = vec![candidate(None), candidate(Some("caller"))];
+            tag_candidates(&mut candidates);
+            candidates
+        })
+        .await;
+        assert_eq!(
+            tagged[0].telemetry_session_id.as_deref(),
+            Some("research_session:42")
+        );
+        assert_eq!(tagged[1].telemetry_session_id.as_deref(), Some("caller"));
+
+        let mut outside = vec![candidate(None)];
+        tag_candidates(&mut outside);
+        assert_eq!(outside[0].telemetry_session_id, None);
     }
 
     #[test]

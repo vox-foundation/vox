@@ -527,6 +527,7 @@ pub(crate) async fn chat_stage_with_model(
         candidate.max_tokens = Some(max_tokens.into());
         candidate.response_format = response_format.clone();
     }
+    crate::research::metering::tag_candidates(&mut candidates);
     let messages = messages
         .into_iter()
         .map(|(role, content)| LlmChatMessage {

@@ -49,6 +49,7 @@ pub async fn decompose_query_with_config(
             candidate.max_tokens = Some(700);
             candidate.response_format = Some(serde_json::json!({"type": "json_object"}));
         }
+        crate::research::metering::tag_candidates(&mut candidates);
 
         let messages = vec![
             LlmChatMessage {

@@ -16,7 +16,8 @@ use vox_db_types::{
 };
 
 impl VoxDb {
-    /// Create a new research session and return its row id.
+    /// Create a new research session and return its row id. Fails when
+    /// `session_key` already exists: each attempt gets its own key.
     pub async fn create_research_session(
         &self,
         session_key: &str,
@@ -29,17 +30,12 @@ impl VoxDb {
         let conn = self.conn.clone();
         breaker
             .call(|| async move {
-                conn.execute(
-                    "INSERT OR IGNORE INTO scientia_research_sessions \
-                     (session_key, status, started_at_ms, query_text) \
-                     VALUES (?1, 'queued', ?2, ?3)",
-                    params![key.as_str(), now, q.as_str()],
-                )
-                .await?;
                 let mut rows = conn
                     .query(
-                        "SELECT id FROM scientia_research_sessions WHERE session_key = ?1",
-                        params![key.as_str()],
+                        "INSERT INTO scientia_research_sessions \
+                         (session_key, status, started_at_ms, query_text) \
+                         VALUES (?1, 'queued', ?2, ?3) RETURNING id",
+                        params![key.as_str(), now, q.as_str()],
                     )
                     .await?;
                 let row = rows
@@ -1247,15 +1243,14 @@ mod tests {
     use crate::{DbConfig, VoxDb};
 
     #[tokio::test]
-    async fn create_research_session_returns_existing_id_for_repeated_key() {
+    async fn create_research_session_rejects_a_repeated_key() {
         let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
         let first = db.create_research_session("k:one", "q1").await.unwrap();
         let second = db.create_research_session("k:two", "q2").await.unwrap();
         assert_ne!(first, second);
-        let repeat = db.create_research_session("k:one", "q1").await.unwrap();
-        assert_eq!(
-            repeat, first,
-            "a repeated key must not return the last-inserted row's id"
+        assert!(
+            db.create_research_session("k:one", "q1").await.is_err(),
+            "each attempt has its own key; reusing one must not merge two attempts into one session"
         );
     }
 

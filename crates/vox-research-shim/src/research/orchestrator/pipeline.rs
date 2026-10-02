@@ -118,16 +118,21 @@ async fn run_research_metered(
     let search_policy = resolved_search_policy_for_research_run(db, config).await;
 
     // ── (a) Session tracking ─────────────────────────────────────────────────
+    let session_key = attempt_session_key(&query.query, &format!("{:?}", query.scope));
     let session_id: i64 = if let Some(id) = precreated_session_id {
         id
     } else if let Some(db) = db {
-        let session_key = attempt_session_key(&query.query, &format!("{:?}", query.scope));
         db.create_research_session(&session_key, &query.query)
             .await
             .unwrap_or(0)
     } else {
         0
     };
+    super::super::metering::set_run_session(if session_id > 0 {
+        format!("research_session:{session_id}")
+    } else {
+        session_key
+    });
 
     let report_progress = |msg: String, pct: Option<f32>| {
         if let Some(ref cb) = config.progress_callback {
