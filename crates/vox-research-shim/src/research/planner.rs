@@ -75,6 +75,7 @@ pub async fn decompose_query_with_config(
         .await
         {
             Ok(response) => {
+                crate::research::metering::meter_response(&response);
                 match parse_planner_response(&response.content, query, max_subqueries) {
                     Ok(plan) => return Ok(plan),
                     Err(e) => {
@@ -84,6 +85,7 @@ pub async fn decompose_query_with_config(
                 }
             }
             Err(e) => {
+                crate::research::metering::meter_failure();
                 tracing::warn!(error = %e, "research planner cascade failed; falling back");
                 true
             }

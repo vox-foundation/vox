@@ -540,6 +540,8 @@ pub(crate) async fn chat_stage_with_model(
     // resolved model for this role (`record_research_model_uses`).
     chat_with_cascade(&opts, messages, candidates, Some(stage))
         .await
+        .inspect(crate::research::metering::meter_response)
+        .inspect_err(|_| crate::research::metering::meter_failure())
         .map(response_to_content_and_model)
         .map_err(|e| anyhow::anyhow!(e))
 }

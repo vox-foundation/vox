@@ -383,8 +383,12 @@ pub async fn verify_claims_with_config(
                 .await;
 
                 match parsed_res {
-                    Ok((verdict, _resp)) => verdict,
+                    Ok((verdict, resp)) => {
+                        crate::research::metering::meter_response(&resp);
+                        verdict
+                    }
                     Err(e) => {
+                        crate::research::metering::meter_failure();
                         tracing::warn!(claim_id = claim.claim_id, error = %e, "verifier cascade failed or returned invalid JSON across candidates");
                         unverified(claim.clone())
                     }

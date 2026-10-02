@@ -19,6 +19,7 @@ pub mod emitter;
 pub mod gate;
 pub(super) mod json_parse;
 mod mesh_subscriber;
+pub mod metering;
 pub mod misguidance;
 pub mod model_select;
 pub mod orchestrator;
