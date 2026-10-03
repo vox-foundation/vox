@@ -37,7 +37,7 @@ export function RiskPopover({ risk, open, onChange, onClose, children }: RiskPop
       onKeyDown={handleKeyDown}
       className="absolute bottom-full left-0 z-50 mb-1.5 w-72 rounded-lg border border-white/10 bg-overlay-solid p-3 text-[11px] shadow-xl"
     >
-      <div className="mb-2 text-[11px] uppercase tracking-[0.08em] text-zinc-500">Acceptable risk</div>
+      <div className="mb-2 text-[11px] uppercase tracking-[0.08em] text-text-muted">Acceptable risk</div>
       {RISK_POSTURES.map(p => (
         <button
           key={p.id}
@@ -55,7 +55,7 @@ export function RiskPopover({ risk, open, onChange, onClose, children }: RiskPop
       ))}
       {children ? (
         <div className="mt-2 border-t border-white/10 pt-2">
-          <div className="mb-1 text-[11px] uppercase tracking-[0.08em] text-zinc-500">After each reply</div>
+          <div className="mb-1 text-[11px] uppercase tracking-[0.08em] text-text-muted">After each reply</div>
           {children}
         </div>
       ) : null}

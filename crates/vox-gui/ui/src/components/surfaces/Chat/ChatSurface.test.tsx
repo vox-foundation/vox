@@ -142,6 +142,11 @@ describe('ChatSurface', () => {
     });
   });
 
+  it('gives the empty-state title the heading level after the h1 (axe heading-order)', async () => {
+    render(<LanguageProvider><ChatSurface pushToast={noopToast} activeSessionId="s1" messages={[]} /></LanguageProvider>);
+    expect(await screen.findByRole('heading', { level: 2, name: /no messages yet/i })).toBeDefined();
+  });
+
   it('updates the transcript panel content when messages change (does not go stale after first render)', async () => {
     const { rerender } = render(
       <LanguageProvider>

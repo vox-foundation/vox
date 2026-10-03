@@ -52,7 +52,7 @@ export function DriveConsole({
     <div className="relative flex items-stretch rounded-lg border border-white/10 text-[11px]">
       {/* ① Mode */}
       <div className="relative flex items-center gap-1 border-r border-white/[0.07] px-2.5 py-1.5">
-        <span className="text-zinc-500" aria-hidden>⚙</span>
+        <span className="text-text-muted" aria-hidden>⚙</span>
         <div role="radiogroup" aria-label="Mode — how much to spend" className="flex gap-0.5">
           {CLUTCH_DETENTS.map(d => (
             <button
@@ -94,7 +94,7 @@ export function DriveConsole({
         className="flex items-center gap-2 border-r border-white/[0.07] px-2.5 py-1.5"
         title="Engine spend across all sessions"
       >
-        <span className="text-zinc-500">Spend</span>
+        <span className="text-text-muted">Spend</span>
         <span className="font-mono text-brass">{formatSpend(spentUsd, budgetUsd > 0 ? budgetUsd : null)}</span>
         {budgetUsd > 0 && (
           <span className="relative h-[3px] w-12 rounded-sm bg-white/8">
@@ -105,7 +105,7 @@ export function DriveConsole({
           </span>
         )}
         {burnPerMin != null && (
-          <span className="text-zinc-500">↑${burnPerMin.toFixed(2)}/m</span>
+          <span className="text-text-muted">↑${burnPerMin.toFixed(2)}/m</span>
         )}
       </div>
 
@@ -122,7 +122,7 @@ export function DriveConsole({
         >
           <span className={`h-3.5 w-[3px] rounded-sm ${TONE_BG[risk.tone]}`} aria-hidden />
           <span>Risk: {risk.label}</span>
-          <span className="text-zinc-600">▾</span>
+          <span className="text-text-muted">▾</span>
         </button>
         <RiskPopover
           open={riskOpen}

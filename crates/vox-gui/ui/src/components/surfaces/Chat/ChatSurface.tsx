@@ -643,6 +643,7 @@ export function ChatSurface({
           <EmptyState
             icon={<Icon.spark className="size-8 text-brass" aria-hidden="true" />}
             title="No messages yet"
+            headingLevel={2}
             description="Describe a task in the composer below to start this session."
           />
         </div>

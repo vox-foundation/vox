@@ -11,6 +11,8 @@ export interface EmptyStateProps {
   secondaryAction?: { label: string; onClick: () => void };
   action?: { label: string; onClick: () => void };
   children?: React.ReactNode;
+  /** Heading level of the title: 2 when the surface's own h1 is the only heading above it (axe heading-order). */
+  headingLevel?: 2 | 3;
 }
 
 const DEFAULT_ICONS = {
@@ -29,9 +31,11 @@ export function EmptyState({
   primaryAction, 
   secondaryAction,
   action,
-  children
+  children,
+  headingLevel = 3,
 }: EmptyStateProps) {
   const actualPrimary = primaryAction || action;
+  const Heading = headingLevel === 2 ? 'h2' : 'h3';
 
   return (
     <div
@@ -42,7 +46,7 @@ export function EmptyState({
       <div className="flex justify-center mb-1">
         {icon || DEFAULT_ICONS[variant]}
       </div>
-      <h3 className="font-display text-sm tracking-widest uppercase text-text-secondary">{title}</h3>
+      <Heading className="font-display text-sm tracking-widest uppercase text-text-secondary">{title}</Heading>
       {description && <p className="text-xs text-text-muted leading-relaxed max-w-sm">{description}</p>}
       
       {children}

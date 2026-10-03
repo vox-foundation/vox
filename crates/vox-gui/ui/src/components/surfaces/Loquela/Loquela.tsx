@@ -820,7 +820,7 @@ export function Loquela({
               onClick={() => void send()}
               disabled={!canSend}
               aria-label="Run (Enter)"
-              className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border px-3 font-display text-[11px] uppercase tracking-[0.13em] transition ${canSend ? "border-brass/40 bg-brass/15 text-brass hover:bg-brass/25" : "border-white/5 bg-white/2 text-zinc-600 cursor-not-allowed"}`}
+              className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border px-3 font-display text-[11px] uppercase tracking-[0.13em] transition ${canSend ? "border-brass/40 bg-brass/15 text-brass hover:bg-brass/25" : "border-white/5 bg-white/2 text-text-muted cursor-not-allowed"}`}
             >
               <Icon.send className="size-3.5" />
               Run
@@ -944,8 +944,8 @@ export function Loquela({
 
           <div className="relative">
             <button type="button" aria-expanded={skillOpen} aria-label="Choose skill" onClick={() => { setSkillOpen(o => !o); setTierOpen(false); setModeOpen(false); }} className="inline-flex items-center gap-1 rounded-md border border-brass/25 bg-brass/6 px-2 py-1 text-brass hover:bg-brass/12">
-              <Icon.bolt className="size-3" /><span className="text-brass/70">Skill</span> <span>{activeSkill ? (activeSkill.name ?? activeSkill.command ?? activeSkill.id) : "auto"}</span>
-              <Icon.chevR className="size-2.5 text-brass/60 rotate-90" />
+              <Icon.bolt className="size-3" /><span className="text-brass">Skill</span> <span>{activeSkill ? (activeSkill.name ?? activeSkill.command ?? activeSkill.id) : "auto"}</span>
+              <Icon.chevR className="size-2.5 text-brass rotate-90" />
             </button>
             <Popover open={skillOpen}>
               <div className="max-h-64 overflow-y-auto overscroll-contain">
