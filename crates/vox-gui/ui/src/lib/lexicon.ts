@@ -49,7 +49,7 @@ export const LEXICON: Record<string, LexEntry> = {
   'vox-search': { en: 'Search Index', la: 'Index' },
   tasks: { en: 'Tasks', la: 'Munera' },
   // Phase 2 heading slugs (agents/needs-you/mesh reuse the nav keys above)
-  'vg-corpus-health': { en: 'Graphify Corpus Health', la: 'Sanitas Corporis' },
+  'vg-corpus-health': { en: 'Search Index Health', la: 'Sanitas Corporis' },
   'sci-claims': { en: 'Findings Claims', la: 'Assertiones Inventorum' },
   'sci-home': { en: 'Vox Findings', la: 'Inventa Vox' },
   'dash-stream': { en: 'The Stream', la: 'Flumen' },
@@ -63,7 +63,7 @@ export const LEXICON: Record<string, LexEntry> = {
   'cov-surface': { en: 'Surface Coverage', la: 'Tegmen Superficiei' },
   'set-display': { en: 'Display', la: 'Aspectus' },
   'mat-routing': { en: 'Routing Policies', la: 'Regulae Itinerum' },
-  'mat-axis': { en: 'Axis Inspector', la: 'Inspector Axis' },
+  'mat-axis': { en: 'Routing Axes', la: 'Inspector Axis' },
   'mem-shards': { en: 'Memory Shards', la: 'Fragmenta Memoriae' },
   'pub-pipeline': { en: 'Publication Pipeline', la: 'Processus Editionis' },
   'repo-harness': { en: 'Repository Harness', la: 'Apparatus Repositorii' },

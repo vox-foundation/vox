@@ -42,7 +42,7 @@ export function SecretaryToast({ intent, itemId: _itemId, onDismiss, onConfirm }
       <span className="shrink-0 text-[10px] text-text-muted" aria-hidden>📋</span>
 
       <div className="min-w-0 flex-1">
-        <p className="text-[10px] text-text-muted">Secretary suggests a task</p>
+        <p className="text-[10px] text-text-muted">Suggested task</p>
         <p
           data-testid="secretary-toast-intent"
           className="truncate text-[11px] text-text-secondary"
@@ -64,7 +64,7 @@ export function SecretaryToast({ intent, itemId: _itemId, onDismiss, onConfirm }
       {/* Dismiss button */}
       <button
         type="button"
-        aria-label="Dismiss secretary toast"
+        aria-label="Dismiss suggested task"
         onClick={onDismiss}
         className="shrink-0 rounded-sm p-0.5 text-text-muted hover:text-text-secondary transition"
       >

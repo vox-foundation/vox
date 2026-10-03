@@ -56,17 +56,17 @@ const LQ_MODES = [
 // Cost is `null` (unknown) — real per-1k pricing is injected from listModels()
 // once available. We never display a fabricated price.
 const LQ_TIERS = [
-  { id: "auto", label: "Auto · Router", detail: "tier-router decides", cost: null, lat: null },
-  { id: "local", label: "Local · Mens", detail: "loading models…", cost: null, lat: null },
-  { id: "mesh", label: "Mesh · Peers", detail: "peers", cost: null, lat: null },
-  { id: "cloud", label: "Cloud · Cascade", detail: "cloud tier", cost: null, lat: null },
+  { id: "auto", label: "Auto", detail: "tier-router decides", cost: null, lat: null },
+  { id: "local", label: "Local", detail: "loading models…", cost: null, lat: null },
+  { id: "mesh", label: "Mesh", detail: "peers", cost: null, lat: null },
+  { id: "cloud", label: "Cloud", detail: "cloud tier", cost: null, lat: null },
 ];
 
 const ROUTING_TIERS = [
-  { id: "auto", label: "Auto · Router", detail: "live routing summary", cost: null, lat: null },
-  { id: "local", label: "Local · Mens", detail: "on-device / VOX_LOCAL", cost: null, lat: null },
-  { id: "mesh", label: "Mesh · Peers", detail: "peers", cost: null, lat: null },
-  { id: "cloud", label: "Cloud · Cascade", detail: "cloud tier", cost: null, lat: null },
+  { id: "auto", label: "Auto", detail: "live routing summary", cost: null, lat: null },
+  { id: "local", label: "Local", detail: "on-device / VOX_LOCAL", cost: null, lat: null },
+  { id: "mesh", label: "Mesh", detail: "peers", cost: null, lat: null },
+  { id: "cloud", label: "Cloud", detail: "cloud tier", cost: null, lat: null },
 ];
 
 interface ChipData {

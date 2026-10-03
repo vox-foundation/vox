@@ -4,7 +4,7 @@ import { RISK_POSTURES, type RiskId, type ControlState } from '../../../lib/driv
 const COPY: Record<RiskId, string> = {
   high: 'Break things — auto-approve more, gates shadow-only, fewer safety tokens.',
   moderate: 'Confirm, and check replies. Balanced safety.',
-  low: 'Enforce verification, check replies, raise approval, spend safety tokens, lean model up.',
+  low: 'Enforce verification and check replies, raise approval, spend safety tokens, lean model up.',
 };
 
 interface RiskPopoverProps {
