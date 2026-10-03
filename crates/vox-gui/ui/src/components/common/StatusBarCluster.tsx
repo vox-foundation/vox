@@ -12,8 +12,19 @@ export function StatusBarCluster({ onOpenDrawer, className = '' }: StatusBarClus
   const popoverRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
+  // A failed fetch clears the reading: the popover never shows health it did not just receive.
   useEffect(() => {
-    getResearchEngineStatus().then(setStatus).catch(() => {});
+    let cancelled = false;
+    getResearchEngineStatus()
+      .then((next) => {
+        if (!cancelled) setStatus(next);
+      })
+      .catch(() => {
+        if (!cancelled) setStatus(null);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [isOpen]);
 
   useEffect(() => {
@@ -40,12 +51,14 @@ export function StatusBarCluster({ onOpenDrawer, className = '' }: StatusBarClus
     };
   }, [isOpen]);
 
-  const activeLane = status?.active_lane ?? 'fast';
+  const activeLane = status?.active_lane ?? null;
   const tavily = status?.providers.find((p) => p.id === 'tavily');
-  const tavilyLimit = tavily?.quota_usage?.units_limit ?? 1000;
-  const tavilyRemaining = tavily?.quota_usage
-    ? Math.max(0, tavily.quota_usage.units_limit - tavily.quota_usage.units_spent)
+  const tavilyQuota = tavily?.quota_usage ?? null;
+  const tavilyRemaining = tavilyQuota
+    ? Math.max(0, tavilyQuota.units_limit - tavilyQuota.units_spent)
     : null;
+  // Seconds from the engine's own timeouts, never a hardcoded figure.
+  const seconds = (ms: number) => `${Number((ms / 1000).toFixed(1))}s`;
 
   return (
     <div className={`relative inline-flex items-center ${className}`}>
@@ -60,8 +73,8 @@ export function StatusBarCluster({ onOpenDrawer, className = '' }: StatusBarClus
       >
         <span className="uppercase tracking-[0.14em] text-text-muted">Research</span>
         <span className="font-mono tabular-nums text-text-secondary">
-          {activeLane === 'deep' ? '🔬 Deep' : '⚡ Fast'}
-          {tavilyRemaining !== null ? ` · ${tavilyRemaining}/${tavilyLimit}` : ''}
+          {activeLane === 'deep' ? '🔬 Deep' : activeLane === 'fast' ? '⚡ Fast' : 'unknown'}
+          {tavilyQuota && tavilyRemaining !== null ? ` · ${tavilyRemaining}/${tavilyQuota.units_limit}` : ''}
         </span>
       </button>
 
@@ -70,75 +83,55 @@ export function StatusBarCluster({ onOpenDrawer, className = '' }: StatusBarClus
           ref={popoverRef}
           data-testid="status-bar-cluster-popover"
           role="dialog"
-          aria-label="Research System Health"
+          aria-label="Research engine status"
           className="absolute bottom-full right-0 z-50 mb-1 w-80 rounded-xl border border-border-subtle bg-bg-base p-4 shadow-2xl space-y-3 text-xs"
         >
           <div className="flex items-center justify-between border-b border-border-subtle pb-2">
-            <span className="font-display font-semibold text-text-primary tracking-wide">
-              System & Research Health
-            </span>
-            <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-mono text-emerald-400">
-              Online
-            </span>
+            <span className="font-display font-semibold text-text-primary tracking-wide">Research engine</span>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 text-[11px]">
-            {/* Quadrant 1: Keyless Engines */}
-            <div className="rounded-lg border border-border-subtle bg-overlay-subtle p-2 space-y-1">
-              <div className="font-medium text-text-muted uppercase text-[9px] tracking-wider">
-                Keyless Engines
+          {status === null ? (
+            <p data-testid="status-bar-cluster-unknown" className="text-[11px] text-text-muted">
+              Research status unknown: the engine did not report.
+            </p>
+          ) : (
+            <div className="space-y-2 text-[11px]">
+              <div>
+                <div className="font-medium text-text-muted uppercase text-[9px] tracking-wider">Providers</div>
+                <ul className="mt-1 space-y-0.5 font-mono text-[10px]">
+                  {status.providers.map((p) => (
+                    <li
+                      key={p.id}
+                      data-testid={`status-bar-cluster-provider-${p.id}`}
+                      className="flex justify-between gap-2"
+                    >
+                      <span className="text-text-secondary">{p.name}</span>
+                      <span className="text-text-muted">
+                        {p.is_enabled ? 'on' : 'off'}
+                        {!p.is_keyless && !p.has_key ? ' · no key' : ''}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <div className="text-emerald-400 font-mono text-[10px] space-y-0.5">
-                <div>✓ Wikipedia (Live)</div>
-                <div>✓ OpenAlex (Academic)</div>
-                <div>✓ arXiv (Preprints)</div>
-                <div>✓ SearXNG (Meta)</div>
-              </div>
-            </div>
-
-            {/* Quadrant 2: Free Quota Tracking */}
-            <div className="rounded-lg border border-border-subtle bg-overlay-subtle p-2 space-y-1">
-              <div className="font-medium text-text-muted uppercase text-[9px] tracking-wider">
-                Search Quotas
-              </div>
-              <div className="font-mono text-[10px]">
-                {tavily ? (
-                  <div>
-                    Tavily: <span className="text-brass">{tavilyRemaining ?? '0'}/{tavilyLimit}</span>
+              {tavilyQuota && (
+                <div className="font-mono text-[10px] text-text-secondary">
+                  Tavily quota: {tavilyRemaining}/{tavilyQuota.units_limit} left
+                </div>
+              )}
+              <div>
+                <div className="font-medium text-text-muted uppercase text-[9px] tracking-wider">Lane</div>
+                <div className="font-mono text-[10px] space-y-0.5">
+                  <div className={activeLane === 'fast' ? 'text-brass font-semibold' : 'text-text-muted'}>
+                    ⚡ Fast (≤{seconds(status.fast_timeout_ms)})
                   </div>
-                ) : (
-                  <div className="text-text-muted">Tavily: Free tier</div>
-                )}
-                <div className="text-text-muted">Resets monthly</div>
-              </div>
-            </div>
-
-            {/* Quadrant 3: Dual-Lane Routing */}
-            <div className="rounded-lg border border-border-subtle bg-overlay-subtle p-2 space-y-1">
-              <div className="font-medium text-text-muted uppercase text-[9px] tracking-wider">
-                Lane Routing
-              </div>
-              <div className="font-mono text-[10px] space-y-0.5">
-                <div className={activeLane === 'fast' ? 'text-brass font-semibold' : 'text-text-muted'}>
-                  ⚡ Fast (&le;2.5s)
-                </div>
-                <div className={activeLane === 'deep' ? 'text-brass font-semibold' : 'text-text-muted'}>
-                  🔬 Deep (&le;15s)
+                  <div className={activeLane === 'deep' ? 'text-brass font-semibold' : 'text-text-muted'}>
+                    🔬 Deep (≤{seconds(status.deep_timeout_ms)})
+                  </div>
                 </div>
               </div>
             </div>
-
-            {/* Quadrant 4: Clavis Vault */}
-            <div className="rounded-lg border border-border-subtle bg-overlay-subtle p-2 space-y-1">
-              <div className="font-medium text-text-muted uppercase text-[9px] tracking-wider">
-                Clavis Vault
-              </div>
-              <div className="font-mono text-[10px] text-text-secondary space-y-0.5">
-                <div>Encrypted Local</div>
-                <div>0 Plaintext Keys</div>
-              </div>
-            </div>
-          </div>
+          )}
 
           {onOpenDrawer && (
             <button
