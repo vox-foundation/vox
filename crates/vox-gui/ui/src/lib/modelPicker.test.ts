@@ -91,7 +91,7 @@ describe('isModelSelectable', () => {
 
   it('treats unmatched org prefixes as OpenRouter when that key is present', () => {
     const anthropicViaOr = normalizeModelCard({
-      id: 'anthropic/claude-sonnet-4',
+      id: 'anthropic/claude-sonnet',
       provider: 'anthropic',
     })!;
     expect(isModelSelectable(anthropicViaOr, [openrouterUp])).toBe(true);
@@ -100,7 +100,7 @@ describe('isModelSelectable', () => {
 
   it('hides a direct provider that has no key even if OpenRouter is up', () => {
     const openaiDirect = normalizeModelCard({
-      id: 'openai/gpt-5.2-mini',
+      id: 'openai/gpt-mini',
       provider: 'openai',
       provider_type: 'OpenAI',
     })!;
@@ -202,7 +202,7 @@ describe('filterPickerModels', () => {
 
 describe('shortModelLabel / routing tiers', () => {
   it('keeps the last two id segments', () => {
-    expect(shortModelLabel('openrouter/anthropic/claude-sonnet-4')).toBe('anthropic/claude-sonnet-4');
+    expect(shortModelLabel('openrouter/anthropic/claude-sonnet')).toBe('anthropic/claude-sonnet');
     expect(shortModelLabel('mens/e2e-smoke-metal')).toBe('mens/e2e-smoke-metal');
   });
 

@@ -292,7 +292,7 @@ describe('Loquela', () => {
   it('lists keyed catalog models (including OpenRouter) instead of Model 1–4 placeholders', async () => {
     mockListModels.mockResolvedValue([
       { id: 'aion-labs/aion-1.0', provider: 'aion-labs', provider_type: 'OpenRouter' },
-      { id: 'openrouter/anthropic/claude-sonnet-4', provider: 'anthropic', provider_type: 'OpenRouter' },
+      { id: 'openrouter/anthropic/claude-sonnet', provider: 'anthropic', provider_type: 'OpenRouter' },
       { id: 'mens/e2e-smoke-metal', provider: 'populi_local', provider_type: 'VoxLocal' },
     ]);
     mockInvoke.mockImplementation((cmd: string) => {
@@ -310,19 +310,19 @@ describe('Loquela', () => {
     renderLoquela();
     fireEvent.click(screen.getByRole('button', { name: /choose model tier/i }));
     expect(await screen.findByRole('searchbox', { name: /search models/i })).toBeDefined();
-    expect(await screen.findByText('openrouter/anthropic/claude-sonnet-4')).toBeDefined();
+    expect(await screen.findByText('openrouter/anthropic/claude-sonnet')).toBeDefined();
     expect(screen.getByText('mens/e2e-smoke-metal')).toBeDefined();
     expect(screen.queryByText('Model 1')).toBeNull();
     fireEvent.change(screen.getByRole('searchbox', { name: /search models/i }), {
       target: { value: 'mens' },
     });
     expect(screen.getByText('mens/e2e-smoke-metal')).toBeDefined();
-    expect(screen.queryByText('openrouter/anthropic/claude-sonnet-4')).toBeNull();
+    expect(screen.queryByText('openrouter/anthropic/claude-sonnet')).toBeNull();
   });
 
   it('emits model_override for a concrete pick, not a fake model-N tier id', async () => {
     mockListModels.mockResolvedValue([
-      { id: 'openrouter/anthropic/claude-sonnet-4', provider: 'anthropic', provider_type: 'OpenRouter' },
+      { id: 'openrouter/anthropic/claude-sonnet', provider: 'anthropic', provider_type: 'OpenRouter' },
     ]);
     mockInvoke.mockImplementation((cmd: string) => {
       if (cmd === 'resolve_default_task_policy') {
@@ -339,12 +339,12 @@ describe('Loquela', () => {
     const onModelPick = vi.fn();
     renderLoquela({ onSubmit, onModelPick });
     fireEvent.click(screen.getByRole('button', { name: /choose model tier/i }));
-    fireEvent.click(await screen.findByText('openrouter/anthropic/claude-sonnet-4'));
-    expect(onModelPick).toHaveBeenCalledWith('openrouter/anthropic/claude-sonnet-4');
+    fireEvent.click(await screen.findByText('openrouter/anthropic/claude-sonnet'));
+    expect(onModelPick).toHaveBeenCalledWith('openrouter/anthropic/claude-sonnet');
     const ta = screen.getByLabelText('Task composer');
     fireEvent.change(ta, { target: { value: 'use sonnet' } });
     fireEvent.keyDown(ta, { key: 'Enter' });
-    expect(onSubmit.mock.calls[0][0].model_override).toBe('openrouter/anthropic/claude-sonnet-4');
+    expect(onSubmit.mock.calls[0][0].model_override).toBe('openrouter/anthropic/claude-sonnet');
     expect(onSubmit.mock.calls[0][0].tier).toBe('auto');
   });
 

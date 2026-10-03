@@ -17,8 +17,8 @@ describe('ChatModelPicker', () => {
     invoke.mockImplementation(async (cmd: string) => {
       if (cmd === 'list_model_cards') {
         return [
-          { id: 'openai/gpt-5.2-mini', provider: 'openai' },
-          { id: 'anthropic/claude-opus-4.7', provider: 'anthropic' },
+          { id: 'openai/gpt-mini', provider: 'openai' },
+          { id: 'anthropic/claude-opus', provider: 'anthropic' },
         ];
       }
       if (cmd === 'inference_provider_status') {
@@ -34,10 +34,10 @@ describe('ChatModelPicker', () => {
   it('loads the catalog on open and reports a pick via onApplied — never set_active_model', async () => {
     const user = userEvent.setup();
     const onApplied = vi.fn();
-    render(<ChatModelPicker activeModel="openai/gpt-5.2-mini" onApplied={onApplied} />);
-    await user.click(screen.getByRole('button', { name: /model: openai\/gpt-5\.2-mini/i }));
-    await user.click(await screen.findByRole('option', { name: 'anthropic/claude-opus-4.7' }));
-    expect(onApplied).toHaveBeenCalledWith('anthropic/claude-opus-4.7');
+    render(<ChatModelPicker activeModel="openai/gpt-mini" onApplied={onApplied} />);
+    await user.click(screen.getByRole('button', { name: /model: openai\/gpt-mini/i }));
+    await user.click(await screen.findByRole('option', { name: 'anthropic/claude-opus' }));
+    expect(onApplied).toHaveBeenCalledWith('anthropic/claude-opus');
     // Honest wiring: set_active_model only touches the GUI process and is never
     // read by the daemon serving chat — the pick must NOT ride it.
     expect(invoke).not.toHaveBeenCalledWith('set_active_model', expect.anything());
@@ -46,7 +46,7 @@ describe('ChatModelPicker', () => {
   it('offers auto-route to clear the override', async () => {
     const user = userEvent.setup();
     const onApplied = vi.fn();
-    render(<ChatModelPicker activeModel="anthropic/claude-opus-4.7" onApplied={onApplied} />);
+    render(<ChatModelPicker activeModel="anthropic/claude-opus" onApplied={onApplied} />);
     await user.click(screen.getByRole('button', { name: /model: anthropic/i }));
     await user.click(await screen.findByRole('option', { name: /auto-route/i }));
     expect(onApplied).toHaveBeenCalledWith(null);
@@ -67,7 +67,7 @@ describe('ChatModelPicker', () => {
     });
     const user = userEvent.setup();
     const onApplied = vi.fn();
-    render(<ChatModelPicker activeModel="anthropic/claude-opus-4.7" onApplied={onApplied} />);
+    render(<ChatModelPicker activeModel="anthropic/claude-opus" onApplied={onApplied} />);
     await user.click(screen.getByRole('button', { name: /model: anthropic/i }));
     const autoOption = await screen.findByRole('option', { name: /Auto \(Recommended: quant_q6_k\)/i });
     expect(autoOption).toBeInTheDocument();
@@ -108,8 +108,8 @@ describe('ChatModelPicker', () => {
     invoke.mockImplementation(async (cmd: string) => {
       if (cmd === 'list_model_cards') {
         return [
-          { id: 'openai/gpt-5.2-mini', provider: 'openai', provider_type: 'OpenAI' },
-          { id: 'anthropic/claude-opus-4.7', provider: 'anthropic', provider_type: 'Anthropic' },
+          { id: 'openai/gpt-mini', provider: 'openai', provider_type: 'OpenAI' },
+          { id: 'anthropic/claude-opus', provider: 'anthropic', provider_type: 'Anthropic' },
         ];
       }
       if (cmd === 'inference_provider_status') {
@@ -124,8 +124,8 @@ describe('ChatModelPicker', () => {
     const onApplied = vi.fn();
     render(<ChatModelPicker activeModel={null} onApplied={onApplied} />);
     await user.click(screen.getByRole('button', { name: /model: auto-route/i }));
-    expect(await screen.findByRole('option', { name: 'anthropic/claude-opus-4.7' })).toBeDefined();
-    expect(screen.queryByRole('option', { name: /openai\/gpt-5\.2-mini/i })).toBeNull();
+    expect(await screen.findByRole('option', { name: 'anthropic/claude-opus' })).toBeDefined();
+    expect(screen.queryByRole('option', { name: /openai\/gpt-mini/i })).toBeNull();
     expect(onApplied).not.toHaveBeenCalled();
   });
 
@@ -178,7 +178,7 @@ describe('ChatModelPicker', () => {
     invoke.mockImplementation(async (cmd: string) => {
       if (cmd === 'list_model_cards') {
         return [
-          { id: 'openrouter/anthropic/claude-sonnet-4', provider: 'anthropic', provider_type: 'OpenRouter' },
+          { id: 'openrouter/anthropic/claude-sonnet', provider: 'anthropic', provider_type: 'OpenRouter' },
           { id: 'mens/e2e-smoke-metal', provider: 'populi_local', provider_type: 'VoxLocal' },
         ];
       }
@@ -193,10 +193,10 @@ describe('ChatModelPicker', () => {
     const user = userEvent.setup();
     render(<ChatModelPicker activeModel={null} />);
     await user.click(screen.getByRole('button', { name: /model: auto-route/i }));
-    expect(await screen.findByRole('option', { name: 'openrouter/anthropic/claude-sonnet-4' })).toBeDefined();
+    expect(await screen.findByRole('option', { name: 'openrouter/anthropic/claude-sonnet' })).toBeDefined();
     expect(screen.getByRole('option', { name: 'mens/e2e-smoke-metal' })).toBeDefined();
     await user.type(screen.getByRole('searchbox', { name: /search models/i }), 'openrouter');
-    expect(screen.getByRole('option', { name: 'openrouter/anthropic/claude-sonnet-4' })).toBeDefined();
+    expect(screen.getByRole('option', { name: 'openrouter/anthropic/claude-sonnet' })).toBeDefined();
     expect(screen.queryByRole('option', { name: 'mens/e2e-smoke-metal' })).toBeNull();
   });
 });
