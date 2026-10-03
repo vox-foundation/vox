@@ -1,16 +1,16 @@
 /** Design tokens — status colors and badge class maps. */
 
 export const STATUS_BADGE_CLASS = {
-  pass: 'bg-emerald-400/20 text-emerald-200 ring-1 ring-emerald-400/40',
-  fail: 'bg-red-500/20 text-red-300 ring-1 ring-red-500/40',
-  warn: 'bg-amber-400/20 text-amber-200 ring-1 ring-amber-400/40',
+  pass: 'bg-(--color-status-pass)/20 text-(--color-status-pass) ring-1 ring-(--color-status-pass)/40',
+  fail: 'bg-(--color-status-fail)/20 text-(--color-status-fail) ring-1 ring-(--color-status-fail)/40',
+  warn: 'bg-(--color-status-warn)/20 text-(--color-status-warn) ring-1 ring-(--color-status-warn)/40',
   not_run: 'bg-white/5 text-zinc-400',
 } as const;
 
 export const STATUS_RAIL_BADGE_CLASS = {
-  pass: 'bg-emerald-400 text-zinc-950',
-  fail: 'bg-red-500 text-zinc-950',
-  warn: 'bg-amber-400 text-zinc-950',
+  pass: 'bg-(--color-status-pass) text-bg-base',
+  fail: 'bg-(--color-status-fail) text-bg-base',
+  warn: 'bg-(--color-status-warn) text-bg-base',
   not_run: 'bg-zinc-600 text-zinc-100',
 } as const;
 
@@ -32,9 +32,9 @@ export type StatusToneKind =
   | 'Root';
 
 export const STATUS_TONE = {
-  pass:   { dot: 'bg-emerald-400',  ring: 'ring-emerald-400/30',  text: 'text-emerald-300',  soft: 'bg-emerald-400/10',  solid: 'bg-emerald-400',  onSolid: 'text-zinc-950' },
-  fail:   { dot: 'bg-red-500',      ring: 'ring-red-500/30',      text: 'text-red-300',      soft: 'bg-red-500/10',      solid: 'bg-red-500',      onSolid: 'text-zinc-950' },
-  warn:   { dot: 'bg-amber-400',    ring: 'ring-amber-400/30',    text: 'text-amber-300',    soft: 'bg-amber-400/10',    solid: 'bg-amber-400',    onSolid: 'text-zinc-950' },
+  pass:   { dot: 'bg-(--color-status-pass)',  ring: 'ring-(--color-status-pass)/30',  text: 'text-(--color-status-pass)',  soft: 'bg-(--color-status-pass)/10',  solid: 'bg-(--color-status-pass)',  onSolid: 'text-bg-base' },
+  fail:   { dot: 'bg-(--color-status-fail)',      ring: 'ring-(--color-status-fail)/30',      text: 'text-(--color-status-fail)',      soft: 'bg-(--color-status-fail)/10',      solid: 'bg-(--color-status-fail)',      onSolid: 'text-bg-base' },
+  warn:   { dot: 'bg-(--color-status-warn)',    ring: 'ring-(--color-status-warn)/30',    text: 'text-(--color-status-warn)',    soft: 'bg-(--color-status-warn)/10',    solid: 'bg-(--color-status-warn)',    onSolid: 'text-bg-base' },
   // `info` is intentionally left as sky-400: it is a distinct, deliberately
   // used blue for neutral informational banners/toasts elsewhere in the app
   // (not one of the PhaseKind states reported here) and is out of scope for
@@ -52,8 +52,8 @@ export const STATUS_TONE = {
   // "correctly themed" panels already follow instead of inventing a new hue.
   Planning:    { dot: 'bg-brass',     ring: 'ring-brass/30',       text: 'text-brass',       soft: 'bg-brass/10',       solid: 'bg-brass',       onSolid: 'text-zinc-950' },
   Paused:      { dot: 'bg-zinc-500',  ring: 'ring-zinc-500/30',    text: 'text-zinc-300',    soft: 'bg-white/4',   solid: 'bg-zinc-500',    onSolid: 'text-zinc-100' },
-  Validated:   { dot: 'bg-emerald-400',ring:'ring-emerald-400/30', text: 'text-emerald-300', soft: 'bg-emerald-400/10', solid: 'bg-emerald-400', onSolid: 'text-zinc-950' },
-  Doubted:     { dot: 'bg-amber-400', ring: 'ring-amber-400/30',   text: 'text-amber-300',   soft: 'bg-amber-400/10',   solid: 'bg-amber-400',   onSolid: 'text-zinc-950' },
+  Validated:   { dot: 'bg-(--color-status-pass)',ring:'ring-(--color-status-pass)/30', text: 'text-(--color-status-pass)', soft: 'bg-(--color-status-pass)/10', solid: 'bg-(--color-status-pass)', onSolid: 'text-bg-base' },
+  Doubted:     { dot: 'bg-(--color-status-warn)', ring: 'ring-(--color-status-warn)/30',   text: 'text-(--color-status-warn)',   soft: 'bg-(--color-status-warn)/10',   solid: 'bg-(--color-status-warn)',   onSolid: 'text-bg-base' },
   Speculative: { dot: 'bg-violet-400',ring: 'ring-violet-400/30',  text: 'text-violet-300',  soft: 'bg-violet-400/10',  solid: 'bg-violet-400',  onSolid: 'text-zinc-950' },
   Active:      { dot: 'bg-brass',     ring: 'ring-brass/30',       text: 'text-brass',       soft: 'bg-brass/10',       solid: 'bg-brass',       onSolid: 'text-zinc-950' },
   Root:        { dot: 'bg-white',     ring: 'ring-white/30',       text: 'text-white',       soft: 'bg-white/6',   solid: 'bg-white',       onSolid: 'text-zinc-950' },
