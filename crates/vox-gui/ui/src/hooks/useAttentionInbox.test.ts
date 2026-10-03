@@ -85,3 +85,28 @@ describe('useAttentionInbox', () => {
     );
   });
 });
+
+describe('useAttentionInbox degraded sources', () => {
+  it('names each source that failed instead of reporting it as empty', async () => {
+    invokeMock.mockImplementation((cmd: string) =>
+      cmd === 'hopper_list' ? Promise.reject(new Error('down')) : Promise.resolve(null));
+    const { result } = renderHook(() => useAttentionInbox());
+    await waitFor(() => expect(result.current.degraded).toEqual(['tasks']));
+    expect(result.current.hopperTasks).toEqual([]);
+  });
+
+  it('reports no degraded source when every fetch succeeds', async () => {
+    const { result } = renderHook(() => useAttentionInbox());
+    await waitFor(() => expect(result.current.approvals.length).toBe(1));
+    expect(result.current.degraded).toEqual([]);
+  });
+
+  it('treats an MCP error reply as a failed source, not as no approvals', async () => {
+    vi.mocked(voxTransport.invokeMcpTool).mockResolvedValueOnce(
+      { tool: 'vox_pending_approvals', is_error: true, result: null } as never);
+    const { result } = renderHook(() => useAttentionInbox());
+    await waitFor(() => expect(result.current.degraded).toEqual(['approvals']));
+    expect(result.current.approvals).toEqual([]);
+  });
+});
+

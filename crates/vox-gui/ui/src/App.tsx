@@ -1908,6 +1908,7 @@ export default function App() {
         appVersion={appVersion}
         policyBadge={policyBadge}
         needsYouCount={attention.totalCount}
+        needsYouDegraded={attention.degraded.filter((s) => s !== 'tasks')}
         kpis={kpis}
         onOpenCommandPalette={() => setIsCommandOpen(true)}
         lastOrchEventAt={lastOrchEventAt}

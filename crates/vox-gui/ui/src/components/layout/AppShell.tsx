@@ -29,6 +29,7 @@ export interface AppShellProps {
   appVersion: string;
   policyBadge: PolicyBadge;
   needsYouCount: number;
+  needsYouDegraded?: string[];
   kpis: KpiState;
   onOpenCommandPalette: () => void;
   lastOrchEventAt: number | null;
@@ -83,6 +84,7 @@ export function AppShell({
   appVersion,
   policyBadge,
   needsYouCount,
+  needsYouDegraded,
   kpis,
   onOpenCommandPalette,
   lastOrchEventAt,
@@ -137,6 +139,7 @@ export function AppShell({
           appVersion={appVersion}
           policyBadge={policyBadge}
           needsYouCount={needsYouCount}
+          needsYouDegraded={needsYouDegraded}
           lastOrchEventAt={lastOrchEventAt}
           orchUsesPolling={orchUsesPolling}
           liveFreshMs={liveFreshMs}

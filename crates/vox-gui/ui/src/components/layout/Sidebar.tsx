@@ -78,6 +78,7 @@ interface SidebarProps {
   appVersion?: string;
   policyBadge?: PolicyBadge | null;
   needsYouCount?: number;
+  needsYouDegraded?: string[];
   lastOrchEventAt?: number | null;
   orchUsesPolling?: boolean;
   liveFreshMs?: number;
@@ -108,6 +109,7 @@ export function Sidebar({
   appVersion,
   policyBadge,
   needsYouCount,
+  needsYouDegraded,
   lastOrchEventAt = null,
   orchUsesPolling = false,
   liveFreshMs = 10_000,
@@ -230,15 +232,21 @@ export function Sidebar({
             const isActive = activeParent === key;
             const isExpanded = expandedParent === key && mode === 'wide';
             const children = CHILD_ORDER_BY_PARENT[key];
+            const hasReviewItems = key === 'runs' && needsYouCount != null && needsYouCount > 0;
+            const couldNotLoad =
+              key === 'runs' && (needsYouDegraded?.length ?? 0) > 0 ? `couldn't load ${needsYouDegraded!.join(', ')}` : '';
             const badge =
               key === 'agents' ? agentsCount
-              : key === 'runs' && needsYouCount != null && needsYouCount > 0 ? needsYouCount
+              : hasReviewItems ? needsYouCount
+              : couldNotLoad ? '!'
               : undefined;
             const navAriaLabel =
               key === 'runs'
-                ? needsYouCount != null && needsYouCount > 0
-                  ? `Review, ${needsYouCount} items need you`
-                  : 'Review'
+                ? hasReviewItems
+                  ? `Review, ${needsYouCount} items need you${couldNotLoad ? ` (${couldNotLoad})` : ''}`
+                  : couldNotLoad
+                    ? `Review, ${couldNotLoad}`
+                    : 'Review'
                 : undefined;
             return (
               <React.Fragment key={key}>

@@ -252,3 +252,22 @@ describe('Sidebar chat sessions section (Task 9)', () => {
     expect(onSessionChange).toHaveBeenCalledWith('s1');
   });
 });
+
+describe('Sidebar degraded Review badge', () => {
+  beforeEach(() => {
+    Element.prototype.scrollIntoView = vi.fn();
+    window.localStorage.clear();
+  });
+
+  it('shows a degraded badge instead of all-clear when a source failed', () => {
+    renderSidebar({ needsYouCount: 0, needsYouDegraded: ['approvals'] } as never);
+    const review = screen.getByRole('button', { name: "Review, couldn't load approvals" });
+    expect(review.textContent).toContain('!');
+  });
+
+  it('keeps the count and names the failed source when other sources have items', () => {
+    renderSidebar({ needsYouCount: 2, needsYouDegraded: ['feedback'] } as never);
+    expect(screen.getByRole('button', { name: "Review, 2 items need you (couldn't load feedback)" })).toBeDefined();
+  });
+});
+
