@@ -1489,7 +1489,6 @@ mod tests {
     // flip mid-test, making the two calls' candidate sets diverge.
     #[test]
     #[file_serial]
-    #[allow(unsafe_code)]
     fn select_with_empty_policy_falls_through_to_cascade() {
         // BALANCED axes (this intent's default) resolve to `CostPreference::Performance`
         // (cost=33 <= intelligence+responsiveness=67), which excludes every
@@ -1498,11 +1497,17 @@ mod tests {
         // candidate is separately excluded by the B3 key-gated candidate filter
         // when no provider key is configured. On a hosted runner with no
         // ANTHROPIC_API_KEY, that leaves zero eligible candidates for either
-        // call below. Set a test key so a real paid candidate is selectable,
-        // matching `key_gate_admits_provider_when_key_present`'s pattern.
-        let prior = std::env::var("ANTHROPIC_API_KEY").ok();
-        // SAFETY: #[file_serial]; prior value restored below.
-        unsafe { std::env::set_var("ANTHROPIC_API_KEY", "test-key") };
+        // call below. So the provider set is pinned to Anthropic for this thread: the real Clavis
+        // check also reads the user's vault and keychain, so on a machine with other provider keys
+        // the candidate set (and the pick) depended on state this test does not control.
+        struct KeysPinned;
+        impl Drop for KeysPinned {
+            fn drop(&mut self) {
+                crate::models::key_guard::set_test_key_availability(None);
+            }
+        }
+        crate::models::key_guard::set_test_key_availability(Some(vec![ProviderType::Anthropic]));
+        let _keys = KeysPinned;
         let registry = ModelRegistry::new();
         let intent = SelectionIntent::for_task(TaskCategory::CodeGen);
         // An empty policy carries no steps, so the resolver yields nothing and
@@ -1511,15 +1516,43 @@ mod tests {
         let ctx = crate::models::policy::PolicyContext::default();
         let via_policy = select_with_policy(&intent, &registry, &policy, &ctx);
         let via_cascade = select(&intent, &registry);
-        unsafe {
-            match prior {
-                Some(v) => std::env::set_var("ANTHROPIC_API_KEY", v),
-                None => std::env::remove_var("ANTHROPIC_API_KEY"),
-            }
-        }
         let via_policy = via_policy.expect("a model exists for codegen");
         let via_cascade = via_cascade.expect("a model exists for codegen");
         assert_eq!(via_policy.model_id, via_cascade.model_id);
+    }
+
+    // With the provider set pinned for the thread, selection must not look at the ambient
+    // credentials at all: a key appearing in the environment (or the vault) between two calls on a
+    // developer machine changes nothing. This is what made the test above flaky.
+    #[test]
+    #[file_serial]
+    #[allow(unsafe_code)]
+    fn pinned_provider_keys_ignore_the_ambient_environment() {
+        struct KeysPinned;
+        impl Drop for KeysPinned {
+            fn drop(&mut self) {
+                crate::models::key_guard::set_test_key_availability(None);
+            }
+        }
+        crate::models::key_guard::set_test_key_availability(Some(vec![ProviderType::Anthropic]));
+        let _keys = KeysPinned;
+        let registry = ModelRegistry::new();
+        let intent = SelectionIntent::for_task(TaskCategory::CodeGen);
+        let before = select(&intent, &registry).expect("a pinned Anthropic model is selectable");
+
+        let prior = std::env::var("DEEPSEEK_API_KEY").ok();
+        // SAFETY: #[file_serial]; prior value restored below.
+        unsafe { std::env::set_var("DEEPSEEK_API_KEY", "ambient-key") };
+        let after = select(&intent, &registry);
+        unsafe {
+            match prior {
+                Some(v) => std::env::set_var("DEEPSEEK_API_KEY", v),
+                None => std::env::remove_var("DEEPSEEK_API_KEY"),
+            }
+        }
+        let after = after.expect("still selectable");
+        assert_eq!(before.model_id, after.model_id);
+        assert_eq!(before.model_spec.provider_type, ProviderType::Anthropic);
     }
 
     // ── Phase-2 wiring: key-gated candidate filter (B3) ─────────────────────

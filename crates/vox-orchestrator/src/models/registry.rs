@@ -7,7 +7,6 @@ use crate::config::CostPreference;
 use crate::types::{AgentTask, TaskCategory};
 
 use super::health::MODEL_CATALOG_LAST_REFRESH_KEY;
-use super::key_guard::provider_secret_is_available;
 use super::spec::{
     ModelCapabilities, ModelConfig, ModelSpec, PricingSource, ProviderType, task_category_strength,
 };
@@ -369,7 +368,9 @@ impl ModelRegistry {
     /// Credential gate used by the canonical selector: true iff the provider's
     /// primary key is resolvable right now (local providers always pass).
     pub(crate) fn key_is_present_for(m: &ModelSpec) -> bool {
-        provider_secret_is_available(&m.provider_type)
+        // Through `selection_key_available` so a test can pin the provider set per thread
+        // (`key_guard::set_test_key_availability`); with no override it is the same Clavis check.
+        super::key_guard::selection_key_available(&m.provider_type)
     }
 
     fn min_refresh_interval() -> Duration {
