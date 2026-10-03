@@ -36,6 +36,8 @@ export interface BottomStatusBarProps {
   sessionSpentUsd?: number | null;
   /** Approvals plus open questions (attention inbox `totalCount`). */
   needsYouCount?: number | null;
+  /** Inbox sources that failed to load; the card never shows a clear 0 while any are unknown. */
+  needsYouDegraded?: string[];
   meshNodes?: MeshNode[];
   gamifyEnabled?: boolean;
   onOpenAchievements?: () => void;
@@ -120,6 +122,7 @@ export function BottomStatusBar({
   openrouterSpendUsd = null,
   sessionSpentUsd = null,
   needsYouCount = null,
+  needsYouDegraded = [],
   meshNodes,
   gamifyEnabled = false,
   onOpenAchievements,
@@ -226,7 +229,11 @@ export function BottomStatusBar({
             key={kind}
             testId="bottom-status-bar-needs-you"
             label={label}
-            value={String(needsYouCount ?? 0)}
+            value={
+              needsYouDegraded.length > 0
+                ? `${(needsYouCount ?? 0) > 0 ? needsYouCount : '—'} · couldn't load ${needsYouDegraded.join(', ')}`
+                : String(needsYouCount ?? 0)
+            }
             onClick={() => onNavigate('needs-you')}
           />
         );

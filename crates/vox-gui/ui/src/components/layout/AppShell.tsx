@@ -191,6 +191,7 @@ export function AppShell({
         openrouterSpendUsd={openrouterSpendUsd}
         sessionSpentUsd={sessionSpentUsd}
         needsYouCount={needsYouCount}
+        needsYouDegraded={needsYouDegraded}
         meshNodes={meshNodes}
         gamifyEnabled={gamifyEnabled}
         onOpenAchievements={onOpenAchievements}

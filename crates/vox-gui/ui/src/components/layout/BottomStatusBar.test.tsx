@@ -332,6 +332,18 @@ describe('BottomStatusBar cards (chat-surfaces plan 3a)', () => {
     expect(onNavigate).toHaveBeenCalledWith('needs-you');
   });
 
+  it('Needs you never reads as a clear 0 while a source failed to load', () => {
+    renderBar({ needsYouCount: 0, needsYouDegraded: ['approvals'] });
+    const card = screen.getByTestId('bottom-status-bar-needs-you');
+    expect(card).toHaveTextContent("Needs you— · couldn't load approvals");
+    expect(card.textContent).not.toMatch(/Needs you0/);
+  });
+
+  it('Needs you keeps its count and names the failed source beside it', () => {
+    renderBar({ needsYouCount: 2, needsYouDegraded: ['feedback'] });
+    expect(screen.getByTestId('bottom-status-bar-needs-you')).toHaveTextContent("Needs you2 · couldn't load feedback");
+  });
+
   it('no retired segment renders', () => {
     renderBar({ openrouterSpendUsd: 1.5 });
     for (const id of ['agents', 'queue', 'budget', 'model', 'openrouter', 'approvals']) {
