@@ -254,6 +254,14 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | Cache predictor — prefix cache routing (D7) | `crates/vox-orchestrator/src/cache_predictor.rs` |
 | Budget gate — token/cost limits (D7) | `crates/vox-orchestrator/src/budget_gate.rs` |
 | Chat turn trace (turn events, routing decision) | contract `contracts/gui/turn-event-kinds.v1.json`; producers `crates/vox-orchestrator-mcp/src/chat_tools/chat/{agent_loop,turn_events}.rs`; provenance `crates/vox-orchestrator/src/models/provenance.rs`; GUI `crates/vox-gui/ui/src/lib/turnEvents.ts` (model and mode label owner), `lib/turnTrace.ts`, `components/surfaces/Chat/TurnTrace.tsx` |
+| Notices — model and routing rule (toast vs notification center), store, coalescing | `crates/vox-gui/ui/src/lib/notices.ts`; `crates/vox-gui/ui/src/lib/noticeStore.ts`; `crates/vox-gui/ui/src/hooks/useNoticeCenter.ts` |
+| Notification center (the status bar's bell and drawer) | `crates/vox-gui/ui/src/components/common/NotificationCenter.tsx` |
+| Engine event severity (decided in Rust, exhaustive) | `crates/vox-orchestrator/src/events_severity.rs` |
+| Agent-event annotation and the `activity-appended` event | `crates/vox-gui/src/commands/event_annotate.rs` |
+| Routing reference and quality priors (derived scales with provenance) | `crates/vox-orchestrator/src/models/reference.rs` |
+| Selection ranking and exclusion reasons | `crates/vox-orchestrator/src/models/ranking.rs` |
+| Routing health (checked at every catalog refresh) | `crates/vox-orchestrator/src/models/health.rs` |
+| Routing explainer (GUI: why a model, why not the others) | `crates/vox-gui/src/commands/routing_explain.rs`; `crates/vox-gui/ui/src/components/surfaces/Models/RoutingExplainer.tsx` |
 | Compaction trigger — strategy selection (D7) | `crates/vox-orchestrator/src/compaction_trigger.rs` |
 | Calibration — drift detection + bandit (D10) | `crates/vox-orchestrator/src/calibration.rs` |
 | Sub-agent dispatch — spawn vs. inline (D4) | `crates/vox-orchestrator/src/subagent_dispatch.rs` |
