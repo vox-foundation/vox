@@ -758,7 +758,7 @@ mod tests {
     /// Chat is what the GUI shows: on the default (cost-leaning) axes it must not resolve to a flagship
     /// while a cheaper-tier model is registered, even when the flagship is the cheapest candidate.
     /// Removes env vars for its lifetime and restores their prior values on drop. Callers hold
-    /// `INFERENCE_PROFILE_TEST_LOCK`, which every test that sets these variables also holds.
+    /// `CHAT_MESSAGE_ENV_LOCK`, which every test that sets these variables also holds.
     struct UnsetEnv(Vec<(&'static str, Option<String>)>);
 
     impl UnsetEnv {
@@ -766,7 +766,7 @@ mod tests {
         fn new(keys: &[&'static str]) -> Self {
             let prior = keys.iter().map(|k| (*k, std::env::var(k).ok())).collect();
             for k in keys {
-                // SAFETY: serialized with `INFERENCE_PROFILE_TEST_LOCK` (held by the caller).
+                // SAFETY: serialized with `CHAT_MESSAGE_ENV_LOCK` (held by the caller).
                 unsafe { std::env::remove_var(k) };
             }
             Self(prior)
@@ -794,9 +794,9 @@ mod tests {
 
         // The fixture models are `PopuliMesh`, a local-HTTP lane that a `restricted` route-policy profile
         // blocks. Other tests set that profile and the inference profile under
-        // `INFERENCE_PROFILE_TEST_LOCK`; hold it and pin those variables to unset so neither a test
+        // `CHAT_MESSAGE_ENV_LOCK`; hold it and pin those variables to unset so neither a test
         // running concurrently nor the caller's environment changes the pick.
-        let _lock = super::super::tests::INFERENCE_PROFILE_TEST_LOCK
+        let _lock = crate::chat_tools::chat::agent_loop::CHAT_MESSAGE_ENV_LOCK
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         let _env = UnsetEnv::new(&[
