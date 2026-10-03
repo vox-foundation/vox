@@ -8,6 +8,8 @@ import type {
   OpenLocator,
   OpenOutcome,
   OrchestratorStatus,
+  RouteExplanation,
+  RoutingHealth,
   RoutingSummary,
 } from './types/tauri';
 import type { TaskRow } from './components/surfaces/Tasks/tasksHelpers';
@@ -427,6 +429,15 @@ class VoxTransport {
 
   async getRoutingSummaryLive(): Promise<RoutingSummary> {
     return safeInvoke<RoutingSummary>('get_routing_summary_live');
+  }
+
+  /** How routing would choose now for a mode, task and complexity, from the selector's own ranking. */
+  async explainRouting(mode: string, task: string, complexity: number): Promise<RouteExplanation | null> {
+    return safeInvoke<RouteExplanation | null>('explain_routing', { mode, task, complexity });
+  }
+
+  async getRoutingHealth(): Promise<RoutingHealth | null> {
+    return safeInvoke<RoutingHealth | null>('get_routing_health');
   }
 
   async getAutoModelRecommendation(): Promise<AutoModelRecommendation> {
