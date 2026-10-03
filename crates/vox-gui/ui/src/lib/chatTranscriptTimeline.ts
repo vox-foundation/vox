@@ -184,20 +184,25 @@ export function buildChatOnlyTimeline(
   }));
 
   // Track the latest in-flight task per taskId, in arrival order, and drop
-  // any task that has since completed/failed. Also track each task's last
-  // known cost and whether it completed, for the optional summary row.
+  // any task that has since completed/failed. Also track each task's total
+  // cost and whether it completed, for the optional summary row.
   const inFlight = new Map<number, { phase: string; startedAtMs: number }>();
-  const lastCostByTask = new Map<number, number>();
+  const costByTask = new Map<number, number>();
   const completedTasks = new Set<number>();
+  const taskByAgent = new Map<string, number>();
 
   for (const item of agentItems) {
     const eventType = item.metadata?.eventType;
-    const taskId = item.taskId ?? (item.metadata?.taskId as number | undefined);
+    const agentId = item.metadata?.agentId as string | undefined;
+    let taskId = item.taskId ?? (item.metadata?.taskId as number | undefined);
+    if (taskId != null && agentId) taskByAgent.set(agentId, taskId);
+    // Cost events carry only the agent; attribute them to that agent's current task.
+    if (taskId == null && eventType === 'cost_incurred' && agentId) taskId = taskByAgent.get(agentId);
     if (taskId == null) continue;
 
     if (typeof eventType === 'string' && eventType === 'cost_incurred') {
       const costUsd = item.metadata?.costUsd;
-      if (typeof costUsd === 'number') lastCostByTask.set(taskId, costUsd);
+      if (typeof costUsd === 'number') costByTask.set(taskId, (costByTask.get(taskId) ?? 0) + costUsd);
       continue;
     }
     if (typeof eventType === 'string' && TASK_END_EVENT_TYPES.has(eventType)) {
@@ -230,7 +235,7 @@ export function buildChatOnlyTimeline(
 
   if (verbosity !== 'quiet') {
     for (const taskId of completedTasks) {
-      const costUsd = lastCostByTask.get(taskId);
+      const costUsd = costByTask.get(taskId);
       if (costUsd == null) continue;
       rows.push({ kind: 'summary', id: `summary-${taskId}`, atMs: nowMs, taskId, costUsd });
     }

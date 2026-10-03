@@ -173,3 +173,30 @@ describe('buildChatOnlyTimeline', () => {
     expect(rows.some((r) => r.kind === 'summary')).toBe(false);
   });
 });
+
+import { mapAgentEvent } from './mapAgentEvent';
+
+describe('buildChatOnlyTimeline through the real event mapper', () => {
+  // The existing tests hand-build metadata; these go through mapAgentEvent, the producer the app uses.
+  const frame = (id: number, type: string, extra: Record<string, unknown>) =>
+    mapAgentEvent({ id, timestamp_ms: id * 1000, kind: { type, ...extra } });
+
+  it('shows the phase the engine reported', () => {
+    const rows = buildChatOnlyTimeline([], [
+      frame(1, 'task_started', { task_id: 7, agent_id: 3 }),
+      frame(2, 'task_phase_changed', { task_id: 7, agent_id: 3, phase: 'Act' }),
+    ], { nowMs: 5000 });
+    expect(rows.find(r => r.kind === 'status')).toMatchObject({ taskId: 7, phase: 'Act' });
+  });
+
+  it('attributes each agent cost to that agent task and shows the total when the task completes', () => {
+    const rows = buildChatOnlyTimeline([], [
+      frame(1, 'task_started', { task_id: 7, agent_id: 3 }),
+      frame(2, 'cost_incurred', { agent_id: 3, cost_usd: 0.25, provider: 'acme', model: 'acme/widget' }),
+      frame(3, 'cost_incurred', { agent_id: 3, cost_usd: 0.5, provider: 'acme', model: 'acme/widget' }),
+      frame(4, 'task_completed', { task_id: 7, agent_id: 3 }),
+    ], { nowMs: 5000 });
+    expect(rows.find(r => r.kind === 'summary')).toMatchObject({ taskId: 7, costUsd: 0.75 });
+  });
+});
+

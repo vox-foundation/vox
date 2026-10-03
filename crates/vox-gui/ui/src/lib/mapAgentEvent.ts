@@ -76,6 +76,8 @@ export function mapAgentEvent(e: AgentEventFrame): StreamItem {
       eventType: type,
       agentId,
       timestampMs: e.timestamp_ms ?? 0,
+      ...(typeof kind.phase === 'string' ? { phase: kind.phase } : {}),
+      ...(typeof kind.cost_usd === 'number' ? { costUsd: kind.cost_usd } : {}),
     },
   };
 }
