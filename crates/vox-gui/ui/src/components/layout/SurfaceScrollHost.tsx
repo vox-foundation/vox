@@ -6,6 +6,9 @@ export function SurfaceScrollHost({ children }: { children: React.ReactNode }) {
       <div
         className="h-full min-h-0 overflow-auto custom-scrollbar"
         data-testid="surface-scroll-viewport"
+        role="region"
+        aria-label="Surface content"
+        tabIndex={0}
       >
         {children}
       </div>
