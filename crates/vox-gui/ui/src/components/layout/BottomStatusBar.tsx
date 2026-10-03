@@ -16,6 +16,8 @@ import { routingCardValue } from '../../lib/routingSummary';
 import type { RoutingSummary } from '../../types/tauri';
 import type { MeshNode } from '../surfaces/Mesh/MeshView';
 import { StatusBarCluster } from '../common/StatusBarCluster';
+import { NotificationCenter } from '../common/NotificationCenter';
+import type { Notice } from '../../lib/noticeStore';
 
 type KpiState = typeof INITIAL_KPIS;
 
@@ -38,6 +40,9 @@ export interface BottomStatusBarProps {
   gamifyEnabled?: boolean;
   onOpenAchievements?: () => void;
   onOpenResearchDrawer?: () => void;
+  /** Every toast and engine problem the app has kept; the bell is the last item when both are given. */
+  notices?: Notice[];
+  onMarkAllNoticesRead?: () => void;
 }
 
 function freshnessClasses(tone: 'live' | 'poll' | 'stale') {
@@ -119,6 +124,8 @@ export function BottomStatusBar({
   gamifyEnabled = false,
   onOpenAchievements,
   onOpenResearchDrawer,
+  notices,
+  onMarkAllNoticesRead,
 }: BottomStatusBarProps) {
   const tone = useFreshness(lastOrchEventAt, {
     freshMs: liveFreshMs,
@@ -343,6 +350,9 @@ export function BottomStatusBar({
         data-testid={WORKBENCH_TABBAR_TRAILING_SLOT_ID}
         className="ml-2 flex shrink-0 items-center"
       />
+      {notices && onMarkAllNoticesRead ? (
+        <NotificationCenter notices={notices} onMarkAllRead={onMarkAllNoticesRead} />
+      ) : null}
     </Glass>
   );
 }

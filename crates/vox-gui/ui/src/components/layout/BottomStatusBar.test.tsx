@@ -25,6 +25,53 @@ describe('BottomStatusBar', () => {
     expect(screen.getByText('Mesh')).toBeInTheDocument();
   });
 
+  describe('notification bell', () => {
+    const problem = {
+      id: 'notice-1',
+      groupKey: 'engine:Disk full',
+      severity: 'warning' as const,
+      scope: 'engine' as const,
+      source: 'engine',
+      title: 'Disk full',
+      count: 1,
+      lastAtMs: 0,
+      read: false,
+    };
+    const bar = (extra: Partial<ComponentProps<typeof BottomStatusBar>> = {}) => (
+      <BottomStatusBar
+        kpis={INITIAL_KPIS}
+        hudTilesConfig={defaultHudTiles()}
+        onNavigate={vi.fn()}
+        lastOrchEventAt={null}
+        orchUsesPolling={false}
+        liveFreshMs={10_000}
+        {...extra}
+      />
+    );
+
+    it('is the last item and names the unread problems', () => {
+      render(bar({ notices: [problem], onMarkAllNoticesRead: vi.fn() }));
+      const bell = screen.getByRole('button', { name: 'Notifications, 1 need attention' });
+      const slot = screen.getByTestId(WORKBENCH_TABBAR_TRAILING_SLOT_ID);
+      expect(slot.compareDocumentPosition(bell) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('is absent when the app passes no notice store', () => {
+      render(bar());
+      expect(screen.queryByRole('button', { name: /^Notifications/ })).toBeNull();
+    });
+
+    it('opening the drawer does not mark anything read; "Mark all read" does', () => {
+      const onMarkAllNoticesRead = vi.fn();
+      render(bar({ notices: [problem], onMarkAllNoticesRead }));
+      fireEvent.click(screen.getByRole('button', { name: /^Notifications/ }));
+      expect(screen.getByText('Disk full')).toBeInTheDocument();
+      expect(onMarkAllNoticesRead).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole('button', { name: 'Mark all read' }));
+      expect(onMarkAllNoticesRead).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('a disabled tile in hudTilesConfig does not render', () => {
     const config = defaultHudTiles();
     config.tiles = config.tiles.map((t) =>

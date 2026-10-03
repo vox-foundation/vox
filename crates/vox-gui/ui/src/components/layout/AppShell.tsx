@@ -12,6 +12,7 @@ import type { RoutingSummary, Toast } from '../../types/tauri';
 import type { MeshNode } from '../surfaces/Mesh/MeshView';
 import { INITIAL_KPIS } from '../../data/initialState';
 import type { ChatSession } from '../../lib/useChatSessions';
+import type { Notice } from '../../lib/noticeStore';
 
 type KpiState = typeof INITIAL_KPIS;
 
@@ -47,6 +48,9 @@ export interface AppShellProps {
   gamifyEnabled?: boolean;
   onOpenAchievements?: () => void;
   onOpenResearchDrawer?: () => void;
+  /** Notice store contents and its "mark all read", for the status bar's bell. */
+  notices?: Notice[];
+  onMarkAllNoticesRead?: () => void;
   hudTilesConfig: HudTilesConfig;
   onHudTilesChange: (config: HudTilesConfig) => void;
   meshNodes: MeshNode[] | undefined;
@@ -95,6 +99,8 @@ export function AppShell({
   gamifyEnabled,
   onOpenAchievements,
   onOpenResearchDrawer,
+  notices,
+  onMarkAllNoticesRead,
   hudTilesConfig,
   onHudTilesChange,
   meshNodes,
@@ -186,6 +192,8 @@ export function AppShell({
         gamifyEnabled={gamifyEnabled}
         onOpenAchievements={onOpenAchievements}
         onOpenResearchDrawer={onOpenResearchDrawer}
+        notices={notices}
+        onMarkAllNoticesRead={onMarkAllNoticesRead}
       />
     </div>
   );

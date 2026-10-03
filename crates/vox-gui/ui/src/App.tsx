@@ -1923,6 +1923,8 @@ export default function App() {
         gamifyEnabled={gamifySettings.enabled}
         onOpenAchievements={openAchievements}
         onOpenResearchDrawer={openResearchDrawer}
+        notices={noticeCenter.notices}
+        onMarkAllNoticesRead={noticeCenter.markAllRead}
         hudTilesConfig={hudTilesConfig}
         onHudTilesChange={setHudTilesConfig}
         meshNodes={meshNodes}
