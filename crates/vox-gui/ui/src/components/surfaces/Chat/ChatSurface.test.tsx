@@ -126,13 +126,14 @@ describe('ChatSurface', () => {
     await waitFor(() => expect(budgetCalls()).toBe(before + 1));
   });
 
-  it('has exactly one accessible h1 for the surface root (axe page-has-heading-one)', async () => {
+  it('leaves the page h1 to the shell: its empty-state title is an h2 and there is no h1', async () => {
     render(
       <LanguageProvider>
         <ChatSurface pushToast={() => {}} activeSessionId="s1" />
       </LanguageProvider>,
     );
-    expect(await screen.findAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(await screen.findByRole('heading', { level: 2, name: /no messages yet/i })).toBeInTheDocument();
+    expect(screen.queryAllByRole('heading', { level: 1 })).toHaveLength(0);
   });
 
   it('renders an empty state when the session has no messages', async () => {

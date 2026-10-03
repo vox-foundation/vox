@@ -301,7 +301,7 @@ export function TasksView({
     <div className="flex flex-col gap-4 p-6 h-full overflow-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-[15px] font-medium text-text-primary">Tasks</h1>
+          <h2 className="text-[15px] font-medium text-text-primary">Tasks</h2>
           <p className="text-[11px] text-text-muted">
             Everything queued or running across the agent fleet — hopper to-dos
             and orchestrator task graph runs, tagged by origin.
