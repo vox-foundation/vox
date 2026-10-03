@@ -13,6 +13,7 @@ import { renderSurfaceContent } from './components/layout/surfaceComponents';
 import { resolveNavigation, parseViewFromLocation, syncViewToLocation, seedDiscoveryPresetForLegacyKey, labelForNavKey, DEFAULT_CHILD_BY_PARENT } from './lib/navigation';
 import { useActiveView } from './hooks/useActiveView';
 import { useDocViewer } from './hooks/useDocViewer';
+import { TaskDiffDialog } from './components/surfaces/Chat/TaskDiffDialog';
 import { DocViewerDrawer } from './components/layout/DocViewerDrawer';
 import { InspectorDrawer } from './debugger/InspectorDrawer';
 import { ResearchEngineDrawer } from './components/surfaces/Research/ResearchEngineDrawer';
@@ -2046,6 +2047,7 @@ export default function App() {
       />
 
       <DocViewerDrawer doc={activeDoc} onClose={closeDocViewer} />
+      <TaskDiffDialog open={diffOpen} loading={diffLoading} text={diffText} onClose={() => setDiffOpen(false)} />
       <InspectorDrawer open={isInspectorOpen} onClose={() => setIsInspectorOpen(false)} />
       <ResearchEngineDrawer
         isOpen={isResearchDrawerOpen}
