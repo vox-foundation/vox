@@ -1,10 +1,10 @@
 import React from 'react';
 import { Icon } from './Icons';
-import type { ToastCause } from '../../types/tauri';
+import type { Toast, ToastCause } from '../../types/tauri';
 
 export interface ToastItem {
   id: string;
-  tone: 'ok' | 'warn' | 'info';
+  tone: Toast['tone'];
   title: string;
   body?: string;
   cmd?: string;
@@ -20,6 +20,7 @@ const TONE_ICON_CLASS: Record<ToastItem['tone'], string> = {
   ok:   'bg-emerald-400/15 text-emerald-300',
   warn: 'bg-amber-400/15 text-amber-300',
   info: 'bg-sky-400/15 text-sky-300',
+  error: 'bg-(--color-status-fail)/15 text-(--color-status-fail)',
 };
 
 interface ToastsProps {
@@ -33,13 +34,14 @@ export function Toasts({ items, onClose }: ToastsProps) {
       aria-live="polite"
       aria-atomic="false"
       role="status"
+      data-testid="toast-stack"
       className="pointer-events-none fixed bottom-20 right-6 z-40 flex w-[320px] flex-col gap-2"
     >
       {items.map(t => (
         <div key={t.id} className="pointer-events-auto rounded-xl border border-border-subtle bg-bg-base/90 p-3 backdrop-blur-xl shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)] animate-vox-toast-in">
           <div className="flex items-start gap-2">
             <div className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-sm ${TONE_ICON_CLASS[t.tone]}`}>
-              {t.tone === "ok" ? <Icon.check className="size-3.5" aria-hidden="true"/> : t.tone === "warn" ? <Icon.alert className="size-3.5" aria-hidden="true"/> : <Icon.bolt className="size-3.5" aria-hidden="true"/>}
+              {t.tone === "ok" ? <Icon.check className="size-3.5" aria-hidden="true"/> : t.tone === "warn" || t.tone === "error" ? <Icon.alert className="size-3.5" aria-hidden="true"/> : <Icon.bolt className="size-3.5" aria-hidden="true"/>}
             </div>
             <div className="flex-1 leading-tight">
               <div className="font-display text-[12px] tracking-wide text-text-primary">

@@ -59,6 +59,8 @@ import { voxTransport, listenAgentEvents, chatTurn as sendChatTurnRaw, type Agen
 import { useQuery } from '@tanstack/react-query';
 import { railRoutingFromSummary } from './lib/routingSummary';
 import { useAttentionInbox } from './hooks/useAttentionInbox';
+import { useNoticeCenter } from './hooks/useNoticeCenter';
+import { noticeFromToast, noticeFromAgentEvent, type SeverityFrame } from './lib/notices';
 import { useKeybinds } from './hooks/useKeybinds';
 import { parseBindings, DEFAULT_BINDINGS, type Bindings } from './lib/keybinds';
 import { type UnlistenFn } from '@tauri-apps/api/event';
@@ -524,8 +526,11 @@ export default function App() {
   // capacity, distinct-group arrivals fold into an "N more notifications"
   // overflow toast instead of silently dropping an unseen one. See
   // src/lib/toastQueue.ts.
+  const noticeCenter = useNoticeCenter();
+  const recordNotice = noticeCenter.record;
   const toastTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const pushToast = useCallback((t: Toast) => {
+    recordNotice(noticeFromToast(t));
     const id = nextId('toast');
     setToasts(curr => {
       const { items, touchedId } = coalesceToast(curr, t, id);
@@ -540,7 +545,7 @@ export default function App() {
       );
       return items;
     });
-  }, []);
+  }, [recordNotice]);
 
   // ── Harness issue polling: badge data + toast on newly-detected issues ──
   // Only issues detected in a poll *after* the first are toasted — the first
@@ -900,6 +905,8 @@ export default function App() {
     let cancelled = false;
 
     listenAgentEvents((frame) => {
+      const engineNotice = noticeFromAgentEvent(frame as SeverityFrame);
+      if (engineNotice) recordNotice(engineNotice);
       const kindType = frame.kind?.type ?? '';
       if (kindType !== 'token_streamed') {
         const item = mapAgentEvent(frame);
@@ -935,7 +942,7 @@ export default function App() {
       cancelled = true;
       if (unlisten) unlisten();
     };
-  }, []);
+  }, [recordNotice]);
 
   // ── Pending-bubble honesty watchdog: nothing server-side ever expires a
   // pending chat bubble, so sweep client-side and flip anything stuck in

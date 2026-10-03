@@ -20,7 +20,7 @@ export type ToastCause =
 
 /** Toast input before the shell assigns an `id`. */
 export type Toast = {
-  tone: 'ok' | 'warn' | 'info';
+  tone: 'ok' | 'warn' | 'info' | 'error';
   title: string;
   body?: string;
   cmd?: string;

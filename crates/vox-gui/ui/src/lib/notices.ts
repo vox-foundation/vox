@@ -28,6 +28,7 @@ const TONE_SEVERITY: Record<Toast['tone'], NoticeSeverity> = {
   ok: 'success',
   info: 'info',
   warn: 'warning',
+  error: 'error',
 };
 
 /** Event fields that carry a human-readable reason, in order of preference. */
