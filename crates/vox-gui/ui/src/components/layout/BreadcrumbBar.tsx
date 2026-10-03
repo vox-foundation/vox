@@ -1,5 +1,6 @@
 import React from 'react';
 import { breadcrumbsForView, type BreadcrumbSegment } from '../../lib/navigation';
+import { useCurrentLang } from '../../hooks/useLanguage';
 import { recordGamifyGuiEvent } from '../../lib/gamifyGuiEvents';
 
 interface Props {
@@ -9,7 +10,8 @@ interface Props {
 }
 
 export function BreadcrumbBar({ viewKey, onNavigate, gamifyEnabled }: Props) {
-  const segments = breadcrumbsForView(viewKey);
+  const lang = useCurrentLang();
+  const segments = breadcrumbsForView(viewKey, lang);
   if (segments.length === 0 || viewKey === 'chat') return null;
 
   const renderSegment = (seg: BreadcrumbSegment, index: number) => {

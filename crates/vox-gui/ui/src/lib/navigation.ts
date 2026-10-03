@@ -1,4 +1,4 @@
-import { sidebarParentLabel } from './lexicon';
+import { labelFor, sidebarParentLabel, type Lang } from './lexicon';
 
 /**
  * Resolve a view key to its top-level nav parent and optional child tab.
@@ -138,6 +138,14 @@ export function labelForNavKey(key: string): string {
   return NAV_LABELS[key] ?? key.replace(/-/g, ' ');
 }
 
+/**
+ * Label of `key` as a child row or tab: the plain LEXICON entry, never the `nav:` parent override
+ * (so `runs` reads "Runs" under its "Review" parent). Language-aware, unlike `labelForNavKey`.
+ */
+export function childLabelFor(key: string, lang: Lang = 'en'): string {
+  return labelFor(key, lang);
+}
+
 /** Short label for workbench tab bar chips. */
 export function tabLabelFor(viewKey: string): string {
   return labelForNavKey(viewKey);
@@ -149,13 +157,14 @@ export interface BreadcrumbSegment {
 }
 
 /** Breadcrumb trail for a resolved view key (parent › child when distinct). */
-export function breadcrumbsForView(viewKey: string): BreadcrumbSegment[] {
+export function breadcrumbsForView(viewKey: string, lang: Lang = 'en'): BreadcrumbSegment[] {
   const { parent, child } = resolveNavigation(viewKey);
-  const segments: BreadcrumbSegment[] = [
-    { key: parent, label: labelForNavKey(parent) },
-  ];
-  if (child !== parent) {
-    segments.push({ key: child, label: labelForNavKey(child) });
+  const parentLabel = sidebarParentLabel(parent, lang);
+  const childLabel = childLabelFor(child, lang);
+  const segments: BreadcrumbSegment[] = [{ key: parent, label: parentLabel }];
+  // A self-child (runs under Review) still gets a segment when its label differs from the parent's.
+  if (child !== parent || childLabel !== parentLabel) {
+    segments.push({ key: child, label: childLabel });
   }
   return segments;
 }

@@ -5,7 +5,7 @@ import { Icon } from '../ui/Icons';
 import { AxisMark } from '../ui/AxisMark';
 import { DashboardData } from '../../types/dashboard';
 import { SURFACE_REGISTRY } from '../../generated/surfaceRegistry.generated';
-import { TOP_LEVEL_VIEWS, resolveNavigation, CHILD_ORDER_BY_PARENT, labelForNavKey } from '../../lib/navigation';
+import { TOP_LEVEL_VIEWS, resolveNavigation, CHILD_ORDER_BY_PARENT, childLabelFor } from '../../lib/navigation';
 import { STATUS_BADGE_CLASS, STATUS_RAIL_BADGE_CLASS } from '../../styles/tokens';
 import { useFreshness } from '../../hooks/useFreshness';
 import { useLang } from '../../hooks/useLanguage';
@@ -310,7 +310,7 @@ export function Sidebar({
                             : 'text-text-muted hover:bg-overlay-hover hover:text-text-secondary'
                         }`}
                       >
-                        {labelForNavKey(childKey)}
+                        {childLabelFor(childKey, lang)}
                       </button>
                     ))}
                   </div>

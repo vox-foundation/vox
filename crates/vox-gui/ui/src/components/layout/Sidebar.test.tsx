@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import React from 'react';
 
 vi.mock('@tauri-apps/api/core', () => ({
@@ -167,6 +167,15 @@ describe('Sidebar accordion (wide mode only)', () => {
     expect(screen.getByRole('button', { name: /^flow$/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^tasks$/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^policies$/i })).not.toBeInTheDocument();
+  });
+
+  it('names the runs child "Runs" under the "Review" parent, in the active language', () => {
+    renderSidebar({ view: 'runs', mode: 'wide' });
+    expect(screen.getByRole('button', { name: /^runs$/i })).toBeInTheDocument();
+    cleanup();
+    window.localStorage.setItem('vox.lang', 'la');
+    renderSidebar({ view: 'runs', mode: 'wide' });
+    expect(screen.getByRole('button', { name: /^cursus$/i })).toBeInTheDocument();
   });
 
   it('does not render a child tree in rail mode', () => {
