@@ -313,6 +313,7 @@ describe('Dashboard', () => {
     ] });
     // 'Active Agents' appears in both the KPI strip label and the agents widget heading
     expect(screen.getAllByText('Active Agents').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByRole('heading', { level: 2, name: 'Active Agents' })).toBeTruthy();
     expect(screen.getByText('Queue Depth')).toBeInTheDocument();
     expect(screen.getByText('Budget Spent')).toBeInTheDocument();
     expect(screen.getByText('Mesh Peers')).toBeInTheDocument();

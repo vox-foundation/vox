@@ -200,7 +200,7 @@ export function RunsView({ pushToast, gamifyEnabled = false }: RunsViewProps) {
       )}
 
       <div className="col-span-12 xl:col-span-7 flex flex-col gap-3">
-        <h3 className="font-display text-sm tracking-widest uppercase text-text-secondary">Model Scoreboard (7d)</h3>
+        <h2 className="font-display text-sm tracking-widest uppercase text-text-secondary">Model Scoreboard (7d)</h2>
         <DataTable
           rows={scoreboard}
           columns={scoreboardCols}
@@ -218,7 +218,7 @@ export function RunsView({ pushToast, gamifyEnabled = false }: RunsViewProps) {
       </div>
 
       <div className="col-span-12 xl:col-span-5 flex flex-col gap-3">
-        <h3 className="font-display text-sm tracking-widest uppercase text-text-secondary">Recent Activity</h3>
+        <h2 className="font-display text-sm tracking-widest uppercase text-text-secondary">Recent Activity</h2>
         <DataTable
           rows={runs}
           columns={runsCols}

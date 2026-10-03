@@ -27,7 +27,7 @@ const healthy: RoutingHealth = {
 describe('RoutingExplainer', () => {
   it('leads with the chosen model and the mode in plain language', () => {
     render(<RoutingExplainer explanation={explanation} health={healthy} />);
-    expect(screen.getByRole('heading', { name: /why acme\/widget-5\.5/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: /why acme\/widget-5\.5/i })).toBeTruthy();
     expect(screen.getByText(/^Efficient/)).toBeTruthy();
     expect(document.body.textContent).not.toMatch(/intel=|eff=|lat=|_/);
   });

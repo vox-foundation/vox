@@ -34,9 +34,9 @@ export function RoutingExplainer({ explanation, health, loading = false }: Props
     <section data-testid="routing-explainer" aria-labelledby="routing-explainer-title" aria-busy={loading}
       className="flex min-h-72 min-w-0 flex-col gap-3">
       <header>
-        <h3 id="routing-explainer-title" className="text-sm text-text-primary">
+        <h2 id="routing-explainer-title" className="text-sm text-text-primary">
           Why {explanation.chosen ?? 'no model'}
-        </h3>
+        </h2>
         <p className="text-xs text-text-muted">How task dispatch would choose now</p>
         <p className="text-xs text-text-muted">
           {modeLabel(explanation.mode)}: {modeObjective(explanation.mode)}

@@ -257,7 +257,7 @@ export function Dashboard({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Icon.alert className="size-4 text-amber-300" />
-                <h3 className="font-display text-[14px] font-semibold tracking-wide text-text-primary">System · Telemetry & Alerts</h3>
+                <h2 className="font-display text-[14px] font-semibold tracking-wide text-text-primary">System · Telemetry & Alerts</h2>
               </div>
               <span className="font-mono text-[10px] text-text-muted">{data.alerts.length} open</span>
             </div>
@@ -276,7 +276,7 @@ export function Dashboard({
         return (
           <Glass className="h-full p-5">
             <div className="flex items-center justify-between">
-              <h3 className="font-display text-[14px] font-semibold tracking-wide text-text-primary">Active Agents</h3>
+              <h2 className="font-display text-[14px] font-semibold tracking-wide text-text-primary">Active Agents</h2>
               <span className="font-mono text-[10px] text-text-muted">{data.agents.length} shards</span>
             </div>
             <div className="mt-3 flex flex-col gap-2">
