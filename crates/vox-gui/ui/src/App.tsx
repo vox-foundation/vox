@@ -30,9 +30,6 @@ import { BackendBanner } from './components/ui/BackendBanner';
 import { VersionMismatchBanner } from './components/layout/VersionMismatchBanner';
 import { OnboardingWizard } from './components/surfaces/Onboarding/OnboardingWizard';
 import { userAppendInput } from './lib/composerSubmit';
-import { Transcript } from './components/surfaces/Loquela/Transcript';
-import { DiffReview } from './components/surfaces/Loquela/DiffReview';
-import { InlineApprovals } from './components/surfaces/Loquela/InlineApprovals';
 import { type McpInvokeResult } from './lib/mcpToolResult';
 import {
   assistantMessagesReadyToPersist,
@@ -1874,21 +1871,6 @@ export default function App() {
 
   const mainSurface = renderSurfaceContent(activeView, surfaceProps);
 
-  const chatDock = (
-    <>
-      <InlineApprovals pushToast={pushToast} onViewAll={() => navigateTo('approvals')} />
-      {diffOpen && (
-        <DiffReview
-          diff={diffText}
-          loading={diffLoading}
-          onClose={() => setDiffOpen(false)}
-        />
-      )}
-      <Transcript messages={activeChatMessages} />
-      {loquelaComposer}
-    </>
-  );
-
   return (
     <>
       <div className="flex h-screen flex-col">
@@ -1917,7 +1899,6 @@ export default function App() {
         surfaceKey={activeView}
         surfaceLabel={labelForNavKey(activeView)}
         chatDocked={chatDocked}
-        chatDock={chatDock}
         routingSummary={routingSummaryQuery.data ?? null}
         openrouterSpendUsd={openrouterSpendUsd}
         sessionSpentUsd={sessionSpentUsd}
