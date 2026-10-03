@@ -311,7 +311,7 @@ export function ActivitySurface({ pushToast }: ActivitySurfaceProps) {
           <Icon.bolt className="text-emerald-400 size-5" />
           Agent Activity Timeline
         </h2>
-        <p className="text-xs text-zinc-500">
+        <p className="text-xs text-text-muted">
           Durable log of high-signal events emitted across agent orchestrations.
         </p>
       </div>
@@ -323,6 +323,7 @@ export function ActivitySurface({ pushToast }: ActivitySurfaceProps) {
           </label>
           <select
             value={agentFilter}
+            aria-label="Agent"
             onChange={(e) => setAgentFilter(e.target.value)}
             className="bg-zinc-900 border border-zinc-800 rounded-sm px-2 py-1 text-xs text-zinc-300 focus:outline-hidden focus:border-zinc-700"
           >
@@ -341,6 +342,7 @@ export function ActivitySurface({ pushToast }: ActivitySurfaceProps) {
           </label>
           <select
             value={kindFilter}
+            aria-label="Event Type"
             onChange={(e) => setKindFilter(e.target.value)}
             className="bg-zinc-900 border border-zinc-800 rounded-sm px-2 py-1 text-xs text-zinc-300 focus:outline-hidden focus:border-zinc-700"
           >
