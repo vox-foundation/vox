@@ -32,7 +32,7 @@ interface Report {
 const PILL: Record<string, { bg: string; fg: string }> = {
   completed: { bg: 'var(--bg-success, #E1F5EE)', fg: 'var(--text-success, #0F6E56)' },
   failed: { bg: 'var(--bg-danger, #FCEBEB)', fg: 'var(--text-danger, #A32D2D)' },
-  pending: { bg: 'var(--surface-1, #f1efe8)', fg: 'var(--text-muted, #888780)' },
+  pending: { bg: 'var(--surface-1, #f1efe8)', fg: 'var(--text-pending, #444441)' },
 };
 
 /** Merge the planned manifest with run-state statuses into display rows. */
@@ -127,54 +127,54 @@ export function CodeRabbitView({ pushToast }: CodeRabbitViewProps): React.ReactE
         <span style={{ background: 'var(--bg-pro, #EEEDFE)', color: 'var(--text-pro, #534AB7)', fontSize: 12, padding: '3px 10px', borderRadius: 20 }}>
           Pro · 150 files · 5/hr
         </span>
-        <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted, #888780)' }}>
+        <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--color-text-muted)' }}>
           token: {tokenOk == null ? '…' : tokenOk ? 'present ✓' : 'absent'}
         </span>
       </div>
 
       <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'end', marginBottom: '1rem' }}>
         <label style={{ fontSize: 13 }}>
-          <div style={{ color: 'var(--text-secondary, #5F5E5A)', marginBottom: 4 }}>Scope</div>
+          <div style={{ color: 'var(--color-text-secondary)', marginBottom: 4 }}>Scope</div>
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <input type="checkbox" checked={fullRepo} onChange={(e) => setFullRepo(e.target.checked)} />
             Full repo
           </label>
         </label>
         <label style={{ fontSize: 13 }}>
-          <div style={{ color: 'var(--text-secondary, #5F5E5A)', marginBottom: 4 }}>Modified since</div>
+          <div style={{ color: 'var(--color-text-secondary)', marginBottom: 4 }}>Modified since</div>
           <input type="date" value={since} disabled={fullRepo} onChange={(e) => setSince(e.target.value)} />
         </label>
         <label style={{ fontSize: 13 }}>
-          <div style={{ color: 'var(--text-secondary, #5F5E5A)', marginBottom: 4 }}>Max files / PR</div>
+          <div style={{ color: 'var(--color-text-secondary)', marginBottom: 4 }}>Max files / PR</div>
           <input type="number" min={1} max={150} value={cap} onChange={(e) => { const n = Number(e.target.value); setCap(Number.isFinite(n) ? Math.max(1, Math.min(150, Math.trunc(n))) : 1); }} style={{ width: 90 }} />
         </label>
         <label style={{ fontSize: 13 }}>
-          <div style={{ color: 'var(--text-secondary, #5F5E5A)', marginBottom: 4 }}>Top N (blank = all)</div>
+          <div style={{ color: 'var(--color-text-secondary)', marginBottom: 4 }}>Top N (blank = all)</div>
           <input type="number" min={1} value={top} placeholder="all" onChange={(e) => setTop(e.target.value)} style={{ width: 90 }} />
         </label>
         <label style={{ fontSize: 13 }}>
-          <div style={{ color: 'var(--text-secondary, #5F5E5A)', marginBottom: 4 }}>Rank weights (r,c,g)</div>
+          <div style={{ color: 'var(--color-text-secondary)', marginBottom: 4 }}>Rank weights (r,c,g)</div>
           <input type="text" value={weights} onChange={(e) => setWeights(e.target.value)} style={{ width: 110 }} />
         </label>
         <button onClick={plan} disabled={busy || (!fullRepo && !since)}>{busy ? 'Planning…' : 'Plan sweep'}</button>
         <button onClick={run} disabled={running || !rows.length}>{running ? 'Running…' : 'Run'}</button>
       </div>
 
-      <div style={{ fontSize: 13, color: 'var(--text-secondary, #5F5E5A)', marginBottom: 8 }}>
+      <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginBottom: 8 }}>
         {rows.length
           ? `Planned ${rows.length} PRs · ${totalFiles} files · est ~${Math.ceil(rows.length / 5)}h at 5/hr`
           : 'No plan yet — pick a date (or Full repo) and click “Plan sweep”.'}
       </div>
 
       {rows.length > 0 && (
-        <div style={{ border: '0.5px solid var(--border, #d3d1c7)', borderRadius: 8, overflow: 'hidden' }}>
+        <div style={{ border: '0.5px solid var(--color-border-subtle)', borderRadius: 8, overflow: 'hidden' }}>
           {rows.map((r, i) => {
             const pill = PILL[r.status] ?? PILL.pending;
             return (
-              <div key={r.name} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderTop: i ? '0.5px solid var(--border, #d3d1c7)' : 'none' }}>
+              <div key={r.name} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderTop: i ? '0.5px solid var(--color-border-subtle)' : 'none' }}>
                 <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 13, flex: 1 }}>{r.name}</span>
-                <span style={{ fontSize: 12, color: 'var(--text-muted, #888780)', width: 70, textAlign: 'right' }}>{r.files} files</span>
-                {r.pr ? <span style={{ fontSize: 12, color: 'var(--text-muted, #888780)' }}>#{r.pr}</span> : <span style={{ width: 28 }} />}
+                <span style={{ fontSize: 12, color: 'var(--color-text-muted)', width: 70, textAlign: 'right' }}>{r.files} files</span>
+                {r.pr ? <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>#{r.pr}</span> : <span style={{ width: 28 }} />}
                 <span style={{ background: pill.bg, color: pill.fg, fontSize: 11, padding: '3px 9px', borderRadius: 20, width: 84, textAlign: 'center' }}>{r.status}</span>
               </div>
             );
