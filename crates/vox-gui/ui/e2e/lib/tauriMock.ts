@@ -128,6 +128,7 @@ export function installTauriMock(viewKey: string): void {
         .map(({ resolved: _r, ...a }) => a);
       return { success: true, data: { approvals: pending } };
     }
+    if (tool.includes('feedback_list')) return { success: true, data: { needs_you: [], withheld: [] } };
     if (tool.includes('git_diff')) return { success: true, data: 'diff --git a/README.md b/README.md\n' };
     if (tool.includes('skill') || tool.includes('plugin')) return { skills: [{ id: 'superpowers', name: 'Superpowers', enabled: true }], plugins: [{ id: 'design', name: 'Design' }] };
     return { ok: true };
