@@ -144,7 +144,7 @@ function RoutingPanel() {
   const [task, setTask] = useState<string>('codegen');
   const { explanation, health, loading } = useRoutingExplanation(mode, task, 7);
   return (
-    <Glass className="p-4 flex flex-col gap-3">
+    <Glass id="routing-panel" className="p-4 flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3 text-xs">
         <div className="font-display text-[11px] tracking-[0.2em] uppercase text-text-muted">Routing</div>
         <label className="flex items-center gap-1">

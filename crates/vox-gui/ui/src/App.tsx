@@ -408,6 +408,12 @@ export default function App() {
     queryFn: () => voxTransport.getRoutingSummaryLive(),
     refetchInterval: 20_000,
   });
+  // The Routing card's health dot: only a reported problem shows, so a failed fetch shows nothing.
+  const routingHealthQuery = useQuery({
+    queryKey: ['routing-health'],
+    queryFn: () => voxTransport.getRoutingHealth(),
+    refetchInterval: 20_000,
+  });
   // The rail's Routing section reads the same one query as the status bar's Routing card.
   const chatRouting = useMemo(
     () => railRoutingFromSummary(routingSummaryQuery.data ?? null),
@@ -1900,6 +1906,7 @@ export default function App() {
         surfaceLabel={labelForNavKey(activeView)}
         chatDocked={chatDocked}
         routingSummary={routingSummaryQuery.data ?? null}
+        routingHealth={routingHealthQuery.data ?? null}
         openrouterSpendUsd={openrouterSpendUsd}
         sessionSpentUsd={sessionSpentUsd}
         gamifyEnabled={gamifySettings.enabled}

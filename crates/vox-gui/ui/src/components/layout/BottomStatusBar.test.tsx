@@ -332,6 +332,42 @@ describe('BottomStatusBar cards (chat-surfaces plan 3a)', () => {
     expect(onNavigate).toHaveBeenCalledWith('needs-you');
   });
 
+  describe('Routing card health', () => {
+    const health = (over: Record<string, unknown> = {}) => ({
+      schema_version: 1,
+      checked_at_unix: 0,
+      models: 10,
+      cloud_models: 8,
+      benchmarked: 8,
+      inherited: 0,
+      unknown_tier_cloud: 0,
+      quality_scale: 'derived' as const,
+      price_bands: 'derived' as const,
+      efficient_pick: null,
+      violations: [] as Array<{ invariant: string; detail: string }>,
+      ...over,
+    });
+
+    it('shows nothing extra when routing is healthy', () => {
+      renderBar({ routingHealth: health() });
+      expect(screen.queryByTestId('bottom-status-bar-routing-health')).toBeNull();
+    });
+
+    it('shows a dot that says how many problems when there are violations or a fallback scale', () => {
+      renderBar({
+        routingHealth: health({ violations: [{ invariant: 'a', detail: 'x' }], price_bands: 'fallback' }),
+      });
+      expect(screen.getByRole('img', { name: 'Routing health: 2 problems' })).toBeInTheDocument();
+    });
+
+    it('is named "Open routing details" and opens Models', () => {
+      const onNavigate = vi.fn();
+      renderBar({ onNavigate });
+      fireEvent.click(screen.getByRole('button', { name: 'Open routing details' }));
+      expect(onNavigate).toHaveBeenCalledWith('models');
+    });
+  });
+
   it('Needs you never reads as a clear 0 while a source failed to load', () => {
     renderBar({ needsYouCount: 0, needsYouDegraded: ['approvals'] });
     const card = screen.getByTestId('bottom-status-bar-needs-you');

@@ -8,7 +8,7 @@ import { SurfaceErrorBoundary } from '../ui/ErrorBoundary';
 import type { DashboardData } from '../../types/dashboard';
 import type { PolicyBadge } from './Sidebar';
 import type { HudTilesConfig } from '../../hooks/useHudTiles';
-import type { RoutingSummary, Toast } from '../../types/tauri';
+import type { RoutingHealth, RoutingSummary, Toast } from '../../types/tauri';
 import type { MeshNode } from '../surfaces/Mesh/MeshView';
 import { INITIAL_KPIS } from '../../data/initialState';
 import type { ChatSession } from '../../lib/useChatSessions';
@@ -44,6 +44,8 @@ export interface AppShellProps {
   openrouterSpendUsd?: number | null;
   /** Global routing pick for the status bar's Routing card. */
   routingSummary?: RoutingSummary | null;
+  /** Routing health for the Routing card's dot. */
+  routingHealth?: RoutingHealth | null;
   /** This chat session's spend, for the Spend popover. */
   sessionSpentUsd?: number | null;
   gamifyEnabled?: boolean;
@@ -97,6 +99,7 @@ export function AppShell({
   children,
   openrouterSpendUsd,
   routingSummary,
+  routingHealth,
   sessionSpentUsd,
   gamifyEnabled,
   onOpenAchievements,
@@ -188,6 +191,7 @@ export function AppShell({
         orchUsesPolling={orchUsesPolling}
         liveFreshMs={liveFreshMs}
         routingSummary={routingSummary}
+        routingHealth={routingHealth}
         openrouterSpendUsd={openrouterSpendUsd}
         sessionSpentUsd={sessionSpentUsd}
         needsYouCount={needsYouCount}

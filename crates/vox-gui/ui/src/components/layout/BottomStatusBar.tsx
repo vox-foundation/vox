@@ -12,8 +12,8 @@ import {
 } from '../../hooks/useHudTiles';
 import { INITIAL_KPIS } from '../../data/initialState';
 import { WORKBENCH_TABBAR_TRAILING_SLOT_ID } from '../../lib/domIds';
-import { routingCardValue } from '../../lib/routingSummary';
-import type { RoutingSummary } from '../../types/tauri';
+import { routingCardValue, routingHealthProblems } from '../../lib/routingSummary';
+import type { RoutingHealth, RoutingSummary } from '../../types/tauri';
 import type { MeshNode } from '../surfaces/Mesh/MeshView';
 import { StatusBarCluster } from '../common/StatusBarCluster';
 import { NotificationCenter } from '../common/NotificationCenter';
@@ -31,6 +31,8 @@ export interface BottomStatusBarProps {
   liveFreshMs: number;
   /** Global routing pick (get_routing_summary_live); a version is shown only when catalog-resolved. */
   routingSummary?: RoutingSummary | null;
+  /** Routing health (get_routing_health); the Routing card shows a dot only when it reports a problem. */
+  routingHealth?: RoutingHealth | null;
   openrouterSpendUsd?: number | null;
   /** This chat session's spend (get_llm_spend sessionUsd), shown in the Spend popover. */
   sessionSpentUsd?: number | null;
@@ -79,11 +81,16 @@ function Segment({
   onClick,
   expanded,
   buttonRef,
+  ariaLabel,
+  badge,
 }: {
   testId: string;
   label: string;
   value: string;
   onClick: () => void;
+  /** Overrides the accessible name (the visible label and value stay as they are). */
+  ariaLabel?: string;
+  badge?: React.ReactNode;
   /** Set only on a card that opens a popover. */
   expanded?: boolean;
   buttonRef?: React.Ref<HTMLButtonElement>;
@@ -94,6 +101,7 @@ function Segment({
       type="button"
       data-testid={testId}
       onClick={onClick}
+      aria-label={ariaLabel}
       aria-haspopup={expanded === undefined ? undefined : 'dialog'}
       aria-expanded={expanded}
       className="inline-flex items-center gap-1.5 rounded-sm px-2 py-0.5 text-[10px] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
@@ -106,6 +114,7 @@ function Segment({
       >
         {value}
       </span>
+      {badge}
     </button>
   );
 }
@@ -119,6 +128,7 @@ export function BottomStatusBar({
   orchUsesPolling,
   liveFreshMs,
   routingSummary = null,
+  routingHealth = null,
   openrouterSpendUsd = null,
   sessionSpentUsd = null,
   needsYouCount = null,
@@ -178,6 +188,8 @@ export function BottomStatusBar({
       ? '—'
       : `${meshNodes.filter((n) => n.status === 'online').length}/${meshNodes.length} online`;
 
+  const routingProblems = routingHealthProblems(routingHealth);
+
   const renderSegment = (kind: HudTileKind): React.ReactNode => {
     const label = HUD_TILE_LABELS[kind];
     switch (kind) {
@@ -220,7 +232,23 @@ export function BottomStatusBar({
             testId="bottom-status-bar-routing"
             label={label}
             value={routingCardValue(routingSummary)}
-            onClick={() => onNavigate('models')}
+            ariaLabel="Open routing details"
+            badge={
+              routingProblems > 0 ? (
+                <span
+                  role="img"
+                  data-testid="bottom-status-bar-routing-health"
+                  aria-label={`Routing health: ${routingProblems} ${routingProblems === 1 ? 'problem' : 'problems'}`}
+                  className="size-1.5 shrink-0 rounded-full"
+                  style={{ background: 'var(--color-status-warn)' }}
+                />
+              ) : null
+            }
+            onClick={() => {
+              onNavigate('models');
+              // ponytail: one timed retry for a surface that mounts after navigation; a ref handshake if it ever misses.
+              window.setTimeout(() => document.getElementById('routing-panel')?.scrollIntoView?.({ block: 'start' }), 150);
+            }}
           />
         );
       case 'pending_approvals':
