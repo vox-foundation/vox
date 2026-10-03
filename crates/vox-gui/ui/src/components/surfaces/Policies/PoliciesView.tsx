@@ -8,6 +8,7 @@ import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 import { buildGroupTree, needsAttention, overallWorst, statusForRow } from './policyTree';
 import { policySetEnabled, policyEdit } from '../../../transport';
 import type { PolicyRow, PolicyDetail, PolicyStatus, BranchInfo, RunStatus } from './types';
+import type { Toast } from '../../../types/tauri';
 
 const STATUS_DOT: Record<RunStatus, string> = {
   fail: 'bg-red-500',
@@ -35,7 +36,7 @@ export function PoliciesView({
   pushToast,
   gamifyEnabled = false,
 }: {
-  pushToast: (t: any) => void;
+  pushToast: (t: Toast) => void;
   gamifyEnabled?: boolean;
 }) {
   const [rows, setRows] = useState<PolicyRow[]>([]);
@@ -58,7 +59,7 @@ export function PoliciesView({
         setRows(list);
         if (list.length) setSelectedId(prev => prev ?? list[0].id);
       })
-      .catch(err => pushToast({ tone: 'warn', title: 'Policy catalog failed', body: sanitizeErrorForToast(err) }));
+      .catch(err => pushToast({ tone: 'error', title: 'Policy catalog failed', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
     invoke<BranchInfo[]>('list_branches')
       .then(b => { setBranches(b); setSelectedBranches(b.filter(x => x.isCurrent).map(x => x.branch)); })
       .catch(() => setBranches([]));
@@ -83,7 +84,7 @@ export function PoliciesView({
     );
     invoke<PolicyDetail>('policy_show', { id: selectedId })
       .then(setDetail)
-      .catch(err => pushToast({ tone: 'warn', title: 'Detail failed', body: sanitizeErrorForToast(err) }));
+      .catch(err => pushToast({ tone: 'error', title: 'Detail failed', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId]);
 
@@ -95,7 +96,7 @@ export function PoliciesView({
     if (!selectedId) return;
     invoke<PolicyDetail>('policy_show', { id: selectedId })
       .then(setDetail)
-      .catch(err => pushToast({ tone: 'warn', title: 'Detail failed', body: sanitizeErrorForToast(err) }));
+      .catch(err => pushToast({ tone: 'error', title: 'Detail failed', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
   };
 
   const toggleBranch = (b: string) =>

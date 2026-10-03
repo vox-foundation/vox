@@ -14,7 +14,7 @@ import { listPlanNodes } from '../../../transport';
 import { labelForNavKey } from '../../../lib/navigation';
 import { WORKBENCH_TABBAR_TRAILING_SLOT_ID } from '../../../lib/domIds';
 import type { ChatMessage } from '../../../lib/chatCorrelation';
-import type { AttentionBudgetSnapshot } from '../../../types/tauri';
+import type { AttentionBudgetSnapshot, Toast } from '../../../types/tauri';
 import { AttentionBudgetMeter } from '../AttentionBudgetMeter';
 import { SecretaryToast } from './SecretaryToast';
 import { listenSecretaryProposed, type SecretaryProposedPayload, feedbackList } from '../../../transport';
@@ -271,7 +271,7 @@ function EmptyTab(props: IDockviewPanelHeaderProps) {
 const CHAT_DOCK_TAB_COMPONENTS = { transcript: EmptyTab };
 
 interface ChatSurfaceProps {
-  pushToast: (t: any) => void;
+  pushToast: (t: Toast) => void;
   onNavigate?: (viewKey: string) => void;
   messages?: ChatMessage[];
   activeSessionId?: string;

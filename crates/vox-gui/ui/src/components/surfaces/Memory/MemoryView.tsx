@@ -11,6 +11,7 @@ import { Sparkline } from '../../ui/Sparkline';
 import { renderHighlights, UnifiedHit, SearchResponse } from '../Search/searchHelpers';
 import { attachItemsFromHits, AttachItem } from '../../../lib/loquelaContext';
 import { MEMORY_RECALL_DEBOUNCE_MS } from '../../../config/constants';
+import type { Toast } from '../../../types/tauri';
 
 export interface KnowledgeNodeRow {
   id: string;
@@ -153,7 +154,7 @@ interface MemoryStatusPayload {
 }
 
 interface MemoryViewProps {
-  pushToast: (t: any) => void;
+  pushToast: (t: Toast) => void;
   /**
    * Pin recall hits into the shared Loquela context set. When absent (e.g. a
    * standalone render), pinning is unavailable and the controls report that
@@ -307,7 +308,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
   useEffect(() => {
     invoke<MemoryStatusPayload>('get_memory_status')
       .then(setMemStatus)
-      .catch((err) => pushToast({ tone: 'warn', title: 'Memory status unavailable', body: sanitizeErrorForToast(err) }));
+      .catch((err) => pushToast({ tone: 'error', title: 'Memory status unavailable', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
   }, [pushToast]);
 
   // Hydrate the persisted auto-recall preference on mount.
@@ -321,7 +322,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
     setRecallOn((prev) => {
       const next = !prev;
       voxTransport.setGuiPreference('gui.memory.autoRecall', String(next))
-        .catch((err) => pushToast({ tone: 'warn', title: 'Could not persist auto-recall', body: sanitizeErrorForToast(err) }));
+        .catch((err) => pushToast({ tone: 'error', title: 'Could not persist auto-recall', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
       return next;
     });
   };
@@ -360,9 +361,10 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
         title: 'Recall complete',
         body: `Top hits across ${scope.length} corpora`,
         cmd: `vox_search_query • "${qq}"`,
+        cause: 'backend-ok',
       });
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Recall backend error', body: sanitizeErrorForToast(err) });
+      pushToast({ tone: 'error', title: 'Recall backend error', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setRecalling(false);
       invoke<MemoryStatusPayload>('get_memory_status').then(setMemStatus).catch(() => {});
@@ -390,6 +392,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
         tone: 'warn',
         title: 'Nothing to pin',
         body: 'These hits have no file/web locator the agent can read.',
+        cause: 'validation',
       });
       return;
     }
@@ -398,6 +401,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
         tone: 'warn',
         title: 'Context unavailable',
         body: 'Pin-to-context is only available inside the main shell.',
+        cause: 'validation',
       });
       return;
     }
@@ -409,7 +413,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
       try {
         await voxTransport.openLocator(hit.locator);
       } catch (err) {
-        pushToast({ tone: 'warn', title: 'Could not open', body: sanitizeErrorForToast(err) });
+        pushToast({ tone: 'error', title: 'Could not open', body: sanitizeErrorForToast(err), cause: 'backend-error' });
       }
     }
   };
@@ -445,8 +449,8 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
               type="button"
               onClick={() =>
                 invoke('mnemosyne_reindex')
-                  .then(() => pushToast({ tone: 'ok', title: 'Reindex complete', cmd: 'mnemosyne reindex' }))
-                  .catch((err) => pushToast({ tone: 'warn', title: 'Reindex failed', body: sanitizeErrorForToast(err) }))
+                  .then(() => pushToast({ tone: 'ok', title: 'Reindex complete', cmd: 'mnemosyne reindex', cause: 'backend-ok' }))
+                  .catch((err) => pushToast({ tone: 'error', title: 'Reindex failed', body: sanitizeErrorForToast(err), cause: 'backend-error' }))
               }
               className="inline-flex items-center gap-1.5 rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1.5 font-mono text-[10px] text-text-muted hover:text-text-secondary"
             >

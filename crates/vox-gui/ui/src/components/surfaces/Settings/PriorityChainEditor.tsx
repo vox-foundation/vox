@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { MODEL_LIST_LIMIT } from '../../../config/constants';
 import { voxTransport } from '../../../transport';
+import type { Toast } from '../../../types/tauri';
 
 // --- SelectionPolicy JSON shape (mirrors vox_orchestrator::models::SelectionPolicy) ---
 // The Rust enums are externally-tagged serde with snake_case variant names:
@@ -75,7 +76,7 @@ const BTN =
   'rounded-sm border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40';
 
 interface Props {
-  pushToast: (t: any) => void;
+  pushToast: (t: Toast) => void;
 }
 
 export function PriorityChainEditor({ pushToast }: Props) {

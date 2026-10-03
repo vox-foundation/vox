@@ -5,6 +5,7 @@ import { Glass } from '../../ui/Glass';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 import { BackendAvailability, type ProviderStatus } from './BackendAvailability';
+import type { Toast } from '../../../types/tauri';
 
 interface ModelCard {
   id: string;
@@ -36,7 +37,7 @@ interface RoutingSummary {
 }
 
 interface ModelsViewProps {
-  pushToast: (t: any) => void;
+  pushToast: (t: Toast) => void;
   gamifyEnabled?: boolean;
 }
 
@@ -66,7 +67,7 @@ export function ModelsView({ pushToast, gamifyEnabled = false }: ModelsViewProps
       // `statuses.length` would then TypeError inside BackendAvailability).
       setProviderStatuses(Array.isArray(statuses) ? statuses : []);
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Models load failed', body: sanitizeErrorForToast(err) });
+      pushToast({ tone: 'error', title: 'Models load failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setLoading(false);
     }
@@ -85,9 +86,9 @@ export function ModelsView({ pushToast, gamifyEnabled = false }: ModelsViewProps
       await invoke('set_active_model', { modelId: id });
       setActiveModel(id);
       void recordGamifyGuiEvent('model_activated', { model_id: id }, { enabled: gamifyEnabled });
-      pushToast({ tone: 'ok', title: 'Active model set', body: id });
+      pushToast({ tone: 'ok', title: 'Active model set', body: id, cause: 'backend-ok' });
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Set active failed', body: sanitizeErrorForToast(err) });
+      pushToast({ tone: 'error', title: 'Set active failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     }
   };
 

@@ -14,6 +14,7 @@ import { TaskComposer } from './TaskComposer';
 import { feedbackList, hopperList, hopperMarkDone, listenFeedbackChanged, voxTransport, type FeedbackRow } from '../../../transport';
 import { priorityLabel, TASK_PRIORITY_WIRE } from '../../../lib/taskPriority';
 import type { AttentionInbox } from '../../../hooks/useAttentionInbox';
+import type { Toast } from '../../../types/tauri';
 
 interface StoredSession { id: string; title: string }
 
@@ -33,7 +34,7 @@ export function TasksView({
   gamifyEnabled = false,
   attention,
 }: {
-  pushToast?: (t: unknown) => void;
+  pushToast?: (t: Toast) => void;
   gamifyEnabled?: boolean;
   /** When provided, this surface sources its task/feedback data from the
    *  shared inbox instead of self-fetching (App owns polling via

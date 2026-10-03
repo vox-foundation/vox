@@ -17,6 +17,7 @@ import {
 } from '../../../lib/mcpToolResult';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 import { voxTransport, getPermissionMode, setPermissionMode as setTransportPermissionMode } from '../../../transport';
+import type { Toast } from '../../../types/tauri';
 
 interface PendingApproval {
   approval_id: string;
@@ -26,7 +27,7 @@ interface PendingApproval {
 }
 
 interface ApprovalsViewProps {
-  pushToast: (t: any) => void;
+  pushToast: (t: Toast) => void;
   gamifyEnabled?: boolean;
 }
 

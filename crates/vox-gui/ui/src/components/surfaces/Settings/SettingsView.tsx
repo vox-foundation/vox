@@ -734,7 +734,7 @@ interface LlmSpendDto {
   perSessionBudgetUsd: number;
 }
 
-function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
+function RuntimeConfigSection({ pushToast }: { pushToast: (t: Toast) => void }) {
   const [fields, setFields] = useState<UserConfigFieldDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [spend, setSpend] = useState<LlmSpendDto | null>(null);
@@ -891,7 +891,7 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
   );
 }
 
-function LlmSettingsSection({ pushToast, onJumpToKeysSecrets }: { pushToast: (t: any) => void; onJumpToKeysSecrets: () => void }) {
+function LlmSettingsSection({ pushToast, onJumpToKeysSecrets }: { pushToast: (t: Toast) => void; onJumpToKeysSecrets: () => void }) {
   const [cfg, setCfg] = useState({
     maxConcurrentRequests: 8,
     openrouterMaxConcurrent: null as number | null,

@@ -12,6 +12,7 @@ import { useLang } from '../../hooks/useLanguage';
 import { LEXICON, labelFor, sidebarParentLabel } from '../../lib/lexicon';
 import { SessionSidebarSection } from './SessionSidebarSection';
 import type { ChatSession } from '../../lib/useChatSessions';
+import type { Toast } from '../../types/tauri';
 
 export type SidebarMode = 'rail' | 'default' | 'wide';
 
@@ -74,7 +75,7 @@ interface SidebarProps {
   data: DashboardData;
   mode: SidebarMode;
   setMode: (m: SidebarMode) => void;
-  pushToast: (t: any) => void;
+  pushToast: (t: Toast) => void;
   appVersion?: string;
   policyBadge?: PolicyBadge | null;
   needsYouCount?: number;

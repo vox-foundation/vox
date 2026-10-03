@@ -10,6 +10,7 @@ import { Icon } from '../../ui/Icons';
 import { RUNS_POLL_MS, RUNS_LIST_LIMIT, SCOREBOARD_WINDOW_DAYS } from '../../../config/constants';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
+import type { Toast } from '../../../types/tauri';
 
 interface ScoreboardRow {
   model_id: string;
@@ -36,7 +37,7 @@ interface RunRow {
 }
 
 interface RunsViewProps {
-  pushToast: (t: any) => void;
+  pushToast: (t: Toast) => void;
   gamifyEnabled?: boolean;
 }
 
@@ -73,7 +74,7 @@ export function RunsView({ pushToast, gamifyEnabled = false }: RunsViewProps) {
       const summary = await invoke<any>('get_routing_summary_live');
       setDecision(summary?.decision_preview ?? null);
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Runs load failed', body: sanitizeErrorForToast(err) });
+      pushToast({ tone: 'error', title: 'Runs load failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setLoading(false);
     }
