@@ -500,7 +500,6 @@ async fn find_reachable_knowledge_nodes_fallback(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::VoxDb;
 
     #[tokio::test]
