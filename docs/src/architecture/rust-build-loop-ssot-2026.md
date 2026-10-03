@@ -76,6 +76,17 @@ the persistent lever is outside the repository: allow the app that launches `car
 for agent runs) under System Settings, Privacy and Security, Developer Tools. That is a security setting, so it was not
 changed here; a before and after with the Part A loop above would confirm or refute it in about ten minutes.
 
+### Part B authorization (Task B0)
+
+**B0 approved 2026-10-03 by the owner, in chat ("part b build loop authorized"), overriding the NO-GO above.** The
+approval covers exactly: a `layers.toml` row `vox-orchestrator-models = { layer = 3 }`; the new edge
+`vox-orchestrator -> vox-orchestrator-models`; the edges `vox-orchestrator-models -> {vox-orchestrator-types, vox-config,
+vox-db, vox-secrets, vox-actor-runtime, vox-telemetry, vox-mesh-transport, vox-mesh-policy, vox-mesh-types, vox-bounded-fs,
+vox-repository}` as Task B4's `cargo check` confirms them (an edge outside that list stops the work); the matching
+fan-in baseline rows; and the `where-things-live.md` row. The measurement still predicts a small saving, so Task B6
+records `T_models_after` and `T_other_after` as evidence rather than treating a miss as a revert order: the extraction is
+kept unless it makes `T_other` worse than 1.2x.
+
 ## What a `models` crate split would have to solve
 
 `vox-orchestrator` is 94k lines in 335 files; `models/` is 12.3k. `models/` reaches outward through a small surface
