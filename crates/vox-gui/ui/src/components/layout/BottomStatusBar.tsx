@@ -52,16 +52,16 @@ export interface BottomStatusBarProps {
 function freshnessClasses(tone: 'live' | 'poll' | 'stale') {
   if (tone === 'live') {
     return {
-      pill: 'border-emerald-400/20 bg-emerald-400/4 text-emerald-300',
-      dot: 'bg-emerald-400',
+      pill: 'border-(--color-status-pass)/20 bg-(--color-status-pass)/4 text-(--color-status-pass)',
+      dot: 'bg-(--color-status-pass)',
       label: 'Live',
       title: 'Live: receiving engine events',
     };
   }
   if (tone === 'poll') {
     return {
-      pill: 'border-amber-400/20 bg-amber-400/4 text-amber-300',
-      dot: 'bg-amber-400',
+      pill: 'border-(--color-status-warn)/20 bg-(--color-status-warn)/4 text-(--color-status-warn)',
+      dot: 'bg-(--color-status-warn)',
       label: 'Poll',
       title: 'Polling: no event stream, refreshing on a timer',
     };
@@ -318,7 +318,7 @@ export function BottomStatusBar({
           data-testid="achievements-trigger"
           aria-label="Open achievements"
           onClick={onOpenAchievements}
-          className="inline-flex shrink-0 items-center justify-center rounded-sm px-1.5 py-0.5 text-amber-300/80 hover:bg-overlay-subtle hover:text-amber-200 transition"
+          className="inline-flex shrink-0 items-center justify-center rounded-sm px-1.5 py-0.5 text-brass hover:bg-overlay-subtle hover:text-text-primary transition"
         >
           <Icon.trophy className="size-3.5" aria-hidden="true" />
         </button>

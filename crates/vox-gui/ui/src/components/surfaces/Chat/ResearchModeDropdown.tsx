@@ -65,9 +65,9 @@ export function ResearchModeDropdown({
         {selected.id === 'auto' ? (
           <Icon.brain className="size-3 text-brass" />
         ) : selected.id === 'fast' ? (
-          <Icon.bolt className="size-3 text-amber-300" />
+          <Icon.bolt className="size-3 text-brass" />
         ) : selected.id === 'deep' ? (
-          <Icon.globe className="size-3 text-cyan-300" />
+          <Icon.globe className="size-3 text-text-secondary" />
         ) : (
           <Icon.search className="size-3 text-text-muted" />
         )}
@@ -102,9 +102,9 @@ export function ResearchModeDropdown({
                   {opt.id === 'auto' ? (
                     <Icon.brain className="size-3.5 text-brass" />
                   ) : opt.id === 'fast' ? (
-                    <Icon.bolt className="size-3.5 text-amber-300" />
+                    <Icon.bolt className="size-3.5 text-brass" />
                   ) : opt.id === 'deep' ? (
-                    <Icon.globe className="size-3.5 text-cyan-300" />
+                    <Icon.globe className="size-3.5 text-text-secondary" />
                   ) : (
                     <Icon.search className="size-3.5 text-text-muted" />
                   )}

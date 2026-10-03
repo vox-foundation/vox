@@ -32,7 +32,7 @@ export function MessageBubble({
   const failed = message.status === 'failed';
 
   const tone = isSystem
-    ? 'self-center border-amber-400/20 bg-amber-400/6 text-amber-100/90 text-center max-w-full'
+    ? 'self-center border-(--color-status-warn)/20 bg-(--color-status-warn)/6 text-(--color-status-warn)/90 text-center max-w-full'
     : isUser
       ? 'self-end border-brass/30 bg-brass/8 text-text-primary'
       : 'self-start border-border-subtle bg-overlay-subtle text-text-secondary';
@@ -54,19 +54,19 @@ export function MessageBubble({
       )}
       {message.text}
       {streaming && (
-        <span className="ml-1 inline-flex items-center gap-1 text-[10px] text-cyan-300">
-          <span className="size-1.5 animate-pulse rounded-full bg-cyan-300" />
+        <span className="ml-1 inline-flex items-center gap-1 text-[10px] text-(--color-status-info)">
+          <span className="size-1.5 animate-pulse rounded-full bg-(--color-status-info)" />
           {message.text ? 'streaming…' : 'thinking…'}
         </span>
       )}
       {failed && (
-        <div className="mt-1 font-mono text-[10px] text-rose-400">
+        <div className="mt-1 font-mono text-[10px] text-(--color-status-fail)">
           error: {message.error ?? 'task failed'}
         </div>
       )}
       {message.role === 'assistant' && message.groundingFlagged && (
         <div className="mt-1 flex justify-end">
-          <span className="rounded-sm border border-amber-400/30 bg-amber-400/8 px-1.5 py-0.5 font-mono text-[9px] text-amber-300">
+          <span className="rounded-sm border border-(--color-status-warn)/30 bg-(--color-status-warn)/8 px-1.5 py-0.5 font-mono text-[9px] text-(--color-status-warn)">
             low confidence — unverified
           </span>
         </div>
@@ -87,11 +87,11 @@ export function MessageBubble({
 
 function HarnessIssueSummary({ issue }: { issue: HarnessIssueRow }) {
   const statusTone =
-    issue.status === 'dismissed' ? 'text-text-muted line-through' : 'text-amber-300';
+    issue.status === 'dismissed' ? 'text-text-muted line-through' : 'text-(--color-status-warn)';
   return (
     <div
       data-testid={`transcript-harness-issue-${issue.id}`}
-      className={`self-center rounded-sm border border-amber-400/30 bg-amber-400/8 px-2 py-1 text-center text-[10px] ${statusTone}`}
+      className={`self-center rounded-sm border border-(--color-status-warn)/30 bg-(--color-status-warn)/8 px-2 py-1 text-center text-[10px] ${statusTone}`}
     >
       Issue detected ({issue.status}): {issue.summary}
     </div>

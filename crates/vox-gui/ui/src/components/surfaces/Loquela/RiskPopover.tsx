@@ -35,7 +35,7 @@ export function RiskPopover({ risk, open, onChange, onClose, children }: RiskPop
       role="dialog"
       aria-label="Configure acceptable risk"
       onKeyDown={handleKeyDown}
-      className="absolute bottom-full left-0 z-50 mb-1.5 w-72 rounded-lg border border-white/10 bg-[#0b0b0e] p-3 text-[11px] shadow-xl"
+      className="absolute bottom-full left-0 z-50 mb-1.5 w-72 rounded-lg border border-white/10 bg-overlay-solid p-3 text-[11px] shadow-xl"
     >
       <div className="mb-2 text-[10px] uppercase tracking-widest text-zinc-500">Acceptable risk</div>
       {RISK_POSTURES.map(p => (

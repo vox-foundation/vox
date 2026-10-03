@@ -88,7 +88,7 @@ export function ChatTurnEventRow({ event, onExcludeSkill }: ChatTurnEventRowProp
         data-testid="chat-turn-claims-row"
         data-flagged={flagged ? 'true' : 'false'}
         className={`flex items-center gap-2 self-start rounded-full border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] ${
-          flagged ? 'text-amber-300' : 'text-text-secondary'
+          flagged ? 'text-(--color-status-warn)' : 'text-text-secondary'
         }`}
       >
         <span>

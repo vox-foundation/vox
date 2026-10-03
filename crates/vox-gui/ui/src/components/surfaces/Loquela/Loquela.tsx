@@ -79,16 +79,11 @@ interface ChipData {
 function Chip({ chip, onRemove }: { chip: ChipData; onRemove: (c: ChipData) => void }) {
   const iconKey = { file: "file", skill: "bolt", agent: "agent", branch: "git", url: "link", image: "image" }[chip.kind] || "file";
   const IconCmp = (Icon as any)[iconKey] || Icon.file;
-  // "file" chips used to render as border-cyan-400/text-cyan-300 — the same
-  // stray blue reported against the mind-map's Planning/Active tones (see
-  // Pill.tsx, tokens.ts, visualTokens.ts). Recolored to amber, keeping this
-  // chip visually distinct from the brass "skill" chip while staying inside
-  // the app's existing warm accent family (amber is already used elsewhere
-  // for Doubted/low-confidence states) instead of reusing brass outright.
-  const tone = chip.kind === "file"   ? "border-amber-400/25 text-amber-300 bg-amber-400/5"
+  // Context chips are not status: file = neutral, branch = verdigris, skill = brass.
+  const tone = chip.kind === "file"   ? "border-border-strong text-text-secondary bg-overlay-subtle"
             : chip.kind === "skill"  ? "border-brass/30 text-brass bg-brass/5"
             : chip.kind === "agent"  ? "border-violet-400/25 text-violet-300 bg-violet-400/5"
-            : chip.kind === "branch" ? "border-emerald-400/25 text-emerald-300 bg-emerald-400/5"
+            : chip.kind === "branch" ? "border-accent-secondary/25 text-accent-secondary bg-accent-secondary/5"
             :                          "border-border-subtle text-text-secondary bg-overlay-subtle";
   return (
     <span className={`group inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 font-mono text-[10px] ${tone}`}>
@@ -784,8 +779,8 @@ export function Loquela({
                     {fileSuggestions.map(p => (
                       <button type="button" key={p} onClick={() => insertAtFile(p)}
                               className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left hover:bg-overlay-subtle">
-                        {/* Matches the file chip's new amber tone above, not the old cyan. */}
-                        <Icon.file className="size-3 shrink-0 text-amber-300" />
+                        {/* Neutral, like the file chip above. */}
+                        <Icon.file className="size-3 shrink-0 text-text-muted" />
                         <span className="truncate font-mono text-[10px] text-text-secondary">{p}</span>
                       </button>
                     ))}
@@ -803,7 +798,7 @@ export function Loquela({
               type="button"
               onClick={() => onInterrupt?.(currentTaskId)}
               aria-label="Stop (Enter)"
-              className="inline-flex h-9 shrink-0 items-center gap-2 rounded-md border border-rose-400/45 bg-rose-400/12 px-3 text-rose-300 transition hover:bg-rose-400/18"
+              className="inline-flex h-9 shrink-0 items-center gap-2 rounded-md border border-(--color-status-fail)/45 bg-(--color-status-fail)/12 px-3 text-(--color-status-fail) transition hover:bg-(--color-status-fail)/18"
             >
               <Icon.stop className="size-3.5" />
               <span className="font-display text-[11px] uppercase tracking-[0.18em]">Stop</span>
@@ -814,7 +809,7 @@ export function Loquela({
               type="button"
               onClick={() => onResume?.(currentAgent)}
               aria-label="Resume"
-              className="inline-flex h-9 shrink-0 items-center gap-2 rounded-md border border-rose-400/45 bg-rose-400/12 px-3 text-rose-300 transition hover:bg-rose-400/18"
+              className="inline-flex h-9 shrink-0 items-center gap-2 rounded-md border border-(--color-status-fail)/45 bg-(--color-status-fail)/12 px-3 text-(--color-status-fail) transition hover:bg-(--color-status-fail)/18"
             >
               <Icon.play className="size-3.5" />
               <span className="font-display text-[11px] uppercase tracking-[0.18em]">Resume</span>
@@ -857,7 +852,7 @@ export function Loquela({
                 transcribing
                   ? 'border-border-subtle bg-overlay-subtle text-text-muted cursor-wait'
                   : recording
-                  ? 'border-rose-400/50 bg-rose-400/15 text-rose-300 animate-pulse'
+                  ? 'border-(--color-status-fail)/50 bg-(--color-status-fail)/15 text-(--color-status-fail) animate-pulse'
                   : 'border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-primary hover:border-white/25'
               }`}
             >
@@ -901,11 +896,11 @@ export function Loquela({
 
           <div className="relative flex items-center gap-1.5" ref={tierRootRef}>
             <button type="button" aria-expanded={tierOpen} aria-label="Choose model tier" onClick={() => { setTierOpen(o => !o); setSkillOpen(false); setModeOpen(false); if (!tierOpen) setTierQuery(''); }} className="inline-flex items-center gap-1 rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 text-text-secondary hover:border-white/20">
-              <Icon.cpu className="size-3 text-cyan-300" /><span className="text-text-muted">Run on</span> <span className="text-text-primary">{triggerLabel}</span>
+              <Icon.cpu className="size-3 text-text-muted" /><span className="text-text-muted">Run on</span> <span className="text-text-primary">{triggerLabel}</span>
               <Icon.chevR className="size-2.5 text-text-muted rotate-90" />
             </button>
             {modelLoadStatus === 'error' && (
-              <span className="font-mono text-[9px] text-amber-300" data-testid="model-load-status">Models unavailable</span>
+              <span className="font-mono text-[9px] text-(--color-status-warn)" data-testid="model-load-status">Models unavailable</span>
             )}
             {modelLoadStatus === 'empty' && (
               <span className="font-mono text-[9px] text-text-muted" data-testid="model-load-status">No models loaded</span>
@@ -922,7 +917,7 @@ export function Loquela({
                     </div>
                   )}
                   {liveSearchStatus === 'error' && tierQuery.trim() && (
-                    <div className="px-2 py-1.5 font-mono text-[10px] text-amber-300" data-testid="model-search-status">
+                    <div className="px-2 py-1.5 font-mono text-[10px] text-(--color-status-warn)" data-testid="model-search-status">
                       Live search failed — showing cached list
                     </div>
                   )}

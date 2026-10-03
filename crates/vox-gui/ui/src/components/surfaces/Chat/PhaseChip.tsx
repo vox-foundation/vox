@@ -75,7 +75,7 @@ export function PhaseChip({
       )}
 
       {phase === "done" && (
-        <span className="text-emerald-400" aria-label="phase complete">
+        <span className="text-(--color-status-pass)" aria-label="phase complete">
           ✓
         </span>
       )}

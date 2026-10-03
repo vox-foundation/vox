@@ -4,9 +4,9 @@ import { formatSpend } from '../../../config/budget';
 import { RiskPopover } from './RiskPopover';
 
 const TONE_BG: Record<string, string> = {
-  rose: 'bg-rose-400',
-  amber: 'bg-amber-400',
-  emerald: 'bg-emerald-400',
+  rose: 'bg-(--color-status-fail)',
+  amber: 'bg-(--color-status-warn)',
+  emerald: 'bg-(--color-status-pass)',
 };
 
 interface DriveConsoleProps {
@@ -99,7 +99,7 @@ export function DriveConsole({
         {budgetUsd > 0 && (
           <span className="relative h-[3px] w-12 rounded-sm bg-white/8">
             <span
-              className="absolute inset-y-0 left-0 rounded-sm bg-linear-to-r from-emerald-400 to-brass"
+              data-testid="drive-console-budget-bar" className="absolute inset-y-0 left-0 rounded-sm bg-brass"
               style={{ width: `${pct}%` }}
             />
           </span>

@@ -562,9 +562,9 @@ export function ChatSurface({
         const el = document.getElementById(`msg-${match.id}`);
         if (el) {
           el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          el.classList.add('ring-2', 'ring-amber-400', 'ring-offset-2', 'ring-offset-zinc-950');
+          el.classList.add('ring-2', 'ring-brass', 'ring-offset-2', 'ring-offset-zinc-950');
           setTimeout(() => {
-            el.classList.remove('ring-2', 'ring-amber-400', 'ring-offset-2', 'ring-offset-zinc-950');
+            el.classList.remove('ring-2', 'ring-brass', 'ring-offset-2', 'ring-offset-zinc-950');
           }, 3000);
         }
       }
