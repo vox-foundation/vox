@@ -312,6 +312,8 @@ Consumes B1 (`CostPreference` from `vox-orchestrator-types`) and B2 (`RoutingTas
 
 ## Execution Order
 
+**Status (2026-10-03): Part A measured, decision NO-GO.** T_models 37.1 CPU-s against the 150 the rule needs; neither the one-invocation form (1.04x) nor `debug = 0` (1.6%) met its 20% rule, so the repository is unchanged. Part B is not started. Results and method: `docs/src/architecture/rust-build-loop-ssot-2026.md`.
+
 1. **Part A, any quiet moment** (Claude): A1 → A2 → A3 → A4. A2 and A3 change nothing in the repository unless their rule is met.
 2. **Part B after the model-routing plan's Task 6 and the chat-trace plan's Task 3 are committed, and only on GO:** B0 (stop for approval) → B1 → B2 → B3 → B4 → B5 → B6.
 3. **Shared files with in-flight plans:** `models/registry.rs`, `select.rs`, `mode_select.rs`, `mod.rs` (routing Tasks 4 to 6, trace Tasks 2b and 3) and `types/tasks.rs` (nothing else edits it). Part B waits for all of them.
