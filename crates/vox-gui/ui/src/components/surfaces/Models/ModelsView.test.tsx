@@ -41,6 +41,15 @@ describe('ModelsView', () => {
     expect(screen.getByText('Model Registry')).toBeTruthy();
   });
 
+  it('a routing summary without its counts never prints "undefined" in the header', async () => {
+    invokeMock.mockImplementation((cmd: string) =>
+      cmd === 'get_routing_summary_live' ? Promise.resolve({ decision_preview: null }) : baseImpl(cmd));
+    render(<ModelsView pushToast={vi.fn()} />);
+    expect(await screen.findByText('Routing summary unavailable')).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/undefined|NaN/);
+    invokeMock.mockImplementation(baseImpl);
+  });
+
   it('every button carries an explicit type="button"', async () => {
     render(<ModelsView pushToast={vi.fn()} />);
     await waitFor(() => expect(screen.getAllByText('Set active').length).toBeGreaterThan(0));

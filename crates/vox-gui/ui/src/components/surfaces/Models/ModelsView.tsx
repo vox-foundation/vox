@@ -31,6 +31,18 @@ interface RoutingSummary {
   model_count: number;
 }
 
+/** The header line from whatever the daemon reported; a field it did not send is left out, never printed as "undefined". */
+function routingSummaryLine(s: Partial<RoutingSummary>): string {
+  const parts = [
+    typeof s.model_count === 'number' ? `${s.model_count} models` : null,
+    typeof s.arm_count === 'number' ? `${s.arm_count} routing arms` : null,
+    typeof s.exploration_spent_usd === 'number' && typeof s.exploration_budget_usd === 'number'
+      ? `explore $${s.exploration_spent_usd.toFixed(2)} / $${s.exploration_budget_usd.toFixed(0)}`
+      : null,
+  ].filter((p): p is string => p !== null);
+  return parts.length > 0 ? parts.join(' · ') : 'Routing summary unavailable';
+}
+
 interface ModelsViewProps {
   pushToast: (t: Toast) => void;
   gamifyEnabled?: boolean;
@@ -101,7 +113,7 @@ export function ModelsView({ pushToast, gamifyEnabled = false }: ModelsViewProps
           <div>
             <div className="font-display text-sm tracking-widest text-text-secondary uppercase">Model Registry</div>
             <div className="text-xs text-text-muted mt-1">
-              {summary ? `${summary.model_count} models · ${summary.arm_count} routing arms · explore $${(summary.exploration_spent_usd ?? 0).toFixed(2)} / $${(summary.exploration_budget_usd ?? 0).toFixed(0)}` : 'Loading routing summary…'}
+              {summary ? routingSummaryLine(summary) : 'Loading routing summary…'}
             </div>
           </div>
           <div className="flex items-center gap-4">
