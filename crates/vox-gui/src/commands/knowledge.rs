@@ -137,28 +137,27 @@ async fn check_robots_allowed(client: &reqwest::Client, target_url: &str) -> boo
     let Some((robots_url, target_path)) = get_robots_url(target_url) else {
         return true;
     };
-    if let Ok(resp) = client.get(&robots_url).send().await {
-        if resp.status().is_success() {
-            if let Ok(text) = resp.text().await {
-                let mut in_relevant_agent = false;
-                for line in text.lines() {
-                    let trimmed = line.trim();
-                    if trimmed.is_empty() || trimmed.starts_with('#') {
+    if let Ok(resp) = client.get(&robots_url).send().await
+        && resp.status().is_success()
+        && let Ok(text) = resp.text().await
+    {
+        let mut in_relevant_agent = false;
+        for line in text.lines() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() || trimmed.starts_with('#') {
+                continue;
+            }
+            if let Some((k, v)) = trimmed.split_once(':') {
+                let key = k.trim().to_lowercase();
+                let val = v.trim();
+                if key == "user-agent" {
+                    in_relevant_agent = val == "*" || val.to_lowercase().contains("vox");
+                } else if in_relevant_agent && key == "disallow" {
+                    if val.is_empty() {
                         continue;
                     }
-                    if let Some((k, v)) = trimmed.split_once(':') {
-                        let key = k.trim().to_lowercase();
-                        let val = v.trim();
-                        if key == "user-agent" {
-                            in_relevant_agent = val == "*" || val.to_lowercase().contains("vox");
-                        } else if in_relevant_agent && key == "disallow" {
-                            if val.is_empty() {
-                                continue;
-                            }
-                            if val == "/" || target_path.starts_with(val) {
-                                return false;
-                            }
-                        }
+                    if val == "/" || target_path.starts_with(val) {
+                        return false;
                     }
                 }
             }
