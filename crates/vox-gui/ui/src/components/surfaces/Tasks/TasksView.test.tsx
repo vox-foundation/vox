@@ -189,6 +189,26 @@ describe('TasksView', () => {
     expect(mockListen).toHaveBeenCalledWith('vox://tasks-changed', expect.any(Function));
   });
 
+  it('names every row\'s priority select by its task (axe select-name)', async () => {
+    const attention = {
+      approvals: [],
+      needsYou: [],
+      withheld: [],
+      blockedTasksCount: 0,
+      totalCount: 0,
+      hopperTasks: [
+        { item_id: 'task-1', intent: 'Task 1', priority: 1, state: 'assigned', task_id: 1 },
+        { item_id: 'task-2', intent: 'Task 2', priority: 2, state: 'inbox', task_id: 2 },
+      ],
+      refresh: vi.fn(),
+      resolveApproval: vi.fn(),
+      resolveFeedback: vi.fn(),
+    };
+    render(<TasksView attention={attention as any} />);
+    expect(await screen.findByRole('combobox', { name: 'Priority for task #task-1' })).toBeDefined();
+    expect(screen.getByRole('combobox', { name: 'Priority for task #task-2' })).toBeDefined();
+  });
+
   it('derives blocked lifecycle from attention.needsYou gates, not its own fetch, when attention is provided', async () => {
     const attention = {
       approvals: [],

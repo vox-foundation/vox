@@ -190,6 +190,7 @@ export function TasksView({
       width: 110,
       render: (r: TaskRow) => (
         <select
+          aria-label={`Priority for task #${r.id.toString().slice(0, 8)}`}
           value={r.priority === 'urgent' ? TASK_PRIORITY_WIRE.urgent : r.priority === 'background' ? TASK_PRIORITY_WIRE.background : TASK_PRIORITY_WIRE.normal}
           onChange={(e) => {
             const val = Number(e.target.value);
