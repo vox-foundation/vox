@@ -350,7 +350,7 @@ mod tests {
 
     #[test]
     fn reporting_fixture_marks_only_confident_frontier_rows_in_router_order() {
-        let scores = vec![
+        let scores = [
             score(95, 100, Some(0.02), Some(900)),
             score(70, 100, Some(0.02), Some(100)),
             score(50, 100, Some(0.02), Some(900)),
