@@ -57,7 +57,7 @@ describe('VoxGraphStatusPanel', () => {
     expect(screen.getByText('Repo')).toBeDefined();
     expect(screen.getByText('Stale')).toBeDefined();
     expect(screen.getByText(/graph_missing/)).toBeDefined();
-    expect(screen.getByText(/vox graphify rebuild --corpus repo-code-graph/)).toBeDefined();
+    expect(screen.getByText(/vox graph rebuild --corpus repo-code-graph/)).toBeDefined();
   });
 
   it('condensed prop renders only a fresh/total corpora summary, not the per-corpus cards', () => {
@@ -284,6 +284,6 @@ describe('VoxGraphStatusPanel', () => {
   it('shows loading state', () => {
     mockUse.mockReturnValue({ isLoading: true, isError: false });
     renderWithClient(<VoxGraphStatusPanel />);
-    expect(screen.getByText(/Loading graphify status/i)).toBeDefined();
+    expect(screen.getByText(/Loading code graph status/i)).toBeDefined();
   });
 });

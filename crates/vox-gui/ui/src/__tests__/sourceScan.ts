@@ -13,7 +13,11 @@ export const SRC_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 const SCOPE_DIRS = ['components/surfaces/Chat', 'components/surfaces/Loquela'];
 /** The status bar and its research chip. */
-const SCOPE_EXTRA = ['components/layout/BottomStatusBar.tsx', 'components/common/StatusBarCluster.tsx'];
+const SCOPE_EXTRA = [
+  'components/layout/BottomStatusBar.tsx',
+  'components/common/StatusBarCluster.tsx',
+  'components/surfaces/VoxGraph/VoxGraphStatusPanel.tsx',
+];
 
 /** Chat, composer and status-bar component sources (non-test `.tsx`), relative to SRC_ROOT, sorted. */
 export function chatScopeFiles(): string[] {

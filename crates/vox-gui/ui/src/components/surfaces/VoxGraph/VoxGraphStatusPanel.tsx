@@ -55,12 +55,12 @@ function RebuildButton({ corpusId }: { corpusId: string }) {
         disabled={busy}
         aria-label={`Rebuild ${corpusId}`}
         onClick={handleRebuild}
-        className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium text-amber-300 transition hover:bg-amber-500/20 disabled:opacity-50"
+        className="rounded-md border border-(--color-status-warn)/30 bg-(--color-status-warn)/10 px-2.5 py-1 text-[11px] font-medium text-(--color-status-warn) transition hover:bg-(--color-status-warn)/20 disabled:opacity-50"
       >
         {busy ? 'Rebuilding…' : 'Rebuild'}
       </button>
       {error && (
-        <span role="alert" className="text-[10px] text-red-400">
+        <span role="alert" className="text-[11px] text-(--color-status-fail)">
           {error}
         </span>
       )}
@@ -151,7 +151,7 @@ function TtlEditor({
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-2">
-        <label htmlFor="vg-ttl-days" className="text-[9px] uppercase tracking-wider text-zinc-500">
+        <label htmlFor="vg-ttl-days" className="text-[11px] uppercase tracking-[0.08em] text-text-muted">
           TTL (days)
         </label>
         {/* h-7 (28px) clears the WCAG 2.2 SC 2.5.8 24x24 target minimum; do not
@@ -185,23 +185,23 @@ function TtlEditor({
         </button>
       </div>
       {envForced && (
-        <span className="text-[10px] text-amber-400">
+        <span className="text-[11px] text-(--color-status-warn)">
           VOX_GRAPHIFY_TTL_DAYS is set and overrides this value.
         </span>
       )}
       {effectiveTtlDays !== ttlDays && (
-        <span className="text-[10px] text-zinc-400">
+        <span className="text-[11px] text-zinc-400">
           Currently in force: {effectiveTtlDays} days.
         </span>
       )}
       {wrotePath && (
-        <span className="text-[10px] text-zinc-400">
+        <span className="text-[11px] text-zinc-400">
           Wrote <code className="font-mono">{wrotePath}</code> — commit it so the CLI and CI
           use this TTL too.
         </span>
       )}
       {error && (
-        <span role="alert" className="text-[10px] text-red-400">
+        <span role="alert" className="text-[11px] text-(--color-status-fail)">
           {error}
         </span>
       )}
@@ -218,13 +218,13 @@ export function VoxGraphStatusPanel({ condensed }: { condensed?: boolean } = {})
       return <div className="p-2 text-[11px] text-zinc-400 animate-pulse">Loading…</div>;
     }
     if (isError) {
-      return <div className="p-2 text-[11px] text-red-400" role="alert">Graphify status unavailable</div>;
+      return <div className="p-2 text-[11px] text-(--color-status-fail)" role="alert">Code graph status unavailable</div>;
     }
-    if (!data) return <div className="p-2 text-[11px] text-zinc-400">No graphify data</div>;
+    if (!data) return <div className="p-2 text-[11px] text-zinc-400">No code graph data</div>;
     const freshCount = data.corpora.filter(c => c.is_fresh).length;
     return (
       <div className="p-2 text-[11px] text-zinc-400">
-        <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-zinc-200">{corpusHealthLabel}</div>
+        <div className="mb-1 text-xs font-semibold uppercase tracking-[0.08em] text-zinc-200">{corpusHealthLabel}</div>
         <div>{freshCount}/{data.corpora.length} fresh</div>
       </div>
     );
@@ -233,7 +233,7 @@ export function VoxGraphStatusPanel({ condensed }: { condensed?: boolean } = {})
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center p-8 text-sm text-zinc-400">
-        Loading graphify status…
+        Loading code graph status…
       </div>
     );
   }
@@ -241,14 +241,14 @@ export function VoxGraphStatusPanel({ condensed }: { condensed?: boolean } = {})
   if (isError) {
     return (
       <div className="p-4" role="alert">
-        <div className="flex items-center gap-2 rounded-lg border border-red-900/50 bg-red-950/20 p-3 text-sm text-red-400">
-          <span>Graphify status unavailable: {(error as Error)?.message ?? 'unknown error'}</span>
+        <div className="flex items-center gap-2 rounded-lg border border-(--color-status-fail)/50 bg-(--color-status-fail)/20 p-3 text-sm text-(--color-status-fail)">
+          <span>Code graph status unavailable: {(error as Error)?.message ?? 'unknown error'}</span>
         </div>
       </div>
     );
   }
 
-  if (!data) return <div className="p-4 text-zinc-400">No graphify data available</div>;
+  if (!data) return <div className="p-4 text-zinc-400">No code graph data available</div>;
 
   return (
     <div className="flex flex-col gap-4 p-4">
@@ -265,7 +265,7 @@ export function VoxGraphStatusPanel({ condensed }: { condensed?: boolean } = {})
               envForced={data.ttl_days_env_forced === true}
             />
           )}
-          <span className="font-mono text-[10px] text-zinc-500">
+          <span className="font-mono text-[11px] text-text-muted">
             Default: {data.default_corpus_id}
           </span>
         </div>
@@ -277,25 +277,25 @@ export function VoxGraphStatusPanel({ condensed }: { condensed?: boolean } = {})
             key={c.corpus_id}
             className={`group rounded-lg border p-4 transition-all duration-200 ${
               c.is_fresh
-                ? 'border-emerald-500/10 bg-emerald-500/2 hover:border-emerald-500/20'
-                : 'border-amber-500/10 bg-amber-500/2 hover:border-amber-500/20'
+                ? 'border-(--color-status-pass)/10 bg-(--color-status-pass)/2 hover:border-(--color-status-pass)/20'
+                : 'border-(--color-status-warn)/10 bg-(--color-status-warn)/2 hover:border-(--color-status-warn)/20'
             }`}
           >
             <div className="flex items-start justify-between">
               <div>
                 <h3 className="font-medium text-zinc-200">{c.title}</h3>
-                <p className="font-mono text-[10px] text-zinc-500">{c.corpus_id}</p>
+                <p className="font-mono text-[11px] text-text-muted">{c.corpus_id}</p>
               </div>
               <span
-                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${
                   c.is_fresh
-                    ? 'bg-emerald-500/10 text-emerald-400'
-                    : 'bg-amber-500/10 text-amber-400'
+                    ? 'bg-(--color-status-pass)/10 text-(--color-status-pass)'
+                    : 'bg-(--color-status-warn)/10 text-(--color-status-warn)'
                 }`}
               >
                 <span
                   className={`h-1.5 w-1.5 rounded-full ${
-                    c.is_fresh ? 'bg-emerald-400' : 'bg-amber-400'
+                    c.is_fresh ? 'bg-(--color-status-pass)' : 'bg-(--color-status-warn)'
                   }`}
                 />
                 {c.is_fresh ? 'Fresh' : 'Stale'}
@@ -304,19 +304,19 @@ export function VoxGraphStatusPanel({ condensed }: { condensed?: boolean } = {})
 
             <div className="mt-3 grid grid-cols-3 gap-2 border-t border-white/5 pt-3 font-mono text-[11px] text-zinc-400">
               <div>
-                <span className="text-zinc-500 block text-[9px] uppercase">Nodes</span>
+                <span className="text-text-muted block text-[11px] uppercase">Nodes</span>
                 <span className="font-semibold text-zinc-300">
                   {c.node_count?.toLocaleString() ?? '—'}
                 </span>
               </div>
               <div>
-                <span className="text-zinc-500 block text-[9px] uppercase">Edges</span>
+                <span className="text-text-muted block text-[11px] uppercase">Edges</span>
                 <span className="font-semibold text-zinc-300">
                   {c.edge_count?.toLocaleString() ?? '—'}
                 </span>
               </div>
               <div>
-                <span className="text-zinc-500 block text-[9px] uppercase">Built</span>
+                <span className="text-text-muted block text-[11px] uppercase">Built</span>
                 <span
                   className="font-semibold text-zinc-300"
                   title={c.built_at ?? undefined}
@@ -329,12 +329,12 @@ export function VoxGraphStatusPanel({ condensed }: { condensed?: boolean } = {})
             {!c.is_fresh && (
               <div className="mt-3 space-y-2 border-t border-white/5 pt-3">
                 <div className="text-[11px] text-zinc-400">
-                  <span className="text-zinc-500 text-[9px] block uppercase">Stale Reasons</span>
+                  <span className="text-text-muted text-[11px] block uppercase">Stale Reasons</span>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {c.stale_reasons.map((r) => (
                       <span
                         key={r}
-                        className="rounded-sm bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-mono text-amber-400"
+                        className="rounded-sm bg-(--color-status-warn)/10 px-1.5 py-0.5 text-[11px] font-mono text-(--color-status-warn)"
                       >
                         {r}
                       </span>
@@ -345,9 +345,9 @@ export function VoxGraphStatusPanel({ condensed }: { condensed?: boolean } = {})
                 <RebuildButton corpusId={c.corpus_id} />
 
                 <div className="relative mt-2 rounded-sm bg-zinc-950/40 p-2 border border-white/5">
-                  <span className="text-[9px] text-zinc-500 block uppercase mb-1">Rebuild Command</span>
-                  <code className="block select-all font-mono text-[10px] text-zinc-300 break-all leading-normal">
-                    vox graphify rebuild --corpus {c.corpus_id}
+                  <span className="text-[11px] text-text-muted block uppercase mb-1">Rebuild Command</span>
+                  <code className="block select-all font-mono text-[11px] text-zinc-300 break-all leading-normal">
+                    vox graph rebuild --corpus {c.corpus_id}
                   </code>
                 </div>
               </div>
