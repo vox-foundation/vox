@@ -6,7 +6,7 @@ import React from 'react';
  * opt-in composer setting, not a major UI feature. State is lifted to the
  * caller (App.tsx), which persists it via `useGroundingCheck(sessionId)` and
  * threads the value into the chat submit payload as `grounding_check_enabled`
- * (mirrors how `ChatModelPicker`'s pick lifts to `chatModelOverride`).
+ * (mirrors how the composer's model-tier pick lifts to `chatModelOverride`).
  */
 export function GroundingCheckToggle({
   enabled,

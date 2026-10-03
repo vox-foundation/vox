@@ -40,8 +40,8 @@ describe('GroundingCheckToggle', () => {
 });
 
 // Wiring guard: the toggle renders inside the composer's own toolbar row
-// (Loquela's `trailingSlot`), alongside ChatModelPicker — mirrors
-// ChatModelPicker.test.tsx's "toolbar placement wiring" guard.
+// (Loquela's `trailingSlot`), alongside the model-tier trigger — mirrors
+// the deleted ChatModelPicker test's "toolbar placement wiring" guard.
 describe('GroundingCheckToggle toolbar placement wiring', () => {
   it('App.tsx passes GroundingCheckToggle as part of the Loquela trailingSlot', () => {
     const appSrc = readFileSync(path.resolve(__dirname, '../../../App.tsx'), 'utf8');
@@ -51,7 +51,7 @@ describe('GroundingCheckToggle toolbar placement wiring', () => {
   });
 });
 
-// Wiring guard (readFileSync idiom, mirroring ChatModelPicker.test.tsx's
+// Wiring guard (readFileSync idiom, mirroring the deleted ChatModelPicker test's
 // "model_override submit-payload wiring"): the toggle state must actually
 // reach the params the daemon receives for SUBMIT_TASK as
 // `grounding_check_enabled`, not just sit inert in the composer.

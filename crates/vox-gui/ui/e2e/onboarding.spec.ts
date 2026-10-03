@@ -130,7 +130,7 @@ test.describe('Onboarding wizard', () => {
       localStorage.removeItem('vox_onboarding_dismissed');
       (window as any).__TAURI_CALLS__ = [];
       // False until the test flips it (right before clicking Done on `local-model`)
-      // — other components (e.g. ChatModelPicker) also call `inference_provider_status`
+      // — other components (e.g. the composer's model-tier picker) also call `inference_provider_status`
       // on mount, so a call-count-based mock is order-dependent and flaky. Reads of
       // this flag stay empty for the initial gate check (must look like a fresh
       // install so the wizard shows at all); once flipped, the recheck inside

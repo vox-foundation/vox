@@ -16,7 +16,7 @@ interface ChatTurnEventRowProps {
 /**
  * Renders a single chat-turn event derived from a tool call's RESULT (see
  * Rust `turn_event_for_result` and `receipt_turn_event`) — e.g. a chip naming a skill the model
- * loaded or a tool execution receipt chip. Deliberately separate from `ChatAgentEventRow` (which owns the
+ * loaded or a tool execution receipt chip. Deliberately separate from the retired `ChatAgentEventRow` (which owned the
  * three HITL plan/verify controls) — this component owns nothing but
  * read-only chips plus the skill-exclusion action.
  *

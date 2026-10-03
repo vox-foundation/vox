@@ -447,7 +447,7 @@ export default function App() {
   // Phase B / Task B2: a pin persisted from a previous session may name a model
   // that has since left the registry — validate once on mount and clear it
   // rather than letting `SelectionSource::classify` silently read `Fallback`
-  // forever with no way for the user to see why. Runs once; ChatModelPicker's
+  // forever with no way for the user to see why. Runs once; the composer's model-tier picker's
   // own listModels() calls stay independent (its own on-demand fetch).
   useEffect(() => {
     if (!chatModelOverride) return;

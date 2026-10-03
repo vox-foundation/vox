@@ -157,7 +157,7 @@ interface LoquelaProps {
   riskSlot?: React.ReactNode;
   /** Lift a concrete model pick into App `chatModelOverride`. */
   onModelPick?: (modelId: string | null) => void;
-  /** Current App-level override so "Run on" stays in sync with ChatModelPicker. */
+  /** Current App-level override so "Run on" stays in sync with the model-tier picker. */
   selectedModelId?: string | null;
 }
 
