@@ -67,7 +67,7 @@ Graphify, VoxGraph. The "Secretary" toast becomes **Suggested task**. Model tier
   the `target/visual-lang/*-red.txt` file each RED step names, before any implementation edit. A guard that already
   passes before the rewrite (because an earlier plan already removed every offender) is recorded as such in the RED
   log and is then proven by its mutation step — never skipped.
-- Commands run from `/Users/brbrainerd/dev/vox`, foreground, prefixed `timeout` (`timeout 300s` for scoped vitest,
+- Commands run from the repository root (the checkout you were started in), foreground, prefixed `timeout` (`timeout 300s` for scoped vitest,
   typecheck and single Playwright specs; `timeout 600s` for the full vitest suite and review captures). Exit 124 is a
   STOP. Create `target/visual-lang/` once with `mkdir -p target/visual-lang`.
 - The agent never runs `git add`/`git commit`/`git rm`; it deletes files with plain `rm` on the exact paths a step lists
@@ -172,7 +172,7 @@ console.log(
 | `src/components/ui/EmptyState.tsx` + `.test.tsx` | modify | 6 | optional `headingLevel` |
 | `src/components/surfaces/Chat/ChatSurface.tsx` | modify | 4, 5, 6 | ring exception; tracking; `headingLevel={2}` |
 | `src/components/surfaces/Activity/ActivitySurface.tsx`, `ActivitySurface.a11y.test.tsx` (new) | modify/create | 7 | two select labels; one contrast class |
-| `/Users/brbrainerd/dev/vox/target/visual-lang/axe-summary.mjs` | create (gitignored, never committed) | 2, 5, 7 | the shared script above |
+| `target/visual-lang/axe-summary.mjs` | create (gitignored, never committed) | 2, 5, 7 | the shared script above |
 
 ---
 
@@ -823,7 +823,7 @@ Expected: "uses no Tailwind palette status classes…" FAILS with a long offende
 
 Run:
 ```bash
-cd /Users/brbrainerd/dev/vox/crates/vox-gui/ui && ls src/components/surfaces/Chat/*.tsx src/components/surfaces/Loquela/*.tsx src/components/layout/BottomStatusBar.tsx src/components/common/StatusBarCluster.tsx | grep -v '\.test\.tsx$' | xargs sed -i '' -E -e 's/(text|bg|border|ring|from|to|fill|stroke)-amber-[0-9]{2,3}/\1-(--color-status-warn)/g' -e 's/(text|bg|border|ring|from|to|fill|stroke)-(rose|red)-[0-9]{2,3}/\1-(--color-status-fail)/g' -e 's/(text|bg|border|ring|from|to|fill|stroke)-emerald-[0-9]{2,3}/\1-(--color-status-pass)/g' -e 's/(text|bg|border|ring|from|to|fill|stroke)-cyan-[0-9]{2,3}/\1-(--color-status-info)/g'
+cd crates/vox-gui/ui && ls src/components/surfaces/Chat/*.tsx src/components/surfaces/Loquela/*.tsx src/components/layout/BottomStatusBar.tsx src/components/common/StatusBarCluster.tsx | grep -v '\.test\.tsx$' | xargs sed -i '' -E -e 's/(text|bg|border|ring|from|to|fill|stroke)-amber-[0-9]{2,3}/\1-(--color-status-warn)/g' -e 's/(text|bg|border|ring|from|to|fill|stroke)-(rose|red)-[0-9]{2,3}/\1-(--color-status-fail)/g' -e 's/(text|bg|border|ring|from|to|fill|stroke)-emerald-[0-9]{2,3}/\1-(--color-status-pass)/g' -e 's/(text|bg|border|ring|from|to|fill|stroke)-cyan-[0-9]{2,3}/\1-(--color-status-info)/g'
 ```
 Expected: no output. Spot-check: `rg -n "status-warn" crates/vox-gui/ui/src/components/surfaces/Chat/ChatTranscript.tsx` shows the system-message tone `border-(--color-status-warn)/20 bg-(--color-status-warn)/6 text-(--color-status-warn)/90`.
 
@@ -978,7 +978,7 @@ Expected: `19 passed` (or `17 passed` if Task 2 restricted a state); the last li
 
 Run:
 ```bash
-cd /Users/brbrainerd/dev/vox/crates/vox-gui/ui && ls src/components/surfaces/Chat/*.tsx src/components/surfaces/Loquela/*.tsx src/components/layout/BottomStatusBar.tsx src/components/common/StatusBarCluster.tsx | grep -v '\.test\.tsx$' | xargs sed -i '' -E -e 's/text-\[(7|8|9|10)(\.5)?px\]/text-[11px]/g' -e 's/ shadow-\[0_0_[^]]*--brass[^]]*\]//g' -e '/font-display/ s/tracking-(\[[0-9.]+em\]|widest|wider|wide)/tracking-[0.13em]/g' -e '/font-display/! s/tracking-(\[[0-9.]+em\]|widest|wider|wide)/tracking-[0.08em]/g'
+cd crates/vox-gui/ui && ls src/components/surfaces/Chat/*.tsx src/components/surfaces/Loquela/*.tsx src/components/layout/BottomStatusBar.tsx src/components/common/StatusBarCluster.tsx | grep -v '\.test\.tsx$' | xargs sed -i '' -E -e 's/text-\[(7|8|9|10)(\.5)?px\]/text-[11px]/g' -e 's/ shadow-\[0_0_[^]]*--brass[^]]*\]//g' -e '/font-display/ s/tracking-(\[[0-9.]+em\]|widest|wider|wide)/tracking-[0.13em]/g' -e '/font-display/! s/tracking-(\[[0-9.]+em\]|widest|wider|wide)/tracking-[0.08em]/g'
 ```
 Expected: no output. The tracking rule here is per line; the guard judges per class string. Spot-check: `rg -n "shadow-\[0_0" crates/vox-gui/ui/src/components/surfaces/Loquela/Loquela.tsx` → no output (the composer-focus and Run-button glows are gone; the focus ring `ring-1 ring-brass/30` stays).
 
@@ -1136,7 +1136,7 @@ Expected FAIL: "chat, composer and status bar use no low-contrast text classes" 
 
 Run:
 ```bash
-cd /Users/brbrainerd/dev/vox/crates/vox-gui/ui && ls src/components/surfaces/Chat/*.tsx src/components/surfaces/Loquela/*.tsx src/components/layout/BottomStatusBar.tsx src/components/common/StatusBarCluster.tsx | grep -v '\.test\.tsx$' | xargs sed -i '' -E -e 's/text-zinc-(500|600|700)/text-text-muted/g' -e 's/text-text-muted\/[0-9]+/text-text-muted/g' -e 's/text-brass\/[0-9]+/text-brass/g' -e 's/text-white\/[0-9]+/text-text-secondary/g'
+cd crates/vox-gui/ui && ls src/components/surfaces/Chat/*.tsx src/components/surfaces/Loquela/*.tsx src/components/layout/BottomStatusBar.tsx src/components/common/StatusBarCluster.tsx | grep -v '\.test\.tsx$' | xargs sed -i '' -E -e 's/text-zinc-(500|600|700)/text-text-muted/g' -e 's/text-text-muted\/[0-9]+/text-text-muted/g' -e 's/text-brass\/[0-9]+/text-brass/g' -e 's/text-white\/[0-9]+/text-text-secondary/g'
 ```
 Expected: no output.
 

@@ -3075,7 +3075,7 @@ git commit -m "feat(gui): Tauri commands that explain routing from the selector'
 
 **Files:** Create `lib/routingLabels.ts` + `.test.ts`, `hooks/useRoutingExplanation.ts` + `.test.ts`,
 `components/surfaces/Models/RoutingExplainer.tsx` + `.test.tsx` (all under `crates/vox-gui/ui/src/`). Modify
-`lib/turnEvents.ts` (append `MODE_OBJECTIVES` and `modeObjective`; nothing else).
+`lib/turnEvents.ts` (append `MODE_OBJECTIVES` and `modeObjective`; nothing else) and `transport.ts` (add `explainRouting(mode, task, complexity)` and `getRoutingHealth()` to the transport class). <!-- AMENDED: the hook calls `voxTransport`, never `invoke`: `src/guards/ipcBoundaries.test.ts` allows `invoke` only in `transport.ts`, and the hook test mocks `../transport`. -->
 
 - [ ] **Step 1: Write the failing tests.**
 

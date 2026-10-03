@@ -70,12 +70,11 @@ Task 6 is committed**, because that plan's Tasks 4 to 6 rewrite `registry.rs`, `
 **Interfaces:** Produces the numbers Task A4 decides on: `T_models` (touch a `models/` file), `T_other` (touch a file outside
 `models/`), and the share of each spent in the `vox-orchestrator` test unit.
 
-- [ ] **Step 1: Warm the artifacts.** `cd /Users/brbrainerd/dev/vox && timeout 3000s cargo test -p vox-orchestrator --lib --no-run 2>&1 | tail -3`. Expected: `Finished`.
+- [ ] **Step 1: Warm the artifacts.** `timeout 3000s cargo test -p vox-orchestrator --lib --no-run 2>&1 | tail -3`. Expected: `Finished`.
 - [ ] **Step 2: Measure one touch of a `models/` file, three times.** Each run appends a comment to
   `crates/vox-orchestrator/src/models/tiering.rs`, times the rebuild, and restores the file from `HEAD`:
 
 ```bash
-cd /Users/brbrainerd/dev/vox
 for i in 1 2 3; do
   printf '\n// bench-touch %s\n' "$i" >> crates/vox-orchestrator/src/models/tiering.rs
   { time -p timeout 3000s cargo test -p vox-orchestrator --lib --no-run --timings 2>&1 | tail -1; } 2>> target/bl-a1-models.txt
