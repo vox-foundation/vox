@@ -119,6 +119,18 @@ describe('SettingsView', () => {
     });
   });
 
+  it('names each range control by its row label (axe label, critical)', () => {
+    render(<SettingsView pushToast={vi.fn()} />, { wrapper });
+    for (const name of [
+      'Max concurrent agents',
+      'Global budget cap (USD)',
+      'Auto-doubt threshold',
+      'Durable checkpoint cadence',
+    ]) {
+      expect(screen.getByRole('slider', { name })).toBeDefined();
+    }
+  });
+
   it('search input is accessible via aria-label', () => {
     render(<SettingsView pushToast={vi.fn()} />, { wrapper });
     const searchInput = screen.getByLabelText('Search settings');

@@ -63,6 +63,9 @@ interface SettingsState {
   scaleMemFloorMb: number;
 }
 
+/** The label of the enclosing Row, so a control inside it is named without every call site repeating it. */
+const RowLabelContext = React.createContext<string | undefined>(undefined);
+
 function Row({ label, hint, children }: { label: string; hint: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-4 rounded-xl border border-border-subtle bg-overlay-subtle p-3">
@@ -70,7 +73,9 @@ function Row({ label, hint, children }: { label: string; hint: string; children:
         <div className="font-display text-[12px] text-text-secondary">{label}</div>
         <div className="text-[11px] text-text-muted">{hint}</div>
       </div>
-      <div className="shrink-0">{children}</div>
+      <RowLabelContext.Provider value={label}>
+        <div className="shrink-0">{children}</div>
+      </RowLabelContext.Provider>
     </div>
   );
 }
@@ -88,11 +93,12 @@ function RangeInline({
 }: {
   value: number; min: number; max: number; step?: number; suffix?: string; onChange: (v: number) => void;
 }) {
+  const label = React.useContext(RowLabelContext);
   const pct = ((value - min) / (max - min)) * 100;
   return (
     <div className="flex w-52 items-center gap-3">
       <input
-        type="range" min={min} max={max} step={step} value={value}
+        type="range" aria-label={label} min={min} max={max} step={step} value={value}
         onChange={e => onChange(Number(e.target.value))}
         className="vox-range flex-1 h-1 appearance-none rounded-full overflow-hidden"
         style={{ background: `linear-gradient(to right, rgb(var(--brass)) ${pct}%, rgba(255,255,255,0.08) ${pct}%)` } as any}
