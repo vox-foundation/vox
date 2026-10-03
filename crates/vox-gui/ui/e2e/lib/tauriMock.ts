@@ -158,6 +158,55 @@ export function installTauriMock(viewKey: string): void {
               alternatives: ['anthropic/claude-haiku', 'deepseek/deepseek-flash'], rejection_reasons: ['budget cap'],
               intelligence_score: 0.92, efficiency_score: 0.7, latency_score: 0.6 },
           };
+        case 'explain_routing':
+          return {
+            mode: args?.mode ?? 'efficiency',
+            task: args?.task ?? 'codegen',
+            complexity: args?.complexity ?? 7,
+            chosen: 'acme/widget-5.5',
+            only_candidate: false,
+            total_models: 120,
+            candidates: [
+              {
+                id: 'acme/widget-5.5',
+                provider: 'acme',
+                tier: 'Fast',
+                is_free: false,
+                price_out_per_m: 0.9,
+                score: 0.65,
+                quality: { value: 0.6, source: 'inherited', index: 38.2, inherited_from: 'acme/widget-5.0' },
+                parts: { quality: 0.3, efficiency: 0.2, latency: 0.1, other: 0.05, bonuses: 0 },
+              },
+              {
+                id: 'acme/widget-9',
+                provider: 'acme',
+                tier: 'Pro',
+                is_free: false,
+                price_out_per_m: null,
+                score: 0.61,
+                quality: { value: 0.8, source: 'benchmark', index: 46.3, inherited_from: null },
+                parts: { quality: 0.3, efficiency: 0.2, latency: 0.1, other: 0.05, bonuses: 0 },
+              },
+            ],
+            excluded: [
+              { reason: 'flagship_excluded_by_mode', count: 4, examples: ['acme/widget-flagship-9', 'acme/widget-flagship-8'] },
+              { reason: 'superseded', count: 1, examples: ['acme/widget-4.8'] },
+            ],
+          };
+        case 'get_routing_health':
+          return {
+            schema_version: 1,
+            checked_at_unix: 0,
+            models: 120,
+            cloud_models: 100,
+            benchmarked: 40,
+            inherited: 7,
+            unknown_tier_cloud: 0,
+            quality_scale: 'derived',
+            price_bands: 'derived',
+            efficient_pick: 'acme/widget-5.5',
+            violations: [],
+          };
         case 'get_selection_policy': return { chain: ['anthropic/claude-opus', 'anthropic/claude-sonnet', 'anthropic/claude-haiku'], free_tier: true };
         case 'get_routing_intentions': return [
           { id: 'axis-quality', parent: 'Quality', branch: 'Opus', phase: 'Validated', conf: 0.92, note: 'Highest reasoning tier' },

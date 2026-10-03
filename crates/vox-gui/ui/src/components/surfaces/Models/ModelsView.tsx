@@ -6,6 +6,10 @@ import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 import { BackendAvailability, type ProviderStatus } from './BackendAvailability';
 import type { Toast } from '../../../types/tauri';
+import { RoutingExplainer } from './RoutingExplainer';
+import { useRoutingExplanation } from '../../../hooks/useRoutingExplanation';
+import { modeLabel } from '../../../lib/turnEvents';
+import { priceLabel } from '../../../lib/routingLabels';
 
 interface ModelCard {
   id: string;
@@ -25,15 +29,6 @@ interface RoutingSummary {
   exploration_budget_usd: number;
   arm_count: number;
   model_count: number;
-  decision_preview?: {
-    selected_model: string;
-    discovery_state: string;
-    alternatives: string[];
-    rejection_reasons: string[];
-    intelligence_score: number;
-    efficiency_score: number;
-    latency_score: number;
-  } | null;
 }
 
 interface ModelsViewProps {
@@ -127,20 +122,7 @@ export function ModelsView({ pushToast, gamifyEnabled = false }: ModelsViewProps
           </div>
         </div>
       </Glass>
-      {summary?.decision_preview && (
-        <Glass className="p-4">
-          <div className="font-display text-[11px] tracking-[0.2em] uppercase text-text-muted">Decision Preview</div>
-          <div className="mt-2 text-xs text-text-secondary font-mono">{summary.decision_preview.selected_model}</div>
-          <div className="text-[10px] text-text-muted mt-1">
-            state={summary.decision_preview.discovery_state} · intel={(summary.decision_preview.intelligence_score ?? 0).toFixed(2)} · eff={(summary.decision_preview.efficiency_score ?? 0).toFixed(2)} · lat={(summary.decision_preview.latency_score ?? 0).toFixed(2)}
-          </div>
-          {summary.decision_preview.alternatives?.length ? (
-            <div className="mt-2 text-[10px] text-text-muted">
-              alternatives: {summary.decision_preview.alternatives.slice(0, 3).join(', ')}
-            </div>
-          ) : null}
-        </Glass>
-      )}
+      <RoutingPanel />
       <BackendAvailability statuses={providerStatuses} />
       {loading && models.length === 0 ? (
         <Glass className="p-8 text-center text-text-muted text-sm">Loading model catalog…</Glass>
@@ -151,6 +133,35 @@ export function ModelsView({ pushToast, gamifyEnabled = false }: ModelsViewProps
         </>
       )}
     </div>
+  );
+}
+
+const MODES = ['efficiency', 'balanced', 'genius', 'free'] as const;
+const TASKS = ['codegen', 'research', 'review', 'general'] as const;
+
+function RoutingPanel() {
+  const [mode, setMode] = useState<string>('efficiency');
+  const [task, setTask] = useState<string>('codegen');
+  const { explanation, health, loading } = useRoutingExplanation(mode, task, 7);
+  return (
+    <Glass className="p-4 flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-3 text-xs">
+        <div className="font-display text-[11px] tracking-[0.2em] uppercase text-text-muted">Routing</div>
+        <label className="flex items-center gap-1">
+          Routing mode
+          <select aria-label="Routing mode" value={mode} onChange={e => setMode(e.target.value)}>
+            {MODES.map(m => <option key={m} value={m}>{modeLabel(m)}</option>)}
+          </select>
+        </label>
+        <label className="flex items-center gap-1">
+          Task
+          <select aria-label="Task" value={task} onChange={e => setTask(e.target.value)}>
+            {TASKS.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </label>
+      </div>
+      <RoutingExplainer explanation={explanation} health={health} loading={loading} />
+    </Glass>
   );
 }
 
@@ -171,11 +182,11 @@ function ModelGrid({ title, items, activeModel, onSetDefault }: {
                   <div className="font-mono text-xs text-text-primary truncate" title={m.id}>{m.id}</div>
                   <div className="text-[10px] text-text-muted">{m.provider} · {m.tier}</div>
                 </div>
-                {m.is_free && <span className="text-[9px] uppercase tracking-widest text-emerald-400">free</span>}
+                {m.is_free && <span className="text-[9px] uppercase tracking-widest" style={{ color: 'var(--color-status-pass)' }}>free</span>}
               </div>
               <div className="grid grid-cols-4 gap-2 text-[10px] font-mono text-text-muted">
                 <div><span className="text-text-muted">ctx</span> {Math.round(m.max_tokens / 1000)}k</div>
-                <div><span className="text-text-muted">$/1k</span> {m.cost_per_1k.toFixed(4)}</div>
+                <div>{priceLabel(m.is_free ? 0 : m.cost_per_1k > 0 ? m.cost_per_1k * 1000 : null, m.is_free)}</div>
                 <div><span className="text-text-muted">p50</span> {m.latency_p50_ms ?? '—'}</div>
                 <div><span className="text-text-muted">qual</span> {m.quality_score != null ? m.quality_score.toFixed(2) : '—'}</div>
               </div>
