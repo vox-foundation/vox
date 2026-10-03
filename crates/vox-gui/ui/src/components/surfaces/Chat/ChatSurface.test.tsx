@@ -852,6 +852,36 @@ describe('ChatSurface', () => {
     expect(screen.getByRole('button', { name: /panels/i })).toBeInTheDocument();
   });
 
+  // The slot is the status bar at the bottom of the window: a menu that opens downward from it renders below
+  // the viewport and is invisible (found by the review capture's panels-menu-open state).
+  it('opens the Panels menu upward from the status bar slot, and downward from its own row', () => {
+    const menuOf = () => screen.getAllByRole('checkbox')[0].closest('div.absolute') as HTMLElement;
+    const slot = document.createElement('div');
+    slot.id = WORKBENCH_TABBAR_TRAILING_SLOT_ID;
+    document.body.appendChild(slot);
+    try {
+      const { unmount } = render(
+        <LanguageProvider>
+          <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
+        </LanguageProvider>,
+      );
+      fireEvent.click(screen.getByRole('button', { name: /panels/i }));
+      expect(menuOf().className).toContain('bottom-full');
+      expect(menuOf().className).not.toContain('top-full');
+      unmount();
+    } finally {
+      document.body.removeChild(slot);
+    }
+    render(
+      <LanguageProvider>
+        <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
+      </LanguageProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /panels/i }));
+    expect(menuOf().className).toContain('top-full');
+    expect(menuOf().className).not.toContain('bottom-full');
+  });
+
   it('Panels button toggles a popover open and closed, with Escape and focus-return', () => {
     render(
       <LanguageProvider>

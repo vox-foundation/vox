@@ -351,7 +351,7 @@ export function BottomStatusBar({
                   onChange={(e) =>
                     onHudTilesChange(toggleHudTile(hudTilesConfig, tile.id, e.target.checked))
                   }
-                  className="rounded-sm border-border-subtle bg-bg-base text-brass focus:ring-brass/40 focus:ring-offset-bg-base size-3.5"
+                  className="accent-brass rounded-sm border-border-subtle bg-bg-base text-brass focus:ring-brass/40 focus:ring-offset-bg-base size-3.5"
                 />
                 {HUD_TILE_LABELS[tile.kind]}
               </label>

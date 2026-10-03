@@ -860,7 +860,10 @@ export function ChatSurface({
             {panelsMenuOpen ? (
               <div
                 ref={panelsMenuRef}
-                className="absolute right-0 top-full z-50 mt-1 w-56 rounded-lg border border-border-subtle bg-bg-base p-1 shadow-2xl"
+                // In the status bar (bottom of the window) the menu must open upward, or it renders off-screen.
+                className={`absolute right-0 z-50 w-56 rounded-lg border border-border-subtle bg-bg-base p-1 shadow-2xl ${
+                  tabBarTrailingSlot ? 'bottom-full mb-1' : 'top-full mt-1'
+                }`}
               >
                 {[
                   ...CORE_PANEL_IDS.filter(id => id !== 'executionRail' || executionRailNode != null),
@@ -874,7 +877,7 @@ export function ChatSurface({
                     >
                       <input
                         type="checkbox"
-                        className="rounded-sm border-border-subtle bg-bg-base text-brass focus:ring-brass/40 focus:ring-offset-bg-base size-3.5"
+                        className="accent-brass rounded-sm border-border-subtle bg-bg-base text-brass focus:ring-brass/40 focus:ring-offset-bg-base size-3.5"
                         checked={isOpen}
                         onChange={() => {
                           const api = dockApiRef.current;
