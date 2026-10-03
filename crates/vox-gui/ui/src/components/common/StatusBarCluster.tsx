@@ -69,7 +69,7 @@ export function StatusBarCluster({ onOpenDrawer, className = '' }: StatusBarClus
         onClick={() => setIsOpen((o) => !o)}
         aria-expanded={isOpen}
         aria-label="Research & Engine Status"
-        className="inline-flex items-center gap-1.5 rounded-sm px-2 py-0.5 text-[10px] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
+        className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-sm px-2 py-0.5 text-[10px] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
       >
         <span className="uppercase tracking-[0.14em] text-text-muted">Research</span>
         <span className="font-mono tabular-nums text-text-secondary">

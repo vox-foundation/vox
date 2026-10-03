@@ -28,7 +28,8 @@ export function NotificationCenter({ notices, onMarkAllRead }: Props) {
 
   useEffect(() => {
     if (!open) return;
-    panelRef.current?.focus();
+    // preventScroll: focusing the drawer must not scroll the app shell sideways to "reveal" it.
+    panelRef.current?.focus({ preventScroll: true });
     const handleOutside = (e: MouseEvent) => {
       const target = e.target as Node;
       if (panelRef.current?.contains(target) || triggerRef.current?.contains(target)) return;
@@ -85,7 +86,7 @@ export function NotificationCenter({ notices, onMarkAllRead }: Props) {
             <span role="radiogroup" aria-label="Show" className="flex gap-1">
               {(['all', 'problems'] as const).map(v => (
                 <label key={v} className="flex items-center gap-1 text-text-muted">
-                  <input type="radio" name="notice-filter" checked={filter === v} onChange={() => setFilter(v)} />
+                  <input type="radio" name="notice-filter" className="accent-brass" checked={filter === v} onChange={() => setFilter(v)} />
                   {v === 'all' ? 'All' : 'Problems'}
                 </label>
               ))}
