@@ -49,7 +49,7 @@ export function DriveConsole({
   }, [riskOpen]);
 
   return (
-    <div className="relative flex items-stretch rounded-lg border border-white/10 text-[11px]">
+    <div className="relative flex flex-wrap items-stretch rounded-lg border border-white/10 text-[11px]">
       {/* ① Mode */}
       <div className="relative flex items-center gap-1 border-r border-white/[0.07] px-2.5 py-1.5">
         <span className="text-text-muted" aria-hidden>⚙</span>
