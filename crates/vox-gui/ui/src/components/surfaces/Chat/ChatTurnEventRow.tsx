@@ -31,7 +31,7 @@ export function ChatTurnEventRow({ event, onExcludeSkill }: ChatTurnEventRowProp
     return (
       <div
         data-testid="chat-turn-event-row"
-        className="flex items-center gap-2 self-start rounded-full border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary"
+        className="flex items-center gap-2 self-start rounded-full border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[11px] text-text-secondary"
       >
         <span>skill activated · {skillId}</span>
         {onExcludeSkill && skillId !== 'unknown' && (
@@ -57,7 +57,7 @@ export function ChatTurnEventRow({ event, onExcludeSkill }: ChatTurnEventRowProp
       <div
         data-testid="chat-turn-receipt-row"
         data-verified={verified ? 'true' : 'false'}
-        className="flex items-center gap-2 self-start rounded-full border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary"
+        className="flex items-center gap-2 self-start rounded-full border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[11px] text-text-secondary"
         title={`receipt ${receiptId}`}
       >
         <span>
@@ -87,7 +87,7 @@ export function ChatTurnEventRow({ event, onExcludeSkill }: ChatTurnEventRowProp
       <div
         data-testid="chat-turn-claims-row"
         data-flagged={flagged ? 'true' : 'false'}
-        className={`flex items-center gap-2 self-start rounded-full border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] ${
+        className={`flex items-center gap-2 self-start rounded-full border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[11px] ${
           flagged ? 'text-(--color-status-warn)' : 'text-text-secondary'
         }`}
       >

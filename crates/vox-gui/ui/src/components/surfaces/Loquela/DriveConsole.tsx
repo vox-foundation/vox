@@ -81,7 +81,7 @@ export function DriveConsole({
             id={hintId}
             role="tooltip"
             data-testid="drive-mode-hint"
-            className="pointer-events-none absolute bottom-full left-0 z-40 mb-1 whitespace-nowrap rounded border border-white/10 bg-bg-base px-2 py-0.5 text-[10px] text-text-secondary"
+            className="pointer-events-none absolute bottom-full left-0 z-40 mb-1 whitespace-nowrap rounded border border-white/10 bg-bg-base px-2 py-0.5 text-[11px] text-text-secondary"
           >
             {hint}
           </span>

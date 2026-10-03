@@ -1074,7 +1074,7 @@ export function ChatSurface({
           <div className="absolute inset-0 bg-black/60" onClick={() => setRoutingOpen(false)} />
           <div className="absolute right-0 top-0 h-full w-[760px] max-w-full overflow-y-auto border-l border-border-subtle bg-bg-base shadow-2xl">
             <div className="flex items-center justify-between px-5 pt-4">
-              <h2 className="font-display text-[13px] uppercase tracking-[0.2em] text-text-secondary">Routing</h2>
+              <h2 className="font-display text-[13px] uppercase tracking-[0.13em] text-text-secondary">Routing</h2>
               <button
                 type="button"
                 aria-label="Close routing panel"

@@ -69,9 +69,9 @@ export function StatusBarCluster({ onOpenDrawer, className = '' }: StatusBarClus
         onClick={() => setIsOpen((o) => !o)}
         aria-expanded={isOpen}
         aria-label="Research & Engine Status"
-        className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-sm px-2 py-0.5 text-[10px] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
+        className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-sm px-2 py-0.5 text-[11px] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
       >
-        <span className="uppercase tracking-[0.14em] text-text-muted">Research</span>
+        <span className="uppercase tracking-[0.08em] text-text-muted">Research</span>
         <span className="font-mono tabular-nums text-text-secondary">
           {activeLane === 'deep' ? '🔬 Deep' : activeLane === 'fast' ? '⚡ Fast' : 'unknown'}
           {tavilyQuota && tavilyRemaining !== null ? ` · ${tavilyRemaining}/${tavilyQuota.units_limit}` : ''}
@@ -87,7 +87,7 @@ export function StatusBarCluster({ onOpenDrawer, className = '' }: StatusBarClus
           className="absolute bottom-full right-0 z-50 mb-1 w-80 rounded-xl border border-border-subtle bg-bg-base p-4 shadow-2xl space-y-3 text-xs"
         >
           <div className="flex items-center justify-between border-b border-border-subtle pb-2">
-            <span className="font-display font-semibold text-text-primary tracking-wide">Research engine</span>
+            <span className="font-display font-semibold text-text-primary tracking-[0.13em]">Research engine</span>
           </div>
 
           {status === null ? (
@@ -97,8 +97,8 @@ export function StatusBarCluster({ onOpenDrawer, className = '' }: StatusBarClus
           ) : (
             <div className="space-y-2 text-[11px]">
               <div>
-                <div className="font-medium text-text-muted uppercase text-[9px] tracking-wider">Providers</div>
-                <ul className="mt-1 space-y-0.5 font-mono text-[10px]">
+                <div className="font-medium text-text-muted uppercase text-[11px] tracking-[0.08em]">Providers</div>
+                <ul className="mt-1 space-y-0.5 font-mono text-[11px]">
                   {status.providers.map((p) => (
                     <li
                       key={p.id}
@@ -115,13 +115,13 @@ export function StatusBarCluster({ onOpenDrawer, className = '' }: StatusBarClus
                 </ul>
               </div>
               {tavilyQuota && (
-                <div className="font-mono text-[10px] text-text-secondary">
+                <div className="font-mono text-[11px] text-text-secondary">
                   Tavily quota: {tavilyRemaining}/{tavilyQuota.units_limit} left
                 </div>
               )}
               <div>
-                <div className="font-medium text-text-muted uppercase text-[9px] tracking-wider">Lane</div>
-                <div className="font-mono text-[10px] space-y-0.5">
+                <div className="font-medium text-text-muted uppercase text-[11px] tracking-[0.08em]">Lane</div>
+                <div className="font-mono text-[11px] space-y-0.5">
                   <div className={activeLane === 'fast' ? 'text-brass font-semibold' : 'text-text-muted'}>
                     ⚡ Fast (≤{seconds(status.fast_timeout_ms)})
                   </div>

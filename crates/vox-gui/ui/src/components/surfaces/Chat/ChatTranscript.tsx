@@ -43,30 +43,30 @@ export function MessageBubble({
       className={`max-w-[80%] rounded-xl border px-3 py-2 text-[12px] leading-relaxed whitespace-pre-wrap wrap-break-word ${tone}`}
     >
       {!isSystem && isUser && (
-        <div className="sr-only mb-0.5 font-mono text-[9px] uppercase tracking-wide text-text-muted">
+        <div className="sr-only mb-0.5 font-mono text-[11px] uppercase tracking-[0.08em] text-text-muted">
           You
         </div>
       )}
       {!isSystem && !isUser && (
-        <div className="mb-0.5 font-mono text-[9px] uppercase tracking-wide text-text-muted">
+        <div className="mb-0.5 font-mono text-[11px] uppercase tracking-[0.08em] text-text-muted">
           Assistant
         </div>
       )}
       {message.text}
       {streaming && (
-        <span className="ml-1 inline-flex items-center gap-1 text-[10px] text-(--color-status-info)">
+        <span className="ml-1 inline-flex items-center gap-1 text-[11px] text-(--color-status-info)">
           <span className="size-1.5 animate-pulse rounded-full bg-(--color-status-info)" />
           {message.text ? 'streaming…' : 'thinking…'}
         </span>
       )}
       {failed && (
-        <div className="mt-1 font-mono text-[10px] text-(--color-status-fail)">
+        <div className="mt-1 font-mono text-[11px] text-(--color-status-fail)">
           error: {message.error ?? 'task failed'}
         </div>
       )}
       {message.role === 'assistant' && message.groundingFlagged && (
         <div className="mt-1 flex justify-end">
-          <span className="rounded-sm border border-(--color-status-warn)/30 bg-(--color-status-warn)/8 px-1.5 py-0.5 font-mono text-[9px] text-(--color-status-warn)">
+          <span className="rounded-sm border border-(--color-status-warn)/30 bg-(--color-status-warn)/8 px-1.5 py-0.5 font-mono text-[11px] text-(--color-status-warn)">
             low confidence — unverified
           </span>
         </div>
@@ -91,7 +91,7 @@ function HarnessIssueSummary({ issue }: { issue: HarnessIssueRow }) {
   return (
     <div
       data-testid={`transcript-harness-issue-${issue.id}`}
-      className={`self-center rounded-sm border border-(--color-status-warn)/30 bg-(--color-status-warn)/8 px-2 py-1 text-center text-[10px] ${statusTone}`}
+      className={`self-center rounded-sm border border-(--color-status-warn)/30 bg-(--color-status-warn)/8 px-2 py-1 text-center text-[11px] ${statusTone}`}
     >
       Issue detected ({issue.status}): {issue.summary}
     </div>
@@ -165,7 +165,7 @@ export function ChatTranscript({ messages, agentStreamItems, sessionId, onExclud
             return <StatusLine key={row.id} phase={row.phase} elapsedMs={row.elapsedMs} />;
           }
           return (
-            <div key={row.id} className="self-start px-1 font-mono text-[10px] text-text-muted">
+            <div key={row.id} className="self-start px-1 font-mono text-[11px] text-text-muted">
               Done · ${row.costUsd.toFixed(4)}
             </div>
           );

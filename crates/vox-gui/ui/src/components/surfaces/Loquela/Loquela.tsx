@@ -86,7 +86,7 @@ function Chip({ chip, onRemove }: { chip: ChipData; onRemove: (c: ChipData) => v
             : chip.kind === "branch" ? "border-accent-secondary/25 text-accent-secondary bg-accent-secondary/5"
             :                          "border-border-subtle text-text-secondary bg-overlay-subtle";
   return (
-    <span className={`group inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 font-mono text-[10px] ${tone}`}>
+    <span className={`group inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 font-mono text-[11px] ${tone}`}>
       <IconCmp className="size-3" />
       <span className="truncate max-w-[180px]">{chip.label}</span>
       {chip.meta && <span className="text-text-muted">· {chip.meta}</span>}
@@ -99,13 +99,13 @@ function MiniSlider({ label, value, setValue, min, max, step, fmt, accent = 'rgb
   const pct = ((value - min) / (max - min)) * 100;
   return (
     <label className="group flex items-center gap-2 cursor-pointer">
-      <span className="font-display text-[9px] uppercase tracking-[0.22em] text-text-muted">{label}</span>
+      <span className="font-display text-[11px] uppercase tracking-[0.13em] text-text-muted">{label}</span>
       <input type="range" min={min} max={max} step={step} value={value}
         onChange={e => setValue(parseFloat(e.target.value))}
         className="vox-range w-24 h-1 appearance-none rounded-full overflow-hidden" 
         style={{ background: `linear-gradient(to right, ${accent} ${pct}%, rgba(255,255,255,0.08) ${pct}%)` } as any} 
       />
-      <span className="w-10 font-mono text-[10px] tabular-nums text-text-secondary">{fmt(value)}</span>
+      <span className="w-10 font-mono text-[11px] tabular-nums text-text-secondary">{fmt(value)}</span>
     </label>
   );
 }
@@ -712,10 +712,10 @@ export function Loquela({
 
   return (
     <div className="pointer-events-auto" data-testid="loquela-composer">
-      <Glass className={`relative px-3 py-2 transition ${focused ? "ring-1 ring-brass/30 shadow-[0_0_60px_-20px_rgb(var(--brass)/0.45)]" : ""}`}>
+      <Glass className={`relative px-3 py-2 transition ${focused ? "ring-1 ring-brass/30" : ""}`}>
         {chips.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5 pb-1.5">
-            <span className="font-display text-[9px] uppercase tracking-[0.22em] text-text-muted">Context</span>
+            <span className="font-display text-[11px] uppercase tracking-[0.13em] text-text-muted">Context</span>
             {chips.map(c => <Chip key={c.id} chip={c} onRemove={(x) => setChips(chips.filter(y => y.id !== x.id))} />)}
           </div>
         )}
@@ -738,7 +738,7 @@ export function Loquela({
 
             {slashOpen && filteredSlash.length > 0 && (
               <div className="absolute bottom-[calc(100%+6px)] left-0 z-50 w-[360px] max-w-[calc(100vw-2rem)] rounded-lg border border-border-subtle bg-bg-base/95 p-1 backdrop-blur-xl shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)]">
-                <div className="px-2 pt-1 pb-1.5 font-display text-[9px] uppercase tracking-[0.22em] text-text-muted">Slash commands</div>
+                <div className="px-2 pt-1 pb-1.5 font-display text-[11px] uppercase tracking-[0.13em] text-text-muted">Slash commands</div>
                 {filteredSlash.map((s, i) => {
                   const IcoCmp = (Icon as any)[s.icon] || Icon.bolt;
                   return (
@@ -746,7 +746,7 @@ export function Loquela({
                             className={`flex w-full items-center gap-2.5 rounded-sm px-2 py-1.5 text-left ${i === slashIdx ? "bg-overlay-subtle" : ""}`}>
                       <IcoCmp className="size-3.5 text-brass" />
                       <span className="font-mono text-[11px] text-text-primary">{s.cmd}</span>
-                      <span className="ml-auto text-[10px] text-text-muted">{s.desc}</span>
+                      <span className="ml-auto text-[11px] text-text-muted">{s.desc}</span>
                     </button>
                   );
                 })}
@@ -757,35 +757,35 @@ export function Loquela({
               <div className="absolute bottom-[calc(100%+6px)] left-0 z-50 w-[360px] max-w-[calc(100vw-2rem)] max-h-[280px] overflow-y-auto rounded-lg border border-border-subtle bg-bg-base/95 p-1 backdrop-blur-xl shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)]">
                 {filteredAt.length > 0 && (
                   <>
-                    <div className="px-2 pt-1 pb-1.5 font-display text-[9px] uppercase tracking-[0.22em] text-text-muted">Agents</div>
+                    <div className="px-2 pt-1 pb-1.5 font-display text-[11px] uppercase tracking-[0.13em] text-text-muted">Agents</div>
                     {filteredAt.map(a => (
                       <button type="button" key={a.id} onClick={() => insertAt(a)}
                               className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left hover:bg-overlay-subtle">
-                        <span className="font-mono text-[10px] text-violet-300">{a.id}</span>
+                        <span className="font-mono text-[11px] text-violet-300">{a.id}</span>
                         <span className="text-[11px] text-text-secondary">{a.codename}</span>
-                        <span className="ml-auto font-mono text-[9px] uppercase tracking-widest text-text-muted">{a.phase}</span>
+                        <span className="ml-auto font-mono text-[11px] uppercase tracking-[0.08em] text-text-muted">{a.phase}</span>
                       </button>
                     ))}
                   </>
                 )}
                 {showFileSuggestions && (
                   <>
-                    <div className={`mb-1 border-b border-border-subtle px-2 pt-1 pb-1 font-display text-[9px] uppercase tracking-[0.22em] text-text-muted ${filteredAt.length > 0 ? "mt-1" : ""}`}>
+                    <div className={`mb-1 border-b border-border-subtle px-2 pt-1 pb-1 font-display text-[11px] uppercase tracking-[0.13em] text-text-muted ${filteredAt.length > 0 ? "mt-1" : ""}`}>
                       Files
                     </div>
                     {fileSuggestionsLoading && fileSuggestions.length === 0 && (
-                      <div className="px-2 py-1.5 text-[10px] text-text-muted">Searching repo…</div>
+                      <div className="px-2 py-1.5 text-[11px] text-text-muted">Searching repo…</div>
                     )}
                     {fileSuggestions.map(p => (
                       <button type="button" key={p} onClick={() => insertAtFile(p)}
                               className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left hover:bg-overlay-subtle">
                         {/* Neutral, like the file chip above. */}
                         <Icon.file className="size-3 shrink-0 text-text-muted" />
-                        <span className="truncate font-mono text-[10px] text-text-secondary">{p}</span>
+                        <span className="truncate font-mono text-[11px] text-text-secondary">{p}</span>
                       </button>
                     ))}
                     {!fileSuggestionsLoading && fileSuggestions.length === 0 && (
-                      <div className="px-2 py-1.5 text-[10px] text-text-muted">No matching files</div>
+                      <div className="px-2 py-1.5 text-[11px] text-text-muted">No matching files</div>
                     )}
                   </>
                 )}
@@ -801,8 +801,8 @@ export function Loquela({
               className="inline-flex h-9 shrink-0 items-center gap-2 rounded-md border border-(--color-status-fail)/45 bg-(--color-status-fail)/12 px-3 text-(--color-status-fail) transition hover:bg-(--color-status-fail)/18"
             >
               <Icon.stop className="size-3.5" />
-              <span className="font-display text-[11px] uppercase tracking-[0.18em]">Stop</span>
-              <kbd className="rounded-sm border border-current px-1 text-[9px] opacity-75">↵</kbd>
+              <span className="font-display text-[11px] uppercase tracking-[0.13em]">Stop</span>
+              <kbd className="rounded-sm border border-current px-1 text-[11px] opacity-75">↵</kbd>
             </button>
           ) : agentPaused && currentAgent ? (
             <button
@@ -812,7 +812,7 @@ export function Loquela({
               className="inline-flex h-9 shrink-0 items-center gap-2 rounded-md border border-(--color-status-fail)/45 bg-(--color-status-fail)/12 px-3 text-(--color-status-fail) transition hover:bg-(--color-status-fail)/18"
             >
               <Icon.play className="size-3.5" />
-              <span className="font-display text-[11px] uppercase tracking-[0.18em]">Resume</span>
+              <span className="font-display text-[11px] uppercase tracking-[0.13em]">Resume</span>
             </button>
           ) : (
             <button
@@ -820,11 +820,11 @@ export function Loquela({
               onClick={() => void send()}
               disabled={!canSend}
               aria-label="Run (Enter)"
-              className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border px-3 font-display text-[11px] uppercase tracking-[0.18em] transition ${canSend ? "border-brass/40 bg-brass/15 text-brass hover:bg-brass/25 shadow-[0_0_24px_-8px_rgb(var(--brass)/0.6)]" : "border-white/5 bg-white/2 text-zinc-600 cursor-not-allowed"}`}
+              className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border px-3 font-display text-[11px] uppercase tracking-[0.13em] transition ${canSend ? "border-brass/40 bg-brass/15 text-brass hover:bg-brass/25" : "border-white/5 bg-white/2 text-zinc-600 cursor-not-allowed"}`}
             >
               <Icon.send className="size-3.5" />
               Run
-              <kbd className="rounded-sm border border-current px-1 text-[9px] opacity-75">↵</kbd>
+              <kbd className="rounded-sm border border-current px-1 text-[11px] opacity-75">↵</kbd>
             </button>
           )}
         </div>
@@ -833,7 +833,7 @@ export function Loquela({
           <IntentPanel intent={intent} onChange={(p) => setIntent((i) => ({ ...i, ...p }))} showEffort={executionMode === 'task'} />
         )}
 
-        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-white/5 pt-1.5 text-[10px]">
+        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-white/5 pt-1.5 text-[11px]">
           <div className="flex items-center gap-1.5">
             <button type="button" aria-label="Attach local file(s) to context" onClick={attachContext} title="Attach local file(s) to context (native picker)" className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-primary hover:border-white/25 transition">
               <Icon.plus className="size-3.5" aria-hidden="true" />
@@ -878,7 +878,7 @@ export function Loquela({
               type="button"
               onClick={onOpenTasks}
               title="Open task list"
-              className="flex items-center gap-1 rounded-full border border-brass/25 bg-brass/10 px-2 py-0.5 font-mono text-[10px] text-brass hover:bg-brass/20 focus:outline-hidden focus:ring-1 focus:ring-brass/40"
+              className="flex items-center gap-1 rounded-full border border-brass/25 bg-brass/10 px-2 py-0.5 font-mono text-[11px] text-brass hover:bg-brass/20 focus:outline-hidden focus:ring-1 focus:ring-brass/40"
             >
               {queueDepth} queued
             </button>
@@ -900,10 +900,10 @@ export function Loquela({
               <Icon.chevR className="size-2.5 text-text-muted rotate-90" />
             </button>
             {modelLoadStatus === 'error' && (
-              <span className="font-mono text-[9px] text-(--color-status-warn)" data-testid="model-load-status">Models unavailable</span>
+              <span className="font-mono text-[11px] text-(--color-status-warn)" data-testid="model-load-status">Models unavailable</span>
             )}
             {modelLoadStatus === 'empty' && (
-              <span className="font-mono text-[9px] text-text-muted" data-testid="model-load-status">No models loaded</span>
+              <span className="font-mono text-[11px] text-text-muted" data-testid="model-load-status">No models loaded</span>
             )}
             <Popover open={tierOpen}>
               <div className="w-[min(22rem,80vw)]">
@@ -912,12 +912,12 @@ export function Loquela({
                 </div>
                 <div data-testid="model-picker-scroll" className="max-h-72 overflow-y-auto overscroll-contain custom-scrollbar">
                   {liveSearchStatus === 'loading' && tierQuery.trim() && (
-                    <div className="px-2 py-1.5 font-mono text-[10px] text-text-muted" data-testid="model-search-status">
+                    <div className="px-2 py-1.5 font-mono text-[11px] text-text-muted" data-testid="model-search-status">
                       Searching live catalogs…
                     </div>
                   )}
                   {liveSearchStatus === 'error' && tierQuery.trim() && (
-                    <div className="px-2 py-1.5 font-mono text-[10px] text-(--color-status-warn)" data-testid="model-search-status">
+                    <div className="px-2 py-1.5 font-mono text-[11px] text-(--color-status-warn)" data-testid="model-search-status">
                       Live search failed — showing cached list
                     </div>
                   )}
@@ -930,12 +930,12 @@ export function Loquela({
                     }} className={`flex w-full items-start gap-2 rounded-sm px-2 py-1.5 text-left hover:bg-overlay-subtle ${effectiveTierId === t.id ? "bg-overlay-subtle" : ""}`}>
                       <div className="flex-1 min-w-0">
                         <div className="text-[11px] text-text-primary truncate">{isRoutingTierId(t.id) ? t.label : t.id}</div>
-                        <div className="font-mono text-[9px] text-text-muted truncate">{t.detail}</div>
+                        <div className="font-mono text-[11px] text-text-muted truncate">{t.detail}</div>
                       </div>
                     </button>
                   ))}
                   {visibleTiers.length === 0 && liveSearchStatus !== 'loading' && (
-                    <div className="px-2 py-1.5 font-mono text-[10px] text-text-muted">No keyed models match</div>
+                    <div className="px-2 py-1.5 font-mono text-[11px] text-text-muted">No keyed models match</div>
                   )}
                 </div>
               </div>
@@ -971,7 +971,7 @@ export function Loquela({
                 <button key={m.id} type="button" aria-label={`Set send mode: ${m.label}`} onClick={() => { setExecutionMode(m.id); setModeOpen(false); }} className={`flex w-full items-start gap-2 rounded-sm px-2 py-1.5 text-left hover:bg-overlay-subtle ${executionMode === m.id ? "bg-overlay-subtle" : ""}`}>
                   <div className="flex-1">
                     <div className="text-[11px] text-text-primary">{m.label}</div>
-                    <div className="font-mono text-[9px] text-text-muted">{m.hint}</div>
+                    <div className="font-mono text-[11px] text-text-muted">{m.hint}</div>
                   </div>
                 </button>
               ))}
@@ -990,7 +990,7 @@ export function Loquela({
           {(estCost != null || trailingSlot != null) && (
             <div className="ml-auto flex items-center gap-2">
               {estCost != null && (
-                <span className="font-mono text-[9px] text-text-muted tabular-nums">
+                <span className="font-mono text-[11px] text-text-muted tabular-nums">
                   ~{tokens} tok · ~${estCost.toFixed(3)}
                 </span>
               )}

@@ -39,10 +39,10 @@ export function SecretaryToast({ intent, itemId: _itemId, onDismiss, onConfirm }
       className="flex items-center gap-2 rounded-lg border border-border-subtle bg-bg-base/95 px-3 py-2 shadow-lg backdrop-blur-xs"
     >
       {/* Secretary icon */}
-      <span className="shrink-0 text-[10px] text-text-muted" aria-hidden>📋</span>
+      <span className="shrink-0 text-[11px] text-text-muted" aria-hidden>📋</span>
 
       <div className="min-w-0 flex-1">
-        <p className="text-[10px] text-text-muted">Suggested task</p>
+        <p className="text-[11px] text-text-muted">Suggested task</p>
         <p
           data-testid="secretary-toast-intent"
           className="truncate text-[11px] text-text-secondary"
@@ -56,7 +56,7 @@ export function SecretaryToast({ intent, itemId: _itemId, onDismiss, onConfirm }
         type="button"
         aria-label="Confirm and add task"
         onClick={onConfirm}
-        className="shrink-0 rounded-sm px-2 py-0.5 text-[10px] text-brass hover:bg-overlay-subtle transition"
+        className="shrink-0 rounded-sm px-2 py-0.5 text-[11px] text-brass hover:bg-overlay-subtle transition"
       >
         Add task
       </button>

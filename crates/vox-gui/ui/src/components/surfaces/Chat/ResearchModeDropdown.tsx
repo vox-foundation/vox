@@ -74,7 +74,7 @@ export function ResearchModeDropdown({
         <span className="text-[11px] text-text-muted">Research:</span>
         <span className="text-[11px] text-text-primary font-medium">{selected.shortLabel}</span>
         {selected.badge && (
-          <span className="rounded bg-brass/15 px-1 py-0.5 font-mono text-[8px] text-brass">
+          <span className="rounded bg-brass/15 px-1 py-0.5 font-mono text-[11px] text-brass">
             {selected.badge}
           </span>
         )}
@@ -115,12 +115,12 @@ export function ResearchModeDropdown({
                       {opt.label}
                     </span>
                     {opt.badge && (
-                      <span className="rounded bg-brass/15 px-1 font-mono text-[8px] text-brass">
+                      <span className="rounded bg-brass/15 px-1 font-mono text-[11px] text-brass">
                         {opt.badge}
                       </span>
                     )}
                   </div>
-                  <div className="font-mono text-[9px] text-text-muted leading-tight mt-0.5">
+                  <div className="font-mono text-[11px] text-text-muted leading-tight mt-0.5">
                     {opt.hint}
                   </div>
                 </div>

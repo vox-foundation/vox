@@ -122,7 +122,6 @@
     border: 2px solid rgb(var(--brass));
     border-radius: 50%;
     cursor: pointer;
-    box-shadow: 0 0 10px rgb(var(--brass) / 0.5);
   }
 }
 
@@ -186,8 +185,8 @@
      label) — it never caps the section with a top border above the first label.
      Keep in sync with ds/components.css. */
   font-family: var(--font-family-display);
-  font-size: 9px;
-  letter-spacing: 0.28em;
+  font-size: 11px;
+  letter-spacing: 0.13em;
   text-transform: uppercase;
   color: var(--color-text-muted);
   padding-bottom: 4px;

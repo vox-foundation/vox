@@ -22,7 +22,7 @@ export function GroundingCheckToggle({
       aria-label={`Check replies ${enabled ? 'on' : 'off'}`}
       onClick={() => onToggle(!enabled)}
       title="When on, each reply gets a background check for unsupported claims; it never blocks the reply"
-      className={`rounded-lg border px-2 py-1 font-mono text-[10px] ${
+      className={`rounded-lg border px-2 py-1 font-mono text-[11px] ${
         enabled
           ? 'border-brass/40 text-brass'
           : 'border-border-subtle text-text-muted hover:text-brass'

@@ -104,9 +104,9 @@ function Segment({
       aria-label={ariaLabel}
       aria-haspopup={expanded === undefined ? undefined : 'dialog'}
       aria-expanded={expanded}
-      className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-sm px-2 py-0.5 text-[10px] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
+      className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-sm px-2 py-0.5 text-[11px] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
     >
-      <span data-card-label className="uppercase tracking-[0.14em] text-text-muted">{label}</span>
+      <span data-card-label className="uppercase tracking-[0.08em] text-text-muted">{label}</span>
       <span
         data-card-value
         title={value}
@@ -275,7 +275,7 @@ export function BottomStatusBar({
       data-testid="bottom-status-bar"
       role="status"
       aria-label="Operator status"
-      className="flex h-7 w-full items-center gap-1 p-0 px-3 rounded-none border-x-0 border-b-0 shadow-none text-[10px] text-text-muted"
+      className="flex h-7 w-full items-center gap-1 p-0 px-3 rounded-none border-x-0 border-b-0 shadow-none text-[11px] text-text-muted"
     >
       <div className="relative flex min-w-0 flex-1">
         <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
@@ -331,7 +331,7 @@ export function BottomStatusBar({
           onClick={() => setOpenPanel((p) => (p === 'configure' ? null : 'configure'))}
           aria-expanded={openPanel === 'configure'}
           aria-label="Configure status bar"
-          className="rounded-sm px-1.5 py-0.5 text-[10px] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
+          className="rounded-sm px-1.5 py-0.5 text-[11px] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
         >
           Configure ▾
         </button>
@@ -365,7 +365,7 @@ export function BottomStatusBar({
         className={`ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-sm border px-2 py-0.5 ${fresh.pill}`}
       >
         <span className={`size-1.5 rounded-full ${fresh.dot}`} />
-        <span className="uppercase tracking-[0.14em]">{fresh.label}</span>
+        <span className="uppercase tracking-[0.08em]">{fresh.label}</span>
       </div>
 
       {/* Fixed home for surface-level chrome that needs to sit inline with
