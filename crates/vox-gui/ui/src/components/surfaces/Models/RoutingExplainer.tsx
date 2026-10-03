@@ -48,7 +48,7 @@ export function RoutingExplainer({ explanation, health, loading = false }: Props
         )}
       </header>
       <div className="overflow-x-auto">
-      <table className="w-full table-fixed text-xs tabular-nums">
+      <table className="w-full min-w-[30rem] table-fixed text-xs tabular-nums">
         <caption className="sr-only">Candidates ranked by routing score</caption>
         <thead>
           <tr className="text-left text-text-muted">
