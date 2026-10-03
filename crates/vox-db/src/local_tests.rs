@@ -780,6 +780,87 @@ async fn migrate_adds_archived_at_to_a_pre_existing_conversations_table() {
     );
 }
 
+/// `PRAGMA table_info` column names of `table`.
+async fn column_names(conn: &turso::Connection, table: &str) -> Vec<String> {
+    let mut rows = conn
+        .query(&format!("PRAGMA table_info({table})"), ())
+        .await
+        .unwrap();
+    let mut names = Vec::new();
+    while let Some(row) = rows.next().await.unwrap() {
+        names.push(row.get::<String>(1).unwrap());
+    }
+    names
+}
+
+#[tokio::test]
+async fn migrate_adds_latency_columns_to_a_database_already_at_the_baseline_version() {
+    let db = VoxDb::connect(DbConfig::Memory).await.expect("memory db");
+    let conn = db.connection();
+
+    // The Task M3 columns were added to the baseline DDL without a version bump, so a
+    // database already recorded at BASELINE_VERSION never got them. Recreate that shape and
+    // leave `schema_version` untouched (the upgrade branch must NOT be what fixes it).
+    conn.execute_batch(
+        "DROP TABLE llm_interactions;
+         CREATE TABLE llm_interactions (
+             id INTEGER PRIMARY KEY AUTOINCREMENT,
+             session_id TEXT NOT NULL,
+             prompt TEXT NOT NULL,
+             response TEXT NOT NULL,
+             model_version TEXT NOT NULL,
+             task_category TEXT NOT NULL DEFAULT 'general',
+             strength_tag TEXT NOT NULL DEFAULT 'generalist',
+             success INTEGER NOT NULL DEFAULT 1,
+             latency_ms INTEGER,
+             cost_usd REAL,
+             created_at TEXT NOT NULL DEFAULT (datetime('now'))
+         );
+         DROP TABLE model_scoreboard;
+         CREATE TABLE model_scoreboard (
+             model_id TEXT NOT NULL,
+             task_category TEXT NOT NULL,
+             strength_tag TEXT NOT NULL,
+             window_days INTEGER NOT NULL,
+             updated_at_ms INTEGER NOT NULL,
+             PRIMARY KEY (model_id, task_category, strength_tag, window_days)
+         );",
+    )
+    .await
+    .unwrap();
+    assert!(
+        !column_names(conn, "llm_interactions")
+            .await
+            .contains(&"ttft_ms".to_string())
+    );
+
+    crate::VoxDb::migrate(conn).await.expect("migrate");
+
+    let interactions = column_names(conn, "llm_interactions").await;
+    for c in ["ttft_ms", "tpot_ms"] {
+        assert!(
+            interactions.contains(&c.to_string()),
+            "llm_interactions missing {c}"
+        );
+    }
+    let scoreboard = column_names(conn, "model_scoreboard").await;
+    for c in ["p95_ttft_ms", "p95_tpot_ms", "goodput_tokens_per_sec"] {
+        assert!(
+            scoreboard.contains(&c.to_string()),
+            "model_scoreboard missing {c}"
+        );
+    }
+
+    // Idempotent, and a fresh database (columns already present) is untouched.
+    crate::VoxDb::migrate(conn)
+        .await
+        .expect("second migrate is a no-op");
+    let fresh = VoxDb::connect(DbConfig::Memory).await.expect("fresh db");
+    crate::VoxDb::migrate(fresh.connection())
+        .await
+        .expect("fresh migrate");
+}
+
 #[tokio::test]
 async fn hopper_inbox_has_resource_id_on_a_fresh_database() {
     let db = VoxDb::connect(DbConfig::Memory).await.expect("memory db");
