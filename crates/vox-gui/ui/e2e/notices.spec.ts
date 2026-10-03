@@ -132,10 +132,9 @@ test.describe('Notices', () => {
     await expect.poll(() => sessionlessActivityQueries(page)).toBe(before + 1);
   });
 
-  // 560px: the narrowest window this shell lays out (the 212px sidebar alone is over half of a phone width, and
-  // below ~540px the status bar's fixed right-hand items no longer fit, which is the shell's limit, not the bell's).
+  // 390px: a phone. Below 640px the shell shows the sidebar rail, so the status bar's fixed right-hand items fit.
   test('the bell is reachable and the drawer fits a narrow window', async ({ page }) => {
-    await open(page, 'chat', {}, { width: 560, height: 844 });
+    await open(page, 'chat', {}, { width: 390, height: 844 });
     await listening(page, AGENT_EVENTS);
     await emit(page, AGENT_EVENTS, {
       id: 1, timestamp_ms: 1, severity: 'error',
@@ -144,14 +143,14 @@ test.describe('Notices', () => {
     const trigger = bell(page, /^Notifications/);
     const triggerBox = await trigger.boundingBox();
     expect(triggerBox).not.toBeNull();
-    expect(triggerBox!.x + triggerBox!.width).toBeLessThanOrEqual(560);
+    expect(triggerBox!.x + triggerBox!.width).toBeLessThanOrEqual(390);
     await trigger.click();
     const drawer = page.getByRole('dialog', { name: 'Notifications' });
     await expect(drawer).toBeVisible();
     const box = await drawer.boundingBox();
     expect(box).not.toBeNull();
     expect(box!.x).toBeGreaterThanOrEqual(0);
-    expect(box!.x + box!.width).toBeLessThanOrEqual(560);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(390);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await shot(page, 'notices-narrow.png');
   });
