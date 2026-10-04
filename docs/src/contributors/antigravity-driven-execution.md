@@ -39,7 +39,7 @@ node .agents/scripts/agent-guard.mjs --self-test
 ```
 
 | File | Role |
-|---|---|
+| --- | --- |
 | `.agents/hooks.json` | PreToolUse hook: `node scripts/agent-guard.mjs` (runs with cwd = `.agents/`). The CLI enforces a hook `deny` even with `--dangerously-skip-permissions`. |
 | `.agents/scripts/agent-guard.mjs` | Mechanical guard. Denies index/history git commands, `cargo fmt`/`fmt.vox`, dependency changes, `pre-push`, network, inline code, `.env`, and writes to `.agents/`, `.planning/`, `Cargo.lock`, the crate-edge and fan-in ledgers and `layers.toml`, and any absolute path into another checkout. 49 self-test cases. |
 | `.agents/rules/00-core.md` | Always-on contract (scope, order, proof, stop conditions, git, foreground-only, big contract files). |
@@ -60,7 +60,7 @@ node .agents/scripts/agent-guard.mjs --self-test
 ## Prevent these before they happen
 
 | # | What happened | Prevention |
-|---|---|---|
+| --- | --- | --- |
 | 1 | The agent started `playwright test` in the background, ended its turn "waiting", and the run sat for 57 minutes (headless has no wake-up). | Rule: foreground only, every build/test prefixed with `timeout`, exit 124 means STOP. Driver `--print-timeout 60m`. Watchdog on model-call gaps. |
 | 2 | The guard's `^`-anchored rules were bypassed by the very `timeout 1500s …` prefix rule 1 tells the agent to use (`timeout 30s git add -A` would run). | The guard strips wrappers (`timeout [-k N] DUR`, `env X=`, `nice`, `command`, `exec`, `nohup`, `time`) before matching. **Every instruction you add is a new input shape the guard must be tested against.** |
 | 3 | The agent re-serialized a 15,000-line generated YAML (3,745 lines changed, rows reordered, a header dropped) while every test passed. | Rule 11: one targeted edit in big contract files, generators are run not imitated. The driver lists any file over 400 changed lines. Look at `git diff --numstat`, always. |
@@ -90,7 +90,7 @@ When the shared checkout is on another session's branch, drive from a worktree o
 come along). Three things then differ, and each cost a run before it was fixed:
 
 | # | What happened | Prevention |
-|---|---|---|
+| --- | --- | --- |
 | 16 | `drive.mjs` hardcoded the shared checkout as its root, so it could not drive a worktree. | The root is now derived from the script's location (`new URL("../..", import.meta.url)`). |
 | 17 | A plan path with slashes went into the run-log filename and crashed the driver after the agent had finished its work. | The log is named by the plan's basename. |
 | 18 | Plan steps written for the shared checkout say `cd /Users/brbrainerd/dev/vox/...`. In a worktree the agent would run them, `sed -i` included, in **another session's tree**. | The guard denies any absolute path under the shared checkout that is outside its own root, and says to use relative paths; plans say "from the repository root" and use relative `cd`s. Nothing leaked before the guard existed (checked: the shared checkout's status was unchanged), but the earlier plans carry the same prefix. |
