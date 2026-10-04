@@ -10,6 +10,7 @@ use clap::Subcommand;
 use vox_research_shim::research::types::{ResearchDomainMode, ResearchStage};
 use vox_search::policy::ResearchLane;
 
+mod answer_overlap;
 pub mod eval;
 pub mod infra;
 

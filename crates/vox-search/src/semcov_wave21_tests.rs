@@ -1,11 +1,10 @@
 #![allow(clippy::field_reassign_with_default)]
 //! Adversarial unit tests — semcov wave 21.
-//! Coverage targets: rrf, policy, tavily_budget, evaluation, unified, memory_hybrid internals.
+//! Coverage targets: rrf, policy, tavily_budget, unified, memory_hybrid internals.
 
 #[cfg(test)]
 mod semcov_wave21_tests {
     #![allow(clippy::module_inception, clippy::field_reassign_with_default)]
-    use crate::evaluation::{calculate_groundedness, calculate_recall_at_5};
     use crate::policy::{SearchPolicy, SearchPolicyFeedback};
     use crate::rrf::{rrf_dedup_key, rrf_merge_line_lists};
     use crate::tavily_budget::TavilySessionBudget;
@@ -215,56 +214,6 @@ mod semcov_wave21_tests {
             p.web_search_max_hops <= 5,
             "max_hops must cap at 5, got {}",
             p.web_search_max_hops
-        );
-    }
-
-    // ── Evaluation helpers ───────────────────────────────────────────────────
-
-    #[test]
-    fn recall_at5_empty_gold_returns_one() {
-        // Catches: division by zero when gold_words is empty
-        let r = calculate_recall_at_5("model answer here", "");
-        assert_eq!(
-            r, 1.0,
-            "empty gold answer should yield recall 1.0 (trivially satisfied)"
-        );
-    }
-
-    #[test]
-    fn recall_at5_model_shorter_than_threshold_tokens_ignored() {
-        // Catches: short-token filter (>3 chars) silently dropping all model tokens,
-        // producing 0 when the model technically answered correctly in short tokens
-        let r = calculate_recall_at_5("at of the in", "at of the in");
-        // All tokens are <= 3 chars → both sets empty → gold empty → returns 1.0
-        assert_eq!(
-            r, 1.0,
-            "all-short-token answer with all-short-token gold = trivially satisfied"
-        );
-    }
-
-    #[test]
-    fn groundedness_empty_model_answer_returns_zero() {
-        // Catches: early return missing for empty model_answer — could divide by 0
-        let g = calculate_groundedness("", &["some evidence".to_string()]);
-        assert_eq!(g, 0.0);
-    }
-
-    #[test]
-    fn groundedness_empty_evidence_returns_zero() {
-        // Catches: early return missing for empty snippets — could return 1.0 (trivially grounded)
-        let g = calculate_groundedness("The answer is found here.", &[]);
-        assert_eq!(g, 0.0);
-    }
-
-    #[test]
-    fn groundedness_single_sentence_no_long_keywords_returns_one() {
-        // Catches: when model_clusters is empty (all sentences <=10 chars), returns 1.0 (trivially);
-        // caller might mis-interpret 1.0 as high groundedness when it's a vacuous result
-        let g = calculate_groundedness("Hi. Ok.", &["irrelevant evidence".to_string()]);
-        // Both sentences ≤10 chars → model_clusters empty → returns 1.0
-        assert_eq!(
-            g, 1.0,
-            "vacuous groundedness (no long clauses) should return 1.0 by spec"
         );
     }
 

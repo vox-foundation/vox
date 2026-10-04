@@ -19,10 +19,6 @@ pub struct GoldenQueryItem {
     pub is_adversarial: Option<bool>,
 }
 
-pub fn compute_token_recall(gold_answer: &str, model_answer: &str) -> f64 {
-    vox_search::evaluation::calculate_recall_at_5(model_answer, gold_answer)
-}
-
 pub async fn evaluate_single_query_pipeline(
     run_id: &str,
     item: &GoldenQueryItem,
@@ -65,7 +61,7 @@ pub async fn evaluate_single_query_pipeline(
 
     // 1. Calculate groundedness & citation precision from actual report
     let groundedness =
-        vox_search::evaluation::calculate_groundedness(&model_answer, &evidence_snippets);
+        crate::answer_overlap::answer_keyword_hit_rate(&model_answer, &evidence_snippets);
     let (citation_precision, citations_found, citations_supported) =
         if let Some(ref audit) = result.research_metadata.citation_audit {
             (
@@ -88,7 +84,7 @@ pub async fn evaluate_single_query_pipeline(
     let recall = item
         .gold_answer
         .as_ref()
-        .map(|gold| compute_token_recall(gold, &model_answer));
+        .map(|gold| crate::answer_overlap::answer_token_overlap(&model_answer, gold));
 
     let quality_score = (groundedness + citation_precision + recall.unwrap_or(0.5)) / 3.0;
 
@@ -498,14 +494,5 @@ mod tests {
         );
 
         assert_eq!(score, 1.0);
-    }
-
-    #[test]
-    fn token_recall_computes_overlap() {
-        let recall = compute_token_recall(
-            "Rust memory safety ownership borrowing",
-            "Rust memory safety is guaranteed by ownership.",
-        );
-        assert!(recall > 0.0);
     }
 }
