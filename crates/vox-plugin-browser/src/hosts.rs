@@ -394,7 +394,8 @@ mod tests {
         let id = engine
             .open_ex(
                 BrowserLaunchOptions {
-                    url: "http://127.0.0.1/".into(),
+                    // Nothing listens on port 80; the attach itself is what this smoke proves.
+                    url: "data:text/html,<h1>attach</h1>".into(),
                     headless: true,
                     mode: BrowserLaunchMode::Attach,
                     profile_id: None,
