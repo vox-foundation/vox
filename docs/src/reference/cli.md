@@ -201,7 +201,7 @@ Corpus registry and freshness status/ingest operations for Vox Graph knowledge m
 | `vox graph status` | Report per-corpus freshness (node/edge counts, graph path). `--corpus <id>` limits output; `--strict` exits non-zero when any corpus is stale; `--json` emits machine-readable status. |
 | `vox graph ingest` | Project graph nodes into Turso `knowledge_nodes` via VoxDb. |
 | `vox graph rebuild` | Rebuild the base AST code graph and cluster it. |
-| `vox graph history <log\|focus\|forgotten\|search\|timeline\|brief>` | First-parent history of `origin/main` (else `main`) with rename/split/merge lineage. Mechanical (fmt/generated/import-only) changes are flagged and hidden unless `--include-mechanical`. Every subcommand except `brief` catches up on new commits first. One store is shared by all worktrees, at `<git-common-dir>/vox-cache/repo-history/`. `brief` prints one line from disk and says how many commits it is behind. |
+| `vox graph history <log\|focus\|forgotten\|search\|timeline\|brief>` | First-parent history of `origin/main` (else `main`) with rename/split/merge lineage. Mechanical (fmt/generated/import-only) changes are flagged and hidden unless `--include-mechanical`. Every subcommand except `brief` catches up on new commits first. One store is shared by all worktrees, at `<git-common-dir>/vox-cache/repo-history/`. `brief` prints one line from disk and says how many commits it is behind. Forms: `vox graph history log`, `vox graph history focus`, `vox graph history forgotten`, `vox graph history search`, `vox graph history timeline`, `vox graph history brief`. |
 
 ### `vox ci …`
 
@@ -286,6 +286,7 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `scientia-novelty-ledger-contracts` | Validates example `contracts/reports/scientia-finding-candidate.example.v1.json` and `scientia-novelty-evidence-bundle.example.v1.json` against `finding-candidate.v1.schema.json` and `novelty-evidence-bundle.v1.schema.json` |
 | `speech-runtime-suite [--run-id <id>] [--plugins-dir <dir>] [--limit <n>] [--skip-runtime]` | Runs the speech-to-code MUST+SHOULD audit matrix from `contracts/speech-to-code/audit-matrix.v1.yaml`, executes the CPU Candle Oratio eval when runtime is enabled, and writes per-cell `cell_result.json`, `cell_result.kpi.json`, and aggregate `scorecard.json` under `.vox/audit/<run-id>/`. |
 | `ssot-drift` | Runs `check-docs-ssot`, `check-codex-ssot`, `sql-surface-guard --all` (includes `sqlx` isolation enforcement), `query-all-guard --all`, `turso-import-guard --all`, `operations-verify`, `command-compliance`, `capability-sync` (verify-only), `contracts-index`, **`docs-reality-audit verify`**, `exec-policy-contract`, in-process completion-policy Tier A scan (no audit JSON write), `scientia-worthiness-contract`, `scientia-novelty-ledger-contracts`, and `data-ssot-guards` in one pass |
+| `status [--hook]` | Prints this branch's failed or timed-out GitHub CI jobs, open `nightly-failure` issues, and how far local `main` is ahead of `origin/main`. **`--hook`** is the never-failing form the pre-commit hook runs. |
 
 ### Bootstrap / dev launcher (missing `vox` on `PATH`)
 

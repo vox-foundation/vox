@@ -51,7 +51,7 @@ When working under the Vox repository, ALL research findings, architecture docum
 - `docs/src/reference/plugin-catalog.generated.md`, `docs/src/reference/distribution-bundles.generated.md` — regenerate with `cargo run -p vox-cli -- ci generate-plugin-catalog-docs`.
 - `.cursorignore`, `.aiignore`, `.aiexclude` — derived from `.voxignore`; regenerate with `vox ci sync-ignore-files`.
 
-Install the pre-commit hooks once after cloning: `vox run scripts/install-hooks.vox`. The hooks auto-stage regenerated files on every commit so these never drift to CI.
+First-time setup (`vox run scripts/setup.vox`) installs the git hooks and the binaries they call (`vox`, `toestub`, `vox-drift-check`). Hooks never build and never regenerate these files; PR CI's `ssot-autoregen` job regenerates them, and `vox ci ssot-drift` reports drift.
 
 Manually-maintained files that **are** safe to edit:
 - `docs/src/adr/index.md`, `docs/src/adr/README.md` — hand-rolled ADR tables, not generated.
@@ -390,7 +390,7 @@ In Vox, tests are not just regression catchers — they are training data for th
 
 **Enforcement:**
 
-- **Pre-commit hook** (`lefthook` `tdd-guard`): blocks commits that introduce `pub fn` / `fn` without an adjacent test. Install via `vox run scripts/install-hooks.vox`.
+- **Pre-commit hook** (`lefthook` `tdd-guard`): blocks commits that introduce `pub fn` / `fn` without an adjacent test. Installed by `vox run scripts/setup.vox`.
 - **CI:** `vox-code-audit` reports `skeleton/untested-pub-api` (Warning) and `skeleton/no-test-for-pub-fn` (Warning). Default CI mode is `legacy` (Errors block, Warnings surface). PRs touching `crates/vox-compiler/**` or `crates/vox-codegen/**` additionally trigger `cargo mutants` to verify tests *catch* mutations, not just exist.
 - **Override:** `// toestub-ignore(skeleton/untested-pub-api) — <reason>` on the line above the `pub fn`, or a structured entry in `contracts/toestub/suppressions.v1.json` with `owner` and `reason`. Suppress only when refactoring is impractical, not to avoid the work.
 
@@ -402,26 +402,29 @@ In Vox, tests are not just regression catchers — they are training data for th
 > **Full tier spec:** `docs/superpowers/specs/2026-05-27-test-suite-perf-and-gate-tiers-design.md §4`
 > **Full tier table + per-flag details:** `docs/src/contributors/local-ci-pre-push.md` — do not restate the tier table here, it drifts.
 
-**Run CI locally first — do NOT use GitHub Actions as your primary feedback loop (Required).**
-GitHub-hosted CI is slow (minutes-to-tens-of-minutes per push) and burns runner
-minutes on iteration noise. Before every push, reproduce the relevant gates locally
-and only push once they are green.
-See [`docs/src/ci/runner-contract.md`](docs/src/ci/runner-contract.md) §Local-first CI.
+**Hosted CI is the gate; the laptop is not (Required, decided 2026-10-03).** GitHub-hosted
+runners run clippy, the full suites, nightly and release builds. Locally, verify only what you
+touched: `cargo check -p <crate>` and `cargo nextest run -p <crate>` (or `cargo test -p <crate> <filter>`).
+Never run `cargo clippy --workspace` or a workspace-wide test locally to "pre-check" a push —
+that cost hours on a loaded machine and duplicated the gate. Evidence and plan:
+[`ci-and-build-loop-findings-2026.md`](docs/src/architecture/ci-and-build-loop-findings-2026.md).
 
-- **Docker available:** `act pull_request -j linux` runs the PR gate's `linux` job
-  locally (secrets come from the git-ignored `.secrets` file). `gate` itself is a
-  step-less aggregator (see §CI Contract) — the actual work happens in `linux`.
-- **Faster inner loop (no Docker):** `vox ci pre-push --full` for the native gate
-  tiers below; scope to changed crates with `--since <ref>`.
-- **Per-job spot-checks:** run the exact command a failing job runs (e.g.
-  `cargo run -q -p vox-arch-check`, `cargo run -q -p vox-cli -- ci check-links`)
-  rather than re-pushing to see if it passes.
-
-Push only after the local equivalent of the gates you expect to run is green.
+- **Work reaches `main` only through a PR.** Branch, batch commits, `git push -u origin HEAD:<branch>`,
+  `gh pr create --draft`, read CI, self-review, mark ready, merge through the queue. The pre-push
+  hook refuses a push to `main` (`VOX_ALLOW_MAIN_PUSH=1` overrides for emergencies only).
+- **Git hooks never build.** They call the installed `vox` and `toestub`; `vox ci dev-loop-guard`
+  (fast tier, local and CI) fails if a hook runs `cargo run/build/test/clippy`, calls an unregistered
+  `vox` command, or `.cargo/config.toml` hardcodes `[build] jobs`.
+- **No hardcoded CPU or job counts** in config, the build broker, workflows or scripts: derive from
+  the machine (`available_parallelism`, load). An env var may override; a literal default may not.
+- **One `target/` per worktree; never symlink `target` into another checkout** — a shared build-dir
+  lock serializes every worktree behind the slowest build.
+- **Per-job spot-checks:** reproduce a failing CI job by running that job's exact command for the
+  affected crate, not by re-pushing blindly.
 
 Use `vox ci pre-push` to run any tier locally (default = **fast**, ≤60s: fmt, line-endings,
 ssot-drift, workflow-concurrency-guard, workflow-permissions (strict), scoped doc lint + doctest,
-drift-check). Install the hook once with `cargo run -q -p vox-cli -- ci install-hooks`. The
+drift-check, dev-loop-guard). It runs as the pre-push hook (advisory; hosted CI is authoritative). The
 full tier list (complete / full / full+cov / full+since / full+cov+since / ci-equivalent),
 their exact flags, and the `--include-slow` slow-test names live in
 [`local-ci-pre-push.md`](docs/src/contributors/local-ci-pre-push.md) — not restated here.
@@ -685,7 +688,7 @@ interception work in the first place.
 - Installed by `scripts/broker-install.vox` (dry-run by default; `--apply` to
   build the shim, install it, and edit your shell profile). State and
   activation are checked by `vox doctor`.
-- Tunables: `VOX_BROKER_MAX_CONCURRENT` (max simultaneous builds
+- Admission follows measured load (a build waits while the load average exceeds the core count). Tunables: `VOX_BROKER_MAX_CONCURRENT` (optional upper bound on simultaneous builds
   machine-wide) and `VOX_BROKER_RESERVED_SLOTS` (slots reserved for a build
   domain the broker's file-lock semaphore can't see, e.g. a containerised CI
   runner sharing the host's CPU but not its mount namespace). Full reference:

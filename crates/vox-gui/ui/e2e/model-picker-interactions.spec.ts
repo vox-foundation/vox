@@ -4,7 +4,7 @@
  * Ground truth: Loquela's "Choose model tier" (Run on) trigger is the
  * single picker. The pick is lifted via onModelPick and threaded into
  * the NEXT chat submit as `chat_turn`'s `input.model_override` (the single
- * composer dispatch since dfb707f38). ChatModelPicker is not mounted in
+ * composer dispatch since dfb707f38). The retired ChatModelPicker was never mounted in
  * App trailingSlot. The picker itself never calls `set_active_model`.
  */
 import { test, expect } from '@playwright/test';

@@ -5,13 +5,14 @@ import { Icon } from '../ui/Icons';
 import { AxisMark } from '../ui/AxisMark';
 import { DashboardData } from '../../types/dashboard';
 import { SURFACE_REGISTRY } from '../../generated/surfaceRegistry.generated';
-import { TOP_LEVEL_VIEWS, resolveNavigation, CHILD_ORDER_BY_PARENT, labelForNavKey } from '../../lib/navigation';
+import { TOP_LEVEL_VIEWS, resolveNavigation, CHILD_ORDER_BY_PARENT, childLabelFor } from '../../lib/navigation';
 import { STATUS_BADGE_CLASS, STATUS_RAIL_BADGE_CLASS } from '../../styles/tokens';
 import { useFreshness } from '../../hooks/useFreshness';
 import { useLang } from '../../hooks/useLanguage';
 import { LEXICON, labelFor, sidebarParentLabel } from '../../lib/lexicon';
 import { SessionSidebarSection } from './SessionSidebarSection';
 import type { ChatSession } from '../../lib/useChatSessions';
+import type { Toast } from '../../types/tauri';
 
 export type SidebarMode = 'rail' | 'default' | 'wide';
 
@@ -74,10 +75,11 @@ interface SidebarProps {
   data: DashboardData;
   mode: SidebarMode;
   setMode: (m: SidebarMode) => void;
-  pushToast: (t: any) => void;
+  pushToast: (t: Toast) => void;
   appVersion?: string;
   policyBadge?: PolicyBadge | null;
   needsYouCount?: number;
+  needsYouDegraded?: string[];
   lastOrchEventAt?: number | null;
   orchUsesPolling?: boolean;
   liveFreshMs?: number;
@@ -108,6 +110,7 @@ export function Sidebar({
   appVersion,
   policyBadge,
   needsYouCount,
+  needsYouDegraded,
   lastOrchEventAt = null,
   orchUsesPolling = false,
   liveFreshMs = 10_000,
@@ -230,15 +233,21 @@ export function Sidebar({
             const isActive = activeParent === key;
             const isExpanded = expandedParent === key && mode === 'wide';
             const children = CHILD_ORDER_BY_PARENT[key];
+            const hasReviewItems = key === 'runs' && needsYouCount != null && needsYouCount > 0;
+            const couldNotLoad =
+              key === 'runs' && (needsYouDegraded?.length ?? 0) > 0 ? `couldn't load ${needsYouDegraded!.join(', ')}` : '';
             const badge =
               key === 'agents' ? agentsCount
-              : key === 'runs' && needsYouCount != null && needsYouCount > 0 ? needsYouCount
+              : hasReviewItems ? needsYouCount
+              : couldNotLoad ? '!'
               : undefined;
             const navAriaLabel =
               key === 'runs'
-                ? needsYouCount != null && needsYouCount > 0
-                  ? `Review, ${needsYouCount} items need you`
-                  : 'Review'
+                ? hasReviewItems
+                  ? `Review, ${needsYouCount} items need you${couldNotLoad ? ` (${couldNotLoad})` : ''}`
+                  : couldNotLoad
+                    ? `Review, ${couldNotLoad}`
+                    : 'Review'
                 : undefined;
             return (
               <React.Fragment key={key}>
@@ -301,7 +310,7 @@ export function Sidebar({
                             : 'text-text-muted hover:bg-overlay-hover hover:text-text-secondary'
                         }`}
                       >
-                        {labelForNavKey(childKey)}
+                        {childLabelFor(childKey, lang)}
                       </button>
                     ))}
                   </div>

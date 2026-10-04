@@ -23,6 +23,7 @@ export function HarnessHealthView() {
       <EmptyState
         icon={<Icon.bolt className="size-8" />}
         title="No harness eval runs yet"
+        headingLevel={2}
         description="Run `vox harness eval --live` locally, or wait for the nightly scheduled workflow, to see chat harness quality and model-selection trends here."
       />
     );

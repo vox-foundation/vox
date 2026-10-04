@@ -36,8 +36,12 @@ fork-bomb.
 
 ## Tunables (env)
 
-- `VOX_BROKER_MAX_CONCURRENT` — max simultaneous builds machine-wide. Default
-  ≈ logical-cores / 3, clamped to [2, 8]. Lower it when the machine thrashes.
+- **Admission adapts to the machine.** The first build always starts. Another starts only
+  while the 1-minute load average is below the machine's available parallelism (some cores
+  are idle); otherwise it waits. Where the OS reports no load average, builds run one at a
+  time. There is no fixed default count.
+- `VOX_BROKER_MAX_CONCURRENT` — optional upper bound on simultaneous builds. Unset, the
+  bound is the machine's available parallelism, and load decides.
 - `VOX_BROKER_RESERVED_SLOTS` — slots subtracted from the host cap for a build
   domain the file-lock semaphore cannot see, chiefly a containerised CI runner
   sharing this host's CPU/RAM but not its mount namespace (the broker's

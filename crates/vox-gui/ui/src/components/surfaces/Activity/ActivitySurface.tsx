@@ -6,10 +6,10 @@ import { Icon } from '../../ui/Icons';
 import {
   activityQuery,
   listenActivityAppended,
-  listenAgentEvents,
   type ActivityRowDto as ActivityRow,
   type ActivityFilterDto as ActivityFilter,
 } from '../../../transport';
+import { ACTIVITY_REFRESH_DEBOUNCE_MS } from '../../../config/constants';
 import type { Toast } from '../../../types/tauri';
 
 export type { ActivityRow, ActivityFilter };
@@ -280,29 +280,19 @@ export function ActivitySurface({ pushToast }: ActivitySurfaceProps) {
     fetchLogs();
   }, [fetchLogs]);
 
-  // Reactive updates on "vox://activity-appended"
+  // Reactive updates on "vox://activity-appended", which the GUI bridge emits for every activity-loggable
+  // event and replay frame (crates/vox-gui/src/commands/event_annotate.rs).
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
     // listen() rejects when the Tauri event bridge is unavailable (bare
     // browser, tests, headless capture) — guard so nothing leaks an
     // unhandled rejection and cleanup still resolves.
     const unlistenPromise = listenActivityAppended(() => {
-      fetchLogs();
+      clearTimeout(timer);
+      timer = setTimeout(fetchLogs, ACTIVITY_REFRESH_DEBOUNCE_MS);
     }).catch(() => undefined);
     return () => {
-      unlistenPromise.then((unlisten) => unlisten?.());
-    };
-  }, [fetchLogs]);
-
-  // Also refresh on "vox://agent-events" — this event IS already emitted by the
-  // Rust daemon bridge (spawn_agent_event_stream), whereas "vox://activity-appended"
-  // has no Rust emitter yet. This makes the timeline update live without any new
-  // backend work (Option B: lazy reactive refresh).
-  useEffect(() => {
-    // Guarded like the effect above: listen() rejects outside Tauri.
-    const unlistenPromise = listenAgentEvents(() => {
-      fetchLogs();
-    }).catch(() => undefined);
-    return () => {
+      clearTimeout(timer);
       unlistenPromise.then((unlisten) => unlisten?.());
     };
   }, [fetchLogs]);
@@ -321,7 +311,7 @@ export function ActivitySurface({ pushToast }: ActivitySurfaceProps) {
           <Icon.bolt className="text-emerald-400 size-5" />
           Agent Activity Timeline
         </h2>
-        <p className="text-xs text-zinc-500">
+        <p className="text-xs text-text-muted">
           Durable log of high-signal events emitted across agent orchestrations.
         </p>
       </div>
@@ -333,6 +323,7 @@ export function ActivitySurface({ pushToast }: ActivitySurfaceProps) {
           </label>
           <select
             value={agentFilter}
+            aria-label="Agent"
             onChange={(e) => setAgentFilter(e.target.value)}
             className="bg-zinc-900 border border-zinc-800 rounded-sm px-2 py-1 text-xs text-zinc-300 focus:outline-hidden focus:border-zinc-700"
           >
@@ -351,6 +342,7 @@ export function ActivitySurface({ pushToast }: ActivitySurfaceProps) {
           </label>
           <select
             value={kindFilter}
+            aria-label="Event Type"
             onChange={(e) => setKindFilter(e.target.value)}
             className="bg-zinc-900 border border-zinc-800 rounded-sm px-2 py-1 text-xs text-zinc-300 focus:outline-hidden focus:border-zinc-700"
           >

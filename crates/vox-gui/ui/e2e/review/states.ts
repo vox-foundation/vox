@@ -49,17 +49,22 @@ SURFACE_STATES['chat'] = [
   DEFAULT,
   {
     name: 'model-picker-open',
-    // Scoped: 'model:' prefix could collide with transcript text.
-    setup: async (p) => { await p.getByTestId('chat-surface-layout').getByRole('button', { name: /^model:/i }).click(); },
+    // ChatModelPicker was deleted (never mounted); model choice is the composer's
+    // model-tier trigger. Scoped to the chat layout so transcript text cannot collide.
+    // 5 s click timeout: a stale selector records state_ok:false instead of timing the test out.
+    setup: async (p) => {
+      await p
+        .getByTestId('chat-surface-layout')
+        .getByRole('button', { name: 'Choose model tier' })
+        .click({ timeout: 5_000 });
+    },
   },
   {
-    name: 'session-menu-open',
-    // Viewport-tolerant: at compact width the rail hides behind a toggle;
-    // opening it ALSO captures the overlay-over-transcript occlusion case.
+    name: 'panels-menu-open',
+    // Replaces session-menu-open: sessions moved to the sidebar and have no actions
+    // menu. The Panels menu lists every dock panel by its lexicon label.
     setup: async (p) => {
-      const toggle = p.getByTestId('chat-session-rail-toggle');
-      if (await toggle.isVisible()) await toggle.click();
-      await p.getByRole('button', { name: /session actions for/i }).first().click();
+      await p.getByRole('button', { name: 'Panels', exact: true }).click({ timeout: 5_000 });
     },
   },
   {
@@ -69,11 +74,6 @@ SURFACE_STATES['chat'] = [
         'A deliberately long composer draft that should wrap across multiple lines and reveal any clipping or overlap issues in the dock '.repeat(2),
       );
     },
-  },
-  {
-    name: 'rails-overlay-open',
-    viewports: ['compact'],
-    setup: async (p) => { await p.getByTestId('chat-session-rail-toggle').click(); },
   },
   ...VARIANT,
 ];

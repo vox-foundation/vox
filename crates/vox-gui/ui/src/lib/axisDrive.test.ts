@@ -38,7 +38,7 @@ describe('axisDrive', () => {
 
   it('fail-closes when provider statuses are missing', () => {
     const models: PickerModel[] = [
-      { id: 'openai/gpt-4o', label: 'gpt', provider: 'openai', providerType: 'cloud' },
+      { id: 'openai/gpt-mini', label: 'gpt', provider: 'openai', providerType: 'cloud' },
     ];
     const rows = snapshotCatalog(models, []);
     expect(rows[0]?.selectable).toBe(false);

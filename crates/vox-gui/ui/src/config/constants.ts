@@ -73,3 +73,7 @@ export const LIVE_EVENT_FRESH_MS = 10_000;
 
 /** Dockview layout persistence debounce (ms). */
 export const LAYOUT_PERSIST_DEBOUNCE_MS = 1000;
+
+/** Trailing debounce for Activity view refreshes: a burst of rows becomes one query, and the wait gives the
+ *  daemon's activity sink time to commit the row before the view reads it. */
+export const ACTIVITY_REFRESH_DEBOUNCE_MS = 250;

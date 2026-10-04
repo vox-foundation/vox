@@ -4,7 +4,7 @@ import { RISK_POSTURES, type RiskId, type ControlState } from '../../../lib/driv
 const COPY: Record<RiskId, string> = {
   high: 'Break things — auto-approve more, gates shadow-only, fewer safety tokens.',
   moderate: 'Confirm, and check replies. Balanced safety.',
-  low: 'Enforce verification, check replies, raise approval, spend safety tokens, lean model up.',
+  low: 'Enforce verification and check replies, raise approval, spend safety tokens, lean model up.',
 };
 
 interface RiskPopoverProps {
@@ -35,9 +35,9 @@ export function RiskPopover({ risk, open, onChange, onClose, children }: RiskPop
       role="dialog"
       aria-label="Configure acceptable risk"
       onKeyDown={handleKeyDown}
-      className="absolute bottom-full left-0 z-50 mb-1.5 w-72 rounded-lg border border-white/10 bg-[#0b0b0e] p-3 text-[11px] shadow-xl"
+      className="absolute bottom-full left-0 z-50 mb-1.5 w-72 rounded-lg border border-white/10 bg-overlay-solid p-3 text-[11px] shadow-xl"
     >
-      <div className="mb-2 text-[10px] uppercase tracking-widest text-zinc-500">Acceptable risk</div>
+      <div className="mb-2 text-[11px] uppercase tracking-[0.08em] text-text-muted">Acceptable risk</div>
       {RISK_POSTURES.map(p => (
         <button
           key={p.id}
@@ -55,7 +55,7 @@ export function RiskPopover({ risk, open, onChange, onClose, children }: RiskPop
       ))}
       {children ? (
         <div className="mt-2 border-t border-white/10 pt-2">
-          <div className="mb-1 text-[10px] uppercase tracking-widest text-zinc-500">After each reply</div>
+          <div className="mb-1 text-[11px] uppercase tracking-[0.08em] text-text-muted">After each reply</div>
           {children}
         </div>
       ) : null}

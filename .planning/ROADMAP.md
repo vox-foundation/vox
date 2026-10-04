@@ -202,3 +202,24 @@ Phases 1 → 2 → 3 form a dependency chain (crate surgery). Phase 4 is indepen
 | 4. GUI/Dashboard Architecture Consolidation | 2/2 | Complete    | 2026-09-25 |
 | 5. Multi-Agent Coordination & Trust Hardening | 0/7 | Planned | - |
 | 6. Model Routing Transparency & ML Dependency Health | 0/TBD | Not started | - |
+
+### Phase 06.1: Hosted CI gate and fast local loop (INSERTED)
+
+**Goal:** Hosted CI is the only gate and it is fast and green; the laptop runs only `cargo check` and the edited crate's tests; no git hook builds anything; work reaches CI as a short-lived draft PR per batch.
+**Requirements**: TBD
+**Depends on:** Nothing (independent of Phase 6; Phase 0 of the plan unblocks nightly for every other phase)
+**Evidence:** `docs/src/architecture/ci-and-build-loop-findings-2026.md`
+**Execution plan:** `docs/superpowers/plans/2026-10-03-hosted-ci-fast-local-loop.md` (phases P0–P4, agy-drivable tasks marked, handoff prompt at the end)
+**Success Criteria** (what must be TRUE):
+
+  1. Three consecutive scheduled nightlies are green.
+  2. `git commit` hooks finish in under 5 s and `git push` hooks in under 30 s with no cargo invocation (guard test enforces it).
+  3. PR CI for a small affected set finishes in under 8 min; a full-workspace PR run finishes under 18 min with no shard at the 30-min cap.
+  4. Actions cache usage is under 9 GB.
+  5. No required check depends on a self-hosted runner or on this laptop.
+
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 06.1 to break down)

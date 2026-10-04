@@ -471,6 +471,12 @@ jobs:
       # This aligns with the pre-commit tdd-guard (enforce-strict on skeleton
       # rules) and pre-push toestub-scoped, giving one coherent severity model:
       # every detector runs at its authored severity; callers choose min-severity.
+      # `vox ci toestub-scoped` runs the installed toestub (never `cargo run`); on CI a missing
+      # binary is an error, so build it and put it on PATH first.
+      - name: Build toestub
+        run: |
+          cargo build -p vox-code-audit --bin toestub --locked
+          echo "$PWD/target/debug" >> "$GITHUB_PATH"
       - name: TOESTUB (scoped)
         shell: bash
         run: |
@@ -1558,7 +1564,10 @@ jobs:
       # the test artifacts this job's cache hands to ci.yml's `tests` shards (a
       # rustdoc error ahead of nextest once left that cache without them).
       - run: cargo build -p vox-cli --locked
-      - run: cargo nextest run --workspace --exclude vox-gui --profile ci --locked
+      # Build only: the instrumented llvm-cov job executes the whole suite once per night
+      # (schedule/dispatch always sets full == rust_changed == true); running it here too
+      # doubled the night's test time. --no-run still builds the artifacts the cache keeps.
+      - run: cargo nextest run --workspace --exclude vox-gui --profile ci --locked --no-run
       - if: ${{ !cancelled() }}
         run: cargo clippy --workspace --exclude vox-gui --all-targets --locked -- -D warnings
       - if: ${{ !cancelled() }}

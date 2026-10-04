@@ -72,7 +72,7 @@ Fast local policy rerun for this lane:
 ## Pre-push: local CI parity
 
 **Default `git push` hook:** **`vox ci pre-push`** runs the **fast** profile (scoped docs + critical guards). Use **`vox ci pre-push --complete`** for the full static gate before risky merges; CI still runs the heavy docs-quality sweep.
-Install once via **`vox ci install-hooks`**. See [local CI parity](local-ci-pre-push.md) for **`--full`**, heartbeats, **`--no-verify`** policy, and tuning **`VOX_PREPUSH_BASE`**.
+Install once via **`vox run scripts/setup.vox`** (hooks plus the `vox`/`toestub`/`vox-drift-check` binaries they call; hooks never build). See [local CI parity](local-ci-pre-push.md) for **`--full`**, heartbeats, **`--no-verify`** policy, and tuning **`VOX_PREPUSH_BASE`**.
 
 ## Contributor expectations
 

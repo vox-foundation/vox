@@ -35,13 +35,13 @@ const STATUS_ICON: Record<PlanNodeStatus, string> = {
 
 const STATUS_COLOR: Record<PlanNodeStatus, string> = {
   pending: 'text-text-muted',
-  queued: 'text-cyan-400',
-  in_progress: 'text-amber-400',
-  completed: 'text-emerald-400',
-  failed: 'text-red-400',
+  queued: 'text-(--color-status-info)',
+  in_progress: 'text-brass',
+  completed: 'text-(--color-status-pass)',
+  failed: 'text-(--color-status-fail)',
   cancelled: 'text-text-muted line-through',
   superseded: 'text-text-muted line-through',
-  blocked_on_approval: 'text-amber-400',
+  blocked_on_approval: 'text-(--color-status-warn)',
 };
 
 const EDITABLE_STATUSES = new Set<PlanNodeStatus>(['pending']);
@@ -139,9 +139,9 @@ export function PlanPanel({ planSessionId, planVersion, nodes, onDiscard }: Plan
       {blockedCount > 0 && (
         <div
           data-testid="plan-approval-footer"
-          className="mt-1 flex items-center justify-between gap-2 rounded-sm border border-amber-400/40 bg-amber-400/10 px-2 py-1 text-[11px]"
+          className="mt-1 flex items-center justify-between gap-2 rounded-sm border border-(--color-status-warn)/40 bg-(--color-status-warn)/10 px-2 py-1 text-[11px]"
         >
-          <span className="text-amber-400">
+          <span className="text-(--color-status-warn)">
             {blockedCount} {blockedCount === 1 ? 'step' : 'steps'} awaiting approval
           </span>
           <div className="flex gap-2">
@@ -149,14 +149,14 @@ export function PlanPanel({ planSessionId, planVersion, nodes, onDiscard }: Plan
               type="button"
               onClick={() => void approve()}
               disabled={approving}
-              className="text-emerald-400 hover:text-emerald-300 disabled:opacity-50"
+              className="text-(--color-status-pass) hover:brightness-125 disabled:opacity-50"
             >
               Approve
             </button>
             <button
               type="button"
               onClick={() => onDiscard?.()}
-              className="text-text-muted hover:text-red-400"
+              className="text-text-muted hover:text-(--color-status-fail)"
             >
               Discard
             </button>

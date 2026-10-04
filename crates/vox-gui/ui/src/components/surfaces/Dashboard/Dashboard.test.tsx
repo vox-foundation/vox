@@ -68,12 +68,13 @@ describe('Dashboard', () => {
     window.localStorage.clear();
   });
 
-  it('has exactly one accessible h1 for the surface root (axe page-has-heading-one)', async () => {
+  it('leaves the page h1 to the shell: it has headings of its own but no h1', async () => {
     renderDashboard();
-    expect(await screen.findAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect((await screen.findAllByRole('heading')).length).toBeGreaterThan(0);
+    expect(screen.queryAllByRole('heading', { level: 1 })).toHaveLength(0);
   });
 
-  it('has exactly one accessible h1 while loading (axe page-has-heading-one)', async () => {
+  it('adds no h1 of its own while loading either', async () => {
     render(
       <LanguageProvider>
         <Dashboard
@@ -89,7 +90,8 @@ describe('Dashboard', () => {
         />
       </LanguageProvider>,
     );
-    expect(await screen.findAllByRole('heading', { level: 1 })).toHaveLength(1);
+    await Promise.resolve();
+    expect(screen.queryAllByRole('heading', { level: 1 })).toHaveLength(0);
   });
 
   it('renders "The Stream" heading', () => {
@@ -311,6 +313,7 @@ describe('Dashboard', () => {
     ] });
     // 'Active Agents' appears in both the KPI strip label and the agents widget heading
     expect(screen.getAllByText('Active Agents').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByRole('heading', { level: 2, name: 'Active Agents' })).toBeTruthy();
     expect(screen.getByText('Queue Depth')).toBeInTheDocument();
     expect(screen.getByText('Budget Spent')).toBeInTheDocument();
     expect(screen.getByText('Mesh Peers')).toBeInTheDocument();

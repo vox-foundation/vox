@@ -3075,7 +3075,7 @@ git commit -m "feat(gui): Tauri commands that explain routing from the selector'
 
 **Files:** Create `lib/routingLabels.ts` + `.test.ts`, `hooks/useRoutingExplanation.ts` + `.test.ts`,
 `components/surfaces/Models/RoutingExplainer.tsx` + `.test.tsx` (all under `crates/vox-gui/ui/src/`). Modify
-`lib/turnEvents.ts` (append `MODE_OBJECTIVES` and `modeObjective`; nothing else).
+`lib/turnEvents.ts` (append `MODE_OBJECTIVES` and `modeObjective`; nothing else) and `transport.ts` (add `explainRouting(mode, task, complexity)` and `getRoutingHealth()` to the transport class). <!-- AMENDED: the hook calls `voxTransport`, never `invoke`: `src/guards/ipcBoundaries.test.ts` allows `invoke` only in `transport.ts`, and the hook test mocks `../transport`. -->
 
 - [ ] **Step 1: Write the failing tests.**
 
@@ -3897,7 +3897,7 @@ test.describe('Routing explainer', () => {
   applies mutants that fail different named tests in one build. A producer task and the task that wires it (trace 2a and 2b) are the one
   case where clippy `dead_code` is expected between them. After Task 6, the [build-loop plan](2026-09-29-rust-build-loop-and-models-crate.md)
   measures whether extracting `models/` into its own crate is worth doing (Tasks A1–A4); its Part B moves `models/` and must not start while
-  any task here is uncommitted.
+  any task here is uncommitted. **Measured 2026-10-03: NO-GO** (an edit costs 37 CPU-s, 150 needed; see `docs/src/architecture/rust-build-loop-ssot-2026.md`), so Part B is not started and nothing here waits on it.
 - **Pre-flight per task:** working tree clean for the task's files; HEAD on `main`; chat-lane Task 1 committed
   before Task 5; trace plan Task 4 committed before Task 8.
 - **SDD ledger:**

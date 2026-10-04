@@ -20,6 +20,7 @@ export function HarnessRedirect({ onFocusComposer, gamifyEnabled }: HarnessRedir
       <EmptyState
         icon={<Icon.bolt className="size-8" />}
         title="Quick Harness lives in the composer"
+        headingLevel={2}
         description="Submit tasks, pick models, run /plan · /verify · /diff, and review worktree diffs from the Loquela bar at the bottom of the console."
         action={
           onFocusComposer

@@ -5436,33 +5436,6 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: false
-- id: ci.check-frozen
-  title: Ci Check-frozen
-  description: CLI operation `vox ci check-frozen`
-  description_human: null
-  product_lane: platform
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
-  mcp: null
-  cli:
-    path:
-    - ci
-    - check-frozen
-    status: active
-    latin_ns: ci
-    handler_rust: null
-    feature_gate: null
-    catalog_group: null
-    ref_cli_required: false
-    reachability_required: null
 - id: ci.check-links
   title: Ci Check-links
   description: CLI operation `vox ci check-links`
@@ -5517,33 +5490,6 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: false
-- id: ci.collateral-damage-gate
-  title: Ci Collateral-damage-gate
-  description: CLI operation `vox ci collateral-damage-gate`
-  description_human: null
-  product_lane: platform
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
-  mcp: null
-  cli:
-    path:
-    - ci
-    - collateral-damage-gate
-    status: active
-    latin_ns: ci
-    handler_rust: null
-    feature_gate: null
-    catalog_group: null
-    ref_cli_required: false
-    reachability_required: null
 - id: ci.secrets-parity
   title: Ci Secrets-parity
   description: CLI operation `vox ci secrets-parity`
@@ -5733,33 +5679,6 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: false
-- id: ci.constrained-gen-smoke
-  title: Ci Constrained-gen-smoke
-  description: CLI operation `vox ci constrained-gen-smoke`
-  description_human: null
-  product_lane: platform
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
-  mcp: null
-  cli:
-    path:
-    - ci
-    - constrained-gen-smoke
-    status: active
-    latin_ns: ci
-    handler_rust: null
-    feature_gate: null
-    catalog_group: null
-    ref_cli_required: false
-    reachability_required: null
 - id: ci.completion-audit
   title: Ci Completion-audit
   description: CLI operation `vox ci completion-audit`
@@ -6493,6 +6412,33 @@ operations:
     catalog_group: null
     ref_cli_required: false
     reachability_required: null
+- id: ci.status
+  title: Ci Status
+  description: CLI operation `vox ci status`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - status
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
 - id: ci.test-inventory
   title: Ci Test-inventory
   description: CLI operation `vox ci test-inventory`
@@ -7359,114 +7305,6 @@ operations:
     catalog_group: null
     ref_cli_required: false
     reachability_required: null
-- id: ci.runner-policy-check
-  title: Ci Runner-policy-check
-  description: CLI operation `vox ci runner-policy-check`
-  description_human: null
-  product_lane: platform
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
-  mcp: null
-  cli:
-    path:
-    - ci
-    - runner-policy-check
-    status: active
-    latin_ns: ci
-    handler_rust: null
-    feature_gate: null
-    catalog_group: null
-    ref_cli_required: false
-    reachability_required: null
-- id: ci.runner-preflight
-  title: Ci Runner-preflight
-  description: CLI operation `vox ci runner-preflight`
-  description_human: null
-  product_lane: platform
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
-  mcp: null
-  cli:
-    path:
-    - ci
-    - runner-preflight
-    status: active
-    latin_ns: ci
-    handler_rust: null
-    feature_gate: null
-    catalog_group: null
-    ref_cli_required: false
-    reachability_required: null
-- id: ci.runner-scale
-  title: Ci Runner-scale
-  description: CLI operation `vox ci runner-scale`
-  description_human: null
-  product_lane: platform
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
-  mcp: null
-  cli:
-    path:
-    - ci
-    - runner-scale
-    status: active
-    latin_ns: ci
-    handler_rust: null
-    feature_gate: null
-    catalog_group: null
-    ref_cli_required: false
-    reachability_required: null
-- id: ci.runner-status
-  title: Ci Runner-status
-  description: CLI operation `vox ci runner-status`
-  description_human: null
-  product_lane: platform
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
-  mcp: null
-  cli:
-    path:
-    - ci
-    - runner-status
-    status: active
-    latin_ns: ci
-    handler_rust: null
-    feature_gate: null
-    catalog_group: null
-    ref_cli_required: false
-    reachability_required: null
 - id: ci.grammar-drift
   title: Ci Grammar-drift
   description: CLI operation `vox ci grammar-drift`
@@ -7541,33 +7379,6 @@ operations:
     path:
     - ci
     - grammar-ssot-parity
-    status: active
-    latin_ns: ci
-    handler_rust: null
-    feature_gate: null
-    catalog_group: null
-    ref_cli_required: false
-    reachability_required: null
-- id: ci.grpo-reward-baseline
-  title: Ci Grpo-reward-baseline
-  description: CLI operation `vox ci grpo-reward-baseline`
-  description_human: null
-  product_lane: platform
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
-  mcp: null
-  cli:
-    path:
-    - ci
-    - grpo-reward-baseline
     status: active
     latin_ns: ci
     handler_rust: null
@@ -7892,33 +7703,6 @@ operations:
     path:
     - ci
     - mcp-vox-surface-parity
-    status: active
-    latin_ns: ci
-    handler_rust: null
-    feature_gate: null
-    catalog_group: null
-    ref_cli_required: false
-    reachability_required: null
-- id: ci.mens-corpus-health
-  title: Ci Mens-corpus-health
-  description: CLI operation `vox ci mens-corpus-health`
-  description_human: null
-  product_lane: platform
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
-  mcp: null
-  cli:
-    path:
-    - ci
-    - mens-corpus-health
     status: active
     latin_ns: ci
     handler_rust: null
@@ -8636,33 +8420,6 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: false
-- id: ci.queue
-  title: Ci Queue
-  description: CLI operation `vox ci queue`
-  description_human: null
-  product_lane: platform
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
-  mcp: null
-  cli:
-    path:
-    - ci
-    - queue
-    status: active
-    latin_ns: ci
-    handler_rust: null
-    feature_gate: null
-    catalog_group: null
-    ref_cli_required: false
-    reachability_required: null
 - id: ci.release-build
   title: Ci Release-build
   description: CLI operation `vox ci release-build`
@@ -33525,6 +33282,255 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: null
+- id: graph.history.brief
+  title: Graph History Brief
+  description: CLI operation `vox graph history brief`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - graph
+    - history
+    - brief
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
+- id: graph.history.focus
+  title: Graph History Focus
+  description: CLI operation `vox graph history focus`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - graph
+    - history
+    - focus
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
+- id: graph.history.forgotten
+  title: Graph History Forgotten
+  description: CLI operation `vox graph history forgotten`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - graph
+    - history
+    - forgotten
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
+- id: graph.history.log
+  title: Graph History Log
+  description: CLI operation `vox graph history log`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - graph
+    - history
+    - log
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
+- id: graph.history.search
+  title: Graph History Search
+  description: CLI operation `vox graph history search`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - graph
+    - history
+    - search
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
+- id: graph.history.timeline
+  title: Graph History Timeline
+  description: CLI operation `vox graph history timeline`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - graph
+    - history
+    - timeline
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
+- id: research.flag
+  title: Research Flag
+  description: CLI operation `vox research flag`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - research
+    - flag
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
+- id: research.probe
+  title: Research Probe
+  description: CLI operation `vox research probe`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - research
+    - probe
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
+- id: research.publish
+  title: Research Publish
+  description: CLI operation `vox research publish`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - research
+    - publish
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
 exemptions:
   mcp_tools: []
   cli_paths:

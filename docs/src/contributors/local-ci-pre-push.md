@@ -9,7 +9,7 @@ schema_type: "TechArticle"
 
 # Local CI parity (pre-push)
 
-`vox ci pre-push` is the **`git push` hook** target (`cargo run -q -p vox-cli -- ci install-hooks`).
+`vox ci pre-push` is the **`git push` hook** target (installed by `vox run scripts/setup.vox`; the hook runs the installed `vox`, never `cargo run`).
 It runs **before** the remote receives objects.
 
 > **Canonical tier table:** `docs/superpowers/specs/2026-05-27-test-suite-perf-and-gate-tiers-design.md §4`
@@ -64,10 +64,13 @@ Use **`vox ci ssot-drift`** for an aggregate check if you want one heavy command
 ## Install the git hook (one-time)
 
 ```bash
-cargo run -q -p vox-cli -- ci install-hooks
+vox run scripts/setup.vox
 ```
 
-This writes `.git/hooks/pre-push` as a thin delegate to **`vox ci pre-push`** (fast profile by default). See [AGENTS.md §VoxScript-First Glue Code](../../../AGENTS.md).
+Setup installs lefthook's hooks from `lefthook.yml` and the binaries they call (`vox`, `toestub`,
+`vox-drift-check`, via `cargo install --debug --target-dir target`, which reuses your dev build). The
+pre-push hook runs the installed **`vox ci pre-push`** (fast profile) and refuses a push to `main`; no
+hook ever builds. `vox ci install-hooks` re-runs just the lefthook step.
 
 ## Bypass (emergency only)
 

@@ -404,8 +404,8 @@ fn ssot_autoregen_builds_vox_like_the_gate() {
     ));
     let builds: Vec<&str> = yml
         .lines()
-        .map(str::trim)
-        .filter(|l| l.starts_with("run: cargo build -p vox-cli"))
+        .map(|l| l.trim().trim_start_matches("run: "))
+        .filter(|l| l.starts_with("cargo build -p vox-cli"))
         .collect();
     assert_eq!(
         builds.len(),
@@ -512,7 +512,7 @@ fn quarantine_is_gate_only_and_nightly_still_runs_everything() {
         "/../../.config/nextest.toml"
     ));
     assert!(
-        ci.contains("--profile ci-gate --locked --no-tests=pass --partition"),
+        ci.contains("cargo nextest run $SHARD_P_ARGS --profile ci-gate --locked --no-tests=pass"),
         "gate shards must use the ci-gate profile"
     );
     assert!(
@@ -520,8 +520,8 @@ fn quarantine_is_gate_only_and_nightly_still_runs_everything() {
         "nightly must not use the quarantining profile"
     );
     assert!(
-        nightly.contains("cargo nextest run --workspace --exclude vox-gui --profile ci --locked"),
-        "nightly's full job must run the whole suite under the ci profile"
+        nightly.contains("cargo llvm-cov nextest --workspace --exclude vox-gui --profile ci"),
+        "nightly must execute the whole suite under the ci profile (the llvm-cov run)"
     );
     assert!(
         nextest.contains("[profile.ci-gate]") && nextest.contains("issues/569"),
@@ -537,10 +537,17 @@ fn ci_tests_are_sharded_out_of_the_linux_leg() {
         env!("CARGO_MANIFEST_DIR"),
         "/../../.github/workflows/ci.yml"
     ));
-    assert!(yml.contains("shard: [1, 2, 3]"), "tests job must shard");
     assert!(
-        yml.contains(r#"--partition "hash:${SHARD}/3""#),
-        "each shard must run its nextest partition, and the count must match the matrix"
+        yml.contains("shard: ${{ fromJSON(needs.linux.outputs.shard_list) }}"),
+        "tests job must shard over the groups linux planned"
+    );
+    assert!(
+        yml.contains("--shards 3 --exclude vox-gui"),
+        "linux must plan crate-level shards (each shard compiles only its own crates)"
+    );
+    assert!(
+        yml.contains("needs.linux.outputs[format('shard_{0}_p_args', matrix.shard)]"),
+        "each shard must run only its own group's crates"
     );
     assert!(
         yml.contains("if: needs.linux.outputs.run_tests == 'true'"),

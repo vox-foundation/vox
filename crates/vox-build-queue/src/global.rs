@@ -29,7 +29,7 @@ pub fn global_root() -> PathBuf {
 }
 
 /// Max concurrent cargo builds machine-wide. `VOX_BROKER_MAX_CONCURRENT` overrides;
-/// otherwise ~1/3 of logical cores, clamped to [2, 8].
+/// otherwise the machine's available parallelism (floored at 1).
 pub fn max_concurrent() -> usize {
     let raw = std::env::var("VOX_BROKER_MAX_CONCURRENT").ok();
     let par = std::thread::available_parallelism()
@@ -40,6 +40,7 @@ pub fn max_concurrent() -> usize {
 
 /// Pure core of [`max_concurrent`], split out so it's testable without mutating
 /// the process environment (which would require `unsafe` under edition 2024).
+/// When unset, falls back to `parallelism.max(1)`.
 pub fn max_concurrent_from(raw: Option<&str>, parallelism: usize) -> usize {
     if let Some(n) = raw
         .and_then(|v| v.parse::<usize>().ok())
@@ -47,7 +48,7 @@ pub fn max_concurrent_from(raw: Option<&str>, parallelism: usize) -> usize {
     {
         return n;
     }
-    (parallelism / 3).clamp(2, 8)
+    parallelism.max(1)
 }
 
 /// Slots reserved for a build domain the filesystem semaphore cannot see (a
@@ -89,6 +90,22 @@ pub fn effective_max_concurrent_from(
     let base = max_concurrent_from(max_raw, parallelism);
     let reserved = reserved_slots_from(reserved_raw);
     base.saturating_sub(reserved).max(1)
+}
+
+/// Whether a build may start now. The first build always runs. Another runs only while the
+/// 1-minute load average is below the machine's parallelism (idle cores exist), and never past
+/// `cap` slots. Without a load reading (non-unix), builds run one at a time.
+pub fn should_admit(load_1m: Option<f64>, parallelism: usize, held: usize, cap: usize) -> bool {
+    if held == 0 {
+        return true;
+    }
+    if held >= cap {
+        return false;
+    }
+    match load_1m {
+        Some(load) => load < parallelism as f64,
+        None => false,
+    }
 }
 
 /// A held global slot; dropping it (closing the file handle) frees the slot.
@@ -166,37 +183,120 @@ pub fn probe_busy_slots(root: &Path, n: usize) -> Result<usize> {
     Ok(busy)
 }
 
-/// Marker for an in-flight build identity; dropping it removes the marker.
+/// 1-minute load average, or `None` where the OS does not report one.
+#[allow(unsafe_code)]
+pub fn load_average_1m() -> Option<f64> {
+    #[cfg(unix)]
+    {
+        let mut v = [0f64; 3];
+        // SAFETY: getloadavg writes at most `nelem` doubles into the provided buffer.
+        let n = unsafe { libc::getloadavg(v.as_mut_ptr(), 3) };
+        (n >= 1).then_some(v[0])
+    }
+    #[cfg(not(unix))]
+    {
+        None
+    }
+}
+
+/// Like [`acquire_slot`], but a free slot is taken only when [`should_admit`] agrees.
+pub fn acquire_slot_adaptive(root: &Path, cap: usize) -> Result<(Slot, u64, usize)> {
+    let start = now_ms();
+    let parallelism = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(1);
+    loop {
+        let held = probe_busy_slots(root, cap)?;
+        if should_admit(load_average_1m(), parallelism, held, cap)
+            && let Some((slot, busy)) = try_acquire_slot(root, cap)?
+        {
+            return Ok((slot, now_ms().saturating_sub(start) as u64, busy));
+        }
+        std::thread::sleep(Duration::from_millis(500));
+    }
+}
+
+/// Marker for an in-flight build identity; holds an exclusive lock on its entry for
+/// the build's lifetime. Dropping it unlocks and removes the marker.
 pub struct Inflight {
+    _f: Option<std::fs::File>,
     path: PathBuf,
 }
 
 impl Drop for Inflight {
     fn drop(&mut self) {
+        if let Some(f) = self._f.take() {
+            let _ = f.unlock();
+            drop(f);
+        }
         let _ = std::fs::remove_file(&self.path);
     }
 }
 
 /// Register this build's identity (`key`) and report whether another in-flight
 /// build already shares it (a true coalescing opportunity, cross-worktree).
+/// Holds an exclusive lock on its entry for the build's lifetime, and removes any
+/// stale entry whose lock can be acquired (its owner is gone).
 pub fn register_inflight(root: &Path, key: &str) -> Result<(Inflight, bool)> {
     let dir = root.join("inflight");
     std::fs::create_dir_all(&dir)?;
     let mut coalesce = false;
     if let Ok(rd) = std::fs::read_dir(&dir) {
         for e in rd.flatten() {
-            if std::fs::read_to_string(e.path())
-                .map(|s| s.trim() == key)
-                .unwrap_or(false)
-            {
-                coalesce = true;
-                break;
+            let p = e.path();
+            if !p.is_file() {
+                continue;
+            }
+            let Ok(f) = std::fs::OpenOptions::new().read(true).write(true).open(&p) else {
+                if std::fs::read_to_string(&p)
+                    .map(|s| s.trim() == key)
+                    .unwrap_or(false)
+                {
+                    coalesce = true;
+                }
+                continue;
+            };
+
+            match f.try_lock_exclusive() {
+                Ok(()) => {
+                    // Lock acquired -> owner is gone -> reap stale entry.
+                    let _ = f.unlock();
+                    drop(f);
+                    let _ = std::fs::remove_file(&p);
+                }
+                Err(_) => {
+                    // Entry is locked by an active process -> still in-flight.
+                    drop(f);
+                    if std::fs::read_to_string(&p)
+                        .map(|s| s.trim() == key)
+                        .unwrap_or(false)
+                    {
+                        coalesce = true;
+                    }
+                }
             }
         }
     }
-    let mine = dir.join(format!("{}-{}", std::process::id(), now_ms()));
-    std::fs::write(&mine, key)?;
-    Ok((Inflight { path: mine }, coalesce))
+    static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let seq = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let mine = dir.join(format!("{}-{}-{}", std::process::id(), now_ms(), seq));
+    let mut f = std::fs::OpenOptions::new()
+        .create(true)
+        .read(true)
+        .write(true)
+        .truncate(true)
+        .open(&mine)?;
+    f.try_lock_exclusive()?;
+    use std::io::Write;
+    f.write_all(key.as_bytes())?;
+    f.flush()?;
+    Ok((
+        Inflight {
+            _f: Some(f),
+            path: mine,
+        },
+        coalesce,
+    ))
 }
 
 #[cfg(test)]
@@ -282,10 +382,10 @@ mod tests {
     #[test]
     fn effective_max_concurrent_logic() {
         // No reservation: falls through to the base cap unchanged.
-        assert_eq!(effective_max_concurrent_from(None, None, 24), 8);
-        assert_eq!(effective_max_concurrent_from(None, Some("0"), 24), 8);
-        // Normal reservation: base 8, reserve 3 -> 5.
-        assert_eq!(effective_max_concurrent_from(None, Some("3"), 24), 5);
+        assert_eq!(effective_max_concurrent_from(None, None, 24), 24);
+        assert_eq!(effective_max_concurrent_from(None, Some("0"), 24), 24);
+        // Normal reservation: base 24, reserve 3 -> 21.
+        assert_eq!(effective_max_concurrent_from(None, Some("3"), 24), 21);
         // Reservation exceeding the base cap floors at 1, never 0.
         assert_eq!(effective_max_concurrent_from(None, Some("99"), 24), 1);
         // Reservation applies AFTER an explicit override too.
@@ -324,11 +424,58 @@ mod tests {
     }
 
     #[test]
-    fn max_concurrent_logic() {
-        assert_eq!(max_concurrent_from(Some("5"), 24), 5); // explicit override
-        assert_eq!(max_concurrent_from(None, 24), 8); // 24/3=8
-        assert_eq!(max_concurrent_from(Some("0"), 24), 8); // invalid -> default
-        assert_eq!(max_concurrent_from(Some("xx"), 24), 8); // unparseable -> default
-        assert_eq!(max_concurrent_from(None, 3), 2); // clamp to min 2
+    fn admits_the_first_build_regardless_of_load() {
+        assert!(should_admit(Some(1000.0), 8, 0, 8));
+    }
+
+    #[test]
+    fn admits_another_build_only_while_the_machine_has_idle_cores() {
+        assert!(should_admit(Some(5.0), 8, 1, 8));
+        assert!(!should_admit(Some(8.0), 8, 1, 8));
+        assert!(!should_admit(Some(12.5), 8, 2, 8));
+    }
+
+    #[test]
+    fn never_exceeds_the_slot_cap() {
+        assert!(!should_admit(Some(0.0), 8, 8, 8));
+    }
+
+    #[test]
+    fn without_a_load_reading_admits_one_build_at_a_time() {
+        assert!(should_admit(None, 8, 0, 8));
+        assert!(!should_admit(None, 8, 1, 8));
+    }
+
+    #[test]
+    fn default_cap_follows_the_machine_with_no_literal_bounds() {
+        assert_eq!(max_concurrent_from(None, 18), 18);
+        assert_eq!(max_concurrent_from(None, 1), 1);
+        assert_eq!(max_concurrent_from(Some("3"), 18), 3);
+        // Invalid or zero overrides fall back to the machine default.
+        assert_eq!(max_concurrent_from(Some("0"), 18), 18);
+        assert_eq!(max_concurrent_from(Some("xx"), 18), 18);
+    }
+
+    #[test]
+    fn stale_inflight_entry_is_reaped_while_locked_one_survives() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        let inflight_dir = root.join("inflight");
+        std::fs::create_dir_all(&inflight_dir).unwrap();
+
+        // 1. Hold a live locked inflight entry.
+        let (live, _) = register_inflight(root, "live_key").unwrap();
+        assert!(live.path.exists());
+
+        // 2. Create an unlocked entry (simulating a dead process that crashed).
+        let stale = inflight_dir.join("stale_unlocked");
+        std::fs::write(&stale, "stale_key").unwrap();
+        assert!(stale.exists());
+
+        // 3. Register a new entry; this must reap the unlocked stale file.
+        let (_another, _) = register_inflight(root, "another_key").unwrap();
+
+        assert!(!stale.exists(), "stale unlocked entry should be reaped");
+        assert!(live.path.exists(), "locked entry must survive reaping");
     }
 }

@@ -10,7 +10,7 @@ const [plan, task] = process.argv.slice(2);
 const opt = (k, d) => (process.argv.includes(k) ? process.argv[process.argv.indexOf(k) + 1] : d);
 const model = opt("--model", "gemini-3.8-flash-high");
 const note = opt("--note", "");
-const root = "/Users/brbrainerd/dev/vox";
+const root = new URL("../..", import.meta.url).pathname.replace(/\/$/, ""); // checkout that holds this kit
 const planPath = plan.endsWith(".md") ? plan : `.planning/phases/05-multi-agent-coordination-trust-hardening/${plan}-PLAN.md`;
 const text = readFileSync(`${root}/${planPath}`, "utf8");
 let files;
@@ -29,7 +29,7 @@ const prompt = `/drive-task ${planPath} ${task}${note ? `\n\nDriver note from Cl
 const t0 = Date.now();
 const res = sh("agy", ["-p", prompt, "--model", model, "--dangerously-skip-permissions", "--output-format", "json", "--print-timeout", "60m"], { cwd: root });
 mkdirSync(`${root}/.agents/runs`, { recursive: true });
-const log = `${root}/.agents/runs/${plan}-t${task}-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+const log = `${root}/.agents/runs/${plan.replace(/^.*\//, "").replace(/\.md$/, "")}-t${task}-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
 writeFileSync(log, res.stdout || res.stderr || "");
 let out = {};
 try { out = JSON.parse(res.stdout.slice(res.stdout.indexOf("{"))); } catch {}

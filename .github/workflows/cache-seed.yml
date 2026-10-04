@@ -1,0 +1,44 @@
+# Warm-cache writer for PR CI (not a gate). PR jobs restore the `workspace` Rust cache but never
+# write it (a PR-scoped cache is unreadable from other refs). Before this workflow the only
+# writer was nightly's `full` job, which failed for days, so every PR shard compiled cold.
+# Scheduled on the default branch (so it saves a main-scope cache every PR can read); a cold
+# workspace test build does not fit the 30-min cap of a push-triggered job, a scheduled one
+# has 180. Dispatch it by hand right after a dependency change lands.
+name: Cache seed
+
+on:
+  schedule:
+    - cron: "23 */6 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  seed:
+    name: Build workspace test binaries and save the cache
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/install-linux-system-deps
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache: "false"   # Swatinem below is the only Rust cache
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: workspace
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+      - name: Build the test binaries PR shards build
+        run: cargo nextest run --workspace --exclude vox-gui --profile ci-gate --locked --no-run

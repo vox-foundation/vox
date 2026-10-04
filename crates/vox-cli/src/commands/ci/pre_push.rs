@@ -45,7 +45,7 @@ use cargo_metadata::MetadataCommand;
 use serde::Serialize;
 use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 use std::fs::OpenOptions;
-use std::io::Write;
+use std::io::{IsTerminal, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Arc;
@@ -151,6 +151,20 @@ struct OwnedStep {
 
 #[allow(unsafe_code)] // `set_var` is unsafe on Rust 2024; pre-push is single-threaded.
 pub fn run(root: &Path, opts: PrePushOpts) -> Result<()> {
+    // Only as a git pre-push hook (lefthook sets VOX_PRE_PUSH_REFS=1): git writes the refs to
+    // stdin and closes it. Elsewhere stdin may be an open, idle pipe (agents, CI) and a read
+    // would block forever.
+    if std::env::var_os("VOX_PRE_PUSH_REFS").is_some() && !std::io::stdin().is_terminal() {
+        let mut s = String::new();
+        std::io::stdin().read_to_string(&mut s)?;
+        if let Some(msg) = vox_cli_ci::pre_push_refs::refused_main_push(
+            &s,
+            std::env::var_os("VOX_ALLOW_MAIN_PUSH").is_some(),
+        ) {
+            bail!("{msg}");
+        }
+    }
+
     // nextest and other tools spawn nested `cargo` without our `--config` flags;
     // clear the workspace rustc-wrapper so gates work when sccache is absent.
     unsafe {
@@ -485,6 +499,11 @@ fn build_steps(root: &Path, opts: &PrePushOpts) -> Result<Vec<OwnedStep>> {
             label: "vox ci workflow-permissions-guard".into(),
             scope: None,
             run: Box::new(step_workflow_permissions_guard),
+        },
+        OwnedStep {
+            label: "vox ci dev-loop-guard".into(),
+            scope: None,
+            run: Box::new(step_dev_loop_guard),
         },
         OwnedStep {
             label: "vox ci check-links".into(),
@@ -1064,6 +1083,10 @@ fn step_workflow_permissions_guard(root: &Path) -> Result<()> {
     vox_cli_ci::workflow_permissions_guard::run(root)
 }
 
+fn step_dev_loop_guard(root: &Path) -> Result<()> {
+    vox_cli_ci::dev_loop_guard::run(root)
+}
+
 fn step_check_links(root: &Path) -> Result<()> {
     // In-process — avoids Windows nested `current_exe()` spawning a stale sibling `vox.exe`.
     vox_cli_ci::check_links::run(root, None)
@@ -1172,19 +1195,21 @@ fn step_drift_check(root: &Path) -> Result<()> {
     // that are tracked separately; blocking every push on them was always a
     // false-positive-saturated gate.  Error-level findings are hard failures
     // (e.g. security-sensitive patterns) and must stay blocked.
-    let status = cargo()
-        .args([
-            "run",
-            "-q",
-            "-p",
-            "vox-drift-check",
-            "--",
-            ".",
-            "--severity",
-            "warning",
-            "--fail-on",
-            "error",
-        ])
+    // Never `cargo run` the tool here (it rebuilt vox-drift-check and workspace-hack's
+    // dependency set before every push): use the installed binary; locally a missing one is
+    // skipped, and hosted CI builds it before this step.
+    let bin = match vox_cli_ci::installed_tool("vox-drift-check") {
+        vox_cli_ci::ToolPath::Found(p) => p,
+        vox_cli_ci::ToolPath::SkipLocal => {
+            println!("    vox-drift-check not installed: skipped locally (hosted CI runs it)");
+            return Ok(());
+        }
+        vox_cli_ci::ToolPath::MissingOnCi => {
+            bail!("vox-drift-check is not on PATH; the CI job must build it before the fast tier")
+        }
+    };
+    let status = Command::new(bin)
+        .args([".", "--severity", "warning", "--fail-on", "error"])
         .current_dir(root)
         .status()
         .context("spawn vox-drift-check")?;

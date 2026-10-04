@@ -14,7 +14,7 @@ import { listPlanNodes } from '../../../transport';
 import { labelForNavKey } from '../../../lib/navigation';
 import { WORKBENCH_TABBAR_TRAILING_SLOT_ID } from '../../../lib/domIds';
 import type { ChatMessage } from '../../../lib/chatCorrelation';
-import type { AttentionBudgetSnapshot } from '../../../types/tauri';
+import type { AttentionBudgetSnapshot, Toast } from '../../../types/tauri';
 import { AttentionBudgetMeter } from '../AttentionBudgetMeter';
 import { SecretaryToast } from './SecretaryToast';
 import { listenSecretaryProposed, type SecretaryProposedPayload, feedbackList } from '../../../transport';
@@ -29,8 +29,6 @@ import { RepositoryView } from '../Repository/RepositoryView';
 import { Mercatus } from '../Mercatus/Mercatus';
 import { HarnessRedirect } from '../Harness/HarnessRedirect';
 import { getPermissionMode } from '../../../transport';
-
-
 
 const ALWAYS_CORE = ['transcript', 'executionRail'] as const;
 const CORE_PANEL_IDS = [...ALWAYS_CORE, 'todos'] as const;
@@ -271,7 +269,7 @@ function EmptyTab(props: IDockviewPanelHeaderProps) {
 const CHAT_DOCK_TAB_COMPONENTS = { transcript: EmptyTab };
 
 interface ChatSurfaceProps {
-  pushToast: (t: any) => void;
+  pushToast: (t: Toast) => void;
   onNavigate?: (viewKey: string) => void;
   messages?: ChatMessage[];
   activeSessionId?: string;
@@ -562,16 +560,14 @@ export function ChatSurface({
         const el = document.getElementById(`msg-${match.id}`);
         if (el) {
           el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          el.classList.add('ring-2', 'ring-amber-400', 'ring-offset-2', 'ring-offset-zinc-950');
+          el.classList.add('ring-2', 'ring-brass', 'ring-offset-2', 'ring-offset-zinc-950');
           setTimeout(() => {
-            el.classList.remove('ring-2', 'ring-amber-400', 'ring-offset-2', 'ring-offset-zinc-950');
+            el.classList.remove('ring-2', 'ring-brass', 'ring-offset-2', 'ring-offset-zinc-950');
           }, 3000);
         }
       }
     }).catch(() => {});
   }, [focusedFeedbackId, messages]);
-
-
 
   /**
    * Submit a secretary-proposed task (Task 0.2: propose-only). This is the
@@ -643,6 +639,7 @@ export function ChatSurface({
           <EmptyState
             icon={<Icon.spark className="size-8 text-brass" aria-hidden="true" />}
             title="No messages yet"
+            headingLevel={2}
             description="Describe a task in the composer below to start this session."
           />
         </div>
@@ -860,7 +857,10 @@ export function ChatSurface({
             {panelsMenuOpen ? (
               <div
                 ref={panelsMenuRef}
-                className="absolute right-0 top-full z-50 mt-1 w-56 rounded-lg border border-border-subtle bg-bg-base p-1 shadow-2xl"
+                // In the status bar (bottom of the window) the menu must open upward, or it renders off-screen.
+                className={`absolute right-0 z-50 w-56 rounded-lg border border-border-subtle bg-bg-base p-1 shadow-2xl ${
+                  tabBarTrailingSlot ? 'bottom-full mb-1' : 'top-full mt-1'
+                }`}
               >
                 {[
                   ...CORE_PANEL_IDS.filter(id => id !== 'executionRail' || executionRailNode != null),
@@ -874,7 +874,7 @@ export function ChatSurface({
                     >
                       <input
                         type="checkbox"
-                        className="rounded-sm border-border-subtle bg-bg-base text-brass focus:ring-brass/40 focus:ring-offset-bg-base size-3.5"
+                        className="accent-brass rounded-sm border-border-subtle bg-bg-base text-brass focus:ring-brass/40 focus:ring-offset-bg-base size-3.5"
                         checked={isOpen}
                         onChange={() => {
                           const api = dockApiRef.current;
@@ -947,10 +947,6 @@ export function ChatSurface({
       className="relative flex h-full gap-4"
       data-testid="chat-surface-layout"
     >
-      {/* Axe page-has-heading-one: surfaces render inside a heading-less shell.
-          NOTE: if chatDocked (App.tsx, currently hardcoded false) is ever
-          enabled, a docked ChatSurface adds a second h1 to the page. */}
-      <h1 className="sr-only">Chat</h1>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {tabBarTrailingSlot
@@ -1071,7 +1067,7 @@ export function ChatSurface({
           <div className="absolute inset-0 bg-black/60" onClick={() => setRoutingOpen(false)} />
           <div className="absolute right-0 top-0 h-full w-[760px] max-w-full overflow-y-auto border-l border-border-subtle bg-bg-base shadow-2xl">
             <div className="flex items-center justify-between px-5 pt-4">
-              <h2 className="font-display text-[13px] uppercase tracking-[0.2em] text-text-secondary">Routing</h2>
+              <h2 className="font-display text-[13px] uppercase tracking-[0.13em] text-text-secondary">Routing</h2>
               <button
                 type="button"
                 aria-label="Close routing panel"

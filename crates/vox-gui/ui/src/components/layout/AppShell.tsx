@@ -8,10 +8,12 @@ import { SurfaceErrorBoundary } from '../ui/ErrorBoundary';
 import type { DashboardData } from '../../types/dashboard';
 import type { PolicyBadge } from './Sidebar';
 import type { HudTilesConfig } from '../../hooks/useHudTiles';
-import type { RoutingSummary, Toast } from '../../types/tauri';
+import { useNarrowViewport } from '../../hooks/useNarrowViewport';
+import type { RoutingHealth, RoutingSummary, Toast } from '../../types/tauri';
 import type { MeshNode } from '../surfaces/Mesh/MeshView';
 import { INITIAL_KPIS } from '../../data/initialState';
 import type { ChatSession } from '../../lib/useChatSessions';
+import type { Notice } from '../../lib/noticeStore';
 
 type KpiState = typeof INITIAL_KPIS;
 
@@ -28,6 +30,7 @@ export interface AppShellProps {
   appVersion: string;
   policyBadge: PolicyBadge;
   needsYouCount: number;
+  needsYouDegraded?: string[];
   kpis: KpiState;
   onOpenCommandPalette: () => void;
   lastOrchEventAt: number | null;
@@ -42,11 +45,16 @@ export interface AppShellProps {
   openrouterSpendUsd?: number | null;
   /** Global routing pick for the status bar's Routing card. */
   routingSummary?: RoutingSummary | null;
+  /** Routing health for the Routing card's dot. */
+  routingHealth?: RoutingHealth | null;
   /** This chat session's spend, for the Spend popover. */
   sessionSpentUsd?: number | null;
   gamifyEnabled?: boolean;
   onOpenAchievements?: () => void;
   onOpenResearchDrawer?: () => void;
+  /** Notice store contents and its "mark all read", for the status bar's bell. */
+  notices?: Notice[];
+  onMarkAllNoticesRead?: () => void;
   hudTilesConfig: HudTilesConfig;
   onHudTilesChange: (config: HudTilesConfig) => void;
   meshNodes: MeshNode[] | undefined;
@@ -79,6 +87,7 @@ export function AppShell({
   appVersion,
   policyBadge,
   needsYouCount,
+  needsYouDegraded,
   kpis,
   onOpenCommandPalette,
   lastOrchEventAt,
@@ -91,10 +100,13 @@ export function AppShell({
   children,
   openrouterSpendUsd,
   routingSummary,
+  routingHealth,
   sessionSpentUsd,
   gamifyEnabled,
   onOpenAchievements,
   onOpenResearchDrawer,
+  notices,
+  onMarkAllNoticesRead,
   hudTilesConfig,
   onHudTilesChange,
   meshNodes,
@@ -112,6 +124,8 @@ export function AppShell({
   onToggleArchivedSessions,
   onTaskBadgeClick,
 }: AppShellProps) {
+  // Below 640px the 212px/280px sidebar leaves the status bar no room: show the rail, keep the stored mode.
+  const narrow = useNarrowViewport(640);
   const mainPaddingBottom = chatDocked ? 'pb-[180px]' : 'pb-5';
 
   return (
@@ -125,12 +139,13 @@ export function AppShell({
           onOpenTab={onOpenTab}
           agentsCount={agentsCount}
           data={data}
-          mode={sidebarMode}
+          mode={narrow ? 'rail' : sidebarMode}
           setMode={setSidebarMode}
           pushToast={pushToast}
           appVersion={appVersion}
           policyBadge={policyBadge}
           needsYouCount={needsYouCount}
+          needsYouDegraded={needsYouDegraded}
           lastOrchEventAt={lastOrchEventAt}
           orchUsesPolling={orchUsesPolling}
           liveFreshMs={liveFreshMs}
@@ -152,11 +167,13 @@ export function AppShell({
 
         {/* data-view: stable hook for e2e to assert which surface is mounted (the workbench tab bar that used to expose this was removed in #460). */}
         <main className="flex-1 flex flex-col min-w-0 relative" data-testid="active-surface" data-view={activeView}>
+          {/* The page's one h1 (axe page-has-heading-one): surfaces carry section headings only, so a surface docked inside another cannot add a second. */}
+          <h1 className="sr-only">{surfaceLabel}</h1>
           <div className="px-4 pt-3 pb-0">
             <BreadcrumbBar viewKey={activeView} onNavigate={onNavigate} gamifyEnabled={gamifyEnabled} />
           </div>
 
-          <div className={`flex-1 min-h-0 flex flex-col overflow-hidden p-5 ${mainPaddingBottom}`}>
+          <div className={`flex-1 min-h-0 flex flex-col overflow-hidden p-5 max-[639px]:px-2 ${mainPaddingBottom}`}>
             <SurfaceErrorBoundary key={surfaceKey} surface={surfaceLabel}>
               <SurfaceScrollHost>{children}</SurfaceScrollHost>
             </SurfaceErrorBoundary>
@@ -179,13 +196,17 @@ export function AppShell({
         orchUsesPolling={orchUsesPolling}
         liveFreshMs={liveFreshMs}
         routingSummary={routingSummary}
+        routingHealth={routingHealth}
         openrouterSpendUsd={openrouterSpendUsd}
         sessionSpentUsd={sessionSpentUsd}
         needsYouCount={needsYouCount}
+        needsYouDegraded={needsYouDegraded}
         meshNodes={meshNodes}
         gamifyEnabled={gamifyEnabled}
         onOpenAchievements={onOpenAchievements}
         onOpenResearchDrawer={onOpenResearchDrawer}
+        notices={notices}
+        onMarkAllNoticesRead={onMarkAllNoticesRead}
       />
     </div>
   );

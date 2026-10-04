@@ -72,6 +72,31 @@ describe('theme leftovers (dock chrome + range thumb)', () => {
   });
 });
 
+describe('attention-budget-meter (tokens only, one hue)', () => {
+  // Every rule of the meter, up to the next unrelated section comment.
+  const start = css.indexOf('.attention-budget-meter {');
+  const end = css.indexOf('Bare-browser / preview escape hatch');
+  const body = css.slice(start, end);
+
+  it('is found', () => {
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+  });
+
+  it('uses no hardcoded zinc or rose hex colours (the zinc greys failed contrast)', () => {
+    expect(body).not.toMatch(/#(?:71717a|a1a1aa|f4f4f5|f43f5e)\b/i);
+  });
+
+  it('fills with solid brass, not a multi-hue gradient', () => {
+    const fill = body.slice(body.indexOf('.attention-budget-meter__fill'));
+    expect(fill.slice(0, fill.indexOf('}'))).not.toContain('gradient');
+  });
+
+  it('the unused amber-glow theme entry is gone', () => {
+    expect(css).not.toContain('--color-amber-glow');
+  });
+});
+
 describe('overline (theme: rule under the text, never a Latin cap above)', () => {
   it('redefines Tailwind overline as an underline with offset', () => {
     const start = css.indexOf('@utility overline');

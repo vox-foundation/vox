@@ -1,0 +1,42 @@
+// vox:caps process
+// ssot-regen.vox — regenerate every committed SSOT artifact `vox ci ssot-drift` verifies.
+// Run: vox run scripts/ssot-regen.vox
+// One list for both callers: PR CI's ssot-autoregen job and a developer whose push the
+// fast tier stopped on generated-file drift (hooks no longer regenerate files).
+// SOURCE OF TRUTH for the generators: run_ssot_drift() in
+// crates/vox-cli/src/commands/ci/run_body_helpers/docs.rs. Keep in sync.
+
+fn regen(args: list[str], label: str) to bool {
+    let result_opt = process.run("vox", args)
+    if result_opt is None {
+        print("could not spawn vox for: " + label)
+        return false
+    }
+    let result = result_opt.unwrap()
+    if result.code != 0 {
+        print(result.stderr)
+        print("regenerator failed: vox " + label)
+        return false
+    }
+    print("ok: vox " + label)
+    return true
+}
+
+fn main() {
+    let a = regen(["--quiet", "ci", "operations-sync", "--target", "all", "--write"], "ci operations-sync --target all --write")
+    let b = regen(["--quiet", "ci", "command-sync", "--write"], "ci command-sync --write")
+    let c = regen(["--quiet", "ci", "generate-plugin-catalog-docs"], "ci generate-plugin-catalog-docs")
+    let d = regen(["--quiet", "ci", "plugin-catalog-sync", "--write"], "ci plugin-catalog-sync --write")
+    let e = regen(["--quiet", "ci", "plugin-surface-sync", "--write"], "ci plugin-surface-sync --write")
+    let f = regen(["--quiet", "ci", "plugin-skill-parity", "--write"], "ci plugin-skill-parity --write")
+    let g = regen(["--quiet", "ci", "gui-version-sync", "--write"], "ci gui-version-sync --write")
+    let h = regen(["--quiet", "ci", "capability-sync", "--write"], "ci capability-sync --write")
+    let i = regen(["--quiet", "ci", "gui-surface-coverage", "--write"], "ci gui-surface-coverage --write")
+    let j = regen(["--quiet", "ci", "gui-surface-registry", "--write"], "ci gui-surface-registry --write")
+    let k = regen(["--quiet", "ci", "affected-crates", "--regen", "--out", "contracts/ci/crate-graph.v1.json"], "ci affected-crates --regen")
+    if not (a and b and c and d and e and f and g and h and i and j and k) {
+        print("Some regenerators failed; `vox ci ssot-drift` will name what is still stale.")
+        process.exit(1)
+    }
+    print("SSOT artifacts regenerated. Review `git diff` and commit them.")
+}

@@ -13,6 +13,7 @@ import { renderSurfaceContent } from './components/layout/surfaceComponents';
 import { resolveNavigation, parseViewFromLocation, syncViewToLocation, seedDiscoveryPresetForLegacyKey, labelForNavKey, DEFAULT_CHILD_BY_PARENT } from './lib/navigation';
 import { useActiveView } from './hooks/useActiveView';
 import { useDocViewer } from './hooks/useDocViewer';
+import { TaskDiffDialog } from './components/surfaces/Chat/TaskDiffDialog';
 import { DocViewerDrawer } from './components/layout/DocViewerDrawer';
 import { InspectorDrawer } from './debugger/InspectorDrawer';
 import { ResearchEngineDrawer } from './components/surfaces/Research/ResearchEngineDrawer';
@@ -30,9 +31,6 @@ import { BackendBanner } from './components/ui/BackendBanner';
 import { VersionMismatchBanner } from './components/layout/VersionMismatchBanner';
 import { OnboardingWizard } from './components/surfaces/Onboarding/OnboardingWizard';
 import { userAppendInput } from './lib/composerSubmit';
-import { Transcript } from './components/surfaces/Loquela/Transcript';
-import { DiffReview } from './components/surfaces/Loquela/DiffReview';
-import { InlineApprovals } from './components/surfaces/Loquela/InlineApprovals';
 import { type McpInvokeResult } from './lib/mcpToolResult';
 import {
   assistantMessagesReadyToPersist,
@@ -59,6 +57,8 @@ import { voxTransport, listenAgentEvents, chatTurn as sendChatTurnRaw, type Agen
 import { useQuery } from '@tanstack/react-query';
 import { railRoutingFromSummary } from './lib/routingSummary';
 import { useAttentionInbox } from './hooks/useAttentionInbox';
+import { useNoticeCenter } from './hooks/useNoticeCenter';
+import { noticeFromToast, noticeFromAgentEvent, type SeverityFrame } from './lib/notices';
 import { useKeybinds } from './hooks/useKeybinds';
 import { parseBindings, DEFAULT_BINDINGS, type Bindings } from './lib/keybinds';
 import { type UnlistenFn } from '@tauri-apps/api/event';
@@ -409,6 +409,12 @@ export default function App() {
     queryFn: () => voxTransport.getRoutingSummaryLive(),
     refetchInterval: 20_000,
   });
+  // The Routing card's health dot: only a reported problem shows, so a failed fetch shows nothing.
+  const routingHealthQuery = useQuery({
+    queryKey: ['routing-health'],
+    queryFn: () => voxTransport.getRoutingHealth(),
+    refetchInterval: 20_000,
+  });
   // The rail's Routing section reads the same one query as the status bar's Routing card.
   const chatRouting = useMemo(
     () => railRoutingFromSummary(routingSummaryQuery.data ?? null),
@@ -442,7 +448,7 @@ export default function App() {
   // Phase B / Task B2: a pin persisted from a previous session may name a model
   // that has since left the registry — validate once on mount and clear it
   // rather than letting `SelectionSource::classify` silently read `Fallback`
-  // forever with no way for the user to see why. Runs once; ChatModelPicker's
+  // forever with no way for the user to see why. Runs once; the composer's model-tier picker's
   // own listModels() calls stay independent (its own on-demand fetch).
   useEffect(() => {
     if (!chatModelOverride) return;
@@ -524,8 +530,11 @@ export default function App() {
   // capacity, distinct-group arrivals fold into an "N more notifications"
   // overflow toast instead of silently dropping an unseen one. See
   // src/lib/toastQueue.ts.
+  const noticeCenter = useNoticeCenter();
+  const recordNotice = noticeCenter.record;
   const toastTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const pushToast = useCallback((t: Toast) => {
+    recordNotice(noticeFromToast(t));
     const id = nextId('toast');
     setToasts(curr => {
       const { items, touchedId } = coalesceToast(curr, t, id);
@@ -540,7 +549,7 @@ export default function App() {
       );
       return items;
     });
-  }, []);
+  }, [recordNotice]);
 
   // ── Harness issue polling: badge data + toast on newly-detected issues ──
   // Only issues detected in a poll *after* the first are toasted — the first
@@ -900,6 +909,8 @@ export default function App() {
     let cancelled = false;
 
     listenAgentEvents((frame) => {
+      const engineNotice = noticeFromAgentEvent(frame as SeverityFrame);
+      if (engineNotice) recordNotice(engineNotice);
       const kindType = frame.kind?.type ?? '';
       if (kindType !== 'token_streamed') {
         const item = mapAgentEvent(frame);
@@ -935,7 +946,7 @@ export default function App() {
       cancelled = true;
       if (unlisten) unlisten();
     };
-  }, []);
+  }, [recordNotice]);
 
   // ── Pending-bubble honesty watchdog: nothing server-side ever expires a
   // pending chat bubble, so sweep client-side and flip anything stuck in
@@ -1867,21 +1878,6 @@ export default function App() {
 
   const mainSurface = renderSurfaceContent(activeView, surfaceProps);
 
-  const chatDock = (
-    <>
-      <InlineApprovals pushToast={pushToast} onViewAll={() => navigateTo('approvals')} />
-      {diffOpen && (
-        <DiffReview
-          diff={diffText}
-          loading={diffLoading}
-          onClose={() => setDiffOpen(false)}
-        />
-      )}
-      <Transcript messages={activeChatMessages} />
-      {loquelaComposer}
-    </>
-  );
-
   return (
     <>
       <div className="flex h-screen flex-col">
@@ -1901,6 +1897,7 @@ export default function App() {
         appVersion={appVersion}
         policyBadge={policyBadge}
         needsYouCount={attention.totalCount}
+        needsYouDegraded={attention.degraded.filter((s) => s !== 'tasks')}
         kpis={kpis}
         onOpenCommandPalette={() => setIsCommandOpen(true)}
         lastOrchEventAt={lastOrchEventAt}
@@ -1909,13 +1906,15 @@ export default function App() {
         surfaceKey={activeView}
         surfaceLabel={labelForNavKey(activeView)}
         chatDocked={chatDocked}
-        chatDock={chatDock}
         routingSummary={routingSummaryQuery.data ?? null}
+        routingHealth={routingHealthQuery.data ?? null}
         openrouterSpendUsd={openrouterSpendUsd}
         sessionSpentUsd={sessionSpentUsd}
         gamifyEnabled={gamifySettings.enabled}
         onOpenAchievements={openAchievements}
         onOpenResearchDrawer={openResearchDrawer}
+        notices={noticeCenter.notices}
+        onMarkAllNoticesRead={noticeCenter.markAllRead}
         hudTilesConfig={hudTilesConfig}
         onHudTilesChange={setHudTilesConfig}
         meshNodes={meshNodes}
@@ -2048,6 +2047,7 @@ export default function App() {
       />
 
       <DocViewerDrawer doc={activeDoc} onClose={closeDocViewer} />
+      <TaskDiffDialog open={diffOpen} loading={diffLoading} text={diffText} onClose={() => setDiffOpen(false)} />
       <InspectorDrawer open={isInspectorOpen} onClose={() => setIsInspectorOpen(false)} />
       <ResearchEngineDrawer
         isOpen={isResearchDrawerOpen}

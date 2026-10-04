@@ -119,6 +119,32 @@ describe('SettingsView', () => {
     });
   });
 
+  it('names each range control by its row label (axe label, critical)', () => {
+    render(<SettingsView pushToast={vi.fn()} />, { wrapper });
+    for (const name of [
+      'Max concurrent agents',
+      'Global budget cap (USD)',
+      'Auto-doubt threshold',
+      'Durable checkpoint cadence',
+    ]) {
+      expect(screen.getByRole('slider', { name })).toBeDefined();
+    }
+  });
+
+  it('renders when the backend has no orchestrator config (get_orchestrator_config -> null)', async () => {
+    const defaultImpl = invokeMock.getMockImplementation()!;
+    invokeMock.mockImplementation((cmd: string) =>
+      Promise.resolve(cmd === 'get_orchestrator_config' ? null : cmd === 'list_secret_status' ? [] : null),
+    );
+    try {
+      render(<SettingsView pushToast={vi.fn()} />, { wrapper });
+      await new Promise((r) => setTimeout(r, 50));
+      expect(screen.getByRole('slider', { name: 'Max concurrent agents' })).toBeDefined();
+    } finally {
+      invokeMock.mockImplementation(defaultImpl);
+    }
+  });
+
   it('search input is accessible via aria-label', () => {
     render(<SettingsView pushToast={vi.fn()} />, { wrapper });
     const searchInput = screen.getByLabelText('Search settings');

@@ -582,19 +582,11 @@
       "feature_gate": null
     },
     {
-      "path": "ci check-frozen",
-      "feature_gate": null
-    },
-    {
       "path": "ci check-links",
       "feature_gate": null
     },
     {
       "path": "ci check-summary-drift",
-      "feature_gate": null
-    },
-    {
-      "path": "ci collateral-damage-gate",
       "feature_gate": null
     },
     {
@@ -635,10 +627,6 @@
     },
     {
       "path": "ci config-registry-parity",
-      "feature_gate": null
-    },
-    {
-      "path": "ci constrained-gen-smoke",
       "feature_gate": null
     },
     {
@@ -802,10 +790,6 @@
       "feature_gate": null
     },
     {
-      "path": "ci grpo-reward-baseline",
-      "feature_gate": null
-    },
-    {
       "path": "ci gui-catalog-parity",
       "feature_gate": null
     },
@@ -871,10 +855,6 @@
     },
     {
       "path": "ci mcp-vox-surface-parity",
-      "feature_gate": null
-    },
-    {
-      "path": "ci mens-corpus-health",
       "feature_gate": null
     },
     {
@@ -1010,10 +990,6 @@
       "feature_gate": null
     },
     {
-      "path": "ci queue",
-      "feature_gate": null
-    },
-    {
       "path": "ci release-build",
       "feature_gate": null
     },
@@ -1039,22 +1015,6 @@
     },
     {
       "path": "ci row-serde-lint",
-      "feature_gate": null
-    },
-    {
-      "path": "ci runner-policy-check",
-      "feature_gate": null
-    },
-    {
-      "path": "ci runner-preflight",
-      "feature_gate": null
-    },
-    {
-      "path": "ci runner-scale",
-      "feature_gate": null
-    },
-    {
-      "path": "ci runner-status",
       "feature_gate": null
     },
     {
@@ -1139,6 +1099,10 @@
     },
     {
       "path": "ci ssot-drift",
+      "feature_gate": null
+    },
+    {
+      "path": "ci status",
       "feature_gate": null
     },
     {
@@ -2674,6 +2638,30 @@
       "feature_gate": null
     },
     {
+      "path": "graph history brief",
+      "feature_gate": null
+    },
+    {
+      "path": "graph history focus",
+      "feature_gate": null
+    },
+    {
+      "path": "graph history forgotten",
+      "feature_gate": null
+    },
+    {
+      "path": "graph history log",
+      "feature_gate": null
+    },
+    {
+      "path": "graph history search",
+      "feature_gate": null
+    },
+    {
+      "path": "graph history timeline",
+      "feature_gate": null
+    },
+    {
       "path": "graph index",
       "feature_gate": null
     },
@@ -3386,11 +3374,23 @@
       "feature_gate": null
     },
     {
+      "path": "research flag",
+      "feature_gate": null
+    },
+    {
       "path": "research history",
       "feature_gate": null
     },
     {
       "path": "research preview",
+      "feature_gate": null
+    },
+    {
+      "path": "research probe",
+      "feature_gate": null
+    },
+    {
+      "path": "research publish",
       "feature_gate": null
     },
     {
@@ -4208,10 +4208,8 @@
     "ci.capability-sync",
     "ci.check-codex-ssot",
     "ci.check-docs-ssot",
-    "ci.check-frozen",
     "ci.check-links",
     "ci.check-summary-drift",
-    "ci.collateral-damage-gate",
     "ci.command-compliance",
     "ci.command-sync",
     "ci.commit-lint",
@@ -4222,7 +4220,6 @@
     "ci.config-gui-codegen",
     "ci.config-hygiene",
     "ci.config-registry-parity",
-    "ci.constrained-gen-smoke",
     "ci.contracts-index",
     "ci.coolify-eval",
     "ci.coolify-eval.discover",
@@ -4263,7 +4260,6 @@
     "ci.grammar-drift",
     "ci.grammar-export-check",
     "ci.grammar-ssot-parity",
-    "ci.grpo-reward-baseline",
     "ci.gui-catalog-parity",
     "ci.gui-honesty",
     "ci.gui-smoke",
@@ -4281,7 +4277,6 @@
     "ci.line-endings",
     "ci.manifest",
     "ci.mcp-vox-surface-parity",
-    "ci.mens-corpus-health",
     "ci.mens-scorecard",
     "ci.mens-scorecard.burn-rnd",
     "ci.mens-scorecard.decide",
@@ -4315,7 +4310,6 @@
     "ci.pre-push",
     "ci.profile-parity",
     "ci.query-all-guard",
-    "ci.queue",
     "ci.release-build",
     "ci.release-draft-guard",
     "ci.repo-guards",
@@ -4323,10 +4317,6 @@
     "ci.retired-symbol-check",
     "ci.retirement-audit",
     "ci.row-serde-lint",
-    "ci.runner-policy-check",
-    "ci.runner-preflight",
-    "ci.runner-scale",
-    "ci.runner-status",
     "ci.runtime-regress",
     "ci.rust-ecosystem-policy",
     "ci.safety-inventory",
@@ -4348,6 +4338,7 @@
     "ci.sql-surface-guard",
     "ci.ssot-audit",
     "ci.ssot-drift",
+    "ci.status",
     "ci.string-id-lint",
     "ci.sync-ignore-files",
     "ci.test-inventory",
@@ -4773,6 +4764,12 @@
     "graph.crate-map",
     "graph.gc",
     "graph.history",
+    "graph.history.brief",
+    "graph.history.focus",
+    "graph.history.forgotten",
+    "graph.history.log",
+    "graph.history.search",
+    "graph.history.timeline",
     "graph.history_mcp",
     "graph.index",
     "graph.ingest",
@@ -5053,9 +5050,12 @@
     "research",
     "research.down",
     "research.eval",
+    "research.flag",
     "research.get",
     "research.history",
     "research.preview",
+    "research.probe",
+    "research.publish",
     "research.result",
     "research.run",
     "research.search",
@@ -5355,6 +5355,7 @@
     "coderabbit_report",
     "coderabbit_run_async",
     "coderabbit_token_present",
+    "delete_knowledge_node",
     "discovery_help",
     "discovery_record",
     "discovery_suggest",
@@ -5364,6 +5365,7 @@
     "execute_command",
     "execute_sandbox_probe",
     "explain_model_selection",
+    "explain_routing",
     "finish_gui_run",
     "flag_research_misleading",
     "force_orchestrator_verify",
@@ -5385,6 +5387,7 @@
     "get_gui_run",
     "get_identity_summary",
     "get_initial_view",
+    "get_kb_health",
     "get_llm_config",
     "get_llm_spend",
     "get_ludus_profile",
@@ -5397,6 +5400,7 @@
     "get_orchestrator_status_bin",
     "get_research_engine_status",
     "get_research_session_detail",
+    "get_routing_health",
     "get_routing_intentions",
     "get_routing_summary_live",
     "get_selection_policy",
@@ -5415,6 +5419,8 @@
     "hopper_submit",
     "import_env",
     "inference_provider_status",
+    "ingest_text",
+    "ingest_url",
     "insert_plan_node",
     "interrupt_orchestrator_task",
     "invoke_mcp_tool",
@@ -5428,6 +5434,7 @@
     "list_harness_fix_proposals",
     "list_harness_issues",
     "list_harness_issues_for_session",
+    "list_knowledge_nodes",
     "list_ludus_notifications",
     "list_mc_approvals",
     "list_model_cards",
@@ -5492,6 +5499,7 @@
     "run_autofill",
     "save_research_doc",
     "save_research_engine_config",
+    "save_research_session_to_kb",
     "scan_training_corpus",
     "scientia_cost_rollup",
     "scientia_dashboard_snapshot",

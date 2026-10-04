@@ -70,12 +70,11 @@ Task 6 is committed**, because that plan's Tasks 4 to 6 rewrite `registry.rs`, `
 **Interfaces:** Produces the numbers Task A4 decides on: `T_models` (touch a `models/` file), `T_other` (touch a file outside
 `models/`), and the share of each spent in the `vox-orchestrator` test unit.
 
-- [ ] **Step 1: Warm the artifacts.** `cd /Users/brbrainerd/dev/vox && timeout 3000s cargo test -p vox-orchestrator --lib --no-run 2>&1 | tail -3`. Expected: `Finished`.
+- [ ] **Step 1: Warm the artifacts.** `timeout 3000s cargo test -p vox-orchestrator --lib --no-run 2>&1 | tail -3`. Expected: `Finished`.
 - [ ] **Step 2: Measure one touch of a `models/` file, three times.** Each run appends a comment to
   `crates/vox-orchestrator/src/models/tiering.rs`, times the rebuild, and restores the file from `HEAD`:
 
 ```bash
-cd /Users/brbrainerd/dev/vox
 for i in 1 2 3; do
   printf '\n// bench-touch %s\n' "$i" >> crates/vox-orchestrator/src/models/tiering.rs
   { time -p timeout 3000s cargo test -p vox-orchestrator --lib --no-run --timings 2>&1 | tail -1; } 2>> target/bl-a1-models.txt
@@ -312,6 +311,8 @@ Consumes B1 (`CostPreference` from `vox-orchestrator-types`) and B2 (`RoutingTas
 - Untangling `AgentTask` from `reconstruction`, `socrates`, `attachment_manifest`, `observer`, `contract` and `planning`.
 
 ## Execution Order
+
+**Status (2026-10-03): Part A measured, decision NO-GO.** T_models 37.1 CPU-s against the 150 the rule needs; neither the one-invocation form (1.04x) nor `debug = 0` (1.6%) met its 20% rule, so the repository is unchanged. Part B is not started. Results and method: `docs/src/architecture/rust-build-loop-ssot-2026.md`.
 
 1. **Part A, any quiet moment** (Claude): A1 → A2 → A3 → A4. A2 and A3 change nothing in the repository unless their rule is met.
 2. **Part B after the model-routing plan's Task 6 and the chat-trace plan's Task 3 are committed, and only on GO:** B0 (stop for approval) → B1 → B2 → B3 → B4 → B5 → B6.

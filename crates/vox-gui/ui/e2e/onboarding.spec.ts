@@ -102,7 +102,7 @@ test.describe('Onboarding wizard', () => {
     // "replays the onboarding wizard by resetting the dismissed flag" test in
     // settings.spec.ts), then click the replay button.
     await page.getByRole('button', { name: /^settings$/i }).click();
-    await expect(page.getByRole('heading', { name: /settings/i })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { name: /settings/i, level: 2 })).toBeVisible({ timeout: 15_000 });
     await page.getByRole('button', { name: /onboarding/i }).click();
 
     const replayButton = page.getByRole('button', { name: /replay setup wizard/i });
@@ -130,7 +130,7 @@ test.describe('Onboarding wizard', () => {
       localStorage.removeItem('vox_onboarding_dismissed');
       (window as any).__TAURI_CALLS__ = [];
       // False until the test flips it (right before clicking Done on `local-model`)
-      // — other components (e.g. ChatModelPicker) also call `inference_provider_status`
+      // — other components (e.g. the composer's model-tier picker) also call `inference_provider_status`
       // on mount, so a call-count-based mock is order-dependent and flaky. Reads of
       // this flag stay empty for the initial gate check (must look like a fresh
       // install so the wizard shows at all); once flipped, the recheck inside
@@ -318,7 +318,7 @@ test.describe('Onboarding wizard', () => {
 
     // Replay via Settings -> Onboarding -> "Replay setup wizard".
     await page.getByRole('button', { name: /^settings$/i }).click();
-    await expect(page.getByRole('heading', { name: /settings/i })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { name: /settings/i, level: 2 })).toBeVisible({ timeout: 15_000 });
     await page.getByRole('button', { name: /onboarding/i }).click();
     const replayButton = page.getByRole('button', { name: /replay setup wizard/i });
     await expect(replayButton).toBeVisible({ timeout: 15_000 });

@@ -67,7 +67,7 @@ export function buildRichDataset() {
     key_present: i !== 2,
     is_local: i >= 3,
     local_reachable: i >= 3 ? i !== 5 : null,
-    local_models: i >= 3 ? ['llama3.2', 'qwen-coder-7b', 'mens-8b-instruct-longname'] : [],
+    local_models: i >= 3 ? ['local-llama-small', 'qwen-coder-7b', 'mens-8b-instruct-longname'] : [],
   }));
   return { hopperTasks, chatSessions, models, providers };
 }

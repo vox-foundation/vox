@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import {
-  buildTranscriptTimeline,
   buildChatOnlyTimeline,
   isTokenStreamEvent,
 } from './chatTranscriptTimeline';
@@ -35,65 +34,6 @@ describe('isTokenStreamEvent', () => {
   });
 });
 
-describe('buildTranscriptTimeline', () => {
-  const messages: ChatMessage[] = [
-    {
-      id: 'm1',
-      role: 'user',
-      text: 'hello',
-      status: 'done',
-      runId: 'r1',
-    },
-    {
-      id: 'm2',
-      role: 'assistant',
-      text: 'hi there',
-      status: 'done',
-      runId: 'r1',
-    },
-  ];
-
-  it('merges chat messages and agent items sorted by timestamp', () => {
-    const agentItems: StreamItem[] = [
-      agentItem('a1', 'task_started', 1500),
-      agentItem('a2', 'task_completed', 2500),
-    ];
-
-    const rows = buildTranscriptTimeline(messages, agentItems, { messageStepMs: 1000 });
-
-    expect(rows.map((r) => r.kind)).toEqual([
-      'message',
-      'message',
-      'agent',
-      'agent',
-    ]);
-    expect(rows.map((r) => r.atMs)).toEqual([0, 1000, 1500, 2500]);
-  });
-
-  it('groups consecutive token_streamed events collapsed by default', () => {
-    const agentItems: StreamItem[] = [
-      agentItem('t1', 'token_streamed', 500, { body: 'hel' }),
-      agentItem('t2', 'token_streamed', 600, { body: 'lo' }),
-      agentItem('t3', 'task_started', 700),
-    ];
-
-    const rows = buildTranscriptTimeline([], agentItems);
-
-    const tokenRow = rows.find((r) => r.kind === 'token_group');
-    expect(tokenRow).toBeDefined();
-    expect(tokenRow?.kind).toBe('token_group');
-    if (tokenRow?.kind === 'token_group') {
-      expect(tokenRow.items).toHaveLength(2);
-      expect(tokenRow.collapsed).toBe(true);
-    }
-
-    const taskRow = rows.find((r) => r.kind === 'agent');
-    expect(taskRow?.kind).toBe('agent');
-    if (taskRow?.kind === 'agent') {
-      expect(taskRow.collapsed).toBe(false);
-    }
-  });
-});
 
 function msg(id: string, role: ChatMessage['role'], status: ChatMessage['status'] = 'done'): ChatMessage {
   return { id, role, text: 'hi', status } as ChatMessage;
@@ -173,3 +113,30 @@ describe('buildChatOnlyTimeline', () => {
     expect(rows.some((r) => r.kind === 'summary')).toBe(false);
   });
 });
+
+import { mapAgentEvent } from './mapAgentEvent';
+
+describe('buildChatOnlyTimeline through the real event mapper', () => {
+  // The existing tests hand-build metadata; these go through mapAgentEvent, the producer the app uses.
+  const frame = (id: number, type: string, extra: Record<string, unknown>) =>
+    mapAgentEvent({ id, timestamp_ms: id * 1000, kind: { type, ...extra } });
+
+  it('shows the phase the engine reported', () => {
+    const rows = buildChatOnlyTimeline([], [
+      frame(1, 'task_started', { task_id: 7, agent_id: 3 }),
+      frame(2, 'task_phase_changed', { task_id: 7, agent_id: 3, phase: 'Act' }),
+    ], { nowMs: 5000 });
+    expect(rows.find(r => r.kind === 'status')).toMatchObject({ taskId: 7, phase: 'Act' });
+  });
+
+  it('attributes each agent cost to that agent task and shows the total when the task completes', () => {
+    const rows = buildChatOnlyTimeline([], [
+      frame(1, 'task_started', { task_id: 7, agent_id: 3 }),
+      frame(2, 'cost_incurred', { agent_id: 3, cost_usd: 0.25, provider: 'acme', model: 'acme/widget' }),
+      frame(3, 'cost_incurred', { agent_id: 3, cost_usd: 0.5, provider: 'acme', model: 'acme/widget' }),
+      frame(4, 'task_completed', { task_id: 7, agent_id: 3 }),
+    ], { nowMs: 5000 });
+    expect(rows.find(r => r.kind === 'summary')).toMatchObject({ taskId: 7, costUsd: 0.75 });
+  });
+});
+

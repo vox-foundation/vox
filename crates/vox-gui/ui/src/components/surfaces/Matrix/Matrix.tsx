@@ -8,6 +8,7 @@ import { useLabel } from '../../../hooks/useLanguage';
 import { MATRIX_POLL_MS } from '../../../config/constants';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
+import type { Toast } from '../../../types/tauri';
 
 /** One routing-priority axis projected onto the hex grid (mirrors the Rust
  *  `RoutingIntentionDto`). */
@@ -53,7 +54,7 @@ function HexCell({ intention, onSelect, selected }: { intention: RoutingIntentio
 }
 
 interface MatrixProps {
-  pushToast: (t: any) => void;
+  pushToast: (t: Toast) => void;
   gamifyEnabled?: boolean;
 }
 

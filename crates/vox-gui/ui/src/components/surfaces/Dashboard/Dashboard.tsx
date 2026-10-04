@@ -257,7 +257,7 @@ export function Dashboard({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Icon.alert className="size-4 text-amber-300" />
-                <h3 className="font-display text-[14px] font-semibold tracking-wide text-text-primary">System · Telemetry & Alerts</h3>
+                <h2 className="font-display text-[14px] font-semibold tracking-wide text-text-primary">System · Telemetry & Alerts</h2>
               </div>
               <span className="font-mono text-[10px] text-text-muted">{data.alerts.length} open</span>
             </div>
@@ -276,7 +276,7 @@ export function Dashboard({
         return (
           <Glass className="h-full p-5">
             <div className="flex items-center justify-between">
-              <h3 className="font-display text-[14px] font-semibold tracking-wide text-text-primary">Active Agents</h3>
+              <h2 className="font-display text-[14px] font-semibold tracking-wide text-text-primary">Active Agents</h2>
               <span className="font-mono text-[10px] text-text-muted">{data.agents.length} shards</span>
             </div>
             <div className="mt-3 flex flex-col gap-2">
@@ -352,9 +352,6 @@ export function Dashboard({
   if (loading) {
     return (
       <div className="grid grid-cols-12 gap-5 p-5" role="status" aria-label="Loading dashboard">
-        {/* Axe page-has-heading-one: keep the accessible root heading present
-            in the loading state too, matching the loaded-state h1 below. */}
-        <h1 className="sr-only">Dashboard</h1>
         <Glass className="col-span-12 xl:col-span-8 p-5">
           <Skeleton className="h-6 w-40 mb-4" />
           <Skeleton className="h-24 w-full mb-2" />
@@ -371,9 +368,6 @@ export function Dashboard({
 
   return (
     <div className="relative">
-      {/* Axe page-has-heading-one: surface renders inside a heading-less shell.
-          "The Stream" below is a section heading, not the surface root title. */}
-      <h1 className="sr-only">Dashboard</h1>
       {onOpenChat && (
         <div className="mx-5 mb-4 mt-2 flex items-center justify-between gap-4 rounded-xl border border-indigo-500/20 bg-indigo-500/6 px-4 py-3">
           <div>

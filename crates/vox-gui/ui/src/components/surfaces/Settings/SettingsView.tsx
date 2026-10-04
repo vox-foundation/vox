@@ -63,6 +63,9 @@ interface SettingsState {
   scaleMemFloorMb: number;
 }
 
+/** The label of the enclosing Row, so a control inside it is named without every call site repeating it. */
+const RowLabelContext = React.createContext<string | undefined>(undefined);
+
 function Row({ label, hint, children }: { label: string; hint: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-4 rounded-xl border border-border-subtle bg-overlay-subtle p-3">
@@ -70,7 +73,9 @@ function Row({ label, hint, children }: { label: string; hint: string; children:
         <div className="font-display text-[12px] text-text-secondary">{label}</div>
         <div className="text-[11px] text-text-muted">{hint}</div>
       </div>
-      <div className="shrink-0">{children}</div>
+      <RowLabelContext.Provider value={label}>
+        <div className="shrink-0">{children}</div>
+      </RowLabelContext.Provider>
     </div>
   );
 }
@@ -88,11 +93,12 @@ function RangeInline({
 }: {
   value: number; min: number; max: number; step?: number; suffix?: string; onChange: (v: number) => void;
 }) {
+  const label = React.useContext(RowLabelContext);
   const pct = ((value - min) / (max - min)) * 100;
   return (
     <div className="flex w-52 items-center gap-3">
       <input
-        type="range" min={min} max={max} step={step} value={value}
+        type="range" aria-label={label} min={min} max={max} step={step} value={value}
         onChange={e => onChange(Number(e.target.value))}
         className="vox-range flex-1 h-1 appearance-none rounded-full overflow-hidden"
         style={{ background: `linear-gradient(to right, rgb(var(--brass)) ${pct}%, rgba(255,255,255,0.08) ${pct}%)` } as any}
@@ -734,7 +740,7 @@ interface LlmSpendDto {
   perSessionBudgetUsd: number;
 }
 
-function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
+function RuntimeConfigSection({ pushToast }: { pushToast: (t: Toast) => void }) {
   const [fields, setFields] = useState<UserConfigFieldDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [spend, setSpend] = useState<LlmSpendDto | null>(null);
@@ -891,7 +897,7 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
   );
 }
 
-function LlmSettingsSection({ pushToast, onJumpToKeysSecrets }: { pushToast: (t: any) => void; onJumpToKeysSecrets: () => void }) {
+function LlmSettingsSection({ pushToast, onJumpToKeysSecrets }: { pushToast: (t: Toast) => void; onJumpToKeysSecrets: () => void }) {
   const [cfg, setCfg] = useState({
     maxConcurrentRequests: 8,
     openrouterMaxConcurrent: null as number | null,
@@ -1225,7 +1231,9 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
       // #273's resource-aware scaling; `setHydrated(true)` gates #229's persist
       // path (see `if (hydrated)` in `update`).
       try {
-        const cfg = await invoke<Record<string, unknown>>('get_orchestrator_config');
+        // A backend with no [orchestrator] table answers null; read it as empty (the updater
+        // below runs during render, so a throw here would take the whole surface down).
+        const cfg = (await invoke<Record<string, unknown> | null>('get_orchestrator_config')) ?? {};
         const num = (k: string) => (cfg[k] == null ? undefined : Number(cfg[k]));
         const bool = (k: string) => (cfg[k] == null ? undefined : Boolean(cfg[k]));
         setVals((prev) => ({
@@ -1324,9 +1332,9 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
       <div role="status" aria-live="polite" className="sr-only">
         {prefAnnounce}
       </div>
-      <h1 className="col-span-12 font-display text-lg tracking-[0.14em] uppercase text-text-primary">
+      <h2 className="col-span-12 font-display text-lg tracking-[0.14em] uppercase text-text-primary">
         {useLabel('settings')}
-      </h1>
+      </h2>
       {/* Nav */}
       <Glass className="col-span-12 md:col-span-3 p-3">
         <input

@@ -2742,7 +2742,13 @@ const SELF = fileURLToPath(import.meta.url);
 const UI_ROOT = resolve(dirname(SELF), '../..');
 const SCAN_DIRS = ['src', 'e2e'];
 const EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.mjs', '.json']);
-const SKIP_DIRS = new Set(['node_modules', 'screens']);
+// `fixtures` hold recorded run data (research traces name the real model that answered), not mocks of the
+// catalog; the two research-trace tests assert on exactly that recorded data, so they are exempt with it.
+const SKIP_DIRS = new Set(['node_modules', 'screens', 'fixtures']);
+const RECORDED_TRACE_TESTS = new Set([
+  'src/components/surfaces/Chat/ResearchTracePanel.test.tsx',
+  'e2e/research-trace-panel.spec.ts',
+]);
 /**
  * Local model names may be literal (AGENTS.md: local MENS revisions are exempt): Ollama, MENS runs,
  * mesh- and locally-served models, and the MENS fine-tuning base.
@@ -2816,7 +2822,7 @@ describe('no versioned cloud model ids in GUI source, tests or mocks', () => {
     const files: string[] = [];
     for (const d of SCAN_DIRS) walk(join(UI_ROOT, d), files);
     const offenders = files
-      .filter((f) => resolve(f) !== resolve(SELF))
+      .filter((f) => resolve(f) !== resolve(SELF) && !RECORDED_TRACE_TESTS.has(relative(UI_ROOT, f)))
       .flatMap((f) => findVersionedIds(readFileSync(f, 'utf8')).map((id) => `${relative(UI_ROOT, f)}: ${id}`));
     expect(offenders).toEqual([]);
   });

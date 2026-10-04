@@ -126,13 +126,14 @@ describe('ChatSurface', () => {
     await waitFor(() => expect(budgetCalls()).toBe(before + 1));
   });
 
-  it('has exactly one accessible h1 for the surface root (axe page-has-heading-one)', async () => {
+  it('leaves the page h1 to the shell: its empty-state title is an h2 and there is no h1', async () => {
     render(
       <LanguageProvider>
         <ChatSurface pushToast={() => {}} activeSessionId="s1" />
       </LanguageProvider>,
     );
-    expect(await screen.findAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(await screen.findByRole('heading', { level: 2, name: /no messages yet/i })).toBeInTheDocument();
+    expect(screen.queryAllByRole('heading', { level: 1 })).toHaveLength(0);
   });
 
   it('renders an empty state when the session has no messages', async () => {
@@ -140,6 +141,11 @@ describe('ChatSurface', () => {
     await waitFor(() => {
       expect(screen.getByText(/no messages yet/i)).toBeDefined();
     });
+  });
+
+  it('gives the empty-state title the heading level after the h1 (axe heading-order)', async () => {
+    render(<LanguageProvider><ChatSurface pushToast={noopToast} activeSessionId="s1" messages={[]} /></LanguageProvider>);
+    expect(await screen.findByRole('heading', { level: 2, name: /no messages yet/i })).toBeDefined();
   });
 
   it('updates the transcript panel content when messages change (does not go stale after first render)', async () => {
@@ -667,7 +673,7 @@ describe('ChatSurface', () => {
       </LanguageProvider>,
     );
     fireEvent.click(screen.getByRole('button', { name: /panels/i }));
-    fireEvent.click(screen.getByRole('checkbox', { name: /^mercatus$/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /^market$/i }));
     await screen.findByTestId('chat-dock-mercatus');
     fireEvent.click(screen.getByRole('checkbox', { name: /^harness$/i }));
     await screen.findByTestId('chat-dock-harness');
@@ -687,7 +693,7 @@ describe('ChatSurface', () => {
       </LanguageProvider>,
     );
     fireEvent.click(screen.getByRole('button', { name: /panels/i }));
-    const checkbox = screen.getByRole('checkbox', { name: /^mercatus$/i });
+    const checkbox = screen.getByRole('checkbox', { name: /^market$/i });
     expect(checkbox.className).toContain('text-brass');
     expect(checkbox.className).not.toBe('');
   });
@@ -850,6 +856,36 @@ describe('ChatSurface', () => {
       </LanguageProvider>,
     );
     expect(screen.getByRole('button', { name: /panels/i })).toBeInTheDocument();
+  });
+
+  // The slot is the status bar at the bottom of the window: a menu that opens downward from it renders below
+  // the viewport and is invisible (found by the review capture's panels-menu-open state).
+  it('opens the Panels menu upward from the status bar slot, and downward from its own row', () => {
+    const menuOf = () => screen.getAllByRole('checkbox')[0].closest('div.absolute') as HTMLElement;
+    const slot = document.createElement('div');
+    slot.id = WORKBENCH_TABBAR_TRAILING_SLOT_ID;
+    document.body.appendChild(slot);
+    try {
+      const { unmount } = render(
+        <LanguageProvider>
+          <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
+        </LanguageProvider>,
+      );
+      fireEvent.click(screen.getByRole('button', { name: /panels/i }));
+      expect(menuOf().className).toContain('bottom-full');
+      expect(menuOf().className).not.toContain('top-full');
+      unmount();
+    } finally {
+      document.body.removeChild(slot);
+    }
+    render(
+      <LanguageProvider>
+        <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
+      </LanguageProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /panels/i }));
+    expect(menuOf().className).toContain('top-full');
+    expect(menuOf().className).not.toContain('bottom-full');
   });
 
   it('Panels button toggles a popover open and closed, with Escape and focus-return', () => {
@@ -1176,7 +1212,7 @@ describe('ChatSurface', () => {
       </LanguageProvider>,
     );
     fireEvent.click(screen.getByRole('button', { name: /panels/i }));
-    fireEvent.click(screen.getByRole('checkbox', { name: /^mercatus$/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /^market$/i }));
     expect(screen.getByTestId('chat-dock-mercatus')).toBeInTheDocument();
   });
 
@@ -1190,11 +1226,11 @@ describe('ChatSurface', () => {
       </LanguageProvider>,
     );
     fireEvent.click(screen.getByRole('button', { name: /panels/i }));
-    fireEvent.click(screen.getByRole('checkbox', { name: /^mercatus$/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /^market$/i }));
     await screen.findByTestId('chat-dock-mercatus');
 
     const tab = screen
-      .getAllByText('Mercatus')
+      .getAllByText('Market')
       .map(el => el.closest('.dv-default-tab'))
       .find((el): el is HTMLElement => el !== null) as HTMLElement;
     fireEvent.click(tab.querySelector('.dv-default-tab-action') as HTMLElement);
@@ -1255,7 +1291,7 @@ describe('ChatSurface', () => {
       </LanguageProvider>,
     );
     fireEvent.click(screen.getByRole('button', { name: /panels/i }));
-    fireEvent.click(screen.getByRole('checkbox', { name: /^mercatus$/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /^market$/i }));
     await screen.findByTestId('chat-dock-mercatus');
     fireEvent.click(screen.getByRole('checkbox', { name: /^harness$/i }));
     await screen.findByTestId('chat-dock-harness');
@@ -1314,7 +1350,7 @@ describe('ChatSurface', () => {
       </LanguageProvider>,
     );
     fireEvent.click(screen.getByRole('button', { name: /panels/i }));
-    const checkbox = screen.getByRole('checkbox', { name: /^mercatus$/i });
+    const checkbox = screen.getByRole('checkbox', { name: /^market$/i });
     expect(checkbox).not.toBeChecked();
     fireEvent.click(checkbox);
     await screen.findByTestId('chat-dock-mercatus');
@@ -1336,7 +1372,7 @@ describe('ChatSurface', () => {
     await user.click(screen.getByRole('button', { name: /panels/i }));
     expect(screen.getByRole('button', { name: /panels/i }).getAttribute('aria-expanded')).toBe('true');
 
-    const checkbox = screen.getByRole('checkbox', { name: /^mercatus$/i });
+    const checkbox = screen.getByRole('checkbox', { name: /^market$/i });
     expect(checkbox).not.toBeChecked();
     // userEvent.click fires the full pointerdown/mousedown/pointerup/mouseup/click
     // sequence, exactly like a real mouse click — unlike fireEvent.click, which
@@ -1361,9 +1397,9 @@ describe('ChatSurface', () => {
       </LanguageProvider>,
     );
     fireEvent.click(screen.getByRole('button', { name: /panels/i }));
-    fireEvent.click(screen.getByRole('checkbox', { name: /^mercatus$/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /^market$/i }));
     await screen.findByTestId('chat-dock-mercatus');
-    fireEvent.click(screen.getByRole('checkbox', { name: /^mercatus$/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /^market$/i }));
     await waitFor(() => expect(screen.queryByTestId('chat-dock-mercatus')).toBeNull());
   });
 
@@ -1378,7 +1414,7 @@ describe('ChatSurface', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: /panels/i }));
 
-    fireEvent.click(screen.getByRole('checkbox', { name: /^mercatus$/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /^market$/i }));
 
     // Force a React re-render in between the two toggles — the same thing a
     // streamed token, a session poll, or any unrelated prop change does in
@@ -1402,7 +1438,7 @@ describe('ChatSurface', () => {
       expect(screen.getByTestId('chat-dock-harness')).toBeInTheDocument();
     });
 
-    const mercatusCheckbox = screen.getByRole('checkbox', { name: /^mercatus$/i }) as HTMLInputElement;
+    const mercatusCheckbox = screen.getByRole('checkbox', { name: /^market$/i }) as HTMLInputElement;
     const harnessCheckbox = screen.getByRole('checkbox', { name: /^harness$/i }) as HTMLInputElement;
     expect(mercatusCheckbox.checked).toBe(true);
     expect(harnessCheckbox.checked).toBe(true);
@@ -1419,13 +1455,13 @@ describe('ChatSurface', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: /panels/i }));
 
-    fireEvent.click(screen.getByRole('checkbox', { name: /^mercatus$/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /^market$/i }));
     fireEvent.click(screen.getByRole('checkbox', { name: /^harness$/i }));
 
     expect(screen.getByTestId('chat-dock-mercatus')).toBeInTheDocument();
     expect(screen.getByTestId('chat-dock-harness')).toBeInTheDocument();
 
-    const mercatusCheckbox = screen.getByRole('checkbox', { name: /^mercatus$/i }) as HTMLInputElement;
+    const mercatusCheckbox = screen.getByRole('checkbox', { name: /^market$/i }) as HTMLInputElement;
     const harnessCheckbox = screen.getByRole('checkbox', { name: /^harness$/i }) as HTMLInputElement;
     expect(mercatusCheckbox.checked).toBe(true);
     expect(harnessCheckbox.checked).toBe(true);
@@ -1441,20 +1477,20 @@ describe('ChatSurface', () => {
       </LanguageProvider>,
     );
     fireEvent.click(screen.getByRole('button', { name: /panels/i }));
-    fireEvent.click(screen.getByRole('checkbox', { name: /^mercatus$/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /^market$/i }));
     await screen.findByTestId('chat-dock-mercatus');
-    expect(screen.getByRole('checkbox', { name: /^mercatus$/i })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: /^market$/i })).toBeChecked();
 
     // Close via the real dockview tab-close action (simulates dragging a tab
     // out / clicking its native close X), not via the Panels checkbox.
     const tab = screen
-      .getAllByText('Mercatus')
+      .getAllByText('Market')
       .map(el => el.closest('.dv-default-tab'))
       .find((el): el is HTMLElement => el !== null) as HTMLElement;
     fireEvent.click(tab.querySelector('.dv-default-tab-action') as HTMLElement);
     await waitFor(() => expect(screen.queryByTestId('chat-dock-mercatus')).toBeNull());
 
-    expect(screen.getByRole('checkbox', { name: /^mercatus$/i })).not.toBeChecked();
+    expect(screen.getByRole('checkbox', { name: /^market$/i })).not.toBeChecked();
   });
 
   it('Approvals panel shows a condensed pending-count badge when docked narrow', () => {

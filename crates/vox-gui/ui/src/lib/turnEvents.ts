@@ -95,3 +95,16 @@ export function routingModelLabel(e: TurnEventDto): string {
   if (e.resolved_from === 'local') return `${String(e.resolved_id)} (local)`;
   return `${String(e.family)} (offline)`;
 }
+
+/** One-sentence objective per mode, keyed by the `MODE_NAMES` wire value. */
+export const MODE_OBJECTIVES: Readonly<Record<string, string>> = Object.freeze({
+  free: 'free models only',
+  efficiency: 'best quality per dollar; flagships only when nothing else fits',
+  balanced: 'quality, cost and speed weighted evenly; flagships only when nothing else fits',
+  genius: 'highest quality regardless of cost',
+});
+
+export function modeObjective(mode: string): string {
+  return MODE_OBJECTIVES[mode] ?? '';
+}
+

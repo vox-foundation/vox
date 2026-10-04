@@ -4,9 +4,9 @@ import { formatSpend } from '../../../config/budget';
 import { RiskPopover } from './RiskPopover';
 
 const TONE_BG: Record<string, string> = {
-  rose: 'bg-rose-400',
-  amber: 'bg-amber-400',
-  emerald: 'bg-emerald-400',
+  rose: 'bg-(--color-status-fail)',
+  amber: 'bg-(--color-status-warn)',
+  emerald: 'bg-(--color-status-pass)',
 };
 
 interface DriveConsoleProps {
@@ -49,10 +49,10 @@ export function DriveConsole({
   }, [riskOpen]);
 
   return (
-    <div className="relative flex items-stretch rounded-lg border border-white/10 text-[11px]">
+    <div className="relative flex flex-wrap items-stretch rounded-lg border border-white/10 text-[11px]">
       {/* ① Mode */}
       <div className="relative flex items-center gap-1 border-r border-white/[0.07] px-2.5 py-1.5">
-        <span className="text-zinc-500" aria-hidden>⚙</span>
+        <span className="text-text-muted" aria-hidden>⚙</span>
         <div role="radiogroup" aria-label="Mode — how much to spend" className="flex gap-0.5">
           {CLUTCH_DETENTS.map(d => (
             <button
@@ -81,7 +81,7 @@ export function DriveConsole({
             id={hintId}
             role="tooltip"
             data-testid="drive-mode-hint"
-            className="pointer-events-none absolute bottom-full left-0 z-40 mb-1 whitespace-nowrap rounded border border-white/10 bg-bg-base px-2 py-0.5 text-[10px] text-text-secondary"
+            className="pointer-events-none absolute bottom-full left-0 z-40 mb-1 whitespace-nowrap rounded border border-white/10 bg-bg-base px-2 py-0.5 text-[11px] text-text-secondary"
           >
             {hint}
           </span>
@@ -94,18 +94,18 @@ export function DriveConsole({
         className="flex items-center gap-2 border-r border-white/[0.07] px-2.5 py-1.5"
         title="Engine spend across all sessions"
       >
-        <span className="text-zinc-500">Spend</span>
+        <span className="text-text-muted">Spend</span>
         <span className="font-mono text-brass">{formatSpend(spentUsd, budgetUsd > 0 ? budgetUsd : null)}</span>
         {budgetUsd > 0 && (
           <span className="relative h-[3px] w-12 rounded-sm bg-white/8">
             <span
-              className="absolute inset-y-0 left-0 rounded-sm bg-linear-to-r from-emerald-400 to-brass"
+              data-testid="drive-console-budget-bar" className="absolute inset-y-0 left-0 rounded-sm bg-brass"
               style={{ width: `${pct}%` }}
             />
           </span>
         )}
         {burnPerMin != null && (
-          <span className="text-zinc-500">↑${burnPerMin.toFixed(2)}/m</span>
+          <span className="text-text-muted">↑${burnPerMin.toFixed(2)}/m</span>
         )}
       </div>
 
@@ -122,7 +122,7 @@ export function DriveConsole({
         >
           <span className={`h-3.5 w-[3px] rounded-sm ${TONE_BG[risk.tone]}`} aria-hidden />
           <span>Risk: {risk.label}</span>
-          <span className="text-zinc-600">▾</span>
+          <span className="text-text-muted">▾</span>
         </button>
         <RiskPopover
           open={riskOpen}

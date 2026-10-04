@@ -6,7 +6,7 @@ import React from 'react';
  * opt-in composer setting, not a major UI feature. State is lifted to the
  * caller (App.tsx), which persists it via `useGroundingCheck(sessionId)` and
  * threads the value into the chat submit payload as `grounding_check_enabled`
- * (mirrors how `ChatModelPicker`'s pick lifts to `chatModelOverride`).
+ * (mirrors how the composer's model-tier pick lifts to `chatModelOverride`).
  */
 export function GroundingCheckToggle({
   enabled,
@@ -22,7 +22,7 @@ export function GroundingCheckToggle({
       aria-label={`Check replies ${enabled ? 'on' : 'off'}`}
       onClick={() => onToggle(!enabled)}
       title="When on, each reply gets a background check for unsupported claims; it never blocks the reply"
-      className={`rounded-lg border px-2 py-1 font-mono text-[10px] ${
+      className={`rounded-lg border px-2 py-1 font-mono text-[11px] ${
         enabled
           ? 'border-brass/40 text-brass'
           : 'border-border-subtle text-text-muted hover:text-brass'

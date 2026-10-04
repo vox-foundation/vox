@@ -896,6 +896,13 @@ pub enum CiCmd {
         /// Write computed outputs to `$GITHUB_OUTPUT`.
         #[arg(long)]
         github_output: Option<String>,
+        /// Also emit `shard_list` and `shard_<i>_p_args`: the affected crates (or the whole
+        /// graph when the run is full) split into at most this many size-balanced groups.
+        #[arg(long)]
+        shards: Option<usize>,
+        /// Crates never placed in a shard (repeatable), e.g. `vox-gui`.
+        #[arg(long)]
+        exclude: Vec<String>,
     },
     /// GitHub CI state for the current branch (failed/timed-out jobs, slowest
     /// steps) plus open `nightly-failure` issues. Hooks call `--hook` /

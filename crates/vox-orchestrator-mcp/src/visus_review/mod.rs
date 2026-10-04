@@ -123,6 +123,8 @@ mod decide_tests {
                 model: model.into(),
                 reviewed_at: "t".into(),
                 prompt_version: prompt_version.into(),
+                defects: Vec::new(),
+                ux_report: None,
             },
         );
         c
@@ -1204,6 +1206,8 @@ mod bundle_run_tests {
                 model: "m".into(),
                 reviewed_at: "t".into(),
                 prompt_version: crate::visus_review::prompt::PROMPT_VERSION.into(),
+                defects: Vec::new(),
+                ux_report: None,
             },
         );
         let pv = crate::visus_review::prompt::PROMPT_VERSION;
@@ -1242,6 +1246,8 @@ mod bundle_run_tests {
                     model: "m".into(),
                     reviewed_at: "t".into(),
                     prompt_version: crate::visus_review::prompt::PROMPT_VERSION.into(),
+                    defects: Vec::new(),
+                    ux_report: None,
                 },
             );
         }

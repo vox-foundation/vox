@@ -40,7 +40,10 @@ pub mod scientia_novelty_ledger_contract;
 pub mod speech_runtime_suite;
 pub mod version_ssot;
 pub mod watch_run;
-pub use helpers::{cargo_bin, nvcc_available, nvcc_version_command, repo_root};
+pub use helpers::{
+    ToolPath, cargo_bin, installed_tool, nvcc_available, nvcc_version_command, repo_root,
+    resolve_tool,
+};
 pub mod affected_cmd;
 pub mod agentskills_compliance;
 pub mod ai_fixtures_coverage;
@@ -65,6 +68,7 @@ pub mod dep_sprawl;
 pub mod deploy_status;
 pub mod detect_rules_bench;
 pub mod dev_loop_audit;
+pub mod dev_loop_guard;
 pub mod docs_deprecated_command_guard;
 pub mod docs_reality_audit;
 pub mod doctest_md;
@@ -95,6 +99,7 @@ pub mod plugin_dep_boundary;
 pub mod plugin_skill_parity;
 pub mod plugin_surface;
 pub mod pm_provenance;
+pub mod pre_push_refs;
 pub mod profile_parity;
 pub mod release_draft_guard;
 pub mod required_context_guard;

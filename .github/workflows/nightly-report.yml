@@ -27,6 +27,7 @@ on:
       - Nightly
       - OpenSSF Scorecard
       - CI liveness
+      - Cache seed
     types: [completed]
 
 permissions:

@@ -14,6 +14,7 @@ pub mod devlog;
 pub mod discovery;
 pub mod docs_index;
 pub mod dynamic_mapping;
+pub mod event_annotate;
 pub mod execute;
 pub mod gamify;
 pub mod graphify;

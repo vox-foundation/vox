@@ -32,7 +32,7 @@ test.describe('Vox Settings pilot', () => {
     });
 
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: /settings/i })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { name: /settings/i, level: 2 })).toBeVisible({ timeout: 15_000 });
   });
 });
 
@@ -97,7 +97,7 @@ test.describe('Vox Settings — budget warn threshold', () => {
     });
 
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: /settings/i })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { name: /settings/i, level: 2 })).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole('button', { name: /runtime/i }).click();
 
@@ -149,7 +149,7 @@ test.describe('Vox Settings — onboarding replay', () => {
     });
 
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: /settings/i })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { name: /settings/i, level: 2 })).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole('button', { name: /onboarding/i }).click();
 
@@ -205,7 +205,7 @@ test.describe('Vox Settings — LLM banner jump-link', () => {
     });
 
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: /settings/i })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { name: /settings/i, level: 2 })).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole('button', { name: /llm & providers/i }).click();
 
