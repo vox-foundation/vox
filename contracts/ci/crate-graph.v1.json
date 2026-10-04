@@ -446,7 +446,6 @@
       "workspace-hack"
     ],
     "vox-llm-egress": [
-      "vox-config",
       "vox-http-client",
       "vox-openai",
       "workspace-hack"
