@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "summary": {
-    "workspace_crate_count": 129,
-    "rust_files_scanned": 4113,
-    "cargo_unit_test_functions": 10974,
+    "workspace_crate_count": 130,
+    "rust_files_scanned": 4116,
+    "cargo_unit_test_functions": 10981,
     "cargo_integration_test_functions": 3099,
     "cargo_bench_functions": 0,
     "cargo_ignored_test_functions": 179,
-    "cargo_test_functions_total": 14073,
+    "cargo_test_functions_total": 14080,
     "webir_related_ignored_tests": 3,
     "webir_ignored_tests_likely_retired_note": 0
   },
@@ -517,7 +517,7 @@
       "integration_rs_files": 1
     },
     "vox-orchestrator": {
-      "unit_tests": 1332,
+      "unit_tests": 1318,
       "integration_tests": 182,
       "bench_tests": 0,
       "ignored_tests": 4,
@@ -548,6 +548,14 @@
       "has_integration_dir": true,
       "integration_rs_files": 18
     },
+    "vox-orchestrator-models": {
+      "unit_tests": 19,
+      "integration_tests": 0,
+      "bench_tests": 0,
+      "ignored_tests": 0,
+      "has_integration_dir": false,
+      "integration_rs_files": 0
+    },
     "vox-orchestrator-queue": {
       "unit_tests": 96,
       "integration_tests": 21,
@@ -565,7 +573,7 @@
       "integration_rs_files": 0
     },
     "vox-orchestrator-types": {
-      "unit_tests": 32,
+      "unit_tests": 34,
       "integration_tests": 8,
       "bench_tests": 0,
       "ignored_tests": 0,
@@ -1049,7 +1057,7 @@
     "benches": 4,
     "integration_tests": 776,
     "other": 27,
-    "unit_src": 3306
+    "unit_src": 3309
   },
   "zero_test_crates": [
     "vox-cli-contracts",
@@ -1081,6 +1089,7 @@
     "vox-oauth-pkce",
     "vox-orchestrator-d",
     "vox-orchestrator-driver",
+    "vox-orchestrator-models",
     "vox-orchestrator-test-helpers",
     "vox-package-types",
     "vox-plugin-nvml-probe",
