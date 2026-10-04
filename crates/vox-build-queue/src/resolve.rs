@@ -73,6 +73,15 @@ pub fn resolve_real_cargo(path_var: &str, own_exe: &Path) -> Option<PathBuf> {
     None
 }
 
+pub fn build_args_for_run(args: &[String]) -> Option<Vec<String>> {
+    if args.first().map(String::as_str) != Some("run") {
+        return None;
+    }
+    let mut out = vec!["build".to_string()];
+    out.extend(args[1..].iter().take_while(|a| a.as_str() != "--").cloned());
+    Some(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -144,5 +153,23 @@ mod tests {
         let path = std::env::join_paths([&own_dir, &real_dir]).unwrap();
         let got = resolve_real_cargo(path.to_str().unwrap(), &own).unwrap();
         assert_eq!(got.canonicalize().unwrap(), real.canonicalize().unwrap());
+    }
+
+    #[test]
+    fn run_becomes_build_without_program_args() {
+        let a: Vec<String> = ["run", "-p", "vox-cli", "--quiet", "--", "ci", "pre-push"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        assert_eq!(
+            build_args_for_run(&a).unwrap(),
+            vec!["build", "-p", "vox-cli", "--quiet"]
+        );
+    }
+
+    #[test]
+    fn non_run_subcommands_are_left_alone() {
+        let a: Vec<String> = ["test", "-p", "x"].iter().map(|s| s.to_string()).collect();
+        assert!(build_args_for_run(&a).is_none());
     }
 }

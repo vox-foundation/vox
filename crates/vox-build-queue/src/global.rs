@@ -216,37 +216,87 @@ pub fn acquire_slot_adaptive(root: &Path, cap: usize) -> Result<(Slot, u64, usiz
     }
 }
 
-/// Marker for an in-flight build identity; dropping it removes the marker.
+/// Marker for an in-flight build identity; holds an exclusive lock on its entry for
+/// the build's lifetime. Dropping it unlocks and removes the marker.
 pub struct Inflight {
+    _f: Option<std::fs::File>,
     path: PathBuf,
 }
 
 impl Drop for Inflight {
     fn drop(&mut self) {
+        if let Some(f) = self._f.take() {
+            let _ = f.unlock();
+            drop(f);
+        }
         let _ = std::fs::remove_file(&self.path);
     }
 }
 
 /// Register this build's identity (`key`) and report whether another in-flight
 /// build already shares it (a true coalescing opportunity, cross-worktree).
+/// Holds an exclusive lock on its entry for the build's lifetime, and removes any
+/// stale entry whose lock can be acquired (its owner is gone).
 pub fn register_inflight(root: &Path, key: &str) -> Result<(Inflight, bool)> {
     let dir = root.join("inflight");
     std::fs::create_dir_all(&dir)?;
     let mut coalesce = false;
     if let Ok(rd) = std::fs::read_dir(&dir) {
         for e in rd.flatten() {
-            if std::fs::read_to_string(e.path())
-                .map(|s| s.trim() == key)
-                .unwrap_or(false)
-            {
-                coalesce = true;
-                break;
+            let p = e.path();
+            if !p.is_file() {
+                continue;
+            }
+            let Ok(f) = std::fs::OpenOptions::new().read(true).write(true).open(&p) else {
+                if std::fs::read_to_string(&p)
+                    .map(|s| s.trim() == key)
+                    .unwrap_or(false)
+                {
+                    coalesce = true;
+                }
+                continue;
+            };
+
+            match f.try_lock_exclusive() {
+                Ok(()) => {
+                    // Lock acquired -> owner is gone -> reap stale entry.
+                    let _ = f.unlock();
+                    drop(f);
+                    let _ = std::fs::remove_file(&p);
+                }
+                Err(_) => {
+                    // Entry is locked by an active process -> still in-flight.
+                    drop(f);
+                    if std::fs::read_to_string(&p)
+                        .map(|s| s.trim() == key)
+                        .unwrap_or(false)
+                    {
+                        coalesce = true;
+                    }
+                }
             }
         }
     }
-    let mine = dir.join(format!("{}-{}", std::process::id(), now_ms()));
-    std::fs::write(&mine, key)?;
-    Ok((Inflight { path: mine }, coalesce))
+    static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let seq = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let mine = dir.join(format!("{}-{}-{}", std::process::id(), now_ms(), seq));
+    let mut f = std::fs::OpenOptions::new()
+        .create(true)
+        .read(true)
+        .write(true)
+        .truncate(true)
+        .open(&mine)?;
+    f.try_lock_exclusive()?;
+    use std::io::Write;
+    f.write_all(key.as_bytes())?;
+    f.flush()?;
+    Ok((
+        Inflight {
+            _f: Some(f),
+            path: mine,
+        },
+        coalesce,
+    ))
 }
 
 #[cfg(test)]
@@ -404,5 +454,28 @@ mod tests {
         // Invalid or zero overrides fall back to the machine default.
         assert_eq!(max_concurrent_from(Some("0"), 18), 18);
         assert_eq!(max_concurrent_from(Some("xx"), 18), 18);
+    }
+
+    #[test]
+    fn stale_inflight_entry_is_reaped_while_locked_one_survives() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        let inflight_dir = root.join("inflight");
+        std::fs::create_dir_all(&inflight_dir).unwrap();
+
+        // 1. Hold a live locked inflight entry.
+        let (live, _) = register_inflight(root, "live_key").unwrap();
+        assert!(live.path.exists());
+
+        // 2. Create an unlocked entry (simulating a dead process that crashed).
+        let stale = inflight_dir.join("stale_unlocked");
+        std::fs::write(&stale, "stale_key").unwrap();
+        assert!(stale.exists());
+
+        // 3. Register a new entry; this must reap the unlocked stale file.
+        let (_another, _) = register_inflight(root, "another_key").unwrap();
+
+        assert!(!stale.exists(), "stale unlocked entry should be reaped");
+        assert!(live.path.exists(), "locked entry must survive reaping");
     }
 }
