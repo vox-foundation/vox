@@ -27,6 +27,8 @@ jobs:
     outputs:
       p_args: ${{ steps.affected.outputs.p_args }}
       run_tests: ${{ steps.plan.outputs.run_tests }}
+      shard_list: ${{ steps.plan.outputs.shard_list }}
+      shards: ${{ steps.plan.outputs.shards }}
     steps:
       - name: Start budget clock
         shell: bash
@@ -130,6 +132,14 @@ jobs:
           else
             echo "run_tests=false" >> "$GITHUB_OUTPUT"
           fi
+          # Shards split only execution (binaries are built once in build-tests), so the count
+          # follows the amount of work: the full workspace gets 3, a narrow affected set 1.
+          crates=$(echo "$P_ARGS" | grep -o -- '-p ' | wc -l)
+          if echo "$P_ARGS" | grep -q -- '--workspace' || [ "$crates" -ge 30 ]; then
+            echo 'shard_list=[1,2,3]' >> "$GITHUB_OUTPUT"; echo "shards=3" >> "$GITHUB_OUTPUT"
+          else
+            echo 'shard_list=[1]' >> "$GITHUB_OUTPUT"; echo "shards=1" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Warn when the leg nears its 30-min cap
         if: always()
@@ -141,16 +151,51 @@ jobs:
             echo "::warning::linux leg took ${mins} min (>80% of the 30-min cap) — cache, shard, or move work to nightly.yml"
           fi
 
-  tests:
-    name: Tests (affected, shard ${{ matrix.shard }}/3)
+  # Compile the affected test binaries ONCE; shards only execute them. Before this, every shard
+  # recompiled the same binaries cold (17-19 min of a ~26 min shard).
+  build-tests:
+    name: Build test binaries (affected)
     needs: linux
+    if: needs.linux.outputs.run_tests == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/install-linux-system-deps
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache: "false"   # Swatinem below is the only Rust cache; PRs never write it
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: workspace
+          save-if: false   # cache-seed.yml on main is the writer (default-branch caches are shared)
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+      - name: Archive test binaries
+        shell: bash
+        env:
+          P_ARGS: ${{ needs.linux.outputs.p_args }}   # crate names validated by `vox ci affected-crates`
+        # $P_ARGS is deliberately unquoted so it splits into `-p <crate>` words.
+        run: cargo nextest archive $P_ARGS --profile ci-gate --locked --archive-file tests.tar.zst
+      - uses: actions/upload-artifact@v5
+        with:
+          name: nextest-archive
+          path: tests.tar.zst
+          retention-days: 1
+
+  tests:
+    name: Tests (affected, shard ${{ matrix.shard }}/${{ needs.linux.outputs.shards }})
+    needs: [linux, build-tests]
     if: needs.linux.outputs.run_tests == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        shard: ${{ fromJSON(needs.linux.outputs.shard_list) }}
     steps:
       - name: Start budget clock
         shell: bash
@@ -161,23 +206,21 @@ jobs:
       - uses: ./.github/actions/install-linux-system-deps
       - uses: ./.github/actions/setup-rust
         with:
-          cache: "false"   # Swatinem below is the only Rust cache; PRs never write it
-      - uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: workspace
-          save-if: false   # nightly.yml on main is the only writer (default-branch caches are shared)
+          cache: "false"   # nothing is compiled here
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-nextest
+      - uses: actions/download-artifact@v5
+        with:
+          name: nextest-archive
 
       - name: Tests (affected)
         shell: bash
         env:
-          P_ARGS: ${{ needs.linux.outputs.p_args }}   # crate names validated by `vox ci affected-crates`
           SHARD: ${{ matrix.shard }}
-        # $P_ARGS is deliberately unquoted so it splits into `-p <crate>` words.
+          SHARDS: ${{ needs.linux.outputs.shards }}
         # ci-gate = ci + a quarantine of tests red on main (issue #569); nightly runs them all.
-        run: cargo nextest run $P_ARGS --profile ci-gate --locked --no-tests=pass --partition "hash:${SHARD}/3"
+        run: cargo nextest run --archive-file tests.tar.zst --workspace-remap . --profile ci-gate --no-tests=pass --partition "hash:${SHARD}/${SHARDS}"
 
       - name: Warn when the leg nears its 30-min cap
         if: always()
@@ -278,7 +321,7 @@ jobs:
   gate:
     # Branch-protection required context — do not rename (required_context_guard).
     name: Check, Build, and Test (Rust)
-    needs: [linux, tests, ui]
+    needs: [linux, build-tests, tests, ui]
     if: always()   # must still run (and fail) on a cancelled dep — a skipped gate satisfies branch protection's required-context check
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -288,6 +331,7 @@ jobs:
         env:
           LINUX: ${{ needs.linux.result }}
           TESTS: ${{ needs.tests.result }}
+          BUILD_TESTS: ${{ needs.build-tests.result }}
           RUN_TESTS: ${{ needs.linux.outputs.run_tests }}
           UI: ${{ needs.ui.result }}
         run: |
@@ -296,6 +340,7 @@ jobs:
           # A skipped `tests` counts only when linux itself decided no tests were due
           # (no Rust changes, or a toolchain bump); every other non-success fails.
           if [ "$RUN_TESTS" = true ]; then
+            [ "$BUILD_TESTS" = success ] || { echo "::error::build-tests=$BUILD_TESTS"; exit 1; }
             [ "$TESTS" = success ] || { echo "::error::tests=$TESTS"; exit 1; }
           else
             [ "$TESTS" = skipped ] || { echo "::error::tests=$TESTS but linux planned no tests"; exit 1; }

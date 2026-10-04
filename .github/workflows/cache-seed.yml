@@ -1,0 +1,42 @@
+# Warm-cache writer for PR CI (not a gate). PR jobs restore the `workspace` Rust cache but never
+# write it (a PR-scoped cache is unreadable from other refs). Before this workflow the only
+# writer was nightly's `full` job, which failed for days, so every PR shard compiled cold.
+# Runs on each push to main and saves the cache from main, which every PR can read.
+name: Cache seed
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  seed:
+    name: Build workspace test binaries and save the cache
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/install-linux-system-deps
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache: "false"   # Swatinem below is the only Rust cache
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: workspace
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+      - name: Build the same binaries PR CI archives
+        run: cargo nextest archive --workspace --exclude vox-gui --profile ci-gate --locked --archive-file /tmp/seed.tar.zst
