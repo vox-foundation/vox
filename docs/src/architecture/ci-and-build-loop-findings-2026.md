@@ -104,10 +104,24 @@ Not yet measured: the kernel-time share after the owner applies the macOS Develo
 | PR that changes only generated `contracts/reports/` | full-workspace run | no clippy or tests | task 2.3 |
 | Nightly test executions | the suite ran twice | once | task 3.4 |
 
-**What will move CI wall time next is the warm dependency cache**, not more sharding: per-shard compile is
-dominated by building the same dependency graph cold. `cache-seed.yml` (scheduled, 180-min cap) writes a
-main-scope `workspace` cache every 6 hours once it lands on `main`; locally 91% of a clean compile is
-third-party crates, so a warm cache should take per-shard compile from about 20 minutes to a few. That figure is
-a projection until the first scheduled `cache-seed` run and the next full-workspace PR report; record both here.
+### Warm cache (measured 2026-10-04)
+
+Per-shard compile was dominated by building the same dependency graph cold, so `cache-seed.yml` writes a
+main-scope `workspace` cache. Its first run (37182816937, dispatched on `main`) took **25.5 min** from cold
+(build step 23 min 54 s, cache save 32 s) and wrote the cache. The next PR with a `Cargo.lock` change (#599, run
+37195946939) restored it through the restore-key (`full match: false`, because the lockfile changed) and ran:
+
+| Job | Cold (#596, run 37175489714) | Warm (#599, run 37195946939) |
+|---|---|---|
+| Test shards, job wall time | 22.7 / 19.3 / 24.4 min | 9.2 / 10.7 / 12.4 min |
+| Test step of a shard | 17 min 57 s (shard 2) | 7 min 47 s / 9 min 10 s / 10 min 44 s |
+| `linux` job | 15.8 min | 14.7 min (`Build vox CLI and fast-tier tools` 8 min 17 s → 5 min 51 s; clippy 5 min 12 s → 6 min 30 s) |
+
+So warming the cache roughly **halves** the test shards (worst 24.4 → 12.4 min), not the "few minutes" the
+projection assumed: the first-party crates still recompile after a lockfile change, and a restore-key hit is a
+partial one. The `linux` job barely moved because it builds a different set (the CLI and clippy). Caveats: the
+two runs are different changes (both touch `Cargo.lock`, so both plan the full workspace), and this is one
+sample each; the 6-hourly `cache-seed` run keeps the cache fresh, so an exact-key hit on a no-lockfile PR
+should be faster still. Re-measure on the next two ordinary PRs before treating these numbers as stable.
 
 
