@@ -1496,6 +1496,11 @@ jobs:
   all-features-matrix:
     name: All-Features Check (${{ matrix.crate }})
     # Tier: heavy (~30 crates × 10-15m).
+    # Not listed, on purpose: vox-codegen (its `standalone` feature is a cfg
+    # placeholder that --all-features turns on, which cannot compile embedded),
+    # vox-populi and vox-ml-cli (--all-features enables `cuda`/`metal`, which
+    # need nvcc / macOS). The workspace-wide all-features step in the `audits`
+    # job applies the same exclusions with the guards that explain them.
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -1503,7 +1508,6 @@ jobs:
       matrix:
         crate:
           - vox-compiler
-          - vox-codegen
           - vox-cli
           - vox-actor-runtime
           - vox-db
@@ -1511,8 +1515,6 @@ jobs:
           - vox-secrets
           - vox-orchestrator
           - vox-vcs
-          - vox-populi
-          - vox-ml-cli
           - vox-gamify
           - vox-speech
           - vox-skills
