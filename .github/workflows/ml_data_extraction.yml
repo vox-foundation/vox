@@ -57,10 +57,12 @@ permissions:
 jobs:
   extract:
     name: Extract & Validate Training Corpus
-    runs-on: [self-hosted, linux]
+    # Hosted: extraction needs no GPU, and the self-hosted fleet is an optional backup
+    # only (no job may wait on it). Only `train` below needs a GPU runner.
+    runs-on: ubuntu-latest
     # Missing until 2026-07-27 (found in the same audit that fixed the
     # nightly workflows' missing timeouts) — GitHub's 360-min default lets
-    # a hang squat a scarce self-hosted runner slot for hours.
+    # a hang hold a runner for hours.
     timeout-minutes: 60
     env:
       # Abstract VCS_SHA: use github.sha on GitHub Actions.
@@ -228,6 +230,7 @@ jobs:
       github.event.inputs.force_train == 'true' ||
       github.event_name == 'workflow_dispatch'
     # Portable note: On Forgejo Actions, workflow_dispatch and event.inputs work identically.
+    # Optional: needs a GPU runner, which does not exist yet. Nothing gates on this job.
     runs-on: [self-hosted, linux, x64, gpu]
     # Missing until 2026-07-27 (see the `extract` job's timeout comment) --
     # generous bound for real GPU fine-tuning, still finite.
