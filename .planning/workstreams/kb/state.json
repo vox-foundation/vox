@@ -1,12 +1,73 @@
 {
   "contract": "1.0.0",
   "flavor": "core",
-  "milestone": null,
-  "phases": [],
+  "milestone": "v1.1 — Vox Knowledge Base — corpus to context",
+  "phases": [
+    {
+      "number": "1",
+      "name": "Retrieval Eval Baseline",
+      "status": "pending"
+    },
+    {
+      "number": "2",
+      "name": "Library Index and KB Tool Surface",
+      "status": "pending"
+    },
+    {
+      "number": "3",
+      "name": "Provenance, Trust Tiers and Leak Closure",
+      "status": "pending"
+    },
+    {
+      "number": "4",
+      "name": "Taxonomy Contract and Facet Lint",
+      "status": "pending"
+    },
+    {
+      "number": "5",
+      "name": "Local Embeddings and Ranking Signals",
+      "status": "pending"
+    },
+    {
+      "number": "6",
+      "name": "Library GUI",
+      "status": "pending"
+    },
+    {
+      "number": "7",
+      "name": "Context Injection and Per-Chat Scope",
+      "status": "pending"
+    },
+    {
+      "number": "8",
+      "name": "Inspector and Chat Controls GUI",
+      "status": "pending"
+    },
+    {
+      "number": "9",
+      "name": "Web Fallback, Inbox and Promotion PR",
+      "status": "pending"
+    },
+    {
+      "number": "10",
+      "name": "Page-One Summary Rewrites",
+      "status": "pending"
+    },
+    {
+      "number": "11",
+      "name": "Staleness, Re-verification and KB Operator Docs",
+      "status": "pending"
+    },
+    {
+      "number": "12",
+      "name": "Inbox, Settings and Health GUI",
+      "status": "pending"
+    }
+  ],
   "next": {
-    "command": "/gsd:discuss-phase",
-    "label": "Discuss the first phase",
-    "reason": "Project initialized — plan your first phase"
+    "command": "/gsd:progress --next",
+    "label": "Advance to the next step",
+    "reason": "Phase 1 of 12 · 0% · executing"
   },
-  "updated_at": "2026-10-04T05:28:47.155Z"
+  "updated_at": "2026-10-04T07:55:44.058Z"
 }
