@@ -1639,8 +1639,10 @@ jobs:
       - name: Tauri prerequisite tests
         run: cargo test -p vox-gui --test gui_tauri_prereqs
 
+      # `cargo gui-build` links with link.exe: lld-link cannot reconcile ucrt.lib and
+      # libucrt.lib for vox-gui (.cargo/config.toml, [target.x86_64-pc-windows-msvc]).
       - name: Build vox-gui (Tauri)
-        run: cargo build -p vox-gui
+        run: cargo gui-build
 
       - name: Headless binary smoke (action manifest)
         shell: pwsh
