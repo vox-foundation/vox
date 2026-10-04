@@ -7,6 +7,7 @@
 
 pub mod baseline;
 pub mod bm25;
+pub mod canary;
 pub mod golden;
 pub mod metrics;
 
