@@ -9,7 +9,7 @@ use crate::usage_policy::resolve_provider_limits;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-/// Default `retry_after_secs` when a provider row is marked rate-limited ([`BudgetGate`](crate::gate::BudgetGate)).
+/// Default `retry_after_secs` when a provider row is marked rate-limited (`BudgetGate` in `vox-orchestrator`).
 pub const DEFAULT_RATE_LIMIT_RETRY_SECS: u64 = 60;
 
 /// Keys rows in `provider_usage` / `LIMITS` for gating and accounting (not the API model slug).
