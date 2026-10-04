@@ -5,6 +5,7 @@
 use std::io::Write;
 use std::path::Path;
 
+use super::gate::ensure_clean;
 use anyhow::{Context, Result, bail};
 use clap::{Args, ValueEnum};
 use vox_search::kb_eval::bm25::Bm25Index;
@@ -41,15 +42,41 @@ pub struct KbEvalArgs {
     /// Rewrite contracts/kb/eval/corpus.jsonl from tracked non-archive docs/src markdown.
     #[arg(long)]
     pub snapshot_corpus: bool,
+    /// Ratchet gate: report every regression, tighten-only and canary failure; exit non-zero on any.
+    #[arg(long, conflicts_with_all = ["tighten", "write_baseline", "split", "query", "headings", "snapshot_corpus"])]
+    pub gate: bool,
+    /// Base ref the baseline must only tighten against.
+    #[arg(
+        long,
+        value_name = "REF",
+        default_value = "origin/main",
+        requires = "gate"
+    )]
+    pub base: String,
+    /// Raise baseline values to the current dev report; never lowers anything.
+    #[arg(long, conflicts_with_all = ["gate", "write_baseline", "split", "query", "headings", "snapshot_corpus"])]
+    pub tighten: bool,
+    /// Write a new baseline epoch from the current dev report (human-reviewed).
+    #[arg(long, requires = "epoch_note", conflicts_with_all = ["gate", "tighten", "split", "query", "headings", "snapshot_corpus"])]
+    pub write_baseline: bool,
+    /// Why a new epoch is being written (required with --write-baseline).
+    #[arg(long, value_name = "TEXT", requires = "write_baseline")]
+    pub epoch_note: Option<String>,
 }
 
-const EVAL_DIR: &str = "contracts/kb/eval";
+pub(crate) const EVAL_DIR: &str = "contracts/kb/eval";
 
 pub fn run(args: &KbEvalArgs) -> Result<()> {
     let root = crate::commands::ci::repo_root();
     let dir = root.join(EVAL_DIR);
     let mut out = std::io::stdout().lock();
-    if args.snapshot_corpus {
+    if args.gate {
+        super::gate::run_gate(&root, &args.base)
+    } else if args.tighten {
+        super::gate::run_tighten(&root)
+    } else if args.write_baseline {
+        super::gate::run_write_baseline(&root, args.epoch_note.as_deref().unwrap_or_default())
+    } else if args.snapshot_corpus {
         run_snapshot(&root, &dir)
     } else if let Some(doc) = &args.headings {
         run_headings(&dir, doc, &mut out)
@@ -65,8 +92,8 @@ pub fn run(args: &KbEvalArgs) -> Result<()> {
 }
 
 pub fn run_report(eval_dir: &Path, split: Split, json: bool, out: &mut impl Write) -> Result<()> {
-    read_canary_guid(eval_dir)?;
     let golden = GoldenSet::load(eval_dir, split)?;
+    ensure_clean(&golden.corpus, &golden.canary)?;
     if split == Split::Test {
         validate_splits(eval_dir)?;
         eprintln!("held-out split: milestone-close use only; never tune on it");
@@ -82,7 +109,9 @@ pub fn run_report(eval_dir: &Path, split: Split, json: bool, out: &mut impl Writ
 }
 
 pub fn run_query(eval_dir: &Path, text: &str, top: usize, out: &mut impl Write) -> Result<()> {
-    let idx = Bm25Index::build(&load_corpus(eval_dir)?);
+    let corpus = load_corpus(eval_dir)?;
+    ensure_clean(&corpus, &read_canary_guid(eval_dir)?)?;
+    let idx = Bm25Index::build(&corpus);
     for (i, (score, c)) in idx.rank_scored(text).into_iter().take(top).enumerate() {
         writeln!(out, "{}\t{score:.4}\t{}", i + 1, c.id)?;
     }
