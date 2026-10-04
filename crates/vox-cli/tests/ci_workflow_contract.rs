@@ -301,8 +301,10 @@ fn gui_cross_build_covers_three_os_with_webkit() {
         yml.contains("libwebkit2gtk-4.1-dev"),
         "Linux GUI build needs WebKitGTK"
     );
+    // `cargo gui-build` is the .cargo/config.toml alias for the same build with link.exe
+    // on Windows (lld-link cannot link vox-gui).
     assert!(
-        yml.contains("cargo build -p vox-gui"),
+        yml.contains("cargo gui-build") || yml.contains("cargo build -p vox-gui"),
         "must actually compile the GUI crate"
     );
     // Runs on schedule, not pull_request/merge_group: the full matrix build
@@ -673,8 +675,10 @@ fn vox_gui_is_tested_somewhere() {
     // file but proves nothing about ordering relative to the step that
     // actually runs on the same OS as `full`. rfind anchors on the step
     // immediately preceding it.
+    // `cargo gui-test` is the .cargo/config.toml alias for the same suite with link.exe on Windows.
     let full = yml
-        .find("cargo test -p vox-gui --locked")
+        .find("cargo gui-test --locked")
+        .or_else(|| yml.find("cargo test -p vox-gui --locked"))
         .expect("full vox-gui test suite");
     let sidecar = yml
         .rfind("Stage Tauri external sidecar")
