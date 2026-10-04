@@ -15,7 +15,7 @@ Research basis: `.planning/workstreams/kb/research/SUMMARY.md` and `docs/src/arc
 ### Retrieval Evaluation (EVAL)
 
 - [ ] **EVAL-01**: A maintainer can run a deterministic retrieval eval (`vox kb eval`) that reports Recall@5/10, MRR@10 and nDCG@10 computed on doc and chunk IDs, plus the answer-bearing-chunk-within-budget rate
-- [ ] **EVAL-02**: The golden set lives under `contracts/kb/eval/` in BEIR layout with ≥40 human-authored seed queries, an LLM-generated/human-pruned expansion, and a held-out split
+- [ ] **EVAL-02**: The golden set lives under `contracts/kb/eval/` in BEIR layout with ≥40 seed queries (origin `human`, or `agent-seed` when authoring is delegated — amended 2026-10-04, see 01-CONTEXT D-02), an LLM-generated expansion, and a held-out split
 - [ ] **EVAL-03**: A canary-string check proves the golden set is excluded from the indexer roots and the MENS training corpus
 - [ ] **EVAL-04**: Retrieval metrics are ratcheted against `contracts/kb/retrieval-baseline.v1.json` in PR CI — a regression blocks merge; the baseline may only tighten
 - [x] **EVAL-05**: The misnamed word-overlap helpers in `vox-search/src/evaluation.rs` are deleted or renamed so no gate can rely on them
