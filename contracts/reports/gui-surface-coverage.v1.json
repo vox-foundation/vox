@@ -1142,6 +1142,10 @@
       "feature_gate": null
     },
     {
+      "path": "ci status",
+      "feature_gate": null
+    },
+    {
       "path": "ci string-id-lint",
       "feature_gate": null
     },
@@ -4348,6 +4352,7 @@
     "ci.sql-surface-guard",
     "ci.ssot-audit",
     "ci.ssot-drift",
+    "ci.status",
     "ci.string-id-lint",
     "ci.sync-ignore-files",
     "ci.test-inventory",

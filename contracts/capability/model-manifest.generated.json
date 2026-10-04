@@ -6242,6 +6242,17 @@
       "curated": true
     },
     {
+      "capability_id": "cli.ci.status",
+      "cli_path": [
+        "ci",
+        "status"
+      ],
+      "implicit": false,
+      "title": "Ci Status",
+      "description_model": "CLI operation `vox ci status`",
+      "curated": true
+    },
+    {
       "capability_id": "cli.ci.string-id-lint",
       "cli_path": [
         "ci",

@@ -21,7 +21,7 @@ category: "Language Reference"
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml) (itself projected from [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml)).
 
-**schema_version:** `1` · **vox-cli operations:** 995
+**schema_version:** `1` · **vox-cli operations:** 996
 
 | Path | Status | Feature gate | Latin ns | Product lane | Catalog group |
 |------|--------|--------------|----------|--------------|----------------|
@@ -310,6 +310,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci sql-surface-guard` | active | — | — | platform | — |
 | `vox ci ssot-audit` | active | — | ci | platform | — |
 | `vox ci ssot-drift` | active | — | — | platform | — |
+| `vox ci status` | active | — | — | platform | — |
 | `vox ci string-id-lint` | active | — | ci | platform | — |
 | `vox ci sync-ignore-files` | active | — | ci | platform | — |
 | `vox ci test-inventory` | active | — | — | platform | — |
