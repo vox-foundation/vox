@@ -252,7 +252,7 @@ fn crate_of(p: &str) -> String {
 }
 
 #[test]
-#[ignore = "needs full history; run: cargo test -p vox-graph-reader --test history_ingest_tests -- --ignored real_history"]
+#[ignore = "owner: graph — needs full history; run: cargo test -p vox-graph-reader --test history_ingest_tests -- --ignored real_history"]
 fn real_history_split_and_merge_are_detected_on_the_carrier() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let g = Git::new(&root);

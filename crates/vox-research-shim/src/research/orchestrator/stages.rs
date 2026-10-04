@@ -786,7 +786,7 @@ mod citation_diversity_tests {
     /// `cargo test -p vox-research-shim --features runtime -- --ignored --nocapture judge_probe`
     #[cfg(feature = "runtime")]
     #[tokio::test]
-    #[ignore = "live OpenRouter network probe — run manually with --ignored --features runtime"]
+    #[ignore = "owner: research — live OpenRouter network probe; run manually with --ignored --features runtime"]
     async fn judge_probe_max_tokens_400_vs_4000() {
         let Some(api_key) = vox_secrets::resolve_secret(vox_secrets::SecretId::OpenRouterApiKey)
             .expose()
@@ -838,7 +838,7 @@ mod citation_diversity_tests {
     /// `cargo test -p vox-research-shim --features runtime -- --ignored --nocapture synthesis_probe`
     #[cfg(feature = "runtime")]
     #[tokio::test]
-    #[ignore = "live OpenRouter network probe — run manually with --ignored --features runtime"]
+    #[ignore = "owner: research — live OpenRouter network probe; run manually with --ignored --features runtime"]
     async fn synthesis_probe_max_tokens_budget_vs_visible_output() {
         use vox_actor_runtime::ActivityOptions;
         use vox_actor_runtime::llm::LlmChatMessage;

@@ -1976,7 +1976,7 @@ mod tests {
     ///
     /// Run manually (needs network): `cargo test -p vox-search -- --ignored --nocapture deep_lane_probe`
     #[tokio::test]
-    #[ignore = "live network probe — run manually with --ignored"]
+    #[ignore = "owner: search — live network probe; run manually with --ignored"]
     #[allow(unsafe_code)]
     async fn deep_lane_probe_searxng_vs_tavily_subquery() {
         // This probe is deliberately live: lift the unit-test egress guard

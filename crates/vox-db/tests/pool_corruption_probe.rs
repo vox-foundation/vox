@@ -188,33 +188,33 @@ async fn run_raw(label: &str, path: &str) {
     finish(label, handles, integrity_raw(&setup)).await;
 }
 
-#[ignore = "nondeterministic Turso corruption reproducer; run deliberately"]
+#[ignore = "owner: vox-db — nondeterministic Turso corruption reproducer; run deliberately"]
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
 async fn pooled_memory() {
     run_pooled("pooled_memory", DbConfig::Memory).await;
 }
 
-#[ignore = "nondeterministic Turso corruption reproducer; run deliberately"]
+#[ignore = "owner: vox-db — nondeterministic Turso corruption reproducer; run deliberately"]
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
 async fn pooled_file() {
     let f = TempDb::new();
     run_pooled("pooled_file", DbConfig::Local { path: f.0.clone() }).await;
 }
 
-#[ignore = "nondeterministic Turso corruption reproducer; run deliberately"]
+#[ignore = "owner: vox-db — nondeterministic Turso corruption reproducer; run deliberately"]
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
 async fn shared_file() {
     let f = TempDb::new();
     run_shared("shared_file", DbConfig::Local { path: f.0.clone() }).await;
 }
 
-#[ignore = "nondeterministic Turso corruption reproducer; run deliberately"]
+#[ignore = "owner: vox-db — nondeterministic Turso corruption reproducer; run deliberately"]
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
 async fn raw_turso_memory() {
     run_raw("raw_turso_memory", ":memory:").await;
 }
 
-#[ignore = "nondeterministic Turso corruption reproducer; run deliberately"]
+#[ignore = "owner: vox-db — nondeterministic Turso corruption reproducer; run deliberately"]
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
 async fn raw_turso_file() {
     let f = TempDb::new();

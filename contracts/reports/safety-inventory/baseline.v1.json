@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "rust": {
-    "unsafe_brace_block_opens": 691,
-    "lines_unsafe_with_env_mutation": 249,
-    "ignored_test_functions_total": 170,
+    "unsafe_brace_block_opens": 719,
+    "lines_unsafe_with_env_mutation": 254,
+    "ignored_test_functions_total": 179,
     "ignored_test_governance_violation_count": 0,
     "ignored_tests_top_files": [
       {
@@ -36,6 +36,10 @@
       },
       {
         "path": "crates/vox-compiler/tests/golden_mesh_surface_test.rs",
+        "count": 5
+      },
+      {
+        "path": "crates/vox-db/tests/pool_corruption_probe.rs",
         "count": 5
       },
       {
@@ -101,13 +105,9 @@
       {
         "path": "crates/vox-integration-tests/tests/cli_test.rs",
         "count": 2
-      },
-      {
-        "path": "crates/vox-integration-tests/tests/ts_emit_typecheck_test.rs",
-        "count": 2
       }
     ],
-    "crate_root_inner_allow_lines": 32,
+    "crate_root_inner_allow_lines": 31,
     "crate_root_inner_allow_files": [
       "crates/vox-actor-runtime/src/lib.rs",
       "crates/vox-cli/src/lib.rs",
