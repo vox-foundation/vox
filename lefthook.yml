@@ -2,6 +2,14 @@
 # Install once after cloning: vox run scripts/install-hooks.vox
 # Requires lefthook: https://github.com/evilmartians/lefthook
 #
+# Hooks NEVER build. They call the installed `vox` and `toestub` binaries (install
+# them from CI-built artifacts with `voxup install --tag nightly`, or once with
+# `cargo install --locked --path crates/vox-cli` and
+# `cargo install --locked --path crates/vox-code-audit --bin toestub`). A hook that
+# ran `cargo run` rebuilt vox-cli before every commit or push — minutes to hours on
+# a busy machine — to run checks hosted CI runs anyway. `vox ci dev-loop-guard`
+# (fast tier, local and CI) fails if a `cargo run/build/test/clippy` returns here.
+#
 # stage_fixed: true  →  lefthook re-stages any files the generator rewrites,
 #                        so the developer doesn't need to manually git add them.
 pre-commit:
@@ -28,22 +36,22 @@ pre-commit:
       fail_text: "rustfmt could not format (likely a syntax error). Fix the parse error, then re-commit."
 
     sync-ignore-files:
-      run: cargo run -p vox-cli --quiet -- ci sync-ignore-files
+      run: vox ci sync-ignore-files
       stage_fixed: true
       glob: ".voxignore"
 
     command-sync:
-      run: cargo run -p vox-cli --quiet -- ci command-sync
+      run: vox ci command-sync
       stage_fixed: true
       glob: "crates/vox-cli/src/commands/**/*.rs"
 
     gui-version-sync:
-      run: cargo run -p vox-cli --quiet -- ci gui-version-sync --write
+      run: vox ci gui-version-sync --write
       stage_fixed: true
       glob: "{Cargo.toml,crates/vox-gui/tauri.conf.json,crates/vox-gui/ui/package.json,clients/runtime-types/package.json,clients/runtime-web/package.json}"
 
     plugin-catalog-docs:
-      run: cargo run -p vox-cli --quiet -- ci generate-plugin-catalog-docs
+      run: vox ci generate-plugin-catalog-docs
       stage_fixed: true
       glob: "crates/vox-plugin-catalog/catalog.toml"
 
@@ -55,7 +63,7 @@ pre-commit:
       # Scan only the staged sources that tripped this hook. `toestub .` walks the
       # whole workspace and fail-closes on pre-existing skeleton Warnings
       # (`enforce-strict`), which blocks every Rust commit.
-      run: cargo run -p vox-code-audit --bin toestub --quiet -- {staged_files} --rules skeleton --min-severity warning --mode enforce-strict --format terminal --suppressions contracts/toestub/suppressions.v1.json
+      run: toestub {staged_files} --rules skeleton --min-severity warning --mode enforce-strict --format terminal --suppressions contracts/toestub/suppressions.v1.json
       glob: "{crates/**/*.rs,examples/golden/**/*.vox}"
       fail_text: "Test-First Policy violation. Add a #[test] (or @test in golden Vox) before the new pub fn lands. See AGENTS.md §Test-First Policy."
 
@@ -77,4 +85,4 @@ pre-push:
     # workspace-wide drift-check --fail-on warning here — that dumps every
     # pre-existing finding and blocks unrelated pushes.
     pre-push:
-      run: cargo run -p vox-cli --quiet -- ci pre-push
+      run: vox ci pre-push

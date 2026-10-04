@@ -159,4 +159,15 @@ mod tests {
         ));
         assert!(!hardcoded_build_jobs("# jobs = 24\n[build]\n"));
     }
+
+    /// The checked-in lefthook.yml, cargo config and command registry pass, so a hook that builds
+    /// or calls an unregistered command fails the test suite as well as the fast tier.
+    #[test]
+    fn the_repository_passes_the_dev_loop_guard() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .and_then(|p| p.parent())
+            .expect("workspace root");
+        run(root).expect("dev-loop-guard on the repository");
+    }
 }
