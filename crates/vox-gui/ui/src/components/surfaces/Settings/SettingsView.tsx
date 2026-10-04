@@ -1231,7 +1231,9 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
       // #273's resource-aware scaling; `setHydrated(true)` gates #229's persist
       // path (see `if (hydrated)` in `update`).
       try {
-        const cfg = await invoke<Record<string, unknown>>('get_orchestrator_config');
+        // A backend with no [orchestrator] table answers null; read it as empty (the updater
+        // below runs during render, so a throw here would take the whole surface down).
+        const cfg = (await invoke<Record<string, unknown> | null>('get_orchestrator_config')) ?? {};
         const num = (k: string) => (cfg[k] == null ? undefined : Number(cfg[k]));
         const bool = (k: string) => (cfg[k] == null ? undefined : Boolean(cfg[k]));
         setVals((prev) => ({

@@ -131,6 +131,20 @@ describe('SettingsView', () => {
     }
   });
 
+  it('renders when the backend has no orchestrator config (get_orchestrator_config -> null)', async () => {
+    const defaultImpl = invokeMock.getMockImplementation()!;
+    invokeMock.mockImplementation((cmd: string) =>
+      Promise.resolve(cmd === 'get_orchestrator_config' ? null : cmd === 'list_secret_status' ? [] : null),
+    );
+    try {
+      render(<SettingsView pushToast={vi.fn()} />, { wrapper });
+      await new Promise((r) => setTimeout(r, 50));
+      expect(screen.getByRole('slider', { name: 'Max concurrent agents' })).toBeDefined();
+    } finally {
+      invokeMock.mockImplementation(defaultImpl);
+    }
+  });
+
   it('search input is accessible via aria-label', () => {
     render(<SettingsView pushToast={vi.fn()} />, { wrapper });
     const searchInput = screen.getByLabelText('Search settings');
