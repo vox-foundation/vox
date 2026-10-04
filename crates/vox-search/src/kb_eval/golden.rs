@@ -36,6 +36,10 @@ impl Split {
 pub enum Origin {
     #[serde(rename = "human")]
     Human,
+    /// Agent-authored seed wording under recorded user delegation (01-CONTEXT D-02);
+    /// never human.
+    #[serde(rename = "agent-seed")]
+    AgentSeed,
     #[serde(rename = "llm-expansion")]
     LlmExpansion,
 }
@@ -45,8 +49,15 @@ impl Origin {
     pub fn as_str(self) -> &'static str {
         match self {
             Origin::Human => "human",
+            Origin::AgentSeed => "agent-seed",
             Origin::LlmExpansion => "llm-expansion",
         }
+    }
+
+    /// Seed queries are `human` ∪ `agent-seed` (the EVAL-02 count and the `*/seed` report key).
+    #[must_use]
+    pub fn is_seed(self) -> bool {
+        matches!(self, Origin::Human | Origin::AgentSeed)
     }
 }
 
@@ -436,6 +447,13 @@ mod tests {
         assert_eq!(Split::Dev.as_str(), "dev");
         assert_eq!(Split::Test.as_str(), "test");
         assert_eq!(Origin::LlmExpansion.as_str(), "llm-expansion");
+        assert_eq!(Origin::AgentSeed.as_str(), "agent-seed");
+    }
+
+    #[test]
+    fn seed_is_human_or_agent_seed_only() {
+        assert!(Origin::Human.is_seed() && Origin::AgentSeed.is_seed());
+        assert!(!Origin::LlmExpansion.is_seed());
     }
 
     #[test]

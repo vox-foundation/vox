@@ -32,10 +32,11 @@ fn fixture_eval_end_to_end() {
     // Usage chunk; q001 and q003 hit their chunks exactly, so every chunk metric is perfect.
     assert_eq!(all.chunk.mrr_at_10, 1.0);
     assert_eq!(all.answer_in_budget, 1.0);
-    for key in ["dev/human", "dev/llm-expansion"] {
+    for key in ["dev/human", "dev/seed", "dev/llm-expansion"] {
         assert!(report.keys.contains_key(key), "missing {key}");
     }
     assert_eq!(report.keys["dev/human"].queries, 2);
+    assert_eq!(report.keys["dev/seed"].queries, 2);
 }
 
 #[test]

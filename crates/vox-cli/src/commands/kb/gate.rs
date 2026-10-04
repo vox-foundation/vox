@@ -375,7 +375,7 @@ mod tests {
         };
         let b = load();
         assert_eq!((b.epoch, b.tolerance), (1, 0.01));
-        assert!(b.metrics.contains_key("dev/all") && b.metrics.contains_key("dev/human"));
+        assert!(b.metrics.contains_key("dev/all") && b.metrics.contains_key("dev/seed"));
         run_write_baseline(tmp.path(), "second").unwrap();
         assert_eq!(load().epoch, 2);
     }

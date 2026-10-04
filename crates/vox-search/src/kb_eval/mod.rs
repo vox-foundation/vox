@@ -230,6 +230,14 @@ where
         let sel: Vec<&QueryScores> = rows.iter().filter(|r| r.0 == o).map(|r| &r.1).collect();
         keys.insert(format!("{split}/{}", o.as_str()), block(&sel));
     }
+    let seed: Vec<&QueryScores> = rows
+        .iter()
+        .filter(|r| r.0.is_seed())
+        .map(|r| &r.1)
+        .collect();
+    if !seed.is_empty() {
+        keys.insert(format!("{split}/seed"), block(&seed));
+    }
     Ok(Report {
         split: split.to_string(),
         retriever: RETRIEVER,
@@ -377,6 +385,25 @@ mod tests {
     }
 
     #[test]
+    fn seed_key_aggregates_human_and_agent_seed_only() {
+        let mut g = golden_with(
+            Origin::AgentSeed,
+            &[("docs/src/alpha.md#Alpha Guide › Install", 2)],
+        );
+        let mut q2 = g.queries[0].clone();
+        q2.id = "q2".into();
+        q2.metadata.origin = Origin::LlmExpansion;
+        g.doc_qrels.insert("q2".into(), g.doc_qrels["q1"].clone());
+        g.chunk_qrels
+            .insert("q2".into(), g.chunk_qrels["q1"].clone());
+        g.queries.push(q2);
+        let r = run_eval(&g, &alpha_chunks(), |_| Vec::new()).unwrap();
+        assert_eq!(r.keys["dev/all"].queries, 2);
+        assert_eq!(r.keys["dev/seed"].queries, 1);
+        assert_eq!(r.keys["dev/agent-seed"].queries, 1);
+    }
+
+    #[test]
     fn origin_keys_and_json_are_deterministic() {
         let g = golden_with(
             Origin::LlmExpansion,
@@ -390,7 +417,7 @@ mod tests {
         };
         let r = run();
         assert!(r.keys.contains_key("dev/all") && r.keys.contains_key("dev/llm-expansion"));
-        assert!(!r.keys.contains_key("dev/human"));
+        assert!(!r.keys.contains_key("dev/human") && !r.keys.contains_key("dev/seed"));
         assert_eq!(r.to_json_string().unwrap(), run().to_json_string().unwrap());
         assert!(r.to_json_string().unwrap().contains("\"answer_in_budget\""));
     }

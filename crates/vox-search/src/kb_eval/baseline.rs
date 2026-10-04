@@ -14,7 +14,7 @@ use super::metrics::round6;
 use super::{Block, LevelMetrics, Report};
 
 /// Report keys the ratchet gates on.
-pub const RATCHET_KEYS: &[&str] = &["dev/all", "dev/human"];
+pub const RATCHET_KEYS: &[&str] = &["dev/all", "dev/seed"];
 /// Tolerance written by the first epoch (AP-03).
 pub const INITIAL_TOLERANCE: f64 = 0.01;
 
@@ -301,7 +301,7 @@ mod tests {
             budget_tokens: BUDGET_TOKENS,
             token_estimator: TOKEN_ESTIMATOR,
             queries: 4,
-            keys: [("dev/all", b.clone()), ("dev/human", b)]
+            keys: [("dev/all", b.clone()), ("dev/seed", b)]
                 .into_iter()
                 .map(|(k, b)| (k.to_string(), b))
                 .collect(),
@@ -332,9 +332,9 @@ mod tests {
         // Exactly the tolerance is allowed.
         r.keys.get_mut("dev/all").unwrap().chunk.recall_at_5 = 0.49;
         assert!(check_regression(&r, &b).is_empty());
-        r.keys.remove("dev/human");
+        r.keys.remove("dev/seed");
         let errs = check_regression(&r, &b);
-        assert!(errs.iter().any(|e| e.contains("dev/human")), "{errs:?}");
+        assert!(errs.iter().any(|e| e.contains("dev/seed")), "{errs:?}");
     }
 
     #[test]
@@ -410,7 +410,7 @@ mod tests {
     fn tighten_only_rejects_dropped_key_and_budget_change() {
         let b = base();
         let mut h = b.clone();
-        h.metrics.remove("dev/human");
+        h.metrics.remove("dev/seed");
         assert!(!check_tighten_only(Some(&b), Some(&h), false).is_empty());
         let mut h = b.clone();
         h.budget_tokens = 3000;
@@ -432,7 +432,7 @@ mod tests {
             "lower report value must not lower baseline"
         );
         assert_eq!(all.chunk.ndcg_at_10, 0.9);
-        assert_eq!(t.metrics["dev/human"].answer_in_budget, 0.9);
+        assert_eq!(t.metrics["dev/seed"].answer_in_budget, 0.9);
         assert_eq!((t.epoch, t.tolerance), (b.epoch, b.tolerance));
         assert!(check_tighten_only(Some(&b), Some(&t), false).is_empty());
     }
@@ -455,14 +455,14 @@ mod tests {
         assert_eq!((e2.epoch, e2.tolerance), (2, 0.005));
         assert!(new_epoch(None, &report(0.5), " ").is_err());
         let mut r = report(0.5);
-        r.keys.remove("dev/human");
+        r.keys.remove("dev/seed");
         assert!(new_epoch(None, &r, "x").is_err());
     }
 
     #[test]
     fn ratchet_split_is_dev() {
         assert_eq!(ratchet_split(), Split::Dev);
-        assert_eq!(RATCHET_KEYS, ["dev/all", "dev/human"]);
+        assert_eq!(RATCHET_KEYS, ["dev/all", "dev/seed"]);
     }
 
     #[test]

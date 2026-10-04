@@ -87,6 +87,23 @@ fn valid_fixture_loads_both_splits() {
 }
 
 #[test]
+fn agent_seed_origin_loads_and_counts() {
+    let d = fx();
+    put(&d, "queries.jsonl", &{
+        let q = [
+            qline("q1", "agent-seed", "where", G),
+            qline("q2", "llm-expansion", "how-to", G),
+            qline("q3", "human", "why", G),
+        ];
+        q.join("\n") + "\n"
+    });
+    let dev = GoldenSet::load(d.path(), Split::Dev).unwrap();
+    assert_eq!(dev.queries[0].metadata.origin, Origin::AgentSeed);
+    let s = validate_splits(d.path()).unwrap();
+    assert_eq!(s.dev.get(&Origin::AgentSeed), Some(&1));
+}
+
+#[test]
 fn dev_load_never_opens_test_qrels() {
     let d = fx();
     put(&d, "qrels/test.tsv", "not a qrels file");
