@@ -86,7 +86,7 @@ fn chunk_markdown_sections(text: &str) -> Vec<String> {
     chunk_markdown_sections_with_size(text, DEFAULT_RAG_CHUNK_CHARS)
 }
 
-fn chunk_markdown_sections_with_size(text: &str, max_chars: usize) -> Vec<String> {
+pub(crate) fn chunk_markdown_sections_with_size(text: &str, max_chars: usize) -> Vec<String> {
     let mut chunks = Vec::new();
     let mut cur = String::new();
     for line in text.lines() {
