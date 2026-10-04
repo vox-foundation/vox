@@ -96,6 +96,7 @@ pub mod plugin_dep_boundary;
 pub mod plugin_skill_parity;
 pub mod plugin_surface;
 pub mod pm_provenance;
+pub mod pre_push_refs;
 pub mod profile_parity;
 pub mod release_draft_guard;
 pub mod required_context_guard;

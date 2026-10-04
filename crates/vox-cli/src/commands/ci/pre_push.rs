@@ -45,7 +45,7 @@ use cargo_metadata::MetadataCommand;
 use serde::Serialize;
 use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 use std::fs::OpenOptions;
-use std::io::Write;
+use std::io::{IsTerminal, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Arc;
@@ -151,6 +151,20 @@ struct OwnedStep {
 
 #[allow(unsafe_code)] // `set_var` is unsafe on Rust 2024; pre-push is single-threaded.
 pub fn run(root: &Path, opts: PrePushOpts) -> Result<()> {
+    // Only as a git pre-push hook (lefthook sets VOX_PRE_PUSH_REFS=1): git writes the refs to
+    // stdin and closes it. Elsewhere stdin may be an open, idle pipe (agents, CI) and a read
+    // would block forever.
+    if std::env::var_os("VOX_PRE_PUSH_REFS").is_some() && !std::io::stdin().is_terminal() {
+        let mut s = String::new();
+        std::io::stdin().read_to_string(&mut s)?;
+        if let Some(msg) = vox_cli_ci::pre_push_refs::refused_main_push(
+            &s,
+            std::env::var_os("VOX_ALLOW_MAIN_PUSH").is_some(),
+        ) {
+            bail!("{msg}");
+        }
+    }
+
     // nextest and other tools spawn nested `cargo` without our `--config` flags;
     // clear the workspace rustc-wrapper so gates work when sccache is absent.
     unsafe {

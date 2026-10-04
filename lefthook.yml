@@ -35,25 +35,11 @@ pre-commit:
       exclude: "**/vox-plugin-cloud/**"
       fail_text: "rustfmt could not format (likely a syntax error). Fix the parse error, then re-commit."
 
-    sync-ignore-files:
-      run: vox ci sync-ignore-files
-      stage_fixed: true
-      glob: ".voxignore"
-
-    command-sync:
-      run: vox ci command-sync
-      stage_fixed: true
-      glob: "crates/vox-cli/src/commands/**/*.rs"
-
-    gui-version-sync:
-      run: vox ci gui-version-sync --write
-      stage_fixed: true
-      glob: "{Cargo.toml,crates/vox-gui/tauri.conf.json,crates/vox-gui/ui/package.json,clients/runtime-types/package.json,clients/runtime-web/package.json}"
-
-    plugin-catalog-docs:
-      run: vox ci generate-plugin-catalog-docs
-      stage_fixed: true
-      glob: "crates/vox-plugin-catalog/catalog.toml"
+    # Generated SSOT files (.cursorignore/.aiignore/.aiexclude, the CLI command surface, GUI
+    # version stamps, the plugin catalog docs) are NOT regenerated here. A hook can only use
+    # the installed vox, which is usually older than the tree and would write stale output.
+    # PR CI's `ssot-autoregen` job regenerates them with a fresh build and commits the result;
+    # `vox ci ssot-drift` (fast tier, local and CI) reports any drift.
 
     # Test-First Policy enforcement (AGENTS.md §Test-First Policy).
     # Blocks commits that introduce a `pub fn` (Rust) or `fn` in golden Vox
@@ -86,3 +72,10 @@ pre-push:
     # pre-existing finding and blocks unrelated pushes.
     pre-push:
       run: vox ci pre-push
+      # Advisory locally: the installed vox is usually a few commits older than the tree, and
+      # hosted CI (which builds vox fresh) is the authoritative gate, so skip the freshness refusal.
+      # git passes the pushed refs on stdin; vox refuses a push to main (work lands via PR).
+      use_stdin: true
+      env:
+        VOX_PRE_PUSH_REFS: "1"
+        VOX_SKIP_FRESHNESS_CHECK: "1"
