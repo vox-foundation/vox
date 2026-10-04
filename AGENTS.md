@@ -402,26 +402,29 @@ In Vox, tests are not just regression catchers — they are training data for th
 > **Full tier spec:** `docs/superpowers/specs/2026-05-27-test-suite-perf-and-gate-tiers-design.md §4`
 > **Full tier table + per-flag details:** `docs/src/contributors/local-ci-pre-push.md` — do not restate the tier table here, it drifts.
 
-**Run CI locally first — do NOT use GitHub Actions as your primary feedback loop (Required).**
-GitHub-hosted CI is slow (minutes-to-tens-of-minutes per push) and burns runner
-minutes on iteration noise. Before every push, reproduce the relevant gates locally
-and only push once they are green.
-See [`docs/src/ci/runner-contract.md`](docs/src/ci/runner-contract.md) §Local-first CI.
+**Hosted CI is the gate; the laptop is not (Required, decided 2026-10-03).** GitHub-hosted
+runners run clippy, the full suites, nightly and release builds. Locally, verify only what you
+touched: `cargo check -p <crate>` and `cargo nextest run -p <crate>` (or `cargo test -p <crate> <filter>`).
+Never run `cargo clippy --workspace` or a workspace-wide test locally to "pre-check" a push —
+that cost hours on a loaded machine and duplicated the gate. Evidence and plan:
+[`ci-and-build-loop-findings-2026.md`](docs/src/architecture/ci-and-build-loop-findings-2026.md).
 
-- **Docker available:** `act pull_request -j linux` runs the PR gate's `linux` job
-  locally (secrets come from the git-ignored `.secrets` file). `gate` itself is a
-  step-less aggregator (see §CI Contract) — the actual work happens in `linux`.
-- **Faster inner loop (no Docker):** `vox ci pre-push --full` for the native gate
-  tiers below; scope to changed crates with `--since <ref>`.
-- **Per-job spot-checks:** run the exact command a failing job runs (e.g.
-  `cargo run -q -p vox-arch-check`, `cargo run -q -p vox-cli -- ci check-links`)
-  rather than re-pushing to see if it passes.
-
-Push only after the local equivalent of the gates you expect to run is green.
+- **Work reaches `main` only through a PR.** Branch, batch commits, `git push -u origin HEAD:<branch>`,
+  `gh pr create --draft`, read CI, self-review, mark ready, merge through the queue. The pre-push
+  hook refuses a push to `main` (`VOX_ALLOW_MAIN_PUSH=1` overrides for emergencies only).
+- **Git hooks never build.** They call the installed `vox` and `toestub`; `vox ci dev-loop-guard`
+  (fast tier, local and CI) fails if a hook runs `cargo run/build/test/clippy`, calls an unregistered
+  `vox` command, or `.cargo/config.toml` hardcodes `[build] jobs`.
+- **No hardcoded CPU or job counts** in config, the build broker, workflows or scripts: derive from
+  the machine (`available_parallelism`, load). An env var may override; a literal default may not.
+- **One `target/` per worktree; never symlink `target` into another checkout** — a shared build-dir
+  lock serializes every worktree behind the slowest build.
+- **Per-job spot-checks:** reproduce a failing CI job by running that job's exact command for the
+  affected crate, not by re-pushing blindly.
 
 Use `vox ci pre-push` to run any tier locally (default = **fast**, ≤60s: fmt, line-endings,
 ssot-drift, workflow-concurrency-guard, workflow-permissions (strict), scoped doc lint + doctest,
-drift-check). Install the hook once with `cargo run -q -p vox-cli -- ci install-hooks`. The
+drift-check, dev-loop-guard). It runs as the pre-push hook (advisory; hosted CI is authoritative). The
 full tier list (complete / full / full+cov / full+since / full+cov+since / ci-equivalent),
 their exact flags, and the `--include-slow` slow-test names live in
 [`local-ci-pre-push.md`](docs/src/contributors/local-ci-pre-push.md) — not restated here.
