@@ -638,6 +638,15 @@ builds `vox-code-audit` into a cold `$TMPDIR` target (`matrix.rs:588-603`). Host
 
 ### Task 2.4: Pin the cache budget in code (Claude)
 
+**Status 2026-10-04: design correction, needs an owner decision.** `SCCACHE_CACHE_SIZE` bounds sccache's *local disk* cache; with
+`SCCACHE_GHA_ENABLED=true` (cross-platform-check, gui-cross-build) the backend writes one Actions-cache entry per object and nothing
+bounds the total. Measured 2026-10-04: 7,579 entries, 10.68 GB against the 10 GB budget, almost all `sccache/…` objects (50–60 MB
+each at the top) written from `main`, while the two entries that matter (`v0-rust-workspace` 1.3 GB, `v0-rust-bundle` 0.9 GB)
+survive only because they are recently used. Options: (a) drop sccache from the four workflows and use `Swatinem/rust-cache`
+main-only like the rest (fewest moving parts, loses cross-job object reuse); (b) keep sccache but only on `main`/schedule and
+delete by prefix on a schedule. Recommended: (a) for `docs-deploy` and `ml_data_extraction` (single Rust target, a workspace
+cache serves them), (b) for the two cross-platform workflows. Not changed yet.
+
 - [ ] Give the sccache key a version suffix and set `SCCACHE_CACHE_SIZE` from the job's disk headroom in the four workflows
   that use it. Extend `vox ci cache-key-lint` to fail a workflow that uses sccache without `SCCACHE_CACHE_SIZE`.
 
