@@ -434,8 +434,8 @@ fn ci_gate_is_hosted_capped_and_owns_required_context() {
         "affected args must never build vox-gui"
     );
     assert!(
-        yml.contains("needs: [linux, build-tests, tests, ui]"),
-        "required context aggregates linux + the test build + sharded tests + ui; windows is warn-only"
+        yml.contains("needs: [linux, tests, ui]"),
+        "required context aggregates linux + sharded tests + ui; windows is warn-only"
     );
     assert!(
         yml.contains("cargo deny check licenses bans sources"),
@@ -512,12 +512,8 @@ fn quarantine_is_gate_only_and_nightly_still_runs_everything() {
         "/../../.config/nextest.toml"
     ));
     assert!(
-        ci.contains("cargo nextest archive $P_ARGS --profile ci-gate --locked"),
-        "the gate's test archive must be built with the ci-gate profile"
-    );
-    assert!(
-        ci.contains("--profile ci-gate --no-tests=pass --partition"),
-        "gate shards must run the archive with the ci-gate profile"
+        ci.contains("cargo nextest run $SHARD_P_ARGS --profile ci-gate --locked --no-tests=pass"),
+        "gate shards must use the ci-gate profile"
     );
     assert!(
         !nightly.contains("--profile ci-gate"),
@@ -542,17 +538,16 @@ fn ci_tests_are_sharded_out_of_the_linux_leg() {
         "/../../.github/workflows/ci.yml"
     ));
     assert!(
-        yml.contains("shard: ${{ fromJSON(needs.linux.outputs.shard_list) }}")
-            && yml.contains("shard_list=[1,2,3]"),
-        "tests job must shard, with linux planning up to three shards"
+        yml.contains("shard: ${{ fromJSON(needs.linux.outputs.shard_list) }}"),
+        "tests job must shard over the groups linux planned"
     );
     assert!(
-        yml.contains(r#"--partition "hash:${SHARD}/${SHARDS}""#),
-        "each shard must run its nextest partition, and the count must match the plan"
+        yml.contains("--shards 3 --exclude vox-gui"),
+        "linux must plan crate-level shards (each shard compiles only its own crates)"
     );
     assert!(
-        yml.contains("cargo nextest archive") && yml.contains("--archive-file tests.tar.zst"),
-        "test binaries are built once (build-tests) and shards only execute the archive"
+        yml.contains("needs.linux.outputs[format('shard_{0}_p_args', matrix.shard)]"),
+        "each shard must run only its own group's crates"
     );
     assert!(
         yml.contains("if: needs.linux.outputs.run_tests == 'true'"),

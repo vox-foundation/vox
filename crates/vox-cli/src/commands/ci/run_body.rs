@@ -608,8 +608,18 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             out,
             check,
             github_output,
+            shards,
+            exclude,
         } => {
             let mut args: Vec<String> = vec![];
+            if let Some(n) = shards {
+                args.push("--shards".into());
+                args.push(n.to_string());
+            }
+            for e in exclude {
+                args.push("--exclude".into());
+                args.push(e);
+            }
             if regen {
                 args.push("--regen".into());
             }
