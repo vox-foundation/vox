@@ -20,6 +20,9 @@ paths = [
   '''^target/''',
   # Documentation: example payloads, RFC nonces, fake hex, metric names.
   '''^docs/''',
+  # GSD intel: summaries generated from docs/ (same prose; e.g. 'design tokens,
+  # contrast/occlusion/a11y' tripped generic-api-key at .planning/intel/context.md:58).
+  '''^\.planning/intel/''',
   # Security-detector positive fixtures (intentional fake secrets the detector must catch).
   '''^contracts/.*/fixtures/''',
   # Test code (directories and inline `tests.rs` / `*_test(s).rs` modules).
