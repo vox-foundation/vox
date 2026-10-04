@@ -688,7 +688,7 @@ interception work in the first place.
 - Installed by `scripts/broker-install.vox` (dry-run by default; `--apply` to
   build the shim, install it, and edit your shell profile). State and
   activation are checked by `vox doctor`.
-- Tunables: `VOX_BROKER_MAX_CONCURRENT` (max simultaneous builds
+- Admission follows measured load (a build waits while the load average exceeds the core count). Tunables: `VOX_BROKER_MAX_CONCURRENT` (optional upper bound on simultaneous builds
   machine-wide) and `VOX_BROKER_RESERVED_SLOTS` (slots reserved for a build
   domain the broker's file-lock semaphore can't see, e.g. a containerised CI
   runner sharing the host's CPU but not its mount namespace). Full reference:

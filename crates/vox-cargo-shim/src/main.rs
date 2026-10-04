@@ -150,7 +150,7 @@ fn run_global(
     let (_inflight, would_coalesce) = global::register_inflight(&root, &key)?;
 
     let t_wait = Instant::now();
-    let (_slot, _waited_ms, busy) = global::acquire_slot(&root, n)?;
+    let (_slot, _waited_ms, busy) = global::acquire_slot_adaptive(&root, n)?;
     let queue_wait_ms = t_wait.elapsed().as_millis() as u64;
     if busy > 0 {
         eprintln!(
