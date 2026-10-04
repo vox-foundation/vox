@@ -18097,6 +18097,7 @@ dependencies = [
  "vox-mesh-policy",
  "vox-mesh-transport",
  "vox-mesh-types",
+ "vox-orchestrator-models",
  "vox-orchestrator-queue",
  "vox-orchestrator-types",
  "vox-package",
@@ -18247,6 +18248,19 @@ dependencies = [
  "wiremock",
  "workspace-hack",
  "xxhash-rust",
+]
+
+[[package]]
+name = "vox-orchestrator-models"
+version = "0.6.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tokio",
+ "vox-bounded-fs",
+ "vox-config",
+ "vox-db",
+ "vox-secrets",
 ]
 
 [[package]]
