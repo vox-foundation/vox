@@ -227,3 +227,61 @@ Gate types:
 | Wikipedia Perennial Sources | https://en.wikipedia.org/wiki/Wikipedia:Reliable_sources/Perennial_sources | Categorical source reliability | MEDIUM |
 | Azam, Evaluate Your Own RAG | https://huggingface.co/blog/charles-azam/rag | Benchmark on your own corpus | LOW |
 | Ropes & Gray, Web Scraping in the Age of AI | https://www.ropesgray.com/en/insights/alerts/2026/05/web-scraping-in-the-age-of-ai-guidance-for-data-owners-and-scrapers | Copyright posture (needs legal review) | LOW |
+
+## Phase 1 spike outcomes (2026-10)
+
+Two spikes were run in Phase 1 so that the Phase 2 lexical-leg decision (IDX-07) and the Phase 5 embedder plan rest on executed facts. Both are measured, not recalled.
+
+### S1: Turso FTS runtime probe (feeds IDX-07)
+
+Scratch crate with `turso = { version = "=0.6.1", default-features = false, features = ["sync"] }`, the same spec as the workspace manifest, using `turso::Builder::new_local(":memory:")` (the constructor `VoxDb` uses). Observed output:
+
+```text
+compile_options query: ERR Parse error: Not a valid pragma name
+CREATE VIRTUAL TABLE fts5 -> Err(Error("Parse error: no such module: fts5"))
+CREATE INDEX USING fts -> Err(Error("Parse error: index method is an experimental feature. Enable with --experimental-index-method flag"))
+LIKE whole-query natural-language match count = 0
+experimental_index_method(true) + CREATE INDEX USING fts (fts feature OFF) -> Err(Error("Parse error: Error: unknown module name 'fts'"))
+```
+
+Consequences:
+
+- The `vox-db` capability probes wrap `PRAGMA compile_options` in `if let Ok(...)`, so the error above is swallowed and `fts5_reported` is always false. The FTS5 virtual tables and triggers are never created, and all lexical chunk search runs as the whole-query `LIKE`, which matches nothing for a natural-language question.
+- Turso native FTS needs both the turso `fts` cargo feature and `Builder::experimental_index_method(true)`. The `fts` feature is in turso's default feature set, which the workspace disables. Enabling it pulls tantivy 0.26 next to the workspace's tantivy 0.22.1, so it is a dependency-duplication decision, not a free switch.
+- The executable half of S1 is `crates/vox-db/tests/turso_fts_probe.rs`. It asserts each of the behaviours above and that `sqlite_master` has no `search_document_chunks_fts`. If a turso bump changes any of them the test goes red and its message points at IDX-07.
+
+### S2: candle ModernBERT with tokenizers 0.21.4 (feeds Phase 5)
+
+Scratch crate with `candle-core`, `candle-nn` and `candle-transformers` at `=0.10.2` (default features off, so CPU only with no `accelerate` or `mkl`) and `tokenizers =0.21.4` with `fancy-regex`, built `--offline`. Model pins, from the Hugging Face API:
+
+| Model | Revision SHA | License | Weights |
+|---|---|---|---|
+| `Alibaba-NLP/gte-modernbert-base` (embedder) | `e7f32e3c00f91d699e8c43b53106206bcc72bb22` | apache-2.0 | `model.safetensors`, 298,041,568 B, fp16 |
+| `Alibaba-NLP/gte-reranker-modernbert-base` (reranker) | `f7481e6055501a30fb19d090657df9ec1f79ab2c` | apache-2.0 | `model.safetensors`, 598,436,708 B, fp32 |
+
+Observed output (release build):
+
+```text
+config parsed: hidden=768 layers=22 classifier_config=None
+stock ModernBert::load: ERR cannot find tensor model.embeddings.tok_embeddings.weight
+renamed ModernBert::load: OK
+dim=768 cos(q,pos)=0.7248 cos(q,neg)=0.4293 (3 short embeds in 182.226083ms)
+one 603-token embed on CPU: 1.418045542s
+one 603-token embed on CPU: 1.46952675s
+one 253-token embed on CPU: 604.218125ms
+```
+
+Findings:
+
+1. **tokenizers 0.21.4 loads `tokenizer.json`** (BPE, ByteLevel, NFC, `ignore_merges: false`), vocab 50368, with `[CLS] ... [SEP]` ids for a sample query. No `onig` is needed.
+2. **Weight prefix mismatch.** candle's `ModernBert::load` asks for `model.embeddings.tok_embeddings`, `model.layers.N` and `model.final_norm`, but the embedder checkpoint stores keys without the `model.` prefix. Fix: `VarBuilder::rename_f(|n| n.strip_prefix("model.").unwrap_or(n).to_string())`. The reranker checkpoint does use the `model.` prefix, plus `head.*` and `classifier.{weight,bias}`.
+3. **Pooling is CLS.** The embedder `config.json` says `"classifier_pooling": "mean"`, but `1_Pooling/config.json` sets `"pooling_mode_cls_token": true`. Use CLS for the embedder.
+4. **The stock reranker path is broken in two ways.**
+   - The reranker `config.json` has `"label2id": {"LABEL_0": 0}` (an integer value) while candle declares `label2id: HashMap<String, String>` inside a `#[serde(flatten)] Option<ClassifierConfig>`. The flattened `Option` swallows the type error into `None`, so `classifier_config` is `None`, the head becomes `linear(768, 0)`, and load fails on `classifier.weight` of shape [1, 768]. The swallow is inferred from the observed `classifier_config=None`, not separately proven.
+   - Even with a fixed config, `ModernBertClassifier::forward` applies softmax over the last dimension. Over a single logit that is always 1.0, so nothing would be ranked.
+   - Phase 5 must hand-assemble `ModernBert`, `ModernBertHead` and `Linear(768, 1)`, and use the raw logit with mean pooling.
+5. **CPU latency** with no BLAS acceleration feature: about 1.42 s for one 603-token sequence and 0.60 s for one 253-token sequence (measured). Extrapolations, estimated (A4), not measured:
+   - Embedding the full corpus (about 2.4M tokens) would take on the order of an hour or more on CPU. Estimated (A4).
+   - Reranking 20 pairs at about 512 tokens would take roughly 20 s or more, so it is not viable on the per-turn auto-preamble path without `accelerate` or Metal. Estimated (A4).
+
+Reproduction recipe: create a scratch crate under `~/dev/_scratch` (never a git repo, never referenced by a project), pin the crate versions listed above, download the two model revisions at the SHAs in the table, and build with `--offline` once dependencies are vendored. Scratch code is deliberately not committed. candle is not added to any workspace crate in Phase 1, because it must stay out of layers L0 to L3.
