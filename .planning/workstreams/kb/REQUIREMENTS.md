@@ -145,16 +145,85 @@ Research basis: `.planning/workstreams/kb/research/SUMMARY.md` and `docs/src/arc
 
 ## Traceability
 
-Populated by the roadmapper.
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DOC-01 | — | Complete |
+| DOC-01 | Phase 1 | Complete |
+| DOC-02 | Phase 11 | Pending |
+| EVAL-01 | Phase 1 | Pending |
+| EVAL-02 | Phase 1 | Pending |
+| EVAL-03 | Phase 1 | Pending |
+| EVAL-04 | Phase 1 | Pending |
+| EVAL-05 | Phase 1 | Pending |
+| EVAL-06 | Phase 7 | Pending |
+| IDX-01 | Phase 2 | Pending |
+| IDX-02 | Phase 2 | Pending |
+| IDX-03 | Phase 2 | Pending |
+| IDX-04 | Phase 2 | Pending |
+| IDX-05 | Phase 2 | Pending |
+| IDX-06 | Phase 2 | Pending |
+| IDX-07 | Phase 2 | Pending |
+| RET-01 | Phase 2 | Pending |
+| RET-02 | Phase 3 | Pending |
+| RET-03 | Phase 3 | Pending |
+| RET-04 | Phase 5 | Pending |
+| TRUST-01 | Phase 3 | Pending |
+| TRUST-02 | Phase 3 | Pending |
+| TRUST-03 | Phase 3 | Pending |
+| TRUST-04 | Phase 3 | Pending |
+| TRUST-05 | Phase 3 | Pending |
+| TRUST-06 | Phase 3 | Pending |
+| TAX-01 | Phase 4 | Pending |
+| TAX-02 | Phase 4 | Pending |
+| TAX-03 | Phase 4 | Pending |
+| TAX-04 | Phase 4 | Pending |
+| TAX-05 | Phase 4 | Pending |
+| TAX-06 | Phase 4 | Pending |
+| TAX-07 | Phase 4 | Pending |
+| EMB-01 | Phase 5 | Pending |
+| EMB-02 | Phase 5 | Pending |
+| EMB-03 | Phase 5 | Pending |
+| EMB-04 | Phase 5 | Pending |
+| EMB-05 | Phase 5 | Pending |
+| EMB-06 | Phase 5 | Pending |
+| INJ-01 | Phase 7 | Pending |
+| INJ-02 | Phase 7 | Pending |
+| INJ-03 | Phase 7 | Pending |
+| INJ-04 | Phase 7 | Pending |
+| INJ-05 | Phase 7 | Pending |
+| INJ-06 | Phase 7 | Pending |
+| INJ-07 | Phase 7 | Pending |
+| INJ-08 | Phase 7 | Pending |
+| INJ-09 | Phase 7 | Pending |
+| GROW-01 | Phase 9 | Pending |
+| GROW-02 | Phase 9 | Pending |
+| GROW-03 | Phase 9 | Pending |
+| GROW-04 | Phase 9 | Pending |
+| GROW-05 | Phase 9 | Pending |
+| GROW-06 | Phase 3 | Pending |
+| REWR-01 | Phase 10 | Pending |
+| REWR-02 | Phase 10 | Pending |
+| REWR-03 | Phase 10 | Pending |
+| REWR-04 | Phase 10 | Pending |
+| REWR-05 | Phase 10 | Pending |
+| STALE-01 | Phase 11 | Pending |
+| STALE-02 | Phase 11 | Pending |
+| STALE-03 | Phase 11 | Pending |
+| STALE-04 | Phase 11 | Pending |
+| GUI-KB-01 | Phase 6 | Pending |
+| GUI-KB-02 | Phase 6 | Pending |
+| GUI-KB-03 | Phase 8 | Pending |
+| GUI-KB-04 | Phase 8 | Pending |
+| GUI-KB-05 | Phase 12 | Pending |
+| GUI-KB-06 | Phase 12 | Pending |
+| GUI-KB-07 | Phase 12 | Pending |
+| GUI-KB-08 | Phase 8 | Pending |
+| GUI-KB-09 | Phase 12 | Pending |
 
 **Coverage:**
 - v1 requirements: 71 total (1 already complete: DOC-01)
-- Mapped to phases: 0 (pending roadmap)
+- Mapped to phases: 71/71
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-10-03*
-*Last updated: 2026-10-03 after research synthesis*
+*Last updated: 2026-10-03 after roadmap creation*
