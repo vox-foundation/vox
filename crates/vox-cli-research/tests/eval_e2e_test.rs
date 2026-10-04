@@ -3,6 +3,16 @@ use vox_search::context::SearchRuntimeContext;
 
 #[tokio::test]
 async fn test_eval_executes_real_research_pipeline_not_web_lines() {
+    // Exercises a real model; skipped where no local LLM is listening (hosted CI runners).
+    if std::net::TcpStream::connect_timeout(
+        &std::net::SocketAddr::from(([127, 0, 0, 1], 11434)),
+        std::time::Duration::from_millis(300),
+    )
+    .is_err()
+    {
+        eprintln!("skipped: no local LLM on 127.0.0.1:11434");
+        return;
+    }
     let current_dir = std::env::current_dir().expect("cwd");
     let ctx = SearchRuntimeContext::new(
         current_dir.clone(),
