@@ -12,19 +12,7 @@ pub enum OverflowStrategy {
     SpawnNewAgent,
 }
 
-/// Preference for balancing model quality vs operational cost.
-///
-/// Default is [`Economy`](CostPreference::Economy) — free-by-default product directive.
-/// Callers that genuinely need the best model available should pass `Performance` explicitly.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-#[serde(rename_all = "snake_case")]
-pub enum CostPreference {
-    /// Prioritize model performance/quality over cost.
-    Performance,
-    /// Prioritize lower-cost models; zero-cost and free-tier models are first-class choices.
-    #[default]
-    Economy,
-}
+pub use vox_orchestrator_types::CostPreference;
 
 /// User-governable scaling profile: when to scale up and how aggressively to scale down.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]

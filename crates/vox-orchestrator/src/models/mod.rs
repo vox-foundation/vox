@@ -18,6 +18,7 @@ pub mod ranking;
 pub mod reference;
 mod registry;
 pub mod routing_table;
+pub mod routing_task;
 pub mod scoring;
 pub mod select;
 pub mod spec;
@@ -47,6 +48,7 @@ pub use registry::llm_config_for_spec;
 pub use registry::{
     MIN_CALLS_FOR_CONFIDENT_RANK, ModelRegistry, ModelScore, wilson_score_interval,
 };
+pub use routing_task::RoutingTask;
 pub use scoring::install_base_routing_priority;
 pub use select::{
     CandidateScope, ModelSelectionDecision, ModelSelectionRequest, ScoreBreakdown, SelectionAxes,

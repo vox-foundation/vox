@@ -164,7 +164,7 @@ Do not point Codex and the vault at the same file unless you have an explicit op
 | `VOX_ORCHESTRATOR_MIGRATION_V2_ENABLED` / `VOX_ORCHESTRATOR_MIGRATION_LEGACY_FALLBACK` | Migration controls for orchestrator V2 rollout and fallback behavior. |
 | `VOX_ORCHESTRATOR_TRUST_EWMA_ALPHA` / `VOX_ORCHESTRATOR_TRUST_PROVISIONAL_THRESHOLD` / `VOX_ORCHESTRATOR_TRUST_TRUSTED_THRESHOLD` / `VOX_ORCHESTRATOR_TRUST_AUTO_APPROVE_MIN` | Trust-score smoothing and threshold controls used by trust-aware routing/autonomy. |
 | `VOX_ORCHESTRATOR_REPO_SHARD_SPECIALIZATION_WEIGHT` / `VOX_ORCHESTRATOR_REPO_SHARD_VALIDATION_FAILURE_PENALTY` / `VOX_ORCHESTRATOR_REPO_REDUCE_CONFLICT_COOLDOWN_PENALTY` / `VOX_ORCHESTRATOR_REPO_REDUCE_CONFLICT_COOLDOWN_MS` | Repo-sharding specialization/penalty weights and conflict-cooldown knobs. |
-| `POPULI_MODEL` | Default **Ollama** model id when routing uses local inference ([`usage`](../../../crates/vox-orchestrator/src/usage.rs), [`spec`](../../../crates/vox-orchestrator/src/models/spec.rs)). |
+| `POPULI_MODEL` | Default **Ollama** model id when routing uses local inference ([`usage`](../../../crates/vox-orchestrator-models/src/usage.rs), [`spec`](../../../crates/vox-orchestrator/src/models/spec.rs)). |
 | `VOX_ORCHESTRATOR_POPULI_INFERENCE_BASE_URL` | Overrides `Vox.toml` **`[mesh].inference_base_url`** (Schola or Ollama-shaped HTTP base). An empty value clears the TOML entry. Processes that call Ludus still read **`POPULI_URL`**; keep them aligned per [mens serving SSOT](mens-serving-ssot.md). Impl: [`merge_env_overrides`](../../../crates/vox-orchestrator/src/config/impl_env.rs). |
 | `POPULI_API_KEY` | Read via Secrets for authenticated remote mens inference. |
 | `POPULI_TEMPERATURE` / `POPULI_MAX_TOKENS` | Generation configuration overrides for mens inference. |
@@ -176,7 +176,7 @@ Do not point Codex and the vault at the same file unless you have an explicit op
 | `VOX_ORCHESTRATOR_INTERRUPTION_CAL_PLAN_GAIN` | Gain multiplier for plan-related interruptions. |
 | `VOX_ORCHESTRATOR_TIER_GATE_ENTROPY_THRESHOLD` / `VOX_ORCHESTRATOR_TIER_GATE_MIN_OBSERVATIONS` | Calibration vars for dynamic tier gating based on query entropy. |
 | `VOX_ORCHESTRATOR_TLX_FRUSTRATION` / `VOX_ORCHESTRATOR_TLX_MENTAL` / `VOX_ORCHESTRATOR_TLX_TEMPORAL` / `VOX_ORCHESTRATOR_TLX_TRUST_DISCOUNT` | NASA-TLX cognitive load analogues for orchestrator agent scheduling pressure. |
-| `GROQ_API_KEY` / `CEREBRAS_API_KEY` / `MISTRAL_API_KEY` / `DEEPSEEK_API_KEY` / `SAMBANOVA_API_KEY` / `CUSTOM_OPENAI_API_KEY` | Bare provider keys read for optional **key presence** checks in [`usage`](../../../crates/vox-orchestrator/src/usage.rs). Prefer **Secrets** / `VOX_*` secret resolution for real credential storage (see [`AGENTS.md`](../../../AGENTS.md)). |
+| `GROQ_API_KEY` / `CEREBRAS_API_KEY` / `MISTRAL_API_KEY` / `DEEPSEEK_API_KEY` / `SAMBANOVA_API_KEY` / `CUSTOM_OPENAI_API_KEY` | Bare provider keys read for optional **key presence** checks in [`usage`](../../../crates/vox-orchestrator-models/src/usage.rs). Prefer **Secrets** / `VOX_*` secret resolution for real credential storage (see [`AGENTS.md`](../../../AGENTS.md)). |
 | `VOX_NEWS_PUBLISH_ARMED` | When `1`/`true`, satisfies the **armed** gate for live news/scientia syndication (in addition to two DB approvers). See [news syndication security](../archive/research-2026-q1/news_syndication_security.md). |
 | `VOX_SCHOLARLY_ADAPTER` | Scholarly submit adapter { `local_ledger` (default), `echo_ledger`, `zenodo`, `openreview`, etc. Unknown values error. See [`scholarly::flags`](../../../crates/vox-publisher/src/scholarly/flags.rs). |
 | `VOX_SCHOLARLY_DISABLE` | When truthy (`1`, `true`, `yes`, `y`, `on`), blocks all scholarly submit/status paths. |
@@ -316,8 +316,8 @@ See also { [`openclaw-discovery-sidecar-ssot.md`](openclaw-discovery-sidecar-sso
 | `VOX_AUTO_ROUTING_PRIORITY` | Weighted MCP auto-routing priorities (`efficiency,precision,latency,availability,balance,mobile`) as `k=v` CSV. |
 | `VOX_GEMINI_ROUTE_POLICY` | Gemini routing policy: `openrouter_first` (default), `google_direct_only`, or `registry_default`. |
 | `OPENROUTER_GEMINI_MODEL` / `GEMINI_DIRECT_MODEL` | Explicit OpenRouter/GoogleDirect Gemini model pair for policy routing/fallback. |
-| `VOX_PROVIDER_DAILY_LIMIT_DEFAULT` / `VOX_PROVIDER_LIMIT_PROVIDERS` | Dynamic provider quota defaults before JSON/file overrides in [`usage_policy`](../../../crates/vox-orchestrator/src/usage_policy.rs). |
-| `VOX_PROVIDER_DAILY_LIMITS_FILE` | Optional JSON file of per-provider daily limits (merged after defaults in [`usage_policy`](../../../crates/vox-orchestrator/src/usage_policy.rs)). |
+| `VOX_PROVIDER_DAILY_LIMIT_DEFAULT` / `VOX_PROVIDER_LIMIT_PROVIDERS` | Dynamic provider quota defaults before JSON/file overrides in [`usage_policy`](../../../crates/vox-orchestrator-models/src/usage_policy.rs). |
+| `VOX_PROVIDER_DAILY_LIMITS_FILE` | Optional JSON file of per-provider daily limits (merged after defaults in [`usage_policy`](../../../crates/vox-orchestrator-models/src/usage_policy.rs)). |
 | `VOX_PROVIDER_DAILY_LIMITS_JSON` | Inline JSON for the same structure as the file variant. |
 | `ANTHROPIC_DIRECT` | Optional direct Anthropic flag for provider metadata resolution. |
 

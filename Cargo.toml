@@ -140,6 +140,7 @@ vox-orchestrator-queue    = { path = "crates/vox-orchestrator-queue" }
 vox-orchestrator-driver   = { path = "crates/vox-orchestrator-driver" }
 vox-orchestrator-d        = { path = "crates/vox-orchestrator-d" }
 vox-orchestrator-types    = { path = "crates/vox-orchestrator-types" }
+vox-orchestrator-models   = { path = "crates/vox-orchestrator-models" }
 
 
 vox-openai             = { path = "crates/vox-openai" }

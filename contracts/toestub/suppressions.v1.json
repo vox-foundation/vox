@@ -129,7 +129,6 @@
       "owner": "robot"
     },
     {
-
       "rule_id_prefix": "skeleton/untested-pub-api",
       "path_glob": "**/vox-cli-ci/src/gui_smoke.rs",
       "reason": "run() is pre-existing process-orchestration (predates the Clavis secrets migration, which only replaced two std::env::var reads with vox_secrets::resolve_secret for VOX_WEB_VITE_SMOKE/VOX_GUI_PLAYWRIGHT). The entire body spawns cargo nextest / pnpm subprocesses with no pure logic to extract; unit-testing it would mean mocking process execution, a separate, out-of-scope effort from the secrets fix. Surfaced only because tdd-guard re-scans the whole touched file, not the diff.",
@@ -223,6 +222,18 @@
       "rule_id_prefix": "skeleton/untested-pub-api",
       "path_glob": "**/vox-cli/src/commands/harness/mod.rs",
       "reason": "pub async fn run() is the pre-existing `vox harness` dispatcher (a thin match onto eval::run etc.); this change only turned a broken [`eval`] intra-doc link in the module doc into a code span (rustdoc -D warnings). Surfaced only because tdd-guard re-scans the whole touched file, not the diff.",
+      "owner": "robot"
+    },
+    {
+      "rule_id_prefix": "skeleton/untested-pub-api",
+      "path_glob": "**/vox-cli/src/commands/ci/run_body_helpers/orchestration_audit.rs",
+      "reason": "run_ssot_audit is pre-existing; the 2026-10-04 RoutingTask refactor (build-loop Part B task B2) only changed one call inside it. It is an integration command over the live VoxDb scoreboard (`vox ci ssot-audit`), which tdd-guard's same-file #[test] scan cannot cover without a database fixture.",
+      "owner": "robot"
+    },
+    {
+      "rule_id_prefix": "skeleton/hollow-fn",
+      "path_glob": "**/vox-cli/src/commands/ci/run_body_helpers/orchestration_audit.rs",
+      "reason": "The cfg(not(feature = \"dei\")) run_ssot_audit is a deliberate feature-off stub that prints why the audit is skipped; pre-existing, touched only by the B2 call-site change in the same file.",
       "owner": "robot"
     }
   ]
