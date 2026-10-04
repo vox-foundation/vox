@@ -49,8 +49,12 @@ jobs:
         with:
           tool: cargo-nextest,cargo-deny
 
-      - name: Build vox CLI
-        run: cargo build -p vox-cli --locked
+      # vox plus the tool its fast tier calls; the tier never `cargo run`s a tool, and on CI a
+      # missing tool is an error (vox_cli_ci::installed_tool), so build it here.
+      - name: Build vox CLI and fast-tier tools
+        run: |
+          cargo build -p vox-cli -p vox-drift-check --locked
+          echo "$PWD/target/debug" >> "$GITHUB_PATH"
 
       - name: Fast tier (same checks as local `vox ci pre-push`)
         run: ./target/debug/vox ci pre-push

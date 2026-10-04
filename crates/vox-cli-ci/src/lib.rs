@@ -40,7 +40,10 @@ pub mod scientia_novelty_ledger_contract;
 pub mod speech_runtime_suite;
 pub mod version_ssot;
 pub mod watch_run;
-pub use helpers::{cargo_bin, nvcc_available, nvcc_version_command, repo_root};
+pub use helpers::{
+    ToolPath, cargo_bin, installed_tool, nvcc_available, nvcc_version_command, repo_root,
+    resolve_tool,
+};
 pub mod affected_cmd;
 pub mod agentskills_compliance;
 pub mod ai_fixtures_coverage;

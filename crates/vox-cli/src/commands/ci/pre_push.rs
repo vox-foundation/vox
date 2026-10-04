@@ -1195,19 +1195,21 @@ fn step_drift_check(root: &Path) -> Result<()> {
     // that are tracked separately; blocking every push on them was always a
     // false-positive-saturated gate.  Error-level findings are hard failures
     // (e.g. security-sensitive patterns) and must stay blocked.
-    let status = cargo()
-        .args([
-            "run",
-            "-q",
-            "-p",
-            "vox-drift-check",
-            "--",
-            ".",
-            "--severity",
-            "warning",
-            "--fail-on",
-            "error",
-        ])
+    // Never `cargo run` the tool here (it rebuilt vox-drift-check and workspace-hack's
+    // dependency set before every push): use the installed binary; locally a missing one is
+    // skipped, and hosted CI builds it before this step.
+    let bin = match vox_cli_ci::installed_tool("vox-drift-check") {
+        vox_cli_ci::ToolPath::Found(p) => p,
+        vox_cli_ci::ToolPath::SkipLocal => {
+            println!("    vox-drift-check not installed: skipped locally (hosted CI runs it)");
+            return Ok(());
+        }
+        vox_cli_ci::ToolPath::MissingOnCi => {
+            bail!("vox-drift-check is not on PATH; the CI job must build it before the fast tier")
+        }
+    };
+    let status = Command::new(bin)
+        .args([".", "--severity", "warning", "--fail-on", "error"])
         .current_dir(root)
         .status()
         .context("spawn vox-drift-check")?;

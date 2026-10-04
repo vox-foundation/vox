@@ -66,6 +66,20 @@ pub fn hardcoded_build_jobs(cargo_config: &str) -> bool {
     false
 }
 
+/// Fast-tier source that `cargo run`s a workspace tool: an args array beginning
+/// `"run", "-q", "-p"` or `"run", "-p"` (whitespace-insensitive). Returns a short excerpt per hit.
+pub fn tier_build_offenders(src: &str) -> Vec<String> {
+    let squashed: String = src.chars().filter(|c| !c.is_whitespace()).collect();
+    ["\"run\",\"-q\",\"-p\",", "\"run\",\"-p\","]
+        .iter()
+        .flat_map(|pat| {
+            squashed
+                .match_indices(pat)
+                .map(|(i, _)| squashed[i..].chars().take(48).collect::<String>())
+        })
+        .collect()
+}
+
 fn registry_paths(root: &Path) -> Result<HashSet<String>> {
     #[derive(serde::Deserialize)]
     struct Op {
@@ -100,6 +114,11 @@ pub fn run(root: &Path) -> Result<()> {
         errors.push(format!(
             "lefthook.yml calls `vox {c}`, which is not in contracts/cli/command-registry.yaml"
         ));
+    }
+    let pre_push =
+        std::fs::read_to_string(root.join("crates/vox-cli/src/commands/ci/pre_push.rs"))?;
+    for c in tier_build_offenders(&pre_push) {
+        errors.push(format!("pre_push.rs runs a cargo build in the fast tier: `{c}` — use vox_cli_ci::installed_tool"));
     }
     if hardcoded_build_jobs(&cargo) {
         errors.push(
@@ -158,6 +177,18 @@ mod tests {
             "[build]\nrustdocflags = []\n[net]\njobs = 3\n"
         ));
         assert!(!hardcoded_build_jobs("# jobs = 24\n[build]\n"));
+    }
+
+    #[test]
+    fn flags_a_fast_tier_step_that_cargo_runs_a_tool() {
+        let src = "cargo()\n    .args([\n        \"run\",\n        \"-q\",\n        \"-p\",\n        \"vox-drift-check\",\n    ])";
+        let hits = tier_build_offenders(src);
+        assert_eq!(hits.len(), 1);
+        assert!(hits[0].contains("vox-drift-check"));
+        assert!(
+            tier_build_offenders("Command::new(bin).args([\"run\", \"--profile\", \"ci\"])")
+                .is_empty()
+        );
     }
 
     /// The checked-in lefthook.yml, cargo config and command registry pass, so a hook that builds
