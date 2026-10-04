@@ -709,7 +709,9 @@ counts — derive from the machine"), `docs/src/contributors/antigravity-driven-
 
 ### Task 4.2: Runners are backup only (Claude)
 
-**Status:** extract on hosted runners done (9bd62a9bf); self-hosted guard rule pending.
+**Status 2026-10-04:** done. `extract` runs on hosted runners (9bd62a9bf); the guard rule already existed
+(`workflow_policy_guard` rule 4, `SELF_HOSTED_ALLOWLIST` holds only `ml_data_extraction.yml`), so no code change was needed;
+`runner-contract.md` now says so.
 
 - [ ] `ml_data_extraction.yml` `extract` → `ubuntu-latest`; `train` keeps its GPU label with a comment that nothing gates on it.
 - [ ] `docs/src/ci/runner-contract.md`: self-hosted runners are optional backup; no required check may target them.
