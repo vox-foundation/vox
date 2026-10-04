@@ -58,7 +58,7 @@ default-filter = '''not (
   | (binary_id(=vox-codegen::for_loop_index_emit) & test(=indexed_for_loop_index_used_in_string_concat))
   | (binary_id(=vox-codegen::golden_corpus_ts_smoke_test) & test(=golden_corpus_ts_emit_no_panic))
   | (binary_id(=vox-codegen::golden_ts_test) & test(=golden_ts_emit))
-  | (binary_id(=vox-codegen::if_expr_emit_test) & test(=if_else_in_let_binding_emits_expression_arms))
+  | (binary_id(=vox-codegen::it) & test(=if_expr_emit_test::if_else_in_let_binding_emits_expression_arms))
   | (binary_id(=vox-codegen::match_arm_block_tail_emit) & test(=match_arm_block_trailing_expr_has_no_semicolon))
   | (binary_id(=vox-compiler) & test(=builtin_registry::namespace_builtin_parity_tests::interpreter_return_shape_matches_typecheck))
   | (binary_id(=vox-compiler::axum_emit_contract_test) & test(=emit_main_mutation_with_schema_wraps_transaction_and_emits_json_error_envelope))
