@@ -286,6 +286,7 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `scientia-novelty-ledger-contracts` | Validates example `contracts/reports/scientia-finding-candidate.example.v1.json` and `scientia-novelty-evidence-bundle.example.v1.json` against `finding-candidate.v1.schema.json` and `novelty-evidence-bundle.v1.schema.json` |
 | `speech-runtime-suite [--run-id <id>] [--plugins-dir <dir>] [--limit <n>] [--skip-runtime]` | Runs the speech-to-code MUST+SHOULD audit matrix from `contracts/speech-to-code/audit-matrix.v1.yaml`, executes the CPU Candle Oratio eval when runtime is enabled, and writes per-cell `cell_result.json`, `cell_result.kpi.json`, and aggregate `scorecard.json` under `.vox/audit/<run-id>/`. |
 | `ssot-drift` | Runs `check-docs-ssot`, `check-codex-ssot`, `sql-surface-guard --all` (includes `sqlx` isolation enforcement), `query-all-guard --all`, `turso-import-guard --all`, `operations-verify`, `command-compliance`, `capability-sync` (verify-only), `contracts-index`, **`docs-reality-audit verify`**, `exec-policy-contract`, in-process completion-policy Tier A scan (no audit JSON write), `scientia-worthiness-contract`, `scientia-novelty-ledger-contracts`, and `data-ssot-guards` in one pass |
+| `status [--hook]` | Prints this branch's failed or timed-out GitHub CI jobs, open `nightly-failure` issues, and how far local `main` is ahead of `origin/main`. **`--hook`** is the never-failing form the pre-commit hook runs. |
 
 ### Bootstrap / dev launcher (missing `vox` on `PATH`)
 
