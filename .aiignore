@@ -128,3 +128,6 @@ scripts/.venv/
 /doc_errors*.txt
 /mcp_check_errors.txt
 /digest.txt
+
+# KB retrieval eval: frozen BEIR corpus snapshot (~10 MB of docs text; keep out of AI context)
+contracts/kb/eval/corpus.jsonl
