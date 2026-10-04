@@ -305,6 +305,7 @@ mod tests {
             }],
             doc_qrels: [("q1".to_string(), qrels(&[(ALPHA, 2)]))].into(),
             chunk_qrels: [("q1".to_string(), qrels(chunk_qrels))].into(),
+            canary: String::new(),
         }
     }
 
