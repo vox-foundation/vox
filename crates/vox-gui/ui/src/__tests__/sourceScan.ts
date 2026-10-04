@@ -12,11 +12,16 @@ import { fileURLToPath } from 'node:url';
 export const SRC_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 const SCOPE_DIRS = ['components/surfaces/Chat', 'components/surfaces/Loquela'];
-/** The status bar and its research chip. */
+/** The status bar, its research chip, and the shared status vocabulary. */
 const SCOPE_EXTRA = [
   'components/layout/BottomStatusBar.tsx',
   'components/common/StatusBarCluster.tsx',
   'components/surfaces/VoxGraph/VoxGraphStatusPanel.tsx',
+  // The status vocabulary every pill, badge and toast draws from.
+  'styles/tokens.ts',
+  'components/ui/StatusPill.tsx',
+  'components/ui/Pill.tsx',
+  'components/ui/Toasts.tsx',
 ];
 
 /** Chat, composer and status-bar component sources (non-test `.tsx`), relative to SRC_ROOT, sorted. */

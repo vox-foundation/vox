@@ -212,6 +212,42 @@ impl crate::VoxDb {
             .await?;
         }
 
+        Self::ensure_latency_columns(conn).await?;
+
+        Ok(())
+    }
+
+    /// Task M3 added `ttft_ms`/`tpot_ms` (and the scoreboard's p95/goodput columns) to the
+    /// version-94 baseline DDL without bumping the version, so a database already recorded at
+    /// [`BASELINE_VERSION`] never received them: the telemetry `INSERT` into `llm_interactions`
+    /// failed and the scoreboard rollup died on `no such column: ttft_ms`. This runs on every
+    /// open, outside the version gate; it is a cheap `PRAGMA` per table and a no-op on a fresh
+    /// database or one that already has the columns. A table that does not exist is skipped.
+    async fn ensure_latency_columns(conn: &turso::Connection) -> Result<(), StoreError> {
+        const COLUMNS: [(&str, &str, &str); 5] = [
+            ("llm_interactions", "ttft_ms", "INTEGER"),
+            ("llm_interactions", "tpot_ms", "REAL"),
+            ("model_scoreboard", "p95_ttft_ms", "INTEGER"),
+            ("model_scoreboard", "p95_tpot_ms", "REAL"),
+            ("model_scoreboard", "goodput_tokens_per_sec", "REAL"),
+        ];
+        for (table, column, decl) in COLUMNS {
+            let mut rows = conn
+                .query(&format!("PRAGMA table_info({table})"), ())
+                .await?;
+            let (mut table_exists, mut has_column) = (false, false);
+            while let Some(row) = rows.next().await? {
+                table_exists = true;
+                if row.get::<String>(1)? == column {
+                    has_column = true;
+                }
+            }
+            drop(rows);
+            if table_exists && !has_column {
+                conn.execute_batch(&format!("ALTER TABLE {table} ADD COLUMN {column} {decl};"))
+                    .await?;
+            }
+        }
         Ok(())
     }
 

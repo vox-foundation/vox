@@ -30,6 +30,7 @@ export const LEXICON: Record<string, LexEntry> = {
   flow: { en: 'Flow', la: 'Fluxus' },
   gamify: { en: 'Gamify', la: 'Ludus' },
   harness: { en: 'Harness', la: 'Apparatus' },
+  'harness-health': { en: 'Harness Health', la: 'Salus Apparatus' },
   matrix: { en: 'Routing', la: 'Itinera' },
   memory: { en: 'Memory', la: 'Memoria' },
   mens: { en: 'Training', la: 'Mens' },

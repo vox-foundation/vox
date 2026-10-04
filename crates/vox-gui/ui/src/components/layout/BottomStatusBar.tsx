@@ -333,7 +333,7 @@ export function BottomStatusBar({
           aria-label="Configure status bar"
           className="rounded-sm px-1.5 py-0.5 text-[11px] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
         >
-          Configure ▾
+          <span className="max-[639px]:sr-only">Configure </span>▾
         </button>
         {openPanel === 'configure' ? (
           <div
@@ -365,7 +365,7 @@ export function BottomStatusBar({
         className={`ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-sm border px-2 py-0.5 ${fresh.pill}`}
       >
         <span className={`size-1.5 rounded-full ${fresh.dot}`} />
-        <span className="uppercase tracking-[0.08em]">{fresh.label}</span>
+        <span className="uppercase tracking-[0.08em] max-[639px]:sr-only">{fresh.label}</span>
       </div>
 
       {/* Fixed home for surface-level chrome that needs to sit inline with
