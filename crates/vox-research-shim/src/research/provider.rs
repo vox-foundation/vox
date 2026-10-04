@@ -24,7 +24,7 @@ const MAX_ERROR_MESSAGES: usize = 3;
 
 /// Group outcomes by (provider, outcome kind) in first-seen order: `Ok` hits are
 /// summed, distinct error messages are joined with "; " (capped at
-/// [`MAX_ERROR_MESSAGES`], then "+N more"), `elapsed_ms` is the slowest call.
+/// `MAX_ERROR_MESSAGES`, then "+N more"), `elapsed_ms` is the slowest call.
 pub fn summarize_provider_calls(calls: &[ProviderOutcome]) -> Vec<ProviderCallSummary> {
     let mut rows: Vec<ProviderCallSummary> = Vec::new();
     let mut messages: Vec<Vec<&str>> = Vec::new(); // distinct error messages per row

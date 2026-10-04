@@ -198,7 +198,7 @@ pub(crate) fn free_vram_mb_from_probe() -> Option<u64> {
 
 /// Probes the registered GPU probe once (blocking FFI call — run via
 /// `spawn_blocking` from async contexts) and caches the result via
-/// [`set_free_vram_mb_hint`]; see [`free_vram_mb_from_probe`].
+/// [`set_free_vram_mb_hint`]; see `free_vram_mb_from_probe`.
 pub fn refresh_free_vram_hint_from_nvml() {
     set_free_vram_mb_hint(free_vram_mb_from_probe());
 }
