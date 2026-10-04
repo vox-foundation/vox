@@ -14,7 +14,7 @@
       "type": "object",
       "required": [
         "citation_precision",
-        "citation_recall",
+        "answer_token_overlap",
         "answer_factuality",
         "abstention_rate",
         "avg_latency_ms"
@@ -22,7 +22,7 @@
       "additionalProperties": false,
       "properties": {
         "citation_precision": { "type": "number", "minimum": 0, "maximum": 1 },
-        "citation_recall": { "type": "number", "minimum": 0, "maximum": 1 },
+        "answer_token_overlap": { "type": "number", "minimum": 0, "maximum": 1 },
         "answer_factuality": { "type": "number", "minimum": 0, "maximum": 1 },
         "abstention_rate": { "type": "number", "minimum": 0, "maximum": 1 },
         "avg_latency_ms": { "type": "number", "minimum": 0 }

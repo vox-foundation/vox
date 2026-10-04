@@ -212,7 +212,7 @@ pub async fn run_eval(
         "total_samples": results.len(),
         "metrics": {
             "citation_precision": avg_citation_precision,
-            "citation_recall": results.iter().map(|s| s.recall_at_5.unwrap_or(0.0)).sum::<f64>() / results.len() as f64,
+            "answer_token_overlap": results.iter().map(|s| s.recall_at_5.unwrap_or(0.0)).sum::<f64>() / results.len() as f64,
             "answer_factuality": avg_quality,
             "abstention_rate": abstention_rate,
             "multi_hop_completion": avg_multi_hop_score,
