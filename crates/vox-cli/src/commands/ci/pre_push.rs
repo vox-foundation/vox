@@ -487,6 +487,11 @@ fn build_steps(root: &Path, opts: &PrePushOpts) -> Result<Vec<OwnedStep>> {
             run: Box::new(step_workflow_permissions_guard),
         },
         OwnedStep {
+            label: "vox ci dev-loop-guard".into(),
+            scope: None,
+            run: Box::new(step_dev_loop_guard),
+        },
+        OwnedStep {
             label: "vox ci check-links".into(),
             scope: None,
             run: Box::new(step_check_links),
@@ -1062,6 +1067,10 @@ fn step_workflow_permissions_guard(root: &Path) -> Result<()> {
     // Strict, like its concurrency sibling: every workflow now declares a
     // top-level `permissions:` block, so a new one without it is a real error.
     vox_cli_ci::workflow_permissions_guard::run(root)
+}
+
+fn step_dev_loop_guard(root: &Path) -> Result<()> {
+    vox_cli_ci::dev_loop_guard::run(root)
 }
 
 fn step_check_links(root: &Path) -> Result<()> {

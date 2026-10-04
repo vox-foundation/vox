@@ -65,6 +65,7 @@ pub mod dep_sprawl;
 pub mod deploy_status;
 pub mod detect_rules_bench;
 pub mod dev_loop_audit;
+pub mod dev_loop_guard;
 pub mod docs_deprecated_command_guard;
 pub mod docs_reality_audit;
 pub mod doctest_md;
