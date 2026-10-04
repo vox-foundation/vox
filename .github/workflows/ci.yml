@@ -69,7 +69,11 @@ jobs:
           set -euo pipefail
           [ -n "$BASE_SHA" ] || { echo "::error::no base SHA"; exit 1; }
           git diff --name-only "$BASE_SHA...HEAD" > /tmp/changed.txt
-          if ! grep -qE '^(crates/|Cargo\.(toml|lock)|\.cargo/|rust-toolchain\.toml|contracts/|\.config/|examples/|\.github/workflows/)' /tmp/changed.txt; then
+          # Generated reports (contracts/reports/) are verified by the fast tier's ssot-drift
+          # above; a diff confined to them needs no clippy or tests. A file, not a pipe: under
+          # pipefail a `grep -q` that exits early would SIGPIPE the producer and skip tests.
+          grep -v '^contracts/reports/' /tmp/changed.txt > /tmp/changed-src.txt || true
+          if ! grep -qE '^(crates/|Cargo\.(toml|lock)|\.cargo/|rust-toolchain\.toml|contracts/|\.config/|examples/|\.github/workflows/)' /tmp/changed-src.txt; then
             echo "No Rust changes — clippy/tests skipped."
             echo "p_args=" >> "$GITHUB_OUTPUT"
             exit 0
@@ -139,7 +143,8 @@ jobs:
           fi
           # Shards split only execution (binaries are built once in build-tests), so the count
           # follows the amount of work: the full workspace gets 3, a narrow affected set 1.
-          crates=$(echo "$P_ARGS" | grep -o -- '-p ' | wc -l)
+          # grep exits 1 on no match (e.g. `--workspace …`); the step runs under pipefail.
+          crates=$( { echo "$P_ARGS" | grep -o -- '-p ' || true; } | wc -l)
           if echo "$P_ARGS" | grep -q -- '--workspace' || [ "$crates" -ge 30 ]; then
             echo 'shard_list=[1,2,3]' >> "$GITHUB_OUTPUT"; echo "shards=3" >> "$GITHUB_OUTPUT"
           else
