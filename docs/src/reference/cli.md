@@ -217,6 +217,16 @@ Deterministic retrieval eval over the golden set in `contracts/kb/eval/` (BM25 b
 
 `--query`, `--headings` and `--snapshot-corpus` are mutually exclusive modes.
 
+Ratchet modes guard the committed baseline `contracts/kb/retrieval-baseline.v1.json`. They always score the dev split and refuse `--split`, `--query`, `--headings` and `--snapshot-corpus`; they are mutually exclusive.
+
+| Flag | Role |
+|------|------|
+| `--gate` / `--base <REF>` | One report of every failure, exit non-zero on any. Categories: `[regression]` (a dev metric fell below the baseline by more than the tolerance, or no baseline), `[tighten-only]` (the baseline loosened versus `REF`, default `origin/main`, read via `git show`; an unresolvable `REF` fails closed), `[canary]` (the golden-set GUID reached tracked files, indexer roots, the MENS docs extractor output, local MENS jsonl, or a query of 40+ characters was pasted into tracked `docs/` or `crates/` markdown). `--base` requires `--gate`. |
+| `--tighten` | Raise baseline values to the current dev report. Never lowers a value; writes nothing when nothing improved. |
+| `--write-baseline --epoch-note <TEXT>` | Bootstrap or re-epoch the baseline: epoch +1 (1 when absent), tolerance kept (0.01 first). The note is required. Human-reviewed; this is the only way to loosen a value. |
+
+Every mode that builds an index first asserts that no corpus doc contains the canary GUID.
+
 ### `vox ci …`
 
 Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix, doc inventory, milestone eval matrix contract, workflow `scripts/` allowlist, Mens gate matrix, TOESTUB scoped scan, optional CUDA checks). **Canonical:** **`vox ci <subcommand>`** when `vox` is on `PATH`. **CI/bootstrap:** `cargo run -p vox-cli --quiet -- ci <subcommand>` from the repo root (same code path).
