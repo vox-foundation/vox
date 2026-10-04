@@ -42,7 +42,7 @@ test.describe('Browser surface', () => {
     });
 
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: 'Browser' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Browser', level: 2 })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Start preview' })).toBeVisible();
     await expect(page.getByRole('tab', { name: 'Agent live view' })).toBeVisible();
     await page.getByRole('tab', { name: 'Agent live view' }).click();

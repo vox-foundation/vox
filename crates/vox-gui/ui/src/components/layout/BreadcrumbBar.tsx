@@ -53,7 +53,7 @@ export function BreadcrumbBar({ viewKey, onNavigate, gamifyEnabled }: Props) {
   return (
     <nav aria-label="Breadcrumb" className="flex items-center gap-2 px-1 pb-2">
       {segments.map((seg, i) => (
-        <React.Fragment key={seg.key}>
+        <React.Fragment key={`${i}:${seg.key}`}>
           {i > 0 && <span className="text-text-muted text-[10px]" aria-hidden="true">›</span>}
           {renderSegment(seg, i)}
         </React.Fragment>
