@@ -373,7 +373,6 @@ component SettingsSurface() {
 // Compiles each surface and asserts no Latin nav label appears in any of them.
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn no_latin_labels_in_any_surface_stub() {
     let latin_labels = ["LOQUELA", "RETE", "FABRICA", "IMPERIUM"];
 
