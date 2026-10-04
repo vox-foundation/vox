@@ -4681,17 +4681,6 @@
       "curated": true
     },
     {
-      "capability_id": "cli.ci.check-frozen",
-      "cli_path": [
-        "ci",
-        "check-frozen"
-      ],
-      "implicit": false,
-      "title": "Ci Check-frozen",
-      "description_model": "CLI operation `vox ci check-frozen`",
-      "curated": true
-    },
-    {
       "capability_id": "cli.ci.check-links",
       "cli_path": [
         "ci",
@@ -4711,17 +4700,6 @@
       "implicit": false,
       "title": "Ci Check-summary-drift",
       "description_model": "CLI operation `vox ci check-summary-drift`",
-      "curated": true
-    },
-    {
-      "capability_id": "cli.ci.collateral-damage-gate",
-      "cli_path": [
-        "ci",
-        "collateral-damage-gate"
-      ],
-      "implicit": false,
-      "title": "Ci Collateral-damage-gate",
-      "description_model": "CLI operation `vox ci collateral-damage-gate`",
       "curated": true
     },
     {
@@ -4832,17 +4810,6 @@
       "implicit": false,
       "title": "Ci Config-registry-parity",
       "description_model": "Every operational VOX_* env knob read in code must be in the config registry.",
-      "curated": true
-    },
-    {
-      "capability_id": "cli.ci.constrained-gen-smoke",
-      "cli_path": [
-        "ci",
-        "constrained-gen-smoke"
-      ],
-      "implicit": false,
-      "title": "Ci Constrained-gen-smoke",
-      "description_model": "CLI operation `vox ci constrained-gen-smoke`",
       "curated": true
     },
     {
@@ -5294,17 +5261,6 @@
       "curated": true
     },
     {
-      "capability_id": "cli.ci.grpo-reward-baseline",
-      "cli_path": [
-        "ci",
-        "grpo-reward-baseline"
-      ],
-      "implicit": false,
-      "title": "Ci Grpo-reward-baseline",
-      "description_model": "CLI operation `vox ci grpo-reward-baseline`",
-      "curated": true
-    },
-    {
       "capability_id": "cli.ci.gui-catalog-parity",
       "cli_path": [
         "ci",
@@ -5489,17 +5445,6 @@
       "implicit": false,
       "title": "Ci Mcp-vox-surface-parity",
       "description_model": "CLI operation `vox ci mcp-vox-surface-parity`",
-      "curated": true
-    },
-    {
-      "capability_id": "cli.ci.mens-corpus-health",
-      "cli_path": [
-        "ci",
-        "mens-corpus-health"
-      ],
-      "implicit": false,
-      "title": "Ci Mens-corpus-health",
-      "description_model": "CLI operation `vox ci mens-corpus-health`",
       "curated": true
     },
     {
@@ -5877,17 +5822,6 @@
       "curated": true
     },
     {
-      "capability_id": "cli.ci.queue",
-      "cli_path": [
-        "ci",
-        "queue"
-      ],
-      "implicit": false,
-      "title": "Ci Queue",
-      "description_model": "CLI operation `vox ci queue`",
-      "curated": true
-    },
-    {
       "capability_id": "cli.ci.release-build",
       "cli_path": [
         "ci",
@@ -5962,50 +5896,6 @@
       "implicit": false,
       "title": "Ci Row-serde-lint",
       "description_model": "CLI operation `vox ci row-serde-lint`",
-      "curated": true
-    },
-    {
-      "capability_id": "cli.ci.runner-policy-check",
-      "cli_path": [
-        "ci",
-        "runner-policy-check"
-      ],
-      "implicit": false,
-      "title": "Ci Runner-policy-check",
-      "description_model": "CLI operation `vox ci runner-policy-check`",
-      "curated": true
-    },
-    {
-      "capability_id": "cli.ci.runner-preflight",
-      "cli_path": [
-        "ci",
-        "runner-preflight"
-      ],
-      "implicit": false,
-      "title": "Ci Runner-preflight",
-      "description_model": "CLI operation `vox ci runner-preflight`",
-      "curated": true
-    },
-    {
-      "capability_id": "cli.ci.runner-scale",
-      "cli_path": [
-        "ci",
-        "runner-scale"
-      ],
-      "implicit": false,
-      "title": "Ci Runner-scale",
-      "description_model": "CLI operation `vox ci runner-scale`",
-      "curated": true
-    },
-    {
-      "capability_id": "cli.ci.runner-status",
-      "cli_path": [
-        "ci",
-        "runner-status"
-      ],
-      "implicit": false,
-      "title": "Ci Runner-status",
-      "description_model": "CLI operation `vox ci runner-status`",
       "curated": true
     },
     {
@@ -10721,6 +10611,78 @@
       "curated": true
     },
     {
+      "capability_id": "cli.graph.history.brief",
+      "cli_path": [
+        "graph",
+        "history",
+        "brief"
+      ],
+      "implicit": false,
+      "title": "Graph History Brief",
+      "description_model": "CLI operation `vox graph history brief`",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.graph.history.focus",
+      "cli_path": [
+        "graph",
+        "history",
+        "focus"
+      ],
+      "implicit": false,
+      "title": "Graph History Focus",
+      "description_model": "CLI operation `vox graph history focus`",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.graph.history.forgotten",
+      "cli_path": [
+        "graph",
+        "history",
+        "forgotten"
+      ],
+      "implicit": false,
+      "title": "Graph History Forgotten",
+      "description_model": "CLI operation `vox graph history forgotten`",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.graph.history.log",
+      "cli_path": [
+        "graph",
+        "history",
+        "log"
+      ],
+      "implicit": false,
+      "title": "Graph History Log",
+      "description_model": "CLI operation `vox graph history log`",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.graph.history.search",
+      "cli_path": [
+        "graph",
+        "history",
+        "search"
+      ],
+      "implicit": false,
+      "title": "Graph History Search",
+      "description_model": "CLI operation `vox graph history search`",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.graph.history.timeline",
+      "cli_path": [
+        "graph",
+        "history",
+        "timeline"
+      ],
+      "implicit": false,
+      "title": "Graph History Timeline",
+      "description_model": "CLI operation `vox graph history timeline`",
+      "curated": true
+    },
+    {
       "capability_id": "cli.graph.index",
       "cli_path": [
         "graph",
@@ -12810,6 +12772,17 @@
       "curated": true
     },
     {
+      "capability_id": "cli.research.flag",
+      "cli_path": [
+        "research",
+        "flag"
+      ],
+      "implicit": false,
+      "title": "Research Flag",
+      "description_model": "CLI operation `vox research flag`",
+      "curated": true
+    },
+    {
       "capability_id": "cli.research.history",
       "cli_path": [
         "research",
@@ -12829,6 +12802,28 @@
       "implicit": false,
       "title": "Research Preview",
       "description_model": "CLI operation `vox research preview`",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.research.probe",
+      "cli_path": [
+        "research",
+        "probe"
+      ],
+      "implicit": false,
+      "title": "Research Probe",
+      "description_model": "CLI operation `vox research probe`",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.research.publish",
+      "cli_path": [
+        "research",
+        "publish"
+      ],
+      "implicit": false,
+      "title": "Research Publish",
+      "description_model": "CLI operation `vox research publish`",
       "curated": true
     },
     {

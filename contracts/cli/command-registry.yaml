@@ -1824,18 +1824,6 @@ operations:
 - surface: vox-cli
   path:
   - ci
-  - check-frozen
-  status: active
-  latin_ns: ci
-  product_lane: platform
-  feature_gate: null
-  catalog_group: null
-  ref_cli_required: false
-  reachability_required: null
-  handler_rust: null
-- surface: vox-cli
-  path:
-  - ci
   - check-links
   status: active
   latin_ns: null
@@ -1856,18 +1844,6 @@ operations:
   catalog_group: null
   ref_cli_required: true
   reachability_required: false
-  handler_rust: null
-- surface: vox-cli
-  path:
-  - ci
-  - collateral-damage-gate
-  status: active
-  latin_ns: ci
-  product_lane: platform
-  feature_gate: null
-  catalog_group: null
-  ref_cli_required: false
-  reachability_required: null
   handler_rust: null
 - surface: vox-cli
   path:
@@ -1989,18 +1965,6 @@ operations:
   ref_cli_required: true
   reachability_required: false
   handler_rust: commands::ci::config_registry_parity
-- surface: vox-cli
-  path:
-  - ci
-  - constrained-gen-smoke
-  status: active
-  latin_ns: ci
-  product_lane: platform
-  feature_gate: null
-  catalog_group: null
-  ref_cli_required: false
-  reachability_required: null
-  handler_rust: null
 - surface: vox-cli
   path:
   - ci
@@ -2492,18 +2456,6 @@ operations:
 - surface: vox-cli
   path:
   - ci
-  - grpo-reward-baseline
-  status: active
-  latin_ns: ci
-  product_lane: platform
-  feature_gate: null
-  catalog_group: null
-  ref_cli_required: false
-  reachability_required: null
-  handler_rust: null
-- surface: vox-cli
-  path:
-  - ci
   - gui-catalog-parity
   status: active
   latin_ns: ci
@@ -2697,18 +2649,6 @@ operations:
   path:
   - ci
   - mcp-vox-surface-parity
-  status: active
-  latin_ns: ci
-  product_lane: platform
-  feature_gate: null
-  catalog_group: null
-  ref_cli_required: false
-  reachability_required: null
-  handler_rust: null
-- surface: vox-cli
-  path:
-  - ci
-  - mens-corpus-health
   status: active
   latin_ns: ci
   product_lane: platform
@@ -3121,18 +3061,6 @@ operations:
 - surface: vox-cli
   path:
   - ci
-  - queue
-  status: active
-  latin_ns: ci
-  product_lane: platform
-  feature_gate: null
-  catalog_group: null
-  ref_cli_required: false
-  reachability_required: null
-  handler_rust: null
-- surface: vox-cli
-  path:
-  - ci
   - release-build
   status: active
   latin_ns: null
@@ -3206,54 +3134,6 @@ operations:
   path:
   - ci
   - row-serde-lint
-  status: active
-  latin_ns: ci
-  product_lane: platform
-  feature_gate: null
-  catalog_group: null
-  ref_cli_required: false
-  reachability_required: null
-  handler_rust: null
-- surface: vox-cli
-  path:
-  - ci
-  - runner-policy-check
-  status: active
-  latin_ns: ci
-  product_lane: platform
-  feature_gate: null
-  catalog_group: null
-  ref_cli_required: false
-  reachability_required: null
-  handler_rust: null
-- surface: vox-cli
-  path:
-  - ci
-  - runner-preflight
-  status: active
-  latin_ns: ci
-  product_lane: platform
-  feature_gate: null
-  catalog_group: null
-  ref_cli_required: false
-  reachability_required: null
-  handler_rust: null
-- surface: vox-cli
-  path:
-  - ci
-  - runner-scale
-  status: active
-  latin_ns: ci
-  product_lane: platform
-  feature_gate: null
-  catalog_group: null
-  ref_cli_required: false
-  reachability_required: null
-  handler_rust: null
-- surface: vox-cli
-  path:
-  - ci
-  - runner-status
   status: active
   latin_ns: ci
   product_lane: platform
@@ -8373,6 +8253,84 @@ operations:
 - surface: vox-cli
   path:
   - graph
+  - history
+  - brief
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - graph
+  - history
+  - focus
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - graph
+  - history
+  - forgotten
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - graph
+  - history
+  - log
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - graph
+  - history
+  - search
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - graph
+  - history
+  - timeline
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - graph
   - index
   status: active
   latin_ns: pm
@@ -10543,6 +10501,18 @@ operations:
 - surface: vox-cli
   path:
   - research
+  - flag
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - research
   - history
   status: active
   latin_ns: null
@@ -10563,6 +10533,30 @@ operations:
   catalog_group: null
   ref_cli_required: false
   reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - research
+  - probe
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - research
+  - publish
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
   handler_rust: null
 - surface: vox-cli
   path:
