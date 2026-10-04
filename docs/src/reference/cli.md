@@ -203,6 +203,20 @@ Corpus registry and freshness status/ingest operations for Vox Graph knowledge m
 | `vox graph rebuild` | Rebuild the base AST code graph and cluster it. |
 | `vox graph history <log\|focus\|forgotten\|search\|timeline\|brief>` | First-parent history of `origin/main` (else `main`) with rename/split/merge lineage. Mechanical (fmt/generated/import-only) changes are flagged and hidden unless `--include-mechanical`. Every subcommand except `brief` catches up on new commits first. One store is shared by all worktrees, at `<git-common-dir>/vox-cache/repo-history/`. `brief` prints one line from disk and says how many commits it is behind. |
 
+### `vox kb eval`
+
+Deterministic retrieval eval over the golden set in `contracts/kb/eval/` (BM25 baseline, scored on doc and chunk ids). Plain `vox kb eval` prints the metric report for the chosen split.
+
+| Flag | Role |
+|------|------|
+| `--split <dev\|test>` | Golden-set split to score (default `dev`). `--split test` is milestone-close only. |
+| `--json` | Emit the report as JSON. |
+| `--query <TEXT>` / `--top <N>` | Print the top-N (default 20) BM25 chunk ids for the text, for qrel pooling. `--top` requires `--query`. |
+| `--headings <DOC_ID>` | Print every valid `heading_path` of a corpus snapshot doc. |
+| `--snapshot-corpus` | Rewrite the frozen `contracts/kb/eval/corpus.jsonl` from tracked non-archive `docs/src` markdown. |
+
+`--query`, `--headings` and `--snapshot-corpus` are mutually exclusive modes.
+
 ### `vox ci …`
 
 Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix, doc inventory, milestone eval matrix contract, workflow `scripts/` allowlist, Mens gate matrix, TOESTUB scoped scan, optional CUDA checks). **Canonical:** **`vox ci <subcommand>`** when `vox` is on `PATH`. **CI/bootstrap:** `cargo run -p vox-cli --quiet -- ci <subcommand>` from the repo root (same code path).
@@ -914,6 +928,7 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `deploy` | default | `commands::deploy` |
 | `dispatch` | default | `commands::dispatch` |
 | `drift-check` | default | `commands::drift_check` |
+| `kb` | default | `commands::kb` (`kb eval`: `commands::kb::eval`) |
 | `upgrade` | default | `commands::upgrade` (toolchain only) |
 | `init` | default | `commands::init` |
 | `llm` | default | `commands::llm` |
