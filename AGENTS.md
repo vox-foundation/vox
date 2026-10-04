@@ -51,7 +51,7 @@ When working under the Vox repository, ALL research findings, architecture docum
 - `docs/src/reference/plugin-catalog.generated.md`, `docs/src/reference/distribution-bundles.generated.md` — regenerate with `cargo run -p vox-cli -- ci generate-plugin-catalog-docs`.
 - `.cursorignore`, `.aiignore`, `.aiexclude` — derived from `.voxignore`; regenerate with `vox ci sync-ignore-files`.
 
-Install the pre-commit hooks once after cloning: `vox run scripts/install-hooks.vox`. The hooks auto-stage regenerated files on every commit so these never drift to CI.
+First-time setup (`vox run scripts/setup.vox`) installs the git hooks and the binaries they call (`vox`, `toestub`, `vox-drift-check`). Hooks never build and never regenerate these files; PR CI's `ssot-autoregen` job regenerates them, and `vox ci ssot-drift` reports drift.
 
 Manually-maintained files that **are** safe to edit:
 - `docs/src/adr/index.md`, `docs/src/adr/README.md` — hand-rolled ADR tables, not generated.
@@ -390,7 +390,7 @@ In Vox, tests are not just regression catchers — they are training data for th
 
 **Enforcement:**
 
-- **Pre-commit hook** (`lefthook` `tdd-guard`): blocks commits that introduce `pub fn` / `fn` without an adjacent test. Install via `vox run scripts/install-hooks.vox`.
+- **Pre-commit hook** (`lefthook` `tdd-guard`): blocks commits that introduce `pub fn` / `fn` without an adjacent test. Installed by `vox run scripts/setup.vox`.
 - **CI:** `vox-code-audit` reports `skeleton/untested-pub-api` (Warning) and `skeleton/no-test-for-pub-fn` (Warning). Default CI mode is `legacy` (Errors block, Warnings surface). PRs touching `crates/vox-compiler/**` or `crates/vox-codegen/**` additionally trigger `cargo mutants` to verify tests *catch* mutations, not just exist.
 - **Override:** `// toestub-ignore(skeleton/untested-pub-api) — <reason>` on the line above the `pub fn`, or a structured entry in `contracts/toestub/suppressions.v1.json` with `owner` and `reason`. Suppress only when refactoring is impractical, not to avoid the work.
 
