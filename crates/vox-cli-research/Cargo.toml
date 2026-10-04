@@ -9,6 +9,10 @@ repository.workspace = true
 rust-version.workspace = true
 publish = false
 
+[features]
+## Live LLM inference in the research pipeline (forwards to vox-research-shim/runtime).
+runtime = ["vox-research-shim/runtime"]
+
 [dependencies]
 anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
@@ -27,6 +31,10 @@ vox-research-shim = { workspace = true }
 vox-search = { workspace = true }
 vox-secrets = { workspace = true }
 workspace-hack = { version = "0.6", path = "../workspace-hack" }
+
+[[test]]
+name = "eval_e2e_test"
+required-features = ["runtime"]
 
 [lints]
 workspace = true

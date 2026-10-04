@@ -1,7 +1,13 @@
+//! Live e2e: the eval harness drives the real multi-stage research pipeline
+//! (not raw engine lines). Needs the `runtime` feature, network and an LLM API
+//! key → feature-gated (`required-features`) and `#[ignore]`. Run on demand:
+//!   cargo test -p vox-cli-research --features runtime --test eval_e2e_test -- --ignored --nocapture
+
 use vox_cli_research::eval::{GoldenQueryItem, evaluate_single_query_pipeline};
 use vox_search::context::SearchRuntimeContext;
 
 #[tokio::test]
+#[ignore = "owner:research sunset:never live LLM research pipeline; requires network and an API key; run with --features runtime -- --ignored"]
 async fn test_eval_executes_real_research_pipeline_not_web_lines() {
     let current_dir = std::env::current_dir().expect("cwd");
     let ctx = SearchRuntimeContext::new(
