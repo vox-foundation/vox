@@ -72,7 +72,7 @@ cargo-nextest (`archive` / `--archive-file`), `gh`.
 
 ## Phase 0 — Unblock
 
-### Task 0.1 (Claude): Land local `main` through a draft PR
+### Task 0.1: Land local `main` through a draft PR (Claude)
 
 **Status 2026-10-03:** owner approved; pushed `main` as `land/2026-10-03-main`, draft PR opened.
 
@@ -80,7 +80,7 @@ cargo-nextest (`archive` / `--archive-file`), `gh`.
 - [ ] **Step 2:** self-review the full range (`/code-review high`), mark ready, merge through the queue.
 - [ ] **Done when:** `gh run list --workflow nightly.yml -L 1` shows `setup` passing on the next scheduled run.
 
-### Task 0.2 (Claude): Fix the all-features compile errors
+### Task 0.2: Fix the all-features compile errors (Claude)
 
 **Files:** `crates/vox-actor-runtime` (E0599 `DbConfig::resolve_canonical`), `crates/vox-codegen` (E0432, E0277),
 `crates/vox-cli` (E0275 via netlink `Tcf: Send`), `objc2` in `crates/vox-ml-cli`, `crates/vox-populi`.
@@ -92,14 +92,14 @@ cargo-nextest (`archive` / `--archive-file`), `gh`.
   bound that ends the cycle; name the type in the commit body.
 - [ ] **Step 3:** `cargo check -p <crate> --all-features` clean (Linux-only errors: verified on the PR's CI). One commit per crate.
 
-### Task 0.3 (Claude; Owner for crypto): Clear the `cargo audit` advisories
+### Task 0.3: Clear the `cargo audit` advisories (Claude; Owner for crypto)
 
 - [ ] **Step 1:** list them from the nightly log (wasmtime, h2, a TLS 1.3 issue).
 - [ ] **Step 2:** non-transport: `cargo update -p <crate> --precise <fixed-version>`; commit with the advisory IDs.
 - [ ] **Step 3: STOP** for h2/rustls/ring/aws-lc/hyper: put the drafted `contracts/crypto/transport-providers.v1.json`
   entry in the PR description; the owner applies it.
 
-### Task 0.4 (Claude): Nightly's own failures
+### Task 0.4: Nightly's own failures (Claude)
 
 **Files:** `.github/workflows/nightly.yml`, `.github/workflows/gui-cross-build.yml`.
 
@@ -114,7 +114,7 @@ cargo-nextest (`archive` / `--archive-file`), `gh`.
 
 ## Phase 1 — Prevention and a fast local loop
 
-### Task 1.1 (agy): `vox ci dev-loop-guard`
+### Task 1.1: `vox ci dev-loop-guard` (agy)
 
 **Acts on:** hooks running `cargo run` (`lefthook.yml:31,36,41,46,58,80`); a hook calling an unregistered command
 (`ci status` is absent from `contracts/cli/command-registry.yaml`); `[build] jobs = 24` (`.cargo/config.toml:23`).
@@ -279,7 +279,7 @@ fn step_dev_loop_guard(root: &Path) -> Result<()> {
   make `hardcoded_build_jobs` ignore `in_build` (fails the `[net]` case). Clippy `-p vox-cli-ci`. Commit
   "feat(ci): dev-loop-guard fails on hooks that build, unregistered hook commands and hardcoded jobs".
 
-### Task 1.2 (agy): Hooks run installed binaries; no hardcoded jobs
+### Task 1.2: Hooks run installed binaries; no hardcoded jobs (agy)
 
 **Files:** `lefthook.yml`, `.cargo/config.toml`, `scripts/install-hooks.vox`, `docs/src/contributors/local-ci-pre-push.md`.
 
@@ -296,7 +296,7 @@ fn step_dev_loop_guard(root: &Path) -> Result<()> {
   Time `git commit` on a staged `.rs` change and `git push --dry-run` on a cold `target/`; record both in the findings
   doc targets table. Commit.
 
-### Task 1.3 (agy): Register `ci status`
+### Task 1.3: Register `ci status` (agy)
 
 **Files:** `contracts/operations/catalog.v1.yaml`, regenerated `contracts/cli/command-registry.yaml` and
 `docs/src/reference/cli-command-surface.generated.md`.
@@ -306,7 +306,7 @@ fn step_dev_loop_guard(root: &Path) -> Result<()> {
 - [ ] **Step 2:** `vox ci operations-sync --target cli --write` then `vox ci command-sync`.
 - [ ] **Step 3 (Claude):** `vox ci dev-loop-guard` prints `ok`; `vox ci ssot-drift` is clean. Commit.
 
-### Task 1.4 (agy): Refuse direct pushes to `main`
+### Task 1.4: Refuse direct pushes to `main` (agy)
 
 **Acts on:** 57 commits reached `main` without CI; nightly broke on a lockfile no PR checked.
 
@@ -373,7 +373,7 @@ pub fn refused_main_push(stdin: &str, allow: bool) -> Option<String> {
 - [ ] **Step 6 (Claude):** tests pass; mutation: change `"refs/heads/main"` to `"refs/heads/mainx"` (fails the first test).
   Verify end to end: `git push --dry-run origin HEAD:main` is refused; `HEAD:land/test` proceeds. Commit.
 
-### Task 1.5 (agy): The broker admits by load, not a fixed count
+### Task 1.5: The broker admits by load, not a fixed count (agy)
 
 **Acts on:** `max_concurrent_from` = `(parallelism / 3).clamp(2, 8)` (`crates/vox-build-queue/src/global.rs:43-51`) with
 `jobs = 24` per build → about 144 rustc on 18 cores; load 15–40; 80–92% kernel time.
@@ -482,7 +482,7 @@ pub fn acquire_slot_adaptive(root: &Path, cap: usize) -> Result<(Slot, u64, usiz
   (fails the second). Update `build-broker-usage.md`: admission by load; `VOX_BROKER_MAX_CONCURRENT` is an upper bound.
   Commit.
 
-### Task 1.6 (agy): `cargo run` holds a slot only while building
+### Task 1.6: `cargo run` holds a slot only while building (agy)
 
 **Acts on:** the shim holds a slot for the whole runtime of `cargo run` (`crates/vox-cargo-shim/src/main.rs:162-181`).
 
@@ -528,7 +528,7 @@ pub fn build_args_for_run(args: &[String]) -> Option<Vec<String>> {
   an unlocked entry in a temp `VOX_BROKER_HOME`, call `register_inflight`, assert the stale file is gone and a locked one survives.
 - [ ] **Step 5 (Claude):** tests pass; commit.
 
-### Task 1.7 (agy): Make the warnings reach the owner
+### Task 1.7: Make the warnings reach the owner (agy)
 
 **Acts on:** 13 open `nightly-failure` issues nobody saw because the `ci-status` hook called a subcommand the installed
 `vox` lacked; `main` 57 commits ahead of `origin/main` with no signal.
@@ -542,7 +542,7 @@ pub fn build_args_for_run(args: &[String]) -> Option<Vec<String>> {
 - [ ] **Step 3:** `nightly-artifacts.yml` publishes `toestub` with `vox`; `install-hooks.vox` installs both via `voxup`.
 - [ ] **Step 4 (Claude):** commit; confirm `vox ci status --hook` prints both lines on this machine.
 
-### Task 1.8 (Owner): macOS Developer Tools
+### Task 1.8: macOS Developer Tools (Owner)
 
 - [ ] System Settings → Privacy & Security → Developer Tools: enable the terminal in use and the Claude app; restart both.
 - [ ] **(Claude):** repeat Part A of `rust-build-loop-ssot-2026.md`; record user vs sys seconds in the findings doc.
@@ -551,7 +551,7 @@ pub fn build_args_for_run(args: &[String]) -> Option<Vec<String>> {
 
 ## Phase 2 — Hosted CI builds once and keeps its cache warm
 
-### Task 2.1 (Claude): Build test binaries once; a cache writer on `main`
+### Task 2.1: Build test binaries once; a cache writer on `main` (Claude)
 
 **Files:** `.github/workflows/ci.yml` (jobs `tests`, new `build-tests`), create `.github/workflows/cache-seed.yml`.
 
@@ -567,13 +567,13 @@ pub fn build_args_for_run(args: &[String]) -> Option<Vec<String>> {
   the `gate` job's required context name is unchanged (`vox ci required-context-guard`).
 - [ ] **Done when:** on a draft PR, shard logs contain no `Compiling`; record the full-run wall time in the findings doc.
 
-### Task 2.2 (Claude): Shard count follows the work
+### Task 2.2: Shard count follows the work (Claude)
 
 - [ ] `linux`'s `Plan tests` step emits `shards=1` when `p_args` is not `--workspace…` and names fewer than 30 crates,
   else `shards=3`; the `tests` matrix becomes `shard: ${{ fromJSON(needs.linux.outputs.shard_list) }}` with
   `shard_list` = `[1]` or `[1,2,3]`. No literal parallelism anywhere else.
 
-### Task 2.3 (agy): Narrow "contracts forces a full run"
+### Task 2.3: Narrow "contracts forces a full run" (agy)
 
 **Files:** `crates/vox-cli-ci/src/affected.rs` (rules at lines 5-12, 33-44, 143-151).
 
@@ -583,12 +583,12 @@ pub fn build_args_for_run(args: &[String]) -> Option<Vec<String>> {
   `include_str!`/path constants for each `contracts/<dir>`; `contracts/reports/` maps to no crates (generated output).
 - [ ] **Step 3 (Claude):** mutation: remove the fail-safe branch (fails the unknown-path test). Commit.
 
-### Task 2.4 (Claude): Pin the cache budget in code
+### Task 2.4: Pin the cache budget in code (Claude)
 
 - [ ] Give the sccache key a version suffix and set `SCCACHE_CACHE_SIZE` from the job's disk headroom in the four workflows
   that use it. Extend `vox ci cache-key-lint` to fail a workflow that uses sccache without `SCCACHE_CACHE_SIZE`.
 
-### Task 2.5 (Owner): Delete over-budget caches
+### Task 2.5: Delete over-budget caches (Owner)
 
 - [ ] Claude lists cache entries by key prefix and size (`gh cache list -L 100 --sort size_in_bytes`); the owner approves;
   `gh cache delete --all --key <prefix>` per approved prefix. Done when usage is under 9 GB.
@@ -597,7 +597,7 @@ pub fn build_args_for_run(args: &[String]) -> Option<Vec<String>> {
 
 ## Phase 3 — The suite pays only for what the gate needs
 
-### Task 3.1 (agy): Nested-cargo tests move to a serialized nightly group
+### Task 3.1: Nested-cargo tests move to a serialized nightly group (agy)
 
 **Files:** `.config/nextest.toml`.
 
@@ -608,18 +608,18 @@ pub fn build_args_for_run(args: &[String]) -> Option<Vec<String>> {
 - [ ] Remove the duplicated ladder targets compiled by two binaries (`crud_api`, `auth_patterns`, `db_native_ir`).
 - [ ] **(Claude):** `cargo nextest list -p vox-codegen --profile ci-gate` no longer lists them and `--profile ci` does.
 
-### Task 3.2 (agy): Merge tiny integration-test binaries
+### Task 3.2: Merge tiny integration-test binaries (agy)
 
 - [ ] Per crate, in order vox-cli, vox-integration-tests, vox-compiler, vox-codegen: `git mv tests/<name>.rs tests/it/<name>.rs`,
   create `tests/it/main.rs` with `mod <name>;` per file; update `.config/nextest.toml` filters to the `it::<name>::` prefix.
 - [ ] **Done when** `cargo nextest list -p <crate> | wc -l` is unchanged before and after (record both numbers in the commit).
 
-### Task 3.3 (Claude): Burn down the quarantine and expired ignores
+### Task 3.3: Burn down the quarantine and expired ignores (Claude)
 
 - [ ] Each of the 32 #569 entries: fix, or delete with the reason. Each `#[ignore]` past its 2026-08-01 sunset and the 12
   asserting retired `activity`/`@v0` behaviour: un-ignore and fix, or delete. One commit per crate.
 
-### Task 3.4 (Claude): Nightly does each thing once
+### Task 3.4: Nightly does each thing once (Claude)
 
 - [ ] `nightly.yml:1561` plain run → `cargo nextest run --no-run` (still seeds the cache); llvm-cov (`:809`) is the one execution.
 - [ ] Regenerate `contracts/budgets/test-tier-budgets.v1.yaml` from a green nightly's JUnit.
@@ -628,7 +628,7 @@ pub fn build_args_for_run(args: &[String]) -> Option<Vec<String>> {
 
 ## Phase 4 — How work reaches CI
 
-### Task 4.1 (Claude): Document the loop
+### Task 4.1: Document the loop (Claude)
 
 **Files:** `AGENTS.md` (CI Contract; PR & Review Discipline; a new line under Structural Limits: "no hardcoded CPU or job
 counts — derive from the machine"), `docs/src/contributors/antigravity-driven-execution.md`, `docs/agents/agy-driver-kit/`.
@@ -636,13 +636,13 @@ counts — derive from the machine"), `docs/src/contributors/antigravity-driven-
 - [ ] Branch → batch → `git push -u origin HEAD:<branch>` → `gh pr create --draft` → hosted CI → self-review → ready →
   merge queue. Local verification is `cargo check -p <touched>` and that crate's tests. Never symlink `target/`.
 
-### Task 4.2 (Claude): Runners are backup only
+### Task 4.2: Runners are backup only (Claude)
 
 - [ ] `ml_data_extraction.yml` `extract` → `ubuntu-latest`; `train` keeps its GPU label with a comment that nothing gates on it.
 - [ ] `docs/src/ci/runner-contract.md`: self-hosted runners are optional backup; no required check may target them.
   Add that rule to `workflow_policy_guard` (a required-context job with a `self-hosted` label fails).
 
-### Task 4.3 (Owner): Branch protection on `main`
+### Task 4.3: Branch protection on `main` (Owner)
 
 - [ ] Require a PR and the `Check, Build, and Test (Rust)` context; block direct pushes. Claude prepares the exact
   `gh api -X PUT repos/{owner}/{repo}/branches/main/protection` payload; the owner runs or approves it.
