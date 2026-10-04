@@ -404,8 +404,8 @@ fn ssot_autoregen_builds_vox_like_the_gate() {
     ));
     let builds: Vec<&str> = yml
         .lines()
-        .map(str::trim)
-        .filter(|l| l.starts_with("run: cargo build -p vox-cli"))
+        .map(|l| l.trim().trim_start_matches("run: "))
+        .filter(|l| l.starts_with("cargo build -p vox-cli"))
         .collect();
     assert_eq!(
         builds.len(),
@@ -434,8 +434,8 @@ fn ci_gate_is_hosted_capped_and_owns_required_context() {
         "affected args must never build vox-gui"
     );
     assert!(
-        yml.contains("needs: [linux, tests, ui]"),
-        "required context aggregates linux + sharded tests + ui; windows is warn-only"
+        yml.contains("needs: [linux, build-tests, tests, ui]"),
+        "required context aggregates linux + the test build + sharded tests + ui; windows is warn-only"
     );
     assert!(
         yml.contains("cargo deny check licenses bans sources"),
@@ -512,16 +512,20 @@ fn quarantine_is_gate_only_and_nightly_still_runs_everything() {
         "/../../.config/nextest.toml"
     ));
     assert!(
-        ci.contains("--profile ci-gate --locked --no-tests=pass --partition"),
-        "gate shards must use the ci-gate profile"
+        ci.contains("cargo nextest archive $P_ARGS --profile ci-gate --locked"),
+        "the gate's test archive must be built with the ci-gate profile"
+    );
+    assert!(
+        ci.contains("--profile ci-gate --no-tests=pass --partition"),
+        "gate shards must run the archive with the ci-gate profile"
     );
     assert!(
         !nightly.contains("--profile ci-gate"),
         "nightly must not use the quarantining profile"
     );
     assert!(
-        nightly.contains("cargo nextest run --workspace --exclude vox-gui --profile ci --locked"),
-        "nightly's full job must run the whole suite under the ci profile"
+        nightly.contains("cargo llvm-cov nextest --workspace --exclude vox-gui --profile ci"),
+        "nightly must execute the whole suite under the ci profile (the llvm-cov run)"
     );
     assert!(
         nextest.contains("[profile.ci-gate]") && nextest.contains("issues/569"),
@@ -537,10 +541,18 @@ fn ci_tests_are_sharded_out_of_the_linux_leg() {
         env!("CARGO_MANIFEST_DIR"),
         "/../../.github/workflows/ci.yml"
     ));
-    assert!(yml.contains("shard: [1, 2, 3]"), "tests job must shard");
     assert!(
-        yml.contains(r#"--partition "hash:${SHARD}/3""#),
-        "each shard must run its nextest partition, and the count must match the matrix"
+        yml.contains("shard: ${{ fromJSON(needs.linux.outputs.shard_list) }}")
+            && yml.contains("shard_list=[1,2,3]"),
+        "tests job must shard, with linux planning up to three shards"
+    );
+    assert!(
+        yml.contains(r#"--partition "hash:${SHARD}/${SHARDS}""#),
+        "each shard must run its nextest partition, and the count must match the plan"
+    );
+    assert!(
+        yml.contains("cargo nextest archive") && yml.contains("--archive-file tests.tar.zst"),
+        "test binaries are built once (build-tests) and shards only execute the archive"
     );
     assert!(
         yml.contains("if: needs.linux.outputs.run_tests == 'true'"),

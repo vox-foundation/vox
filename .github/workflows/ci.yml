@@ -53,7 +53,8 @@ jobs:
       # missing tool is an error (vox_cli_ci::installed_tool), so build it here.
       - name: Build vox CLI and fast-tier tools
         run: |
-          cargo build -p vox-cli -p vox-drift-check --locked
+          cargo build -p vox-cli --locked
+          cargo build -p vox-drift-check --locked
           echo "$PWD/target/debug" >> "$GITHUB_PATH"
 
       - name: Fast tier (same checks as local `vox ci pre-push`)
@@ -400,31 +401,11 @@ jobs:
         shell: bash
         run: |
           set -uo pipefail
-          # SOURCE OF TRUTH for this list: run_ssot_drift() in
-          # crates/vox-cli/src/commands/ci/run_body_helpers/docs.rs — each generator it
-          # verifies in read-only mode is re-run here with its --write flag. Keep in sync
-          # when that function gains/loses a generator.
-          VOX=./target/debug/vox
-          for cmd in \
-            "operations-sync --target all --write" \
-            "command-sync --write" \
-            "generate-plugin-catalog-docs" \
-            "plugin-catalog-sync --write" \
-            "plugin-surface-sync --write" \
-            "plugin-skill-parity --write" \
-            "gui-version-sync --write" \
-            "capability-sync --write" \
-            "gui-surface-coverage --write" \
-            "gui-surface-registry --write" \
-            "affected-crates --regen --out contracts/ci/crate-graph.v1.json"; do
-            echo "::group::vox ci $cmd"
-            # Best-effort: a generator that errors (not just rewrites) is surfaced as a
-            # warning but does not fail the job — the ssot-drift gate still verifies it.
-            # $cmd is deliberately unquoted so its words split into subcommand + flags.
-            # shellcheck disable=SC2086
-            $VOX --quiet ci $cmd || echo "::warning::regenerator failed: vox ci $cmd"
-            echo "::endgroup::"
-          done
+          # The generator list lives in scripts/ssot-regen.vox (one list for CI and for
+          # developers). Best-effort: a failing generator is a warning here; the ssot-drift
+          # gate still verifies the result.
+          PATH="$PWD/target/debug:$PATH" ./target/debug/vox run scripts/ssot-regen.vox \
+            || echo "::warning::one or more SSOT regenerators failed (see log)"
       - name: Commit regenerated artifacts to the PR branch (only if drift)
         shell: bash
         env:
