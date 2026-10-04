@@ -5,16 +5,16 @@ milestone_name: Vox Knowledge Base — corpus to context
 current_phase: 1
 current_phase_name: Retrieval Eval Baseline
 status: executing
-stopped_at: Completed 01-07-PLAN.md
-last_updated: "2026-10-04T09:50:54.465Z"
+stopped_at: Completed 01-04-PLAN.md
+last_updated: "2026-10-04T20:28:42.416Z"
 last_activity: 2026-10-04
 last_activity_desc: Phase 1 execution started
-state_head: 357e9662624d0890af21f79c7ab86639cf4c6ab8
+state_head: fc02b1bb69257a2961d3fee3af6950bbb827bb83
 progress:
   total_phases: 12
   completed_phases: 0
   total_plans: 34
-  completed_plans: 7
+  completed_plans: 8
   percent: 0
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (shared project context) and .planning/workstreams/kb/
 ## Current Position
 
 Phase: 1 (Retrieval Eval Baseline) — EXECUTING
-Plan: 8 of 12
+Plan: 9 of 12
 Status: Ready to execute
 Last activity: 2026-10-04 — Phase 1 execution started
 
@@ -62,6 +62,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 1 P06 | 25min | 2 tasks | 11 files |
 | Phase 1 P12 | 15min | 2 tasks | 6 files |
 | Phase 1 P07 | 45min | 2 tasks | 4 files |
+| Phase 1 P04 | ~1h | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,7 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 1]: 01-01: run_eval takes the retriever's doc->chunk-id map explicitly; chunk qrels resolve to deepest ancestor-or-equal chunk
 - [Phase 1]: 01-05: tighten-only pins epoch when golden unchanged; Baseline reuses LevelMetrics (Deserialize); canary text checks take (label,text) pairs
 - [Phase 1]: 01-07: gate tags a GUID-in-corpus as [canary] via typed CorpusHasCanary error; base ref beginning with '-' rejected before git
+- [Phase 1]: 01-04: frozen-snapshot chosen; seed queries agent-authored, origin agent-seed (D-02)
 
 ### Pending Todos
 
@@ -90,8 +92,8 @@ Progress: [░░░░░░░░░░] 0%
 
 ## Session Continuity
 
-**Last session:** 2026-10-04T09:50:54.448Z
+**Last session:** 2026-10-04T20:28:42.398Z
 
-**Stopped At:** Completed 01-07-PLAN.md
+**Stopped At:** Completed 01-04-PLAN.md
 **Resume File:** None
 **Next:** `/gsd-plan-phase 1` (no research-phase needed)
