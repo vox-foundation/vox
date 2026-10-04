@@ -87,18 +87,22 @@ Plans:
   3. Neither a chat turn nor a research synthesis writes an `accepted=1` or 0.95-confidence row anymore. `publish_research_doc`, GUI `ingest_url`/`ingest_text` and the scientia/MEMORY sinks produce only pending inbox findings. MENS `KbSignals` reads `kb_findings`.
   4. Property tests and a red-team fixture set show the sanitizer neutralises Unicode tag-block, zero-width/bidi characters, HTML comments and off-allowlist markdown images, at both the ingest and the injection boundary.
   5. `KbStore` LIKE search, `KbRouter`, the signal adapters, `kb_lines` and the 12 legacy `vox_kb_*` CRUD tools are absent from source and the tool catalog, and colliding names are replaced, not aliased. A seeded-DB migration test shows legacy `kb_entries`/`knowledge_bases` rows are counted before quarantine and non-empty rows appear in the inbox as pending.
-**Plans:** 9 plans
+**Plans:** 13 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — Trust tier vocabulary, single sanitizer (property tests + red-team set), fail-closed promotion verdict
-- [ ] 03-02-PLAN.md — `kb_findings` inbox schema and tier-required corpus writers (frozen-core sign-off checkpoint)
-- [ ] 03-03-PLAN.md — Capture chokepoint; web-leg and CRAG sinks rerouted to the inbox
-- [ ] 03-04-PLAN.md — Research paths (quick, deep, gather, GUI save-session) into the inbox; docs/src research writer deleted
-- [ ] 03-05-PLAN.md — Chat-path leak closure: writeback, signal adapters, `kb_lines`, @kb consumer, MEMORY sink
-- [ ] 03-06-PLAN.md — Legacy VoxKB count-and-migrate; MENS KbSignals on reviewed findings (DPO only)
-- [ ] 03-07-PLAN.md — GUI side doors (Ingest URL/Text, Publish) file findings; Playwright stepper
-- [ ] 03-08-PLAN.md — Tier-aware retrieval, preamble drops Untrusted, injection-boundary sanitization, SSOT docs
-- [ ] 03-09-PLAN.md — Legacy VoxKB tool/store retirement, DDL quarantine, registries and CHANGELOG (one-way checkpoint)
+- [ ] 03-01-PLAN.md — Trust tier vocabulary in the L0 crate; fail-closed promotion verdict
+- [ ] 03-02-PLAN.md — Single sanitizer with property tests and an ASCII-escaped red-team set
+- [ ] 03-03-PLAN.md — `kb_findings` inbox schema and `search_documents.trust_tier` with a kb_index_state-derived backfill (frozen-core sign-off checkpoint)
+- [ ] 03-04-PLAN.md — Capture chokepoint; web-leg and CRAG sinks rerouted to the inbox
+- [ ] 03-05-PLAN.md — Tier-required corpus writers; Library tier single source with agreement test
+- [ ] 03-06-PLAN.md — Research paths (quick, deep, gather, GUI save-session) into the inbox; docs/src research writer deleted
+- [ ] 03-07-PLAN.md — Chat-path leak closure: writeback, signal adapters, `kb_lines`, @kb consumer, MEMORY sink
+- [ ] 03-08-PLAN.md — Legacy VoxKB count-and-migrate; MENS KbSignals on reviewed findings (DPO only)
+- [ ] 03-09-PLAN.md — Tier-aware retrieval, preamble drops Untrusted, injection-boundary sanitization
+- [ ] 03-10-PLAN.md — Legacy `vox_kb_*` MCP tool retirement through the catalog (one-way checkpoint)
+- [ ] 03-11-PLAN.md — GUI side doors (Ingest URL/Text, Publish) file findings; Playwright stepper
+- [ ] 03-12-PLAN.md — KbStore/KbRouter/legacy CRUD deletion and VoxKB DDL quarantine
+- [ ] 03-13-PLAN.md — `vox kb status` legacy/inbox counts, retirement registries, SSOT docs, CHANGELOG
 **Research flag**: none (in-repo quarantine and catalog-ops patterns).
 
 ### Phase 4: Taxonomy Contract and Facet Lint
