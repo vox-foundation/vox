@@ -5,16 +5,16 @@ milestone_name: Vox Knowledge Base — corpus to context
 current_phase: 1
 current_phase_name: Retrieval Eval Baseline
 status: executing
-stopped_at: Completed 01-03-PLAN.md
-last_updated: "2026-10-04T08:20:47.870Z"
+stopped_at: Completed 01-05-PLAN.md
+last_updated: "2026-10-04T08:25:55.994Z"
 last_activity: 2026-10-04
 last_activity_desc: Phase 1 execution started
-state_head: 7d5a783d68add4fc090fb32f321014e7ddc67bf4
+state_head: 3416e12c05821c1ddd3ca3388ee04068b7caff2f
 progress:
   total_phases: 12
   completed_phases: 0
   total_plans: 34
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (shared project context) and .planning/workstreams/kb/
 ## Current Position
 
 Phase: 1 (Retrieval Eval Baseline) — EXECUTING
-Plan: 4 of 12
+Plan: 5 of 12
 Status: Ready to execute
 Last activity: 2026-10-04 — Phase 1 execution started
 
@@ -58,6 +58,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 1 P01 | 60min | 3 tasks | 15 files |
 | Phase 1 P02 | 15m | 2 tasks | 7 files |
 | Phase 1 P01-03 | 20m | 2 tasks | 2 files |
+| Phase 1 P05 | 35min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -70,6 +71,7 @@ Progress: [░░░░░░░░░░] 0%
 - [Research]: No new crate edges (`vox-search → vox-crypto`, `vox-cli → vox-forge` are user-authorization proposals only).
 - [Phase 1]: 01-01: heading_path = title > H2 > H3 joined by ' › '; H1 never a segment; defined once in vox_search::kb_ids for Phase 2 reuse
 - [Phase 1]: 01-01: run_eval takes the retriever's doc->chunk-id map explicitly; chunk qrels resolve to deepest ancestor-or-equal chunk
+- [Phase 1]: 01-05: tighten-only pins epoch when golden unchanged; Baseline reuses LevelMetrics (Deserialize); canary text checks take (label,text) pairs
 
 ### Pending Todos
 
@@ -84,8 +86,8 @@ Progress: [░░░░░░░░░░] 0%
 
 ## Session Continuity
 
-**Last session:** 2026-10-04T08:20:47.854Z
+**Last session:** 2026-10-04T08:25:55.978Z
 
-**Stopped At:** Completed 01-03-PLAN.md
+**Stopped At:** Completed 01-05-PLAN.md
 **Resume File:** None
 **Next:** `/gsd-plan-phase 1` (no research-phase needed)
