@@ -8,7 +8,7 @@ pub async fn run_ssot_audit(_root: &Path) -> Result<()> {
     use anyhow::anyhow;
     use vox_db::{DbConfig, VoxDb};
     use vox_orchestrator::config::CostPreference;
-    use vox_orchestrator::models::ModelRegistry;
+    use vox_orchestrator::models::{ModelRegistry, RoutingTask};
     use vox_orchestrator::types::{AgentTask, TaskCategory, TaskId, TaskPriority};
 
     println!("Orchestration SSOT Audit: verifying routing parity with telemetry...");
@@ -64,7 +64,8 @@ pub async fn run_ssot_audit(_root: &Path) -> Result<()> {
         task.estimated_complexity = 5;
 
         // Performance Routing
-        let perf_model = registry.best_for_task(&task, CostPreference::Performance);
+        let perf_model =
+            registry.best_for_task(&RoutingTask::from(&task), CostPreference::Performance);
         if let Some(m) = perf_model {
             println!("  [OK] Performance Routing ({}): selected {}", cat, m.id);
         } else {
@@ -81,7 +82,8 @@ pub async fn run_ssot_audit(_root: &Path) -> Result<()> {
         // Add some complexity to increase token count
         budget_task.estimated_complexity = 8;
 
-        let econ_model = registry.best_for_task(&budget_task, CostPreference::Economy);
+        let econ_model =
+            registry.best_for_task(&RoutingTask::from(&budget_task), CostPreference::Economy);
         if let Some(m) = econ_model {
             let est_tokens = budget_task.estimated_token_count();
             let cost_basis = registry

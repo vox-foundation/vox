@@ -3,11 +3,11 @@
 //! each candidate's `ScoreParts`. `best_for_with_filter` returns this ranking's first entry, so
 //! an explanation cannot disagree with the choice.
 
+use super::RoutingTask;
 use super::scoring::{ScoreParts, auto_score_parts};
 use super::spec::task_category_strength;
 use super::{ModelRegistry, ModelSpec, ProviderType, StrengthTag, TaskCategory};
 use crate::config::CostPreference;
-use crate::types::AgentTask;
 
 /// Why a registered model was not a candidate.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -75,7 +75,7 @@ impl ModelRegistry {
         preference: CostPreference,
         allow_free_in_performance_mode: bool,
         mut filter: impl FnMut(&ModelSpec) -> Option<Exclusion>,
-        task: Option<&AgentTask>,
+        task: Option<&RoutingTask>,
     ) -> Ranking {
         let strength = task_category_strength(task_type);
         let first = self.rank_pass(
@@ -107,12 +107,12 @@ impl ModelRegistry {
     /// adjustments (research hints route as Research; two or more tool hints raise complexity to 7).
     pub fn rank_task_with_filter(
         &self,
-        task: &AgentTask,
+        task: &RoutingTask,
         preference: CostPreference,
         filter: impl FnMut(&ModelSpec) -> Option<Exclusion>,
     ) -> Ranking {
-        let mut complexity = task.estimated_complexity;
-        let mut task_type = task.task_category;
+        let mut complexity = task.complexity;
+        let mut task_type = task.category;
         if !task.research_hints.is_empty() && task_type != TaskCategory::Research {
             task_type = TaskCategory::Research;
         }
@@ -132,7 +132,7 @@ impl ModelRegistry {
         allow_free_in_performance_mode: bool,
         filter: &mut dyn FnMut(&ModelSpec) -> Option<Exclusion>,
         respect_penalties: bool,
-        task: Option<&AgentTask>,
+        task: Option<&RoutingTask>,
     ) -> Ranking {
         let safety_cap = vox_config::load_model_routing_config()
             .safety
@@ -231,7 +231,7 @@ impl ModelRegistry {
     }
 }
 
-fn request_cost(m: &ModelSpec, task: Option<&AgentTask>) -> f64 {
+fn request_cost(m: &ModelSpec, task: Option<&RoutingTask>) -> f64 {
     let est_tokens = task.map(|t| t.estimated_token_count()).unwrap_or(1024) as f64;
     let per_1k = if m.cost_per_1k_input > 0.0 || m.cost_per_1k_output > 0.0 {
         (m.cost_per_1k_input + m.cost_per_1k_output) / 2.0
@@ -243,11 +243,11 @@ fn request_cost(m: &ModelSpec, task: Option<&AgentTask>) -> f64 {
 
 fn over_task_budget(
     m: &ModelSpec,
-    task: Option<&AgentTask>,
+    task: Option<&RoutingTask>,
     scoreboard: &std::collections::HashMap<String, super::ModelScore>,
 ) -> bool {
     let Some(t) = task else { return false };
-    let Some(max) = t.budget.as_ref().and_then(|b| b.max_cost_usd) else {
+    let Some(max) = t.max_cost_usd else {
         return false;
     };
     let basis = scoreboard
@@ -551,7 +551,7 @@ mod tests {
             reg: &ModelRegistry,
             pref: CostPreference,
             reject: &str,
-            task: Option<&AgentTask>,
+            task: Option<&RoutingTask>,
         ) -> Ranking {
             let chosen = reg.best_for_with_filter(
                 TaskCategory::CodeGen,
@@ -602,7 +602,8 @@ mod tests {
             max_cost_usd: Some(0.001),
             max_latency_ms: None,
         });
-        let r = agree(&reg, CostPreference::Performance, "", Some(&task));
+        let rt = RoutingTask::from(&task);
+        let r = agree(&reg, CostPreference::Performance, "", Some(&rt));
         assert_eq!(reason(&r, "acme/big"), Some(Exclusion::OverTaskBudget));
 
         // 4. Every model is penalised: the second pass must still choose.

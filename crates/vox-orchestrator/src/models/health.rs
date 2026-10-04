@@ -77,12 +77,13 @@ pub fn check_routing_health(registry: &ModelRegistry, now_unix: u64) -> RoutingH
     );
     task.task_category = crate::types::TaskCategory::CodeGen;
     task.estimated_complexity = 10;
+    let routing_task = super::RoutingTask::from(&task);
     // Probe the catalog, not this process's keys (`&|_| true`): health is about the routing logic and its
     // data, and two refreshers with different keys must write the same verdict.
     let mut efficient_pick = None;
     for clutch in [ClutchProfile::Efficiency, ClutchProfile::Balanced] {
         if let Some(sel) = registry.best_for_task_in_mode_keyed(
-            &task,
+            &routing_task,
             clutch.resolve().cost_preference,
             clutch,
             &|_| true,

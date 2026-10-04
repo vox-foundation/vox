@@ -2,11 +2,11 @@
 //! (flagship) model while a non-Elite candidate fits, and a provider without
 //! a resolvable key is never picked.
 
+use super::RoutingTask;
 use crate::config::CostPreference;
 use crate::mode::ClutchProfile;
 use crate::models::key_guard::selection_key_available;
 use crate::models::{ModelRegistry, ModelSpec, ModelTier};
-use crate::types::AgentTask;
 
 /// A dispatch-path pick. `only_candidate` is true when the mode's preferred set
 /// was empty and the pick came from the unrestricted fallback pass.
@@ -26,7 +26,7 @@ impl ModelRegistry {
     /// guarantee and the provider-key gate.
     pub fn best_for_task_in_mode(
         &self,
-        task: &AgentTask,
+        task: &RoutingTask,
         preference: CostPreference,
         clutch: ClutchProfile,
         mut pred: impl FnMut(&ModelSpec) -> bool,
@@ -41,7 +41,7 @@ impl ModelRegistry {
     /// routing explainer passes a [`DispatchGate`] so it applies dispatch's own rules.
     pub fn best_for_task_in_mode_keyed(
         &self,
-        task: &AgentTask,
+        task: &RoutingTask,
         preference: CostPreference,
         clutch: ClutchProfile,
         key_ok: &dyn Fn(&crate::models::ProviderType) -> bool,
@@ -86,7 +86,7 @@ impl ModelRegistry {
     /// routing explainer both call this, so the explanation cannot drift from dispatch.
     pub fn best_for_task_under_gate(
         &self,
-        task: &AgentTask,
+        task: &RoutingTask,
         preference: CostPreference,
         clutch: ClutchProfile,
         gate: &DispatchGate,
@@ -159,7 +159,8 @@ mod tests {
     use crate::models::key_guard::set_test_key_availability;
     use crate::models::spec::PricingSource;
     use crate::models::{
-        ModelCapabilities, ModelRegistry, ModelSpec, ModelTier, ProviderType, StrengthTag,
+        ModelCapabilities, ModelRegistry, ModelSpec, ModelTier, ProviderType, RoutingTask,
+        StrengthTag,
     };
     use crate::types::{AgentTask, TaskCategory, TaskId, TaskPriority};
 
@@ -188,11 +189,11 @@ mod tests {
         }
     }
 
-    fn hard_task() -> AgentTask {
+    fn hard_task() -> RoutingTask {
         let mut t = AgentTask::new(TaskId(1), "hard codegen", TaskPriority::Normal, vec![]);
         t.task_category = TaskCategory::CodeGen;
         t.estimated_complexity = 10;
-        t
+        RoutingTask::from(&t)
     }
 
     /// The Elite model is the CHEAPEST with equal context, so without the
