@@ -542,6 +542,23 @@ pub fn build_args_for_run(args: &[String]) -> Option<Vec<String>> {
 - [ ] **Step 3:** `nightly-artifacts.yml` publishes `toestub` with `vox`; `install-hooks.vox` installs both via `voxup`.
 - [ ] **Step 4 (Claude):** commit; confirm `vox ci status --hook` prints both lines on this machine.
 
+### Task 1.9: The fast tier itself stops building (agy)
+
+**Acts on:** observed 2026-10-03 — the pre-push fast tier spent 10+ minutes in
+`cargo run -p vox-drift-check` (`crates/vox-cli/src/commands/ci/pre_push.rs:1169-1184`), and scoped TOESTUB
+builds `vox-code-audit` into a cold `$TMPDIR` target (`matrix.rs:588-603`). Hosted CI runs both.
+
+**Files:** `crates/vox-cli/src/commands/ci/pre_push.rs`, `crates/vox-cli-ci/src/dev_loop_guard.rs`.
+
+- [ ] **Step 1: Failing test** in `dev_loop_guard.rs`: a pure `fn tier_build_offenders(src: &str) -> Vec<String>` that
+  returns every `"run", "-q", "-p"`-style or `cargo run -p` invocation found in a Rust source string; a test feeds it a
+  snippet containing `Command::new(cargo).args(["run", "-q", "-p", "vox-drift-check"])` and expects one offender.
+- [ ] **Step 2:** `run()` applies it to `pre_push.rs` for the steps listed in the fast tier; the repository test then fails.
+- [ ] **Step 3:** in `pre_push.rs`, the drift-check step runs the installed `vox-drift-check` binary when it is on PATH and
+  otherwise prints one line ("vox-drift-check not installed: skipped locally, hosted CI runs it") and passes; it never
+  calls cargo. Same for the scoped TOESTUB step with `toestub`.
+- [ ] **Step 4 (Claude):** the repository test passes; time `vox ci pre-push` on a cold `target/` (target: under 30 s).
+
 ### Task 1.8: macOS Developer Tools (Owner)
 
 - [ ] System Settings → Privacy & Security → Developer Tools: enable the terminal in use and the Claude app; restart both.
