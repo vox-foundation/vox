@@ -74,6 +74,8 @@ cargo-nextest (`archive` / `--archive-file`), `gh`.
 
 ### Task 0.1: Land local `main` through a draft PR (Claude)
 
+**Status 2026-10-03:** draft PR vox-foundation/vox#596 open with all work; awaiting green CI and merge.
+
 **Status 2026-10-03:** owner approved; pushed `main` as `land/2026-10-03-main`, draft PR opened.
 
 - [ ] **Step 1:** read the PR's CI. Failures this branch caused are fixed on the branch; pre-existing ones go to 0.2–0.4.
@@ -115,6 +117,8 @@ cargo-nextest (`archive` / `--archive-file`), `gh`.
 ## Phase 1 — Prevention and a fast local loop
 
 ### Task 1.1: `vox ci dev-loop-guard` (agy)
+
+**Status:** done (ab5a5c606).
 
 **Acts on:** hooks running `cargo run` (`lefthook.yml:31,36,41,46,58,80`); a hook calling an unregistered command
 (`ci status` is absent from `contracts/cli/command-registry.yaml`); `[build] jobs = 24` (`.cargo/config.toml:23`).
@@ -281,6 +285,8 @@ fn step_dev_loop_guard(root: &Path) -> Result<()> {
 
 ### Task 1.2: Hooks run installed binaries; no hardcoded jobs (agy)
 
+**Status:** done (608941d3d).
+
 **Files:** `lefthook.yml`, `.cargo/config.toml`, `scripts/install-hooks.vox`, `docs/src/contributors/local-ci-pre-push.md`.
 
 - [ ] **Step 1:** in `lefthook.yml` replace `cargo run -p vox-cli --quiet -- ` with `vox ` in `sync-ignore-files`,
@@ -298,6 +304,8 @@ fn step_dev_loop_guard(root: &Path) -> Result<()> {
 
 ### Task 1.3: Register `ci status` (agy)
 
+**Status:** done (608941d3d, a6785f930).
+
 **Files:** `contracts/operations/catalog.v1.yaml`, regenerated `contracts/cli/command-registry.yaml` and
 `docs/src/reference/cli-command-surface.generated.md`.
 
@@ -307,6 +315,8 @@ fn step_dev_loop_guard(root: &Path) -> Result<()> {
 - [ ] **Step 3 (Claude):** `vox ci dev-loop-guard` prints `ok`; `vox ci ssot-drift` is clean. Commit.
 
 ### Task 1.4: Refuse direct pushes to `main` (agy)
+
+**Status:** done (30088de94); generator hooks removed in the same commit.
 
 **Acts on:** 57 commits reached `main` without CI; nightly broke on a lockfile no PR checked.
 
@@ -374,6 +384,8 @@ pub fn refused_main_push(stdin: &str, allow: bool) -> Option<String> {
   Verify end to end: `git push --dry-run origin HEAD:main` is refused; `HEAD:land/test` proceeds. Commit.
 
 ### Task 1.5: The broker admits by load, not a fixed count (agy)
+
+**Status:** done (4865c6219).
 
 **Acts on:** `max_concurrent_from` = `(parallelism / 3).clamp(2, 8)` (`crates/vox-build-queue/src/global.rs:43-51`) with
 `jobs = 24` per build → about 144 rustc on 18 cores; load 15–40; 80–92% kernel time.
@@ -484,6 +496,8 @@ pub fn acquire_slot_adaptive(root: &Path, cap: usize) -> Result<(Slot, u64, usiz
 
 ### Task 1.6: `cargo run` holds a slot only while building (agy)
 
+**Status:** done (2cd5bbe1d).
+
 **Acts on:** the shim holds a slot for the whole runtime of `cargo run` (`crates/vox-cargo-shim/src/main.rs:162-181`).
 
 **Files:** `crates/vox-cargo-shim/src/main.rs`, `crates/vox-build-queue/src/resolve.rs` (test home if the shim has none).
@@ -530,6 +544,8 @@ pub fn build_args_for_run(args: &[String]) -> Option<Vec<String>> {
 
 ### Task 1.7: Make the warnings reach the owner (agy)
 
+**Status:** done (3d306dcea); toestub/drift-check install moved to scripts/setup.vox (4530e4273).
+
 **Acts on:** 13 open `nightly-failure` issues nobody saw because the `ci-status` hook called a subcommand the installed
 `vox` lacked; `main` 57 commits ahead of `origin/main` with no signal.
 
@@ -543,6 +559,8 @@ pub fn build_args_for_run(args: &[String]) -> Option<Vec<String>> {
 - [ ] **Step 4 (Claude):** commit; confirm `vox ci status --hook` prints both lines on this machine.
 
 ### Task 1.9: The fast tier itself stops building (agy)
+
+**Status:** done (77269e189).
 
 **Acts on:** observed 2026-10-03 — the pre-push fast tier spent 10+ minutes in
 `cargo run -p vox-drift-check` (`crates/vox-cli/src/commands/ci/pre_push.rs:1169-1184`), and scoped TOESTUB
@@ -570,6 +588,8 @@ builds `vox-code-audit` into a cold `$TMPDIR` target (`matrix.rs:588-603`). Host
 
 ### Task 2.1: Build test binaries once; a cache writer on `main` (Claude)
 
+**Status:** done (c74b98407; contracts follow in e999df5d5).
+
 **Files:** `.github/workflows/ci.yml` (jobs `tests`, new `build-tests`), create `.github/workflows/cache-seed.yml`.
 
 - [ ] **Step 1:** new job `build-tests` (`needs: linux`, `if: needs.linux.outputs.run_tests == 'true'`, same setup steps
@@ -585,6 +605,8 @@ builds `vox-code-audit` into a cold `$TMPDIR` target (`matrix.rs:588-603`). Host
 - [ ] **Done when:** on a draft PR, shard logs contain no `Compiling`; record the full-run wall time in the findings doc.
 
 ### Task 2.2: Shard count follows the work (Claude)
+
+**Status:** done (c74b98407).
 
 - [ ] `linux`'s `Plan tests` step emits `shards=1` when `p_args` is not `--workspace…` and names fewer than 30 crates,
   else `shards=3`; the `tests` matrix becomes `shard: ${{ fromJSON(needs.linux.outputs.shard_list) }}` with
@@ -616,6 +638,8 @@ builds `vox-code-audit` into a cold `$TMPDIR` target (`matrix.rs:588-603`). Host
 
 ### Task 3.1: Nested-cargo tests move to a serialized nightly group (agy)
 
+**Status:** done (b3027f41c); duplicate ladder targets left in the #569 quarantine for 3.3.
+
 **Files:** `.config/nextest.toml`.
 
 - [ ] Add `[test-groups.nested-cargo] max-threads = 1` and `[[profile.default.overrides]]` assigning
@@ -638,6 +662,8 @@ builds `vox-code-audit` into a cold `$TMPDIR` target (`matrix.rs:588-603`). Host
 
 ### Task 3.4: Nightly does each thing once (Claude)
 
+**Status:** dedupe done (5616f6f5d); budgets regeneration waits for a green nightly.
+
 - [ ] `nightly.yml:1561` plain run → `cargo nextest run --no-run` (still seeds the cache); llvm-cov (`:809`) is the one execution.
 - [ ] Regenerate `contracts/budgets/test-tier-budgets.v1.yaml` from a green nightly's JUnit.
 
@@ -647,6 +673,8 @@ builds `vox-code-audit` into a cold `$TMPDIR` target (`matrix.rs:588-603`). Host
 
 ### Task 4.1: Document the loop (Claude)
 
+**Status:** AGENTS.md policy done (bca68f67f); setup docs (4530e4273).
+
 **Files:** `AGENTS.md` (CI Contract; PR & Review Discipline; a new line under Structural Limits: "no hardcoded CPU or job
 counts — derive from the machine"), `docs/src/contributors/antigravity-driven-execution.md`, `docs/agents/agy-driver-kit/`.
 
@@ -654,6 +682,8 @@ counts — derive from the machine"), `docs/src/contributors/antigravity-driven-
   merge queue. Local verification is `cargo check -p <touched>` and that crate's tests. Never symlink `target/`.
 
 ### Task 4.2: Runners are backup only (Claude)
+
+**Status:** extract on hosted runners done (9bd62a9bf); self-hosted guard rule pending.
 
 - [ ] `ml_data_extraction.yml` `extract` → `ubuntu-latest`; `train` keeps its GPU label with a comment that nothing gates on it.
 - [ ] `docs/src/ci/runner-contract.md`: self-hosted runners are optional backup; no required check may target them.
