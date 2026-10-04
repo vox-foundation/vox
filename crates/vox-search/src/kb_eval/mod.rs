@@ -5,6 +5,7 @@
 //! ids. No environment, clock, DB or network is read and only ordered collections are
 //! iterated, so two evaluations of the same inputs are byte-identical.
 
+pub mod baseline;
 pub mod bm25;
 pub mod golden;
 pub mod metrics;
@@ -12,7 +13,7 @@ pub mod metrics;
 use std::collections::{BTreeMap, BTreeSet};
 
 use anyhow::{Result, bail};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::kb_ids::{
     HEADING_PATH_SEP, chunk_id, heading_path_is_ancestor_or_equal, split_chunk_id,
@@ -36,7 +37,8 @@ pub struct RankedChunk {
 }
 
 /// Recall/MRR/nDCG at one id level (doc or chunk), means rounded to 6 dp.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct LevelMetrics {
     #[serde(rename = "recall@5")]
     pub recall_at_5: f64,
