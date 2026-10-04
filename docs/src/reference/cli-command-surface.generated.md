@@ -21,7 +21,7 @@ category: "Language Reference"
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml) (itself projected from [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml)).
 
-**schema_version:** `1` · **vox-cli operations:** 996
+**schema_version:** `1` · **vox-cli operations:** 997
 
 | Path | Status | Feature gate | Latin ns | Product lane | Catalog group |
 |------|--------|--------------|----------|--------------|----------------|
@@ -720,6 +720,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox harness publish` | active | — | — | ai | — |
 | `vox harness report` | active | — | — | ai | — |
 | `vox init` | active | — | pm | platform | — |
+| `vox kb eval` | active | — | — | ai | — |
 | `vox live` | active | live | — | ai | — |
 | `vox llm` | active | — | — | ai | — |
 | `vox llm prompt` | active | — | — | ai | — |
