@@ -38,7 +38,20 @@ Workstream `kb` turns Vox's 669 curated, non-archive markdown docs (~2.4M tokens
   3. A canary-string check fails CI when the golden set appears under any indexer root or in MENS corpus build output. This is proven by mutation: plant the canary in an indexed path and the check goes red.
   4. PR CI compares metrics against `contracts/kb/retrieval-baseline.v1.json`. A fixture PR that degrades ranking fails the gate, and a baseline edit that loosens any value is rejected (tighten-only).
   5. No word-overlap helper in `crates/vox-search/src/evaluation.rs` carries an IR metric name (deleted or renamed), so no gate can call them.
-**Plans**: TBD
+**Plans:** 12 plans (5 waves; 01-04 and 01-10 hold the human checkpoints)
+Plans:
+- [ ] 01-01-PLAN.md — Wave 1. Eval engine in vox-search: tracer from fixture to report; kb_ids heading-path SSOT; IR metrics; BEIR loader; BM25 baseline
+- [ ] 01-02-PLAN.md — Wave 1. R4 word-overlap helpers moved/renamed into vox-cli-research; `citation_recall` → `answer_token_overlap`
+- [ ] 01-03-PLAN.md — Wave 1. Turso FTS characterization test (S1) + spike outcomes (S1, S2) in the DOC-01 SSOT
+- [ ] 01-04-PLAN.md — Wave 1. Snapshot decision (one-way), README + canary GUID + coverage scaffold, user writes ≥40 seed queries
+- [ ] 01-05-PLAN.md — Wave 2. Baseline ratchet (regression, tighten-only) and pure canary checks, mutation-proven
+- [ ] 01-06-PLAN.md — Wave 2. `vox kb eval` command (report/query/headings/snapshot) + frozen corpus snapshot
+- [ ] 01-08-PLAN.md — Wave 3. Pooled qrel proposals + paraphrase expansion, first half of the queries
+- [ ] 01-09-PLAN.md — Wave 3. Pooled qrel proposals + paraphrase/coverage-gap expansion, second half
+- [ ] 01-12-PLAN.md — Wave 3. `kb.eval` CLI SSOT registration, cli.md section, where-things-live row
+- [ ] 01-07-PLAN.md — Wave 4. `--gate` (fail-closed tighten-only + full canary sweep incl. MENS extractor), `--tighten`, `--write-baseline`
+- [ ] 01-10-PLAN.md — Wave 4. User approves qrels/prunes expansion; BEIR golden set materialized + contract test
+- [ ] 01-11-PLAN.md — Wave 5. Bootstrap baseline, real-data ratchet tests, two-process determinism, fast-tier gate + mutation proofs
 **Research flag**: none (BEIR layout and IR metrics are textbook). Run two spikes inside this phase and record the outcomes: the VoxDb/Turso FTS5 runtime probe (feeds IDX-07 in Phase 2) and the candle `modernbert` + tokenizers 0.21 load check (feeds Phase 5).
 
 ### Phase 2: Library Index and KB Tool Surface
@@ -51,7 +64,17 @@ Workstream `kb` turns Vox's 669 curated, non-archive markdown docs (~2.4M tokens
   3. `vox kb status` reports last-indexed commit, doc/chunk counts, embed model, the build manifest (model id + revision, dim, chunker version, corpus commit) and per-file errors. Every indexed doc has a summary-card row.
   4. From an external MCP host (Claude Code), a user can call `vox_kb_search`, `vox_kb_get`, `vox_kb_cite`, `vox_kb_status` and `vox_kb_reindex`, and read `kb://doc/{path}` and `kb://chunk/{hash}`. A page added under `docs/src/library/` appears in the `Library` sidebar section and in search results.
   5. The lexical leg is the one the recorded runtime probe chose. The writer-less `TantivyDocsIndex` mirror is gone from source. Doc-level `vox kb eval` metrics do not regress against the Phase 1 baseline (chunk-level qrels are re-keyed exactly once, with the delta recorded).
-**Plans**: TBD
+**Plans**: 9 plans
+Plans:
+- [ ] 02-01-PLAN.md — Gate (frozen-core schema 95 + tantivy-lexical placement), schema/store, tracer: one doc → kb_ids sections → hash-keyed rows → Tantivy → library::search
+- [ ] 02-02-PLAN.md — `docs/src/library/` + `Library` category, sidebar section and parity test
+- [ ] 02-03-PLAN.md — Complete heading chunker (fences, frontmatter, H3–H6, anchors, card, text-splitter oversize) + archive-proof walker
+- [ ] 02-04-PLAN.md — Incremental reindex: file-hash skip, prune, orphan-vector cleanup, kb_index_state manifest, status, readers (re-runs Phase 1's FTS5 probe)
+- [ ] 02-05-PLAN.md — Remove the writer-less TantivyDocsIndex mirror across crates
+- [ ] 02-06-PLAN.md — Five `vox_kb_*` MCP tools via the operations catalog (validation, single-flight)
+- [ ] 02-07-PLAN.md — `kb://doc` / `kb://chunk` resources through the daemon + routing tests
+- [ ] 02-08-PLAN.md — `vox kb status|reindex` CLI via daemon + where-things-live / search SSOT / CHANGELOG
+- [ ] 02-09-PLAN.md — Library retriever in `vox kb eval`, exact qrel resolution + one-time deepening via epoch, Claude Code UAT
 **Research flag**: YES (`/gsd-plan-phase 2 --research-phase`). The lexical-leg decision is unresolved: Turso FTS5 vs `USING fts`, `turso` crate feature gating, and the Tantivy-with-owning-writer fallback (the researchers disagree).
 
 ### Phase 3: Provenance, Trust Tiers and Leak Closure
@@ -64,7 +87,18 @@ Workstream `kb` turns Vox's 669 curated, non-archive markdown docs (~2.4M tokens
   3. Neither a chat turn nor a research synthesis writes an `accepted=1` or 0.95-confidence row anymore. `publish_research_doc`, GUI `ingest_url`/`ingest_text` and the scientia/MEMORY sinks produce only pending inbox findings. MENS `KbSignals` reads `kb_findings`.
   4. Property tests and a red-team fixture set show the sanitizer neutralises Unicode tag-block, zero-width/bidi characters, HTML comments and off-allowlist markdown images, at both the ingest and the injection boundary.
   5. `KbStore` LIKE search, `KbRouter`, the signal adapters, `kb_lines` and the 12 legacy `vox_kb_*` CRUD tools are absent from source and the tool catalog, and colliding names are replaced, not aliased. A seeded-DB migration test shows legacy `kb_entries`/`knowledge_bases` rows are counted before quarantine and non-empty rows appear in the inbox as pending.
-**Plans**: TBD
+**Plans:** 9 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Trust tier vocabulary, single sanitizer (property tests + red-team set), fail-closed promotion verdict
+- [ ] 03-02-PLAN.md — `kb_findings` inbox schema and tier-required corpus writers (frozen-core sign-off checkpoint)
+- [ ] 03-03-PLAN.md — Capture chokepoint; web-leg and CRAG sinks rerouted to the inbox
+- [ ] 03-04-PLAN.md — Research paths (quick, deep, gather, GUI save-session) into the inbox; docs/src research writer deleted
+- [ ] 03-05-PLAN.md — Chat-path leak closure: writeback, signal adapters, `kb_lines`, @kb consumer, MEMORY sink
+- [ ] 03-06-PLAN.md — Legacy VoxKB count-and-migrate; MENS KbSignals on reviewed findings (DPO only)
+- [ ] 03-07-PLAN.md — GUI side doors (Ingest URL/Text, Publish) file findings; Playwright stepper
+- [ ] 03-08-PLAN.md — Tier-aware retrieval, preamble drops Untrusted, injection-boundary sanitization, SSOT docs
+- [ ] 03-09-PLAN.md — Legacy VoxKB tool/store retirement, DDL quarantine, registries and CHANGELOG (one-way checkpoint)
 **Research flag**: none (in-repo quarantine and catalog-ops patterns).
 
 ### Phase 4: Taxonomy Contract and Facet Lint
@@ -204,7 +238,7 @@ Workstream `kb` turns Vox's 669 curated, non-archive markdown docs (~2.4M tokens
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Retrieval Eval Baseline | 0/TBD | Not started | - |
-| 2. Library Index and KB Tool Surface | 0/TBD | Not started | - |
+| 2. Library Index and KB Tool Surface | 0/9 | Planned | - |
 | 3. Provenance, Trust Tiers and Leak Closure | 0/TBD | Not started | - |
 | 4. Taxonomy Contract and Facet Lint | 0/TBD | Not started | - |
 | 5. Local Embeddings and Ranking Signals | 0/TBD | Not started | - |
