@@ -43,7 +43,7 @@ Each `queries.jsonl` line carries `metadata` with:
 
 | Field | Values |
 |---|---|
-| `origin` | `human` (written by a person from real questions) or `llm-expansion` (agent-generated, human-pruned) |
+| `origin` | `human` (written by a person from real questions), `agent-seed` (agent-written seed wording under recorded user delegation; see 01-CONTEXT D-02; never human), or `llm-expansion` (agent-generated, human-pruned) |
 | `intent` | `where`, `how-to`, `concept`, `policy`, `why`, `troubleshoot`, `multi-hop` |
 | `author` | who wrote the query |
 | `approved_by` | who accepted the query and its qrels |
@@ -54,7 +54,8 @@ Each `queries.jsonl` line carries `metadata` with:
 
 Split membership is **stored, not computed**: it is which qrels file holds the query. Within each
 (`origin`, `intent`) group, every 4th query in authoring order goes to `test`, so both origins are
-represented in the held-out set (roughly 25-30% held out).
+represented in the held-out set (roughly 25-30% held out). Seed queries are `human` plus `agent-seed`;
+the ratchet gates `dev/all` and the seed subset `dev/seed`.
 
 - Only `vox kb eval --split test` reads `test`, and only at milestone close.
 - The gate and `--tighten` always read `dev`. So does every tuning command. The baseline holds
