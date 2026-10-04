@@ -18,7 +18,7 @@ Research basis: `.planning/workstreams/kb/research/SUMMARY.md` and `docs/src/arc
 - [ ] **EVAL-02**: The golden set lives under `contracts/kb/eval/` in BEIR layout with ≥40 human-authored seed queries, an LLM-generated/human-pruned expansion, and a held-out split
 - [ ] **EVAL-03**: A canary-string check proves the golden set is excluded from the indexer roots and the MENS training corpus
 - [ ] **EVAL-04**: Retrieval metrics are ratcheted against `contracts/kb/retrieval-baseline.v1.json` in PR CI — a regression blocks merge; the baseline may only tighten
-- [ ] **EVAL-05**: The misnamed word-overlap helpers in `vox-search/src/evaluation.rs` are deleted or renamed so no gate can rely on them
+- [x] **EVAL-05**: The misnamed word-overlap helpers in `vox-search/src/evaluation.rs` are deleted or renamed so no gate can rely on them
 - [ ] **EVAL-06**: Nightly generation evals (faithfulness, citation support) run through the `vox_actor_runtime::llm` facade with n≥3 samples, a judge from a different model family than the generator, and position-swap checks; results are advisory, never PR-blocking
 
 ### Library Index (IDX)
@@ -153,7 +153,7 @@ Research basis: `.planning/workstreams/kb/research/SUMMARY.md` and `docs/src/arc
 | EVAL-02 | Phase 1 | Pending |
 | EVAL-03 | Phase 1 | Pending |
 | EVAL-04 | Phase 1 | Pending |
-| EVAL-05 | Phase 1 | Pending |
+| EVAL-05 | Phase 1 | Complete |
 | EVAL-06 | Phase 7 | Pending |
 | IDX-01 | Phase 2 | Pending |
 | IDX-02 | Phase 2 | Pending |

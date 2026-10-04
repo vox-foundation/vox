@@ -41,11 +41,11 @@ Workstream `kb` turns Vox's 669 curated, non-archive markdown docs (~2.4M tokens
   4. PR CI compares metrics against `contracts/kb/retrieval-baseline.v1.json`. A fixture PR that degrades ranking fails the gate, and a baseline edit that loosens any value is rejected (tighten-only).
   5. No word-overlap helper in `crates/vox-search/src/evaluation.rs` carries an IR metric name (deleted or renamed), so no gate can call them.
 
-**Plans:** 1/12 plans executed (5 waves; 01-04 and 01-10 hold the human checkpoints)
+**Plans:** 2/12 plans executed (5 waves; 01-04 and 01-10 hold the human checkpoints)
 Plans:
 
 - [x] 01-01-PLAN.md — Wave 1. Eval engine in vox-search: tracer from fixture to report; kb_ids heading-path SSOT; IR metrics; BEIR loader; BM25 baseline
-- [ ] 01-02-PLAN.md — Wave 1. R4 word-overlap helpers moved/renamed into vox-cli-research; `citation_recall` → `answer_token_overlap`
+- [x] 01-02-PLAN.md — Wave 1. R4 word-overlap helpers moved/renamed into vox-cli-research; `citation_recall` → `answer_token_overlap`
 - [ ] 01-03-PLAN.md — Wave 1. Turso FTS characterization test (S1) + spike outcomes (S1, S2) in the DOC-01 SSOT
 - [ ] 01-04-PLAN.md — Wave 1. Snapshot decision (one-way), README + canary GUID + coverage scaffold, user writes ≥40 seed queries
 - [ ] 01-05-PLAN.md — Wave 2. Baseline ratchet (regression, tighten-only) and pure canary checks, mutation-proven
@@ -283,7 +283,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Retrieval Eval Baseline | 1/12 | In Progress|  |
+| 1. Retrieval Eval Baseline | 2/12 | In Progress|  |
 | 2. Library Index and KB Tool Surface | 0/9 | Planned | - |
 | 3. Provenance, Trust Tiers and Leak Closure | 0/TBD | Not started | - |
 | 4. Taxonomy Contract and Facet Lint | 0/TBD | Not started | - |
