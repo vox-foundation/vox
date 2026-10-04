@@ -12,7 +12,6 @@
 /// correctly before checking the SVG passthrough path.  If this fails, the bug is bigger
 /// than the SVG passthrough — escalate before proceeding.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn nested_known_primitives_compose() {
     let source = r#"
 component Layout() {

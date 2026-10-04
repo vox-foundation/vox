@@ -31,7 +31,6 @@ fn compile_component(source: &str, component_name: &str) -> String {
 // ── Task 1.1 — tokens module (compile-only, no view) ─────────────────────────
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn tokens_module_compiles() {
     let source = r#"
 let bg        = "zinc.950"

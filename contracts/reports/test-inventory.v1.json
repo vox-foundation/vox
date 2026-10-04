@@ -4,11 +4,11 @@
     "workspace_crate_count": 130,
     "rust_files_scanned": 4116,
     "cargo_unit_test_functions": 10981,
-    "cargo_integration_test_functions": 3099,
+    "cargo_integration_test_functions": 3090,
     "cargo_bench_functions": 0,
-    "cargo_ignored_test_functions": 179,
-    "cargo_test_functions_total": 14080,
-    "webir_related_ignored_tests": 3,
+    "cargo_ignored_test_functions": 150,
+    "cargo_test_functions_total": 14071,
+    "webir_related_ignored_tests": 1,
     "webir_ignored_tests_likely_retired_note": 0
   },
   "crates": {
@@ -176,7 +176,7 @@
       "unit_tests": 572,
       "integration_tests": 676,
       "bench_tests": 0,
-      "ignored_tests": 73,
+      "ignored_tests": 53,
       "has_integration_dir": true,
       "integration_rs_files": 106
     },
@@ -390,9 +390,9 @@
     },
     "vox-integration-tests": {
       "unit_tests": 9,
-      "integration_tests": 263,
+      "integration_tests": 254,
       "bench_tests": 0,
-      "ignored_tests": 31,
+      "ignored_tests": 22,
       "has_integration_dir": true,
       "integration_rs_files": 68
     },
@@ -1128,15 +1128,11 @@
     },
     {
       "path": "crates/vox-compiler/tests/golden_dashboard_composites_test.rs",
-      "ignored_tests": 11
+      "ignored_tests": 10
     },
     {
       "path": "crates/vox-compiler/tests/golden_dashboard_surfaces_test.rs",
-      "ignored_tests": 9
-    },
-    {
-      "path": "crates/vox-compiler/tests/state_machine_integration_test.rs",
-      "ignored_tests": 9
+      "ignored_tests": 8
     },
     {
       "path": "crates/vox-compiler/tests/golden_runs_surface_test.rs",
@@ -1163,15 +1159,7 @@
       "ignored_tests": 5
     },
     {
-      "path": "crates/vox-integration-tests/tests/pipeline/includes/include_01.rs",
-      "ignored_tests": 5
-    },
-    {
       "path": "crates/vox-compiler/tests/golden_for_loop_test.rs",
-      "ignored_tests": 4
-    },
-    {
-      "path": "crates/vox-compiler/tests/golden_svg_vuv_test.rs",
       "ignored_tests": 4
     },
     {
@@ -1195,11 +1183,7 @@
       "ignored_tests": 3
     },
     {
-      "path": "crates/vox-compiler/tests/golden_svg_snake_case_test.rs",
-      "ignored_tests": 3
-    },
-    {
-      "path": "crates/vox-integration-tests/tests/codegen_rust_test.rs",
+      "path": "crates/vox-compiler/tests/golden_svg_vuv_test.rs",
       "ignored_tests": 3
     },
     {
@@ -1215,11 +1199,27 @@
       "ignored_tests": 2
     },
     {
-      "path": "crates/vox-compiler/tests/web_ir_environment_gates_test.rs",
+      "path": "crates/vox-integration-tests/tests/cli_test.rs",
       "ignored_tests": 2
     },
     {
-      "path": "crates/vox-integration-tests/tests/cli_test.rs",
+      "path": "crates/vox-integration-tests/tests/ts_emit_typecheck_test.rs",
+      "ignored_tests": 2
+    },
+    {
+      "path": "crates/vox-ml-cli/src/commands/mens/populi/gpu_tests_body.rs",
+      "ignored_tests": 2
+    },
+    {
+      "path": "crates/vox-orchestrator/tests/api_v2_health_test.rs",
+      "ignored_tests": 2
+    },
+    {
+      "path": "crates/vox-plugin-browser/src/hosts.rs",
+      "ignored_tests": 2
+    },
+    {
+      "path": "crates/vox-research-shim/src/research/orchestrator/stages.rs",
       "ignored_tests": 2
     }
   ],
@@ -1254,6 +1254,6 @@
     "serial_test": 106,
     "proptest_colon_colon": 9,
     "quickcheck_colon_colon": 2,
-    "insta_colon_colon": 109
+    "insta_colon_colon": 104
   }
 }
