@@ -127,6 +127,15 @@ impl Bm25Index {
     /// Every scored chunk, best first: `(quantized score desc, chunk id asc, ordinal asc)`.
     #[must_use]
     pub fn rank(&self, query: &str) -> Vec<RankedChunk> {
+        self.rank_scored(query)
+            .into_iter()
+            .map(|(_, c)| c)
+            .collect()
+    }
+
+    /// [`Self::rank`] with each chunk's BM25 score (quantized to 1e-9, as used for ordering).
+    #[must_use]
+    pub fn rank_scored(&self, query: &str) -> Vec<(f64, RankedChunk)> {
         if self.avg_len == 0.0 {
             return Vec::new();
         }
@@ -157,9 +166,12 @@ impl Bm25Index {
                 .then_with(|| a.1.cmp(&b.1))
         });
         hits.into_iter()
-            .map(|(_, ci)| RankedChunk {
-                id: self.chunks[ci].id.clone(),
-                bytes: self.chunks[ci].bytes,
+            .map(|(q, ci)| {
+                let c = RankedChunk {
+                    id: self.chunks[ci].id.clone(),
+                    bytes: self.chunks[ci].bytes,
+                };
+                (q as f64 / 1e9, c)
             })
             .collect()
     }
@@ -207,5 +219,8 @@ mod tests {
         assert_eq!(r.len(), 1);
         assert_eq!(r[0].id, "docs/src/a.md#A");
         assert!(idx.rank("nomatchterm").is_empty());
+        let scored = idx.rank_scored("zephyrine installer");
+        assert_eq!(scored.len(), 1);
+        assert!(scored[0].0 > 0.0 && scored[0].1.id == r[0].id);
     }
 }

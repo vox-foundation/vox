@@ -54,6 +54,7 @@ fn universal_reward_command_path(cli: &Cli) -> Option<&'static str> {
         Cli::Mens { .. } => Some("mens"),
         Cli::Populi { .. } => Some("populi"),
         Cli::Research { .. } => Some("research"),
+        Cli::Kb { .. } => Some("kb"),
         Cli::Deploy { .. } => Some("deploy"),
         Cli::Container { .. } => Some("container"),
         Cli::Plan { .. } => Some("plan"),
@@ -137,6 +138,7 @@ fn command_verb(cli: &Cli) -> &'static str {
         Cli::Mens { .. } => "mens",
         Cli::Populi { .. } => "populi",
         Cli::Research { .. } => "research",
+        Cli::Kb { .. } => "kb",
         Cli::Deploy { .. } => "deploy",
         Cli::Container { .. } => "container",
         Cli::Plan { .. } => "plan",
@@ -545,6 +547,7 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
             crate::commands::drift_check::run(args).await?;
         }
         Cli::Research { cmd } => vox_cli_research::run(cmd).await?,
+        Cli::Kb { cmd } => crate::commands::kb::run(cmd)?,
         #[cfg(feature = "coderabbit")]
         Cli::Review { cmd } => {
             run_review_subcommand(cmd).await?;

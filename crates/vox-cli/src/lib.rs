@@ -593,6 +593,13 @@ pub enum Cli {
         cmd: vox_cli_research::ResearchCmd,
     },
 
+    /// Knowledge base: retrieval eval (`vox kb eval`).
+    Kb {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: commands::kb::KbCmd,
+    },
+
     /// CodeRabbit batch PRs + ingest (`--features coderabbit`).
     #[cfg(feature = "coderabbit")]
     Review {

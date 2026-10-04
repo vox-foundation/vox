@@ -195,6 +195,9 @@ pub mod gui;
 /// Workspace drift and pattern-repetition linter (`vox drift-check`).
 pub mod drift_check;
 
+/// Knowledge-base operations (`vox kb eval`).
+pub mod kb;
+
 /// Insta snapshot helpers: orphan detection and cleanup (`vox snapshot`).
 pub mod snapshot;
 
