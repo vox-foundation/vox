@@ -87,7 +87,11 @@ pub use ops_finding_candidates::{FindingCandidateClass, FindingCandidateRow, Ins
 pub use ops_harness_decisions::HarnessIssueDecisionRow;
 pub use ops_harness_fix_proposals::{HarnessFixProposalRow, NewFixProposal};
 pub use ops_harness_issues::{HarnessIssueRow, NewHarnessIssue};
-pub use ops_memory::{KnowledgeHealthInfo, KnowledgeNodeRecord};
+pub use ops_memory::{
+    KB_CHUNK_SOURCE_TYPE, KB_LIBRARY_CORPUS, KnowledgeHealthInfo, KnowledgeNodeRecord,
+    LibraryChunkDiff, LibraryChunkInput, LibraryChunkRow, LibraryDocUpsert, TRUST_TIER_WIRE,
+    validate_trust_tier_wire,
+};
 pub use ops_orchestrator::HopperInboxRow;
 pub use ops_quota::{ProviderQuotaUsage, current_period_key, get_quota_usage, record_quota_spend};
 pub use ops_review::{ReviewDecisionRow, VALID_DECISIONS};

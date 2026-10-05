@@ -202,6 +202,17 @@ impl crate::VoxDb {
                     .await?;
             }
 
+            // Schema baseline 95 (KB Phase 2): library-index columns. Same PRAGMA-guarded shape as
+            // above; the indexes are created AFTER the ALTERs because a v94 database lacks these
+            // columns when `baseline_sql()` runs.
+            Self::ensure_kb_library_columns(conn).await?;
+            conn.execute_batch(
+                "CREATE INDEX IF NOT EXISTS idx_search_documents_corpus ON search_documents(corpus);
+                 CREATE UNIQUE INDEX IF NOT EXISTS idx_search_chunks_doc_hash ON search_document_chunks(document_id, chunk_hash);
+                 CREATE INDEX IF NOT EXISTS idx_search_chunks_hash ON search_document_chunks(chunk_hash);",
+            )
+            .await?;
+
             crate::schema_extensions::apply_schema_extensions(conn).await?;
 
             conn.execute(
@@ -214,6 +225,48 @@ impl crate::VoxDb {
 
         Self::ensure_latency_columns(conn).await?;
 
+        Ok(())
+    }
+
+    /// Baseline 95: add the KB Library columns to a pre-95 `search_documents` /
+    /// `search_document_chunks`. Idempotent (PRAGMA-guarded); a fresh database already has them.
+    async fn ensure_kb_library_columns(conn: &turso::Connection) -> Result<(), StoreError> {
+        const COLUMNS: [(&str, &str, &str); 10] = [
+            ("search_documents", "corpus", "TEXT NOT NULL DEFAULT ''"),
+            ("search_documents", "rel_path", "TEXT"),
+            ("search_documents", "frontmatter_json", "TEXT"),
+            ("search_documents", "indexed_commit", "TEXT"),
+            ("search_documents", "index_error", "TEXT"),
+            ("search_document_chunks", "chunk_hash", "TEXT"),
+            (
+                "search_document_chunks",
+                "chunk_kind",
+                "TEXT NOT NULL DEFAULT 'section'",
+            ),
+            (
+                "search_document_chunks",
+                "heading_path",
+                "TEXT NOT NULL DEFAULT ''",
+            ),
+            ("search_document_chunks", "anchor", "TEXT"),
+            ("search_document_chunks", "token_estimate", "INTEGER"),
+        ];
+        for (table, column, decl) in COLUMNS {
+            let mut rows = conn
+                .query(&format!("PRAGMA table_info({table})"), ())
+                .await?;
+            let mut has_column = false;
+            while let Some(row) = rows.next().await? {
+                if row.get::<String>(1)? == column {
+                    has_column = true;
+                }
+            }
+            drop(rows);
+            if !has_column {
+                conn.execute_batch(&format!("ALTER TABLE {table} ADD COLUMN {column} {decl};"))
+                    .await?;
+            }
+        }
         Ok(())
     }
 

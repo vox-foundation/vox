@@ -49,7 +49,12 @@ CREATE TABLE IF NOT EXISTS search_documents (
     title TEXT NOT NULL DEFAULT '',
     mime_type TEXT NOT NULL DEFAULT '',
     content_hash TEXT NOT NULL DEFAULT '',
-    ingested_at TEXT NOT NULL DEFAULT (datetime('now'))
+    ingested_at TEXT NOT NULL DEFAULT (datetime('now')),
+    corpus TEXT NOT NULL DEFAULT '',
+    rel_path TEXT,
+    frontmatter_json TEXT,
+    indexed_commit TEXT,
+    index_error TEXT
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_search_documents_uri ON search_documents(source_uri);
@@ -62,7 +67,33 @@ CREATE TABLE IF NOT EXISTS search_document_chunks (
     body_text TEXT NOT NULL,
     embedding_ref TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    chunk_hash TEXT,
+    chunk_kind TEXT NOT NULL DEFAULT 'section',
+    heading_path TEXT NOT NULL DEFAULT '',
+    anchor TEXT,
+    token_estimate INTEGER,
     UNIQUE(document_id, chunk_index)
+);
+
+-- KB Library index manifest (baseline 95). One row per corpus. Indexes on the baseline-95
+-- columns of search_documents/search_document_chunks are created in store/open.rs AFTER the
+-- guarded ALTERs (a v94 database lacks those columns when this text runs).
+CREATE TABLE IF NOT EXISTS kb_index_state (
+    corpus TEXT PRIMARY KEY,
+    corpus_root TEXT NOT NULL,
+    corpus_commit TEXT,
+    indexed_at TEXT NOT NULL,
+    doc_count INTEGER NOT NULL,
+    chunk_count INTEGER NOT NULL,
+    card_count INTEGER NOT NULL,
+    chunker_version TEXT NOT NULL,
+    lexical_backend TEXT NOT NULL,
+    trust_tier TEXT NOT NULL,
+    embed_model_id TEXT,
+    embed_revision TEXT,
+    embed_dim INTEGER,
+    errors_json TEXT NOT NULL DEFAULT '[]',
+    duration_ms INTEGER NOT NULL
 );
 
 -- search_indexing_jobs: quarantined (DEAD, Task 4) — see domains/quarantine.rs.
