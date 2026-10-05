@@ -1609,3 +1609,19 @@ contracts:
       closed for any uncalibrated cell.
     enforced_by:
       - "cargo test -p vox-populi --features mens --lib mens::tensor::memory_model::"
+
+  - id: kb-retrieval-baseline
+    path: contracts/kb/retrieval-baseline.v1.json
+    owner: knowledge-base
+    kind: json
+    description: Tighten-only retrieval ratchet (epoch 1) for the knowledge-base golden set.
+    enforced_by:
+      - vox kb eval --gate
+
+  - id: kb-eval-golden-set
+    path: contracts/kb/eval/README.md
+    owner: knowledge-base
+    kind: markdown
+    description: Knowledge-base golden set (BEIR queries, qrels, corpus snapshot) and its canary rules.
+    enforced_by:
+      - vox kb eval --gate

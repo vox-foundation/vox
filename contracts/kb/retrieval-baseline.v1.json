@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "epoch": 1,
+  "epoch_note": "bootstrap: 48 agent-seed + 54 llm-expansion queries (dev 76 / test 26), corpus snapshot of 670 docs at 161919567; seeds agent-authored under user delegation, approved by an independent agent reviewer",
+  "retriever": "bm25-inmem-v1",
+  "chunker": "md-h1h2-4096-v1",
+  "token_estimator": "bytes/4",
+  "budget_tokens": 1500,
+  "tolerance": 0.01,
+  "metrics": {
+    "dev/all": {
+      "doc": {
+        "recall@5": 0.469737,
+        "recall@10": 0.585307,
+        "mrr@10": 0.556835,
+        "ndcg@10": 0.459945
+      },
+      "chunk": {
+        "recall@5": 0.260307,
+        "recall@10": 0.316667,
+        "mrr@10": 0.339803,
+        "ndcg@10": 0.273916
+      },
+      "answer_in_budget": 0.355263
+    },
+    "dev/seed": {
+      "doc": {
+        "recall@5": 0.527143,
+        "recall@10": 0.668571,
+        "mrr@10": 0.676984,
+        "ndcg@10": 0.552024
+      },
+      "chunk": {
+        "recall@5": 0.34381,
+        "recall@10": 0.399524,
+        "mrr@10": 0.46,
+        "ndcg@10": 0.354592
+      },
+      "answer_in_budget": 0.428571
+    }
+  }
+}
