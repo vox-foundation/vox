@@ -44,7 +44,7 @@ Each `queries.jsonl` line carries `metadata` with:
 
 | Field | Values |
 |---|---|
-| `origin` | `human` (written by a person from real questions), `agent-seed` (agent-written seed wording under recorded user delegation; see 01-CONTEXT D-02; never human), or `llm-expansion` (agent-generated, human-pruned) |
+| `origin` | `human` (written by a person from real questions), `agent-seed` (agent-written seed wording under recorded user delegation; see 01-CONTEXT D-02; never human), or `llm-expansion` (agent-generated, pruned and approved by a reviewer recorded in `approved_by` (an independent agent reviewer under delegation for epoch 1)) |
 | `intent` | `where`, `how-to`, `concept`, `policy`, `why`, `troubleshoot`, `multi-hop` |
 | `author` | who wrote the query |
 | `approved_by` | who accepted the query and its qrels |

@@ -36,7 +36,7 @@ Workstream `kb` turns Vox's 669 curated, non-archive markdown docs (~2.4M tokens
 **Success Criteria** (what must be TRUE):
 
   1. Running `vox kb eval` twice on the same commit prints byte-identical Recall@5/10, MRR@10, nDCG@10 (on both doc and chunk IDs) and the answer-bearing-chunk-within-budget rate. A hand-computed 3-query fixture reproduces the expected metric values exactly.
-  2. `contracts/kb/eval/` holds a BEIR-layout golden set (`corpus.jsonl`, `queries.jsonl`, `qrels/`). It has ≥40 queries tagged human-authored, a pruned LLM-generated expansion tagged as such, and a held-out split that no tuning command reads.
+  2. `contracts/kb/eval/` holds a BEIR-layout golden set (`corpus.jsonl`, `queries.jsonl`, `qrels/`). It has ≥40 seed queries (origin `human`, or `agent-seed` when authoring is delegated — amended 2026-10-04 per 01-CONTEXT D-02), a pruned LLM-generated expansion tagged as such, and a held-out split that no tuning command reads.
   3. A canary-string check fails CI when the golden set appears under any indexer root or in MENS corpus build output. This is proven by mutation: plant the canary in an indexed path and the check goes red.
   4. PR CI compares metrics against `contracts/kb/retrieval-baseline.v1.json`. A fixture PR that degrades ranking fails the gate, and a baseline edit that loosens any value is rejected (tighten-only).
   5. No word-overlap helper in `crates/vox-search/src/evaluation.rs` carries an IR metric name (deleted or renamed), so no gate can call them.
