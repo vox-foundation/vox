@@ -25,7 +25,9 @@ pub struct IndexDeps<'a> {
     pub trust_tier: &'a str,
 }
 
-/// A file that could not be read or indexed; indexing continues past it.
+/// A file or directory that could not be read or indexed (unreadable directory, bad file), or a
+/// run-level note such as a skipped prune; indexing continues past it. Any walk error disables
+/// pruning for that run.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct FileError {
     pub path: String,
@@ -76,7 +78,10 @@ pub async fn index_library(
         .await?
         .is_some_and(|s| s.chunker_version == chunk::CHUNKER_VERSION);
     let mut walked: Vec<String> = Vec::new();
-    for file in corpus::walk_corpus(repo_root) {
+    let (files, walk_errors) = corpus::walk_corpus(repo_root);
+    let walk_complete = walk_errors.is_empty();
+    report.errors.extend(walk_errors);
+    for file in files {
         report.docs_seen += 1;
         // Every walked path is kept, errored or not: a transient read error never prunes a doc.
         walked.push(file.rel_path.clone());
@@ -134,10 +139,23 @@ pub async fn index_library(
         }
     }
 
-    report.docs_pruned = db
-        .prune_library_documents_not_in(KB_LIBRARY_CORPUS, &walked)
-        .await?
-        .len();
+    // Prune only on a complete walk that is not suspiciously empty: a partial or empty walk is
+    // not "everything else was deleted" (CR-01).
+    let prune_safe = walk_complete
+        && (report.docs_seen > 0 || db.library_chunk_count(KB_LIBRARY_CORPUS).await? == 0);
+    if prune_safe {
+        report.docs_pruned = db
+            .prune_library_documents_not_in(KB_LIBRARY_CORPUS, &walked)
+            .await?
+            .len();
+    } else {
+        report.errors.push(FileError {
+            path: crate::kb_ids::KB_CORPUS_ROOTS.join(", "),
+            error: "prune skipped: the corpus walk was incomplete or found no files while Library \
+                    chunks are stored"
+                .into(),
+        });
+    }
     db.prune_orphan_kb_chunk_embeddings().await?;
 
     let rows = db.library_chunk_rows(KB_LIBRARY_CORPUS).await?;

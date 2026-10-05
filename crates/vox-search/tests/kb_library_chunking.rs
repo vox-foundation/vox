@@ -34,7 +34,7 @@ fn repo_root() -> PathBuf {
 #[test]
 fn chunk_paths_match_kb_ids() {
     let root = repo_root();
-    let files = walk_corpus(&root);
+    let files = walk_corpus(&root).0;
     assert!(!files.is_empty(), "no corpus under {}", root.display());
     for f in files {
         let raw = std::fs::read_to_string(&f.abs).unwrap_or_else(|e| panic!("{}: {e}", f.rel_path));
@@ -345,7 +345,11 @@ fn write_file(root: &Path, rel: &str, text: &str) {
 }
 
 fn walked(root: &Path) -> Vec<String> {
-    walk_corpus(root).into_iter().map(|f| f.rel_path).collect()
+    walk_corpus(root)
+        .0
+        .into_iter()
+        .map(|f| f.rel_path)
+        .collect()
 }
 
 #[tokio::test]
@@ -410,8 +414,9 @@ fn walker_matches_kb_filter() {
     );
     // Same predicate on the real tree.
     for f in walk_corpus(&repo_root())
+        .0
         .iter()
-        .chain(&walk_corpus(dir.path()))
+        .chain(&walk_corpus(dir.path()).0)
     {
         assert!(kb_ids::is_kb_corpus_path(&f.rel_path), "{}", f.rel_path);
     }

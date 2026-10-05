@@ -99,7 +99,9 @@ pub fn kb_resource_templates() -> Vec<ResourceTemplate> {
 /// One `(uri, name)` per indexable corpus file, from the same walker the indexer uses (never
 /// from request input), so every listed URI passes [`parse_kb_uri`].
 pub fn list_kb_doc_resources(repo_root: &Path) -> Vec<(String, String)> {
+    // A partial walk only shortens the listing; nothing is deleted here.
     walk_corpus(repo_root)
+        .0
         .into_iter()
         .map(|f| (format!("{DOC_PREFIX}{}", f.rel_path), f.rel_path))
         .collect()

@@ -496,3 +496,68 @@ async fn kb_chunker_version_change_forces_rechunk() {
         vox_search::library::chunk::CHUNKER_VERSION
     );
 }
+
+// ---- 02-10: CR-01 — a partial, empty or missing walk must never prune the Library ----
+
+async fn try_run(
+    db: &VoxDb,
+    repo: &tempfile::TempDir,
+) -> anyhow::Result<vox_search::library::IndexReport> {
+    index_library(db, repo.path(), &repo.path().join("lex"), &deps()).await
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn kb_reindex_unreadable_subdir_keeps_rows() {
+    use std::os::unix::fs::PermissionsExt;
+    let repo = tree(&[("a.md", DOC_A), ("sub/b.md", DOC_B), ("c.md", DOC_C)]);
+    let lex = repo.path().join("lex");
+    let db = VoxDb::open_memory().await.unwrap();
+    run(&db, &repo).await;
+    let sub_path = "docs/src/sub/b.md";
+    let snapshot = doc_chunks(&db, sub_path).await;
+    assert!(!snapshot.is_empty());
+    for (_, hash) in &snapshot {
+        db.store_embedding("kb_chunk", hash, "m", &[0.5, 0.25], None, None)
+            .await
+            .unwrap();
+    }
+
+    let sub = repo.path().join("docs/src/sub");
+    std::fs::set_permissions(&sub, std::fs::Permissions::from_mode(0o000)).unwrap();
+    if std::fs::read_dir(&sub).is_ok() {
+        std::fs::set_permissions(&sub, std::fs::Permissions::from_mode(0o755)).unwrap();
+        return; // permissions are bypassed (root): the scenario cannot be staged
+    }
+    write(
+        &repo,
+        "a.md",
+        &DOC_A.replace("alpha body", "alpha body quuxword"),
+    );
+    let res = try_run(&db, &repo).await;
+    std::fs::set_permissions(&sub, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let r = res.unwrap();
+
+    assert_eq!(r.docs_pruned, 0, "{r:?}");
+    assert!(r.errors.iter().any(|e| e.path == "docs/src/sub"), "{r:?}");
+    assert!(
+        r.errors.iter().any(|e| e.error.contains("prune skipped")),
+        "{r:?}"
+    );
+    let host = repo.path().to_string_lossy();
+    assert!(
+        r.errors
+            .iter()
+            .all(|e| !e.error.contains(host.as_ref()) && !e.path.contains(host.as_ref())),
+        "{r:?}"
+    );
+    assert_eq!(doc_chunks(&db, sub_path).await, snapshot);
+    for (_, hash) in &snapshot {
+        assert_eq!(db.embedding_count("kb_chunk", Some(hash)).await.unwrap(), 1);
+    }
+    let hits = search(&db, &lex, "quuxword", 5).await.unwrap();
+    assert!(
+        hits.iter().any(|h| h.doc_path == "docs/src/a.md"),
+        "{hits:?}"
+    );
+}
