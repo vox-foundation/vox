@@ -13,7 +13,7 @@ Workstream `kb` turns Vox's 669 curated, non-archive markdown docs (~2.4M tokens
 
 ## Phases
 
-- [ ] **Phase 1: Retrieval Eval Baseline** - Deterministic ID-based retrieval eval, BEIR golden set, canary exclusion, ratcheted baseline in PR CI (DOC-01 already complete)
+- [x] **Phase 1: Retrieval Eval Baseline** - Deterministic ID-based retrieval eval, BEIR golden set, canary exclusion, ratcheted baseline in PR CI (DOC-01 already complete) (completed 2026-10-05)
 - [ ] **Phase 2: Library Index and KB Tool Surface** - Content-hash incremental indexer with heading-path chunks, `docs/src/library/`, one `vox_kb_*` MCP contract and `kb://` resources
 - [ ] **Phase 3: Provenance, Trust Tiers and Leak Closure** - Required trust tier on every row, `kb_findings` inbox, sanitizer, the R1/R2 leaks closed, legacy VoxKB retired into `vox-search`
 - [ ] **Phase 4: Taxonomy Contract and Facet Lint** - SKOS-lite vocabulary, shared schemars facet schema, page-one summary, authorship and training-eligibility rules under a ratcheting lint
@@ -41,7 +41,7 @@ Workstream `kb` turns Vox's 669 curated, non-archive markdown docs (~2.4M tokens
   4. PR CI compares metrics against `contracts/kb/retrieval-baseline.v1.json`. A fixture PR that degrades ranking fails the gate, and a baseline edit that loosens any value is rejected (tighten-only).
   5. No word-overlap helper in `crates/vox-search/src/evaluation.rs` carries an IR metric name (deleted or renamed), so no gate can call them.
 
-**Plans:** 12/12 plans executed (5 waves; 01-04 and 01-10 hold the human checkpoints)
+**Plans:** 12/12 plans complete
 Plans:
 
 - [x] 01-01-PLAN.md — Wave 1. Eval engine in vox-search: tracer from fixture to report; kb_ids heading-path SSOT; IR metrics; BEIR loader; BM25 baseline
@@ -283,7 +283,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Retrieval Eval Baseline | 12/12 | In Progress|  |
+| 1. Retrieval Eval Baseline | 12/12 | Complete    | 2026-10-05 |
 | 2. Library Index and KB Tool Surface | 0/9 | Planned | - |
 | 3. Provenance, Trust Tiers and Leak Closure | 0/TBD | Not started | - |
 | 4. Taxonomy Contract and Facet Lint | 0/TBD | Not started | - |

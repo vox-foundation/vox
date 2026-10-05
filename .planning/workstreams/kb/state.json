@@ -6,7 +6,7 @@
     {
       "number": "1",
       "name": "Retrieval Eval Baseline",
-      "status": "in_progress"
+      "status": "complete"
     },
     {
       "number": "2",
@@ -66,8 +66,8 @@
   ],
   "next": {
     "command": "/gsd:progress --next",
-    "label": "Advance to the next step (verify)",
-    "reason": "Phase 1 of 12 · 0% · ready to verify"
+    "label": "Advance to the next step (plan phase 02)",
+    "reason": "Phase 02 of 12 — needs a plan"
   },
-  "updated_at": "2026-10-05T06:36:25.015Z"
+  "updated_at": "2026-10-05T07:24:02.578Z"
 }
