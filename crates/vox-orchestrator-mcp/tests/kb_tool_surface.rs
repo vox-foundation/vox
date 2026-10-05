@@ -8,6 +8,7 @@ const TOOLS: &[&str] = &[
     "vox_kb_get",
     "vox_kb_cite",
     "vox_kb_status",
+    "vox_kb_reindex",
 ];
 /// Tools that must be reachable by the HTTP read role.
 const READ_ROLE: &[&str] = &[
@@ -17,7 +18,7 @@ const READ_ROLE: &[&str] = &[
     "vox_kb_status",
 ];
 /// Tools that write and must never be read-role eligible.
-const WRITE_TOOLS: &[&str] = &[];
+const WRITE_TOOLS: &[&str] = &["vox_kb_reindex"];
 
 fn read_role_tools() -> Vec<String> {
     let src = include_str!("../../../contracts/mcp/http-read-role-governance.yaml");

@@ -116,20 +116,26 @@ pub async fn kb_search(state: &ServerState, params: KbSearchParams) -> String {
     search_in(&db, &dir, query, clamp_limit(params.limit)).await
 }
 
-#[allow(dead_code)] // used by reindex_at; wired to vox_kb_reindex in the last task of 02-06
 fn hasher(bytes: &[u8]) -> String {
     vox_crypto::hex_encode(&vox_crypto::secure_hash(bytes))
 }
 
+/// One reindex at a time per process (AP-20); Tantivy's own writer lockfile guards other
+/// processes. A contending caller is refused, never queued.
+static KB_REINDEX_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
 /// Index `<repo_root>/docs/src` into `db` and `lexical_dir` with the vox-crypto hasher. The
-/// trust tier is `trusted` (curated, merged to git; AP-12).
-#[allow(dead_code)] // wired to vox_kb_reindex in the last task of 02-06
+/// trust tier is `trusted` (curated, merged to git; AP-12). Refuses with `reindex already
+/// running` while another call holds [`KB_REINDEX_LOCK`].
 pub(crate) async fn reindex_at(
     db: &VoxDb,
     repo_root: &Path,
     lexical_dir: &Path,
     corpus_commit: Option<String>,
 ) -> Result<IndexReport, String> {
+    let Ok(_guard) = KB_REINDEX_LOCK.try_lock() else {
+        return Err("reindex already running".into());
+    };
     let deps = IndexDeps {
         hasher: &hasher,
         corpus_commit,
@@ -138,6 +144,78 @@ pub(crate) async fn reindex_at(
     index_library(db, repo_root, lexical_dir, &deps)
         .await
         .map_err(|e| format!("reindex failed: {e:#}"))
+}
+
+/// Keys the dispatch layer or a caller may attach to any tool call; ignored here.
+const META_KEYS: &[&str] = &[
+    "agent_id",
+    "session_id",
+    "trace_id",
+    "correlation_id",
+    "task_id",
+];
+
+/// `vox_kb_reindex` has no parameters: the corpus root is fixed, so any other key (a `root`,
+/// `path`, ...) is rejected before anything runs (T-02-16).
+pub fn reject_reindex_args(args: &serde_json::Value) -> Result<(), String> {
+    match args {
+        serde_json::Value::Null => Ok(()),
+        serde_json::Value::Object(m) => match m.keys().find(|k| !META_KEYS.contains(&k.as_str())) {
+            None => Ok(()),
+            Some(k) => Err(format!("vox_kb_reindex takes no arguments (got `{k}`)")),
+        },
+        _ => Err("vox_kb_reindex takes no arguments".into()),
+    }
+}
+
+fn report_json(r: &IndexReport) -> serde_json::Value {
+    json!({
+        "docs_seen": r.docs_seen,
+        "docs_unchanged": r.docs_unchanged,
+        "docs_changed": r.docs_changed,
+        "docs_pruned": r.docs_pruned,
+        "chunks_inserted": r.chunks_inserted,
+        "chunks_deleted": r.chunks_deleted,
+        "chunks_kept": r.chunks_kept,
+        "cards": r.cards,
+        "errors": r.errors,
+        "lexical_backend": r.lexical_backend,
+        "lexical_docs": r.lexical_docs,
+        "corpus_commit": r.corpus_commit,
+        "duration_ms": r.duration_ms,
+    })
+}
+
+/// `HEAD` of the repository, or `None` when git is unavailable or the root is not a checkout.
+async fn head_commit(root: &Path) -> Option<String> {
+    let out = crate::git_exec::GitExec::new(root)
+        .run(&["rev-parse", "HEAD"])
+        .await
+        .ok()?;
+    let sha = out.stdout.trim();
+    (out.exit_code == 0 && !sha.is_empty()).then(|| sha.to_string())
+}
+
+/// `vox_kb_reindex`: rebuild the Library from `<repo root>/docs/src`; returns the index report.
+pub async fn kb_reindex(state: &ServerState) -> String {
+    let db = match require_db(state) {
+        Ok(db) => db,
+        Err(e) => return err_json(e, REM_KB_DB),
+    };
+    let Some(dir) = lexical::default_index_dir() else {
+        return err_json(
+            "no Library index directory could be resolved",
+            "Set VOX_SEARCH_TANTIVY_ROOT or ensure the Vox data directory is available.",
+        );
+    };
+    let root = &state.repository.root;
+    match reindex_at(&db, root, &dir, head_commit(root).await).await {
+        Ok(r) => ToolResult::ok(report_json(&r)).to_json(),
+        Err(e) => err_json(
+            e,
+            "If a reindex is already running, wait for it to finish; otherwise fix the error and retry.",
+        ),
+    }
 }
 
 /// `vox_kb_get` arguments: exactly one of `path` or `chunk_hash`.
@@ -681,5 +759,121 @@ mod tests {
             assert!(d.get(k).is_some(), "missing {k}");
         }
         assert!(!d["chunker_version"].as_str().unwrap().is_empty());
+    }
+
+    /// Temp repo with `docs/src/a.md` containing `body`, plus its tempdir.
+    async fn one_doc_repo(body: &str) -> (TempDir, std::path::PathBuf) {
+        let tmp = tempfile::tempdir().unwrap();
+        let repo = tmp.path().join("repo");
+        tokio::fs::create_dir_all(repo.join("docs/src"))
+            .await
+            .unwrap();
+        tokio::fs::write(repo.join("docs/src/a.md"), body)
+            .await
+            .unwrap();
+        (tmp, repo)
+    }
+
+    #[test]
+    fn kb_reindex_rejects_args() {
+        assert!(reject_reindex_args(&json!({})).is_ok());
+        assert!(reject_reindex_args(&serde_json::Value::Null).is_ok());
+        assert!(reject_reindex_args(&json!({"agent_id": "1"})).is_ok());
+        for bad in [
+            json!({"root": "/etc"}),
+            json!({"path": "docs/src"}),
+            json!({"agent_id": "1", "root": "/"}),
+            json!(["x"]),
+        ] {
+            assert!(reject_reindex_args(&bad).is_err(), "{bad}");
+        }
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn kb_reindex_dispatch_rejects_args() {
+        let (_tmp, state) = indexed_state().await;
+        let r =
+            crate::dispatch::handle_tool_call(&state, "vox_kb_reindex", json!({"root": "/"})).await;
+        assert!(r.is_err(), "unexpected args must fail before any indexing");
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn kb_reindex_single_flight() {
+        let (tmp, repo) = one_doc_repo("# A\n## S\nbody\n").await;
+        let db = VoxDb::open_memory().await.unwrap();
+        let lex = tmp.path().join("lex");
+        {
+            let _held = KB_REINDEX_LOCK.lock().await;
+            let e = reindex_at(&db, &repo, &lex, None).await.unwrap_err();
+            assert!(e.contains("already running"), "{e}");
+        }
+        assert!(reindex_at(&db, &repo, &lex, None).await.is_ok());
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn kb_reindex_uses_vox_crypto_hasher() {
+        let (tmp, repo) = one_doc_repo("# T\n## S\nsome body text\n").await;
+        let db = VoxDb::open_memory().await.unwrap();
+        reindex_at(&db, &repo, &tmp.path().join("lex"), None)
+            .await
+            .unwrap();
+        let chunks = db
+            .library_doc_chunks(KB_LIBRARY_CORPUS, "docs/src/a.md")
+            .await
+            .unwrap();
+        let sec = chunks
+            .iter()
+            .find(|c| c.heading_path == "T › S")
+            .expect("section chunk");
+        let input = format!("docs/src/a.md\0{}\0{}", sec.heading_path, sec.body);
+        let expected = vox_crypto::hex_encode(&vox_crypto::secure_hash(input.as_bytes()));
+        assert_eq!(sec.chunk_hash, expected);
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn kb_reindex_report() {
+        let (tmp, repo) = one_doc_repo("# A\n## S\nquokkaflux body\n").await;
+        set_index_root(&tmp.path().join("idx"));
+        let db = Arc::new(VoxDb::open_memory().await.unwrap());
+        let mut state = ServerState::new_test().await.with_db_initialized(db).await;
+        state.repository.root = repo;
+
+        let v = tool(&state, "vox_kb_reindex", json!({})).await;
+        assert_eq!(v["success"], true, "{v}");
+        let d = &v["data"];
+        for k in [
+            "docs_seen",
+            "docs_unchanged",
+            "docs_changed",
+            "docs_pruned",
+            "chunks_inserted",
+            "chunks_deleted",
+            "chunks_kept",
+            "cards",
+            "errors",
+            "lexical_backend",
+            "lexical_docs",
+            "corpus_commit",
+            "duration_ms",
+        ] {
+            assert!(d.get(k).is_some(), "report missing {k}: {v}");
+        }
+        assert_eq!(d["docs_seen"], 1);
+        assert_eq!(d["docs_changed"], 1);
+        assert_eq!(d["lexical_backend"], "tantivy-0.22");
+        assert!(
+            d["corpus_commit"].is_null(),
+            "temp dir is not a git checkout"
+        );
+
+        // The tool-built index is immediately searchable, and a second run is a no-op.
+        let hits = tool(&state, "vox_kb_search", json!({"query": "quokkaflux"})).await;
+        assert_eq!(hits["data"]["hits"][0]["heading_path"], "A › S", "{hits}");
+        let v = tool(&state, "vox_kb_reindex", json!({})).await;
+        assert_eq!(v["data"]["docs_unchanged"], 1, "{v}");
     }
 }

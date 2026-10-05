@@ -323,6 +323,7 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_kb_get" => derived_tool_schema!(crate::kb_tools::library::KbGetParams),
         "vox_kb_cite" => derived_tool_schema!(crate::kb_tools::library::KbCiteParams),
         "vox_kb_status" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
+        "vox_kb_reindex" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
 
         // ── Memory (MEMORY.md / search) ─────────────────────────────────────
         "vox_memory_store" => parse_obj(

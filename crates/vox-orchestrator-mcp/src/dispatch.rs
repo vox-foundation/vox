@@ -1503,6 +1503,10 @@ async fn handle_tool_call_inner(
             Ok(crate::kb::library::kb_cite(state, serde_json::from_value(args)?).await)
         }
         "vox_kb_status" => Ok(crate::kb::library::kb_status(state).await),
+        "vox_kb_reindex" => {
+            crate::kb::library::reject_reindex_args(&args).map_err(anyhow::Error::msg)?;
+            Ok(crate::kb::library::kb_reindex(state).await)
+        }
 
         "vox_compaction_status" => {
             Ok(crate::memory::compaction_status(state, serde_json::from_value(args)?).await)

@@ -27039,6 +27039,28 @@ operations:
     http_read_role_eligible: true
     tier: core
   cli: null
+- id: kb.reindex
+  title: Reindex Knowledge Library
+  description: Rebuild the KB Library index from the repository docs/src tree (takes no path arguments; single-flight); returns the index report.
+  description_human: null
+  product_lane: ai
+  intent_tags:
+  - retrieval
+  - knowledge
+  side_effect_class: writes_files
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_kb_reindex
+    http_read_role_eligible: false
+    tier: core
+  cli: null
 - id: gui
   title: Gui
   description: CLI operation `vox gui` — launch Axis or drive a dedicated debug Axis

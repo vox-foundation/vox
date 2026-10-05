@@ -20819,6 +20819,24 @@ curated:
   mcp_tool: vox_kb_query
   cli_path: null
   parameters: null
+- id: mcp.vox_kb_reindex
+  title: Reindex Knowledge Library
+  description_human: null
+  description_model: Rebuild the KB Library index from the repository docs/src tree (takes no path arguments; single-flight); returns the index report.
+  intent_tags:
+  - retrieval
+  - knowledge
+  side_effect_class: writes_files
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_kb_reindex
+  cli_path: null
+  parameters: null
 - id: mcp.vox_kb_review_entry
   title: Review Knowledge Entry
   description_human: null
