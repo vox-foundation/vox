@@ -18,8 +18,7 @@ pub fn decode_for_scan(bytes: &[u8]) -> String {
     let mut s = String::from_utf8_lossy(bytes).into_owned();
     if bytes.contains(&0) {
         for le in [true, false] {
-            let units = bytes.chunks_exact(2).map(|p| {
-                let pair = [p[0], p[1]];
+            let units = bytes.as_chunks::<2>().0.iter().map(|&pair| {
                 if le {
                     u16::from_le_bytes(pair)
                 } else {
