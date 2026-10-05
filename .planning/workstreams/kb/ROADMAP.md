@@ -72,17 +72,32 @@ Plans:
   4. From an external MCP host (Claude Code), a user can call `vox_kb_search`, `vox_kb_get`, `vox_kb_cite`, `vox_kb_status` and `vox_kb_reindex`, and read `kb://doc/{path}` and `kb://chunk/{hash}`. A page added under `docs/src/library/` appears in the `Library` sidebar section and in search results.
   5. The lexical leg is the one the recorded runtime probe chose. The writer-less `TantivyDocsIndex` mirror is gone from source. Doc-level `vox kb eval` metrics do not regress against the Phase 1 baseline (chunk-level qrels are re-keyed exactly once, with the delta recorded).
 
-**Plans**: 9/9 plans executed
+**Plans**: 9/11 plans executed
 Plans:
+**Wave 1**
 
 - [x] 02-01-PLAN.md — Gate (frozen-core schema 95 + tantivy-lexical placement), schema/store, tracer: one doc → kb_ids sections → hash-keyed rows → Tantivy → library::search
 - [x] 02-02-PLAN.md — `docs/src/library/` + `Library` category, sidebar section and parity test
+- [ ] 02-10-PLAN.md — Gap closure CR-01: fallible corpus walk, prune skipped on incomplete/empty walk, missing `docs/src` fails, mutation-proven tests
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [x] 02-03-PLAN.md — Complete heading chunker (fences, frontmatter, H3–H6, anchors, card, text-splitter oversize) + archive-proof walker
 - [x] 02-04-PLAN.md — Incremental reindex: file-hash skip, prune, orphan-vector cleanup, kb_index_state manifest, status, readers (re-runs Phase 1's FTS5 probe)
 - [x] 02-05-PLAN.md — Remove the writer-less TantivyDocsIndex mirror across crates
+- [ ] 02-11-PLAN.md — Gap closure WR-08 (`vox_kb_status` off the HTTP read role) + WR-02 explicit `vox_kb_reindex` dispatch timeout
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [x] 02-06-PLAN.md — Five `vox_kb_*` MCP tools via the operations catalog (validation, single-flight)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [x] 02-07-PLAN.md — `kb://doc` / `kb://chunk` resources through the daemon + routing tests
 - [x] 02-08-PLAN.md — `vox kb status|reindex` CLI via daemon + where-things-live / search SSOT / CHANGELOG
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
 - [x] 02-09-PLAN.md — Library retriever in `vox kb eval`, exact qrel resolution + one-time deepening via epoch, Claude Code UAT
 
 **Research flag**: YES (`/gsd-plan-phase 2 --research-phase`). The lexical-leg decision is unresolved: Turso FTS5 vs `USING fts`, `turso` crate feature gating, and the Tantivy-with-owning-writer fallback (the researchers disagree).
