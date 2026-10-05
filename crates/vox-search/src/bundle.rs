@@ -94,7 +94,6 @@ pub async fn run_search_with_verification(
                 && execution.knowledge_lines.is_empty()
                 && execution.chunk_lines.is_empty()
                 && execution.repo_lines.is_empty()
-                && execution.tantivy_doc_lines.is_empty()
                 && execution.qdrant_lines.is_empty()
                 && execution.rrf_fused_lines.is_empty()));
     if should_verify
@@ -144,7 +143,6 @@ pub async fn run_search_with_verification(
             && execution.knowledge_lines.is_empty()
             && execution.chunk_lines.is_empty()
             && execution.repo_lines.is_empty()
-            && execution.tantivy_doc_lines.is_empty()
             && execution.qdrant_lines.is_empty();
 
         if policy.tavily_enabled {

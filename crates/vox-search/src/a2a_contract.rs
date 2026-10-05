@@ -33,7 +33,7 @@ pub struct A2ARetrievalResponse {
     pub request_id: String,
     pub memory_excerpts: Vec<String>,
     pub knowledge_excerpts: Vec<String>,
-    /// Document chunks (RAG corpus) plus Tantivy doc mirror and Qdrant ANN sidecar lines (same as MCP `chunk_lines` bundle).
+    /// Document chunks (RAG corpus) plus Qdrant ANN sidecar lines (same as MCP `chunk_lines` bundle).
     pub chunk_excerpts: Vec<String>,
     pub repo_paths: Vec<String>,
     /// Cross-corpus RRF ordering when enabled in policy (else empty).
@@ -58,7 +58,6 @@ impl A2ARetrievalResponse {
         from_node_id: Option<impl Into<String>>,
     ) -> Self {
         let mut chunk_excerpts = execution.chunk_lines.clone();
-        chunk_excerpts.extend_from_slice(&execution.tantivy_doc_lines);
         chunk_excerpts.extend_from_slice(&execution.qdrant_lines);
         Self {
             request_id: request_id.into(),
@@ -105,7 +104,6 @@ mod tests {
             knowledge_lines: Vec::new(),
             chunk_lines: vec!["[chunk:a] x".into()],
             repo_lines: Vec::new(),
-            tantivy_doc_lines: vec!["[tantivy:p] y".into()],
             qdrant_lines: vec!["[qdrant:9] z".into()],
             rrf_fused_lines: vec!["fused".into()],
             web_lines: vec![],
@@ -131,7 +129,7 @@ mod tests {
             SearchDiagnostics::default(),
             Some("node-a"),
         );
-        assert_eq!(r.chunk_excerpts.len(), 3);
+        assert_eq!(r.chunk_excerpts.len(), 2);
         assert_eq!(r.rrf_fused_excerpts, vec!["fused".to_string()]);
         assert_eq!(r.from_node_id.as_deref(), Some("node-a"));
         assert!(!r.repo_truncated);

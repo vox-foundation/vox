@@ -39,8 +39,6 @@ pub struct SearchExecution {
     pub knowledge_lines: Vec<String>,
     pub chunk_lines: Vec<String>,
     pub repo_lines: Vec<String>,
-    /// Optional Tantivy-backed doc mirror hits (empty when feature or index disabled).
-    pub tantivy_doc_lines: Vec<String>,
     /// Optional Qdrant ANN sidecar hits (`VOX_SEARCH_QDRANT_URL` + `qdrant-vector` feature).
     pub qdrant_lines: Vec<String>,
     /// Cross-corpus RRF ordering when [`SearchPolicy::prefer_rrf_merge`] is set (≥2 non-empty lists).
@@ -252,51 +250,6 @@ pub fn repo_path_search(
     });
     out.truncate(limit);
     (out, truncated)
-}
-
-#[cfg(feature = "tantivy-lexical")]
-fn tantivy_supplemental_lines(
-    _ctx: &SearchRuntimeContext,
-    policy: &SearchPolicy,
-    query: &str,
-    limit: usize,
-) -> Vec<String> {
-    let Some(root) = policy.tantivy_index_root.as_ref() else {
-        return Vec::new();
-    };
-    let index_dir = root.join("docs");
-    match crate::lexical_tantivy::TantivyDocsIndex::open(&index_dir) {
-        Ok(idx) => idx
-            .search(query, limit)
-            .unwrap_or_default()
-            .into_iter()
-            .map(|hit| {
-                format!(
-                    "[tantivy:{} score:{:.3}] {}",
-                    hit.path,
-                    hit.score,
-                    hit.snippet.replace('\n', " ")
-                )
-            })
-            .collect(),
-        Err(_) => Vec::new(),
-    }
-}
-
-#[cfg(not(feature = "tantivy-lexical"))]
-fn tantivy_supplemental_lines(
-    ctx: &SearchRuntimeContext,
-    policy: &SearchPolicy,
-    query: &str,
-    limit: usize,
-) -> Vec<String> {
-    let _ = (
-        std::hint::black_box(ctx as *const _ as usize),
-        std::hint::black_box(policy as *const _ as usize),
-        std::hint::black_box(query.len()),
-        std::hint::black_box(limit),
-    );
-    Vec::new()
 }
 
 /// Execute a concrete [`SearchPlan`] against `VoxDb` (when attached) + local memory paths.
@@ -539,8 +492,6 @@ pub async fn execute_search_plan(
         })
         .collect::<Vec<_>>();
 
-    let tantivy_doc_lines = tantivy_supplemental_lines(ctx, policy, query, limit);
-
     let qdrant_lines: Vec<String> = {
         #[cfg(feature = "qdrant-vector")]
         {
@@ -737,7 +688,6 @@ pub async fn execute_search_plan(
             knowledge_lines.clone(),
             chunk_lines.clone(),
             repo_lines.clone(),
-            tantivy_doc_lines.clone(),
             qdrant_lines.clone(),
             web_lines.clone(),
             symbol_proximity_lines.clone(),
@@ -761,7 +711,6 @@ pub async fn execute_search_plan(
         + usize::from(!knowledge_lines.is_empty())
         + usize::from(!chunk_lines.is_empty())
         + usize::from(!repo_lines.is_empty())
-        + usize::from(!tantivy_doc_lines.is_empty())
         + usize::from(!qdrant_lines.is_empty())
         + usize::from(!web_lines.is_empty())
         + usize::from(!symbol_proximity_lines.is_empty())
@@ -771,7 +720,6 @@ pub async fn execute_search_plan(
         + knowledge_lines.len()
         + chunk_lines.len()
         + repo_lines.len()
-        + tantivy_doc_lines.len()
         + qdrant_lines.len()
         + web_lines.len()
         + symbol_proximity_lines.len()
@@ -811,7 +759,6 @@ pub async fn execute_search_plan(
         knowledge_lines,
         chunk_lines,
         repo_lines,
-        tantivy_doc_lines,
         qdrant_lines,
         rrf_fused_lines,
         web_lines,

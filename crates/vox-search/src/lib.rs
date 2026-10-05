@@ -4,7 +4,7 @@
 //! - [`context::SearchRuntimeContext`] — repo root, optional VoxDb handle, memory paths.
 //! - [`execution::execute_search_plan`] — memory hybrid + knowledge + chunks + repo inventory.
 //! - [`bundle::run_search_with_verification`] — automatic verification pass.
-//! - Optional **Tantivy** (`tantivy-lexical`) and **Qdrant** (`qdrant-vector`) backends.
+//! - Optional **Tantivy** (`tantivy-lexical`, the KB Library index in `library`) and **Qdrant** (`qdrant-vector`) backends.
 
 pub mod a2a_contract;
 pub mod arxiv;
@@ -55,8 +55,6 @@ pub mod unified;
 pub mod web_dispatcher;
 pub mod wikipedia;
 
-#[cfg(feature = "tantivy-lexical")]
-pub mod lexical_tantivy;
 #[cfg(feature = "tantivy-lexical")]
 pub mod library;
 #[cfg(feature = "tavily")]

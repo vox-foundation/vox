@@ -124,8 +124,6 @@ pub struct SearchPolicy {
     pub qdrant_collection: String,
     /// When the collection uses **named** dense vectors, set to the config name (e.g. `default`).
     pub qdrant_vector_name: Option<String>,
-    /// Root directory for on-disk Tantivy indices (under `.vox/search/tantivy` by default).
-    pub tantivy_index_root: Option<std::path::PathBuf>,
     /// Enable reciprocal rank fusion across corpus hit lists (`VOX_SEARCH_PREFER_RRF`).
     pub prefer_rrf_merge: bool,
     /// Tavily master switch. `false` in `Default`; `from_env` enables it when a key is
@@ -290,12 +288,6 @@ impl Default for SearchPolicy {
             .expose()
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty()),
-            tantivy_index_root: vox_secrets::resolve_secret(
-                vox_secrets::SecretId::VoxSearchTantivyRoot,
-            )
-            .expose()
-            .filter(|s| !s.trim().is_empty())
-            .map(std::path::PathBuf::from),
             prefer_rrf_merge: parse_prefer_rrf_merge(
                 vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchPreferRrf).expose(),
             ),

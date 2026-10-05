@@ -20,10 +20,6 @@ pub(crate) fn rrf_dedup_key(line: &str) -> String {
         let id = rest.split(']').next().unwrap_or("");
         return format!("node:{id}");
     }
-    if let Some(rest) = t.strip_prefix("[tantivy:") {
-        let id = rest.split_whitespace().next().unwrap_or("");
-        return format!("tantivy:{id}");
-    }
     if let Some(rest) = t.strip_prefix("[qdrant:") {
         let id = rest.split_whitespace().next().unwrap_or("");
         return format!("qdrant:{id}");
