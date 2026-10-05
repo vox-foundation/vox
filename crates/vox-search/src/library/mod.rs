@@ -37,6 +37,8 @@ pub struct IndexReport {
     pub corpus_commit: Option<String>,
     pub docs_seen: usize,
     pub docs_changed: usize,
+    /// Files whose content hash matched the stored one: no DB writes at all.
+    pub docs_unchanged: usize,
     pub chunks_inserted: usize,
     pub chunks_deleted: usize,
     pub chunks_kept: usize,
@@ -49,7 +51,6 @@ pub struct IndexReport {
 /// Index every corpus file under `repo_root` into `db`, then rebuild the Tantivy index in
 /// `lexical_dir` when anything changed, the index is missing, or its count diverges from the DB
 /// (AP-16). Each document is one DB transaction, never held across the Tantivy commit.
-// ponytail: files absent from the tree are not pruned here (02-04); no unchanged-file skip yet.
 pub async fn index_library(
     db: &VoxDb,
     repo_root: &Path,
@@ -57,6 +58,8 @@ pub async fn index_library(
     deps: &IndexDeps<'_>,
 ) -> Result<IndexReport> {
     let started = Instant::now();
+    // Up front: unchanged files skip the store, which would otherwise be the only validator.
+    vox_db::validate_trust_tier_wire(deps.trust_tier)?;
     let mut report = IndexReport {
         corpus_commit: deps.corpus_commit.clone(),
         lexical_backend: LEXICAL_BACKEND.into(),
@@ -76,6 +79,15 @@ pub async fn index_library(
         };
         let text = vox_bounded_fs::normalize_text(raw);
         let file_hash = (deps.hasher)(text.as_bytes());
+        if db
+            .library_document_file_hash(KB_LIBRARY_CORPUS, &file.rel_path)
+            .await?
+            .as_deref()
+            == Some(file_hash.as_str())
+        {
+            report.docs_unchanged += 1;
+            continue;
+        }
         let parsed = chunk::chunk_document(&file.rel_path, &text, deps.hasher);
         let inputs: Vec<LibraryChunkInput> = parsed
             .chunks

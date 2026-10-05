@@ -231,6 +231,25 @@ impl crate::VoxDb {
         .await
     }
 
+    /// Stored whole-file content hash of a library document, if indexed (IDX-01 skip key).
+    pub async fn library_document_file_hash(
+        &self,
+        corpus: &str,
+        rel_path: &str,
+    ) -> Result<Option<String>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT content_hash FROM search_documents WHERE corpus = ?1 AND rel_path = ?2",
+                params![corpus, rel_path],
+            )
+            .await?;
+        match rows.next().await? {
+            Some(r) => Ok(Some(r.get::<String>(0)?)),
+            None => Ok(None),
+        }
+    }
+
     /// Every chunk of `corpus`, ordered by document path then `chunk_index`.
     pub async fn library_chunk_rows(
         &self,
@@ -328,6 +347,24 @@ mod tests {
         }
         assert!(validate_trust_tier_wire("Trusted").is_err());
         assert!(validate_trust_tier_wire("").is_err());
+    }
+
+    #[tokio::test]
+    async fn library_document_file_hash_is_corpus_scoped() {
+        let db = VoxDb::open_memory().await.unwrap();
+        db.apply_library_document(&doc("docs/src/guide.md"), &[])
+            .await
+            .unwrap();
+        let got = |c: &'static str, p: &'static str| {
+            let db = db.clone();
+            async move { db.library_document_file_hash(c, p).await.unwrap() }
+        };
+        assert_eq!(
+            got(KB_LIBRARY_CORPUS, "docs/src/guide.md").await.as_deref(),
+            Some("f")
+        );
+        assert_eq!(got(KB_LIBRARY_CORPUS, "docs/src/nope.md").await, None);
+        assert_eq!(got("other", "docs/src/guide.md").await, None);
     }
 
     #[tokio::test]
