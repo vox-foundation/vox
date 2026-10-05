@@ -262,6 +262,12 @@ pub fn load_corpus(dir: &Path) -> Result<Vec<CorpusDoc>> {
     let mut seen = BTreeSet::new();
     let mut out = Vec::new();
     for (line, d) in jsonl::<CorpusDoc>(dir, "corpus.jsonl")? {
+        if d.id.contains('#') {
+            bail!(
+                "corpus.jsonl:{line}: _id {:?} contains '#' (chunk ids split at the first '#')",
+                d.id
+            );
+        }
         if !is_kb_corpus_path(&d.id) {
             bail!(
                 "corpus.jsonl:{line}: _id {:?} is not a KB corpus path",
@@ -431,9 +437,17 @@ pub fn validate_splits(dir: &Path) -> Result<SplitSummary> {
 }
 
 /// Build the full `corpus.jsonl` text for `rel_paths` (e.g. from `git ls-files`): paths failing
-/// [`is_kb_corpus_path`] are skipped, the rest are read capped, BOM/CRLF-normalized and
-/// emitted as compact lines sorted by `_id`, trailing newline.
+/// [`is_kb_corpus_path`] are skipped (a KB path containing `#` is an error), the rest are read
+/// capped, BOM/CRLF-normalized and emitted as compact lines sorted by `_id`, trailing newline.
 pub fn snapshot_corpus_jsonl(root: &Path, rel_paths: &[String]) -> Result<String> {
+    let hashed = rel_paths
+        .iter()
+        .find(|p| p.contains('#') && is_kb_corpus_path(&p.replace('#', "-")));
+    if let Some(p) = hashed {
+        bail!(
+            "{p}: a KB doc path may not contain '#' (chunk ids split at the first '#'); rename it"
+        );
+    }
     let paths: BTreeSet<&str> = rel_paths
         .iter()
         .map(String::as_str)

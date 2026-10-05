@@ -141,10 +141,14 @@ pub fn heading_path_is_ancestor_or_equal(ancestor: &str, path: &str) -> bool {
     }
 }
 
-/// Repo-relative, `/`-separated `.md` path under a KB root with no excluded component.
+/// Repo-relative, `/`-separated `.md` path under a KB root with no excluded component and no
+/// `#` (chunk ids split at the first `#`, so such a doc could never match its qrels).
 #[must_use]
 pub fn is_kb_corpus_path(rel: &str) -> bool {
-    if rel.is_empty() || rel.starts_with('/') || rel.contains(['\\', ':']) || !rel.ends_with(".md")
+    if rel.is_empty()
+        || rel.starts_with('/')
+        || rel.contains(['\\', ':', '#'])
+        || !rel.ends_with(".md")
     {
         return false;
     }
@@ -257,6 +261,8 @@ mod tests {
         assert!(!is_kb_corpus_path("docs/src/a.txt"));
         assert!(!is_kb_corpus_path("docs/other/a.md"));
         assert!(!is_kb_corpus_path("docs\\src\\a.md"));
+        // Chunk ids split at the first '#', so a doc path may not contain one.
+        assert!(!is_kb_corpus_path("docs/src/c#-notes.md"));
     }
 
     #[test]

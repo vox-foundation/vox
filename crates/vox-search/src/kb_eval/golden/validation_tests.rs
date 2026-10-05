@@ -307,3 +307,25 @@ fn paraphrase_shares_seed_split() {
             .contains("q99")
     );
 }
+
+#[test]
+fn doc_paths_with_hash_are_rejected_at_load_and_snapshot() {
+    let d = fx();
+    let doc = r##"{"_id":"docs/src/c#-notes.md","title":"c","text":"# C\n"}"##;
+    let corpus = std::fs::read_to_string(d.path().join("corpus.jsonl")).unwrap();
+    put(&d, "corpus.jsonl", &format!("{corpus}{doc}\n"));
+    let err = load_err(&d);
+    assert!(err.contains("c#-notes.md") && err.contains("'#'"), "{err}");
+    let root = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(root.path().join("docs/src")).unwrap();
+    std::fs::write(root.path().join("docs/src/c#-notes.md"), "# C\n").unwrap();
+    let paths = vec!["docs/src/c#-notes.md".to_string()];
+    let err = format!(
+        "{:#}",
+        snapshot_corpus_jsonl(root.path(), &paths).unwrap_err()
+    );
+    assert!(err.contains("c#-notes.md") && err.contains("'#'"), "{err}");
+    // Outside the KB roots a '#' path is simply not corpus, not an error.
+    let other = vec!["notes/c#.md".to_string()];
+    assert_eq!(snapshot_corpus_jsonl(root.path(), &other).unwrap(), "");
+}
