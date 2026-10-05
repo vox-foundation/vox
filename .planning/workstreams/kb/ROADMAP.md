@@ -72,13 +72,13 @@ Plans:
   4. From an external MCP host (Claude Code), a user can call `vox_kb_search`, `vox_kb_get`, `vox_kb_cite`, `vox_kb_status` and `vox_kb_reindex`, and read `kb://doc/{path}` and `kb://chunk/{hash}`. A page added under `docs/src/library/` appears in the `Library` sidebar section and in search results.
   5. The lexical leg is the one the recorded runtime probe chose. The writer-less `TantivyDocsIndex` mirror is gone from source. Doc-level `vox kb eval` metrics do not regress against the Phase 1 baseline (chunk-level qrels are re-keyed exactly once, with the delta recorded).
 
-**Plans**: 3/9 plans executed
+**Plans**: 4/9 plans executed
 Plans:
 
 - [x] 02-01-PLAN.md — Gate (frozen-core schema 95 + tantivy-lexical placement), schema/store, tracer: one doc → kb_ids sections → hash-keyed rows → Tantivy → library::search
 - [x] 02-02-PLAN.md — `docs/src/library/` + `Library` category, sidebar section and parity test
 - [x] 02-03-PLAN.md — Complete heading chunker (fences, frontmatter, H3–H6, anchors, card, text-splitter oversize) + archive-proof walker
-- [ ] 02-04-PLAN.md — Incremental reindex: file-hash skip, prune, orphan-vector cleanup, kb_index_state manifest, status, readers (re-runs Phase 1's FTS5 probe)
+- [x] 02-04-PLAN.md — Incremental reindex: file-hash skip, prune, orphan-vector cleanup, kb_index_state manifest, status, readers (re-runs Phase 1's FTS5 probe)
 - [ ] 02-05-PLAN.md — Remove the writer-less TantivyDocsIndex mirror across crates
 - [ ] 02-06-PLAN.md — Five `vox_kb_*` MCP tools via the operations catalog (validation, single-flight)
 - [ ] 02-07-PLAN.md — `kb://doc` / `kb://chunk` resources through the daemon + routing tests
@@ -284,7 +284,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Retrieval Eval Baseline | 12/12 | Complete    | 2026-10-05 |
-| 2. Library Index and KB Tool Surface | 3/9 | In Progress|  |
+| 2. Library Index and KB Tool Surface | 4/9 | In Progress|  |
 | 3. Provenance, Trust Tiers and Leak Closure | 0/TBD | Not started | - |
 | 4. Taxonomy Contract and Facet Lint | 0/TBD | Not started | - |
 | 5. Local Embeddings and Ranking Signals | 0/TBD | Not started | - |
