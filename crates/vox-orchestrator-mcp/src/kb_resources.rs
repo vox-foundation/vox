@@ -4,7 +4,11 @@
 //! this process opens no DB and reads no doc file. A URI is validated by the same
 //! `validate_doc_path` / `validate_chunk_hash` the tool uses, before any daemon call.
 
+use std::path::Path;
+
+use rmcp::model::{RawResourceTemplate, ResourceTemplate};
 use vox_cli_core::daemon_ipc::orchestrator_daemon_ensure::OrchestratorDaemonEnsure;
+use vox_search::library::corpus::walk_corpus;
 
 use crate::kb_tools::library::{validate_chunk_hash, validate_doc_path};
 
@@ -68,6 +72,39 @@ pub async fn read_kb_resource(
     body_from_envelope(&parsed, &envelope).map(|text| (MIME.to_string(), text))
 }
 
+/// The two URI templates a host can use to discover KB resources.
+pub fn kb_resource_templates() -> Vec<ResourceTemplate> {
+    let t = |uri: &str, name: &str, what: &str| {
+        ResourceTemplate::new(
+            RawResourceTemplate::new(uri, name)
+                .with_description(format!("{what} from the curated KB Library (docs/src)"))
+                .with_mime_type(MIME),
+            None,
+        )
+    };
+    vec![
+        t(
+            "kb://doc/{path}",
+            "KB Library document",
+            "One indexed markdown document",
+        ),
+        t(
+            "kb://chunk/{hash}",
+            "KB Library chunk",
+            "One content-hashed section chunk",
+        ),
+    ]
+}
+
+/// One `(uri, name)` per indexable corpus file, from the same walker the indexer uses (never
+/// from request input), so every listed URI passes [`parse_kb_uri`].
+pub fn list_kb_doc_resources(repo_root: &Path) -> Vec<(String, String)> {
+    walk_corpus(repo_root)
+        .into_iter()
+        .map(|f| (format!("{DOC_PREFIX}{}", f.rel_path), f.rel_path))
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -102,5 +139,70 @@ mod tests {
         );
         assert!(body_from_envelope(&doc, ok_chunk).is_err());
         assert!(body_from_envelope(&doc, "not json").is_err());
+    }
+
+    #[test]
+    fn parse_kb_uri_rejects_unsafe_and_malformed() {
+        let short = format!("kb://chunk/{}", &HASH[..63]);
+        for bad in [
+            "kb://doc/../../etc/passwd",
+            "kb://doc//etc/passwd",
+            "kb://doc/docs/src/archive/old.md",
+            "kb://doc/docs/src/a/archive/x.md",
+            "kb://doc/docs/src/x.mdx",
+            "kb://chunk/ABC",
+            short.as_str(),
+            "kb://other/x",
+            "file:///etc/passwd",
+        ] {
+            assert!(parse_kb_uri(bad).is_err(), "must reject {bad}");
+        }
+    }
+
+    #[test]
+    fn kb_resource_templates_are_the_two_kb_templates() {
+        let t = kb_resource_templates();
+        let got: Vec<(&str, Option<&str>)> = t
+            .iter()
+            .map(|t| (t.uri_template.as_str(), t.mime_type.as_deref()))
+            .collect();
+        assert_eq!(
+            got,
+            [
+                ("kb://doc/{path}", Some("text/markdown")),
+                ("kb://chunk/{hash}", Some("text/markdown"))
+            ]
+        );
+        assert!(
+            t.iter()
+                .all(|t| t.description.as_deref().unwrap().contains("KB Library"))
+        );
+    }
+
+    #[test]
+    fn list_kb_doc_resources_lists_only_indexable_files() {
+        let tmp = tempfile::tempdir().unwrap();
+        for rel in [
+            "docs/src/ok.md",
+            "docs/src/library/page.md",
+            "docs/src/archive/old.md",
+            "docs/src/x.mdx",
+        ] {
+            let p = tmp.path().join(rel);
+            std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+            std::fs::write(p, "# T\n").unwrap();
+        }
+        let uris: Vec<String> = list_kb_doc_resources(tmp.path())
+            .into_iter()
+            .map(|(u, _)| u)
+            .collect();
+        assert_eq!(
+            uris,
+            [
+                "kb://doc/docs/src/library/page.md",
+                "kb://doc/docs/src/ok.md"
+            ]
+        );
+        assert!(uris.iter().all(|u| parse_kb_uri(u).is_ok()));
     }
 }

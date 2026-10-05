@@ -2,9 +2,10 @@
 
 use rmcp::model::{
     CallToolRequestParams, CallToolResult, GetPromptRequestParams, GetPromptResult, Implementation,
-    InitializeRequestParams, InitializeResult, ListPromptsResult, ListResourcesResult,
-    ListToolsResult, PaginatedRequestParams, Prompt, PromptMessage, PromptMessageRole, RawResource,
-    ReadResourceRequestParams, ReadResourceResult, Resource, ResourceContents, ServerCapabilities,
+    InitializeRequestParams, InitializeResult, ListPromptsResult, ListResourceTemplatesResult,
+    ListResourcesResult, ListToolsResult, PaginatedRequestParams, Prompt, PromptMessage,
+    PromptMessageRole, RawResource, ReadResourceRequestParams, ReadResourceResult, Resource,
+    ResourceContents, ServerCapabilities,
 };
 use rmcp::service::RequestContext;
 use rmcp::{ErrorData, RoleServer, ServerHandler};
@@ -277,6 +278,14 @@ impl ServerHandler for VoxMcpServer {
                 None,
             ));
         }
+        for (uri, name) in crate::kb_resources::list_kb_doc_resources(&self.state.repository.root) {
+            resources.push(Resource::new(
+                RawResource::new(uri, name)
+                    .with_description("Curated KB Library document")
+                    .with_mime_type("text/markdown"),
+                None,
+            ));
+        }
         for entry in &self.state.workspace_mcp.read().resources {
             resources.push(Resource::new(
                 RawResource::new(entry.uri.clone(), entry.uri.clone())
@@ -288,6 +297,18 @@ impl ServerHandler for VoxMcpServer {
         Ok(ListResourcesResult {
             meta: None,
             resources,
+            next_cursor: None,
+        })
+    }
+
+    async fn list_resource_templates(
+        &self,
+        _params: Option<PaginatedRequestParams>,
+        _ctx: RequestContext<RoleServer>,
+    ) -> Result<ListResourceTemplatesResult, ErrorData> {
+        Ok(ListResourceTemplatesResult {
+            meta: None,
+            resource_templates: crate::kb_resources::kb_resource_templates(),
             next_cursor: None,
         })
     }
