@@ -72,7 +72,7 @@ Plans:
   4. From an external MCP host (Claude Code), a user can call `vox_kb_search`, `vox_kb_get`, `vox_kb_cite`, `vox_kb_status` and `vox_kb_reindex`, and read `kb://doc/{path}` and `kb://chunk/{hash}`. A page added under `docs/src/library/` appears in the `Library` sidebar section and in search results.
   5. The lexical leg is the one the recorded runtime probe chose. The writer-less `TantivyDocsIndex` mirror is gone from source. Doc-level `vox kb eval` metrics do not regress against the Phase 1 baseline (chunk-level qrels are re-keyed exactly once, with the delta recorded).
 
-**Plans**: 7/9 plans executed
+**Plans**: 8/9 plans executed
 Plans:
 
 - [x] 02-01-PLAN.md — Gate (frozen-core schema 95 + tantivy-lexical placement), schema/store, tracer: one doc → kb_ids sections → hash-keyed rows → Tantivy → library::search
@@ -82,7 +82,7 @@ Plans:
 - [x] 02-05-PLAN.md — Remove the writer-less TantivyDocsIndex mirror across crates
 - [x] 02-06-PLAN.md — Five `vox_kb_*` MCP tools via the operations catalog (validation, single-flight)
 - [x] 02-07-PLAN.md — `kb://doc` / `kb://chunk` resources through the daemon + routing tests
-- [ ] 02-08-PLAN.md — `vox kb status|reindex` CLI via daemon + where-things-live / search SSOT / CHANGELOG
+- [x] 02-08-PLAN.md — `vox kb status|reindex` CLI via daemon + where-things-live / search SSOT / CHANGELOG
 - [ ] 02-09-PLAN.md — Library retriever in `vox kb eval`, exact qrel resolution + one-time deepening via epoch, Claude Code UAT
 
 **Research flag**: YES (`/gsd-plan-phase 2 --research-phase`). The lexical-leg decision is unresolved: Turso FTS5 vs `USING fts`, `turso` crate feature gating, and the Tantivy-with-owning-writer fallback (the researchers disagree).
@@ -284,7 +284,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Retrieval Eval Baseline | 12/12 | Complete    | 2026-10-05 |
-| 2. Library Index and KB Tool Surface | 7/9 | In Progress|  |
+| 2. Library Index and KB Tool Surface | 8/9 | In Progress|  |
 | 3. Provenance, Trust Tiers and Leak Closure | 0/TBD | Not started | - |
 | 4. Taxonomy Contract and Facet Lint | 0/TBD | Not started | - |
 | 5. Local Embeddings and Ranking Signals | 0/TBD | Not started | - |
