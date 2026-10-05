@@ -89,7 +89,7 @@ q044	docs/src/architecture/vox-language-rules-phase5-effects-determinism-2026.md
 q044	docs/src/explanation/expl-actors-workflows.md#Actors & Workflows › Compilation Phases	2
 q044	docs/src/explanation/expl-durable-execution.md#Explanation: Durable Execution › 4. Determinism Requirements	2
 q044	docs/src/tutorials/tut-workflow-durability.md#Tutorial: Workflow Durability › 5. Best Practices	1
-q046	docs/src/architecture/omni-search-audit-and-roadmap-2026.md#Omni-Search Audit & Roadmap (2026) › 2. Current Search Architecture Map	2
+q046	docs/src/architecture/omni-search-audit-and-roadmap-2026.md#Omni-Search Audit & Roadmap (2026) › 2. Current Search Architecture Map › 2.1 Full Stack Layers	2
 q046	docs/src/architecture/search-retrieval-ssot-2026.md#Search & Retrieval SSOT (2026) › 6. MCP tools and GUI	1
 q046	docs/src/reference/gui-navigation.md#GUI navigation › OmniSearch	1
 q046	docs/src/reference/gui-navigation.md#GUI navigation › OmniSearch › Search scopes (OmniSearch vs Search surface)	2
@@ -182,7 +182,7 @@ x039	docs/src/architecture/vox-language-rules-phase5-effects-determinism-2026.md
 x039	docs/src/explanation/expl-actors-workflows.md#Actors & Workflows › Compilation Phases	2
 x039	docs/src/explanation/expl-durable-execution.md#Explanation: Durable Execution › 4. Determinism Requirements	2
 x039	docs/src/tutorials/tut-workflow-durability.md#Tutorial: Workflow Durability › 5. Best Practices	1
-x041	docs/src/architecture/omni-search-audit-and-roadmap-2026.md#Omni-Search Audit & Roadmap (2026) › 2. Current Search Architecture Map	2
+x041	docs/src/architecture/omni-search-audit-and-roadmap-2026.md#Omni-Search Audit & Roadmap (2026) › 2. Current Search Architecture Map › 2.1 Full Stack Layers	2
 x041	docs/src/architecture/search-retrieval-ssot-2026.md#Search & Retrieval SSOT (2026) › 6. MCP tools and GUI	1
 x041	docs/src/reference/gui-navigation.md#GUI navigation › OmniSearch	1
 x041	docs/src/reference/gui-navigation.md#GUI navigation › OmniSearch › Search scopes (OmniSearch vs Search surface)	2
