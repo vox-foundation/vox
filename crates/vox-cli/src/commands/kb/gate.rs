@@ -79,12 +79,11 @@ const BASE_BASELINE_PATHSPEC: [&str; 3] = [
     "contracts/kb/eval/corpus.jsonl",
 ];
 
-/// Tracked markdown whose text may carry a pasted query: `.md` under `docs/` or `crates/`,
-/// minus `archive` dirs and the golden set itself.
-pub(crate) fn fingerprint_doc_paths(ls_files: &[String]) -> Vec<String> {
+/// Tracked files whose text may carry a pasted query (docs, plans, code comments, contracts):
+/// everything but `archive` dirs and the golden set itself. Binary files are skipped at read.
+pub(crate) fn fingerprint_paths(ls_files: &[String]) -> Vec<String> {
     ls_files
         .iter()
-        .filter(|p| p.ends_with(".md") && (p.starts_with("docs/") || p.starts_with("crates/")))
         .filter(|p| !p.split('/').any(|c| c == "archive") && !p.starts_with("contracts/kb/eval/"))
         .cloned()
         .collect()
@@ -165,15 +164,21 @@ pub(crate) fn canary_failures(root: &Path, tracked: &[String]) -> Vec<String> {
     }
     match load_query_texts(&eval) {
         Ok(queries) => {
-            let docs: Vec<(String, String)> = fingerprint_doc_paths(tracked)
-                .into_iter()
-                .filter_map(|p| Some((p.clone(), std::fs::read_to_string(root.join(&p)).ok()?)))
-                .collect();
-            out.extend(
-                query_fingerprint_leaks(&queries, &docs, 40)
-                    .into_iter()
-                    .map(|l| format!("[canary] query-fingerprint: {l}")),
-            );
+            let docs = fingerprint_paths(tracked).into_iter().filter_map(|p| {
+                let bytes = std::fs::read(root.join(&p)).ok()?;
+                // NUL: binary, no pasted prose to find.
+                let text =
+                    (!bytes.contains(&0)).then(|| String::from_utf8_lossy(&bytes).into_owned())?;
+                Some((p, text))
+            });
+            match query_fingerprint_leaks(&queries, docs, 40) {
+                Ok(leaks) => out.extend(
+                    leaks
+                        .into_iter()
+                        .map(|l| format!("[canary] query-fingerprint: {l}")),
+                ),
+                Err(e) => out.push(format!("[canary] query-fingerprint failed: {e:#}")),
+            }
         }
         Err(e) => out.push(format!(
             "[canary] cannot load query texts to fingerprint: {e:#}"

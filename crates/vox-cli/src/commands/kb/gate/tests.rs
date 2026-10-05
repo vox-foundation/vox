@@ -138,14 +138,14 @@ fn mens_extract_scan_flags_planted_guid_then_clears() {
 }
 
 #[test]
-fn fingerprint_doc_paths_filters_scope() {
+fn fingerprint_paths_cover_all_tracked_files_but_eval_and_archive() {
     let ls = strings(
         "docs/src/a.md crates/x/README.md docs/src/archive/old.md crates/x/docs/archive/old.md \
          contracts/kb/eval/README.md docs/src/data.json scripts/notes.md",
     );
     assert_eq!(
-        fingerprint_doc_paths(&ls),
-        strings("docs/src/a.md crates/x/README.md")
+        fingerprint_paths(&ls),
+        strings("docs/src/a.md crates/x/README.md docs/src/data.json scripts/notes.md")
     );
 }
 
@@ -187,11 +187,19 @@ fn canary_sweep_names_every_source_and_never_the_guid() {
     write(root, "docs/src/pasted.md", &format!("# P\n\n{pasted}\n"));
     write(
         root,
+        "crates/x/src/lib.rs",
+        &format!("// {}\nfn f() {{}}\n", pasted.to_uppercase()),
+    );
+    write(root, ".planning/p/PLAN.md", &format!("Step: {pasted}.\n"));
+    write(root, "assets/blob.bin", &format!("\0\0{pasted}"));
+    write(
+        root,
         "mens/data/train.jsonl",
         &format!("{{\"t\":\"{guid}\"}}\n"),
     );
     let tracked = strings(
-        "contracts/kb/eval/README.md notes/leak.txt docs/src/planted.md docs/src/pasted.md",
+        "contracts/kb/eval/README.md notes/leak.txt docs/src/planted.md docs/src/pasted.md \
+         crates/x/src/lib.rs .planning/p/PLAN.md assets/blob.bin",
     );
     let out = canary_failures(root, &tracked).join("\n");
     for want in [
@@ -200,13 +208,20 @@ fn canary_sweep_names_every_source_and_never_the_guid() {
         "mens-extractor: docs pair from docs/src/planted.md",
         "mens-jsonl: mens/data/train.jsonl",
         "query-fingerprint: q001 in docs/src/pasted.md",
+        "query-fingerprint: q001 in crates/x/src/lib.rs",
+        "query-fingerprint: q001 in .planning/p/PLAN.md",
     ] {
         assert!(out.contains(want), "missing {want:?} in:\n{out}");
     }
+    assert!(
+        !out.contains("assets/blob.bin"),
+        "binary files are skipped: {out}"
+    );
     assert!(!out.contains("contracts/kb/eval/README.md"), "{out}");
     assert!(!out.contains(&guid), "GUID must never be printed");
-    for rel in
-        "notes/leak.txt docs/src/planted.md docs/src/pasted.md mens/data/train.jsonl".split(' ')
+    for rel in "notes/leak.txt docs/src/planted.md docs/src/pasted.md mens/data/train.jsonl \
+                crates/x/src/lib.rs .planning/p/PLAN.md assets/blob.bin"
+        .split_whitespace()
     {
         std::fs::remove_file(root.join(rel)).unwrap();
         assert!(!root.join(rel).exists());

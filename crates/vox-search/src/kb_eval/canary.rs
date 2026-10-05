@@ -122,29 +122,34 @@ fn norm(s: &str) -> String {
         .join(" ")
 }
 
-/// Paraphrase-free pasting leak path: `"{qid} in {path}"` for each query of at least
+/// Paraphrase-free pasting leak path: sorted `"{qid} in {path}"` for each query of at least
 /// `min_chars` normalized characters (lowercased, whitespace collapsed) found verbatim in a
 /// `(path, text)` doc. Shorter queries are ignored (too generic to be a fingerprint).
-#[must_use]
+/// Docs are streamed and matched in one pass each: one case-insensitive `RegexSet` whose
+/// patterns join the query words with `\s+`, so docs are never copied to normalize them.
 pub fn query_fingerprint_leaks(
     queries: &[(String, String)],
-    docs: &[(String, String)],
+    docs: impl IntoIterator<Item = (String, String)>,
     min_chars: usize,
-) -> Vec<String> {
-    let docs: Vec<(&str, String)> = docs.iter().map(|(p, t)| (p.as_str(), norm(t))).collect();
+) -> Result<Vec<String>> {
+    let long: Vec<(&str, String)> = queries
+        .iter()
+        .map(|(qid, text)| (qid.as_str(), norm(text)))
+        .filter(|(_, q)| q.chars().count() >= min_chars)
+        .collect();
+    let pattern = |q: &str| {
+        let words: Vec<String> = q.split(' ').map(regex::escape).collect();
+        format!("(?i){}", words.join(r"\s+"))
+    };
+    let set = regex::RegexSet::new(long.iter().map(|(_, q)| pattern(q)))?;
     let mut out = Vec::new();
-    for (qid, text) in queries {
-        let q = norm(text);
-        if q.chars().count() < min_chars {
-            continue;
+    for (path, text) in docs {
+        for i in set.matches(&text) {
+            out.push(format!("{} in {path}", long[i].0));
         }
-        out.extend(
-            docs.iter()
-                .filter(|(_, d)| d.contains(&q))
-                .map(|(path, _)| format!("{qid} in {path}")),
-        );
     }
-    out
+    out.sort();
+    Ok(out)
 }
 
 #[cfg(test)]
@@ -267,7 +272,7 @@ mod tests {
             ("docs/src/ok.md".to_string(), "unrelated".to_string()),
         ];
         assert_eq!(
-            query_fingerprint_leaks(&queries, &docs, 40),
+            query_fingerprint_leaks(&queries, docs, 40).unwrap(),
             vec!["q1 in docs/src/leak.md".to_string()]
         );
     }
