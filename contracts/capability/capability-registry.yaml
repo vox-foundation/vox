@@ -12883,6 +12883,46 @@ curated:
   - kb
   - eval
   parameters: null
+- id: cli.kb.reindex
+  title: Reindex Knowledge Library
+  description_human: Rebuild the KB Library index from the repository docs/src tree (takes no path arguments; single-flight); returns the index report.
+  description_model: null
+  intent_tags:
+  - retrieval
+  - knowledge
+  side_effect_class: writes_files
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - kb
+  - reindex
+  parameters: null
+- id: cli.kb.status
+  title: Knowledge Library Status
+  description_human: Report KB Library index state, covering corpus root and commit, doc/chunk/card counts, chunker version, lexical backend, embed model, trust tier, per-file errors and index consistency.
+  description_model: null
+  intent_tags:
+  - retrieval
+  - knowledge
+  side_effect_class: null
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - kb
+  - status
+  parameters: null
 - id: cli.live
   title: Live
   description_human: null

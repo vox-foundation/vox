@@ -593,7 +593,7 @@ pub enum Cli {
         cmd: vox_cli_research::ResearchCmd,
     },
 
-    /// Knowledge base: retrieval eval (`vox kb eval`).
+    /// Knowledge base: retrieval eval, index status and reindex (`vox kb eval|status|reindex`).
     Kb {
         /// Subcommand.
         #[command(subcommand)]
