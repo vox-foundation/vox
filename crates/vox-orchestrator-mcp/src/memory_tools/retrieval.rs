@@ -334,7 +334,6 @@ pub async fn run_retrieval_bundle(
             .await?;
 
     let mut chunk_lines = execution.chunk_lines.clone();
-    chunk_lines.extend_from_slice(&execution.tantivy_doc_lines);
     chunk_lines.extend_from_slice(&execution.qdrant_lines);
 
     let retrieval_tier = if execution.used_vector && execution.used_bm25 {

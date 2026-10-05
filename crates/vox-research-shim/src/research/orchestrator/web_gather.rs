@@ -54,12 +54,6 @@ fn research_hits_from_search_execution(execution: SearchExecution) -> Vec<Resear
     );
     append_local_lines(&mut out, "chunk", "vox://chunk", execution.chunk_lines);
     append_local_lines(&mut out, "repo", "repo://", execution.repo_lines);
-    append_local_lines(
-        &mut out,
-        "tantivy",
-        "repo://tantivy",
-        execution.tantivy_doc_lines,
-    );
     append_local_lines(&mut out, "qdrant", "vox://qdrant", execution.qdrant_lines);
     append_local_lines(&mut out, "rrf", "vox://rrf", execution.rrf_fused_lines);
     append_local_lines(
