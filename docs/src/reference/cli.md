@@ -205,13 +205,13 @@ Corpus registry and freshness status/ingest operations for Vox Graph knowledge m
 
 ### `vox kb eval`
 
-Deterministic retrieval eval over the golden set in `contracts/kb/eval/` (BM25 baseline, scored on doc and chunk ids). Plain `vox kb eval` prints the metric report for the chosen split.
+Deterministic retrieval eval over the golden set in `contracts/kb/eval/` (scored on doc and chunk ids through the Library index, `library-tantivy-v1`, over the frozen corpus snapshot). Plain `vox kb eval` prints the metric report for the chosen split.
 
 | Flag | Role |
 |------|------|
 | `--split <dev\|test>` | Golden-set split to score (default `dev`). `--split test` is milestone-close only. |
 | `--json` | Emit the report as JSON. |
-| `--query <TEXT>` / `--top <N>` | Print the top-N (default 20) BM25 chunk ids for the text, for qrel pooling. `--top` requires `--query`. |
+| `--query <TEXT>` / `--top <N>` | Print the top-N (default 20) Library-index chunk ids for the text, for qrel pooling. `--top` requires `--query`. |
 | `--headings <DOC_ID>` | Print every valid `heading_path` of a corpus snapshot doc. |
 | `--snapshot-corpus` | Rewrite the frozen `contracts/kb/eval/corpus.jsonl` from tracked non-archive `docs/src` markdown. |
 

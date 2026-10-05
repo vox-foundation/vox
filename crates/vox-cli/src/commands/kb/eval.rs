@@ -1,18 +1,18 @@
-//! `vox kb eval` — retrieval report, BM25 pooling (`--query`), `--headings`, `--snapshot-corpus`.
+//! `vox kb eval` — retrieval report, Library-index pooling (`--query`), `--headings`,
+//! `--snapshot-corpus`.
 //!
 //! Stdout carries only deterministic content; timings and paths go to stderr.
 
 use std::io::Write;
 use std::path::Path;
 
-use super::gate::ensure_clean;
+use super::gate::{content_hash, ensure_clean, library_report};
 use anyhow::{Context, Result, bail};
 use clap::{Args, ValueEnum};
-use vox_search::kb_eval::bm25::Bm25Index;
 use vox_search::kb_eval::golden::{
     GoldenSet, Split, load_corpus, read_canary_guid, snapshot_corpus_jsonl, validate_splits,
 };
-use vox_search::kb_eval::run_eval;
+use vox_search::kb_eval::library::{EVAL_DEPTH, LibraryRetriever};
 use vox_search::kb_ids::doc_heading_paths;
 
 /// Golden-set split to score.
@@ -30,7 +30,7 @@ pub struct KbEvalArgs {
     /// Emit the report as JSON.
     #[arg(long)]
     pub json: bool,
-    /// Print the top-N BM25 chunk ids for this text (qrel pooling).
+    /// Print the top-N Library-index chunk ids for this text (qrel pooling).
     #[arg(long, conflicts_with_all = ["headings", "snapshot_corpus"])]
     pub query: Option<String>,
     /// Number of chunks to print with --query.
@@ -99,8 +99,7 @@ pub fn run_report(eval_dir: &Path, split: Split, json: bool, out: &mut impl Writ
         validate_splits(eval_dir)?;
         eprintln!("held-out split: milestone-close use only; never tune on it");
     }
-    let idx = Bm25Index::build(&golden.corpus);
-    let report = run_eval(&golden, &idx.doc_chunk_ids(), |q| idx.rank(q))?;
+    let report = library_report(&golden)?;
     if json {
         writeln!(out, "{}", report.to_json_string()?)?;
     } else {
@@ -112,7 +111,14 @@ pub fn run_report(eval_dir: &Path, split: Split, json: bool, out: &mut impl Writ
 pub fn run_query(eval_dir: &Path, text: &str, top: usize, out: &mut impl Write) -> Result<()> {
     let corpus = load_corpus(eval_dir)?;
     ensure_clean(&corpus, &read_canary_guid(eval_dir)?)?;
-    let idx = Bm25Index::build(&corpus);
+    let work = tempfile::tempdir().context("temp dir for the eval index")?;
+    let idx = LibraryRetriever::build_blocking(
+        &corpus,
+        &[text.to_string()],
+        top.max(EVAL_DEPTH),
+        work.path(),
+        &content_hash,
+    )?;
     for (i, (score, c)) in idx.rank_scored(text).into_iter().take(top).enumerate() {
         writeln!(out, "{}\t{score:.4}\t{}", i + 1, c.id)?;
     }

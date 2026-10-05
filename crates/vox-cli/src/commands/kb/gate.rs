@@ -9,11 +9,11 @@ use std::time::Instant;
 use anyhow::{Context, Result, anyhow, bail};
 use vox_corpus::corpus::extract_docs::{ExtractDocsConfig, walk_and_extract_docs};
 use vox_git::read_cmd::{GitReadError, read_only};
+use vox_search::kb_eval::Report;
 use vox_search::kb_eval::baseline::{
     Baseline, check_regression, check_tighten_only, improvements, new_epoch, ratchet_split,
     tightened,
 };
-use vox_search::kb_eval::bm25::Bm25Index;
 use vox_search::kb_eval::canary::{
     assert_corpus_clean, check_roots_disjoint, decode_for_scan, query_fingerprint_leaks,
     scan_paths_for_guid, texts_containing_guid,
@@ -21,7 +21,7 @@ use vox_search::kb_eval::canary::{
 use vox_search::kb_eval::golden::{
     CorpusDoc, GoldenSet, load_query_texts, read_canary_guid, validate_splits,
 };
-use vox_search::kb_eval::{Report, run_eval};
+use vox_search::kb_eval::library::{EVAL_DEPTH, LibraryRetriever, evaluate};
 use vox_search::kb_ids::KB_CORPUS_ROOTS;
 
 use super::eval::EVAL_DIR;
@@ -55,12 +55,31 @@ pub(crate) fn ensure_clean(corpus: &[CorpusDoc], guid: &str) -> Result<()> {
     }
 }
 
+/// Content hash handed to the Library indexer (vox-search takes no crypto dependency).
+pub(crate) fn content_hash(b: &[u8]) -> String {
+    vox_crypto::hex_encode(&vox_crypto::secure_hash(b))
+}
+
+/// Evaluate `golden` through the Library index: a fresh index over the frozen snapshot, in a
+/// temp tree that is gone when this returns.
+pub(crate) fn library_report(golden: &GoldenSet) -> Result<Report> {
+    let work = tempfile::tempdir().context("temp dir for the eval index")?;
+    let queries: Vec<String> = golden.queries.iter().map(|q| q.text.clone()).collect();
+    let lib = LibraryRetriever::build_blocking(
+        &golden.corpus,
+        &queries,
+        EVAL_DEPTH,
+        work.path(),
+        &content_hash,
+    )?;
+    evaluate(golden, &lib)
+}
+
 /// Dev-split report: load with `ratchet_split`, assert the corpus is clean, index, evaluate.
 pub(crate) fn dev_report(eval_dir: &Path) -> Result<Report> {
     let golden = GoldenSet::load(eval_dir, ratchet_split())?;
     ensure_clean(&golden.corpus, &golden.canary)?;
-    let idx = Bm25Index::build(&golden.corpus);
-    run_eval(&golden, &idx.doc_chunk_ids(), |q| idx.rank(q))
+    library_report(&golden)
 }
 
 pub(crate) fn read_baseline(path: &Path) -> Result<Option<Baseline>> {

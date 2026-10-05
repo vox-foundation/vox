@@ -9,6 +9,8 @@ pub mod baseline;
 pub mod bm25;
 pub mod canary;
 pub mod golden;
+#[cfg(feature = "tantivy-lexical")]
+pub mod library;
 pub mod metrics;
 
 use std::collections::{BTreeMap, BTreeSet};
