@@ -49,12 +49,15 @@ Each `queries.jsonl` line carries `metadata` with:
 | `approved_by` | who accepted the query and its qrels |
 | `created` | ISO date |
 | `canary` | the canary value from the line at the bottom of this file |
+| `paraphrase_of` | optional; on an `llm-expansion` paraphrase, the id of the seed it rewords (absent for seeds and coverage-gap queries) |
 
 ## Split rule and held-out policy
 
 Split membership is **stored, not computed**: it is which qrels file holds the query. Within each
 (`origin`, `intent`) group, every 4th query in authoring order goes to `test`, so both origins are
-represented in the held-out set (roughly 25-30% held out). Seed queries are `human` plus `agent-seed`;
+represented in the held-out set (roughly 25-30% held out). A paraphrase (`paraphrase_of`) is the
+exception: it always follows its seed's split, so dev tuning never sees a rewording of a held-out
+question; `validate_splits` enforces this. Coverage-gap queries have no seed and keep the group rule. Seed queries are `human` plus `agent-seed`;
 the ratchet gates `dev/all` and the seed subset `dev/seed`.
 
 - Only `vox kb eval --split test` reads `test`, and only at milestone close.

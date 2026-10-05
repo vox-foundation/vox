@@ -272,3 +272,38 @@ fn canary_guid_is_read_from_readme_and_shape_checked() {
     put(&d, "README.md", "no canary here\n");
     assert!(read_canary_guid(d.path()).is_err());
 }
+
+/// Point `q2` (llm-expansion, dev) at `seed` via `metadata.paraphrase_of`.
+fn q2_paraphrases(d: &tempfile::TempDir, seed: &str) {
+    let p = d.path().join("queries.jsonl");
+    let s = std::fs::read_to_string(&p).unwrap().replace(
+        r#""intent":"how-to","#,
+        &format!(r#""intent":"how-to","paraphrase_of":"{seed}","#),
+    );
+    std::fs::write(p, s).unwrap();
+}
+
+#[test]
+fn paraphrase_shares_seed_split() {
+    // Same split as its seed (q1 is dev, q2 is dev): fine, and counts unchanged.
+    let d = fx();
+    q2_paraphrases(&d, "q1");
+    assert_eq!(
+        validate_splits(d.path()).unwrap().dev[&Origin::LlmExpansion],
+        1
+    );
+    // Seed in the held-out split while the paraphrase sits in dev: leakage, rejected.
+    let d = fx();
+    q2_paraphrases(&d, "q3");
+    let e = validate_splits(d.path()).unwrap_err().to_string();
+    assert!(e.contains("paraphrase") && e.contains("q3"), "{e}");
+    // Dangling seed id is rejected too.
+    let d = fx();
+    q2_paraphrases(&d, "q99");
+    assert!(
+        validate_splits(d.path())
+            .unwrap_err()
+            .to_string()
+            .contains("q99")
+    );
+}

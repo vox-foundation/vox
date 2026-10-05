@@ -128,11 +128,12 @@ x012	docs/src/explanation/expl-actors-workflows.md#Actors & Workflows › Actors
 x012	docs/src/explanation/expl-actors-workflows.md#Actors & Workflows › Quick Comparison	2
 x012	docs/src/explanation/expl-actors-workflows.md#Actors & Workflows › Workflows	1
 x013	docs/src/architecture/agentos-ssot-2026.md#AgentOS & Agent-Computer Interface SSOT (2026) › 3. Mutation classification	2
+x014	docs/src/reference/vox-ir-specification.md#Vox IR Specification	2
+x014	docs/src/reference/vox-ir-specification.md#Vox IR Specification › Purpose	1
+x014	docs/src/reference/vox-ir-specification.md#Vox IR Specification › Stability guarantees	2
 x015	docs/src/explanation/expl-durable-execution.md#Explanation: Durable Execution › 1. The Journal System	1
 x015	docs/src/explanation/expl-durable-execution.md#Explanation: Durable Execution › 2. Recovery via Replay	2
 x015	docs/src/explanation/expl-durable-execution.md#Explanation: Durable Execution › 3. Exactly-Once Semantics	2
-x016	docs/src/architecture/search-retrieval-ssot-2026.md#Search & Retrieval SSOT (2026) › 1. Scope	1
-x016	docs/src/architecture/search-retrieval-ssot-2026.md#Search & Retrieval SSOT (2026) › 2. Canonical pipeline	2
 x017	docs/src/architecture/cryptography-ssot-2026.md#Cryptography Policy SSoT › Allowed Primitives	2
 x017	docs/src/reference/ref-builtins-hashing.md#Hashing & Identity Builtins › Workspace hash algorithm map (Rust tooling)	1
 x018	docs/src/adr/026-third-party-code-provenance.md#ADR-026: Third-Party Code Provenance Policy › Decision › 1. Approved intake paths (in priority order)	1

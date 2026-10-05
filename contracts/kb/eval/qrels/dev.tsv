@@ -100,9 +100,9 @@ x010	docs/src/reference/mens-serving-ssot.md	1
 x012	docs/src/explanation/expl-actors-workflows.md	2
 x012	docs/src/reference/ref-async-concurrency.md	1
 x013	docs/src/architecture/agentos-ssot-2026.md	2
+x014	docs/src/reference/vox-ir-specification.md	2
 x015	docs/src/explanation/expl-durable-execution.md	2
 x015	docs/src/tutorials/tut-workflow-durability.md	1
-x016	docs/src/architecture/search-retrieval-ssot-2026.md	2
 x017	docs/src/architecture/cryptography-ssot-2026.md	2
 x017	docs/src/reference/ref-builtins-hashing.md	1
 x018	docs/src/adr/026-third-party-code-provenance.md	2

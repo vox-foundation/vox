@@ -95,6 +95,10 @@ pub struct QueryMeta {
     pub created: String,
     pub intent: Intent,
     pub canary: String,
+    /// For a paraphrase: the seed query it rewords. It must share that seed's split
+    /// (checked by [`validate_splits`]), so dev tuning never sees a held-out question reworded.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub paraphrase_of: Option<String>,
 }
 
 /// One `queries.jsonl` line.
@@ -380,9 +384,10 @@ impl GoldenSet {
 /// per-split/per-origin counts. Reads only the query-id column of the two doc qrels files.
 /// The Dev load path never calls this.
 pub fn validate_splits(dir: &Path) -> Result<SplitSummary> {
-    let origins: BTreeMap<String, Origin> = jsonl::<QueryLine>(dir, "queries.jsonl")?
-        .into_iter()
-        .map(|(_, q)| (q.id, q.metadata.origin))
+    let lines = jsonl::<QueryLine>(dir, "queries.jsonl")?;
+    let origins: BTreeMap<String, Origin> = lines
+        .iter()
+        .map(|(_, q)| (q.id.clone(), q.metadata.origin))
         .collect();
     let dev = qrel_query_ids(dir, "qrels/dev.tsv")?;
     let test = qrel_query_ids(dir, "qrels/test.tsv")?;
@@ -397,6 +402,20 @@ pub fn validate_splits(dir: &Path) -> Result<SplitSummary> {
         .find(|q| !dev.contains(*q) && !test.contains(*q))
     {
         bail!("query {q} is in neither the dev nor the test split");
+    }
+    for (_, q) in &lines {
+        let Some(seed) = &q.metadata.paraphrase_of else {
+            continue;
+        };
+        if !origins.contains_key(seed) {
+            bail!("query {} is a paraphrase of unknown query {seed:?}", q.id);
+        }
+        if dev.contains(&q.id) != dev.contains(seed) {
+            bail!(
+                "paraphrase {} is not in the same split as its seed {seed}",
+                q.id
+            );
+        }
     }
     let count = |ids: &BTreeSet<String>| {
         let mut m = BTreeMap::new();

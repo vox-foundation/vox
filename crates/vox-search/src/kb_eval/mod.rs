@@ -312,6 +312,7 @@ mod tests {
                     created: "2026-10-04".into(),
                     intent: Intent::Where,
                     canary: String::new(),
+                    paraphrase_of: None,
                 },
             }],
             doc_qrels: [("q1".to_string(), qrels(&[(ALPHA, 2)]))].into(),

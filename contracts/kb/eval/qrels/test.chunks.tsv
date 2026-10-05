@@ -40,9 +40,8 @@ x011	docs/src/tutorials/tut-getting-started.md#Getting Started with Vox › Step
 x011	docs/src/tutorials/tut-getting-started.md#Getting Started with Vox › Step 4: Type check	2
 x011	docs/src/tutorials/tut-getting-started.md#Getting Started with Vox › Step 5: Build	1
 x011	docs/src/tutorials/tut-getting-started.md#Getting Started with Vox › Step 6: Run	2
-x014	docs/src/reference/vox-ir-specification.md#Vox IR Specification	2
-x014	docs/src/reference/vox-ir-specification.md#Vox IR Specification › Purpose	1
-x014	docs/src/reference/vox-ir-specification.md#Vox IR Specification › Stability guarantees	2
+x016	docs/src/architecture/search-retrieval-ssot-2026.md#Search & Retrieval SSOT (2026) › 1. Scope	1
+x016	docs/src/architecture/search-retrieval-ssot-2026.md#Search & Retrieval SSOT (2026) › 2. Canonical pipeline	2
 x019	docs/src/AGENTS.md#AGENTS.md › Frontmatter requirements (all new pages)	2
 x019	docs/src/contributors/documentation-governance.md#Documentation governance › Taxonomy › Category vocabulary	2
 x019	docs/src/contributors/documentation-governance.md#Documentation governance › Taxonomy › Frontmatter starter template	2
