@@ -348,7 +348,7 @@ mod tests {
             .unwrap();
 
         let got = db
-            .library_chunks_by_hashes(&[a.chunk_hash.clone()])
+            .library_chunks_by_hashes(std::slice::from_ref(&a.chunk_hash))
             .await
             .unwrap();
         assert_eq!(got.len(), 1);
@@ -401,7 +401,10 @@ mod tests {
         assert_eq!(b_before.0, b_after.0, "rowid kept");
         assert_eq!((b_before.2, b_after.2), (1, 2));
 
-        let diff = db.apply_library_document(&d, &[b.clone()]).await.unwrap();
+        let diff = db
+            .apply_library_document(&d, std::slice::from_ref(&b))
+            .await
+            .unwrap();
         assert_eq!((diff.inserted, diff.deleted, diff.kept), (0, 2, 1));
         assert_eq!(diff.deleted_hashes.len(), 2);
     }
