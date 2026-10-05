@@ -214,3 +214,59 @@ fn canary_sweep_names_every_source_and_never_the_guid() {
     let clean = canary_failures(root, &["contracts/kb/eval/README.md".to_string()]);
     assert!(clean.is_empty(), "{clean:?}");
 }
+
+/// Fake `git`: `ls` answers `ls-tree`, `show` answers `show`; `None` is a non-zero exit.
+fn fake_git(
+    ls: Option<&'static str>,
+    show: Option<String>,
+) -> impl Fn(&[&str]) -> Result<String, GitReadError> {
+    move |a: &[&str]| {
+        let r = if a[0] == "ls-tree" {
+            ls.map(str::to_owned)
+        } else {
+            show.clone()
+        };
+        r.ok_or(GitReadError::NonZero {
+            code: 128,
+            stderr: "fatal: simulated".into(),
+        })
+    }
+}
+
+#[test]
+fn baseline_at_bootstraps_only_on_proven_absence() {
+    let tmp = temp_repo();
+    let json = new_epoch(None, &dev_report(&tmp.path().join(EVAL_DIR)).unwrap(), "t")
+        .unwrap()
+        .to_json_string()
+        .unwrap();
+    // ls-tree succeeds and lists nothing: absent at base, bootstrap.
+    assert!(
+        baseline_at(fake_git(Some(""), None), "b")
+            .unwrap()
+            .is_none()
+    );
+    // Present and readable.
+    assert!(
+        baseline_at(fake_git(Some(BASELINE_REL), Some(json)), "b")
+            .unwrap()
+            .is_some()
+    );
+    // Listed but `git show` fails (corrupt/missing blob, offline promisor): fail closed.
+    let err = baseline_at(fake_git(Some(BASELINE_REL), None), "b").unwrap_err();
+    assert!(err.contains("simulated"), "{err}");
+    // ls-tree itself fails: fail closed, never a bootstrap.
+    assert!(baseline_at(fake_git(None, None), "b").is_err());
+    // Listed but unparseable.
+    assert!(baseline_at(fake_git(Some(BASELINE_REL), Some("{".into())), "b").is_err());
+}
+
+#[test]
+fn baseline_at_reads_real_git() {
+    let repo = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let git = |a: &[&str]| read_only(&repo, a);
+    assert!(baseline_at(git, "HEAD").unwrap().is_some());
+    // A tree-ish without the path: provably absent.
+    assert!(baseline_at(git, "HEAD:docs").unwrap().is_none());
+    assert!(baseline_at(git, "refs/heads/definitely-missing-kb-eval").is_err());
+}

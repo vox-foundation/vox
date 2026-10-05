@@ -182,23 +182,32 @@ pub(crate) fn resolve_base(root: &Path, base: &str) -> Result<()> {
     Ok(())
 }
 
-/// `[tighten-only]` failures: HEAD's baseline vs the one at `base` (read via `git show`).
+/// The baseline at `base`. `Ok(None)` (bootstrap) only when `ls-tree` succeeds and lists no
+/// such path; any git or parse failure is an error, never a bootstrap (fail closed).
+pub(crate) fn baseline_at(
+    git: impl Fn(&[&str]) -> Result<String, GitReadError>,
+    base: &str,
+) -> Result<Option<Baseline>, String> {
+    let listed = git(&["ls-tree", "--name-only", base, "--", BASELINE_REL])
+        .map_err(|e| format!("cannot list {BASELINE_REL} at {base}: {e}"))?;
+    if listed.trim().is_empty() {
+        return Ok(None);
+    }
+    let shown = git(&["show", &format!("{base}:{BASELINE_REL}")])
+        .map_err(|e| format!("cannot read the baseline at {base}: {e}"))?;
+    Baseline::from_json_str(&shown)
+        .map(Some)
+        .map_err(|e| format!("baseline at {base} unreadable: {e:#}"))
+}
+
+/// `[tighten-only]` failures: HEAD's baseline vs the one at `base`.
 fn tighten_failures(root: &Path, base: &str, head: Option<&Baseline>) -> Vec<String> {
     if let Err(e) = resolve_base(root, base) {
         return vec![format!("[tighten-only] {e}")];
     }
-    let shown = read_only(root, &["show", &format!("{base}:{BASELINE_REL}")]);
-    let base_baseline = match shown {
-        Ok(s) => match Baseline::from_json_str(&s) {
-            Ok(b) => Some(b),
-            Err(e) => {
-                return vec![format!(
-                    "[tighten-only] baseline at {base} unreadable: {e:#}"
-                )];
-            }
-        },
-        Err(GitReadError::NonZero { .. }) => None, // absent at base: bootstrap
-        Err(e) => return vec![format!("[tighten-only] git show failed: {e}")],
+    let base_baseline = match baseline_at(|a| read_only(root, a), base) {
+        Ok(b) => b,
+        Err(e) => return vec![format!("[tighten-only] {e}")],
     };
     let range = format!("{base}...HEAD");
     let mut args = vec!["diff", "--name-only", range.as_str(), "--"];
