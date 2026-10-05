@@ -18,7 +18,9 @@ use vox_search::kb_eval::canary::{
     assert_corpus_clean, check_roots_disjoint, decode_for_scan, query_fingerprint_leaks,
     scan_paths_for_guid, texts_containing_guid,
 };
-use vox_search::kb_eval::golden::{CorpusDoc, GoldenSet, load_query_texts, read_canary_guid};
+use vox_search::kb_eval::golden::{
+    CorpusDoc, GoldenSet, load_query_texts, read_canary_guid, validate_splits,
+};
 use vox_search::kb_eval::{Report, run_eval};
 use vox_search::kb_ids::KB_CORPUS_ROOTS;
 
@@ -229,17 +231,26 @@ fn tighten_failures(root: &Path, base: &str, head: Option<&Baseline>) -> Vec<Str
     }
 }
 
-/// Stable output: sorted (`[canary]` < `[regression]` < `[tighten-only]`), each line once.
+/// Stable output: sorted (`[canary]` < `[golden]` < `[regression]` < `[tighten-only]`),
+/// each line once.
 pub(crate) fn sorted_unique(mut failures: Vec<String>) -> Vec<String> {
     failures.sort();
     failures.dedup();
     failures
 }
 
-/// Regression + tighten-only vs `base` + canary sweep, all failures in one report.
-pub fn run_gate(root: &Path, base: &str) -> Result<()> {
-    let started = Instant::now();
-    let mut fails = Vec::new();
+/// `[golden]` failures: dev/test disjointness, coverage and the paraphrase-follows-seed rule.
+/// `validate_splits` reads only the query-id column of the test qrels, never its judgments.
+fn golden_failures(eval_dir: &Path) -> Vec<String> {
+    match validate_splits(eval_dir) {
+        Ok(_) => Vec::new(),
+        Err(e) => vec![format!("[golden] split rule: {e:#}")],
+    }
+}
+
+/// Every gate failure (unsorted) and the number of tracked files scanned.
+pub(crate) fn gate_failures(root: &Path, base: &str) -> (Vec<String>, usize) {
+    let mut fails = golden_failures(&root.join(EVAL_DIR));
     let head = match read_baseline(&root.join(BASELINE_REL)) {
         Ok(h) => h,
         Err(e) => {
@@ -276,10 +287,18 @@ pub fn run_gate(root: &Path, base: &str) -> Result<()> {
         }
     };
     fails.extend(canary_failures(root, &tracked));
+    (fails, tracked.len())
+}
+
+/// Golden split rules + regression + tighten-only vs `base` + canary sweep, all failures in
+/// one report.
+pub fn run_gate(root: &Path, base: &str) -> Result<()> {
+    let started = Instant::now();
+    let (fails, tracked) = gate_failures(root, base);
     let fails = sorted_unique(fails);
     eprintln!("kb eval gate: {:.2}s", started.elapsed().as_secs_f64());
     if fails.is_empty() {
-        println!("kb eval gate: OK ({} tracked files scanned)", tracked.len());
+        println!("kb eval gate: OK ({tracked} tracked files scanned)");
         return Ok(());
     }
     for f in &fails {

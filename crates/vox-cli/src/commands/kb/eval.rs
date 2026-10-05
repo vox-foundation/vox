@@ -42,7 +42,8 @@ pub struct KbEvalArgs {
     /// Rewrite contracts/kb/eval/corpus.jsonl from tracked non-archive docs/src markdown.
     #[arg(long)]
     pub snapshot_corpus: bool,
-    /// Ratchet gate: report every regression, tighten-only and canary failure; exit non-zero on any.
+    /// Ratchet gate: report every golden-split, regression, tighten-only and canary failure;
+    /// exit non-zero on any.
     #[arg(long, conflicts_with_all = ["tighten", "write_baseline", "split", "query", "headings", "snapshot_corpus"])]
     pub gate: bool,
     /// Base ref the baseline must only tighten against.

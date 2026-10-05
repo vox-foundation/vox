@@ -288,3 +288,55 @@ fn ls_files_z_paths_are_split_on_nul_unquoted() {
     let out = read_only(&repo, &["ls-files", "-z", "--", "contracts/kb"]).unwrap();
     assert!(split_nul(&out).contains(&BASELINE_REL.to_string()));
 }
+
+#[test]
+fn gate_reports_split_and_paraphrase_violations_as_golden() {
+    let tmp = temp_repo();
+    let root = tmp.path();
+    let eval = root.join(EVAL_DIR);
+    let golden = |root: &Path| -> Vec<String> {
+        gate_failures(root, "HEAD")
+            .0
+            .into_iter()
+            .filter(|f| f.starts_with("[golden]"))
+            .collect()
+    };
+    // Disjoint, covering split: q003 held out.
+    let dev = std::fs::read_to_string(eval.join("qrels/dev.tsv")).unwrap();
+    let kept: String = dev
+        .lines()
+        .filter(|l| !l.starts_with("q003"))
+        .map(|l| format!("{l}\n"))
+        .collect();
+    write(root, "contracts/kb/eval/qrels/dev.tsv", &kept);
+    let test_tsv = "query-id\tcorpus-id\tscore\nq003\tdocs/src/beta.md\t2\n";
+    write(root, "contracts/kb/eval/qrels/test.tsv", test_tsv);
+    assert!(golden(root).is_empty(), "{:?}", golden(root));
+    // A held-out query also listed in dev.tsv: the dev-only load accepts it, the gate must not.
+    write(
+        root,
+        "contracts/kb/eval/qrels/dev.tsv",
+        &format!("{kept}q003\tdocs/src/beta.md\t2\n"),
+    );
+    let got = golden(root);
+    assert!(
+        got.iter().any(|f| f.contains("both the dev and test")),
+        "{got:?}"
+    );
+    write(root, "contracts/kb/eval/qrels/dev.tsv", &kept);
+    // A dev paraphrase of a held-out seed.
+    let q = std::fs::read_to_string(eval.join("queries.jsonl")).unwrap();
+    let q: String = q
+        .lines()
+        .map(|l| {
+            let mut v: serde_json::Value = serde_json::from_str(l).unwrap();
+            if v["_id"] == "q002" {
+                v["metadata"]["paraphrase_of"] = "q003".into();
+            }
+            format!("{v}\n")
+        })
+        .collect();
+    write(root, "contracts/kb/eval/queries.jsonl", &q);
+    let got = golden(root);
+    assert!(got.iter().any(|f| f.contains("same split")), "{got:?}");
+}
