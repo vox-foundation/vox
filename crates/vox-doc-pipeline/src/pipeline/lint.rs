@@ -25,6 +25,7 @@ pub(crate) const VALID_CATEGORIES: &[&str] = &[
     "API Reference — Crates",
     "Examples",
     "Concepts",
+    "Library",
     "Architecture Decisions (ADRs)",
     "Architecture SSOTs",
     "Contributors",

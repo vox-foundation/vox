@@ -44,6 +44,7 @@ Use one of these `category` values in frontmatter:
 | `Tutorials` | guided learning |
 | `How-To Guides` | goal-oriented instructions |
 | `Concepts` | conceptual understanding |
+| `Library` | general (non-Vox) curated knowledge pages under docs/src/library/, indexed by the KB |
 | `Language Reference` | stable lookup information |
 | `API Reference — Crates` | per-crate API surface |
 | `Examples` | worked examples |
