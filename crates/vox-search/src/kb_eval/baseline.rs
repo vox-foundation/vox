@@ -213,10 +213,35 @@ pub fn new_epoch(prev: Option<&Baseline>, report: &Report, note: &str) -> Result
     })
 }
 
+/// Head-baseline sanity, checked on every head (bootstrap included): schema 1, tolerance in
+/// `[0, INITIAL_TOLERANCE]` (a negative one would redden the gate forever), metrics in `[0, 1]`.
+fn shape_errors(head: &Baseline) -> Vec<String> {
+    let mut errs = Vec::new();
+    let mut bad = |m: String| errs.push(format!("[tighten-only] head baseline {m}"));
+    if head.schema_version != 1 {
+        bad(format!("schema_version {} != 1", head.schema_version));
+    }
+    if !(0.0..=INITIAL_TOLERANCE).contains(&head.tolerance) {
+        bad(format!(
+            "tolerance {} outside [0, {INITIAL_TOLERANCE}]",
+            head.tolerance
+        ));
+    }
+    for (key, block) in &head.metrics {
+        for (name, v) in block.flat() {
+            if !(0.0..=1.0).contains(&v) {
+                bad(format!("{key} {name} = {v} outside [0, 1]"));
+            }
+        }
+    }
+    errs
+}
+
 /// `[tighten-only]` errors for a baseline change between `base` and `head`.
 ///
 /// Agents never self-author a loosening; a re-epoch is human-reviewed (CODEOWNERS /contracts/).
 /// `golden_changed` is decided by the caller (AP-15). Rules:
+/// - every head passes `shape_errors` (schema, tolerance and metric ranges);
 /// - absent at base is a bootstrap (allowed); present at base but absent at head is an error;
 /// - tolerance may never rise;
 /// - golden set and retrieval config (retriever, chunker, budget, token estimator) unchanged:
@@ -229,13 +254,14 @@ pub fn check_tighten_only(
     head: Option<&Baseline>,
     golden_changed: bool,
 ) -> Vec<String> {
-    let mut errs = Vec::new();
     let t = |m: String| format!("[tighten-only] {m}");
     let (base, head) = match (base, head) {
-        (None, _) => return errs,
+        (None, None) => return Vec::new(),
+        (None, Some(h)) => return shape_errors(h),
         (Some(_), None) => return vec![t("baseline deleted at head but present at base".into())],
         (Some(b), Some(h)) => (b, h),
     };
+    let mut errs = shape_errors(head);
     if round6(head.tolerance) > round6(base.tolerance) {
         errs.push(t(format!(
             "tolerance raised {:.6} -> {:.6}",

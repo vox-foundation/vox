@@ -78,8 +78,14 @@ fn tighten_only_rejects_lowered_metric() {
 fn tighten_only_rejects_raised_tolerance() {
     let b = base();
     let mut h = b.clone();
+    h.tolerance = 0.005;
+    assert_eq!(check_tighten_only(Some(&b), Some(&h), false).len(), 0);
     h.tolerance = 0.05;
-    assert_eq!(check_tighten_only(Some(&b), Some(&h), false).len(), 1);
+    let errs = check_tighten_only(Some(&b), Some(&h), false);
+    assert!(
+        errs.iter().any(|e| e.contains("tolerance raised")),
+        "{errs:?}"
+    );
     // Even a legitimate re-epoch may not loosen the tolerance.
     h.epoch = 2;
     h.epoch_note = "new golden".into();
@@ -236,4 +242,29 @@ fn config_change_licenses_reepoch_and_regression_compares_it() {
             .iter()
             .any(|e| e.contains("md-h2-512-v2"))
     );
+}
+
+#[test]
+fn head_shape_is_checked_at_bootstrap_and_after() {
+    let edits: [fn(&mut Baseline); 5] = [
+        |h| h.tolerance = -0.01,
+        |h| h.tolerance = 0.5,
+        |h| h.schema_version = 2,
+        |h| h.metrics.get_mut("dev/all").unwrap().doc.recall_at_5 = 1.5,
+        |h| h.metrics.get_mut("dev/seed").unwrap().answer_in_budget = -0.1,
+    ];
+    for edit in edits {
+        let mut h = base();
+        edit(&mut h);
+        let errs = check_tighten_only(None, Some(&h), false);
+        assert!(
+            errs.iter()
+                .any(|e| e.starts_with("[tighten-only] head baseline")),
+            "{errs:?}"
+        );
+        assert!(!check_tighten_only(Some(&base()), Some(&h), true).is_empty());
+    }
+    let mut h = base();
+    h.tolerance = 0.0;
+    assert!(check_tighten_only(None, Some(&h), false).is_empty());
 }
