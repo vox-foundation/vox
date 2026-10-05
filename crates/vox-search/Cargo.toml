@@ -37,6 +37,7 @@ walkdir = { workspace = true }
 tracing = { workspace = true }
 blake3 = { workspace = true }
 tantivy = { workspace = true, optional = true, features = ["mmap"] }
+text-splitter = { workspace = true }
 reqwest = { workspace = true }
 vox-http-client = { workspace = true }
 scraper = { workspace = true, optional = true }

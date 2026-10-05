@@ -9,7 +9,9 @@ use std::path::{Path, PathBuf};
 
 use vox_db::{KB_LIBRARY_CORPUS, VoxDb};
 use vox_search::kb_ids;
-use vox_search::library::chunk::{ChunkKind, ParsedDoc, chunk_document};
+use vox_search::library::chunk::{
+    ChunkKind, ParsedDoc, SECTION_TOKEN_BUDGET, chunk_document, estimate_tokens,
+};
 use vox_search::library::corpus::walk_corpus;
 use vox_search::library::{IndexDeps, index_library};
 
@@ -255,4 +257,83 @@ async fn kb_chunking_end_to_end() {
             );
         }
     }
+}
+
+fn big_doc() -> String {
+    let prose = "The indexer walks every heading section and keeps each one whole when it fits. ";
+    let mut s = String::from("---\ntitle: T\n---\n## Big\n");
+    for i in 0..60 {
+        s.push_str(&format!("Paragraph {i}. {prose}{prose}\n\n"));
+    }
+    s.push_str("```rust\nfn main() {\n    // # not a heading\n    println!(\"hi\");\n}\n```\n\n");
+    for i in 60..80 {
+        s.push_str(&format!("Paragraph {i}. {prose}\n\n"));
+    }
+    s
+}
+
+#[test]
+fn chunk_oversize_split_within_budget() {
+    let text = big_doc();
+    assert!(text.len() > 9_000);
+    let doc = chunk(&text);
+    let parts: Vec<_> = doc
+        .chunks
+        .iter()
+        .filter(|c| c.kind == ChunkKind::Section && c.heading_path == "T › Big")
+        .collect();
+    assert!(parts.len() >= 2, "{} parts", parts.len());
+    for p in &parts {
+        assert!(
+            estimate_tokens(&p.body) <= SECTION_TOKEN_BUDGET,
+            "{}",
+            p.token_estimate
+        );
+        assert_eq!(p.token_estimate, estimate_tokens(&p.body));
+        // Every part keeps the section's anchor; no part cuts inside the fence.
+        assert_eq!(p.anchor.as_deref(), Some("big"));
+        assert_eq!(
+            p.body.matches("```").count() % 2,
+            0,
+            "fence cut: {}",
+            p.body
+        );
+    }
+    assert_eq!(
+        parts
+            .iter()
+            .filter(|p| p.body.contains("fn main()"))
+            .count(),
+        1
+    );
+    let hashes: BTreeSet<&str> = parts.iter().map(|p| p.hash.as_str()).collect();
+    assert_eq!(hashes.len(), parts.len());
+    // Splitting never invents a heading_path.
+    let got: BTreeSet<&str> = paths(&doc).into_iter().collect();
+    assert_eq!(got, BTreeSet::from(["T", "T › Big"]));
+}
+
+#[test]
+fn chunk_small_section_not_split() {
+    let text = "---\ntitle: T\n---\n## Small\n".to_string() + &"word ".repeat(400);
+    assert!(estimate_tokens(&text) <= SECTION_TOKEN_BUDGET);
+    let doc = chunk(&text);
+    let small = doc
+        .chunks
+        .iter()
+        .filter(|c| c.heading_path == "T › Small")
+        .count();
+    assert_eq!(small, 1);
+}
+
+#[test]
+fn chunk_split_is_deterministic() {
+    let text = big_doc();
+    let key = |d: &ParsedDoc| -> Vec<(String, String)> {
+        d.chunks
+            .iter()
+            .map(|c| (c.heading_path.clone(), c.hash.clone()))
+            .collect()
+    };
+    assert_eq!(key(&chunk(&text)), key(&chunk(&text)));
 }

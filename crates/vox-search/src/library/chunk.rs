@@ -1,12 +1,29 @@
 //! Library chunker. Identity (title, heading text, heading_path, H1 rule) comes only from
-//! [`crate::kb_ids`]; this module adds hashing, token estimates and the frontmatter blob.
+//! [`crate::kb_ids`]; this module adds the card, anchors, oversize splitting, hashing and token
+//! estimates.
+
+use text_splitter::{ChunkConfig, ChunkSizer, MarkdownSplitter};
 
 use crate::kb_ids;
 
 /// Recorded in `kb_index_state.chunker_version`; bump on any change that alters chunk bodies,
-/// boundaries or hashes. `tok-ceil4` = the `ceil(bytes / 4)` sizer (same estimator as Phase 1's
-/// answer-in-budget).
-pub const CHUNKER_VERSION: &str = "sections-v1+tok-ceil4";
+/// boundaries or hashes. Names the identity walk (`kb_ids` sections + root-keyed card), the
+/// permanent model-independent sizer (`est4b` = `ceil(bytes / 4)`, the same estimator as Phase 1's
+/// answer-in-budget) and the oversize budget (`md512`: `MarkdownSplitter`, 256..512, no overlap).
+pub const CHUNKER_VERSION: &str = "kb_ids-sections-v2+card+est4b+md512";
+
+/// A heading section above this many estimated tokens is split by `text-splitter`.
+pub const SECTION_TOKEN_BUDGET: usize = 512;
+
+/// Frozen sizer for `text-splitter` (AP-04): [`estimate_tokens`], never a model tokenizer, so
+/// chunk boundaries do not move when the embedder does.
+pub struct EstimatedTokens;
+
+impl ChunkSizer for EstimatedTokens {
+    fn size(&self, chunk: &str) -> usize {
+        estimate_tokens(chunk)
+    }
+}
 
 /// What a chunk is: one `Card` per doc (index 0), then the heading `Section`s.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -162,6 +179,10 @@ pub fn chunk_document(
     let mut seen: std::collections::BTreeMap<(String, String), usize> = Default::default();
     let mut slugs: std::collections::BTreeMap<String, usize> = Default::default();
     let mut chunks = Vec::new();
+    // Overlap stays 0: parts of one section must tile it (Pitfall 8).
+    let splitter = MarkdownSplitter::new(
+        ChunkConfig::new(256..SECTION_TOKEN_BUDGET).with_sizer(EstimatedTokens),
+    );
     let mut push = |kind: ChunkKind, heading_path: &str, anchor: Option<String>, body: &str| {
         let n = seen
             .entry((heading_path.to_string(), body.to_string()))
@@ -204,7 +225,18 @@ pub fn chunk_document(
         if body.is_empty() {
             continue;
         }
-        push(ChunkKind::Section, &sec.heading_path, anchor, body);
+        // Parts of one oversize section share its heading_path, anchor and so its chunk id (AP-10).
+        if estimate_tokens(body) > SECTION_TOKEN_BUDGET {
+            for part in splitter
+                .chunks(body)
+                .map(str::trim)
+                .filter(|p| !p.is_empty())
+            {
+                push(ChunkKind::Section, &sec.heading_path, anchor.clone(), part);
+            }
+        } else {
+            push(ChunkKind::Section, &sec.heading_path, anchor, body);
+        }
     }
     ParsedDoc {
         frontmatter_json: fm.to_string(),
