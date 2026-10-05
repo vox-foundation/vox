@@ -93,6 +93,17 @@ pub struct KbIndexState {
     pub duration_ms: i64,
 }
 
+/// A library document's metadata (no chunk bodies).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LibraryDocRow {
+    pub rel_path: String,
+    pub title: String,
+    pub frontmatter_json: String,
+    pub indexed_commit: Option<String>,
+    pub index_error: Option<String>,
+    pub file_hash: String,
+}
+
 const CHUNK_SELECT: &str = "SELECT c.chunk_hash, d.rel_path, d.title, c.heading_path, c.anchor, \
      c.chunk_kind, c.body_text, c.token_estimate \
      FROM search_document_chunks c JOIN search_documents d ON d.id = c.document_id";
@@ -443,6 +454,25 @@ impl crate::VoxDb {
         Ok(out)
     }
 
+    /// The library chunk with this hash, if any. Corpus-filtered: a row that exists only in a
+    /// non-library corpus is never returned (T-02-10).
+    pub async fn library_chunk_by_hash(
+        &self,
+        hash: &str,
+    ) -> Result<Option<LibraryChunkRow>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                &format!("{CHUNK_SELECT} WHERE d.corpus = ?1 AND c.chunk_hash = ?2 LIMIT 1"),
+                params![KB_LIBRARY_CORPUS, hash],
+            )
+            .await?;
+        match rows.next().await? {
+            Some(r) => Ok(Some(chunk_row(&r)?)),
+            None => Ok(None),
+        }
+    }
+
     /// Hydrate library chunks by hash, preserving input order and skipping unknown hashes.
     // ponytail: one query per hash; callers cap at ~50 hits. Batch with IN (...) if that grows.
     pub async fn library_chunks_by_hashes(
@@ -451,16 +481,56 @@ impl crate::VoxDb {
     ) -> Result<Vec<LibraryChunkRow>, StoreError> {
         let mut out = Vec::with_capacity(hashes.len());
         for h in hashes {
-            let mut rows = self
-                .conn
-                .query(
-                    &format!("{CHUNK_SELECT} WHERE d.corpus = ?1 AND c.chunk_hash = ?2 LIMIT 1"),
-                    params![KB_LIBRARY_CORPUS, h.as_str()],
-                )
-                .await?;
-            if let Some(r) = rows.next().await? {
-                out.push(chunk_row(&r)?);
-            }
+            out.extend(self.library_chunk_by_hash(h).await?);
+        }
+        Ok(out)
+    }
+
+    /// Metadata of one library document by `rel_path`; `None` for unknown or non-library paths.
+    pub async fn library_document_by_path(
+        &self,
+        rel_path: &str,
+    ) -> Result<Option<LibraryDocRow>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT rel_path, title, frontmatter_json, indexed_commit, index_error, \
+                 content_hash FROM search_documents WHERE corpus = ?1 AND rel_path = ?2",
+                params![KB_LIBRARY_CORPUS, rel_path],
+            )
+            .await?;
+        let Some(r) = rows.next().await? else {
+            return Ok(None);
+        };
+        Ok(Some(LibraryDocRow {
+            rel_path: r.get(0)?,
+            title: r.get(1)?,
+            frontmatter_json: r.get::<Option<String>>(2)?.unwrap_or_default(),
+            indexed_commit: r.get(3)?,
+            index_error: r.get(4)?,
+            file_hash: r.get(5)?,
+        }))
+    }
+
+    /// One document's chunks in `chunk_index` order (the card first).
+    pub async fn library_doc_chunks(
+        &self,
+        corpus: &str,
+        rel_path: &str,
+    ) -> Result<Vec<LibraryChunkRow>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                &format!(
+                    "{CHUNK_SELECT} WHERE d.corpus = ?1 AND d.rel_path = ?2 \
+                     AND c.chunk_hash IS NOT NULL ORDER BY c.chunk_index"
+                ),
+                params![corpus, rel_path],
+            )
+            .await?;
+        let mut out = Vec::new();
+        while let Some(r) = rows.next().await? {
+            out.push(chunk_row(&r)?);
         }
         Ok(out)
     }
@@ -641,6 +711,96 @@ mod tests {
         }
         assert_eq!(db.prune_orphan_kb_chunk_embeddings().await.unwrap(), 1);
         assert_eq!(db.prune_orphan_kb_chunk_embeddings().await.unwrap(), 0);
+    }
+
+    #[tokio::test]
+    async fn library_document_by_path_reads_library_docs_only() {
+        let db = VoxDb::open_memory().await.unwrap();
+        db.apply_library_document(&doc("docs/src/guide.md"), &[])
+            .await
+            .unwrap();
+        let mut other = doc("docs/src/o.md");
+        other.corpus = "other";
+        db.apply_library_document(&other, &[]).await.unwrap();
+        let row = db
+            .library_document_by_path("docs/src/guide.md")
+            .await
+            .unwrap();
+        let row = row.expect("indexed doc");
+        assert_eq!(
+            (row.title.as_str(), row.frontmatter_json.as_str()),
+            ("Guide", "{}")
+        );
+        assert_eq!(row.index_error, None);
+        assert!(
+            db.library_document_by_path("docs/src/o.md")
+                .await
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            db.library_document_by_path("docs/src/zzz.md")
+                .await
+                .unwrap()
+                .is_none()
+        );
+    }
+
+    #[tokio::test]
+    async fn library_doc_chunks_come_back_in_chunk_index_order() {
+        let db = VoxDb::open_memory().await.unwrap();
+        let d = doc("docs/src/guide.md");
+        let (a, b) = (
+            chunk(&"a".repeat(64), "A", "1"),
+            chunk(&"b".repeat(64), "B", "2"),
+        );
+        db.apply_library_document(&d, &[b.clone(), a.clone()])
+            .await
+            .unwrap();
+        let got = db
+            .library_doc_chunks(KB_LIBRARY_CORPUS, "docs/src/guide.md")
+            .await
+            .unwrap();
+        assert_eq!(
+            got.iter()
+                .map(|c| c.heading_path.as_str())
+                .collect::<Vec<_>>(),
+            ["B", "A"]
+        );
+        assert!(
+            db.library_doc_chunks("other", "docs/src/guide.md")
+                .await
+                .unwrap()
+                .is_empty()
+        );
+    }
+
+    #[tokio::test]
+    async fn library_chunk_by_hash_is_corpus_filtered() {
+        let db = VoxDb::open_memory().await.unwrap();
+        db.apply_library_document(&doc("docs/src/g.md"), &[chunk(&"a".repeat(64), "A", "x")])
+            .await
+            .unwrap();
+        let mut web = doc("docs/src/w.md");
+        web.corpus = "";
+        db.apply_library_document(&web, &[chunk(&"b".repeat(64), "W", "web")])
+            .await
+            .unwrap();
+        assert_eq!(
+            db.library_chunk_by_hash(&"a".repeat(64))
+                .await
+                .unwrap()
+                .unwrap()
+                .body,
+            "x"
+        );
+        assert!(
+            db.library_chunk_by_hash(&"b".repeat(64))
+                .await
+                .unwrap()
+                .is_none()
+        );
+        assert!(db.library_chunk_by_hash("missing").await.unwrap().is_none());
     }
 
     #[tokio::test]
