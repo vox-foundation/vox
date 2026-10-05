@@ -859,14 +859,6 @@ fn nextest_cargo_status(root: &Path, args: &[&str]) -> Result<()> {
     Ok(())
 }
 
-/// Returns a `Command` that invokes the current `vox` binary.
-///
-/// On Windows, `cargo run -p vox-cli` would try to relink `vox.exe`, which
-/// fails with "Access is denied" (os error 5) because the currently running
-/// process holds a lock on the executable. We avoid this by resolving
-/// `current_exe()` and invoking it directly — the binary is already fresh
-/// (we just ran it). On non-Windows platforms we keep using `cargo run` so
-/// that sub-commands always run against the latest source.
 /// Diff base for pre-push checks: `override_ref` when set, else `origin/main`.
 fn base_ref_or_default(override_ref: Option<String>) -> String {
     override_ref.unwrap_or_else(|| "origin/main".into())
