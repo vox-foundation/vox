@@ -72,13 +72,14 @@ Plans:
   4. From an external MCP host (Claude Code), a user can call `vox_kb_search`, `vox_kb_get`, `vox_kb_cite`, `vox_kb_status` and `vox_kb_reindex`, and read `kb://doc/{path}` and `kb://chunk/{hash}`. A page added under `docs/src/library/` appears in the `Library` sidebar section and in search results.
   5. The lexical leg is the one the recorded runtime probe chose. The writer-less `TantivyDocsIndex` mirror is gone from source. Doc-level `vox kb eval` metrics do not regress against the Phase 1 baseline (chunk-level qrels are re-keyed exactly once, with the delta recorded).
 
-**Plans**: 11/11 plans executed
+**Plans**: 11/12 plans executed
 Plans:
 **Wave 1**
 
 - [x] 02-01-PLAN.md — Gate (frozen-core schema 95 + tantivy-lexical placement), schema/store, tracer: one doc → kb_ids sections → hash-keyed rows → Tantivy → library::search
 - [x] 02-02-PLAN.md — `docs/src/library/` + `Library` category, sidebar section and parity test
 - [x] 02-10-PLAN.md — Gap closure CR-01: fallible corpus walk, prune skipped on incomplete/empty walk, missing `docs/src` fails, mutation-proven tests
+- [ ] 02-12-PLAN.md — Gap closure: Phase-1 real-data ratchet retargeted at LibraryRetriever (epoch 2, config-aware, mutation-proven) + clippy `cloned_ref_to_slice_refs`; IDX-02..07 marked Complete
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
