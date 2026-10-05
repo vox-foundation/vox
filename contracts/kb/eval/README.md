@@ -32,7 +32,8 @@ Only chunk-level rows with score `2` count as answer-bearing for `answer_in_budg
 - **Chunk id** = `doc_path#heading_path`.
   `heading_path` is the doc title followed by the H2..H6 heading text, each segment joined by
   a space, U+203A (`›`) and a space: `title › H2 › H3`. H1 is never a segment; the root is always
-  the doc title. Content before the first heading has the empty heading path (`doc_path#`).
+  the doc title. Content before the first heading (and under an H1) belongs to the root chunk
+  `doc_path#<title>`; there is no empty heading path.
 - A chunk qrel is credited to the deepest indexed chunk whose heading_path is an ancestor-or-equal
   of the qrel's heading_path. Coarser chunkers still earn credit, and a finer chunker is a no-op
   where headings did not change.
