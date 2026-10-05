@@ -15,6 +15,12 @@ use vox_db::LibraryChunkRow;
 /// Recorded in `kb_index_state.lexical_backend`.
 pub const LEXICAL_BACKEND: &str = "tantivy-0.22";
 
+/// Field boosts, tuned on the KB eval dev split (02-09). `title` is the document title repeated
+/// on every chunk of the doc, so a high boost lets one matching title crowd the whole result
+/// list; at 2.0/1.5 doc-level nDCG@10 was 0.358 vs 0.549 at 0.25/0.25 (BM25 baseline: 0.460).
+const TITLE_BOOST: f32 = 0.25;
+const HEADING_BOOST: f32 = 0.25;
+
 /// Where the library index lives: `<override>/library` when `VOX_SEARCH_TANTIVY_ROOT` is set and
 /// non-blank, else `<data_dir>/kb/library`; `None` when neither exists (AP-14).
 pub fn resolve_index_dir(
@@ -103,8 +109,8 @@ impl LibraryLexicalIndex {
         Ok(self.index.reader()?.searcher().num_docs())
     }
 
-    /// BM25 over title (x2.0), heading (x1.5) and body. Lenient parse: a malformed query never
-    /// fails the search. Order is (score rounded to 1e-6 desc, chunk_hash asc) so equal-scoring
+    /// BM25 over title, heading (both down-weighted, see the boosts above) and body. Lenient
+    /// parse: a malformed query never fails the search. Order is (score rounded to 1e-6 desc, chunk_hash asc) so equal-scoring
     /// chunks come back in a stable order.
     // ponytail: over-fetch 3x (+16) before the tie-break sort; a tie run longer than that at
     // the cut line can still reorder. Fetch everything tied if that ever matters.
@@ -114,8 +120,8 @@ impl LibraryLexicalIndex {
         let f = |n: &str| schema.get_field(n).expect("field in own schema");
         let mut parser =
             QueryParser::for_index(&self.index, vec![f("title"), f("heading"), f("body")]);
-        parser.set_field_boost(f("title"), 2.0);
-        parser.set_field_boost(f("heading"), 1.5);
+        parser.set_field_boost(f("title"), TITLE_BOOST);
+        parser.set_field_boost(f("heading"), HEADING_BOOST);
         let (q, _ignored) = parser.parse_query_lenient(query);
         let fetch = limit.saturating_mul(3).max(limit + 16);
         let mut hits: Vec<(String, f32)> = Vec::new();
