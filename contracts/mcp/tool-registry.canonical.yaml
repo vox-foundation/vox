@@ -738,6 +738,11 @@ tools:
   product_lane: ai
   http_read_role_eligible: false
   tier: core
+- name: vox_kb_cite
+  description: Build a citation (heading path, doc link with anchor, kb:// URI, indexed commit) for an indexed KB Library chunk by chunk_hash.
+  product_lane: ai
+  http_read_role_eligible: true
+  tier: core
 - name: vox_kb_clip
   description: Clip code/notes into knowledge bases.
   product_lane: ai
@@ -757,6 +762,11 @@ tools:
   description: Delete a knowledge entry by ID.
   product_lane: ai
   http_read_role_eligible: false
+  tier: core
+- name: vox_kb_get
+  description: Fetch one indexed KB Library document by docs/src rel_path (frontmatter, chunk list, reconstructed markdown) or one chunk by 64-hex chunk_hash; reads only the index, never the file system.
+  product_lane: ai
+  http_read_role_eligible: true
   tier: core
 - name: vox_kb_get_feed
   description: Get the feed of knowledge entries.
@@ -790,6 +800,11 @@ tools:
   tier: core
 - name: vox_kb_search
   description: Search the curated KB Library (Vox docs plus docs/src/library) by BM25 over heading chunks; returns ranked hits with chunk_hash, heading_path, anchor, snippet and kb:// URIs.
+  product_lane: ai
+  http_read_role_eligible: true
+  tier: core
+- name: vox_kb_status
+  description: Report KB Library index state, covering corpus root and commit, doc/chunk/card counts, chunker version, lexical backend, embed model, trust tier, per-file errors and index consistency.
   product_lane: ai
   http_read_role_eligible: true
   tier: core

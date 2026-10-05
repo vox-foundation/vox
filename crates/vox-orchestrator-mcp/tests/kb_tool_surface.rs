@@ -3,9 +3,19 @@
 
 mod common;
 
-const TOOLS: &[&str] = &["vox_kb_search"];
+const TOOLS: &[&str] = &[
+    "vox_kb_search",
+    "vox_kb_get",
+    "vox_kb_cite",
+    "vox_kb_status",
+];
 /// Tools that must be reachable by the HTTP read role.
-const READ_ROLE: &[&str] = &["vox_kb_search"];
+const READ_ROLE: &[&str] = &[
+    "vox_kb_search",
+    "vox_kb_get",
+    "vox_kb_cite",
+    "vox_kb_status",
+];
 /// Tools that write and must never be read-role eligible.
 const WRITE_TOOLS: &[&str] = &[];
 

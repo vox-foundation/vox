@@ -26973,6 +26973,72 @@ operations:
     http_read_role_eligible: true
     tier: core
   cli: null
+- id: kb.get
+  title: Get Knowledge Library Document
+  description: Fetch one indexed KB Library document by docs/src rel_path (frontmatter, chunk list, reconstructed markdown) or one chunk by 64-hex chunk_hash; reads only the index, never the file system.
+  description_human: null
+  product_lane: ai
+  intent_tags:
+  - retrieval
+  - knowledge
+  side_effect_class: null
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_kb_get
+    http_read_role_eligible: true
+    tier: core
+  cli: null
+- id: kb.cite
+  title: Cite Knowledge Library Chunk
+  description: Build a citation (heading path, doc link with anchor, kb:// URI, indexed commit) for an indexed KB Library chunk by chunk_hash.
+  description_human: null
+  product_lane: ai
+  intent_tags:
+  - retrieval
+  - knowledge
+  side_effect_class: null
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_kb_cite
+    http_read_role_eligible: true
+    tier: core
+  cli: null
+- id: kb.status
+  title: Knowledge Library Status
+  description: Report KB Library index state, covering corpus root and commit, doc/chunk/card counts, chunker version, lexical backend, embed model, trust tier, per-file errors and index consistency.
+  description_human: null
+  product_lane: ai
+  intent_tags:
+  - retrieval
+  - knowledge
+  side_effect_class: null
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_kb_status
+    http_read_role_eligible: true
+    tier: core
+  cli: null
 - id: gui
   title: Gui
   description: CLI operation `vox gui` — launch Axis or drive a dedicated debug Axis

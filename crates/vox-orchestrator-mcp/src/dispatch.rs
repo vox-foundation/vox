@@ -1498,6 +1498,11 @@ async fn handle_tool_call_inner(
         "vox_kb_search" => {
             Ok(crate::kb::library::kb_search(state, serde_json::from_value(args)?).await)
         }
+        "vox_kb_get" => Ok(crate::kb::library::kb_get(state, serde_json::from_value(args)?).await),
+        "vox_kb_cite" => {
+            Ok(crate::kb::library::kb_cite(state, serde_json::from_value(args)?).await)
+        }
+        "vox_kb_status" => Ok(crate::kb::library::kb_status(state).await),
 
         "vox_compaction_status" => {
             Ok(crate::memory::compaction_status(state, serde_json::from_value(args)?).await)

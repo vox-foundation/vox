@@ -20639,6 +20639,24 @@ curated:
   mcp_tool: vox_kb_add_rule
   cli_path: null
   parameters: null
+- id: mcp.vox_kb_cite
+  title: Cite Knowledge Library Chunk
+  description_human: null
+  description_model: Build a citation (heading path, doc link with anchor, kb:// URI, indexed commit) for an indexed KB Library chunk by chunk_hash.
+  intent_tags:
+  - retrieval
+  - knowledge
+  side_effect_class: null
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_kb_cite
+  cli_path: null
+  parameters: null
 - id: mcp.vox_kb_clip
   title: Clip Knowledge Fact
   description_human: null
@@ -20701,6 +20719,24 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_kb_delete_entry
+  cli_path: null
+  parameters: null
+- id: mcp.vox_kb_get
+  title: Get Knowledge Library Document
+  description_human: null
+  description_model: Fetch one indexed KB Library document by docs/src rel_path (frontmatter, chunk list, reconstructed markdown) or one chunk by 64-hex chunk_hash; reads only the index, never the file system.
+  intent_tags:
+  - retrieval
+  - knowledge
+  side_effect_class: null
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_kb_get
   cli_path: null
   parameters: null
 - id: mcp.vox_kb_get_feed
@@ -20815,6 +20851,24 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_kb_search
+  cli_path: null
+  parameters: null
+- id: mcp.vox_kb_status
+  title: Knowledge Library Status
+  description_human: null
+  description_model: Report KB Library index state, covering corpus root and commit, doc/chunk/card counts, chunker version, lexical backend, embed model, trust tier, per-file errors and index consistency.
+  intent_tags:
+  - retrieval
+  - knowledge
+  side_effect_class: null
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_kb_status
   cli_path: null
   parameters: null
 - id: mcp.vox_knowledge_query
