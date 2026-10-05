@@ -811,7 +811,7 @@ tools:
 - name: vox_kb_status
   description: Report KB Library index state, covering corpus root and commit, doc/chunk/card counts, chunker version, lexical backend, embed model, trust tier, per-file errors and index consistency.
   product_lane: ai
-  http_read_role_eligible: true
+  http_read_role_eligible: false
   tier: core
 - name: vox_knowledge_query
   description: Query the knowledge graph (VoxDB) for related concepts by keyword.

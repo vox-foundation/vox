@@ -11,14 +11,9 @@ const TOOLS: &[&str] = &[
     "vox_kb_reindex",
 ];
 /// Tools that must be reachable by the HTTP read role.
-const READ_ROLE: &[&str] = &[
-    "vox_kb_search",
-    "vox_kb_get",
-    "vox_kb_cite",
-    "vox_kb_status",
-];
-/// Tools that write and must never be read-role eligible.
-const WRITE_TOOLS: &[&str] = &["vox_kb_reindex"];
+const READ_ROLE: &[&str] = &["vox_kb_search", "vox_kb_get", "vox_kb_cite"];
+/// Tools that must never be read-role eligible: writes the index, or returns absolute host paths (WR-08).
+const NOT_READ_ROLE: &[&str] = &["vox_kb_reindex", "vox_kb_status"];
 
 fn read_role_tools() -> Vec<String> {
     let src = include_str!("../../../contracts/mcp/http-read-role-governance.yaml");
@@ -58,7 +53,7 @@ fn kb_tool_surface() {
             "read-role list missing {t}"
         );
     }
-    for t in WRITE_TOOLS {
+    for t in NOT_READ_ROLE {
         assert!(
             !read_role.iter().any(|r| r == t),
             "{t} must not be read-role eligible"

@@ -21,7 +21,6 @@ read_role_tools:
   - vox_kb_list_rules
   - vox_kb_query
   - vox_kb_search
-  - vox_kb_status
   - vox_mesh_nodes
   - vox_mesh_queue_stats
   - vox_orchestrator_persistence_outbox_lifecycle
