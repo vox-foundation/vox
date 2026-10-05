@@ -84,8 +84,8 @@ pub struct CorpusDoc {
     pub text: String,
 }
 
-/// `queries.jsonl` per-query metadata.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+/// `queries.jsonl` per-query metadata. `Debug` redacts the canary.
+#[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct QueryMeta {
     pub origin: Origin,
@@ -111,8 +111,8 @@ pub struct QueryLine {
     pub metadata: QueryMeta,
 }
 
-/// A loaded golden set restricted to one split.
-#[derive(Debug, Clone)]
+/// A loaded golden set restricted to one split. `Debug` redacts the canary.
+#[derive(Clone)]
 pub struct GoldenSet {
     pub split: Split,
     pub corpus: Vec<CorpusDoc>,
@@ -122,6 +122,37 @@ pub struct GoldenSet {
     pub chunk_qrels: BTreeMap<String, Qrels>,
     /// The canary GUID read from `README.md`.
     pub canary: String,
+}
+
+/// Stands in for the canary GUID in `Debug` output, so `{:?}`, `dbg!` and `assert_eq!`
+/// failures never write it to logs.
+const REDACTED: &str = "<redacted>";
+
+impl std::fmt::Debug for QueryMeta {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("QueryMeta")
+            .field("origin", &self.origin)
+            .field("author", &self.author)
+            .field("approved_by", &self.approved_by)
+            .field("created", &self.created)
+            .field("intent", &self.intent)
+            .field("canary", &REDACTED)
+            .field("paraphrase_of", &self.paraphrase_of)
+            .finish()
+    }
+}
+
+impl std::fmt::Debug for GoldenSet {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GoldenSet")
+            .field("split", &self.split)
+            .field("corpus", &self.corpus)
+            .field("queries", &self.queries)
+            .field("doc_qrels", &self.doc_qrels)
+            .field("chunk_qrels", &self.chunk_qrels)
+            .field("canary", &REDACTED)
+            .finish()
+    }
 }
 
 /// Per-split, per-origin query counts from [`validate_splits`].
@@ -495,5 +526,14 @@ mod tests {
         let g = GoldenSet::load(&dir, Split::Dev).unwrap();
         let ids: Vec<&str> = g.queries.iter().map(|q| q.id.as_str()).collect();
         assert_eq!(ids, ["q001", "q002", "q003"]);
+    }
+
+    #[test]
+    fn debug_redacts_the_canary() {
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/kb_eval");
+        let g = GoldenSet::load(&dir, Split::Dev).unwrap();
+        for s in [format!("{g:?}"), format!("{:?}", g.queries[0])] {
+            assert!(!s.contains(&g.canary) && s.contains("<redacted>"), "{s}");
+        }
     }
 }
