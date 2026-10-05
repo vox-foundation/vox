@@ -106,3 +106,13 @@ None.
 - Files exist: queries.jsonl, four qrels TSVs, contract test (verified by test run); golden-draft and target/kb-eval/queries.nocanary.jsonl absent.
 - Commit `9378de6dd` exists; `git rev-list --count` from plan_head_before = 1.
 - Canary check: zero query lines with a canary differing from the README; no GUID in crates, commits or this summary.
+
+## Post-plan fix: paraphrase split leakage
+
+Resolved the "Known caveat for 01-11" above before the baseline bootstrap.
+
+- Rule: every llm-expansion paraphrase is in the same split as the seed it paraphrases. Mapping recovered from the deleted drafts (git history): A01..A24 paraphrase q001..q024 (A05, A06, A07, A16, A17 dropped), B01..B24 paraphrase q025..q048; B25..B35 are coverage-gap queries with no seed.
+- Recorded durably as optional `metadata.paraphrase_of` (43 paraphrase lines; absent on 48 seeds and 11 gap queries). `QueryMeta` gained the optional field; `validate_splits` rejects a paraphrase whose seed is unknown or in the other split. Test `paraphrase_shares_seed_split`, mutation-proven (rule inverted, test failed; restored, passed).
+- Data: of 43 paraphrases, 41 already matched their seed; 2 moved (one test to dev, one dev to test), rows moved with their query in all four qrels files. Seeds and gap queries unchanged.
+- Counts after (queries): dev 35 agent-seed + 41 llm-expansion = 76; test 13 + 13 = 26; test share 25.5% (unchanged, inside 20-35%, no gap-query adjustment needed).
+- `contracts/kb/eval/README.md` split-rule prose and metadata table updated; canary line untouched.
