@@ -174,6 +174,7 @@ pub use plugin_tools as plugins;
 pub mod trace_tools;
 pub use trace_tools as trace;
 pub mod dei_tools;
+pub mod kb_resources;
 pub mod kb_tools;
 pub use kb_tools as kb;
 

@@ -317,6 +317,22 @@ impl ServerHandler for VoxMcpServer {
                 }
             }
         }
+        if params.uri.starts_with("kb://") {
+            if let Err(e) = crate::kb_resources::parse_kb_uri(&params.uri) {
+                return Err(ErrorData::invalid_params(e, None));
+            }
+            return match crate::kb_resources::read_kb_resource(&self.daemon, &params.uri).await {
+                Ok((mime, text)) => Ok(ReadResourceResult::new(vec![
+                    ResourceContents::TextResourceContents {
+                        uri: params.uri.clone(),
+                        mime_type: Some(mime),
+                        text,
+                        meta: None,
+                    },
+                ])),
+                Err(e) => Err(ErrorData::internal_error(e, None)),
+            };
+        }
         if let Some(entry) = self.state.workspace_mcp.read().resource_by_uri(&params.uri) {
             let root = self
                 .state
