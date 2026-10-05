@@ -9,8 +9,8 @@ mod search;
 
 pub use knowledge::{KnowledgeHealthInfo, KnowledgeNodeRecord};
 pub use library::{
-    KB_CHUNK_SOURCE_TYPE, KB_LIBRARY_CORPUS, LibraryChunkDiff, LibraryChunkInput, LibraryChunkRow,
-    LibraryDocUpsert, TRUST_TIER_WIRE, validate_trust_tier_wire,
+    KB_CHUNK_SOURCE_TYPE, KB_LIBRARY_CORPUS, KbIndexState, LibraryChunkDiff, LibraryChunkInput,
+    LibraryChunkRow, LibraryDocUpsert, TRUST_TIER_WIRE, validate_trust_tier_wire,
 };
 
 pub(crate) fn sanitize_fts_query(input: &str) -> String {

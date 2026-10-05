@@ -294,3 +294,228 @@ async fn kb_kept_hash_keeps_vector() {
         .unwrap();
     assert_eq!(same[0].body, one.body);
 }
+
+// ---- 02-04: prune, orphan vectors, manifest, divergence (IDX-01, IDX-03, IDX-07) ----
+
+use vox_search::library::lexical::LEXICAL_BACKEND;
+use vox_search::library::status;
+
+async fn count(db: &VoxDb, sql: &str) -> i64 {
+    let mut rows = db.connection().query(sql, ()).await.unwrap();
+    rows.next().await.unwrap().unwrap().get::<i64>(0).unwrap()
+}
+
+#[tokio::test]
+async fn kb_reindex_prune() {
+    let repo = three_docs();
+    let lex = repo.path().join("lex");
+    let db = VoxDb::open_memory().await.unwrap();
+    run(&db, &repo).await;
+    assert!(
+        !search(&db, &lex, "zorkmidword", 5)
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    let old_b = doc_chunks(&db, "docs/src/b.md").await;
+
+    std::fs::remove_file(repo.path().join("docs/src/c.md")).unwrap();
+    std::fs::rename(
+        repo.path().join("docs/src/b.md"),
+        repo.path().join("docs/src/b2.md"),
+    )
+    .unwrap();
+    let r = run(&db, &repo).await;
+    assert_eq!(r.docs_pruned, 2, "{r:?}");
+
+    assert!(doc_chunks(&db, "docs/src/c.md").await.is_empty());
+    assert!(doc_chunks(&db, "docs/src/b.md").await.is_empty());
+    let new_b = doc_chunks(&db, "docs/src/b2.md").await;
+    assert_eq!(new_b.len(), old_b.len());
+    assert!(
+        new_b.iter().all(|n| old_b.iter().all(|o| o.1 != n.1)),
+        "rel_path is in the hash input"
+    );
+    assert!(
+        search(&db, &lex, "zorkmidword", 5)
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(
+        count(&db, "SELECT COUNT(*) FROM search_documents WHERE rel_path IN ('docs/src/b.md','docs/src/c.md')").await,
+        0
+    );
+}
+
+#[tokio::test]
+async fn kb_no_orphan_embeddings() {
+    let repo = three_docs();
+    let db = VoxDb::open_memory().await.unwrap();
+    run(&db, &repo).await;
+    let all = db.library_chunk_rows(KB_LIBRARY_CORPUS).await.unwrap();
+    for r in &all {
+        db.store_embedding("kb_chunk", &r.chunk_hash, "m", &[1.0], None, None)
+            .await
+            .unwrap();
+    }
+    db.store_embedding("memory", "not-a-chunk-hash", "m", &[1.0], None, None)
+        .await
+        .unwrap();
+
+    std::fs::remove_file(repo.path().join("docs/src/c.md")).unwrap();
+    write(
+        &repo,
+        "b.md",
+        &DOC_B.replace("second body", "second body edited"),
+    );
+    run(&db, &repo).await;
+
+    let live = db.library_chunk_rows(KB_LIBRARY_CORPUS).await.unwrap();
+    assert_eq!(
+        count(
+            &db,
+            "SELECT COUNT(*) FROM embeddings WHERE source_type = 'kb_chunk' \
+             AND source_id NOT IN (SELECT chunk_hash FROM search_document_chunks WHERE chunk_hash IS NOT NULL)"
+        )
+        .await,
+        0
+    );
+    let kept = all
+        .iter()
+        .filter(|r| live.iter().any(|l| l.chunk_hash == r.chunk_hash))
+        .count();
+    assert!(kept > 0 && kept < all.len());
+    assert_eq!(
+        count(
+            &db,
+            "SELECT COUNT(*) FROM embeddings WHERE source_type = 'kb_chunk'"
+        )
+        .await as usize,
+        kept
+    );
+    assert_eq!(
+        count(
+            &db,
+            "SELECT COUNT(*) FROM embeddings WHERE source_type = 'memory'"
+        )
+        .await,
+        1,
+        "other source types are untouched"
+    );
+}
+
+#[tokio::test]
+async fn kb_manifest_and_cards() {
+    let repo = three_docs();
+    let db = VoxDb::open_memory().await.unwrap();
+    let r = run(&db, &repo).await;
+    let s = db
+        .get_kb_index_state(KB_LIBRARY_CORPUS)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(s.corpus_root, repo.path().to_string_lossy());
+    assert_eq!(s.corpus_commit.as_deref(), Some("abc123"));
+    assert_eq!((s.doc_count, s.card_count), (3, 3));
+    assert_eq!(
+        s.chunk_count,
+        count(&db, "SELECT COUNT(*) FROM search_document_chunks").await
+    );
+    assert_eq!(
+        s.chunker_version,
+        vox_search::library::chunk::CHUNKER_VERSION
+    );
+    assert_eq!(s.lexical_backend, "tantivy-0.22");
+    assert_eq!(s.trust_tier, "trusted");
+    assert!(s.embed_model_id.is_none() && s.embed_revision.is_none() && s.embed_dim.is_none());
+    assert!(s.duration_ms >= 0 && !s.indexed_at.is_empty());
+    assert_eq!(s.errors_json, "[]");
+    assert_eq!(r.cards, 3);
+}
+
+#[tokio::test]
+async fn kb_status_reports_errors() {
+    let repo = three_docs();
+    let db = VoxDb::open_memory().await.unwrap();
+    write(&repo, "bad.md", "# Bad\n## Fine\nstable text\n");
+    run(&db, &repo).await;
+    assert_eq!(doc_chunks(&db, "docs/src/bad.md").await.len(), 3);
+
+    // Now the file becomes unreadable: it is reported, the rest still indexes, and the stored
+    // doc is NOT pruned (T-02-11: a transient read error must not delete knowledge).
+    std::fs::write(repo.path().join("docs/src/bad.md"), [0xff, 0xfe, 0xfd]).unwrap();
+    write(&repo, "a.md", &DOC_A.replace("alpha body", "alpha body v2"));
+    let r = run(&db, &repo).await;
+    assert_eq!(r.errors.len(), 1);
+    assert_eq!(r.errors[0].path, "docs/src/bad.md");
+    assert_eq!((r.docs_pruned, r.docs_changed), (0, 1), "{r:?}");
+    assert_eq!(doc_chunks(&db, "docs/src/bad.md").await.len(), 3);
+
+    let s = db
+        .get_kb_index_state(KB_LIBRARY_CORPUS)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(
+        s.errors_json.contains("docs/src/bad.md"),
+        "{}",
+        s.errors_json
+    );
+}
+
+#[tokio::test]
+async fn kb_lexical_backend() {
+    let repo = three_docs();
+    let lex = repo.path().join("lex");
+    let db = VoxDb::open_memory().await.unwrap();
+    run(&db, &repo).await;
+    let st = status(&db, &lex).await.unwrap();
+    assert_eq!(st.state.unwrap().lexical_backend, "tantivy-0.22");
+    assert_ne!(LEXICAL_BACKEND, "like");
+    let hits = search(&db, &lex, "three", 3).await.unwrap();
+    assert_eq!(hits[0].heading_path, "B › Three");
+}
+
+#[tokio::test]
+async fn kb_lexical_divergence_rebuilds() {
+    let repo = three_docs();
+    let lex = repo.path().join("lex");
+    let db = VoxDb::open_memory().await.unwrap();
+    assert!(
+        !status(&db, &lex).await.unwrap().consistent,
+        "nothing indexed yet"
+    );
+    run(&db, &repo).await;
+    let st = status(&db, &lex).await.unwrap();
+    assert!(st.consistent, "{st:?}");
+    assert_eq!(st.lexical_docs, Some(st.db_chunk_count as u64));
+
+    std::fs::remove_dir_all(&lex).unwrap();
+    assert!(!status(&db, &lex).await.unwrap().consistent);
+    let r = run(&db, &repo).await;
+    assert_eq!(r.docs_changed, 0);
+    assert!(status(&db, &lex).await.unwrap().consistent);
+}
+
+#[tokio::test]
+async fn kb_chunker_version_change_forces_rechunk() {
+    let repo = three_docs();
+    let db = VoxDb::open_memory().await.unwrap();
+    run(&db, &repo).await;
+    db.connection()
+        .execute("UPDATE kb_index_state SET chunker_version = 'old'", ())
+        .await
+        .unwrap();
+    let r = run(&db, &repo).await;
+    assert_eq!((r.docs_unchanged, r.docs_seen), (0, 3), "{r:?}");
+    let s = db
+        .get_kb_index_state(KB_LIBRARY_CORPUS)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        s.chunker_version,
+        vox_search::library::chunk::CHUNKER_VERSION
+    );
+}

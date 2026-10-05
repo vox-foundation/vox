@@ -70,6 +70,29 @@ pub struct LibraryChunkRow {
     pub token_estimate: i64,
 }
 
+/// One `kb_index_state` row: what the last index run built and from what (IDX-03).
+/// `indexed_at` is assigned by the store on write; the value passed to
+/// [`crate::VoxDb::put_kb_index_state`] is ignored. `errors_json` is a JSON array of
+/// `{path, error}` objects, kept as text.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct KbIndexState {
+    pub corpus: String,
+    pub corpus_root: String,
+    pub corpus_commit: Option<String>,
+    pub indexed_at: String,
+    pub doc_count: i64,
+    pub chunk_count: i64,
+    pub card_count: i64,
+    pub chunker_version: String,
+    pub lexical_backend: String,
+    pub trust_tier: String,
+    pub embed_model_id: Option<String>,
+    pub embed_revision: Option<String>,
+    pub embed_dim: Option<i64>,
+    pub errors_json: String,
+    pub duration_ms: i64,
+}
+
 const CHUNK_SELECT: &str = "SELECT c.chunk_hash, d.rel_path, d.title, c.heading_path, c.anchor, \
      c.chunk_kind, c.body_text, c.token_estimate \
      FROM search_document_chunks c JOIN search_documents d ON d.id = c.document_id";
@@ -250,6 +273,154 @@ impl crate::VoxDb {
         }
     }
 
+    /// Number of hash-keyed chunk rows in `corpus`.
+    pub async fn library_chunk_count(&self, corpus: &str) -> Result<i64, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT COUNT(*) FROM search_document_chunks c \
+                 JOIN search_documents d ON d.id = c.document_id \
+                 WHERE d.corpus = ?1 AND c.chunk_hash IS NOT NULL",
+                params![corpus],
+            )
+            .await?;
+        Ok(match rows.next().await? {
+            Some(r) => r.get::<i64>(0)?,
+            None => 0,
+        })
+    }
+
+    /// Delete every `corpus` document whose `rel_path` is not in `keep`, with its chunks (explicit
+    /// DELETEs, not FK cascade), in one transaction. Returns the pruned paths, sorted.
+    pub async fn prune_library_documents_not_in(
+        &self,
+        corpus: &str,
+        keep: &[String],
+    ) -> Result<Vec<String>, StoreError> {
+        let conn = self.conn.clone();
+        let corpus = corpus.to_string();
+        let keep: std::collections::HashSet<String> = keep.iter().cloned().collect();
+        self.transaction(async move {
+            let mut rows = conn
+                .query(
+                    "SELECT id, rel_path FROM search_documents WHERE corpus = ?1",
+                    params![corpus.as_str()],
+                )
+                .await?;
+            let mut doomed: Vec<(i64, String)> = Vec::new();
+            while let Some(r) = rows.next().await? {
+                let path = r.get::<Option<String>>(1)?.unwrap_or_default();
+                if !keep.contains(&path) {
+                    doomed.push((r.get(0)?, path));
+                }
+            }
+            drop(rows);
+            for (id, _) in &doomed {
+                conn.execute(
+                    "DELETE FROM search_document_chunks WHERE document_id = ?1",
+                    params![*id],
+                )
+                .await?;
+                conn.execute("DELETE FROM search_documents WHERE id = ?1", params![*id])
+                    .await?;
+            }
+            let mut pruned: Vec<String> = doomed.into_iter().map(|d| d.1).collect();
+            pruned.sort();
+            Ok(pruned)
+        })
+        .await
+    }
+
+    /// Delete `kb_chunk` embeddings whose `source_id` is no longer any chunk's `chunk_hash`.
+    /// Other `source_type`s are never touched. Returns the number of rows removed.
+    pub async fn prune_orphan_kb_chunk_embeddings(&self) -> Result<usize, StoreError> {
+        let n = self
+            .conn
+            .execute(
+                "DELETE FROM embeddings WHERE source_type = ?1 AND source_id NOT IN \
+                 (SELECT chunk_hash FROM search_document_chunks WHERE chunk_hash IS NOT NULL)",
+                params![KB_CHUNK_SOURCE_TYPE],
+            )
+            .await?;
+        Ok(n as usize)
+    }
+
+    /// Insert or replace the manifest row for `state.corpus`; `indexed_at` is set to now.
+    pub async fn put_kb_index_state(&self, state: &KbIndexState) -> Result<(), StoreError> {
+        self.conn
+            .execute(
+                "INSERT INTO kb_index_state \
+                 (corpus, corpus_root, corpus_commit, indexed_at, doc_count, chunk_count, \
+                  card_count, chunker_version, lexical_backend, trust_tier, embed_model_id, \
+                  embed_revision, embed_dim, errors_json, duration_ms) \
+                 VALUES (?1, ?2, ?3, datetime('now'), ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14) \
+                 ON CONFLICT(corpus) DO UPDATE SET \
+                    corpus_root = excluded.corpus_root, corpus_commit = excluded.corpus_commit, \
+                    indexed_at = excluded.indexed_at, doc_count = excluded.doc_count, \
+                    chunk_count = excluded.chunk_count, card_count = excluded.card_count, \
+                    chunker_version = excluded.chunker_version, \
+                    lexical_backend = excluded.lexical_backend, trust_tier = excluded.trust_tier, \
+                    embed_model_id = excluded.embed_model_id, \
+                    embed_revision = excluded.embed_revision, embed_dim = excluded.embed_dim, \
+                    errors_json = excluded.errors_json, duration_ms = excluded.duration_ms",
+                params![
+                    state.corpus.as_str(),
+                    state.corpus_root.as_str(),
+                    state.corpus_commit.as_deref(),
+                    state.doc_count,
+                    state.chunk_count,
+                    state.card_count,
+                    state.chunker_version.as_str(),
+                    state.lexical_backend.as_str(),
+                    state.trust_tier.as_str(),
+                    state.embed_model_id.as_deref(),
+                    state.embed_revision.as_deref(),
+                    state.embed_dim,
+                    state.errors_json.as_str(),
+                    state.duration_ms
+                ],
+            )
+            .await?;
+        Ok(())
+    }
+
+    /// The manifest row of the last index run for `corpus`, if any.
+    pub async fn get_kb_index_state(
+        &self,
+        corpus: &str,
+    ) -> Result<Option<KbIndexState>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT corpus, corpus_root, corpus_commit, indexed_at, doc_count, chunk_count, \
+                 card_count, chunker_version, lexical_backend, trust_tier, embed_model_id, \
+                 embed_revision, embed_dim, errors_json, duration_ms \
+                 FROM kb_index_state WHERE corpus = ?1",
+                params![corpus],
+            )
+            .await?;
+        let Some(r) = rows.next().await? else {
+            return Ok(None);
+        };
+        Ok(Some(KbIndexState {
+            corpus: r.get(0)?,
+            corpus_root: r.get(1)?,
+            corpus_commit: r.get(2)?,
+            indexed_at: r.get(3)?,
+            doc_count: r.get(4)?,
+            chunk_count: r.get(5)?,
+            card_count: r.get(6)?,
+            chunker_version: r.get(7)?,
+            lexical_backend: r.get(8)?,
+            trust_tier: r.get(9)?,
+            embed_model_id: r.get(10)?,
+            embed_revision: r.get(11)?,
+            embed_dim: r.get(12)?,
+            errors_json: r.get(13)?,
+            duration_ms: r.get(14)?,
+        }))
+    }
+
     /// Every chunk of `corpus`, ordered by document path then `chunk_index`.
     pub async fn library_chunk_rows(
         &self,
@@ -365,6 +536,111 @@ mod tests {
         );
         assert_eq!(got(KB_LIBRARY_CORPUS, "docs/src/nope.md").await, None);
         assert_eq!(got("other", "docs/src/guide.md").await, None);
+    }
+
+    fn state(commit: Option<&str>) -> KbIndexState {
+        KbIndexState {
+            corpus: KB_LIBRARY_CORPUS.into(),
+            corpus_root: "/repo".into(),
+            corpus_commit: commit.map(str::to_string),
+            indexed_at: String::new(),
+            doc_count: 2,
+            chunk_count: 5,
+            card_count: 2,
+            chunker_version: "v".into(),
+            lexical_backend: "tantivy-0.22".into(),
+            trust_tier: "trusted".into(),
+            embed_model_id: None,
+            embed_revision: None,
+            embed_dim: None,
+            errors_json: "[]".into(),
+            duration_ms: 7,
+        }
+    }
+
+    #[tokio::test]
+    async fn kb_index_state_upserts_and_stamps_indexed_at() {
+        let db = VoxDb::open_memory().await.unwrap();
+        assert_eq!(
+            db.get_kb_index_state(KB_LIBRARY_CORPUS).await.unwrap(),
+            None
+        );
+        db.put_kb_index_state(&state(Some("c1"))).await.unwrap();
+        let first = db
+            .get_kb_index_state(KB_LIBRARY_CORPUS)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(!first.indexed_at.is_empty(), "store assigns indexed_at");
+        assert_eq!(first.corpus_commit.as_deref(), Some("c1"));
+        let mut next = state(None);
+        next.doc_count = 9;
+        db.put_kb_index_state(&next).await.unwrap();
+        let second = db
+            .get_kb_index_state(KB_LIBRARY_CORPUS)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!((second.doc_count, second.corpus_commit), (9, None));
+        assert_eq!(db.get_kb_index_state("other").await.unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn library_chunk_count_and_prune_documents() {
+        let db = VoxDb::open_memory().await.unwrap();
+        db.apply_library_document(
+            &doc("docs/src/a.md"),
+            &[
+                chunk(&"a".repeat(64), "A", "x"),
+                chunk(&"b".repeat(64), "B", "y"),
+            ],
+        )
+        .await
+        .unwrap();
+        db.apply_library_document(&doc("docs/src/b.md"), &[chunk(&"c".repeat(64), "C", "z")])
+            .await
+            .unwrap();
+        let mut other = doc("docs/src/o.md");
+        other.corpus = "other";
+        db.apply_library_document(&other, &[chunk(&"d".repeat(64), "D", "w")])
+            .await
+            .unwrap();
+        assert_eq!(db.library_chunk_count(KB_LIBRARY_CORPUS).await.unwrap(), 3);
+
+        let pruned = db
+            .prune_library_documents_not_in(KB_LIBRARY_CORPUS, &["docs/src/a.md".to_string()])
+            .await
+            .unwrap();
+        assert_eq!(pruned, vec!["docs/src/b.md".to_string()]);
+        assert_eq!(db.library_chunk_count(KB_LIBRARY_CORPUS).await.unwrap(), 2);
+        // The other corpus is never pruned by a library prune.
+        assert_eq!(db.library_chunk_count("other").await.unwrap(), 1);
+        assert!(
+            db.prune_library_documents_not_in(KB_LIBRARY_CORPUS, &["docs/src/a.md".to_string()])
+                .await
+                .unwrap()
+                .is_empty()
+        );
+    }
+
+    #[tokio::test]
+    async fn prune_orphan_kb_chunk_embeddings_keeps_live_and_foreign_vectors() {
+        let db = VoxDb::open_memory().await.unwrap();
+        let live = "a".repeat(64);
+        db.apply_library_document(&doc("docs/src/a.md"), &[chunk(&live, "A", "x")])
+            .await
+            .unwrap();
+        for (ty, id) in [
+            (KB_CHUNK_SOURCE_TYPE, live.as_str()),
+            (KB_CHUNK_SOURCE_TYPE, "gone"),
+            ("memory", "gone"),
+        ] {
+            db.store_embedding(ty, id, "m", &[1.0], None, None)
+                .await
+                .unwrap();
+        }
+        assert_eq!(db.prune_orphan_kb_chunk_embeddings().await.unwrap(), 1);
+        assert_eq!(db.prune_orphan_kb_chunk_embeddings().await.unwrap(), 0);
     }
 
     #[tokio::test]

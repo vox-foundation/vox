@@ -1,7 +1,7 @@
 //! Indexer-owned Tantivy index over library chunks. Rebuilt wholesale from DB rows (AP-16);
 //! the only writer is [`LibraryLexicalIndex::rebuild_from_rows`].
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use tantivy::collector::TopDocs;
@@ -14,6 +14,24 @@ use vox_db::LibraryChunkRow;
 
 /// Recorded in `kb_index_state.lexical_backend`.
 pub const LEXICAL_BACKEND: &str = "tantivy-0.22";
+
+/// Where the library index lives: `<override>/library` when `VOX_SEARCH_TANTIVY_ROOT` is set and
+/// non-blank, else `<data_dir>/kb/library`; `None` when neither exists (AP-14).
+pub fn resolve_index_dir(
+    override_root: Option<&str>,
+    data_dir: Option<PathBuf>,
+) -> Option<PathBuf> {
+    match override_root.map(str::trim).filter(|s| !s.is_empty()) {
+        Some(root) => Some(PathBuf::from(root).join("library")),
+        None => data_dir.map(|d| d.join("kb").join("library")),
+    }
+}
+
+/// [`resolve_index_dir`] fed from the secrets registry and `vox_config::paths::data_dir`.
+pub fn default_index_dir() -> Option<PathBuf> {
+    let root = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchTantivyRoot);
+    resolve_index_dir(root.expose(), vox_config::paths::data_dir())
+}
 
 pub struct LibraryLexicalIndex {
     index: Index,
@@ -131,6 +149,19 @@ mod tests {
             body: body.into(),
             token_estimate: 1,
         }
+    }
+
+    #[test]
+    fn resolve_index_dir_prefers_override_then_data_dir() {
+        let data = || Some(PathBuf::from("/data"));
+        assert_eq!(
+            resolve_index_dir(Some("/x"), data()),
+            Some(PathBuf::from("/x/library"))
+        );
+        let default = Some(PathBuf::from("/data/kb/library"));
+        assert_eq!(resolve_index_dir(None, data()), default);
+        assert_eq!(resolve_index_dir(Some("  "), data()), default);
+        assert_eq!(resolve_index_dir(None, None), None);
     }
 
     #[test]

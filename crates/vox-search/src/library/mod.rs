@@ -12,7 +12,7 @@ use std::path::Path;
 use std::time::Instant;
 
 use anyhow::{Context, Result};
-use vox_db::{KB_LIBRARY_CORPUS, LibraryChunkInput, LibraryDocUpsert, VoxDb};
+use vox_db::{KB_LIBRARY_CORPUS, KbIndexState, LibraryChunkInput, LibraryDocUpsert, VoxDb};
 
 use lexical::{LEXICAL_BACKEND, LibraryLexicalIndex};
 
@@ -26,7 +26,7 @@ pub struct IndexDeps<'a> {
 }
 
 /// A file that could not be read or indexed; indexing continues past it.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct FileError {
     pub path: String,
     pub error: String,
@@ -39,6 +39,10 @@ pub struct IndexReport {
     pub docs_changed: usize,
     /// Files whose content hash matched the stored one: no DB writes at all.
     pub docs_unchanged: usize,
+    /// Stored documents no longer present in the tree (deleted or renamed), removed this run.
+    pub docs_pruned: usize,
+    /// Card chunks in the library after this run (one per document).
+    pub cards: usize,
     pub chunks_inserted: usize,
     pub chunks_deleted: usize,
     pub chunks_kept: usize,
@@ -65,8 +69,17 @@ pub async fn index_library(
         lexical_backend: LEXICAL_BACKEND.into(),
         ..Default::default()
     };
+    // The hash skip is only sound when the stored rows came from this chunker; with no manifest
+    // the provenance of existing rows is unknown, so everything is re-chunked.
+    let skip_ok = db
+        .get_kb_index_state(KB_LIBRARY_CORPUS)
+        .await?
+        .is_some_and(|s| s.chunker_version == chunk::CHUNKER_VERSION);
+    let mut walked: Vec<String> = Vec::new();
     for file in corpus::walk_corpus(repo_root) {
         report.docs_seen += 1;
+        // Every walked path is kept, errored or not: a transient read error never prunes a doc.
+        walked.push(file.rel_path.clone());
         let raw = match vox_bounded_fs::read_utf8_path_capped(&file.abs) {
             Ok(s) => s,
             Err(e) => {
@@ -79,11 +92,12 @@ pub async fn index_library(
         };
         let text = vox_bounded_fs::normalize_text(raw);
         let file_hash = (deps.hasher)(text.as_bytes());
-        if db
-            .library_document_file_hash(KB_LIBRARY_CORPUS, &file.rel_path)
-            .await?
-            .as_deref()
-            == Some(file_hash.as_str())
+        if skip_ok
+            && db
+                .library_document_file_hash(KB_LIBRARY_CORPUS, &file.rel_path)
+                .await?
+                .as_deref()
+                == Some(file_hash.as_str())
         {
             report.docs_unchanged += 1;
             continue;
@@ -120,11 +134,26 @@ pub async fn index_library(
         }
     }
 
+    report.docs_pruned = db
+        .prune_library_documents_not_in(KB_LIBRARY_CORPUS, &walked)
+        .await?
+        .len();
+    db.prune_orphan_kb_chunk_embeddings().await?;
+
     let rows = db.library_chunk_rows(KB_LIBRARY_CORPUS).await?;
     let current = LibraryLexicalIndex::open(lexical_dir)
         .ok()
         .and_then(|i| i.num_docs().ok());
-    report.lexical_docs = if report.docs_changed > 0 || current != Some(rows.len() as u64) {
+    report.cards = rows.iter().filter(|r| r.chunk_kind == "card").count();
+    let rows_len = rows.len();
+    let doc_count = rows
+        .iter()
+        .map(|r| r.doc_path.as_str())
+        .collect::<std::collections::HashSet<_>>()
+        .len();
+    let rebuild =
+        report.docs_changed > 0 || report.docs_pruned > 0 || current != Some(rows.len() as u64);
+    report.lexical_docs = if rebuild {
         let dir = lexical_dir.to_path_buf();
         let idx = tokio::task::spawn_blocking(move || {
             LibraryLexicalIndex::rebuild_from_rows(&dir, &rows)
@@ -136,7 +165,56 @@ pub async fn index_library(
         rows.len() as u64
     };
     report.duration_ms = started.elapsed().as_millis() as u64;
+    db.put_kb_index_state(&KbIndexState {
+        corpus: KB_LIBRARY_CORPUS.into(),
+        corpus_root: repo_root.to_string_lossy().into_owned(),
+        corpus_commit: deps.corpus_commit.clone(),
+        indexed_at: String::new(), // assigned by the store
+        doc_count: doc_count as i64,
+        chunk_count: rows_len as i64,
+        card_count: report.cards as i64,
+        chunker_version: chunk::CHUNKER_VERSION.into(),
+        lexical_backend: LEXICAL_BACKEND.into(),
+        trust_tier: deps.trust_tier.into(),
+        // AP-07: lexical-only, no embedder in this phase.
+        embed_model_id: None,
+        embed_revision: None,
+        embed_dim: None,
+        errors_json: serde_json::to_string(&report.errors)?,
+        duration_ms: report.duration_ms as i64,
+    })
+    .await?;
     Ok(report)
+}
+
+/// What `vox kb status` reports: the last run's manifest plus a live consistency check.
+#[derive(Debug, Clone)]
+pub struct LibraryStatus {
+    pub state: Option<KbIndexState>,
+    pub db_chunk_count: i64,
+    /// Documents in the Tantivy index, `None` when it cannot be opened.
+    pub lexical_docs: Option<u64>,
+    /// Manifest present, index opens, counts agree, and the chunker version is current.
+    pub consistent: bool,
+}
+
+/// Read the manifest and compare DB rows with the Tantivy index at `lexical_dir`.
+pub async fn status(db: &VoxDb, lexical_dir: &Path) -> Result<LibraryStatus> {
+    let state = db.get_kb_index_state(KB_LIBRARY_CORPUS).await?;
+    let db_chunk_count = db.library_chunk_count(KB_LIBRARY_CORPUS).await?;
+    let lexical_docs = LibraryLexicalIndex::open(lexical_dir)
+        .ok()
+        .and_then(|i| i.num_docs().ok());
+    let consistent = state
+        .as_ref()
+        .is_some_and(|s| s.chunker_version == chunk::CHUNKER_VERSION)
+        && lexical_docs == Some(db_chunk_count as u64);
+    Ok(LibraryStatus {
+        state,
+        db_chunk_count,
+        lexical_docs,
+        consistent,
+    })
 }
 
 /// One ranked library hit.
