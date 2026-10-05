@@ -4,17 +4,17 @@ milestone: v1.1
 milestone_name: Vox Knowledge Base — corpus to context
 current_phase: 1
 current_phase_name: Retrieval Eval Baseline
-status: executing
-stopped_at: Completed 01-10-PLAN.md
-last_updated: "2026-10-05T06:21:34.690Z"
+status: verifying
+stopped_at: Completed 01-11-PLAN.md
+last_updated: "2026-10-05T06:36:29.457Z"
 last_activity: 2026-10-04
 last_activity_desc: Phase 1 execution started
-state_head: 214afc1e757177715cfacf022bda9d168642c1bc
+state_head: e23e22910af9dc1b831c355944c13f057d10f289
 progress:
   total_phases: 12
   completed_phases: 0
   total_plans: 34
-  completed_plans: 11
+  completed_plans: 12
   percent: 0
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (shared project context) and .planning/workstreams/kb/
 
 Phase: 1 (Retrieval Eval Baseline) — EXECUTING
 Plan: 12 of 12
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-10-04 — Phase 1 execution started
 
 Progress: [░░░░░░░░░░] 0%
@@ -66,6 +66,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 1 P08 | 35min | 2 tasks | 2 files |
 | Phase 1 P09 | 50min | 2 tasks | 2 files |
 | Phase 1 P10 | 25min | 2 tasks | 6 files |
+| Phase 1 P11 | 45m | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -82,6 +83,7 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 1]: 01-07: gate tags a GUID-in-corpus as [canary] via typed CorpusHasCanary error; base ref beginning with '-' rejected before git
 - [Phase 1]: 01-04: frozen-snapshot chosen; seed queries agent-authored, origin agent-seed (D-02)
 - [Phase 1]: 01-10: split stride starts at the 3rd of each (origin,intent) group (literal 4th gave 16.7% test, below the 20-35% bound); 26/102 held out
+- [Phase 1]: 01-11: kb eval gate fits the fast tier (median 5.06 s debug vs 10 s budget); no AP-05/AP-12 fallback needed
 
 ### Pending Todos
 
@@ -96,8 +98,8 @@ Progress: [░░░░░░░░░░] 0%
 
 ## Session Continuity
 
-**Last session:** 2026-10-05T06:21:34.673Z
+**Last session:** 2026-10-05T06:36:29.442Z
 
-**Stopped At:** Completed 01-10-PLAN.md
+**Stopped At:** Completed 01-11-PLAN.md
 **Resume File:** None
 **Next:** `/gsd-plan-phase 1` (no research-phase needed)
