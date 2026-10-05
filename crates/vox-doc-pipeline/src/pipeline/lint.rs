@@ -1076,4 +1076,43 @@ mod tests {
             "documentation-governance.md advertises categories the lint rejects: {unknown:?}"
         );
     }
+
+    /// `VALID_CATEGORIES` (minus `archive`) and the sidebar JSON `sections` are
+    /// two hand-kept copies of one vocabulary; drift makes Starlight append the
+    /// page's section at the end, collapsed, or the lint reject a sidebar label.
+    #[test]
+    fn valid_categories_match_sidebar_sections() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .expect("repo root")
+            .join("contracts/documentation/docs-sidebar-section-order.v1.json");
+        let raw = std::fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+        let json: serde_json::Value = serde_json::from_str(&raw).expect("sidebar JSON parses");
+        let sections: Vec<&str> = json["sections"]
+            .as_array()
+            .expect("`sections` array")
+            .iter()
+            .map(|v| v.as_str().expect("section label is a string"))
+            .collect();
+        let categories: Vec<&str> = VALID_CATEGORIES
+            .iter()
+            .copied()
+            .filter(|c| *c != "archive")
+            .collect();
+        let missing_from_sidebar: Vec<&&str> = categories
+            .iter()
+            .filter(|c| !sections.contains(c))
+            .collect();
+        let missing_from_lint: Vec<&&str> = sections
+            .iter()
+            .filter(|s| !categories.contains(s))
+            .collect();
+        assert_eq!(
+            sections, categories,
+            "VALID_CATEGORIES and sidebar sections drifted (same labels, same order). \
+             In lint but not sidebar: {missing_from_sidebar:?}; in sidebar but not lint: {missing_from_lint:?}"
+        );
+    }
 }
