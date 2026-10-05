@@ -41,7 +41,7 @@ Workstream `kb` turns Vox's 669 curated, non-archive markdown docs (~2.4M tokens
   4. PR CI compares metrics against `contracts/kb/retrieval-baseline.v1.json`. A fixture PR that degrades ranking fails the gate, and a baseline edit that loosens any value is rejected (tighten-only).
   5. No word-overlap helper in `crates/vox-search/src/evaluation.rs` carries an IR metric name (deleted or renamed), so no gate can call them.
 
-**Plans:** 10/12 plans executed (5 waves; 01-04 and 01-10 hold the human checkpoints)
+**Plans:** 11/12 plans executed (5 waves; 01-04 and 01-10 hold the human checkpoints)
 Plans:
 
 - [x] 01-01-PLAN.md — Wave 1. Eval engine in vox-search: tracer from fixture to report; kb_ids heading-path SSOT; IR metrics; BEIR loader; BM25 baseline
@@ -54,7 +54,7 @@ Plans:
 - [x] 01-09-PLAN.md — Wave 3. Pooled qrel proposals + paraphrase/coverage-gap expansion, second half
 - [x] 01-12-PLAN.md — Wave 3. `kb.eval` CLI SSOT registration, cli.md section, where-things-live row
 - [x] 01-07-PLAN.md — Wave 4. `--gate` (fail-closed tighten-only + full canary sweep incl. MENS extractor), `--tighten`, `--write-baseline`
-- [ ] 01-10-PLAN.md — Wave 4. User approves qrels/prunes expansion; BEIR golden set materialized + contract test
+- [x] 01-10-PLAN.md — Wave 4. User approves qrels/prunes expansion; BEIR golden set materialized + contract test
 - [ ] 01-11-PLAN.md — Wave 5. Bootstrap baseline, real-data ratchet tests, two-process determinism, fast-tier gate + mutation proofs
 
 **Research flag**: none (BEIR layout and IR metrics are textbook). Run two spikes inside this phase and record the outcomes: the VoxDb/Turso FTS5 runtime probe (feeds IDX-07 in Phase 2) and the candle `modernbert` + tokenizers 0.21 load check (feeds Phase 5).
@@ -283,7 +283,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Retrieval Eval Baseline | 10/12 | In Progress|  |
+| 1. Retrieval Eval Baseline | 11/12 | In Progress|  |
 | 2. Library Index and KB Tool Surface | 0/9 | Planned | - |
 | 3. Provenance, Trust Tiers and Leak Closure | 0/TBD | Not started | - |
 | 4. Taxonomy Contract and Facet Lint | 0/TBD | Not started | - |
