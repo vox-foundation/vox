@@ -18,7 +18,16 @@ All notable changes to the Vox project are documented here.
 - **`mens-candle-cpu` plugin** for Linux hosts without an NVIDIA GPU: the Candle backend built without CUDA, published as `mens-candle-cpu-v<version>-linux-x86_64.zip` from a second leg of the existing CUDA release job. The CUDA build links `libcuda` at load time and cannot load on such hosts, so until now MENS training, serving and merging had no backend there at all. On macOS the Metal plugin already covers CPU; the CUDA plugin's manifest no longer claims a macOS artifact.
 - **`@ai(structured_output = T)` now emits a real JSON-schema-constrained LLM call** — the generated `LlmConfig.response_format` carries `{"type":"json_schema","json_schema":{"name":…,"strict":true,"schema":{…}}}` derived from `T`'s typedef (scalars, `list[…]`, `Option[…]`, nested structs; closed objects with `required`), and `max_iterations = N` now emits a bounded re-prompt loop that retries when the reply is not valid JSON.
 - **Uniform `--json` across the build lane** — `vox --json build`, `vox --json test`, and `vox --json run` (script lane) emit stable single-line `BuildLaneEnvelope` JSON (`envelope_version`, `command`, `ok`, `error_count`, `warning_count`, `diagnostics` using the same `VoxCompilerDiagnosticPayload` as `vox check`, optional `exit_code`) on stdout; human progress notes move to stderr so stdout stays JSONL-parseable. `vox build` guarantees exactly one envelope line per invocation regardless of which stage fails.
+- **KB Library index and tools.** New MCP tools `vox_kb_search`, `vox_kb_get`, `vox_kb_cite`, `vox_kb_status` and `vox_kb_reindex`, `kb://doc` / `kb://chunk` resources, and the CLI `vox kb status` / `vox kb reindex` (both go through the orchestrator daemon, the single index writer; `--json` prints the raw payload). The lexical leg is Tantivy 0.22 (the turso FTS5 probe found no FTS5 module), on by default in `vox-search`. `docs/src/library/` and the `Library` docs category hold general curated knowledge pages. `vox-db` schema baseline is now 95 (library index columns and `kb_index_state`).
 - **`vox doctor --diag <id>`** — run and report only the build-health check that can produce a given `[diag id=…]` (e.g. `sccache.pathological`); exits non-zero when the diagnosis fires, and unknown ids list the registered-id registry.
+
+### Removed
+
+- **Tantivy docs mirror in `vox-search`**, which had no writer: the module is gone, along with the public `SearchExecution` supplemental Tantivy lines field (`tantivy_doc_lines`) and `SearchPolicy::tantivy_index_root`. The Library indexer owns the Tantivy index now.
+
+### Notes
+
+- After upgrading, restart a running `vox-orchestrator-d`; an old daemon keeps serving the previous tool table and answers `vox_kb_*` calls as unknown tools.
 
 ### Fixed
 

@@ -62,11 +62,11 @@ The compiler emits **`defineSchema` / `searchIndex(...)`** from `@search_index` 
 |--------|-----------------|-------|
 | Agent markdown memory | In-process BM25 + optional embeddings + `fuse_hybrid_results` | Policy weight: `memory_vector_fusion_weight` |
 | Knowledge graph | SQLite FTS / LIKE on `knowledge_nodes` | Exposed as MCP `vox_knowledge_query` |
-| Ingested doc chunks (RAG) | FTS5 / LIKE + `embeddings` hybrid | Fusion weight: `chunk_vector_fusion_weight`, passed into `query_search_document_chunks_hybrid` (not hard-coded in `vox-db`) |
+| Ingested doc chunks (RAG) | LIKE + `embeddings` hybrid; FTS5 is unavailable on turso 0.6.1 (probe recorded in KB Phase 2), so LIKE is what runs in practice | Fusion weight: `chunk_vector_fusion_weight`, passed into `query_search_document_chunks_hybrid` (not hard-coded in `vox-db`) |
 | Repo inventory | Bounded filesystem walk + token overlap | Interim until persistent code indexes exist |
 | Symbol proximity | `vox-search::symbol_proximity` (`scan_symbol_proximity`) | Contracts-aware lexical proximity vs optional query vectors; planner corpus `SymbolProximity` |
 | Semantic FS (intent paths) | `vox-search::semantic_fs` (`discover_files_for_intent`, `retrieve_evidence_for_intent`) | Same inventory ranker as repo paths; MCP exposes `semantic_fs_discover` for AgentOS intent-shaped discovery |
-| Docs mirror (optional) | Tantivy (`tantivy-lexical` feature) | Supplemental |
+| KB Library (`docs/src/**` accepted by `kb_ids::is_kb_corpus_path`, no archive; includes `docs/src/library`) | Tantivy 0.22 index owned by the indexer (`vox_search::library`), under `<data_dir>/kb/library` (`VOX_SEARCH_TANTIVY_ROOT` overrides the root) | Heading chunks keyed by `chunk_hash`; rebuilt from DB rows on change; chosen over FTS5 by the Phase 2 probe |
 | Sidecar ANN (optional) | Qdrant (`qdrant-vector` feature) | Parallel to DB chunk search |
 | Web | SearXNG / DDG / optional Tavily | Policy-gated |
 | Graphify search log (virtual) | Turso `graphify_search_hit` nodes | Virtual corpus tracking queries and FNV-64 hashes. Always fresh; bypassed by lexical check |
@@ -89,10 +89,17 @@ The compiler emits **`defineSchema` / `searchIndex(...)`** from `@search_index` 
 | `vox_memory_search` | Full retrieval bundle (memory, knowledge, chunks, repo, optional RRF / web paths per plan) |
 | `vox_knowledge_query` | Narrow query against `knowledge_nodes` only |
 | `vox_research_run` | Orchestrator `run_research` pipeline: `vox-search` web tier (SearXNG → DDG → Tavily) + optional CRAG hops + synthesis/judge when LLM env is configured — see [`deep-research-prior-art-and-vox-roadmap-2026.md`](deep-research-prior-art-and-vox-roadmap-2026.md) |
+| `vox_kb_search` | BM25 search over the KB Library index; hits carry `kb://` URIs |
+| `vox_kb_get` | Fetch a Library document (by `path`) or chunk (by `chunk_hash`) from the DB; never reads files |
+| `vox_kb_cite` | Citation link and `kb://chunk/<hash>` for a chunk |
+| `vox_kb_status` | Index state: corpus root and commit, counts, chunker version, lexical backend, embed model, trust tier, errors, consistency |
+| `vox_kb_reindex` | Rebuild the Library index from the repository `docs/src` tree (no path arguments, single-flight; the daemon is the single writer). CLI: `vox kb status` / `vox kb reindex` |
 | `vox_graphify_search` | Lexically search a graphify corpus graph on disk (read-only) |
 | `vox_graphify_query` | BFS neighbor expansion from seed node IDs (read-only; layered navigation) |
 | `vox_graphify_path` | Shortest path between two node IDs in a graphify corpus (read-only) |
 | `vox_graphify_compare` | Diff two graphify corpus manifests for node/edge/community delta (read-only) |
+
+The Library is also served as `kb://doc/<path>` and `kb://chunk/<hash>` MCP resources. After upgrading, restart a running `vox-orchestrator-d` so it serves the new `vox_kb_*` tools.
 
 **Dashboard:** use `POST /v1/tools/call` (`voxTransport.callTool`). No client-side BM25/vector index unless there is an explicit offline product requirement.
 
