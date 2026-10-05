@@ -66,8 +66,9 @@ the ratchet gates `dev/all` and the seed subset `dev/seed`.
 
 ## Re-epoch rule
 
-A change to `queries.jsonl`, `qrels/` or `corpus.jsonl` is a re-epoch. It requires an `epoch` bump
-and an `epoch_note` in `contracts/kb/retrieval-baseline.v1.json`, and it is human-reviewed
+A change to `queries.jsonl`, `qrels/` or `corpus.jsonl`, or to the retrieval config recorded in the
+baseline (`retriever`, `chunker`, `budget_tokens`, `token_estimator`), is a re-epoch. It requires an
+`epoch` bump and a new `epoch_note` in `contracts/kb/retrieval-baseline.v1.json`, and it is human-reviewed
 (CODEOWNERS `/contracts/`). Editing this README never triggers a re-epoch. Agents never re-epoch
 to turn a red gate green.
 

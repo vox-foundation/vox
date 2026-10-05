@@ -94,6 +94,17 @@ impl Baseline {
         Ok(serde_json::from_str(s)?)
     }
 
+    /// `retriever/chunker/budget_tokens/token_estimator`: what the metrics were measured with.
+    fn config(&self) -> String {
+        let (r, c, b, e) = (
+            &self.retriever,
+            &self.chunker,
+            self.budget_tokens,
+            &self.token_estimator,
+        );
+        format!("{r}/{c}/{b}/{e}")
+    }
+
     /// Pretty JSON, ordered keys, trailing newline.
     pub fn to_json_string(&self) -> Result<String> {
         Ok(serde_json::to_string_pretty(self)? + "\n")
@@ -101,19 +112,23 @@ impl Baseline {
 }
 
 /// `[regression]` errors: a ratchet metric of `report` fell below the baseline by more than
-/// the baseline tolerance (compared at 6 dp), or a gated key is missing.
+/// the baseline tolerance (compared at 6 dp), a gated key is missing, or the report was
+/// measured with a different retrieval config (retriever, chunker, budget, estimator).
 #[must_use]
 pub fn check_regression(report: &Report, baseline: &Baseline) -> Vec<String> {
     let mut errs = Vec::new();
-    if report.budget_tokens != baseline.budget_tokens
-        || report.token_estimator != baseline.token_estimator
-    {
+    let (r, c, b, e) = (
+        report.retriever,
+        report.chunker,
+        report.budget_tokens,
+        report.token_estimator,
+    );
+    let now = format!("{r}/{c}/{b}/{e}");
+    if now != baseline.config() {
         errs.push(format!(
-            "[regression] report budget {}/{} != baseline {}/{}: metrics are not comparable",
-            report.budget_tokens,
-            report.token_estimator,
-            baseline.budget_tokens,
-            baseline.token_estimator
+            "[regression] report config {now} != baseline {}: metrics are not comparable; \
+             re-epoch with --write-baseline",
+            baseline.config()
         ));
     }
     for k in RATCHET_KEYS {
@@ -204,10 +219,10 @@ pub fn new_epoch(prev: Option<&Baseline>, report: &Report, note: &str) -> Result
 /// `golden_changed` is decided by the caller (AP-15). Rules:
 /// - absent at base is a bootstrap (allowed); present at base but absent at head is an error;
 /// - tolerance may never rise;
-/// - golden unchanged: epoch fixed, no metric lowered, no base key dropped, budget and token
-///   estimator fixed;
-/// - golden changed: epoch must rise and `epoch_note` must be new and non-empty; metrics may
-///   move (the golden set defines a new yardstick), but every ratchet key must still exist.
+/// - golden set and retrieval config (retriever, chunker, budget, token estimator) unchanged:
+///   epoch fixed, no metric lowered, no base key dropped;
+/// - golden set or retrieval config changed: epoch must rise and `epoch_note` must be new and
+///   non-empty; metrics may move (a new yardstick), but every ratchet key must still exist.
 #[must_use]
 pub fn check_tighten_only(
     base: Option<&Baseline>,
@@ -232,31 +247,34 @@ pub fn check_tighten_only(
             errs.push(t(format!("head lacks ratchet key {k}")));
         }
     }
-    if golden_changed {
+    let what = match (golden_changed, head.config() != base.config()) {
+        (true, _) => Some("golden set".to_string()),
+        (false, true) => Some(format!(
+            "retrieval config ({} -> {})",
+            base.config(),
+            head.config()
+        )),
+        (false, false) => None,
+    };
+    if let Some(what) = what {
         if head.epoch <= base.epoch {
             errs.push(t(format!(
-                "golden set changed but epoch not bumped ({} -> {})",
+                "{what} changed but epoch not bumped ({} -> {})",
                 base.epoch, head.epoch
             )));
         }
         let note = head.epoch_note.trim();
         if note.is_empty() || note == base.epoch_note.trim() {
-            errs.push(t(
-                "golden set changed but epoch_note is empty or unchanged".into()
-            ));
+            errs.push(t(format!(
+                "{what} changed but epoch_note is empty or unchanged"
+            )));
         }
         return errs;
     }
     if head.epoch != base.epoch {
         errs.push(t(format!(
-            "epoch changed {} -> {} without a golden-set change",
+            "epoch changed {} -> {} without a golden-set or retrieval-config change",
             base.epoch, head.epoch
-        )));
-    }
-    if head.budget_tokens != base.budget_tokens || head.token_estimator != base.token_estimator {
-        errs.push(t(format!(
-            "budget/estimator changed {}/{} -> {}/{}",
-            base.budget_tokens, base.token_estimator, head.budget_tokens, head.token_estimator
         )));
     }
     for (key, was) in &base.metrics {
@@ -474,5 +492,44 @@ mod tests {
         assert_eq!(back.to_json_string().unwrap(), s);
         let bad = s.replacen("\"epoch\"", "\"extra\": 1,\n  \"epoch\"", 1);
         assert!(Baseline::from_json_str(&bad).is_err());
+    }
+
+    #[test]
+    fn config_change_licenses_reepoch_and_regression_compares_it() {
+        let b = base();
+        let edits: [fn(&mut Baseline); 4] = [
+            |h| h.retriever = "dense-v2".into(),
+            |h| h.chunker = "md-h2-512-v2".into(),
+            |h| h.budget_tokens = 3000,
+            |h| h.token_estimator = "words".into(),
+        ];
+        for edit in edits {
+            let mut h = b.clone();
+            edit(&mut h);
+            h.metrics.get_mut("dev/all").unwrap().doc.mrr_at_10 = 0.1;
+            assert!(!check_tighten_only(Some(&b), Some(&h), false).is_empty());
+            h.epoch = 2;
+            assert!(
+                !check_tighten_only(Some(&b), Some(&h), false).is_empty(),
+                "same note"
+            );
+            h.epoch_note = "new retriever".into();
+            let errs = check_tighten_only(Some(&b), Some(&h), false);
+            assert!(errs.is_empty(), "{errs:?}");
+        }
+        let mut r = report(0.5);
+        r.retriever = "dense-v2";
+        assert!(
+            check_regression(&r, &b)
+                .iter()
+                .any(|e| e.contains("dense-v2"))
+        );
+        let mut r = report(0.5);
+        r.chunker = "md-h2-512-v2";
+        assert!(
+            check_regression(&r, &b)
+                .iter()
+                .any(|e| e.contains("md-h2-512-v2"))
+        );
     }
 }
