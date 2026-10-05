@@ -129,7 +129,16 @@ fn jsonl_guid_hits(root: &Path, guid: &str) -> Vec<String> {
     hits
 }
 
-/// Every `[canary]` failure, each source tagged. `tracked` is `git ls-files`.
+/// Paths from `git ls-files -z` output: NUL-separated and never C-quoted, so non-ASCII or
+/// special-character paths are neither skipped nor mangled.
+pub(crate) fn split_nul(out: &str) -> Vec<String> {
+    out.split('\0')
+        .filter(|s| !s.is_empty())
+        .map(str::to_owned)
+        .collect()
+}
+
+/// Every `[canary]` failure, each source tagged. `tracked` is `git ls-files -z`.
 pub(crate) fn canary_failures(root: &Path, tracked: &[String]) -> Vec<String> {
     let eval = root.join(EVAL_DIR);
     let guid = match read_canary_guid(&eval) {
@@ -259,8 +268,8 @@ pub fn run_gate(root: &Path, base: &str) -> Result<()> {
         },
     }
     fails.extend(tighten_failures(root, base, head.as_ref()));
-    let tracked: Vec<String> = match read_only(root, &["ls-files"]) {
-        Ok(s) => s.lines().map(str::to_owned).collect(),
+    let tracked: Vec<String> = match read_only(root, &["ls-files", "-z"]) {
+        Ok(s) => split_nul(&s),
         Err(e) => {
             fails.push(format!("[canary] git ls-files failed: {e}"));
             Vec::new()

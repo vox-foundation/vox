@@ -133,9 +133,9 @@ pub fn run_headings(eval_dir: &Path, doc_id: &str, out: &mut impl Write) -> Resu
 }
 
 pub fn run_snapshot(root: &Path, eval_dir: &Path) -> Result<()> {
-    let listing = vox_git::read_cmd::read_only(root, &["ls-files", "docs/src"])
+    let listing = vox_git::read_cmd::read_only(root, &["ls-files", "-z", "--", "docs/src"])
         .context("git ls-files docs/src")?;
-    let paths: Vec<String> = listing.lines().map(str::to_owned).collect();
+    let paths = super::gate::split_nul(&listing);
     let body = snapshot_corpus_jsonl(root, &paths)?;
     std::fs::create_dir_all(eval_dir)?;
     std::fs::write(eval_dir.join("corpus.jsonl"), &body)?;

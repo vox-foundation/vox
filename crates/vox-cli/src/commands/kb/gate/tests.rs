@@ -270,3 +270,21 @@ fn baseline_at_reads_real_git() {
     assert!(baseline_at(git, "HEAD:docs").unwrap().is_none());
     assert!(baseline_at(git, "refs/heads/definitely-missing-kb-eval").is_err());
 }
+
+#[test]
+fn ls_files_z_paths_are_split_on_nul_unquoted() {
+    let got = split_nul("docs/src/caf\u{e9}.md\0docs/src/a \"q\".md\0docs/src/b\\c.md\0");
+    assert_eq!(
+        got,
+        [
+            "docs/src/caf\u{e9}.md",
+            "docs/src/a \"q\".md",
+            "docs/src/b\\c.md"
+        ]
+    );
+    assert!(split_nul("").is_empty());
+    // Real git: `-z` output parses to plain repo-relative paths.
+    let repo = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let out = read_only(&repo, &["ls-files", "-z", "--", "contracts/kb"]).unwrap();
+    assert!(split_nul(&out).contains(&BASELINE_REL.to_string()));
+}
