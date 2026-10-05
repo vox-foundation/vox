@@ -337,3 +337,88 @@ fn chunk_split_is_deterministic() {
     };
     assert_eq!(key(&chunk(&text)), key(&chunk(&text)));
 }
+
+fn write_file(root: &Path, rel: &str, text: &str) {
+    let p = root.join(rel);
+    std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+    std::fs::write(p, text).unwrap();
+}
+
+fn walked(root: &Path) -> Vec<String> {
+    walk_corpus(root).into_iter().map(|f| f.rel_path).collect()
+}
+
+#[tokio::test]
+async fn kb_archive_excluded() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    for rel in [
+        "docs/src/archive/old.md",
+        "docs/src/research/archive/older.md",
+        "docs/src/notes.mdx",
+        "docs/src/ok.md",
+        "docs/src/library/page.md",
+        "outside.md",
+    ] {
+        write_file(root, rel, "# T\nbody\n");
+    }
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(root.join("outside.md"), root.join("docs/src/link.md")).unwrap();
+
+    assert_eq!(walked(root), ["docs/src/library/page.md", "docs/src/ok.md"]);
+
+    let db = VoxDb::open_memory().await.unwrap();
+    let deps = IndexDeps {
+        hasher: &hasher,
+        corpus_commit: None,
+        trust_tier: "trusted",
+    };
+    index_library(&db, root, &root.join("lex"), &deps)
+        .await
+        .unwrap();
+    let rows = db.library_chunk_rows(KB_LIBRARY_CORPUS).await.unwrap();
+    assert!(!rows.is_empty());
+    assert!(rows.iter().all(|r| !r.doc_path.contains("/archive/")));
+    let docs: BTreeSet<&str> = rows.iter().map(|r| r.doc_path.as_str()).collect();
+    assert_eq!(
+        docs,
+        BTreeSet::from(["docs/src/library/page.md", "docs/src/ok.md"])
+    );
+}
+
+#[test]
+fn walker_matches_kb_filter() {
+    let dir = tempfile::tempdir().unwrap();
+    for rel in [
+        "docs/src/a.md",
+        "docs/src/archived-notes.md",
+        "docs/src/library/archive-policy.md",
+        "docs/src/archive/x.md",
+        "docs/src/c#-notes.md",
+        "docs/src/n.txt",
+    ] {
+        write_file(dir.path(), rel, "# T\n");
+    }
+    let got = walked(dir.path());
+    assert_eq!(
+        got,
+        [
+            "docs/src/a.md",
+            "docs/src/archived-notes.md",
+            "docs/src/library/archive-policy.md"
+        ]
+    );
+    // Same predicate on the real tree.
+    for f in walk_corpus(&repo_root())
+        .iter()
+        .chain(&walk_corpus(dir.path()))
+    {
+        assert!(kb_ids::is_kb_corpus_path(&f.rel_path), "{}", f.rel_path);
+    }
+    // Component match, not substring.
+    assert!(kb_ids::is_kb_corpus_path("docs/src/archived-notes.md"));
+    assert!(kb_ids::is_kb_corpus_path(
+        "docs/src/library/archive-policy.md"
+    ));
+    assert!(!kb_ids::is_kb_corpus_path("docs/src/library/archive/x.md"));
+}
