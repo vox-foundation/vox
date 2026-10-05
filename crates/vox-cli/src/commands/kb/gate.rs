@@ -216,6 +216,14 @@ pub(crate) fn baseline_at(
         .map_err(|e| format!("baseline at {base} unreadable: {e:#}"))
 }
 
+/// Whether `git diff --name-only <range>` touches the golden set (`range` may be a single ref,
+/// diffing the working tree).
+fn golden_changed(root: &Path, range: &str) -> Result<bool, GitReadError> {
+    let mut args = vec!["diff", "--name-only", range, "--"];
+    args.extend(BASE_BASELINE_PATHSPEC);
+    Ok(!read_only(root, &args)?.trim().is_empty())
+}
+
 /// `[tighten-only]` failures: HEAD's baseline vs the one at `base`.
 fn tighten_failures(root: &Path, base: &str, head: Option<&Baseline>) -> Vec<String> {
     if let Err(e) = resolve_base(root, base) {
@@ -225,11 +233,8 @@ fn tighten_failures(root: &Path, base: &str, head: Option<&Baseline>) -> Vec<Str
         Ok(b) => b,
         Err(e) => return vec![format!("[tighten-only] {e}")],
     };
-    let range = format!("{base}...HEAD");
-    let mut args = vec!["diff", "--name-only", range.as_str(), "--"];
-    args.extend(BASE_BASELINE_PATHSPEC);
-    match read_only(root, &args) {
-        Ok(changed) => check_tighten_only(base_baseline.as_ref(), head, !changed.trim().is_empty()),
+    match golden_changed(root, &format!("{base}...HEAD")) {
+        Ok(changed) => check_tighten_only(base_baseline.as_ref(), head, changed),
         Err(e) => vec![format!(
             "[tighten-only] cannot diff the golden set against {base}: {e}"
         )],
@@ -335,11 +340,44 @@ pub fn run_tighten(root: &Path) -> Result<()> {
     Ok(())
 }
 
+/// A warning when `--gate` will reject this epoch bump: a baseline exists, and neither the
+/// golden set (vs `origin/main`, working tree included) nor the retrieval config changed.
+pub(crate) fn reepoch_warning(
+    golden_changed: Result<bool, GitReadError>,
+    prev: Option<&Baseline>,
+    next: &Baseline,
+) -> Option<String> {
+    let prev = prev?;
+    let cfg = |b: &Baseline| {
+        let (r, c, e) = (&b.retriever, &b.chunker, &b.token_estimator);
+        format!("{r}/{c}/{}/{e}", b.budget_tokens)
+    };
+    if cfg(prev) != cfg(next) {
+        return None;
+    }
+    match golden_changed {
+        Ok(true) => None,
+        Ok(false) => Some(
+            "kb eval: warning: golden set and retrieval config unchanged vs origin/main; \
+             `vox kb eval --gate` will reject this epoch bump"
+                .to_string(),
+        ),
+        Err(e) => Some(format!(
+            "kb eval: warning: cannot diff the golden set against origin/main ({e}); \
+             `--gate` rejects an epoch bump without a golden-set or retrieval-config change"
+        )),
+    }
+}
+
 /// Bootstrap or re-epoch: the only way the baseline may be loosened. Needs a non-empty note.
 pub fn run_write_baseline(root: &Path, note: &str) -> Result<()> {
     let path = root.join(BASELINE_REL);
     let prev = read_baseline(&path)?;
     let next = new_epoch(prev.as_ref(), &dev_report(&root.join(EVAL_DIR))?, note)?;
+    let changed = golden_changed(root, "origin/main");
+    if let Some(w) = reepoch_warning(changed, prev.as_ref(), &next) {
+        eprintln!("{w}");
+    }
     std::fs::write(&path, next.to_json_string()?)?;
     eprintln!("kb eval: wrote {BASELINE_REL} epoch {}", next.epoch);
     Ok(())

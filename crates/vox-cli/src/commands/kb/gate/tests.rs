@@ -378,3 +378,29 @@ fn unreadable_head_baseline_is_not_also_reported_as_deleted() {
         "{fails:?}"
     );
 }
+
+#[test]
+fn write_baseline_warns_when_the_gate_would_reject_the_epoch() {
+    let tmp = temp_repo();
+    let prev = new_epoch(None, &dev_report(&tmp.path().join(EVAL_DIR)).unwrap(), "t").unwrap();
+    let mut next = prev.clone();
+    next.epoch += 1;
+    let nz = || GitReadError::NonZero {
+        code: 128,
+        stderr: "fatal: simulated".into(),
+    };
+    assert!(
+        reepoch_warning(Ok(false), None, &next).is_none(),
+        "bootstrap"
+    );
+    let w = reepoch_warning(Ok(false), Some(&prev), &next).unwrap();
+    assert!(w.contains("will reject"), "{w}");
+    assert!(reepoch_warning(Ok(true), Some(&prev), &next).is_none());
+    assert!(
+        reepoch_warning(Err(nz()), Some(&prev), &next)
+            .unwrap()
+            .contains("simulated")
+    );
+    next.chunker = "md-h2-512-v2".into();
+    assert!(reepoch_warning(Ok(false), Some(&prev), &next).is_none());
+}
