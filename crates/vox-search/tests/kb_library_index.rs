@@ -29,20 +29,14 @@ fn repo(guide: &str) -> tempfile::TempDir {
     dir
 }
 
+/// `(rowid, hash)` of every library chunk in rowid order.
 async fn chunk_ids(db: &VoxDb) -> Vec<(i64, String)> {
-    let mut rows = db
-        .connection()
-        .query(
-            "SELECT id, chunk_hash FROM search_document_chunks ORDER BY id",
-            (),
-        )
+    db.library_chunk_positions(KB_LIBRARY_CORPUS)
         .await
-        .unwrap();
-    let mut out = Vec::new();
-    while let Some(r) = rows.next().await.unwrap() {
-        out.push((r.get(0).unwrap(), r.get(1).unwrap()));
-    }
-    out
+        .unwrap()
+        .into_iter()
+        .map(|p| (p.rowid, p.chunk_hash))
+        .collect()
 }
 
 #[tokio::test]
@@ -56,15 +50,20 @@ async fn kb_tracer_one_doc_end_to_end() {
     assert_eq!((report.docs_seen, report.errors.len()), (1, 0));
     assert_eq!(report.lexical_docs as usize, report.chunks_inserted);
 
-    let mut rows = db
-        .connection()
-        .query("SELECT corpus, rel_path FROM search_documents", ())
+    let doc = db
+        .library_document_by_path("docs/src/guide.md")
         .await
-        .unwrap();
-    let r = rows.next().await.unwrap().expect("one document row");
-    assert_eq!(r.get::<String>(0).unwrap(), KB_LIBRARY_CORPUS);
-    assert_eq!(r.get::<String>(1).unwrap(), "docs/src/guide.md");
-    assert!(rows.next().await.unwrap().is_none());
+        .unwrap()
+        .expect("one library document row");
+    assert_eq!(doc.rel_path, "docs/src/guide.md");
+    assert_eq!(
+        db.get_kb_index_state(KB_LIBRARY_CORPUS)
+            .await
+            .unwrap()
+            .unwrap()
+            .doc_count,
+        1
+    );
 
     let allowed = kb_ids::doc_heading_paths("docs/src/guide.md", GUIDE);
     let chunks = db.library_chunk_rows(KB_LIBRARY_CORPUS).await.unwrap();
@@ -155,24 +154,17 @@ async fn run(db: &VoxDb, repo: &tempfile::TempDir) -> vox_search::library::Index
         .unwrap()
 }
 
-/// `(chunk_index, hash)` of one document in storage order.
+/// `(chunk_index, hash)` of one document, ordered by `chunk_index`.
 async fn doc_chunks(db: &VoxDb, rel_path: &str) -> Vec<(i64, String)> {
-    let mut rows = db
-        .connection()
-        .query(
-            &format!(
-                "SELECT c.chunk_index, c.chunk_hash FROM search_document_chunks c \
-                 JOIN search_documents d ON d.id = c.document_id \
-                 WHERE d.rel_path = '{rel_path}' ORDER BY c.chunk_index"
-            ),
-            (),
-        )
+    let mut out: Vec<_> = db
+        .library_chunk_positions(KB_LIBRARY_CORPUS)
         .await
-        .unwrap();
-    let mut out = Vec::new();
-    while let Some(r) = rows.next().await.unwrap() {
-        out.push((r.get(0).unwrap(), r.get(1).unwrap()));
-    }
+        .unwrap()
+        .into_iter()
+        .filter(|p| p.rel_path == rel_path)
+        .map(|p| (p.chunk_index, p.chunk_hash))
+        .collect();
+    out.sort();
     out
 }
 
@@ -276,18 +268,12 @@ async fn kb_kept_hash_keeps_vector() {
     );
     run(&db, &repo).await;
 
-    let mut q = db
-        .connection()
-        .query(
-            &format!(
-                "SELECT COUNT(*) FROM embeddings WHERE source_type = 'kb_chunk' AND source_id = '{}'",
-                one.chunk_hash
-            ),
-            (),
-        )
-        .await
-        .unwrap();
-    assert_eq!(q.next().await.unwrap().unwrap().get::<i64>(0).unwrap(), 1);
+    assert_eq!(
+        db.embedding_count("kb_chunk", Some(&one.chunk_hash))
+            .await
+            .unwrap(),
+        1
+    );
     let same = db
         .library_chunks_by_hashes(std::slice::from_ref(&one.chunk_hash))
         .await
@@ -299,11 +285,6 @@ async fn kb_kept_hash_keeps_vector() {
 
 use vox_search::library::lexical::LEXICAL_BACKEND;
 use vox_search::library::status;
-
-async fn count(db: &VoxDb, sql: &str) -> i64 {
-    let mut rows = db.connection().query(sql, ()).await.unwrap();
-    rows.next().await.unwrap().unwrap().get::<i64>(0).unwrap()
-}
 
 #[tokio::test]
 async fn kb_reindex_prune() {
@@ -342,10 +323,9 @@ async fn kb_reindex_prune() {
             .unwrap()
             .is_empty()
     );
-    assert_eq!(
-        count(&db, "SELECT COUNT(*) FROM search_documents WHERE rel_path IN ('docs/src/b.md','docs/src/c.md')").await,
-        0
-    );
+    for gone in ["docs/src/b.md", "docs/src/c.md"] {
+        assert!(db.library_document_by_path(gone).await.unwrap().is_none());
+    }
 }
 
 #[tokio::test]
@@ -372,34 +352,28 @@ async fn kb_no_orphan_embeddings() {
     run(&db, &repo).await;
 
     let live = db.library_chunk_rows(KB_LIBRARY_CORPUS).await.unwrap();
-    assert_eq!(
-        count(
-            &db,
-            "SELECT COUNT(*) FROM embeddings WHERE source_type = 'kb_chunk' \
-             AND source_id NOT IN (SELECT chunk_hash FROM search_document_chunks WHERE chunk_hash IS NOT NULL)"
-        )
-        .await,
-        0
-    );
+    for r in &all {
+        let alive = live.iter().any(|l| l.chunk_hash == r.chunk_hash);
+        assert_eq!(
+            db.embedding_count("kb_chunk", Some(&r.chunk_hash))
+                .await
+                .unwrap(),
+            i64::from(alive),
+            "{}: vector kept iff chunk is live",
+            r.heading_path
+        );
+    }
     let kept = all
         .iter()
         .filter(|r| live.iter().any(|l| l.chunk_hash == r.chunk_hash))
         .count();
     assert!(kept > 0 && kept < all.len());
     assert_eq!(
-        count(
-            &db,
-            "SELECT COUNT(*) FROM embeddings WHERE source_type = 'kb_chunk'"
-        )
-        .await as usize,
+        db.embedding_count("kb_chunk", None).await.unwrap() as usize,
         kept
     );
     assert_eq!(
-        count(
-            &db,
-            "SELECT COUNT(*) FROM embeddings WHERE source_type = 'memory'"
-        )
-        .await,
+        db.embedding_count("memory", None).await.unwrap(),
         1,
         "other source types are untouched"
     );
@@ -420,7 +394,7 @@ async fn kb_manifest_and_cards() {
     assert_eq!((s.doc_count, s.card_count), (3, 3));
     assert_eq!(
         s.chunk_count,
-        count(&db, "SELECT COUNT(*) FROM search_document_chunks").await
+        db.library_chunk_count(KB_LIBRARY_CORPUS).await.unwrap()
     );
     assert_eq!(
         s.chunker_version,
@@ -503,10 +477,13 @@ async fn kb_chunker_version_change_forces_rechunk() {
     let repo = three_docs();
     let db = VoxDb::open_memory().await.unwrap();
     run(&db, &repo).await;
-    db.connection()
-        .execute("UPDATE kb_index_state SET chunker_version = 'old'", ())
+    let mut state = db
+        .get_kb_index_state(KB_LIBRARY_CORPUS)
         .await
+        .unwrap()
         .unwrap();
+    state.chunker_version = "old".into();
+    db.put_kb_index_state(&state).await.unwrap();
     let r = run(&db, &repo).await;
     assert_eq!((r.docs_unchanged, r.docs_seen), (0, 3), "{r:?}");
     let s = db

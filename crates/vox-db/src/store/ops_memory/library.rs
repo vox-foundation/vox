@@ -70,6 +70,16 @@ pub struct LibraryChunkRow {
     pub token_estimate: i64,
 }
 
+/// Storage position of one chunk: the AUTOINCREMENT rowid, owning document and `chunk_index`.
+/// For index-stability checks (kept chunks keep rowid and hash); not an identity (use the hash).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LibraryChunkPos {
+    pub rowid: i64,
+    pub rel_path: String,
+    pub chunk_index: i64,
+    pub chunk_hash: String,
+}
+
 /// One `kb_index_state` row: what the last index run built and from what (IDX-03).
 /// `indexed_at` is assigned by the store on write; the value passed to
 /// [`crate::VoxDb::put_kb_index_state`] is ignored. `errors_json` is a JSON array of
@@ -430,6 +440,32 @@ impl crate::VoxDb {
             errors_json: r.get(13)?,
             duration_ms: r.get(14)?,
         }))
+    }
+
+    /// Storage position of every hash-keyed chunk of `corpus`, ordered by rowid.
+    pub async fn library_chunk_positions(
+        &self,
+        corpus: &str,
+    ) -> Result<Vec<LibraryChunkPos>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT c.id, d.rel_path, c.chunk_index, c.chunk_hash \
+                 FROM search_document_chunks c JOIN search_documents d ON d.id = c.document_id \
+                 WHERE d.corpus = ?1 AND c.chunk_hash IS NOT NULL ORDER BY c.id",
+                params![corpus],
+            )
+            .await?;
+        let mut out = Vec::new();
+        while let Some(r) = rows.next().await? {
+            out.push(LibraryChunkPos {
+                rowid: r.get(0)?,
+                rel_path: r.get(1)?,
+                chunk_index: r.get(2)?,
+                chunk_hash: r.get(3)?,
+            });
+        }
+        Ok(out)
     }
 
     /// Every chunk of `corpus`, ordered by document path then `chunk_index`.
@@ -961,5 +997,35 @@ mod tests {
         )
         .await
         .unwrap();
+    }
+
+    #[tokio::test]
+    async fn library_chunk_positions_report_rowid_index_hash_and_scope_to_corpus() {
+        let db = VoxDb::open_memory().await.unwrap();
+        let (a, b) = ("a".repeat(64), "b".repeat(64));
+        db.apply_library_document(
+            &doc("docs/src/guide.md"),
+            &[chunk(&a, "A", "1"), chunk(&b, "B", "2")],
+        )
+        .await
+        .unwrap();
+        let mut other = doc("docs/src/o.md");
+        other.corpus = "other";
+        db.apply_library_document(&other, &[chunk(&"c".repeat(64), "C", "3")])
+            .await
+            .unwrap();
+        let got = db.library_chunk_positions(KB_LIBRARY_CORPUS).await.unwrap();
+        let view: Vec<(&str, i64, &str)> = got
+            .iter()
+            .map(|p| (p.rel_path.as_str(), p.chunk_index, p.chunk_hash.as_str()))
+            .collect();
+        assert_eq!(
+            view,
+            vec![
+                ("docs/src/guide.md", 0, a.as_str()),
+                ("docs/src/guide.md", 1, b.as_str())
+            ]
+        );
+        assert!(got[0].rowid < got[1].rowid);
     }
 }
