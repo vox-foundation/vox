@@ -23,7 +23,7 @@ Research basis: `.planning/workstreams/kb/research/SUMMARY.md` and `docs/src/arc
 
 ### Library Index (IDX)
 
-- [ ] **IDX-01**: Reindexing is incremental — unchanged files are skipped by file hash, chunks are diffed by chunk hash, deleted/renamed docs are pruned, and embeddings survive reindex (no orphaned `source_id`s)
+- [x] **IDX-01**: Reindexing is incremental — unchanged files are skipped by file hash, chunks are diffed by chunk hash, deleted/renamed docs are pruned, and embeddings survive reindex (no orphaned `source_id`s)
 - [ ] **IDX-02**: Markdown is chunked by heading with a recorded `heading_path`; headings inside code fences and YAML frontmatter never create or pollute chunks; oversize sections are split by `text-splitter` sized to the embedder tokenizer
 - [ ] **IDX-03**: Each indexed doc has a summary-card row, and each index build records a manifest (embed model id + revision, dim, chunker version, corpus commit)
 - [ ] **IDX-04**: `docs/src/archive/` is never indexed (fixture test proves it)
@@ -155,7 +155,7 @@ Research basis: `.planning/workstreams/kb/research/SUMMARY.md` and `docs/src/arc
 | EVAL-04 | Phase 1 | Complete |
 | EVAL-05 | Phase 1 | Complete |
 | EVAL-06 | Phase 7 | Pending |
-| IDX-01 | Phase 2 | Pending |
+| IDX-01 | Phase 2 | Complete |
 | IDX-02 | Phase 2 | Pending |
 | IDX-03 | Phase 2 | Pending |
 | IDX-04 | Phase 2 | Pending |

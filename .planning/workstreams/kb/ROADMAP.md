@@ -72,13 +72,13 @@ Plans:
   4. From an external MCP host (Claude Code), a user can call `vox_kb_search`, `vox_kb_get`, `vox_kb_cite`, `vox_kb_status` and `vox_kb_reindex`, and read `kb://doc/{path}` and `kb://chunk/{hash}`. A page added under `docs/src/library/` appears in the `Library` sidebar section and in search results.
   5. The lexical leg is the one the recorded runtime probe chose. The writer-less `TantivyDocsIndex` mirror is gone from source. Doc-level `vox kb eval` metrics do not regress against the Phase 1 baseline (chunk-level qrels are re-keyed exactly once, with the delta recorded).
 
-**Plans**: 9/11 plans executed
+**Plans**: 10/11 plans executed
 Plans:
 **Wave 1**
 
 - [x] 02-01-PLAN.md — Gate (frozen-core schema 95 + tantivy-lexical placement), schema/store, tracer: one doc → kb_ids sections → hash-keyed rows → Tantivy → library::search
 - [x] 02-02-PLAN.md — `docs/src/library/` + `Library` category, sidebar section and parity test
-- [ ] 02-10-PLAN.md — Gap closure CR-01: fallible corpus walk, prune skipped on incomplete/empty walk, missing `docs/src` fails, mutation-proven tests
+- [x] 02-10-PLAN.md — Gap closure CR-01: fallible corpus walk, prune skipped on incomplete/empty walk, missing `docs/src` fails, mutation-proven tests
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -299,7 +299,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Retrieval Eval Baseline | 12/12 | Complete    | 2026-10-05 |
-| 2. Library Index and KB Tool Surface | 9/9 | In Progress|  |
+| 2. Library Index and KB Tool Surface | 10/11 | In Progress|  |
 | 3. Provenance, Trust Tiers and Leak Closure | 0/TBD | Not started | - |
 | 4. Taxonomy Contract and Facet Lint | 0/TBD | Not started | - |
 | 5. Local Embeddings and Ranking Signals | 0/TBD | Not started | - |
