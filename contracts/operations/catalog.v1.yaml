@@ -26951,6 +26951,28 @@ operations:
     http_read_role_eligible: false
     tier: core
   cli: null
+- id: kb.search
+  title: Search Knowledge Library
+  description: Search the curated KB Library (Vox docs plus docs/src/library) by BM25 over heading chunks; returns ranked hits with chunk_hash, heading_path, anchor, snippet and kb:// URIs.
+  description_human: null
+  product_lane: ai
+  intent_tags:
+  - retrieval
+  - knowledge
+  side_effect_class: null
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_kb_search
+    http_read_role_eligible: true
+    tier: core
+  cli: null
 - id: gui
   title: Gui
   description: CLI operation `vox gui` — launch Axis or drive a dedicated debug Axis

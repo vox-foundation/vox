@@ -20799,6 +20799,24 @@ curated:
   mcp_tool: vox_kb_review_entry
   cli_path: null
   parameters: null
+- id: mcp.vox_kb_search
+  title: Search Knowledge Library
+  description_human: null
+  description_model: Search the curated KB Library (Vox docs plus docs/src/library) by BM25 over heading chunks; returns ranked hits with chunk_hash, heading_path, anchor, snippet and kb:// URIs.
+  intent_tags:
+  - retrieval
+  - knowledge
+  side_effect_class: null
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_kb_search
+  cli_path: null
+  parameters: null
 - id: mcp.vox_knowledge_query
   title: Knowledge Query
   description_human: null
