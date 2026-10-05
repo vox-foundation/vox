@@ -355,3 +355,26 @@ fn gate_reports_split_and_paraphrase_violations_as_golden() {
     let got = golden(root);
     assert!(got.iter().any(|f| f.contains("same split")), "{got:?}");
 }
+
+#[test]
+fn unreadable_head_baseline_is_not_also_reported_as_deleted() {
+    let tmp = temp_repo();
+    let root = tmp.path();
+    write(root, BASELINE_REL, "{ not json");
+    let (fails, _) = gate_failures(root, "HEAD");
+    assert!(
+        fails.iter().any(|f| f.contains("baseline unreadable")),
+        "{fails:?}"
+    );
+    assert!(
+        !fails.iter().any(|f| f.starts_with("[tighten-only]")),
+        "{fails:?}"
+    );
+    // Absent (not unreadable) is still named, even alongside other failures.
+    std::fs::remove_file(root.join(BASELINE_REL)).unwrap();
+    let (fails, _) = gate_failures(root, "HEAD");
+    assert!(
+        fails.iter().any(|f| f.contains("no baseline at HEAD")),
+        "{fails:?}"
+    );
+}

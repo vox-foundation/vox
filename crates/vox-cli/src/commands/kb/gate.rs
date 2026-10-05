@@ -256,8 +256,9 @@ fn golden_failures(eval_dir: &Path) -> Vec<String> {
 /// Every gate failure (unsorted) and the number of tracked files scanned.
 pub(crate) fn gate_failures(root: &Path, base: &str) -> (Vec<String>, usize) {
     let mut fails = golden_failures(&root.join(EVAL_DIR));
+    // `None`: unreadable (reported once here); `Some(None)`: absent at HEAD.
     let head = match read_baseline(&root.join(BASELINE_REL)) {
-        Ok(h) => h,
+        Ok(h) => Some(h),
         Err(e) => {
             fails.push(format!("[regression] baseline unreadable: {e:#}"));
             None
@@ -269,11 +270,11 @@ pub(crate) fn gate_failures(root: &Path, base: &str) -> (Vec<String>, usize) {
             None => format!("[regression] golden set failed to load: {e:#}"),
         }),
         Ok(report) => match &head {
-            None if fails.is_empty() => fails.push(
+            Some(None) => fails.push(
                 "[regression] no baseline at HEAD; bootstrap with --write-baseline".to_string(),
             ),
             None => {}
-            Some(h) => {
+            Some(Some(h)) => {
                 fails.extend(check_regression(&report, h));
                 for i in improvements(&report, h) {
                     eprintln!(
@@ -283,7 +284,9 @@ pub(crate) fn gate_failures(root: &Path, base: &str) -> (Vec<String>, usize) {
             }
         },
     }
-    fails.extend(tighten_failures(root, base, head.as_ref()));
+    if let Some(h) = &head {
+        fails.extend(tighten_failures(root, base, h.as_ref()));
+    }
     let tracked: Vec<String> = match read_only(root, &["ls-files", "-z"]) {
         Ok(s) => split_nul(&s),
         Err(e) => {
