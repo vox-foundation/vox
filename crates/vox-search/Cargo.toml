@@ -7,7 +7,10 @@ license.workspace = true
 
 [features]
 # Heavy lexical / scraping stacks are opt-in per consumer (`vox-cli`, `vox-orchestrator`, …).
-default = ["qdrant-vector", "tavily"]
+# `tantivy-lexical` is default: the KB Library index (vox_search::library) is the lexical leg
+# for the daemon, CLI and MCP tools, and its tests must run in PR CI (KB Phase 2, approved
+# feature:vox-search-default).
+default = ["qdrant-vector", "tavily", "tantivy-lexical"]
 tantivy-lexical = ["dep:tantivy"]
 web-scrape = ["dep:scraper", "dep:html2text"]
 qdrant-vector = []
@@ -48,6 +51,9 @@ tokio = { workspace = true, features = ["test-util"] }
 wiremock = { workspace = true }
 # Test egress guard ctor (tests/common/mod.rs, src/lib.rs `test_egress_guard`).
 ctor = { workspace = true }
+# Test-only content hasher for the Library index (IndexDeps.hasher); a dev-dependency adds no
+# `vox ci crate-edges` edge.
+vox-crypto = { workspace = true }
 # Force deadpool's `rt_tokio_1` feature (see root Cargo.toml).
 deadpool = { workspace = true }
 

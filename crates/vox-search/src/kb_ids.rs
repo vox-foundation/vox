@@ -12,6 +12,7 @@
 //! Only ordered std collections are used here (determinism: no hash-based iteration).
 
 use std::collections::BTreeSet;
+use std::ops::Range;
 
 /// Repo-relative directories whose Markdown forms the KB corpus.
 pub const KB_CORPUS_ROOTS: &[&str] = &["docs/src"];
@@ -58,41 +59,48 @@ pub fn parse_heading(line: &str) -> Option<(usize, String)> {
     Some((level, normalize_heading_text(line)))
 }
 
-/// Body lines of `text` after a leading `---` frontmatter block (all lines if none).
-fn body_lines(text: &str) -> (Option<&str>, Vec<&str>) {
-    let mut lines = text.lines();
-    let mut all: Vec<&str> = Vec::new();
-    let mut title: Option<&str> = None;
-    match lines.next() {
-        Some(first) if first.trim_end() == "---" => {
-            let mut closed = false;
-            let mut front: Vec<&str> = Vec::new();
-            for l in lines.by_ref() {
-                if l.trim_end() == "---" {
-                    closed = true;
-                    break;
-                }
-                front.push(l);
-            }
-            if closed {
-                title = front.iter().find_map(|l| l.strip_prefix("title:"));
-            } else {
-                // Unterminated block: not frontmatter; treat everything as body.
-                all.push(first);
-                all.extend(front);
-            }
-        }
-        Some(first) => all.push(first),
-        None => {}
+/// `(start, end, line)` for each line of `text[from..]`: `start`/`end` are byte offsets into
+/// `text` (`end` includes the terminator); `line` has its `\n` / `\r\n` terminator removed
+/// (the same lines `str::lines` yields).
+fn line_spans(text: &str, from: usize) -> impl Iterator<Item = (usize, usize, &str)> {
+    let mut off = from;
+    text[from..].split_inclusive('\n').map(move |raw| {
+        let start = off;
+        off += raw.len();
+        let l = raw.strip_suffix('\n').unwrap_or(raw);
+        (start, off, l.strip_suffix('\r').unwrap_or(l))
+    })
+}
+
+/// Byte range of the leading `---` frontmatter block, from offset 0 through the end of the
+/// closing `---` line (terminator included). `None` when the text does not start with `---` or
+/// the block is never closed (an unterminated block is body, not frontmatter).
+#[must_use]
+pub fn frontmatter_range(text: &str) -> Option<Range<usize>> {
+    let mut lines = line_spans(text, 0);
+    let (_, _, first) = lines.next()?;
+    if first.trim_end() != "---" {
+        return None;
     }
-    all.extend(lines);
-    (title, all)
+    lines
+        .find(|(_, _, l)| l.trim_end() == "---")
+        .map(|(_, end, _)| 0..end)
+}
+
+/// Start of the body: just past the frontmatter block, else 0.
+fn body_start(text: &str) -> usize {
+    frontmatter_range(text).map_or(0, |r| r.end)
 }
 
 /// Document title: frontmatter `title:`, else the first H1 (outside fences), else the file stem.
 #[must_use]
 pub fn doc_title(doc_path: &str, text: &str) -> String {
-    let (fm_title, lines) = body_lines(text);
+    let fm_title = frontmatter_range(text).and_then(|fm| {
+        line_spans(text, 0)
+            .skip(1)
+            .take_while(|(_, end, _)| *end < fm.end)
+            .find_map(|(_, _, l)| l.strip_prefix("title:"))
+    });
     if let Some(t) = fm_title {
         let t = t.trim().trim_matches(|c| c == '"' || c == '\'');
         let t = normalize_heading_text(t);
@@ -101,7 +109,7 @@ pub fn doc_title(doc_path: &str, text: &str) -> String {
         }
     }
     let mut in_fence = false;
-    for line in lines {
+    for (_, _, line) in line_spans(text, body_start(text)) {
         if is_fence_line(line) {
             in_fence = !in_fence;
         } else if !in_fence
@@ -167,17 +175,36 @@ pub fn is_kb_corpus_path(rel: &str) -> bool {
         .any(|root| rel.starts_with(&format!("{root}/")))
 }
 
-/// Every heading_path in a doc (root = title included). Frontmatter and fenced code are skipped.
+/// One heading section of a doc: the unit the Library chunker stores.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct KbSection {
+    /// `title › H2 › H3`; the root (title) for the preamble and for every H1 section.
+    pub heading_path: String,
+    /// `0` = preamble (text before the first heading), `1..=6` = heading level.
+    pub level: u8,
+    /// Byte range into the text: from the heading line start (the body start for the preamble)
+    /// to the next heading line start, or the end of the text.
+    pub range: Range<usize>,
+}
+
+/// Every section of a doc, in document order, including the (possibly empty) preamble.
+///
+/// This is the single heading walk: [`doc_heading_paths`] projects from it, so the chunker and
+/// the Phase 1 qrels can never disagree about a `heading_path`. Frontmatter and fenced code are
+/// skipped; an H1 resets the stack to the root (it is never a path segment).
 #[must_use]
-pub fn doc_heading_paths(doc_path: &str, text: &str) -> BTreeSet<String> {
+pub fn doc_sections(doc_path: &str, text: &str) -> Vec<KbSection> {
     let title = doc_title(doc_path, text);
-    let (_, lines) = body_lines(text);
-    let mut out = BTreeSet::new();
-    out.insert(title.clone());
+    let start = body_start(text);
+    let mut out = vec![KbSection {
+        heading_path: title.clone(),
+        level: 0,
+        range: start..text.len(),
+    }];
     // Stack of (level, text) for levels >= 2.
     let mut stack: Vec<(usize, String)> = Vec::new();
     let mut in_fence = false;
-    for line in lines {
+    for (line_start, _, line) in line_spans(text, start) {
         if is_fence_line(line) {
             in_fence = !in_fence;
             continue;
@@ -185,25 +212,41 @@ pub fn doc_heading_paths(doc_path: &str, text: &str) -> BTreeSet<String> {
         if in_fence {
             continue;
         }
-        let Some((level, text)) = parse_heading(line) else {
+        let Some((level, heading)) = parse_heading(line) else {
             continue;
         };
         if level == 1 {
             stack.clear();
-            continue;
+        } else {
+            while stack.last().is_some_and(|(l, _)| *l >= level) {
+                stack.pop();
+            }
+            stack.push((level, heading));
         }
-        while stack.last().is_some_and(|(l, _)| *l >= level) {
-            stack.pop();
-        }
-        stack.push((level, text));
         let mut path = title.clone();
         for (_, t) in &stack {
             path.push_str(HEADING_PATH_SEP);
             path.push_str(t);
         }
-        out.insert(path);
+        if let Some(prev) = out.last_mut() {
+            prev.range.end = line_start;
+        }
+        out.push(KbSection {
+            heading_path: path,
+            level: level as u8,
+            range: line_start..text.len(),
+        });
     }
     out
+}
+
+/// Every heading_path in a doc (root = title included). Frontmatter and fenced code are skipped.
+#[must_use]
+pub fn doc_heading_paths(doc_path: &str, text: &str) -> BTreeSet<String> {
+    doc_sections(doc_path, text)
+        .into_iter()
+        .map(|s| s.heading_path)
+        .collect()
 }
 
 #[cfg(test)]
@@ -287,5 +330,58 @@ mod tests {
         let got = doc_heading_paths("docs/src/b.md", "# Beta\n## One\n# Again\n## Two\n");
         assert!(got.contains("Beta › One") && got.contains("Beta › Two"));
         assert!(!got.iter().any(|p| p.contains("Again")));
+    }
+
+    #[test]
+    fn frontmatter_range_covers_the_closed_block_only() {
+        let t = "---\ntitle: A\n---\n# A\n";
+        assert_eq!(frontmatter_range(t), Some(0..17));
+        assert_eq!(&t[17..], "# A\n");
+        assert_eq!(frontmatter_range("# A\n---\n"), None);
+        assert_eq!(frontmatter_range("---\ntitle: A\n# A\n"), None);
+        assert_eq!(frontmatter_range(""), None);
+    }
+
+    #[test]
+    fn kb_sections_project_heading_paths() {
+        let texts = [
+            "",
+            "plain text only\n",
+            "---\ntitle: Guide\n---\n# Guide\nintro\n## Install\nx\n```\n## Fake\n```\n## Usage\n### Flags\n# Again\n## Two\n",
+            "---\ntitle: Alpha Guide\n---\n## Install\n```\n## Fake\n```\n## Usage\n### Flags\n#### Deep\n## Last\n",
+            "no newline at end\n## Tail",
+            "crlf\r\n# T\r\n## S\r\nbody\r\n",
+        ];
+        for t in texts {
+            let secs = doc_sections("docs/src/x.md", t);
+            let mut want: BTreeSet<String> = secs.iter().map(|s| s.heading_path.clone()).collect();
+            want.insert(doc_title("docs/src/x.md", t));
+            assert_eq!(doc_heading_paths("docs/src/x.md", t), want, "{t:?}");
+            // Ranges are contiguous, in order, and cover the whole body.
+            let body = body_start(t);
+            assert_eq!(secs[0].range.start, body, "{t:?}");
+            for w in secs.windows(2) {
+                assert_eq!(w[0].range.end, w[1].range.start, "{t:?}");
+            }
+            assert_eq!(secs.last().unwrap().range.end, t.len(), "{t:?}");
+        }
+    }
+
+    #[test]
+    fn sections_split_at_headings_and_h1_is_root() {
+        let t = "---\ntitle: Guide\n---\n# Other Name\nintro\n## Install\nbody\n";
+        let secs = doc_sections("docs/src/g.md", t);
+        let got: Vec<(&str, u8, &str)> = secs
+            .iter()
+            .map(|s| (s.heading_path.as_str(), s.level, &t[s.range.clone()]))
+            .collect();
+        assert_eq!(
+            got,
+            [
+                ("Guide", 0, ""),
+                ("Guide", 1, "# Other Name\nintro\n"),
+                ("Guide › Install", 2, "## Install\nbody\n"),
+            ]
+        );
     }
 }

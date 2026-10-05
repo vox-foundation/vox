@@ -19073,6 +19073,7 @@ dependencies = [
  "vox-actor-runtime",
  "vox-bounded-fs",
  "vox-config",
+ "vox-crypto",
  "vox-db",
  "vox-http-client",
  "vox-secrets",

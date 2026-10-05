@@ -57,6 +57,8 @@ pub mod wikipedia;
 
 #[cfg(feature = "tantivy-lexical")]
 pub mod lexical_tantivy;
+#[cfg(feature = "tantivy-lexical")]
+pub mod library;
 #[cfg(feature = "tavily")]
 pub mod tavily;
 #[cfg(feature = "qdrant-vector")]
@@ -93,6 +95,15 @@ pub use web_dispatcher::{WebSearchDispatcher, WebSearchDispatcherExt};
 
 #[cfg(test)]
 mod semcov_wave21_tests;
+
+/// Guard for the approved `feature:vox-search-default` decision: the KB Library tests only run
+/// in PR CI because `tantivy-lexical` is a default feature.
+#[cfg(test)]
+#[test]
+#[allow(clippy::assertions_on_constants)] // the constant IS the assertion
+fn tantivy_lexical_enabled_by_default() {
+    assert!(cfg!(feature = "tantivy-lexical"));
+}
 
 /// Task 9c: the unit-test twin of `tests/common/mod.rs` — routes every
 /// non-loopback request through a dead local proxy so no unit test (e.g. a
