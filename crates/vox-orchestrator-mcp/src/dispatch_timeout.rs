@@ -67,6 +67,17 @@ pub const AGY_TIMEOUT: Duration = Duration::from_secs(20 * 60);
 /// well below the 20-minute agy exception.
 pub const COMPILER_WORKSPACE_TIMEOUT: Duration = Duration::from_secs(15 * 60);
 
+/// Explicit exception timeout for `vox_kb_reindex`, which re-indexes the whole
+/// Library: about 670 docs and 13.4k chunks per the 02-09 UAT, one DB
+/// transaction per doc, then a Tantivy rebuild. At the 120s [`DEFAULT_TIMEOUT`]
+/// the dispatch timeout drops the handler future, which can land between BEGIN
+/// and COMMIT (02-REVIEW WR-03) and releases `KB_REINDEX_LOCK` while the
+/// `spawn_blocking` rebuild keeps running (WR-02). 10 minutes is about 5x the
+/// default: it still bounds a hung run and stays below [`AGY_TIMEOUT`]. This is
+/// a server-side bound only; the CLI's generic client read deadline (195s) is
+/// unchanged, and cross-process single-flight is deferred.
+pub const KB_REINDEX_TIMEOUT: Duration = Duration::from_secs(10 * 60);
+
 /// Sync chat / Drive ceiling. Must stay ≤ the *generic* client read deadline
 /// (`vox_orchestrator::orch_daemon::client::ORCH_CLIENT_READ_DEADLINE`,
 /// `vox_config::timeouts::D_195S`) — still true (180s ≤ 195s). Deep-intent
@@ -166,6 +177,7 @@ const EXPLICIT_TIMEOUTS: &[(&str, Duration)] = &[
     ("vox_lint_crate", COMPILER_WORKSPACE_TIMEOUT),
     ("vox_coverage_report", COMPILER_WORKSPACE_TIMEOUT),
     ("vox_chat_message", CHAT_MESSAGE_TIMEOUT),
+    ("vox_kb_reindex", KB_REINDEX_TIMEOUT),
     // T4.3 RED-test doubles (see dispatch.rs's `#[cfg(test)]` match arms).
     // `vox_test_hang_forever` gets a short timeout so the RED test proving
     // the outer guard actually fires doesn't need to wait out the real
@@ -311,6 +323,16 @@ mod tests {
     fn chat_message_uses_drive_aligned_ceiling() {
         assert_eq!(timeout_for("vox_chat_message"), CHAT_MESSAGE_TIMEOUT);
         assert_eq!(CHAT_MESSAGE_TIMEOUT, Duration::from_secs(180));
+    }
+
+    #[test]
+    fn kb_reindex_gets_explicit_timeout() {
+        // Separate from the other timeout tests so a typo'd EXPLICIT_TIMEOUTS key fails
+        // here instead of silently falling through to DEFAULT_TIMEOUT.
+        assert_eq!(timeout_for("vox_kb_reindex"), KB_REINDEX_TIMEOUT);
+        assert_eq!(KB_REINDEX_TIMEOUT, Duration::from_secs(600));
+        assert!(DEFAULT_TIMEOUT < KB_REINDEX_TIMEOUT);
+        assert!(KB_REINDEX_TIMEOUT < AGY_TIMEOUT);
     }
 
     #[test]
