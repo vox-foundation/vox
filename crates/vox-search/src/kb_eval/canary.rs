@@ -10,11 +10,42 @@ use anyhow::{Result, bail};
 
 use super::golden::CorpusDoc;
 
+/// Text a GUID scan matches against, ASCII-lowercased: the bytes as lossy UTF-8 plus, when
+/// they contain a NUL (an ASCII GUID in UTF-16 always does), their little- and big-endian
+/// UTF-16 decodes. Decoding both byte orders from offset 0 also covers an odd-aligned stream.
+#[must_use]
+pub fn decode_for_scan(bytes: &[u8]) -> String {
+    let mut s = String::from_utf8_lossy(bytes).into_owned();
+    if bytes.contains(&0) {
+        for le in [true, false] {
+            let units = bytes.chunks_exact(2).map(|p| {
+                let pair = [p[0], p[1]];
+                if le {
+                    u16::from_le_bytes(pair)
+                } else {
+                    u16::from_be_bytes(pair)
+                }
+            });
+            s.push('\n');
+            s.extend(char::decode_utf16(units).map(|c| c.unwrap_or(char::REPLACEMENT_CHARACTER)));
+        }
+    }
+    s.make_ascii_lowercase();
+    s
+}
+
+/// Case-insensitive (ASCII) GUID match: tools often emit GUIDs uppercase.
+fn has_guid(text: &str, guid: &str) -> bool {
+    text.to_ascii_lowercase()
+        .contains(&guid.to_ascii_lowercase())
+}
+
 /// Repo-path scan: the GUID must appear in no file outside `allowed_prefix` (a repo-relative
 /// path prefix such as `contracts/kb/eval/`). Closes the Rust/docs extractor leak path: MENS
 /// harvests repo files, so any repo file carrying the GUID outside the eval dir is a leak.
 ///
-/// Files are read as bytes; invalid UTF-8 is decoded lossily, unreadable files are skipped.
+/// Files are read as bytes and matched via [`decode_for_scan`] (case-insensitive, UTF-16
+/// aware); unreadable files are skipped.
 /// Returns the sorted offending rel paths.
 #[must_use]
 pub fn scan_paths_for_guid(
@@ -23,12 +54,12 @@ pub fn scan_paths_for_guid(
     guid: &str,
     allowed_prefix: &str,
 ) -> Vec<String> {
+    let guid = guid.to_ascii_lowercase();
     let mut out: Vec<String> = rel_paths
         .iter()
         .filter(|rel| !rel.starts_with(allowed_prefix))
         .filter(|rel| {
-            std::fs::read(root.join(rel))
-                .is_ok_and(|bytes| String::from_utf8_lossy(&bytes).contains(guid))
+            std::fs::read(root.join(rel)).is_ok_and(|bytes| decode_for_scan(&bytes).contains(&guid))
         })
         .cloned()
         .collect();
@@ -42,7 +73,7 @@ pub fn scan_paths_for_guid(
 pub fn texts_containing_guid(items: &[(String, String)], guid: &str) -> Vec<String> {
     items
         .iter()
-        .filter(|(_, text)| text.contains(guid))
+        .filter(|(_, text)| has_guid(text, guid))
         .map(|(label, _)| label.clone())
         .collect()
 }
@@ -79,7 +110,7 @@ pub fn check_roots_disjoint(roots: &[&str], eval_dir: &str) -> Result<()> {
 pub fn assert_corpus_clean(corpus: &[CorpusDoc], guid: &str) -> Vec<String> {
     corpus
         .iter()
-        .filter(|d| d.text.contains(guid))
+        .filter(|d| has_guid(&d.text, guid))
         .map(|d| d.id.clone())
         .collect()
 }
@@ -250,6 +281,72 @@ mod tests {
         assert_eq!(
             texts_containing_guid(&items, FAKE),
             vec!["line-7".to_string()]
+        );
+    }
+
+    fn utf16(s: &str, le: bool, bom: bool) -> Vec<u8> {
+        let mut out = if bom { vec![0xfe, 0xff] } else { Vec::new() };
+        if le && bom {
+            out.reverse();
+        }
+        for u in s.encode_utf16() {
+            out.extend(if le { u.to_le_bytes() } else { u.to_be_bytes() });
+        }
+        out
+    }
+
+    #[test]
+    fn upper_mixed_case_and_utf16_plants_are_detected() {
+        let dir = tempfile::tempdir().unwrap();
+        let upper = FAKE.to_ascii_uppercase();
+        let mixed = format!("{}{}", &upper[..9], &FAKE[9..]);
+        let plants: Vec<(&str, Vec<u8>)> = vec![
+            ("docs/src/upper.md", format!("x {upper} y").into_bytes()),
+            ("docs/src/mixed.md", format!("x {mixed} y").into_bytes()),
+            (
+                "docs/src/u16le-bom.md",
+                utf16(&format!("x {upper} y"), true, true),
+            ),
+            (
+                "docs/src/u16be.md",
+                utf16(&format!("x {FAKE} y"), false, false),
+            ),
+            (
+                "docs/src/u16le-odd.bin",
+                [&[7u8][..], &utf16(&format!("z {FAKE}"), true, false)].concat(),
+            ),
+        ];
+        let mut rels = Vec::new();
+        for (rel, body) in &plants {
+            write(dir.path(), rel, body);
+            rels.push((*rel).to_string());
+        }
+        rels.sort();
+        assert_eq!(
+            scan_paths_for_guid(dir.path(), &rels, FAKE, "contracts/kb/eval/"),
+            rels
+        );
+        // A UTF-16 file without the GUID stays clean.
+        write(
+            dir.path(),
+            "docs/src/clean16.md",
+            &utf16("nothing here", true, true),
+        );
+        let clean = vec!["docs/src/clean16.md".to_string()];
+        assert!(scan_paths_for_guid(dir.path(), &clean, FAKE, "contracts/kb/eval/").is_empty());
+        let items = vec![
+            ("p".to_string(), format!("a {upper}")),
+            ("q".into(), "b".into()),
+        ];
+        assert_eq!(texts_containing_guid(&items, FAKE), vec!["p".to_string()]);
+        let doc = CorpusDoc {
+            id: "docs/src/m.md".into(),
+            title: "m".into(),
+            text: format!("t {mixed}"),
+        };
+        assert_eq!(
+            assert_corpus_clean(&[doc], FAKE),
+            vec!["docs/src/m.md".to_string()]
         );
     }
 }

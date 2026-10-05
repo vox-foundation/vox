@@ -15,8 +15,8 @@ use vox_search::kb_eval::baseline::{
 };
 use vox_search::kb_eval::bm25::Bm25Index;
 use vox_search::kb_eval::canary::{
-    assert_corpus_clean, check_roots_disjoint, query_fingerprint_leaks, scan_paths_for_guid,
-    texts_containing_guid,
+    assert_corpus_clean, check_roots_disjoint, decode_for_scan, query_fingerprint_leaks,
+    scan_paths_for_guid, texts_containing_guid,
 };
 use vox_search::kb_eval::golden::{CorpusDoc, GoldenSet, load_query_texts, read_canary_guid};
 use vox_search::kb_eval::{Report, run_eval};
@@ -117,7 +117,7 @@ fn jsonl_guid_hits(root: &Path, guid: &str) -> Vec<String> {
             if e.path().extension().is_some_and(|x| x == "jsonl")
                 && let Ok(bytes) = std::fs::read(e.path())
             {
-                let text = String::from_utf8_lossy(&bytes).into_owned();
+                let text = decode_for_scan(&bytes);
                 let label = e.path().strip_prefix(root).unwrap_or(e.path());
                 hits.extend(texts_containing_guid(
                     &[(label.display().to_string(), text)],
