@@ -5,16 +5,16 @@ milestone_name: Vox Knowledge Base — corpus to context
 current_phase: 02
 current_phase_name: Library Index and KB Tool Surface
 status: executing
-stopped_at: Completed 02-10-PLAN.md
-last_updated: "2026-10-05T22:00:50.818Z"
+stopped_at: Completed 02-11-PLAN.md
+last_updated: "2026-10-05T22:16:50.549Z"
 last_activity: 2026-10-05
 last_activity_desc: Phase 02 execution started
-state_head: 7ea733fd1561d8de52c8ed67c983808748f290f8
+state_head: 6d3a6d03ff8c09519dac7878ca205f4052db34b4
 progress:
   total_phases: 12
   completed_phases: 1
   total_plans: 36
-  completed_plans: 22
+  completed_plans: 23
   percent: 8
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (shared project context) and .planning/workstreams/kb/
 ## Current Position
 
 Phase: 02 (Library Index and KB Tool Surface) — EXECUTING
-Plan: 2 of 11
+Plan: 3 of 11
 Status: Ready to execute
 Last activity: 2026-10-05 — Phase 02 execution started
 
@@ -68,6 +68,7 @@ Progress: [█░░░░░░░░░] 8%
 | Phase 1 P10 | 25min | 2 tasks | 6 files |
 | Phase 1 P11 | 45m | 2 tasks | 5 files |
 | Phase 02 P10 | 25m | 3 tasks | 5 files |
+| Phase 02 P11 | 25min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -86,6 +87,8 @@ Progress: [█░░░░░░░░░] 8%
 - [Phase 1]: 01-10: split stride starts at the 3rd of each (origin,intent) group (literal 4th gave 16.7% test, below the 20-35% bound); 26/102 held out
 - [Phase 1]: 01-11: kb eval gate fits the fast tier (median 5.06 s debug vs 10 s budget); no AP-05/AP-12 fallback needed
 - [Phase 02]: 02-10: only the prune is gated on walk completeness; orphan-embedding cleanup and Tantivy rebuild stay unconditional
+- [Phase 02]: 02-11: WR-08 fixed by dropping vox_kb_status from HTTP read-role eligibility (stdio/CLI keep full payload); http_gateway_tests.rs is never compiled, gateway test lives in http_gateway/mod.rs
+- [Phase 02]: 02-11: vox_kb_reindex gets explicit 600 s KB_REINDEX_TIMEOUT (WR-02 limited; cross-process single-flight deferred)
 
 ### Pending Todos
 
@@ -100,8 +103,8 @@ Progress: [█░░░░░░░░░] 8%
 
 ## Session Continuity
 
-**Last session:** 2026-10-05T22:00:50.794Z
+**Last session:** 2026-10-05T22:16:50.530Z
 
-**Stopped At:** Completed 02-10-PLAN.md
+**Stopped At:** Completed 02-11-PLAN.md
 **Resume File:** None
 **Next:** `/gsd-plan-phase 1` (no research-phase needed)

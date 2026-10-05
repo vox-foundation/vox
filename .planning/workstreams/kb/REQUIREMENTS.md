@@ -33,7 +33,7 @@ Research basis: `.planning/workstreams/kb/research/SUMMARY.md` and `docs/src/arc
 
 ### Retrieval & Tool Surface (RET)
 
-- [ ] **RET-01**: Any MCP host (Vox chat, Claude Code, Cursor) can call `vox_kb_search`, `vox_kb_get`, `vox_kb_cite`, `vox_kb_status` and `vox_kb_reindex`, and read `kb://doc/{path}` / `kb://chunk/{hash}` resources
+- [x] **RET-01**: Any MCP host (Vox chat, Claude Code, Cursor) can call `vox_kb_search`, `vox_kb_get`, `vox_kb_cite`, `vox_kb_status` and `vox_kb_reindex`, and read `kb://doc/{path}` / `kb://chunk/{hash}` resources
 - [ ] **RET-02**: All KB retrieval goes through `vox-search` (single retrieval path); the legacy `KbStore` LIKE search, `KbRouter`, signal adapters, `kb_lines` and the 12 legacy `vox_kb_*` CRUD tools are retired, with colliding names replaced rather than aliased
 - [ ] **RET-03**: Legacy `kb_entries`/`knowledge_bases` rows are counted before quarantine; non-empty rows are migrated into the inbox as pending findings
 - [ ] **RET-04**: Search results carry trust tier, staleness, `scope`, and status; `status: research|roadmap|legacy|deprecated` and superseded pages are down-weighted, not excluded
@@ -162,7 +162,7 @@ Research basis: `.planning/workstreams/kb/research/SUMMARY.md` and `docs/src/arc
 | IDX-05 | Phase 2 | Pending |
 | IDX-06 | Phase 2 | Pending |
 | IDX-07 | Phase 2 | Pending |
-| RET-01 | Phase 2 | Pending |
+| RET-01 | Phase 2 | Complete |
 | RET-02 | Phase 3 | Pending |
 | RET-03 | Phase 3 | Pending |
 | RET-04 | Phase 5 | Pending |
