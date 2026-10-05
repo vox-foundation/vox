@@ -66,6 +66,14 @@ pub async fn index_library(
     let started = Instant::now();
     // Up front: unchanged files skip the store, which would otherwise be the only validator.
     vox_db::validate_trust_tier_wire(deps.trust_tier)?;
+    // Before any DB access: a daemon rooted at the wrong repo must fail loudly, not "succeed".
+    for root in crate::kb_ids::KB_CORPUS_ROOTS {
+        anyhow::ensure!(
+            repo_root.join(root).is_dir(),
+            "KB corpus root `{root}` not found under {}",
+            repo_root.display()
+        );
+    }
     let mut report = IndexReport {
         corpus_commit: deps.corpus_commit.clone(),
         lexical_backend: LEXICAL_BACKEND.into(),

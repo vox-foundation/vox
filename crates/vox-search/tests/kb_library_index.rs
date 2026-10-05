@@ -561,3 +561,86 @@ async fn kb_reindex_unreadable_subdir_keeps_rows() {
         "{hits:?}"
     );
 }
+
+#[tokio::test]
+async fn kb_reindex_missing_root_fails_and_keeps_rows() {
+    let repo = three_docs();
+    let lex = repo.path().join("lex");
+    let db = VoxDb::open_memory().await.unwrap();
+    run(&db, &repo).await;
+    let count = db.library_chunk_count(KB_LIBRARY_CORPUS).await.unwrap();
+    let state = db
+        .get_kb_index_state(KB_LIBRARY_CORPUS)
+        .await
+        .unwrap()
+        .unwrap();
+    std::fs::remove_dir_all(repo.path().join("docs/src")).unwrap();
+
+    let err = try_run(&db, &repo).await.unwrap_err();
+    assert!(format!("{err:#}").contains("docs/src"), "{err:#}");
+    assert_eq!(
+        db.library_chunk_count(KB_LIBRARY_CORPUS).await.unwrap(),
+        count
+    );
+    assert!(
+        !search(&db, &lex, "zorkmidword", 5)
+            .await
+            .unwrap()
+            .is_empty(),
+        "stored chunks stay searchable"
+    );
+    let after = db
+        .get_kb_index_state(KB_LIBRARY_CORPUS)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        after.indexed_at, state.indexed_at,
+        "the failed call wrote nothing"
+    );
+    assert_eq!(after.errors_json, "[]");
+    assert_eq!(after.chunk_count, state.chunk_count);
+}
+
+#[tokio::test]
+async fn kb_reindex_empty_root_keeps_rows() {
+    let repo = three_docs();
+    let lex = repo.path().join("lex");
+    let db = VoxDb::open_memory().await.unwrap();
+    run(&db, &repo).await;
+    let count = db.library_chunk_count(KB_LIBRARY_CORPUS).await.unwrap();
+    for name in ["a.md", "b.md", "c.md"] {
+        std::fs::remove_file(repo.path().join("docs/src").join(name)).unwrap();
+    }
+
+    let r = try_run(&db, &repo).await.unwrap();
+    assert_eq!((r.docs_seen, r.docs_pruned), (0, 0), "{r:?}");
+    assert_eq!(r.errors.len(), 1, "{r:?}");
+    assert!(r.errors[0].error.starts_with("prune skipped:"), "{r:?}");
+    assert_eq!(
+        db.library_chunk_count(KB_LIBRARY_CORPUS).await.unwrap(),
+        count
+    );
+    assert!(
+        !search(&db, &lex, "zorkmidword", 5)
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    let s = db
+        .get_kb_index_state(KB_LIBRARY_CORPUS)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(s.errors_json.contains("prune skipped"), "{}", s.errors_json);
+}
+
+#[tokio::test]
+async fn kb_reindex_empty_root_fresh_db_ok() {
+    let repo = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(repo.path().join("docs/src")).unwrap();
+    let db = VoxDb::open_memory().await.unwrap();
+    let r = try_run(&db, &repo).await.unwrap();
+    assert_eq!((r.docs_seen, r.docs_pruned), (0, 0), "{r:?}");
+    assert!(r.errors.is_empty(), "{r:?}");
+}
