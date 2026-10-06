@@ -123,3 +123,80 @@ async fn capture_flag_off_sink_receives_nothing() {
     let (_db, _mock) = run(false, Some(rec.clone())).await;
     assert!(rec.0.lock().unwrap().is_empty());
 }
+
+/// CRAG branch: a Tavily hit reaches the sink as `CragTavily` with full text and writes no
+/// corpus row, and no `tavily:<url>` durable artifact is advertised for a resource that no
+/// longer exists.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn capture_crag_tavily_reaches_sink_not_corpus() {
+    use vox_search::bundle::{RetrievalTriggerMode, run_search_with_verification};
+    use vox_search::tavily_budget::TavilySessionBudget;
+
+    let tavily = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/search"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "query": "q", "answer": null, "images": [], "response_time": 0.1,
+            "results": [{"title": "Tavily page", "url": "https://example.test/t",
+                "content": "Tavily full content body.", "score": 0.9}],
+        })))
+        .mount(&tavily)
+        .await;
+    // SAFETY: nextest runs each test in its own process; set before any secret is resolved.
+    #[allow(unsafe_code)]
+    unsafe {
+        std::env::set_var("TAVILY_API_KEY", "tvly-test");
+    }
+    vox_config::snapshot::bump(&["TAVILY_API_KEY"]);
+
+    let tmp = tempfile::tempdir().unwrap();
+    let db = Arc::new(VoxDb::open_memory().await.unwrap());
+    let rec = Arc::new(Recorder::default());
+    let ctx = SearchRuntimeContext::new(
+        tmp.path().to_path_buf(),
+        Some(db.clone()),
+        tmp.path().join("log"),
+        tmp.path().join("lt.md"),
+    )
+    .with_web_capture(Some(rec.clone()));
+    let policy = SearchPolicy {
+        web_research_enabled: false,
+        tavily_enabled: true,
+        tavily_api_url: Some(tavily.uri()),
+        tavily_fire_on_empty: true,
+        searxng_url: None,
+        enable_wikipedia: false,
+        enable_openalex: false,
+        enable_arxiv: false,
+        persist_web_hits: true,
+        ..SearchPolicy::default()
+    };
+    let budget = TavilySessionBudget::new(100);
+    let (exec, _diag, _plan) = run_search_with_verification(
+        &ctx,
+        "zzqx unmatched crag probe",
+        RetrievalTriggerMode::ExplicitToolQuery,
+        5,
+        &policy,
+        None,
+        Some(&budget),
+    )
+    .await
+    .unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+
+    let got = rec.0.lock().unwrap().clone();
+    let crag: Vec<_> = got
+        .iter()
+        .filter(|h| h.origin == FindingOrigin::CragTavily)
+        .collect();
+    assert_eq!(crag.len(), 1, "{got:?}");
+    assert_eq!(crag[0].url, "https://example.test/t");
+    assert_eq!(
+        crag[0].full_text.as_deref(),
+        Some("Tavily full content body.")
+    );
+    assert!(exec.durable_artifacts.is_empty());
+    assert_eq!(count(&db, "search_documents").await, 0);
+    assert_eq!(count(&db, "search_document_chunks").await, 0);
+}

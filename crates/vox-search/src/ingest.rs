@@ -18,23 +18,6 @@ fn blake3_hex(data: &[u8]) -> String {
     blake3::hash(data).to_hex().to_string()
 }
 
-/// Upsert a single document body as one chunk row (used by web retrieval mirrors).
-pub async fn persist_text_document_chunk(
-    db: &VoxDb,
-    source_uri: &str,
-    title: &str,
-    body: &str,
-    mime: &str,
-) -> Result<(), StoreError> {
-    let hash = blake3_hex(body.as_bytes());
-    let doc_id = db
-        .upsert_search_document(source_uri, title, mime, &hash)
-        .await?;
-    db.replace_search_document_chunks_with_refs(doc_id, &[body.to_string()], &[None])
-        .await?;
-    Ok(())
-}
-
 /// Ingest all `.md` files under `root` (e.g. `docs/src`) into the searchable corpus.
 ///
 /// `source_uri_prefix` becomes the `search_documents.source_uri` prefix (e.g. `vox-docs:`).

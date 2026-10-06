@@ -196,7 +196,9 @@ pub struct SearchPolicy {
     /// Reciprocal rank fusion smoothing constant (`VOX_SEARCH_RRF_K`).
     #[serde(default = "default_rrf_k")]
     pub rrf_k: f64,
-    /// When true, web-retrieval hits are mirrored into `search_documents` (async best-effort).
+    /// When true (default), web-retrieval hits are captured into the `kb_findings` inbox
+    /// (Untrusted, pending, deduped) through the injected `WebFindingCapture` sink. They are
+    /// never written to the searchable corpus; with no sink injected nothing is persisted.
     #[serde(default = "default_persist_web_hits")]
     pub persist_web_hits: bool,
     /// Minimum novelty score (0.0-1.0) for a hit to appear in synthesis context.

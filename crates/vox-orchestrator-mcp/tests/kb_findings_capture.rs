@@ -10,7 +10,8 @@ use vox_db::kb_text::{FindingOrigin, FindingStatus};
 use vox_db::{ContextTrustTier, KbFindingRow, VoxDb, heuristic_search_plan};
 use vox_orchestrator_mcp::ServerState;
 use vox_orchestrator_mcp::kb_tools::findings::{
-    CaptureInput, McpFindingCapture, capture_finding, web_capture_for_state,
+    CaptureInput, MAX_SNAPSHOT_BYTES, McpFindingCapture, capture_finding, snapshot_relpath,
+    web_capture_for_state,
 };
 use vox_search::context::SearchRuntimeContext;
 use vox_search::execute_search_plan;
@@ -155,4 +156,177 @@ async fn capture_empty_input_is_rejected_without_writes() {
     let row = &rows(&db).await[0];
     assert!(row.summary.starts_with("Body sentence one."));
     assert_eq!(row.source_url.as_deref(), Some("https://e.x/a"));
+}
+
+const REDTEAM: &str = include_str!("../../../contracts/kb/redteam/cases.v1.jsonl");
+
+#[tokio::test]
+async fn capture_redteam_neutralized_at_ingest() {
+    let db = VoxDb::open_memory().await.unwrap();
+    let tmp = tempfile::tempdir().unwrap();
+    let cases: Vec<serde_json::Value> = REDTEAM
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .map(|l| serde_json::from_str(l).unwrap())
+        .collect();
+    assert!(cases.len() >= 10);
+    for (i, c) in cases.iter().enumerate() {
+        let url = format!("https://e.x/{i}");
+        capture_finding(&db, tmp.path(), input(c["input"].as_str().unwrap(), &url))
+            .await
+            .unwrap_or_else(|e| panic!("case {}: {e}", c["id"]));
+    }
+    let stored = rows(&db).await;
+    assert_eq!(stored.len(), cases.len());
+    for r in &stored {
+        let i: usize = r
+            .source_url
+            .as_deref()
+            .unwrap()
+            .rsplit('/')
+            .next()
+            .unwrap()
+            .parse()
+            .unwrap();
+        for bad in cases[i]["must_not_contain"].as_array().unwrap() {
+            let bad = bad.as_str().unwrap();
+            assert!(
+                !r.summary.contains(bad),
+                "case {}: summary has {bad:?}",
+                cases[i]["id"]
+            );
+            assert!(!r.title.contains(bad));
+            for q in &r.quotes {
+                assert!(
+                    !q.contains(bad),
+                    "case {}: quote has {bad:?}",
+                    cases[i]["id"]
+                );
+            }
+        }
+    }
+}
+
+#[tokio::test]
+async fn capture_secrets_are_redacted_in_summary_and_quotes() {
+    let db = VoxDb::open_memory().await.unwrap();
+    let tmp = tempfile::tempdir().unwrap();
+    let secret = "sk-abcdefghijklmnopqrstuvwxyz0123456789";
+    let mut i = input(
+        &format!("Use key {secret} to log in. Second sentence."),
+        "https://e.x/s",
+    );
+    i.title = format!("Title {secret}");
+    capture_finding(&db, tmp.path(), i).await.unwrap();
+    let r = &rows(&db).await[0];
+    assert!(r.summary.contains("[REDACTED_KEY]"), "{}", r.summary);
+    assert!(!r.summary.contains(secret) && !r.title.contains(secret));
+    assert!(r.quotes.iter().all(|q| !q.contains(secret)));
+    assert!(r.quotes[0].contains("[REDACTED_KEY]"));
+}
+
+#[tokio::test]
+async fn capture_caps_count_chars_not_bytes() {
+    let db = VoxDb::open_memory().await.unwrap();
+    let tmp = tempfile::tempdir().unwrap();
+    capture_finding(&db, tmp.path(), input(&"€".repeat(1500), "https://e.x/m"))
+        .await
+        .unwrap();
+    let r = &rows(&db).await[0];
+    assert_eq!(r.summary.chars().count(), 1000);
+    assert_eq!(r.quotes.len(), 1);
+    assert_eq!(r.quotes[0].chars().count(), 300);
+}
+
+#[tokio::test]
+async fn capture_snapshot_truncates_at_char_boundary() {
+    let db = VoxDb::open_memory().await.unwrap();
+    let tmp = tempfile::tempdir().unwrap();
+    let mut i = input("short", "https://e.x/big");
+    i.full_text = Some("€".repeat(800_000)); // 2.4 MB, 3 bytes per char
+    let out = capture_finding(&db, tmp.path(), i).await.unwrap();
+    let body = std::fs::read_to_string(tmp.path().join(out.snapshot_relpath.unwrap())).unwrap();
+    assert_eq!(body.len(), MAX_SNAPSHOT_BYTES - MAX_SNAPSHOT_BYTES % 3);
+}
+
+#[tokio::test]
+async fn capture_snapshot_filename_is_hash_only() {
+    let db = VoxDb::open_memory().await.unwrap();
+    let tmp = tempfile::tempdir().unwrap();
+    let out = capture_finding(
+        &db,
+        tmp.path(),
+        input("hello world", "https://e.x/../../../etc/passwd?a=b"),
+    )
+    .await
+    .unwrap();
+    let hex = rows(&db).await[0]
+        .content_hash
+        .strip_prefix("blake3:")
+        .unwrap()
+        .to_string();
+    assert_eq!(snapshot_files(tmp.path()), vec![format!("{hex}.txt")]);
+    assert_eq!(out.snapshot_relpath.unwrap(), snapshot_relpath(&hex));
+}
+
+#[tokio::test]
+async fn capture_snapshot_path_is_gitignored() {
+    let rel = snapshot_relpath(&"0".repeat(64));
+    assert!(rel.starts_with(".vox/cache/kb-findings/"));
+    assert!(
+        include_str!("../../../.gitignore")
+            .lines()
+            .any(|l| l.trim() == ".vox/cache/")
+    );
+}
+
+#[tokio::test]
+async fn capture_same_hit_twice_one_row() {
+    let db = VoxDb::open_memory().await.unwrap();
+    let tmp = tempfile::tempdir().unwrap();
+    let a = capture_finding(&db, tmp.path(), input("same body", "https://e.x/a"))
+        .await
+        .unwrap();
+    let b = capture_finding(&db, tmp.path(), input("same body", "https://e.x/a"))
+        .await
+        .unwrap();
+    assert!(a.finding_id.is_some());
+    assert!(b.finding_id.is_none());
+    assert_eq!(a.dedupe_key, b.dedupe_key);
+    assert_eq!(rows(&db).await.len(), 1);
+}
+
+#[tokio::test]
+async fn capture_same_content_two_urls_two_rows_one_snapshot() {
+    let db = VoxDb::open_memory().await.unwrap();
+    let tmp = tempfile::tempdir().unwrap();
+    capture_finding(&db, tmp.path(), input("same body", "https://e.x/a"))
+        .await
+        .unwrap();
+    capture_finding(&db, tmp.path(), input("same body", "https://e.x/b"))
+        .await
+        .unwrap();
+    assert_eq!(rows(&db).await.len(), 2);
+    assert_eq!(snapshot_files(tmp.path()).len(), 1);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn capture_concurrent_same_hit_one_row() {
+    let db = Arc::new(VoxDb::open_memory().await.unwrap());
+    let tmp = tempfile::tempdir().unwrap();
+    let go = || {
+        let db = db.clone();
+        let root = tmp.path().to_path_buf();
+        tokio::spawn(async move {
+            capture_finding(&db, &root, input("racy body", "https://e.x/r")).await
+        })
+    };
+    let (a, b) = tokio::join!(go(), go());
+    let (a, b) = (a.unwrap().unwrap(), b.unwrap().unwrap());
+    assert_eq!(
+        a.finding_id.is_some() as u8 + b.finding_id.is_some() as u8,
+        1
+    );
+    assert_eq!(rows(&db).await.len(), 1);
+    assert_eq!(snapshot_files(tmp.path()).len(), 1);
 }

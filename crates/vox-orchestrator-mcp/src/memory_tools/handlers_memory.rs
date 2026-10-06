@@ -318,7 +318,8 @@ pub async fn research_run(state: &ServerState, params: ResearchRunParams) -> Str
         state.db.clone(),
         state.orchestrator_config.memory.log_dir.clone(),
         state.orchestrator_config.memory.memory_md_path.clone(),
-    );
+    )
+    .with_web_capture(crate::kb_tools::findings::web_capture_for_state(state));
 
     match run_research_with_context(rq, Some(&ctx), state.db.as_deref(), &config).await {
         Ok(result) => {
@@ -415,7 +416,8 @@ pub async fn research_start(state: &ServerState, params: ResearchStartParams) ->
             state.db.clone(),
             state.orchestrator_config.memory.log_dir.clone(),
             state.orchestrator_config.memory.memory_md_path.clone(),
-        );
+        )
+        .with_web_capture(crate::kb_tools::findings::web_capture_for_state(&state));
         let config = ResearchConfig {
             event_emitter: Some(std::sync::Arc::new(
                 vox_research_shim::research::BroadcastEmitter::new(state.research_events.clone()),

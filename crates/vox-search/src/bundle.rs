@@ -200,23 +200,25 @@ pub async fn run_search_with_verification(
                                 h.content.replace('\n', " "),
                                 h.score
                             ));
-
-                            if let Some(db) = &ctx.db {
-                                let url = h.url.clone();
-                                let content = h.content.clone();
-                                let title = h.title.clone();
-                                let db_arc = db.clone();
-                                tokio::spawn(async move {
-                                    let source_uri = format!("tavily:{}", url);
-                                    let _ = crate::ingest::persist_text_document_chunk(
-                                        db_arc.as_ref(),
-                                        &source_uri,
-                                        &title,
-                                        &content,
-                                        "text/plain",
-                                    )
-                                    .await;
-                                });
+                        }
+                        if policy.persist_web_hits {
+                            match ctx.web_capture.as_ref() {
+                                Some(sink) => sink.capture(
+                                    hits.iter()
+                                        .map(|h| crate::capture::CapturedWebHit {
+                                            url: h.url.clone(),
+                                            title: h.title.clone(),
+                                            snippet: String::new(),
+                                            full_text: Some(h.content.clone()),
+                                            engine: "tavily".to_string(),
+                                            query: query.to_string(),
+                                            origin: vox_db::kb_text::FindingOrigin::CragTavily,
+                                        })
+                                        .collect(),
+                                ),
+                                None => tracing::debug!(
+                                    "tavily hits not captured: no capture sink injected (fail-closed)"
+                                ),
                             }
                         }
                         diagnostics
@@ -226,21 +228,8 @@ pub async fn run_search_with_verification(
                             .notes
                             .push(format!("tavily_results_count={}", t_lines.len()));
 
-                        for h in &hits {
-                            let mut hasher = blake3::Hasher::new();
-                            hasher.update(b"a2a-search-token");
-                            hasher.update(h.url.as_bytes());
-                            let token = format!("a2a_{}", hasher.finalize().to_hex());
-                            execution
-                                .durable_artifacts
-                                .push(crate::execution::DurableArtifact {
-                                    uri: format!("tavily:{}", h.url),
-                                    token: Some(token),
-                                    expires_at_unix_ms: None,
-                                    chunk_count: 1,
-                                });
-                        }
-
+                        // No durable artifact: Tavily hits are no longer mirrored into the corpus,
+                        // so there is no persisted `tavily:<url>` resource to point at.
                         execution.web_lines.extend(t_lines.iter().cloned());
                         if policy.prefer_rrf_merge {
                             execution.rrf_fused_lines.extend(t_lines);
