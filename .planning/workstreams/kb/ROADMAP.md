@@ -116,21 +116,37 @@ Plans:
   4. Property tests and a red-team fixture set show the sanitizer neutralises Unicode tag-block, zero-width/bidi characters, HTML comments and off-allowlist markdown images, at both the ingest and the injection boundary.
   5. `KbStore` LIKE search, `KbRouter`, the signal adapters, `kb_lines` and the 12 legacy `vox_kb_*` CRUD tools are absent from source and the tool catalog, and colliding names are replaced, not aliased. A seeded-DB migration test shows legacy `kb_entries`/`knowledge_bases` rows are counted before quarantine and non-empty rows appear in the inbox as pending.
 
-**Plans:** 13 plans
+**Plans:** 13 plans (replanned 2026-10-06 against the post-02-12 tree; D-01 and D-02 pre-approved in 03-CONTEXT.md, so no decision checkpoints)
 
 Plans:
+**Wave 1**
 
-- [ ] 03-01-PLAN.md — Trust tier vocabulary in the L0 crate; fail-closed promotion verdict
-- [ ] 03-02-PLAN.md — Single sanitizer with property tests and an ASCII-escaped red-team set
-- [ ] 03-03-PLAN.md — `kb_findings` inbox schema and `search_documents.trust_tier` with a kb_index_state-derived backfill (frozen-core sign-off checkpoint)
-- [ ] 03-04-PLAN.md — Capture chokepoint; web-leg and CRAG sinks rerouted to the inbox
-- [ ] 03-05-PLAN.md — Tier-required corpus writers; Library tier single source with agreement test
-- [ ] 03-06-PLAN.md — Research paths (quick, deep, gather, GUI save-session) into the inbox; docs/src research writer deleted
-- [ ] 03-07-PLAN.md — Chat-path leak closure: writeback, signal adapters, `kb_lines`, @kb consumer, MEMORY sink
-- [ ] 03-08-PLAN.md — Legacy VoxKB count-and-migrate; MENS KbSignals on reviewed findings (DPO only)
-- [ ] 03-09-PLAN.md — Tier-aware retrieval, preamble drops Untrusted, injection-boundary sanitization
-- [ ] 03-10-PLAN.md — Legacy `vox_kb_*` MCP tool retirement through the catalog (one-way checkpoint)
-- [ ] 03-11-PLAN.md — GUI side doors (Ingest URL/Text, Publish) file findings; Playwright stepper
+- [ ] 03-01-PLAN.md — Trust tier vocabulary in the L0 crate (taint rule); fail-closed promotion verdict
+- [ ] 03-02-PLAN.md — One KB-text sanitizer with property tests, an ASCII-escaped red-team set and a canary roots check
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 03-03-PLAN.md — Baseline 96: `kb_findings` inbox, `search_documents.trust_tier` with a kb_index_state-derived backfill, `LEGACY_VOXKB_DDL` fragment (D-01 pre-approved)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 03-04-PLAN.md — Capture chokepoint; web-leg and CRAG sinks rerouted to the inbox; mirror helper deleted
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 03-05-PLAN.md — Tier-required corpus writers; Library tier single source with agreement test; wire validator removed
+- [ ] 03-06-PLAN.md — Research paths (quick, deep, gather, GUI save-session) into the inbox; shim and `vox research publish` docs/src writers closed
+- [ ] 03-07-PLAN.md — Chat-path leak closure: writeback, signal adapters, KB-lines enrichment, @kb consumer, MEMORY sink
+- [ ] 03-08-PLAN.md — Legacy VoxKB count-and-migrate at DB attach; MENS KbSignals on reviewed findings (DPO only)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
+- [ ] 03-09-PLAN.md — Tier-aware retrieval, preamble drops Untrusted, envelope min tier, injection-boundary sanitization
+- [ ] 03-10-PLAN.md — Legacy `vox_kb_*` MCP tool retirement through the catalog (D-02 pre-approved)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
+- [ ] 03-11-PLAN.md — GUI side doors (Ingest URL/Text, Publish) file findings via mcp helpers; Playwright stepper
 - [ ] 03-12-PLAN.md — KbStore/KbRouter/legacy CRUD deletion and VoxKB DDL quarantine
 - [ ] 03-13-PLAN.md — `vox kb status` legacy/inbox counts, retirement registries, SSOT docs, CHANGELOG
 
@@ -301,7 +317,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Retrieval Eval Baseline | 12/12 | Complete    | 2026-10-05 |
 | 2. Library Index and KB Tool Surface | 12/12 | Complete    | 2026-10-05 |
-| 3. Provenance, Trust Tiers and Leak Closure | 0/TBD | Not started | - |
+| 3. Provenance, Trust Tiers and Leak Closure | 0/13 | Planned | - |
 | 4. Taxonomy Contract and Facet Lint | 0/TBD | Not started | - |
 | 5. Local Embeddings and Ranking Signals | 0/TBD | Not started | - |
 | 6. Library GUI | 0/TBD | Not started | - |
