@@ -1494,6 +1494,7 @@ mod tests {
         let metadata = crate::research::metering::scope(async {
             let mut metadata = sample_metadata();
             metadata.duration_ms = 0;
+            // drift-allow(duplicate-numeric-literal): test delay
             tokio::time::sleep(std::time::Duration::from_millis(5)).await;
             crate::research::metering::meter_failure();
             refresh_run_totals(&mut metadata, start);

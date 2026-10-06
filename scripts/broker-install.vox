@@ -167,6 +167,7 @@ fn main() {
     let manifest = path.join(root, "crates/vox-cargo-shim/Cargo.toml");
 
     let home = env.get("HOME").unwrap_or("");
+    // drift-allow(vox-path-literal): mirrors vox-build-queue's default broker home; no path-constants bridge in .vox scripts
     let broker_home = env.get("VOX_BROKER_HOME").unwrap_or(path.join(home, ".vox/build-broker"));
     let bin_dir = path.join(broker_home, "bin");
     let cargo_bin_dir = path.join(home, ".cargo/bin");

@@ -16,6 +16,8 @@ use crate::pkce::{self, PkcePair};
 const OPENROUTER_AUTH_URL: &str = "https://openrouter.ai/auth";
 const OPENROUTER_TOKEN_EXCHANGE_URL: &str = "https://openrouter.ai/api/v1/auth/keys";
 const CALLBACK_TIMEOUT: Duration = Duration::from_secs(120);
+/// Upper bound on waiting for the callback server's graceful shutdown.
+const SERVER_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[derive(Debug, thiserror::Error)]
 pub enum OAuthError {
@@ -198,7 +200,7 @@ pub async fn run_openrouter_flow() -> Result<String, OAuthError> {
     // Wait for the server task's graceful shutdown to actually finish
     // (bounded — near-instant once shutdown_tx fired above) rather than
     // aborting it out from under an in-flight response.
-    let _ = tokio::time::timeout(Duration::from_secs(5), server).await;
+    let _ = tokio::time::timeout(SERVER_SHUTDOWN_TIMEOUT, server).await;
 
     exchange_code_at(OPENROUTER_TOKEN_EXCHANGE_URL, &code, &verifier).await
 }

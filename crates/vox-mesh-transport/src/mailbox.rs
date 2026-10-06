@@ -700,6 +700,7 @@ mod tests {
         let index = std::env::var("MAILBOX_TEST_CHILD_INDEX").unwrap();
         std::fs::write(dir.join(format!("ready-{index}")), b"ready").unwrap();
         while !dir.join("go").exists() {
+            // drift-allow(duplicate-numeric-literal): test poll interval
             std::thread::sleep(std::time::Duration::from_millis(5));
         }
         let inbox = Inbox::with_limits(
@@ -906,6 +907,7 @@ mod tests {
                     .unwrap(),
             );
         }
+        // drift-allow(timeout-literal, duplicate-numeric-literal): test deadline
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
         while (0..CHILDREN)
             .filter(|i| d.path().join(format!("ready-{i}")).exists())
@@ -916,6 +918,7 @@ mod tests {
                 std::time::Instant::now() < deadline,
                 "children did not become ready"
             );
+            // drift-allow(duplicate-numeric-literal): test poll interval
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
         std::fs::write(d.path().join("go"), b"go").unwrap();

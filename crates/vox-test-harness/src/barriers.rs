@@ -69,6 +69,7 @@ mod semcov_wave4_tests {
         let barrier = TestBarrier::new();
         let b2 = barrier.clone();
         tokio::spawn(async move {
+            // drift-allow(duplicate-numeric-literal): test poll interval
             tokio::time::sleep(Duration::from_millis(5)).await;
             b2.signal();
         });

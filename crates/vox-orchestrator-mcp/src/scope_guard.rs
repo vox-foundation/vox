@@ -107,9 +107,11 @@ mod write_gate_tests {
     #[tokio::test]
     async fn scope_gate_rejects_a_path_outside_the_agent_scope() {
         let repo = tempfile::tempdir().unwrap();
-        std::fs::create_dir_all(repo.path().join(".vox/agents")).unwrap();
+        std::fs::create_dir_all(repo.path().join(vox_config::paths::REPO_AGENTS_DIR)).unwrap();
         std::fs::write(
-            repo.path().join(".vox/agents/builder.md"),
+            repo.path()
+                .join(vox_config::paths::REPO_AGENTS_DIR)
+                .join("builder.md"),
             "---\nscope: [\"src/**\"]\n---\n",
         )
         .unwrap();
@@ -128,9 +130,11 @@ mod write_gate_tests {
     #[tokio::test]
     async fn scope_gate_reads_generate_code_output_path() {
         let repo = tempfile::tempdir().unwrap();
-        std::fs::create_dir_all(repo.path().join(".vox/agents")).unwrap();
+        std::fs::create_dir_all(repo.path().join(vox_config::paths::REPO_AGENTS_DIR)).unwrap();
         std::fs::write(
-            repo.path().join(".vox/agents/builder.md"),
+            repo.path()
+                .join(vox_config::paths::REPO_AGENTS_DIR)
+                .join("builder.md"),
             "---\nscope: [\"src/**\"]\n---\n",
         )
         .unwrap();

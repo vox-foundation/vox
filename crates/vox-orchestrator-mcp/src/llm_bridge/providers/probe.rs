@@ -295,7 +295,7 @@ mod tests {
             .mount(&vox_ml)
             .await;
 
-        let client = reqwest::Client::new();
+        let client = vox_http_client::client();
         let candidates = vec![ollama_like.uri(), vox_ml.uri()];
         let winner = probe_vox_local_health_among(&client, &candidates)
             .await

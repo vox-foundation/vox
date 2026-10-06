@@ -23,6 +23,8 @@ const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 const PROTOCOL_IO_TIMEOUT: Duration = Duration::from_secs(15);
 const FINAL_CLOSE_TIMEOUT: Duration = Duration::from_secs(1);
 const TRUST_RECHECK_INTERVAL: Duration = Duration::from_millis(250);
+/// Wait for the peer FIN before closing a refused connection.
+const STREAM_STOPPED_WAIT: Duration = Duration::from_millis(200);
 const MAX_CONNECTIONS_PER_PEER: usize = 128;
 /// Once this many permits are in use, make new sources prove reachability
 /// before we spend a handshake on them.
@@ -232,7 +234,7 @@ async fn handle(conn: Connection, peer: EndpointId, exec: Arc<dyn JobExecutor>) 
         write_response(&mut send, &JobResponse::Failed(e.to_string())).await?;
         // `Connection::close` may drop stream data not yet delivered to the
         // peer's application. Wait briefly for the FIN (or give up) first.
-        let _ = timeout(Duration::from_millis(200), send.stopped()).await;
+        let _ = timeout(STREAM_STOPPED_WAIT, send.stopped()).await;
         conn.close(REFUSED_PROTO.into(), b"proto mismatch");
         let _ = timeout(FINAL_CLOSE_TIMEOUT, conn.closed()).await;
         return Ok(());

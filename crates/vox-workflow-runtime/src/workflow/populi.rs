@@ -493,6 +493,7 @@ mod tests {
                         let _: Vec<u8> =
                             protocol::read_frame(&mut recv, 1024 * 1024).await.unwrap();
                         tx.send(request).unwrap();
+                        // drift-allow(timeout-literal, duplicate-numeric-literal): test peer stall
                         tokio::time::sleep(Duration::from_secs(5)).await;
                     } else {
                         tx.send(request).unwrap();
@@ -522,6 +523,7 @@ mod tests {
             &peer,
             b"pub fn main() {}",
             job_id,
+            // drift-allow(timeout-literal, duplicate-numeric-literal): test job timeout
             Duration::from_millis(100),
         )
         .await

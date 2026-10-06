@@ -338,9 +338,10 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
     // report it here, where new installs already look. Only meaningful inside the
     // repo; `vox graph` is a repo-scoped tool.
     if in_vox_repo {
-        let cache_dir = std::path::Path::new(".vox/cache/graphify");
+        let cache_dir = std::path::Path::new(vox_config::paths::REPO_CACHE_DIR)
+            .join(vox_config::paths::REPO_GRAPHIFY_CACHE_SUBDIR);
         let mut built = 0usize;
-        if let Ok(mut entries) = tokio::fs::read_dir(cache_dir).await {
+        if let Ok(mut entries) = tokio::fs::read_dir(&cache_dir).await {
             while let Ok(Some(entry)) = entries.next_entry().await {
                 if tokio::fs::try_exists(entry.path().join("graph.json"))
                     .await
@@ -399,8 +400,9 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
     // writes** — so the check could never pass and no advice could ever cure it.
     // `vox repo init` writes `.vox/repositories.yaml`; that is the observable
     // registration state, so check for it and the cure now matches the symptom.
-    let repo_yaml = std::path::Path::new(".vox/repositories.yaml");
-    let reg_pass = tokio::fs::try_exists(repo_yaml).await.unwrap_or(false);
+    let repo_yaml =
+        std::path::Path::new(vox_config::paths::REPO_DOT_VOX_DIR).join("repositories.yaml");
+    let reg_pass = tokio::fs::try_exists(&repo_yaml).await.unwrap_or(false);
     let reg_detail = if reg_pass {
         format!("registered — {} present", repo_yaml.display())
     } else {

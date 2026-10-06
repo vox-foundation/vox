@@ -626,7 +626,7 @@ pub struct BrowserCookiesImportParams {
 pub struct BrowserSnapshotParams {
     #[schemars(length(min = 1, max = 256))]
     pub page_id: String,
-    #[serde(default = "default_true_interactive")]
+    #[serde(default = "vox_config::serde_defaults::default_true")]
     pub interactive_only: bool,
     #[serde(default = "default_max_depth")]
     pub max_depth: u32,
@@ -634,10 +634,6 @@ pub struct BrowserSnapshotParams {
     pub max_nodes: u32,
     #[serde(default)]
     pub include_boxes: bool,
-}
-
-fn default_true_interactive() -> bool {
-    true
 }
 
 fn default_max_depth() -> u32 {

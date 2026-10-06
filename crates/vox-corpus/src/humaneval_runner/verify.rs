@@ -15,6 +15,9 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
+/// How often a running `vox` child is polled for exit.
+const CHILD_POLL_INTERVAL: Duration = Duration::from_millis(50);
+
 /// Result of compiling and running one program.
 #[derive(Debug, Clone)]
 pub struct RunOutcome {
@@ -162,7 +165,7 @@ fn exec(
                     detail: format!("timed out after {}s", timeout.as_secs()),
                 });
             }
-            None => std::thread::sleep(Duration::from_millis(50)),
+            None => std::thread::sleep(CHILD_POLL_INTERVAL),
         }
     }
     let status = child.wait()?;
@@ -229,6 +232,7 @@ mod tests {
         }
         src.push_str("    return 0\n}\nfn main() to str { return \"ok\" }\n");
         let d = workdir("bigdiag");
+        // drift-allow(timeout-literal, duplicate-numeric-literal): test run budget
         let out = run_program(&bin, &src, &d, "big", Duration::from_secs(60))
             .expect("must return an outcome, not hang");
         assert!(!out.compiled, "this program does not compile");
@@ -254,6 +258,7 @@ mod tests {
         let d = workdir("cheat");
         let tests_main =
             "fn main() to str {\n    assert(nth_prime(1) == 2)\n    return \"ok\"\n}\n";
+        // drift-allow(timeout-literal, duplicate-numeric-literal): test run budget
         let t = Duration::from_secs(30);
 
         let honest = verify_program(

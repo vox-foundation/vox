@@ -36,6 +36,9 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
+/// How long an open breaker waits before half-opening (see [`DbCircuitBreaker::from_env`]).
+const DEFAULT_RESET_TIMEOUT: Duration = Duration::from_secs(30);
+
 pub use vox_db_types::CircuitState;
 
 /// Error emitted when the circuit is open.
@@ -100,7 +103,7 @@ impl DbCircuitBreaker {
     /// Create from `VOX_DB_CIRCUIT_BREAKER` env with sensible defaults (5 failures, 30 s reset).
     #[must_use]
     pub fn from_env() -> Self {
-        Self::new(5, Duration::from_secs(30), Self::enabled_from_env())
+        Self::new(5, DEFAULT_RESET_TIMEOUT, Self::enabled_from_env())
     }
 
     /// Current circuit state (without advancing the state machine).
@@ -181,9 +184,12 @@ impl Default for DbCircuitBreaker {
 mod tests {
     use super::*;
 
+    /// Long enough that no test's breaker half-opens while it runs.
+    const TEST_RESET_TIMEOUT: Duration = Duration::from_secs(60);
+
     #[tokio::test]
     async fn closed_to_open_after_threshold() {
-        let cb = DbCircuitBreaker::new(3, Duration::from_secs(60), true);
+        let cb = DbCircuitBreaker::new(3, TEST_RESET_TIMEOUT, true);
         for _ in 0..3 {
             let _: Result<(), String> = cb
                 .call(|| async { Err::<(), _>(CircuitBreakerError::Open.to_string()) })
@@ -194,7 +200,7 @@ mod tests {
 
     #[tokio::test]
     async fn open_returns_error_without_calling() {
-        let cb = DbCircuitBreaker::new(1, Duration::from_secs(60), true);
+        let cb = DbCircuitBreaker::new(1, TEST_RESET_TIMEOUT, true);
         // Trip it
         let _: Result<(), String> = cb.call(|| async { Err::<(), _>("fail".to_string()) }).await;
         // Now should be open and not call action
@@ -211,7 +217,7 @@ mod tests {
 
     #[tokio::test]
     async fn success_resets_count() {
-        let cb = DbCircuitBreaker::new(5, Duration::from_secs(60), true);
+        let cb = DbCircuitBreaker::new(5, TEST_RESET_TIMEOUT, true);
         // One failure
         let _: Result<(), String> = cb.call(|| async { Err("oops".to_string()) }).await;
         assert_eq!(cb.failure_count(), 1);
@@ -223,7 +229,7 @@ mod tests {
 
     #[tokio::test]
     async fn disabled_always_passes_through() {
-        let cb = DbCircuitBreaker::new(1, Duration::from_secs(60), false);
+        let cb = DbCircuitBreaker::new(1, TEST_RESET_TIMEOUT, false);
         // Failures don't trip
         for _ in 0..10 {
             let _: Result<(), String> = cb.call(|| async { Err("x".to_string()) }).await;

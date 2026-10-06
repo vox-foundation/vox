@@ -15,6 +15,9 @@ use std::time::Duration;
 
 use crate::metrics::now_ms;
 
+/// How long a build waiting for admission sleeps between slot/load re-checks.
+const ADMISSION_POLL_INTERVAL: Duration = Duration::from_millis(500);
+
 /// Root dir for global broker state. Outside any repo → survives git clean/checkout.
 /// Overridable with `VOX_BROKER_HOME` (used by tests).
 pub fn global_root() -> PathBuf {
@@ -212,7 +215,7 @@ pub fn acquire_slot_adaptive(root: &Path, cap: usize) -> Result<(Slot, u64, usiz
         {
             return Ok((slot, now_ms().saturating_sub(start) as u64, busy));
         }
-        std::thread::sleep(Duration::from_millis(500));
+        std::thread::sleep(ADMISSION_POLL_INTERVAL);
     }
 }
 

@@ -668,6 +668,7 @@ export EDITOR=vim
     fn prune_keeps_active_plus_n() {
         let tmp = tempfile::tempdir().unwrap();
         let tc = tmp.path().join("toolchains");
+        // drift-allow(version-string): fixture versions, independent of the workspace version
         for v in ["0.4.0", "0.5.0", "0.6.0", "0.7.0"] {
             fs::create_dir_all(tc.join(format!("vox-{v}"))).unwrap();
         }

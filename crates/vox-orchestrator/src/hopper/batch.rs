@@ -15,7 +15,7 @@ pub struct ResearchBatchRequest {
     pub queries: Vec<ResearchBatchItem>,
     #[serde(default = "default_max_sources")]
     pub max_sources_per_query: usize,
-    #[serde(default = "default_true")]
+    #[serde(default = "vox_config::serde_defaults::default_true")]
     pub comparative_synthesis: bool,
     #[serde(default = "default_min_success")]
     pub min_success_ratio: f32,
@@ -25,9 +25,6 @@ pub struct ResearchBatchRequest {
 
 fn default_max_sources() -> usize {
     5
-}
-fn default_true() -> bool {
-    true
 }
 fn default_min_success() -> f32 {
     0.70
