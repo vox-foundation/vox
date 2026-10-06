@@ -42,15 +42,19 @@ test-group = 'nested-cargo'
 # test. Tracked in https://github.com/vox-foundation/vox/issues/569 -- fix the
 # test, then delete its line here. nightly.yml keeps running them under `ci`.
 # Do not add to this list to make a PR green: a new failure is the PR's to fix.
+#
+# Remaining entry (2026-10-06):
+#   golden_behavioral_gate::golden_expect_blocks_match_interp_stdout spawns the
+#   `vox` binary (target/debug/vox or VOX_BIN) and fails loud when it is absent.
+#   A `tests` shard builds only its own `-p` crates' bins, and vox-integration-
+#   tests depends on vox-cli as a library, so the binary exists only when vox-cli
+#   lands in the same shard. It passes whenever the binary exists, including
+#   nightly's full-workspace run. Remove this line once the shard builds `vox`
+#   first (ci.yml) or the gate runs the interpreter in-process.
 [profile.ci-gate]
 retries = 1
 slow-timeout = { period = "180s", terminate-after = 3 }
 default-filter = '''not (
     (binary_id(=vox-codegen::emit_compile_harness) | (binary_id(=vox-compiler::emission_ladder_test) & test(/_compiles_as_rust_script$/)) | binary_id(=vox-cli-tests::build_e2e) | binary_id(=vox-config-derive::trybuild) | binary_id(=vox-cli-tests::workflow_runtime_no_db))
-  | (binary_id(=vox-integration-tests::codegen_rust_test) & test(=codegen_with_all_options))
   | (binary_id(=vox-integration-tests::golden_behavioral_gate) & test(=golden_expect_blocks_match_interp_stdout))
-  | (binary_id(=vox-integration-tests::golden_vox_test_runner) & test(=all_golden_at_test_fns_pass))
-  | (binary_id(=vox-integration-tests::greaterfool_parity_gates_test) & test(=greaterfool_reference_emits_secure_runtime_defaults))
-  | (binary_id(=vox-integration-tests::pipeline_test) & test(=pipeline_multi_route_rust_codegen))
-  | (binary_id(=vox-integration-tests::ts_emit_corpus_sync_test) & test(=promoted_fixtures_match_their_golden_source))
 )'''
