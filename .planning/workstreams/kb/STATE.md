@@ -5,16 +5,16 @@ milestone_name: Vox Knowledge Base — corpus to context
 current_phase: 03
 current_phase_name: Provenance, Trust Tiers and Leak Closure
 status: executing
-stopped_at: Completed 03-03-PLAN.md
-last_updated: "2026-10-06T11:18:22.372Z"
+stopped_at: Completed 03-04-PLAN.md
+last_updated: "2026-10-06T12:52:56.740Z"
 last_activity: 2026-10-06
 last_activity_desc: Phase 03 execution started
-state_head: 1f0390a272b0d9ba9b09ff10769c200bf3d03592
+state_head: 1d4fec63dbd05b2e13db9787f99df49b1fc88a24
 progress:
   total_phases: 12
   completed_phases: 2
   total_plans: 37
-  completed_plans: 27
+  completed_plans: 28
   percent: 17
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (shared project context) and .planning/workstreams/kb/
 ## Current Position
 
 Phase: 03 (Provenance, Trust Tiers and Leak Closure) — EXECUTING
-Plan: 4 of 13
+Plan: 5 of 13
 Status: Ready to execute
 Last activity: 2026-10-06 — Phase 03 execution started
 
@@ -74,6 +74,7 @@ Progress: [██░░░░░░░░] 17%
 | Phase 03 P01 | 16min | 2 tasks | 4 files |
 | Phase 03 P02 | 95 min | 2 tasks | 15 files |
 | Phase 03 P03 | 45min | 2 tasks | 12 files |
+| Phase 03 P04 | 80min | 2 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -99,6 +100,7 @@ Progress: [██░░░░░░░░] 17%
 - [Phase 03]: 03-02: sanitizer fails closed (reference/shortcut images neutralized, unterminated image destinations judged on leading token, non-converged fixpoint returns empty string)
 - [Phase 03]: 03-03: baseline 96 taken; kb_findings inbox + fail-closed search_documents.trust_tier; D-01 signer brbrainerd (delegated to agent, 2026-10-04)
 - [Phase 03]: 03-03: legacy VoxKB readers live in kb_legacy.rs; backfill skips empty corpus key; Library rows stay untrusted until 03-05 writer sets tier
+- [Phase 03]: 03-04: web hits reach only an injected WebFindingCapture sink; no sink means nothing is persisted; Tavily durable-artifact tavily:<url> entries dropped
 
 ### Pending Todos
 
@@ -113,8 +115,8 @@ Progress: [██░░░░░░░░] 17%
 
 ## Session Continuity
 
-**Last session:** 2026-10-06T11:18:22.351Z
+**Last session:** 2026-10-06T12:52:56.718Z
 
-**Stopped At:** Completed 03-03-PLAN.md
+**Stopped At:** Completed 03-04-PLAN.md
 **Resume File:** None
 **Next:** `/gsd-plan-phase 1` (no research-phase needed)
