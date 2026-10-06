@@ -27,13 +27,12 @@ component VoicePage() {
 "#;
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn endpoint_calls_emit_imports() {
     let tokens = vox_compiler::lexer::lex(FIXTURE);
     let module = vox_compiler::parser::parse(tokens).expect("parse");
     let _diags = vox_compiler::typeck::typecheck_module(&module, "bug_d_imports");
     let hir = vox_compiler::hir::lower_module(&module);
-    let out = vox_compiler::codegen_ts::generate(&hir).expect("gen");
+    let out = vox_codegen::codegen_ts::generate(&hir).expect("gen");
     let voice = out
         .files
         .iter()
