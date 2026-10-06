@@ -404,3 +404,22 @@ fn write_baseline_warns_when_the_gate_would_reject_the_epoch() {
     next.chunker = "md-h2-512-v2".into();
     assert!(reepoch_warning(Ok(false), Some(&prev), &next).is_none());
 }
+
+#[test]
+fn canary_redteam_dir_is_outside_index_roots() {
+    assert_eq!(redteam_roots_failure(KB_CORPUS_ROOTS), None);
+    assert!(check_roots_disjoint(KB_CORPUS_ROOTS, REDTEAM_DIR).is_ok());
+    let bad = redteam_roots_failure(&["contracts"]).expect("a covering root must fail");
+    assert!(bad.starts_with("[canary] roots(redteam): "), "{bad}");
+    assert!(check_roots_disjoint(&["contracts"], REDTEAM_DIR).is_err());
+    assert!(redteam_roots_failure(&["contracts/kb/redteam/sub"]).is_some());
+    // sibling dir with a shared prefix does not overlap
+    assert_eq!(redteam_roots_failure(&["contracts/kb/redteamx"]), None);
+}
+
+#[test]
+fn canary_failures_do_not_report_redteam_roots_for_default_roots() {
+    let tmp = temp_repo();
+    let out = canary_failures(tmp.path(), &[]).join("\n");
+    assert!(!out.contains("roots(redteam)"), "{out}");
+}

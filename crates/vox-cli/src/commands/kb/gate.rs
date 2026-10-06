@@ -28,6 +28,16 @@ use super::eval::EVAL_DIR;
 
 pub(crate) const BASELINE_REL: &str = "contracts/kb/retrieval-baseline.v1.json";
 
+/// KB sanitizer red-team payloads (03-02). Not the eval dir: the Phase 1 canary GUID must not
+/// be copied outside `contracts/kb/eval/`, so this is registered by a second roots check.
+pub(crate) const REDTEAM_DIR: &str = "contracts/kb/redteam";
+
+/// `[canary] roots(redteam)` failure when any index root overlaps [`REDTEAM_DIR`].
+pub(crate) fn redteam_roots_failure(roots: &[&str]) -> Option<String> {
+    let _ = roots;
+    None
+}
+
 /// A corpus doc carries the canary GUID. Lets the gate tag it `[canary]`, not `[regression]`.
 #[derive(Debug)]
 pub(crate) struct CorpusHasCanary(Vec<String>);
