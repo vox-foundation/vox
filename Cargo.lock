@@ -17445,6 +17445,7 @@ name = "vox-db-types"
 version = "0.6.0"
 dependencies = [
  "chrono",
+ "proptest",
  "serde",
  "serde_json",
 ]
