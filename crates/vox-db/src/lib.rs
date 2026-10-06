@@ -181,6 +181,8 @@ mod questioning_telemetry;
 mod research;
 pub mod research_doc_io;
 pub mod research_pipeline;
+/// KB-text sanitizer and provenance newtypes. Lives in `vox-db-types`.
+pub use vox_db_types::kb_text;
 /// Hybrid retrieval helpers (vector / full-text fusion) for RAG-style pipelines.
 /// Moved to `vox-db-types`; re-exported here for back-compat.
 pub use vox_db_types::retrieval;
