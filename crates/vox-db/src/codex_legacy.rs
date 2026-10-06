@@ -97,6 +97,7 @@ pub const LEGACY_EXPORT_SKIP_TABLES: &[&str] = &[
     "scientia_discovery_inbox", // derived surfacing index over draft manifests; regenerable, drafts are SSOT
     "scientia_embedding_cache", // pure derived cache; regenerated on demand from LLM calls
     "scientia_producer_cursor", // ephemeral per-producer scan cursor; drafts are idempotent on re-scan
+    "web_cache",                // HTTP response cache; refetched on demand
 ];
 
 /// User tables included in [`export_legacy_jsonl`] / accepted by [`import_legacy_jsonl`].
@@ -226,6 +227,7 @@ pub const LEGACY_EXPORT_TABLES: &[&str] = &[
     "populi_training_run",
     "processing_run_steps",
     "processing_runs",
+    "provider_quota_usage",
     "publication_approvals",
     "publication_attempts",
     "publication_external_links",
@@ -244,9 +246,11 @@ pub const LEGACY_EXPORT_TABLES: &[&str] = &[
     "reconstruction_campaign_spec",
     "reliability_scores",
     "repository_reliability",
+    "research_domain_reputation",
     "research_eval_runs",
     "research_eval_samples",
     "research_metrics",
+    "research_misguidance_events",
     "research_sessions",
     "routing_decisions",
     "scheduled",
