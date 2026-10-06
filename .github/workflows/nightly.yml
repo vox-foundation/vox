@@ -651,20 +651,6 @@ jobs:
         run: cargo nextest run -p vox-compiler --test golden_examples_strict_parse --no-capture 2>&1
         # Gate enforcement: The build fails if any golden example contains syntax errors or unhandled tokens.
 
-      - name: Golden @test function runner (CR-D3 — vox test round-trip)
-        # Runs every @test fn in examples/golden/**/*.vox through the eval layer.
-        # Validates that the `vox test` command surface works end-to-end on golden examples.
-        run: cargo nextest run -p vox-integration-tests --test golden_vox_test_runner --no-capture 2>&1
-
-      - name: AgentOS ACI schema + guardrail integration gate
-        run: cargo nextest run -p vox-integration-tests --test agentos_aci_bench --no-capture 2>&1
-
-      - name: Compiler pipeline benchmarks compile-smoke (CR-E1 gate)
-        # Verifies benchmark code compiles cleanly; timing baselines are captured
-        # by the separate nightly benchmark job.  `--no-run` prevents wall-clock
-        # variability from inflating CI times.
-        run: cargo bench -p vox-compiler --no-run
-
       - name: Golden examples fmt idempotency gate (A.12)
         shell: bash
         run: |
@@ -676,6 +662,49 @@ jobs:
             echo "vox fmt is not idempotent or examples have unformatted changes."
             exit 1
           fi
+
+  # Split from compiler-gates, which had spent 19.7 of its 20 min before the
+  # bench step started (nightly 37467949942): the vox-integration-tests
+  # binaries and the bench targets are separate compiles, so they run here in
+  # parallel instead of serially behind the vox-compiler gates.
+  compiler-gates-integration:
+    name: Compiler gates (golden @test runner + AgentOS ACI + bench compile)
+    needs: setup
+    if: needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_compiler == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache: "false"
+      - uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ needs.setup.outputs.cache-key }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Golden @test function runner (CR-D3 — vox test round-trip)
+        # Runs every @test fn in examples/golden/**/*.vox through the eval layer.
+        # Validates that the `vox test` command surface works end-to-end on golden examples.
+        run: cargo nextest run -p vox-integration-tests --test golden_vox_test_runner --no-capture 2>&1
+
+      - name: AgentOS ACI schema + guardrail integration gate
+        run: cargo nextest run -p vox-integration-tests --test agentos_aci_bench --no-capture 2>&1
+
+      - name: Compiler pipeline benchmarks compile-smoke (CR-E1 gate)
+        # Verifies benchmark code compiles cleanly; timing baselines are captured
+        # by the separate nightly benchmark job. `cargo check --benches` type-
+        # checks the bench targets on the warm dev-profile cache; `cargo bench
+        # --no-run` built them under the bench profile (inherits release, thin
+        # LTO), a cold release build of vox-compiler's whole dependency tree.
+        run: cargo check -p vox-compiler --benches
 
   tests:
     name: Tests (nextest + llvm-cov + doctests)
