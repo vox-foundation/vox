@@ -1455,31 +1455,10 @@ jobs:
             crates/vox-gui/ui/playwright-report
           if-no-files-found: ignore
 
-      # Review-bundle capture, both browsers — Firefox-only defects (occlusion/
-      # layout) are otherwise invisible to CI (2026-07-18 review finding).
-      # Advisory per F2.
-      - name: Review-bundle capture (chromium + firefox)
-        working-directory: crates/vox-gui/ui
-        env:
-          VOX_REVIEW_CAPTURE: "1"
-        run: pnpm exec playwright test e2e/review/capture.spec.ts --project=chromium --project=firefox-review --workers=2
-        continue-on-error: true
-      - name: Review-bundle AI defect analysis (advisory)
-        env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-        run: cargo run -p vox-orchestrator-mcp --features gui-visual-review --bin gui-visual-review -- --bundle crates/vox-gui/ui/review-bundle/latest --ai --max-reviews 60 --browsers chromium,firefox
-        continue-on-error: true
-
-      - name: Upload visual-review report + screens (always)
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: gui-visual-review-${{ github.run_id }}
-          path: |
-            crates/vox-gui/ui/review-bundle/latest/
-            contracts/reports/gui-visual-review/bundle-report.v1.json
-          if-no-files-found: ignore
-          retention-days: 14
+      # Review-bundle capture + AI analysis live in gui-review-capture and
+      # gui-visual-review below: in this job they ran ~20 min of advisory work
+      # ahead of the golden route and the job hit its 25-min cap before the
+      # golden route (its actual signal) ever started.
 
       # setup-rust's own cache (cache: true default), installed earlier in this
       # job, already covers ~/.cargo/registry, ~/.cargo/git, and target/ keyed
@@ -1494,6 +1473,83 @@ jobs:
         env:
           VOX_GUI_PLAYWRIGHT: "1"
         run: cargo nextest run -p vox-integration-tests --test playwright_golden_route_test --run-ignored ignored-only --no-capture
+
+  # Review-bundle capture, both browsers — Firefox-only defects (occlusion/
+  # layout) are otherwise invisible to CI (2026-07-18 review finding).
+  # Advisory per F2. One leg per Playwright project: entry files are named
+  # `entries-<browser>-w<worker>.jsonl`, so per-browser legs merge without
+  # collisions (a `--shard=k/n` split would not: both shards write w0/w1).
+  gui-review-capture:
+    name: GUI review-bundle capture (${{ matrix.project }}, advisory)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - project: chromium
+            browser: chromium
+          - project: firefox-review
+            browser: firefox
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Review-bundle capture
+        working-directory: crates/vox-gui/ui
+        timeout-minutes: 20
+        env:
+          VOX_REVIEW_CAPTURE: "1"
+        run: |
+          pnpm install --prefer-offline
+          pnpm exec playwright install ${{ matrix.browser }}
+          pnpm exec playwright test e2e/review/capture.spec.ts --project=${{ matrix.project }} --workers=2
+      - name: Upload review bundle
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: gui-review-bundle-${{ matrix.browser }}
+          path: crates/vox-gui/ui/review-bundle/latest/
+          if-no-files-found: ignore
+          retention-days: 3
+
+  gui-visual-review:
+    name: GUI review-bundle AI defect analysis (advisory)
+    needs: gui-review-capture
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-rust
+      - name: Download review bundles
+        uses: actions/download-artifact@v8
+        with:
+          pattern: gui-review-bundle-*
+          path: crates/vox-gui/ui/review-bundle/latest
+          merge-multiple: true
+      - name: Review-bundle AI defect analysis
+        timeout-minutes: 20
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: cargo run -p vox-orchestrator-mcp --features gui-visual-review --bin gui-visual-review -- --bundle crates/vox-gui/ui/review-bundle/latest --ai --max-reviews 60 --browsers chromium,firefox
+      - name: Upload visual-review report + screens (always)
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: gui-visual-review-${{ github.run_id }}
+          path: |
+            crates/vox-gui/ui/review-bundle/latest/
+            contracts/reports/gui-visual-review/bundle-report.v1.json
+          if-no-files-found: ignore
+          retention-days: 14
 
   all-features-matrix:
     name: All-Features Check (${{ matrix.crate }})
