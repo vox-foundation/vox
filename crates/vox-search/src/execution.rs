@@ -555,30 +555,29 @@ pub async fn execute_search_plan(
         if plan.corpora.contains(&SearchCorpus::WebResearch) && policy.web_research_enabled {
             match crate::web_dispatcher::WebSearchDispatcher::search(query, policy).await {
                 Ok(hits) => {
-                    if policy.persist_web_hits
-                        && let Some(db) = db_opt.as_ref()
-                    {
-                        for h in &hits {
-                            let db_arc = db.clone();
-                            let engine_name = h
-                                .provenance
-                                .iter()
-                                .find_map(|p| p.strip_prefix("engine:"))
-                                .unwrap_or("unknown")
-                                .to_string();
-                            let source_uri = format!("web-ingest:{engine_name}:{}", h.path);
-                            let title = h.title.clone();
-                            let body = h.content_snippet.clone();
-                            tokio::spawn(async move {
-                                let _ = crate::ingest::persist_text_document_chunk(
-                                    db_arc.as_ref(),
-                                    &source_uri,
-                                    &title,
-                                    &body,
-                                    "text/plain",
-                                )
-                                .await;
-                            });
+                    if policy.persist_web_hits {
+                        match ctx.web_capture.as_ref() {
+                            Some(sink) => sink.capture(
+                                hits.iter()
+                                    .map(|h| crate::capture::CapturedWebHit {
+                                        url: h.path.clone(),
+                                        title: h.title.clone(),
+                                        snippet: h.content_snippet.clone(),
+                                        full_text: None,
+                                        engine: h
+                                            .provenance
+                                            .iter()
+                                            .find_map(|p| p.strip_prefix("engine:"))
+                                            .unwrap_or("unknown")
+                                            .to_string(),
+                                        query: query.to_string(),
+                                        origin: vox_db::kb_text::FindingOrigin::WebSearch,
+                                    })
+                                    .collect(),
+                            ),
+                            None => tracing::debug!(
+                                "web hits not captured: no capture sink injected (fail-closed)"
+                            ),
                         }
                     }
                     if !hits.is_empty() {

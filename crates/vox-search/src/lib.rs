@@ -9,6 +9,7 @@
 pub mod a2a_contract;
 pub mod arxiv;
 pub mod bundle;
+pub mod capture;
 pub mod context;
 pub mod corroboration;
 pub mod crag;

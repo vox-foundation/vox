@@ -318,7 +318,8 @@ pub async fn run_retrieval_bundle(
         state.orchestrator_config.memory.log_dir.clone(),
         state.orchestrator_config.memory.memory_md_path.clone(),
     )
-    .with_trace_id(trace);
+    .with_trace_id(trace)
+    .with_web_capture(crate::kb_tools::findings::web_capture_for_state(state));
     let fallback: Option<Box<dyn LexicalMemoryFallback>> =
         if state.orchestrator_config.memory.enabled {
             Some(Box::new(McpMemoryFallback {
