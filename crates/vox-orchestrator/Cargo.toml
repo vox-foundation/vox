@@ -97,6 +97,7 @@ turso = { workspace = true }
 # the feature-agnostic execution.tantivy_doc_lines field (empty when tantivy is off).
 vox-search = { workspace = true }
 vox-orchestrator-types.workspace = true
+vox-orchestrator-models.workspace = true
 vox-orchestrator-queue.workspace = true
 vox-config.workspace = true
 vox-repository.workspace = true

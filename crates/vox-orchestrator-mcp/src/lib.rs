@@ -2,6 +2,11 @@
 //!
 //! Extracted from `vox-orchestrator/src/mcp_tools/` in 2026-05-08 reorg Phase 4.
 
+// Linux-only: with `--all-features`, proving the websocket upgrade future is `Send`
+// walks netlink-packet-route's recursive `Tc*` option enums past the default limit
+// (E0275 in `http_gateway/ws.rs`). rustc's own suggested fix.
+#![recursion_limit = "256"]
+
 extern crate vox_codegen;
 
 /// HTTP routes (moved from vox-orchestrator/services/routes).

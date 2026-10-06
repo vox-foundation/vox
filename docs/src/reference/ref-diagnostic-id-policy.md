@@ -18,7 +18,7 @@ Machine-readable registry: [`contracts/diagnostics/registry.v1.yaml`](../../../c
 2. **Namespaced owners**
    - **`vox-compiler`** — `E####` style, `lint.*`, `typecheck.*`, `vox/<category>/<slug>` for newer namespaces ([mesh language spine plan](../architecture/mesh-phase1-language-spine-plan-2026.md)).
    - **`vox-code-audit`** — hierarchical rule IDs such as `skeleton/untested-pub-api`, `stub/todo`, `security/hardcoded-secret/*`, `ai-laziness/*`.
-3. **Disjoint prefixes** — Audit rule IDs **must not** exactly equal any compiler `code` listed in `vox_compiler::typeck::diagnostics::codes::ALL_COMPILER_DIAGNOSTIC_CODES` (enforced by [`crates/vox-compiler/tests/audit_rule_collision.rs`](../../../crates/vox-compiler/tests/audit_rule_collision.rs)). The YAML registry summarizes reserved prefixes for humans.
+3. **Disjoint prefixes** — Audit rule IDs **must not** exactly equal any compiler `code` listed in `vox_compiler::typeck::diagnostics::codes::ALL_COMPILER_DIAGNOSTIC_CODES` (enforced by [`crates/vox-compiler/tests/it/audit_rule_collision.rs`](../../../crates/vox-compiler/tests/it/audit_rule_collision.rs)). The YAML registry summarizes reserved prefixes for humans.
 
 ## Consumers
 

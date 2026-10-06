@@ -113,11 +113,14 @@ jobs:
           mkdir -p target/release
           cp ${{ matrix.sidecar_src }} ${{ matrix.sidecar_dst }}
 
+      # The `gui-*` aliases link vox-gui with link.exe on Windows: lld-link cannot
+      # reconcile ucrt.lib and libucrt.lib for it (.cargo/config.toml). They only
+      # set a Windows-target linker, so macOS/Linux legs build the same as before.
       - name: vox-gui tests
-        run: cargo test -p vox-gui --locked
+        run: cargo gui-test --locked
 
       - name: Build vox-gui (Tauri)
-        run: cargo build -p vox-gui
+        run: cargo gui-build
 
       - name: sccache stats
         if: always()

@@ -2692,24 +2692,6 @@ curated:
   - ci
   - check-docs-ssot
   parameters: null
-- id: cli.ci.check-frozen
-  title: Ci Check-frozen
-  description_human: null
-  description_model: CLI operation `vox ci check-frozen`
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: null
-  cli_path:
-  - ci
-  - check-frozen
-  parameters: null
 - id: cli.ci.check-links
   title: Ci Check-links
   description_human: null
@@ -2745,24 +2727,6 @@ curated:
   cli_path:
   - ci
   - check-summary-drift
-  parameters: null
-- id: cli.ci.collateral-damage-gate
-  title: Ci Collateral-damage-gate
-  description_human: null
-  description_model: CLI operation `vox ci collateral-damage-gate`
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: null
-  cli_path:
-  - ci
-  - collateral-damage-gate
   parameters: null
 - id: cli.ci.command-compliance
   title: Ci Command-compliance
@@ -2943,24 +2907,6 @@ curated:
   cli_path:
   - ci
   - config-registry-parity
-  parameters: null
-- id: cli.ci.constrained-gen-smoke
-  title: Ci Constrained-gen-smoke
-  description_human: null
-  description_model: CLI operation `vox ci constrained-gen-smoke`
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: null
-  cli_path:
-  - ci
-  - constrained-gen-smoke
   parameters: null
 - id: cli.ci.contracts-index
   title: Ci Contracts-index
@@ -3690,24 +3636,6 @@ curated:
   - ci
   - grammar-ssot-parity
   parameters: null
-- id: cli.ci.grpo-reward-baseline
-  title: Ci Grpo-reward-baseline
-  description_human: null
-  description_model: CLI operation `vox ci grpo-reward-baseline`
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: null
-  cli_path:
-  - ci
-  - grpo-reward-baseline
-  parameters: null
 - id: cli.ci.gui-catalog-parity
   title: Ci Gui-catalog-parity
   description_human: null
@@ -4013,24 +3941,6 @@ curated:
   cli_path:
   - ci
   - mcp-vox-surface-parity
-  parameters: null
-- id: cli.ci.mens-corpus-health
-  title: Ci Mens-corpus-health
-  description_human: null
-  description_model: CLI operation `vox ci mens-corpus-health`
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: null
-  cli_path:
-  - ci
-  - mens-corpus-health
   parameters: null
 - id: cli.ci.mens-scorecard
   title: Ci Mens-scorecard
@@ -4634,24 +4544,6 @@ curated:
   - ci
   - query-all-guard
   parameters: null
-- id: cli.ci.queue
-  title: Ci Queue
-  description_human: null
-  description_model: CLI operation `vox ci queue`
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: null
-  cli_path:
-  - ci
-  - queue
-  parameters: null
 - id: cli.ci.release-build
   title: Ci Release-build
   description_human: null
@@ -4777,78 +4669,6 @@ curated:
   cli_path:
   - ci
   - row-serde-lint
-  parameters: null
-- id: cli.ci.runner-policy-check
-  title: Ci Runner-policy-check
-  description_human: null
-  description_model: CLI operation `vox ci runner-policy-check`
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: null
-  cli_path:
-  - ci
-  - runner-policy-check
-  parameters: null
-- id: cli.ci.runner-preflight
-  title: Ci Runner-preflight
-  description_human: null
-  description_model: CLI operation `vox ci runner-preflight`
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: null
-  cli_path:
-  - ci
-  - runner-preflight
-  parameters: null
-- id: cli.ci.runner-scale
-  title: Ci Runner-scale
-  description_human: null
-  description_model: CLI operation `vox ci runner-scale`
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: null
-  cli_path:
-  - ci
-  - runner-scale
-  parameters: null
-- id: cli.ci.runner-status
-  title: Ci Runner-status
-  description_human: null
-  description_model: CLI operation `vox ci runner-status`
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: null
-  cli_path:
-  - ci
-  - runner-status
   parameters: null
 - id: cli.ci.runtime-regress
   title: Ci Runtime-regress
@@ -12374,6 +12194,120 @@ curated:
   - graph
   - history
   parameters: null
+- id: cli.graph.history.brief
+  title: Graph History Brief
+  description_human: null
+  description_model: CLI operation `vox graph history brief`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - graph
+  - history
+  - brief
+  parameters: null
+- id: cli.graph.history.focus
+  title: Graph History Focus
+  description_human: null
+  description_model: CLI operation `vox graph history focus`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - graph
+  - history
+  - focus
+  parameters: null
+- id: cli.graph.history.forgotten
+  title: Graph History Forgotten
+  description_human: null
+  description_model: CLI operation `vox graph history forgotten`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - graph
+  - history
+  - forgotten
+  parameters: null
+- id: cli.graph.history.log
+  title: Graph History Log
+  description_human: null
+  description_model: CLI operation `vox graph history log`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - graph
+  - history
+  - log
+  parameters: null
+- id: cli.graph.history.search
+  title: Graph History Search
+  description_human: null
+  description_model: CLI operation `vox graph history search`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - graph
+  - history
+  - search
+  parameters: null
+- id: cli.graph.history.timeline
+  title: Graph History Timeline
+  description_human: null
+  description_model: CLI operation `vox graph history timeline`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - graph
+  - history
+  - timeline
+  parameters: null
 - id: cli.graph.index
   title: Graph Index
   description_human: null
@@ -15618,6 +15552,24 @@ curated:
   - research
   - eval
   parameters: null
+- id: cli.research.flag
+  title: Research Flag
+  description_human: null
+  description_model: CLI operation `vox research flag`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - research
+  - flag
+  parameters: null
 - id: cli.research.history
   title: Research History
   description_human: null
@@ -15653,6 +15605,42 @@ curated:
   cli_path:
   - research
   - preview
+  parameters: null
+- id: cli.research.probe
+  title: Research Probe
+  description_human: null
+  description_model: CLI operation `vox research probe`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - research
+  - probe
+  parameters: null
+- id: cli.research.publish
+  title: Research Publish
+  description_human: null
+  description_model: CLI operation `vox research publish`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - research
+  - publish
   parameters: null
 - id: cli.research.result
   title: Research Result

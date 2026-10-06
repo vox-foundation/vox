@@ -87,6 +87,37 @@ fan-in baseline rows; and the `where-things-live.md` row. The measurement still 
 records `T_models_after` and `T_other_after` as evidence rather than treating a miss as a revert order: the extraction is
 kept unless it makes `T_other` worse than 1.2x.
 
+### Part B status (2026-10-04): B1 to B3 done, B4 stopped at its gate
+
+B1 (enums lowered to `vox-orchestrator-types`), B2 (`models/` routes by a narrow `RoutingTask`) and B3
+(`usage`, `usage_policy`, `calibration` moved into the new `vox-orchestrator-models`, edges approved in B0) are
+committed on `work/part-b` with their tests and mutation proofs.
+
+**B4 (move `models/`, `route_policy`, `catalog`, `catalog_classifier`) stopped, as the plan requires, on four
+findings a `cargo check` of the moved tree names.** The tree was restored to B3; nothing half-moved is committed.
+
+1. **Edge not in the B0 list: `vox-orchestrator-models -> vox-http-client`.** `catalog.rs` builds its HTTP clients with
+   it (`client_builder()` / `client()` in six places). `vox-http-client` is layer 1, so the edge points down; it needs
+   the owner's approval and a baseline row.
+2. **Edge not in the B0 list: `vox-orchestrator-models -> vox-populi` (layer 3, same layer).** One call:
+   `models/auto_select.rs:122` uses `vox_populi::mens::hardware::macos_metal::probe_metal()` to size local models.
+   Cheaper than an edge into a 20k-line crate: make the probe a function the orchestrator passes in
+   (`Option<fn() -> Option<HardwareSummary>>` on the selector), or defactor the roughly 25-line Metal VRAM reader
+   with a `// vox:defactored-from vox-populi 2026-10-04` marker.
+3. **`TaskCategory` and `TaskPriority` are not in the types crate for `models/`.** `TaskCategory` is generated twice
+   (`vox-orchestrator/build.rs` and `vox-orchestrator-types/build.rs`); the moved code and tests need the types-crate
+   one, so `vox-orchestrator::types::TaskCategory` must become a re-export of it (B1-style). `TaskPriority` is only
+   used by tests that build an `AgentTask` fixture (`TaskId` already lives in the types crate).
+4. **Test fixtures and one probe still build an `AgentTask`** (`models/health.rs:72`, three test modules). Plan Step 2b
+   sanctions rewriting the three test fixtures to build a `RoutingTask`; `health.rs` needs the same.
+
+Also in the B4 scope and straightforward: `ClutchProfile` becomes an `exclude_elite: bool` parameter on
+`mode_select` (three uses), and `FreeRoutingProfile` is already lowered (B1).
+
+**Value check.** The Part A measurement predicted about 5.5 CPU-s saved per `models/` edit. The extraction is kept
+only for structure unless B6 shows otherwise; it is not worth a new heavy edge, so edge 2 should be removed by
+injection, not approved.
+
 ## What a `models` crate split would have to solve
 
 `vox-orchestrator` is 94k lines in 335 files; `models/` is 12.3k. `models/` reaches outward through a small surface

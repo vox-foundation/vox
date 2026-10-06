@@ -74,15 +74,19 @@ cargo-nextest (`archive` / `--archive-file`), `gh`.
 
 ### Task 0.1: Land local `main` through a draft PR (Claude)
 
-**Status 2026-10-03:** draft PR vox-foundation/vox#596 open with all work; awaiting green CI and merge.
-
-**Status 2026-10-03:** owner approved; pushed `main` as `land/2026-10-03-main`, draft PR opened.
+**Status 2026-10-04:** done. Landed as vox-foundation/vox#596; follow-ups #597 (test merges), #598 (build-loop B1–B3) and #599
+(nightly fixes) went through the queue the same way.
 
 - [ ] **Step 1:** read the PR's CI. Failures this branch caused are fixed on the branch; pre-existing ones go to 0.2–0.4.
 - [ ] **Step 2:** self-review the full range (`/code-review high`), mark ready, merge through the queue.
 - [ ] **Done when:** `gh run list --workflow nightly.yml -L 1` shows `setup` passing on the next scheduled run.
 
 ### Task 0.2: Fix the all-features compile errors (Claude)
+
+**Status 2026-10-04:** fixed in #599 and a follow-up: `vox-actor-runtime` (`database` now enables `vox-db/host-integration`,
+verified locally), `vox-orchestrator-mcp` `recursion_limit = "256"` for the Linux-only E0275 (rustc's own suggestion;
+confirmed only by the next nightly), and the legs that cannot pass on ubuntu-latest (`vox-codegen`'s cfg-placeholder
+`standalone` feature, cuda/metal `vox-populi`/`vox-ml-cli`) leave the per-crate matrix; the `audits` job already excludes them.
 
 **Files:** `crates/vox-actor-runtime` (E0599 `DbConfig::resolve_canonical`), `crates/vox-codegen` (E0432, E0277),
 `crates/vox-cli` (E0275 via netlink `Tcf: Send`), `objc2` in `crates/vox-ml-cli`, `crates/vox-populi`.
@@ -96,12 +100,22 @@ cargo-nextest (`archive` / `--archive-file`), `gh`.
 
 ### Task 0.3: Clear the `cargo audit` advisories (Claude; Owner for crypto)
 
+**Status 2026-10-04:** `h2` 0.4.14 → 0.4.19 done (RUSTSEC-2026-0258). **Owner:** `rustls` ≥ 0.23.45 (RUSTSEC-2026-0285, in the
+transport-crypto ledger), `wasmtime`/`wasmtime-wasi` 45.0.3 → ≥ 48.0.4 or 49.0.2 (eight advisories) and `rkyv` 0.7.46 → ≥ 0.8.17
+are major bumps. `cargo audit` and `cargo deny` in nightly's `full` job stay red until they land.
+
 - [ ] **Step 1:** list them from the nightly log (wasmtime, h2, a TLS 1.3 issue).
 - [ ] **Step 2:** non-transport: `cargo update -p <crate> --precise <fixed-version>`; commit with the advisory IDs.
 - [ ] **Step 3: STOP** for h2/rustls/ring/aws-lc/hyper: put the drafted `contracts/crypto/transport-providers.v1.json`
   entry in the PR description; the owner applies it.
 
 ### Task 0.4: Nightly's own failures (Claude)
+
+**Status 2026-10-04:** partly done. Root causes found and fixed: Docker mesh smoke built `vox-cli` with a feature (`populi`) that no
+longer exists; the CDP attach test needed a Chrome on 9222 (the job now starts one); `vox-plugin-browser::close` dropped Chromium
+without `Browser.close`, so named profiles never flushed cookies (a product bug, fixed with a test that fails before the fix);
+three rustdoc private-link errors; toolchain lint, ignored-test governance, inventory baselines, one arch-check false positive.
+Still open: Playwright cap, Windows GUI smoke, and "three consecutive green nightlies".
 
 **Files:** `.github/workflows/nightly.yml`, `.github/workflows/gui-cross-build.yml`.
 
@@ -624,6 +638,15 @@ builds `vox-code-audit` into a cold `$TMPDIR` target (`matrix.rs:588-603`). Host
 
 ### Task 2.4: Pin the cache budget in code (Claude)
 
+**Status 2026-10-04: design correction, needs an owner decision.** `SCCACHE_CACHE_SIZE` bounds sccache's *local disk* cache; with
+`SCCACHE_GHA_ENABLED=true` (cross-platform-check, gui-cross-build) the backend writes one Actions-cache entry per object and nothing
+bounds the total. Measured 2026-10-04: 7,579 entries, 10.68 GB against the 10 GB budget, almost all `sccache/…` objects (50–60 MB
+each at the top) written from `main`, while the two entries that matter (`v0-rust-workspace` 1.3 GB, `v0-rust-bundle` 0.9 GB)
+survive only because they are recently used. Options: (a) drop sccache from the four workflows and use `Swatinem/rust-cache`
+main-only like the rest (fewest moving parts, loses cross-job object reuse); (b) keep sccache but only on `main`/schedule and
+delete by prefix on a schedule. Recommended: (a) for `docs-deploy` and `ml_data_extraction` (single Rust target, a workspace
+cache serves them), (b) for the two cross-platform workflows. Not changed yet.
+
 - [ ] Give the sccache key a version suffix and set `SCCACHE_CACHE_SIZE` from the job's disk headroom in the four workflows
   that use it. Extend `vox ci cache-key-lint` to fail a workflow that uses sccache without `SCCACHE_CACHE_SIZE`.
 
@@ -650,6 +673,9 @@ builds `vox-code-audit` into a cold `$TMPDIR` target (`matrix.rs:588-603`). Host
 - [ ] **(Claude):** `cargo nextest list -p vox-codegen --profile ci-gate` no longer lists them and `--profile ci` does.
 
 ### Task 3.2: Merge tiny integration-test binaries (agy)
+
+**Status 2026-10-04:** done for vox-cli, vox-integration-tests, vox-compiler and vox-codegen (#597; test lists identical, vox-cli
+relink after a touch 232 → 179 CPU-s). Other crates with many tiny binaries are not merged; only worth it where a relink shows up.
 
 - [ ] Per crate, in order vox-cli, vox-integration-tests, vox-compiler, vox-codegen: `git mv tests/<name>.rs tests/it/<name>.rs`,
   create `tests/it/main.rs` with `mod <name>;` per file; update `.config/nextest.toml` filters to the `it::<name>::` prefix.
@@ -683,7 +709,9 @@ counts — derive from the machine"), `docs/src/contributors/antigravity-driven-
 
 ### Task 4.2: Runners are backup only (Claude)
 
-**Status:** extract on hosted runners done (9bd62a9bf); self-hosted guard rule pending.
+**Status 2026-10-04:** done. `extract` runs on hosted runners (9bd62a9bf); the guard rule already existed
+(`workflow_policy_guard` rule 4, `SELF_HOSTED_ALLOWLIST` holds only `ml_data_extraction.yml`), so no code change was needed;
+`runner-contract.md` now says so.
 
 - [ ] `ml_data_extraction.yml` `extract` → `ubuntu-latest`; `train` keeps its GPU label with a comment that nothing gates on it.
 - [ ] `docs/src/ci/runner-contract.md`: self-hosted runners are optional backup; no required check may target them.

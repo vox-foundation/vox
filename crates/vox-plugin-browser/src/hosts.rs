@@ -394,7 +394,8 @@ mod tests {
         let id = engine
             .open_ex(
                 BrowserLaunchOptions {
-                    url: "http://127.0.0.1/".into(),
+                    // Nothing listens on port 80; the attach itself is what this smoke proves.
+                    url: "data:text/html,<h1>attach</h1>".into(),
                     headless: true,
                     mode: BrowserLaunchMode::Attach,
                     profile_id: None,
@@ -435,7 +436,8 @@ mod tests {
             .expect("named open_ex");
         let named_page = engine.page_ref(&named_id).await.expect("named page");
         named_page
-            .evaluate("document.cookie = 'vox_named=1; path=/'")
+            // A persistent cookie (max-age): Chromium drops session cookies when the browser exits.
+            .evaluate("document.cookie = 'vox_named=1; path=/; max-age=3600'")
             .await
             .expect("set cookie");
         engine.close(&named_id).await.expect("close named");

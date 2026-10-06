@@ -98,7 +98,6 @@ fn pipeline_hooks_demo_codegen() {
 
 #[test]
 fn pipeline_web_ir_preview_emit_hooks_reactive_fixture() {
-
     use vox_codegen::web_ir::emit_tsx::emit_component_view_tsx;
     use vox_codegen::web_ir::lower::lower_hir_to_web_ir;
     use vox_codegen::web_ir::validate::validate_web_ir;
@@ -141,10 +140,7 @@ fn pipeline_web_ir_preview_emit_hooks_reactive_fixture() {
         .find(|(n, _)| n == "Shell.tsx")
         .map(|(_, c)| c.as_str())
         .expect("Shell.tsx");
-    assert!(
-        shell.contains("useState"),
-        "Shell retains hooks:\n{shell}"
-    );
+    assert!(shell.contains("useState"), "Shell retains hooks:\n{shell}");
     let stats = out.reactive_stats;
     assert!(
         stats.web_ir_view_emitted >= 1,
@@ -169,40 +165,4 @@ fn pipeline_v0_parse() {
     let module = parse(tokens).expect("v0_component should parse");
     // 2 v0 + 1 routes
     assert_eq!(module.declarations.len(), 3);
-}
-
-#[test]
-#[ignore = "@v0 components dropped from HIR (Path B removed); no TSX generated — owner: integration-tests sunset: 2026-12-31"]
-fn pipeline_v0_codegen() {
-    let tokens = lex(V0_COMPONENT_SRC);
-    let module = parse(tokens).unwrap();
-    let hir = vox_compiler::hir::lower_module(&module);
-    let output = generate(&hir).unwrap();
-    let filenames: Vec<&str> = output.files.iter().map(|(n, _)| n.as_str()).collect();
-    assert!(
-        filenames.contains(&"Analytics.tsx"),
-        "Should produce Analytics.tsx"
-    );
-    assert!(
-        filenames.contains(&"LandingPage.tsx"),
-        "Should produce LandingPage.tsx"
-    );
-    let analytics = output
-        .files
-        .iter()
-        .find(|(n, _)| n == "Analytics.tsx")
-        .unwrap();
-    assert!(
-        analytics.1.contains("@v0 generated"),
-        "Analytics should be v0 placeholder"
-    );
-    let landing = output
-        .files
-        .iter()
-        .find(|(n, _)| n == "LandingPage.tsx")
-        .unwrap();
-    assert!(
-        landing.1.contains("landing-mockup.png"),
-        "LandingPage should reference the image"
-    );
 }

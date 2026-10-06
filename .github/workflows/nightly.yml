@@ -1367,7 +1367,7 @@ jobs:
         run: docker build -t vox:ci-smoke .
       # Blessed doc name: vox:ci-mesh-worker (same image as historical vox:ci-mesh); see vox-cross-platform-runbook.md
       - name: docker build mesh worker image (mesh + script-execution)
-        run: docker build --build-arg VOX_CLI_FEATURES=populi,script-execution -t vox:ci-mesh -t vox:ci-mesh-worker .
+        run: docker build --build-arg VOX_CLI_FEATURES=script-execution -t vox:ci-mesh -t vox:ci-mesh-worker .
 
   # Chromium/CDP (chromiumoxide): requires Chrome or Chromium on the runner (browser pool).
   # Canonical crate is `vox-plugin-browser` (historical `vox-browser` crate removed).
@@ -1385,6 +1385,19 @@ jobs:
       # setup-rust's own cache (cache: true default) already covers
       # ~/.cargo/registry, ~/.cargo/git, and target/ keyed on OS + toolchain +
       # Cargo.lock -- a separate hand-rolled cache here would just duplicate it.
+      # `hosts::tests::attach_connect_smoke` attaches to an already-running Chrome on 9222.
+      - name: Start Chrome with remote debugging on 9222
+        shell: bash
+        run: |
+          set -euo pipefail
+          google-chrome --headless=new --no-sandbox --disable-gpu --remote-debugging-port=9222 about:blank >/dev/null 2>&1 &
+          for _ in $(seq 1 30); do
+            curl -sf http://127.0.0.1:9222/json/version >/dev/null && exit 0
+            sleep 1
+          done
+          echo "::error::Chrome did not open the remote-debugging port" >&2
+          exit 1
+
       # Prefer nextest for ignored-only integration tests when present; compile-check so the lane
       # stays meaningful until CDP tests land on `vox-plugin-browser`.
       - name: CDP smoke (ignored tests or compile fallback)
@@ -1496,6 +1509,11 @@ jobs:
   all-features-matrix:
     name: All-Features Check (${{ matrix.crate }})
     # Tier: heavy (~30 crates × 10-15m).
+    # Not listed, on purpose: vox-codegen (its `standalone` feature is a cfg
+    # placeholder that --all-features turns on, which cannot compile embedded),
+    # vox-populi and vox-ml-cli (--all-features enables `cuda`/`metal`, which
+    # need nvcc / macOS). The workspace-wide all-features step in the `audits`
+    # job applies the same exclusions with the guards that explain them.
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -1503,7 +1521,6 @@ jobs:
       matrix:
         crate:
           - vox-compiler
-          - vox-codegen
           - vox-cli
           - vox-actor-runtime
           - vox-db
@@ -1511,8 +1528,6 @@ jobs:
           - vox-secrets
           - vox-orchestrator
           - vox-vcs
-          - vox-populi
-          - vox-ml-cli
           - vox-gamify
           - vox-speech
           - vox-skills
@@ -1624,8 +1639,10 @@ jobs:
       - name: Tauri prerequisite tests
         run: cargo test -p vox-gui --test gui_tauri_prereqs
 
+      # `cargo gui-build` links with link.exe: lld-link cannot reconcile ucrt.lib and
+      # libucrt.lib for vox-gui (.cargo/config.toml, [target.x86_64-pc-windows-msvc]).
       - name: Build vox-gui (Tauri)
-        run: cargo build -p vox-gui
+        run: cargo gui-build
 
       - name: Headless binary smoke (action manifest)
         shell: pwsh
