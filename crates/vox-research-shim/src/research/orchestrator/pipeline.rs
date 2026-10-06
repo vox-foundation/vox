@@ -243,11 +243,9 @@ async fn run_research_metered(
         Some(ctx) => Some(ctx),
         None => {
             if let Some(db) = db {
-                synthesized_ctx = Some(SearchRuntimeContext::new(
+                synthesized_ctx = Some(fallback_search_ctx(
+                    db,
                     std::env::current_dir().unwrap_or_default(),
-                    Some(std::sync::Arc::new(db.clone())),
-                    std::env::temp_dir(),
-                    std::env::temp_dir().join("MEMORY.md"),
                 ));
                 synthesized_ctx.as_ref()
             } else {
@@ -1343,6 +1341,18 @@ fn now_ms_i64() -> i64 {
         .unwrap_or(0)
 }
 
+/// Search context for a run given a DB but no caller context: the repo's own memory
+/// layout under `cwd`, as `vox research` and `vox memory search` resolve it.
+fn fallback_search_ctx(db: &Codex, cwd: std::path::PathBuf) -> SearchRuntimeContext {
+    let mem = vox_orchestrator::MemoryConfig::default();
+    SearchRuntimeContext::new(
+        cwd.clone(),
+        Some(std::sync::Arc::new(db.clone())),
+        cwd.join(&mem.log_dir),
+        cwd.join(&mem.memory_md_path),
+    )
+}
+
 fn render_research_report_markdown(
     query: &ResearchQuery,
     plan: &ResearchPlan,
@@ -1433,6 +1443,23 @@ mod tests {
             waves: 1,
             lane: vox_search::policy::ResearchLane::Fast,
         }
+    }
+
+    #[tokio::test]
+    async fn fallback_search_ctx_reads_repo_memory_not_the_system_temp_dir() {
+        let db = vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
+            .await
+            .expect("memory db");
+        let cwd = std::path::PathBuf::from("/work/repo");
+        let ctx = fallback_search_ctx(&db, cwd.clone());
+        let mem = vox_orchestrator::MemoryConfig::default();
+        // The memory corpus is walked recursively; the system temp dir can hold
+        // hundreds of thousands of entries and stalled every DB-backed run.
+        assert!(!ctx.memory_log_dir.starts_with(std::env::temp_dir()));
+        assert_eq!(ctx.memory_log_dir, cwd.join(&mem.log_dir));
+        assert_eq!(ctx.memory_md_path, cwd.join(&mem.memory_md_path));
+        assert_eq!(ctx.repo_root, cwd);
+        assert!(ctx.db.is_some());
     }
 
     #[test]
