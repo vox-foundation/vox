@@ -28,11 +28,24 @@ fn is_registered(used: &str, registered: &BTreeSet<String>) -> bool {
         .any(|reg| reg.ends_with('_') && used.starts_with(reg.as_str()))
 }
 
-/// Scan all non-test `.rs` under `crates/` for `VOX_[A-Z0-9_]+` env-knob names,
-/// skipping this gate file and the registry-definition files (so we count *uses*,
-/// not the registry/operator definitions themselves).
+/// `VOX_*` names that appear as a whole string literal (`"VOX_FOO"`) in `src`.
+///
+/// An env knob is read through a string literal (directly or via a `const`), so
+/// that is what counts as a use. Bare identifiers (`VOX_LOCAL_ENDPOINT_DEFAULT`
+/// is a URL const), names inside prose (doc comments, error hints, "this is not
+/// a toggle" messages) and fragments of longer identifiers (`__VOX_DRIVE_LIVE__`)
+/// are not reads.
+fn quoted_env_names(src: &str) -> impl Iterator<Item = &str> {
+    static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    RE.get_or_init(|| regex::Regex::new(r#""(VOX_[A-Z0-9_]+)""#).unwrap())
+        .captures_iter(src)
+        .filter_map(|c| c.get(1).map(|m| m.as_str()))
+}
+
+/// Scan all non-test `.rs` under `crates/` for quoted `VOX_*` env-knob names,
+/// skipping integration-test dirs, this gate file and the registry-definition
+/// files (so we count *uses*, not the registry/operator definitions themselves).
 fn scan_env_uses(root: &Path) -> BTreeSet<String> {
-    let re = regex::Regex::new(r"VOX_[A-Z0-9_]+").unwrap();
     let mut used = BTreeSet::new();
     collect_rs_files(&root.join("crates"), &mut |path, src| {
         let rel = path
@@ -44,12 +57,11 @@ fn scan_env_uses(root: &Path) -> BTreeSet<String> {
         if rel.contains("config_registry_parity.rs")
             || rel.contains("config_registry.rs")
             || rel.contains("operator_registry.rs")
+            || rel.contains("/tests/")
         {
             return;
         }
-        for m in re.find_iter(src) {
-            used.insert(m.as_str().to_string());
-        }
+        used.extend(quoted_env_names(src).map(str::to_string));
     });
     used
 }
@@ -211,6 +223,20 @@ mod tests {
         let (unreg, unused) = parity(&used, &reg);
         assert_eq!(unreg, vec!["VOX_B".to_string()]);
         assert_eq!(unused, vec!["VOX_C".to_string()]);
+    }
+
+    #[test]
+    fn only_whole_quoted_literals_count_as_uses() {
+        let src = r#"
+            let a = read_env("VOX_REAL_KNOB");
+            const B: &str = "VOX_CONST_HELD_KNOB";
+            pub const VOX_LOCAL_ENDPOINT_DEFAULT: &str = "http://127.0.0.1:11434";
+            // add VOX_COMMENTED_IDEA if ever needed
+            let hint = "point VOX_PROSE_MENTION at a dir";
+            window.eval("window.__VOX_DRIVE_LIVE__=true;");
+        "#;
+        let got: Vec<&str> = quoted_env_names(src).collect();
+        assert_eq!(got, vec!["VOX_REAL_KNOB", "VOX_CONST_HELD_KNOB"]);
     }
 
     #[test]

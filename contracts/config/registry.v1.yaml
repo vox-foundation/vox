@@ -895,3 +895,278 @@ knobs:
     status: active
     default_value: null
     since: "2026-09-08"
+
+  # --- Registered 2026-10-06 (nightly config-hygiene burn-down) ---
+  - name: embedding_search_candidate_mult
+    env_var: VOX_EMBEDDING_SEARCH_CANDIDATE_MULT
+    description: Multiplier on the result limit for brute-force embedding recall candidates (boosted when FTS5 is absent).
+    owner_crate: vox-db
+    status: active
+    default_value: "10"
+    since: "2026-10-06"
+  - name: db_path
+    env_var: VOX_DB_PATH
+    description: Local database file path override for the Vox store.
+    owner_crate: vox-db
+    status: active
+    default_value: null
+    since: "2026-10-06"
+  - name: mens_force_train
+    env_var: VOX_MENS_FORCE_TRAIN
+    description: MENS GPU training proceeds even when the VRAM sizing check says the run will not fit ("1"/"true").
+    owner_crate: vox-ml-cli
+    status: active
+    default_value: "0"
+    since: "2026-10-06"
+  - name: mens_allow_spend
+    env_var: VOX_MENS_ALLOW_SPEND
+    description: MENS pipeline is allowed to make paid LLM calls (apply mode) when set to "1"; otherwise it only estimates spend.
+    owner_crate: vox-ml-cli
+    status: active
+    default_value: null
+    since: "2026-10-06"
+  - name: mens_no_weight_cache
+    env_var: VOX_MENS_NO_WEIGHT_CACHE
+    description: Candle/Metal QLoRA training does not cache dequantized base weights when set (lower memory, slower steps).
+    owner_crate: vox-plugin-mens-candle-metal
+    status: active
+    default_value: null
+    since: "2026-10-06"
+  - name: mens_demo_run_dir
+    env_var: VOX_MENS_DEMO_RUN_DIR
+    description: Test-only. MENS run directory for the ignored live-Metal inference gates.
+    owner_crate: vox-plugin-mens-candle-metal
+    status: declared
+    default_value: null
+    since: "2026-10-06"
+  - name: mens_base_only_dir
+    env_var: VOX_MENS_BASE_ONLY_DIR
+    description: Test-only. Base-model directory (no adapter) for the ignored live-Metal base-only inference test.
+    owner_crate: vox-plugin-mens-candle-metal
+    status: declared
+    default_value: null
+    since: "2026-10-06"
+  - name: real_model_dir
+    env_var: VOX_REAL_MODEL_DIR
+    description: Test-only. Quantized Qwen3 checkpoint directory for the ignored candle CPU real-checkpoint test.
+    owner_crate: vox-populi
+    status: declared
+    default_value: null
+    since: "2026-10-06"
+  - name: broker_home
+    env_var: VOX_BROKER_HOME
+    description: Install root of the cargo build-broker shim (checked by vox doctor); defaults under the user home.
+    owner_crate: vox-cli
+    status: active
+    default_value: null
+    since: "2026-10-06"
+  - name: broker_max_concurrent
+    env_var: VOX_BROKER_MAX_CONCURRENT
+    description: Optional machine-wide upper bound on simultaneous broker-admitted cargo builds; unset derives from the machine.
+    owner_crate: vox-build-queue
+    status: active
+    default_value: null
+    since: "2026-10-06"
+  - name: speech_test_force_backend_fail
+    env_var: VOX_TEST_FORCE_BACKEND_FAIL
+    description: Test-only (cfg(test)). Forces ASR backend creation to fail to exercise the fallback path.
+    owner_crate: vox-speech
+    status: declared
+    default_value: null
+    since: "2026-10-06"
+  - name: oratio_sherpa_kind
+    env_var: VOX_ORATIO_SHERPA_KIND
+    description: Shape of the sherpa-onnx model at VOX_ORATIO_SHERPA_MODEL_DIR ("whisper" selects the Whisper loader).
+    owner_crate: vox-speech
+    status: active
+    default_value: null
+    since: "2026-10-06"
+  - name: oratio_domain_mode
+    env_var: VOX_ORATIO_DOMAIN_MODE
+    description: Speech-to-text domain post-processing mode (vocabulary correction profile) for Oratio transcription.
+    owner_crate: vox-speech
+    status: active
+    default_value: null
+    since: "2026-10-06"
+  - name: mesh_mailbox_test_capacity_child
+    env_var: MAILBOX_TEST_CAPACITY_CHILD
+    description: Test-only. Marks a child process in the mailbox capacity multi-process test.
+    owner_crate: vox-mesh-transport
+    status: declared
+    default_value: null
+    since: "2026-10-06"
+  - name: mesh_mailbox_test_dir
+    env_var: MAILBOX_TEST_DIR
+    description: Test-only. Shared mailbox directory handed to mailbox capacity test child processes.
+    owner_crate: vox-mesh-transport
+    status: declared
+    default_value: null
+    since: "2026-10-06"
+  - name: mesh_mailbox_test_child_index
+    env_var: MAILBOX_TEST_CHILD_INDEX
+    description: Test-only. Index of a mailbox capacity test child process.
+    owner_crate: vox-mesh-transport
+    status: declared
+    default_value: null
+    since: "2026-10-06"
+  - name: mesh_mailbox_test_admission_pause_ms
+    env_var: MAILBOX_TEST_ADMISSION_PAUSE_MS
+    description: Test-only (cfg(test)). Pause inside mailbox admission to widen the race window in capacity tests.
+    owner_crate: vox-mesh-transport
+    status: declared
+    default_value: null
+    since: "2026-10-06"
+  - name: gui_skip_sidecar_autobuild
+    env_var: VOX_GUI_SKIP_SIDECAR_AUTOBUILD
+    description: vox-gui build.rs does not auto-build missing sidecar binaries when set; it reports them as missing instead.
+    owner_crate: vox-gui
+    status: active
+    default_value: null
+    since: "2026-10-06"
+  - name: model_force
+    env_var: VOX_MODEL_FORCE
+    description: Global strict model pin (env first, then ~/.vox/config.toml); a pinned model that is missing or gated errors.
+    owner_crate: vox-config
+    status: active
+    default_value: null
+    since: "2026-10-06"
+  - name: secrets_vault_keyring_service
+    env_var: VOX_SECRETS_VAULT_KEYRING_SERVICE
+    description: OS keychain service name holding the vault master key; tests override it to avoid the real entry.
+    owner_crate: vox-secrets
+    status: active
+    default_value: "vox-secrets-vault"
+    since: "2026-10-06"
+  - name: local_endpoint
+    env_var: VOX_LOCAL_ENDPOINT
+    description: Base URL of the VoxLocal (vox mens serve) inference server; unset probes 127.0.0.1:11434 then :11435.
+    owner_crate: vox-config
+    status: active
+    default_value: null
+    since: "2026-10-06"
+  - name: pre_push_refs
+    env_var: VOX_PRE_PUSH_REFS
+    description: Set by the lefthook pre-push hook so vox ci pre-push reads git's pushed refs from stdin.
+    owner_crate: vox-cli
+    status: active
+    default_value: null
+    since: "2026-10-06"
+  - name: allow_main_push
+    env_var: VOX_ALLOW_MAIN_PUSH
+    description: Emergency override that lets the pre-push hook allow a direct push to main.
+    owner_crate: vox-cli
+    status: active
+    default_value: null
+    since: "2026-10-06"
+  - name: browser_allowed_hosts
+    env_var: VOX_BROWSER_ALLOWED_HOSTS
+    description: Optional comma-separated browser navigation host allowlist (exact hosts or *.example.com wildcards).
+    owner_crate: vox-plugin-browser
+    status: active
+    default_value: null
+    since: "2026-10-06"
+  - name: browser_no_sandbox
+    env_var: VOX_BROWSER_NO_SANDBOX
+    description: Launch Chromium without its sandbox ("1"/"true"); for containers that cannot run it.
+    owner_crate: vox-plugin-browser
+    status: active
+    default_value: "0"
+    since: "2026-10-06"
+  - name: browser_profiles_dir
+    env_var: VOX_BROWSER_PROFILES_DIR
+    description: Directory for named Chromium profiles and consents.json; default <data_dir>/browser-profiles.
+    owner_crate: vox-config
+    status: active
+    default_value: null
+    since: "2026-10-06"
+  - name: cache_dir
+    env_var: VOX_CACHE_DIR
+    description: Override for the Vox cache directory; default is the platform cache dir.
+    owner_crate: vox-config
+    status: active
+    default_value: null
+    since: "2026-10-06"
+  - name: build_number
+    env_var: VOX_BUILD_NUMBER
+    description: Explicit build number stamped by vox-build-meta (release builds from shallow clones); unset derives from git.
+    owner_crate: vox-build-meta
+    status: active
+    default_value: null
+    since: "2026-10-06"
+  - name: search_wikipedia_url
+    env_var: VOX_SEARCH_WIKIPEDIA_URL
+    description: Override base URL for the Wikipedia research lane API.
+    owner_crate: vox-search
+    status: active
+    default_value: null
+    since: "2026-10-06"
+  - name: search_openalex_url
+    env_var: VOX_SEARCH_OPENALEX_URL
+    description: Override base URL for the OpenAlex research lane API.
+    owner_crate: vox-search
+    status: active
+    default_value: null
+    since: "2026-10-06"
+  - name: search_arxiv_url
+    env_var: VOX_SEARCH_ARXIV_URL
+    description: Override base URL for the arXiv research lane API.
+    owner_crate: vox-search
+    status: active
+    default_value: null
+    since: "2026-10-06"
+  - name: search_tavily_url
+    env_var: VOX_SEARCH_TAVILY_URL
+    description: Override base URL for the Tavily research API.
+    owner_crate: vox-search
+    status: active
+    default_value: null
+    since: "2026-10-06"
+  - name: search_default_lane
+    env_var: VOX_SEARCH_DEFAULT_LANE
+    description: Default research lane, "fast" or "deep".
+    owner_crate: vox-search
+    status: active
+    default_value: "fast"
+    since: "2026-10-06"
+  - name: search_candidate_depth
+    env_var: VOX_SEARCH_CANDIDATE_DEPTH
+    description: Number of retrieval candidates per lane before fusion (minimum 1).
+    owner_crate: vox-search
+    status: active
+    default_value: "10"
+    since: "2026-10-06"
+  - name: search_fast_timeout_ms
+    env_var: VOX_SEARCH_FAST_TIMEOUT_MS
+    description: Per-request timeout for the fast research lane, in milliseconds.
+    owner_crate: vox-search
+    status: active
+    default_value: "1500"
+    since: "2026-10-06"
+  - name: search_deep_timeout_ms
+    env_var: VOX_SEARCH_DEEP_TIMEOUT_MS
+    description: Per-request timeout for the deep research lane, in milliseconds.
+    owner_crate: vox-search
+    status: active
+    default_value: "4000"
+    since: "2026-10-06"
+  - name: search_enable_wikipedia
+    env_var: VOX_SEARCH_ENABLE_WIKIPEDIA
+    description: Enable the Wikipedia research source (1/true/yes).
+    owner_crate: vox-search
+    status: active
+    default_value: "true"
+    since: "2026-10-06"
+  - name: search_enable_openalex
+    env_var: VOX_SEARCH_ENABLE_OPENALEX
+    description: Enable the OpenAlex research source (1/true/yes).
+    owner_crate: vox-search
+    status: active
+    default_value: "true"
+    since: "2026-10-06"
+  - name: search_enable_arxiv
+    env_var: VOX_SEARCH_ENABLE_ARXIV
+    description: Enable the arXiv research source (1/true/yes).
+    owner_crate: vox-search
+    status: active
+    default_value: "true"
+    since: "2026-10-06"

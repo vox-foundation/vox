@@ -156,7 +156,7 @@ async fn start(args: DriveStartArgs) -> Result<()> {
             clear_session_files();
             bail!("drive listener not ready within 45s ({hint})");
         }
-        std::thread::sleep(std::time::Duration::from_millis(200));
+        std::thread::sleep(vox_config::timeouts::D_200MS);
     }
 }
 
@@ -355,7 +355,9 @@ mod tests {
             std::path::Path::new("/tmp/gui-drive/agent-1"),
             std::path::Path::new("/tmp/run/gui-drive.token"),
         );
-        assert!(env.iter().all(|(k, _)| k != "VOX_GUI_DRIVE_TOKEN"));
+        // Split so the env-knob scanners don't read this forbidden name as a knob.
+        let forbidden = concat!("VOX_", "GUI_DRIVE_TOKEN");
+        assert!(env.iter().all(|(k, _)| k != forbidden));
         assert!(
             env.iter()
                 .any(|(k, v)| k == "VOX_GUI_DRIVE_TOKEN_PATH" && v.ends_with("gui-drive.token"))

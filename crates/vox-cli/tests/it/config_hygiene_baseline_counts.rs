@@ -33,7 +33,10 @@ fn config_hygiene_baseline_has_pinned_count() {
 }
 // 2026-09-22: 379 -> 375, the four CI-runner autoscaler findings from
 // `runner_scale.rs` went away with the self-hosted fleet tooling.
-const EXPECTED_HYGIENE_COUNT: usize = 375;
+// 2026-10-06: 375 -> 240, burn-down only (no key added): Check D now reads the
+// federated registry (CONFIG_KEYS too), integration-test dirs and the
+// vox-cli-ci repo-tree guards are out of scope, and stale keys were pruned.
+const EXPECTED_HYGIENE_COUNT: usize = 240;
 
 #[test]
 fn config_registry_baseline_has_pinned_count() {
@@ -45,4 +48,6 @@ fn config_registry_baseline_has_pinned_count() {
     );
 }
 // 2026-09-22: 347 -> 343, the same four autoscaler knobs.
-const EXPECTED_REGISTRY_COUNT: usize = 343;
+// 2026-10-06: 343 -> 219, burn-down only (no name added): the scanner counts only
+// whole quoted `"VOX_*"` literals outside tests/ dirs, and stale names were pruned.
+const EXPECTED_REGISTRY_COUNT: usize = 219;
