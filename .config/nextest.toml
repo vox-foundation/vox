@@ -47,8 +47,6 @@ retries = 1
 slow-timeout = { period = "180s", terminate-after = 3 }
 default-filter = '''not (
     (binary_id(=vox-codegen::emit_compile_harness) | (binary_id(=vox-compiler::emission_ladder_test) & test(/_compiles_as_rust_script$/)) | binary_id(=vox-cli-tests::build_e2e) | binary_id(=vox-config-derive::trybuild) | binary_id(=vox-cli-tests::workflow_runtime_no_db))
-  | (binary_id(=vox-cli::it) & test(=db_migrate_semantics_test::migrate_dry_run_defaults_to_local_codex_without_app_plane_env))
-  | (binary_id(=vox-cli::it) & test(=secrets_backend_status_test::backend_status_prints_vault_health_lines))
   | (binary_id(=vox-integration-tests::codegen_rust_test) & test(=codegen_with_all_options))
   | (binary_id(=vox-integration-tests::golden_behavioral_gate) & test(=golden_expect_blocks_match_interp_stdout))
   | (binary_id(=vox-integration-tests::golden_vox_test_runner) & test(=all_golden_at_test_fns_pass))
