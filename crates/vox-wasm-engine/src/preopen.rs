@@ -1,7 +1,7 @@
 //! Preopen directory helpers for WASI sandboxing.
 //!
 //! Encapsulates the mapping from host paths + permission modes into the
-//! `DirPerms` / `FilePerms` types required by `wasmtime_wasi::WasiCtxBuilder`.
+//! `FsPerms` type required by `wasmtime_wasi::WasiCtxBuilder`.
 
 use std::path::PathBuf;
 
@@ -44,17 +44,31 @@ impl Preopen {
         }
     }
 
-    /// Return the `(DirPerms, FilePerms)` pair for this preopen.
-    pub(crate) fn wasi_perms(&self) -> (wasmtime_wasi::DirPerms, wasmtime_wasi::FilePerms) {
+    /// Return the `FsPerms` for this preopen.
+    pub(crate) fn wasi_perms(&self) -> wasmtime_wasi::FsPerms {
         match self.mode {
-            PreopenMode::ReadOnly => (
-                wasmtime_wasi::DirPerms::READ,
-                wasmtime_wasi::FilePerms::READ,
-            ),
-            PreopenMode::ReadWrite => (
-                wasmtime_wasi::DirPerms::all(),
-                wasmtime_wasi::FilePerms::all(),
-            ),
+            PreopenMode::ReadOnly => wasmtime_wasi::FsPerms::ReadOnly,
+            PreopenMode::ReadWrite => wasmtime_wasi::FsPerms::ReadWrite,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use wasmtime_wasi::FsPerms;
+
+    #[test]
+    fn read_only_maps_to_fs_read_only() {
+        let p = Preopen::read_only("/tmp", ".");
+        assert_eq!(p.mode, PreopenMode::ReadOnly);
+        assert!(matches!(p.wasi_perms(), FsPerms::ReadOnly));
+    }
+
+    #[test]
+    fn read_write_maps_to_fs_read_write() {
+        let p = Preopen::read_write("/tmp", "/data");
+        assert_eq!(p.guest, "/data");
+        assert!(matches!(p.wasi_perms(), FsPerms::ReadWrite));
     }
 }
