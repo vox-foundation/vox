@@ -1,12 +1,5 @@
-//! Research-document persistence. Phase 0a — fully implemented (no stubbing).
-//!
-//! Future phases extend this to also emit signed nanopubs (Phase 4) and
-//! RO-Crate envelopes (Phase 4) alongside the Markdown doc.
-
-use std::fs;
-use std::path::{Path, PathBuf};
-
-use anyhow::{Context, Result};
+//! Research slug helpers. The docs-writing persistence was removed: research output
+//! reaches the KB only as pending `kb_findings` (never `docs/src`).
 
 /// Convert a query to a filesystem-safe slug.
 ///
@@ -45,32 +38,13 @@ pub fn slug_from_query(query: &str) -> String {
     out
 }
 
-/// Write a research document at `<root>/docs/src/research/<slug>.md`.
-pub fn write_research_doc(
-    root: &Path,
-    slug: &str,
-    query: &str,
-    answer: &str,
-    model: &str,
-) -> Result<PathBuf> {
-    let dir = root.join("docs/src/research");
-    fs::create_dir_all(&dir).with_context(|| format!("create_dir_all({:?})", dir))?;
-    let path = dir.join(format!("{slug}.md"));
-    let content = format!(
-        "---\n\
-         title: \"Research: {query_escaped}\"\n\
-         description: \"Auto-generated research result.\"\n\
-         category: \"research\"\n\
-         status: \"draft\"\n\
-         model: \"{model}\"\n\
-         ---\n\n\
-         # {query}\n\n\
-         {answer}\n",
-        query = query,
-        query_escaped = query.replace('"', "\\\""),
-        model = model,
-        answer = answer,
-    );
-    fs::write(&path, content).with_context(|| format!("write({:?})", path))?;
-    Ok(path)
+#[cfg(test)]
+mod tests {
+    use super::slug_from_query;
+
+    #[test]
+    fn slug_collapses_punctuation_and_defaults_to_untitled() {
+        assert_eq!(slug_from_query("  Hello,  World! "), "hello-world");
+        assert_eq!(slug_from_query("!!!"), "untitled");
+    }
 }

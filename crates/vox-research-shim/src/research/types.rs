@@ -54,6 +54,7 @@ pub struct ResearchQuery {
     pub query: String,
     pub scope: ResearchScope,
     pub max_sources: usize,
+    // vox-deprecated-since="0.6.0" retire-by="0.7.0" reason="kb-leak-closure: research answers no longer write docs/src" canonical="kb_findings inbox"
     pub persist_to_docs: bool,
     pub verify_claims: bool,
     /// Optional site-scoped crawl restriction (domain only, no scheme).
