@@ -17819,7 +17819,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "vox-config",
  "vox-http-client",
  "vox-openai",
  "wiremock",
