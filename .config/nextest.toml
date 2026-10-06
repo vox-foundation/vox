@@ -55,5 +55,4 @@ default-filter = '''not (
   | (binary_id(=vox-integration-tests::greaterfool_parity_gates_test) & test(=greaterfool_reference_emits_secure_runtime_defaults))
   | (binary_id(=vox-integration-tests::pipeline_test) & test(=pipeline_multi_route_rust_codegen))
   | (binary_id(=vox-integration-tests::ts_emit_corpus_sync_test) & test(=promoted_fixtures_match_their_golden_source))
-  | (binary_id(=vox-orchestrator-mcp) & test(=chat_tools::chat::agent_loop::tests::chat_message_default_path_sends_tools_bearing_request))
 )'''
