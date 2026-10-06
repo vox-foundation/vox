@@ -34,8 +34,9 @@ pub(crate) const REDTEAM_DIR: &str = "contracts/kb/redteam";
 
 /// `[canary] roots(redteam)` failure when any index root overlaps [`REDTEAM_DIR`].
 pub(crate) fn redteam_roots_failure(roots: &[&str]) -> Option<String> {
-    let _ = roots;
-    None
+    check_roots_disjoint(roots, REDTEAM_DIR)
+        .err()
+        .map(|e| format!("[canary] roots(redteam): {e:#}"))
 }
 
 /// A corpus doc carries the canary GUID. Lets the gate tag it `[canary]`, not `[regression]`.
@@ -182,6 +183,7 @@ pub(crate) fn canary_failures(root: &Path, tracked: &[String]) -> Vec<String> {
     if let Err(e) = check_roots_disjoint(KB_CORPUS_ROOTS, EVAL_DIR) {
         out.push(format!("[canary] roots: {e:#}"));
     }
+    out.extend(redteam_roots_failure(KB_CORPUS_ROOTS));
     match mens_extract_guid_hits(root, &guid) {
         Ok(hits) => out.extend(hits.into_iter().map(|h| {
             format!("[canary] mens-extractor: docs pair from {h} contains the canary GUID")
