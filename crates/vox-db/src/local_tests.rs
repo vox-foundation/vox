@@ -1044,3 +1044,140 @@ async fn kb_findings_migration_from_95() {
     assert_eq!(db.schema_version().await.unwrap(), BASELINE_VERSION);
     assert_eq!(db.kb_findings_list(None, 10).await.unwrap().len(), 1);
 }
+
+/// Build a v95 database: `search_documents` without `trust_tier`, one `kb_index_state` row for
+/// corpus `library` (when `index_tier` is given), and one row per legacy/web/library source.
+async fn build_v95_trust_tier_db(path: &str, index_tier: Option<&str>) {
+    let raw = turso::Builder::new_local(path).build().await.unwrap();
+    let conn = raw.connect().unwrap();
+    conn.execute_batch(
+        "CREATE TABLE schema_version (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL DEFAULT (datetime('now')));
+         INSERT INTO schema_version (version) VALUES (95);
+         CREATE TABLE search_documents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, source_uri TEXT NOT NULL,
+            title TEXT NOT NULL DEFAULT '', mime_type TEXT NOT NULL DEFAULT '',
+            content_hash TEXT NOT NULL DEFAULT '',
+            ingested_at TEXT NOT NULL DEFAULT (datetime('now')),
+            corpus TEXT NOT NULL DEFAULT '', rel_path TEXT, frontmatter_json TEXT,
+            indexed_commit TEXT, index_error TEXT);
+         CREATE TABLE kb_index_state (
+            corpus TEXT PRIMARY KEY, corpus_root TEXT NOT NULL, corpus_commit TEXT,
+            indexed_at TEXT NOT NULL, doc_count INTEGER NOT NULL, chunk_count INTEGER NOT NULL,
+            card_count INTEGER NOT NULL, chunker_version TEXT NOT NULL, lexical_backend TEXT NOT NULL,
+            trust_tier TEXT NOT NULL, embed_model_id TEXT, embed_revision TEXT, embed_dim INTEGER,
+            errors_json TEXT NOT NULL DEFAULT '[]', duration_ms INTEGER NOT NULL);
+         INSERT INTO search_documents (source_uri, corpus) VALUES
+            ('web-ingest:a', ''), ('tavily:b', ''), ('https://c', ''), ('vox-docs:d', ''),
+            ('vox://publication/p', ''), ('library:docs/src/x.md', 'library');",
+    )
+    .await
+    .unwrap();
+    if let Some(tier) = index_tier {
+        conn.execute_batch(format!(
+            "INSERT INTO kb_index_state (corpus, corpus_root, indexed_at, doc_count, chunk_count,
+                card_count, chunker_version, lexical_backend, trust_tier, duration_ms)
+             VALUES ('library', 'docs/src', 'now', 1, 1, 0, 'v1', 'fts', '{tier}', 1);"
+        ))
+        .await
+        .unwrap();
+    }
+}
+
+async fn search_document_tiers(db: &VoxDb) -> Vec<(String, String)> {
+    let mut rows = db
+        .connection()
+        .query(
+            "SELECT source_uri, trust_tier FROM search_documents ORDER BY source_uri",
+            (),
+        )
+        .await
+        .unwrap();
+    let mut out = Vec::new();
+    while let Some(r) = rows.next().await.unwrap() {
+        out.push((r.get::<String>(0).unwrap(), r.get::<String>(1).unwrap()));
+    }
+    out
+}
+
+fn tier_of<'a>(tiers: &'a [(String, String)], uri: &str) -> &'a str {
+    &tiers.iter().find(|(u, _)| u == uri).unwrap().1
+}
+
+#[tokio::test]
+async fn kb_trust_tier_raw_insert_without_tier_reads_back_untrusted() {
+    let db = VoxDb::open_memory().await.unwrap();
+    db.connection()
+        .execute_batch("INSERT INTO search_documents (source_uri, title) VALUES ('raw://x', 'x');")
+        .await
+        .unwrap();
+    assert_eq!(
+        tier_of(&search_document_tiers(&db).await, "raw://x"),
+        "untrusted"
+    );
+}
+
+#[tokio::test]
+async fn kb_trust_tier_backfill_retiers_existing_rows_without_deleting() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("v95.db").to_string_lossy().to_string();
+    build_v95_trust_tier_db(&path, Some("trusted")).await;
+    let db = VoxDb::open(&path).await.unwrap();
+    let t = search_document_tiers(&db).await;
+    assert_eq!(t.len(), 6, "D-03: re-tier, never purge");
+    for uri in ["web-ingest:a", "tavily:b", "https://c", "vox-docs:d"] {
+        assert_eq!(tier_of(&t, uri), "untrusted", "{uri}");
+    }
+    assert_eq!(tier_of(&t, "vox://publication/p"), "advisory");
+    assert_eq!(tier_of(&t, "library:docs/src/x.md"), "trusted");
+}
+
+#[tokio::test]
+async fn kb_trust_tier_library_rows_follow_the_corpus_state_tier() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("v95.db").to_string_lossy().to_string();
+    build_v95_trust_tier_db(&path, Some("advisory")).await;
+    let db = VoxDb::open(&path).await.unwrap();
+    let t = search_document_tiers(&db).await;
+    assert_eq!(tier_of(&t, "library:docs/src/x.md"), "advisory");
+}
+
+#[tokio::test]
+async fn kb_trust_tier_library_row_without_corpus_state_stays_untrusted() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("v95.db").to_string_lossy().to_string();
+    build_v95_trust_tier_db(&path, None).await;
+    let db = VoxDb::open(&path).await.unwrap();
+    let t = search_document_tiers(&db).await;
+    assert_eq!(tier_of(&t, "library:docs/src/x.md"), "untrusted");
+}
+
+#[tokio::test]
+async fn kb_trust_tier_invalid_corpus_state_string_backfills_untrusted() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("v95.db").to_string_lossy().to_string();
+    build_v95_trust_tier_db(&path, Some("TRUSTED")).await;
+    let db = VoxDb::open(&path).await.unwrap();
+    let t = search_document_tiers(&db).await;
+    assert_eq!(tier_of(&t, "library:docs/src/x.md"), "untrusted");
+}
+
+#[tokio::test]
+async fn kb_trust_tier_backfill_runs_once() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("v95.db").to_string_lossy().to_string();
+    build_v95_trust_tier_db(&path, Some("trusted")).await;
+    {
+        let db = VoxDb::open(&path).await.unwrap();
+        db.connection()
+            .execute_batch("UPDATE search_documents SET trust_tier = 'untrusted';")
+            .await
+            .unwrap();
+    }
+    let db = VoxDb::open(&path).await.unwrap();
+    let t = search_document_tiers(&db).await;
+    assert_eq!(
+        tier_of(&t, "library:docs/src/x.md"),
+        "untrusted",
+        "second open must not re-run the backfill"
+    );
+}
