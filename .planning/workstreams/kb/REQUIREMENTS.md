@@ -24,12 +24,12 @@ Research basis: `.planning/workstreams/kb/research/SUMMARY.md` and `docs/src/arc
 ### Library Index (IDX)
 
 - [x] **IDX-01**: Reindexing is incremental — unchanged files are skipped by file hash, chunks are diffed by chunk hash, deleted/renamed docs are pruned, and embeddings survive reindex (no orphaned `source_id`s)
-- [ ] **IDX-02**: Markdown is chunked by heading with a recorded `heading_path`; headings inside code fences and YAML frontmatter never create or pollute chunks; oversize sections are split by `text-splitter` sized to the embedder tokenizer
-- [ ] **IDX-03**: Each indexed doc has a summary-card row, and each index build records a manifest (embed model id + revision, dim, chunker version, corpus commit)
-- [ ] **IDX-04**: `docs/src/archive/` is never indexed (fixture test proves it)
-- [ ] **IDX-05**: A user can run `vox kb reindex` and `vox kb status`; status reports last-indexed commit, doc/chunk counts, embed model, and per-file errors
-- [ ] **IDX-06**: General (non-Vox) curated knowledge lives in `docs/src/library/` with a `Library` docs category and sidebar section, indexed alongside Vox docs
-- [ ] **IDX-07**: The lexical leg is decided by a runtime probe (Turso FTS5 vs Tantivy-with-owning-writer); the writer-less `TantivyDocsIndex` mirror is removed either way
+- [x] **IDX-02**: Markdown is chunked by heading with a recorded `heading_path`; headings inside code fences and YAML frontmatter never create or pollute chunks; oversize sections are split by `text-splitter` sized to the embedder tokenizer
+- [x] **IDX-03**: Each indexed doc has a summary-card row, and each index build records a manifest (embed model id + revision, dim, chunker version, corpus commit)
+- [x] **IDX-04**: `docs/src/archive/` is never indexed (fixture test proves it)
+- [x] **IDX-05**: A user can run `vox kb reindex` and `vox kb status`; status reports last-indexed commit, doc/chunk counts, embed model, and per-file errors
+- [x] **IDX-06**: General (non-Vox) curated knowledge lives in `docs/src/library/` with a `Library` docs category and sidebar section, indexed alongside Vox docs
+- [x] **IDX-07**: The lexical leg is decided by a runtime probe (Turso FTS5 vs Tantivy-with-owning-writer); the writer-less `TantivyDocsIndex` mirror is removed either way
 
 ### Retrieval & Tool Surface (RET)
 
@@ -156,12 +156,12 @@ Research basis: `.planning/workstreams/kb/research/SUMMARY.md` and `docs/src/arc
 | EVAL-05 | Phase 1 | Complete |
 | EVAL-06 | Phase 7 | Pending |
 | IDX-01 | Phase 2 | Complete |
-| IDX-02 | Phase 2 | Pending |
-| IDX-03 | Phase 2 | Pending |
-| IDX-04 | Phase 2 | Pending |
-| IDX-05 | Phase 2 | Pending |
-| IDX-06 | Phase 2 | Pending |
-| IDX-07 | Phase 2 | Pending |
+| IDX-02 | Phase 2 | Complete |
+| IDX-03 | Phase 2 | Complete |
+| IDX-04 | Phase 2 | Complete |
+| IDX-05 | Phase 2 | Complete |
+| IDX-06 | Phase 2 | Complete |
+| IDX-07 | Phase 2 | Complete |
 | RET-01 | Phase 2 | Complete |
 | RET-02 | Phase 3 | Pending |
 | RET-03 | Phase 3 | Pending |
