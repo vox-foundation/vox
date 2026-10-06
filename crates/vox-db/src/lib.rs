@@ -290,9 +290,8 @@ pub use store::{
     RegisterAgentParams, RegressionRow, SaveMemoryParams, SaveSnippetParams, ScheduledEntry,
     ScholarlySubmissionRow, SessionEventRow, SessionRow, SkillCandidateRow, SkillExecutionParams,
     SkillExecutionRow, SkillManifestEntry, SkillReliabilityReport, SnippetEntry, StoreError,
-    TRUST_TIER_WIRE, ThroughputProfileRow, TrainingPair, TrustRollupEntry,
-    UpsertAccountSecretCiphertextParams, UserEntry, WarningRow, WorkflowExecutionRow,
-    validate_trust_tier_wire,
+    ThroughputProfileRow, TrainingPair, TrustRollupEntry, UpsertAccountSecretCiphertextParams,
+    UserEntry, WarningRow, WorkflowExecutionRow,
 };
 pub use sync_invocables::InvocableSyncEngine;
 pub use syntax_k_telemetry::SyntaxKEventMeta;

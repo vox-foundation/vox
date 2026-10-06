@@ -21,8 +21,8 @@ pub struct IndexDeps<'a> {
     /// Hex digest of the given bytes (production: `vox_crypto::hex_encode(&secure_hash(b))`).
     pub hasher: &'a (dyn Fn(&[u8]) -> String + Sync),
     pub corpus_commit: Option<String>,
-    /// One of the `ContextTrustTier` wire strings; validated by the store.
-    pub trust_tier: &'a str,
+    /// The corpus tier, chosen once by the construction site; aligned onto every Library row.
+    pub trust_tier: vox_db::ContextTrustTier,
 }
 
 /// A file or directory that could not be read or indexed (unreadable directory, bad file), or a
@@ -64,8 +64,6 @@ pub async fn index_library(
     deps: &IndexDeps<'_>,
 ) -> Result<IndexReport> {
     let started = Instant::now();
-    // Up front: unchanged files skip the store, which would otherwise be the only validator.
-    vox_db::validate_trust_tier_wire(deps.trust_tier)?;
     // Before any DB access: a daemon rooted at the wrong repo must fail loudly, not "succeed".
     for root in crate::kb_ids::KB_CORPUS_ROOTS {
         anyhow::ensure!(
@@ -201,7 +199,7 @@ pub async fn index_library(
         card_count: report.cards as i64,
         chunker_version: chunk::CHUNKER_VERSION.into(),
         lexical_backend: LEXICAL_BACKEND.into(),
-        trust_tier: deps.trust_tier.into(),
+        trust_tier: deps.trust_tier,
         // AP-07: lexical-only, no embedder in this phase.
         embed_model_id: None,
         embed_revision: None,
@@ -314,7 +312,7 @@ mod tests {
         let deps = IndexDeps {
             hasher: &hasher,
             corpus_commit: None,
-            trust_tier: "trusted",
+            trust_tier: vox_db::ContextTrustTier::Trusted,
         };
         let report = index_library(&db, repo.path(), &lex, &deps).await.unwrap();
         assert_eq!(report.lexical_backend, LEXICAL_BACKEND);
@@ -322,12 +320,5 @@ mod tests {
         assert_eq!(hits.len(), 1);
         assert_eq!(hits[0].heading_path, "A › Sec");
         assert_eq!(hits[0].body_bytes, "## Sec\nquokkaflux lives here".len());
-
-        // A bad trust tier is rejected by the store and surfaces as an error.
-        let bad = IndexDeps {
-            trust_tier: "Trusted",
-            ..deps
-        };
-        assert!(index_library(&db, repo.path(), &lex, &bad).await.is_err());
     }
 }

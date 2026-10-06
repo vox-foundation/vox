@@ -125,7 +125,7 @@ fn hasher(bytes: &[u8]) -> String {
 static KB_REINDEX_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 /// Index `<repo_root>/docs/src` into `db` and `lexical_dir` with the vox-crypto hasher. The
-/// trust tier is `trusted` (curated, merged to git; AP-12). Refuses with `reindex already
+/// trust tier is `tier_for_curated(false)` = trusted (curated, merged to git; AP-12). Refuses with `reindex already
 /// running` while another call holds [`KB_REINDEX_LOCK`].
 pub(crate) async fn reindex_at(
     db: &VoxDb,
@@ -139,7 +139,7 @@ pub(crate) async fn reindex_at(
     let deps = IndexDeps {
         hasher: &hasher,
         corpus_commit,
-        trust_tier: "trusted",
+        trust_tier: vox_db::tier_for_curated(false),
     };
     index_library(db, repo_root, lexical_dir, &deps)
         .await
@@ -433,7 +433,7 @@ pub async fn kb_status(state: &ServerState) -> String {
         "chunker_version": s.chunker_version,
         "lexical_backend": s.lexical_backend,
         "embed": embed,
-        "trust_tier": s.trust_tier,
+        "trust_tier": s.trust_tier.as_db_str(),
         "errors": json_or_string(&s.errors_json),
         "duration_ms": s.duration_ms,
         "db_chunk_count": st.db_chunk_count,

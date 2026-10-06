@@ -14,10 +14,14 @@ fn hasher(b: &[u8]) -> String {
 }
 
 fn deps() -> IndexDeps<'static> {
+    deps_with(vox_db::ContextTrustTier::Trusted)
+}
+
+fn deps_with(tier: vox_db::ContextTrustTier) -> IndexDeps<'static> {
     IndexDeps {
         hasher: &hasher,
         corpus_commit: Some("abc123".into()),
-        trust_tier: "trusted",
+        trust_tier: tier,
     }
 }
 
@@ -401,7 +405,7 @@ async fn kb_manifest_and_cards() {
         vox_search::library::chunk::CHUNKER_VERSION
     );
     assert_eq!(s.lexical_backend, "tantivy-0.22");
-    assert_eq!(s.trust_tier, "trusted");
+    assert_eq!(s.trust_tier, vox_db::ContextTrustTier::Trusted);
     assert!(s.embed_model_id.is_none() && s.embed_revision.is_none() && s.embed_dim.is_none());
     assert!(s.duration_ms >= 0 && !s.indexed_at.is_empty());
     assert_eq!(s.errors_json, "[]");
@@ -643,4 +647,76 @@ async fn kb_reindex_empty_root_fresh_db_ok() {
     let r = try_run(&db, &repo).await.unwrap();
     assert_eq!((r.docs_seen, r.docs_pruned), (0, 0), "{r:?}");
     assert!(r.errors.is_empty(), "{r:?}");
+}
+
+// ---- 03-05: one typed corpus tier; Library rows always agree with kb_index_state ----
+
+/// `(source_uri, corpus, trust_tier)` of every `search_documents` row, ordered by source_uri.
+async fn row_tiers(db: &VoxDb) -> Vec<(String, String, String)> {
+    let mut rows = db
+        .connection()
+        .query(
+            "SELECT source_uri, corpus, trust_tier FROM search_documents ORDER BY source_uri",
+            (),
+        )
+        .await
+        .unwrap();
+    let mut out = Vec::new();
+    while let Some(r) = rows.next().await.unwrap() {
+        out.push((r.get(0).unwrap(), r.get(1).unwrap(), r.get(2).unwrap()));
+    }
+    out
+}
+
+#[tokio::test]
+async fn kb_library_tier_rows_agree_with_corpus_tier() {
+    use vox_db::ContextTrustTier::{Advisory, Trusted};
+    let repo = tree(&[("a.md", DOC_A), ("b.md", DOC_B)]);
+    let lex = repo.path().join("lex");
+    let db = VoxDb::open_memory().await.unwrap();
+    // A non-Library row must never be touched by the alignment.
+    db.connection()
+        .execute(
+            "INSERT INTO search_documents (source_uri, title) VALUES ('vox-docs:x', 'x')",
+            (),
+        )
+        .await
+        .unwrap();
+
+    index_library(&db, repo.path(), &lex, &deps_with(Trusted))
+        .await
+        .unwrap();
+    let state = |db: &VoxDb| {
+        let db = db.clone();
+        async move {
+            db.get_kb_index_state(KB_LIBRARY_CORPUS)
+                .await
+                .unwrap()
+                .unwrap()
+                .trust_tier
+        }
+    };
+    assert_eq!(state(&db).await, Trusted);
+    let lib: Vec<_> = row_tiers(&db)
+        .await
+        .into_iter()
+        .filter(|r| r.1 == KB_LIBRARY_CORPUS)
+        .collect();
+    assert_eq!(lib.len(), 2);
+    assert!(lib.iter().all(|r| r.2 == "trusted"), "{lib:?}");
+
+    // Unchanged tree, different tier: skipped rows must still follow the corpus tier.
+    let r = index_library(&db, repo.path(), &lex, &deps_with(Advisory))
+        .await
+        .unwrap();
+    assert_eq!((r.docs_unchanged, r.docs_changed), (2, 0), "{r:?}");
+    assert_eq!(state(&db).await, Advisory);
+    let all = row_tiers(&db).await;
+    for (uri, corpus, tier) in &all {
+        if corpus == KB_LIBRARY_CORPUS {
+            assert_eq!(tier, "advisory", "{uri}");
+        } else {
+            assert_eq!(tier, "untrusted", "non-library row {uri} must be untouched");
+        }
+    }
 }

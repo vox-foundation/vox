@@ -23,7 +23,7 @@ fn doc(corpus: &'static str, rel_path: &'static str) -> LibraryDocUpsert<'static
         frontmatter_json: "{\"title\":\"Guide\"}",
         indexed_commit: Some("abc"),
         index_error: None,
-        trust_tier: "trusted",
+        trust_tier: vox_db::ContextTrustTier::Trusted,
     }
 }
 

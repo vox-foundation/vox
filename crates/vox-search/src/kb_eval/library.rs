@@ -58,7 +58,7 @@ impl LibraryRetriever {
         let deps = IndexDeps {
             hasher,
             corpus_commit: None,
-            trust_tier: "trusted",
+            trust_tier: vox_db::tier_for_curated(false),
         };
         let report = index_library(&db, &tree, &lexical, &deps).await?;
         if let Some(e) = report.errors.first() {

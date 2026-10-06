@@ -4,25 +4,12 @@
 
 use crate::store::types::StoreError;
 use turso::params;
+use vox_orchestrator_types::trust::ContextTrustTier;
 
 /// `search_documents.corpus` value for the docs/src library index.
 pub const KB_LIBRARY_CORPUS: &str = "library";
 /// `embeddings.source_type` for library chunk vectors (keyed by `chunk_hash`, never rowid).
 pub const KB_CHUNK_SOURCE_TYPE: &str = "kb_chunk";
-/// The four `ContextTrustTier` wire strings (snake_case serde). vox-db sits below
-/// vox-orchestrator, so the wire form is validated here; Phase 3 swaps the type.
-pub const TRUST_TIER_WIRE: [&str; 4] = ["untrusted", "advisory", "trusted", "system_verified"];
-
-/// Reject anything that is not one of [`TRUST_TIER_WIRE`] (case-sensitive).
-pub fn validate_trust_tier_wire(tier: &str) -> Result<(), StoreError> {
-    if TRUST_TIER_WIRE.contains(&tier) {
-        Ok(())
-    } else {
-        Err(StoreError::Db(format!(
-            "invalid trust tier {tier:?}; expected one of {TRUST_TIER_WIRE:?}"
-        )))
-    }
-}
 
 /// One library document row. No `Default` on purpose: every writer must choose a trust tier.
 #[derive(Debug, Clone)]
@@ -34,7 +21,7 @@ pub struct LibraryDocUpsert<'a> {
     pub frontmatter_json: &'a str,
     pub indexed_commit: Option<&'a str>,
     pub index_error: Option<&'a str>,
-    pub trust_tier: &'a str,
+    pub trust_tier: ContextTrustTier,
 }
 
 /// One chunk to store for a document, in document order.
@@ -95,7 +82,7 @@ pub struct KbIndexState {
     pub card_count: i64,
     pub chunker_version: String,
     pub lexical_backend: String,
-    pub trust_tier: String,
+    pub trust_tier: ContextTrustTier,
     pub embed_model_id: Option<String>,
     pub embed_revision: Option<String>,
     pub embed_dim: Option<i64>,
@@ -143,7 +130,6 @@ impl crate::VoxDb {
         doc: &LibraryDocUpsert<'_>,
         chunks: &[LibraryChunkInput],
     ) -> Result<LibraryChunkDiff, StoreError> {
-        validate_trust_tier_wire(doc.trust_tier)?;
         let mut seen = std::collections::HashSet::new();
         if let Some(dup) = chunks.iter().find(|c| !seen.insert(c.chunk_hash.as_str())) {
             return Err(StoreError::Db(format!(
@@ -157,13 +143,14 @@ impl crate::VoxDb {
             conn.execute(
                 "INSERT INTO search_documents \
                  (source_uri, title, mime_type, content_hash, corpus, rel_path, frontmatter_json, \
-                  indexed_commit, index_error) \
-                 VALUES (?1, ?2, 'text/markdown', ?3, ?4, ?5, ?6, ?7, ?8) \
+                  indexed_commit, index_error, trust_tier) \
+                 VALUES (?1, ?2, 'text/markdown', ?3, ?4, ?5, ?6, ?7, ?8, ?9) \
                  ON CONFLICT(source_uri) DO UPDATE SET \
                     title = excluded.title, content_hash = excluded.content_hash, \
                     corpus = excluded.corpus, rel_path = excluded.rel_path, \
                     frontmatter_json = excluded.frontmatter_json, \
                     indexed_commit = excluded.indexed_commit, index_error = excluded.index_error, \
+                    trust_tier = excluded.trust_tier, \
                     ingested_at = datetime('now')",
                 params![
                     source_uri.as_str(),
@@ -173,7 +160,8 @@ impl crate::VoxDb {
                     doc.rel_path,
                     doc.frontmatter_json,
                     doc.indexed_commit,
-                    doc.index_error
+                    doc.index_error,
+                    doc.trust_tier.as_db_str()
                 ],
             )
             .await?;
@@ -367,9 +355,15 @@ impl crate::VoxDb {
     }
 
     /// Insert or replace the manifest row for `state.corpus`; `indexed_at` is set to now.
+    ///
+    /// `state.trust_tier` is the single source of the corpus tier: in the same transaction it is
+    /// written onto every `search_documents` row of `state.corpus`, so rows the indexer skipped as
+    /// unchanged cannot drift from the manifest. (Phase 11 must exempt evidence-bearing rows.)
     pub async fn put_kb_index_state(&self, state: &KbIndexState) -> Result<(), StoreError> {
-        self.conn
-            .execute(
+        let conn = self.conn.clone();
+        let state = state.clone();
+        self.transaction(async move {
+            conn.execute(
                 "INSERT INTO kb_index_state \
                  (corpus, corpus_root, corpus_commit, indexed_at, doc_count, chunk_count, \
                   card_count, chunker_version, lexical_backend, trust_tier, embed_model_id, \
@@ -393,7 +387,7 @@ impl crate::VoxDb {
                     state.card_count,
                     state.chunker_version.as_str(),
                     state.lexical_backend.as_str(),
-                    state.trust_tier.as_str(),
+                    state.trust_tier.as_db_str(),
                     state.embed_model_id.as_deref(),
                     state.embed_revision.as_deref(),
                     state.embed_dim,
@@ -402,7 +396,14 @@ impl crate::VoxDb {
                 ],
             )
             .await?;
-        Ok(())
+            conn.execute(
+                "UPDATE search_documents SET trust_tier = ?1 WHERE corpus = ?2",
+                params![state.trust_tier.as_db_str(), state.corpus.as_str()],
+            )
+            .await?;
+            Ok(())
+        })
+        .await
     }
 
     /// The manifest row of the last index run for `corpus`, if any.
@@ -433,7 +434,7 @@ impl crate::VoxDb {
             card_count: r.get(6)?,
             chunker_version: r.get(7)?,
             lexical_backend: r.get(8)?,
-            trust_tier: r.get(9)?,
+            trust_tier: ContextTrustTier::from_db_str(&r.get::<String>(9)?),
             embed_model_id: r.get(10)?,
             embed_revision: r.get(11)?,
             embed_dim: r.get(12)?,
@@ -597,7 +598,7 @@ mod tests {
             frontmatter_json: "{}",
             indexed_commit: None,
             index_error: None,
-            trust_tier: "trusted",
+            trust_tier: ContextTrustTier::Trusted,
         }
     }
 
@@ -615,15 +616,6 @@ mod tests {
             out.push((r.get(0).unwrap(), r.get(1).unwrap(), r.get(2).unwrap()));
         }
         out
-    }
-
-    #[test]
-    fn trust_tier_wire_accepts_the_four_tiers_only() {
-        for t in TRUST_TIER_WIRE {
-            validate_trust_tier_wire(t).unwrap();
-        }
-        assert!(validate_trust_tier_wire("Trusted").is_err());
-        assert!(validate_trust_tier_wire("").is_err());
     }
 
     #[tokio::test]
@@ -655,7 +647,7 @@ mod tests {
             card_count: 2,
             chunker_version: "v".into(),
             lexical_backend: "tantivy-0.22".into(),
-            trust_tier: "trusted".into(),
+            trust_tier: ContextTrustTier::Trusted,
             embed_model_id: None,
             embed_revision: None,
             embed_dim: None,
@@ -919,11 +911,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn library_store_rejects_bad_trust_tier_and_duplicate_hashes() {
+    async fn library_store_rejects_duplicate_hashes() {
         let db = VoxDb::open_memory().await.unwrap();
-        let mut d = doc("docs/src/guide.md");
-        d.trust_tier = "Trusted";
-        assert!(db.apply_library_document(&d, &[]).await.is_err());
         let c = chunk(&"a".repeat(64), "A", "x");
         assert!(
             db.apply_library_document(&doc("docs/src/guide.md"), &[c.clone(), c])

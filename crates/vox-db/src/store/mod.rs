@@ -91,7 +91,7 @@ pub use ops_memory::{
     KB_CHUNK_SOURCE_TYPE, KB_LIBRARY_CORPUS, KbFindingCounts, KbFindingRow, KbIndexState,
     KnowledgeHealthInfo, KnowledgeNodeRecord, LegacyKbCounts, LegacyKbEntry, LibraryChunkDiff,
     LibraryChunkInput, LibraryChunkPos, LibraryChunkRow, LibraryDocRow, LibraryDocUpsert,
-    NewKbFinding, TRUST_TIER_WIRE, validate_trust_tier_wire,
+    NewKbFinding,
 };
 pub use ops_orchestrator::HopperInboxRow;
 pub use ops_quota::{ProviderQuotaUsage, current_period_key, get_quota_usage, record_quota_spend};
