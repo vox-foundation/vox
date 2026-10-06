@@ -42,7 +42,7 @@ Research basis: `.planning/workstreams/kb/research/SUMMARY.md` and `docs/src/arc
 
 - [x] **TRUST-01**: Every indexed row and finding has a required trust tier mapped onto `ContextTrustTier`: SystemVerified = curated + mechanical verification evidence; Trusted = curated (merged to git); Advisory = agent-derived; Untrusted = inbox / live web. Writes without a tier fail to compile or are rejected
 - [x] **TRUST-02**: Web hits are no longer written into the searchable corpus; `persist_web_hits` routes them into the `kb_findings` inbox as Untrusted
-- [ ] **TRUST-03**: Model output never re-enters the KB at elevated trust — the `signal_research` 0.95 confidence floor and the post-turn `accepted=1` chat writeback are removed or routed to the inbox
+- [x] **TRUST-03**: Model output never re-enters the KB at elevated trust — the `signal_research` 0.95 confidence floor and the post-turn `accepted=1` chat writeback are removed or routed to the inbox
 - [x] **TRUST-04**: Each finding stores summary, short quotes, source URL, fetch date and content hash; a full-text snapshot is kept locally under a gitignored path and is never committed
 - [x] **TRUST-05**: Ingested and injected text passes a sanitizer (Unicode tag block, zero-width/bidi characters, HTML comments, off-allowlist markdown images) backed by property tests and a red-team fixture set
 - [x] **TRUST-06**: Promotion eligibility fails closed when the trust lookup errors
@@ -85,7 +85,7 @@ Research basis: `.planning/workstreams/kb/research/SUMMARY.md` and `docs/src/arc
 - [ ] **GROW-03**: A user or agent can list, review, reject (with reason) and propose findings via `vox_kb_propose`, `vox_kb_inbox_list`, `vox_kb_inbox_review`; a similar-docs check flags duplicates
 - [ ] **GROW-04**: An agent drafts promotions as a draft PR from an isolated worktree (write → doc-lint → commit → push), with per-claim source excerpts in the PR body; a human merge is the only path into curated docs
 - [ ] **GROW-05**: Promotion requires ≥2-domain corroboration (or explicit reviewer override) and passes a promotion lint; `docs/src/library/` has CODEOWNERS
-- [ ] **GROW-06**: Existing side doors (`publish_research_doc`, GUI `ingest_url`/`ingest_text`, scientia/MEMORY sinks) route through the inbox; MENS `KbSignals` reads `kb_findings`
+- [x] **GROW-06**: Existing side doors (`publish_research_doc`, GUI `ingest_url`/`ingest_text`, scientia/MEMORY sinks) route through the inbox; MENS `KbSignals` reads `kb_findings`
 
 ### Page-One Rewrites (REWR)
 
@@ -168,7 +168,7 @@ Research basis: `.planning/workstreams/kb/research/SUMMARY.md` and `docs/src/arc
 | RET-04 | Phase 5 | Pending |
 | TRUST-01 | Phase 3 | Complete |
 | TRUST-02 | Phase 3 | Complete |
-| TRUST-03 | Phase 3 | Pending |
+| TRUST-03 | Phase 3 | Complete |
 | TRUST-04 | Phase 3 | Complete |
 | TRUST-05 | Phase 3 | Complete |
 | TRUST-06 | Phase 3 | Complete |
@@ -199,7 +199,7 @@ Research basis: `.planning/workstreams/kb/research/SUMMARY.md` and `docs/src/arc
 | GROW-03 | Phase 9 | Pending |
 | GROW-04 | Phase 9 | Pending |
 | GROW-05 | Phase 9 | Pending |
-| GROW-06 | Phase 3 | Pending |
+| GROW-06 | Phase 3 | Complete |
 | REWR-01 | Phase 10 | Pending |
 | REWR-02 | Phase 10 | Pending |
 | REWR-03 | Phase 10 | Pending |
