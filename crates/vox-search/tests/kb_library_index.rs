@@ -651,35 +651,14 @@ async fn kb_reindex_empty_root_fresh_db_ok() {
 
 // ---- 03-05: one typed corpus tier; Library rows always agree with kb_index_state ----
 
-/// `(source_uri, corpus, trust_tier)` of every `search_documents` row, ordered by source_uri.
-async fn row_tiers(db: &VoxDb) -> Vec<(String, String, String)> {
-    let mut rows = db
-        .connection()
-        .query(
-            "SELECT source_uri, corpus, trust_tier FROM search_documents ORDER BY source_uri",
-            (),
-        )
-        .await
-        .unwrap();
-    let mut out = Vec::new();
-    while let Some(r) = rows.next().await.unwrap() {
-        out.push((r.get(0).unwrap(), r.get(1).unwrap(), r.get(2).unwrap()));
-    }
-    out
-}
-
 #[tokio::test]
 async fn kb_library_tier_rows_agree_with_corpus_tier() {
-    use vox_db::ContextTrustTier::{Advisory, Trusted};
+    use vox_db::ContextTrustTier::{Advisory, SystemVerified, Trusted};
     let repo = tree(&[("a.md", DOC_A), ("b.md", DOC_B)]);
     let lex = repo.path().join("lex");
     let db = VoxDb::open_memory().await.unwrap();
-    // A non-Library row must never be touched by the alignment.
-    db.connection()
-        .execute(
-            "INSERT INTO search_documents (source_uri, title) VALUES ('vox-docs:x', 'x')",
-            (),
-        )
+    // A non-Library row (corpus '') at a distinct tier must never be touched by the alignment.
+    db.upsert_search_document("vox-docs:x", "x", "text/markdown", "h", SystemVerified)
         .await
         .unwrap();
 
@@ -697,13 +676,15 @@ async fn kb_library_tier_rows_agree_with_corpus_tier() {
         }
     };
     assert_eq!(state(&db).await, Trusted);
-    let lib: Vec<_> = row_tiers(&db)
+    let lib: Vec<_> = db
+        .search_document_tiers()
         .await
+        .unwrap()
         .into_iter()
         .filter(|r| r.1 == KB_LIBRARY_CORPUS)
         .collect();
     assert_eq!(lib.len(), 2);
-    assert!(lib.iter().all(|r| r.2 == "trusted"), "{lib:?}");
+    assert!(lib.iter().all(|r| r.2 == Trusted), "{lib:?}");
 
     // Unchanged tree, different tier: skipped rows must still follow the corpus tier.
     let r = index_library(&db, repo.path(), &lex, &deps_with(Advisory))
@@ -711,12 +692,15 @@ async fn kb_library_tier_rows_agree_with_corpus_tier() {
         .unwrap();
     assert_eq!((r.docs_unchanged, r.docs_changed), (2, 0), "{r:?}");
     assert_eq!(state(&db).await, Advisory);
-    let all = row_tiers(&db).await;
+    let all = db.search_document_tiers().await.unwrap();
     for (uri, corpus, tier) in &all {
         if corpus == KB_LIBRARY_CORPUS {
-            assert_eq!(tier, "advisory", "{uri}");
+            assert_eq!(*tier, Advisory, "{uri}");
         } else {
-            assert_eq!(tier, "untrusted", "non-library row {uri} must be untouched");
+            assert_eq!(
+                *tier, SystemVerified,
+                "non-library row {uri} must be untouched"
+            );
         }
     }
 }

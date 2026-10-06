@@ -18,14 +18,13 @@ async fn ingest_markdown_tree_inserts_at_least_one_doc() {
 
     assert!(n >= 1, "expected ≥1 markdown file ingested, got {n}");
 
-    let mut rows = db
-        .connection()
-        .query(
-            "SELECT trust_tier FROM search_documents WHERE source_uri = 'test-ingest:page.md'",
-            (),
-        )
-        .await
-        .unwrap();
-    let tier: String = rows.next().await.unwrap().expect("row").get(0).unwrap();
-    assert_eq!(tier, "untrusted");
+    let tiers = db.search_document_tiers().await.expect("tiers");
+    assert_eq!(
+        tiers,
+        vec![(
+            "test-ingest:page.md".to_string(),
+            String::new(),
+            ContextTrustTier::Untrusted
+        )]
+    );
 }

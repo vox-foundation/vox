@@ -103,6 +103,29 @@ impl crate::VoxDb {
             .await
     }
 
+    /// `(source_uri, corpus, trust_tier)` of every `search_documents` row, ordered by `source_uri`.
+    /// A stored tier that does not parse reads as `Untrusted` (fail closed).
+    pub async fn search_document_tiers(
+        &self,
+    ) -> Result<Vec<(String, String, ContextTrustTier)>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT source_uri, corpus, trust_tier FROM search_documents ORDER BY source_uri",
+                (),
+            )
+            .await?;
+        let mut out = Vec::new();
+        while let Some(r) = rows.next().await? {
+            out.push((
+                r.get::<String>(0)?,
+                r.get::<String>(1)?,
+                ContextTrustTier::from_db_str(&r.get::<String>(2)?),
+            ));
+        }
+        Ok(out)
+    }
+
     /// Replace all chunks for `document_id` with the provided ordered bodies.
     pub async fn replace_search_document_chunks(
         &self,
@@ -349,5 +372,9 @@ mod tier_tests {
             .unwrap();
         assert_eq!(again, id);
         assert_eq!(tier_of(&db, id).await, "untrusted");
+        assert_eq!(
+            db.search_document_tiers().await.unwrap(),
+            vec![("u://a".to_string(), String::new(), Untrusted)]
+        );
     }
 }
