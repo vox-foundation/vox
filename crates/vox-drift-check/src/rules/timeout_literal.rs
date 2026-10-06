@@ -20,6 +20,9 @@ impl DriftRule for TimeoutLiteralRule {
     }
 
     fn check(&self, features: &ExtractedFeatures, _ctx: &WorkspaceContext) -> Vec<Finding> {
+        if crate::rules::is_test_file(&features.file) {
+            return vec![];
+        }
         features.numeric_literals.iter()
             // Const/static-bound literals ARE the named constants the rule wants
             // — skip them. Closes the "rule flags its own SSOT" false-positive.
@@ -102,6 +105,27 @@ mod tests {
         });
         let rule = TimeoutLiteralRule;
         assert!(rule.check(&f, &ctx()).is_empty());
+    }
+
+    #[test]
+    fn skips_integration_test_files_but_not_src() {
+        let lit = NumericLoc {
+            value: 30.0,
+            unit: Some(UnitHint::Seconds),
+            loc: Loc { line: 5, col: 0 },
+            in_const: false,
+        };
+        let mut in_tests = ExtractedFeatures::new(
+            PathBuf::from("./crates/vox-db/tests/lock_test.rs"),
+            Language::Rust,
+        );
+        in_tests.numeric_literals.push(lit.clone());
+        let mut in_src =
+            ExtractedFeatures::new(PathBuf::from("./crates/vox-db/src/lock.rs"), Language::Rust);
+        in_src.numeric_literals.push(lit);
+        let rule = TimeoutLiteralRule;
+        assert!(rule.check(&in_tests, &ctx()).is_empty());
+        assert_eq!(rule.check(&in_src, &ctx()).len(), 1);
     }
 
     #[test]

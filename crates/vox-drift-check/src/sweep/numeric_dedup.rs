@@ -32,6 +32,11 @@ impl SweepRule for NumericDedupRule {
         let mut index: HashMap<(u64, u8), Vec<(std::path::PathBuf, usize, /*allowed:*/ bool)>> =
             HashMap::new();
         for f in files {
+            // Same scope as `drift/timeout-literal`: integration-test waits are
+            // not a config surface, so they neither count nor trigger.
+            if crate::rules::is_test_file(&f.file) {
+                continue;
+            }
             for n in &f.numeric_literals {
                 // ConstDecl literals are the named constants the rule wants people
                 // to define — counting them as "duplicates" defeats the rule.
@@ -125,6 +130,31 @@ mod tests {
         let findings = rule.sweep(&files, &ctx());
         assert!(!findings.is_empty());
         assert!(findings[0].message.contains("30"));
+    }
+
+    #[test]
+    fn integration_test_occurrences_do_not_count() {
+        // 2 src + 2 tests/ occurrences → only the 2 src count, below threshold;
+        // a 3rd src occurrence still trips it.
+        let make = |path: &str| ExtractedFeatures {
+            numeric_literals: vec![NumericLoc {
+                value: 30.0,
+                unit: Some(UnitHint::Seconds),
+                loc: Loc { line: 1, col: 0 },
+                in_const: false,
+            }],
+            ..ExtractedFeatures::new(PathBuf::from(path), Language::Rust)
+        };
+        let rule = NumericDedupRule::default();
+        let mut files = vec![
+            make("./crates/a/src/x.rs"),
+            make("./crates/a/src/y.rs"),
+            make("./crates/a/tests/t1.rs"),
+            make("./crates/b/tests/common/mod.rs"),
+        ];
+        assert!(rule.sweep(&files, &ctx()).is_empty());
+        files.push(make("./crates/a/src/z.rs"));
+        assert_eq!(rule.sweep(&files, &ctx()).len(), 1);
     }
 
     #[test]
