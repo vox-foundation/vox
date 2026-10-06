@@ -88,6 +88,10 @@ verified locally), `vox-orchestrator-mcp` `recursion_limit = "256"` for the Linu
 confirmed only by the next nightly), and the legs that cannot pass on ubuntu-latest (`vox-codegen`'s cfg-placeholder
 `standalone` feature, cuda/metal `vox-populi`/`vox-ml-cli`) leave the per-crate matrix; the `audits` job already excludes them.
 
+**Status 2026-10-06:** nightly 37467949942's A.4 objc2 failure came from `vox-plugin-mens-candle-core` (a7aaf48d4), whose own
+`metal`/`cuda` features forward to `candle-core`; Cargo features cannot be target-gated, so it joins the exclusions. A.4 and the
+matrix now share one workflow-level `ALL_FEATURES_LINUX_EXCLUDE` list (branch `land/w3-workflows`). Proven only by the next nightly.
+
 **Files:** `crates/vox-actor-runtime` (E0599 `DbConfig::resolve_canonical`), `crates/vox-codegen` (E0432, E0277),
 `crates/vox-cli` (E0275 via netlink `Tcf: Send`), `objc2` in `crates/vox-ml-cli`, `crates/vox-populi`.
 
@@ -116,6 +120,14 @@ longer exists; the CDP attach test needed a Chrome on 9222 (the job now starts o
 without `Browser.close`, so named profiles never flushed cookies (a product bug, fixed with a test that fails before the fix);
 three rustdoc private-link errors; toolchain lint, ignored-test governance, inventory baselines, one arch-check false positive.
 Still open: Playwright cap, Windows GUI smoke, and "three consecutive green nightlies".
+
+**Status 2026-10-06 (branch `land/w3-workflows`):** Playwright: the cap was hit in advisory review-bundle work (capture ~14 min,
+then a cold `vox-orchestrator-mcp` build for the AI analysis) before the golden route ran. Capture moved to a per-project matrix
+job (`chromium`, `firefox-review`) instead of `--shard`: entry files are `entries-<browser>-w<worker>.jsonl`, so shards would
+collide on merge. The AI analysis is its own job that downloads both bundles. Windows GUI smoke moved to `gui-cross-build.yml`.
+Also fixed: CR-U6 macOS relaunch smoke (Linux cache key restored on macOS; ~68 min of release sidecar builds the test never
+runs) and `compiler-gates` (19.7 of 20 min used before the bench step; split, bench compile is now `cargo check --benches`).
+"Three green nightlies" still open.
 
 **Files:** `.github/workflows/nightly.yml`, `.github/workflows/gui-cross-build.yml`.
 
@@ -628,6 +640,13 @@ builds `vox-code-audit` into a cold `$TMPDIR` target (`matrix.rs:588-603`). Host
 
 ### Task 2.3: Narrow "contracts forces a full run" (agy)
 
+**Status 2026-10-06:** done without the reader table: `contracts_outside_graph_force_full` exempts only `contracts/reports/`
+(generated output, re-checked by `ssot-drift` on every PR) and everything else stays fail-safe full. The three Step-1 cases are
+pinned by `generated_reports_alone_do_not_force_a_full_run_but_other_contracts_still_do`. A `CONTRACT_READERS` table would only
+add a mapping to keep in sync; add it if a second non-reader directory needs exempting. Mutation-proven 2026-10-06: narrowing
+the fail-safe `f.starts_with("contracts/")` to `"contracts/ci/"` fails the unknown-path assertion (`contracts/brand-new-dir/x.yaml`)
+and two sibling tests; restored, 437/437 `vox-cli-ci` lib tests pass.
+
 **Files:** `crates/vox-cli-ci/src/affected.rs` (rules at lines 5-12, 33-44, 143-151).
 
 - [ ] **Step 1: Failing tests:** only `contracts/reports/gui-surface-coverage.v1.json` changed → not full; only
@@ -646,6 +665,11 @@ survive only because they are recently used. Options: (a) drop sccache from the 
 main-only like the rest (fewest moving parts, loses cross-job object reuse); (b) keep sccache but only on `main`/schedule and
 delete by prefix on a schedule. Recommended: (a) for `docs-deploy` and `ml_data_extraction` (single Rust target, a workspace
 cache serves them), (b) for the two cross-platform workflows. Not changed yet.
+
+**Status 2026-10-06 (owner chose the recommendation; branch `land/w3-workflows`):** `docs-deploy` and `ml_data_extraction` dropped
+sccache and use setup-rust's main-only cache. `cross-platform-check` and `gui-cross-build` enable the GHA backend only on `main`,
+key it with `SCCACHE_GHA_VERSION: v2`, and set `SCCACHE_CACHE_SIZE: 5G`. `vox ci cache-key-lint` fails a workflow that uses
+sccache without `SCCACHE_CACHE_SIZE`. Not done: the scheduled delete-by-prefix of the old `sccache/…` entries (owner, Task 2.5).
 
 - [ ] Give the sccache key a version suffix and set `SCCACHE_CACHE_SIZE` from the job's disk headroom in the four workflows
   that use it. Extend `vox ci cache-key-lint` to fail a workflow that uses sccache without `SCCACHE_CACHE_SIZE`.
@@ -689,6 +713,8 @@ relink after a touch 232 → 179 CPU-s). Other crates with many tiny binaries ar
 ### Task 3.4: Nightly does each thing once (Claude)
 
 **Status:** dedupe done (5616f6f5d); budgets regeneration waits for a green nightly.
+**Status 2026-10-06:** the `full` job's plain workspace run is already `cargo nextest run … --no-run` (landed with #596); llvm-cov
+in the `tests` job is the night's one execution. Only the budgets regeneration remains.
 
 - [ ] `nightly.yml:1561` plain run → `cargo nextest run --no-run` (still seeds the cache); llvm-cov (`:809`) is the one execution.
 - [ ] Regenerate `contracts/budgets/test-tier-budgets.v1.yaml` from a green nightly's JUnit.
