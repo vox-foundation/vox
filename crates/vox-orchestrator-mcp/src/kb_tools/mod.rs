@@ -3,8 +3,5 @@ pub mod findings;
 pub mod handlers;
 pub mod library;
 pub mod params;
-pub mod signal_chat;
-pub mod signal_research;
-pub mod signal_scientia;
 
 pub use handlers::*;

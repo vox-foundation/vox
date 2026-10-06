@@ -1269,19 +1269,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         }
     };
 
-    // KB signal adapter: fire-and-forget after response is assembled
-    if let Some(db) = state.db.clone() {
-        let content_for_kb = response_text.clone();
-        let session_ref = session_id.clone();
-        tokio::spawn(async move {
-            crate::kb::signal_chat::ingest_chat_turn(
-                db,
-                &content_for_kb,
-                Some(session_ref.as_str()),
-            )
-            .await;
-        });
-    }
+    // TRUST-03: model output is never written back into the knowledge base from a chat turn.
 
     let chat_q_key =
         mcp_questioning_session_key(state, "vox_chat_message", Some(session_id.as_str()));
@@ -2531,3 +2519,7 @@ mod tests {
 #[cfg(test)]
 #[path = "message_turn_trace_tests.rs"]
 mod turn_trace_tests;
+
+#[cfg(test)]
+#[path = "message_kb_leak_tests.rs"]
+mod kb_leak_tests;
