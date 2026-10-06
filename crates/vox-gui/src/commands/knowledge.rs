@@ -285,13 +285,26 @@ pub async fn save_research_session_to_kb(
         )
         .collect();
 
-    let saved = vox_orchestrator_mcp::chat_tools::chat::research_turn::persist_research_findings_to_knowledgebase(
-        Some(db.as_ref()),
-        &session.query_text,
-        &sources,
-        Some(artifact.report_markdown.as_str()),
-    )
-    .await;
+    use vox_orchestrator_mcp::chat_tools::chat::research_turn as rt;
+    // Findings go to the pending inbox (never knowledge nodes); the toast copy changes in 03-11.
+    let origin = vox_db::kb_text::FindingOrigin::GuiSaveResearchSession;
+    let root = crate::commands::research::research_repo_root();
+    let mut saved =
+        rt::capture_research_sources(&db, &root, &session.query_text, &sources, origin).await;
+    if !artifact.report_markdown.trim().is_empty()
+        && rt::capture_research_synthesis(
+            &db,
+            &root,
+            &session.query_text,
+            &sources,
+            &artifact.report_markdown,
+            origin,
+        )
+        .await
+        .is_some()
+    {
+        saved += 1;
+    }
 
     Ok(saved)
 }

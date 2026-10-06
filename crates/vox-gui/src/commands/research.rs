@@ -26,7 +26,7 @@ fn pool_db(pool: &GuiDbPool) -> Result<Arc<VoxDb>, String> {
 
 /// Repository root for research-doc writes: Clavis `VoxRepositoryRoot` (`VOX_REPO_ROOT`, alias
 /// `VOX_REPOSITORY_ROOT`), else the current directory.
-fn research_repo_root() -> std::path::PathBuf {
+pub(crate) fn research_repo_root() -> std::path::PathBuf {
     vox_secrets::resolve_secret(vox_secrets::SecretId::VoxRepositoryRoot)
         .expose()
         .map(std::path::PathBuf::from)
