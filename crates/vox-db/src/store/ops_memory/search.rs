@@ -126,6 +126,22 @@ impl crate::VoxDb {
         Ok(out)
     }
 
+    /// Row counts of `(search_documents, search_document_chunks)`; used to prove a path wrote no corpus rows.
+    pub async fn search_corpus_row_counts(&self) -> Result<(i64, i64), StoreError> {
+        let mut out = [0i64; 2];
+        for (slot, sql) in out.iter_mut().zip([
+            "SELECT COUNT(*) FROM search_documents",
+            "SELECT COUNT(*) FROM search_document_chunks",
+        ]) {
+            let mut rows = self.conn.query(sql, ()).await?;
+            *slot = match rows.next().await? {
+                Some(r) => r.get::<i64>(0)?,
+                None => 0,
+            };
+        }
+        Ok((out[0], out[1]))
+    }
+
     /// Replace all chunks for `document_id` with the provided ordered bodies.
     pub async fn replace_search_document_chunks(
         &self,
@@ -356,6 +372,20 @@ mod tier_tests {
             .await
             .unwrap();
         rows.next().await.unwrap().unwrap().get(0).unwrap()
+    }
+
+    #[tokio::test]
+    async fn search_corpus_row_counts_track_documents_and_chunks() {
+        let db = VoxDb::open_memory().await.unwrap();
+        assert_eq!(db.search_corpus_row_counts().await.unwrap(), (0, 0));
+        let id = db
+            .upsert_search_document("u://c", "C", "text/markdown", "h", Untrusted)
+            .await
+            .unwrap();
+        db.replace_search_document_chunks(id, &["one".into(), "two".into()])
+            .await
+            .unwrap();
+        assert_eq!(db.search_corpus_row_counts().await.unwrap(), (1, 2));
     }
 
     #[tokio::test]

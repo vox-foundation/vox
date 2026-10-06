@@ -60,15 +60,6 @@ async fn searxng() -> MockServer {
     s
 }
 
-async fn count(db: &VoxDb, table: &str) -> i64 {
-    let mut rows = db
-        .connection()
-        .query(&format!("SELECT COUNT(*) FROM {table}"), ())
-        .await
-        .unwrap();
-    rows.next().await.unwrap().unwrap().get::<i64>(0).unwrap()
-}
-
 async fn run(persist: bool, sink: Option<Arc<dyn WebFindingCapture>>) -> (Arc<VoxDb>, MockServer) {
     let mock = searxng().await;
     let db = Arc::new(VoxDb::open_memory().await.unwrap());
@@ -96,8 +87,7 @@ async fn capture_no_sink_no_writes() {
         1,
         "web leg must have run"
     );
-    assert_eq!(count(&db, "search_documents").await, 0);
-    assert_eq!(count(&db, "search_document_chunks").await, 0);
+    assert_eq!(db.search_corpus_row_counts().await.unwrap(), (0, 0));
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -113,8 +103,7 @@ async fn capture_sink_receives_hit_and_corpus_stays_empty() {
     assert_eq!(h.engine, "test");
     assert_eq!(h.query, QUERY);
     assert_eq!(h.origin, FindingOrigin::WebSearch);
-    assert_eq!(count(&db, "search_documents").await, 0);
-    assert_eq!(count(&db, "search_document_chunks").await, 0);
+    assert_eq!(db.search_corpus_row_counts().await.unwrap(), (0, 0));
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -197,6 +186,5 @@ async fn capture_crag_tavily_reaches_sink_not_corpus() {
         Some("Tavily full content body.")
     );
     assert!(exec.durable_artifacts.is_empty());
-    assert_eq!(count(&db, "search_documents").await, 0);
-    assert_eq!(count(&db, "search_document_chunks").await, 0);
+    assert_eq!(db.search_corpus_row_counts().await.unwrap(), (0, 0));
 }

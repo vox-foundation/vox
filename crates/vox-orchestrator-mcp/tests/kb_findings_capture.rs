@@ -37,15 +37,6 @@ async fn rows(db: &VoxDb) -> Vec<KbFindingRow> {
     db.kb_findings_list(None, 100).await.unwrap()
 }
 
-async fn count(db: &VoxDb, table: &str) -> i64 {
-    let mut r = db
-        .connection()
-        .query(&format!("SELECT COUNT(*) FROM {table}"), ())
-        .await
-        .unwrap();
-    r.next().await.unwrap().unwrap().get::<i64>(0).unwrap()
-}
-
 fn snapshot_files(root: &Path) -> Vec<String> {
     match std::fs::read_dir(root.join(".vox/cache/kb-findings")) {
         Ok(d) => d
@@ -123,8 +114,7 @@ async fn capture_web_leg_end_to_end() {
             .join(format!(".vox/cache/kb-findings/{hex}.txt"))
             .exists()
     );
-    assert_eq!(count(&db, "search_documents").await, 0);
-    assert_eq!(count(&db, "search_document_chunks").await, 0);
+    assert_eq!(db.search_corpus_row_counts().await.unwrap(), (0, 0));
 }
 
 #[tokio::test]
