@@ -6,10 +6,45 @@
 use serde::Serialize;
 use std::fmt;
 
-/// Sanitize untrusted text: strip invisible-codepoint smuggling and neutralize
+/// True for codepoints used to smuggle hidden instructions: Unicode tag block,
+/// zero-width, invisible operators, bidi controls and variation selectors (D-06).
+fn is_banned(c: char) -> bool {
+    matches!(c,
+        '\u{E0000}'..='\u{E007F}'
+        | '\u{200B}'..='\u{200F}'
+        | '\u{2060}'..='\u{2064}'
+        | '\u{FEFF}'
+        | '\u{202A}'..='\u{202E}'
+        | '\u{2066}'..='\u{2069}'
+        | '\u{FE00}'..='\u{FE0F}'
+        | '\u{E0100}'..='\u{E01EF}')
+}
+
+/// Role-token replacements, applied in order (moved verbatim from the research shim).
+const ROLE_TOKENS: &[(&str, &str)] = &[
+    ("<|im_start|>", "[im_start]"),
+    ("<|im_end|>", "[im_end]"),
+    ("[INST]", "[inst_neutralized]"),
+    ("[/INST]", "[/inst_neutralized]"),
+    ("<<SYS>>", "[sys_neutralized]"),
+    ("<</SYS>>", "[/sys_neutralized]"),
+    ("<antThinking>", "[ant_thinking]"),
+    ("</antThinking>", "[/ant_thinking]"),
+    ("<start_of_turn>", "[start_of_turn]"),
+    ("<end_of_turn>", "[end_of_turn]"),
+    ("<\u{FF5C}User\u{FF5C}>", "[user_neutralized]"),
+    ("<\u{FF5C}Assistant\u{FF5C}>", "[assistant_neutralized]"),
+];
+
+/// Sanitize untrusted text: strip invisible-codepoint smuggling first (so
+/// interleaved evasion characters cannot split a role token), then neutralize
 /// role tokens.
 pub fn sanitize(raw: &str) -> String {
-    raw.to_string()
+    let mut out: String = raw.chars().filter(|c| !is_banned(*c)).collect();
+    for (from, to) in ROLE_TOKENS {
+        out = out.replace(from, to);
+    }
+    out
 }
 
 /// Text that has passed through [`sanitize`]. The field is private and there is
@@ -22,7 +57,7 @@ pub struct SanitizedText(String);
 impl SanitizedText {
     /// Sanitize `raw` and wrap the result.
     pub fn new(raw: &str) -> Self {
-        Self(raw.to_string())
+        Self(sanitize(raw))
     }
     pub fn as_str(&self) -> &str {
         &self.0
