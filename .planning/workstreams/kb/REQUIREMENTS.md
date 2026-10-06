@@ -35,15 +35,15 @@ Research basis: `.planning/workstreams/kb/research/SUMMARY.md` and `docs/src/arc
 
 - [x] **RET-01**: Any MCP host (Vox chat, Claude Code, Cursor) can call `vox_kb_search`, `vox_kb_get`, `vox_kb_cite`, `vox_kb_status` and `vox_kb_reindex`, and read `kb://doc/{path}` / `kb://chunk/{hash}` resources
 - [ ] **RET-02**: All KB retrieval goes through `vox-search` (single retrieval path); the legacy `KbStore` LIKE search, `KbRouter`, signal adapters, `kb_lines` and the 12 legacy `vox_kb_*` CRUD tools are retired, with colliding names replaced rather than aliased
-- [ ] **RET-03**: Legacy `kb_entries`/`knowledge_bases` rows are counted before quarantine; non-empty rows are migrated into the inbox as pending findings
+- [x] **RET-03**: Legacy `kb_entries`/`knowledge_bases` rows are counted before quarantine; non-empty rows are migrated into the inbox as pending findings
 - [ ] **RET-04**: Search results carry trust tier, staleness, `scope`, and status; `status: research|roadmap|legacy|deprecated` and superseded pages are down-weighted, not excluded
 
 ### Provenance & Trust (TRUST)
 
-- [ ] **TRUST-01**: Every indexed row and finding has a required trust tier mapped onto `ContextTrustTier`: SystemVerified = curated + mechanical verification evidence; Trusted = curated (merged to git); Advisory = agent-derived; Untrusted = inbox / live web. Writes without a tier fail to compile or are rejected
+- [x] **TRUST-01**: Every indexed row and finding has a required trust tier mapped onto `ContextTrustTier`: SystemVerified = curated + mechanical verification evidence; Trusted = curated (merged to git); Advisory = agent-derived; Untrusted = inbox / live web. Writes without a tier fail to compile or are rejected
 - [ ] **TRUST-02**: Web hits are no longer written into the searchable corpus; `persist_web_hits` routes them into the `kb_findings` inbox as Untrusted
 - [ ] **TRUST-03**: Model output never re-enters the KB at elevated trust — the `signal_research` 0.95 confidence floor and the post-turn `accepted=1` chat writeback are removed or routed to the inbox
-- [ ] **TRUST-04**: Each finding stores summary, short quotes, source URL, fetch date and content hash; a full-text snapshot is kept locally under a gitignored path and is never committed
+- [x] **TRUST-04**: Each finding stores summary, short quotes, source URL, fetch date and content hash; a full-text snapshot is kept locally under a gitignored path and is never committed
 - [x] **TRUST-05**: Ingested and injected text passes a sanitizer (Unicode tag block, zero-width/bidi characters, HTML comments, off-allowlist markdown images) backed by property tests and a red-team fixture set
 - [x] **TRUST-06**: Promotion eligibility fails closed when the trust lookup errors
 
@@ -164,12 +164,12 @@ Research basis: `.planning/workstreams/kb/research/SUMMARY.md` and `docs/src/arc
 | IDX-07 | Phase 2 | Complete |
 | RET-01 | Phase 2 | Complete |
 | RET-02 | Phase 3 | Pending |
-| RET-03 | Phase 3 | Pending |
+| RET-03 | Phase 3 | Complete |
 | RET-04 | Phase 5 | Pending |
-| TRUST-01 | Phase 3 | Pending |
+| TRUST-01 | Phase 3 | Complete |
 | TRUST-02 | Phase 3 | Pending |
 | TRUST-03 | Phase 3 | Pending |
-| TRUST-04 | Phase 3 | Pending |
+| TRUST-04 | Phase 3 | Complete |
 | TRUST-05 | Phase 3 | Complete |
 | TRUST-06 | Phase 3 | Complete |
 | TAX-01 | Phase 4 | Pending |
