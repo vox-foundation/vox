@@ -676,6 +676,15 @@ fn vox_gui_is_tested_somewhere() {
     // actually runs on the same OS as `full`. rfind anchors on the step
     // immediately preceding it.
     // `cargo gui-test` is the .cargo/config.toml alias for the same suite with link.exe on Windows.
+    // Scope to the gui-cross-build job: the gui-windows-build-smoke job after it has its
+    // own sidecar staging step, which would otherwise win the rfind.
+    let yml = yml
+        .split_once("\n  gui-cross-build:")
+        .expect("gui-cross-build job")
+        .1;
+    let yml = yml
+        .split_once("\n  gui-windows-build-smoke:")
+        .map_or(yml, |(job, _)| job);
     let full = yml
         .find("cargo gui-test --locked")
         .or_else(|| yml.find("cargo test -p vox-gui --locked"))

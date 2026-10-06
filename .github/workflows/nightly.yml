@@ -15,6 +15,23 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: "0"
+  # Crates `cargo check --all-features` cannot build on ubuntu-latest. The one
+  # list for the audits job's A.4 step; the all-features-matrix leaves them out.
+  # Cargo features cannot be target-gated, so a crate whose feature forwards to
+  # `candle-core/metal` pulls objc2 (Apple-only, `compile_error!` elsewhere) and
+  # one forwarding to `candle-core/cuda` needs nvcc (absent on hosted runners):
+  #   metal: vox-plugin-mens-candle-metal, vox-plugin-mens-candle-core, vox-quantize
+  #   cuda:  vox-plugin-mens-candle-cuda, vox-plugin-mens-candle-core, vox-quantize,
+  #          vox-plugin-speech, vox-populi (mens-candle-qlora-cuda), vox-ml-cli
+  #          (forwards to vox-populi/mens-candle-qlora-cuda)
+  #   vox-gui: Tauri sidecar/frontend-dist prerequisites
+  #   vox-codegen: `standalone` is a never-enabled cfg placeholder for the
+  #     #[path]-embedded vox-codegen-ts; force-enabling it breaks the embed.
+  # CUDA compile coverage lives in ml-cuda-health (installs the toolkit).
+  ALL_FEATURES_LINUX_EXCLUDE: >-
+    vox-gui vox-codegen vox-plugin-mens-candle-metal vox-plugin-mens-candle-core
+    vox-plugin-mens-candle-cuda vox-quantize vox-plugin-speech vox-populi
+    vox-ml-cli
 
 jobs:
   # Setup: cache warmup + affected-crate computation.
@@ -634,20 +651,6 @@ jobs:
         run: cargo nextest run -p vox-compiler --test golden_examples_strict_parse --no-capture 2>&1
         # Gate enforcement: The build fails if any golden example contains syntax errors or unhandled tokens.
 
-      - name: Golden @test function runner (CR-D3 — vox test round-trip)
-        # Runs every @test fn in examples/golden/**/*.vox through the eval layer.
-        # Validates that the `vox test` command surface works end-to-end on golden examples.
-        run: cargo nextest run -p vox-integration-tests --test golden_vox_test_runner --no-capture 2>&1
-
-      - name: AgentOS ACI schema + guardrail integration gate
-        run: cargo nextest run -p vox-integration-tests --test agentos_aci_bench --no-capture 2>&1
-
-      - name: Compiler pipeline benchmarks compile-smoke (CR-E1 gate)
-        # Verifies benchmark code compiles cleanly; timing baselines are captured
-        # by the separate nightly benchmark job.  `--no-run` prevents wall-clock
-        # variability from inflating CI times.
-        run: cargo bench -p vox-compiler --no-run
-
       - name: Golden examples fmt idempotency gate (A.12)
         shell: bash
         run: |
@@ -659,6 +662,49 @@ jobs:
             echo "vox fmt is not idempotent or examples have unformatted changes."
             exit 1
           fi
+
+  # Split from compiler-gates, which had spent 19.7 of its 20 min before the
+  # bench step started (nightly 37467949942): the vox-integration-tests
+  # binaries and the bench targets are separate compiles, so they run here in
+  # parallel instead of serially behind the vox-compiler gates.
+  compiler-gates-integration:
+    name: Compiler gates (golden @test runner + AgentOS ACI + bench compile)
+    needs: setup
+    if: needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_compiler == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache: "false"
+      - uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ needs.setup.outputs.cache-key }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Golden @test function runner (CR-D3 — vox test round-trip)
+        # Runs every @test fn in examples/golden/**/*.vox through the eval layer.
+        # Validates that the `vox test` command surface works end-to-end on golden examples.
+        run: cargo nextest run -p vox-integration-tests --test golden_vox_test_runner --no-capture 2>&1
+
+      - name: AgentOS ACI schema + guardrail integration gate
+        run: cargo nextest run -p vox-integration-tests --test agentos_aci_bench --no-capture 2>&1
+
+      - name: Compiler pipeline benchmarks compile-smoke (CR-E1 gate)
+        # Verifies benchmark code compiles cleanly; timing baselines are captured
+        # by the separate nightly benchmark job. `cargo check --benches` type-
+        # checks the bench targets on the warm dev-profile cache; `cargo bench
+        # --no-run` built them under the bench profile (inherits release, thin
+        # LTO), a cold release build of vox-compiler's whole dependency tree.
+        run: cargo check -p vox-compiler --benches
 
   tests:
     name: Tests (nextest + llvm-cov + doctests)
@@ -1065,41 +1111,13 @@ jobs:
           set -euo pipefail
           FULL="${{ needs.setup.outputs.full }}"
           P_ARGS="${{ needs.setup.outputs.affected_p_args }}"
-          # `--all-features` unconditionally enables every workspace crate's
-          # `cuda` feature (candle-core/cuda etc.), which requires nvcc — this
-          # step had no guard for that, so it always failed on fleets without
-          # the CUDA toolkit installed. `command -v nvcc` alone isn't reliable
-          # here — some fleet runners have a stale/broken PATH entry that
-          # resolves but fails when actually invoked. Run the same check
-          # cudarc's build.rs does. Crates with their own `cuda` feature:
-          # vox-plugin-mens-candle-cuda, vox-quantize, vox-plugin-speech,
-          # vox-populi (mens-candle-qlora-cuda), vox-speech. vox-ml-cli's
-          # `mens-candle-cuda` feature forwards into vox-populi's cuda
-          # feature via `vox-populi/mens-candle-qlora-cuda`, so it needs
-          # excluding too or --all-features re-enables it as a dependency.
-          CUDA_EXCLUDE=()
-          if ! nvcc --version >/dev/null 2>&1; then
-            CUDA_EXCLUDE=(--exclude vox-plugin-mens-candle-cuda --exclude vox-quantize --exclude vox-plugin-speech --exclude vox-populi --exclude vox-speech --exclude vox-ml-cli)
-          fi
-          # Same problem for the `metal` feature: it links Apple's Metal
-          # framework via objc2/candle-core, which cannot compile off macOS at
-          # all (no runtime-check fallback like nvcc). This job always runs on
-          # Linux, so always exclude the crates with their own `metal` feature:
-          # vox-plugin-mens-candle-metal, vox-quantize.
-          METAL_EXCLUDE=()
-          if [ "$(uname -s)" != "Darwin" ]; then
-            METAL_EXCLUDE=(--exclude vox-plugin-mens-candle-metal --exclude vox-quantize)
-          fi
-          # vox-codegen declares a `standalone` feature that is intentionally
-          # never enabled (see its Cargo.toml comment): it's only there so the
-          # `#[cfg(feature = "standalone")]` guards in the `#[path]`-embedded
-          # vox-codegen-ts/src/mod.rs are known cfgs. --all-features force-
-          # enables it anyway, which makes the embedded copy take the
-          # standalone branch (`use vox_codegen::...`) while compiled inside
-          # vox-codegen itself, an unresolved-import error. It has no other
-          # non-default feature, so excluding it loses no real coverage.
+          # Platform-only crates come from the workflow-level
+          # ALL_FEATURES_LINUX_EXCLUDE (one list, shared with the
+          # all-features-matrix comment); see its definition for why each is there.
+          EXCLUDE=()
+          for c in $ALL_FEATURES_LINUX_EXCLUDE; do EXCLUDE+=(--exclude "$c"); done
           if [ "$FULL" = "true" ]; then
-            cargo check --workspace --exclude vox-gui --exclude vox-codegen "${CUDA_EXCLUDE[@]}" "${METAL_EXCLUDE[@]}" --all-features
+            cargo check --workspace "${EXCLUDE[@]}" --all-features
           elif [ -n "$P_ARGS" ]; then
             # shellcheck disable=SC2086
             cargo check $P_ARGS --all-features
@@ -1198,9 +1216,8 @@ jobs:
             label: macOS
     runs-on: ${{ matrix.runner }}
     # A literal (not `${{ matrix.timeout }}`) per workflow_policy_guard, which
-    # rejects expression timeouts. 90m covers the slower macOS leg (cold
-    # runner, no warm target/, full vox-cli release build for the sidecar);
-    # Linux finishes well inside it.
+    # rejects expression timeouts. 90m covers the slower macOS leg on a cold
+    # cache miss; Linux finishes well inside it.
     timeout-minutes: 90
     # BURN-IN: GitHub collapses a matrix into one result, so an unproven macOS
     # leg would fail the whole job. Advisory until it has a green history, per
@@ -1212,17 +1229,21 @@ jobs:
       - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
-      - uses: ./.github/actions/setup-rust
+      - id: rust
+        uses: ./.github/actions/setup-rust
         with:
           components: rustfmt, clippy
           cache: "false"
+      # setup's cache-key embeds setup's own runner.os (Linux), so the macOS leg
+      # used to restore a 1.3 GB Linux target/ and then build everything cold.
+      # Linux keeps setup's warm entry; macOS gets its own key.
       - uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ needs.setup.outputs.cache-key }}
+          key: ${{ runner.os == 'Linux' && needs.setup.outputs.cache-key || format('{0}-cargo-{1}-relaunch-{2}', runner.os, steps.rust.outputs.toolchain, hashFiles('Cargo.lock')) }}
           restore-keys: |
             ${{ runner.os }}-cargo-
 
@@ -1250,29 +1271,40 @@ jobs:
       - name: Build vox-orchestrator-d
         run: cargo build -p vox-orchestrator-d
 
-      # vox-gui's build.rs hard-fails unless the triple-suffixed Tauri sidecar
-      # (bundle.externalBin) exists. It can self-heal by spawning a nested
-      # `cargo build` from inside a build script; stage it explicitly instead so
-      # a required lane does not depend on that path. Same staging as
-      # gui-cross-build.yml, with the triple read from rustc so one step covers
-      # both legs.
-      - name: Build + stage Tauri sidecar (vox CLI, release)
+      # vox-gui's build.rs hard-fails unless every triple-suffixed Tauri sidecar
+      # in bundle.externalBin (vox, vox-ml-cli) is a file; it only checks
+      # `is_file()`. This test never builds a tauri::Builder or runs a sidecar
+      # (it spawns VOX_ORCHESTRATOR_D_BIN), so stage placeholders. Building the
+      # real ones cost ~68 min on cold macOS (release vox 41m, plus build.rs
+      # silently nested-building release vox-ml-cli because only vox was
+      # staged) and ran the leg into its 90-min cap (nightly 37467949942).
+      # VOX_GUI_SKIP_SIDECAR_AUTOBUILD makes a missing one fail loudly instead.
+      - name: Stage placeholder Tauri sidecars (not executed by this test)
         shell: bash
         run: |
           set -euo pipefail
-          cargo build -p vox-cli --release --bin vox
           triple="$(rustc -vV | sed -n 's|^host: ||p')"
           mkdir -p target/release
-          cp target/release/vox "target/release/vox-${triple}"
+          for bin in vox vox-ml-cli; do
+            printf '#!/bin/sh\necho "placeholder sidecar staged by nightly relaunch smoke" >&2\nexit 1\n' > "target/release/${bin}-${triple}"
+            chmod +x "target/release/${bin}-${triple}"
+          done
 
-      - name: Build vox-gui (Rust crate only, no Tauri UI bundle)
-        run: cargo build -p vox-gui
+      # Compile separately from the run so the run step's timeout bounds the
+      # test itself: a daemon that never answers fails in minutes, with the
+      # test's own diagnostics, instead of consuming the job cap.
+      - name: Build relaunch smoke test binary
+        env:
+          VOX_GUI_SKIP_SIDECAR_AUTOBUILD: "1"
+        run: cargo nextest run -p vox-gui --test gui_relaunch_smoke --no-run
 
       - name: Relaunch smoke (CR-U6) — daemon relaunch + version parity
+        timeout-minutes: 10
         env:
+          VOX_GUI_SKIP_SIDECAR_AUTOBUILD: "1"
           VOX_GUI_RELAUNCH_SMOKE: "1"
           VOX_ORCHESTRATOR_D_BIN: ${{ github.workspace }}/target/debug/vox-orchestrator-d
-        run: cargo nextest run -p vox-gui --test gui_relaunch_smoke
+        run: cargo nextest run -p vox-gui --test gui_relaunch_smoke --no-capture
 
   visualizer-ingest-smoke:
     name: Visualizer ingest unit (pnpm + tsx)
@@ -1466,31 +1498,10 @@ jobs:
             crates/vox-gui/ui/playwright-report
           if-no-files-found: ignore
 
-      # Review-bundle capture, both browsers — Firefox-only defects (occlusion/
-      # layout) are otherwise invisible to CI (2026-07-18 review finding).
-      # Advisory per F2.
-      - name: Review-bundle capture (chromium + firefox)
-        working-directory: crates/vox-gui/ui
-        env:
-          VOX_REVIEW_CAPTURE: "1"
-        run: pnpm exec playwright test e2e/review/capture.spec.ts --project=chromium --project=firefox-review --workers=2
-        continue-on-error: true
-      - name: Review-bundle AI defect analysis (advisory)
-        env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-        run: cargo run -p vox-orchestrator-mcp --features gui-visual-review --bin gui-visual-review -- --bundle crates/vox-gui/ui/review-bundle/latest --ai --max-reviews 60 --browsers chromium,firefox
-        continue-on-error: true
-
-      - name: Upload visual-review report + screens (always)
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: gui-visual-review-${{ github.run_id }}
-          path: |
-            crates/vox-gui/ui/review-bundle/latest/
-            contracts/reports/gui-visual-review/bundle-report.v1.json
-          if-no-files-found: ignore
-          retention-days: 14
+      # Review-bundle capture + AI analysis live in gui-review-capture and
+      # gui-visual-review below: in this job they ran ~20 min of advisory work
+      # ahead of the golden route and the job hit its 25-min cap before the
+      # golden route (its actual signal) ever started.
 
       # setup-rust's own cache (cache: true default), installed earlier in this
       # job, already covers ~/.cargo/registry, ~/.cargo/git, and target/ keyed
@@ -1506,14 +1517,89 @@ jobs:
           VOX_GUI_PLAYWRIGHT: "1"
         run: cargo nextest run -p vox-integration-tests --test playwright_golden_route_test --run-ignored ignored-only --no-capture
 
+  # Review-bundle capture, both browsers — Firefox-only defects (occlusion/
+  # layout) are otherwise invisible to CI (2026-07-18 review finding).
+  # Advisory per F2. One leg per Playwright project: entry files are named
+  # `entries-<browser>-w<worker>.jsonl`, so per-browser legs merge without
+  # collisions (a `--shard=k/n` split would not: both shards write w0/w1).
+  gui-review-capture:
+    name: GUI review-bundle capture (${{ matrix.project }}, advisory)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - project: chromium
+            browser: chromium
+          - project: firefox-review
+            browser: firefox
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Review-bundle capture
+        working-directory: crates/vox-gui/ui
+        timeout-minutes: 20
+        env:
+          VOX_REVIEW_CAPTURE: "1"
+        run: |
+          pnpm install --prefer-offline
+          pnpm exec playwright install ${{ matrix.browser }}
+          pnpm exec playwright test e2e/review/capture.spec.ts --project=${{ matrix.project }} --workers=2
+      - name: Upload review bundle
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: gui-review-bundle-${{ matrix.browser }}
+          path: crates/vox-gui/ui/review-bundle/latest/
+          if-no-files-found: ignore
+          retention-days: 3
+
+  gui-visual-review:
+    name: GUI review-bundle AI defect analysis (advisory)
+    needs: gui-review-capture
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-rust
+      - name: Download review bundles
+        uses: actions/download-artifact@v8
+        with:
+          pattern: gui-review-bundle-*
+          path: crates/vox-gui/ui/review-bundle/latest
+          merge-multiple: true
+      - name: Review-bundle AI defect analysis
+        timeout-minutes: 20
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: cargo run -p vox-orchestrator-mcp --features gui-visual-review --bin gui-visual-review -- --bundle crates/vox-gui/ui/review-bundle/latest --ai --max-reviews 60 --browsers chromium,firefox
+      - name: Upload visual-review report + screens (always)
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: gui-visual-review-${{ github.run_id }}
+          path: |
+            crates/vox-gui/ui/review-bundle/latest/
+            contracts/reports/gui-visual-review/bundle-report.v1.json
+          if-no-files-found: ignore
+          retention-days: 14
+
   all-features-matrix:
     name: All-Features Check (${{ matrix.crate }})
     # Tier: heavy (~30 crates × 10-15m).
-    # Not listed, on purpose: vox-codegen (its `standalone` feature is a cfg
-    # placeholder that --all-features turns on, which cannot compile embedded),
-    # vox-populi and vox-ml-cli (--all-features enables `cuda`/`metal`, which
-    # need nvcc / macOS). The workspace-wide all-features step in the `audits`
-    # job applies the same exclusions with the guards that explain them.
+    # Never list a crate from the workflow-level ALL_FEATURES_LINUX_EXCLUDE
+    # (it says why each cannot build --all-features on ubuntu-latest); the
+    # audits job's A.4 step excludes the same list.
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -1595,61 +1681,6 @@ jobs:
         run: cargo deny check
       - if: ${{ !cancelled() }}
         run: cargo audit
-
-  # Portable Windows lane: proves the Tauri shell compiles and the binary starts
-  # (headless `--print-action-manifest-json`). Catches manifest/sidecar/icon drift
-  # that Linux CI excludes when `vox-gui` is omitted from nextest/clippy.
-  gui-windows-build-smoke:
-    name: GUI Windows build smoke
-    runs-on: windows-latest
-    timeout-minutes: 180
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Install Rust toolchain
-        uses: ./.github/actions/setup-rust
-
-      - uses: pnpm/action-setup@v6
-        with:
-          version: 11
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: pnpm
-          cache-dependency-path: crates/vox-gui/ui/pnpm-lock.yaml
-
-      # No separate Swatinem/rust-cache step: setup-rust above already caches
-      # on OS + toolchain + Cargo.lock -- no separate cache step needed here.
-      - name: GUI frontend build (pnpm)
-        run: |
-          cd crates/vox-gui/ui
-          pnpm install --prefer-offline
-          pnpm run build
-
-      - name: Build vox CLI sidecar (release)
-        run: cargo build -p vox-cli --release
-
-      - name: Stage Tauri external sidecar
-        shell: pwsh
-        run: |
-          Copy-Item target/release/vox.exe target/release/vox-x86_64-pc-windows-msvc.exe -Force
-
-      - name: Tauri prerequisite tests
-        run: cargo test -p vox-gui --test gui_tauri_prereqs
-
-      # `cargo gui-build` links with link.exe: lld-link cannot reconcile ucrt.lib and
-      # libucrt.lib for vox-gui (.cargo/config.toml, [target.x86_64-pc-windows-msvc]).
-      - name: Build vox-gui (Tauri)
-        run: cargo gui-build
-
-      - name: Headless binary smoke (action manifest)
-        shell: pwsh
-        run: |
-          $out = & target/debug/vox-gui.exe --print-action-manifest-json
-          if (-not $out) { throw 'empty action manifest' }
-          if ($out -notmatch '"actions"') { throw 'action manifest JSON missing actions key' }
 
   # Sole writer of the `workspace-windows` Swatinem cache that ci.yml's advisory
   # `windows` merge-queue leg reads (save-if: false there). Without this seed the
