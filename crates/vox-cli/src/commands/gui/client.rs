@@ -41,7 +41,7 @@ pub fn wait_until(until: &str, timeout: &str) -> Result<()> {
         if start.elapsed() > budget {
             bail!("wait timed out ({timeout})");
         }
-        std::thread::sleep(std::time::Duration::from_millis(200));
+        std::thread::sleep(vox_config::timeouts::D_200MS);
     }
 }
 

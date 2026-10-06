@@ -251,10 +251,8 @@ mod sidecar_path_tests {
     /// enabled in a test build; see the residual-gap note in the retirement plan.
     #[test]
     fn sidecar_root_commands_still_exist_in_the_operations_catalog() {
-        let root = vox_repository::resolve_repo_root_for_ci();
-        let raw = std::fs::read_to_string(root.join("contracts/operations/catalog.v1.yaml"))
-            .expect("read operations catalog");
-        let parsed: Value = serde_yaml::from_str(&raw).expect("parse operations catalog");
+        let raw = include_str!("../../../../contracts/operations/catalog.v1.yaml");
+        let parsed: Value = serde_yaml::from_str(raw).expect("parse operations catalog");
         let ops = parsed
             .get("operations")
             .and_then(Value::as_sequence)

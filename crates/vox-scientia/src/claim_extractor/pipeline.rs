@@ -383,6 +383,7 @@ mod tests {
             &indices,
             VERIFY_CONCURRENCY,
             |_claim| async move {
+                // drift-allow(duplicate-numeric-literal): test delay
                 tokio::time::sleep(std::time::Duration::from_millis(200)).await;
                 ClaimVerdict::Supported { confidence: 0.9 }
             },

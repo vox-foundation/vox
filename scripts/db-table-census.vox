@@ -604,6 +604,7 @@ fn main() {
     // but `.vox` script code has no builtin to call into that Rust constant
     // (no `std.path`/env bridge exposes it here). Left as a literal default;
     // revisit if/when script-land gets a path-constants bridge.
+    // drift-allow(vox-path-literal): no path-constants bridge in .vox scripts (see above)
     let db_path = parse_flag(argv, "--db", ".vox/store.db")
     let root = parse_flag(argv, "--root", ".")
 

@@ -151,7 +151,7 @@ pub fn start_live<R: Runtime>(
         pid: std::process::id(),
         port: handle.addr().port(),
         token_path,
-        store_path: store_root.join(".vox/store.db"),
+        store_path: store_root.join(vox_db::store::DEFAULT_PROJECT_STORE_PATH),
         show: flags.show,
     })?;
 

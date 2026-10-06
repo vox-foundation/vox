@@ -1221,6 +1221,7 @@ pub fn sanitize_telemetry_string(s: &str) -> String {
     let bearer_re =
         BEARER_RE.get_or_init(|| Regex::new(r"(?i)\bBearer\s+[a-zA-Z0-9_\-\.]+").unwrap());
     result = bearer_re
+        // drift-allow(bearer-header-inline): redaction placeholder text, not an outbound header
         .replace_all(&result, "Bearer [REDACTED]")
         .to_string();
 

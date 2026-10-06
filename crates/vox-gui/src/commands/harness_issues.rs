@@ -219,7 +219,7 @@ pub async fn propose_harness_issue_fix(issue_id: i64, target_path: String) -> Re
     llm_config.telemetry_attempt_number = Some(1);
 
     let activity_options = vox_actor_runtime::ActivityOptions::default()
-        .with_timeout(std::time::Duration::from_secs(30));
+        .with_timeout(vox_config::timeouts::HTTP_REQUEST);
     let infer_result =
         vox_actor_runtime::llm::infer_with_retry(&activity_options, messages, vec![llm_config])
             .await;

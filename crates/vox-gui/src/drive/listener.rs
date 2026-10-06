@@ -6,6 +6,13 @@ use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::Duration;
 
+/// Read timeout for one Drive control request on an accepted connection.
+const REQUEST_READ_TIMEOUT: Duration = Duration::from_secs(5);
+/// Sleep between non-blocking accept attempts when no connection is pending.
+const ACCEPT_RETRY_BACKOFF: Duration = Duration::from_millis(20);
+/// Bound on the self-connect that wakes the accept loop on shutdown.
+const SHUTDOWN_WAKE_TIMEOUT: Duration = Duration::from_millis(200);
+
 // vox:defactored-from vox-orchestrator orch_daemon/mod.rs 2026-09-08
 fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     let mut diff = (a.len() != b.len()) as u8;
@@ -59,7 +66,7 @@ impl ListenerHandle {
 
     pub fn shutdown(&self) {
         self.shutdown.store(true, Ordering::SeqCst);
-        let _ = TcpStream::connect_timeout(&self.addr, Duration::from_millis(200));
+        let _ = TcpStream::connect_timeout(&self.addr, SHUTDOWN_WAKE_TIMEOUT);
     }
 }
 
@@ -125,13 +132,13 @@ pub fn bind_loopback(token: &str) -> std::io::Result<BoundListener> {
                     });
                 }
                 Err(err) if err.kind() == std::io::ErrorKind::WouldBlock => {
-                    std::thread::sleep(Duration::from_millis(20));
+                    std::thread::sleep(ACCEPT_RETRY_BACKOFF);
                 }
                 Err(_) => {
                     if join_shutdown.load(Ordering::SeqCst) {
                         break;
                     }
-                    std::thread::sleep(Duration::from_millis(20));
+                    std::thread::sleep(ACCEPT_RETRY_BACKOFF);
                 }
             }
         }
@@ -149,7 +156,7 @@ fn handle_conn(
     handler: &Mutex<Option<DriveHandler>>,
 ) -> std::io::Result<()> {
     let _ = stream.set_nonblocking(false);
-    let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
+    let _ = stream.set_read_timeout(Some(REQUEST_READ_TIMEOUT));
     let raw = read_http_request(&mut stream)?;
     let (method, path) = parse_request_line(&raw);
     if method == "GET" && path == "/health" {
@@ -229,6 +236,7 @@ fn bearer_token(raw: &str) -> Option<String> {
         if lower.starts_with("authorization:") {
             let value = line.split_once(':')?.1.trim();
             return value
+                // drift-allow(bearer-header-inline): parses an inbound header; bearer_auth_header only builds one
                 .strip_prefix("Bearer ")
                 .or_else(|| value.strip_prefix("bearer "))
                 .map(|s| s.trim().to_string());

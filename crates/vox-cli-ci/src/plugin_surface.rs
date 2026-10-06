@@ -672,6 +672,7 @@ skill-md = "git.skill.md"
         let composite = "kind = \"composite\"\n[plugin.payload.code]\nabi-version = 13\n";
         let skill = "kind = \"skill\"\nformat-version = 1\nskill-md = \"w.skill.md\"\n";
         let p = Path::new("crates/vox-plugin-widget/Plugin.toml");
+        // drift-allow(version-string): fixture version, independent of the workspace version
         let check = |raw: String| version_violation(p, &raw.parse().expect("parse"), "0.6.0");
 
         let v = check(manifest("0.1.0", code)).expect("stale code manifest is a violation");

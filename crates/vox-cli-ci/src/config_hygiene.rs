@@ -61,10 +61,27 @@ fn load_baseline(root: &Path) -> BTreeSet<String> {
     set
 }
 
+/// Crates whose job is to validate the checked-out repository tree itself
+/// (`vox ci <guard>`). They only ever run from a checkout and must read the
+/// live `contracts/` files — embedding them would check the build-time copy,
+/// not the tree under review — so Check A does not apply.
+const REPO_TREE_GUARD_FRAGMENTS: &[&str] = &["crates/vox-cli-ci/"];
+
+/// Integration-test sources (`crates/<c>/tests/**`). Like the `tests.rs` /
+/// `*_tests.rs` files `collect_rs_files` already skips, they never ship in a
+/// deployed binary and their env reads are harness knobs, not operator config.
+fn is_integration_test_path(rel: &str) -> bool {
+    rel.replace('\\', "/").contains("/tests/")
+}
+
 /// Check A: forbid cwd-relative `contracts/...` paths passed to file loaders.
 /// Such paths are inert in any non-repo-root binary. Use `include_str!`-embedded
 /// contracts instead (see Phase 0).
 pub fn check_no_cwd_relative_contract_paths(source: &str, file: &str) -> Vec<Violation> {
+    let norm = file.replace('\\', "/");
+    if REPO_TREE_GUARD_FRAGMENTS.iter().any(|p| norm.contains(p)) {
+        return Vec::new();
+    }
     let mut hits = Vec::new();
     let re = regex::Regex::new(r#""contracts/[^"]+\.(?:ya?ml|toml)""#).unwrap();
     for (i, raw) in source.lines().enumerate() {
@@ -207,26 +224,13 @@ fn count_symbol_refs(root: &Path, symbols: &[String]) -> HashMap<String, usize> 
 pub fn run(update_baseline: bool) -> anyhow::Result<()> {
     let root = std::env::current_dir()?;
 
-    // Load registry for Check D (env-var parity).
-    let registry_path = root.join("contracts/config/registry.v1.yaml");
-    let yaml_vars: std::collections::HashSet<String> = match parse_registry_file(&registry_path) {
-        Ok(rows) => rows
+    // Registered set for Check D: the same federated SSOT `config-registry-parity`
+    // uses (YAML registry + Clavis secrets + typed CONFIG_KEYS + VoxConfig domains),
+    // so a knob registered in CONFIG_KEYS is not also demanded as a YAML row.
+    let registered_env_vars: std::collections::HashSet<String> =
+        crate::config_registry_parity::unified_registered_set(&root)
             .into_iter()
-            .filter(|r| !r.env_var.is_empty() && r.env_var != "null")
-            .map(|r| r.env_var)
-            .collect(),
-        Err(_) => {
-            // Registry file absent or unreadable — treat as empty (Check D becomes no-op).
-            std::collections::HashSet::new()
-        }
-    };
-    // Union in Clavis-managed secrets so credentials don't need manual YAML rows.
-    let mut registered_env_vars = yaml_vars;
-    registered_env_vars.extend(
-        vox_secrets::spec::managed_secret_env_names()
-            .into_iter()
-            .map(|s| s.to_string()),
-    );
+            .collect();
 
     let mut violations = Vec::new();
     collect_rs_files(&root.join("crates"), &mut |path, src| {
@@ -235,7 +239,7 @@ pub fn run(update_baseline: bool) -> anyhow::Result<()> {
             .unwrap_or(path)
             .display()
             .to_string();
-        if rel.contains("config_hygiene.rs") {
+        if rel.contains("config_hygiene.rs") || is_integration_test_path(&rel) {
             return;
         }
         violations.extend(check_no_cwd_relative_contract_paths(src, &rel));
@@ -583,6 +587,16 @@ pub const THIRD_PARTY_ALLOWLIST: &[&str] = &[
     "TMP",
     "USERPROFILE",
     "LOCALAPPDATA",
+    "APPDATA",
+    "SHELL",
+    "NO_COLOR",
+    // Cargo / Rust runtime names.
+    "CARGO",
+    "CARGO_TARGET_DIR",
+    "RUST_MIN_STACK",
+    // Hugging Face hub cache location (huggingface_hub convention).
+    "HF_HOME",
+    "HF_HUB_CACHE",
 ];
 
 /// Check D: scan source for env reads (any ALL_CAPS name) that are NOT in the
@@ -670,6 +684,31 @@ mod tests {
         assert!(check_no_cwd_relative_contract_paths(ok, "x.rs").is_empty());
         let comment = r#"// loads contracts/gamify/economy.v1.yaml at build time"#;
         assert!(check_no_cwd_relative_contract_paths(comment, "x.rs").is_empty());
+    }
+
+    #[test]
+    fn repo_tree_guard_crate_is_exempt_from_check_a_but_others_are_not() {
+        let src = r#"let p = root.join("contracts/cli/command-registry.yaml");"#;
+        assert!(
+            check_no_cwd_relative_contract_paths(src, "crates/vox-cli-ci/src/dev_loop_guard.rs")
+                .is_empty()
+        );
+        assert_eq!(
+            check_no_cwd_relative_contract_paths(src, "crates/vox-gui/src/commands/x.rs").len(),
+            1
+        );
+    }
+
+    #[test]
+    fn integration_test_paths_are_recognized() {
+        assert!(is_integration_test_path("crates/vox-cli/tests/it/x.rs"));
+        assert!(is_integration_test_path(r"crates\vox-cli\tests\x.rs"));
+        assert!(!is_integration_test_path(
+            "crates/vox-cli/src/tests_helper.rs"
+        ));
+        assert!(!is_integration_test_path(
+            "crates/vox-cli/src/commands/ci/pre_push.rs"
+        ));
     }
 
     #[test]

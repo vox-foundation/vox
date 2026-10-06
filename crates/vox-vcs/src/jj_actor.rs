@@ -566,6 +566,7 @@ mod tests {
                     got_err = true;
                     break;
                 }
+                // drift-allow(duplicate-numeric-literal): test poll interval
                 tokio::time::sleep(Duration::from_millis(10)).await;
             }
             assert!(got_err, "calls must return Err once the actor has stopped");

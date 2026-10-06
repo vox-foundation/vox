@@ -428,9 +428,9 @@ impl PersistentDaemon {
     pub fn shutdown_if_spawned(&self) {
         // Avoid aborting an in-flight tool_call (empty TCP frame). Brief wait
         // only — Axis is exiting and must not hang forever.
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        let deadline = std::time::Instant::now() + D_5S;
         while self.in_flight.load(Ordering::SeqCst) > 0 && std::time::Instant::now() < deadline {
-            std::thread::sleep(std::time::Duration::from_millis(50));
+            std::thread::sleep(vox_config::timeouts::D_50MS);
         }
         if self.in_flight.load(Ordering::SeqCst) > 0 {
             tracing::warn!(
@@ -605,6 +605,7 @@ mod version_mismatch_tests {
     fn version_mismatch_serializes_to_camel_case_named_fields() {
         let mismatch = VersionMismatch {
             daemon_version: "0.5.9".to_string(),
+            // drift-allow(version-string): fixture version, independent of the workspace version
             gui_version: "0.6.0".to_string(),
         };
         let json = serde_json::to_value(&mismatch).unwrap();
