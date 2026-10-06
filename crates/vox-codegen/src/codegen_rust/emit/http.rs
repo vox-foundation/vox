@@ -966,7 +966,6 @@ query health() to str {
     }
 
     #[test]
-    #[ignore = "owner: codegen — sunset: 2026-08-01 — workflow dispatch env branch pending DSL parity"]
     fn emit_main_includes_generated_workflow_dispatch_env_branch() {
         let src = r#"
 workflow hello() {
