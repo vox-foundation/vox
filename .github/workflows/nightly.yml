@@ -1187,9 +1187,8 @@ jobs:
             label: macOS
     runs-on: ${{ matrix.runner }}
     # A literal (not `${{ matrix.timeout }}`) per workflow_policy_guard, which
-    # rejects expression timeouts. 90m covers the slower macOS leg (cold
-    # runner, no warm target/, full vox-cli release build for the sidecar);
-    # Linux finishes well inside it.
+    # rejects expression timeouts. 90m covers the slower macOS leg on a cold
+    # cache miss; Linux finishes well inside it.
     timeout-minutes: 90
     # BURN-IN: GitHub collapses a matrix into one result, so an unproven macOS
     # leg would fail the whole job. Advisory until it has a green history, per
@@ -1205,13 +1204,16 @@ jobs:
         with:
           components: rustfmt, clippy
           cache: "false"
+      # setup's cache-key embeds setup's own runner.os (Linux), so the macOS leg
+      # used to restore a 1.3 GB Linux target/ and then build everything cold.
+      # Linux keeps setup's warm entry; macOS gets its own key.
       - uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ needs.setup.outputs.cache-key }}
+          key: ${{ runner.os == 'Linux' && needs.setup.outputs.cache-key || format('{0}-cargo-relaunch-{1}', runner.os, hashFiles('Cargo.lock')) }}
           restore-keys: |
             ${{ runner.os }}-cargo-
 
@@ -1239,29 +1241,40 @@ jobs:
       - name: Build vox-orchestrator-d
         run: cargo build -p vox-orchestrator-d
 
-      # vox-gui's build.rs hard-fails unless the triple-suffixed Tauri sidecar
-      # (bundle.externalBin) exists. It can self-heal by spawning a nested
-      # `cargo build` from inside a build script; stage it explicitly instead so
-      # a required lane does not depend on that path. Same staging as
-      # gui-cross-build.yml, with the triple read from rustc so one step covers
-      # both legs.
-      - name: Build + stage Tauri sidecar (vox CLI, release)
+      # vox-gui's build.rs hard-fails unless every triple-suffixed Tauri sidecar
+      # in bundle.externalBin (vox, vox-ml-cli) is a file; it only checks
+      # `is_file()`. This test never builds a tauri::Builder or runs a sidecar
+      # (it spawns VOX_ORCHESTRATOR_D_BIN), so stage placeholders. Building the
+      # real ones cost ~68 min on cold macOS (release vox 41m, plus build.rs
+      # silently nested-building release vox-ml-cli because only vox was
+      # staged) and ran the leg into its 90-min cap (nightly 37467949942).
+      # VOX_GUI_SKIP_SIDECAR_AUTOBUILD makes a missing one fail loudly instead.
+      - name: Stage placeholder Tauri sidecars (not executed by this test)
         shell: bash
         run: |
           set -euo pipefail
-          cargo build -p vox-cli --release --bin vox
           triple="$(rustc -vV | sed -n 's|^host: ||p')"
           mkdir -p target/release
-          cp target/release/vox "target/release/vox-${triple}"
+          for bin in vox vox-ml-cli; do
+            printf '#!/bin/sh\necho "placeholder sidecar staged by nightly relaunch smoke" >&2\nexit 1\n' > "target/release/${bin}-${triple}"
+            chmod +x "target/release/${bin}-${triple}"
+          done
 
-      - name: Build vox-gui (Rust crate only, no Tauri UI bundle)
-        run: cargo build -p vox-gui
+      # Compile separately from the run so the run step's timeout bounds the
+      # test itself: a daemon that never answers fails in minutes, with the
+      # test's own diagnostics, instead of consuming the job cap.
+      - name: Build relaunch smoke test binary
+        env:
+          VOX_GUI_SKIP_SIDECAR_AUTOBUILD: "1"
+        run: cargo nextest run -p vox-gui --test gui_relaunch_smoke --no-run
 
       - name: Relaunch smoke (CR-U6) — daemon relaunch + version parity
+        timeout-minutes: 10
         env:
+          VOX_GUI_SKIP_SIDECAR_AUTOBUILD: "1"
           VOX_GUI_RELAUNCH_SMOKE: "1"
           VOX_ORCHESTRATOR_D_BIN: ${{ github.workspace }}/target/debug/vox-orchestrator-d
-        run: cargo nextest run -p vox-gui --test gui_relaunch_smoke
+        run: cargo nextest run -p vox-gui --test gui_relaunch_smoke --no-capture
 
   visualizer-ingest-smoke:
     name: Visualizer ingest unit (pnpm + tsx)
