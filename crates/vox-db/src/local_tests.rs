@@ -996,3 +996,51 @@ async fn delegation_lineage_survives_reconnect() {
     assert_eq!(payload["origin_turn_id"], "call_xyz");
     assert_eq!(payload["reason"], "delegate research");
 }
+
+/// Baseline 96: a v95 database (no `kb_findings`) gains the inbox on open; a second open is a no-op.
+#[tokio::test]
+async fn kb_findings_migration_from_95() {
+    use crate::kb_text::{ContentHash, FindingOrigin, SanitizedText};
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("v95.db").to_string_lossy().to_string();
+    {
+        let raw = turso::Builder::new_local(&path).build().await.unwrap();
+        let conn = raw.connect().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE schema_version (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL DEFAULT (datetime('now')));
+             INSERT INTO schema_version (version) VALUES (95);
+             CREATE TABLE search_documents (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, source_uri TEXT NOT NULL,
+                title TEXT NOT NULL DEFAULT '', mime_type TEXT NOT NULL DEFAULT '',
+                content_hash TEXT NOT NULL DEFAULT '',
+                ingested_at TEXT NOT NULL DEFAULT (datetime('now')),
+                corpus TEXT NOT NULL DEFAULT '', rel_path TEXT, frontmatter_json TEXT,
+                indexed_commit TEXT, index_error TEXT);
+             INSERT INTO search_documents (source_uri, title) VALUES ('old://doc', 'Old');",
+        )
+        .await
+        .unwrap();
+    }
+    let finding = crate::NewKbFinding {
+        dedupe_key: "k".into(),
+        tier: crate::FindingTier::Untrusted,
+        origin: FindingOrigin::WebSearch,
+        title: SanitizedText::new("t"),
+        summary: SanitizedText::new("s"),
+        quotes: vec![],
+        source_url: None,
+        fetched_at_ms: 1,
+        content_hash: ContentHash::from_blake3_hex(&"b".repeat(64)).unwrap(),
+        snapshot_relpath: None,
+        provenance: serde_json::json!({}),
+    };
+    {
+        let db = VoxDb::open(&path).await.unwrap();
+        assert_eq!(db.schema_version().await.unwrap(), BASELINE_VERSION);
+        assert_eq!(BASELINE_VERSION, 96);
+        assert!(db.insert_pending_finding(&finding).await.unwrap().is_some());
+    }
+    let db = VoxDb::open(&path).await.unwrap();
+    assert_eq!(db.schema_version().await.unwrap(), BASELINE_VERSION);
+    assert_eq!(db.kb_findings_list(None, 10).await.unwrap().len(), 1);
+}

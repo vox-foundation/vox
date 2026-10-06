@@ -260,6 +260,7 @@ pub use retrieval::{
     SearchCorpus, SearchDiagnostics, SearchIntent, SearchPlan, SearchRefinementAction,
     fuse_hybrid_results, heuristic_search_plan,
 };
+pub use schema::domains::knowledge::SCHEMA_LEGACY_VOXKB as LEGACY_VOXKB_DDL;
 pub use schema_digest::{SchemaDigest, digest_to_json, format_llm_context, generate_schema_digest};
 pub use socrates_telemetry::{
     SocratesSurfaceAggregate, SocratesSurfaceTelemetry, hallucination_risk_proxy,
@@ -273,12 +274,13 @@ pub use store::{
     ExternalStatusSnapshotRow, ExternalSubmissionAttemptParams, ExternalSubmissionAttemptRow,
     ExternalSubmissionJobRow, ExternalSubmissionJobUpsertParams, GamifyLudusKpiRollup,
     GamifyPolicySnapshotListRow, GrpoStepRow, HarnessFixProposalRow, HarnessIssueDecisionRow,
-    HarnessIssueRow, HopperInboxRow, KB_CHUNK_SOURCE_TYPE, KB_LIBRARY_CORPUS, KbIndexState,
-    KnowledgeHealthInfo, KnowledgeNodeRecord, KnowledgeNodeSummary, LearnedPatternEntry,
-    LibraryChunkDiff, LibraryChunkInput, LibraryChunkPos, LibraryChunkRow, LibraryDocRow,
-    LibraryDocUpsert, LlmSpendSummary, LocalTrainRow, LogExecutionParams, LogInteractionParams,
-    MemoryEntry, NewFixProposal, NewHarnessIssue, NewSkillCandidate, PackageSearchResult,
-    PlanNodeRow, PlanSessionRow, PlanVersionRow, PublicationAttemptRow, PublicationExternalLinkRow,
+    HarnessIssueRow, HopperInboxRow, KB_CHUNK_SOURCE_TYPE, KB_LIBRARY_CORPUS, KbFindingCounts,
+    KbFindingRow, KbIndexState, KnowledgeHealthInfo, KnowledgeNodeRecord, KnowledgeNodeSummary,
+    LearnedPatternEntry, LegacyKbCounts, LegacyKbEntry, LibraryChunkDiff, LibraryChunkInput,
+    LibraryChunkPos, LibraryChunkRow, LibraryDocRow, LibraryDocUpsert, LlmSpendSummary,
+    LocalTrainRow, LogExecutionParams, LogInteractionParams, MemoryEntry, NewFixProposal,
+    NewHarnessIssue, NewKbFinding, NewSkillCandidate, PackageSearchResult, PlanNodeRow,
+    PlanSessionRow, PlanVersionRow, PublicationAttemptRow, PublicationExternalLinkRow,
     PublicationExternalLinkUpsertParams, PublicationExternalRevisionRow,
     PublicationExternalRevisionUpsertParams, PublicationManifestParams, PublicationManifestRow,
     PublicationMediaAssetParams, PublicationMediaAssetRow, PublicationStatusEventRow,
@@ -308,6 +310,9 @@ pub use vox_db_types::{
     DbUserId, MisguidanceReporter, RecordMisguidanceParams, ResearchArtifactRecord,
     ResearchDefectClass, ResearchMisguidanceRecord, ResearchSearchResult, ResearchSessionRecord,
     ResearchSessionSummary,
+};
+pub use vox_orchestrator_types::trust::{
+    ContextTrustTier, FindingTier, tier_for_curated, tier_for_knowledge_node_type,
 };
 #[cfg(feature = "host-integration")]
 pub use workspace_journey_store::{

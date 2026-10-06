@@ -186,6 +186,7 @@ pub const LEGACY_EXPORT_TABLES: &[&str] = &[
     "hitl_approvals",
     "hopper_inbox",
     "kb_entries",
+    "kb_findings",
     "kb_routing_rules",
     "knowledge_bases",
     "knowledge_edges",
@@ -593,4 +594,15 @@ fn json_to_sql_value(v: &serde_json::Value) -> Result<SqlValue, StoreError> {
             serde_json::to_string(v).map_err(|e| StoreError::Serialization(e.to_string()))?,
         ),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::LEGACY_EXPORT_TABLES;
+
+    #[test]
+    fn legacy_export_tables_stay_sorted_and_include_the_findings_inbox() {
+        assert!(LEGACY_EXPORT_TABLES.windows(2).all(|w| w[0] < w[1]));
+        assert!(LEGACY_EXPORT_TABLES.contains(&"kb_findings"));
+    }
 }

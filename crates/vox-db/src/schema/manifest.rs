@@ -33,7 +33,8 @@ use std::sync::OnceLock;
 // 93: feat(vox-db): add research_misguidance_events, research_domain_reputation, and provider_quota_usage tables (Tasks 1 & 2)
 // 94: feat(vox-db): add hopper_inbox.resource_id for resource-locked hopper tasks (Phase 5 D-08)
 // 95: feat(kb): library index columns + kb_index_state (KB Phase 2)
-pub const BASELINE_VERSION: i64 = 95;
+// 96: feat(kb): kb_findings inbox + search_documents.trust_tier (KB Phase 3)
+pub const BASELINE_VERSION: i64 = 96;
 
 /// One ordered SQL slice (domain-scoped DDL); empty bodies are skipped in [`baseline_sql`].
 #[derive(Debug, Clone, Copy)]
@@ -86,6 +87,10 @@ pub const SCHEMA_FRAGMENTS: &[SchemaFragment] = &[
     SchemaFragment {
         name: "knowledge",
         sql: domains::knowledge::SCHEMA_KNOWLEDGE,
+    },
+    SchemaFragment {
+        name: "legacy_voxkb",
+        sql: domains::knowledge::SCHEMA_LEGACY_VOXKB,
     },
     SchemaFragment {
         name: "execution",

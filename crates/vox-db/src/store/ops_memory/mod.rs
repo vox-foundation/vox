@@ -2,11 +2,13 @@ mod components;
 mod crud;
 mod embedding;
 mod kb;
+mod kb_findings;
 mod knowledge;
 mod library;
 mod retention;
 mod search;
 
+pub use kb_findings::{KbFindingCounts, KbFindingRow, LegacyKbCounts, LegacyKbEntry, NewKbFinding};
 pub use knowledge::{KnowledgeHealthInfo, KnowledgeNodeRecord};
 pub use library::{
     KB_CHUNK_SOURCE_TYPE, KB_LIBRARY_CORPUS, KbIndexState, LibraryChunkDiff, LibraryChunkInput,
