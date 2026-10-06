@@ -54,7 +54,10 @@ CREATE TABLE IF NOT EXISTS search_documents (
     rel_path TEXT,
     frontmatter_json TEXT,
     indexed_commit TEXT,
-    index_error TEXT
+    index_error TEXT,
+    -- Baseline 96 (KB Phase 3): fail-closed default, so a raw-SQL row with no tier is untrusted.
+    -- No index on it here: a v95 database lacks the column when this text runs.
+    trust_tier TEXT NOT NULL DEFAULT 'untrusted'
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_search_documents_uri ON search_documents(source_uri);

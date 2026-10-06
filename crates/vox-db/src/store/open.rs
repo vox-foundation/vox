@@ -206,6 +206,7 @@ impl crate::VoxDb {
             // above; the indexes are created AFTER the ALTERs because a v94 database lacks these
             // columns when `baseline_sql()` runs.
             Self::ensure_kb_library_columns(conn).await?;
+            Self::backfill_search_document_trust_tiers(conn).await?;
             conn.execute_batch(
                 "CREATE INDEX IF NOT EXISTS idx_search_documents_corpus ON search_documents(corpus);
                  CREATE UNIQUE INDEX IF NOT EXISTS idx_search_chunks_doc_hash ON search_document_chunks(document_id, chunk_hash);
@@ -231,12 +232,18 @@ impl crate::VoxDb {
     /// Baseline 95: add the KB Library columns to a pre-95 `search_documents` /
     /// `search_document_chunks`. Idempotent (PRAGMA-guarded); a fresh database already has them.
     async fn ensure_kb_library_columns(conn: &turso::Connection) -> Result<(), StoreError> {
-        const COLUMNS: [(&str, &str, &str); 10] = [
+        const COLUMNS: [(&str, &str, &str); 11] = [
             ("search_documents", "corpus", "TEXT NOT NULL DEFAULT ''"),
             ("search_documents", "rel_path", "TEXT"),
             ("search_documents", "frontmatter_json", "TEXT"),
             ("search_documents", "indexed_commit", "TEXT"),
             ("search_documents", "index_error", "TEXT"),
+            // Baseline 96 (KB Phase 3): stored, fail-closed tier on every corpus row.
+            (
+                "search_documents",
+                "trust_tier",
+                "TEXT NOT NULL DEFAULT 'untrusted'",
+            ),
             ("search_document_chunks", "chunk_hash", "TEXT"),
             (
                 "search_document_chunks",
@@ -267,6 +274,43 @@ impl crate::VoxDb {
                     .await?;
             }
         }
+        Ok(())
+    }
+
+    /// Baseline 96 (D-01, D-03): one-time re-tiering of existing `search_documents` rows, run
+    /// inside the version gate. A corpus row takes its tier from `kb_index_state.trust_tier`
+    /// (the single corpus-level source; an unrecognised string canonicalizes to `untrusted`),
+    /// `vox://publication/*` rows become `advisory`, and everything else keeps the fail-closed
+    /// column default. Rows are re-tiered, never deleted.
+    async fn backfill_search_document_trust_tiers(
+        conn: &turso::Connection,
+    ) -> Result<(), StoreError> {
+        let mut rows = conn
+            .query("SELECT corpus, trust_tier FROM kb_index_state", ())
+            .await?;
+        let mut corpora = Vec::new();
+        while let Some(row) = rows.next().await? {
+            corpora.push((row.get::<String>(0)?, row.get::<String>(1)?));
+        }
+        drop(rows);
+        for (corpus, tier) in corpora {
+            // The empty corpus holds web/legacy rows, which must stay fail-closed.
+            if corpus.is_empty() {
+                continue;
+            }
+            let tier = crate::ContextTrustTier::from_db_str(&tier).as_db_str();
+            conn.execute(
+                "UPDATE search_documents SET trust_tier = ?1 WHERE corpus = ?2",
+                (tier, corpus.as_str()),
+            )
+            .await?;
+        }
+        conn.execute(
+            "UPDATE search_documents SET trust_tier = 'advisory' \
+             WHERE source_uri LIKE 'vox://publication/%'",
+            (),
+        )
+        .await?;
         Ok(())
     }
 

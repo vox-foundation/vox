@@ -35,7 +35,7 @@ policy:
   # re-updated for 94: hopper_inbox.resource_id (Phase 5 D-08).
   # re-updated for 95: KB Library index columns on search_documents/search_document_chunks + kb_index_state (KB Phase 2).
   # re-updated for 96: kb_findings inbox, search_documents.trust_tier and the legacy VoxKB DDL split into its own fragment (KB Phase 3).
-  repository_baseline_digest_hex: "0xb42433f2983509b92cc037a38de407ba9dd06eac206816e1db440a1db6f24eb4"
+  repository_baseline_digest_hex: "0xee29adafabbe1ae9b53bdc9d38826b49a2f2d666577e214da19fcac464109089"
   # Keccak-256 over `vox_db::schema::baseline_sql()` (= ordered SCHEMA_FRAGMENTS + spec append DDL).
   digest_source: vox_db_schema_manifest_baseline_sql
   # Human-facing product name for the DB API layer.
