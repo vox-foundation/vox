@@ -182,8 +182,14 @@ mod tests {
             text: "# A\n## Sec\nquokkaflux lives here\n".into(),
         };
         let q = "quokkaflux".to_string();
-        let lib = LibraryRetriever::build_blocking(&[doc], &[q.clone()], 10, work.path(), &hasher)
-            .unwrap();
+        let lib = LibraryRetriever::build_blocking(
+            &[doc],
+            std::slice::from_ref(&q),
+            10,
+            work.path(),
+            &hasher,
+        )
+        .unwrap();
         assert!(lib.rank("never asked").is_empty());
         let ids: Vec<String> = lib.rank(&q).into_iter().map(|c| c.id).collect();
         assert_eq!(ids.len(), ids.iter().collect::<BTreeSet<_>>().len());
