@@ -116,12 +116,12 @@ Plans:
   4. Property tests and a red-team fixture set show the sanitizer neutralises Unicode tag-block, zero-width/bidi characters, HTML comments and off-allowlist markdown images, at both the ingest and the injection boundary.
   5. `KbStore` LIKE search, `KbRouter`, the signal adapters, `kb_lines` and the 12 legacy `vox_kb_*` CRUD tools are absent from source and the tool catalog, and colliding names are replaced, not aliased. A seeded-DB migration test shows legacy `kb_entries`/`knowledge_bases` rows are counted before quarantine and non-empty rows appear in the inbox as pending.
 
-**Plans:** 13 plans (replanned 2026-10-06 against the post-02-12 tree; D-01 and D-02 pre-approved in 03-CONTEXT.md, so no decision checkpoints)
+**Plans:** 1/13 plans executed (replanned 2026-10-06 against the post-02-12 tree; D-01 and D-02 pre-approved in 03-CONTEXT.md, so no decision checkpoints)
 
 Plans:
 **Wave 1**
 
-- [ ] 03-01-PLAN.md — Trust tier vocabulary in the L0 crate (taint rule); fail-closed promotion verdict
+- [x] 03-01-PLAN.md — Trust tier vocabulary in the L0 crate (taint rule); fail-closed promotion verdict
 - [ ] 03-02-PLAN.md — One KB-text sanitizer with property tests, an ASCII-escaped red-team set and a canary roots check
 
 **Wave 2** *(blocked on Wave 1 completion)*
@@ -317,7 +317,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Retrieval Eval Baseline | 12/12 | Complete    | 2026-10-05 |
 | 2. Library Index and KB Tool Surface | 12/12 | Complete    | 2026-10-05 |
-| 3. Provenance, Trust Tiers and Leak Closure | 0/13 | Planned | - |
+| 3. Provenance, Trust Tiers and Leak Closure | 1/13 | In Progress|  |
 | 4. Taxonomy Contract and Facet Lint | 0/TBD | Not started | - |
 | 5. Local Embeddings and Ranking Signals | 0/TBD | Not started | - |
 | 6. Library GUI | 0/TBD | Not started | - |
