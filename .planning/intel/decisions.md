@@ -209,10 +209,10 @@ Synthesized from ADR classifications. One entry per ADR. LOCKED status means the
 - decision: Introduces `fragment` bare-keyword for typed parametric markup blocks passable as component props.
 - scope: fragments, parametric markup, typed props, React components, markup rendering
 
-## ADR 034 — Candle / QLoRA stack upgrades (deferred batch)
+## ADR 034 — Candle / QLoRA stack upgrades
 - source: docs/src/adr/034-candle-qlora-stack-upgrades.md
-- status: proposed
-- decision: Defer Candle/peft/qlora version unification to dedicated upgrade train with GPU CI.
+- status: locked
+- decision: Accepted 2026-10-01. Candle 0.10.2 / peft-rs 1.0.3 / qlora-rs 1.0.5 verified unified; fail-closed hosted CUDA-toolchain compile passed (https://github.com/vox-foundation/vox/actions/runs/36821415478, bc3214504f981e31817da3d9b4dbeae1b6cb0892). Compile-only; no physical-GPU runtime claim.
 - scope: Candle, QLoRA, peft, MENS training, GPU CI, dependency management
 
 ## ADR 035 — SWC parser vs alternatives (evaluation only)

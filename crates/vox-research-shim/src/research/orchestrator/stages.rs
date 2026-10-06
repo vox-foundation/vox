@@ -1,5 +1,5 @@
 use super::super::types::{Citation, ResearchHit, SelfVerificationResult};
-use super::config::RESEARCH_COMPLETENESS_RIDER;
+use super::config::{ABSTENTION_MARKER, RESEARCH_COMPLETENESS_RIDER};
 use super::helpers::sanitize_evidence;
 
 /// Count distinct registrable domains in research hits and flag diversity shortfall.
@@ -183,6 +183,23 @@ pub(super) async fn synthesize_answer_with_llm(
         .map_err(|e| anyhow::anyhow!("synthesis failed: {e}"))
 }
 
+fn synthesis_system_prompt() -> String {
+    format!(
+        "You are a precise research synthesizer. Using ONLY the provided evidence \
+         snippets, write a thorough, well-structured answer to the user's question.\n\n\
+         You MUST structure your synthesis with the following comprehensive markdown sections:\n\
+         # Executive Summary\n\
+         ## Architectural Tradeoffs\n\
+         ## Grounded Claims\n\
+         ## Contested Findings\n\
+         ## Implementation Implications\n\n\
+         Cite sources inline as [1], [2], etc. matching the evidence numbers.\n\
+         If the evidence is insufficient to answer, reply with {ABSTENTION_MARKER} as the \
+         very first line, then one sentence on what is missing, and make no claims.\n{}",
+        RESEARCH_COMPLETENESS_RIDER
+    )
+}
+
 async fn call_synthesis_llm(params: &SynthesisParams<'_>) -> anyhow::Result<(String, String)> {
     use crate::research::distillation::{
         ClaimEvidenceUnit, EpistemicModality, EvidenceKind, extract_registrable_domain,
@@ -293,19 +310,7 @@ async fn call_synthesis_llm(params: &SynthesisParams<'_>) -> anyhow::Result<(Str
         fallback_evidence.chars().take(evidence_budget).collect()
     };
 
-    let system = format!(
-        "You are a precise research synthesizer. Using ONLY the provided evidence \
-         snippets, write a thorough, well-structured answer to the user's question.\n\n\
-         You MUST structure your synthesis with the following comprehensive markdown sections:\n\
-         # Executive Summary\n\
-         ## Architectural Tradeoffs\n\
-         ## Grounded Claims\n\
-         ## Contested Findings\n\
-         ## Implementation Implications\n\n\
-         Cite sources inline as [1], [2], etc. matching the evidence numbers.\n\
-         If evidence is insufficient, say so clearly.\n{}",
-        RESEARCH_COMPLETENESS_RIDER
-    );
+    let system = synthesis_system_prompt();
 
     let user = format!(
         "Question: {}\n\nEvidence:\n{}{verdict_section}",
@@ -522,6 +527,7 @@ pub(crate) async fn chat_stage_with_model(
         candidate.max_tokens = Some(max_tokens.into());
         candidate.response_format = response_format.clone();
     }
+    crate::research::metering::tag_candidates(&mut candidates);
     let messages = messages
         .into_iter()
         .map(|(role, content)| LlmChatMessage {
@@ -535,6 +541,8 @@ pub(crate) async fn chat_stage_with_model(
     // resolved model for this role (`record_research_model_uses`).
     chat_with_cascade(&opts, messages, candidates, Some(stage))
         .await
+        .inspect(crate::research::metering::meter_response)
+        .inspect_err(|_| crate::research::metering::meter_failure())
         .map(response_to_content_and_model)
         .map_err(|e| anyhow::anyhow!(e))
 }
@@ -594,6 +602,19 @@ pub(crate) async fn chat_stage_with_model(
     _response_format: Option<serde_json::Value>,
 ) -> anyhow::Result<(String, String)> {
     anyhow::bail!("research runtime feature is disabled")
+}
+
+#[cfg(test)]
+mod synthesis_prompt_tests {
+    use super::super::config::ABSTENTION_MARKER;
+    use super::synthesis_system_prompt;
+
+    #[test]
+    fn synthesis_prompt_names_the_abstention_marker() {
+        let prompt = synthesis_system_prompt();
+        assert!(prompt.contains(ABSTENTION_MARKER));
+        assert!(prompt.contains("Cite sources inline"));
+    }
 }
 
 #[cfg(test)]

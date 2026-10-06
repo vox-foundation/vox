@@ -16,7 +16,8 @@ use vox_db_types::{
 };
 
 impl VoxDb {
-    /// Create a new research session and return its row id.
+    /// Create a new research session and return its row id. Fails when
+    /// `session_key` already exists: each attempt gets its own key.
     pub async fn create_research_session(
         &self,
         session_key: &str,
@@ -29,17 +30,21 @@ impl VoxDb {
         let conn = self.conn.clone();
         breaker
             .call(|| async move {
-                conn.execute(
-                    "INSERT OR IGNORE INTO scientia_research_sessions \
-                     (session_key, status, started_at_ms, query_text) \
-                     VALUES (?1, 'queued', ?2, ?3)",
-                    params![key.as_str(), now, q.as_str()],
-                )
-                .await?;
-                Ok::<(), StoreError>(())
+                let mut rows = conn
+                    .query(
+                        "INSERT INTO scientia_research_sessions \
+                         (session_key, status, started_at_ms, query_text) \
+                         VALUES (?1, 'queued', ?2, ?3) RETURNING id",
+                        params![key.as_str(), now, q.as_str()],
+                    )
+                    .await?;
+                let row = rows
+                    .next()
+                    .await?
+                    .ok_or_else(|| StoreError::NotFound(format!("research session {key}")))?;
+                Ok::<i64, StoreError>(row.get::<i64>(0)?)
             })
-            .await?;
-        Ok(self.conn.last_insert_rowid())
+            .await
     }
 
     /// Update the status of a research session.
@@ -133,6 +138,7 @@ impl VoxDb {
     /// Record a single research pipeline metric.
     ///
     /// Maps onto the existing `research_metrics` table (column `metric_value`, `created_at`).
+    /// Rows pass [`vox_telemetry::validate_research_metric_row`] like every other writer.
     pub async fn record_research_metric(
         &self,
         session_id: i64,
@@ -141,6 +147,8 @@ impl VoxDb {
         metadata_json: Option<&str>,
     ) -> Result<(), StoreError> {
         let sid = session_id.to_string();
+        vox_telemetry::validate_research_metric_row(&sid, metric_type, metadata_json)
+            .map_err(|e| StoreError::Db(e.to_string()))?;
         let mt = metric_type.to_string();
         let meta = metadata_json.map(|s| s.to_string());
         let breaker = self.breaker.clone();
@@ -1233,6 +1241,44 @@ pub fn sanitize_telemetry_string(s: &str) -> String {
 mod tests {
     use crate::store::ReviewDecisionRow;
     use crate::{DbConfig, VoxDb};
+
+    #[tokio::test]
+    async fn create_research_session_rejects_a_repeated_key() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
+        let first = db.create_research_session("k:one", "q1").await.unwrap();
+        let second = db.create_research_session("k:two", "q2").await.unwrap();
+        assert_ne!(first, second);
+        assert!(
+            db.create_research_session("k:one", "q1").await.is_err(),
+            "each attempt has its own key; reusing one must not merge two attempts into one session"
+        );
+    }
+
+    #[tokio::test]
+    async fn record_research_metric_enforces_trial_allowlist() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
+        let sid = db.create_research_session("k:trial", "q").await.unwrap();
+        let leaked = db
+            .record_research_metric(
+                sid,
+                "research_trial.run",
+                1.0,
+                Some(r#"{"query":"what did the user ask"}"#),
+            )
+            .await;
+        assert!(
+            leaked.is_err(),
+            "content keys must not reach research_metrics"
+        );
+        db.record_research_metric(
+            sid,
+            "research_trial.run",
+            1.0,
+            Some(r#"{"run_id":"r-1","status":"ok"}"#),
+        )
+        .await
+        .expect("structural trial row is accepted");
+    }
 
     /// Seed helper: store a claim row under the given session.
     async fn seed_claim(db: &VoxDb, session_id: i64, claim_id: u64) {

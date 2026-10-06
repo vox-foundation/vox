@@ -147,6 +147,7 @@ pub async fn extract_claims_with_model(
             candidate.max_tokens = Some(u64::from(max_tokens.unwrap_or(900)));
             candidate.response_format = Some(serde_json::json!({"type": "json_object"}));
         }
+        crate::research::metering::tag_candidates(&mut candidates);
 
         let messages = vec![
             LlmChatMessage {
@@ -174,8 +175,12 @@ pub async fn extract_claims_with_model(
         .await;
 
         match parsed_res {
-            Ok((claims, _resp)) => return claims,
+            Ok((claims, resp)) => {
+                crate::research::metering::meter_response(&resp);
+                return claims;
+            }
             Err(e) => {
+                crate::research::metering::meter_failure();
                 tracing::warn!(error = %e, "research claim extraction cascade failed or returned invalid JSON across candidates");
             }
         }

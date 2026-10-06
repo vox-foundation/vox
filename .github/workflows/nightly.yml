@@ -1671,3 +1671,44 @@ jobs:
           # `cargo check` must still refresh the seed.
           cache-on-failure: true
       - run: cargo check --workspace --exclude vox-gui --all-targets --locked
+
+  ml-cuda-health:
+    name: ML CUDA dependency health
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      # Candle kernel compilation needs an explicit target on hosted runners,
+      # which have a CUDA toolkit but no NVIDIA device to query.
+      CUDA_COMPUTE_CAP: "80"
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust toolchain
+        uses: ./.github/actions/setup-rust
+        with:
+          cache: "false"
+
+      - name: Install CUDA toolkit
+        uses: Jimver/cuda-toolkit@v0.2.36
+        with:
+          cuda: "12.6.3"
+          method: "network"
+          # Toolkit only: the bare `cuda-12-6` meta-package also pulls drivers.
+          sub-packages: '["toolkit"]'
+
+      # Compile-only validation: this proves the CUDA toolchain and feature
+      # graph compile, but does not exercise a CUDA device or runtime kernels.
+      - name: Verify CUDA compiler (compile-only)
+        run: nvcc --version
+
+      - name: Install Linux build dependencies
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
+
+      - name: Compile CUDA plugin tests without running them
+        run: cargo test --no-run -p vox-plugin-mens-candle-cuda --features cuda
+
+      - name: Validate CUDA feature owners
+        run: cargo run -q -p vox-cli -- ci cuda-features
+
+      - name: Validate CUDA release build
+        run: cargo run -q -p vox-cli -- ci cuda-release-build

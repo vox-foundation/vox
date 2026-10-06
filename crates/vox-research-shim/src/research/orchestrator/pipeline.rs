@@ -19,7 +19,7 @@ use super::super::types::{
 };
 use super::super::verifier::verify_claims_with_config;
 use super::config::ResearchConfig;
-use super::helpers::{fnv1a_hash, verifier_config_for_research_run};
+use super::helpers::{attempt_session_key, fnv1a_hash, verifier_config_for_research_run};
 use super::pipeline_cache::{research_cache_short_circuit, research_cache_store};
 use super::stages::{
     JudgeParams, SynthesisParams, chat_stage, evaluate_citation_diversity, judge_quality,
@@ -49,6 +49,23 @@ pub async fn run_research_with_context(
 
 /// Run research using a pre-created session id, for async job submission paths.
 pub async fn run_research_with_context_and_session(
+    query: ResearchQuery,
+    search_ctx: Option<&SearchRuntimeContext>,
+    db: Option<&Codex>,
+    config: &ResearchConfig,
+    precreated_session_id: Option<i64>,
+) -> Result<ResearchResult> {
+    super::super::metering::scope(run_research_metered(
+        query,
+        search_ctx,
+        db,
+        config,
+        precreated_session_id,
+    ))
+    .await
+}
+
+async fn run_research_metered(
     mut query: ResearchQuery,
     search_ctx: Option<&SearchRuntimeContext>,
     db: Option<&Codex>,
@@ -66,6 +83,7 @@ pub async fn run_research_with_context_and_session(
         && let Some(mut cached) = research_cache_short_circuit(&query, db, config).await
     {
         cached.research_metadata.served_from_cache = true;
+        cached.research_metadata.usage = Default::default();
         if let Some(id) = precreated_session_id {
             set_session_stage(Some(db), id, ResearchStage::Completed).await;
         }
@@ -100,19 +118,21 @@ pub async fn run_research_with_context_and_session(
     let search_policy = resolved_search_policy_for_research_run(db, config).await;
 
     // ── (a) Session tracking ─────────────────────────────────────────────────
+    let session_key = attempt_session_key(&query.query, &format!("{:?}", query.scope));
     let session_id: i64 = if let Some(id) = precreated_session_id {
         id
     } else if let Some(db) = db {
-        let session_key = format!(
-            "research:{:016x}",
-            fnv1a_hash(&format!("{}|{:?}", query.query, query.scope))
-        );
         db.create_research_session(&session_key, &query.query)
             .await
             .unwrap_or(0)
     } else {
         0
     };
+    super::super::metering::set_run_session(if session_id > 0 {
+        format!("research_session:{session_id}")
+    } else {
+        session_key
+    });
 
     let report_progress = |msg: String, pct: Option<f32>| {
         if let Some(ref cb) = config.progress_callback {
@@ -924,7 +944,6 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
     // Phase 1 re-enables after vox_db gains create_research_session etc.
 
     // ── (k) Citation audit stage ──────────────────────────────────────────────
-    let duration_ms = start.elapsed().as_millis() as u64;
     // Set status → auditing_citations before citation audit computation.
     set_session_stage(db, session_id, ResearchStage::AuditingCitations).await;
 
@@ -1026,7 +1045,7 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
 
     let metadata = ResearchMetadata {
         session_id,
-        duration_ms,
+        duration_ms: start.elapsed().as_millis() as u64,
         provider: provider_name,
         routing_tier,
         confidence,
@@ -1053,9 +1072,10 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
         served_from_cache: false,
         claims_extracted_count,
         claims_verified_count,
+        usage: super::super::metering::snapshot(),
     };
 
-    let result = ResearchResult {
+    let mut result = ResearchResult {
         answer,
         sources: all_hits,
         citations,
@@ -1084,6 +1104,7 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
         }
     }
 
+    refresh_run_totals(&mut result.research_metadata, start);
     // Set status → persisting_artifact before artifact store.
     set_session_stage(db, session_id, ResearchStage::PersistingArtifact).await;
     if let Some(db) = db
@@ -1104,6 +1125,7 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
         }
     }
 
+    refresh_run_totals(&mut result.research_metadata, start);
     // Set status → completed after all work is done.
     set_session_stage(db, session_id, ResearchStage::Completed).await;
 
@@ -1132,6 +1154,13 @@ fn failed_with_provider_log(
         tavily_credits,
         sources,
     })
+}
+
+/// Re-reads run duration and metered usage so they include work done after
+/// the metadata was first built (finding and artifact persistence).
+fn refresh_run_totals(metadata: &mut ResearchMetadata, start: Instant) {
+    metadata.duration_ms = start.elapsed().as_millis() as u64;
+    metadata.usage = super::super::metering::snapshot();
 }
 
 /// Best-effort stage status update. Errors are logged and swallowed so a
@@ -1429,6 +1458,52 @@ mod tests {
         assert_eq!(plan.subqueries, vec!["tucson tech events".to_string()]);
     }
 
+    fn sample_metadata() -> ResearchMetadata {
+        ResearchMetadata {
+            session_id: 1,
+            duration_ms: 10,
+            provider: "test".to_string(),
+            routing_tier: RoutingTier::Direct,
+            confidence: 0.5,
+            subquery_count: 1,
+            source_count: 0,
+            claim_verdicts: vec![],
+            retrieval_diagnostics: RetrievalDiagnostics::default(),
+            quality_score: 50,
+            planner_degraded: false,
+            competence: None,
+            self_verification: None,
+            citation_audit: None,
+            corroboration_counts: vec![],
+            wave_count: 1,
+            wave_stability: None,
+            low_grounding_evidence: false,
+            subqueries: vec![],
+            synthesis_model: String::new(),
+            judge_error: None,
+            served_from_cache: false,
+            claims_extracted_count: 0,
+            claims_verified_count: 0,
+            usage: Default::default(),
+        }
+    }
+
+    #[tokio::test]
+    async fn run_totals_include_work_after_metadata_was_built() {
+        let start = Instant::now();
+        let metadata = crate::research::metering::scope(async {
+            let mut metadata = sample_metadata();
+            metadata.duration_ms = 0;
+            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+            crate::research::metering::meter_failure();
+            refresh_run_totals(&mut metadata, start);
+            metadata
+        })
+        .await;
+        assert!(metadata.duration_ms >= 5, "{}", metadata.duration_ms);
+        assert_eq!(metadata.usage.failed_llm_calls, 1);
+    }
+
     #[test]
     fn research_run_artifact_matches_report_schema() {
         let query = ResearchQuery {
@@ -1453,32 +1528,7 @@ mod tests {
             answer: "A concise answer.".to_string(),
             sources: vec![],
             citations: vec![],
-            research_metadata: ResearchMetadata {
-                session_id: 1,
-                duration_ms: 10,
-                provider: "test".to_string(),
-                routing_tier: RoutingTier::Direct,
-                confidence: 0.5,
-                subquery_count: 1,
-                source_count: 0,
-                claim_verdicts: vec![],
-                retrieval_diagnostics: RetrievalDiagnostics::default(),
-                quality_score: 50,
-                planner_degraded: false,
-                competence: None,
-                self_verification: None,
-                citation_audit: None,
-                corroboration_counts: vec![],
-                wave_count: 1,
-                wave_stability: None,
-                low_grounding_evidence: false,
-                subqueries: vec![],
-                synthesis_model: String::new(),
-                judge_error: None,
-                served_from_cache: false,
-                claims_extracted_count: 0,
-                claims_verified_count: 0,
-            },
+            research_metadata: sample_metadata(),
         };
         let report_markdown = render_research_report_markdown(&query, &plan, &result);
         let artifact = ResearchRunArtifact {

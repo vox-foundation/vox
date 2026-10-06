@@ -685,3 +685,45 @@ fn vox_gui_is_tested_somewhere() {
         .expect("sidecar staging step");
     assert!(full > sidecar, "tests need the staged sidecar");
 }
+
+#[test]
+fn ml_cuda_health_is_hosted_compile_only_and_fail_closed() {
+    let yml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/nightly.yml"
+    ));
+    let job = yml
+        .split_once("\n  ml-cuda-health:")
+        .expect("nightly must define the ml-cuda-health job")
+        .1;
+
+    assert!(job.contains("    name: ML CUDA dependency health"));
+    assert!(job.contains("    runs-on: ubuntu-latest"));
+    assert!(job.contains("    timeout-minutes: 180"));
+    assert!(job.contains("uses: Jimver/cuda-toolkit@v0.2.36"));
+    assert!(job.contains(r#"cuda: "12.6.3""#));
+    assert!(job.contains(r#"sub-packages: '["toolkit"]'"#));
+    assert!(job.contains(r#"CUDA_COMPUTE_CAP: "80""#));
+    assert!(job.contains("nvcc --version"));
+    assert!(job.contains("cargo test --no-run -p vox-plugin-mens-candle-cuda --features cuda"));
+    assert!(job.contains("cargo run -q -p vox-cli -- ci cuda-features"));
+    assert!(job.contains("cargo run -q -p vox-cli -- ci cuda-release-build"));
+    assert!(
+        job.contains("compile-only") && job.contains("does not exercise a CUDA device"),
+        "the job must not be presented as runtime GPU evidence"
+    );
+
+    for forbidden in [
+        "continue-on-error",
+        "VOX_CI_ALLOW_CUDA_SKIP",
+        "--features cpu",
+        "|| true",
+        "if: false",
+        "self-hosted",
+    ] {
+        assert!(
+            !job.contains(forbidden),
+            "ml-cuda-health must fail closed; found forbidden marker {forbidden}"
+        );
+    }
+}

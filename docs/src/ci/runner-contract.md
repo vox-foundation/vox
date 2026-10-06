@@ -110,18 +110,33 @@ Repeated “full rebuild” symptoms are often **cache fragmentation**, not Rust
 
 ## Optional CUDA compile gate
 
-**Canonical:** **`vox ci cuda-features`** (wired in `nightly.yml`'s `audits` job). It **no-ops** when `nvcc` is absent, which is always the case on GitHub-hosted runners. When `nvcc` is on `PATH` — i.e. locally — it runs:
+**Canonical:** **`vox ci cuda-features`**. Locally it **no-ops** when `nvcc` is absent. When `nvcc` is on `PATH` it runs:
 
-- `cargo check -p vox-oratio --features cuda` — typechecks Oratio's `#[cfg(feature = "cuda")]` paths.
-- `cargo check -p vox-cli --features gpu,mens-candle-cuda` — typechecks Mens Candle qlora with CUDA.
+- `cargo check -p vox-plugin-speech --features cuda` — typechecks the speech plugin's `#[cfg(feature = "cuda")]` paths.
+- `cargo check -p vox-ml-cli --features gpu,mens-candle-cuda` — typechecks Mens Candle QLoRA with CUDA.
+
+**`vox ci cuda-release-build`** runs `cargo build -p vox-ml-cli --bin vox-ml-cli --release --features gpu,mens-candle-cuda`.
 
 Thin delegate: `scripts/check_cuda_feature_builds.sh` (optional POSIX wrapper around the same checks). Local escape hatch (e.g. Windows with CUDA installed but no MSVC host for `nvcc`): `SKIP_CUDA_FEATURE_CHECK=1 vox ci cuda-features` or the same env with `bash scripts/check_cuda_feature_builds.sh`. On PowerShell, use `bash -c 'export SKIP_CUDA_FEATURE_CHECK=1; ./scripts/check_cuda_feature_builds.sh'` so the variable reaches Bash.
 
 ## GPU / CUDA jobs
 
-GitHub-hosted runners have no GPU, so **`vox ci cuda-features`** no-ops where
-it is wired (`nightly.yml`'s `audits` job) — it skips when `nvcc` is absent.
-Run it locally on a CUDA machine for real signal. Keep workflow
+GitHub-hosted runners have no GPU, but they can install a CUDA toolkit.
+`nightly.yml`'s **`ml-cuda-health`** job (`ubuntu-latest`) installs the CUDA
+12.6.3 toolkit (no driver packages) via the pinned `Jimver/cuda-toolkit@v0.2.36` action, sets
+`CUDA_COMPUTE_CAP=80` (there is no device to query), gates on
+`nvcc --version`, then runs
+`cargo test --no-run -p vox-plugin-mens-candle-cuda --features cuda`,
+`vox ci cuda-features`, and `vox ci cuda-release-build`. It is
+**fail-closed**: no `continue-on-error`, no skip env, no CPU fallback —
+pinned by `ml_cuda_health_is_hosted_compile_only_and_fail_closed` in
+`crates/vox-cli/tests/ci_workflow_contract.rs`.
+
+This job is **compile-only evidence**: it proves the CUDA feature graph
+compiles and links, and does **not** exercise a CUDA device or runtime
+kernels. Physical-GPU execution remains a local-only check. The local skip
+behavior (`nvcc` absent, `SKIP_CUDA_FEATURE_CHECK=1`) applies only outside
+that job. Keep workflow
 `runs-on` **explicit per job** (do not hide runner choice behind
 reusable-only defaults).
 

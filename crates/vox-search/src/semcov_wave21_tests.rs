@@ -257,15 +257,83 @@ mod semcov_wave21_tests {
     }
 
     #[test]
-    fn groundedness_single_sentence_no_long_keywords_returns_one() {
-        // Catches: when model_clusters is empty (all sentences <=10 chars), returns 1.0 (trivially);
-        // caller might mis-interpret 1.0 as high groundedness when it's a vacuous result
+    fn groundedness_vacuous_answer_is_not_grounded() {
+        // Catches: an answer with no checkable clause (all sentences <=10 chars) auto-passing as 1.0
         let g = calculate_groundedness("Hi. Ok.", &["irrelevant evidence".to_string()]);
-        // Both sentences ≤10 chars → model_clusters empty → returns 1.0
-        assert_eq!(
-            g, 1.0,
-            "vacuous groundedness (no long clauses) should return 1.0 by spec"
+        assert_eq!(g, 0.0);
+    }
+
+    #[test]
+    fn groundedness_rejects_negation_flip() {
+        // Catches: "X does not support Y" counting as grounded by evidence that says "X supports Y"
+        let g = calculate_groundedness(
+            "Rust does not guarantee memory safety without unsafe blocks.",
+            &["Rust guarantees memory safety without unsafe blocks.".to_string()],
         );
+        assert_eq!(g, 0.0);
+    }
+
+    #[test]
+    fn groundedness_rejects_negation_flip_in_multi_sentence_snippet() {
+        // Catches: polarity read from the whole snippet, where an unrelated sentence has "not"
+        let g = calculate_groundedness(
+            "Rust does not guarantee memory safety without unsafe blocks.",
+            &[
+                "Rust guarantees memory safety without unsafe blocks. It is not garbage collected."
+                    .to_string(),
+            ],
+        );
+        assert_eq!(g, 0.0);
+    }
+
+    #[test]
+    fn groundedness_accepts_claim_despite_unrelated_negation_in_snippet() {
+        // Catches: a supported claim rejected because another sentence in the snippet has "not"
+        let g = calculate_groundedness(
+            "Rust guarantees memory safety without unsafe blocks.",
+            &["Rust guarantees memory safety without unsafe blocks. It does not use a garbage collector."
+                .to_string()],
+        );
+        assert_eq!(g, 1.0);
+    }
+
+    #[test]
+    fn groundedness_ignores_punctuation_and_citation_markers() {
+        // Catches: "tokio," and "schedules[1]" failing to match supporting evidence
+        let g = calculate_groundedness(
+            "Tokio, schedules[1], lightweight[2] tasks.",
+            &["Tokio schedules lightweight tasks cooperatively.".to_string()],
+        );
+        assert_eq!(g, 1.0);
+    }
+
+    #[test]
+    fn groundedness_ignores_filler_words() {
+        // Catches: a fabricated claim grounded by shared function words alone
+        let g = calculate_groundedness(
+            "Their findings about which there would be quantum entanglement.",
+            &["Their study, which ran there, would say nothing about cats.".to_string()],
+        );
+        assert_eq!(g, 0.0);
+    }
+
+    #[test]
+    fn groundedness_rejects_single_keyword_overlap() {
+        // Catches: one shared keyword anywhere in the evidence grounding an unrelated claim
+        let g = calculate_groundedness(
+            "Photosynthesis converts sunlight into chemical energy stored in glucose.",
+            &["The chemical industry uses many reagents.".to_string()],
+        );
+        assert_eq!(g, 0.0);
+    }
+
+    #[test]
+    fn groundedness_accepts_supported_sentence() {
+        let g = calculate_groundedness(
+            "Rust guarantees memory safety without garbage collection.",
+            &["Rust guarantees memory safety without a garbage collection runtime.".to_string()],
+        );
+        assert_eq!(g, 1.0);
     }
 
     // ── UnifiedHit sort ──────────────────────────────────────────────────────
