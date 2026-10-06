@@ -1,7 +1,9 @@
 //! Source trust scoring: Crossref retraction lookup + OpenAlex venue/author
 //! reputation, feeding `ResearchHit.trust_score`. Both APIs are free/keyless.
-//! Fail-open: any network or parse error yields a neutral trust score
-//! rather than blocking the research pipeline.
+//! Ranking is fail-open: any network or parse error yields a neutral trust
+//! score rather than blocking the research pipeline. Promotion eligibility
+//! ([`promotion_eligibility`]) is the one fail-closed consumer: a failed lookup
+//! is `Unavailable`, which is ineligible.
 
 use serde::Deserialize;
 use std::sync::OnceLock;
@@ -83,8 +85,16 @@ impl TrustScorer {
     /// check. The explicit `doi` wins over one extracted from `url`; no DOI means
     /// `NotApplicable` (no network call).
     pub async fn lookup_for_promotion(&self, url: &str, doi: Option<&str>) -> TrustLookup {
-        let _ = (url, doi);
-        TrustLookup::NotApplicable
+        let Some(doi) = doi.map(str::to_owned).or_else(|| extract_doi_from_url(url)) else {
+            return TrustLookup::NotApplicable;
+        };
+        match self.check_retraction(&doi).await {
+            Some(true) => TrustLookup::Retracted,
+            Some(false) => TrustLookup::Clean,
+            None => TrustLookup::Unavailable {
+                reason: format!("Crossref lookup failed for DOI {doi}"),
+            },
+        }
     }
 
     /// Returns the OpenAlex venue `source_type` string (e.g. "journal",
@@ -264,8 +274,15 @@ pub enum PromotionEligibility {
 /// Fail-closed promotion verdict. Exhaustive on purpose: a new `TrustLookup`
 /// variant must force a decision here.
 pub fn promotion_eligibility(lookup: &TrustLookup) -> PromotionEligibility {
-    let _ = lookup;
-    PromotionEligibility::Eligible
+    match lookup {
+        TrustLookup::Clean | TrustLookup::NotApplicable => PromotionEligibility::Eligible,
+        TrustLookup::Retracted => PromotionEligibility::Ineligible {
+            reason: "source is retracted".into(),
+        },
+        TrustLookup::Unavailable { reason } => PromotionEligibility::Ineligible {
+            reason: format!("trust lookup unavailable: {reason}"),
+        },
+    }
 }
 
 #[cfg(test)]
