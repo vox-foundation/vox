@@ -93,6 +93,9 @@ pub struct ResearchConfig {
     pub model_pick_inference: Option<super::super::model_select::InferenceConfig>,
     /// Tunable retrieval search policy (provider toggles, timeouts, weights).
     pub search_policy: vox_search::policy::SearchPolicy,
+    /// Sink that receives every gathered web hit (with full page text) for the findings inbox.
+    /// `None` means gathered web text is persisted nowhere (fail-closed).
+    pub finding_capture: Option<Arc<dyn vox_search::capture::WebFindingCapture>>,
 }
 
 impl std::fmt::Debug for ResearchConfig {
@@ -111,6 +114,7 @@ impl std::fmt::Debug for ResearchConfig {
                 &self.search_policy_feedback.is_some(),
             )
             .field("search_policy", &self.search_policy)
+            .field("finding_capture", &self.finding_capture.is_some())
             .finish_non_exhaustive()
     }
 }
@@ -188,6 +192,7 @@ impl Default for ResearchConfig {
             search_policy_feedback: None,
             model_pick_inference: None,
             search_policy: vox_search::policy::SearchPolicy::from_env(),
+            finding_capture: None,
         }
     }
 }

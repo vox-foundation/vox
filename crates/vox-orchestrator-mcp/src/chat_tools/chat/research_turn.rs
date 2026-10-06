@@ -603,6 +603,7 @@ pub async fn run_deep(
                 v.push((msg, pct, t.elapsed().as_millis() as u64));
             }
         })),
+        finding_capture: crate::kb_tools::findings::web_capture_for_state(state),
         ..ResearchConfig::default()
     };
     let rq = ResearchQuery {
@@ -621,7 +622,8 @@ pub async fn run_deep(
         state.db.clone(),
         state.orchestrator_config.memory.log_dir.clone(),
         state.orchestrator_config.memory.memory_md_path.clone(),
-    );
+    )
+    .with_web_capture(config.finding_capture.clone());
     // Record each research role's requested vs resolved model (Task 13).
     let (outcome, model_uses) = vox_actor_runtime::llm::cascade::record_research_model_uses(
         run_research_with_context(rq, Some(&ctx), state.db.as_deref(), &config),

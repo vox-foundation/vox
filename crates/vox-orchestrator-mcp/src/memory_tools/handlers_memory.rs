@@ -311,6 +311,7 @@ pub async fn research_run(state: &ServerState, params: ResearchRunParams) -> Str
         event_emitter: Some(std::sync::Arc::new(
             vox_research_shim::research::BroadcastEmitter::new(state.research_events.clone()),
         )),
+        finding_capture: crate::kb_tools::findings::web_capture_for_state(state),
         ..ResearchConfig::default()
     };
     let ctx = SearchRuntimeContext::new(
@@ -422,6 +423,7 @@ pub async fn research_start(state: &ServerState, params: ResearchStartParams) ->
             event_emitter: Some(std::sync::Arc::new(
                 vox_research_shim::research::BroadcastEmitter::new(state.research_events.clone()),
             )),
+            finding_capture: crate::kb_tools::findings::web_capture_for_state(&state),
             ..ResearchConfig::default()
         };
         let outcome = run_research_with_context_and_session(
