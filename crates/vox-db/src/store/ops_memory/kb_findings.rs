@@ -7,6 +7,7 @@
 use crate::kb_text::{ContentHash, FindingOrigin, FindingStatus, SanitizedText};
 use crate::store::types::StoreError;
 use std::collections::BTreeMap;
+use turso::params;
 use vox_orchestrator_types::trust::{ContextTrustTier, FindingTier};
 
 /// One finding to capture. No `Default` on purpose: every writer chooses a tier and an origin.
@@ -118,53 +119,250 @@ pub struct LegacyKbEntry {
     pub created_at_ms: i64,
 }
 
+const FINDING_SELECT: &str = "SELECT id, dedupe_key, status, trust_tier, origin, title, summary, \
+     quotes_json, source_url, fetched_at_ms, content_hash, snapshot_relpath, provenance_json, \
+     review_note, reviewed_by, reviewed_at_ms, mens_queued, created_at_ms FROM kb_findings";
+
+fn decode_err(what: &str, e: impl std::fmt::Display) -> StoreError {
+    StoreError::Db(format!("kb_findings: {what}: {e}"))
+}
+
+/// Decode one row. An unknown `status` or `origin` is an error; an unknown tier reads as
+/// `Untrusted` (fail closed).
+fn finding_row(r: &turso::Row) -> Result<KbFindingRow, StoreError> {
+    Ok(KbFindingRow {
+        id: r.get::<String>(0)?,
+        dedupe_key: r.get::<String>(1)?,
+        status: FindingStatus::from_db_str(&r.get::<String>(2)?)
+            .map_err(|e| decode_err("status", e))?,
+        trust_tier: ContextTrustTier::from_db_str(&r.get::<String>(3)?),
+        origin: FindingOrigin::from_db_str(&r.get::<String>(4)?)
+            .map_err(|e| decode_err("origin", e))?,
+        title: r.get::<String>(5)?,
+        summary: r.get::<String>(6)?,
+        quotes: serde_json::from_str(&r.get::<String>(7)?)
+            .map_err(|e| decode_err("quotes_json", e))?,
+        source_url: r.get::<Option<String>>(8)?,
+        fetched_at_ms: r.get::<i64>(9)?,
+        content_hash: r.get::<String>(10)?,
+        snapshot_relpath: r.get::<Option<String>>(11)?,
+        provenance: serde_json::from_str(&r.get::<String>(12)?)
+            .map_err(|e| decode_err("provenance_json", e))?,
+        review_note: r.get::<Option<String>>(13)?,
+        reviewed_by: r.get::<Option<String>>(14)?,
+        reviewed_at_ms: r.get::<Option<i64>>(15)?,
+        mens_queued: r.get::<i64>(16)? != 0,
+        created_at_ms: r.get::<i64>(17)?,
+    })
+}
+
 impl crate::VoxDb {
     /// Insert a `pending` finding. `Some(id)` when a row was written, `None` when `dedupe_key`
-    /// already exists.
+    /// already exists. Status is always `pending` and the tier is the [`FindingTier`] wire
+    /// string, so a finding never starts reviewed or trusted.
     pub async fn insert_pending_finding(
         &self,
-        _f: &NewKbFinding,
+        f: &NewKbFinding,
     ) -> Result<Option<String>, StoreError> {
-        Ok(None)
+        let id = uuid::Uuid::new_v4().to_string();
+        let quotes: Vec<&str> = f.quotes.iter().map(SanitizedText::as_str).collect();
+        let quotes_json = serde_json::to_string(&quotes).map_err(|e| decode_err("quotes", e))?;
+        let provenance_json = f.provenance.to_string();
+        let inserted = self
+            .conn
+            .execute(
+                "INSERT INTO kb_findings \
+                 (id, dedupe_key, status, trust_tier, origin, title, summary, quotes_json, \
+                  source_url, fetched_at_ms, content_hash, snapshot_relpath, provenance_json, \
+                  mens_queued, created_at_ms) \
+                 VALUES (?1, ?2, 'pending', ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 0, ?13) \
+                 ON CONFLICT(dedupe_key) DO NOTHING",
+                params![
+                    id.as_str(),
+                    f.dedupe_key.as_str(),
+                    f.tier.as_db_str(),
+                    f.origin.as_db_str(),
+                    f.title.as_str(),
+                    f.summary.as_str(),
+                    quotes_json.as_str(),
+                    f.source_url.as_ref().map(SanitizedText::as_str),
+                    f.fetched_at_ms,
+                    f.content_hash.as_str(),
+                    f.snapshot_relpath.as_deref(),
+                    provenance_json.as_str(),
+                    crate::now_unix_ms() as i64
+                ],
+            )
+            .await?;
+        Ok((inserted > 0).then_some(id))
     }
 
-    /// Findings newest first (`created_at_ms DESC, id ASC`), optionally of one status.
+    /// Findings newest first (`created_at_ms DESC, id ASC`, so equal timestamps have a stable
+    /// order), optionally of one status.
     pub async fn kb_findings_list(
         &self,
-        _status: Option<FindingStatus>,
-        _limit: i64,
+        status: Option<FindingStatus>,
+        limit: i64,
     ) -> Result<Vec<KbFindingRow>, StoreError> {
-        Err(StoreError::Db("kb_findings: not implemented".into()))
+        let order = "ORDER BY created_at_ms DESC, id ASC";
+        let mut rows = match status {
+            Some(s) => {
+                self.conn
+                    .query(
+                        &format!("{FINDING_SELECT} WHERE status = ?1 {order} LIMIT ?2"),
+                        params![s.as_db_str(), limit],
+                    )
+                    .await?
+            }
+            None => {
+                self.conn
+                    .query(
+                        &format!("{FINDING_SELECT} {order} LIMIT ?1"),
+                        params![limit],
+                    )
+                    .await?
+            }
+        };
+        let mut out = Vec::new();
+        while let Some(r) = rows.next().await? {
+            out.push(finding_row(&r)?);
+        }
+        Ok(out)
     }
 
     pub async fn kb_findings_counts(&self) -> Result<KbFindingCounts, StoreError> {
-        Ok(KbFindingCounts::default())
+        let mut counts = KbFindingCounts::default();
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT origin, COUNT(*) FROM kb_findings GROUP BY origin",
+                (),
+            )
+            .await?;
+        while let Some(r) = rows.next().await? {
+            let n = r.get::<i64>(1)?;
+            counts.total += n;
+            counts.by_origin.insert(r.get::<String>(0)?, n);
+        }
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT COUNT(*) FROM kb_findings WHERE status = 'pending'",
+                (),
+            )
+            .await?;
+        counts.pending = rows.next().await?.map_or(Ok(0), |r| r.get::<i64>(0))?;
+        Ok(counts)
     }
 
-    /// Human-reviewed (approved or rejected) findings not yet handed to MENS.
+    /// Human-reviewed (approved or rejected, with a reviewer) findings not yet handed to MENS,
+    /// oldest first.
     pub async fn kb_findings_unqueued_reviewed(
         &self,
-        _limit: i64,
+        limit: i64,
     ) -> Result<Vec<KbFindingRow>, StoreError> {
-        Err(StoreError::Db("kb_findings: not implemented".into()))
+        let mut rows = self
+            .conn
+            .query(
+                &format!(
+                    "{FINDING_SELECT} WHERE reviewed_by IS NOT NULL \
+                     AND status IN ('approved', 'rejected') AND mens_queued = 0 \
+                     ORDER BY created_at_ms ASC, id ASC LIMIT ?1"
+                ),
+                params![limit],
+            )
+            .await?;
+        let mut out = Vec::new();
+        while let Some(r) = rows.next().await? {
+            out.push(finding_row(&r)?);
+        }
+        Ok(out)
     }
 
-    pub async fn kb_findings_mark_mens_queued(&self, _ids: &[String]) -> Result<(), StoreError> {
-        Err(StoreError::Db("kb_findings: not implemented".into()))
+    pub async fn kb_findings_mark_mens_queued(&self, ids: &[String]) -> Result<(), StoreError> {
+        for id in ids {
+            self.conn
+                .execute(
+                    "UPDATE kb_findings SET mens_queued = 1 WHERE id = ?1",
+                    params![id.as_str()],
+                )
+                .await?;
+        }
+        Ok(())
     }
 
+    async fn legacy_table_exists(&self, name: &str) -> Result<bool, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?1 LIMIT 1",
+                params![name],
+            )
+            .await?;
+        Ok(rows.next().await?.is_some())
+    }
+
+    /// Row counts of the legacy VoxKB tables; zero for a table that no longer exists.
     // vox-deprecated-since="0.6.0" retire-by="0.7.0" reason="kb-voxkb-retirement" canonical="kb_findings"
     pub async fn legacy_kb_counts(&self) -> Result<LegacyKbCounts, StoreError> {
-        Ok(LegacyKbCounts::default())
+        let mut out = [0_i64; 3];
+        for (slot, table) in
+            out.iter_mut()
+                .zip(["knowledge_bases", "kb_entries", "kb_routing_rules"])
+        {
+            if self.legacy_table_exists(table).await? {
+                let mut rows = self
+                    .conn
+                    .query(&format!("SELECT COUNT(*) FROM {table}"), ())
+                    .await?;
+                *slot = rows.next().await?.map_or(Ok(0), |r| r.get::<i64>(0))?;
+            }
+        }
+        Ok(LegacyKbCounts {
+            knowledge_bases: out[0],
+            kb_entries: out[1],
+            kb_routing_rules: out[2],
+        })
     }
 
+    /// Legacy entries in id order after the `after_id` cursor, joined with their KB name.
+    /// Empty when the legacy tables are gone.
     // vox-deprecated-since="0.6.0" retire-by="0.7.0" reason="kb-voxkb-retirement" canonical="kb_findings"
     pub async fn legacy_kb_entries_page(
         &self,
-        _after_id: Option<&str>,
-        _limit: i64,
+        after_id: Option<&str>,
+        limit: i64,
     ) -> Result<Vec<LegacyKbEntry>, StoreError> {
-        Err(StoreError::Db("kb_findings: not implemented".into()))
+        if !self.legacy_table_exists("kb_entries").await?
+            || !self.legacy_table_exists("knowledge_bases").await?
+        {
+            return Ok(Vec::new());
+        }
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT e.id, b.name, e.content, e.source_signal, e.source_ref, \
+                        e.routing_confidence, e.accepted, e.mens_queued, e.created_at_ms \
+                 FROM kb_entries e JOIN knowledge_bases b ON b.id = e.kb_id \
+                 WHERE e.id > ?1 ORDER BY e.id ASC LIMIT ?2",
+                params![after_id.unwrap_or(""), limit],
+            )
+            .await?;
+        let mut out = Vec::new();
+        while let Some(r) = rows.next().await? {
+            out.push(LegacyKbEntry {
+                id: r.get::<String>(0)?,
+                kb_name: r.get::<String>(1)?,
+                content: r.get::<String>(2)?,
+                source_signal: r.get::<String>(3)?,
+                source_ref: r.get::<Option<String>>(4)?,
+                routing_confidence: r.get::<f64>(5)?,
+                accepted: r.get::<i64>(6)? != 0,
+                mens_queued: r.get::<i64>(7)? != 0,
+                created_at_ms: r.get::<i64>(8)?,
+            });
+        }
+        Ok(out)
     }
 }
 
