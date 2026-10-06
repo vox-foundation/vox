@@ -126,6 +126,8 @@ impl VoxDb {
                 &req.packet.title,
                 &req.packet.source_type,
                 &hash,
+                // Operator-ingested web/file content: never curated (D-06).
+                vox_orchestrator_types::trust::ContextTrustTier::Untrusted,
             )
             .await?;
         let embedding_refs = vec![None; chunks.len()];
@@ -542,4 +544,53 @@ pub fn retrieval_diagnostics(store: &crate::VoxDb) -> Result<RetrievalDiagnostic
             retrieval_mode_splits: vec!["hybrid".into(), "vector".into(), "fulltext".into()],
         })
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::DbConfig;
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn research_ingest_mirror_row_is_untrusted() {
+        let db = VoxDb::connect(DbConfig::Memory).await.unwrap();
+        let mut req = ResearchIngestRequest {
+            packet: ExternalResearchPacket {
+                topic: "t".into(),
+                vendor: "v".into(),
+                area: None,
+                source_url: "https://example.test/doc".into(),
+                source_type: "doc".into(),
+                title: "Doc".into(),
+                captured_at: "2026-03-23T00:00:00Z".into(),
+                summary: "s".into(),
+                raw_excerpt: "e".into(),
+                claims: vec![],
+                tags: vec![],
+                confidence: 0.5,
+                content_hash: String::new(),
+                metadata: serde_json::json!({}),
+            },
+            body: "body text".into(),
+            kb_id: None,
+            embeddings: vec![],
+        };
+        db.ingest_research_document_async(&mut req).await.unwrap();
+        let mut rows = db
+            .connection()
+            .query(
+                "SELECT trust_tier FROM search_documents WHERE source_uri = ?1",
+                ["https://example.test/doc"],
+            )
+            .await
+            .unwrap();
+        let tier: String = rows
+            .next()
+            .await
+            .unwrap()
+            .expect("mirror row")
+            .get(0)
+            .unwrap();
+        assert_eq!(tier, "untrusted");
+    }
 }

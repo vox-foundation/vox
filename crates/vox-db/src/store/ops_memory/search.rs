@@ -3,6 +3,7 @@ use crate::{
     RetrievalEvidenceSource, RetrievalResult, SearchBackend, SearchDiagnostics, fuse_hybrid_results,
 };
 use turso::params;
+use vox_orchestrator_types::trust::ContextTrustTier;
 
 impl crate::VoxDb {
     /// Full-text search over `search_document_chunks` joined with `search_documents` titles.
@@ -37,13 +38,29 @@ impl crate::VoxDb {
         self.query_search_document_chunks_like(query, lim).await
     }
 
-    /// Upsert one `search_documents` row and return its id.
+    /// Upsert one `search_documents` row at `tier` and return its id. The tier is required and
+    /// overwritten on conflict, so a re-ingest cannot keep a stale higher tier (TRUST-01).
+    ///
+    /// ```compile_fail
+    /// # async fn f(db: &vox_db::VoxDb) {
+    /// db.upsert_search_document("u", "t", "text/markdown", "h").await.unwrap();
+    /// # }
+    /// ```
+    ///
+    /// ```no_run
+    /// # async fn f(db: &vox_db::VoxDb) {
+    /// db.upsert_search_document("u", "t", "text/markdown", "h", vox_db::ContextTrustTier::Untrusted)
+    ///     .await
+    ///     .unwrap();
+    /// # }
+    /// ```
     pub async fn upsert_search_document(
         &self,
         source_uri: &str,
         title: &str,
         mime_type: &str,
         content_hash: &str,
+        tier: ContextTrustTier,
     ) -> Result<i64, StoreError> {
         let source_uri = source_uri.to_string();
         let title = title.to_string();
@@ -54,18 +71,20 @@ impl crate::VoxDb {
         breaker
             .call(|| async move {
                 conn.execute(
-                    "INSERT INTO search_documents (source_uri, title, mime_type, content_hash)
-                     VALUES (?1, ?2, ?3, ?4)
+                    "INSERT INTO search_documents (source_uri, title, mime_type, content_hash, trust_tier)
+                     VALUES (?1, ?2, ?3, ?4, ?5)
                      ON CONFLICT(source_uri) DO UPDATE SET
                         title = excluded.title,
                         mime_type = excluded.mime_type,
                         content_hash = excluded.content_hash,
+                        trust_tier = excluded.trust_tier,
                         ingested_at = datetime('now')",
                     params![
                         source_uri.as_str(),
                         title.as_str(),
                         mime_type.as_str(),
-                        content_hash.as_str()
+                        content_hash.as_str(),
+                        tier.as_db_str()
                     ],
                 )
                 .await?;
@@ -297,4 +316,38 @@ async fn collect_search_chunk_rows(
         out.push((chunk_id, doc_id, snippet, title));
     }
     Ok(out)
+}
+
+#[cfg(test)]
+mod tier_tests {
+    use crate::VoxDb;
+    use vox_orchestrator_types::trust::ContextTrustTier::{Advisory, Untrusted};
+
+    async fn tier_of(db: &VoxDb, id: i64) -> String {
+        let mut rows = db
+            .connection()
+            .query(
+                "SELECT trust_tier FROM search_documents WHERE id = ?1",
+                [id],
+            )
+            .await
+            .unwrap();
+        rows.next().await.unwrap().unwrap().get(0).unwrap()
+    }
+
+    #[tokio::test]
+    async fn search_document_upsert_stores_and_overwrites_tier() {
+        let db = VoxDb::open_memory().await.unwrap();
+        let id = db
+            .upsert_search_document("u://a", "A", "text/markdown", "h1", Advisory)
+            .await
+            .unwrap();
+        assert_eq!(tier_of(&db, id).await, "advisory");
+        let again = db
+            .upsert_search_document("u://a", "A", "text/markdown", "h2", Untrusted)
+            .await
+            .unwrap();
+        assert_eq!(again, id);
+        assert_eq!(tier_of(&db, id).await, "untrusted");
+    }
 }
