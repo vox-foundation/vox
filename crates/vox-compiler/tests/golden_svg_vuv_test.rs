@@ -57,7 +57,6 @@ component Layout() {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn play_icon_svg_passthrough() {
     let source = r#"
 component PlayIcon() {
@@ -103,7 +102,6 @@ component PlayIcon() {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn halo_rect_svg_with_radial_gradient() {
     let source = r##"
 component HaloRect() {
@@ -180,7 +178,6 @@ component HaloRect() {
 ///   - snake_case → camelCase aliases: `radial_gradient`, `stop_color`, `stop_opacity`
 ///   - `g(transform=...)` container with multiple circle children
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn mesh_node_topology_svg() {
     let source = r##"
 component MeshNode() {

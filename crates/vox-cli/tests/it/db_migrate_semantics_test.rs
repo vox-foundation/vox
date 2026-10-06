@@ -40,9 +40,14 @@ fn migrate_dry_run_defaults_to_local_codex_without_app_plane_env() {
     let temp = tempfile::tempdir().expect("tempdir");
     let schema = write_minimal_schema(&temp);
 
+    // Hermetic Codex store: the default is the developer's real `vox.db`, held locked
+    // by any running daemon ("File is locked by another process").
     let out = Command::new(env!("CARGO_BIN_EXE_vox"))
         .current_dir(temp.path())
         .env_remove("VOX_APP_DB_URL")
+        .env_remove("VOX_DB_URL")
+        .env_remove("VOX_DB_TOKEN")
+        .env("VOX_DB_PATH", temp.path().join("vox.db"))
         .args([
             "db",
             "migrate",

@@ -21,7 +21,7 @@ pub fn compute_ebnf_hash() -> String {
 /// The SHA256 hash of the grammar at the time this crate was built.
 /// Updated via `vox grammar` sync.
 pub const BUILT_GRAMMAR_HASH: &str =
-    "80d62eb7f6993de188a8d9e98c47557c5d03bbbf2c88999d010a083af8ef75d7";
+    "fa51880e9bc0828c4d3c8f0d64f10f0f82bf0d13cc7a25e4e9e8a222d0ef737f";
 
 pub fn verify_grammar_alignment() -> Result<(), String> {
     let live_hash = compute_ebnf_hash();
@@ -34,5 +34,23 @@ pub fn verify_grammar_alignment() -> Result<(), String> {
         ))
     } else {
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ebnf_hash_is_stable_sha256_hex() {
+        let h = compute_ebnf_hash();
+        assert_eq!(h.len(), 64);
+        assert!(h.bytes().all(|b| b.is_ascii_hexdigit()));
+        assert_eq!(h, compute_ebnf_hash(), "hash must be deterministic");
+    }
+
+    #[test]
+    fn pinned_hash_matches_live_grammar() {
+        verify_grammar_alignment().unwrap();
     }
 }

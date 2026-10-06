@@ -966,7 +966,7 @@ query health() to str {
     }
 
     #[test]
-    #[ignore = "owner: codegen — sunset: 2026-08-01 — workflow dispatch env branch pending DSL parity"]
+    #[ignore = "owner: codegen — sunset: 2026-12-31 — passes, but asserts a broken emission: main.rs calls __vox_run_workflow, which no emitter defines, and the lib.rs workflow fn returns () while using `?`/Ok(()); un-ignore with an app-mode compile test once the runner is emitted"]
     fn emit_main_includes_generated_workflow_dispatch_env_branch() {
         let src = r#"
 workflow hello() {

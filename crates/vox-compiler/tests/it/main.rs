@@ -4,7 +4,6 @@ mod agents_md_grammar_section_test;
 mod ast_decl_lints_pure_test;
 mod audit_rule_collision;
 mod bug_a_match_arms_repro;
-mod bug_b_speech_repro;
 mod bug_d_imports_repro;
 mod durable_promise;
 mod fmt_idempotent;

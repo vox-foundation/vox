@@ -302,7 +302,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "emit_table_struct DSL drift vs tests — reconcile when table codegen stabilizes — owner: codegen sunset: 2026-12-31"]
     fn insert_typed_uses_turso_value_not_clone() {
         let table = simple_task_table();
         let out = emit_table_struct(&table, &[]);

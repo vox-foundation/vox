@@ -4,6 +4,12 @@
   "suppressions": [
     {
       "rule_id_prefix": "skeleton/untested-pub-api",
+      "path_glob": "**/vox-db/src/codex_legacy.rs",
+      "reason": "Pre-existing pub fns, tested in src/local_tests.rs `legacy_tests` (features local + legacy-import). The module is #[deprecated], so an in-file #[test] module raises deprecation warnings from the test harness's crate-root reference to each test; the 2026-10-06 quarantine fix only edited the table lists.",
+      "owner": "robot"
+    },
+    {
+      "rule_id_prefix": "skeleton/untested-pub-api",
       "path_glob": "**/vox-cli-review/src/coderabbit/github/comments.rs",
       "reason": "trigger_coderabbit and wait_for_review are pre-existing (predate the 2026-09-27 vox-config defactor, which only replaced an inline `vox_config::timeouts::D_30S` reference with a local `const POLL_INTERVAL`). Both call the live GitHub API through vox_forge::github::GitHubProvider, which tdd-guard's same-file #[test] scan cannot cover without a mocked provider — out of scope for this drive-by manifest-dependency change.",
       "owner": "robot"
