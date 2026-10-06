@@ -36,15 +36,272 @@ const ROLE_TOKENS: &[(&str, &str)] = &[
     ("<\u{FF5C}Assistant\u{FF5C}>", "[assistant_neutralized]"),
 ];
 
-/// Sanitize untrusted text: strip invisible-codepoint smuggling first (so
-/// interleaved evasion characters cannot split a role token), then neutralize
-/// role tokens.
+/// Image hosts whose absolute `http(s)` or protocol-relative images are kept (D-06: empty).
+pub const IMAGE_HOST_ALLOWLIST: &[&str] = &[];
+
+/// Upper bound on fixpoint passes. Removing one construct can create another
+/// (`<!<!-- -->-- x -->`), so the passes repeat until stable.
+const MAX_PASSES: usize = 8;
+
+/// Sanitize untrusted text. Fixed pass order, repeated to a bounded fixpoint:
+/// (1) strip invisible codepoints (so evasion characters cannot split a later
+/// match), (2) strip HTML comments (unterminated strips to end), (3) neutralize
+/// images (inline, reference, HTML `img`) unless the target is relative or its
+/// host is allowlisted, (4) neutralize role tokens.
+///
+/// Works on Unicode scalar values, applies no normalization and always returns
+/// valid UTF-8. Idempotent. If the passes have not converged after
+/// [`MAX_PASSES`] the input is adversarially nested and the result is `""`
+/// (fail closed).
 pub fn sanitize(raw: &str) -> String {
-    let mut out: String = raw.chars().filter(|c| !is_banned(*c)).collect();
+    let mut cur = raw.to_string();
+    for _ in 0..MAX_PASSES {
+        let next = one_pass(&cur);
+        if next == cur {
+            return cur;
+        }
+        cur = next;
+    }
+    String::new()
+}
+
+fn one_pass(s: &str) -> String {
+    let stripped: String = s.chars().filter(|c| !is_banned(*c)).collect();
+    let mut out = neutralize_images(&strip_comments(&stripped));
     for (from, to) in ROLE_TOKENS {
         out = out.replace(from, to);
     }
     out
+}
+
+fn strip_comments(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut rest = s;
+    while let Some(i) = rest.find("<!--") {
+        out.push_str(&rest[..i]);
+        match rest[i + 4..].find("-->") {
+            Some(j) => rest = &rest[i + 4 + j + 3..],
+            None => return out,
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
+fn is_ws(c: u8) -> bool {
+    matches!(c, b' ' | b'\t' | b'\n' | b'\r' | 0x0c)
+}
+
+/// Byte offset of the next image marker (`![` or `<img` any case) and whether it is HTML.
+fn next_marker(s: &str) -> Option<(usize, bool)> {
+    let b = s.as_bytes();
+    for i in 0..b.len() {
+        if b[i] == b'!' && b.get(i + 1) == Some(&b'[') {
+            return Some((i, false));
+        }
+        if b[i] == b'<'
+            && b.get(i + 1..i + 4)
+                .is_some_and(|x| x.eq_ignore_ascii_case(b"img"))
+            && b.get(i + 4)
+                .is_none_or(|c| is_ws(*c) || matches!(c, b'/' | b'>'))
+        {
+            return Some((i, true));
+        }
+    }
+    None
+}
+
+fn neutralize_images(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut rest = s;
+    while let Some((i, html)) = next_marker(rest) {
+        out.push_str(&rest[..i]);
+        let tail = &rest[i..];
+        let (consumed, replacement) = if html {
+            html_image(tail)
+        } else {
+            md_image(tail)
+        };
+        out.push_str(replacement.as_deref().unwrap_or(&tail[..consumed]));
+        rest = &tail[consumed..];
+    }
+    out.push_str(rest);
+    out
+}
+
+/// Replacement text. Brackets and angle characters are removed from `alt` so the
+/// replacement cannot form a new link, image or tag.
+fn omitted(alt: &str) -> String {
+    let alt: String = alt
+        .chars()
+        .filter(|c| !matches!(c, '[' | ']' | '<' | '>'))
+        .collect();
+    format!("(image omitted: {alt})")
+}
+
+/// `tail` starts with `![`. Returns bytes consumed and `Some(replacement)` when neutralized.
+fn md_image(tail: &str) -> (usize, Option<String>) {
+    let Some(k) = tail[2..].find(']') else {
+        return (2, None);
+    };
+    let alt = &tail[2..2 + k];
+    let base = 2 + k + 1;
+    let after = &tail[base..];
+    if let Some(inner) = after.strip_prefix('(') {
+        let mut depth = 1usize;
+        let close = inner.char_indices().find_map(|(i, c)| {
+            match c {
+                '(' => depth += 1,
+                ')' => depth -= 1,
+                _ => {}
+            }
+            (depth == 0).then_some(i)
+        });
+        let Some(close) = close else {
+            // Unterminated: a `)` in later text could complete it, so judge the leading
+            // destination token now and neutralize just `![alt](token` if it is not allowed.
+            let (dest, raw_len) = parse_dest(inner);
+            return if target_allowed(&dest) {
+                (2, None)
+            } else {
+                (base + 1 + raw_len, Some(omitted(alt)))
+            };
+        };
+        let consumed = base + 1 + close + 1;
+        let (dest, _) = parse_dest(&inner[..close]);
+        return if target_allowed(&dest) {
+            (consumed, None)
+        } else {
+            (consumed, Some(omitted(alt)))
+        };
+    }
+    // reference-style `![alt][ref]`, or collapsed/shortcut `![alt]`: the target lives in a
+    // definition elsewhere and cannot be judged here, so fail closed.
+    let mut consumed = base;
+    if let Some(r) = after.strip_prefix('[') {
+        if let Some(e) = r.find(']') {
+            consumed += 1 + e + 1;
+        }
+    }
+    (consumed, Some(omitted(alt)))
+}
+
+/// First destination token of a markdown link body (`<...>` form allowed), with whitespace and
+/// control characters removed (browsers drop tab/newline inside URLs), plus the byte length of
+/// `raw` that the leading whitespace and token occupy.
+fn parse_dest(raw: &str) -> (String, usize) {
+    let t = raw.trim_start();
+    let lead = raw.len() - t.len();
+    let (tok, extra) = match t.strip_prefix('<') {
+        Some(r) => match r.find('>') {
+            Some(e) => (&r[..e], 2),
+            None => (r, 1),
+        },
+        None => {
+            let tok = t.split_whitespace().next().unwrap_or("");
+            (tok, 0)
+        }
+    };
+    let dest = tok
+        .chars()
+        .filter(|c| !c.is_whitespace() && !c.is_control())
+        .collect();
+    (dest, lead + tok.len() + extra)
+}
+
+/// Relative means: no scheme, not protocol-relative, and no `\` or `&` (markdown and HTML
+/// decode backslash escapes and entities, so `https\://x` and `https&colon;//x` are absolute);
+/// quote and angle characters mean a mis-tokenized attribute, never a path.
+fn is_relative(t: &str) -> bool {
+    if t.contains(['\\', '&', '<', '>', '"', '\'', '`']) || t.starts_with("//") {
+        return false;
+    }
+    let head = t.split(['/', '?', '#']).next().unwrap_or("");
+    !head.contains(':')
+}
+
+fn host_allowed(t: &str) -> bool {
+    let l = t.to_ascii_lowercase();
+    let rest = l
+        .strip_prefix("https://")
+        .or_else(|| l.strip_prefix("http://"))
+        .or_else(|| l.strip_prefix("//"));
+    let Some(rest) = rest else { return false };
+    let host = rest.split(['/', '?', '#']).next().unwrap_or("");
+    IMAGE_HOST_ALLOWLIST
+        .iter()
+        .any(|h| h.eq_ignore_ascii_case(host))
+}
+
+fn target_allowed(t: &str) -> bool {
+    is_relative(t) || host_allowed(t)
+}
+
+/// `tail` starts with `<img`. Attributes are tokenized properly (quotes respected), so a
+/// `src=` inside another attribute's value cannot be mistaken for the real one.
+fn html_image(tail: &str) -> (usize, Option<String>) {
+    let b = tail.as_bytes();
+    let mut i = 4;
+    let mut attrs: Vec<(String, String)> = Vec::new();
+    loop {
+        while i < b.len() && (is_ws(b[i]) || b[i] == b'/') {
+            i += 1;
+        }
+        if i >= b.len() {
+            return (b.len(), Some(omitted(""))); // unterminated tag: fail closed
+        }
+        if b[i] == b'>' {
+            i += 1;
+            break;
+        }
+        let s = i;
+        while i < b.len() && !is_ws(b[i]) && !matches!(b[i], b'=' | b'>' | b'/') {
+            i += 1;
+        }
+        if s == i {
+            i += 1; // stray `=`
+            continue;
+        }
+        let name = tail[s..i].to_ascii_lowercase();
+        while i < b.len() && is_ws(b[i]) {
+            i += 1;
+        }
+        let mut val = "";
+        if i < b.len() && b[i] == b'=' {
+            i += 1;
+            while i < b.len() && is_ws(b[i]) {
+                i += 1;
+            }
+            if i < b.len() && matches!(b[i], b'"' | b'\'') {
+                let q = b[i];
+                let vs = i + 1;
+                i = vs;
+                while i < b.len() && b[i] != q {
+                    i += 1;
+                }
+                val = &tail[vs..i];
+                i += 1;
+            } else {
+                let vs = i;
+                while i < b.len() && !is_ws(b[i]) && b[i] != b'>' {
+                    i += 1;
+                }
+                val = &tail[vs..i];
+            }
+        }
+        attrs.push((name, val.to_string()));
+    }
+    let get = |n: &str| attrs.iter().find(|(k, _)| k == n).map(|(_, v)| v.as_str());
+    let src: Option<String> = get("src").map(|v| {
+        v.chars()
+            .filter(|c| !c.is_whitespace() && !c.is_control())
+            .collect()
+    });
+    let keep = get("srcset").is_none() && src.as_deref().is_some_and(target_allowed);
+    (
+        i.min(b.len()),
+        (!keep).then(|| omitted(get("alt").unwrap_or(""))),
+    )
 }
 
 /// Text that has passed through [`sanitize`]. The field is private and there is
@@ -86,9 +343,6 @@ impl fmt::Display for SanitizedText {
     }
 }
 
-/// Image hosts whose absolute `http(s)` or protocol-relative images are kept (D-06: empty).
-pub const IMAGE_HOST_ALLOWLIST: &[&str] = &[];
-
 /// A blake3 content hash stored as `blake3:<64 lowercase hex>`. Hashing itself stays
 /// in `vox-crypto` consumers; this type only validates the encoded form.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
@@ -98,7 +352,14 @@ pub struct ContentHash(String);
 impl ContentHash {
     /// Accept exactly 64 lowercase hex characters.
     pub fn from_blake3_hex(hex: &str) -> Result<Self, String> {
-        Err(format!("unset: {hex}"))
+        if hex.len() == 64 && hex.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f')) {
+            Ok(Self(format!("blake3:{hex}")))
+        } else {
+            Err(format!(
+                "expected 64 lowercase hex characters, got {} bytes",
+                hex.len()
+            ))
+        }
     }
     pub fn as_str(&self) -> &str {
         &self.0
@@ -135,10 +396,25 @@ impl FindingOrigin {
         Self::LegacyKbEntry,
     ];
     pub fn as_db_str(self) -> &'static str {
-        "unset"
+        match self {
+            Self::WebSearch => "web_search",
+            Self::CragTavily => "crag_tavily",
+            Self::ResearchGather => "research_gather",
+            Self::ResearchQuick => "research_quick",
+            Self::ResearchDeep => "research_deep",
+            Self::GuiIngestText => "gui_ingest_text",
+            Self::GuiIngestUrl => "gui_ingest_url",
+            Self::GuiSaveResearchSession => "gui_save_research_session",
+            Self::PublishResearchDoc => "publish_research_doc",
+            Self::LegacyKbEntry => "legacy_kb_entry",
+        }
     }
+    /// Fallible: an unknown string is an error, never a default variant.
     pub fn from_db_str(s: &str) -> Result<Self, String> {
-        Err(format!("unset: {s}"))
+        Self::ALL
+            .into_iter()
+            .find(|o| o.as_db_str() == s)
+            .ok_or_else(|| format!("unknown finding origin {s:?}"))
     }
 }
 
@@ -162,10 +438,20 @@ impl FindingStatus {
         Self::Stale,
     ];
     pub fn as_db_str(self) -> &'static str {
-        "unset"
+        match self {
+            Self::Pending => "pending",
+            Self::Approved => "approved",
+            Self::Rejected => "rejected",
+            Self::Promoted => "promoted",
+            Self::Stale => "stale",
+        }
     }
+    /// Fallible: an unknown string is an error, never a default variant.
     pub fn from_db_str(s: &str) -> Result<Self, String> {
-        Err(format!("unset: {s}"))
+        Self::ALL
+            .into_iter()
+            .find(|o| o.as_db_str() == s)
+            .ok_or_else(|| format!("unknown finding status {s:?}"))
     }
 }
 
@@ -249,7 +535,10 @@ mod tests {
     #[test]
     fn alt_text_cannot_form_a_new_link_or_image() {
         let s = sanitize("![a](b)](https://evil)![c](https://evil/x)");
-        assert!(!s.contains("![") && !s.contains("https://evil/x"));
+        // `b` is relative so the first image stays; the stray `](...)` is a plain link, not an image
+        assert_eq!(s, "![a](b)](https://evil)(image omitted: c)");
+        let alt = sanitize("![a<b>[c]](https://e/x)");
+        assert_eq!(alt, "(image omitted: abc)](https://e/x)");
         // a shortcut-reference image next to a plain link must not survive as an image
         let alt = sanitize("![x] [y](https://evil) z");
         assert!(!alt.contains("!["), "{alt}");
@@ -412,6 +701,20 @@ mod tests {
             prop::collection::vec(prop::sample::select(FRAGMENTS), 0..24).prop_map(|v| v.concat())
         }
 
+        /// Banned ranges restated independently of `is_banned`, so deleting a range from the
+        /// code under test cannot also delete it from the oracle.
+        fn independent_banned(c: char) -> bool {
+            let u = c as u32;
+            (0xE0000..=0xE007F).contains(&u)
+                || (0x200B..=0x200F).contains(&u)
+                || (0x2060..=0x2064).contains(&u)
+                || u == 0xFEFF
+                || (0x202A..=0x202E).contains(&u)
+                || (0x2066..=0x2069).contains(&u)
+                || (0xFE00..=0xFE0F).contains(&u)
+                || (0xE0100..=0xE01EF).contains(&u)
+        }
+
         /// True if `s` has `![...](target)` with a non-relative target.
         fn has_absolute_image(s: &str) -> bool {
             let mut rest = s;
@@ -426,7 +729,13 @@ mod tests {
                 rest = after;
             }
             let l = s.to_ascii_lowercase();
-            l.contains("src=\"http") || l.contains("src=\"//")
+            l.split("<img").skip(1).any(|t| {
+                let tag = t.split('>').next().unwrap_or("");
+                tag.split("src").skip(1).any(|v| {
+                    let v = v.trim_start_matches(['=', ' ', '"', '\'']);
+                    v.starts_with("http") || v.starts_with("//")
+                })
+            })
         }
 
         proptest! {
@@ -439,7 +748,7 @@ mod tests {
             #[test]
             fn output_holds_no_banned_codepoint_or_comment_or_absolute_image(s in fragments()) {
                 let out = sanitize(&s);
-                prop_assert!(!out.chars().any(is_banned));
+                prop_assert!(!out.chars().any(independent_banned), "{:?}", out);
                 prop_assert!(!out.contains("<!--"));
                 prop_assert!(!has_absolute_image(&out), "{:?}", out);
             }
