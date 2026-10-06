@@ -2,7 +2,7 @@
 phase: 02-library-index-and-kb-tool-surface
 reviewed: 2026-10-05T00:00:00Z
 depth: standard
-files_reviewed: 11
+files_reviewed: 14
 files_reviewed_list:
   - contracts/mcp/http-read-role-governance.yaml
   - contracts/mcp/tool-registry.canonical.yaml
@@ -15,21 +15,24 @@ files_reviewed_list:
   - crates/vox-search/src/library/mod.rs
   - crates/vox-search/tests/kb_library_chunking.rs
   - crates/vox-search/tests/kb_library_index.rs
+  - crates/vox-search/src/kb_eval/library.rs
+  - crates/vox-search/tests/kb_eval_golden_contract.rs
+  - crates/vox-search/tests/kb_eval_library.rs
 findings:
   critical: 0
   warning: 8
-  info: 9
-  total: 17
+  info: 12
+  total: 20
 status: issues_found
 ---
 
-# Phase 2: Code Review Report (incremental re-review of 02-10 and 02-11)
+# Phase 2: Code Review Report (incremental re-review of 02-10, 02-11 and 02-12)
 
 **Reviewed:** 2026-10-05
 **Depth:** standard
-**Files Reviewed:** 11
+**Files Reviewed:** 14
 **Status:** issues_found
-**Diff:** `0e50058376c1abba4ef7e5ef244a0840c2aed109..HEAD` on the 11 files
+**Diff:** `0e50058376c1abba4ef7e5ef244a0840c2aed109..HEAD` on the 11 files; plus `7f7900f47..HEAD` on the 3 files added by the 02-12 re-review
 
 ## Summary
 
@@ -59,6 +62,22 @@ Closure status of the three targeted findings:
   - A new mismatch with the CLI client deadline appears (WR-09).
 
 No new critical issues were introduced. Prior findings not addressed by these plans are carried forward unchanged below.
+
+## 02-12 incremental review (ratchet retarget and clippy fix)
+
+Scope: `git diff 7f7900f47..HEAD` on `library.rs`, `kb_eval_golden_contract.rs`, `kb_eval_library.rs`. No new critical or warning findings. The ratchet is not weakened.
+
+- **Ratchet still fails on real regressions.**
+  - `real_retriever_meets_real_baseline` scores the production path: `LibraryRetriever::build_blocking` at `EVAL_DEPTH`, the `ratchet_split()` (dev) split, and `evaluate`. These are the same calls as `gate.rs::library_report` and `dev_report`.
+  - `evaluate` sets `retriever`/`chunker` from the same constants the baseline is checked against. A baseline whose labels diverge from the code therefore fails `check_regression` with "not comparable", and `real_baseline_shape` also asserts both labels.
+  - Every old shape assertion survives: tolerance, `RATCHET_KEYS`, `budget_tokens` (1500 and `BUDGET_TOKENS`), `token_estimator` (`bytes/4` and `TOKEN_ESTIMATOR`). The only loosened assertion is `epoch == 1` to `epoch >= 2` (IN-10).
+  - The degraded test overrides the report's labels, but only on the report side. It then asserts both a `dev/all` metric drop and the absence of "not comparable", so a config mismatch cannot mask itself as a quality failure. The label override cannot hide a real label error, because the two other tests cover it.
+  - The test uses the dev split only. The held-out test split is never scored.
+- **`std::slice::from_ref(&q)` change is behavior-identical.** `q` is still used afterwards and nothing is cloned differently.
+- **The moved tests were not lost.**
+  - `tantivy-lexical` is a default feature of `vox-search`, so the ratchet runs under plain `cargo test -p vox-search`.
+  - The removed tests in `kb_eval_golden_contract.rs` left no orphaned imports.
+- **Verified locally.** `cargo test -p vox-search --test kb_eval_library` passes (6/6). `--test kb_eval_golden_contract` passes (5/5). `cargo clippy -p vox-search --all-targets -- -D warnings` is clean.
 
 ## Warnings
 
@@ -173,6 +192,27 @@ No new critical issues were introduced. Prior findings not addressed by these pl
 **File:** `crates/vox-search/tests/kb_library_index.rs` (`kb_reindex_unreadable_subdir_keeps_rows`) and `crates/vox-search/src/library/corpus.rs` (`walk_corpus_reports_unreadable_dir`)
 **Issue:** When the process is root, or the filesystem ignores mode bits, the tests `return` early and report as passed with nothing asserted. In a root-run CI container the main CR-01 regression test never executes.
 **Fix:** Mark the test ignored, or emit a visible skip message. Alternatively stage the walk failure without permissions, for example with a directory replaced by a dangling entry mid-walk.
+
+### IN-10 (new): epoch check is now only a floor
+
+**File:** `crates/vox-search/tests/kb_eval_library.rs:125-129`
+**Issue:** `b.epoch >= 2` replaced `== 1`. It passes for any later epoch, which is intended (an exact pin re-breaks on every legitimate re-epoch). It also would not notice a downgrade from 3 to 2, and it asserts nothing about `epoch_note` being non-empty. Both are owned by `check_tighten_only` in CI, so this is not a gap in the ratchet itself.
+**Fix:** Optional: also assert `!b.epoch_note.trim().is_empty()`. Leave epoch monotonicity to `check_tighten_only`.
+
+### IN-11 (new): the test re-implements the gate's inputs instead of calling them
+
+**File:** `crates/vox-search/tests/kb_eval_library.rs:105-146` (compare `crates/vox-cli/src/commands/kb/gate.rs:62-86`)
+**Issue:**
+- The test builds the retriever and golden set on its own. It skips `ensure_clean` (the canary and corpus-contamination check that `dev_report` runs).
+- A change confined to `dev_report` or `library_report` (for example a different split, depth or corpus) would not be caught by this test. The shared `EVAL_DEPTH` and `ratchet_split()` constants reduce the risk to those two values only.
+
+**Fix:** Optional: move `library_report` and `dev_report` into `vox-search::kb_eval::library` (they only need an injected hasher) so both the CLI and this test call the same function.
+
+### IN-12 (new): degraded-ranking check covers one regression shape
+
+**File:** `crates/vox-search/tests/kb_eval_library.rs:138-155`
+**Issue:** The only mutation is reversing the top-`EVAL_DEPTH` list. It proves rank-quality metrics are gated. It does not prove that `answer_in_budget` (byte-budget regression, for example larger chunks) is gated, because reversing does not change chunk bytes.
+**Fix:** Optional: add a mutation that truncates each body to zero or inflates `bytes`, and assert an `answer_in_budget` error.
 
 ---
 
