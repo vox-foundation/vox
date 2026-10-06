@@ -38,7 +38,15 @@ jobs:
     timeout-minutes: 90
     env:
       RUSTC_WRAPPER: sccache
-      SCCACHE_GHA_ENABLED: ${{ matrix.sccache_gha }}
+      # The GHA backend writes one Actions-cache entry per object with no total
+      # bound (10.68 GB of the 10 GB budget measured 2026-10-04, hosted-CI plan
+      # Task 2.4), so it writes only from main (schedule); a branch dispatch
+      # compiles through the local disk cache instead. Bump SCCACHE_GHA_VERSION
+      # to orphan the old object set. SCCACHE_CACHE_SIZE bounds the local disk
+      # cache (required by `vox ci cache-key-lint`).
+      SCCACHE_GHA_ENABLED: ${{ github.ref == 'refs/heads/main' && matrix.sccache_gha || 'false' }}
+      SCCACHE_GHA_VERSION: v2
+      SCCACHE_CACHE_SIZE: 5G
       CARGO_INCREMENTAL: "0"
     steps:
       - uses: actions/checkout@v7
