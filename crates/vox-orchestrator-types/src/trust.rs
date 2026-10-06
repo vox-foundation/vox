@@ -40,13 +40,22 @@ pub enum ContextTrustTier {
 impl ContextTrustTier {
     /// The stored wire string (matches the serde form).
     pub fn as_db_str(self) -> &'static str {
-        "unset"
+        match self {
+            Self::Untrusted => "untrusted",
+            Self::Advisory => "advisory",
+            Self::Trusted => "trusted",
+            Self::SystemVerified => "system_verified",
+        }
     }
 
     /// Exact, case-sensitive parse; anything unrecognised is `Untrusted`.
     pub fn from_db_str(s: &str) -> Self {
-        let _ = s;
-        Self::Untrusted
+        match s {
+            "advisory" => Self::Advisory,
+            "trusted" => Self::Trusted,
+            "system_verified" => Self::SystemVerified,
+            _ => Self::Untrusted,
+        }
     }
 }
 
@@ -75,15 +84,20 @@ impl From<FindingTier> for ContextTrustTier {
 
 /// Tier for curated content: `SystemVerified` with mechanical evidence, else `Trusted`.
 pub fn tier_for_curated(has_mechanical_evidence: bool) -> ContextTrustTier {
-    let _ = has_mechanical_evidence;
-    ContextTrustTier::Trusted
+    if has_mechanical_evidence {
+        ContextTrustTier::SystemVerified
+    } else {
+        ContextTrustTier::Trusted
+    }
 }
 
 /// Tier for a knowledge-graph node type. Allowlist of two Advisory types;
 /// every other or missing type is `Untrusted` (D-06 taint rule).
 pub fn tier_for_knowledge_node_type(node_type: Option<&str>) -> ContextTrustTier {
-    let _ = node_type;
-    ContextTrustTier::Untrusted
+    match node_type {
+        Some("fact" | "concept") => ContextTrustTier::Advisory,
+        _ => ContextTrustTier::Untrusted,
+    }
 }
 
 #[cfg(test)]
