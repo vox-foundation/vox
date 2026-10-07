@@ -589,8 +589,51 @@ pub async fn run(
     Ok(())
 }
 
+/// DPO preference pairs from human-reviewed findings (D-06, GROW-06). Rows without a
+/// `reviewed_by` are ignored (defense in depth beyond the SQL filter). Rows are grouped by the
+/// provenance `query`; each approved/rejected pair in a group yields one record. Never emits SFT:
+/// finding text is web or LLM text and may not train MENS on its own. Returns the records and the
+/// ids that appear in them (only those may be marked queued).
+fn kb_findings_dpo_records(rows: &[vox_db::KbFindingRow]) -> (Vec<serde_json::Value>, Vec<String>) {
+    use std::collections::BTreeMap;
+    use vox_db::kb_text::FindingStatus;
+
+    let mut groups: BTreeMap<&str, (Vec<&vox_db::KbFindingRow>, Vec<&vox_db::KbFindingRow>)> =
+        BTreeMap::new();
+    for r in rows.iter().filter(|r| r.reviewed_by.is_some()) {
+        let Some(q) = r.provenance.get("query").and_then(|q| q.as_str()) else {
+            continue;
+        };
+        let g = groups.entry(q).or_default();
+        match r.status {
+            FindingStatus::Approved => g.0.push(r),
+            FindingStatus::Rejected => g.1.push(r),
+            _ => {}
+        }
+    }
+    let (mut records, mut ids) = (Vec::new(), Vec::new());
+    for (query, (approved, rejected)) in groups {
+        for a in &approved {
+            for r in &rejected {
+                records.push(serde_json::json!({
+                    "type": "dpo",
+                    "source": "kb_findings",
+                    "prompt": query,
+                    "chosen": a.summary,
+                    "rejected": r.summary,
+                }));
+                for id in [&a.id, &r.id] {
+                    if !ids.contains(id) {
+                        ids.push(id.clone());
+                    }
+                }
+            }
+        }
+    }
+    (records, ids)
+}
+
 async fn run_kb_signals_stage(data_dir: &std::path::Path) -> anyhow::Result<()> {
-    use std::collections::HashMap;
     use std::io::{BufWriter, Write};
 
     let db_path = vox_config::paths::REPO_DB_PATH;
@@ -606,83 +649,41 @@ async fn run_kb_signals_stage(data_dir: &std::path::Path) -> anyhow::Result<()> 
         .await
         .map_err(|e| anyhow::anyhow!("KbSignals: failed to open VoxDb at {db_path}: {e}"))?;
 
-    let entries = db
-        .kb_unqueued_training_entries(10_000)
+    let rows = db
+        .kb_findings_unqueued_reviewed(10_000)
         .await
         .map_err(|e| anyhow::anyhow!("KbSignals: query failed: {e}"))?;
 
-    if entries.is_empty() {
-        tracing::info!("KbSignals: no unqueued entries; skipping");
+    if rows.is_empty() {
+        tracing::info!("KbSignals: no unqueued reviewed findings; skipping");
+        return Ok(());
+    }
+
+    let (records, ids) = kb_findings_dpo_records(&rows);
+    if records.is_empty() {
+        tracing::info!("KbSignals: no approved/rejected pairs yet; leaving rows unqueued");
         return Ok(());
     }
 
     let out_dir = data_dir.join("mix_sources");
     std::fs::create_dir_all(&out_dir)?;
     let out_path = out_dir.join("kb_signals.jsonl");
-    let file = std::fs::File::create(&out_path)?;
-    let mut writer = BufWriter::new(file);
-    let mut written = 0usize;
-
-    // Group by kb_id to pair accepted/rejected within the same KB
-    let mut by_kb: HashMap<String, Vec<_>> = HashMap::new();
-    for entry in &entries {
-        by_kb.entry(entry.kb_id.clone()).or_default().push(entry);
+    let mut writer = BufWriter::new(std::fs::File::create(&out_path)?);
+    for record in &records {
+        writeln!(writer, "{record}")?;
     }
-
-    for (kb_id, kb_entries) in &by_kb {
-        let accepted: Vec<_> = kb_entries.iter().filter(|e| e.accepted == 1).collect();
-        let rejected: Vec<_> = kb_entries.iter().filter(|e| e.accepted == 0).collect();
-
-        // Accepted → SFT instruction-completion pairs
-        for entry in &accepted {
-            let record = serde_json::json!({
-                "type": "sft",
-                "source": "kb",
-                "kb_id": kb_id,
-                "instruction": format!(
-                    "What do you know about the following topic based on accumulated research?\n\nTopic: {}",
-                    entry.source_signal
-                ),
-                "completion": entry.content,
-                "routing_confidence": entry.routing_confidence,
-            });
-            writeln!(writer, "{record}")?;
-            written += 1;
-        }
-
-        // Accepted + rejected same-signal same-session pairs → DPO preference pairs
-        for acc in &accepted {
-            for rej in &rejected {
-                if acc.source_signal == rej.source_signal
-                    && acc.source_ref.is_some()
-                    && acc.source_ref == rej.source_ref
-                {
-                    let record = serde_json::json!({
-                        "type": "dpo",
-                        "source": "kb",
-                        "prompt": "Provide accurate technical information:",
-                        "chosen": acc.content,
-                        "rejected": rej.content,
-                    });
-                    writeln!(writer, "{record}")?;
-                    written += 1;
-                }
-            }
-        }
-    }
-
     writer.flush()?;
     tracing::info!(
-        "KbSignals: wrote {written} records to {}",
+        "KbSignals: wrote {} records to {}",
+        records.len(),
         out_path.display()
     );
 
-    // Mark all fetched entries as MENS-queued to avoid re-export
-    let ids: Vec<String> = entries.iter().map(|e| e.id.clone()).collect();
-    db.kb_mark_mens_queued(&ids)
+    // Mark only the findings that made it into a record, to avoid re-export.
+    db.kb_findings_mark_mens_queued(&ids)
         .await
         .map_err(|e| anyhow::anyhow!("KbSignals: mark_queued failed: {e}"))?;
-    tracing::info!("KbSignals: marked {} entries as mens_queued", ids.len());
+    tracing::info!("KbSignals: marked {} findings as mens_queued", ids.len());
 
     Ok(())
 }
@@ -737,6 +738,77 @@ mod tests {
             err_msg.contains("missing input file")
                 || err_msg.contains("produced no validated.jsonl")
         );
+    }
+
+    fn finding(
+        id: &str,
+        status: vox_db::kb_text::FindingStatus,
+        reviewer: Option<&str>,
+        query: Option<&str>,
+        summary: &str,
+    ) -> vox_db::KbFindingRow {
+        vox_db::KbFindingRow {
+            id: id.into(),
+            dedupe_key: id.into(),
+            status,
+            trust_tier: vox_db::ContextTrustTier::Untrusted,
+            origin: vox_db::kb_text::FindingOrigin::WebSearch,
+            title: "t".into(),
+            summary: summary.into(),
+            quotes: vec![],
+            source_url: None,
+            fetched_at_ms: 0,
+            content_hash: String::new(),
+            snapshot_relpath: None,
+            provenance: query.map_or(serde_json::json!({}), |q| serde_json::json!({ "query": q })),
+            review_note: None,
+            reviewed_by: reviewer.map(Into::into),
+            reviewed_at_ms: None,
+            mens_queued: false,
+            created_at_ms: 0,
+        }
+    }
+
+    #[test]
+    fn kb_signals_unreviewed_rows_emit_nothing() {
+        use vox_db::kb_text::FindingStatus::{Approved, Rejected};
+        let rows = [
+            finding("a", Approved, None, Some("q"), "good"),
+            finding("b", Rejected, None, Some("q"), "bad"),
+        ];
+        let (records, ids) = kb_findings_dpo_records(&rows);
+        assert!(records.is_empty() && ids.is_empty());
+    }
+
+    #[test]
+    fn kb_signals_reviewed_pair_emits_one_dpo_record() {
+        use vox_db::kb_text::FindingStatus::{Approved, Pending, Rejected};
+        let rows = [
+            finding("a", Approved, Some("me"), Some("q"), "good"),
+            finding("b", Rejected, Some("me"), Some("q"), "bad"),
+            finding("c", Approved, Some("me"), Some("other"), "lonely"),
+            finding("d", Pending, Some("me"), Some("q"), "pending"),
+        ];
+        let (records, ids) = kb_findings_dpo_records(&rows);
+        assert_eq!(
+            records,
+            vec![serde_json::json!({
+                "type": "dpo", "source": "kb_findings", "prompt": "q",
+                "chosen": "good", "rejected": "bad",
+            })]
+        );
+        assert_eq!(ids, ["a", "b"], "unpaired rows are not marked queued");
+        assert!(records.iter().all(|r| r["type"] != "sft"));
+    }
+
+    #[test]
+    fn kb_signals_rows_without_a_query_emit_nothing() {
+        use vox_db::kb_text::FindingStatus::{Approved, Rejected};
+        let rows = [
+            finding("a", Approved, Some("me"), None, "good"),
+            finding("b", Rejected, Some("me"), None, "bad"),
+        ];
+        assert!(kb_findings_dpo_records(&rows).0.is_empty());
     }
 
     #[test]
