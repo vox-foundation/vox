@@ -29,13 +29,17 @@ max-threads = 1
 # Tests that run a nested `cargo build` (each compiles a generated crate; 43-401 s apiece on
 # a hosted runner, 2026-10-03). They queue on cargo's build-dir lock anyway, so run them one
 # at a time, and only in the nightly `ci` profile; `ci-gate` (the PR gate) excludes the same
-# filter below. Keep the two copies of the filter identical.
+# filter below. Keep the two copies of the filter identical — and add any new test that
+# compiles generated crates (a harness that spawns `cargo`) to both. Enforced by
+# `nested_cargo_tests_are_grouped_and_excluded_from_the_gate` in vox-cli's ci_workflow_contract.
 [test-groups.nested-cargo]
 max-threads = 1
 
 [[profile.default.overrides]]
-filter = 'binary_id(=vox-codegen::emit_compile_harness) | (binary_id(=vox-compiler::emission_ladder_test) & test(/_compiles_as_rust_script$/)) | binary_id(=vox-cli-tests::build_e2e) | binary_id(=vox-config-derive::trybuild) | binary_id(=vox-cli-tests::workflow_runtime_no_db)'
+filter = 'binary_id(=vox-codegen::emit_compile_harness) | (binary_id(=vox-compiler::emission_ladder_test) & (test(/_compiles_as_rust_script$/) | test(=ladder_contract_drives_each_fixture_target))) | binary_id(=vox-cli-tests::build_e2e) | binary_id(=vox-config-derive::trybuild) | binary_id(=vox-cli-tests::workflow_runtime_no_db)'
 test-group = 'nested-cargo'
+# One cold generated-crate compile outlives the profile's 60s x 3; this lets one finish.
+slow-timeout = { period = "300s", terminate-after = 4 }
 
 # The required PR gate (ci.yml `tests` shards) runs this profile: `ci` plus a
 # quarantine of tests that fail on `main` for reasons unrelated to the PR under
@@ -55,6 +59,6 @@ test-group = 'nested-cargo'
 retries = 1
 slow-timeout = { period = "180s", terminate-after = 3 }
 default-filter = '''not (
-    (binary_id(=vox-codegen::emit_compile_harness) | (binary_id(=vox-compiler::emission_ladder_test) & test(/_compiles_as_rust_script$/)) | binary_id(=vox-cli-tests::build_e2e) | binary_id(=vox-config-derive::trybuild) | binary_id(=vox-cli-tests::workflow_runtime_no_db))
+    (binary_id(=vox-codegen::emit_compile_harness) | (binary_id(=vox-compiler::emission_ladder_test) & (test(/_compiles_as_rust_script$/) | test(=ladder_contract_drives_each_fixture_target))) | binary_id(=vox-cli-tests::build_e2e) | binary_id(=vox-config-derive::trybuild) | binary_id(=vox-cli-tests::workflow_runtime_no_db))
   | (binary_id(=vox-integration-tests::golden_behavioral_gate) & test(=golden_expect_blocks_match_interp_stdout))
 )'''
