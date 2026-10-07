@@ -107,6 +107,7 @@ async fn concurrent_judge_completes_under_budget() {
             rec: &vox_effort_audit::walk::CommitRecord,
             shape: &vox_effort_audit::shape::ShapeFeatures,
         ) -> vox_effort_audit::judge::JudgeOutcome {
+            // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
             tokio::time::sleep(std::time::Duration::from_millis(200)).await;
             vox_effort_audit::judge::MockJudge {
                 fixed_score: 3,

@@ -1336,6 +1336,7 @@ bbbb000000000000000000000000000000000000000000000000000000002222  checksums.txt
     #[test]
     fn first_party_plugin_urls_are_built_from_the_running_binary_version() {
         let (asset_url, checksums_url, asset_name) =
+            // drift-allow(version-string): fixture version, independent of the workspace version
             first_party_plugin_urls("mens-candle-metal", "0.6.0", "macos-aarch64");
         assert_eq!(asset_name, "mens-candle-metal-v0.6.0-macos-aarch64.zip");
         assert_eq!(
@@ -1357,6 +1358,7 @@ bbbb000000000000000000000000000000000000000000000000000000002222  checksums.txt
     fn a_release_tag_override_changes_only_the_tag_not_the_asset_name() {
         let (asset_url, checksums_url, asset_name) = first_party_plugin_urls_tagged(
             "mens-candle-metal",
+            // drift-allow(version-string): fixture version, independent of the workspace version
             "0.6.0",
             "macos-aarch64",
             "v0.6.0-rc.4735",
@@ -1384,6 +1386,7 @@ bbbb000000000000000000000000000000000000000000000000000000002222  checksums.txt
     #[test]
     fn first_party_plugin_urls_never_contain_the_literal_latest() {
         let (asset_url, checksums_url, _) =
+            // drift-allow(version-string): fixture version, independent of the workspace version
             first_party_plugin_urls("mens-candle-cuda", "0.6.0", "linux-x86_64");
         assert!(!asset_url.contains("latest"), "got {asset_url}");
         assert!(!checksums_url.contains("latest"), "got {checksums_url}");

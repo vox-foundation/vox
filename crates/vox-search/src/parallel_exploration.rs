@@ -140,6 +140,7 @@ mod tests {
             None,
             |query| async move {
                 if query == "q2" {
+                    // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
                     tokio::time::sleep(Duration::from_millis(500)).await;
                 }
                 Ok(vec![format!("snippet-for-{query}")])

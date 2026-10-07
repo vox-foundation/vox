@@ -156,6 +156,7 @@ async fn start(args: DriveStartArgs) -> Result<()> {
             clear_session_files();
             bail!("drive listener not ready within 45s ({hint})");
         }
+        // drift-allow(timeout-literal,duplicate-numeric-literal): local wait/poll bound, not an HTTP request timeout; a shared constant needs a vox-config edge
         std::thread::sleep(std::time::Duration::from_millis(200));
     }
 }

@@ -97,6 +97,8 @@ fn bearer_post_reaches_hopper_through_the_real_webhook_plugin() {
             Ok(_) => "plugin loads; listener never answered".to_string(),
             Err(e) => format!("plugin load failed: {e}"),
         };
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
         let deadline = tokio::time::Instant::now() + Duration::from_secs(120);
         loop {
             let up = client.get(format!("{base}/webhooks/health")).send().await;
@@ -104,6 +106,7 @@ fn bearer_post_reaches_hopper_through_the_real_webhook_plugin() {
                 break;
             }
             assert!(tokio::time::Instant::now() < deadline, "{}", load_diag());
+            // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
             tokio::time::sleep(Duration::from_millis(100)).await;
         }
 
@@ -135,6 +138,7 @@ fn bearer_post_reaches_hopper_through_the_real_webhook_plugin() {
         let body: serde_json::Value = accepted.json().await.expect("accept body");
         let event_id = body["event_id"].as_str().expect("event_id").to_string();
 
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
         let deadline = tokio::time::Instant::now() + Duration::from_secs(30);
         let item = loop {
             let found = hopper.inbox().await.into_iter().find(|i| {
@@ -147,6 +151,7 @@ fn bearer_post_reaches_hopper_through_the_real_webhook_plugin() {
                 tokio::time::Instant::now() < deadline,
                 "accepted event {event_id} never reached the hopper"
             );
+            // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
             tokio::time::sleep(Duration::from_millis(100)).await;
         };
         assert!(item.intent.contains("git_push"), "{}", item.intent);

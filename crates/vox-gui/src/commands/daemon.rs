@@ -428,8 +428,10 @@ impl PersistentDaemon {
     pub fn shutdown_if_spawned(&self) {
         // Avoid aborting an in-flight tool_call (empty TCP frame). Brief wait
         // only — Axis is exiting and must not hang forever.
+        // drift-allow(timeout-literal,duplicate-numeric-literal): local wait/poll bound, not an HTTP request timeout; a shared constant needs a vox-config edge
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
         while self.in_flight.load(Ordering::SeqCst) > 0 && std::time::Instant::now() < deadline {
+            // drift-allow(timeout-literal,duplicate-numeric-literal): local wait/poll bound, not an HTTP request timeout; a shared constant needs a vox-config edge
             std::thread::sleep(std::time::Duration::from_millis(50));
         }
         if self.in_flight.load(Ordering::SeqCst) > 0 {
@@ -605,6 +607,7 @@ mod version_mismatch_tests {
     fn version_mismatch_serializes_to_camel_case_named_fields() {
         let mismatch = VersionMismatch {
             daemon_version: "0.5.9".to_string(),
+            // drift-allow(version-string): fixture version, independent of the workspace version
             gui_version: "0.6.0".to_string(),
         };
         let json = serde_json::to_value(&mismatch).unwrap();

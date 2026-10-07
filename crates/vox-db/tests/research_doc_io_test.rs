@@ -20,6 +20,7 @@ fn test_file_lock_lifecycle_and_timeout() {
     let target = dir.path().join("my-doc.md");
 
     // 1. Acquire first lock
+    // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
     let lock1 = FileLock::acquire(&target, Duration::from_millis(500)).expect("acquire lock1");
     let expected_lock_path = dir.path().join("my-doc.md.lock");
     assert_eq!(lock1.lock_path(), expected_lock_path.as_path());
@@ -35,6 +36,7 @@ fn test_file_lock_lifecycle_and_timeout() {
     assert!(!expected_lock_path.exists());
 
     // 4. Now acquire succeeds
+    // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
     let lock3 = FileLock::acquire(&target, Duration::from_millis(500)).expect("acquire lock3");
     assert!(expected_lock_path.exists());
     drop(lock3);
@@ -51,6 +53,7 @@ fn test_file_lock_stale_recovery() {
     fs::write(&lock_path, "token:stale_token_from_dead_proc\n").expect("write lock");
 
     // Backdate modified time to 120 seconds ago
+    // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
     let past = SystemTime::now() - Duration::from_secs(120);
     let times = std::fs::FileTimes::new().set_modified(past);
     let file = File::open(&lock_path).expect("open lock file");
@@ -58,6 +61,7 @@ fn test_file_lock_stale_recovery() {
     drop(file);
 
     // Acquire should detect stale lock (>60s), remove it, and acquire cleanly
+    // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
     let lock = FileLock::acquire(&target, Duration::from_millis(500)).expect("acquire stale lock");
     assert!(lock_path.exists());
     let content = fs::read_to_string(&lock_path).unwrap();
