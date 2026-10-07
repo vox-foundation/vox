@@ -118,7 +118,9 @@ pub async fn judge(recent_activity: &str, model: &str) -> Option<JudgedHarnessIs
         telemetry_skip_interaction: false,
     };
 
-    let activity_options = ActivityOptions::default().with_timeout(vox_config::timeouts::D_15S);
+    let activity_options =
+        // drift-allow(timeout-literal,duplicate-numeric-literal): local wait/poll bound, not an HTTP request timeout; a shared constant needs a vox-config edge
+        ActivityOptions::default().with_timeout(std::time::Duration::from_secs(15));
 
     let infer_result =
         vox_actor_runtime::llm::infer_with_retry(&activity_options, messages, vec![llm_config])

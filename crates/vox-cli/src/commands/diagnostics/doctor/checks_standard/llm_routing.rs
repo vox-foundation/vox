@@ -251,7 +251,7 @@ mod rate_limit_check_tests {
     #[test]
     fn rate_limited_error_produces_distinct_check() {
         let err = EgressError::RateLimited {
-            // drift-allow(timeout-literal, duplicate-numeric-literal): test fixture retry-after value
+            // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
             retry_after: Some(Duration::from_secs(30)),
         };
         let check = rate_limit_check(&err).expect("RateLimited must produce a distinct Check");

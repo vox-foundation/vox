@@ -1260,7 +1260,7 @@ mod tests {
     #[test]
     fn peak_sampler_on_a_non_metal_device_reports_zero() {
         let sampler = PeakSampler::start(&Device::Cpu, std::time::Duration::from_millis(1));
-        // drift-allow(duplicate-numeric-literal): test poll interval
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
         std::thread::sleep(std::time::Duration::from_millis(20));
         assert_eq!(sampler.observed_peak_bytes(), 0);
     }

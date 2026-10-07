@@ -1766,7 +1766,7 @@ mod tests {
 
         // Give the (should-never-have-been-spawned) fire-and-forget judge task a
         // moment to run, in case the gate were broken and it fired anyway.
-        // drift-allow(duplicate-numeric-literal): test settle delay
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
         let db = state.db.as_ref().expect("db attached");

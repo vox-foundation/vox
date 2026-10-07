@@ -183,7 +183,7 @@ mod tests {
 
     #[test]
     fn map_flow_error_timeout_has_no_fallback_url() {
-        // drift-allow(timeout-literal, duplicate-numeric-literal): arbitrary fixture value carried by the error
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
         let err = OAuthError::TimedOut(std::time::Duration::from_secs(120));
         let (_, fallback_url) = map_flow_error(&err);
         assert!(fallback_url.is_none());
@@ -201,7 +201,8 @@ mod verify_tests {
             .and(wiremock::matchers::path("/api/v1/key"))
             .and(wiremock::matchers::header(
                 "Authorization",
-                vox_http_client::bearer_auth_header_string("fake-key").as_str(),
+                // drift-allow(bearer-header-inline): parses/matches/redacts a header, or a test fixture; not building one
+                "Bearer fake-key",
             ))
             .respond_with(
                 wiremock::ResponseTemplate::new(200).set_body_json(serde_json::json!({
@@ -253,7 +254,7 @@ mod verify_tests {
         wiremock::Mock::given(wiremock::matchers::method("GET"))
             .and(wiremock::matchers::path("/api/v1/key"))
             .respond_with(
-                // drift-allow(timeout-literal, duplicate-numeric-literal): mock delay must exceed the 1s client timeout
+                // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
                 wiremock::ResponseTemplate::new(200).set_delay(std::time::Duration::from_secs(5)),
             )
             .mount(&server)
@@ -266,7 +267,7 @@ mod verify_tests {
         let result = verify_key_at_with_timeout(
             &server.uri(),
             "fake-key",
-            // drift-allow(duplicate-numeric-literal): test client timeout
+            // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
             std::time::Duration::from_secs(1),
         )
         .await;

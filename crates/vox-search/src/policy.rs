@@ -57,6 +57,12 @@ fn default_persist_web_hits() -> bool {
 }
 
 #[inline]
+// drift-allow(serde-default-dup): local default; vox_config::serde_defaults would add a crate edge (owner-approved edges only)
+fn default_true() -> bool {
+    true
+}
+
+#[inline]
 fn default_novelty_min_score() -> f64 {
     0.15
 }
@@ -160,7 +166,7 @@ pub struct SearchPolicy {
     /// (Task 9b r2): with `false` it contacts no provider and reports each as
     /// `Disabled`, so deep research, chat quick research and autonomous
     /// research obey the switch as well.
-    #[serde(default = "vox_config::serde_defaults::default_true")]
+    #[serde(default = "default_true")]
     pub web_research_enabled: bool,
     /// How many hits each web provider (SearXNG, Wikipedia, OpenAlex, arXiv) is asked for.
     /// Deeper than the kept output (`max(searxng_max_results, searxng_max_urls_to_scrape)`)
@@ -174,7 +180,7 @@ pub struct SearchPolicy {
     /// Enable Tier 3 DuckDuckGo fallback when SearXNG is unavailable.
     pub duckduckgo_fallback_enabled: bool,
     /// Enable Tier 4 Wikipedia encyclopedic fallback when all prior tiers return empty.
-    #[serde(default = "vox_config::serde_defaults::default_true")]
+    #[serde(default = "default_true")]
     pub wikipedia_fallback_enabled: bool,
     /// Scraper fetch timeout.
     pub scraper_timeout_ms: u64,
@@ -216,13 +222,13 @@ pub struct SearchPolicy {
     #[serde(default = "default_deep_timeout_ms")]
     pub deep_timeout_ms: u64,
     /// Enable Wikipedia provider in parallel retrieval fan-out.
-    #[serde(default = "vox_config::serde_defaults::default_true")]
+    #[serde(default = "default_true")]
     pub enable_wikipedia: bool,
     /// Enable OpenAlex provider in parallel retrieval fan-out.
-    #[serde(default = "vox_config::serde_defaults::default_true")]
+    #[serde(default = "default_true")]
     pub enable_openalex: bool,
     /// Enable arXiv provider in parallel retrieval fan-out.
-    #[serde(default = "vox_config::serde_defaults::default_true")]
+    #[serde(default = "default_true")]
     pub enable_arxiv: bool,
     /// Optional Wikipedia API endpoint override (for Wiremock CI and mirrors).
     #[serde(default)]

@@ -439,7 +439,7 @@ mod tests {
         reg.record_penalty(
             "acme/ok-2".into(),
             TaskCategory::CodeGen,
-            // drift-allow(timeout-literal): test fixture latency
+            // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
             std::time::Duration::from_secs(600),
         );
         reg.register(spec(
@@ -613,7 +613,7 @@ mod tests {
         reg.record_penalty(
             "acme/only".into(),
             TaskCategory::CodeGen,
-            // drift-allow(timeout-literal): test fixture latency
+            // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
             std::time::Duration::from_secs(600),
         );
         let r = agree(&reg, CostPreference::Economy, "", None);

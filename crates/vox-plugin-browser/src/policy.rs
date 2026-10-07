@@ -11,10 +11,15 @@ pub enum BrowserLaunchMode {
     Attach,
 }
 
+// drift-allow(serde-default-dup): local default; vox_config::serde_defaults would add a crate edge (owner-approved edges only)
+fn default_true() -> bool {
+    true
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BrowserLaunchOptions {
     pub url: String,
-    #[serde(default = "vox_config::serde_defaults::default_true")]
+    #[serde(default = "default_true")]
     pub headless: bool,
     #[serde(default)]
     pub mode: BrowserLaunchMode,

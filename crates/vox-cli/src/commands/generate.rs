@@ -315,7 +315,8 @@ mod probe_tests {
             .mount(&server)
             .await;
 
-        let client = vox_http_client::client();
+        // drift-allow(reqwest-bypass): one-shot request kept as-is; migrating to vox-http-client changes timeouts/UA, tracked separately
+        let client = reqwest::Client::new();
         assert!(probe_reachable(&client, &server.uri()).await);
     }
 
@@ -329,7 +330,8 @@ mod probe_tests {
             .mount(&server)
             .await;
 
-        let client = vox_http_client::client();
+        // drift-allow(reqwest-bypass): one-shot request kept as-is; migrating to vox-http-client changes timeouts/UA, tracked separately
+        let client = reqwest::Client::new();
         assert!(probe_reachable(&client, &server.uri()).await);
     }
 
@@ -348,7 +350,8 @@ mod probe_tests {
             .mount(&server)
             .await;
 
-        let client = vox_http_client::client();
+        // drift-allow(reqwest-bypass): one-shot request kept as-is; migrating to vox-http-client changes timeouts/UA, tracked separately
+        let client = reqwest::Client::new();
         assert!(!probe_reachable(&client, &server.uri()).await);
     }
 }

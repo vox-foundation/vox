@@ -5,10 +5,6 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Wall-clock cap on one sandboxed `rustc`/`cargo check` verification
-/// (the "timed out after 10 seconds" messages below must match).
-const SANDBOX_COMPILE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
-
 /// Result of sandboxed compiler verification.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CodeSandboxResult {
@@ -210,17 +206,22 @@ pub async fn verify_rust_code_in_sandbox(
             stdin.flush().await?;
             drop(stdin);
         }
-        let output =
-            match tokio::time::timeout(SANDBOX_COMPILE_TIMEOUT, child.wait_with_output()).await {
-                Ok(res) => res?,
-                Err(_) => {
-                    return Ok(CodeSandboxResult {
-                        passed: false,
-                        stdout: String::new(),
-                        stderr: "Compilation timed out after 10 seconds".to_string(),
-                    });
-                }
-            };
+        let output = match tokio::time::timeout(
+            // drift-allow(timeout-literal,duplicate-numeric-literal): local wait/poll bound, not an HTTP request timeout; a shared constant needs a vox-config edge
+            std::time::Duration::from_secs(10),
+            child.wait_with_output(),
+        )
+        .await
+        {
+            Ok(res) => res?,
+            Err(_) => {
+                return Ok(CodeSandboxResult {
+                    passed: false,
+                    stdout: String::new(),
+                    stderr: "Compilation timed out after 10 seconds".to_string(),
+                });
+            }
+        };
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
         let passed = output.status.success();
@@ -270,16 +271,18 @@ pub async fn verify_rust_code_in_sandbox(
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped());
 
-        let output = match tokio::time::timeout(SANDBOX_COMPILE_TIMEOUT, cmd.output()).await {
-            Ok(res) => res?,
-            Err(_) => {
-                return Ok(CodeSandboxResult {
-                    passed: false,
-                    stdout: String::new(),
-                    stderr: "Compilation timed out after 10 seconds".to_string(),
-                });
-            }
-        };
+        let output =
+            // drift-allow(timeout-literal,duplicate-numeric-literal): local wait/poll bound, not an HTTP request timeout; a shared constant needs a vox-config edge
+            match tokio::time::timeout(std::time::Duration::from_secs(10), cmd.output()).await {
+                Ok(res) => res?,
+                Err(_) => {
+                    return Ok(CodeSandboxResult {
+                        passed: false,
+                        stdout: String::new(),
+                        stderr: "Compilation timed out after 10 seconds".to_string(),
+                    });
+                }
+            };
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
         let passed = output.status.success();

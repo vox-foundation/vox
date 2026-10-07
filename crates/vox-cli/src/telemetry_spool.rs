@@ -274,12 +274,12 @@ mod prune_tests {
         // Three 100-byte files (total 300); cap at 150 bytes must evict
         // oldest-first until at or under the cap: removing just "a" leaves
         // 200 (still over), so "b" goes too, leaving only "c" at 100.
-        // drift-allow(timeout-literal): test fixture file age
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
         write_pending_file(root, "a.json", 100, Duration::from_secs(300));
         write_pending_file(root, "b.json", 100, Duration::from_secs(200));
         write_pending_file(root, "c.json", 100, Duration::from_secs(100));
 
-        // drift-allow(timeout-literal): test fixture max age
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
         let (removed_files, removed_bytes) = prune(root, 150, Duration::from_secs(3600)).unwrap();
 
         assert_eq!(
@@ -302,7 +302,7 @@ mod prune_tests {
         let tmp = tempfile::tempdir().unwrap();
         let root = tmp.path();
         write_pending_file(root, "old.json", 1, Duration::from_secs(10 * 86400));
-        // drift-allow(duplicate-numeric-literal): test fixture file age
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
         write_pending_file(root, "new.json", 1, Duration::from_secs(1));
 
         let (removed_files, _) = prune(root, u64::MAX, Duration::from_secs(7 * 86400)).unwrap();
@@ -315,7 +315,7 @@ mod prune_tests {
     fn prune_is_noop_under_both_caps() {
         let tmp = tempfile::tempdir().unwrap();
         let root = tmp.path();
-        // drift-allow(duplicate-numeric-literal): test fixture file age
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
         write_pending_file(root, "a.json", 10, Duration::from_secs(1));
 
         let (removed_files, removed_bytes) =
@@ -337,7 +337,7 @@ mod prune_tests {
             root,
             "old.json",
             5,
-            // drift-allow(timeout-literal, duplicate-numeric-literal): test fixture file age
+            // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
             DEFAULT_MAX_SPOOL_AGE + Duration::from_secs(60),
         );
 

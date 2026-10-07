@@ -626,7 +626,7 @@ pub struct BrowserCookiesImportParams {
 pub struct BrowserSnapshotParams {
     #[schemars(length(min = 1, max = 256))]
     pub page_id: String,
-    #[serde(default = "vox_config::serde_defaults::default_true")]
+    #[serde(default = "default_true_interactive")]
     pub interactive_only: bool,
     #[serde(default = "default_max_depth")]
     pub max_depth: u32,
@@ -634,6 +634,11 @@ pub struct BrowserSnapshotParams {
     pub max_nodes: u32,
     #[serde(default)]
     pub include_boxes: bool,
+}
+
+// drift-allow(serde-default-dup): local default; vox_config::serde_defaults would add a crate edge (owner-approved edges only)
+fn default_true_interactive() -> bool {
+    true
 }
 
 fn default_max_depth() -> u32 {

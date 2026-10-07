@@ -277,7 +277,7 @@ mod tests {
     #[test]
     fn creates_login_shell_profile_when_none_exist() {
         let home = tempfile::tempdir().expect("tempdir");
-        // drift-allow(vox-path-literal): test builds a tempdir home layout
+        // drift-allow(vox-path-literal): test fixture mirrors the on-disk layout
         let bin_dir = home.path().join(".vox/bin");
 
         // Sanity: this is the pristine case — nothing for try_append to find.

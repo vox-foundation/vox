@@ -178,6 +178,7 @@ pub async fn send_run_with_claim(
         .await
         .expect("connect");
     timeout(
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
         Duration::from_secs(60),
         send_run_on_conn(&conn, job_id, kind, payload, claim),
     )
@@ -208,6 +209,7 @@ pub async fn send_run_from(
         .await
         .expect("connect");
     timeout(
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
         Duration::from_secs(60),
         send_run_on_conn(&conn, job_id, kind, payload, payload.len() as u64),
     )
@@ -226,6 +228,7 @@ pub async fn send_cancel_from(
         .await
         .expect("connect");
     timeout(
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
         Duration::from_secs(10),
         send_request_on(&conn, JobRequest::Cancel { job_id }),
     )
@@ -272,12 +275,14 @@ pub async fn send_raw_hello_on(
         .expect("write hello");
     let _ = send.finish();
     let resp = timeout(
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
         Duration::from_secs(10),
         protocol::read_frame(&mut recv, 16 * 1024 * 1024),
     )
     .await
     .ok()
     .and_then(Result::ok);
+    // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
     let close = timeout(Duration::from_secs(5), conn.closed())
         .await
         .ok()

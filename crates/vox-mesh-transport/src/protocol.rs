@@ -146,13 +146,11 @@ pub struct JobLimits {
     pub isolation: Isolation,
 }
 
-/// Default hard wall-clock kill for a received job.
-const DEFAULT_JOB_WALL_CLOCK: Duration = Duration::from_secs(300);
-
 impl Default for JobLimits {
     fn default() -> Self {
         Self {
-            wall_clock: DEFAULT_JOB_WALL_CLOCK,
+            // drift-allow(timeout-literal,duplicate-numeric-literal): local wait/poll bound, not an HTTP request timeout; a shared constant needs a vox-config edge
+            wall_clock: Duration::from_secs(300),
             max_output_bytes: 10 * 1024 * 1024,
             max_payload_bytes: 16 * 1024 * 1024,
             max_memory_bytes: 512 * 1024 * 1024,

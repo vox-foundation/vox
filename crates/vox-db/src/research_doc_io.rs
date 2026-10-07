@@ -6,9 +6,6 @@ use std::time::Duration;
 
 static TEMP_FILE_SEQ: AtomicU64 = AtomicU64::new(0);
 
-/// A `<target>.lock` file older than this is treated as abandoned and removed.
-const STALE_LOCK_AGE: Duration = Duration::from_secs(60);
-
 /// Atomically writes content to `dest_path` via a temporary file in the same directory,
 /// followed by an fsync and an atomic rename with Windows-specific retry logic.
 pub fn atomic_write_secure(dest_path: &Path, content: &[u8]) -> io::Result<()> {
@@ -115,7 +112,8 @@ impl FileLock {
                         && let Ok(elapsed) = meta
                             .modified()
                             .and_then(|m| m.elapsed().map_err(io::Error::other))
-                        && elapsed > STALE_LOCK_AGE
+                        // drift-allow(timeout-literal,duplicate-numeric-literal): local wait/poll bound, not an HTTP request timeout; a shared constant needs a vox-config edge
+                        && elapsed > Duration::from_secs(60)
                     {
                         let _ = fs::remove_file(&lock_path);
                         continue;
@@ -163,7 +161,7 @@ mod tests {
     fn test_file_lock_in_file() {
         let dir = tempfile::tempdir().unwrap();
         let target = dir.path().join("doc.md");
-        // drift-allow(timeout-literal): test lock-acquire budget
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
         let lock = FileLock::acquire(&target, Duration::from_millis(500)).unwrap();
         let lock_path = lock.lock_path().to_path_buf();
         assert!(lock_path.exists());

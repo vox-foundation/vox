@@ -428,9 +428,11 @@ impl PersistentDaemon {
     pub fn shutdown_if_spawned(&self) {
         // Avoid aborting an in-flight tool_call (empty TCP frame). Brief wait
         // only — Axis is exiting and must not hang forever.
-        let deadline = std::time::Instant::now() + D_5S;
+        // drift-allow(timeout-literal,duplicate-numeric-literal): local wait/poll bound, not an HTTP request timeout; a shared constant needs a vox-config edge
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
         while self.in_flight.load(Ordering::SeqCst) > 0 && std::time::Instant::now() < deadline {
-            std::thread::sleep(vox_config::timeouts::D_50MS);
+            // drift-allow(timeout-literal,duplicate-numeric-literal): local wait/poll bound, not an HTTP request timeout; a shared constant needs a vox-config edge
+            std::thread::sleep(std::time::Duration::from_millis(50));
         }
         if self.in_flight.load(Ordering::SeqCst) > 0 {
             tracing::warn!(

@@ -267,7 +267,7 @@ mod semcov_wave3_tests {
         // Close channel immediately
         drop(tx);
         // Bridge must terminate (not block forever)
-        // drift-allow(duplicate-numeric-literal): test join bound
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
         tokio::time::timeout(std::time::Duration::from_secs(1), handle)
             .await
             .expect("bridge must exit within 1s after channel close")

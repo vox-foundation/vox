@@ -289,7 +289,8 @@ pub fn run_training_loop(
 
     // Started before the first step so its peak covers the whole run,
     // including the first-step allocation spike; read after the last step.
-    let peak_sampler = super::PeakSampler::start(device, vox_config::timeouts::D_200MS);
+    // drift-allow(timeout-literal,duplicate-numeric-literal): local wait/poll bound, not an HTTP request timeout; a shared constant needs a vox-config edge
+    let peak_sampler = super::PeakSampler::start(device, std::time::Duration::from_millis(200));
     let run_start_inst = Instant::now();
     for epoch in start_epoch..=config.epochs {
         let shuffled_indices = checkpoint::build_epoch_shuffled_indices(

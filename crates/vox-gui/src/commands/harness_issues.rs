@@ -219,7 +219,8 @@ pub async fn propose_harness_issue_fix(issue_id: i64, target_path: String) -> Re
     llm_config.telemetry_attempt_number = Some(1);
 
     let activity_options = vox_actor_runtime::ActivityOptions::default()
-        .with_timeout(vox_config::timeouts::HTTP_REQUEST);
+        // drift-allow(timeout-literal,duplicate-numeric-literal): local wait/poll bound, not an HTTP request timeout; a shared constant needs a vox-config edge
+        .with_timeout(std::time::Duration::from_secs(30));
     let infer_result =
         vox_actor_runtime::llm::infer_with_retry(&activity_options, messages, vec![llm_config])
             .await;

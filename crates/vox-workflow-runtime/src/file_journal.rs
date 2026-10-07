@@ -538,7 +538,7 @@ mod tests {
         .expect("create");
         let deadline = std::time::Instant::now() + D_5S;
         while t.periodic_flush_count() == 0 && std::time::Instant::now() < deadline {
-            // drift-allow(duplicate-numeric-literal): test poll interval
+            // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
         assert!(t.periodic_flush_count() >= 1, "flusher never ticked");

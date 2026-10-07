@@ -71,10 +71,8 @@ async fn tavily_hits_reach_the_report_with_engine_provenance() {
     let mock = MockServer::start().await;
     Mock::given(method("POST"))
         .and(path("/search"))
-        .and(header(
-            "authorization",
-            vox_http_client::bearer_auth_header_string("tvly-test").as_str(),
-        ))
+        // drift-allow(bearer-header-inline): parses/matches/redacts a header, or a test fixture; not building one
+        .and(header("authorization", "Bearer tvly-test"))
         .respond_with(ResponseTemplate::new(200).set_body_json(search_body(3)))
         .expect(1)
         .mount(&mock)
@@ -200,7 +198,8 @@ async fn thin_tavily_snippet_is_replaced_by_extract_content() {
         .await;
     Mock::given(method("POST"))
         .and(path("/extract"))
-        .and(header("authorization", vox_http_client::bearer_auth_header_string("tvly-test").as_str()))
+        // drift-allow(bearer-header-inline): parses/matches/redacts a header, or a test fixture; not building one
+        .and(header("authorization", "Bearer tvly-test"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "results": [{
                 "url": "https://example.test/thin",

@@ -62,6 +62,7 @@ async fn test_budget_spend_persists_to_db() {
     assert!(budget.try_consume(150));
 
     // Yield to let async spawn execute
+    // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
     tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
     let period = vox_search::tavily_budget::period_key();

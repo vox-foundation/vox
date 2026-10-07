@@ -136,12 +136,11 @@ mod tests {
         let results = ParallelExplorationCoordinator::execute_branches_resilient(
             branches,
             2,
-            // drift-allow(duplicate-numeric-literal): test timeout
             Duration::from_millis(50),
             None,
             |query| async move {
                 if query == "q2" {
-                    // drift-allow(timeout-literal): test delay
+                    // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
                     tokio::time::sleep(Duration::from_millis(500)).await;
                 }
                 Ok(vec![format!("snippet-for-{query}")])
@@ -170,7 +169,6 @@ mod tests {
         let results = ParallelExplorationCoordinator::execute_branches_resilient(
             branches,
             1,
-            // drift-allow(duplicate-numeric-literal): test timeout
             Duration::from_secs(1),
             Some(cancellation),
             |_query| async move { Ok(vec!["should not run".to_string()]) },

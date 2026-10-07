@@ -9,9 +9,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 pub const BROWSER_FRAME_IMAGE_PART_MAX_BYTES: usize = 400_000;
 
-/// Snapshot-mode frames older than this are pruned from the frame cache.
-const SNAPSHOT_FRAME_MAX_AGE: std::time::Duration = std::time::Duration::from_secs(3600);
-
 /// Only these MCP tool names may produce an image part (stdio `call_tool` + Axis).
 pub const FRAME_IMAGE_TOOL_NAMES: &[&str] = &[
     "vox_browser_screenshot_viewport",
@@ -101,7 +98,8 @@ pub fn persist_browser_frame_png(
         return Err("frame path escaped cache jail".into());
     }
     if matches!(mode, FramePersistMode::Snapshot) {
-        let _ = prune_browser_frames(cache_root, &dest, SNAPSHOT_FRAME_MAX_AGE);
+        // drift-allow(timeout-literal,duplicate-numeric-literal): local wait/poll bound, not an HTTP request timeout; a shared constant needs a vox-config edge
+        let _ = prune_browser_frames(cache_root, &dest, std::time::Duration::from_secs(3600));
     }
     Ok(dest)
 }

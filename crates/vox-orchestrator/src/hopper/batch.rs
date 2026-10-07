@@ -15,7 +15,7 @@ pub struct ResearchBatchRequest {
     pub queries: Vec<ResearchBatchItem>,
     #[serde(default = "default_max_sources")]
     pub max_sources_per_query: usize,
-    #[serde(default = "vox_config::serde_defaults::default_true")]
+    #[serde(default = "default_true")]
     pub comparative_synthesis: bool,
     #[serde(default = "default_min_success")]
     pub min_success_ratio: f32,
@@ -25,6 +25,10 @@ pub struct ResearchBatchRequest {
 
 fn default_max_sources() -> usize {
     5
+}
+// drift-allow(serde-default-dup): local default; vox_config::serde_defaults would add a crate edge (owner-approved edges only)
+fn default_true() -> bool {
+    true
 }
 fn default_min_success() -> f32 {
     0.70

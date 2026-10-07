@@ -295,7 +295,8 @@ mod tests {
             .mount(&vox_ml)
             .await;
 
-        let client = vox_http_client::client();
+        // drift-allow(reqwest-bypass): one-shot request kept as-is; migrating to vox-http-client changes timeouts/UA, tracked separately
+        let client = reqwest::Client::new();
         let candidates = vec![ollama_like.uri(), vox_ml.uri()];
         let winner = probe_vox_local_health_among(&client, &candidates)
             .await

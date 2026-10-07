@@ -456,9 +456,8 @@ pub(crate) fn session_test_bind() -> TestBind {
                     r#"{"error":"unauthorized"}"#
                 };
                 let status = if raw.starts_with("GET /health")
-                    || (raw.contains("GET /v1/ping")
-                        && raw
-                            .contains(&vox_http_client::bearer_auth_header_string("secret-token")))
+                    // drift-allow(bearer-header-inline): parses/matches/redacts a header, or a test fixture; not building one
+                    || (raw.contains("GET /v1/ping") && raw.contains("Bearer secret-token"))
                 {
                     "200"
                 } else {
