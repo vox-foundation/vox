@@ -103,8 +103,8 @@ pub(super) fn emit_workflow_dispatcher(functions: &[HirFn]) -> String {
     }
     let mut out = String::new();
     out.push_str("/// Runs a workflow by name with positional JSON args (`VOX_RUN_WORKFLOW` / `VOX_WORKFLOW_ARGS`).\n");
-    out.push_str("pub async fn __vox_run_workflow(name: &str, args: &[serde_json::Value]) -> Result<(), String> {\n");
-    out.push_str("    match name {\n");
+    out.push_str("pub async fn __vox_run_workflow(__vox_wf_name: &str, __vox_wf_args: &[serde_json::Value]) -> Result<(), String> {\n");
+    out.push_str("    match __vox_wf_name {\n");
     for wf in workflows {
         let rust_name = wf.name.replace("::", "_");
         out.push_str(&format!("        \"{}\" => {{\n", wf.name));
@@ -116,7 +116,7 @@ pub(super) fn emit_workflow_dispatcher(functions: &[HirFn]) -> String {
                     .unwrap_or(&HirType::Named("serde_json::Value".into())),
             );
             out.push_str(&format!(
-                "            let {name} = serde_json::from_value::<{ty}>(args.get({i}).cloned().unwrap_or(serde_json::Value::Null)).map_err(|e| format!(\"workflow {wf} arg {i} ({name}): {{e}}\"))?;\n",
+                "            let {name} = serde_json::from_value::<{ty}>(__vox_wf_args.get({i}).cloned().unwrap_or(serde_json::Value::Null)).map_err(|e| format!(\"workflow {wf} arg {i} ({name}): {{e}}\"))?;\n",
                 name = p.name,
                 wf = wf.name,
             ));
@@ -144,7 +144,7 @@ pub(super) fn emit_workflow_dispatcher(functions: &[HirFn]) -> String {
         out.push_str("            Ok(())\n");
         out.push_str("        }\n");
     }
-    out.push_str("        _ => Err(format!(\"unknown workflow: {name}\")),\n");
+    out.push_str("        _ => Err(format!(\"unknown workflow: {__vox_wf_name}\")),\n");
     out.push_str("    }\n");
     out.push_str("}\n\n");
     out

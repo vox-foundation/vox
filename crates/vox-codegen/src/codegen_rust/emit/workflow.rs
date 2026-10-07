@@ -500,6 +500,21 @@ mod workflow_signature_tests {
         }
     }
 
+    /// A workflow parameter named like a dispatcher parameter must not shadow it.
+    #[test]
+    fn dispatcher_params_do_not_collide_with_workflow_params() {
+        let lib = lib_for("workflow w(args: str, name: str) {\n    ret\n}\n");
+        let start = lib
+            .find("pub async fn __vox_run_workflow(")
+            .expect("dispatcher");
+        let body = &lib[start..];
+        assert!(
+            body.contains("__vox_wf_args.get(1)"),
+            "the second arg must still be read from the dispatcher's args slice:\n{body}"
+        );
+        assert!(!body.contains("(name: &str, args:"), "{body}");
+    }
+
     #[test]
     fn no_dispatcher_without_workflows() {
         let lib = lib_for("fn f() to int {\n    return 1\n}\n");
