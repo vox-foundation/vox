@@ -657,6 +657,17 @@ impl ServerState {
                 tracing::warn!("model_prompt_registry populate_from_db failed: {e}");
             }
         });
+        // RET-03: copy legacy VoxKB rows into the findings inbox (idempotent, never fatal).
+        let (db_kb, root_kb) = (db.clone(), self.repository.root.clone());
+        tokio::spawn(async move {
+            match crate::kb_tools::findings::migrate_legacy_kb_entries(&db_kb, &root_kb).await {
+                Ok(r) if r.kb_entries + r.knowledge_bases + r.kb_routing_rules > 0 => {
+                    tracing::info!(?r, "legacy VoxKB rows counted and migrated to kb_findings");
+                }
+                Ok(_) => {}
+                Err(e) => tracing::warn!("legacy VoxKB migration failed: {e}"),
+            }
+        });
         self.db = Some(db);
         self.load_attention_preferences_from_db().await;
 

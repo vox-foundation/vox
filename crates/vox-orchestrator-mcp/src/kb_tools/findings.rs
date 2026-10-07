@@ -179,6 +179,80 @@ pub async fn capture_finding(
     })
 }
 
+/// What one legacy-VoxKB migration pass saw and did (RET-03).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct LegacyKbReport {
+    pub knowledge_bases: i64,
+    pub kb_entries: i64,
+    pub kb_routing_rules: i64,
+    pub migrated: u64,
+    pub skipped_empty: u64,
+    pub already_present: u64,
+}
+
+const LEGACY_PAGE: i64 = 500;
+
+/// Count the legacy VoxKB tables, then copy every non-empty `kb_entries` row into the inbox as
+/// a pending `Untrusted` finding (idempotent per legacy id). Reads legacy tables only: nothing
+/// is deleted or rewritten (D-03, RET-03). A database without the tables reports zeros.
+// vox-deprecated-since="0.6.0" retire-by="0.7.0" reason="kb-voxkb-retirement" canonical="kb_findings"
+pub async fn migrate_legacy_kb_entries(
+    db: &VoxDb,
+    repo_root: &Path,
+) -> Result<LegacyKbReport, String> {
+    let c = db
+        .legacy_kb_counts()
+        .await
+        .map_err(|e| format!("legacy_kb_counts: {e}"))?;
+    let mut report = LegacyKbReport {
+        knowledge_bases: c.knowledge_bases,
+        kb_entries: c.kb_entries,
+        kb_routing_rules: c.kb_routing_rules,
+        ..Default::default()
+    };
+    if c.kb_entries == 0 {
+        return Ok(report);
+    }
+    let mut after: Option<String> = None;
+    loop {
+        let page = db
+            .legacy_kb_entries_page(after.as_deref(), LEGACY_PAGE)
+            .await
+            .map_err(|e| format!("legacy_kb_entries_page: {e}"))?;
+        let Some(last) = page.last() else { break };
+        after = Some(last.id.clone());
+        for e in page {
+            if e.content.trim().is_empty() {
+                report.skipped_empty += 1;
+                continue;
+            }
+            let input = CaptureInput {
+                origin: FindingOrigin::LegacyKbEntry,
+                title: format!("Legacy KB entry ({})", e.kb_name),
+                text: e.content,
+                full_text: None,
+                source_url: None,
+                dedupe_scope: Some(e.id.clone()),
+                provenance: serde_json::json!({
+                    "legacy_id": e.id,
+                    "kb_name": e.kb_name,
+                    "source_signal": e.source_signal,
+                    "source_ref": e.source_ref,
+                    "routing_confidence": e.routing_confidence,
+                    "accepted": e.accepted,
+                    "mens_queued": e.mens_queued,
+                    "created_at_ms": e.created_at_ms,
+                }),
+            };
+            match capture_finding(db, repo_root, input).await?.finding_id {
+                Some(_) => report.migrated += 1,
+                None => report.already_present += 1,
+            }
+        }
+    }
+    Ok(report)
+}
+
 /// [`WebFindingCapture`] sink that routes web hits into the findings inbox.
 pub struct McpFindingCapture {
     pub db: Arc<VoxDb>,
@@ -247,6 +321,14 @@ mod tests {
     #[test]
     fn snapshot_relpath_is_under_cache_dir() {
         assert_eq!(snapshot_relpath("ab"), ".vox/cache/kb-findings/ab.txt");
+    }
+
+    #[tokio::test]
+    async fn legacy_kb_fresh_database_reports_zeros() {
+        let db = VoxDb::open_memory().await.unwrap();
+        let tmp = std::env::temp_dir();
+        let r = migrate_legacy_kb_entries(&db, &tmp).await.unwrap();
+        assert_eq!(r, LegacyKbReport::default());
     }
 
     #[test]
