@@ -181,9 +181,11 @@ mod tests {
         let t = ProviderThrottle::new(2);
         let g1 = t.acquire().await;
         let _g2 = t.acquire().await;
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
         let pending = tokio::time::timeout(Duration::from_millis(50), t.acquire()).await;
         assert!(pending.is_err(), "third permit should block at limit 2");
         drop(g1);
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
         let g3 = tokio::time::timeout(Duration::from_millis(200), t.acquire()).await;
         assert!(g3.is_ok(), "released permit should admit a waiter");
     }

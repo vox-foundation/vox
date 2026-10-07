@@ -906,6 +906,7 @@ mod tests {
                     .unwrap(),
             );
         }
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
         while (0..CHILDREN)
             .filter(|i| d.path().join(format!("ready-{i}")).exists())

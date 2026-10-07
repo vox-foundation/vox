@@ -590,6 +590,7 @@ mod tests {
                              delete the file and retry",
                             path.display()
                         );
+                        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
                         std::thread::sleep(std::time::Duration::from_millis(50));
                     }
                     Err(e) => panic!("failed to acquire lock file {}: {e}", path.display()),
@@ -609,6 +610,7 @@ mod tests {
         std::fs::create_dir_all(&lock_dir).ok();
         CrossProcessLock::acquire(
             lock_dir.join(".harness_trust_guard_real_tree.lock"),
+            // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
             std::time::Duration::from_secs(30),
         )
     }

@@ -162,6 +162,7 @@ fn exec(
                     detail: format!("timed out after {}s", timeout.as_secs()),
                 });
             }
+            // drift-allow(timeout-literal,duplicate-numeric-literal): local wait/poll bound, not an HTTP request timeout; a shared constant needs a vox-config edge
             None => std::thread::sleep(Duration::from_millis(50)),
         }
     }
@@ -229,6 +230,8 @@ mod tests {
         }
         src.push_str("    return 0\n}\nfn main() to str { return \"ok\" }\n");
         let d = workdir("bigdiag");
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
         let out = run_program(&bin, &src, &d, "big", Duration::from_secs(60))
             .expect("must return an outcome, not hang");
         assert!(!out.compiled, "this program does not compile");
@@ -254,6 +257,8 @@ mod tests {
         let d = workdir("cheat");
         let tests_main =
             "fn main() to str {\n    assert(nth_prime(1) == 2)\n    return \"ok\"\n}\n";
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
         let t = Duration::from_secs(30);
 
         let honest = verify_program(

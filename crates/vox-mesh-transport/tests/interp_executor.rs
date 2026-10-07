@@ -241,6 +241,7 @@ async fn one_peer_cannot_cancel_another_peers_job() {
         TaskKind::VoxScript,
         slow,
     ));
+    // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     let cancel = common::send_cancel_from(b, &server, JobId(9)).await;
     assert!(
@@ -266,6 +267,7 @@ async fn a_reused_job_id_from_the_same_peer_is_refused() {
         TaskKind::VoxScript,
         slow,
     ));
+    // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     let second = common::send_run_on(
         &server,
@@ -320,6 +322,7 @@ async fn process_boundary_clears_unlisted_env_and_points_home_at_the_readonly_di
 #[ignore = "owner:mesh sunset:2026-12-31 slow: builds and spawns the vox binary"]
 async fn unix_process_group_kill_reaches_a_grandchild() {
     let limits = JobLimits {
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
         wall_clock: std::time::Duration::from_millis(400),
         ..JobLimits::default()
     };

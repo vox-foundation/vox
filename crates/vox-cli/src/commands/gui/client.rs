@@ -41,6 +41,7 @@ pub fn wait_until(until: &str, timeout: &str) -> Result<()> {
         if start.elapsed() > budget {
             bail!("wait timed out ({timeout})");
         }
+        // drift-allow(timeout-literal,duplicate-numeric-literal): local wait/poll bound, not an HTTP request timeout; a shared constant needs a vox-config edge
         std::thread::sleep(std::time::Duration::from_millis(200));
     }
 }

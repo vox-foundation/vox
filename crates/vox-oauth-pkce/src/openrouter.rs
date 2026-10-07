@@ -198,6 +198,7 @@ pub async fn run_openrouter_flow() -> Result<String, OAuthError> {
     // Wait for the server task's graceful shutdown to actually finish
     // (bounded — near-instant once shutdown_tx fired above) rather than
     // aborting it out from under an in-flight response.
+    // drift-allow(timeout-literal,duplicate-numeric-literal): local wait/poll bound, not an HTTP request timeout; a shared constant needs a vox-config edge
     let _ = tokio::time::timeout(Duration::from_secs(5), server).await;
 
     exchange_code_at(OPENROUTER_TOKEN_EXCHANGE_URL, &code, &verifier).await

@@ -67,6 +67,7 @@ async fn test_parallel_exploration_cancellation() {
     let results: Vec<BranchResult> = ParallelExplorationCoordinator::execute_branches_resilient(
         branches,
         2,
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
         Duration::from_secs(1),
         Some(token),
         move |q| {

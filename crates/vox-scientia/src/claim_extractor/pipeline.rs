@@ -383,6 +383,7 @@ mod tests {
             &indices,
             VERIFY_CONCURRENCY,
             |_claim| async move {
+                // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
                 tokio::time::sleep(std::time::Duration::from_millis(200)).await;
                 ClaimVerdict::Supported { confidence: 0.9 }
             },

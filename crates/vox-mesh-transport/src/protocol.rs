@@ -149,6 +149,7 @@ pub struct JobLimits {
 impl Default for JobLimits {
     fn default() -> Self {
         Self {
+            // drift-allow(timeout-literal,duplicate-numeric-literal): local wait/poll bound, not an HTTP request timeout; a shared constant needs a vox-config edge
             wall_clock: Duration::from_secs(300),
             max_output_bytes: 10 * 1024 * 1024,
             max_payload_bytes: 16 * 1024 * 1024,

@@ -212,6 +212,8 @@ pub fn acquire_slot_adaptive(root: &Path, cap: usize) -> Result<(Slot, u64, usiz
         {
             return Ok((slot, now_ms().saturating_sub(start) as u64, busy));
         }
+        // drift-allow(timeout-literal,duplicate-numeric-literal): local wait/poll bound, not an HTTP request timeout; a shared constant needs a vox-config edge
+        // drift-allow(timeout-literal,duplicate-numeric-literal): local wait/poll bound, not an HTTP request timeout; a shared constant needs a vox-config edge
         std::thread::sleep(Duration::from_millis(500));
     }
 }
