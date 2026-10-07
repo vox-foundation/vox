@@ -3,11 +3,11 @@
   "summary": {
     "workspace_crate_count": 130,
     "rust_files_scanned": 4114,
-    "cargo_unit_test_functions": 11057,
+    "cargo_unit_test_functions": 11059,
     "cargo_integration_test_functions": 3055,
     "cargo_bench_functions": 0,
     "cargo_ignored_test_functions": 92,
-    "cargo_test_functions_total": 14112,
+    "cargo_test_functions_total": 14114,
     "webir_related_ignored_tests": 1,
     "webir_ignored_tests_likely_retired_note": 0
   },
@@ -93,7 +93,7 @@
       "integration_rs_files": 97
     },
     "vox-cli-ci": {
-      "unit_tests": 440,
+      "unit_tests": 442,
       "integration_tests": 0,
       "bench_tests": 0,
       "ignored_tests": 0,
