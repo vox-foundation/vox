@@ -1212,6 +1212,9 @@ mod tests {
             "RESEARCH_TRIAL.run",
             "Research_Trial.run",
             "research_trial:run",
+            // `-` is a legal metric_type character, so it must not split the stem either.
+            "research-trial.run",
+            "Research-Trial:run",
         ] {
             assert!(
                 validate_research_metric_row("run-1", metric_type, Some(r#"{"query":"x"}"#))

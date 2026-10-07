@@ -145,14 +145,19 @@ fn reject(msg: String) -> Result<(), TelemetryError> {
 }
 
 /// Trial checks for one `research_metrics` row. Any metric type that begins with
-/// `research_trial` in any case is a trial row, so prefix variants cannot skip the allowlist.
+/// `research_trial` in any case, with `_` or `-` as the separator, is a trial row, so
+/// prefix variants cannot skip the allowlist.
 pub(crate) fn validate_research_trial_row(
     session_id: &str,
     metric_type: &str,
     metadata_json: Option<&str>,
 ) -> Result<(), TelemetryError> {
     let stem = RESEARCH_TRIAL_METRIC_PREFIX.trim_end_matches('.');
-    if !metric_type.to_ascii_lowercase().starts_with(stem) {
+    if !metric_type
+        .to_ascii_lowercase()
+        .replace('-', "_")
+        .starts_with(stem)
+    {
         return Ok(());
     }
     if !structural_string("session_id", session_id) {
