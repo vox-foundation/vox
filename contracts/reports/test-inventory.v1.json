@@ -3,11 +3,11 @@
   "summary": {
     "workspace_crate_count": 130,
     "rust_files_scanned": 4114,
-    "cargo_unit_test_functions": 11027,
-    "cargo_integration_test_functions": 3053,
+    "cargo_unit_test_functions": 11053,
+    "cargo_integration_test_functions": 3054,
     "cargo_bench_functions": 0,
     "cargo_ignored_test_functions": 92,
-    "cargo_test_functions_total": 14080,
+    "cargo_test_functions_total": 14107,
     "webir_related_ignored_tests": 1,
     "webir_ignored_tests_likely_retired_note": 0
   },
@@ -93,7 +93,7 @@
       "integration_rs_files": 97
     },
     "vox-cli-ci": {
-      "unit_tests": 433,
+      "unit_tests": 440,
       "integration_tests": 0,
       "bench_tests": 0,
       "ignored_tests": 0,
@@ -157,8 +157,8 @@
       "integration_rs_files": 5
     },
     "vox-codegen": {
-      "unit_tests": 268,
-      "integration_tests": 227,
+      "unit_tests": 273,
+      "integration_tests": 228,
       "bench_tests": 0,
       "ignored_tests": 8,
       "has_integration_dir": true,
@@ -277,7 +277,7 @@
       "integration_rs_files": 0
     },
     "vox-drift-check": {
-      "unit_tests": 69,
+      "unit_tests": 72,
       "integration_tests": 3,
       "bench_tests": 0,
       "ignored_tests": 0,
@@ -805,7 +805,7 @@
       "integration_rs_files": 0
     },
     "vox-research-shim": {
-      "unit_tests": 139,
+      "unit_tests": 142,
       "integration_tests": 70,
       "bench_tests": 0,
       "ignored_tests": 3,
@@ -869,7 +869,7 @@
       "integration_rs_files": 0
     },
     "vox-search": {
-      "unit_tests": 172,
+      "unit_tests": 176,
       "integration_tests": 92,
       "bench_tests": 0,
       "ignored_tests": 2,
@@ -1013,7 +1013,7 @@
       "integration_rs_files": 0
     },
     "vox-wasm-engine": {
-      "unit_tests": 0,
+      "unit_tests": 4,
       "integration_tests": 10,
       "bench_tests": 0,
       "ignored_tests": 0,
@@ -1155,6 +1155,10 @@
       "ignored_tests": 3
     },
     {
+      "path": "crates/vox-codegen/tests/ai_fixture_bundle_compiles.rs",
+      "ignored_tests": 2
+    },
+    {
       "path": "crates/vox-codegen/tests/generated_project_builds_outside_repo.rs",
       "ignored_tests": 2
     },
@@ -1215,11 +1219,7 @@
       "ignored_tests": 1
     },
     {
-      "path": "crates/vox-codegen/src/codegen_rust/emit/http.rs",
-      "ignored_tests": 1
-    },
-    {
-      "path": "crates/vox-codegen/tests/ai_fixture_bundle_compiles.rs",
+      "path": "crates/vox-compiler/src/semcov_struct_pipeline_tests.rs",
       "ignored_tests": 1
     }
   ],

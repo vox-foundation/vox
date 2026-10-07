@@ -104,6 +104,9 @@ pub fn emit_lib(module: &HirModule) -> String {
     for func in &module.functions {
         out.push_str(&emit_fn_with_actor_handlers(func, module));
     }
+    out.push_str(&super::durability_lower::emit_workflow_dispatcher(
+        &module.functions,
+    ));
 
     // MCP tools and resources - must be `pub` so `mcp_server` binary can `use crate::*`.
     for t in &module.mcp_tools {
@@ -338,7 +341,12 @@ pub fn emit_fn(
         ));
     }
     out.push_str(") ");
-    if let Some(ret) = &func.return_type {
+    if func.durability == Some(DurabilityKind::Workflow) {
+        out.push_str(&format!(
+            "-> {} ",
+            super::durability_lower::workflow_rust_return_type(func.return_type.as_ref())
+        ));
+    } else if let Some(ret) = &func.return_type {
         out.push_str(&format!("-> {} ", emit_type(ret)));
     }
     out.push_str("{\n");
@@ -407,4 +415,94 @@ fn emit_actor_state_structs(module: &HirModule) -> String {
         }
     }
     out
+}
+
+#[cfg(test)]
+mod workflow_signature_tests {
+    use super::*;
+    use vox_compiler::hir::lower_module;
+    use vox_compiler::lexer::cursor::lex;
+    use vox_compiler::parser::parse;
+
+    fn lib_for(src: &str) -> String {
+        emit_lib(&lower_module(&parse(lex(src)).expect("parse")))
+    }
+
+    #[test]
+    fn unit_workflow_returns_result_unit() {
+        let lib = lib_for("workflow hello() {\n    ret\n}\n");
+        assert!(
+            lib.contains("async fn hello() -> Result<(), String> {"),
+            "{lib}"
+        );
+    }
+
+    #[test]
+    fn plain_typed_workflow_wraps_the_journal_return_in_ok() {
+        let lib = lib_for("workflow wf() to int {\n    return 7\n}\n");
+        assert!(
+            lib.contains("async fn wf() -> Result<i64, String> {"),
+            "{lib}"
+        );
+        assert!(
+            lib.contains("Ok(::vox_workflow_runtime::workflow::extract_terminal_return::<i64>"),
+            "{lib}"
+        );
+    }
+
+    #[test]
+    fn result_typed_workflow_keeps_its_declared_signature() {
+        let lib = lib_for("workflow wf() to Result[str] {\n    return Ok(\"x\")\n}\n");
+        assert!(
+            lib.contains("async fn wf() -> Result<String, String> {"),
+            "{lib}"
+        );
+        assert!(!lib.contains("Ok(::vox_workflow_runtime"), "{lib}");
+    }
+
+    #[test]
+    fn dispatcher_routes_each_workflow_by_name_with_positional_args() {
+        let lib =
+            lib_for("workflow a(n: int) to int {\n    return n\n}\nworkflow b() {\n    ret\n}\n");
+        assert!(lib.contains("pub async fn __vox_run_workflow("), "{lib}");
+        assert!(lib.contains("\"a\" => {"), "{lib}");
+        assert!(lib.contains("\"b\" => {"), "{lib}");
+        assert!(lib.contains("serde_json::from_value::<i64>"), "{lib}");
+        assert!(lib.contains("unknown workflow"), "{lib}");
+    }
+
+    /// Activity bodies lower to `Result<_, anyhow::Error>`, so every app manifest
+    /// that links vox-workflow-runtime must also declare `anyhow` (the script lane does).
+    #[test]
+    fn app_manifests_declare_anyhow_for_activity_lowering() {
+        let hir = lower_module(
+            &parse(lex(
+                "activity a() to Result[str] {\n    return Ok(\"x\")\n}\n",
+            ))
+            .expect("parse"),
+        );
+        for shell in [
+            crate::codegen_rust::RustAppShell::AxumLocalServer,
+            crate::codegen_rust::RustAppShell::TauriApp,
+        ] {
+            let out = super::super::generate(&hir, "demo", shell).expect("generate");
+            // The app's own manifest (Tauri also emits a `[workspace]`-only root one).
+            let manifest = out
+                .files
+                .iter()
+                .find(|(path, body)| path.ends_with("Cargo.toml") && body.contains("[package]"))
+                .map(|(_, body)| body.as_str())
+                .expect("a package Cargo.toml");
+            assert!(
+                manifest.contains("\nanyhow = \"1\"\n"),
+                "{shell:?} manifest lacks anyhow:\n{manifest}"
+            );
+        }
+    }
+
+    #[test]
+    fn no_dispatcher_without_workflows() {
+        let lib = lib_for("fn f() to int {\n    return 1\n}\n");
+        assert!(!lib.contains("__vox_run_workflow"), "{lib}");
+    }
 }

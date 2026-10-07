@@ -38,16 +38,57 @@ fn generated_ai_fixture_bundle_passes_cargo_check() {
             return x
         }
     "#;
+    assert_bundle_passes_cargo_check(src, "ai_fixture_bundle_gen", "ai_fixture");
+}
+
+/// Slow: an app with workflows of every return shape must compile — `main.rs` calls the
+/// generated `__vox_run_workflow` dispatcher and every workflow fn returns a `Result`
+/// its `?`-propagating body matches.
+#[test]
+#[ignore = "slow; runs nested cargo check; owner: codegen sunset: never; use --include-slow or CI"]
+fn generated_workflow_bundle_passes_cargo_check() {
+    let src = r#"
+        activity charge_card(amount: int) to Result[str] {
+            if amount > 1000 {
+                return Error("amount too large")
+            }
+            return Ok("tx_" + str(amount))
+        }
+
+        workflow checkout(amount: int) to Result[str] {
+            let tx = charge_card(amount)?
+            return Ok(tx)
+        }
+
+        workflow label(amount: int) to str {
+            let result = charge_card(amount)
+            match result {
+                Ok(tx) => "Success: " + tx
+                Error(msg) => "Failed: " + msg
+            }
+        }
+
+        workflow count() to int {
+            return 7
+        }
+
+        workflow ping() {
+            ret
+        }
+    "#;
+    assert_bundle_passes_cargo_check(src, "workflow_bundle_gen", "workflow");
+}
+
+fn assert_bundle_passes_cargo_check(src: &str, pkg_name: &str, scratch_tag: &str) {
     let ast = parse(lex(src)).expect("parse");
     let hir = lower_module(&ast);
 
-    let out =
-        generate(&hir, "ai_fixture_bundle_gen", RustAppShell::AxumLocalServer).expect("generate");
+    let out = generate(&hir, pkg_name, RustAppShell::AxumLocalServer).expect("generate");
     let uniq = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_nanos();
-    let scratch = workspace_root().join(format!("_bundle_ai_fixture_{uniq}"));
+    let scratch = workspace_root().join(format!("_bundle_{scratch_tag}_{uniq}"));
     let pkg = scratch.join("gen_pkg");
     fs::create_dir_all(pkg.join("src")).expect("mkdir");
 
@@ -62,15 +103,16 @@ fn generated_ai_fixture_bundle_passes_cargo_check() {
     }
 
     let cargo_bin = std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into());
-    let status = Command::new(cargo_bin)
+    let output = Command::new(cargo_bin)
         .current_dir(&pkg)
         .args(["check", "-q"])
-        .status()
+        .output()
         .expect("spawn cargo check");
 
     assert!(
-        status.success(),
-        "cargo check failed for generated ai_fixture bundle under {}",
-        pkg.display()
+        output.status.success(),
+        "cargo check failed for generated {scratch_tag} bundle under {}:\n{}",
+        pkg.display(),
+        String::from_utf8_lossy(&output.stderr)
     );
 }

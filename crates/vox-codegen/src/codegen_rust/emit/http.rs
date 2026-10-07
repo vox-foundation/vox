@@ -965,8 +965,9 @@ query health() to str {
         assert!(!output.contains("VOX_RUN_WORKFLOW"));
     }
 
+    /// `main.rs` calls `__vox_run_workflow`; `lib.rs` (glob-imported by main) must define it.
+    /// The compile proof is `generated_workflow_bundle_passes_cargo_check` (nightly, nested cargo).
     #[test]
-    #[ignore = "owner: codegen — sunset: 2026-12-31 — passes, but asserts a broken emission: main.rs calls __vox_run_workflow, which no emitter defines, and the lib.rs workflow fn returns () while using `?`/Ok(()); un-ignore with an app-mode compile test once the runner is emitted"]
     fn emit_main_includes_generated_workflow_dispatch_env_branch() {
         let src = r#"
 workflow hello() {
@@ -981,5 +982,10 @@ workflow hello() {
         assert!(output.contains("VOX_RUN_WORKFLOW"));
         assert!(output.contains("VOX_WORKFLOW_ARGS"));
         assert!(output.contains("__vox_run_workflow(&wf_name, &args).await"));
+        let lib = super::super::workflow::emit_lib(&hir);
+        assert!(
+            lib.contains("pub async fn __vox_run_workflow("),
+            "lib.rs must define the dispatcher main.rs calls:\n{lib}"
+        );
     }
 }

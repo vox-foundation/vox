@@ -163,6 +163,19 @@ fn vox_crate_dep_line(crate_name: &str, relative_prefix: &str, extra: &str) -> S
     format!("{crate_name} = {{ path = \"{path}\"{extra} }}\n")
 }
 
+/// vox-workflow-runtime plus `anyhow`, which activity lowering names in its return
+/// type (`durability_lower::activity_inner_return_type`) — same pairing as the script lane.
+fn workflow_runtime_deps(relative_prefix: &str) -> String {
+    format!(
+        "{}anyhow = \"1\"\n",
+        vox_crate_dep_line(
+            "vox-workflow-runtime",
+            relative_prefix,
+            ", default-features = false"
+        )
+    )
+}
+
 fn emit_generated_extra_deps(module: &HirModule) -> String {
     let mut out = String::new();
     out.push_str(&vox_crate_dep_line("vox-telemetry", "../..", ""));
@@ -726,11 +739,7 @@ proptest = "1"
             vox_crate_dep_line("vox-db", "../../..", ", features = [\"host-integration\"]"),
         vox_actor_runtime_dep = vox_crate_dep_line("vox-actor-runtime", "../../..", ""),
         vox_compiler_dep = vox_crate_dep_line("vox-compiler", "../../..", ""),
-        vox_workflow_runtime_dep = vox_crate_dep_line(
-            "vox-workflow-runtime",
-            "../../..",
-            ", default-features = false"
-        ),
+        vox_workflow_runtime_dep = workflow_runtime_deps("../../.."),
         mcp_bin = mcp_bin,
         edition = crate::codegen_rust::GENERATED_CARGO_EDITION,
     )
@@ -844,11 +853,7 @@ turso = {{ version = "0.6", default-features = false, features = ["sync"] }}
         vox_db_dep = vox_crate_dep_line("vox-db", "../..", ", features = [\"host-integration\"]"),
         vox_actor_runtime_dep = vox_crate_dep_line("vox-actor-runtime", "../..", ""),
         vox_compiler_dep = vox_crate_dep_line("vox-compiler", "../..", ""),
-        vox_workflow_runtime_dep = vox_crate_dep_line(
-            "vox-workflow-runtime",
-            "../..",
-            ", default-features = false"
-        ),
+        vox_workflow_runtime_dep = workflow_runtime_deps("../.."),
         mcp_bin = mcp_bin,
         edition = crate::codegen_rust::GENERATED_CARGO_EDITION,
     )

@@ -39,6 +39,10 @@
         "count": 3
       },
       {
+        "path": "crates/vox-codegen/tests/ai_fixture_bundle_compiles.rs",
+        "count": 2
+      },
+      {
         "path": "crates/vox-codegen/tests/generated_project_builds_outside_repo.rs",
         "count": 2
       },
@@ -99,11 +103,7 @@
         "count": 1
       },
       {
-        "path": "crates/vox-codegen/src/codegen_rust/emit/http.rs",
-        "count": 1
-      },
-      {
-        "path": "crates/vox-codegen/tests/ai_fixture_bundle_compiles.rs",
+        "path": "crates/vox-compiler/src/semcov_struct_pipeline_tests.rs",
         "count": 1
       }
     ],
