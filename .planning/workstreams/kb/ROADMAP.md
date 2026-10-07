@@ -116,7 +116,7 @@ Plans:
   4. Property tests and a red-team fixture set show the sanitizer neutralises Unicode tag-block, zero-width/bidi characters, HTML comments and off-allowlist markdown images, at both the ingest and the injection boundary.
   5. `KbStore` LIKE search, `KbRouter`, the signal adapters, `kb_lines` and the 12 legacy `vox_kb_*` CRUD tools are absent from source and the tool catalog, and colliding names are replaced, not aliased. A seeded-DB migration test shows legacy `kb_entries`/`knowledge_bases` rows are counted before quarantine and non-empty rows appear in the inbox as pending.
 
-**Plans:** 7/13 plans executed (replanned 2026-10-06 against the post-02-12 tree; D-01 and D-02 pre-approved in 03-CONTEXT.md, so no decision checkpoints)
+**Plans:** 8/13 plans executed (replanned 2026-10-06 against the post-02-12 tree; D-01 and D-02 pre-approved in 03-CONTEXT.md, so no decision checkpoints)
 
 Plans:
 **Wave 1**
@@ -137,7 +137,7 @@ Plans:
 - [x] 03-05-PLAN.md — Tier-required corpus writers; Library tier single source with agreement test; wire validator removed
 - [x] 03-06-PLAN.md — Research paths (quick, deep, gather, GUI save-session) into the inbox; shim and `vox research publish` docs/src writers closed
 - [x] 03-07-PLAN.md — Chat-path leak closure: writeback, signal adapters, KB-lines enrichment, @kb consumer, MEMORY sink
-- [ ] 03-08-PLAN.md — Legacy VoxKB count-and-migrate at DB attach; MENS KbSignals on reviewed findings (DPO only)
+- [x] 03-08-PLAN.md — Legacy VoxKB count-and-migrate at DB attach; MENS KbSignals on reviewed findings (DPO only)
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
@@ -317,7 +317,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Retrieval Eval Baseline | 12/12 | Complete    | 2026-10-05 |
 | 2. Library Index and KB Tool Surface | 12/12 | Complete    | 2026-10-05 |
-| 3. Provenance, Trust Tiers and Leak Closure | 7/13 | In Progress|  |
+| 3. Provenance, Trust Tiers and Leak Closure | 8/13 | In Progress|  |
 | 4. Taxonomy Contract and Facet Lint | 0/TBD | Not started | - |
 | 5. Local Embeddings and Ranking Signals | 0/TBD | Not started | - |
 | 6. Library GUI | 0/TBD | Not started | - |

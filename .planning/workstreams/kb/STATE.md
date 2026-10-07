@@ -5,16 +5,16 @@ milestone_name: Vox Knowledge Base — corpus to context
 current_phase: 03
 current_phase_name: Provenance, Trust Tiers and Leak Closure
 status: executing
-stopped_at: Completed 03-07-PLAN.md
-last_updated: "2026-10-07T04:18:07.849Z"
+stopped_at: Completed 03-08-PLAN.md
+last_updated: "2026-10-07T05:29:57.520Z"
 last_activity: 2026-10-06
 last_activity_desc: Phase 03 execution started
-state_head: e98a1235a9a116ade64b214a6843e7919da448b2
+state_head: 30a280f54fa50574d29859a3dc7d4a310b04c1dd
 progress:
   total_phases: 12
   completed_phases: 2
   total_plans: 37
-  completed_plans: 31
+  completed_plans: 32
   percent: 17
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (shared project context) and .planning/workstreams/kb/
 ## Current Position
 
 Phase: 03 (Provenance, Trust Tiers and Leak Closure) — EXECUTING
-Plan: 8 of 13
+Plan: 9 of 13
 Status: Ready to execute
 Last activity: 2026-10-06 — Phase 03 execution started
 
@@ -78,6 +78,7 @@ Progress: [██░░░░░░░░] 17%
 | Phase 03 P05 | 150min | 3 tasks | 19 files |
 | Phase 03 P06 | long | 3 tasks | 13 files |
 | Phase 03 P07 | long | 2 tasks | 9 files |
+| Phase 03 P08 | 150min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -107,6 +108,7 @@ Progress: [██░░░░░░░░] 17%
 - [Phase 03]: 03-05: put_kb_index_state is the single source of the Library corpus tier and aligns every corpus row in the same transaction; Phase 11 must exempt evidence-bearing rows
 - [Phase 03]: 03-06: deep synthesis filed as one Untrusted pending finding (D-06 taint rule); create_research_source bookkeeping node retained (empty content, Untrusted by allowlist); vox research publish writes a gitignored local draft
 - [Phase 03]: 03-07: @kb mentions parse but inject nothing until Phase 7 (D-05); MEMORY research sink deleted not rerouted (D-06); leak tests must seed a row the retired path would substring-match
+- [Phase 03]: 03-08: legacy VoxKB migration copies non-empty kb_entries as pending Untrusted findings on every DB attach; MENS KbSignals reads only reviewed findings as DPO pairs (no SFT)
 
 ### Pending Todos
 
@@ -121,8 +123,8 @@ Progress: [██░░░░░░░░] 17%
 
 ## Session Continuity
 
-**Last session:** 2026-10-07T04:18:07.810Z
+**Last session:** 2026-10-07T05:29:57.496Z
 
-**Stopped At:** Completed 03-07-PLAN.md
+**Stopped At:** Completed 03-08-PLAN.md
 **Resume File:** None
 **Next:** `/gsd-plan-phase 1` (no research-phase needed)
