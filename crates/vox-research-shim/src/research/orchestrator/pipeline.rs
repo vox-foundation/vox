@@ -19,7 +19,7 @@ use super::super::types::{
 };
 use super::super::verifier::verify_claims_with_config;
 use super::config::ResearchConfig;
-use super::helpers::{fnv1a_hash, verifier_config_for_research_run};
+use super::helpers::{attempt_session_key, fnv1a_hash, verifier_config_for_research_run};
 use super::pipeline_cache::{research_cache_short_circuit, research_cache_store};
 use super::stages::{
     JudgeParams, SynthesisParams, chat_stage, evaluate_citation_diversity, judge_quality,
@@ -49,6 +49,23 @@ pub async fn run_research_with_context(
 
 /// Run research using a pre-created session id, for async job submission paths.
 pub async fn run_research_with_context_and_session(
+    query: ResearchQuery,
+    search_ctx: Option<&SearchRuntimeContext>,
+    db: Option<&Codex>,
+    config: &ResearchConfig,
+    precreated_session_id: Option<i64>,
+) -> Result<ResearchResult> {
+    super::super::metering::scope(run_research_metered(
+        query,
+        search_ctx,
+        db,
+        config,
+        precreated_session_id,
+    ))
+    .await
+}
+
+async fn run_research_metered(
     mut query: ResearchQuery,
     search_ctx: Option<&SearchRuntimeContext>,
     db: Option<&Codex>,
@@ -66,6 +83,7 @@ pub async fn run_research_with_context_and_session(
         && let Some(mut cached) = research_cache_short_circuit(&query, db, config).await
     {
         cached.research_metadata.served_from_cache = true;
+        cached.research_metadata.usage = Default::default();
         if let Some(id) = precreated_session_id {
             set_session_stage(Some(db), id, ResearchStage::Completed).await;
         }
@@ -100,19 +118,21 @@ pub async fn run_research_with_context_and_session(
     let search_policy = resolved_search_policy_for_research_run(db, config).await;
 
     // ── (a) Session tracking ─────────────────────────────────────────────────
+    let session_key = attempt_session_key(&query.query, &format!("{:?}", query.scope));
     let session_id: i64 = if let Some(id) = precreated_session_id {
         id
     } else if let Some(db) = db {
-        let session_key = format!(
-            "research:{:016x}",
-            fnv1a_hash(&format!("{}|{:?}", query.query, query.scope))
-        );
         db.create_research_session(&session_key, &query.query)
             .await
             .unwrap_or(0)
     } else {
         0
     };
+    super::super::metering::set_run_session(if session_id > 0 {
+        format!("research_session:{session_id}")
+    } else {
+        session_key
+    });
 
     let report_progress = |msg: String, pct: Option<f32>| {
         if let Some(ref cb) = config.progress_callback {
@@ -223,11 +243,9 @@ pub async fn run_research_with_context_and_session(
         Some(ctx) => Some(ctx),
         None => {
             if let Some(db) = db {
-                synthesized_ctx = Some(SearchRuntimeContext::new(
+                synthesized_ctx = Some(fallback_search_ctx(
+                    db,
                     std::env::current_dir().unwrap_or_default(),
-                    Some(std::sync::Arc::new(db.clone())),
-                    std::env::temp_dir(),
-                    std::env::temp_dir().join("MEMORY.md"),
                 ));
                 synthesized_ctx.as_ref()
             } else {
@@ -924,7 +942,6 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
     // Phase 1 re-enables after vox_db gains create_research_session etc.
 
     // ── (k) Citation audit stage ──────────────────────────────────────────────
-    let duration_ms = start.elapsed().as_millis() as u64;
     // Set status → auditing_citations before citation audit computation.
     set_session_stage(db, session_id, ResearchStage::AuditingCitations).await;
 
@@ -1026,7 +1043,7 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
 
     let metadata = ResearchMetadata {
         session_id,
-        duration_ms,
+        duration_ms: start.elapsed().as_millis() as u64,
         provider: provider_name,
         routing_tier,
         confidence,
@@ -1053,9 +1070,10 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
         served_from_cache: false,
         claims_extracted_count,
         claims_verified_count,
+        usage: super::super::metering::snapshot(),
     };
 
-    let result = ResearchResult {
+    let mut result = ResearchResult {
         answer,
         sources: all_hits,
         citations,
@@ -1084,6 +1102,7 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
         }
     }
 
+    refresh_run_totals(&mut result.research_metadata, start);
     // Set status → persisting_artifact before artifact store.
     set_session_stage(db, session_id, ResearchStage::PersistingArtifact).await;
     if let Some(db) = db
@@ -1104,6 +1123,7 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
         }
     }
 
+    refresh_run_totals(&mut result.research_metadata, start);
     // Set status → completed after all work is done.
     set_session_stage(db, session_id, ResearchStage::Completed).await;
 
@@ -1132,6 +1152,13 @@ fn failed_with_provider_log(
         tavily_credits,
         sources,
     })
+}
+
+/// Re-reads run duration and metered usage so they include work done after
+/// the metadata was first built (finding and artifact persistence).
+fn refresh_run_totals(metadata: &mut ResearchMetadata, start: Instant) {
+    metadata.duration_ms = start.elapsed().as_millis() as u64;
+    metadata.usage = super::super::metering::snapshot();
 }
 
 /// Best-effort stage status update. Errors are logged and swallowed so a
@@ -1314,6 +1341,18 @@ fn now_ms_i64() -> i64 {
         .unwrap_or(0)
 }
 
+/// Search context for a run given a DB but no caller context: the repo's own memory
+/// layout under `cwd`, as `vox research` and `vox memory search` resolve it.
+fn fallback_search_ctx(db: &Codex, cwd: std::path::PathBuf) -> SearchRuntimeContext {
+    let mem = vox_orchestrator::MemoryConfig::default();
+    SearchRuntimeContext::new(
+        cwd.clone(),
+        Some(std::sync::Arc::new(db.clone())),
+        cwd.join(&mem.log_dir),
+        cwd.join(&mem.memory_md_path),
+    )
+}
+
 fn render_research_report_markdown(
     query: &ResearchQuery,
     plan: &ResearchPlan,
@@ -1406,6 +1445,23 @@ mod tests {
         }
     }
 
+    #[tokio::test]
+    async fn fallback_search_ctx_reads_repo_memory_not_the_system_temp_dir() {
+        let db = vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
+            .await
+            .expect("memory db");
+        let cwd = std::path::PathBuf::from("/work/repo");
+        let ctx = fallback_search_ctx(&db, cwd.clone());
+        let mem = vox_orchestrator::MemoryConfig::default();
+        // The memory corpus is walked recursively; the system temp dir can hold
+        // hundreds of thousands of entries and stalled every DB-backed run.
+        assert!(!ctx.memory_log_dir.starts_with(std::env::temp_dir()));
+        assert_eq!(ctx.memory_log_dir, cwd.join(&mem.log_dir));
+        assert_eq!(ctx.memory_md_path, cwd.join(&mem.memory_md_path));
+        assert_eq!(ctx.repo_root, cwd);
+        assert!(ctx.db.is_some());
+    }
+
     #[test]
     fn fast_lane_plan_condenses_long_prompt_and_keeps_original() {
         let long = "Find all high-value sources of data for events in Tucson that are updated \
@@ -1427,6 +1483,53 @@ mod tests {
     fn fast_lane_plan_passes_short_query_through() {
         let plan = fast_lane_plan(&fast_query("tucson tech events"));
         assert_eq!(plan.subqueries, vec!["tucson tech events".to_string()]);
+    }
+
+    fn sample_metadata() -> ResearchMetadata {
+        ResearchMetadata {
+            session_id: 1,
+            duration_ms: 10,
+            provider: "test".to_string(),
+            routing_tier: RoutingTier::Direct,
+            confidence: 0.5,
+            subquery_count: 1,
+            source_count: 0,
+            claim_verdicts: vec![],
+            retrieval_diagnostics: RetrievalDiagnostics::default(),
+            quality_score: 50,
+            planner_degraded: false,
+            competence: None,
+            self_verification: None,
+            citation_audit: None,
+            corroboration_counts: vec![],
+            wave_count: 1,
+            wave_stability: None,
+            low_grounding_evidence: false,
+            subqueries: vec![],
+            synthesis_model: String::new(),
+            judge_error: None,
+            served_from_cache: false,
+            claims_extracted_count: 0,
+            claims_verified_count: 0,
+            usage: Default::default(),
+        }
+    }
+
+    #[tokio::test]
+    async fn run_totals_include_work_after_metadata_was_built() {
+        let start = Instant::now();
+        let metadata = crate::research::metering::scope(async {
+            let mut metadata = sample_metadata();
+            metadata.duration_ms = 0;
+            // drift-allow(duplicate-numeric-literal): test delay
+            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+            crate::research::metering::meter_failure();
+            refresh_run_totals(&mut metadata, start);
+            metadata
+        })
+        .await;
+        assert!(metadata.duration_ms >= 5, "{}", metadata.duration_ms);
+        assert_eq!(metadata.usage.failed_llm_calls, 1);
     }
 
     #[test]
@@ -1453,32 +1556,7 @@ mod tests {
             answer: "A concise answer.".to_string(),
             sources: vec![],
             citations: vec![],
-            research_metadata: ResearchMetadata {
-                session_id: 1,
-                duration_ms: 10,
-                provider: "test".to_string(),
-                routing_tier: RoutingTier::Direct,
-                confidence: 0.5,
-                subquery_count: 1,
-                source_count: 0,
-                claim_verdicts: vec![],
-                retrieval_diagnostics: RetrievalDiagnostics::default(),
-                quality_score: 50,
-                planner_degraded: false,
-                competence: None,
-                self_verification: None,
-                citation_audit: None,
-                corroboration_counts: vec![],
-                wave_count: 1,
-                wave_stability: None,
-                low_grounding_evidence: false,
-                subqueries: vec![],
-                synthesis_model: String::new(),
-                judge_error: None,
-                served_from_cache: false,
-                claims_extracted_count: 0,
-                claims_verified_count: 0,
-            },
+            research_metadata: sample_metadata(),
         };
         let report_markdown = render_research_report_markdown(&query, &plan, &result);
         let artifact = ResearchRunArtifact {

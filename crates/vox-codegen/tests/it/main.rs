@@ -10,6 +10,7 @@ mod emit_unsupported_expr_test;
 mod frontend_backend;
 mod frontend_coverage_ledger;
 mod if_expr_emit_test;
+mod jsx_conditional_emit;
 mod list_hof_emit_test;
 mod main_boot_hir_roundtrip;
 mod on_stream_e2e;

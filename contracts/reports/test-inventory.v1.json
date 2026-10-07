@@ -2,18 +2,18 @@
   "schema_version": 1,
   "summary": {
     "workspace_crate_count": 130,
-    "rust_files_scanned": 4116,
-    "cargo_unit_test_functions": 10981,
-    "cargo_integration_test_functions": 3090,
+    "rust_files_scanned": 4114,
+    "cargo_unit_test_functions": 11059,
+    "cargo_integration_test_functions": 3055,
     "cargo_bench_functions": 0,
-    "cargo_ignored_test_functions": 150,
-    "cargo_test_functions_total": 14071,
+    "cargo_ignored_test_functions": 92,
+    "cargo_test_functions_total": 14114,
     "webir_related_ignored_tests": 1,
     "webir_ignored_tests_likely_retired_note": 0
   },
   "crates": {
     "vox-actor-runtime": {
-      "unit_tests": 228,
+      "unit_tests": 231,
       "integration_tests": 5,
       "bench_tests": 0,
       "ignored_tests": 2,
@@ -85,15 +85,15 @@
       "integration_rs_files": 3
     },
     "vox-cli": {
-      "unit_tests": 862,
-      "integration_tests": 274,
+      "unit_tests": 864,
+      "integration_tests": 277,
       "bench_tests": 0,
-      "ignored_tests": 9,
+      "ignored_tests": 8,
       "has_integration_dir": true,
-      "integration_rs_files": 96
+      "integration_rs_files": 97
     },
     "vox-cli-ci": {
-      "unit_tests": 433,
+      "unit_tests": 442,
       "integration_tests": 0,
       "bench_tests": 0,
       "ignored_tests": 0,
@@ -117,7 +117,7 @@
       "integration_rs_files": 1
     },
     "vox-cli-research": {
-      "unit_tests": 9,
+      "unit_tests": 16,
       "integration_tests": 8,
       "bench_tests": 0,
       "ignored_tests": 0,
@@ -157,12 +157,12 @@
       "integration_rs_files": 5
     },
     "vox-codegen": {
-      "unit_tests": 268,
-      "integration_tests": 226,
+      "unit_tests": 277,
+      "integration_tests": 228,
       "bench_tests": 0,
-      "ignored_tests": 9,
+      "ignored_tests": 8,
       "has_integration_dir": true,
-      "integration_rs_files": 57
+      "integration_rs_files": 58
     },
     "vox-codegen-ts": {
       "unit_tests": 169,
@@ -173,12 +173,12 @@
       "integration_rs_files": 5
     },
     "vox-compiler": {
-      "unit_tests": 572,
-      "integration_tests": 676,
+      "unit_tests": 571,
+      "integration_tests": 637,
       "bench_tests": 0,
-      "ignored_tests": 53,
+      "ignored_tests": 2,
       "has_integration_dir": true,
-      "integration_rs_files": 106
+      "integration_rs_files": 100
     },
     "vox-config": {
       "unit_tests": 143,
@@ -237,7 +237,7 @@
       "integration_rs_files": 1
     },
     "vox-db": {
-      "unit_tests": 278,
+      "unit_tests": 281,
       "integration_tests": 184,
       "bench_tests": 0,
       "ignored_tests": 5,
@@ -277,7 +277,7 @@
       "integration_rs_files": 0
     },
     "vox-drift-check": {
-      "unit_tests": 69,
+      "unit_tests": 72,
       "integration_tests": 3,
       "bench_tests": 0,
       "ignored_tests": 0,
@@ -341,7 +341,7 @@
       "integration_rs_files": 0
     },
     "vox-grammar-export": {
-      "unit_tests": 7,
+      "unit_tests": 9,
       "integration_tests": 19,
       "bench_tests": 0,
       "ignored_tests": 0,
@@ -390,11 +390,11 @@
     },
     "vox-integration-tests": {
       "unit_tests": 9,
-      "integration_tests": 254,
+      "integration_tests": 253,
       "bench_tests": 0,
-      "ignored_tests": 22,
+      "ignored_tests": 17,
       "has_integration_dir": true,
-      "integration_rs_files": 68
+      "integration_rs_files": 67
     },
     "vox-journal": {
       "unit_tests": 24,
@@ -805,7 +805,7 @@
       "integration_rs_files": 0
     },
     "vox-research-shim": {
-      "unit_tests": 130,
+      "unit_tests": 142,
       "integration_tests": 70,
       "bench_tests": 0,
       "ignored_tests": 3,
@@ -869,7 +869,7 @@
       "integration_rs_files": 0
     },
     "vox-search": {
-      "unit_tests": 165,
+      "unit_tests": 176,
       "integration_tests": 92,
       "bench_tests": 0,
       "ignored_tests": 2,
@@ -957,7 +957,7 @@
       "integration_rs_files": 0
     },
     "vox-telemetry": {
-      "unit_tests": 95,
+      "unit_tests": 109,
       "integration_tests": 22,
       "bench_tests": 0,
       "ignored_tests": 0,
@@ -1013,7 +1013,7 @@
       "integration_rs_files": 0
     },
     "vox-wasm-engine": {
-      "unit_tests": 0,
+      "unit_tests": 4,
       "integration_tests": 10,
       "bench_tests": 0,
       "ignored_tests": 0,
@@ -1055,9 +1055,9 @@
   },
   "rust_files_by_kind": {
     "benches": 4,
-    "integration_tests": 776,
+    "integration_tests": 771,
     "other": 27,
-    "unit_src": 3309
+    "unit_src": 3312
   },
   "zero_test_crates": [
     "vox-cli-contracts",
@@ -1127,30 +1127,6 @@
       "ignored_tests": 12
     },
     {
-      "path": "crates/vox-compiler/tests/golden_dashboard_composites_test.rs",
-      "ignored_tests": 10
-    },
-    {
-      "path": "crates/vox-compiler/tests/golden_dashboard_surfaces_test.rs",
-      "ignored_tests": 8
-    },
-    {
-      "path": "crates/vox-compiler/tests/golden_runs_surface_test.rs",
-      "ignored_tests": 6
-    },
-    {
-      "path": "crates/vox-codegen/src/codegen_rust/mod.rs",
-      "ignored_tests": 5
-    },
-    {
-      "path": "crates/vox-compiler/tests/golden_dashboard_chrome_test.rs",
-      "ignored_tests": 5
-    },
-    {
-      "path": "crates/vox-compiler/tests/golden_mesh_surface_test.rs",
-      "ignored_tests": 5
-    },
-    {
       "path": "crates/vox-db/tests/pool_corruption_probe.rs",
       "ignored_tests": 5
     },
@@ -1159,15 +1135,11 @@
       "ignored_tests": 5
     },
     {
-      "path": "crates/vox-compiler/tests/golden_for_loop_test.rs",
+      "path": "crates/vox-codegen/src/codegen_rust/mod.rs",
       "ignored_tests": 4
     },
     {
       "path": "crates/vox-eval/src/lib.rs",
-      "ignored_tests": 4
-    },
-    {
-      "path": "crates/vox-integration-tests/tests/parity_contracts_test.rs",
       "ignored_tests": 4
     },
     {
@@ -1179,23 +1151,15 @@
       "ignored_tests": 3
     },
     {
-      "path": "crates/vox-compiler/tests/bug_handler_lambda_repro.rs",
-      "ignored_tests": 3
-    },
-    {
-      "path": "crates/vox-compiler/tests/golden_svg_vuv_test.rs",
-      "ignored_tests": 3
-    },
-    {
       "path": "crates/vox-plugin-mens-candle-metal/src/inference.rs",
       "ignored_tests": 3
     },
     {
-      "path": "crates/vox-codegen/tests/generated_project_builds_outside_repo.rs",
+      "path": "crates/vox-codegen/tests/ai_fixture_bundle_compiles.rs",
       "ignored_tests": 2
     },
     {
-      "path": "crates/vox-compiler/tests/tombstone_test.rs",
+      "path": "crates/vox-codegen/tests/generated_project_builds_outside_repo.rs",
       "ignored_tests": 2
     },
     {
@@ -1221,6 +1185,42 @@
     {
       "path": "crates/vox-research-shim/src/research/orchestrator/stages.rs",
       "ignored_tests": 2
+    },
+    {
+      "path": "crates/vox-actor-runtime/src/feedback.rs",
+      "ignored_tests": 1
+    },
+    {
+      "path": "crates/vox-actor-runtime/tests/openrouter_free_floor_smoke.rs",
+      "ignored_tests": 1
+    },
+    {
+      "path": "crates/vox-arch-check/tests/integration.rs",
+      "ignored_tests": 1
+    },
+    {
+      "path": "crates/vox-audit/tests/regen_silent_drop_baseline.rs",
+      "ignored_tests": 1
+    },
+    {
+      "path": "crates/vox-audit/tests/regen_weak_test_baseline.rs",
+      "ignored_tests": 1
+    },
+    {
+      "path": "crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs",
+      "ignored_tests": 1
+    },
+    {
+      "path": "crates/vox-cli/src/commands/db/mod.rs",
+      "ignored_tests": 1
+    },
+    {
+      "path": "crates/vox-code-audit/src/stdlib_parity.rs",
+      "ignored_tests": 1
+    },
+    {
+      "path": "crates/vox-compiler/src/semcov_struct_pipeline_tests.rs",
+      "ignored_tests": 1
     }
   ],
   "caveats": {
@@ -1247,13 +1247,13 @@
     "rust_doc_fence_lines": 17
   },
   "test_file_patterns": {
-    "sleep_sites": 225,
+    "sleep_sites": 226,
     "env_var_reads": 803,
     "env_var_mutations": 1102,
     "command_new": 584,
     "serial_test": 106,
     "proptest_colon_colon": 9,
     "quickcheck_colon_colon": 2,
-    "insta_colon_colon": 104
+    "insta_colon_colon": 72
   }
 }

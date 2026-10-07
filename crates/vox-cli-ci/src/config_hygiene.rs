@@ -61,6 +61,57 @@ fn load_baseline(root: &Path) -> BTreeSet<String> {
     set
 }
 
+/// Source dir of the `vox ci` guard crate. Its guards validate the checked-out
+/// tree and must read the live `contracts/` files (embedding would check the
+/// build-time copy), so Check A exempts them — but not the modules that code
+/// outside `vox ci` also calls (see [`non_ci_reachable_modules`]).
+const GUARD_CRATE_SRC: &str = "crates/vox-cli-ci/src/";
+/// The whole guard crate (src, examples, benches): its own callers are checkout-only.
+const GUARD_CRATE_DIR: &str = "crates/vox-cli-ci/";
+/// `vox ci` command code in vox-cli: a checkout-only caller like the guards.
+const CI_COMMAND_SRC: &str = "crates/vox-cli/src/commands/ci/";
+
+/// Top-level `vox_cli_ci` modules referenced (outside comments) from code that is
+/// neither the guard crate nor `vox ci` — e.g. `vox doctor`, `vox repo init`. Those
+/// modules run in arbitrary projects, so Check A still applies to them. Derived
+/// from the tree on every run: a new non-CI caller is picked up with no list to edit.
+fn non_ci_reachable_modules<'a>(
+    files: impl IntoIterator<Item = (&'a str, &'a str)>,
+) -> BTreeSet<String> {
+    static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let re = RE.get_or_init(|| regex::Regex::new(r"\bvox_cli_ci::([a-z0-9_]+)").unwrap());
+    let mut modules = BTreeSet::new();
+    for (rel, src) in files {
+        let norm = rel.replace('\\', "/");
+        if norm.contains(GUARD_CRATE_DIR) || norm.contains(CI_COMMAND_SRC) {
+            continue;
+        }
+        for line in src.lines().filter(|l| !l.trim_start().starts_with("//")) {
+            modules.extend(re.captures_iter(line).map(|c| c[1].to_string()));
+        }
+    }
+    modules
+}
+
+/// A checkout-only guard module: under the guard crate and not reachable from
+/// non-CI code. Nested files belong to their top-level module (`matrix/x.rs`).
+fn is_repo_tree_guard(rel: &str, non_ci_reachable: &BTreeSet<String>) -> bool {
+    let norm = rel.replace('\\', "/");
+    let Some((_, inner)) = norm.split_once(GUARD_CRATE_SRC) else {
+        return false;
+    };
+    let top = inner.split('/').next().unwrap_or(inner);
+    let module = top.strip_suffix(".rs").unwrap_or(top);
+    !non_ci_reachable.contains(module)
+}
+
+/// Integration-test sources (`crates/<c>/tests/**`). Like the `tests.rs` /
+/// `*_tests.rs` files `collect_rs_files` already skips, they never ship in a
+/// deployed binary and their env reads are harness knobs, not operator config.
+fn is_integration_test_path(rel: &str) -> bool {
+    rel.replace('\\', "/").contains("/tests/")
+}
+
 /// Check A: forbid cwd-relative `contracts/...` paths passed to file loaders.
 /// Such paths are inert in any non-repo-root binary. Use `include_str!`-embedded
 /// contracts instead (see Phase 0).
@@ -207,41 +258,41 @@ fn count_symbol_refs(root: &Path, symbols: &[String]) -> HashMap<String, usize> 
 pub fn run(update_baseline: bool) -> anyhow::Result<()> {
     let root = std::env::current_dir()?;
 
-    // Load registry for Check D (env-var parity).
-    let registry_path = root.join("contracts/config/registry.v1.yaml");
-    let yaml_vars: std::collections::HashSet<String> = match parse_registry_file(&registry_path) {
-        Ok(rows) => rows
+    // Registered set for Check D: the same federated SSOT `config-registry-parity`
+    // uses (YAML registry + Clavis secrets + typed CONFIG_KEYS + VoxConfig domains),
+    // so a knob registered in CONFIG_KEYS is not also demanded as a YAML row.
+    let registered_env_vars: std::collections::HashSet<String> =
+        crate::config_registry_parity::unified_registered_set(&root)
             .into_iter()
-            .filter(|r| !r.env_var.is_empty() && r.env_var != "null")
-            .map(|r| r.env_var)
-            .collect(),
-        Err(_) => {
-            // Registry file absent or unreadable — treat as empty (Check D becomes no-op).
-            std::collections::HashSet::new()
-        }
-    };
-    // Union in Clavis-managed secrets so credentials don't need manual YAML rows.
-    let mut registered_env_vars = yaml_vars;
-    registered_env_vars.extend(
-        vox_secrets::spec::managed_secret_env_names()
-            .into_iter()
-            .map(|s| s.to_string()),
-    );
+            .collect();
 
-    let mut violations = Vec::new();
+    // Pass 1: which guard-crate modules run outside `vox ci` (Check A applies to them).
+    let mut sources = Vec::new();
     collect_rs_files(&root.join("crates"), &mut |path, src| {
         let rel = path
             .strip_prefix(&root)
             .unwrap_or(path)
             .display()
             .to_string();
-        if rel.contains("config_hygiene.rs") {
-            return;
+        if !is_integration_test_path(&rel) {
+            sources.push((rel, src.to_string()));
         }
-        violations.extend(check_no_cwd_relative_contract_paths(src, &rel));
-        violations.extend(check_protected_modules_have_no_env_reads(src, &rel));
-        violations.extend(check_env_reads_registered(src, &rel, &registered_env_vars));
     });
+    let non_ci_reachable =
+        non_ci_reachable_modules(sources.iter().map(|(r, s)| (r.as_str(), s.as_str())));
+
+    let mut violations = Vec::new();
+    for (rel, src) in &sources {
+        let (rel, src) = (rel.as_str(), src.as_str());
+        if rel.contains("config_hygiene.rs") {
+            continue;
+        }
+        if !is_repo_tree_guard(rel, &non_ci_reachable) {
+            violations.extend(check_no_cwd_relative_contract_paths(src, rel));
+        }
+        violations.extend(check_protected_modules_have_no_env_reads(src, rel));
+        violations.extend(check_env_reads_registered(src, rel, &registered_env_vars));
+    }
 
     // Check C: two-pass workspace scan — gather resolver definitions, then count
     // references, then flag any with no non-test caller beyond their own def line.
@@ -583,6 +634,16 @@ pub const THIRD_PARTY_ALLOWLIST: &[&str] = &[
     "TMP",
     "USERPROFILE",
     "LOCALAPPDATA",
+    "APPDATA",
+    "SHELL",
+    "NO_COLOR",
+    // Cargo / Rust runtime names.
+    "CARGO",
+    "CARGO_TARGET_DIR",
+    "RUST_MIN_STACK",
+    // Hugging Face hub cache location (huggingface_hub convention).
+    "HF_HOME",
+    "HF_HUB_CACHE",
 ];
 
 /// Check D: scan source for env reads (any ALL_CAPS name) that are NOT in the
@@ -670,6 +731,95 @@ mod tests {
         assert!(check_no_cwd_relative_contract_paths(ok, "x.rs").is_empty());
         let comment = r#"// loads contracts/gamify/economy.v1.yaml at build time"#;
         assert!(check_no_cwd_relative_contract_paths(comment, "x.rs").is_empty());
+    }
+
+    #[test]
+    fn non_ci_modules_are_derived_from_callers_outside_vox_ci() {
+        let files = [
+            (
+                "crates/vox-cli/src/commands/repo_init.rs",
+                "vox_cli_ci::sync_ignore_files::run(&dir, false)?;",
+            ),
+            (
+                "crates/vox-cli/src/commands/diagnostics/doctor/x.rs",
+                "use vox_cli_ci::doctor_build_cache;",
+            ),
+            // `vox ci` itself is a checkout-only caller.
+            (
+                "crates/vox-cli/src/commands/ci/run_body.rs",
+                "vox_cli_ci::dev_loop_guard::run(&root)?;",
+            ),
+            // A doc-comment mention is not a call.
+            (
+                "crates/vox-arch-check/src/main.rs",
+                "/// Mirrors `vox_cli_ci::crate_edges::EXEMPT`.",
+            ),
+            // The crate's own files (src and dev examples) do not make a module reachable.
+            (
+                "crates/vox-cli-ci/src/lib.rs",
+                "pub use vox_cli_ci::affected;",
+            ),
+            (
+                "crates/vox-cli-ci/examples/ssot_probe.rs",
+                "use vox_cli_ci::toolchain_ssot as t;",
+            ),
+        ];
+        let got = non_ci_reachable_modules(files.iter().copied());
+        let want: BTreeSet<String> = ["doctor_build_cache", "sync_ignore_files"]
+            .into_iter()
+            .map(String::from)
+            .collect();
+        assert_eq!(got, want);
+    }
+
+    #[test]
+    fn only_checkout_only_guard_modules_are_exempt_from_check_a() {
+        let reachable: BTreeSet<String> = ["sync_ignore_files", "matrix"]
+            .into_iter()
+            .map(String::from)
+            .collect();
+        assert!(is_repo_tree_guard(
+            "crates/vox-cli-ci/src/dev_loop_guard.rs",
+            &reachable
+        ));
+        assert!(is_repo_tree_guard(
+            r"crates\vox-cli-ci\src\affected.rs",
+            &reachable
+        ));
+        // Reached from `vox doctor` / `vox repo init`: must be checked.
+        assert!(!is_repo_tree_guard(
+            "crates/vox-cli-ci/src/sync_ignore_files.rs",
+            &reachable
+        ));
+        assert!(!is_repo_tree_guard(
+            "crates/vox-cli-ci/src/matrix/tests_helper.rs",
+            &reachable
+        ));
+        assert!(!is_repo_tree_guard(
+            "crates/vox-gui/src/commands/x.rs",
+            &reachable
+        ));
+    }
+
+    #[test]
+    fn check_a_flags_cwd_relative_contract_paths() {
+        let src = r#"let p = root.join("contracts/cli/command-registry.yaml");"#;
+        assert_eq!(
+            check_no_cwd_relative_contract_paths(src, "crates/vox-gui/src/commands/x.rs").len(),
+            1
+        );
+    }
+
+    #[test]
+    fn integration_test_paths_are_recognized() {
+        assert!(is_integration_test_path("crates/vox-cli/tests/it/x.rs"));
+        assert!(is_integration_test_path(r"crates\vox-cli\tests\x.rs"));
+        assert!(!is_integration_test_path(
+            "crates/vox-cli/src/tests_helper.rs"
+        ));
+        assert!(!is_integration_test_path(
+            "crates/vox-cli/src/commands/ci/pre_push.rs"
+        ));
     }
 
     #[test]

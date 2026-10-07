@@ -3,7 +3,13 @@ use vox_search::context::SearchRuntimeContext;
 
 #[tokio::test]
 async fn test_eval_executes_real_research_pipeline_not_web_lines() {
-    // Exercises a real model; skipped where no local LLM is listening (hosted CI runners).
+    // Exercises a real model; skipped where it cannot run: a build without the research
+    // `runtime` feature makes no LLM calls at all (e.g. `cargo test -p vox-cli-research`
+    // alone), and hosted CI runners have no local LLM listening.
+    if !vox_research_shim::LLM_RUNTIME_ENABLED {
+        eprintln!("skipped: vox-research-shim built without the `runtime` feature");
+        return;
+    }
     if std::net::TcpStream::connect_timeout(
         &std::net::SocketAddr::from(([127, 0, 0, 1], 11434)),
         std::time::Duration::from_millis(300),

@@ -3,6 +3,7 @@
 pub mod cascade;
 mod chat;
 mod embed;
+mod run_trace;
 mod stream;
 mod types;
 
@@ -15,6 +16,7 @@ pub use chat::{
     llm_chat,
 };
 pub use embed::llm_embed;
+pub use run_trace::run_trace_scope;
 pub use stream::{llm_stream, llm_stream_activity};
 pub use types::{
     LlmChatMessage, LlmConfig, LlmResponse, LlmToolDef, ModelMetric, ModelRegistryEntry,

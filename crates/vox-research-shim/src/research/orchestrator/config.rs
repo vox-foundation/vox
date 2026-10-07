@@ -7,6 +7,10 @@ use vox_orchestrator::services::embeddings::EmbeddingService;
 /// Progress reporting callback for research operations.
 pub type ProgressCallback = dyn Fn(String, Option<f32>) + Send + Sync + 'static;
 
+/// First line of a synthesis answer that declines to answer for lack of evidence.
+/// The synthesis prompt asks for it and the evaluator keys abstention on it.
+pub const ABSTENTION_MARKER: &str = "[INSUFFICIENT_EVIDENCE]";
+
 /// Completeness rider for all research LLM prompts.
 pub(super) const RESEARCH_COMPLETENESS_RIDER: &str = "
 <research_completeness_rider>

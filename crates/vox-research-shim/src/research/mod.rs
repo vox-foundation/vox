@@ -19,6 +19,7 @@ pub mod emitter;
 pub mod gate;
 pub(super) mod json_parse;
 mod mesh_subscriber;
+pub mod metering;
 pub mod misguidance;
 pub mod model_select;
 pub mod orchestrator;
@@ -36,7 +37,8 @@ pub use mesh_subscriber::{
 };
 pub use misguidance::correlate_diagnostic_to_citations;
 pub use orchestrator::{
-    ResearchConfig, run_research, run_research_with_context, run_research_with_context_and_session,
+    ABSTENTION_MARKER, ResearchConfig, run_research, run_research_with_context,
+    run_research_with_context_and_session,
 };
 pub use research_event_metrics_bridge::TELEMETRY_CATALOG_ID_RESEARCH_EVENT_BRIDGE;
 pub(crate) use research_event_metrics_bridge::spawn_persist_research_event_for_metrics;

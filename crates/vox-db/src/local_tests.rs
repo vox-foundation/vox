@@ -511,14 +511,33 @@ mod legacy_tests {
             .expect("list tables");
         live.retain(|n| !LEGACY_EXPORT_SKIP_TABLES.contains(&n.as_str()));
         live.sort();
-        let mut expected: Vec<&str> = LEGACY_EXPORT_TABLES.to_vec();
-        expected.sort();
-
-        assert_eq!(
-            live,
-            expected.iter().map(|s| s.to_string()).collect::<Vec<_>>(),
-            "LEGACY_EXPORT_TABLES must match sqlite_master after migrate (minus skip list)"
+        let missing: Vec<&String> = live
+            .iter()
+            .filter(|n| !LEGACY_EXPORT_TABLES.contains(&n.as_str()))
+            .collect();
+        let stale: Vec<&&str> = LEGACY_EXPORT_TABLES
+            .iter()
+            .filter(|t| !live.iter().any(|n| n == **t))
+            .collect();
+        assert!(
+            missing.is_empty() && stale.is_empty() && live.len() == LEGACY_EXPORT_TABLES.len(),
+            "LEGACY_EXPORT_TABLES must match sqlite_master after migrate (minus skip list); \
+             live tables not listed: {missing:?}; listed tables not live: {stale:?}"
         );
+    }
+
+    #[test]
+    fn export_table_list_is_sorted_unique_and_disjoint_from_skip_list() {
+        assert!(
+            LEGACY_EXPORT_TABLES.windows(2).all(|w| w[0] < w[1]),
+            "LEGACY_EXPORT_TABLES must stay sorted with no duplicates"
+        );
+        for t in LEGACY_EXPORT_SKIP_TABLES {
+            assert!(
+                !LEGACY_EXPORT_TABLES.contains(t),
+                "{t} is both exported and skipped"
+            );
+        }
     }
 
     /// Gamification + coordination rows survive JSONL export/import on baseline DBs.

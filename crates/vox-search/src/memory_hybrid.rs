@@ -17,6 +17,25 @@ const MEMORY_DECAY_FLOOR: f64 = 0.1;
 /// Over-fetch factor: BM25 candidates pulled before vector re-ranking/fusion.
 const HYBRID_CANDIDATE_OVERFETCH: usize = 4;
 
+/// Deepest directory level the memory index descends into below the root.
+pub const MAX_INDEX_DEPTH: usize = 16;
+/// Directory entries (files and dirs) the memory index visits before stopping.
+/// The repo's whole `docs/` tree is under 2k entries; this only stops pathological roots.
+pub const MAX_INDEX_ENTRIES: usize = 20_000;
+
+#[derive(Clone, Copy)]
+struct WalkLimits {
+    max_depth: usize,
+    max_entries: usize,
+}
+
+impl WalkLimits {
+    const DEFAULT: Self = Self {
+        max_depth: MAX_INDEX_DEPTH,
+        max_entries: MAX_INDEX_ENTRIES,
+    };
+}
+
 /// Per-document-status rank boost applied in memory BM25 ranking.
 fn status_boost(status: &str) -> f64 {
     match status {
@@ -239,25 +258,59 @@ impl MemorySearchEngine {
     }
 
     /// Like [`Self::index_dir`], but resolves git mtimes relative to `repo_root` and optional bulk map.
+    ///
+    /// The walk is bounded by [`MAX_INDEX_DEPTH`] and [`MAX_INDEX_ENTRIES`] and never follows
+    /// symlinked directories, so a huge or cyclic directory cannot stall retrieval.
     pub fn index_dir_with_repo(
         &mut self,
         dir: &Path,
         repo_root: &Path,
         git_map: Option<&GitMtimeMap>,
     ) {
-        let entries = match fs::read_dir(dir) {
-            Ok(e) => e,
-            Err(_) => return,
+        self.index_dir_bounded(dir, repo_root, git_map, WalkLimits::DEFAULT);
+    }
+
+    fn index_dir_bounded(
+        &mut self,
+        dir: &Path,
+        repo_root: &Path,
+        git_map: Option<&GitMtimeMap>,
+        limits: WalkLimits,
+    ) {
+        let mut budget = limits.max_entries;
+        self.walk_dir(dir, repo_root, git_map, limits.max_depth, &mut budget);
+        self.recompute_stats();
+    }
+
+    fn walk_dir(
+        &mut self,
+        dir: &Path,
+        repo_root: &Path,
+        git_map: Option<&GitMtimeMap>,
+        depth_left: usize,
+        budget: &mut usize,
+    ) {
+        let Ok(entries) = fs::read_dir(dir) else {
+            return;
         };
         for entry in entries.flatten() {
+            if *budget == 0 {
+                return;
+            }
+            *budget -= 1;
+            // `DirEntry::file_type` does not follow symlinks, so a symlinked dir is skipped.
+            let Ok(ft) = entry.file_type() else {
+                continue;
+            };
             let path = entry.path();
-            if path.is_dir() {
-                self.index_dir_with_repo(&path, repo_root, git_map);
+            if ft.is_dir() {
+                if depth_left > 0 {
+                    self.walk_dir(&path, repo_root, git_map, depth_left - 1, budget);
+                }
             } else if path.extension().unwrap_or_default() == "md" {
-                self.index_file_with_repo(&path, repo_root, git_map);
+                self.push_file(&path, repo_root, git_map);
             }
         }
-        self.recompute_stats();
     }
 
     /// Index a single file (legacy: treats parent dir as repo root for git probes).
@@ -273,6 +326,12 @@ impl MemorySearchEngine {
         repo_root: &Path,
         git_map: Option<&GitMtimeMap>,
     ) {
+        self.push_file(path, repo_root, git_map);
+        self.recompute_stats();
+    }
+
+    /// Add one document without recomputing corpus stats (callers recompute once).
+    fn push_file(&mut self, path: &Path, repo_root: &Path, git_map: Option<&GitMtimeMap>) {
         let content = match vox_bounded_fs::read_utf8_path_capped(path) {
             Ok(c) => c,
             Err(_) => return,
@@ -313,7 +372,6 @@ impl MemorySearchEngine {
         });
 
         self.total_docs += 1;
-        self.recompute_stats();
     }
 
     fn recompute_stats(&mut self) {
@@ -593,6 +651,70 @@ impl MemorySearchEngine {
 mod tests {
     use super::*;
     use std::fs;
+
+    #[test]
+    fn index_dir_recurses_into_real_subdirectories() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        fs::create_dir_all(dir.path().join("a/b")).expect("mkdir");
+        fs::write(dir.path().join("top.md"), "alpha").expect("write");
+        fs::write(dir.path().join("a/b/deep.md"), "alpha").expect("write");
+        fs::write(dir.path().join("a/skip.txt"), "alpha").expect("write");
+
+        let mut engine = MemorySearchEngine::new();
+        engine.index_dir(dir.path());
+        assert_eq!(engine.docs.len(), 2);
+        assert_eq!(engine.doc_index_by_path.len(), 2);
+        assert!(engine.avg_doc_len > 0.0);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn index_dir_does_not_follow_symlinked_directories() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        fs::write(dir.path().join("only.md"), "alpha").expect("write");
+        // A cycle back to the root: following it would index only.md once per level.
+        std::os::unix::fs::symlink(dir.path(), dir.path().join("loop")).expect("symlink");
+
+        let mut engine = MemorySearchEngine::new();
+        engine.index_dir(dir.path());
+        assert_eq!(engine.docs.len(), 1);
+    }
+
+    #[test]
+    fn index_dir_stops_at_the_depth_limit() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        fs::create_dir_all(dir.path().join("a/b")).expect("mkdir");
+        fs::write(dir.path().join("top.md"), "alpha").expect("write");
+        fs::write(dir.path().join("a/mid.md"), "alpha").expect("write");
+        fs::write(dir.path().join("a/b/deep.md"), "alpha").expect("write");
+
+        let mut engine = MemorySearchEngine::new();
+        let limits = WalkLimits {
+            max_depth: 1,
+            max_entries: usize::MAX,
+        };
+        engine.index_dir_bounded(dir.path(), dir.path(), None, limits);
+        let mut names: Vec<_> = engine.docs.iter().map(|d| d.title.clone()).collect();
+        names.sort();
+        assert_eq!(names, ["mid", "top"]);
+    }
+
+    #[test]
+    fn index_dir_stops_at_the_entry_budget() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        for i in 0..5 {
+            fs::write(dir.path().join(format!("n{i}.md")), "alpha").expect("write");
+        }
+
+        let mut engine = MemorySearchEngine::new();
+        let limits = WalkLimits {
+            max_depth: usize::MAX,
+            max_entries: 2,
+        };
+        engine.index_dir_bounded(dir.path(), dir.path(), None, limits);
+        assert_eq!(engine.docs.len(), 2);
+        assert_eq!(engine.doc_index_by_path.len(), 2);
+    }
 
     #[test]
     fn search_adds_bm25_provenance() {

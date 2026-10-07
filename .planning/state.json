@@ -26,18 +26,18 @@
     {
       "number": "5",
       "name": "Multi-Agent Coordination & Trust Hardening",
-      "status": "pending"
+      "status": "complete"
     },
     {
       "number": "6",
       "name": "Model Routing Transparency & ML Dependency Health",
-      "status": "pending"
+      "status": "complete"
     }
   ],
   "next": {
-    "command": "/gsd:progress --next",
-    "label": "Advance to the next step (plan phase 6)",
-    "reason": "Phase 6 of 6 — needs a plan"
+    "command": "/gsd-progress",
+    "label": "Show progress",
+    "reason": "Unsure of state — showing progress"
   },
-  "updated_at": "2026-10-04T00:25:42.885Z"
+  "updated_at": "2026-10-01T06:45:46.779Z"
 }

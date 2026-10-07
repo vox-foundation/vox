@@ -374,7 +374,7 @@ fn test_export_dispatch_all_formats() {
 
 #[test]
 fn test_versioning_alignment() {
-    assert!(verify_grammar_alignment().is_ok());
+    verify_grammar_alignment().unwrap();
     assert_eq!(get_version(), get_compiler_version());
 }
 

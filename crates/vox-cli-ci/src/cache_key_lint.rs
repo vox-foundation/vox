@@ -50,6 +50,13 @@
 //! `Linux-cargo-*` cache entries are the proof), so the gate has to live on the
 //! step inside the composite.
 //!
+//! ## Rule 3 — a workflow that runs sccache must set `SCCACHE_CACHE_SIZE`
+//!
+//! A workflow using `mozilla-actions/sccache-action` or `RUSTC_WRAPPER: sccache`
+//! must set `SCCACHE_CACHE_SIZE` in some `env:` (workflow, job or step). It bounds
+//! the local disk cache only; the GHA backend's object count is bounded by
+//! enabling it on `main` alone (hosted-CI plan Task 2.4).
+//!
 //! Unlike the advisory guards in this crate, this one takes no `--strict`
 //! flag: it always fails on a violation, mirroring `release_draft_guard` and
 //! `toolchain_workflow_lint`.
@@ -64,6 +71,7 @@ const CACHE_ACTION_PREFIX: &str = "actions/cache";
 const CACHE_RESTORE_PREFIX: &str = "actions/cache/restore";
 const RUST_CACHE_PREFIX: &str = "Swatinem/rust-cache";
 const SETUP_NODE_PREFIX: &str = "actions/setup-node";
+const SCCACHE_ACTION_PREFIX: &str = "mozilla-actions/sccache-action";
 const LOCKFILE_MARKER: &str = "Cargo.lock";
 const TOOLCHAIN_MARKER: &str = "toolchain";
 const MAIN_REF: &str = "refs/heads/main";
@@ -268,6 +276,38 @@ fn is_pr_reachable(doc: &serde_yaml::Value) -> bool {
         })
 }
 
+/// Every `env:` mapping in `doc`: workflow-level, each job's and each step's.
+fn env_maps(doc: &serde_yaml::Value) -> Vec<&serde_yaml::Mapping> {
+    let Some(root) = doc.as_mapping() else {
+        return Vec::new();
+    };
+    let jobs = field(root, "jobs")
+        .and_then(|j| j.as_mapping())
+        .into_iter()
+        .flat_map(|jobs| jobs.iter().filter_map(|(_, job)| job.as_mapping()));
+    std::iter::once(root)
+        .chain(jobs)
+        .chain(steps_of(doc))
+        .filter_map(|m| field(m, "env").and_then(|e| e.as_mapping()))
+        .collect()
+}
+
+/// Rule 3: the file runs sccache (its action, or `RUSTC_WRAPPER: sccache`) but never
+/// sets `SCCACHE_CACHE_SIZE`, so the local disk cache grows to sccache's default.
+fn uses_sccache_without_size(doc: &serde_yaml::Value) -> bool {
+    let envs = env_maps(doc);
+    let uses_sccache = steps_of(doc)
+        .iter()
+        .any(|s| str_field(s, "uses").is_some_and(|u| u.starts_with(SCCACHE_ACTION_PREFIX)))
+        || envs
+            .iter()
+            .any(|e| str_field(e, "RUSTC_WRAPPER") == Some("sccache"));
+    uses_sccache
+        && !envs
+            .iter()
+            .any(|e| field(e, "SCCACHE_CACHE_SIZE").is_some())
+}
+
 fn parse(path: &Path) -> Result<serde_yaml::Value> {
     let text = std::fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
     serde_yaml::from_str(&text).with_context(|| format!("parse {}", path.display()))
@@ -289,6 +329,7 @@ pub fn run(repo_root: &Path) -> Result<()> {
 
     let mut violations = Vec::new();
     let mut saves = Vec::new();
+    let mut unsized_sccache = Vec::new();
 
     for path in yaml_files_in(&gh.join("workflows"))? {
         let name = path
@@ -299,6 +340,9 @@ pub fn run(repo_root: &Path) -> Result<()> {
         let doc = parse(&path)?;
         check_doc(&doc, &name, &mut violations);
         check_save_scope(&doc, &name, false, &mut saves);
+        if uses_sccache_without_size(&doc) {
+            unsized_sccache.push(name);
+        }
     }
 
     // Composite actions: `.github/actions/<name>/action.yml`.
@@ -325,10 +369,10 @@ pub fn run(repo_root: &Path) -> Result<()> {
         }
     }
 
-    if violations.is_empty() && saves.is_empty() {
+    if violations.is_empty() && saves.is_empty() && unsized_sccache.is_empty() {
         println!(
             "cache-key-lint OK (every Cargo.lock-hashing cache key also keys on the toolchain; \
-             no PR-reachable cache writes)"
+             no PR-reachable cache writes; every sccache user sets SCCACHE_CACHE_SIZE)"
         );
         return Ok(());
     }
@@ -361,6 +405,14 @@ pub fn run(repo_root: &Path) -> Result<()> {
              `main` and scheduled runs may save:\n{}\n",
             saves.len(),
             lines.join("\n")
+        ));
+    }
+    if !unsized_sccache.is_empty() {
+        msg.push_str(&format!(
+            "cache-key-lint: {} workflow(s) run sccache without SCCACHE_CACHE_SIZE: {}\n\
+             Fix: set `SCCACHE_CACHE_SIZE` in the workflow or job `env:` (hosted-CI plan Task 2.4).\n",
+            unsized_sccache.len(),
+            unsized_sccache.join(", ")
         ));
     }
     Err(anyhow!(msg.trim_end().to_string()))
@@ -536,6 +588,38 @@ mod tests {
     fn repo_tree_passes_cache_key_lint() {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         run(&root).unwrap();
+    }
+
+    #[test]
+    fn sccache_action_without_cache_size_fails() {
+        let yml = "on:\n  schedule:\n    - cron: '0 4 * * 1'\njobs:\n  a:\n    steps:\n      - uses: mozilla-actions/sccache-action@v0.0.11\n";
+        assert!(uses_sccache_without_size(
+            &serde_yaml::from_str(yml).unwrap()
+        ));
+    }
+
+    #[test]
+    fn sccache_wrapper_env_without_cache_size_fails() {
+        let yml = "jobs:\n  a:\n    env:\n      RUSTC_WRAPPER: sccache\n    steps:\n      - run: cargo build\n";
+        assert!(uses_sccache_without_size(
+            &serde_yaml::from_str(yml).unwrap()
+        ));
+    }
+
+    #[test]
+    fn sccache_with_cache_size_passes() {
+        let yml = "env:\n  SCCACHE_CACHE_SIZE: 5G\njobs:\n  a:\n    env:\n      RUSTC_WRAPPER: sccache\n    steps:\n      - uses: mozilla-actions/sccache-action@v0.0.11\n";
+        assert!(!uses_sccache_without_size(
+            &serde_yaml::from_str(yml).unwrap()
+        ));
+    }
+
+    #[test]
+    fn workflow_without_sccache_passes_size_rule() {
+        let yml = "jobs:\n  a:\n    steps:\n      - uses: Swatinem/rust-cache@v2\n";
+        assert!(!uses_sccache_without_size(
+            &serde_yaml::from_str(yml).unwrap()
+        ));
     }
 
     #[test]

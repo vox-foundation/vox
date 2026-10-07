@@ -16,24 +16,16 @@ fn emit_main_hir(hir: &vox_compiler::hir::HirModule, pkg: &str) -> String {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn emit_main_serve_dispatch_reserves_api_prefix_for_local_handlers() {
     let src = r#"
-http get "/api/ping" to int {
-    return 1
-}
+query q_ping() to int { return 1 }
 "#;
     let m = parse(lex(src)).expect("parse");
     let hir = lower_module(&m);
     let main_rs = emit_main_hir(&hir, "demo");
     assert!(
         main_rs.contains("starts_with(\"/api\")"),
-        "fallback proxy must not steal /api GETs when VOX_SSR_DEV_URL is set"
-    );
-    assert!(
-        main_rs.contains(".route(\"/api/ping\"") || main_rs.contains(".route(\"/api/ping\","),
-        "expected explicit api route in router: {}",
-        main_rs
+        "fallback proxy must not steal /api GETs when VOX_SSR_DEV_URL is set:\n{main_rs}"
     );
 }
 

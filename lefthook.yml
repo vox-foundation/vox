@@ -32,7 +32,10 @@ pre-commit:
       run: rustfmt --config-path . {staged_files}
       stage_fixed: true
       glob: "**/*.rs"
-      exclude: "**/vox-plugin-cloud/**"
+      exclude:
+        - "**/vox-plugin-cloud/**"
+        # An `include!`d expression fragment, not a module; rustfmt cannot parse it alone.
+        - "crates/vox-gui/src/config/generated_fields.rs"
       fail_text: "rustfmt could not format (likely a syntax error). Fix the parse error, then re-commit."
 
     # Generated SSOT files (.cursorignore/.aiignore/.aiexclude, the CLI command surface, GUI

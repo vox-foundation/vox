@@ -77,7 +77,9 @@ pub async fn evaluate_single_query_pipeline(
             let prec = citation_precision_from_answer(&model_answer, evidence_snippets.len());
             (prec, result.citations.len(), 0)
         };
-    let abstained = answer_abstained(&model_answer, evidence_snippets.is_empty());
+    let abstained = answer_abstained(&model_answer);
+    let citation_precision =
+        effective_citation_precision(citation_precision, citations_found, abstained);
     let multi_hop_score = multi_hop_pipeline_score(
         &item.query,
         result.research_metadata.subquery_count,
@@ -90,7 +92,7 @@ pub async fn evaluate_single_query_pipeline(
         .as_ref()
         .map(|gold| compute_token_recall(gold, &model_answer));
 
-    let quality_score = (groundedness + citation_precision + recall.unwrap_or(0.5)) / 3.0;
+    let quality_score = legacy_quality_score(groundedness, citation_precision, recall);
 
     let sample = ResearchEvalSampleRecord {
         run_id: run_id.to_string(),
@@ -151,22 +153,27 @@ pub async fn run_eval(
     );
     let config = vox_research_shim::research::ResearchConfig::default();
 
+    let mut failed = 0usize;
     for item in &queries {
         println!("{} Evaluating: {}", "RUN".green(), item.query);
+        let query_start = std::time::Instant::now();
         match evaluate_single_query_pipeline(&run_id, item, &ctx, Some(&db), &config).await {
             Ok(sample) => results.push(sample),
             Err(e) => {
+                failed += 1;
                 eprintln!(
                     "{} Failed evaluating {}: {}",
                     "WARN".yellow(),
                     item.query,
                     e
                 );
+                let elapsed = query_start.elapsed().as_millis() as i64;
+                results.push(failed_query_sample(&run_id, item, elapsed));
             }
         }
     }
 
-    if results.is_empty() {
+    if failed == results.len() {
         anyhow::bail!("no queries were successfully evaluated");
     }
 
@@ -197,7 +204,7 @@ pub async fn run_eval(
             "abstention_rate": abstention_rate,
             "multi_hop_completion": avg_multi_hop_score,
         }),
-        latency_p50_ms: Some(avg_latency as i64),
+        latency_p50_ms: median_latency_ms(&results),
         latency_p99_ms: None,
         tier_distribution: serde_json::json!({}),
         created_at_ms: start_at as i64,
@@ -209,20 +216,19 @@ pub async fn run_eval(
         db.record_research_eval_sample(sample).await?;
     }
 
-    let report = serde_json::json!({
-        "schema_version": 1,
-        "run_id": run_record.run_id,
-        "suite": if queries_path.is_some() { "custom" } else { "local" },
-        "total_samples": results.len(),
-        "metrics": {
-            "citation_precision": avg_citation_precision,
-            "citation_recall": results.iter().map(|s| s.recall_at_5.unwrap_or(0.0)).sum::<f64>() / results.len() as f64,
-            "answer_factuality": avg_quality,
-            "abstention_rate": abstention_rate,
-            "multi_hop_completion": avg_multi_hop_score,
-            "avg_latency_ms": avg_latency
-        }
-    });
+    let report = build_eval_report(
+        &run_record.run_id,
+        if queries_path.is_some() {
+            "custom"
+        } else {
+            "local"
+        },
+        &results,
+        avg_citation_precision,
+        avg_quality,
+        abstention_rate,
+        avg_latency,
+    );
 
     if let Some(path) = output_path {
         if let Some(parent) = path.parent() {
@@ -236,13 +242,93 @@ pub async fn run_eval(
     Ok(())
 }
 
+/// Report shaped exactly to `contracts/reports/research-eval/results.v1.schema.json`.
+fn build_eval_report(
+    run_id: &str,
+    suite: &str,
+    results: &[ResearchEvalSampleRecord],
+    avg_citation_precision: f64,
+    avg_quality: f64,
+    abstention_rate: f64,
+    avg_latency: f64,
+) -> serde_json::Value {
+    let citation_recall = if results.is_empty() {
+        0.0
+    } else {
+        results
+            .iter()
+            .map(|s| s.recall_at_5.unwrap_or(0.0))
+            .sum::<f64>()
+            / results.len() as f64
+    };
+    serde_json::json!({
+        "schema_version": 1,
+        "run_id": run_id,
+        "suite": suite,
+        "total_samples": results.len(),
+        "metrics": {
+            "citation_precision": avg_citation_precision,
+            "citation_recall": citation_recall,
+            "answer_factuality": avg_quality,
+            "abstention_rate": abstention_rate,
+            "avg_latency_ms": avg_latency
+        }
+    })
+}
+
+fn median_latency_ms(samples: &[ResearchEvalSampleRecord]) -> Option<i64> {
+    let mut latencies: Vec<i64> = samples.iter().filter_map(|s| s.latency_ms).collect();
+    if latencies.is_empty() {
+        return None;
+    }
+    latencies.sort_unstable();
+    let mid = latencies.len() / 2;
+    Some(if latencies.len().is_multiple_of(2) {
+        (latencies[mid - 1] + latencies[mid]) / 2
+    } else {
+        latencies[mid]
+    })
+}
+
+/// A failed query is scored as the worst outcome rather than dropped from the run.
+fn failed_query_sample(
+    run_id: &str,
+    item: &GoldenQueryItem,
+    latency_ms: i64,
+) -> ResearchEvalSampleRecord {
+    ResearchEvalSampleRecord {
+        run_id: run_id.to_string(),
+        query: item.query.clone(),
+        gold_answer: item.gold_answer.clone(),
+        model_answer: String::new(),
+        recall_at_5: item.gold_answer.as_ref().map(|_| 0.0),
+        groundedness: Some(0.0),
+        quality_score: Some(0.0),
+        latency_ms: Some(latency_ms),
+        evidence: serde_json::json!({
+            "failed": true,
+            "sources_count": 0,
+            "citation_precision": 0.0,
+            "abstained": false,
+            "citations_found": 0,
+            "citations_supported": 0,
+            "multi_hop_score": 0.0,
+        }),
+        recorded_at_ms: now_unix_ms() as i64,
+    }
+}
+
+/// Display-only legacy aggregate; a missing gold answer is excluded rather than imputed.
+fn legacy_quality_score(groundedness: f64, citation_precision: f64, recall: Option<f64>) -> f64 {
+    match recall {
+        Some(r) => (groundedness + citation_precision + r) / 3.0,
+        None => (groundedness + citation_precision) / 2.0,
+    }
+}
+
 fn citation_precision_from_answer(answer: &str, evidence_count: usize) -> f64 {
     if evidence_count == 0 {
-        return if answer_abstained(answer, true) {
-            1.0
-        } else {
-            0.0
-        };
+        return if answer_abstained(answer) { 1.0 } else { 0.0 };
     }
     let mut cited = 0usize;
     let mut supported = 0usize;
@@ -264,12 +350,19 @@ fn citation_precision_from_answer(answer: &str, evidence_count: usize) -> f64 {
     }
 }
 
-fn answer_abstained(answer: &str, no_evidence: bool) -> bool {
-    let lower = answer.to_ascii_lowercase();
-    no_evidence
-        || lower.contains("insufficient evidence")
-        || lower.contains("not enough evidence")
-        || lower.contains("no external sources were found")
+/// An answer with no citations earns no precision credit unless it abstained.
+fn effective_citation_precision(precision: f64, citations_found: usize, abstained: bool) -> f64 {
+    if citations_found == 0 && !abstained {
+        0.0
+    } else {
+        precision
+    }
+}
+
+fn answer_abstained(answer: &str) -> bool {
+    answer
+        .trim_start()
+        .starts_with(vox_research_shim::research::ABSTENTION_MARKER)
 }
 
 fn multi_hop_pipeline_score(query: &str, subquery_count: usize, sources_count: usize) -> f64 {
@@ -477,9 +570,118 @@ mod tests {
     }
 
     #[test]
-    fn abstention_counts_empty_evidence_as_valid_abstention() {
-        assert!(answer_abstained("No external sources were found.", true));
-        assert!(!answer_abstained("The answer is well-supported.", false));
+    fn abstention_is_judged_from_the_answer_text() {
+        use vox_research_shim::research::ABSTENTION_MARKER;
+        assert!(answer_abstained(&format!(
+            "{ABSTENTION_MARKER}\nThe sources do not cover this."
+        )));
+        assert!(answer_abstained(&format!(
+            "  {ABSTENTION_MARKER} none found"
+        )));
+        assert!(!answer_abstained("The answer is well-supported."));
+        // An abstention phrase buried in a claim-bearing answer is not an abstention.
+        assert!(!answer_abstained(
+            "There is insufficient evidence for A; however B happened in 1901 [1]."
+        ));
+    }
+
+    #[test]
+    fn zero_citations_score_zero_unless_abstained() {
+        // The citation audit reports precision 1.0 when it checked nothing.
+        assert_eq!(effective_citation_precision(1.0, 0, false), 0.0);
+        assert_eq!(effective_citation_precision(1.0, 0, true), 1.0);
+        assert_eq!(effective_citation_precision(0.5, 4, false), 0.5);
+    }
+
+    #[test]
+    fn hallucinated_answer_without_evidence_is_not_an_abstention() {
+        let answer = "Paris has been the capital of Australia since 1901.";
+        assert!(!answer_abstained(answer));
+        assert_eq!(citation_precision_from_answer(answer, 0), 0.0);
+    }
+
+    #[test]
+    fn genuine_abstention_without_evidence_keeps_full_precision() {
+        assert_eq!(
+            citation_precision_from_answer(
+                &format!(
+                    "{} No sources.",
+                    vox_research_shim::research::ABSTENTION_MARKER
+                ),
+                0
+            ),
+            1.0
+        );
+    }
+
+    fn sample_with_latency(latency_ms: i64) -> ResearchEvalSampleRecord {
+        ResearchEvalSampleRecord {
+            run_id: "r".into(),
+            query: "q".into(),
+            gold_answer: None,
+            model_answer: "a".into(),
+            recall_at_5: None,
+            groundedness: Some(1.0),
+            quality_score: Some(1.0),
+            latency_ms: Some(latency_ms),
+            evidence: serde_json::json!({}),
+            recorded_at_ms: 0,
+        }
+    }
+
+    #[test]
+    fn median_latency_is_a_true_median() {
+        let samples: Vec<_> = [10, 1000, 20]
+            .into_iter()
+            .map(sample_with_latency)
+            .collect();
+        assert_eq!(median_latency_ms(&samples), Some(20));
+        let even: Vec<_> = [10, 20, 30, 1000]
+            .into_iter()
+            .map(sample_with_latency)
+            .collect();
+        assert_eq!(median_latency_ms(&even), Some(25));
+        assert_eq!(median_latency_ms(&[]), None);
+    }
+
+    #[test]
+    fn failed_query_counts_as_worst_score() {
+        let item: GoldenQueryItem =
+            serde_json::from_str(r#"{"query":"q","gold_answer":"g"}"#).unwrap();
+        let s = failed_query_sample("r", &item, 1500);
+        assert_eq!(s.quality_score, Some(0.0));
+        assert_eq!(s.groundedness, Some(0.0));
+        assert_eq!(s.recall_at_5, Some(0.0));
+        assert_eq!(s.latency_ms, Some(1500));
+        assert_eq!(s.evidence["failed"], true);
+        assert_eq!(s.evidence["citation_precision"], 0.0);
+        assert_eq!(s.evidence["abstained"], false);
+    }
+
+    #[test]
+    fn eval_report_matches_results_schema() {
+        let schema: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../contracts/reports/research-eval/results.v1.schema.json"
+        ))
+        .unwrap();
+        let samples = vec![sample_with_latency(10)];
+        let report = build_eval_report("run-1", "local", &samples, 0.5, 0.5, 0.0, 10.0);
+        let keys = |v: &serde_json::Value| -> Vec<String> {
+            let mut k: Vec<String> = v.as_object().unwrap().keys().cloned().collect();
+            k.sort();
+            k
+        };
+        assert_eq!(keys(&report), keys(&schema["properties"]));
+        assert_eq!(
+            keys(&report["metrics"]),
+            keys(&schema["properties"]["metrics"]["properties"])
+        );
+    }
+
+    #[test]
+    fn legacy_quality_score_does_not_impute_missing_gold() {
+        assert_eq!(legacy_quality_score(0.9, 0.6, None), 0.75);
+        assert_eq!(legacy_quality_score(0.9, 0.6, Some(0.0)), 0.5);
     }
 
     #[test]

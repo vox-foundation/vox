@@ -20,6 +20,15 @@ pub struct WorkspaceContext {
     pub layers: LayersManifest,
 }
 
+/// Integration-test sources (`tests/` dirs, `*_test.rs`). Rules about
+/// operator-facing constants skip these: a test's own wait/timeout literal is
+/// the clearest form there and is not a config surface. In-file
+/// `#[cfg(test)]` modules are not detected — they use `// drift-allow(...)`.
+pub(crate) fn is_test_file(p: &std::path::Path) -> bool {
+    let s = p.to_string_lossy();
+    s.contains("/tests/") || s.contains("\\tests\\") || s.ends_with("_test.rs")
+}
+
 pub trait DriftRule: Send + Sync {
     fn id(&self) -> &'static str;
     fn severity(&self) -> Severity;
@@ -37,4 +46,19 @@ pub fn all_drift_rules() -> Vec<Box<dyn DriftRule>> {
         Box::new(bearer_header::BearerHeaderRule),
         Box::new(vox_dir_unanchored::VoxDirUnanchoredRule),
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_test_file;
+    use std::path::Path;
+
+    #[test]
+    fn is_test_file_matches_integration_tests_only() {
+        assert!(is_test_file(Path::new("./crates/vox-db/tests/lock.rs")));
+        assert!(is_test_file(Path::new(r"crates\vox-db\tests\lock.rs")));
+        assert!(is_test_file(Path::new("crates/vox-db/src/lock_test.rs")));
+        assert!(!is_test_file(Path::new("crates/vox-db/src/lock.rs")));
+        assert!(!is_test_file(Path::new("crates/vox-db/src/tests_util.rs")));
+    }
 }

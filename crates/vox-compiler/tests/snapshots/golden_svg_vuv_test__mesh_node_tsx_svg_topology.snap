@@ -1,12 +1,13 @@
 ---
 source: crates/vox-compiler/tests/golden_svg_vuv_test.rs
-assertion_line: 240
+assertion_line: 249
 expression: ts
 ---
 import React from "react";
 
 export function MeshNode(): React.ReactElement {
   return (
+    <div className="px-4">
     <svg viewBox={"0 0 100 100"}>
       <defs>
         <radialGradient cx={0.5} cy={0.5} id={"halo"} r={0.5}>
@@ -19,5 +20,6 @@ export function MeshNode(): React.ReactElement {
         <circle fill={"#34d399"} r={3} />
       </g>
     </svg>
+    </div>
   );
 }

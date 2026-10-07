@@ -531,6 +531,47 @@ fn quarantine_is_gate_only_and_nightly_still_runs_everything() {
     );
 }
 
+/// Tests that run a nested `cargo build` take minutes apiece: they must run one at a
+/// time (the `nested-cargo` test group, with a long per-test timeout) and stay out of the
+/// PR gate. The group's filter and the ci-gate exclusion are two copies of one
+/// expression; a test that compiles generated crates but escapes the filter runs in the
+/// gate's parallel shards and times out.
+#[test]
+fn nested_cargo_tests_are_grouped_and_excluded_from_the_gate() {
+    let nextest = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.config/nextest.toml"
+    ));
+    let group_filter = nextest
+        .split("test-group = 'nested-cargo'")
+        .next()
+        .and_then(|before| before.rsplit("filter = '").next())
+        .and_then(|rest| rest.split('\'').next())
+        .expect("a [[profile.default.overrides]] entry must assign the nested-cargo group");
+    let gate = nextest
+        .split("[profile.ci-gate]")
+        .nth(1)
+        .expect("ci-gate profile");
+    assert!(
+        gate.contains(group_filter),
+        "ci-gate must exclude exactly the nested-cargo filter:\n{group_filter}"
+    );
+    // Drives every rust-script ladder fixture through a nested cargo compile.
+    assert!(
+        group_filter.contains("test(=ladder_contract_drives_each_fixture_target)"),
+        "the ladder contract test compiles fixtures and must be in the nested-cargo group"
+    );
+    let override_block = nextest
+        .split("test-group = 'nested-cargo'")
+        .nth(1)
+        .and_then(|after| after.split("\n\n").next())
+        .unwrap_or_default();
+    assert!(
+        override_block.contains("slow-timeout"),
+        "nested-cargo tests need their own slow-timeout; the default 60s x 3 kills a cold compile"
+    );
+}
+
 /// The full-workspace suite's execution alone is ~21 min on a 4-core hosted
 /// runner, so it cannot share a 30-min job with the vox build and clippy.
 #[test]
@@ -676,6 +717,15 @@ fn vox_gui_is_tested_somewhere() {
     // actually runs on the same OS as `full`. rfind anchors on the step
     // immediately preceding it.
     // `cargo gui-test` is the .cargo/config.toml alias for the same suite with link.exe on Windows.
+    // Scope to the gui-cross-build job: the gui-windows-build-smoke job after it has its
+    // own sidecar staging step, which would otherwise win the rfind.
+    let yml = yml
+        .split_once("\n  gui-cross-build:")
+        .expect("gui-cross-build job")
+        .1;
+    let yml = yml
+        .split_once("\n  gui-windows-build-smoke:")
+        .map_or(yml, |(job, _)| job);
     let full = yml
         .find("cargo gui-test --locked")
         .or_else(|| yml.find("cargo test -p vox-gui --locked"))
@@ -684,4 +734,46 @@ fn vox_gui_is_tested_somewhere() {
         .rfind("Stage Tauri external sidecar")
         .expect("sidecar staging step");
     assert!(full > sidecar, "tests need the staged sidecar");
+}
+
+#[test]
+fn ml_cuda_health_is_hosted_compile_only_and_fail_closed() {
+    let yml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/nightly.yml"
+    ));
+    let job = yml
+        .split_once("\n  ml-cuda-health:")
+        .expect("nightly must define the ml-cuda-health job")
+        .1;
+
+    assert!(job.contains("    name: ML CUDA dependency health"));
+    assert!(job.contains("    runs-on: ubuntu-latest"));
+    assert!(job.contains("    timeout-minutes: 180"));
+    assert!(job.contains("uses: Jimver/cuda-toolkit@v0.2.36"));
+    assert!(job.contains(r#"cuda: "12.6.3""#));
+    assert!(job.contains(r#"sub-packages: '["toolkit"]'"#));
+    assert!(job.contains(r#"CUDA_COMPUTE_CAP: "80""#));
+    assert!(job.contains("nvcc --version"));
+    assert!(job.contains("cargo test --no-run -p vox-plugin-mens-candle-cuda --features cuda"));
+    assert!(job.contains("cargo run -q -p vox-cli -- ci cuda-features"));
+    assert!(job.contains("cargo run -q -p vox-cli -- ci cuda-release-build"));
+    assert!(
+        job.contains("compile-only") && job.contains("does not exercise a CUDA device"),
+        "the job must not be presented as runtime GPU evidence"
+    );
+
+    for forbidden in [
+        "continue-on-error",
+        "VOX_CI_ALLOW_CUDA_SKIP",
+        "--features cpu",
+        "|| true",
+        "if: false",
+        "self-hosted",
+    ] {
+        assert!(
+            !job.contains(forbidden),
+            "ml-cuda-health must fail closed; found forbidden marker {forbidden}"
+        );
+    }
 }

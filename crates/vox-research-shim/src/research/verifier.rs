@@ -275,6 +275,7 @@ fn resample_candidates(
         candidate.response_format = Some(serde_json::json!({"type": "json_object"}));
         candidate.temperature = Some(0.3);
     }
+    crate::research::metering::tag_candidates(&mut candidates);
     candidates
 }
 
@@ -383,8 +384,12 @@ pub async fn verify_claims_with_config(
                 .await;
 
                 match parsed_res {
-                    Ok((verdict, _resp)) => verdict,
+                    Ok((verdict, resp)) => {
+                        crate::research::metering::meter_response(&resp);
+                        verdict
+                    }
                     Err(e) => {
+                        crate::research::metering::meter_failure();
                         tracing::warn!(claim_id = claim.claim_id, error = %e, "verifier cascade failed or returned invalid JSON across candidates");
                         unverified(claim.clone())
                     }
@@ -793,6 +798,7 @@ mod tests {
             &indices,
             VERIFY_CONCURRENCY,
             |claim| async move {
+                // drift-allow(duplicate-numeric-literal): test delay
                 tokio::time::sleep(std::time::Duration::from_millis(200)).await;
                 let mut v = unverified(claim.clone());
                 v.verdict = Verdict::Supported;

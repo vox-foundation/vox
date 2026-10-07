@@ -1,5 +1,5 @@
 use crate::features::ExtractedFeatures;
-use crate::rules::{DriftRule, WorkspaceContext};
+use crate::rules::{DriftRule, WorkspaceContext, is_test_file};
 use vox_code_audit::rules::{Finding, FindingConfidence, Language, Severity};
 
 pub struct ReqwestBypassRule;
@@ -62,11 +62,6 @@ impl DriftRule for ReqwestBypassRule {
             })
             .collect()
     }
-}
-
-fn is_test_file(p: &std::path::Path) -> bool {
-    let s = p.to_string_lossy();
-    s.contains("/tests/") || s.contains("\\tests\\") || s.ends_with("_test.rs")
 }
 
 #[cfg(test)]

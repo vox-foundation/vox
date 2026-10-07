@@ -70,33 +70,59 @@ pub fn calculate_groundedness(model_answer: &str, evidence_snippets: &[String]) 
         return 0.0;
     }
 
-    let evidence_corpus = evidence_snippets.join(" ").to_lowercase();
+    let snippets: Vec<String> = evidence_snippets.iter().map(|s| s.to_lowercase()).collect();
     let model_clusters: Vec<_> = model_answer
         .split('.')
         .filter(|s| s.trim().len() > 10)
         .collect();
 
     if model_clusters.is_empty() {
-        return 1.0;
+        return 0.0;
     }
 
-    let mut grounded_count = 0;
-    for cluster in &model_clusters {
-        let keywords: Vec<_> = cluster
-            .split_whitespace()
-            .filter(|s| s.len() > 4)
-            .take(5)
-            .collect();
-
-        if keywords
-            .iter()
-            .any(|k| evidence_corpus.contains(&k.to_lowercase()))
-        {
-            grounded_count += 1;
-        }
-    }
+    let grounded_count = model_clusters
+        .iter()
+        .filter(|cluster| cluster_grounded(cluster, &snippets))
+        .count();
 
     grounded_count as f64 / model_clusters.len() as f64
+}
+
+/// Function words long enough to pass the keyword length filter but carrying no claim.
+/// "without" is deliberately absent: it changes meaning.
+const FILLER_WORDS: &[&str] = &[
+    "about", "above", "after", "again", "among", "because", "before", "being", "below", "between",
+    "could", "during", "every", "might", "other", "shall", "should", "since", "still", "their",
+    "there", "these", "those", "though", "through", "under", "until", "where", "which", "while",
+    "whose", "would",
+];
+
+/// A clause is grounded by one snippet sentence that contains at least half of its
+/// leading keywords and shares its negation polarity.
+fn cluster_grounded(cluster: &str, snippets: &[String]) -> bool {
+    let lower = cluster.to_lowercase();
+    let keywords: Vec<&str> = lower
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|w| w.chars().count() > 4 && !FILLER_WORDS.contains(w))
+        .take(5)
+        .collect();
+    if keywords.is_empty() {
+        return false;
+    }
+    let needed = keywords.len().div_ceil(2);
+    let negated = has_negation(&lower);
+    snippets
+        .iter()
+        .flat_map(|snippet| snippet.split(['.', '!', '?', '\n']))
+        .any(|sentence| {
+            has_negation(sentence) == negated
+                && keywords.iter().filter(|k| sentence.contains(**k)).count() >= needed
+        })
+}
+
+fn has_negation(text: &str) -> bool {
+    text.split(|c: char| !c.is_alphanumeric() && c != '\'')
+        .any(|w| matches!(w, "not" | "no" | "never" | "cannot") || w.ends_with("n't"))
 }
 
 #[cfg(test)]

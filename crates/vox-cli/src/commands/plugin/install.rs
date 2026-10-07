@@ -857,7 +857,7 @@ mod tests {
     fn local_fallback_is_opt_in_not_opt_out() {
         let src = include_str!("install.rs");
         // Split so this needle cannot match the assertion message below.
-        let opt_out = concat!("VOX_NO_", "LOCAL_PLUGIN_FALLBACK");
+        let opt_out = concat!("VOX_", "NO_LOCAL_PLUGIN_FALLBACK");
         assert!(
             !src.contains(opt_out),
             "the workspace-local plugin fallback is still opt-out; it must require \

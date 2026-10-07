@@ -80,8 +80,6 @@ jobs:
       - name: Set up Rust
         uses: ./.github/actions/setup-rust
 
-      - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.11
 
       - name: Build Vox Compiler
         # `vox mens ...` / `vox train ...` delegate to a separate `vox-ml-cli`
@@ -93,8 +91,6 @@ jobs:
         # ...` — that masked this one, since the command was rejected before
         # ever reaching the vox-ml-cli delegation code path).
         run: cargo build -p vox-cli -p vox-ml-cli --release --quiet
-        env:
-          RUSTC_WRAPPER: sccache
 
       - name: Put target/release on PATH (for the vox -> vox-ml-cli delegation above)
         run: echo "$GITHUB_WORKSPACE/target/release" >> "$GITHUB_PATH"

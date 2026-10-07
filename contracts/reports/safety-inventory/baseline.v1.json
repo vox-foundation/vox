@@ -3,36 +3,12 @@
   "rust": {
     "unsafe_brace_block_opens": 719,
     "lines_unsafe_with_env_mutation": 254,
-    "ignored_test_functions_total": 150,
+    "ignored_test_functions_total": 92,
     "ignored_test_governance_violation_count": 0,
     "ignored_tests_top_files": [
       {
         "path": "crates/vox-mesh-transport/tests/interp_executor.rs",
         "count": 12
-      },
-      {
-        "path": "crates/vox-compiler/tests/golden_dashboard_composites_test.rs",
-        "count": 10
-      },
-      {
-        "path": "crates/vox-compiler/tests/golden_dashboard_surfaces_test.rs",
-        "count": 8
-      },
-      {
-        "path": "crates/vox-compiler/tests/golden_runs_surface_test.rs",
-        "count": 6
-      },
-      {
-        "path": "crates/vox-codegen/src/codegen_rust/mod.rs",
-        "count": 5
-      },
-      {
-        "path": "crates/vox-compiler/tests/golden_dashboard_chrome_test.rs",
-        "count": 5
-      },
-      {
-        "path": "crates/vox-compiler/tests/golden_mesh_surface_test.rs",
-        "count": 5
       },
       {
         "path": "crates/vox-db/tests/pool_corruption_probe.rs",
@@ -43,15 +19,11 @@
         "count": 5
       },
       {
-        "path": "crates/vox-compiler/tests/golden_for_loop_test.rs",
+        "path": "crates/vox-codegen/src/codegen_rust/mod.rs",
         "count": 4
       },
       {
         "path": "crates/vox-eval/src/lib.rs",
-        "count": 4
-      },
-      {
-        "path": "crates/vox-integration-tests/tests/parity_contracts_test.rs",
         "count": 4
       },
       {
@@ -63,23 +35,15 @@
         "count": 3
       },
       {
-        "path": "crates/vox-compiler/tests/bug_handler_lambda_repro.rs",
-        "count": 3
-      },
-      {
-        "path": "crates/vox-compiler/tests/golden_svg_vuv_test.rs",
-        "count": 3
-      },
-      {
         "path": "crates/vox-plugin-mens-candle-metal/src/inference.rs",
         "count": 3
       },
       {
-        "path": "crates/vox-codegen/tests/generated_project_builds_outside_repo.rs",
+        "path": "crates/vox-codegen/tests/ai_fixture_bundle_compiles.rs",
         "count": 2
       },
       {
-        "path": "crates/vox-compiler/tests/tombstone_test.rs",
+        "path": "crates/vox-codegen/tests/generated_project_builds_outside_repo.rs",
         "count": 2
       },
       {
@@ -105,6 +69,42 @@
       {
         "path": "crates/vox-research-shim/src/research/orchestrator/stages.rs",
         "count": 2
+      },
+      {
+        "path": "crates/vox-actor-runtime/src/feedback.rs",
+        "count": 1
+      },
+      {
+        "path": "crates/vox-actor-runtime/tests/openrouter_free_floor_smoke.rs",
+        "count": 1
+      },
+      {
+        "path": "crates/vox-arch-check/tests/integration.rs",
+        "count": 1
+      },
+      {
+        "path": "crates/vox-audit/tests/regen_silent_drop_baseline.rs",
+        "count": 1
+      },
+      {
+        "path": "crates/vox-audit/tests/regen_weak_test_baseline.rs",
+        "count": 1
+      },
+      {
+        "path": "crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs",
+        "count": 1
+      },
+      {
+        "path": "crates/vox-cli/src/commands/db/mod.rs",
+        "count": 1
+      },
+      {
+        "path": "crates/vox-code-audit/src/stdlib_parity.rs",
+        "count": 1
+      },
+      {
+        "path": "crates/vox-compiler/src/semcov_struct_pipeline_tests.rs",
+        "count": 1
       }
     ],
     "crate_root_inner_allow_lines": 31,

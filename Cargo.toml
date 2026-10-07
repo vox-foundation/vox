@@ -341,8 +341,8 @@ chacha20poly1305   = "0.10"
 aead               = { version = "0.5", features = ["std"] }
 gix                = { version = "0.84", default-features = false }
 jj-lib             = { version = "0.42", default-features = false }
-wasmtime           = "45.0.2"
-wasmtime-wasi      = "45.0.2"
+wasmtime           = "49.0.2"
+wasmtime-wasi      = "49.0.2"
 
 self_update        = "0.44"
 landlock           = "0.4.4"
