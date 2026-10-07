@@ -819,18 +819,6 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                     context_parts.push(format!("[AUTONOMOUS RESEARCH — REPOSITORY]:\n{formatted}"));
                 }
                 retrieval_evidence = Some(bundle.evidence.clone());
-
-                if !bundle.kb_lines.is_empty() {
-                    let formatted = bundle
-                        .kb_lines
-                        .iter()
-                        .map(|c| format!("- {c}"))
-                        .collect::<Vec<_>>()
-                        .join("\n");
-                    context_parts.push(format!(
-                        "[AUTONOMOUS RESEARCH — KNOWLEDGE BASE]:\n{formatted}"
-                    ));
-                }
             }
             Err(e) => {
                 tracing::debug!(
@@ -865,34 +853,6 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         } else {
             expanded_prompt
         };
-
-    let kb_mention_lines = if let Some(db) = state.db.clone() {
-        use vox_orchestrator::knowledge_base::store::KbStore;
-        let mentioned_names = crate::memory::parse_kb_mentions(&expanded_prompt);
-        if mentioned_names.is_empty() {
-            Vec::new()
-        } else {
-            let store = KbStore::new(db);
-            let kbs = store.list().await.unwrap_or_default();
-            let mut lines = Vec::new();
-            for name in &mentioned_names {
-                if let Some(kb) = kbs.iter().find(|k| k.name.to_ascii_lowercase() == *name) {
-                    let entries = store.list_entries(&kb.id, 10, 0).await.unwrap_or_default();
-                    for e in entries {
-                        lines.push(format!("[KB:{}] {}", kb.name, e.content));
-                    }
-                }
-            }
-            lines
-        }
-    } else {
-        Vec::new()
-    };
-
-    if !kb_mention_lines.is_empty() {
-        let formatted = kb_mention_lines.join("\n");
-        context_parts.push(format!("[MENTIONED KNOWLEDGE BASES]:\n{formatted}"));
-    }
 
     let all_context_files: Vec<String> = {
         let mut v = params.context_files.clone();

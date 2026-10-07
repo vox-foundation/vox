@@ -24,7 +24,14 @@ const MODEL_ID: &str = "acme/widget-5.5";
 const REPLY: &str = "Widgets are a fine topic to discuss at considerable length today.";
 const MARKER: &str = "ZX9-LEGACY-KB-MARKER-4471";
 
-async fn seeded_db() -> Arc<VoxDb> {
+/// Seed one knowledge base, a matching keyword rule and two entries. Entry `e2` embeds the
+/// canonicalized `prompt` verbatim: the retired KB-lines enrichment searched with a substring
+/// match on that text, so without `e2` a regression of it would never find a row to leak.
+async fn seeded_db(prompt: &str) -> Arc<VoxDb> {
+    let canonical = vox_actor_runtime::prompt_canonical::canonicalize_prompt(prompt, true, true)
+        .expect("canonicalize")
+        .text
+        .replace('\'', "''");
     let db = VoxDb::open_memory().await.expect("open memory db");
     // Seed with `execute_batch`: the sql-surface guard flags only the raw query/execute calls.
     db.connection()
@@ -38,7 +45,9 @@ async fn seeded_db() -> Arc<VoxDb> {
              INSERT INTO kb_routing_rules (id, kb_id, rule_type, pattern, created_at_ms) \
                VALUES ('r1','kb1','keyword','widgets',1);
              INSERT INTO kb_entries (id, kb_id, content, source_signal, created_at_ms) \
-               VALUES ('e1','kb1','widgets seeded entry {MARKER}','manual',1);"
+               VALUES ('e1','kb1','widgets seeded entry {MARKER}','manual',1);
+             INSERT INTO kb_entries (id, kb_id, content, source_signal, created_at_ms) \
+               VALUES ('e2','kb1','{canonical} {MARKER}','manual',2);"
         ))
         .await
         .expect("seed legacy kb");
@@ -132,9 +141,9 @@ async fn run_turn(db: Arc<VoxDb>, prompt: &str) -> (serde_json::Value, Vec<Strin
 #[allow(clippy::await_holding_lock)]
 async fn kb_leak_chat_turn_writes_no_kb_entry_or_finding() {
     let _env_guard = CHAT_MESSAGE_ENV_LOCK.lock().expect("env lock");
-    let db = seeded_db().await;
+    let db = seeded_db("tell me about gadgets").await;
     let before = db.legacy_kb_counts().await.expect("counts before");
-    assert_eq!(before.kb_entries, 1, "seed is in place");
+    assert_eq!(before.kb_entries, 2, "seed is in place");
 
     let (response, bodies) = run_turn(db.clone(), "tell me about gadgets").await;
 
@@ -153,4 +162,54 @@ async fn kb_leak_chat_turn_writes_no_kb_entry_or_finding() {
         0,
         "a chat turn must not write a finding"
     );
+}
+
+/// RET-02: no request the model server received carries legacy KB text or its section headers.
+fn assert_no_legacy_kb_in_prompt(bodies: &[String]) {
+    assert!(!bodies.is_empty(), "the stub model was actually called");
+    let all = bodies.join("\n");
+    for needle in [
+        MARKER,
+        "[AUTONOMOUS RESEARCH — KNOWLEDGE BASE]",
+        "[MENTIONED KNOWLEDGE BASES]",
+    ] {
+        assert!(
+            !all.contains(needle),
+            "legacy KB text reached the model prompt ({needle}): {all}"
+        );
+    }
+}
+
+/// RET-02: a prompt whose keywords match a legacy entry gets no KB-lines enrichment.
+#[tokio::test]
+#[allow(clippy::await_holding_lock)]
+async fn kb_leak_keyword_prompt_carries_no_legacy_kb_text() {
+    let _env_guard = CHAT_MESSAGE_ENV_LOCK.lock().expect("env lock");
+    let (response, bodies) = run_turn(
+        seeded_db("tell me about widgets").await,
+        "tell me about widgets",
+    )
+    .await;
+    assert_eq!(
+        response["success"], true,
+        "the turn must succeed: {response}"
+    );
+    assert_no_legacy_kb_in_prompt(&bodies);
+}
+
+/// D-05: `@mykb` still parses but injects nothing until the Phase 7 Library-scope remap.
+#[tokio::test]
+#[allow(clippy::await_holding_lock)]
+async fn kb_leak_at_mention_injects_nothing() {
+    let _env_guard = CHAT_MESSAGE_ENV_LOCK.lock().expect("env lock");
+    let (response, bodies) = run_turn(
+        seeded_db("summarise @mykb please").await,
+        "summarise @mykb please",
+    )
+    .await;
+    assert_eq!(
+        response["success"], true,
+        "the turn must succeed: {response}"
+    );
+    assert_no_legacy_kb_in_prompt(&bodies);
 }

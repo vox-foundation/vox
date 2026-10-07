@@ -226,13 +226,14 @@ pub struct RetrievalBundle {
     pub repo_lines: Vec<String>,
     /// RRF-merged excerpt ordering (same lines as corpora, deduped; empty when disabled).
     pub rrf_fused_lines: Vec<String>,
-    /// Knowledge base hits from topic-matched KB entries.
-    pub kb_lines: Vec<String>,
     pub evidence: RetrievalEvidenceEnvelope,
 }
 
 /// Extract `@name` mentions from a user message.
 /// Returns deduplicated, lowercased names in order of first appearance.
+///
+/// Kept for the Phase 7 Library-scope remap (INJ-09); it has no consumer until then, so an
+/// `@name` mention injects nothing into a chat prompt (D-05).
 pub fn parse_kb_mentions(text: &str) -> Vec<String> {
     let mut seen = std::collections::HashSet::new();
     let mut result = Vec::new();
@@ -356,21 +357,6 @@ pub async fn run_retrieval_bundle(
             )
         });
 
-    // KB background enrichment: search accepted entries for this query
-    let kb_lines = if let Some(db) = &state.db {
-        use vox_orchestrator::knowledge_base::store::KbStore;
-        let store = KbStore::new(db.clone());
-        store
-            .search_entries(query, 5)
-            .await
-            .unwrap_or_default()
-            .into_iter()
-            .map(|e| format!("[KB:{} via {}] {}", e.kb_id, e.source_signal, e.content))
-            .collect()
-    } else {
-        Vec::new()
-    };
-
     Ok(RetrievalBundle {
         evidence: RetrievalEvidenceEnvelope {
             trigger,
@@ -409,7 +395,6 @@ pub async fn run_retrieval_bundle(
         chunk_lines,
         repo_lines: execution.repo_lines,
         rrf_fused_lines: execution.rrf_fused_lines,
-        kb_lines,
     })
 }
 
