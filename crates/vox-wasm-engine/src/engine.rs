@@ -95,8 +95,7 @@ impl WasmHost {
 
         // Preopened directories.
         for preopen in &opts.preopens {
-            let (dp, fp) = preopen.wasi_perms();
-            builder.preopened_dir(&preopen.host, &preopen.guest, dp, fp)?;
+            builder.preopened_dir(&preopen.host, &preopen.guest, preopen.wasi_perms())?;
         }
 
         let wasi_ctx = builder.build_p1();
@@ -137,5 +136,23 @@ impl WasmHost {
 impl Default for WasmHost {
     fn default() -> Self {
         Self::new().expect("Failed to create default WasmHost")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::WasmHost;
+
+    #[test]
+    fn new_host_has_no_fuel_limit() {
+        assert_eq!(WasmHost::new().expect("engine").fuel, None);
+    }
+
+    #[test]
+    fn with_fuel_records_the_limit() {
+        assert_eq!(
+            WasmHost::with_fuel(1_000).expect("engine").fuel,
+            Some(1_000)
+        );
     }
 }
