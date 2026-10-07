@@ -68,6 +68,17 @@ fn generated_workflow_bundle_passes_cargo_check() {
             }
         }
 
+        type PayError =
+            | Declined(reason: str)
+            | OverLimit
+
+        workflow pay(amount: int) to Result[str, PayError] {
+            if amount > 1000 {
+                return Error(OverLimit)
+            }
+            return Ok("paid")
+        }
+
         workflow count() to int {
             return 7
         }

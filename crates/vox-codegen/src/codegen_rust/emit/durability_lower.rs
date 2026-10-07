@@ -47,13 +47,15 @@ fn is_result_type(ret: &HirType) -> bool {
     matches!(ret, HirType::Generic(name, _) if name == "Result")
 }
 
-/// Rust return type of a workflow fn. The body propagates runtime errors with `?`
-/// (as `String`), so the signature is always a `Result`: a declared `Result[...]`
-/// keeps its own type, anything else `T` becomes `Result<T, String>`, and no
-/// declared return becomes `Result<(), String>`.
+/// Rust return type of a workflow fn: `Result<R, String>` for a declared `R`
+/// (`Result<(), String>` when none), with no exception for a declared `Result`.
+///
+/// The journal records the workflow's own return value, so a domain `Err` is a
+/// value of `R`; the outer `Err` means only that the durable runtime failed
+/// (journal, replay). Keeping the two apart lets `R` carry any error type with no
+/// conversion from the runtime's, and gives callers one rule to follow.
 pub(super) fn workflow_rust_return_type(ret: Option<&HirType>) -> String {
     match ret {
-        Some(r) if is_result_type(r) => emit_type(r),
         Some(r) => format!("Result<{}, String>", emit_type(r)),
         None => "Result<(), String>".into(),
     }
@@ -76,11 +78,6 @@ fn emit_workflow_body(func: &HirFn) -> String {
         "    let __vox_journal = ::vox_workflow_runtime::workflow::interpret_workflow_durable(__vox_hir, \"{name}\", &mut __vox_tracker).await.map_err(|e| e.to_string())?;\n"
     ));
     match &func.return_type {
-        // The journaled value is itself the declared `Result`.
-        Some(ret) if is_result_type(ret) => out.push_str(&format!(
-            "    ::vox_workflow_runtime::workflow::extract_terminal_return::<{ty}>(&__vox_journal).map_err(|e| e.to_string())?\n",
-            ty = emit_type(ret),
-        )),
         Some(ret) => out.push_str(&format!(
             "    Ok(::vox_workflow_runtime::workflow::extract_terminal_return::<{ty}>(&__vox_journal).map_err(|e| e.to_string())?)\n",
             ty = emit_type(ret),
@@ -122,26 +119,27 @@ pub(super) fn emit_workflow_dispatcher(functions: &[HirFn]) -> String {
             ));
             call_args.push(p.name.clone());
         }
-        // A declared `Result[T, E]` with a non-String error needs its own conversion.
-        let custom_err = matches!(
-            &wf.return_type,
-            Some(HirType::Generic(n, a)) if n == "Result" && a.get(1).is_some_and(|e| emit_type(e) != "String")
-        );
-        let map_err = if custom_err {
-            ".map_err(|e| format!(\"{e:?}\"))"
-        } else {
-            ""
-        };
+        // `?` here surfaces only runtime failure; `out` is the declared value.
         out.push_str(&format!(
-            "            let out = {rust_name}({}).await{map_err}?;\n",
+            "            let out = {rust_name}({}).await?;\n",
             call_args.join(", ")
         ));
-        if wf.return_type.is_some() {
-            out.push_str("            println!(\"{}\", serde_json::to_string(&out).map_err(|e| e.to_string())?);\n");
-        } else {
-            out.push_str("            let () = out;\n");
+        match &wf.return_type {
+            None => out.push_str("            let () = out;\n            Ok(())\n"),
+            Some(ret) => {
+                // Machine-readable result on stdout (a `Result` prints as {"Ok":..}/{"Err":..}).
+                out.push_str("            println!(\"{}\", serde_json::to_string(&out).map_err(|e| e.to_string())?);\n");
+                if is_result_type(ret) {
+                    // A domain `Err` is a failed run for the caller's exit status.
+                    out.push_str(&format!(
+                        "            match out {{ Ok(_) => Ok(()), Err(_) => Err(\"workflow {} returned Err\".to_string()) }}\n",
+                        wf.name
+                    ));
+                } else {
+                    out.push_str("            Ok(())\n");
+                }
+            }
         }
-        out.push_str("            Ok(())\n");
         out.push_str("        }\n");
     }
     out.push_str("        _ => Err(format!(\"unknown workflow: {__vox_wf_name}\")),\n");

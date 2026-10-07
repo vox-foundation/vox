@@ -450,14 +450,43 @@ mod workflow_signature_tests {
         );
     }
 
+    /// One rule for every declared type: the journaled value is the declared `R`
+    /// (a domain `Err` is a value), and only infrastructure failure is the outer `Err`.
     #[test]
-    fn result_typed_workflow_keeps_its_declared_signature() {
+    fn result_typed_workflow_nests_its_declared_result() {
         let lib = lib_for("workflow wf() to Result[str] {\n    return Ok(\"x\")\n}\n");
         assert!(
-            lib.contains("async fn wf() -> Result<String, String> {"),
+            lib.contains("async fn wf() -> Result<Result<String, String>, String> {"),
             "{lib}"
         );
-        assert!(!lib.contains("Ok(::vox_workflow_runtime"), "{lib}");
+        assert!(
+            lib.contains(
+                "Ok(::vox_workflow_runtime::workflow::extract_terminal_return::<Result<String, String>>"
+            ),
+            "{lib}"
+        );
+    }
+
+    /// A custom error ADT needs no conversion from the runtime's error type.
+    #[test]
+    fn custom_error_workflow_needs_no_error_conversion() {
+        let lib = lib_for(
+            "type PayError =\n    | Declined(reason: str)\n    | OverLimit\n\nworkflow pay() to Result[str, PayError] {\n    return Ok(\"x\")\n}\n",
+        );
+        assert!(
+            lib.contains("async fn pay() -> Result<Result<String, PayError>, String> {"),
+            "{lib}"
+        );
+    }
+
+    /// The dispatcher reports a domain `Err` as a failed run (after printing it).
+    #[test]
+    fn dispatcher_fails_the_run_on_a_domain_err() {
+        let lib = lib_for("workflow wf() to Result[str] {\n    return Ok(\"x\")\n}\n");
+        let start = lib
+            .find("pub async fn __vox_run_workflow(")
+            .expect("dispatcher");
+        assert!(lib[start..].contains("returned Err"), "{}", &lib[start..]);
     }
 
     #[test]
