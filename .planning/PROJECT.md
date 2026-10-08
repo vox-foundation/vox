@@ -106,5 +106,27 @@ Reuses existing infrastructure; adds one trial identity instead of a parallel st
 | ADR-034: Candle/QLoRA stack upgrades | Versions verified unified; compile-validated by fail-closed hosted CUDA lane | ✓ Good — accepted 2026-10-01 (compile-only, no physical-GPU claim) |
 | v1.1 trial governance (grill G1–G25, R1–R9) | Signed immutable campaigns, atomic spend reservations, group-sequential stats, two-campaign promotion, dual-control designation, structural-only telemetry, linked retries instead of resume | — Pending — v1.1 implements it |
 
+## Workstreams
+
+- `research-trial-flywheel` — v1.1 Research Trial Flywheel (default; `.planning/workstreams/research-trial-flywheel/`)
+- `autonomy-ux` — v1.2 Unified Autonomy Control, run in parallel: one human-legible oversight control (more = safer) replacing the inverted Risk popover, Check replies, and duplicated spend chrome; every claimed effect wired in the backend for both sync chat and background tasks; the cross-agent attention/interruption budget made visible and controllable. Mode (cost↔intelligence) stays a separate axis. (`.planning/workstreams/autonomy-ux/`)
+
+## Evolution
+
+This document evolves at phase transitions and milestone boundaries.
+
+**After each phase transition** (via `/gsd-transition`):
+1. Requirements invalidated? → Move to Out of Scope with reason
+2. Requirements validated? → Move to Validated with phase reference
+3. New requirements emerged? → Add to Active
+4. Decisions to log? → Add to Key Decisions
+5. "What This Is" still accurate? → Update if drifted
+
+**After each milestone** (via `/gsd-complete-milestone`):
+1. Full review of all sections
+2. Core Value check — still the right priority?
+3. Audit Out of Scope — reasons still valid?
+4. Update Context with current state
+
 ---
-*Last updated: 2026-10-01 after v1.0 completion and v1.1 Research Trial Flywheel initialization*
+*Last updated: 2026-10-08 — v1.2 Unified Autonomy Control started as the `autonomy-ux` workstream*
