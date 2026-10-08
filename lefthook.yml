@@ -79,3 +79,12 @@ pre-push:
       env:
         VOX_PRE_PUSH_REFS: "1"
         VOX_SKIP_FRESHNESS_CHECK: "1"
+
+# A new worktree is what fills the disk: each grows a 20-80 GB target/ within a day.
+# Reclaim targets of worktrees idle past the retention policy (1 day), in the
+# background. Never builds; never touches source, a git-locked worktree, the current
+# worktree, or one with a running build (vox ci artifact-prune's own gates).
+post-checkout:
+  commands:
+    target-gc:
+      run: vox ci artifact-prune --include-worktrees --apply > /dev/null 2>&1 &
