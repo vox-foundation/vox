@@ -564,6 +564,13 @@ jobs:
       - name: Workspace drift check (vox-drift-check)
         run: cargo run -p vox-drift-check --quiet -- . --severity warning --fail-on warning
 
+      # Hosted images don't ship cargo-hakari (the retired self-hosted image did);
+      # without it this step fails with "no such command: `hakari`" (nightly 37781784352).
+      - name: Install cargo-hakari
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-hakari
+
       - name: Verify Hakari (Workspace Dependency Determinism)
         run: cargo hakari generate --diff
 
