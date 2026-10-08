@@ -842,7 +842,12 @@ pub enum CiCmd {
     /// Verify contracts/ci/crate-build-map.v1.json is in sync with crate-graph.v1.json
     /// (recomputes derived blast_s/dependents and fails on drift).
     #[command(name = "crate-build-map-parity")]
-    CrateBuildMapParity,
+    CrateBuildMapParity {
+        /// Rewrite the summary's derived fields from the committed graph, keeping its
+        /// `compile_s` (no timing build needed).
+        #[arg(long)]
+        write: bool,
+    },
     /// Gate workspace fan-in growth: fail when any crate gains new dependents vs the
     /// committed snapshot in `contracts/ci/fan-in-snapshot.v1.json`.
     /// Uses `contracts/ci/crate-graph.v1.json` for actual counts.
