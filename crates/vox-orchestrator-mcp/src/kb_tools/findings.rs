@@ -226,6 +226,27 @@ pub async fn file_gui_finding(
     Ok(filed(outcome.finding_id))
 }
 
+/// Result of filing a research-doc publish request: the draft waits in the inbox with the path
+/// it was proposed for; nothing is written under `docs/src` (GROW-06).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct PublishFiled {
+    pub finding_id: Option<String>,
+    pub proposed_path: String,
+    pub status: String,
+}
+
+/// File an LLM-drafted research doc as a pending `Untrusted` finding. The proposed repo-relative
+/// path is computed without touching disk, and the slug must be a plain file stem.
+pub async fn file_publish_draft(
+    _db: &VoxDb,
+    _repo_root: &Path,
+    _session_id: i64,
+    _slug: &str,
+    _content: &str,
+) -> Result<PublishFiled, String> {
+    Err("not implemented".into())
+}
+
 /// What one legacy-VoxKB migration pass saw and did (RET-03).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct LegacyKbReport {
