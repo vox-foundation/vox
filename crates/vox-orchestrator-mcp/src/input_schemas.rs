@@ -303,21 +303,6 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         | "vox_poll_events" => parse_obj(r#"{"type":"object","additionalProperties":true}"#),
 
         // ── Knowledge Bases (VoxKB) ──────────────────────────────────────────
-        "vox_kb_create" => derived_tool_schema!(crate::kb_tools::params::KbCreateParams),
-        "vox_kb_list" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
-        "vox_kb_delete" => derived_tool_schema!(crate::kb_tools::params::KbDeleteParams),
-        "vox_kb_add_entry" => derived_tool_schema!(crate::kb_tools::params::KbAddEntryParams),
-        "vox_kb_delete_entry" => derived_tool_schema!(crate::kb_tools::params::KbDeleteEntryParams),
-        "vox_kb_list_entries" => {
-            derived_tool_schema!(crate::kb_tools::params::KbListEntriesParams)
-        }
-        "vox_kb_review_entry" => {
-            derived_tool_schema!(crate::kb_tools::params::KbReviewEntryParams)
-        }
-        "vox_kb_get_feed" => derived_tool_schema!(crate::kb_tools::params::KbGetFeedParams),
-        "vox_kb_add_rule" => derived_tool_schema!(crate::kb_tools::params::KbAddRuleParams),
-        "vox_kb_list_rules" => derived_tool_schema!(crate::kb_tools::params::KbListRulesParams),
-        "vox_kb_query" => derived_tool_schema!(crate::kb_tools::params::KbQueryParams),
         "vox_kb_search" => derived_tool_schema!(crate::kb_tools::library::KbSearchParams),
         "vox_kb_get" => derived_tool_schema!(crate::kb_tools::library::KbGetParams),
         "vox_kb_cite" => derived_tool_schema!(crate::kb_tools::library::KbCiteParams),

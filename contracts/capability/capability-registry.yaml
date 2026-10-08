@@ -20647,38 +20647,6 @@ curated:
   mcp_tool: vox_journey_canonical_steps
   cli_path: null
   parameters: null
-- id: mcp.vox_kb_add_entry
-  title: Add Knowledge Entry
-  description_human: null
-  description_model: Add a knowledge entry to a knowledge base.
-  intent_tags: []
-  side_effect_class: writes_files
-  scope_kind: session
-  reversible: false
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: vox_kb_add_entry
-  cli_path: null
-  parameters: null
-- id: mcp.vox_kb_add_rule
-  title: Add Knowledge Rule
-  description_human: null
-  description_model: Add an ingestion filter rule.
-  intent_tags: []
-  side_effect_class: writes_files
-  scope_kind: session
-  reversible: false
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: vox_kb_add_rule
-  cli_path: null
-  parameters: null
 - id: mcp.vox_kb_cite
   title: Cite Knowledge Library Chunk
   description_human: null
@@ -20695,54 +20663,6 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_kb_cite
-  cli_path: null
-  parameters: null
-- id: mcp.vox_kb_create
-  title: Create Knowledge Base
-  description_human: null
-  description_model: Create a new knowledge base.
-  intent_tags: []
-  side_effect_class: writes_files
-  scope_kind: session
-  reversible: false
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: vox_kb_create
-  cli_path: null
-  parameters: null
-- id: mcp.vox_kb_delete
-  title: Delete Knowledge Base
-  description_human: null
-  description_model: Delete a knowledge base by ID.
-  intent_tags: []
-  side_effect_class: writes_files
-  scope_kind: session
-  reversible: false
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: vox_kb_delete
-  cli_path: null
-  parameters: null
-- id: mcp.vox_kb_delete_entry
-  title: Delete Knowledge Entry
-  description_human: null
-  description_model: Delete a knowledge entry by ID.
-  intent_tags: []
-  side_effect_class: writes_files
-  scope_kind: session
-  reversible: false
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: vox_kb_delete_entry
   cli_path: null
   parameters: null
 - id: mcp.vox_kb_get
@@ -20763,86 +20683,6 @@ curated:
   mcp_tool: vox_kb_get
   cli_path: null
   parameters: null
-- id: mcp.vox_kb_get_feed
-  title: Get Knowledge Feed
-  description_human: null
-  description_model: Get the feed of knowledge entries.
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: session
-  reversible: false
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: vox_kb_get_feed
-  cli_path: null
-  parameters: null
-- id: mcp.vox_kb_list
-  title: List Knowledge Bases
-  description_human: null
-  description_model: List all available knowledge bases.
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: session
-  reversible: false
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: vox_kb_list
-  cli_path: null
-  parameters: null
-- id: mcp.vox_kb_list_entries
-  title: List Knowledge Entries
-  description_human: null
-  description_model: List all knowledge entries in a knowledge base.
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: session
-  reversible: false
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: vox_kb_list_entries
-  cli_path: null
-  parameters: null
-- id: mcp.vox_kb_list_rules
-  title: List Knowledge Rules
-  description_human: null
-  description_model: List ingestion filter rules.
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: session
-  reversible: false
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: vox_kb_list_rules
-  cli_path: null
-  parameters: null
-- id: mcp.vox_kb_query
-  title: Query Knowledge Base
-  description_human: null
-  description_model: Query knowledge bases with semantic search.
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: session
-  reversible: false
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: vox_kb_query
-  cli_path: null
-  parameters: null
 - id: mcp.vox_kb_reindex
   title: Reindex Knowledge Library
   description_human: null
@@ -20859,22 +20699,6 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_kb_reindex
-  cli_path: null
-  parameters: null
-- id: mcp.vox_kb_review_entry
-  title: Review Knowledge Entry
-  description_human: null
-  description_model: Accept or reject a knowledge entry.
-  intent_tags: []
-  side_effect_class: writes_files
-  scope_kind: session
-  reversible: false
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: vox_kb_review_entry
   cli_path: null
   parameters: null
 - id: mcp.vox_kb_search

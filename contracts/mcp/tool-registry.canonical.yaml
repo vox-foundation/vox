@@ -728,73 +728,18 @@ tools:
   product_lane: ai
   http_read_role_eligible: true
   tier: core
-- name: vox_kb_add_entry
-  description: Add a knowledge entry to a knowledge base.
-  product_lane: ai
-  http_read_role_eligible: false
-  tier: core
-- name: vox_kb_add_rule
-  description: Add an ingestion filter rule.
-  product_lane: ai
-  http_read_role_eligible: false
-  tier: core
 - name: vox_kb_cite
   description: Build a citation (heading path, doc link with anchor, kb:// URI, indexed commit) for an indexed KB Library chunk by chunk_hash.
   product_lane: ai
   http_read_role_eligible: true
-  tier: core
-- name: vox_kb_create
-  description: Create a new knowledge base.
-  product_lane: ai
-  http_read_role_eligible: false
-  tier: core
-- name: vox_kb_delete
-  description: Delete a knowledge base by ID.
-  product_lane: ai
-  http_read_role_eligible: false
-  tier: core
-- name: vox_kb_delete_entry
-  description: Delete a knowledge entry by ID.
-  product_lane: ai
-  http_read_role_eligible: false
   tier: core
 - name: vox_kb_get
   description: Fetch one indexed KB Library document by docs/src rel_path (frontmatter, chunk list, reconstructed markdown) or one chunk by 64-hex chunk_hash; reads only the index, never the file system.
   product_lane: ai
   http_read_role_eligible: true
   tier: core
-- name: vox_kb_get_feed
-  description: Get the feed of knowledge entries.
-  product_lane: ai
-  http_read_role_eligible: true
-  tier: core
-- name: vox_kb_list
-  description: List all available knowledge bases.
-  product_lane: ai
-  http_read_role_eligible: true
-  tier: core
-- name: vox_kb_list_entries
-  description: List all knowledge entries in a knowledge base.
-  product_lane: ai
-  http_read_role_eligible: true
-  tier: core
-- name: vox_kb_list_rules
-  description: List ingestion filter rules.
-  product_lane: ai
-  http_read_role_eligible: true
-  tier: core
-- name: vox_kb_query
-  description: Query knowledge bases with semantic search.
-  product_lane: ai
-  http_read_role_eligible: true
-  tier: core
 - name: vox_kb_reindex
   description: Rebuild the KB Library index from the repository docs/src tree (takes no path arguments; single-flight); returns the index report.
-  product_lane: ai
-  http_read_role_eligible: false
-  tier: core
-- name: vox_kb_review_entry
-  description: Accept or reject a knowledge entry.
   product_lane: ai
   http_read_role_eligible: false
   tier: core

@@ -1191,28 +1191,6 @@
       "curated": true
     },
     {
-      "capability_id": "mcp.vox_kb_add_entry",
-      "mcp_tool": "vox_kb_add_entry",
-      "implicit": false,
-      "title": "Add Knowledge Entry",
-      "description_model": "Add a knowledge entry to a knowledge base.",
-      "side_effect_class": "writes_files",
-      "scope_kind": "session",
-      "reversible": false,
-      "curated": true
-    },
-    {
-      "capability_id": "mcp.vox_kb_add_rule",
-      "mcp_tool": "vox_kb_add_rule",
-      "implicit": false,
-      "title": "Add Knowledge Rule",
-      "description_model": "Add an ingestion filter rule.",
-      "side_effect_class": "writes_files",
-      "scope_kind": "session",
-      "reversible": false,
-      "curated": true
-    },
-    {
       "capability_id": "mcp.vox_kb_cite",
       "mcp_tool": "vox_kb_cite",
       "implicit": false,
@@ -1225,39 +1203,6 @@
       "scope_kind": "repository",
       "reversible": true,
       "requires_repo": true,
-      "curated": true
-    },
-    {
-      "capability_id": "mcp.vox_kb_create",
-      "mcp_tool": "vox_kb_create",
-      "implicit": false,
-      "title": "Create Knowledge Base",
-      "description_model": "Create a new knowledge base.",
-      "side_effect_class": "writes_files",
-      "scope_kind": "session",
-      "reversible": false,
-      "curated": true
-    },
-    {
-      "capability_id": "mcp.vox_kb_delete",
-      "mcp_tool": "vox_kb_delete",
-      "implicit": false,
-      "title": "Delete Knowledge Base",
-      "description_model": "Delete a knowledge base by ID.",
-      "side_effect_class": "writes_files",
-      "scope_kind": "session",
-      "reversible": false,
-      "curated": true
-    },
-    {
-      "capability_id": "mcp.vox_kb_delete_entry",
-      "mcp_tool": "vox_kb_delete_entry",
-      "implicit": false,
-      "title": "Delete Knowledge Entry",
-      "description_model": "Delete a knowledge entry by ID.",
-      "side_effect_class": "writes_files",
-      "scope_kind": "session",
-      "reversible": false,
       "curated": true
     },
     {
@@ -1276,56 +1221,6 @@
       "curated": true
     },
     {
-      "capability_id": "mcp.vox_kb_get_feed",
-      "mcp_tool": "vox_kb_get_feed",
-      "implicit": false,
-      "title": "Get Knowledge Feed",
-      "description_model": "Get the feed of knowledge entries.",
-      "scope_kind": "session",
-      "reversible": false,
-      "curated": true
-    },
-    {
-      "capability_id": "mcp.vox_kb_list",
-      "mcp_tool": "vox_kb_list",
-      "implicit": false,
-      "title": "List Knowledge Bases",
-      "description_model": "List all available knowledge bases.",
-      "scope_kind": "session",
-      "reversible": false,
-      "curated": true
-    },
-    {
-      "capability_id": "mcp.vox_kb_list_entries",
-      "mcp_tool": "vox_kb_list_entries",
-      "implicit": false,
-      "title": "List Knowledge Entries",
-      "description_model": "List all knowledge entries in a knowledge base.",
-      "scope_kind": "session",
-      "reversible": false,
-      "curated": true
-    },
-    {
-      "capability_id": "mcp.vox_kb_list_rules",
-      "mcp_tool": "vox_kb_list_rules",
-      "implicit": false,
-      "title": "List Knowledge Rules",
-      "description_model": "List ingestion filter rules.",
-      "scope_kind": "session",
-      "reversible": false,
-      "curated": true
-    },
-    {
-      "capability_id": "mcp.vox_kb_query",
-      "mcp_tool": "vox_kb_query",
-      "implicit": false,
-      "title": "Query Knowledge Base",
-      "description_model": "Query knowledge bases with semantic search.",
-      "scope_kind": "session",
-      "reversible": false,
-      "curated": true
-    },
-    {
       "capability_id": "mcp.vox_kb_reindex",
       "mcp_tool": "vox_kb_reindex",
       "implicit": false,
@@ -1339,17 +1234,6 @@
       "scope_kind": "repository",
       "reversible": true,
       "requires_repo": true,
-      "curated": true
-    },
-    {
-      "capability_id": "mcp.vox_kb_review_entry",
-      "mcp_tool": "vox_kb_review_entry",
-      "implicit": false,
-      "title": "Review Knowledge Entry",
-      "description_model": "Accept or reject a knowledge entry.",
-      "side_effect_class": "writes_files",
-      "scope_kind": "session",
-      "reversible": false,
       "curated": true
     },
     {

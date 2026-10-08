@@ -1473,27 +1473,6 @@ async fn handle_tool_call_inner(
         }
 
         // ── Knowledge Bases (VoxKB) ──────────────────────────────────────────
-        "vox_kb_create" => Ok(crate::kb::kb_create(state, serde_json::from_value(args)?).await),
-        "vox_kb_list" => Ok(crate::kb::kb_list(state).await),
-        "vox_kb_delete" => Ok(crate::kb::kb_delete(state, serde_json::from_value(args)?).await),
-        "vox_kb_add_entry" => {
-            Ok(crate::kb::kb_add_entry(state, serde_json::from_value(args)?).await)
-        }
-        "vox_kb_delete_entry" => {
-            Ok(crate::kb::kb_delete_entry(state, serde_json::from_value(args)?).await)
-        }
-        "vox_kb_list_entries" => {
-            Ok(crate::kb::kb_list_entries(state, serde_json::from_value(args)?).await)
-        }
-        "vox_kb_review_entry" => {
-            Ok(crate::kb::kb_review_entry(state, serde_json::from_value(args)?).await)
-        }
-        "vox_kb_get_feed" => Ok(crate::kb::kb_get_feed(state, serde_json::from_value(args)?).await),
-        "vox_kb_add_rule" => Ok(crate::kb::kb_add_rule(state, serde_json::from_value(args)?).await),
-        "vox_kb_list_rules" => {
-            Ok(crate::kb::kb_list_rules(state, serde_json::from_value(args)?).await)
-        }
-        "vox_kb_query" => Ok(crate::kb::kb_query(state, serde_json::from_value(args)?).await),
         "vox_kb_search" => {
             Ok(crate::kb::library::kb_search(state, serde_json::from_value(args)?).await)
         }

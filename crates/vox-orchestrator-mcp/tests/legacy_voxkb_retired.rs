@@ -9,7 +9,39 @@
 use std::path::{Path, PathBuf};
 
 /// Retired names. Extended by later plans (03-12).
-const BANNED: &[&str] = &["vox_kb_clip", "kb.clip"];
+const BANNED: &[&str] = &[
+    // The twelve legacy MCP tool names (D-02: retired, no aliases).
+    "vox_kb_create",
+    "vox_kb_list",
+    "vox_kb_delete",
+    "vox_kb_add_entry",
+    "vox_kb_delete_entry",
+    "vox_kb_list_entries",
+    "vox_kb_review_entry",
+    "vox_kb_get_feed",
+    "vox_kb_add_rule",
+    "vox_kb_list_rules",
+    "vox_kb_query",
+    "vox_kb_clip",
+    // Their operations-catalog ids.
+    "kb.create",
+    "kb.list",
+    "kb.delete",
+    "kb.add_entry",
+    "kb.delete_entry",
+    "kb.list_entries",
+    "kb.review_entry",
+    "kb.get_feed",
+    "kb.add_rule",
+    "kb.list_rules",
+    "kb.query",
+    "kb.clip",
+    // The retrieval-bundle KB enrichment field and the three model-output signal adapters.
+    "kb_lines",
+    "signal_chat",
+    "signal_research",
+    "signal_scientia",
+];
 
 /// Generated or hand-maintained contract files that must not name a banned item.
 const CONTRACT_FILES: &[&str] = &[
