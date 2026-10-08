@@ -42,6 +42,15 @@ fn quoted_env_names(src: &str) -> impl Iterator<Item = &str> {
         .filter_map(|c| c.get(1).map(|m| m.as_str()))
 }
 
+/// `src` without its trailing inline test module (`#[cfg(test)]` + `mod …` at column 0).
+/// Test code that names a var it asserts is *never* passed is not a read.
+fn without_test_module(src: &str) -> &str {
+    match src.find("\n#[cfg(test)]\nmod ") {
+        Some(i) => &src[..i],
+        None => src,
+    }
+}
+
 /// Scan all non-test `.rs` under `crates/` for quoted `VOX_*` env-knob names,
 /// skipping integration-test dirs, this gate file and the registry-definition
 /// files (so we count *uses*, not the registry/operator definitions themselves).
@@ -61,7 +70,7 @@ fn scan_env_uses(root: &Path) -> BTreeSet<String> {
         {
             return;
         }
-        used.extend(quoted_env_names(src).map(str::to_string));
+        used.extend(quoted_env_names(without_test_module(src)).map(str::to_string));
     });
     used
 }
@@ -237,6 +246,15 @@ mod tests {
         "#;
         let got: Vec<&str> = quoted_env_names(src).collect();
         assert_eq!(got, vec!["VOX_REAL_KNOB", "VOX_CONST_HELD_KNOB"]);
+    }
+
+    #[test]
+    fn an_inline_test_module_is_not_a_use() {
+        // A test asserting a var is *never* passed (drive.rs: `k != "VOX_GUI_DRIVE_TOKEN"`)
+        // was counted as a read and failed the gate.
+        let src = "fn f() { read_env(\"VOX_REAL\"); }\n\n#[cfg(test)]\nmod tests {\n    fn t() { assert!(k != \"VOX_FORBIDDEN\"); }\n}\n";
+        let got: Vec<&str> = quoted_env_names(without_test_module(src)).collect();
+        assert_eq!(got, vec!["VOX_REAL"]);
     }
 
     #[test]

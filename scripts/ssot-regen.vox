@@ -34,7 +34,9 @@ fn main() {
     let i = regen(["--quiet", "ci", "gui-surface-coverage", "--write"], "ci gui-surface-coverage --write")
     let j = regen(["--quiet", "ci", "gui-surface-registry", "--write"], "ci gui-surface-registry --write")
     let k = regen(["--quiet", "ci", "affected-crates", "--regen", "--out", "contracts/ci/crate-graph.v1.json"], "ci affected-crates --regen")
-    if not (a and b and c and d and e and f and g and h and i and j and k) {
+    // After the crate graph: the build map's derived fields come from it (keeps committed compile_s).
+    let l = regen(["--quiet", "ci", "crate-build-map-parity", "--write"], "ci crate-build-map-parity --write")
+    if not (a and b and c and d and e and f and g and h and i and j and k and l) {
         print("Some regenerators failed; `vox ci ssot-drift` will name what is still stale.")
         process.exit(1)
     }
