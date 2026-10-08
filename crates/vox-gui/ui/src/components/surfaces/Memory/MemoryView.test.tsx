@@ -45,7 +45,7 @@ vi.mock('@tauri-apps/api/core', () => ({
       return Promise.resolve(mockHealth);
     }
     if (cmd === 'ingest_url') {
-      return Promise.resolve('web:test-hash');
+      return Promise.resolve({ finding_id: ingestUrlStatus === 'duplicate' ? null : 'f1', status: ingestUrlStatus });
     }
     if (cmd === 'ingest_text') {
       return Promise.resolve('doc:test-hash');
@@ -53,6 +53,8 @@ vi.mock('@tauri-apps/api/core', () => ({
     return Promise.resolve(null);
   }),
 }));
+
+let ingestUrlStatus = 'pending';
 
 const noopToast = () => {};
 
@@ -142,5 +144,30 @@ describe('MemoryView', () => {
     render(<LanguageProvider><MemoryView pushToast={noopToast} /></LanguageProvider>);
     const region = screen.getByLabelText('Recall citations');
     expect(region.getAttribute('aria-live')).toBe('polite');
+  });
+
+  async function submitIngestUrl(): Promise<{ title: string; body: string }[]> {
+    const toasts: { title: string; body: string }[] = [];
+    render(<LanguageProvider><MemoryView pushToast={(t: any) => toasts.push(t)} /></LanguageProvider>);
+    fireEvent.click(screen.getByTestId('tab-ingest'));
+    const input = await screen.findByPlaceholderText("https://example.com/article");
+    fireEvent.change(input, { target: { value: 'https://example.com/post' } });
+    fireEvent.click(screen.getByTestId('ingest-url-btn'));
+    await waitFor(() => expect(toasts.length).toBeGreaterThan(0));
+    return toasts;
+  }
+
+  it('Ingest URL toasts that the page was filed for review and is not yet searchable', async () => {
+    ingestUrlStatus = 'pending';
+    const [t] = await submitIngestUrl();
+    expect(t.title).toBe('Filed for review');
+    expect(t.body).toMatch(/pending review/i);
+    expect(t.body).toMatch(/not yet searchable/i);
+  });
+
+  it('Ingest URL toasts "Already pending review" for a duplicate finding', async () => {
+    ingestUrlStatus = 'duplicate';
+    const [t] = await submitIngestUrl();
+    expect(t.title).toBe('Already pending review');
   });
 });

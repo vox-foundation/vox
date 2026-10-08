@@ -201,15 +201,29 @@ fn filed(finding_id: Option<String>) -> FindingFiled {
 /// File GUI-ingested text (a scraped page or pasted text) as a pending `Untrusted` finding. It
 /// never touches `knowledge_nodes`, so nothing becomes retrievable before review (GROW-06).
 pub async fn file_gui_finding(
-    _db: &VoxDb,
-    _repo_root: &Path,
-    _origin: FindingOrigin,
-    _title: &str,
-    _text: &str,
-    _source_url: Option<&str>,
-    _provenance: serde_json::Value,
+    db: &VoxDb,
+    repo_root: &Path,
+    origin: FindingOrigin,
+    title: &str,
+    text: &str,
+    source_url: Option<&str>,
+    provenance: serde_json::Value,
 ) -> Result<FindingFiled, String> {
-    Err("not implemented".into())
+    let outcome = capture_finding(
+        db,
+        repo_root,
+        CaptureInput {
+            origin,
+            title: title.to_string(),
+            text: text.to_string(),
+            full_text: Some(text.to_string()),
+            source_url: source_url.map(str::to_string),
+            dedupe_scope: None,
+            provenance,
+        },
+    )
+    .await?;
+    Ok(filed(outcome.finding_id))
 }
 
 /// What one legacy-VoxKB migration pass saw and did (RET-03).

@@ -4,6 +4,8 @@
 
 use tauri::State;
 use vox_db::KnowledgeNodeRecord;
+use vox_db::kb_text::FindingOrigin;
+use vox_orchestrator_mcp::kb_tools::findings::{FindingFiled, file_gui_finding};
 
 use crate::commands::gui_db_pool::{GuiDbPool, map_db_err};
 
@@ -167,7 +169,7 @@ async fn check_robots_allowed(client: &reqwest::Client, target_url: &str) -> boo
 }
 
 #[tauri::command]
-pub async fn ingest_url(pool: State<'_, GuiDbPool>, url: String) -> Result<String, String> {
+pub async fn ingest_url(pool: State<'_, GuiDbPool>, url: String) -> Result<FindingFiled, String> {
     let db = pool.handle()?;
     let clean_url = url.trim();
     if clean_url.is_empty() {
@@ -196,34 +198,28 @@ pub async fn ingest_url(pool: State<'_, GuiDbPool>, url: String) -> Result<Strin
         .await
         .map_err(|e| format!("Failed to scrape URL {clean_url}: {e}"))?;
 
-    let url_hash = vox_crypto::hash_fast_hex(clean_url.as_bytes());
-    let node_id = format!("web:{url_hash}");
-    let meta = serde_json::json!({
-        "url": doc.url,
+    let provenance = serde_json::json!({
         "title": doc.title,
         "text_density": doc.text_density,
         "ingest_type": "url",
-    })
-    .to_string();
-
+    });
     let label = if doc.title.trim().is_empty() {
         clean_url
     } else {
         doc.title.trim()
     };
 
-    db.upsert_knowledge_node(
-        &node_id,
+    // Scraped pages are Untrusted: they wait in the findings inbox, never in knowledge_nodes.
+    file_gui_finding(
+        db.as_ref(),
+        &crate::commands::research::research_repo_root(),
+        FindingOrigin::GuiIngestUrl,
         label,
         &doc.markdown,
-        Some("web_scrape"),
-        Some(&meta),
-        None,
+        Some(clean_url),
+        provenance,
     )
     .await
-    .map_err(map_db_err)?;
-
-    Ok(node_id)
 }
 
 #[derive(serde::Deserialize)]
