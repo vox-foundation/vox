@@ -1,0 +1,260 @@
+---
+title: "Capability Profiles — shared contracts for all implementation plans"
+description: "Exact type names, file locations, wire shapes, error codes, and env/flag names that every capability-profiles plan (01–07) must use verbatim."
+category: "architecture"
+status: "proposed"
+date: 2026-10-08
+---
+
+# Capability Profiles — Shared Contracts
+
+Spec: [`docs/superpowers/specs/2026-10-08-capability-profiles-design.md`](../../specs/2026-10-08-capability-profiles-design.md).
+Every plan in this directory consumes these names **verbatim**. If a plan needs a change here, it
+changes this file in the same commit and says so.
+
+## Plan map and order
+
+| Plan | Delivers | Depends on |
+|---|---|---|
+| `01-exposure-metadata.md` | `Exposure`, `SideEffectClass`, `Subsystem` types; catalog fields; all 340 ops classified; CI gate; `tier` removed | — |
+| `02-profiles.md` | Profile manifests, `ActiveProfile`, `tools/list` + dispatch filtering (stdio + HTTP), `--profile`, `VOX_PROFILE`, `vox serve`, `profile_mismatch`, bundle `profiles` | 01 |
+| `03-subsystem-boot.md` | Conditioned daemon boot, `BootReport`, `subsystem_not_booted`, degraded boot | 01, 02 |
+| `04-network-policy.md` | Bind policy, TLS/`--behind-tunnel`, exposure-by-role off loopback, `GET /v1/profile` | 02, 03 |
+| `05-crate-extraction.md` | `vox-attention` (L2) and `vox-models` (L3) extracted from `vox-orchestrator` | 01 (and the uncommitted model-bench WIP landing first) |
+| `06-axis-remote.md` | Axis `Backend` enum, `GatewayClient`, command-backends manifest + CI, surface gating, connect flow | 04 |
+| `07-axis-db-migration.md` | Per-profile migration of `db`-class Axis commands behind daemon RPC / `/api/v2` | 06 |
+
+Deviation from spec §5 (recorded here and in plan 01): `Subsystem` lives in **`vox-mcp-registry`**,
+not `vox-orchestrator-types`, because `vox-orchestrator`, `vox-orchestrator-mcp`, `vox-cli` already
+depend on `vox-mcp-registry` and `vox-orchestrator-d` / `vox-gui` reach it through
+`vox-orchestrator-mcp`. Zero new crate edges for plans 01–04, 06–07.
+
+## Branch / worktree
+
+- Worktree: `/Users/brbrainerd/dev/vox/.worktrees/capability-profiles`, branch
+  `feat/capability-profiles`, based on `origin/main`.
+- Never edit `/Users/brbrainerd/dev/vox` (main checkout) — it holds another session's uncommitted
+  model-bench WIP in `crates/vox-orchestrator/src/models/**`, `crates/vox-orchestrator-mcp/src/http_gateway/dashboard_api.rs`, `crates/vox-gui/**`.
+
+## Types (crate `vox-mcp-registry`)
+
+New modules: `src/exposure.rs`, `src/subsystem.rs`, `src/profile.rs`, `src/boot.rs`; re-exported
+from `lib.rs`. `vox-orchestrator-mcp` re-exports them as `vox_orchestrator_mcp::profiles::*`.
+
+```rust
+// src/exposure.rs
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Exposure { Public, Operator, Internal }          // Ord: Public < Operator < Internal
+impl Exposure {
+    pub const fn as_str(self) -> &'static str;              // "public" | "operator" | "internal"
+    pub fn parse(s: &str) -> Option<Self>;
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SideEffectClass { None, ReadOnly, WritesFiles, SpawnsProcess, Network, RemoteMutation, Destructive }
+impl SideEffectClass {
+    pub const fn as_str(self) -> &'static str;              // snake_case of variant
+    pub fn parse(s: &str) -> Option<Self>;
+}
+
+// src/subsystem.rs
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Subsystem {
+    Db, Sessions, AgentFleet, ModelRegistry, LlmFacade, SearchIndex, Memory,
+    Research, Mesh, Attention, Clarification, Flywheel, Compiler, Browser, Speech,
+}
+impl Subsystem {
+    pub const ALL: &'static [Subsystem];
+    pub const fn as_str(self) -> &'static str;              // snake_case: "db", "agent_fleet", ...
+    pub fn parse(s: &str) -> Option<Self>;
+    pub const fn deps(self) -> &'static [Subsystem];         // direct deps, table below
+}
+/// Transitive closure including the roots, deterministic order.
+pub fn subsystem_closure(roots: &[Subsystem]) -> std::collections::BTreeSet<Subsystem>;
+```
+
+Dependency table (`deps`): `Sessions→[Db]`, `AgentFleet→[Sessions]`, `LlmFacade→[ModelRegistry]`,
+`SearchIndex→[Db]`, `Memory→[Db, SearchIndex]`, `Research→[LlmFacade, SearchIndex, Db]`,
+`Mesh→[Db]`, `Clarification→[Db]`, `Flywheel→[Db]`; all others `[]`.
+
+```rust
+// lib.rs — registry row (replaces the current struct; `tier` is REMOVED)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct McpToolRegistryEntry {
+    pub name: &'static str,
+    pub description: &'static str,
+    pub product_lane: &'static str,
+    pub http_read_role_eligible: bool,
+    pub exposure: Exposure,
+    pub side_effect_class: SideEffectClass,
+    pub requires: &'static [Subsystem],
+}
+pub fn registry_entry(name: &str) -> Option<&'static McpToolRegistryEntry>;
+
+// src/profile.rs
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ProfileManifest {
+    pub id: &'static str,
+    pub description: &'static str,
+    pub requires: &'static [Subsystem],
+    pub tools: &'static [&'static str],      // fully resolved at build time (globs/lanes expanded, clipped to max_exposure)
+    pub max_exposure: Exposure,
+    pub axis_surfaces: &'static [&'static str],
+}
+pub const DEV_PROFILE_ID: &str = "dev";
+pub static PROFILES: &[ProfileManifest];      // generated; includes synthesized `dev` (all tools, all subsystems, max_exposure Internal)
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ActiveProfile {
+    pub ids: Vec<&'static str>,
+    pub tools: std::collections::BTreeSet<&'static str>,
+    pub subsystems: std::collections::BTreeSet<Subsystem>,   // closure
+    pub axis_surfaces: std::collections::BTreeSet<&'static str>,
+    pub max_exposure: Exposure,                               // max over composed profiles
+}
+impl ActiveProfile {
+    pub fn dev() -> Self;
+    pub fn resolve(ids: &[&str]) -> Result<Self, ProfileError>;   // empty slice => dev()
+    pub fn from_env() -> Result<Self, ProfileError>;               // reads VOX_PROFILE; unset/empty => dev()
+    pub fn contains_tool(&self, name: &str) -> bool;
+    pub fn id_string(&self) -> String;                             // ids joined with ","; canonical sorted
+}
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum ProfileError { #[error("profile_unknown: {0}")] Unknown(String) }
+
+// src/boot.rs
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
+pub struct BootReport {
+    pub booted: std::collections::BTreeSet<Subsystem>,
+    pub failed: std::collections::BTreeMap<Subsystem, String>,
+}
+impl BootReport {
+    pub fn is_up(&self, s: Subsystem) -> bool;                     // booted.contains(s)
+    pub fn missing_for(&self, requires: &[Subsystem]) -> Option<Subsystem>; // first not-up requirement
+}
+
+/// Typed denial, shared by stdio MCP and HTTP.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ProfileDenial {
+    ToolNotInProfile,
+    SubsystemNotBooted(Subsystem),
+    ExposureDenied,
+    InsufficientRole,
+}
+impl ProfileDenial {
+    pub const fn code(&self) -> &'static str;      // "tool_not_in_profile" | "subsystem_not_booted" | "exposure_denied" | "insufficient_role"
+    pub const fn http_status(&self) -> u16;        // 404 | 503 | 403 | 403
+}
+```
+
+Single decision function (plan 02 adds it, plan 03 feeds `BootReport`, plan 04 feeds caller context):
+
+```rust
+// src/profile.rs
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CallerRole { Read, Write }
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CallContext { pub role: CallerRole, pub loopback: bool }
+impl CallContext { pub const LOCAL_WRITE: CallContext = CallContext { role: CallerRole::Write, loopback: true }; }
+
+pub fn authorize_tool(
+    profile: &ActiveProfile,
+    boot: &BootReport,
+    ctx: CallContext,
+    tool: &str,
+) -> Result<&'static McpToolRegistryEntry, ProfileDenial>;
+```
+
+Order of checks in `authorize_tool` (tests pin this order):
+1. Unknown tool or not in `profile.tools` → `ToolNotInProfile`.
+2. `!ctx.loopback && entry.exposure == Internal` → `ExposureDenied`.
+3. `ctx.role == Read && entry.exposure == Operator` → `ExposureDenied`.
+4. `ctx.role == Read && !entry.http_read_role_eligible` → `InsufficientRole`.
+5. `boot.missing_for(entry.requires)` is `Some(s)` → `SubsystemNotBooted(s)`.
+
+Advertising (`tools/list`, `GET /v1/tools`) = the tools for which `authorize_tool` returns `Ok`.
+
+## Contract files
+
+- `contracts/operations/catalog.v1.yaml`: on every op with `mcp != null`, the `mcp:` block gains
+  `exposure: public|operator|internal` and `requires: [<subsystem ids>]` (may be `[]`); the op's
+  existing top-level `side_effect_class` becomes **required non-null** for those ops. `mcp.tier` is
+  removed.
+- `contracts/mcp/tool-registry.canonical.yaml` (generated by `vox ci operations-sync --target mcp --write`):
+  each tool row gains `exposure`, `side_effect_class`, `requires`; `tier` removed.
+- `contracts/mcp/tool-registry.schema.json`: updated accordingly.
+- `contracts/profiles/<id>.v1.yaml` (plan 02) — format:
+
+```yaml
+id: models
+description: "..."
+requires: [model_registry, llm_facade]
+tools:
+  include: [vox_list_models, vox_chat_*]   # exact names or trailing-* prefix
+  include_lanes: []                        # product_lane values
+max_exposure: operator
+axis_surfaces: [models, chat]
+```
+
+- `contracts/gui/command-backends.v1.yaml` (plan 06): `commands: [{ module: <file stem>, class: daemon|db|host, surfaces: [..] }]`.
+
+## Env vars and flags (add to `contracts/config/env-vars.v1.yaml` + `docs/src/reference/env-vars.md`)
+
+| Name | Plan | Meaning |
+|---|---|---|
+| `VOX_PROFILE` | 02 | Comma-separated profile ids; unset ⇒ `dev`. Spawners (CLI, GUI) pass it to `vox-orchestrator-d`. |
+| `VOX_MCP_HTTP_HOST` (existing) | 04 | Bind host; non-loopback triggers bind policy. |
+| `VOX_MCP_HTTP_TLS_CERT`, `VOX_MCP_HTTP_TLS_KEY` | 04 | PEM paths. |
+| `VOX_MCP_HTTP_BEHIND_TUNNEL` | 04 | `1` = operator attests a TLS-terminating tunnel/proxy. |
+| `VOX_MCP_TIERS` | 01 | Retired: deprecation marker, ignored with a warning. |
+
+CLI: `vox mcp --profile <ids>`; `vox serve --profile <ids> [--bind <host:port>] [--tls-cert <p> --tls-key <p> | --behind-tunnel]`
+(register in `contracts/cli/command-registry.yaml`, then `cargo run -p vox-cli -- ci command-sync`).
+
+Daemon ping response gains `"profile": "<id_string>"`; a spawner requesting a different profile
+gets `profile_mismatch` (HTTP 409 where applicable) instead of adopting.
+
+## Wire shapes
+
+MCP tool error (stdio + WS), as the tool result `isError: true` with JSON text content:
+
+```json
+{"error":{"code":"subsystem_not_booted","message":"tool vox_kb_query requires subsystem search_index, which is not running","subsystem":"search_index"}}
+```
+
+HTTP: same JSON body with `ProfileDenial::http_status()`. Profile resolution errors: 400
+`profile_unknown`. Adopt mismatch: 409 `profile_mismatch`. Axis client-side: `version_mismatch`.
+
+`GET /v1/profile` (read or write token; loopback unauthenticated allowed only where today's
+gateway allows it):
+
+```json
+{
+  "profiles": ["models"],
+  "max_exposure": "operator",
+  "subsystems": { "booted": ["llm_facade", "model_registry"], "failed": [{"id": "db", "error": "..."}] },
+  "tools": ["vox_list_models", "..."],
+  "axis_surfaces": ["chat", "models"],
+  "server_version": "0.x.y"
+}
+```
+
+`tools` here = tools advertisable to the **calling** token's context.
+
+## Global constraints (apply to every task)
+
+- TDD: failing test first; every new `pub fn` has a test in the same file (`skeleton/untested-pub-api`).
+- Security guards are mutation-verified: break the guard, see the test fail, restore, with a
+  before/after presence check (AGENTS.md §PR & Review Discipline).
+- No new workspace crate edges in plans 01–04, 06–07. Plan 05's new edges are **proposed for user
+  authorization** and are not added to `contracts/ci/crate-edges.allow.v1.json` by an agent.
+- Secrets via `vox_secrets::resolve_secret`; no `std::env::var` for tokens. Non-secret `VOX_*`
+  config via existing `vox-config` patterns.
+- Never `cargo fmt --all`; format dirty files with `vox run scripts/fmt.vox`.
+- Generated files (`tool-registry.canonical.yaml`, `*.generated.md`) are regenerated, never hand-edited.
+- New `.md` under `docs/src/` has frontmatter; lint with `cargo run -p vox-doc-pipeline -- --lint-only --paths <path relative to docs/src>`.
+- Per-crate checks before each commit: `cargo check -p <crate>`, `cargo clippy -p <crate> --all-targets -- -D warnings`, targeted `cargo nextest run -p <crate> <filter>`.
+- `dev` profile must reproduce today's behaviour exactly (back-compat tests in plans 02 and 03).
