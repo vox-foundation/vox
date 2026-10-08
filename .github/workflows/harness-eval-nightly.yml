@@ -36,6 +36,23 @@ jobs:
         with:
           persist-credentials: false
 
+      # Without the key, model routing falls back to a local endpoint that does not exist
+      # on the runner and all 12 tasks fail opaquely; say what is actually missing.
+      - name: Require the OpenRouter key
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          if [ -z "${OPENROUTER_API_KEY}" ]; then
+            echo "::error::OPENROUTER_API_KEY repository secret is not set; the live eval cannot call any model."
+            exit 1
+          fi
+
+      # Pinned toolchain + a main-only cargo cache: the uncached release build took 22-29
+      # of this job's 30 minutes. The suffix keeps the release target off the dev-profile keys.
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-key-suffix: -harness-release
+
       - name: Build vox-cli
         run: cargo build --release -p vox-cli
 

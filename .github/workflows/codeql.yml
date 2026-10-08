@@ -2,8 +2,8 @@
 #
 # Static security analysis for Rust and JavaScript/TypeScript.
 #
-# Rust CodeQL support is now GA. CodeQL's Rust extractor relies on build tracing,
-# so we run an explicit `cargo build` for the rust language instead of autobuild.
+# Rust CodeQL support is GA and build-mode none: the extractor does its own traceless
+# extraction, so this job runs no build of its own.
 # If GitHub's "default setup" for CodeQL is enabled on this repo it can conflict
 # with this advanced (workflow-defined) setup; disable the default setup under
 # Settings -> Security -> Code scanning if you see duplicate or failing analyses.
@@ -45,16 +45,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      # build-mode: none for both languages. CodeQL's Rust extractor does not trace a
+      # build (it runs its own traceless extraction in a scratch target dir), so the
+      # explicit `cargo build` this job used to run was 16-23 min of pure waste that
+      # pushed every run since 2026-08-31 past the 60-min timeout.
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
+          build-mode: none
 
       - name: Cache Rust build
         if: matrix.language == 'rust'
         uses: Swatinem/rust-cache@v2
 
-      # `cargo build --workspace` pulls system libraries transitively:
+      # The extractor's own cargo still runs build scripts, which pull system libraries:
       #   - `libdbus-sys` (keyring / secret-service, default `keyring-store` feature)
       #   - the GTK/WebKit stack (`webkit2gtk-sys`, `gtk`, `gdk`, …) from the
       #     Tauri GUI backend.
@@ -75,19 +80,6 @@ jobs:
             libjavascriptcoregtk-4.1-dev \
             libappindicator3-dev \
             librsvg2-dev
-
-      # CodeQL's Rust extractor uses build tracing, so build explicitly.
-      # Exclude `vox-gui`: its `tauri::generate_context!()` macro fails at compile
-      # time unless the web frontend (`ui/dist`) has been built first, which this
-      # analysis job does not do. vox-gui is a thin Tauri shell — the Rust logic
-      # CodeQL needs to analyze lives in the (still-built) backend crates.
-      - name: Build (rust)
-        if: matrix.language == 'rust'
-        run: cargo build --workspace --exclude vox-gui
-
-      - name: Autobuild
-        if: matrix.language != 'rust'
-        uses: github/codeql-action/autobuild@v4
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4
