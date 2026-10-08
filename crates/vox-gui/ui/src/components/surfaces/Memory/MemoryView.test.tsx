@@ -48,7 +48,7 @@ vi.mock('@tauri-apps/api/core', () => ({
       return Promise.resolve({ finding_id: ingestUrlStatus === 'duplicate' ? null : 'f1', status: ingestUrlStatus });
     }
     if (cmd === 'ingest_text') {
-      return Promise.resolve('doc:test-hash');
+      return Promise.resolve({ finding_id: 'f2', status: 'pending' });
     }
     return Promise.resolve(null);
   }),

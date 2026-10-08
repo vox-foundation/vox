@@ -564,7 +564,8 @@ describe('ResearchView', () => {
         expect(invokeMock).toHaveBeenCalledWith('save_research_session_to_kb', { sessionId: 1 });
         expect(pushToast).toHaveBeenCalledWith(expect.objectContaining({
           tone: 'ok',
-          title: 'Saved to Knowledge Base',
+          title: 'Filed for review',
+          body: expect.stringMatching(/3 source\(s\) filed for review/),
           cause: 'backend-ok',
         }));
       });

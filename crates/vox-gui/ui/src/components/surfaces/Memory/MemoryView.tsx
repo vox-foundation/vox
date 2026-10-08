@@ -269,12 +269,12 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
     if (!ingestContent.trim()) return;
     setIngestingText(true);
     try {
-      const nodeId = await invoke<string>('ingest_text', {
+      const res = await invoke<FindingFiled>('ingest_text', {
         title: ingestTitle.trim(),
         content: ingestContent.trim(),
         sourceUrl: ingestSourceUrl.trim() || null,
       });
-      pushToast({ tone: 'ok', title: 'Document Stored', body: `Saved as ${nodeId}`, cause: 'backend-ok' });
+      toastFiled(res, 'The text');
       setIngestTitle('');
       setIngestContent('');
       setIngestSourceUrl('');
@@ -864,7 +864,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
               Direct Text / Markdown Ingest
             </h3>
             <p className="mt-1 text-xs text-text-muted">
-              Store notes, reference documents, or manual excerpts into the knowledge graph with full FTS5 indexing.
+              File notes, reference documents, or manual excerpts in the review inbox. They are not searchable until reviewed.
             </p>
             <div className="mt-4 space-y-3">
               <div>
@@ -904,7 +904,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
                 onClick={() => void handleIngestText()}
                 className="inline-flex items-center gap-1.5 rounded-md border border-brass/40 bg-brass/15 px-3 py-1.5 text-xs font-medium text-brass hover:bg-brass/25 disabled:opacity-40 transition"
               >
-                {ingestingText ? 'Storing Document…' : 'Store Document'}
+                {ingestingText ? 'Filing…' : 'File for Review'}
               </button>
             </div>
           </Glass>
