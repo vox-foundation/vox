@@ -179,6 +179,39 @@ pub async fn capture_finding(
     })
 }
 
+/// Result of filing GUI side-door content: `pending` (new) or `duplicate` (already in the inbox).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct FindingFiled {
+    pub finding_id: Option<String>,
+    pub status: String,
+}
+
+fn filed(finding_id: Option<String>) -> FindingFiled {
+    let status = if finding_id.is_some() {
+        "pending"
+    } else {
+        "duplicate"
+    };
+    FindingFiled {
+        finding_id,
+        status: status.to_string(),
+    }
+}
+
+/// File GUI-ingested text (a scraped page or pasted text) as a pending `Untrusted` finding. It
+/// never touches `knowledge_nodes`, so nothing becomes retrievable before review (GROW-06).
+pub async fn file_gui_finding(
+    _db: &VoxDb,
+    _repo_root: &Path,
+    _origin: FindingOrigin,
+    _title: &str,
+    _text: &str,
+    _source_url: Option<&str>,
+    _provenance: serde_json::Value,
+) -> Result<FindingFiled, String> {
+    Err("not implemented".into())
+}
+
 /// What one legacy-VoxKB migration pass saw and did (RET-03).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct LegacyKbReport {
