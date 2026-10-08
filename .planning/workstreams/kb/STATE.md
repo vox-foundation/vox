@@ -5,16 +5,16 @@ milestone_name: Vox Knowledge Base — corpus to context
 current_phase: 03
 current_phase_name: Provenance, Trust Tiers and Leak Closure
 status: executing
-stopped_at: Completed 03-09-PLAN.md
-last_updated: "2026-10-08T19:29:13.986Z"
+stopped_at: Completed 03-10-PLAN.md
+last_updated: "2026-10-08T20:21:31.732Z"
 last_activity: 2026-10-06
 last_activity_desc: Phase 03 execution started
-state_head: 219003a181003fa12dc8a3d31370745160563af4
+state_head: e63e7518836be26a71cdf64ce3101e92dc3f8821
 progress:
   total_phases: 12
   completed_phases: 2
   total_plans: 37
-  completed_plans: 33
+  completed_plans: 34
   percent: 17
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (shared project context) and .planning/workstreams/kb/
 ## Current Position
 
 Phase: 03 (Provenance, Trust Tiers and Leak Closure) — EXECUTING
-Plan: 10 of 13
+Plan: 11 of 13
 Status: Ready to execute
 Last activity: 2026-10-06 — Phase 03 execution started
 
@@ -80,6 +80,7 @@ Progress: [██░░░░░░░░] 17%
 | Phase 03 P07 | long | 2 tasks | 9 files |
 | Phase 03 P08 | 150min | 2 tasks | 4 files |
 | Phase 03 P09 | long | 2 tasks | 13 files |
+| Phase 03 P10 | 75 min | 2 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -111,6 +112,7 @@ Progress: [██░░░░░░░░] 17%
 - [Phase 03]: 03-07: @kb mentions parse but inject nothing until Phase 7 (D-05); MEMORY research sink deleted not rerouted (D-06); leak tests must seed a row the retired path would substring-match
 - [Phase 03]: 03-08: legacy VoxKB migration copies non-empty kb_entries as pending Untrusted findings on every DB attach; MENS KbSignals reads only reviewed findings as DPO pairs (no SFT)
 - [Phase 03]: 03-09: tier label is a line prefix (rrf dedup key strips it); AutoChatPreamble drops Untrusted hits, envelope tier = min of kept hits (Untrusted when none); SanitizedText at bundle, research sources and vox_kb_* outputs
+- [Phase 03]: 03-10: D-02 option-a applied - 12 legacy vox_kb_* tools retired with no aliases (catalog, generated registries, dispatch, schemas, read-role list); legacy_voxkb_surface_absent guards it, extended by 03-12
 
 ### Pending Todos
 
@@ -125,8 +127,8 @@ Progress: [██░░░░░░░░] 17%
 
 ## Session Continuity
 
-**Last session:** 2026-10-08T19:29:13.952Z
+**Last session:** 2026-10-08T20:21:31.694Z
 
-**Stopped At:** Completed 03-09-PLAN.md
+**Stopped At:** Completed 03-10-PLAN.md
 **Resume File:** None
 **Next:** `/gsd-plan-phase 1` (no research-phase needed)
