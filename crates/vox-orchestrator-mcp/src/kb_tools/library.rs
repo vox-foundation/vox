@@ -11,6 +11,7 @@ use std::sync::Arc;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::json;
+use vox_db::kb_text::SanitizedText;
 use vox_db::{KB_LIBRARY_CORPUS, LibraryChunkRow, VoxDb};
 use vox_search::library::{
     IndexDeps, IndexReport, LibraryHit, index_library, lexical, search, status,
@@ -40,6 +41,22 @@ pub struct KbSearchParams {
 
 fn require_db(state: &ServerState) -> Result<Arc<VoxDb>, String> {
     state.db.clone().ok_or_else(|| REM_KB_DB.to_string())
+}
+
+/// Sanitize every string leaf of a tool result (TRUST-05 at the injection boundary): curated
+/// docs and rows indexed before the sanitizer existed reach a model only through here.
+fn clean(v: serde_json::Value) -> serde_json::Value {
+    use serde_json::Value;
+    match v {
+        Value::String(s) => Value::String(SanitizedText::new(&s).into_string()),
+        Value::Array(a) => Value::Array(a.into_iter().map(clean).collect()),
+        Value::Object(m) => Value::Object(m.into_iter().map(|(k, v)| (k, clean(v))).collect()),
+        other => other,
+    }
+}
+
+fn ok_clean(v: serde_json::Value) -> ToolResult<serde_json::Value> {
+    ToolResult::ok(clean(v))
 }
 
 fn err_json(msg: impl Into<String>, remediation: &str) -> String {
@@ -88,7 +105,7 @@ fn hit_json(h: &LibraryHit) -> serde_json::Value {
 /// Search the Library index in `dir`.
 async fn search_in(db: &VoxDb, dir: &Path, query: &str, limit: usize) -> String {
     match search(db, dir, query, limit).await {
-        Ok(hits) => ToolResult::ok(json!({
+        Ok(hits) => ok_clean(json!({
             "lexical_backend": lexical::LEXICAL_BACKEND,
             "hits": hits.iter().map(hit_json).collect::<Vec<_>>(),
         }))
@@ -210,7 +227,7 @@ pub async fn kb_reindex(state: &ServerState) -> String {
     };
     let root = &state.repository.root;
     match reindex_at(&db, root, &dir, head_commit(root).await).await {
-        Ok(r) => ToolResult::ok(report_json(&r)).to_json(),
+        Ok(r) => ok_clean(report_json(&r)).to_json(),
         Err(e) => err_json(
             e,
             "If a reindex is already running, wait for it to finish; otherwise fix the error and retry.",
@@ -298,7 +315,7 @@ async fn get_by_path(db: &VoxDb, path: &str) -> String {
         .map(|c| c.body.as_str())
         .collect::<Vec<_>>()
         .join("\n\n");
-    ToolResult::ok(json!({
+    ok_clean(json!({
         "doc": {
             "rel_path": doc.rel_path,
             "title": doc.title,
@@ -318,7 +335,7 @@ async fn get_by_hash(db: &VoxDb, hash: &str) -> String {
         Ok(Some(c)) => {
             let mut chunk = chunk_meta(&c);
             chunk["body"] = json!(c.body);
-            ToolResult::ok(json!({
+            ok_clean(json!({
                 "chunk": chunk,
                 "doc_path": c.doc_path,
                 "uri": chunk_uri(&c.chunk_hash),
@@ -378,7 +395,7 @@ pub async fn kb_cite(state: &ServerState, params: KbCiteParams) -> String {
         Some(a) => format!("{}#{a}", c.doc_path),
         None => c.doc_path.clone(),
     };
-    ToolResult::ok(json!({
+    ok_clean(json!({
         "chunk_hash": c.chunk_hash,
         "doc_path": c.doc_path,
         "title": c.title,
@@ -410,7 +427,7 @@ pub async fn kb_status(state: &ServerState) -> String {
     };
     let index_dir = dir.to_string_lossy().into_owned();
     let Some(s) = st.state else {
-        return ToolResult::ok(json!({
+        return ok_clean(json!({
             "indexed": false,
             "index_dir": index_dir,
             "consistent": false,
@@ -421,7 +438,7 @@ pub async fn kb_status(state: &ServerState) -> String {
         .embed_model_id
         .clone()
         .unwrap_or_else(|| "none (lexical-only)".into());
-    ToolResult::ok(json!({
+    ok_clean(json!({
         "indexed": true,
         "index_dir": index_dir,
         "corpus_root": s.corpus_root,
@@ -466,17 +483,19 @@ mod tests {
     /// Temp repo with one doc, indexed into `<tmp>/idx/library` and served by a state whose
     /// repository root is that temp repo. Caller holds `#[serial]`.
     async fn indexed_state() -> (TempDir, ServerState) {
+        indexed_state_with("# Guide\n\nIntro text.\n\n## Install\nrun turbofrobnicate to install\n")
+            .await
+    }
+
+    async fn indexed_state_with(guide_md: &str) -> (TempDir, ServerState) {
         let tmp = tempfile::tempdir().unwrap();
         let repo = tmp.path().join("repo");
         tokio::fs::create_dir_all(repo.join("docs/src"))
             .await
             .unwrap();
-        tokio::fs::write(
-            repo.join("docs/src/guide.md"),
-            "# Guide\n\nIntro text.\n\n## Install\nrun turbofrobnicate to install\n",
-        )
-        .await
-        .unwrap();
+        tokio::fs::write(repo.join("docs/src/guide.md"), guide_md)
+            .await
+            .unwrap();
         let idx_root = tmp.path().join("idx");
         set_index_root(&idx_root);
         let db = Arc::new(VoxDb::open_memory().await.unwrap());
@@ -486,6 +505,65 @@ mod tests {
         let mut state = ServerState::new_test().await.with_db_initialized(db).await;
         state.repository.root = repo;
         (tmp, state)
+    }
+
+    /// Red-team `input` of the case `id`.
+    fn redteam_input(id: &str) -> String {
+        include_str!("../../../../contracts/kb/redteam/cases.v1.jsonl")
+            .lines()
+            .filter_map(|l| serde_json::from_str::<serde_json::Value>(l).ok())
+            .find(|v| v["id"] == id)
+            .and_then(|v| v["input"].as_str().map(str::to_string))
+            .unwrap_or_else(|| panic!("no red-team case {id}"))
+    }
+
+    /// TRUST-05 at the injection boundary: a curated doc that carries an image-exfil link and a
+    /// tag-block payload (the indexer does not sanitize) reaches no model through the KB tools.
+    #[tokio::test]
+    #[serial]
+    async fn kb_injection_kb_tools_neutralize_exfil_and_tag_block() {
+        let exfil = redteam_input("inline-image-exfil-url");
+        let tags = redteam_input("tag-block-ascii-smuggling");
+        let md = format!("# Guide\n\n## Install\nturbofrobnicate {exfil} {tags}\n");
+        let (_tmp, state) = indexed_state_with(&md).await;
+        let hits = tool(&state, "vox_kb_search", json!({"query": "turbofrobnicate"})).await;
+        let hash = hits["data"]["hits"][0]["chunk_hash"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let outs = [
+            hits.to_string(),
+            tool(&state, "vox_kb_get", json!({"path": "docs/src/guide.md"}))
+                .await
+                .to_string(),
+            tool(&state, "vox_kb_get", json!({"chunk_hash": &hash}))
+                .await
+                .to_string(),
+            tool(&state, "vox_kb_cite", json!({"chunk_hash": &hash}))
+                .await
+                .to_string(),
+        ];
+        for (i, out) in outs.iter().enumerate() {
+            assert!(
+                !out.contains("evil.example") && !out.contains("!["),
+                "tool {i}: {out}"
+            );
+            assert!(
+                !out.contains('\u{E0069}') && !out.contains('\u{E0067}'),
+                "tool {i}"
+            );
+        }
+        // Non-vacuous: the stored chunk still holds the payload; only the tool output is clean.
+        let stored = state
+            .db
+            .as_ref()
+            .unwrap()
+            .library_chunk_by_hash(&hash)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(stored.body.contains("evil.example"), "{}", stored.body);
+        assert!(outs[2].contains("turbofrobnicate"), "{}", outs[2]);
     }
 
     #[tokio::test]

@@ -5,7 +5,7 @@ use std::time::Instant;
 
 use serde::Serialize;
 use serde_json::{Value, json};
-use vox_db::kb_text::FindingOrigin;
+use vox_db::kb_text::{FindingOrigin, SanitizedText};
 use vox_search::memory_hybrid::HybridSearchHit;
 use vox_search::web_dispatcher::{ProviderStatus, WebSearchDispatcher};
 
@@ -182,14 +182,20 @@ pub fn sources_from_hits(hits: &[HybridSearchHit], max: usize) -> Vec<Source> {
         .map(|(i, h)| Source {
             n: i + 1,
             url: h.path.clone(),
-            title: h.title.clone(),
+            title: SanitizedText::new(&h.title).into_string(),
             engine: h
                 .provenance
                 .iter()
                 .find_map(|p| p.strip_prefix("engine:"))
                 .unwrap_or("unknown")
                 .to_string(),
-            snippet: h.content_snippet.chars().take(600).collect(),
+            // Sanitize first, cap second: the cap must not cut a construct in half and leave
+            // its tail behind.
+            snippet: SanitizedText::new(&h.content_snippet)
+                .into_string()
+                .chars()
+                .take(600)
+                .collect(),
         })
         .collect()
 }

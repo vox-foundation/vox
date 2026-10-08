@@ -15,6 +15,24 @@ use vox_orchestrator_mcp::memory_tools::{
     RetrievalBundle, RetrievalTriggerMode, run_retrieval_bundle,
 };
 
+const REDTEAM: &str = include_str!("../../../contracts/kb/redteam/cases.v1.jsonl");
+
+fn redteam_cases() -> Vec<serde_json::Value> {
+    REDTEAM
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .map(|l| serde_json::from_str(l).expect("red-team line"))
+        .collect()
+}
+
+fn str_list(v: &serde_json::Value) -> Vec<String> {
+    v.as_array()
+        .expect("array")
+        .iter()
+        .map(|s| s.as_str().expect("str").to_string())
+        .collect()
+}
+
 /// Seeds the three corpora the preamble reads, each carrying the term `zephyrine`:
 /// a Trusted Library-style chunk, a legacy web-ingest chunk (column default: untrusted),
 /// KG nodes of type fact / external_research / research_cache, and one APPROVED finding.
@@ -270,4 +288,104 @@ async fn kb_tiers_preamble_preserves_rank_order_of_survivors() {
         "survivors lost their relative order: {:?}",
         pre.chunk_lines
     );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn kb_injection_bundle_lines_are_sanitized_for_every_redteam_case() {
+    let cases = redteam_cases();
+    let db = Arc::new(VoxDb::open_memory().await.unwrap());
+    let id = db
+        .upsert_search_document(
+            "library:docs/src/rt.md",
+            "RT",
+            "text/markdown",
+            "hrt",
+            ContextTrustTier::Trusted,
+        )
+        .await
+        .unwrap();
+    let bodies: Vec<String> = cases
+        .iter()
+        .map(|c| {
+            format!(
+                "zephyrine {} {}",
+                c["id"].as_str().unwrap(),
+                c["input"].as_str().unwrap()
+            )
+        })
+        .collect();
+    db.replace_search_document_chunks(id, &bodies)
+        .await
+        .unwrap();
+    let state = ServerState::new_test().await.with_db_initialized(db).await;
+    let b = run_retrieval_bundle(
+        &state,
+        "zephyrine",
+        RetrievalTriggerMode::ExplicitToolQuery,
+        50,
+        None,
+        true,
+    )
+    .await
+    .unwrap();
+    let mut checked = 0;
+    for c in &cases {
+        let cid = c["id"].as_str().unwrap();
+        let line = b
+            .chunk_lines
+            .iter()
+            .find(|l| l.contains(cid))
+            .unwrap_or_else(|| panic!("case {cid} not retrieved: {:?}", b.chunk_lines));
+        for bad in str_list(&c["must_not_contain"]) {
+            assert!(
+                !line.contains(&bad),
+                "case {cid}: {bad:?} survived in {line:?}"
+            );
+        }
+        for good in str_list(&c["must_contain"]) {
+            assert!(
+                line.contains(&good),
+                "case {cid}: lost {good:?} in {line:?}"
+            );
+        }
+        checked += 1;
+    }
+    assert!(checked >= 10, "red-team set shrank to {checked}");
+}
+
+#[test]
+fn kb_injection_research_sources_are_sanitized_for_every_redteam_case() {
+    use vox_orchestrator_mcp::chat_tools::chat::research_turn::sources_from_hits;
+    use vox_search::memory_hybrid::HybridSearchHit;
+    let mut checked = 0;
+    for c in redteam_cases() {
+        let cid = c["id"].as_str().unwrap().to_string();
+        let input = c["input"].as_str().unwrap().to_string();
+        let hit = HybridSearchHit {
+            path: "https://evil.example/page".into(),
+            title: input.clone(),
+            content_snippet: input,
+            score: 0.5,
+            provenance: vec!["engine:searxng".into()],
+            potential_contradiction: false,
+        };
+        let s = sources_from_hits(&[hit], 8);
+        assert_eq!(s.len(), 1, "case {cid}");
+        for field in [&s[0].title, &s[0].snippet] {
+            for bad in str_list(&c["must_not_contain"]) {
+                assert!(
+                    !field.contains(&bad),
+                    "case {cid}: {bad:?} survived in {field:?}"
+                );
+            }
+            for good in str_list(&c["must_contain"]) {
+                assert!(
+                    field.contains(&good),
+                    "case {cid}: lost {good:?} in {field:?}"
+                );
+            }
+        }
+        checked += 1;
+    }
+    assert!(checked >= 10, "red-team set shrank to {checked}");
 }

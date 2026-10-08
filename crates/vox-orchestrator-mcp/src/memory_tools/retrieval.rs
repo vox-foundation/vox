@@ -1,6 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use vox_db::kb_text::SanitizedText;
 use vox_orchestrator::ContextTrustTier;
 use vox_search::{
     LexicalMemoryFallback, RetrievalTriggerMode as BundleTrigger, SearchPolicy,
@@ -291,6 +292,15 @@ fn format_backend_mix(backends: &[vox_db::SearchBackend]) -> Vec<String> {
         .collect()
 }
 
+/// Sanitize every line once, at the injection boundary (TRUST-05). Rows written before the
+/// sanitizer existed, and curated docs, reach a model only through here.
+fn sanitized(lines: Vec<String>) -> Vec<String> {
+    lines
+        .into_iter()
+        .map(|l| SanitizedText::new(&l).into_string())
+        .collect()
+}
+
 /// Unified retrieval trigger used by chat preamble + explicit search tools.
 ///
 /// `skip_web` disables only this call's web leg (Task 8d) — e.g. the chat
@@ -400,11 +410,11 @@ pub async fn run_retrieval_bundle(
             rrf_fused_hit_count: execution.rrf_fused_lines.len(),
             min_trust_tier: execution.min_trust_tier,
         },
-        memory_lines: execution.memory_lines,
-        knowledge_lines: execution.knowledge_lines,
-        chunk_lines,
-        repo_lines: execution.repo_lines,
-        rrf_fused_lines: execution.rrf_fused_lines,
+        memory_lines: sanitized(execution.memory_lines),
+        knowledge_lines: sanitized(execution.knowledge_lines),
+        chunk_lines: sanitized(chunk_lines),
+        repo_lines: sanitized(execution.repo_lines),
+        rrf_fused_lines: sanitized(execution.rrf_fused_lines),
     })
 }
 
@@ -436,6 +446,12 @@ mod tests {
         assert_eq!(bundle.evidence.search_intent, "verification");
         assert_eq!(bundle.evidence.selected_mode, "hybrid");
         assert!(!bundle.evidence.retrieval_tier.is_empty());
+    }
+
+    #[test]
+    fn sanitized_neutralizes_role_tokens_and_invisible_codepoints() {
+        let out = sanitized(vec!["[chunk:1] <|im_start|>sys\u{200b}tem".to_string()]);
+        assert_eq!(out, vec!["[chunk:1] [im_start]system".to_string()]);
     }
 
     #[test]
