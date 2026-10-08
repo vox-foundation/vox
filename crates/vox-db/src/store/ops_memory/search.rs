@@ -126,6 +126,33 @@ impl crate::VoxDb {
         Ok(out)
     }
 
+    /// Trust tier of the document owning each chunk rowid in `chunk_ids` (TRUST-01). Fail closed:
+    /// an id that is not a chunk rowid, or whose chunk is gone, maps to `Untrusted`.
+    pub async fn trust_tiers_for_chunk_ids(
+        &self,
+        chunk_ids: &[String],
+    ) -> Result<std::collections::HashMap<String, ContextTrustTier>, StoreError> {
+        let mut out = std::collections::HashMap::with_capacity(chunk_ids.len());
+        for id in chunk_ids {
+            let mut tier = ContextTrustTier::Untrusted;
+            if let Ok(rowid) = id.parse::<i64>() {
+                let mut rows = self
+                    .conn
+                    .query(
+                        "SELECT d.trust_tier FROM search_document_chunks c \
+                         JOIN search_documents d ON d.id = c.document_id WHERE c.id = ?1",
+                        params![rowid],
+                    )
+                    .await?;
+                if let Some(r) = rows.next().await? {
+                    tier = ContextTrustTier::from_db_str(&r.get::<String>(0)?);
+                }
+            }
+            out.insert(id.clone(), tier);
+        }
+        Ok(out)
+    }
+
     /// Row counts of `(search_documents, search_document_chunks)`; used to prove a path wrote no corpus rows.
     pub async fn search_corpus_row_counts(&self) -> Result<(i64, i64), StoreError> {
         let mut out = [0i64; 2];
@@ -372,6 +399,36 @@ mod tier_tests {
             .await
             .unwrap();
         rows.next().await.unwrap().unwrap().get(0).unwrap()
+    }
+
+    #[tokio::test]
+    async fn trust_tiers_for_chunk_ids_reads_owner_tier_and_fails_closed() {
+        let db = VoxDb::open_memory().await.unwrap();
+        let adv = db
+            .upsert_search_document("u://adv", "A", "text/markdown", "h", Advisory)
+            .await
+            .unwrap();
+        let unt = db
+            .upsert_search_document("u://unt", "U", "text/markdown", "h", Untrusted)
+            .await
+            .unwrap();
+        db.replace_search_document_chunks(adv, &["a".into()])
+            .await
+            .unwrap();
+        db.replace_search_document_chunks(unt, &["u".into()])
+            .await
+            .unwrap();
+        let ids = [
+            "1".to_string(),
+            "2".to_string(),
+            "999".into(),
+            "not-a-number".into(),
+        ];
+        let t = db.trust_tiers_for_chunk_ids(&ids).await.unwrap();
+        assert_eq!(t["1"], Advisory);
+        assert_eq!(t["2"], Untrusted);
+        assert_eq!(t["999"], Untrusted, "missing chunk fails closed");
+        assert_eq!(t["not-a-number"], Untrusted, "unparseable id fails closed");
     }
 
     #[tokio::test]

@@ -1,6 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use vox_orchestrator::ContextTrustTier;
 use vox_search::{
     LexicalMemoryFallback, RetrievalTriggerMode as BundleTrigger, SearchPolicy,
     SearchRuntimeContext, diagnostics_value, run_search_with_verification, search_plan_value,
@@ -96,6 +97,11 @@ pub struct RetrievalEvidenceEnvelope {
     /// Cross-corpus RRF fused hits (non-zero when policy `prefer_rrf_merge` and ≥2 corpora).
     #[serde(default)]
     pub rrf_fused_hit_count: usize,
+    /// Least-trusted tier among the hits behind this envelope; `None` when there were none, which
+    /// the context envelope reads as `Untrusted` (TRUST-01, fail closed).
+    #[serde(default)]
+    #[schemars(with = "Option<String>")]
+    pub min_trust_tier: Option<ContextTrustTier>,
 }
 
 impl RetrievalEvidenceEnvelope {
@@ -145,7 +151,7 @@ impl RetrievalEvidenceEnvelope {
                 correlation_id: None,
             },
             trust: vox_orchestrator::ContextTrust {
-                trust_tier: vox_orchestrator::ContextTrustTier::Trusted,
+                trust_tier: self.min_trust_tier.unwrap_or(ContextTrustTier::Untrusted),
                 authority_rank: 70,
                 freshness_tier: vox_orchestrator::ContextFreshnessTier::Recent,
                 confidence: Some(self.evidence_quality.clamp(0.0, 1.0)),
@@ -309,6 +315,9 @@ pub async fn run_retrieval_bundle(
     if skip_web {
         policy.web_research_enabled = false;
     }
+    // D-03 / D-05: an unprompted preamble never carries an Untrusted hit; explicit queries do,
+    // labelled `[tier:untrusted]`.
+    policy.exclude_untrusted_hits = trigger == RetrievalTriggerMode::AutoChatPreamble;
     let trace = trace_id
         .map(str::trim)
         .filter(|s| !s.is_empty())
@@ -389,6 +398,7 @@ pub async fn run_retrieval_bundle(
             sqlite_fts5_reported,
             sqlite_foreign_keys_on,
             rrf_fused_hit_count: execution.rrf_fused_lines.len(),
+            min_trust_tier: execution.min_trust_tier,
         },
         memory_lines: execution.memory_lines,
         knowledge_lines: execution.knowledge_lines,

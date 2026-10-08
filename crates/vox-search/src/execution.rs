@@ -5,8 +5,8 @@ use std::path::Path;
 use walkdir::WalkDir;
 
 use vox_db::{
-    RetrievalEvidenceSource, RetrievalMode, RetrievalResult, SearchBackend, SearchCorpus,
-    SearchDiagnostics, SearchPlan, SearchRefinementAction,
+    ContextTrustTier, RetrievalEvidenceSource, RetrievalMode, RetrievalResult, SearchBackend,
+    SearchCorpus, SearchDiagnostics, SearchPlan, SearchRefinementAction,
 };
 
 use crate::context::SearchRuntimeContext;
@@ -66,6 +66,16 @@ pub struct SearchExecution {
     pub citation_coverage: f64,
     pub recommended_next_action: Option<SearchRefinementAction>,
     pub repo_truncated: bool,
+    /// Least-trusted tier among the kept hits (TRUST-01): memory lines Advisory, repository and
+    /// symbol lines Trusted, web and sidecar lines Untrusted, chunk and knowledge lines the tier
+    /// looked up from their stored row. `None` when nothing was kept; consumers treat that as
+    /// `Untrusted`.
+    pub min_trust_tier: Option<ContextTrustTier>,
+}
+
+/// Fold `tier` into the running minimum.
+fn note_tier(min: &mut Option<ContextTrustTier>, tier: ContextTrustTier) {
+    *min = Some(min.map_or(tier, |m| m.min(tier)));
 }
 
 /// Distinct corpus buckets that can contribute evidence (aligned with `execute_search_plan` corpora).
@@ -371,32 +381,53 @@ pub async fn execute_search_plan(
         Vec::new()
     };
 
+    let mut min_trust_tier: Option<ContextTrustTier> = None;
+    if !memory_lines.is_empty() {
+        note_tier(&mut min_trust_tier, ContextTrustTier::Advisory);
+    }
+
     let knowledge_lines = if let Some(db) = db_opt.as_ref() {
         if plan.corpora.contains(&SearchCorpus::KnowledgeGraph) {
             let rows = db
                 .query_knowledge_nodes(query, limit as i64)
                 .await
                 .map_err(|e| e.to_string())?;
-            if !rows.is_empty() {
+            let ids: Vec<String> = rows.iter().map(|(id, _, _)| id.clone()).collect();
+            let tiers = db
+                .trust_tiers_for_knowledge_nodes(&ids)
+                .await
+                .map_err(|e| e.to_string())?;
+            let mut lines = Vec::new();
+            // `rank` is the pre-filter rank, so dropping a hit never reorders the survivors.
+            for (rank, (id, label, snippet)) in rows.into_iter().enumerate() {
+                let tier = tiers
+                    .get(&id)
+                    .copied()
+                    .unwrap_or(ContextTrustTier::Untrusted);
+                if policy.exclude_untrusted_hits && tier == ContextTrustTier::Untrusted {
+                    continue;
+                }
+                note_tier(&mut min_trust_tier, tier);
+                let snip = snippet.replace('\n', " ");
+                unified_hits.push(UnifiedHit {
+                    source: "knowledge".to_string(),
+                    kind: "knowledge".to_string(),
+                    path: Some(format!("node:{id}")),
+                    title: (!label.is_empty()).then(|| label.clone()),
+                    snippet: snip.clone(),
+                    score: 1.0 / (1.0 + rank as f64),
+                    provenance: vec!["knowledge:fts".to_string()],
+                });
+                lines.push(format!(
+                    "[tier:{}] [node:{id}] {label} — {snip}",
+                    tier.as_db_str()
+                ));
+            }
+            if !lines.is_empty() {
                 backend_mix.push(SearchBackend::KnowledgeFts);
                 used_bm25 = true;
             }
-            rows.into_iter()
-                .enumerate()
-                .map(|(rank, (id, label, snippet))| {
-                    let snip = snippet.replace('\n', " ");
-                    unified_hits.push(UnifiedHit {
-                        source: "knowledge".to_string(),
-                        kind: "knowledge".to_string(),
-                        path: Some(format!("node:{id}")),
-                        title: (!label.is_empty()).then(|| label.clone()),
-                        snippet: snip.clone(),
-                        score: 1.0 / (1.0 + rank as f64),
-                        provenance: vec!["knowledge:fts".to_string()],
-                    });
-                    format!("[node:{id}] {label} — {snip}")
-                })
-                .collect::<Vec<_>>()
+            lines
         } else {
             Vec::new()
         }
@@ -424,28 +455,43 @@ pub async fn execute_search_plan(
             {
                 used_vector = true;
             }
-            let lines = rows
-                .into_iter()
-                .map(|hit| {
-                    unified_hits.push(UnifiedHit {
-                        source: "chunk".to_string(),
-                        kind: "doc".to_string(),
-                        path: Some(hit.chunk_id.clone()),
-                        title: (!hit.source.is_empty()).then(|| hit.source.clone()),
-                        snippet: hit.snippet.replace('\n', " "),
-                        score: f64::from(hit.score),
-                        provenance: vec![format!("{:?}", hit.evidence_source)],
-                    });
-                    format!(
-                        "[chunk:{} title:{}] {} (score {:.3}; provenance: {:?})",
-                        hit.chunk_id,
-                        hit.source,
-                        hit.snippet.replace('\n', " "),
-                        hit.score,
-                        hit.evidence_source
-                    )
-                })
-                .collect::<Vec<_>>();
+            // Chunk ids are chunk rowids for both legs; an id that is not one reads as Untrusted
+            // (fail closed). Library chunks and legacy web chunks share this leg (WR-06): the
+            // per-hit tier, not hiding either corpus, is what separates them.
+            let ids: Vec<String> = rows.iter().map(|h| h.chunk_id.clone()).collect();
+            let tiers = db
+                .trust_tiers_for_chunk_ids(&ids)
+                .await
+                .map_err(|e| e.to_string())?;
+            let mut lines = Vec::new();
+            for hit in rows {
+                let tier = tiers
+                    .get(&hit.chunk_id)
+                    .copied()
+                    .unwrap_or(ContextTrustTier::Untrusted);
+                if policy.exclude_untrusted_hits && tier == ContextTrustTier::Untrusted {
+                    continue;
+                }
+                note_tier(&mut min_trust_tier, tier);
+                unified_hits.push(UnifiedHit {
+                    source: "chunk".to_string(),
+                    kind: "doc".to_string(),
+                    path: Some(hit.chunk_id.clone()),
+                    title: (!hit.source.is_empty()).then(|| hit.source.clone()),
+                    snippet: hit.snippet.replace('\n', " "),
+                    score: f64::from(hit.score),
+                    provenance: vec![format!("{:?}", hit.evidence_source)],
+                });
+                lines.push(format!(
+                    "[tier:{}] [chunk:{} title:{}] {} (score {:.3}; provenance: {:?})",
+                    tier.as_db_str(),
+                    hit.chunk_id,
+                    hit.source,
+                    hit.snippet.replace('\n', " "),
+                    hit.score,
+                    hit.evidence_source
+                ));
+            }
             (lines, diagnostics)
         } else {
             (Vec::new(), SearchDiagnostics::default())
@@ -491,6 +537,9 @@ pub async fn execute_search_plan(
             format!("[repo:{}] {}", hit.chunk_id, hit.snippet)
         })
         .collect::<Vec<_>>();
+    if !repo_lines.is_empty() {
+        note_tier(&mut min_trust_tier, ContextTrustTier::Trusted);
+    }
 
     let qdrant_lines: Vec<String> = {
         #[cfg(feature = "qdrant-vector")]
@@ -551,6 +600,16 @@ pub async fn execute_search_plan(
         }
     };
 
+    // Sidecar ANN hits carry no stored tier: Untrusted, so they never reach the preamble.
+    let qdrant_lines = if policy.exclude_untrusted_hits {
+        Vec::new()
+    } else {
+        qdrant_lines
+    };
+    if !qdrant_lines.is_empty() {
+        note_tier(&mut min_trust_tier, ContextTrustTier::Untrusted);
+    }
+
     let web_lines =
         if plan.corpora.contains(&SearchCorpus::WebResearch) && policy.web_research_enabled {
             match crate::web_dispatcher::WebSearchDispatcher::search(query, policy).await {
@@ -580,6 +639,12 @@ pub async fn execute_search_plan(
                             ),
                         }
                     }
+                    // Live web hits are Untrusted; capture above already filed them in the inbox.
+                    let hits = if policy.exclude_untrusted_hits {
+                        Vec::new()
+                    } else {
+                        hits
+                    };
                     if !hits.is_empty() {
                         backend_mix.push(SearchBackend::Web);
                         if top_score.is_none() {
@@ -620,6 +685,10 @@ pub async fn execute_search_plan(
         } else {
             Vec::new()
         };
+
+    if !web_lines.is_empty() {
+        note_tier(&mut min_trust_tier, ContextTrustTier::Untrusted);
+    }
 
     let symbol_proximity_lines = if plan.corpora.contains(&SearchCorpus::SymbolProximity) {
         let hits = crate::symbol_proximity::scan_symbol_proximity(
@@ -680,6 +749,10 @@ pub async fn execute_search_plan(
     } else {
         Vec::new()
     };
+
+    if !symbol_proximity_lines.is_empty() || !graphify_lines.is_empty() {
+        note_tier(&mut min_trust_tier, ContextTrustTier::Trusted);
+    }
 
     let rrf_fused_lines: Vec<String> = if policy.prefer_rrf_merge {
         let lists = vec![
@@ -776,6 +849,7 @@ pub async fn execute_search_plan(
         citation_coverage,
         recommended_next_action,
         repo_truncated,
+        min_trust_tier,
     })
 }
 

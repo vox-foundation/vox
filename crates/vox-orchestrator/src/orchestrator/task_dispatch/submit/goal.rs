@@ -782,6 +782,7 @@ mod tests {
             citation_coverage: 0.5,
             recommended_next_action: None,
             repo_truncated: false,
+            min_trust_tier: None,
         }
     }
 

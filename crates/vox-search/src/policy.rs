@@ -201,6 +201,12 @@ pub struct SearchPolicy {
     /// never written to the searchable corpus; with no sink injected nothing is persisted.
     #[serde(default = "default_persist_web_hits")]
     pub persist_web_hits: bool,
+    /// Execution knob, not a stored tier: drop `Untrusted` chunk, knowledge and web hits (and
+    /// their typed `unified_hits`) before fusion. The MCP chat preamble sets it so a legacy web row
+    /// never reaches an unprompted prompt (D-03, D-05); explicit tool queries leave it false and
+    /// get the hit back labelled `[tier:untrusted]`. Default false.
+    #[serde(default)]
+    pub exclude_untrusted_hits: bool,
     /// Minimum novelty score (0.0-1.0) for a hit to appear in synthesis context.
     /// Env: `VOX_SEARCH_NOVELTY_MIN_SCORE`. Default: 0.15.
     #[serde(default = "default_novelty_min_score")]
@@ -401,6 +407,7 @@ impl Default for SearchPolicy {
             persist_web_hits: !parse_truthy_env(
                 vox_secrets::SecretId::VoxSearchPersistWebHitsDisabled,
             ),
+            exclude_untrusted_hits: false,
             novelty_min_score: vox_secrets::resolve_secret(
                 vox_secrets::SecretId::VoxSearchNoveltyMinScore,
             )
@@ -783,6 +790,16 @@ mod tests {
     // field_reassign is a stylistic test-setup pattern here.
     #![allow(clippy::field_reassign_with_default)]
     use super::*;
+
+    #[test]
+    fn exclude_untrusted_hits_defaults_off_and_deserializes_when_absent() {
+        assert!(!SearchPolicy::default().exclude_untrusted_hits);
+        let v = serde_json::to_value(SearchPolicy::default()).unwrap();
+        let mut obj = v.as_object().unwrap().clone();
+        obj.remove("exclude_untrusted_hits");
+        let p: SearchPolicy = serde_json::from_value(serde_json::Value::Object(obj)).unwrap();
+        assert!(!p.exclude_untrusted_hits);
+    }
 
     #[test]
     fn searxng_engine_csv_accepts_baseline() {
