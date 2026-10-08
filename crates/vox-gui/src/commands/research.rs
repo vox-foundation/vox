@@ -13,9 +13,9 @@ use std::sync::Arc;
 use serde_json::{Value, json};
 use tauri::State;
 use vox_db::VoxDb;
-use vox_db::research_doc_io::atomic_write_secure;
 use vox_foundation::protocol::dei_method;
 use vox_orchestrator::orch_daemon::OrchDaemonClient;
+use vox_orchestrator_mcp::kb_tools::findings::file_publish_draft;
 
 use crate::commands::daemon::PersistentDaemon;
 use crate::commands::gui_db_pool::GuiDbPool;
@@ -45,9 +45,10 @@ pub struct DocDraftPreview {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PublishDocResult {
-    pub file_path: String,
-    pub relative_path: String,
-    pub indexed: bool,
+    pub finding_id: Option<String>,
+    pub proposed_path: String,
+    /// `"pending"` or `"duplicate"`.
+    pub status: String,
 }
 
 /// Start a research run asynchronously and return the daemon's
@@ -97,59 +98,6 @@ pub async fn flag_research_misleading(
         .record_research_misguidance(&params)
         .await
         .map_err(|e| e.to_string())
-}
-
-/// Saves a completed research synthesis into `docs/src/architecture/` with required YAML frontmatter.
-#[tauri::command]
-pub async fn save_research_doc(
-    title: String,
-    description: String,
-    content: String,
-    category: Option<String>,
-) -> Result<String, String> {
-    let raw_slug = title
-        .to_lowercase()
-        .chars()
-        .map(|c| if c.is_alphanumeric() { c } else { '-' })
-        .collect::<String>()
-        .split('-')
-        .filter(|s| !s.is_empty())
-        .collect::<Vec<_>>()
-        .join("-");
-    let slug = if raw_slug.is_empty() {
-        "research-topic".to_string()
-    } else {
-        raw_slug
-    };
-
-    let doc_category = category.unwrap_or_else(|| "Architecture SSOTs".to_string());
-    let frontmatter = format!(
-        "---\ntitle: \"{}\"\ndescription: \"{}\"\ncategory: \"{}\"\nstatus: \"current\"\n---\n\n",
-        title.replace('"', "\\\""),
-        description.replace('"', "\\\""),
-        doc_category.replace('"', "\\\"")
-    );
-
-    let filename = if slug.ends_with("research") || slug.ends_with("findings") {
-        format!("{slug}-2026.md")
-    } else {
-        format!("{slug}-research-2026.md")
-    };
-    let target_dir = research_repo_root()
-        .join("docs")
-        .join("src")
-        .join("architecture");
-    let target_path = target_dir.join(&filename);
-
-    tokio::fs::create_dir_all(&target_dir)
-        .await
-        .map_err(|e| e.to_string())?;
-    let full_text = format!("{frontmatter}{content}");
-    tokio::fs::write(&target_path, full_text)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    Ok(target_path.to_string_lossy().to_string())
 }
 
 /// Persists verified claims from a research session into VoxDB.
@@ -225,8 +173,9 @@ pub async fn generate_research_doc_draft(
     })
 }
 
-/// Atomically publishes a research document to `docs/src/architecture/` and persists it to the
-/// VoxDB knowledgebase. `research-index.md` is retired: the Starlight sidebar derives from frontmatter.
+/// Files a drafted research doc as a pending finding in the review inbox. Nothing is written
+/// under `docs/src`: a reviewer promotes it later (GROW-06). The episodic research log
+/// (`store_research_artifact`) is kept; it is not the KB.
 #[tauri::command]
 pub async fn publish_research_doc(
     pool: State<'_, GuiDbPool>,
@@ -235,42 +184,22 @@ pub async fn publish_research_doc(
     content: String,
 ) -> Result<PublishDocResult, String> {
     let db = pool_db(&pool)?;
+    let filed = file_publish_draft(
+        db.as_ref(),
+        &research_repo_root(),
+        session_id,
+        &slug,
+        &content,
+    )
+    .await?;
 
-    if slug.contains('/') || slug.contains('\\') || slug.contains("..") || slug.starts_with('.') {
-        return Err("Invalid slug: path traversal characters are not permitted".to_string());
-    }
-
-    let target_dir = research_repo_root()
-        .join("docs")
-        .join("src")
-        .join("architecture");
-    let filename = if slug.ends_with("-2026.md") {
-        slug.clone()
-    } else {
-        format!("{slug}-2026.md")
-    };
-    let target_path = target_dir.join(&filename);
-
-    // Offload the blocking atomic write.
-    let target_path_clone = target_path.clone();
-    let content_clone = content.clone();
-
-    tokio::task::spawn_blocking(move || {
-        atomic_write_secure(&target_path_clone, content_clone.as_bytes()).map_err(|e| e.to_string())
-    })
-    .await
-    .map_err(|e| e.to_string())??;
-
-    // 3. Store in VoxDB FTS5 knowledgebase
-    let indexed = db
-        .store_research_artifact(session_id, "{}", &content)
-        .await
-        .is_ok();
+    // Best-effort episodic log; its failure must not fail the filing.
+    let _ = db.store_research_artifact(session_id, "{}", &content).await;
 
     Ok(PublishDocResult {
-        file_path: target_path.to_string_lossy().to_string(),
-        relative_path: format!("docs/src/architecture/{filename}"),
-        indexed,
+        finding_id: filed.finding_id,
+        proposed_path: filed.proposed_path,
+        status: filed.status,
     })
 }
 
@@ -329,12 +258,13 @@ mod tests {
     #[test]
     fn test_publish_doc_result_dto_serialization() {
         let res = PublishDocResult {
-            file_path: "/path/to/doc.md".into(),
-            relative_path: "docs/src/architecture/doc.md".into(),
-            indexed: true,
+            finding_id: Some("f1".into()),
+            proposed_path: "docs/src/architecture/doc-2026.md".into(),
+            status: "pending".into(),
         };
         let val = serde_json::to_value(&res).unwrap();
-        assert_eq!(val["indexed"], true);
+        assert_eq!(val["status"], "pending");
+        assert_eq!(val["proposed_path"], "docs/src/architecture/doc-2026.md");
     }
 
     #[test]

@@ -238,13 +238,49 @@ pub struct PublishFiled {
 /// File an LLM-drafted research doc as a pending `Untrusted` finding. The proposed repo-relative
 /// path is computed without touching disk, and the slug must be a plain file stem.
 pub async fn file_publish_draft(
-    _db: &VoxDb,
-    _repo_root: &Path,
-    _session_id: i64,
-    _slug: &str,
-    _content: &str,
+    db: &VoxDb,
+    repo_root: &Path,
+    session_id: i64,
+    slug: &str,
+    content: &str,
 ) -> Result<PublishFiled, String> {
-    Err("not implemented".into())
+    if slug.is_empty()
+        || slug.contains('/')
+        || slug.contains('\\')
+        || slug.contains("..")
+        || slug.starts_with('.')
+    {
+        return Err("Invalid slug: path traversal characters are not permitted".to_string());
+    }
+    let filename = if slug.ends_with("-2026.md") {
+        slug.to_string()
+    } else {
+        format!("{slug}-2026.md")
+    };
+    let proposed_path = format!("docs/src/architecture/{filename}");
+    let outcome = capture_finding(
+        db,
+        repo_root,
+        CaptureInput {
+            origin: FindingOrigin::PublishResearchDoc,
+            title: slug.to_string(),
+            text: content.to_string(),
+            full_text: Some(content.to_string()),
+            source_url: None,
+            dedupe_scope: Some(proposed_path.clone()),
+            provenance: serde_json::json!({
+                "proposed_path": proposed_path,
+                "session_id": session_id,
+            }),
+        },
+    )
+    .await?;
+    let FindingFiled { finding_id, status } = filed(outcome.finding_id);
+    Ok(PublishFiled {
+        finding_id,
+        proposed_path,
+        status,
+    })
 }
 
 /// What one legacy-VoxKB migration pass saw and did (RET-03).

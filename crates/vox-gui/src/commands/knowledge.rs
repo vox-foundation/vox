@@ -85,7 +85,7 @@ pub async fn ingest_text(
     title: String,
     content: String,
     source_url: Option<String>,
-) -> Result<String, String> {
+) -> Result<FindingFiled, String> {
     let db = pool.handle()?;
     if content.trim().is_empty() {
         return Err("Content cannot be empty".to_string());
@@ -95,27 +95,22 @@ pub async fn ingest_text(
     } else {
         title.trim().to_string()
     };
-    let content_hash = vox_crypto::hash_fast_hex(content.as_bytes());
-    let node_id = format!("doc:{content_hash}");
-    let meta = serde_json::json!({
+    let provenance = serde_json::json!({
         "title": label,
         "source_url": source_url,
         "ingest_type": "text",
-    })
-    .to_string();
-
-    db.upsert_knowledge_node(
-        &node_id,
+    });
+    // Pasted text is Untrusted: it waits in the findings inbox, never in knowledge_nodes.
+    file_gui_finding(
+        db.as_ref(),
+        &crate::commands::research::research_repo_root(),
+        FindingOrigin::GuiIngestText,
         &label,
         &content,
-        Some("document"),
-        Some(&meta),
-        None,
+        source_url.as_deref().filter(|u| !u.trim().is_empty()),
+        provenance,
     )
     .await
-    .map_err(map_db_err)?;
-
-    Ok(node_id)
 }
 
 fn get_robots_url(target_url: &str) -> Option<(String, String)> {
