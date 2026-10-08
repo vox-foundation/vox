@@ -2782,6 +2782,18 @@
       "feature_gate": null
     },
     {
+      "path": "kb eval",
+      "feature_gate": null
+    },
+    {
+      "path": "kb reindex",
+      "feature_gate": null
+    },
+    {
+      "path": "kb status",
+      "feature_gate": null
+    },
+    {
       "path": "live",
       "feature_gate": "live"
     },
@@ -4819,16 +4831,21 @@
     "journey.canonical.steps",
     "kb.add_entry",
     "kb.add_rule",
-    "kb.clip",
+    "kb.cite",
     "kb.create",
     "kb.delete",
     "kb.delete_entry",
+    "kb.eval",
+    "kb.get",
     "kb.get_feed",
     "kb.list",
     "kb.list_entries",
     "kb.list_rules",
     "kb.query",
+    "kb.reindex",
     "kb.review_entry",
+    "kb.search",
+    "kb.status",
     "knowledge.query",
     "language.surface",
     "learn.pattern",

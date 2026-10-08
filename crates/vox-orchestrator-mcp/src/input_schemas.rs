@@ -318,7 +318,6 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_kb_add_rule" => derived_tool_schema!(crate::kb_tools::params::KbAddRuleParams),
         "vox_kb_list_rules" => derived_tool_schema!(crate::kb_tools::params::KbListRulesParams),
         "vox_kb_query" => derived_tool_schema!(crate::kb_tools::params::KbQueryParams),
-        "vox_kb_clip" => derived_tool_schema!(crate::kb_tools::params::KbClipParams),
         "vox_kb_search" => derived_tool_schema!(crate::kb_tools::library::KbSearchParams),
         "vox_kb_get" => derived_tool_schema!(crate::kb_tools::library::KbGetParams),
         "vox_kb_cite" => derived_tool_schema!(crate::kb_tools::library::KbCiteParams),

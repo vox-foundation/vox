@@ -1213,14 +1213,18 @@
       "curated": true
     },
     {
-      "capability_id": "mcp.vox_kb_clip",
-      "mcp_tool": "vox_kb_clip",
+      "capability_id": "mcp.vox_kb_cite",
+      "mcp_tool": "vox_kb_cite",
       "implicit": false,
-      "title": "Clip Knowledge Fact",
-      "description_model": "Clip code/notes into knowledge bases.",
-      "side_effect_class": "writes_files",
-      "scope_kind": "session",
-      "reversible": false,
+      "title": "Cite Knowledge Library Chunk",
+      "description_model": "Build a citation (heading path, doc link with anchor, kb:// URI, indexed commit) for an indexed KB Library chunk by chunk_hash.",
+      "intent_tags": [
+        "retrieval",
+        "knowledge"
+      ],
+      "scope_kind": "repository",
+      "reversible": true,
+      "requires_repo": true,
       "curated": true
     },
     {
@@ -1254,6 +1258,21 @@
       "side_effect_class": "writes_files",
       "scope_kind": "session",
       "reversible": false,
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_kb_get",
+      "mcp_tool": "vox_kb_get",
+      "implicit": false,
+      "title": "Get Knowledge Library Document",
+      "description_model": "Fetch one indexed KB Library document by docs/src rel_path (frontmatter, chunk list, reconstructed markdown) or one chunk by 64-hex chunk_hash; reads only the index, never the file system.",
+      "intent_tags": [
+        "retrieval",
+        "knowledge"
+      ],
+      "scope_kind": "repository",
+      "reversible": true,
+      "requires_repo": true,
       "curated": true
     },
     {
@@ -1307,6 +1326,22 @@
       "curated": true
     },
     {
+      "capability_id": "mcp.vox_kb_reindex",
+      "mcp_tool": "vox_kb_reindex",
+      "implicit": false,
+      "title": "Reindex Knowledge Library",
+      "description_model": "Rebuild the KB Library index from the repository docs/src tree (takes no path arguments; single-flight); returns the index report.",
+      "intent_tags": [
+        "retrieval",
+        "knowledge"
+      ],
+      "side_effect_class": "writes_files",
+      "scope_kind": "repository",
+      "reversible": true,
+      "requires_repo": true,
+      "curated": true
+    },
+    {
       "capability_id": "mcp.vox_kb_review_entry",
       "mcp_tool": "vox_kb_review_entry",
       "implicit": false,
@@ -1315,6 +1350,36 @@
       "side_effect_class": "writes_files",
       "scope_kind": "session",
       "reversible": false,
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_kb_search",
+      "mcp_tool": "vox_kb_search",
+      "implicit": false,
+      "title": "Search Knowledge Library",
+      "description_model": "Search the curated KB Library (Vox docs plus docs/src/library) by BM25 over heading chunks; returns ranked hits with chunk_hash, heading_path, anchor, snippet and kb:// URIs.",
+      "intent_tags": [
+        "retrieval",
+        "knowledge"
+      ],
+      "scope_kind": "repository",
+      "reversible": true,
+      "requires_repo": true,
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_kb_status",
+      "mcp_tool": "vox_kb_status",
+      "implicit": false,
+      "title": "Knowledge Library Status",
+      "description_model": "Report KB Library index state, covering corpus root and commit, doc/chunk/card counts, chunker version, lexical backend, embed model, trust tier, per-file errors and index consistency.",
+      "intent_tags": [
+        "retrieval",
+        "knowledge"
+      ],
+      "scope_kind": "repository",
+      "reversible": true,
+      "requires_repo": true,
       "curated": true
     },
     {
@@ -11094,6 +11159,54 @@
       "preferred_for_models": true,
       "human_takeover_friendly": true,
       "mens_planner_visible": true,
+      "curated": true
+    },
+    {
+      "capability_id": "cli.kb.eval",
+      "cli_path": [
+        "kb",
+        "eval"
+      ],
+      "implicit": false,
+      "title": "KB Eval",
+      "description_model": "CLI operation `vox kb eval` — deterministic retrieval eval (Recall/MRR/nDCG on doc and chunk ids, answer-in-budget) and the retrieval ratchet gate",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.kb.reindex",
+      "cli_path": [
+        "kb",
+        "reindex"
+      ],
+      "implicit": false,
+      "title": "Reindex Knowledge Library",
+      "description_model": "Rebuild the KB Library index from the repository docs/src tree (takes no path arguments; single-flight); returns the index report.",
+      "intent_tags": [
+        "retrieval",
+        "knowledge"
+      ],
+      "side_effect_class": "writes_files",
+      "scope_kind": "repository",
+      "reversible": true,
+      "requires_repo": true,
+      "curated": true
+    },
+    {
+      "capability_id": "cli.kb.status",
+      "cli_path": [
+        "kb",
+        "status"
+      ],
+      "implicit": false,
+      "title": "Knowledge Library Status",
+      "description_model": "Report KB Library index state, covering corpus root and commit, doc/chunk/card counts, chunker version, lexical backend, embed model, trust tier, per-file errors and index consistency.",
+      "intent_tags": [
+        "retrieval",
+        "knowledge"
+      ],
+      "scope_kind": "repository",
+      "reversible": true,
+      "requires_repo": true,
       "curated": true
     },
     {

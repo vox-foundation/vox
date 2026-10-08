@@ -1494,7 +1494,6 @@ async fn handle_tool_call_inner(
             Ok(crate::kb::kb_list_rules(state, serde_json::from_value(args)?).await)
         }
         "vox_kb_query" => Ok(crate::kb::kb_query(state, serde_json::from_value(args)?).await),
-        "vox_kb_clip" => Ok(crate::kb::kb_clip(state, serde_json::from_value(args)?).await),
         "vox_kb_search" => {
             Ok(crate::kb::library::kb_search(state, serde_json::from_value(args)?).await)
         }
