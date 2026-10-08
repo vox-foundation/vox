@@ -93,4 +93,38 @@ Research: `research/SUMMARY.md` (+ AUDIT, STACK, FEATURES, ARCHITECTURE, PITFALL
 
 | Requirement | Phase | Status |
 |---|---|---|
-| (filled by roadmapper) | | |
+| FLOOR-01 | Phase 12 | Pending |
+| FLOOR-02 | Phase 12 | Pending |
+| FLOOR-03 | Phase 12 | Pending |
+| FLOOR-04 | Phase 14 | Pending |
+| FLOOR-05 | Phase 12 | Pending |
+| OVR-01 | Phase 13 | Pending |
+| OVR-02 | Phase 13 | Pending |
+| OVR-03 | Phase 13 | Pending |
+| OVR-04 | Phase 13 | Pending |
+| OVR-05 | Phase 13 | Pending |
+| OVR-06 | Phase 13 | Pending |
+| STATE-01 | Phase 14 | Pending |
+| STATE-02 | Phase 15 | Pending |
+| STATE-03 | Phase 18 | Pending |
+| BG-01 | Phase 15 | Pending |
+| BG-02 | Phase 15 | Pending |
+| CHAT-01 | Phase 16 | Pending |
+| CHAT-02 | Phase 16 | Pending |
+| CHAT-03 | Phase 16 | Pending |
+| ATTN-01 | Phase 17 | Pending |
+| ATTN-02 | Phase 17 | Pending |
+| ATTN-03 | Phase 17 | Pending |
+| ATTN-04 | Phase 17 | Pending |
+| ATTN-05 | Phase 18 | Pending |
+| ATTN-06 | Phase 17 | Pending |
+| GUI-01 | Phase 18 | Pending |
+| GUI-02 | Phase 18 | Pending |
+| GUI-03 | Phase 18 | Pending |
+| GUI-04 | Phase 18 | Pending |
+| GUI-05 | Phase 18 | Pending |
+| GUI-06 | Phase 18 | Pending |
+| VERIF-01 | Phase 19 | Pending |
+| VERIF-02 | Phase 19 | Pending |
+
+Coverage: 33/33 v1.2 requirements mapped, no duplicates.
