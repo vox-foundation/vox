@@ -35,9 +35,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          linux='{"os":"ubuntu-latest","target":"x86_64-unknown-linux-gnu","sidecar_src":"target/x86_64-unknown-linux-gnu/release/vox","sidecar_dst":"target/release/vox-x86_64-unknown-linux-gnu"}'
-          win='{"os":"windows-latest","target":"x86_64-pc-windows-msvc","sidecar_src":"target/x86_64-pc-windows-msvc/release/vox.exe","sidecar_dst":"target/release/vox-x86_64-pc-windows-msvc.exe"}'
-          mac='{"os":"macos-latest","target":"aarch64-apple-darwin","sidecar_src":"target/aarch64-apple-darwin/release/vox","sidecar_dst":"target/release/vox-aarch64-apple-darwin"}'
+          linux='{"os":"ubuntu-latest","target":"x86_64-unknown-linux-gnu"}'
+          win='{"os":"windows-latest","target":"x86_64-pc-windows-msvc"}'
+          mac='{"os":"macos-latest","target":"aarch64-apple-darwin"}'
           echo "include=[$linux,$win,$mac]" >> "$GITHUB_OUTPUT"
 
   gui-cross-build:
@@ -59,6 +59,7 @@ jobs:
       SCCACHE_GHA_VERSION: v2
       SCCACHE_CACHE_SIZE: 5G
       CARGO_INCREMENTAL: "0"
+      VOX_GUI_SKIP_SIDECAR_AUTOBUILD: "1"
 
     steps:
       - uses: actions/checkout@v7
@@ -100,24 +101,23 @@ jobs:
       # the macOS did_finish_launching delegate as a non-unwinding panic: the app
       # aborts before a window appears, and Windows never sees it because it loads
       # icon.ico instead.
+      # This lane compiles and tests vox-gui; it never runs a sidecar. build.rs only
+      # checks the two externalBin files (vox, vox-ml-cli) exist, and with them missing
+      # it silently built both in release from inside the first vox-gui compile, while
+      # this job then built vox-cli in release again: three full builds per leg, past
+      # the 90-min cap on every leg since 2026-10-05. Placeholders + autobuild off.
+      - name: Stage Tauri external sidecar placeholders
+        shell: bash
+        run: |
+          set -euo pipefail
+          ext=""; [[ "$RUNNER_OS" == "Windows" ]] && ext=".exe"
+          mkdir -p target/release
+          for bin in vox vox-ml-cli; do
+            touch "target/release/${bin}-${{ matrix.target }}${ext}"
+          done
+
       - name: Tauri prerequisites (icon bit depth, sidecar paths)
         run: cargo test -p vox-gui --test gui_tauri_prereqs
-
-      - name: Build vox CLI sidecar (release)
-        run: cargo build -p vox-cli --release --target ${{ matrix.target }}
-
-      - name: Stage Tauri external sidecar (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force target/release | Out-Null
-          Copy-Item ${{ matrix.sidecar_src }} ${{ matrix.sidecar_dst }} -Force
-
-      - name: Stage Tauri external sidecar (Unix)
-        if: runner.os != 'Windows'
-        run: |
-          mkdir -p target/release
-          cp ${{ matrix.sidecar_src }} ${{ matrix.sidecar_dst }}
 
       # The `gui-*` aliases link vox-gui with link.exe on Windows: lld-link cannot
       # reconcile ucrt.lib and libucrt.lib for it (.cargo/config.toml). They only
