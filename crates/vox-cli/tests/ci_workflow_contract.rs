@@ -98,22 +98,24 @@ fn linux_ci_runs_workspace_tests_and_windows_stack_wrappers_stay_cfg_gated() {
 }
 
 #[test]
-fn compile_matrix_runs_compile_suite_workspace_smoke() {
+fn nightly_runs_compile_suite_workspace_smoke() {
+    // These smokes live in nightly.yml: three release builds do not fit
+    // compile-matrix.yml's 30-min PR lane.
     let yml = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../.github/workflows/compile-matrix.yml"
+        "/../../.github/workflows/nightly.yml"
     ));
     assert!(
         yml.contains("examples/compile-suite"),
-        "compile-matrix.yml should run from examples/compile-suite"
+        "nightly.yml should run from examples/compile-suite"
     );
     assert!(
         yml.contains("compile --workspace --target native-binary"),
-        "compile-matrix.yml should smoke `vox compile --workspace --target native-binary`"
+        "nightly.yml should smoke `vox compile --workspace --target native-binary`"
     );
     assert!(
         yml.contains("compile --target desktop"),
-        "compile-matrix.yml should smoke desktop Tauri codegen via `vox compile --target desktop`"
+        "nightly.yml should smoke desktop Tauri codegen via `vox compile --target desktop`"
     );
 }
 
@@ -742,10 +744,22 @@ fn ml_cuda_health_is_hosted_compile_only_and_fail_closed() {
         env!("CARGO_MANIFEST_DIR"),
         "/../../.github/workflows/nightly.yml"
     ));
-    let job = yml
+    let rest = yml
         .split_once("\n  ml-cuda-health:")
         .expect("nightly must define the ml-cuda-health job")
         .1;
+    // Only this job: stop at the next top-level job key (two-space indent), or a later
+    // job's text (e.g. a `save-if: false`) trips the fail-closed markers below.
+    let job = &rest[..rest
+        .match_indices("\n  ")
+        .map(|(i, _)| i)
+        .find(|&i| {
+            rest[i + 3..]
+                .chars()
+                .next()
+                .is_some_and(|c| c != ' ' && c != '#' && c != '\n')
+        })
+        .unwrap_or(rest.len())];
 
     assert!(job.contains("    name: ML CUDA dependency health"));
     assert!(job.contains("    runs-on: ubuntu-latest"));
