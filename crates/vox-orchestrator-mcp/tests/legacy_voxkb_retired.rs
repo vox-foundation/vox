@@ -1,14 +1,14 @@
 //! Guard (RET-02, D-02): the legacy `vox_kb_*` CRUD tool surface stays retired.
 //!
 //! Static scan, `std::fs` only. A hit is a ban only when the match is a whole
-//! identifier: the next character is not `[a-z0-9_]` (so the retained
+//! identifier: the next character is not `[A-Za-z0-9_]` (so the retained
 //! `vox_kb_get` never collides with the retired `vox_kb_get_feed`, and vice versa)
-//! and the previous one is not `[a-z0-9_.]` (so `self.kb.clip(..)` field access is
-//! not a catalog id). Matching is case-sensitive on the exact ASCII ids.
+//! and the previous one is not `[A-Za-z0-9_.]` (so `self.kb.clip(..)` field access is
+//! not a catalog id, and `LegacyKbEntry` is not the retired `KbEntry`). Matching is case-sensitive on the exact ASCII ids.
 
 use std::path::{Path, PathBuf};
 
-/// Retired names. Extended by later plans (03-12).
+/// Retired names. 03-12 added the store, router, types and vox-db CRUD symbols.
 const BANNED: &[&str] = &[
     // The twelve legacy MCP tool names (D-02: retired, no aliases).
     "vox_kb_create",
@@ -41,6 +41,34 @@ const BANNED: &[&str] = &[
     "signal_chat",
     "signal_research",
     "signal_scientia",
+    // The orchestrator-side legacy store, router and types (03-12; RET-02).
+    "KbStore",
+    "KbRouter",
+    "KnowledgeBase",
+    "KbEntry",
+    "KbEntrySource",
+    "KbRoutingRule",
+    "KbRoutingRuleType",
+    // The vox-db legacy row types and CRUD fns (03-12). The retained legacy readers
+    // (`legacy_kb_counts`, `legacy_kb_entries_page`) have different names.
+    "KbRow",
+    "KbEntryRow",
+    "KbRuleRow",
+    "kb_create",
+    "kb_list",
+    "kb_delete",
+    "kb_add_entry",
+    "kb_list_entries",
+    "kb_review_entry",
+    "kb_delete_entry",
+    "kb_get_feed",
+    "kb_add_rule",
+    "kb_list_rules",
+    "kb_search_entries",
+    "kb_get_entry",
+    "kb_find_duplicate",
+    "kb_unqueued_training_entries",
+    "kb_mark_mens_queued",
 ];
 
 /// Generated or hand-maintained contract files that must not name a banned item.
@@ -59,7 +87,7 @@ const MIN_FILES_SCANNED: usize = 100;
 const THIS_FILE: &str = "legacy_voxkb_retired.rs";
 
 fn is_ident(b: u8) -> bool {
-    b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_'
+    b.is_ascii_alphanumeric() || b == b'_'
 }
 
 /// First banned whole-identifier hit in `text`, if any.
@@ -129,6 +157,16 @@ fn legacy_voxkb_matcher_respects_identifier_boundaries() {
     assert_eq!(find_banned("id: kb.clip\n", &["kb.clip"]), Some("kb.clip"));
     // Case-sensitive.
     assert_eq!(find_banned("VOX_KB_LIST", &banned), None);
+    // CamelCase type names match as whole identifiers only.
+    assert_eq!(find_banned("KbStoreFactory", &["KbStore"]), None);
+    assert_eq!(
+        find_banned("FindingOrigin::LegacyKbEntry", &["KbEntry"]),
+        None
+    );
+    assert_eq!(
+        find_banned("use x::KbStore;", &["KbStore"]),
+        Some("KbStore")
+    );
     // A rejected first hit must not hide a later real one.
     assert_eq!(
         find_banned("xvox_kb_list and vox_kb_list", &banned),

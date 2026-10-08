@@ -144,9 +144,6 @@ pub mod subagent_dispatch;
 /// Three-tier model cascade for autonomous model-routing (D1).
 pub mod tier_cascade;
 
-pub mod knowledge_base;
-pub use knowledge_base::{KbEntry, KbEntrySource, KbRoutingRule, KbRoutingRuleType, KnowledgeBase};
-
 /// Entropy-based hallucination detection.
 pub mod entropy_scorer;
 /// Agent liveness heartbeats and staleness policy.

@@ -320,45 +320,6 @@ pub use workspace_journey_store::{
     workspace_journey_store_mode_from_env,
 };
 
-/// Row returned by KB queries from VoxDb.
-#[derive(Debug, Clone)]
-pub struct KbRow {
-    pub id: String,
-    pub name: String,
-    pub description: String,
-    pub created_at_ms: i64,
-    pub updated_at_ms: i64,
-    pub entry_count: i64,
-}
-
-/// Row returned by KB entry queries from VoxDb.
-#[derive(Debug, Clone)]
-pub struct KbEntryRow {
-    pub id: String,
-    pub kb_id: String,
-    pub content: String,
-    pub source_signal: String,
-    pub source_ref: Option<String>,
-    pub routing_confidence: f64,
-    pub tags: String,
-    pub created_at_ms: i64,
-    pub last_accessed_at_ms: Option<i64>,
-    pub access_count: i64,
-    pub accepted: i64,
-    pub mens_queued: i64,
-}
-
-/// Row returned by KB routing rule queries from VoxDb.
-#[derive(Debug, Clone)]
-pub struct KbRuleRow {
-    pub id: String,
-    pub kb_id: String,
-    pub rule_type: String,
-    pub pattern: String,
-    pub priority: i64,
-    pub created_at_ms: i64,
-}
-
 /// Public product name for the unified database facade (**Codex** over Arca/Turso).
 ///
 /// `VoxDb` remains the stable Rust type name; new documentation should prefer **Codex**.

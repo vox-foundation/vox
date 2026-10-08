@@ -1,7 +1,6 @@
 mod components;
 mod crud;
 mod embedding;
-mod kb;
 mod kb_findings;
 mod kb_legacy;
 mod knowledge;
