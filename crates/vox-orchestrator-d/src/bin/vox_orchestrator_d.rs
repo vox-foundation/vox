@@ -176,8 +176,15 @@ fn main() -> anyhow::Result<()> {
     rt.block_on(async_main())
 }
 
+fn resolve_daemon_profile() -> anyhow::Result<vox_orchestrator_mcp::profiles::ActiveProfile> {
+    vox_orchestrator_mcp::profiles::ActiveProfile::from_env()
+        .map_err(|e| anyhow::anyhow!("{e} (VOX_PROFILE)"))
+}
+
 async fn async_main() -> anyhow::Result<()> {
     vox_foundation::tracing::try_init_from_default_env();
+    let active_profile = resolve_daemon_profile()?;
+    tracing::info!(profile = %active_profile.id_string(), "capability profile resolved");
 
     let bind_raw = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOrchestratorDaemonSocket)
         .expose()
@@ -324,7 +331,8 @@ async fn async_main() -> anyhow::Result<()> {
         build.repository.clone(),
         Arc::new(tokio::sync::Mutex::new(session_manager)),
         registry,
-    );
+    )
+    .with_profile(active_profile);
     if let Some(db) = db_holder.clone() {
         state = state.with_db_initialized(db).await;
     }
@@ -471,5 +479,16 @@ mod tests {
         assert!(orch_daemon::is_stdio_transport("-"));
         assert!(orch_daemon::is_stdio_transport("stdin"));
         assert!(!orch_daemon::is_stdio_transport("127.0.0.1:9745"));
+    }
+
+    #[test]
+    fn resolve_daemon_profile_matches_env_resolution() {
+        let got = super::resolve_daemon_profile()
+            .map(|p| p.id_string())
+            .map_err(|e| e.to_string());
+        let want = vox_orchestrator_mcp::profiles::ActiveProfile::from_env()
+            .map(|p| p.id_string())
+            .map_err(|e| format!("{e} (VOX_PROFILE)"));
+        assert_eq!(got, want);
     }
 }
