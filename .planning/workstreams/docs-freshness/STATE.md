@@ -6,16 +6,16 @@ current_phase: 20
 current_phase_name: Deploy Unblock & Public-Surface Honesty
 current_plan: "20-01 (wave 1: 20-01..20-05 parallel)"
 status: planning
-stopped_at: Completed 20-08-PLAN.md
-last_updated: "2026-10-09T09:50:57.516Z"
+stopped_at: Completed 20-09-PLAN.md
+last_updated: "2026-10-09T10:02:43.745Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 20 planned (12 plans); Phase 20.1 (collapsible reader layout) inserted
-state_head: 0d7c66a255e74ae2d48d424f76fa1e92ec4524d0
+state_head: 7a1a8a0611a6cf50bc737cd4b11712f842df878e
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 12
-  completed_plans: 9
+  completed_plans: 10
   percent: 0
 ---
 
@@ -30,7 +30,7 @@ See: `.planning/PROJECT.md`; workstream brief `CONTEXT.md`; roadmap `ROADMAP.md`
 ## Current Position
 
 Phase: 20 of 20–24 (Deploy Unblock & Public-Surface Honesty)
-Plan: 9 of 12 (planned, 7 waves; checker passed after 2 revisions)
+Plan: 10 of 12 (planned, 7 waves; checker passed after 2 revisions)
 Status: Ready to execute — `/gsd-execute-phase 20`
 Last activity: 2026-10-08 — Phase 20 planned (12 plans); Phase 20.1 (collapsible reader layout) inserted
 
@@ -59,6 +59,7 @@ Last activity: 2026-10-08 — Phase 20 planned (12 plans); Phase 20.1 (collapsib
 - [Phase 20]: 20-12: docs content dir is a marker-guarded mirror of per-entry symlinks; the archive is excluded by not mirroring it (docsLoader has no exclude option)
 - [Phase 20]: 20-07: starlight-llms-txt 0.10.0 patched via pnpm patch so llms-full and custom sets honour exclude; Internals ids come from frontmatter
 - [Phase 20]: 20-08: Astro's content loader only logs remark errors, so dead links fail the build via docLinksGate() at astro:build:done
+- [Phase 20]: 20-09: repo Markdown mounted at /repo/<route>/ via the content mirror; routeData sets every page's edit URL and date from its true repo file
 
 ### Blockers / Gates
 
@@ -72,9 +73,9 @@ Last activity: 2026-10-08 — Phase 20 planned (12 plans); Phase 20.1 (collapsib
 
 ## Session Continuity
 
-**Last session:** 2026-10-09T09:50:57.493Z
+**Last session:** 2026-10-09T10:02:40.953Z
 
-**Stopped At:** Completed 20-08-PLAN.md
+**Stopped At:** Completed 20-09-PLAN.md
 **Resume File:** None
 
 ## Performance Metrics
@@ -90,3 +91,4 @@ Last activity: 2026-10-08 — Phase 20 planned (12 plans); Phase 20.1 (collapsib
 | Phase 20 P12 | 10min | 2 tasks | 6 files |
 | Phase 20 P07 | 10 min | 2 tasks | 7 files |
 | Phase 20 P08 | 25min | 3 tasks | 7 files |
+| Phase 20 P09 | 25min | 3 tasks | 20 files |
