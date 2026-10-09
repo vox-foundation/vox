@@ -179,25 +179,30 @@ pub fn sources_from_hits(hits: &[HybridSearchHit], max: usize) -> Vec<Source> {
         .filter(|h| seen.insert(h.path.clone()))
         .take(max)
         .enumerate()
-        .map(|(i, h)| Source {
-            n: i + 1,
-            url: h.path.clone(),
-            title: SanitizedText::new(&h.title).into_string(),
-            engine: h
+        .map(|(i, h)| {
+            let engine = h
                 .provenance
                 .iter()
                 .find_map(|p| p.strip_prefix("engine:"))
-                .unwrap_or("unknown")
-                .to_string(),
-            // Sanitize first, cap second: the cap must not cut a construct in half and leave
-            // its tail behind.
-            snippet: SanitizedText::new(&h.content_snippet)
-                .into_string()
-                .chars()
-                .take(600)
-                .collect(),
+                .unwrap_or("unknown");
+            sanitized_source(i + 1, &h.path, &h.title, engine, &h.content_snippet)
         })
         .collect()
+}
+
+/// The only way to build a numbered `Source` (TRUST-05, WR-05): every field passes
+/// `SanitizedText` before it can reach the prompt block, the GUI trace or findings capture.
+fn sanitized_source(n: usize, url: &str, title: &str, engine: &str, snippet: &str) -> Source {
+    let clean = |s: &str| SanitizedText::new(s).into_string();
+    Source {
+        n,
+        url: clean(url),
+        title: clean(title),
+        engine: clean(engine),
+        // Sanitize first, cap second: the cap must not cut a construct in half and leave
+        // its tail behind.
+        snippet: clean(snippet).chars().take(600).collect(),
+    }
 }
 
 /// Flattens embedded newlines to spaces so a hostile page title/url/engine/snippet
@@ -695,13 +700,7 @@ pub async fn run_deep(
 fn pipeline_sources(hits: &[vox_research_shim::research::types::ResearchHit]) -> Vec<Source> {
     hits.iter()
         .enumerate()
-        .map(|(i, h)| Source {
-            n: i + 1,
-            url: h.url.clone(),
-            title: h.title.clone(),
-            engine: "pipeline".into(),
-            snippet: h.snippet.chars().take(600).collect(),
-        })
+        .map(|(i, h)| sanitized_source(i + 1, &h.url, &h.title, "pipeline", &h.snippet))
         .collect()
 }
 
@@ -1418,6 +1417,97 @@ mod tests {
         );
         assert_eq!(s[0].engine, "searxng");
         assert!(s[0].snippet.chars().count() <= 600);
+    }
+
+    const REDTEAM: &str = include_str!("../../../../../contracts/kb/redteam/cases.v1.jsonl");
+
+    fn redteam_cases() -> Vec<(String, String, Vec<String>)> {
+        REDTEAM
+            .lines()
+            .filter(|l| !l.trim().is_empty())
+            .map(|l| {
+                let v: Value = serde_json::from_str(l).expect("red-team line");
+                let s = |k: &str| v[k].as_str().expect("str").to_string();
+                let bad = v["must_not_contain"]
+                    .as_array()
+                    .expect("array")
+                    .iter()
+                    .map(|x| x.as_str().expect("str").to_string())
+                    .collect();
+                (s("id"), s("input"), bad)
+            })
+            .collect()
+    }
+
+    /// WR-05: url and engine (not just title and snippet) are sanitized before the prompt block.
+    #[test]
+    fn redteam_source_url_and_engine_are_sanitized_at_the_prompt_block() {
+        let mut checked = 0;
+        for (id, input, bad) in redteam_cases() {
+            let hit = HybridSearchHit {
+                path: format!("https://ok.example/p/{input}"),
+                title: "t".into(),
+                content_snippet: "s".into(),
+                score: 0.5,
+                provenance: vec![format!("engine:{input}")],
+                potential_contradiction: false,
+            };
+            let s = sources_from_hits(&[hit], 8);
+            assert_eq!(s.len(), 1, "case {id}");
+            let block = sources_context_block(&s);
+            for b in &bad {
+                for (what, field) in [
+                    ("url", &s[0].url),
+                    ("engine", &s[0].engine),
+                    ("block", &block),
+                ] {
+                    assert!(
+                        !field.contains(b.as_str()),
+                        "case {id}: {b:?} survived in {what}: {field:?}"
+                    );
+                }
+            }
+            checked += 1;
+        }
+        assert!(checked >= 10, "red-team set shrank to {checked}");
+    }
+
+    /// WR-05: the deep and failed-run path (`pipeline_sources`) sanitizes every field too.
+    #[test]
+    fn redteam_pipeline_sources_are_sanitized() {
+        use vox_research_shim::research::types::ResearchHit;
+        let mut checked = 0;
+        for (id, input, bad) in redteam_cases() {
+            let h = ResearchHit {
+                url: format!("https://ok.example/p/{input}"),
+                title: input.clone(),
+                snippet: input.repeat(400),
+                score: 1.0,
+                http_status: 0,
+                trust_score: 1.0,
+                raw_content: String::new(),
+            };
+            let s = pipeline_sources(&[h]);
+            assert_eq!(s.len(), 1, "case {id}");
+            assert!(s[0].snippet.chars().count() <= 600, "case {id}");
+            let block = sources_context_block(&s);
+            for b in &bad {
+                for (what, field) in [
+                    ("title", &s[0].title),
+                    ("url", &s[0].url),
+                    ("snippet", &s[0].snippet),
+                    ("engine", &s[0].engine),
+                    ("block", &block),
+                ] {
+                    assert!(
+                        !field.contains(b.as_str()),
+                        "case {id}: {b:?} survived in {what}: {field:?}"
+                    );
+                }
+            }
+            checked += 1;
+        }
+        assert!(checked >= 10, "red-team set shrank to {checked}");
     }
 
     #[test]
