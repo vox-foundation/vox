@@ -10,6 +10,10 @@ on:
       - 'contracts/**'
       - 'crates/vox-doc-pipeline/**'
       - 'crates/vox-cli/src/commands/ci/**'
+      - 'docs-astro/**'
+      - '.git-blame-ignore-revs'
+      - '.lycheeignore'
+      - '.github/workflows/docs-quality.yml'
   push:
     branches: [main]
     paths:
@@ -20,6 +24,10 @@ on:
       - 'contracts/**'
       - 'crates/vox-doc-pipeline/**'
       - 'crates/vox-cli/src/commands/ci/**'
+      - 'docs-astro/**'
+      - '.git-blame-ignore-revs'
+      - '.lycheeignore'
+      - '.github/workflows/docs-quality.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -37,7 +45,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      # Full history: page "Last updated" dates come from git log (git-dates.mjs).
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Install Rust toolchain
         uses: ./.github/actions/setup-rust
@@ -79,6 +90,15 @@ jobs:
         id: starlight_build
         working-directory: docs-astro
         run: pnpm build
+
+      - name: Docs unit tests
+        working-directory: docs-astro
+        run: node --test "tests/unit/*.test.mjs"
+
+      # Pure-fs Playwright specs over dist/; no browser install needed.
+      - name: Build-output checks
+        working-directory: docs-astro
+        run: npx playwright test tests/build-output/ --reporter=line
 
       # Hard gate: graduated from continue-on-error after baseline stabilised.
       # Covers docs-astro, apps/vox-mental-tracker, apps/experimental/visualizer, vox-codegen TS tests.
