@@ -19,6 +19,9 @@ mod webhook_intake;
 /// Host-side registration of the nvml-probe plugin as the orchestrator's GPU probe.
 pub mod vram_probe;
 
+mod boot_gate;
+pub use boot_gate::subsystem_not_booted_json;
+
 #[derive(Debug, Clone)]
 pub struct CachedCatalog {
     pub resolved: vox_repository::ResolvedRepoCatalog,
