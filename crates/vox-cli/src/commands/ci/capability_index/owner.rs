@@ -8,7 +8,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use anyhow::{Result, bail};
-use vox_capability_registry::{OwnerRef, RowKind};
+use vox_capability_registry::{OwnerRef, RowKind, SURFACE_CRATES};
 
 use super::inputs::{Domains, OperationRow};
 
@@ -20,8 +20,6 @@ pub(crate) const MCP_DISPATCH_PATH: &str = "crates/vox-orchestrator-mcp/src/disp
 const MCP_CRATE: &str = "vox-orchestrator-mcp";
 const CLI_CRATE: &str = "vox-cli";
 const FALLBACK_DOMAIN: &str = "platform";
-/// Crates that hold every handler; their name says nothing about a domain (Pitfall 9).
-const SURFACE_CRATES: [&str; 4] = ["vox-cli", "vox-cli-ci", "vox-orchestrator-mcp", "vox-gui"];
 
 pub(super) fn owner_ref(layers: &Layers, krate: &str, rule: &str) -> OwnerRef {
     OwnerRef {

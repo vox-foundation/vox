@@ -30,7 +30,7 @@ pub use explain::{
 pub use ids::{implicit_cli_capability_id, implicit_mcp_capability_id};
 pub use index::{
     CapabilityIndex, CliRef, CoverageRef, CoverageSnapshotMeta, DocLink, DomainDef, GuiRef,
-    IndexRow, McpRef, OwnerRef, RowKind, bundled_index,
+    IndexRow, McpRef, OwnerRef, RowKind, SURFACE_CRATES, bundled_index,
 };
 pub use loader::{CAPABILITY_REGISTRY_REL, load_document};
 pub use manifest::{ModelCapabilityManifest, build_model_manifest};

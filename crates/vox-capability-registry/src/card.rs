@@ -10,7 +10,7 @@ use std::fmt::Write as _;
 use anyhow::Result;
 
 use crate::explain::{Resolution, domain_counts, rows_in_domain};
-use crate::index::{CapabilityIndex, IndexRow, RowKind};
+use crate::index::{CapabilityIndex, IndexRow, RowKind, SURFACE_CRATES};
 
 const DASH: &str = "—";
 /// Most MCP names listed on one card line before `+N more`.
@@ -187,20 +187,25 @@ pub fn render_card(index: &CapabilityIndex, row: &IndexRow) -> String {
         .chain(&row.refs)
         .map(String::as_str)
         .collect();
+    // Surface crates own hundreds of unrelated rows, so sharing one is not "related".
     let same_owner = |r: &IndexRow| {
         row.owner
             .as_ref()
             .zip(r.owner.as_ref())
-            .is_some_and(|(a, b)| a.crate_name == b.crate_name)
+            .is_some_and(|(a, b)| {
+                a.crate_name == b.crate_name && !SURFACE_CRATES.contains(&a.crate_name.as_str())
+            })
     };
+    let same_domain = |r: &IndexRow| row.domain.is_some() && r.domain == row.domain;
     let mut related: Vec<&IndexRow> = index
         .rows
         .iter()
         .filter(|r| matches!(r.kind, RowKind::Cli | RowKind::McpTool | RowKind::Surface))
         .filter(|r| r.id != row.id && !skip.contains(r.id.as_str()))
-        .filter(|r| (row.domain.is_some() && r.domain == row.domain) || same_owner(r))
+        .filter(|r| same_domain(r) || same_owner(r))
         .collect();
-    related.sort_by(|a, b| a.id.cmp(&b.id));
+    // Same-domain siblings first, then same-crate rows; id breaks ties deterministically.
+    related.sort_by(|a, b| (!same_domain(a), &a.id).cmp(&(!same_domain(b), &b.id)));
     let _ = writeln!(s, "\nRelated");
     if related.is_empty() {
         let _ = writeln!(s, "  {DASH}");
@@ -329,7 +334,7 @@ mod tests {
     use crate::RowKind;
     use crate::explain::resolve;
     use crate::index::CoverageSnapshotMeta;
-    use crate::test_fixture::{cli_ref, fixture_index, row};
+    use crate::test_fixture::{cli_ref, fixture_index, owner, row};
 
     fn card(index: &CapabilityIndex, id: &str) -> String {
         render_card(index, index.row(id).expect("fixture row"))
@@ -436,6 +441,49 @@ Related
                 "cli.secrets.s4"
             ]
         );
+    }
+
+    #[test]
+    fn related_prefers_domain_over_surface_crate_siblings() {
+        // `cli.check` (domain platform, owner vox-cli): five alphabetically-earlier vox-cli rows
+        // from other domains must not crowd out the same-domain sibling, and a row owned by a
+        // real (non-surface) crate ranks after the domain siblings.
+        let mut idx = fixture_index();
+        for n in 1..=5 {
+            let mut r = row(&format!("cli.a{n}"), RowKind::Cli, &format!("A{n}"));
+            r.domain = Some("secrets".into());
+            r.owner = owner("vox-cli", 5);
+            idx.rows.push(r);
+        }
+        let mut sib = row("cli.zzz", RowKind::Cli, "Zzz");
+        sib.domain = Some("platform".into());
+        idx.rows.push(sib);
+        let mut krate = row("cli.zzz2", RowKind::Cli, "Zzz2");
+        krate.domain = Some("mesh".into());
+        krate.owner = owner("vox-cli", 5);
+        idx.rows.push(krate);
+        let c = card(&idx, "cli.check");
+        let rel = c.split("Related\n").nth(1).expect("related group");
+        assert!(rel.contains("cli.zzz —"), "{rel}");
+        assert!(!rel.contains("cli.a1"), "{rel}");
+        assert!(!rel.contains("cli.zzz2"), "{rel}");
+
+        // A non-surface shared owner still counts, but after same-domain rows.
+        let mut idx = fixture_index();
+        let mut late = row("cli.zlate", RowKind::Cli, "Late");
+        late.domain = Some("secrets".into());
+        idx.rows.push(late);
+        let mut other = row("cli.aother", RowKind::Cli, "Other");
+        other.domain = Some("mesh".into());
+        other.owner = owner("vox-secrets", 2);
+        idx.rows.push(other);
+        let c = card(&idx, "cli.secrets.get");
+        let rel = c.split("Related\n").nth(1).expect("related group");
+        let ids: Vec<&str> = rel
+            .lines()
+            .filter_map(|l| l.trim().split(" — ").next())
+            .collect();
+        assert_eq!(ids, ["cli.secrets", "cli.zlate", "cli.aother"], "{rel}");
     }
 
     #[test]

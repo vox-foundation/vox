@@ -12,6 +12,10 @@ use serde::{Deserialize, Serialize};
 const EMBEDDED_INDEX_JSON: &str =
     include_str!("../../../contracts/capabilities/capability-index.v1.json");
 
+/// Crates that hold every handler of a surface; their name says nothing about a domain or a
+/// sibling capability (Pitfall 9). Shared by the generator's domain rule and the card's Related.
+pub const SURFACE_CRATES: [&str; 4] = ["vox-cli", "vox-cli-ci", "vox-orchestrator-mcp", "vox-gui"];
+
 /// Kind of an index row. Declaration order is the sort order of serialized rows.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
