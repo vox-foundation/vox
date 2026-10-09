@@ -17714,6 +17714,7 @@ name = "vox-mcp-registry"
 version = "0.6.0"
 dependencies = [
  "serde",
+ "serde_json",
  "serde_yaml_ng",
  "workspace-hack",
 ]

@@ -2,6 +2,14 @@
 //!
 //! Consume [`TOOL_REGISTRY`] instead of duplicating name/description tables.
 
+mod classification;
+mod exposure;
+mod subsystem;
+
+pub use classification::{ToolClassification, classify_tool_row};
+pub use exposure::{Exposure, SideEffectClass};
+pub use subsystem::{Subsystem, subsystem_closure};
+
 /// One MCP tool row (name, description, bell-curve [`product_lane`](McpToolRegistryEntry::product_lane)).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct McpToolRegistryEntry {
