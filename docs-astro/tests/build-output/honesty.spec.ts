@@ -154,6 +154,14 @@ test.describe('sitemap and robots.txt', () => {
     expect(listed).toEqual([]);
   });
 
+  test('feed.xml lists no noindex page', () => {
+    const feed = readFileSync(join(DIST_DIR, 'feed.xml'), 'utf8');
+    const links = [...feed.matchAll(/<item>[\s\S]*?<link>([^<]+)<\/link>/g)].map((m) => new URL(m[1]).pathname);
+    expect(links.length).toBeGreaterThan(0);
+    const noindex = noindexRoutes(PAGES);
+    expect(links.filter((path) => noindex.has(path))).toEqual([]);
+  });
+
   test('robots.txt points at sitemap-index.xml and disallows nothing', () => {
     const robots = readFileSync(join(DIST_DIR, 'robots.txt'), 'utf8');
     expect(robots).toContain('Sitemap: https://voxlang.org/sitemap-index.xml');

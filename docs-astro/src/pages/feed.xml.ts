@@ -1,6 +1,7 @@
 import rss from '@astrojs/rss';
 import { getCollection } from 'astro:content';
 import type { APIContext } from 'astro';
+import { feedEntries } from '../utils/feed-entries.mjs';
 import { getGitDates } from '../utils/git-dates.mjs';
 
 /** Git-date map key for a collection entry: same rule as `routeData.ts`. */
@@ -15,11 +16,7 @@ export async function GET(context: APIContext) {
   // Dates come from Git, not frontmatter. `last_updated:` is a hard lint
   // error in authored docs (documentation-governance.md), so filtering on it
   // matched zero documents and the feed shipped empty.
-  const items = docs
-    .map(doc => ({ doc, date: doc.filePath ? gitDates.get(repoPath(doc.filePath)) : undefined }))
-    .filter((entry): entry is { doc: typeof entry.doc; date: string } => Boolean(entry.date))
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 30)
+  const items = feedEntries(docs, doc => (doc.filePath ? gitDates.get(repoPath(doc.filePath)) : undefined))
     .map(({ doc, date }) => ({
       title: doc.data.title,
       pubDate: new Date(date),
