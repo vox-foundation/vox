@@ -56,6 +56,7 @@ pub(crate) struct SkillInput {
 #[serde(deny_unknown_fields)]
 pub(crate) struct Domains {
     #[serde(default)]
+    #[allow(dead_code)] // deserialised so deny_unknown_fields accepts the yaml key; never read
     pub schema_version: u32,
     #[serde(default)]
     pub domains: Vec<DomainDef>,
