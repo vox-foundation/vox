@@ -11,6 +11,7 @@ import {
   lstatSync,
   mkdirSync,
   readdirSync,
+  readFileSync,
   readlinkSync,
   realpathSync,
   rmdirSync,
@@ -22,6 +23,7 @@ import {
 } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { join, dirname } from 'node:path';
+import { MOUNT_DIR, discoverMounts, loadMountContract, wrapperSource } from '../src/utils/repo-mounts.mjs';
 
 export const MIRROR_MARKER = '.vox-docs-mirror';
 /** Top-level docs/src entries that are never mirrored (never opened either). */
@@ -65,8 +67,46 @@ export function prepareMirrorDir(mirrorPath) {
   );
 }
 
-/** Rebuilds `mirrorPath` as per-entry links to `sourceDir`, minus MIRROR_EXCLUDED. */
-export function buildMirror(sourceDir, mirrorPath) {
+/**
+ * Mounts repo Markdown under `<mirrorPath>/repo/` (P20-D9): a file with a
+ * frontmatter title is linked as `repo/<route>.md`; any other file gets a
+ * generated page with a `title` and `mounted_from`. `repo/` is a real
+ * directory inside the marked mirror, so prepareMirrorDir clears it.
+ */
+export function mountRepoFiles(mirrorPath, repoRoot, { mounts, titles = {} }) {
+  const dir = join(mirrorPath, MOUNT_DIR);
+  mkdirSync(dir);
+  let linked = 0;
+  let wrapped = 0;
+  for (const { repoPath, route, hasTitle } of mounts) {
+    const from = join(repoRoot, repoPath);
+    const to = join(dir, `${route}.md`);
+    if (hasTitle) {
+      try {
+        symlinkSync(from, to, 'file');
+        linked++;
+        continue;
+      } catch (err) {
+        if (err.code !== 'EPERM') throw err;
+        // No symlink permission (win32): fall through to a generated page,
+        // which keeps the true source in `mounted_from`.
+      }
+    }
+    writeFileSync(to, wrapperSource(repoPath, readFileSync(from, 'utf8'), titles), { flag: 'wx' });
+    wrapped++;
+  }
+  console.log(`[setup-content] Mounted ${mounts.length} repo files under ${MOUNT_DIR}/ (${linked} linked, ${wrapped} generated)`);
+  return { linked, wrapped };
+}
+
+/**
+ * Rebuilds `mirrorPath` as per-entry links to `sourceDir`, minus MIRROR_EXCLUDED.
+ * With `repoRoot`, also mounts repo Markdown under `repo/` (see mountRepoFiles).
+ */
+export function buildMirror(sourceDir, mirrorPath, { repoRoot } = {}) {
+  if (repoRoot && existsSync(join(sourceDir, MOUNT_DIR))) {
+    throw new Error(`[setup-content] ${join(sourceDir, MOUNT_DIR)} would shadow the /${MOUNT_DIR}/ mounts; rename it.`);
+  }
   prepareMirrorDir(mirrorPath);
   const names = readdirSync(sourceDir).filter((name) => !MIRROR_EXCLUDED.includes(name));
   const copied = [];
@@ -88,14 +128,20 @@ export function buildMirror(sourceDir, mirrorPath) {
   console.log(
     `[setup-content] Mirrored ${names.length} docs/src entries into docs-astro/src/content/docs (excluded: ${MIRROR_EXCLUDED.join(', ')})`
   );
-  return { mirrored: names.length, copied };
+  let mounted;
+  if (repoRoot) {
+    const contract = loadMountContract(repoRoot);
+    const mounts = discoverMounts({ repoRoot, docsSrc: sourceDir, contract });
+    mounted = mountRepoFiles(mirrorPath, repoRoot, { mounts, titles: contract.titles });
+  }
+  return { mirrored: names.length, copied, mounted };
 }
 
 function main() {
   const scriptDir = dirname(fileURLToPath(import.meta.url));
   const repoRoot = join(scriptDir, '..', '..');
 
-  buildMirror(join(repoRoot, 'docs', 'src'), join(repoRoot, 'docs-astro', 'src', 'content', 'docs'));
+  buildMirror(join(repoRoot, 'docs', 'src'), join(repoRoot, 'docs-astro', 'src', 'content', 'docs'), { repoRoot });
 
   // Second link: expose repo-root examples/ so remark-vox-include can resolve
   // {{#include ../../../examples/golden/X.vox}} from any docs section subdirectory.

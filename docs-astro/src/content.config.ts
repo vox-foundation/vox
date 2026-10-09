@@ -16,6 +16,8 @@ export const collections = {
 				training_rationale: z.string().optional(),
 				schema_type: z.string().optional(),
 				last_updated: z.string().optional(),
+				// Repo path of a generated /repo/ page (scripts/setup-content.mjs mountRepoFiles).
+				mounted_from: z.string().optional(),
 			})
 		}),
 	}),
