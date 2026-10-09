@@ -3310,3 +3310,141 @@ mod fs_text_robustness_tests {
         assert!(cmds.is_empty());
     }
 }
+
+/// Pins the scalar/list methods nightly mutation testing found unguarded
+/// (shard 24/128, 2026-10-08: 29 of 37 mutants survived in `call_builtin_method`).
+#[cfg(test)]
+mod scalar_method_mutation_tests {
+    use super::*;
+
+    fn call(obj: VoxValue, method: &str, args: Vec<VoxValue>) -> VoxValue {
+        call_builtin_method(
+            &obj,
+            method,
+            args,
+            &crate::eval::caps::CapabilitySet::developer_default(),
+            None,
+        )
+        .unwrap_or_else(|| panic!("method {method} not dispatched"))
+    }
+    fn s(x: &str) -> VoxValue {
+        VoxValue::Str(x.to_string().into())
+    }
+    fn some(v: VoxValue) -> VoxValue {
+        VoxValue::Option(Some(Box::new(v)))
+    }
+    fn none() -> VoxValue {
+        VoxValue::Option(None)
+    }
+
+    #[test]
+    fn list_sum_adds_floats() {
+        let l = VoxValue::list(vec![VoxValue::Float(1.5), VoxValue::Float(2.0)]);
+        assert_eq!(call(l, "sum", vec![]), VoxValue::Float(3.5));
+    }
+
+    #[test]
+    fn list_at_bounds() {
+        let l = || VoxValue::list(vec![VoxValue::Int(10), VoxValue::Int(20)]);
+        assert_eq!(
+            call(l(), "at", vec![VoxValue::Int(0)]),
+            some(VoxValue::Int(10))
+        );
+        assert_eq!(
+            call(l(), "at", vec![VoxValue::Int(1)]),
+            some(VoxValue::Int(20))
+        );
+        assert_eq!(call(l(), "at", vec![VoxValue::Int(-1)]), none());
+    }
+
+    #[test]
+    fn null_is_total() {
+        assert_eq!(
+            call(VoxValue::Null, "has", vec![s("k")]),
+            VoxValue::Bool(false)
+        );
+        for m in [
+            "get",
+            "at",
+            "pointer",
+            "as_object",
+            "as_array",
+            "length",
+            "keys",
+        ] {
+            assert_eq!(call(VoxValue::Null, m, vec![]), none(), "{m}");
+        }
+        assert_eq!(call(VoxValue::Null, "to_string", vec![]), s("null"));
+    }
+
+    #[test]
+    fn str_basic_methods() {
+        assert_eq!(call(s("héllo"), "len", vec![]), VoxValue::Int(6)); // bytes
+        assert_eq!(call(s(""), "is_empty", vec![]), VoxValue::Bool(true));
+        assert_eq!(call(s("a"), "is_empty", vec![]), VoxValue::Bool(false));
+        assert_eq!(call(s("AbC"), "to_lower", vec![]), s("abc"));
+        assert_eq!(call(s("  x  "), "trim_start", vec![]), s("x  "));
+        assert_eq!(call(s("  x  "), "trim_end", vec![]), s("  x"));
+        assert_eq!(
+            call(s("vox"), "starts_with", vec![s("vo")]),
+            VoxValue::Bool(true)
+        );
+        assert_eq!(
+            call(s("vox"), "starts_with", vec![s("ox")]),
+            VoxValue::Bool(false)
+        );
+        assert_eq!(
+            call(s("vox"), "ends_with", vec![s("ox")]),
+            VoxValue::Bool(true)
+        );
+        assert_eq!(
+            call(s("vox"), "ends_with", vec![s("vo")]),
+            VoxValue::Bool(false)
+        );
+        assert_eq!(call(s("ab"), "repeat", vec![VoxValue::Int(3)]), s("ababab"));
+        assert_eq!(call(s("héllo"), "chars_count", vec![]), VoxValue::Int(5));
+        assert_eq!(call(s("aaaa"), "count", vec![s("aa")]), VoxValue::Int(2));
+        assert_eq!(call(s("abc"), "to_str", vec![]), s("abc"));
+    }
+
+    #[test]
+    fn str_classification() {
+        assert_eq!(call(s("abc"), "is_alpha", vec![]), VoxValue::Bool(true));
+        assert_eq!(call(s("ab1"), "is_alpha", vec![]), VoxValue::Bool(false));
+        assert_eq!(call(s("123"), "is_digit", vec![]), VoxValue::Bool(true));
+        assert_eq!(call(s("12a"), "is_digit", vec![]), VoxValue::Bool(false));
+        assert_eq!(call(s("a1"), "is_alnum", vec![]), VoxValue::Bool(true));
+        assert_eq!(call(s("a-1"), "is_alnum", vec![]), VoxValue::Bool(false));
+        assert_eq!(call(s("AB1"), "is_upper", vec![]), VoxValue::Bool(true));
+        assert_eq!(call(s("Ab"), "is_upper", vec![]), VoxValue::Bool(false));
+        assert_eq!(call(s("ab1"), "is_lower", vec![]), VoxValue::Bool(true));
+        assert_eq!(call(s("aB"), "is_lower", vec![]), VoxValue::Bool(false));
+    }
+
+    #[test]
+    fn str_chars_and_indexing() {
+        assert_eq!(call(s("A"), "ord", vec![]), VoxValue::Int(65));
+        assert_eq!(
+            call(s("hé"), "chars", vec![]),
+            VoxValue::list(vec![s("h"), s("é")])
+        );
+        assert_eq!(
+            call(
+                s("héllo"),
+                "slice",
+                vec![VoxValue::Int(1), VoxValue::Int(3)]
+            ),
+            s("él")
+        );
+        assert_eq!(
+            call(s("héllo"), "char_at", vec![VoxValue::Int(1)]),
+            some(s("é"))
+        );
+        assert_eq!(call(s("hé"), "char_at", vec![VoxValue::Int(9)]), none());
+        assert_eq!(
+            call(s("héllo"), "index_of", vec![s("l")]),
+            some(VoxValue::Int(2))
+        );
+        assert_eq!(call(s("abc"), "index_of", vec![s("z")]), none());
+    }
+}
