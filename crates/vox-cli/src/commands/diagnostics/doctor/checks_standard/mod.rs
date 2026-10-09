@@ -6,6 +6,7 @@ mod build_health;
 mod compile_target;
 mod disk_footprint;
 mod freshness;
+mod gateway_bind;
 mod gpu_hardware;
 mod gui_sidecar;
 mod llm_routing;
@@ -57,6 +58,7 @@ pub async fn run_checks(
     binary_ssot::run(checks);
     ml_cli::run(checks);
     secrets::run(auto_heal, checks).await;
+    gateway_bind::run(checks);
     llm_routing::run(checks).await;
     gpu_hardware::run(checks).await;
     vox_ignore::run(auto_heal, checks).await;
