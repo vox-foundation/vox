@@ -9,6 +9,7 @@ import { LanguageProvider } from './hooks/useLanguage'
 import { applyTheme } from './lib/theme'
 import { voxTransport } from './transport'
 import { backendAvailable, installBackendUnavailableRejectionFilter } from './lib/backendGuard'
+import { BackendStatusProvider } from './hooks/useBackendStatus'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -49,7 +50,9 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
     <ErrorBoundary>
       <LanguageProvider>
         <QueryClientProvider client={queryClient}>
-          <App />
+          <BackendStatusProvider>
+            <App />
+          </BackendStatusProvider>
         </QueryClientProvider>
       </LanguageProvider>
     </ErrorBoundary>
