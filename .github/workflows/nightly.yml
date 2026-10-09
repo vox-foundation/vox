@@ -161,7 +161,9 @@ jobs:
     # Raised from 15: the added GTK/dbus apt-get install + pnpm install (for the
     # GUI honesty gate) can eat most of a 15-min budget on a cold runner before
     # the guards themselves even start.
-    timeout-minutes: 20
+    # 2026-10-08: with earlier steps fixed the Determinism Audit runs to completion
+    # (13+ min alone) and the job was cut at 20; still well under the 180 nightly cap.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
@@ -1045,7 +1047,9 @@ jobs:
     # runner contention (repeatedly landing at ~25m15s, i.e. cut off mid-step by
     # the timeout, not a real hang). 35m matches the headroom given to other
     # substantial jobs in this workflow (30/40m).
-    timeout-minutes: 35
+    # 2026-10-08: the feature matrix (21m) + build timings (8m) + workspace all-features
+    # check no longer fit 35m once earlier failures stopped short-circuiting this job.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8

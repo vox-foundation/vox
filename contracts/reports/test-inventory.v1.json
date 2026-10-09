@@ -3,11 +3,11 @@
   "summary": {
     "workspace_crate_count": 130,
     "rust_files_scanned": 4114,
-    "cargo_unit_test_functions": 11059,
+    "cargo_unit_test_functions": 11070,
     "cargo_integration_test_functions": 3055,
     "cargo_bench_functions": 0,
     "cargo_ignored_test_functions": 92,
-    "cargo_test_functions_total": 14114,
+    "cargo_test_functions_total": 14125,
     "webir_related_ignored_tests": 1,
     "webir_ignored_tests_likely_retired_note": 0
   },
@@ -85,7 +85,7 @@
       "integration_rs_files": 3
     },
     "vox-cli": {
-      "unit_tests": 864,
+      "unit_tests": 865,
       "integration_tests": 277,
       "bench_tests": 0,
       "ignored_tests": 8,
@@ -93,7 +93,7 @@
       "integration_rs_files": 97
     },
     "vox-cli-ci": {
-      "unit_tests": 442,
+      "unit_tests": 444,
       "integration_tests": 0,
       "bench_tests": 0,
       "ignored_tests": 0,
@@ -173,7 +173,7 @@
       "integration_rs_files": 5
     },
     "vox-compiler": {
-      "unit_tests": 571,
+      "unit_tests": 577,
       "integration_tests": 637,
       "bench_tests": 0,
       "ignored_tests": 2,
@@ -277,7 +277,7 @@
       "integration_rs_files": 0
     },
     "vox-drift-check": {
-      "unit_tests": 72,
+      "unit_tests": 74,
       "integration_tests": 3,
       "bench_tests": 0,
       "ignored_tests": 0,

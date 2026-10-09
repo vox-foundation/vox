@@ -36,7 +36,10 @@ jobs:
     # (compute-placement.md §vox placement), and the Rust extractor's PR diff-range
     # analysis OOMs in the self-hosted job container (capped ~4 GB, exit 99).
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # Rust extraction alone measured ~40 min cold (it recompiles build scripts and
+    # proc-macros in its own scratch target); 60 cut it off even without the old
+    # wasted cargo build. Weekly scheduled job; slow-lane cap is 180.
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:

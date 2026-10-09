@@ -13,6 +13,7 @@ test("golden route screenshot and accessibility snapshot", async ({ page }) => {
   await expect(page.locator("body")).toBeVisible();
   await page.screenshot({ path: path.join(outDir, "route.png"), fullPage: true });
 
-  const snap = await page.accessibility.snapshot();
-  fs.writeFileSync(path.join(outDir, "a11y.json"), JSON.stringify(snap, null, 2), "utf8");
+  // page.accessibility was removed from Playwright; the ARIA snapshot (YAML) replaces it.
+  const snap = await page.locator("body").ariaSnapshot();
+  fs.writeFileSync(path.join(outDir, "a11y.json"), JSON.stringify({ aria: snap }, null, 2), "utf8");
 });
