@@ -126,3 +126,46 @@ returns. A tool missing from it fails with `exposure_denied` (403), `insufficien
 
 - [Environment variables](../reference/env-vars.md) — `VOX_MCP_HTTP_*`
 - [MCP HTTP gateway contract](../reference/mcp-http-gateway-contract.md)
+
+## Remote Axis
+
+Axis can attach to a `vox serve` gateway instead of the daemon on your own machine.
+
+1. Start the server with TLS (or `--behind-tunnel`) and bearer tokens, for example:
+   `vox serve --profile mesh --bind 0.0.0.0:3921 --tls-cert cert.pem --tls-key key.pem`.
+2. On the server, print the certificate fingerprint Axis will show:
+
+   ```bash
+   openssl x509 -in cert.pem -outform DER | openssl dgst -sha3-256
+   ```
+
+3. In Axis, open **Settings → Server**, enter `https://<host>:<port>` and the read or write token,
+   and press **Connect**. Compare the SHA3-256 fingerprint in the dialog with step 2, then
+   **Trust and connect**. Axis pins that certificate; if it ever changes, Axis asks again and shows
+   both fingerprints.
+4. **Disconnect** returns Axis to the local daemon.
+
+Plain `http://` is accepted only for loopback addresses. Axis and the server must share the same
+`major.minor` version, otherwise the connection is refused with `version_mismatch`.
+
+**Where things are stored.** The token is kept in the OS keyring through Clavis (registry token
+`axis-remote:<origin>`); if the keyring is unavailable Clavis falls back to `~/.vox/auth.json` and
+prints a warning. The server URL and pinned fingerprint are the `axis_remote_url` and
+`axis_remote_tls_sha3_256` keys in `~/.vox/config.toml`.
+
+**What you see.** A surface is shown only if the server's profile lists it in `axis_surfaces` and
+every command module it uses can run remotely (`contracts/gui/command-backends.v1.yaml`). Otherwise
+it shows *Not available on this server* with one of three reasons:
+
+| Reason | Meaning |
+|---|---|
+| not in server profile | The profile does not include the surface. |
+| needs this machine | The surface uses files, processes, or settings on the local machine. |
+| not remote-capable yet | The surface reads the workspace database directly; it moves behind the gateway per profile (plan 07). |
+
+Remotely usable today: Mesh, Repository (VCS isolation), Search (Vox graph), plus Settings and
+Coverage, which configure Axis itself. In Settings, sections that configure the local Vox install
+are locked while connected.
+
+**Known limits.** The orchestrator status stream is not relayed from the server (agent events are);
+the GUI permission mode is not forwarded, so dangerous tools follow the server's approval default.

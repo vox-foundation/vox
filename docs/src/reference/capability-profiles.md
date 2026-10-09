@@ -134,3 +134,21 @@ profile `requires` failed.
 `tools/list`. Calling one anyway returns `subsystem_not_booted` (HTTP 503) with the subsystem
 name. Stdio `vox mcp` reads the daemon's report through the `orch.boot_report` RPC, and the
 daemon-only RPCs `research.run` and `research.persist_claims` apply the same check.
+
+## Axis surfaces
+
+`axis_surfaces` in a profile manifest lists `view_key`s from `contracts/gui/surface-registry.v1.yaml`.
+When Axis is attached remotely, a surface renders iff it is in `axis_surfaces` and every module that
+`contracts/gui/command-backends.v1.yaml` lists for it is `daemon` (with a remote route) or `shell`.
+
+| Class | Meaning | Remote behaviour |
+|---|---|---|
+| `daemon` | Orchestrator daemon RPC only | Routed through the gateway (`/v1/ws`, `/api/v2`) where a route exists, else `not_remote_capable` |
+| `db` | Opens the workspace database directly | `local_only`; migrated per profile by plan 07 |
+| `host` | Local files, processes, VCS, CLI sidecar, OS | `local_only`; hidden remotely |
+| `shell` | Axis-local (chrome, UI preferences, connect) | Always works |
+
+`vox ci gui-catalog-parity` fails when a command module is unclassified or a row names a missing module.
+
+Axis client-side error codes: `local_only`, `not_remote_capable`, `version_mismatch`,
+`tls_pin_required`, `tls_pin_mismatch`, `unauthorized`, `unreachable`, `invalid_url`, `insecure_url`.
