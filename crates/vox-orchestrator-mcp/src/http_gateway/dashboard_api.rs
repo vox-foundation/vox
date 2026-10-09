@@ -7,6 +7,10 @@
 //! - **Layout:** file-backed `dashboard_layout.v1` under `.vox/dashboard/layout.json` when workspace known.
 //!   `PUT` requires a **write** bearer (same rules as `/v1/tools/call`) when authentication is enabled.
 //! - **Routing viz:** read-only arm stats from the model registry when `VOX_DASHBOARD_ROUTING_VIZ=1`.
+//! - **Exposure (capability-profiles plan 04):** every GET needs a read or write token; PUT
+//!   `/dashboard/layout`, POST `/vcs/isolation/strategy`, POST `/hopper/submit` need the write
+//!   token; POST `/mesh/nodes/{id}/kill` additionally needs a loopback caller. Loopback is the
+//!   TCP peer (never a header) and is never granted when `VOX_MCP_HTTP_BEHIND_TUNNEL=1`.
 
 use axum::Json;
 use axum::Router;
@@ -19,8 +23,8 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 
 use super::{
-    AccessRole, GatewayState, enforce_auth, enforce_https_requirement, enforce_rate_limit,
-    request_identity, resolve_access_role,
+    AccessRole, GatewayState, caller_is_loopback, enforce_auth, enforce_https_requirement,
+    enforce_rate_limit, request_identity, resolve_access_role,
 };
 use crate::services::routes::{err, ok};
 use crate::sync_poison::{poison_rw_read, poison_rw_write};
@@ -59,6 +63,22 @@ fn enforce_dashboard_write(
         )),
         Err(e) => Err(err("unauthorized", &e)),
     }
+}
+
+/// Emergency/mesh controls: write token AND a loopback caller (spec §3 `internal`).
+fn enforce_dashboard_loopback_write(
+    gs: &GatewayState,
+    peer: &SocketAddr,
+    headers: &HeaderMap,
+) -> GuardResult {
+    enforce_dashboard_write(gs, peer, headers)?;
+    if !caller_is_loopback(gs, peer) {
+        return Err(err(
+            "exposure_denied",
+            "this operation is only available to loopback callers",
+        ));
+    }
+    Ok(())
 }
 
 fn live_mesh_enabled() -> bool {
@@ -424,7 +444,7 @@ pub async fn post_mesh_node_kill(
     headers: HeaderMap,
     Path(id): Path<String>,
 ) -> Json<Value> {
-    if let Err(e) = enforce_dashboard_write(&gs, &connect.0, &headers) {
+    if let Err(e) = enforce_dashboard_loopback_write(&gs, &connect.0, &headers) {
         return e;
     }
     ok(json!({

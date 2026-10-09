@@ -294,3 +294,50 @@ async fn dashboard_token_is_not_honoured_behind_a_tunnel() {
         Ok(AccessRole::Write)
     );
 }
+
+#[tokio::test]
+async fn mesh_kill_is_loopback_only() {
+    use axum::extract::Path;
+    let state = dev_state_all_tools().await;
+    let remote = dashboard_api::post_mesh_node_kill(
+        State(state.clone()),
+        ConnectInfo(peer(LAN_PEER)),
+        HeaderMap::new(),
+        Path("node-1".to_string()),
+    )
+    .await;
+    assert_eq!(remote.0["error"]["code"], "exposure_denied");
+
+    let local = dashboard_api::post_mesh_node_kill(
+        State(state),
+        ConnectInfo(peer(LOOPBACK_PEER)),
+        HeaderMap::new(),
+        Path("node-1".to_string()),
+    )
+    .await;
+    assert_eq!(local.0["data"]["node_id"], "node-1");
+}
+
+#[tokio::test]
+async fn dashboard_write_routes_still_need_write_token_off_loopback() {
+    use dashboard_api::{HopperSubmitBody, post_hopper_submit};
+    let state = dev_state_all_tools()
+        .await
+        .with_tokens(Some("w"), Some("r"));
+    let body: HopperSubmitBody = serde_json::from_value(serde_json::json!({
+        "intent": "fix the flaky http_gateway test",
+        "affinity_hints": ["crates/vox-orchestrator-mcp"],
+        "priority_hint": "urgent",
+        "source": "developer"
+    }))
+    .unwrap();
+    let resp = post_hopper_submit(
+        State(state),
+        ConnectInfo(peer(LAN_PEER)),
+        bearer("r"),
+        Json(body),
+    )
+    .await;
+    let (_, v) = body_json(resp.into_response()).await;
+    assert_eq!(v["error"]["code"], "forbidden");
+}
