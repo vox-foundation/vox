@@ -5,6 +5,7 @@
 
 mod coverage;
 mod docs_claims;
+mod emit;
 mod inputs;
 mod join;
 mod nodes;
