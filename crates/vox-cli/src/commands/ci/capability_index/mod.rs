@@ -6,6 +6,7 @@
 mod inputs;
 mod join;
 mod owner;
+mod ratchet;
 
 use std::path::Path;
 
