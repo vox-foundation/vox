@@ -34,6 +34,9 @@ use std::sync::OnceLock;
 // 94: feat(vox-db): add hopper_inbox.resource_id for resource-locked hopper tasks (Phase 5 D-08)
 // 95: feat(kb): library index columns + kb_index_state (KB Phase 2)
 // 96: feat(kb): kb_findings inbox + search_documents.trust_tier (KB Phase 3)
+//     Digest re-updated, still 96 (no BASELINE_VERSION bump needed): the legacy VoxKB DDL
+//     (knowledge_bases, kb_entries, kb_routing_rules) moved into domains::quarantine behind
+//     the `quarantine` feature (03-12). Existing databases keep the tables and their rows.
 pub const BASELINE_VERSION: i64 = 96;
 
 /// One ordered SQL slice (domain-scoped DDL); empty bodies are skipped in [`baseline_sql`].
@@ -87,10 +90,6 @@ pub const SCHEMA_FRAGMENTS: &[SchemaFragment] = &[
     SchemaFragment {
         name: "knowledge",
         sql: domains::knowledge::SCHEMA_KNOWLEDGE,
-    },
-    SchemaFragment {
-        name: "legacy_voxkb",
-        sql: domains::knowledge::SCHEMA_LEGACY_VOXKB,
     },
     SchemaFragment {
         name: "execution",
@@ -198,10 +197,16 @@ pub fn baseline_sql() -> &'static str {
         }
         #[cfg(feature = "quarantine")]
         {
-            let sql = domains::quarantine::SCHEMA_QUARANTINE.trim();
-            if !sql.is_empty() {
-                full.push_str(sql);
-                full.push_str("\n\n");
+            // The legacy VoxKB tables ride the same feature (KB Phase 3, RET-03): a fresh
+            // default-feature database does not create them; existing databases keep theirs.
+            for sql in [
+                domains::quarantine::SCHEMA_QUARANTINE.trim(),
+                domains::quarantine::SCHEMA_LEGACY_VOXKB.trim(),
+            ] {
+                if !sql.is_empty() {
+                    full.push_str(sql);
+                    full.push_str("\n\n");
+                }
             }
         }
         full
@@ -234,6 +239,37 @@ mod quarantine_gating {
             sql.contains("CREATE TABLE IF NOT EXISTS toestub_file_cache"),
             "quarantine feature is ON; toestub_file_cache DDL must appear in baseline_sql()"
         );
+    }
+
+    /// The three legacy VoxKB tables (retired by KB Phase 3, rows copied into
+    /// `kb_findings` by 03-08) are quarantined: a fresh default-feature database must
+    /// not create them. Existing databases keep theirs (they are not in
+    /// `QUARANTINE_DROP_TABLES`).
+    #[test]
+    #[cfg(not(feature = "quarantine"))]
+    fn quarantined_legacy_voxkb_absent_by_default() {
+        let sql = baseline_sql();
+        for table in ["knowledge_bases", "kb_entries", "kb_routing_rules"] {
+            assert!(
+                !sql.contains(&format!("CREATE TABLE IF NOT EXISTS {table} ")),
+                "{table} DDL must not appear in the default baseline_sql()"
+            );
+        }
+    }
+
+    /// With the `quarantine` feature the legacy VoxKB tables come back, exactly once.
+    #[test]
+    #[cfg(feature = "quarantine")]
+    fn quarantined_legacy_voxkb_present_with_feature() {
+        let sql = baseline_sql();
+        for table in ["knowledge_bases", "kb_entries", "kb_routing_rules"] {
+            let ddl = format!("CREATE TABLE IF NOT EXISTS {table} ");
+            assert_eq!(
+                sql.matches(&ddl).count(),
+                1,
+                "{table} DDL must appear exactly once in baseline_sql() under `quarantine`"
+            );
+        }
     }
 }
 

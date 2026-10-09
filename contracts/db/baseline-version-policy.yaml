@@ -35,7 +35,10 @@ policy:
   # re-updated for 94: hopper_inbox.resource_id (Phase 5 D-08).
   # re-updated for 95: KB Library index columns on search_documents/search_document_chunks + kb_index_state (KB Phase 2).
   # re-updated for 96: kb_findings inbox, search_documents.trust_tier and the legacy VoxKB DDL split into its own fragment (KB Phase 3).
-  repository_baseline_digest_hex: "0xee29adafabbe1ae9b53bdc9d38826b49a2f2d666577e214da19fcac464109089"
+  # re-updated again for 96 (digest only, still 96 -- no BASELINE_VERSION bump needed): the legacy VoxKB DDL
+  # (knowledge_bases, kb_entries, kb_routing_rules) moved into domains::quarantine behind the `quarantine`
+  # feature (KB Phase 3, 03-12). Existing databases keep the tables and rows; only fresh databases stop creating them.
+  repository_baseline_digest_hex: "0x9c76d9f934573984b5003cab14ab1807f6d0ec582dc35723d84c56340a332839"
   # Keccak-256 over `vox_db::schema::baseline_sql()` (= ordered SCHEMA_FRAGMENTS + spec append DDL).
   digest_source: vox_db_schema_manifest_baseline_sql
   # Human-facing product name for the DB API layer.

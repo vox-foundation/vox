@@ -260,7 +260,7 @@ pub use retrieval::{
     SearchCorpus, SearchDiagnostics, SearchIntent, SearchPlan, SearchRefinementAction,
     fuse_hybrid_results, heuristic_search_plan,
 };
-pub use schema::domains::knowledge::SCHEMA_LEGACY_VOXKB as LEGACY_VOXKB_DDL;
+pub use schema::domains::quarantine::SCHEMA_LEGACY_VOXKB as LEGACY_VOXKB_DDL;
 pub use schema_digest::{SchemaDigest, digest_to_json, format_llm_context, generate_schema_digest};
 pub use socrates_telemetry::{
     SocratesSurfaceAggregate, SocratesSurfaceTelemetry, hallucination_risk_proxy,
