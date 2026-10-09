@@ -55,12 +55,17 @@ fn base_row(op: &OperationRow, id: String, kind: RowKind, doc: &str) -> IndexRow
         skills: Vec::new(),
         equivalents: Vec::new(),
         refs: Vec::new(),
-        coverage: Some(CoverageRef {
-            kind: None,
-            basis: "none".to_string(),
-            ambiguous: false,
-            reason: Some("no graph-coverage snapshot committed".to_string()),
-        }),
+        coverage: Some(no_snapshot_coverage()),
+    }
+}
+
+/// Coverage of a row before (or without) a committed snapshot: unknown, with the reason.
+pub(super) fn no_snapshot_coverage() -> CoverageRef {
+    CoverageRef {
+        kind: None,
+        basis: "none".to_string(),
+        ambiguous: false,
+        reason: Some("no graph-coverage snapshot committed".to_string()),
     }
 }
 
