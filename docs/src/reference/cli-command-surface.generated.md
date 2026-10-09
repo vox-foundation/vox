@@ -21,7 +21,7 @@ category: "Language Reference"
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml) (itself projected from [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml)).
 
-**schema_version:** `1` · **vox-cli operations:** 996
+**schema_version:** `1` · **vox-cli operations:** 998
 
 | Path | Status | Feature gate | Latin ns | Product lane | Catalog group |
 |------|--------|--------------|----------|--------------|----------------|
@@ -438,6 +438,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox emit` | active | — | — | app | — |
 | `vox emit client` | active | — | — | app | — |
 | `vox emit openapi` | active | — | — | app | — |
+| `vox explain` | active | — | — | platform | — |
 | `vox ext` | active | — | — | interop | — |
 | `vox ext ars` | active | — | — | interop | — |
 | `vox ext ars ludus` | active | extras-ludus | — | interop | — |
@@ -627,6 +628,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox fabrica run` | active | — | fabrica | app | — |
 | `vox fabrica script` | active | script-execution | fabrica | app | — |
 | `vox fabrica test` | active | — | fabrica | app | — |
+| `vox features` | active | — | — | platform | — |
 | `vox fmt` | active | — | fabrica | app | — |
 | `vox gamify` | active | extras-ludus | ars | ai | — |
 | `vox gamify arena-join` | active | extras-ludus | ars | ai | — |

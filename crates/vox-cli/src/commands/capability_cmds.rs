@@ -3,21 +3,38 @@
 //! All resolution and rendering lives in the L2 crate; the MCP twins call the same functions, so
 //! `--json` here equals the MCP `data` for the same input (D-12).
 
-use anyhow::Result;
-use vox_capability_registry::CapabilityIndex;
+use anyhow::{Result, bail};
+use vox_capability_registry::{
+    CapabilityIndex, Resolution, domain_counts_json, explain_rows, render_features,
+    render_resolution, resolve, rows_in_domain,
+};
 
 /// Text for `vox explain <query>`; `json` prints the raw index rows instead of the card.
-pub fn explain_output(_index: &CapabilityIndex, _query: &str, _json: bool) -> Result<String> {
-    anyhow::bail!("RED stub: explain_output")
+/// No match is an error (non-zero exit) carrying the `vox features` hint.
+pub fn explain_output(index: &CapabilityIndex, query: &str, json: bool) -> Result<String> {
+    let r = resolve(index, query)?;
+    if matches!(r, Resolution::NoMatch) {
+        bail!("{}", render_resolution(index, query, &r).trim_end());
+    }
+    if json {
+        return Ok(serde_json::to_string_pretty(&explain_rows(&r))?);
+    }
+    Ok(render_resolution(index, query, &r))
 }
 
 /// Text for `vox features [--domain <d>]`; `json` prints raw rows (domain) or the counts array.
 pub fn features_output(
-    _index: &CapabilityIndex,
-    _domain: Option<&str>,
-    _json: bool,
+    index: &CapabilityIndex,
+    domain: Option<&str>,
+    json: bool,
 ) -> Result<String> {
-    anyhow::bail!("RED stub: features_output")
+    if !json {
+        return render_features(index, domain);
+    }
+    match domain {
+        Some(d) => Ok(serde_json::to_string_pretty(&rows_in_domain(index, d)?)?),
+        None => Ok(serde_json::to_string_pretty(&domain_counts_json(index))?),
+    }
 }
 
 #[cfg(test)]

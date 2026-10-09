@@ -7525,6 +7525,25 @@ curated:
   - emit
   - openapi
   parameters: null
+- id: cli.explain
+  title: Explain Capability
+  description_human: null
+  description_model: Explain a Vox capability (what it is, its owning crate and layer, CLI/GUI/MCP equivalents and docs link), answered from contracts/capabilities/capability-index.v1.json.
+  intent_tags:
+  - discovery
+  - capability
+  side_effect_class: read_only
+  scope_kind: repository
+  reversible: true
+  requires_repo: false
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - explain
+  parameters: null
 - id: cli.ext
   title: Ext
   description_human: null
@@ -11168,6 +11187,25 @@ curated:
   cli_path:
   - fabrica
   - test
+  parameters: null
+- id: cli.features
+  title: List Capabilities by Domain
+  description_human: null
+  description_model: List Vox capabilities by domain with layer, CLI/GUI/MCP equivalents and docs path, answered from contracts/capabilities/capability-index.v1.json.
+  intent_tags:
+  - discovery
+  - capability
+  side_effect_class: read_only
+  scope_kind: repository
+  reversible: true
+  requires_repo: false
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - features
   parameters: null
 - id: cli.fmt
   title: Fmt

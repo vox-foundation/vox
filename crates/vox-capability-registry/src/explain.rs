@@ -222,8 +222,13 @@ pub fn domain_counts(index: &CapabilityIndex) -> Vec<(&DomainDef, usize, usize, 
 
 /// `--json` / MCP `data` shape of the domain overview: `[{id, label, cli, mcp, surface}]`.
 #[must_use]
-pub fn domain_counts_json(_index: &CapabilityIndex) -> serde_json::Value {
-    serde_json::json!("RED stub: domain_counts_json")
+pub fn domain_counts_json(index: &CapabilityIndex) -> serde_json::Value {
+    domain_counts(index)
+        .into_iter()
+        .map(|(d, cli, mcp, surface)| {
+            serde_json::json!({"id": d.id, "label": d.label, "cli": cli, "mcp": mcp, "surface": surface})
+        })
+        .collect()
 }
 
 #[cfg(test)]

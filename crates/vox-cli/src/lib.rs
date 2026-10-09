@@ -142,6 +142,18 @@ pub enum Cli {
         #[arg(long, value_name = "PATTERN")]
         search: Option<String>,
     },
+    /// Explain a capability (what it is, owning crate and layer, CLI/MCP/GUI equivalents, docs); answers from the capability index. Global `--json` prints the raw index rows.
+    Explain {
+        /// Capability id, CLI path, MCP tool name, GUI view key, crate or skill (e.g. `secrets`, `vox_check`).
+        #[arg(required = true, num_args = 1..)]
+        query: Vec<String>,
+    },
+    /// List capabilities by domain with their CLI/MCP/GUI equivalents; answers from the capability index. Global `--json` prints the raw rows.
+    Features {
+        /// Show one domain's capabilities (omit to list every domain with counts).
+        #[arg(long, value_name = "DOMAIN")]
+        domain: Option<String>,
+    },
     /// Workshop lane — same as top-level `build` (`fabrica` = Latin *workshop*).
     #[command(name = "fabrica", visible_alias = "fab")]
     Fabrica {

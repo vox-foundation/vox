@@ -5045,6 +5045,17 @@ operations:
   handler_rust: null
 - surface: vox-cli
   path:
+  - explain
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: true
+  handler_rust: commands::capability_cmds
+- surface: vox-cli
+  path:
   - ext
   status: active
   latin_ns: null
@@ -7571,6 +7582,17 @@ operations:
   ref_cli_required: false
   reachability_required: null
   handler_rust: null
+- surface: vox-cli
+  path:
+  - features
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: true
+  handler_rust: commands::capability_cmds
 - surface: vox-cli
   path:
   - fmt

@@ -17924,6 +17924,48 @@
       }
     },
     {
+      "id": "cli.explain",
+      "kind": "cli",
+      "title": "Explain Capability",
+      "summary": "Explain a Vox capability (what it is, its owning crate and layer, CLI/GUI/MCP equivalents and docs link), answered from contracts/capabilities/capability-index.v1.json.",
+      "op_id": "capability.explain",
+      "status": "active",
+      "domain": "platform",
+      "product_lane": "platform",
+      "side_effect_class": "read_only",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "explain"
+        ],
+        "invocation": "vox explain",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": null,
+      "owner": {
+        "crate": "vox-capability-registry",
+        "layer": 2,
+        "rule": "override"
+      },
+      "source_path": "crates/vox-cli/src/commands/capability_cmds.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no graph-coverage snapshot committed"
+      }
+    },
+    {
       "id": "cli.ext",
       "kind": "cli",
       "title": "Ext",
@@ -26294,6 +26336,48 @@
         "rule": "group_table"
       },
       "source_path": "crates/vox-cli/",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no graph-coverage snapshot committed"
+      }
+    },
+    {
+      "id": "cli.features",
+      "kind": "cli",
+      "title": "List Capabilities by Domain",
+      "summary": "List Vox capabilities by domain with layer, CLI/GUI/MCP equivalents and docs path, answered from contracts/capabilities/capability-index.v1.json.",
+      "op_id": "capability.features",
+      "status": "active",
+      "domain": "platform",
+      "product_lane": "platform",
+      "side_effect_class": "read_only",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "features"
+        ],
+        "invocation": "vox features",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": null,
+      "owner": {
+        "crate": "vox-capability-registry",
+        "layer": 2,
+        "rule": "override"
+      },
+      "source_path": "crates/vox-cli/src/commands/capability_cmds.rs",
       "docs": [
         {
           "path": "docs/src/reference/cli-command-surface.generated.md",

@@ -30,8 +30,10 @@
     "doctor",
     "drift-check",
     "emit",
+    "explain",
     "ext",
     "fabrica",
+    "features",
     "fmt",
     "gamify",
     "generate",
@@ -90,7 +92,10 @@
     "visus",
     "workflow"
   ],
-  "surface_count": 112,
-  "unclassified_backfilled": [],
+  "surface_count": 114,
+  "unclassified_backfilled": [
+    "explain",
+    "features"
+  ],
   "wiring_violations": []
 }

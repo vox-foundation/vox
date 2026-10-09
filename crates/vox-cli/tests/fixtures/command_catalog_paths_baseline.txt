@@ -318,6 +318,7 @@ drift-check
 emit
 emit/client
 emit/openapi
+explain
 ext
 ext/ars
 ext/ars/share
@@ -343,6 +344,7 @@ fabrica/fmt
 fabrica/run
 fabrica/script
 fabrica/test
+features
 fmt
 generate
 grammar

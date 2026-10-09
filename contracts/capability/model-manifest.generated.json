@@ -7641,6 +7641,26 @@
       "curated": true
     },
     {
+      "capability_id": "cli.explain",
+      "cli_path": [
+        "explain"
+      ],
+      "implicit": false,
+      "title": "Explain Capability",
+      "description_model": "Explain a Vox capability (what it is, its owning crate and layer, CLI/GUI/MCP equivalents and docs link), answered from contracts/capabilities/capability-index.v1.json.",
+      "intent_tags": [
+        "discovery",
+        "capability"
+      ],
+      "side_effect_class": "read_only",
+      "scope_kind": "repository",
+      "reversible": true,
+      "requires_repo": false,
+      "preferred_for_models": true,
+      "human_takeover_friendly": true,
+      "curated": true
+    },
+    {
       "capability_id": "cli.ext",
       "cli_path": [
         "ext"
@@ -9966,6 +9986,26 @@
       "implicit": false,
       "title": "Fabrica Test",
       "description_model": "CLI operation `vox fabrica test`",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.features",
+      "cli_path": [
+        "features"
+      ],
+      "implicit": false,
+      "title": "List Capabilities by Domain",
+      "description_model": "List Vox capabilities by domain with layer, CLI/GUI/MCP equivalents and docs path, answered from contracts/capabilities/capability-index.v1.json.",
+      "intent_tags": [
+        "discovery",
+        "capability"
+      ],
+      "side_effect_class": "read_only",
+      "scope_kind": "repository",
+      "reversible": true,
+      "requires_repo": false,
+      "preferred_for_models": true,
+      "human_takeover_friendly": true,
       "curated": true
     },
     {

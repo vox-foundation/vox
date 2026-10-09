@@ -1654,6 +1654,10 @@
       "feature_gate": null
     },
     {
+      "path": "explain",
+      "feature_gate": null
+    },
+    {
       "path": "ext",
       "feature_gate": null
     },
@@ -2407,6 +2411,10 @@
     },
     {
       "path": "fabrica test",
+      "feature_gate": null
+    },
+    {
+      "path": "features",
       "feature_gate": null
     },
     {
@@ -4176,6 +4184,8 @@
     "bundle.list",
     "bundle.verify",
     "cancel.task",
+    "capability.explain",
+    "capability.features",
     "capability.model.manifest",
     "catalog",
     "catalog.add",

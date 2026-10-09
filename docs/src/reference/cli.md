@@ -40,6 +40,7 @@ dispatch automatically — no rebuild of the core required.
 - **Global (before subcommand):** **`--color auto|always|never`** (see `NO_COLOR`), **`--json`** (sets `VOX_CLI_GLOBAL_JSON` for subcommands that support machine JSON), **`--verbose` / `-v`** (if `RUST_LOG` is unset, tracing uses `debug`), **`--quiet` / `-q`** (`VOX_CLI_QUIET`).
 - **Completions:** **`vox completions bash`** | **`zsh`** | **`fish`** | **`powershell`** | **`elvish`** — print to stdout and install per your shell (e.g. bash: `vox completions bash > /path/to/bash_completion.d/vox`).
 - **Dynamic command catalog:** **`vox commands`** — clap-derived list from the actual compiled binary; add `--recommended` for first-time essentials or `--format json --include-nested` for tooling.
+- **Discover capabilities:** **`vox explain <thing>`** prints what a capability is, its owning crate and layer, CLI/MCP/GUI equivalents and docs link (accepts a capability id, CLI path, MCP tool name, GUI view key, crate or skill; near misses give a numbered shortlist). **`vox features [--domain <d>]`** lists every domain with counts, or one domain's capabilities. Both answer from the embedded capability index; add the global `--json` for the raw index rows (the MCP tools `vox_capability_explain` / `vox_capability_features` return the same rows).
 - **Secrets namespace:** **`vox secrets`** (deprecated alias **`vox clavis`**) centralizes token health checks and credential compatibility storage.
 - **Latin aliases (same behavior as flat commands):** **`vox fabrica`** (`fab`) — build/check/test/run/dev/**`bundle` (web app)** /fmt/script; top-level **`vox bundle`** is **plugin** bundles (`list` / `build` / `apply`), not the web-app bundler. **`vox diag`** — doctor, architect, stub-check; **`vox ars`** — snippet, share, skill, openclaw, ludus; **`vox recensio`** (`rec`, feature **`coderabbit`**) — same as **`vox review`**.
 
@@ -952,6 +953,8 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `stub-check` | `stub-check` | `commands::stub_check` |
 | `ci` | default | `commands::ci` |
 | `commands` | default | `command_catalog` |
+| `explain` | default | `commands::capability_cmds` |
+| `features` | default | `commands::capability_cmds` |
 | `mens` | `mens-base` or `gpu` | `commands::mens` |
 | `populi` | `populi` | `commands::populi_cli` |
 | `oratio` | `oratio` | `commands::oratio_cmd` |
