@@ -126,9 +126,12 @@ jobs:
           retention-days: 3
           if-no-files-found: error
 
+  # The deploy and smoke jobs run only on main: workflow_dispatch can start this
+  # workflow from any branch, and both deploys publish to production.
   deploy-pages:
     name: Deploy to GitHub Pages
     needs: build-docs
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -150,6 +153,7 @@ jobs:
   deploy-cloudflare:
     name: Deploy to Cloudflare Pages
     needs: build-docs
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -200,6 +204,7 @@ jobs:
   smoke-test:
     name: Smoke test live site
     needs: deploy-cloudflare
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
