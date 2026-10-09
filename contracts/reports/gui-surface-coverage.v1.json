@@ -3782,6 +3782,10 @@
       "feature_gate": null
     },
     {
+      "path": "serve",
+      "feature_gate": null
+    },
+    {
       "path": "share",
       "feature_gate": null
     },
@@ -5191,6 +5195,7 @@
     "secrets.set",
     "secrets.status",
     "secrets.sync",
+    "serve",
     "session.cleanup",
     "session.compact",
     "session.create",
