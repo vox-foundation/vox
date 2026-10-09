@@ -6,12 +6,17 @@ import { fileURLToPath } from 'node:url';
 import starlightLlmsTxt from 'starlight-llms-txt';
 import { voxGrammar } from './src/plugins/vox-grammar.mjs';
 import { getSidebar } from './src/utils/sidebar.mjs';
-import { listDocPages, noindexRoutes } from './src/utils/page-index.mjs';
+import { internalsDocIds, listDocPages, noindexRoutes } from './src/utils/page-index.mjs';
 import { remarkVoxInclude } from './src/plugins/remark-vox-include.mjs';
 
+const docPages = listDocPages(fileURLToPath(new URL('../docs/src', import.meta.url)));
 // Pages whose status sets robots noindex (src/utils/page-status.mjs) stay out
 // of the sitemap, as does the /retired/ notice page (a custom route).
-const noindex = noindexRoutes(listDocPages(fileURLToPath(new URL('../docs/src', import.meta.url))));
+const noindex = noindexRoutes(docPages);
+// Internals (research/roadmap) pages stay out of every generated llms*.txt.
+// starlight-llms-txt 0.10.0 only honours `exclude` in llms-small.txt; the
+// full and custom-set routes get it from patches/starlight-llms-txt@0.10.0.patch.
+const internals = internalsDocIds(docPages);
 
 export default defineConfig({
   site: 'https://voxlang.org/',
@@ -53,7 +58,7 @@ export default defineConfig({
         starlightLlmsTxt({
           projectName: 'Vox',
           description: 'Vox is a pre-1.0 (0.6.0) AI-native full-stack language that compiles a .vox file to a database schema, type-safe server, and browser UI. Build from source; see https://voxlang.org/reference/stability/ for maturity. Current syntax uses bare table / query / mutation / server / tool — not @endpoint.',
-          llmsFullTxt: true,
+          exclude: internals,
         }),
       ],
       lastUpdated: false,

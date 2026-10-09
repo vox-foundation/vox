@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  starlight-llms-txt@0.10.0: 3f20fc406a7dd70187cb67b0af146465cea2eab4bdb0efd183145d56d8224a0a
+
 importers:
 
   .:
@@ -34,7 +37,7 @@ importers:
         version: 0.35.4(@types/node@24.12.2)
       starlight-llms-txt:
         specifier: 0.10.0
-        version: 0.10.0(@astrojs/starlight@0.38.3(astro@6.1.9(@types/node@24.12.2)(rollup@4.60.2)(supports-color@10.2.2)(typescript@6.0.3)(yaml@2.9.0))(supports-color@10.2.2))(astro@6.1.9(@types/node@24.12.2)(rollup@4.60.2)(supports-color@10.2.2)(typescript@6.0.3)(yaml@2.9.0))(supports-color@10.2.2)
+        version: 0.10.0(patch_hash=3f20fc406a7dd70187cb67b0af146465cea2eab4bdb0efd183145d56d8224a0a)(@astrojs/starlight@0.38.3(astro@6.1.9(@types/node@24.12.2)(rollup@4.60.2)(supports-color@10.2.2)(typescript@6.0.3)(yaml@2.9.0))(supports-color@10.2.2))(astro@6.1.9(@types/node@24.12.2)(rollup@4.60.2)(supports-color@10.2.2)(typescript@6.0.3)(yaml@2.9.0))(supports-color@10.2.2)
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -5512,7 +5515,7 @@ snapshots:
 
   sprintf-js@1.0.3: {}
 
-  starlight-llms-txt@0.10.0(@astrojs/starlight@0.38.3(astro@6.1.9(@types/node@24.12.2)(rollup@4.60.2)(supports-color@10.2.2)(typescript@6.0.3)(yaml@2.9.0))(supports-color@10.2.2))(astro@6.1.9(@types/node@24.12.2)(rollup@4.60.2)(supports-color@10.2.2)(typescript@6.0.3)(yaml@2.9.0))(supports-color@10.2.2):
+  starlight-llms-txt@0.10.0(patch_hash=3f20fc406a7dd70187cb67b0af146465cea2eab4bdb0efd183145d56d8224a0a)(@astrojs/starlight@0.38.3(astro@6.1.9(@types/node@24.12.2)(rollup@4.60.2)(supports-color@10.2.2)(typescript@6.0.3)(yaml@2.9.0))(supports-color@10.2.2))(astro@6.1.9(@types/node@24.12.2)(rollup@4.60.2)(supports-color@10.2.2)(typescript@6.0.3)(yaml@2.9.0))(supports-color@10.2.2):
     dependencies:
       '@astrojs/mdx': 5.0.4(astro@6.1.9(@types/node@24.12.2)(rollup@4.60.2)(supports-color@10.2.2)(typescript@6.0.3)(yaml@2.9.0))(supports-color@10.2.2)
       '@astrojs/starlight': 0.38.3(astro@6.1.9(@types/node@24.12.2)(rollup@4.60.2)(supports-color@10.2.2)(typescript@6.0.3)(yaml@2.9.0))(supports-color@10.2.2)
