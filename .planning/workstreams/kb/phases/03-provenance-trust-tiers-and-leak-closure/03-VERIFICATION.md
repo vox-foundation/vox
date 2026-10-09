@@ -1,8 +1,8 @@
 ---
 phase: 03-provenance-trust-tiers-and-leak-closure
-verified: 2026-10-08T00:00:00Z
-status: gaps_found
-score: 4/6 must-haves verified
+verified: 2026-10-09T00:00:00Z
+status: human_needed
+score: 6/6 must-haves verified
 covered_files:
   - .planning/workstreams/kb/REQUIREMENTS.md
   - .planning/workstreams/kb/phases/03-provenance-trust-tiers-and-leak-closure/03-01-PLAN.md
@@ -31,67 +31,101 @@ covered_files:
   - .planning/workstreams/kb/phases/03-provenance-trust-tiers-and-leak-closure/03-12-SUMMARY.md
   - .planning/workstreams/kb/phases/03-provenance-trust-tiers-and-leak-closure/03-13-PLAN.md
   - .planning/workstreams/kb/phases/03-provenance-trust-tiers-and-leak-closure/03-13-SUMMARY.md
+  - .planning/workstreams/kb/phases/03-provenance-trust-tiers-and-leak-closure/03-14-PLAN.md
+  - .planning/workstreams/kb/phases/03-provenance-trust-tiers-and-leak-closure/03-14-SUMMARY.md
+  - .planning/workstreams/kb/phases/03-provenance-trust-tiers-and-leak-closure/03-15-PLAN.md
+  - .planning/workstreams/kb/phases/03-provenance-trust-tiers-and-leak-closure/03-15-SUMMARY.md
+  - .planning/workstreams/kb/phases/03-provenance-trust-tiers-and-leak-closure/03-16-PLAN.md
+  - .planning/workstreams/kb/phases/03-provenance-trust-tiers-and-leak-closure/03-16-SUMMARY.md
   - crates/vox-db-types/src/kb_text.rs
+  - crates/vox-db/src/local_tests.rs
+  - crates/vox-db/src/store/open.rs
   - crates/vox-db/src/store/ops_memory/kb_findings.rs
   - crates/vox-db/src/store/ops_memory/kb_legacy.rs
+  - crates/vox-db/src/store/ops_memory/library.rs
   - crates/vox-orchestrator-mcp/src/chat_tools/chat/message.rs
   - crates/vox-orchestrator-mcp/src/chat_tools/chat/research_turn.rs
   - crates/vox-orchestrator-mcp/src/kb_tools/findings.rs
+  - crates/vox-orchestrator-mcp/src/kb_tools/library.rs
   - crates/vox-orchestrator-mcp/src/memory_tools/retrieval.rs
+  - crates/vox-orchestrator-mcp/tests/kb_retrieval_tavily.rs
+  - crates/vox-orchestrator-mcp/tests/kb_retrieval_tiers.rs
   - crates/vox-orchestrator-mcp/tests/legacy_voxkb_retired.rs
+  - crates/vox-orchestrator-mcp/tests/stdio_daemon_routing_tests.rs
   - crates/vox-orchestrator-types/src/trust.rs
+  - crates/vox-orchestrator/src/memory/manager.rs
   - crates/vox-search/src/bundle.rs
   - crates/vox-search/src/execution.rs
+  - crates/vox-search/src/kb_eval/library.rs
+  - crates/vox-search/src/library/mod.rs
   - crates/vox-search/src/trust.rs
-covered_digest: "v1:sha256:67dc1acc2b88f09d1f038aec172cbd0b12066912a2d7bc6cfce2be97c9238450"
+  - crates/vox-search/tests/execute_search_plan_smoke.rs
+  - crates/vox-search/tests/kb_library_chunking.rs
+  - crates/vox-search/tests/kb_library_index.rs
+  - crates/vox-search/tests/web_capture_test.rs
+covered_digest: "v1:sha256:8725973c91887a2073ae3fc6f8c99c5723479f9afb5de9f96f7af7b2ebc8449b"
 behavior_unverified: 0
 overrides_applied: 0
-re_verification: null
-gaps:
-  - truth: "03-09 plan truth (D-03/D-05, TRUST-01): an unprompted chat preamble never carries an Untrusted hit, and the retrieval envelope tier is the minimum of the contributing hits"
-    status: failed
-    reason: "CR-01 (orchestrator-confirmed, re-confirmed by this verifier). The Tavily CRAG leg in run_search_with_verification bypasses exclude_untrusted_hits, adds no [tier:untrusted] label and never updates min_trust_tier, and message.rs injects bundle.rrf_fused_lines into the auto preamble."
-    artifacts:
-      - path: "crates/vox-search/src/bundle.rs"
-        issue: "lines 195-236: t_lines are formatted as '[crag_tavily:<url>] ...' (no tier label) and extended into execution.web_lines and, when prefer_rrf_merge, execution.rrf_fused_lines unconditionally; policy.exclude_untrusted_hits is never read and execution.min_trust_tier is never lowered"
-      - path: "crates/vox-orchestrator-mcp/src/chat_tools/chat/message.rs"
-        issue: "lines 766-776 inject bundle.rrf_fused_lines under '[AUTONOMOUS RESEARCH — RRF FUSION]' for AutoChatPreamble; skip_preamble_web only clears web_research_enabled, not tavily_enabled"
-    missing:
-      - "Gate the Tavily firing (preferably) or the extend of web_lines/rrf_fused_lines on !policy.exclude_untrusted_hits"
-      - "Label Tavily lines [tier:untrusted] and lower execution.min_trust_tier to Untrusted when they are admitted"
-      - "A wiremock-backed Tavily test beside crates/vox-orchestrator-mcp/tests/kb_retrieval_tiers.rs proving the preamble drops Tavily lines and the envelope tier is Untrusted"
-  - truth: "ROADMAP SC4: sanitizer neutralises tag-block / zero-width / bidi / HTML comments / off-allowlist images at BOTH the ingest and the injection boundary"
-    status: partial
-    reason: "Ingest boundary (findings clean(), capture) and the retrieval-bundle injection boundary (retrieval.rs sanitized()) are covered and tested. The quick-research source block is not fully covered (WR-05): Source.url and Source.engine are copied raw into the prompt-bound '[n] title — url (engine)' line and flatten() only strips newlines; pipeline_sources (deep path) sanitizes nothing. A URL carrying tag-block / zero-width characters reaches the prompt."
-    artifacts:
-      - path: "crates/vox-orchestrator-mcp/src/chat_tools/chat/research_turn.rs"
-        issue: "sources_from_hits (line ~183): url: h.path.clone(), engine unsanitized; sources_context_block only flatten()s; pipeline_sources unsanitized"
-    missing:
-      - "Wrap url and engine in SanitizedText::new(..).into_string() in sources_from_hits and run pipeline_sources through the same helper"
-      - "Add a red-team case for a URL/engine field at the research-turn injection boundary"
+re_verification:
+  previous_status: gaps_found
+  previous_score: 4/6
+  gaps_closed:
+    - "03-09 truth: unprompted preamble never carries an Untrusted hit; envelope tier = min of contributing hits (CR-01 Tavily bypass, WR-08)"
+    - "ROADMAP SC4: sanitizer at the injection boundary covers research-turn Source.url / engine and deep-path pipeline_sources (WR-05)"
+  gaps_remaining: []
+  regressions: []
+gaps: []
 human_verification:
-  - test: "Hosted CI is green on this branch: nextest for vox-db-types, vox-db, vox-search, vox-orchestrator-types, vox-orchestrator, vox-orchestrator-mcp, vox-gui, vox-ml-cli; clippy -D warnings on the touched crates; vox ci ssot-drift; vox ci crate-edges; schema digest/baseline test for BASELINE_VERSION 96"
-    expected: "All gates pass. The lean local policy ran only cargo check plus each plan's new tests; none of this was re-run by the verifier"
-    why_human: "Verifier was told not to run builds on the slow host. The baseline-96 digest and crate-edges (03-01 recorded vox ci crate-edges as NOT RUN, stale binary) can only be confirmed by hosted CI"
-  - test: "Playwright spec crates/vox-gui/ui/e2e/kb-inbox-side-doors.spec.ts plus vitest for MemoryView/DocPublishModal/ResearchView, and pnpm typecheck"
+  - test: "Hosted CI is green on this branch: nextest for vox-db-types, vox-db, vox-search, vox-orchestrator-types, vox-orchestrator, vox-orchestrator-mcp, vox-gui, vox-ml-cli; clippy -D warnings on touched crates; vox ci ssot-drift; vox ci crate-edges; schema digest/baseline test for BASELINE_VERSION 96"
+    expected: "All gates pass. The gap-closure plans ran only their own new tests locally (lean policy); the vox-orchestrator goal-search tests were NOT run locally and are affected by the WR-08 behaviour change (goal.rs path now drops Untrusted lines before CRAG relevance and Socrates evidence counts). This verifier ran no build or test."
+    why_human: "Lean policy forbids workspace builds locally; crate-edges and the digest/baseline test can only be confirmed by hosted CI"
+  - test: "Playwright spec crates/vox-gui/ui/e2e/kb-inbox-side-doors.spec.ts plus vitest for MemoryView/DocPublishModal/ResearchView and pnpm typecheck"
     expected: "Pass; screenshots land in crates/vox-gui/ui/review-bundle/latest/"
     why_human: "GUI Visual Verification Invariant; not run by the verifier"
-  - test: "Decide WR-10: the model-callable memory-store tool (MemoryManager::persist_fact) still writes model- and web-derived text as knowledge_nodes of node_type 'fact'/'concept', which tier_for_knowledge_node_type maps to Advisory, so it passes exclude_untrusted_hits"
-    expected: "Either accept as the D-06 allowlist (fact/concept = Advisory) or schedule an 'agent_fact' (Untrusted) node type. TRUST-03 text names only the 0.95 floor and the accepted=1 chat writeback, both removed, so this is recorded as an open design decision, not a failed criterion"
-    why_human: "Product/security decision that contradicts the spirit of the D-06 taint rule"
-  - test: "Decide WR-09: Library chunks are stamped Trusted for every docs/src/**/*.md on disk (tier_for_curated(false)), with no git tracked/clean check, whereas TRUST-01 defines Trusted as 'curated (merged to git)'"
-    expected: "Accept as a known AP-12 assumption or schedule git-tracked/clean gating in a later phase (Phase 5 reindex or Phase 9 promotion)"
-    why_human: "Mapping-fidelity decision; the 'merged to git' half of the TRUST-01 definition is not mechanically enforced"
+  - test: "Decide the upgrade-path residuals WR-01 and WR-02 from the gap-closure re-review (03-REVIEW.md): (a) the legacy fact/concept re-type (open.rs retier_agent_knowledge_nodes) and (b) the Library trust backfill (open.rs backfill_search_document_trust_tiers) both run only inside `current_version < BASELINE_VERSION`"
+    expected: "Accept as pre-release (BASELINE 96 first appears in commit 80cf75eda, present on no remote branch), or schedule the two small fixes: run the re-type on every open outside the version gate, and make the 96 backfill stamp Library-corpus rows untrusted so only a git-clean reindex promotes them. Until then a local DB already at 96 keeps Advisory legacy agent facts, and a v95 DB with an indexed Library keeps Trusted on untracked/modified docs until the next vox_kb_reindex"
+    why_human: "Judgement call on whether unreleased dev databases warrant a migration-path fix; does not defeat a ROADMAP success criterion or a D-07/D-08 forward-write requirement"
+  - test: "Housekeeping: .planning/workstreams/kb/REQUIREMENTS.md still shows RET-03, TRUST-02, TRUST-04, TRUST-06, GROW-06 unchecked and 'Gaps Found' in the traceability table (set after the first verification)"
+    expected: "Orchestrator flips them to [x] / Complete: this re-verification finds no remaining gap against any of the nine IDs"
+    why_human: "Orchestrator owns the requirements state commit"
 ---
 
 # Phase 3: Provenance, Trust Tiers and Leak Closure Verification Report
 
 **Phase Goal:** Every piece of KB content carries a trust tier and provenance. The existing unreviewed paths into the corpus are closed. All KB retrieval runs through one `vox-search` path, so later phases build on one sink and one retrieval path.
-**Verified:** 2026-10-08
-**Status:** gaps_found
-**Re-verification:** No, initial verification
+**Verified:** 2026-10-09
+**Status:** human_needed (all must-haves verified in code; hosted-CI, GUI suite and two migration-path decisions remain)
+**Re-verification:** Yes, after gap-closure plans 03-14, 03-15, 03-16 (gap-closure diff `88fc5e996..HEAD`)
 
-Method: code read and grep against the actual tree. SUMMARY claims were used only as pointers. Per the lean policy no build or test was run by the verifier; "VERIFIED" below means the code, the test, and the recorded mutation proof exist and are consistent, and hosted CI remains the authority for green runs (see Human Verification).
+Method: code read and grep of the actual tree and the gap-closure diff. SUMMARY claims were used only as pointers. Per the lean policy no build or test was run by the verifier; VERIFIED means the code, the test, and a recorded mutation proof exist and are consistent. Hosted CI remains the authority for green runs.
+
+## Re-check of the two previous gaps
+
+### Gap 1 (was BLOCKER, CR-01): Tavily bypass of the Untrusted rule. CLOSED
+
+Evidence in `crates/vox-search/src/bundle.rs`:
+- Lines 35-45: `run_search_with_verification` shadows `policy` with `exclude_untrusted_hits: true` whenever `trigger == AutoChatPreamble` (clone of the caller policy). Both `execute_search_plan` passes, the diagnostics and the Tavily block read the shadowed binding, so the flag no longer depends on each caller (WR-08 closed; `goal.rs`, `web_gather.rs` and any future caller are covered).
+- Lines 162-167: `if policy.tavily_enabled && policy.exclude_untrusted_hits` pushes `tavily_skipped=untrusted_excluded` and does nothing else: no client built, no credit consumed, no HTTP request, no capture. The Tavily firing is gated (the preferred fix from the previous report), not just the extend.
+- Lines 214-222, 252-259: when Tavily does fire (explicit query), lines are `[tier:untrusted] [crag_tavily:<url>] ...`, and `execution.min_trust_tier = Some(Untrusted)` is set before the lines are extended into `web_lines`/`rrf_fused_lines`.
+- `grep "\[crag_tavily:"` in the file shows exactly one format string, and it is the labelled one.
+
+Tests (read, not run):
+- `crates/vox-search/tests/web_capture_test.rs::crag_tavily_never_fires_for_auto_preamble_without_the_flag` (wiremock): policy has `exclude_untrusted_hits: false`, `prefer_rrf_merge: true`, trigger AutoChatPreamble; asserts zero received requests, no `crag_tavily` in `web_lines` or `rrf_fused_lines`, no CragTavily capture, `budget.remaining() == 100`, and the diagnostic note.
+- `capture_crag_tavily_reaches_sink_not_corpus` extended: labelled line and `min_trust_tier == Some(Untrusted)` for the explicit path, corpus rows still (0, 0).
+- `crates/vox-orchestrator-mcp/tests/kb_retrieval_tavily.rs` drives the real `run_retrieval_bundle`: preamble gets no request and no Tavily text in memory/knowledge/chunk/repo/RRF lines; an explicit query reaches the mock (positive control), line starts `[tier:untrusted] [crag_tavily:`, envelope minimum Untrusted.
+- 03-14-SUMMARY records mutation proofs 1a/1b/1c (gate to `if false`, derivation to `if false`, drop of the `min_trust_tier` write), each turning named tests red, with `grep -c` before/mutated/restored counts. The summary admits the pre-fix RED run was never observed; the mutations are the red evidence, which is acceptable for a guard.
+
+I traced the other injection path from the previous report (`message.rs` injecting `bundle.rrf_fused_lines` for AutoChatPreamble): with Tavily skipped and `execute_search_plan` already honouring the flag at its legs, nothing Untrusted reaches those lines. The 03-REVIEW re-review found no remaining bypass either (it checked every `TavilyClient` user and every `run_search_with_verification` caller).
+
+### Gap 2 (was partial SC4, WR-05): research-turn source URL/engine unsanitized. CLOSED for the prompt path
+
+`crates/vox-orchestrator-mcp/src/chat_tools/chat/research_turn.rs`:
+- `sanitized_source(n, url, title, engine, snippet)` (line 195) maps all four string fields through `SanitizedText::new(..).into_string()`, sanitizing before the 600-char snippet cap.
+- `sources_from_hits` (line 188) and `pipeline_sources` (line 703, hence `failed_run_sources`) both build `Source` only through it.
+- The two remaining raw `Source { .. }` literals (lines 1755, 1880) are inside `#[cfg(test)]` fixtures. The review's IN-02 notes the GUI `save_research_session_to_kb` mapping builds a `Source` directly, but that value reaches only `capture_research_sources`, which sanitizes through the findings `clean()`; no live prompt leak.
+- Tests `redteam_source_url_and_engine_are_sanitized_at_the_prompt_block` and `redteam_pipeline_sources_are_sanitized` (13 red-team cases each, from `contracts/kb/redteam/cases.v1.jsonl`) exist; mutations 2a (constructor `url:` back to raw) and 2b (pipeline back to a raw literal) recorded red.
+
+SC4 therefore holds at both boundaries: ingest (`clean()`/`CaptureInput`), retrieval-bundle injection (`retrieval.rs sanitized()`), and the research-turn source block.
 
 ## Goal Achievement
 
@@ -99,95 +133,95 @@ Method: code read and grep against the actual tree. SUMMARY claims were used onl
 
 | # | Truth | Status | Evidence |
 |---|-------|--------|----------|
-| 1 | SC1: tier required on index/finding writes; four-way `ContextTrustTier` mapping; fail-closed, mutation-proven promotion verdict | VERIFIED | `crates/vox-orchestrator-types/src/trust.rs`: single `ContextTrustTier` enum (ascending trust order), no `Default` (`compile_fail` doctest), `from_db_str` fails closed to Untrusted, `FindingTier` has only Untrusted/Advisory, `tier_for_knowledge_node_type` allowlists only fact/concept. `upsert_search_document(.., tier: ContextTrustTier)` has a required tier parameter (`vox-db/.../search.rs:57-64`); `vox-db/tests/tiered_writer_invariant.rs` pins the only three files allowed to `INSERT INTO search_documents / kb_findings`. `kb_findings.trust_tier` and `search_documents.trust_tier` exist; BASELINE_VERSION 96. `promotion_eligibility` (`vox-search/src/trust.rs:276`) is an exhaustive match: Unavailable and Retracted give Ineligible, Clean and NotApplicable give Eligible. 03-01-SUMMARY records two mutation proofs (Unavailable arm to Eligible makes `promotion_eligibility_fails_closed` red; NotApplicable arm to Ineligible makes the open-case test red). Caveat: no production consumer yet (Phase 9 owns promotion); see WR-01 below |
-| 2 | SC2: web research turn adds zero corpus rows; creates Untrusted pending findings with summary/quotes/URL/fetch date/hash; snapshot gitignored | VERIFIED | `kb_findings` schema has `summary, quotes_json, source_url, fetched_at_ms, content_hash, snapshot_relpath, trust_tier DEFAULT 'untrusted'` (`schema/domains/knowledge.rs:115-134`). Web legs go to `WebFindingCapture` sink (`bundle.rs:204-223`, `capture.rs`); `grep` shows the only non-test callers of `upsert_search_document` are `vox-db/src/research.rs`, `questioning_telemetry.rs` and `vox-search/src/ingest.rs`/library, none on the web path. `crates/vox-search/tests/web_capture_test.rs` asserts `capture_sink_receives_hit_and_corpus_stays_empty` and `capture_crag_tavily_reaches_sink_not_corpus`. Snapshot path is `.vox/cache/kb-findings/<hash>.txt`; `git check-ignore -v` confirms it matches `.gitignore:111 **/.vox/cache/`. Note the Tavily leg still adds web text to the in-memory preamble lines (that is the CR-01 gap in truth 6, not a corpus write) |
-| 3 | SC3: no accepted=1 / 0.95 writes; `publish_research_doc`, GUI `ingest_url`/`ingest_text`, scientia/MEMORY sinks only produce pending findings; MENS `KbSignals` reads `kb_findings` | VERIFIED | `grep` for `0.95` / `accepted=1` writes and for `signal_research|signal_chat|signal_scientia` in non-test source: none (names appear only in the `legacy_voxkb_retired.rs` ban list). `message.rs` has no KB write-back (leak tests `kb_leak_chat_turn_writes_no_kb_entry_or_finding`, `kb_leak_at_mention_injects_nothing`). GUI `ingest_text`/`ingest_url` call `file_gui_finding(..)` (`vox-gui/src/commands/knowledge.rs`), GUI `publish_research_doc` calls `file_publish_draft` and writes nothing under `docs/src` (`commands/research.rs:180-204`); `vox research publish` writes a gitignored drafts dir, `docs/src` only via reviewed PR (`vox-cli-research/src/lib.rs:128,488-492`). Quick/deep research synthesis and sources use `capture_finding` (`research_turn.rs:503-580`). MENS `run_kb_signals_stage` reads reviewed `kb_findings` and `kb_findings_dpo_records` emits DPO only, requiring `reviewed_by` (`mens/pipeline.rs:592-660`). Open design question WR-10 is listed under Human Verification |
-| 4 | SC4: sanitizer property tests + red-team neutralise tag block, zero-width/bidi, HTML comments, off-allowlist images at ingest AND injection | PARTIAL (gap) | `vox-db-types/src/kb_text.rs` `is_banned` covers E0000-E007F, 200B-200F, 2060-2064, FEFF, 202A-202E, 2066-2069, FE00-FE0F, E0100-E01EF; proptest suite plus `redteam_cases_are_neutralized` over `contracts/kb/redteam/cases.v1.jsonl` (ASCII-escaped), tag-block mutation proof recorded (03-02-SUMMARY). Ingest: findings `clean()` and `CaptureInput`. Injection: `retrieval.rs sanitized()` wraps every bundle line group (`:413-417`) and the Library tool outputs. NOT covered: research-turn `Source.url`/`engine` and the deep-path `pipeline_sources` (WR-05), see gap 2 |
-| 5 | SC5: `KbStore` / `KbRouter` / signal adapters / `kb_lines` / 12 `vox_kb_*` tools absent from source and catalog, names replaced not aliased; seeded-DB migration test: legacy rows counted then migrated as pending | VERIFIED | `grep` for `KbStore|KbRouter|kb_lines|KbSignalAdapter` in `crates/**/*.rs`: no hits outside the ban list. `contracts/mcp/tool-registry.canonical.yaml` lists only `vox_kb_cite/get/reindex/search/status` (the Phase 2 Library tools; `vox_kb_search` and `vox_kb_get` are the "colliding names replaced"); none of the 12 legacy ids appear in the catalog, capability registry, http-read-role governance or model manifest. `legacy_voxkb_retired.rs` ban list covers tools, catalog ids, adapters, store, router, types and CRUD fn names, mutation-proven in 03-12. Legacy tables survive only as `SCHEMA_LEGACY_VOXKB` quarantine DDL and read-only `kb_legacy.rs` readers; `migrate_legacy_kb_entries` (`kb_tools/findings.rs:303`) counts first, skips empty, dedupes per legacy id, and is wired at DB attach (`server_state.rs:663`). `tests/kb_legacy_migration.rs` covers counts-then-migrate-as-pending-Untrusted, rows-survive, idempotence, absent tables, attach in background. Orphan-row edge case: WR-06 (advisory) |
-| 6 | 03-09 plan truth (D-03/D-05, TRUST-01): the unprompted preamble never carries an Untrusted hit; envelope tier = min of contributing hits, never a blanket Trusted stamp | FAILED | CR-01 re-confirmed end to end: `bundle.rs:195-236` Tavily leg ignores `exclude_untrusted_hits`, adds no tier label and does not touch `min_trust_tier`; `message.rs:766-776` injects `rrf_fused_lines` into the auto preamble. `execution.rs` correctly gates the other legs (`:407, :472, :604, :643`), so only the Tavily post-pass is open. `tavily_enabled` defaults false (`policy.rs:306`), so the hole is reachable only when Tavily is configured and fires (fire_on_empty or fire_on_weak); no test exercises it |
+| 1 | SC1: tier required on index/finding writes; four-way `ContextTrustTier` mapping; fail-closed, mutation-proven promotion verdict | VERIFIED (unchanged from the first verification; regression sanity re-checked) | `crates/vox-orchestrator-types/src/trust.rs` single enum, `tier_for_knowledge_node_type` allowlist; `upsert_search_document(.., tier)` required parameter; `crates/vox-db/tests/tiered_writer_invariant.rs` present; `promotion_eligibility` exhaustive match in `vox-search/src/trust.rs`. 03-15 added `AGENT_FACT_NODE_TYPE`/`AGENT_CONCEPT_NODE_TYPE`, which fall through the default arm to Untrusted (test `agent_written_node_types_are_untrusted`; old `fact`/`concept` Advisory allowlist test kept) |
+| 2 | SC2: web research turn adds zero corpus rows; Untrusted pending findings with summary/quotes/URL/fetch date/hash; snapshot gitignored | VERIFIED | `web_capture_test.rs` asserts `(0, 0)` corpus rows on the Tavily-to-sink path and the sink receives the hit; Tavily no longer fires at all for the auto preamble, so the preamble files no Tavily finding (documented consequence in 03-14; explicit-query D-04 capture unchanged) |
+| 3 | SC3: no accepted=1 / 0.95 writes; side doors produce pending findings only; MENS `KbSignals` reads `kb_findings` | VERIFIED | Unchanged by the gap closures (no touched file is on these paths); first-verification evidence stands |
+| 4 | SC4: sanitizer property tests and red-team neutralise tag block, zero-width/bidi, HTML comments, off-allowlist images at ingest AND injection | VERIFIED | Gap 2 closed (above) |
+| 5 | SC5: `KbStore`/`KbRouter`/adapters/`kb_lines`/12 `vox_kb_*` tools absent; names replaced; seeded-DB migration counts then migrates as pending | VERIFIED | `legacy_voxkb_retired.rs` still present and untouched by the gap closures; first-verification evidence stands |
+| 6 | 03-09 truth (D-03/D-05, TRUST-01): unprompted preamble never carries an Untrusted hit; envelope tier = min of contributing hits | VERIFIED | Gap 1 closed (above) |
+| 7 | 03-15 truth (D-07, D-07a): `persist_fact` graph rows are Untrusted agent nodes, never Advisory; memory search leg deliberately unchanged | VERIFIED for forward writes | `crates/vox-orchestrator/src/memory/manager.rs:214,230` writes `agent_fact` / `agent_concept`; `grep upsert_knowledge_node(` over `crates/` finds only: `persist_fact` (agent types), `graph_tools.rs:350` (`graphify_search_hit`, default arm Untrusted), `graphify/mod.rs:554` (repo AST nodes from the graphify ingest, not model-callable), `pipeline_cache.rs` (`research_cache`, Untrusted), and tests; the raw `INSERT INTO knowledge_nodes` in `research.rs`/`research_pipeline.rs` write other types. So no model-reachable writer produces `fact`/`concept`. The tier is computed from `node_type` at read time, so it cannot go stale. Test `kb_tiers_agent_fact_from_memory_store_never_reaches_the_preamble` drives the real `memory_store` tool, asserts both graph rows Untrusted, a labelled `[tier:untrusted]` line, and pins the D-07a memory-leg behaviour. Upgrade-path residual: WR-01 (human decision below) |
+| 8 | 03-16 truth (D-08): a Library doc is Trusted only when git tracks it at HEAD with no staged/working-tree modification; else Untrusted; fail-closed on git failure | VERIFIED on the reindex path | `kb_tools/library.rs committed_clean_docs`: `ls-tree -r -z --name-only --full-name HEAD -- <root>` minus `diff -z --name-only --no-renames HEAD -- <root>`, both via `GitExec`; any `Err` returns the empty set (every doc Untrusted). `reindex_at` is the single non-test production constructor of `IndexDeps` (the other `IndexDeps {` sites are the eval harness with a documented always-true closure over a throwaway in-memory DB, and tests). `index_library` (`vox-search/src/library/mod.rs`) decides the tier per walked file on every run: changed rows get it via `apply_library_document`, unchanged rows via the new `set_library_document_tier`, unreadable rows are forced Untrusted; `put_kb_index_state` no longer re-stamps `search_documents`. Tests: `kb_reindex_git_gate_trusts_only_committed_unmodified_docs` (clean Trusted; modified, untracked, staged Untrusted; `docs_untrusted == 3`), `..._non_checkout_is_untrusted` (ceiling stays Trusted, rows Untrusted), `..._retiers_unchanged_docs` (commit an edit: Trusted with `docs_changed == 0`; `git rm --cached`: demoted), `set_library_document_tier_is_corpus_and_path_scoped`. Fixture refuses to run if `GIT_DIR`/`GIT_WORK_TREE` is set. 03-16-SUMMARY records mutation proofs. Upgrade-path residual: WR-02 (human decision below) |
 
-**Score:** 4/6 truths verified (SC1, SC2, SC3, SC5), 0 present-but-behavior-unverified. SC4 is partial and truth 6 failed.
+**Score:** 6/6 ROADMAP/plan truths verified (SC1-SC5 plus the binding 03-09 truth), plus the two gap-closure truths 7 and 8; 0 present-but-behavior-unverified.
 
 ### Required Artifacts
 
 | Artifact | Expected | Status | Details |
 |----------|----------|--------|---------|
-| `crates/vox-orchestrator-types/src/trust.rs` | Tier vocabulary, FindingTier, taint mapping | VERIFIED | Substantive, re-exported through `vox_db` and `vox_orchestrator` |
-| `crates/vox-db-types/src/kb_text.rs` | One sanitizer, `SanitizedText`, finding enums | VERIFIED | 22 test fns plus proptest and red-team |
-| `crates/vox-db/src/store/ops_memory/kb_findings.rs` | Typed inbox writer/reader | VERIFIED (WR-04, IN-01, IN-05 hardening notes) | |
-| `crates/vox-search/src/capture.rs` + bundle sink | Web hits to inbox | VERIFIED for the web leg; Tavily leg also reaches the sink | |
-| `crates/vox-search/src/trust.rs` promotion verdict | Fail-closed | VERIFIED | Retraction check semantics doubtful (WR-01) |
-| `crates/vox-orchestrator-mcp/tests/{kb_findings_capture,kb_findings_gui,kb_legacy_migration,kb_retrieval_tiers,kb_status_inbox,legacy_voxkb_retired}.rs` | Phase tests | VERIFIED present | `kb_retrieval_tiers` lacks a Tavily case |
-| Deleted legacy files (KbStore/KbRouter/adapters, 12 tools) | Absent | VERIFIED | `git ls-files` shows none; no dangling references |
+| `crates/vox-search/src/bundle.rs` | Trigger-derived exclusion; Tavily gate; labelled lines; min-tier lowering | VERIFIED | Lines 35-45, 162-167, 217, 254 |
+| `crates/vox-orchestrator-mcp/tests/kb_retrieval_tavily.rs` | MCP-level Tavily preamble/explicit test | VERIFIED | Present, with positive control |
+| `crates/vox-orchestrator-mcp/src/chat_tools/chat/research_turn.rs` | `sanitized_source` single constructor | VERIFIED | Lines 175-205, 703 |
+| `crates/vox-orchestrator-types/src/trust.rs` | Agent node-type constants | VERIFIED | Substantive, used by `manager.rs` and `open.rs` |
+| `crates/vox-orchestrator/src/memory/manager.rs` | `persist_fact` writes agent types | VERIFIED | Lines 207-240 |
+| `crates/vox-db/src/store/open.rs` | One-time legacy re-type inside the 96 gate | VERIFIED (scope-limited, see WR-01) | Line 210, 318-337 |
+| `crates/vox-orchestrator-mcp/src/kb_tools/library.rs` | `committed_clean_docs` git gate | VERIFIED | Lines ~213-266 |
+| `crates/vox-search/src/library/mod.rs` | `is_committed_clean`, per-doc tier every run | VERIFIED | `IndexDeps` field, loop at ~97-140 |
+| `crates/vox-db/src/store/ops_memory/library.rs` | `set_library_document_tier`; manifest write no longer re-stamps | VERIFIED | Lines 285-300, 374-420 |
 
 ### Key Link Verification
 
 | From | To | Status | Details |
 |------|----|--------|---------|
-| search web legs to inbox | `McpFindingCapture` -> `capture_finding` -> `insert_pending_finding` | WIRED | `web_capture_for_state` injected in `run_retrieval_bundle` |
-| research turns to inbox | `capture_research_sources` / `capture_research_synthesis` | WIRED | |
-| GUI side doors to inbox | `file_gui_finding` / `file_publish_draft` | WIRED | |
-| DB attach to legacy migration | `server_state.rs:663` -> `migrate_legacy_kb_entries` | WIRED (MCP server attach only) | GUI/CLI attach paths do not run it; acceptable since the MCP server is the daemon |
-| MENS KbSignals to `kb_findings` | `run_kb_signals_stage` | WIRED | |
-| preamble to tier filter | `exclude_untrusted_hits` set in `run_retrieval_bundle` for AutoChatPreamble | PARTIAL | Honoured by `execute_search_plan`, bypassed by the Tavily post-pass (CR-01); not enforced for the orchestrator `goal.rs` caller (WR-08) |
+| `run_search_with_verification` trigger | `exclude_untrusted_hits` for all passes + Tavily | WIRED | Shadowed policy binding at the top of the function |
+| Tavily lines | `min_trust_tier` / tier label | WIRED | Lines 217, 254 |
+| `sources_from_hits` / `pipeline_sources` | `SanitizedText` | WIRED | via `sanitized_source` |
+| `MemoryManager::persist_fact` | Untrusted tier | WIRED | node_type constants plus default arm; end-to-end test through the real tool |
+| `reindex_at` | git-clean set -> `index_library` per-doc tier -> `search_documents.trust_tier` | WIRED | Retrieval reads the per-row tier, so a demoted doc is excluded by `exclude_untrusted_hits` |
 
 ### Requirements Coverage
 
-All 9 phase IDs are claimed by at least one PLAN `requirements:` field and by SUMMARY `requirements-completed`, and are marked `[x]` / Complete in `.planning/workstreams/kb/REQUIREMENTS.md`. No orphaned requirement.
+All nine phase IDs are claimed by at least one PLAN `requirements:` field and SUMMARY `requirements-completed` (03-14: TRUST-01, TRUST-05, RET-02; 03-15/03-16 continue TRUST-01/TRUST-03 through D-07/D-08). No orphaned requirement.
 
-| Requirement | Source Plans | Status | Evidence |
-|-------------|--------------|--------|----------|
-| TRUST-01 | 03-01, 03-03, 03-05, 03-09, 03-13 | SATISFIED with caveats | Required tier and mapping verified (SC1). Caveats: "Trusted = merged to git" not mechanically enforced (WR-09, human decision); envelope min-tier violated on the Tavily path (gap 1) |
-| TRUST-02 | 03-04, 03-06, 03-11 | SATISFIED | Web hits to inbox, zero corpus rows (SC2) |
-| TRUST-03 | 03-06, 03-07 | SATISFIED | 0.95 floor and chat write-back removed (SC3); WR-10 open design question |
-| TRUST-04 | 03-03, 03-04, 03-06 | SATISFIED | Provenance columns plus gitignored snapshot. Advisory: snapshot is raw text and hash covers untruncated text (WR-03) |
-| TRUST-05 | 03-02, 03-04, 03-09 | PARTIALLY SATISFIED | Gap 2 (research-turn URL/engine, deep sources) |
-| TRUST-06 | 03-01 | SATISFIED | Mutation-proven fail-closed verdict. Advisory: Crossref field choice (WR-01) must be fixed before Phase 9 wires a consumer |
-| RET-02 | 03-07, 03-09, 03-10, 03-12, 03-13 | SATISFIED | SC5; single `vox-search` path, though the Tavily post-pass is a tier-bypass on that path (gap 1) |
-| RET-03 | 03-03, 03-08, 03-12, 03-13 | SATISFIED | Counted then migrated; orphan-entry edge case WR-06 |
-| GROW-06 | 03-06, 03-07, 03-08, 03-11 | SATISFIED | SC3 |
+| Requirement | Status | Evidence |
+|-------------|--------|----------|
+| TRUST-01 | SATISFIED | Required tier + mapping (SC1); envelope min-tier now holds on the Tavily path (gap 1); "Trusted = merged to git" now mechanically enforced at reindex (truth 8, D-08) |
+| TRUST-02 | SATISFIED | Web hits to inbox, zero corpus rows (SC2) |
+| TRUST-03 | SATISFIED | 0.95 floor and chat write-back removed (SC3); model-callable `persist_fact` graph rows Untrusted (truth 7) |
+| TRUST-04 | SATISFIED | Provenance columns plus gitignored snapshot (advisory WR-03 hardening, deferred) |
+| TRUST-05 | SATISFIED | Sanitizer at ingest, retrieval injection and research-source boundary (gap 2 closed) |
+| TRUST-06 | SATISFIED | Fail-closed, mutation-proven verdict (advisory: Crossref field choice WR-01-old, owner Phase 9 before the first promotion consumer) |
+| RET-02 | SATISFIED | Single `vox-search` path, legacy surface deleted; the Tavily tier bypass on that path is closed |
+| RET-03 | SATISFIED | Counted then migrated as pending (advisory orphan-row edge case, deferred) |
+| GROW-06 | SATISFIED | Side doors route to the inbox; MENS reads `kb_findings` |
 
-### Disposition of the Code Review Findings (03-REVIEW.md)
+### Disposition of the Gap-Closure Review (03-REVIEW.md, 0 critical)
 
 | Finding | Disposition | Reason |
 |---------|-------------|--------|
-| CR-01 Tavily bypass | **GOAL GAP (blocker, gap 1)** | Violates the binding 03-09 truth, TRUST-01's min-tier semantics, and the phase goal's "one retrieval path" tier guarantee. Opt-in feature but reachable; no test |
-| WR-05 research-turn URL/engine unsanitized | **GOAL GAP (partial SC4, gap 2)** | SC4 names the injection boundary explicitly; cheap fix |
-| WR-08 exclude flag only set in MCP caller | Advisory, fix together with CR-01 | `goal.rs` path feeds only a CRAG relevance enum and evidence counts; recommended fix is to derive the flag from `trigger == AutoChatPreamble` in `execute_search_plan`, which also hardens CR-01's neighbours |
-| WR-09 Library Trusted from working tree | Human decision (listed above) | Documented AP-12 assumption; mapping text says "merged to git" |
-| WR-10 `persist_fact` Advisory elevation | Human decision (listed above) | D-06 explicitly allowlists fact/concept; TRUST-03 text names two other mechanisms |
-| WR-01 Crossref `update-to` vs `updated-by` | Advisory, must fix before the first promotion consumer (Phase 9) | Verdict function is correct and fail-closed; the pre-existing detection is fail-open and its tests share the same wrong assumption |
-| WR-02 redact-then-sanitize order | Advisory (security hardening) | Not part of SC4 (secret redaction, not injection neutralisation); one-line reorder recommended |
-| WR-03 snapshot raw + hash/truncation mismatch | Advisory | SC2 requires a gitignored snapshot and a content hash, both present; the module doc overstates sanitization |
-| WR-04 untyped provenance JSON | Advisory | Hardening; reviewed-only consumers today |
-| WR-06 orphaned legacy entries / abort on first error | Advisory | Narrow edge case (FK cascade exists in the DDL); worth an assertion `migrated+skipped+already_present+failed == kb_entries` |
-| WR-07 unbounded inbox/snapshot growth | Advisory (follow-up) | Not in any SC; Phase 9 triage/GC is the natural owner |
-| IN-01..IN-05 | Info | IN-02 (`legacy_export_covers_all_baseline_tables` red, pre-existing, recorded in `deferred-items.md`) should be given an owner |
+| WR-01 legacy `fact`/`concept` re-type only below baseline 96 | WARNING, human decision (listed above) | Defeats neither D-07 (which the plan scopes as a one-time re-type in the 96 gate) nor a ROADMAP SC: every forward write is Untrusted and the tier is derived at read time. Residual is limited to a local DB that already recorded version 96 with rows from the old `persist_fact`. BASELINE 96 first appears in commit `80cf75eda`, which is on no remote branch, so this is a dev-database window. The review's fix is two lines (run outside the gate, drop the `graphify:` exclusion). Note the `id NOT LIKE 'graphify:%'` guard also spares a model-chosen key starting with `graphify:` |
+| WR-02 baseline-96 backfill stamps Library rows with the ceiling | WARNING, human decision (listed above) | Code read confirms `backfill_search_document_trust_tiers` still copies `kb_index_state.trust_tier` onto every row of the corpus and its comment is stale. This does not defeat D-08: the gate decides on every reindex, and a pre-Phase-3 DB had no tier concept at all, so the window is "not yet re-gated", not a new leak. It is, however, a genuine fail-open on the upgrade path for an indexed Library until `vox_kb_reindex` runs; the cheap fix is stamping Library rows untrusted in the backfill |
+| IN-01 git gate fails closed silently; blind to `assume-unchanged`/`skip-worktree` | Info | Fail-closed result is correct; observability and a deliberate-bypass edge only |
+| IN-02 `Source` literal builders are convention-guarded | Info | Only test fixtures and the findings-bound GUI path remain |
+| IN-03 memory leg still feeds model text to the preamble as Advisory | Accepted by D-07a (user decision 2026-10-09), recorded in `deferred-items.md`, revisit with Phase 7 | The invariant "nothing elevates model or web output" is not yet true end to end for MEMORY.md; this is a user-decided scope boundary, not a plan defect |
+| IN-04 `knowledge_nodes` tier invariant is convention | Info | Today no non-agent writer produces `fact`/`concept`; a static writer-invariant test would harden it |
+| IN-05 Tavily tests mutate process env | Info | Same pattern already existed; `#[serial]` plus a positive control in the `web_capture_test.rs` case would harden it (the MCP test already has one) |
+| Older review items (previous WR-01..04, 06, 07; IN) | Deferred, recorded in `deferred-items.md`; none blocks a ROADMAP SC | Previous WR-02 (redact-then-sanitize order, a secret split by a zero-width character survives redaction) remains the item most worth a quick fix before Phase 3 ships |
 
 ## Anti-Patterns Found
 
 | File | Line | Pattern | Severity | Impact |
 |------|------|---------|----------|--------|
-| `crates/vox-search/src/bundle.rs` | 195-236 | Tier bypass on live-web text | BLOCKER | CR-01 |
-| `crates/vox-orchestrator-mcp/src/chat_tools/chat/research_turn.rs` | ~183-230 | Unsanitized URL/engine into prompt | WARNING | WR-05 |
-| Debt markers (TBD/FIXME/XXX) | n/a | Not scanned exhaustively; review found none | n/a | n/a |
+| `crates/vox-db/src/store/open.rs` | 278-281 | Stale doc comment: "the single corpus-level source" no longer true after 03-16 | WARNING | WR-02 |
+| `crates/vox-db/src/store/open.rs` | 210, 318-337 | One-time migration gated by version; not idempotent-on-open | WARNING | WR-01 |
+| Debt markers (TBD/FIXME/XXX) in files touched by the gap closures | n/a | grep not exhaustive across the repo; the review found none in the diff | none known | n/a |
+
+No stub or hollow-data finding in the gap-closure diff: the new functions have callers and tests, and the data flows from the real `git` output / real search results to the tier column and the prompt block.
+
+## Behavioral Spot-Checks
+
+Step 7b: SKIPPED. The instruction was not to run builds or tests, and `target/` on this worktree has been unstable (concurrent `cargo clean`, stuck rustc per the 03-14 summary). The behavioural evidence is the named wiremock/git-fixture tests above plus the recorded mutation proofs, which the executor ran with `CARGO_INCREMENTAL=0` and a scratch `CARGO_TARGET_DIR`. Hosted CI must confirm.
 
 ## Human Verification Required
 
-See the `human_verification` frontmatter: hosted-CI gates (digest, crate-edges, clippy, nextest), Playwright/vitest GUI suite, and the two design decisions WR-09 and WR-10.
+See the `human_verification` frontmatter: (1) hosted-CI gates, including the vox-orchestrator goal-search tests affected by the WR-08 behaviour change and crate-edges; (2) the Playwright/vitest GUI suite; (3) the WR-01/WR-02 upgrade-path decision; (4) requirements-state housekeeping.
 
 ## Gaps Summary
 
-The leak-closure and retirement work is real and consistent with the code: the tier vocabulary, required-tier writers with a pinning test, the findings inbox, web/research/GUI/CLI side doors routed to pending Untrusted findings, the 0.95 and `accepted=1` writes gone, MENS reading reviewed findings as DPO only, the legacy VoxKB surface deleted and guarded by a static ban test, and count-then-migrate wired at attach. SC1, SC2, SC3 and SC5 hold.
+Both gaps from the first verification are closed in code, with tests that fail under mutation. The phase goal holds: every KB row and finding carries a stored or derivable tier (now including a git-gated Library tier and Untrusted agent-written graph rows), the unreviewed side doors are closed, and retrieval runs through the single `vox-search` path with the preamble's Untrusted exclusion applied at the one place every caller passes through. No must-have fails.
 
-Two gaps keep the phase from `passed`:
-
-1. **CR-01 (blocker).** The Tavily post-pass in `run_search_with_verification` is the one retrieval leg that does not honour the Untrusted-drop, tier label or min-tier rule, so the "unprompted preamble never carries Untrusted web text; envelope tier = min of hits" guarantee (plan 03-09) is false whenever Tavily is configured and fires. Small fix: gate on `!policy.exclude_untrusted_hits`, label `[tier:untrusted]`, lower `min_trust_tier`, add a mocked-Tavily test.
-2. **WR-05 (partial SC4).** The injection-boundary sanitization misses the research-turn source URL and engine and the deep-path sources. Two-line fix plus a red-team case.
-
-Both are small, localized closures suitable for `/gsd-plan-phase --gaps`. WR-08 should be folded into the same plan. Nothing else in the review changes the verdict for SC1-SC3 and SC5.
+What remains is not a truth failure: confirmation by hosted CI (nothing was run locally by design), and a judgement on two small upgrade-path holes (WR-01, WR-02) that exist only for databases created before these fixes landed.
 
 ---
 
-_Verified: 2026-10-08_
+_Verified: 2026-10-09_
 _Verifier: Claude (gsd-verifier)_

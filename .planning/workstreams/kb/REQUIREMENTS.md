@@ -35,17 +35,17 @@ Research basis: `.planning/workstreams/kb/research/SUMMARY.md` and `docs/src/arc
 
 - [x] **RET-01**: Any MCP host (Vox chat, Claude Code, Cursor) can call `vox_kb_search`, `vox_kb_get`, `vox_kb_cite`, `vox_kb_status` and `vox_kb_reindex`, and read `kb://doc/{path}` / `kb://chunk/{hash}` resources
 - [x] **RET-02**: All KB retrieval goes through `vox-search` (single retrieval path); the legacy `KbStore` LIKE search, `KbRouter`, signal adapters, `kb_lines` and the 12 legacy `vox_kb_*` CRUD tools are retired, with colliding names replaced rather than aliased
-- [ ] **RET-03**: Legacy `kb_entries`/`knowledge_bases` rows are counted before quarantine; non-empty rows are migrated into the inbox as pending findings
+- [x] **RET-03**: Legacy `kb_entries`/`knowledge_bases` rows are counted before quarantine; non-empty rows are migrated into the inbox as pending findings
 - [ ] **RET-04**: Search results carry trust tier, staleness, `scope`, and status; `status: research|roadmap|legacy|deprecated` and superseded pages are down-weighted, not excluded
 
 ### Provenance & Trust (TRUST)
 
 - [x] **TRUST-01**: Every indexed row and finding has a required trust tier mapped onto `ContextTrustTier`: SystemVerified = curated + mechanical verification evidence; Trusted = curated (merged to git); Advisory = agent-derived; Untrusted = inbox / live web. Writes without a tier fail to compile or are rejected
-- [ ] **TRUST-02**: Web hits are no longer written into the searchable corpus; `persist_web_hits` routes them into the `kb_findings` inbox as Untrusted
+- [x] **TRUST-02**: Web hits are no longer written into the searchable corpus; `persist_web_hits` routes them into the `kb_findings` inbox as Untrusted
 - [x] **TRUST-03**: Model output never re-enters the KB at elevated trust — the `signal_research` 0.95 confidence floor and the post-turn `accepted=1` chat writeback are removed or routed to the inbox
-- [ ] **TRUST-04**: Each finding stores summary, short quotes, source URL, fetch date and content hash; a full-text snapshot is kept locally under a gitignored path and is never committed
+- [x] **TRUST-04**: Each finding stores summary, short quotes, source URL, fetch date and content hash; a full-text snapshot is kept locally under a gitignored path and is never committed
 - [x] **TRUST-05**: Ingested and injected text passes a sanitizer (Unicode tag block, zero-width/bidi characters, HTML comments, off-allowlist markdown images) backed by property tests and a red-team fixture set
-- [ ] **TRUST-06**: Promotion eligibility fails closed when the trust lookup errors
+- [x] **TRUST-06**: Promotion eligibility fails closed when the trust lookup errors
 
 ### Taxonomy & Schema (TAX)
 
@@ -85,7 +85,7 @@ Research basis: `.planning/workstreams/kb/research/SUMMARY.md` and `docs/src/arc
 - [ ] **GROW-03**: A user or agent can list, review, reject (with reason) and propose findings via `vox_kb_propose`, `vox_kb_inbox_list`, `vox_kb_inbox_review`; a similar-docs check flags duplicates
 - [ ] **GROW-04**: An agent drafts promotions as a draft PR from an isolated worktree (write → doc-lint → commit → push), with per-claim source excerpts in the PR body; a human merge is the only path into curated docs
 - [ ] **GROW-05**: Promotion requires ≥2-domain corroboration (or explicit reviewer override) and passes a promotion lint; `docs/src/library/` has CODEOWNERS
-- [ ] **GROW-06**: Existing side doors (`publish_research_doc`, GUI `ingest_url`/`ingest_text`, scientia/MEMORY sinks) route through the inbox; MENS `KbSignals` reads `kb_findings`
+- [x] **GROW-06**: Existing side doors (`publish_research_doc`, GUI `ingest_url`/`ingest_text`, scientia/MEMORY sinks) route through the inbox; MENS `KbSignals` reads `kb_findings`
 
 ### Page-One Rewrites (REWR)
 
@@ -164,14 +164,14 @@ Research basis: `.planning/workstreams/kb/research/SUMMARY.md` and `docs/src/arc
 | IDX-07 | Phase 2 | Complete |
 | RET-01 | Phase 2 | Complete |
 | RET-02 | Phase 3 | Complete |
-| RET-03 | Phase 3 | Gaps Found |
+| RET-03 | Phase 3 | Complete |
 | RET-04 | Phase 5 | Pending |
 | TRUST-01 | Phase 3 | Complete |
-| TRUST-02 | Phase 3 | Gaps Found |
+| TRUST-02 | Phase 3 | Complete |
 | TRUST-03 | Phase 3 | Complete |
-| TRUST-04 | Phase 3 | Gaps Found |
+| TRUST-04 | Phase 3 | Complete |
 | TRUST-05 | Phase 3 | Complete |
-| TRUST-06 | Phase 3 | Gaps Found |
+| TRUST-06 | Phase 3 | Complete |
 | TAX-01 | Phase 4 | Pending |
 | TAX-02 | Phase 4 | Pending |
 | TAX-03 | Phase 4 | Pending |
@@ -199,7 +199,7 @@ Research basis: `.planning/workstreams/kb/research/SUMMARY.md` and `docs/src/arc
 | GROW-03 | Phase 9 | Pending |
 | GROW-04 | Phase 9 | Pending |
 | GROW-05 | Phase 9 | Pending |
-| GROW-06 | Phase 3 | Gaps Found |
+| GROW-06 | Phase 3 | Complete |
 | REWR-01 | Phase 10 | Pending |
 | REWR-02 | Phase 10 | Pending |
 | REWR-03 | Phase 10 | Pending |
