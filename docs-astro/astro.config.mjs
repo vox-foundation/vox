@@ -8,6 +8,7 @@ import { voxGrammar } from './src/plugins/vox-grammar.mjs';
 import { getSidebar } from './src/utils/sidebar.mjs';
 import { internalsDocIds, listDocPages, noindexRoutes } from './src/utils/page-index.mjs';
 import { remarkVoxInclude } from './src/plugins/remark-vox-include.mjs';
+import { docLinksGate, remarkDocLinks } from './src/plugins/remark-doc-links.mjs';
 
 const docPages = listDocPages(fileURLToPath(new URL('../docs/src', import.meta.url)));
 // Pages whose status sets robots noindex (src/utils/page-status.mjs) stay out
@@ -22,10 +23,21 @@ export default defineConfig({
   site: 'https://voxlang.org/',
   // Process {{#include path:anchor}} directives in code blocks (mdBook SSOT pattern).
   // Build fails loudly for any unresolved path/anchor — preventing silent blank code blocks.
+  // Then repo-relative links become site routes (or GitHub URLs); a dead link fails the build.
   markdown: {
-    remarkPlugins: [remarkVoxInclude],
+    remarkPlugins: [
+      remarkVoxInclude,
+      [
+        remarkDocLinks,
+        {
+          repoRoot: fileURLToPath(new URL('..', import.meta.url)),
+          repoUrl: 'https://github.com/vox-foundation/vox',
+        },
+      ],
+    ],
   },
   integrations: [
+    docLinksGate(),
     // Registered here, Starlight skips adding its own unfiltered sitemap.
     sitemap({
       filter: (page) => {
