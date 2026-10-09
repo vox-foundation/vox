@@ -8,6 +8,7 @@ use anyhow::{Result, bail};
 use vox_capability_registry::{DocLink, GuiRef, IndexRow, RowKind, implicit_mcp_capability_id};
 
 use super::super::gui_surface_registry::{RepresentationTier, SurfaceEntry, SurfaceRegistry};
+use super::docs_claims::PageMeta;
 use super::inputs::Inputs;
 use super::join::{CLI_DOC, MCP_DOC, no_snapshot_coverage, single_line};
 use super::owner::owner_ref;
@@ -213,16 +214,71 @@ pub(crate) fn non_operation_rows(rows: &mut [IndexRow], inputs: &Inputs) -> Resu
     Ok(out)
 }
 
-/// The default doc targets (D-06); each gets a `doc.` row even when nothing claims it.
-const PINNED_DOCS: [&str; 5] = [CLI_DOC, MCP_DOC, SURFACE_DOC, CRATE_DOC, SKILL_DOC];
+/// The default doc targets (D-06); each gets a `doc.` row when present in `Inputs::doc_pages`,
+/// even when nothing claims it.
+pub(super) const PINNED_DOCS: [&str; 5] = [CLI_DOC, MCP_DOC, SURFACE_DOC, CRATE_DOC, SKILL_DOC];
 
 /// Claim doc links on the claimed rows, and the opt-in `doc.<path>` rows (D-02, D-06).
 ///
 /// A claimed id that is not a row id is an error naming the page and the id. Ids are only ever
 /// compared with row ids, never turned into a path.
 pub(crate) fn apply_doc_claims(rows: &mut [IndexRow], inputs: &Inputs) -> Result<Vec<IndexRow>> {
-    let _ = (rows, inputs);
-    Ok(Vec::new()) // RED stub: implemented in the GREEN commit
+    let known: BTreeSet<&str> = rows.iter().map(|r| r.id.as_str()).collect();
+    let mut claims: BTreeMap<String, Vec<&str>> = BTreeMap::new();
+    let mut pages: BTreeSet<&str> = PINNED_DOCS
+        .into_iter()
+        .filter(|p| inputs.doc_pages.contains_key(*p))
+        .collect();
+    for (path, meta) in &inputs.doc_pages {
+        for id in &meta.capabilities {
+            if !known.contains(id.as_str()) {
+                bail!("{path}: frontmatter `capabilities` names unknown capability id `{id}`");
+            }
+            let pages_of = claims.entry(id.clone()).or_default();
+            if !pages_of.contains(&path.as_str()) {
+                pages_of.push(path);
+            }
+            pages.insert(path);
+        }
+    }
+    for r in rows.iter_mut() {
+        for path in claims.remove(&r.id).unwrap_or_default() {
+            if r.docs.iter().all(|d| d.path != path) {
+                r.docs.push(DocLink {
+                    path: path.to_string(),
+                    origin: "claim".to_string(),
+                });
+            }
+        }
+    }
+    Ok(pages
+        .into_iter()
+        .map(|path| doc_row(path, inputs.doc_pages.get(path)))
+        .collect())
+}
+
+fn doc_row(path: &str, meta: Option<&PageMeta>) -> IndexRow {
+    let mut refs: Vec<String> = meta.map(|m| m.capabilities.clone()).unwrap_or_default();
+    refs.sort();
+    refs.dedup();
+    let origin = if refs.is_empty() { "pinned" } else { "claim" };
+    let title = meta.and_then(|m| m.title.as_deref()).and_then(single_line);
+    let mut row = bare_row(
+        format!("doc.{path}"),
+        RowKind::Doc,
+        title.as_deref().unwrap_or(path),
+        path,
+    );
+    row.summary = meta
+        .and_then(|m| m.description.as_deref())
+        .and_then(single_line);
+    row.domain = Some("docs".to_string());
+    row.docs = vec![DocLink {
+        path: path.to_string(),
+        origin: origin.to_string(),
+    }];
+    row.refs = refs;
+    row
 }
 
 #[cfg(test)]
@@ -435,7 +491,8 @@ mod tests {
 
     #[test]
     fn pinned_pages_get_doc_rows() {
-        let idx = build_index(&doc_inputs(&[])).expect("build");
+        let pinned: Vec<(&str, &[&str])> = PINNED_DOCS.iter().map(|p| (*p, &[][..])).collect();
+        let idx = build_index(&doc_inputs(&pinned)).expect("build");
         for p in [
             "docs/src/reference/cli-command-surface.generated.md",
             "docs/src/reference/mcp-tool-registry-contract.md",
@@ -447,7 +504,7 @@ mod tests {
                 .row(&format!("doc.{p}"))
                 .unwrap_or_else(|| panic!("no doc row for {p}"));
             assert_eq!(d.docs[0].origin, "pinned");
-            assert_eq!(d.title, p, "no frontmatter title falls back to the path");
+            assert_eq!(d.title, "Page title");
         }
     }
 

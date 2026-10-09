@@ -19,8 +19,20 @@ pub(crate) struct PageMeta {
 // vox:defactored-from vox-doc-pipeline 2026-10-08
 /// The YAML between the opening `---` line and the next line that is exactly `---`.
 pub(crate) fn split_frontmatter(content: &str) -> Option<&str> {
-    let _ = content;
-    None // RED stub: implemented in the GREEN commit
+    let mut lines = content.split_inclusive('\n');
+    let first = lines.next()?;
+    if first.trim_end_matches(['\r', '\n']) != "---" {
+        return None;
+    }
+    let start = first.len();
+    let mut end = start;
+    for line in lines {
+        if line.trim_end_matches(['\r', '\n']) == "---" {
+            return Some(&content[start..end]);
+        }
+        end += line.len();
+    }
+    None
 }
 
 /// Parse a page's frontmatter; `None` when absent or not valid YAML.

@@ -15,7 +15,8 @@ use super::super::gui_surface_registry::{SurfaceRegistry, load_registry};
 pub(crate) use super::super::operations_catalog::OperationRow;
 use super::super::operations_catalog::read_catalog;
 use super::coverage::{CoverageSnapshot, SNAPSHOT_REL};
-use super::docs_claims::PageMeta;
+use super::docs_claims::{PageMeta, parse_meta};
+use super::nodes::PINNED_DOCS;
 use super::owner::{CLI_COMMANDS_DIR, Layers};
 
 const LAYERS_REL: &str = "docs/src/architecture/layers.toml";
@@ -92,8 +93,51 @@ pub(crate) fn load(repo_root: &Path) -> Result<Inputs> {
         crate_descriptions,
         skills: load_skills(),
         coverage: load_coverage(repo_root)?,
-        doc_pages: BTreeMap::new(), // RED stub: loaded in the GREEN commit
+        doc_pages: load_doc_pages(repo_root)?,
     })
+}
+
+const DOCS_DIR: &str = "docs/src";
+const ARCHIVE_DIR: &str = "docs/src/archive";
+
+/// Opt-in docs pages (Pitfall 11): pages claiming capabilities plus the pinned default targets.
+/// `docs/src/archive/` is pruned before any read (AGENTS.md Archival Protocol); unreadable or
+/// malformed pages are skipped because the doc lint owns that error (Pitfall 10).
+fn load_doc_pages(repo_root: &Path) -> Result<BTreeMap<String, PageMeta>> {
+    let rel_of = |p: &Path| {
+        p.strip_prefix(repo_root)
+            .unwrap_or(p)
+            .to_string_lossy()
+            .replace('\\', "/")
+    };
+    let archive = repo_root.join(ARCHIVE_DIR);
+    let mut out = BTreeMap::new();
+    let walk = walkdir::WalkDir::new(repo_root.join(DOCS_DIR))
+        .sort_by_file_name()
+        .into_iter()
+        .filter_entry(|e| !e.path().starts_with(&archive));
+    for entry in walk {
+        let entry = entry.with_context(|| format!("walk {DOCS_DIR}"))?;
+        if !entry.file_type().is_file() || entry.path().extension().is_none_or(|e| e != "md") {
+            continue;
+        }
+        let rel = rel_of(entry.path());
+        let Ok(text) = read_utf8_path_capped(entry.path()) else {
+            continue;
+        };
+        let meta = parse_meta(&text);
+        let pinned = PINNED_DOCS.contains(&rel.as_str());
+        match meta {
+            Some(m) if pinned || !m.capabilities.is_empty() => {
+                out.insert(rel, m);
+            }
+            None if pinned => {
+                out.insert(rel, PageMeta::default());
+            }
+            _ => {}
+        }
+    }
+    Ok(out)
 }
 
 /// The committed coverage snapshot; a missing file is `None` (rows then say why), never an error.

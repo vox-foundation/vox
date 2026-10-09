@@ -45662,6 +45662,10 @@
         {
           "path": "docs/src/reference/cli-command-surface.generated.md",
           "origin": "default"
+        },
+        {
+          "path": "docs/src/reference/secrets-ssot.md",
+          "origin": "claim"
         }
       ],
       "skills": [],
@@ -67498,6 +67502,10 @@
         {
           "path": "docs/src/architecture/where-things-live.md",
           "origin": "default"
+        },
+        {
+          "path": "docs/src/reference/secrets-ssot.md",
+          "origin": "claim"
         }
       ],
       "skills": [],
@@ -69169,6 +69177,171 @@
       "skills": [],
       "equivalents": [],
       "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "doc.docs/src/architecture/where-things-live.md",
+      "kind": "doc",
+      "title": "Where Things Live",
+      "summary": "Flat lookup table — concept to crate. Consult before adding code. Referenced by AGENTS.md and CLAUDE.md.",
+      "op_id": null,
+      "status": null,
+      "domain": "docs",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": null,
+      "docs": [
+        {
+          "path": "docs/src/architecture/where-things-live.md",
+          "origin": "pinned"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "doc.docs/src/reference/cli-command-surface.generated.md",
+      "kind": "doc",
+      "title": "CLI command surface (generated)",
+      "summary": "Auto-generated table of vox command paths and metadata; CLI rows are generated from contracts/operations/catalog.v1.yaml into command-registry.yaml — use vox ci operations-sync --target cli --write then vox ci command-sync --write.",
+      "op_id": null,
+      "status": null,
+      "domain": "docs",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": null,
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "pinned"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "doc.docs/src/reference/gui-navigation.md",
+      "kind": "doc",
+      "title": "GUI navigation",
+      "summary": "Operator console v2 surfaces, shell chrome, OmniSearch entry points, chat layout, and keybinds.",
+      "op_id": null,
+      "status": null,
+      "domain": "docs",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": null,
+      "docs": [
+        {
+          "path": "docs/src/reference/gui-navigation.md",
+          "origin": "pinned"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "doc.docs/src/reference/mcp-tool-registry-contract.md",
+      "kind": "doc",
+      "title": "MCP tool registry contract",
+      "summary": "Canonical MCP tool registry contract, metadata, and compliance checks.",
+      "op_id": null,
+      "status": null,
+      "domain": "docs",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": null,
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "pinned"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "doc.docs/src/reference/plugin-catalog.generated.md",
+      "kind": "doc",
+      "title": "Plugin Catalog (Generated)",
+      "summary": "Auto-generated authoritative list of all first-party Vox plugins.",
+      "op_id": null,
+      "status": null,
+      "domain": "docs",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": null,
+      "docs": [
+        {
+          "path": "docs/src/reference/plugin-catalog.generated.md",
+          "origin": "pinned"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "doc.docs/src/reference/secrets-ssot.md",
+      "kind": "doc",
+      "title": "Secrets SSOT",
+      "summary": "Canonical secret-management source of truth for Vox Secrets",
+      "op_id": null,
+      "status": null,
+      "domain": "docs",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": null,
+      "docs": [
+        {
+          "path": "docs/src/reference/secrets-ssot.md",
+          "origin": "claim"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [
+        "cli.secrets",
+        "crate.vox-secrets"
+      ],
       "coverage": null
     }
   ]

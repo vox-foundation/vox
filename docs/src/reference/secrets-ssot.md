@@ -3,6 +3,7 @@ title: "Secrets SSOT"
 description: "Canonical secret-management source of truth for Vox Secrets"
 category: "Language Reference"
 training_eligible: true
+capabilities: [cli.secrets, crate.vox-secrets]
 
 schema_type: "TechArticle"
 ---
