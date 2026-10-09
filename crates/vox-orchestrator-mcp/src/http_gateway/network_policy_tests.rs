@@ -341,3 +341,119 @@ async fn dashboard_write_routes_still_need_write_token_off_loopback() {
     let (_, v) = body_json(resp.into_response()).await;
     assert_eq!(v["error"]["code"], "forbidden");
 }
+
+async fn get_profile(state: GatewayState, from: &str, headers: HeaderMap) -> (StatusCode, Value) {
+    body_json(profile_info::http_profile(State(state), ConnectInfo(peer(from)), headers).await)
+        .await
+}
+
+fn str_list(v: &Value) -> Vec<String> {
+    v.as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s.as_str().unwrap().to_string())
+        .collect()
+}
+
+#[tokio::test]
+async fn profile_has_the_contract_shape() {
+    let state = dev_state_all_tools()
+        .await
+        .with_tokens(Some("w"), Some("r"));
+    let (status, v) = get_profile(state, LOOPBACK_PEER, bearer("w")).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(str_list(&v["profiles"]), vec!["dev".to_string()]);
+    assert_eq!(v["max_exposure"], "internal");
+    assert!(v["subsystems"]["booted"].is_array());
+    assert!(v["subsystems"]["failed"].is_array());
+    assert!(v["axis_surfaces"].is_array());
+    assert_eq!(v["server_version"], env!("CARGO_PKG_VERSION"));
+    let tools = str_list(&v["tools"]);
+    let mut sorted = tools.clone();
+    sorted.sort();
+    assert_eq!(tools, sorted, "tools are sorted");
+    let booted = str_list(&v["subsystems"]["booted"]);
+    let mut sorted = booted.clone();
+    sorted.sort();
+    assert_eq!(booted, sorted, "booted subsystems are sorted");
+}
+
+#[tokio::test]
+async fn profile_read_token_off_loopback_lists_only_public_read_eligible_tools() {
+    let state = dev_state_all_tools()
+        .await
+        .with_tokens(Some("w"), Some("r"));
+    let (status, v) = get_profile(state, LAN_PEER, bearer("r")).await;
+    assert_eq!(status, StatusCode::OK);
+    let tools = str_list(&v["tools"]);
+    assert!(tools.contains(&public_read_tool().to_string()));
+    for t in &tools {
+        let e = crate::profiles::registry_entry(t).unwrap();
+        assert_eq!(e.exposure, Exposure::Public, "{t}");
+        assert!(e.http_read_role_eligible, "{t}");
+    }
+}
+
+#[tokio::test]
+async fn profile_write_token_off_loopback_includes_operator_never_internal() {
+    let state = dev_state_all_tools()
+        .await
+        .with_tokens(Some("w"), Some("r"));
+    let (_, v) = get_profile(state, LAN_PEER, bearer("w")).await;
+    let tools = str_list(&v["tools"]);
+    assert!(tools.contains(&operator_tool().to_string()));
+    assert!(!tools.contains(&internal_tool().to_string()));
+}
+
+#[tokio::test]
+async fn profile_requires_a_token_off_loopback() {
+    let state = dev_state_all_tools()
+        .await
+        .with_tokens(Some("w"), Some("r"));
+    let (status, _) = get_profile(state, LAN_PEER, HeaderMap::new()).await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn profile_tools_equal_v1_tools_for_the_same_caller() {
+    let state = dev_state_all_tools()
+        .await
+        .with_tokens(Some("w"), Some("r"));
+    for token in ["r", "w"] {
+        let (_, p) = get_profile(state.clone(), LAN_PEER, bearer(token)).await;
+        let (_, t) = body_json(
+            http_tools(
+                State(state.clone()),
+                ConnectInfo(peer(LAN_PEER)),
+                bearer(token),
+            )
+            .await,
+        )
+        .await;
+        let listed: Vec<String> = t["tools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|d| d["name"].as_str().unwrap().to_string())
+            .collect();
+        assert_eq!(str_list(&p["tools"]), listed, "token {token}");
+    }
+}
+
+#[test]
+fn openapi_documents_v1_profile() {
+    let spec = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../contracts/mcp/http-gateway.openapi.yaml"
+    ));
+    assert!(spec.contains("\n  /v1/profile:\n"), "path missing");
+    for key in [
+        "max_exposure",
+        "axis_surfaces",
+        "server_version",
+        "booted",
+        "failed",
+    ] {
+        assert!(spec.contains(key), "{key} missing from /v1/profile schema");
+    }
+}

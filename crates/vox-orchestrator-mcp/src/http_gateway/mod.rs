@@ -9,6 +9,7 @@ use status::*;
 mod dashboard_api;
 mod scientia_feed;
 use scientia_feed::{TopicMessage, spawn_scientia_queue_poller};
+mod profile_info;
 mod rpc_tools;
 mod vcs_feed;
 use rpc_tools::*;
@@ -285,6 +286,7 @@ pub fn build_app(state: GatewayState) -> Router {
         .route("/v1/info", get(http_info))
         .route("/v1/tools", get(http_tools))
         .route("/v1/tools/call", post(http_call_tool))
+        .route("/v1/profile", get(profile_info::http_profile))
         .route("/v1/eval", post(http_eval))
         .route("/v1/ws", get(http_ws))
         .route("/v1/mobile", get(http_mobile_workspace))
