@@ -6,7 +6,7 @@
 //! The `SessionHost` trait is deliberately not extracted yet: it lands with the
 //! second implementation (`DaemonHost`, task H5) so it is shaped by two real users.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use anyhow::{Result, anyhow};
@@ -37,29 +37,100 @@ pub struct SessionInfo {
     pub blocks: usize,
 }
 
-/// Blocks as of attach time plus a live event stream. Both are taken under one
-/// lock, so no event falls between the snapshot and the first received event.
+/// Default raw-output replay window per session.
+// ponytail: fixed 2 MiB; read it from vox-config if memory pressure shows up.
+pub const DEFAULT_REPLAY_CAP: usize = 2 * 1024 * 1024;
+
+/// One chunk of raw PTY output. `seq` is 1-based and gap-free per session; a
+/// receiver that sees a gap (broadcast lag) should re-attach.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OutputFrame {
+    pub seq: u64,
+    pub bytes: Vec<u8>,
+}
+
+/// Everything a front-end needs to join a live session: structured blocks, the
+/// recent raw bytes (re-parsed by its own VT engine so full-screen programs
+/// redraw), and both live streams. All taken under one lock, so no event or
+/// byte falls between the snapshot and the first received frame.
 pub struct Attachment {
     pub blocks: Vec<Block>,
+    /// Last `replay_cap` bytes of raw PTY output.
+    pub replay: Vec<u8>,
+    /// `seq` of the newest frame included in `replay` (0 = none yet).
+    pub seq: u64,
     pub events: broadcast::Receiver<SessionEvent>,
+    pub output: broadcast::Receiver<OutputFrame>,
+}
+
+struct Replay {
+    buf: VecDeque<u8>,
+    seq: u64,
+    cap: usize,
 }
 
 struct Entry {
     session: Mutex<Session>,
     pty: Mutex<Option<PtyHandle>>,
+    replay: Mutex<Replay>,
+    out_tx: broadcast::Sender<OutputFrame>,
+}
+
+impl Entry {
+    fn new(id: &str, pty: Option<PtyHandle>, replay_cap: usize) -> Arc<Self> {
+        Arc::new(Self {
+            session: Mutex::new(Session::new(id)),
+            pty: Mutex::new(pty),
+            replay: Mutex::new(Replay {
+                buf: VecDeque::new(),
+                seq: 0,
+                cap: replay_cap,
+            }),
+            out_tx: broadcast::channel(256).0,
+        })
+    }
+
+    /// Record raw output (ring + seq), fan it out, and feed the block parser.
+    /// Lock order is replay → session everywhere, so attach() sees both consistently.
+    fn feed(&self, bytes: &[u8]) {
+        let mut r = lock(&self.replay);
+        r.seq += 1;
+        r.buf.extend(bytes);
+        let over = r.buf.len().saturating_sub(r.cap);
+        r.buf.drain(..over);
+        let _ = self.out_tx.send(OutputFrame {
+            seq: r.seq,
+            bytes: bytes.to_vec(),
+        });
+        lock(&self.session).on_pty_bytes(bytes);
+    }
 }
 
 fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
     m.lock().unwrap_or_else(|p| p.into_inner())
 }
 
-#[derive(Default)]
 pub struct LocalHost {
     sessions: Mutex<HashMap<SessionId, Arc<Entry>>>,
     next: Mutex<u64>,
+    replay_cap: usize,
+}
+
+impl Default for LocalHost {
+    fn default() -> Self {
+        Self::with_replay_cap(DEFAULT_REPLAY_CAP)
+    }
 }
 
 impl LocalHost {
+    pub fn with_replay_cap(replay_cap: usize) -> Self {
+        Self {
+            sessions: Mutex::default(),
+            next: Mutex::default(),
+            replay_cap,
+        }
+    }
+
     fn entry(&self, id: &str) -> Result<Arc<Entry>> {
         lock(&self.sessions)
             .get(id)
@@ -76,14 +147,11 @@ impl LocalHost {
             *n += 1;
             format!("term-{n}")
         };
-        let entry = Arc::new(Entry {
-            session: Mutex::new(Session::new(id.as_str())),
-            pty: Mutex::new(Some(handle)),
-        });
+        let entry = Entry::new(&id, Some(handle), self.replay_cap);
         let pump = Arc::clone(&entry);
         tokio::spawn(async move {
             while let Some(bytes) = rx.recv().await {
-                lock(&pump.session).on_pty_bytes(&bytes);
+                pump.feed(&bytes);
             }
         });
         lock(&self.sessions).insert(id.clone(), entry);
@@ -104,10 +172,14 @@ impl LocalHost {
 
     pub fn attach(&self, id: &str) -> Result<Attachment> {
         let entry = self.entry(id)?;
+        let r = lock(&entry.replay);
         let s = lock(&entry.session);
         Ok(Attachment {
             blocks: s.blocks().to_vec(),
+            replay: r.buf.iter().copied().collect(),
+            seq: r.seq,
             events: s.subscribe(),
+            output: entry.out_tx.subscribe(),
         })
     }
 
@@ -175,6 +247,26 @@ mod tests {
             SessionEvent::BlockOpened { .. }
         ));
         host.close(&id).unwrap();
+    }
+
+    #[tokio::test]
+    async fn replay_keeps_only_the_newest_bytes_and_tracks_seq() {
+        let host = LocalHost::with_replay_cap(8);
+        // No PTY: a real shell's startup output would race the exact assertions.
+        let id = "t".to_string();
+        let entry = Entry::new(&id, None, host.replay_cap);
+        lock(&host.sessions).insert(id.clone(), Arc::clone(&entry));
+        entry.feed(b"hello ");
+        entry.feed(b"world!!!");
+
+        let mut a = host.attach(&id).unwrap();
+        assert_eq!(a.replay, b"world!!!");
+        assert_eq!(a.seq, 2);
+
+        // The next frame continues exactly where the snapshot ended: no gap.
+        entry.feed(b"x");
+        let f = a.output.recv().await.unwrap();
+        assert_eq!((f.seq, f.bytes), (3, b"x".to_vec()));
     }
 
     #[tokio::test]
