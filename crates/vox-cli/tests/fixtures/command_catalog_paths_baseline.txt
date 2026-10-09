@@ -544,6 +544,7 @@ secrets/migrate-auth-store
 secrets/set
 secrets/status
 secrets/sync
+serve
 share
 shell
 shell/check

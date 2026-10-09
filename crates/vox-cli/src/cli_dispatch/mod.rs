@@ -401,6 +401,9 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
         Cli::Mcp { profile } => {
             crate::commands::mcp::run(profile).await?;
         }
+        Cli::Serve { profile } => {
+            crate::commands::serve::run(profile.as_deref()).await?;
+        }
         Cli::Shell { cmd } => {
             crate::commands::runtime::shell::run(cmd).await?;
         }

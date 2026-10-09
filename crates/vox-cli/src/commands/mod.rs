@@ -129,6 +129,8 @@ pub mod repo_init;
 pub(crate) mod repo_upgrade;
 #[cfg(feature = "dei")]
 pub mod safety;
+/// Headless daemon + HTTP gateway scoped to a capability profile (`vox serve`).
+pub mod serve;
 /// TOESTUB structural testing guard logic.
 #[cfg(feature = "stub-check")]
 pub mod stub_check;
