@@ -5,10 +5,8 @@ import { z } from 'astro:content';
 
 export const collections = {
 	docs: defineCollection({
-		loader: docsLoader({
-			// Exclude the tombstoned archive (LLM guard) and generated artifacts
-			exclude: ['archive/**', 'SUMMARY.md', '.well-known/**'],
-		}),
+		// The archive and generated files are kept out by scripts/setup-content.mjs (mirror dir).
+		loader: docsLoader(),
 		schema: docsSchema({
 			extend: z.object({
 				category: z.string().optional(),
