@@ -44,10 +44,6 @@ impl BackendState {
         }
     }
 
-    pub fn local(&self) -> Arc<PersistentDaemon> {
-        self.local.clone()
-    }
-
     /// Synchronous mode check for the invoke gate and the local stream loops.
     pub fn is_remote(&self) -> bool {
         self.remote_flag.load(Ordering::Acquire)

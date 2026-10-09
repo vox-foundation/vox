@@ -195,11 +195,11 @@ impl WsRpc {
                 let Ok(reply) = serde_json::from_str::<WsReply>(&text) else {
                     continue;
                 };
-                if let Some(id) = reply.id.clone() {
-                    if let Some(tx) = reader_pending.lock().await.remove(&id) {
-                        let _ = tx.send(reply);
-                        continue;
-                    }
+                if let Some(id) = reply.id.clone()
+                    && let Some(tx) = reader_pending.lock().await.remove(&id)
+                {
+                    let _ = tx.send(reply);
+                    continue;
                 }
                 if reply.msg_type == "agent_event" {
                     let _ = reader_events.send(reply.data);

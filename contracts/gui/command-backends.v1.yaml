@@ -5,6 +5,7 @@
 #        shell  = Axis-local, same meaning in both modes (never gated)
 # surfaces: view_keys from contracts/gui/surface-registry.v1.yaml whose UI calls this module.
 # Enforced by `vox ci gui-catalog-parity` (gui_command_backends check).
+x-vox-version: 1
 schema_version: 1
 commands:
 - { module: action_manifest, class: host, surfaces: [], notes: "reads contracts/operations/catalog.v1.yaml from the local repo" }

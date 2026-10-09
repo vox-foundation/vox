@@ -417,6 +417,9 @@ async fn main() {
             commands::mission_control::set_task_mesh_policy,
             commands::daemon::orchestrator_daemon_ready,
             commands::daemon::orchestrator_version_mismatch,
+            commands::axis_remote::axis_connect_remote,
+            commands::axis_remote::axis_disconnect_remote,
+            commands::axis_remote::axis_backend_status,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
