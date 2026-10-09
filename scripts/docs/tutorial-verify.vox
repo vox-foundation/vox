@@ -247,8 +247,8 @@ fn load_registry() to list[str] {
     return out
 }
 
-// Longest registry path that prefixes `path`, as "seg seg|status", or "".
-fn registry_match(registry: list[str], path: list[str]) to str {
+// Longest registry path that prefixes `cmd_segs`, as "seg seg|status", or "".
+fn registry_match(registry: list[str], cmd_segs: list[str]) to str {
     let mut best = ""
     let mut best_len = 0
     for entry in registry {
@@ -257,13 +257,13 @@ fn registry_match(registry: list[str], path: list[str]) to str {
             continue
         }
         let rsegs = entry.slice(0, bar.unwrap()).split(" ")
-        if rsegs.len() > path.len() or rsegs.len() <= best_len {
+        if rsegs.len() > cmd_segs.len() or rsegs.len() <= best_len {
             continue
         }
         let mut ok = true
         let mut i = 0
         while ok and i < rsegs.len() {
-            if rsegs.get(i).unwrap_or("") != path.get(i).unwrap_or("") {
+            if rsegs.get(i).unwrap_or("") != cmd_segs.get(i).unwrap_or("") {
                 ok = false
             }
             i = i + 1
@@ -281,14 +281,14 @@ fn check_commands(lines: list[str], registry: list[str]) to list[str] {
     let invs = collect_invocations(lines)
     print("  debug invocations: [" + invs.join(" ; ") + "]")
     for inv in invs {
-        let path = command_path(inv)
-        if path.len() is 0 {
+        let cmd_segs = command_path(inv)
+        if cmd_segs.len() is 0 {
             notes = notes.push("fail: no command path in `vox " + inv + "`")
             continue
         }
-        let m = registry_match(registry, path)
+        let m = registry_match(registry, cmd_segs)
         if m.len() is 0 {
-            notes = notes.push("fail: `vox " + path.join(" ") + "` is not in the command registry")
+            notes = notes.push("fail: `vox " + cmd_segs.join(" ") + "` is not in the command registry")
             continue
         }
         let bar = m.index_of("|").unwrap()
