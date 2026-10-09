@@ -38,7 +38,7 @@ async fn tls_transport_serves_health_over_https() {
     let app = build_app(GatewayState::for_test().await);
     let _server = serve_gateway(listener, app, &GatewayTransport::Tls { cert, key }).unwrap();
 
-    let client = reqwest::Client::builder()
+    let client = vox_http_client::client_builder()
         .danger_accept_invalid_certs(true)
         .build()
         .unwrap();
