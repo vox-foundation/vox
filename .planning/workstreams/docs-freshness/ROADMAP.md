@@ -21,7 +21,8 @@ v1.3 makes voxlang.org stay accurate to the code without constant manual upkeep,
 
 ### 🚧 v1.3 Self-Maintaining Public Docs
 
-- [ ] **Phase 20: Deploy Unblock & Public-Surface Honesty** - voxlang.org deploying from `main` again with escalating liveness alerts, live smoke checks, correct git dates, status banners/noindex, an Internals section, and one authoritative design
+- [ ] **Phase 20: Deploy Unblock & Public-Surface Honesty** - voxlang.org deploying from `main` again with escalating liveness alerts, live smoke checks, correct git dates, status banners/noindex, an Internals section, one authoritative design, working links (repo Markdown rendered as pages), and every tutorial verified current
+- [ ] **Phase 20.1: Collapsible Reader Layout (INSERTED)** - Left sidebar collapses to a hover-expand rail, right sidebar hides with an unobtrusive restore control, the article widens into the freed space, and docs pages plus the landing page work on phone, tablet and desktop
 - [ ] **Phase 21: Measure & Prune** - Deterministic report-only mention extractor + resolvers, `vox audit docs`, machine-generated Docs Reality Audit findings, prune report, and user-approved case-by-case dispositions applied with redirects
 - [ ] **Phase 22: Deterministic Drift Gate & PR Impact** - Symbol-span freshness ledger, in-place PR impact comment, tighten-only gate on reader-facing `current` pages, expiring suppressions, human re-attestation, docs-definition-of-done warning
 - [ ] **Phase 23: Generated Reference Expansion** - Env-var reference plus at least two more references generated from contracts, every generator registered in `ssot-drift`/`ssot-autoregen` and tested
@@ -33,7 +34,7 @@ v1.3 makes voxlang.org stay accurate to the code without constant manual upkeep,
 
 **Goal**: Readers and scrapers see the current docs on voxlang.org again, a broken deploy can never silently persist, and the public surface stops presenting research and roadmap notes as current reference.
 **Depends on**: Nothing (first v1.3 phase; independent of v1.1 and v1.2)
-**Requirements**: DEPLOY-01, DEPLOY-02, DEPLOY-03, DEPLOY-04, HONEST-01, HONEST-02, HONEST-03
+**Requirements**: DEPLOY-01, DEPLOY-02, DEPLOY-03, DEPLOY-04, HONEST-01, HONEST-02, HONEST-03, LINKS-01, LINKS-02, LINKS-03, TUT-01
 **Gate (human)**: DEPLOY-01 is blocked on the user rotating the Cloudflare Pages API token (`Pages:Edit` on `vox-docs`). All other Phase 20 work can proceed in parallel, but none of it is reader-visible until that token is rotated.
 **Research flag**: Standard patterns — skip phase research (ops work). One open question to settle by a local build: whether the `setup-content.mjs` content symlink defeats git-date lookup even with `fetch-depth: 0`.
 **Success Criteria** (what must be TRUE):
@@ -43,8 +44,39 @@ v1.3 makes voxlang.org stay accurate to the code without constant manual upkeep,
   3. After each deploy, smoke checks against the live site confirm the home page and `/voxup` respond, every URL in the published `llms.txt` resolves, and sampled pages contain no retired syntax — a deliberately broken llms.txt link fails the check.
   4. A page's "Last updated" date on the deployed site matches its last substantive commit (fmt, regen, and bulk-rename commits ignored), verified through the content symlink by a local build.
   5. A page with `status: research | roadmap | deprecated | legacy` shows a visible status banner and a `noindex` meta tag from frontmatter alone; architecture/research/roadmap notes appear only under an Internals sidebar section and in no published llms.txt variant; the Docs Reality Audit narrative and the `2026-08-22-docs-corpus-repair*` / `2026-09-14-deep-research-documentation-engine*` specs are merged into this workstream or marked superseded.
+  6. `https://voxlang.org/tutorials/tut-getting-started/` links to a working installation page, every relative `.md` link on the built site resolves, repo Markdown such as `AGENTS.md` opens as a rendered doc page, and source/contract links open on GitHub. CI fails the build when a broken internal-link fixture is introduced.
+  7. Every tutorial passes an audit against current code (commands in the registry, snippets compile, install steps match the installation reference, links resolve) and records the commit it was verified against.
 
-**Plans**: TBD
+**Plans**: 12 plans, 7 waves
+
+- [ ] 20-01-PLAN.md — Wave 1: deploy workflow repair, edit-in-place failure issue, liveness check, pinned wrangler (DEPLOY-01, DEPLOY-02)
+- [ ] 20-02-PLAN.md — Wave 1: git-derived page dates with mechanical commits ignored (DEPLOY-04)
+- [ ] 20-03-PLAN.md — Wave 1: supersede overlapping designs; governance text (HONEST-03)
+- [ ] 20-04-PLAN.md — Wave 1: tutorial audit, fixes and verification record (TUT-01)
+- [ ] 20-05-PLAN.md — Wave 1: fix dead relative link targets + source guard (LINKS-01)
+- [ ] 20-06-PLAN.md — Wave 2: status banners, noindex, Internals sidebar, sitemap/robots (HONEST-01, HONEST-02)
+- [ ] 20-12-PLAN.md — Wave 2: archive unpublished (content mirror), /retired/ page + redirect (LINKS-02)
+- [ ] 20-07-PLAN.md — Wave 3: Internals excluded from every llms variant (HONEST-02)
+- [ ] 20-08-PLAN.md — Wave 4: build-time relative-link rewriting (LINKS-01, LINKS-02)
+- [ ] 20-09-PLAN.md — Wave 5: repo Markdown mounted at /repo/, workflow path filters for mounted sources (LINKS-02)
+- [ ] 20-10-PLAN.md — Wave 6: blocking built-site link check with self-test (LINKS-03)
+- [ ] 20-11-PLAN.md — Wave 7: live smoke checks; push-triggered deploy, #462 closure, escalation drills (DEPLOY-03, DEPLOY-01, DEPLOY-02)
+
+**UI hint**: yes
+
+### Phase 20.1: Collapsible Reader Layout (INSERTED)
+
+**Goal**: Readers can give the article the whole screen. The left navigation folds into a rail that expands on hover, the right "On this page" panel can be hidden and brought back, and the docs and landing page work at every screen size.
+**Depends on**: Nothing (independent of Phase 20; can run in parallel)
+**Requirements**: SITE-01, SITE-02, SITE-03, SITE-04, SITE-05
+**Success Criteria** (what must be TRUE):
+
+  1. On desktop, collapsing the left sidebar leaves a narrow rail. Hovering over or keyboard-focusing it opens the full navigation as an overlay without moving the article. The pinned/collapsed choice survives navigating to another page and reloading.
+  2. Hiding the right sidebar leaves a small control at the edge that restores it, and the choice persists across pages.
+  3. With one or both sidebars collapsed, the article and its wide tables and code blocks visibly use the freed width, up to a readable maximum.
+  4. At phone and tablet widths the docs pages and the voxlang.org landing page have no horizontal scroll or overlapping controls. Touch devices get tap behaviour instead of hover, and the first paint shows the saved state without flashing.
+  5. Playwright specs cover every sidebar state at phone, tablet and desktop in light and dark themes, plus the landing page, run in CI, and save screenshots to the review bundle.
+
 **UI hint**: yes
 
 ### Phase 21: Measure & Prune
@@ -68,7 +100,8 @@ v1.3 makes voxlang.org stay accurate to the code without constant manual upkeep,
 
 **Goal**: Code changes that break reader-facing docs are caught at PR time by deterministic checks only, contributors see which docs their PR affects, and existing drift can only shrink.
 **Depends on**: Phase 21 (extractor, measured false-positive rate, pruned corpus)
-**Requirements**: DRIFT-01, DRIFT-02, DRIFT-03, DRIFT-04, DRIFT-05, DRIFT-06, DRIFT-07
+**Requirements**: DRIFT-01, DRIFT-02, DRIFT-03, DRIFT-04, DRIFT-05, DRIFT-06, DRIFT-07, TUT-02
+**Added (D11)**: TUT-02 — every tutorial runs end to end in CI as docs-as-tests; a failing tutorial blocks the merge.
 **Gate (human)**: The user authorizes switching the gate to blocking on reader-facing `current` pages once the baseline is recorded.
 **Research flag**: Needs phase research — symbol-span anchor hashing design (graphify item spans vs. file-sha fallback that churns on rustfmt), the human attestation mechanism, and false-positive measurement before blocking is enabled.
 **Success Criteria** (what must be TRUE):
@@ -137,6 +170,7 @@ Not started; scope is `VERIFY-*` and `BOT-*` in `REQUIREMENTS.md`. Proceeds only
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 20. Deploy Unblock & Public-Surface Honesty | 0/TBD | Not started | - |
+| 20.1. Collapsible Reader Layout (INSERTED) | 0/TBD | Not started | - |
 | 21. Measure & Prune | 0/TBD | Not started | - |
 | 22. Deterministic Drift Gate & PR Impact | 0/TBD | Not started | - |
 | 23. Generated Reference Expansion | 0/TBD | Not started | - |

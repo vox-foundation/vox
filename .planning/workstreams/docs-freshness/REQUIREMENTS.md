@@ -16,6 +16,8 @@ Brief: `CONTEXT.md`. Research: `research/SUMMARY.md` (+ STACK, FEATURES, ARCHITE
 - D8: Drift gate **blocks new drift only** (tighten-only baseline ratchet) on reader-facing `status: current` pages; existing drift is baselined.
 - D9: No hosted-bot trial. Instead, gather published accuracy and acceptance data for hosted docs bots and set a pivot rule: if they are far better than what we can build, switch to buying.
 - D10: No LLM runs on pull requests. PR-time checks are deterministic only.
+- D11 (2026-10-08, user): Links on the site must work, repo Markdown must render as doc pages, and tutorials especially must all be current. This promotes docs-as-tests for tutorials from out of scope into v1.3.
+- D12 (2026-10-08, user): Both sidebars collapse. The left one folds to a rail that expands on hover; the right one can be hidden, with a small control to bring it back. The article widens into the freed space. Everything works on mobile, including the landing page. Inserted as Phase 20.1.
 
 ## v1.3 Requirements
 
@@ -31,6 +33,29 @@ Brief: `CONTEXT.md`. Research: `research/SUMMARY.md` (+ STACK, FEATURES, ARCHITE
 - [ ] **HONEST-01**: Pages with `status: research | roadmap | deprecated | legacy` render a visible status banner and are `noindex`, driven by frontmatter alone.
 - [ ] **HONEST-02**: Architecture/research/roadmap notes live under a separate **Internals** sidebar section, excluded from the main navigation, search-engine indexing, and every published llms.txt variant (D7).
 - [ ] **HONEST-03**: The overlapping designs (dormant Docs Reality Audit Program narrative, `docs/superpowers/specs/2026-08-22-docs-corpus-repair*`, `docs/superpowers/specs/2026-09-14-deep-research-documentation-engine*`) are merged into this workstream or marked superseded, so one design is authoritative.
+
+### Working links (LINKS)
+
+Measured 2026-10-08: 2,803 relative `.md` links across 438 live pages are written relative to the repo, but Starlight serves each page as a directory (`/tutorials/tut-getting-started/`), so the browser resolves them one level too deep. For example `../reference/installation.md` becomes `/tutorials/reference/installation.md`, which returns 404. Another 1,909 links point outside `docs/src/` (top targets: `AGENTS.md` ×123, `LANGUAGE_DESIGN_PRIORITIES.md` ×23, Rust sources, contracts) and all 404. `vox ci check-links` validates repo paths, so it passes. The lychee step on the built site only prints guidance and never fails.
+
+- [ ] **LINKS-01**: Relative links between docs pages (`foo.md`, `../x/bar.md#anchor`, `index.md` / `README.md`) render as working site routes. They are rewritten at build time (remark plugin in `docs-astro/src/plugins/`) to Starlight slugs, anchors preserved; source Markdown stays repo-relative so GitHub rendering keeps working.
+- [ ] **LINKS-02**: Links that leave `docs/src/` resolve. Repo Markdown files (e.g. `AGENTS.md`, `LANGUAGE_DESIGN_PRIORITIES.md`, `README.md`, `CONTRIBUTING.md`, crate READMEs) are rendered as doc pages on the site from a single source (no hand copies). Non-Markdown repo files (source, contracts, `Cargo.toml`) link to their GitHub blob on `main`.
+- [ ] **LINKS-03**: The built site fails CI on any broken internal link (blocking check over `dist/`), including a deliberately broken fixture. External links are checked nightly, cached, and non-blocking.
+
+### Reader layout (SITE)
+
+Added 2026-10-08 (D12). The site runs stock Starlight 0.38 with no component overrides; neither sidebar can be collapsed.
+
+- [ ] **SITE-01**: The left navigation sidebar collapses to a narrow rail. While collapsed, hovering over or focusing the rail temporarily expands it as an overlay without moving the article. A toggle pins it open or collapsed, and the choice persists across pages (localStorage).
+- [ ] **SITE-02**: The right "On this page" sidebar can be hidden with a toggle. When hidden, a small, unobtrusive control stays visible to bring it back, and the choice persists across pages.
+- [ ] **SITE-03**: With either or both sidebars collapsed or hidden, the article widens into the freed space up to a readable maximum width. Wide content (tables, code, diagrams) uses the extra room.
+- [ ] **SITE-04**: Full responsive support on docs pages and the voxlang.org landing page, at phone, tablet and desktop widths. Mobile keeps Starlight's menu drawer, touch devices get no hover-only behaviour, all controls are keyboard-operable with ARIA state, the layout is stable on first paint (no flash), and reduced-motion preferences are honoured.
+- [ ] **SITE-05**: Playwright visual-stepper specs in `docs-astro/tests/` cover each sidebar state × {phone, tablet, desktop} × {light, dark} plus the landing page, and save screenshots to a review bundle. `docs-quality.yml` runs them.
+
+### Tutorials current (TUT)
+
+- [ ] **TUT-01**: Every tutorial (7 today) is audited and corrected against current code. Every `vox` command and flag exists in `command-registry.yaml`, every `vox` snippet compiles as a doctest (`vox:skip` only with a stated reason), install and prerequisite steps match `reference/installation.md`, and every link resolves. Each tutorial records the commit it was verified against.
+- [ ] **TUT-02**: Tutorials are executable docs-as-tests. A `.vox` harness runs each tutorial's steps end to end in CI (on PRs touching `docs/src/tutorials/**`, the CLI, or the compiler, plus nightly), and a failing tutorial blocks the merge.
 
 ### Measurement & pruning (MEASURE)
 
@@ -80,7 +105,7 @@ Brief: `CONTEXT.md`. Research: `research/SUMMARY.md` (+ STACK, FEATURES, ARCHITE
 - LLM checks on pull requests (D10).
 - Auto-merging any prose change (D3).
 - Blanket or time-based archiving (D5).
-- Hosted docs MCP endpoint with a feedback tool, and docs-as-tests for tutorials — deferred until Cloudflare logs show agent and reader demand.
+- Hosted docs MCP endpoint with a feedback tool — deferred until Cloudflare logs show agent and reader demand. (Tutorial docs-as-tests moved into scope as TUT-02, per D11.)
 - Vale prose linting — `retired-symbol-check` stays the source of truth for banned terms.
 
 ## Traceability
@@ -94,6 +119,15 @@ Brief: `CONTEXT.md`. Research: `research/SUMMARY.md` (+ STACK, FEATURES, ARCHITE
 | HONEST-01 | Phase 20 | Pending |
 | HONEST-02 | Phase 20 | Pending |
 | HONEST-03 | Phase 20 | Pending |
+| LINKS-01 | Phase 20 | Pending |
+| LINKS-02 | Phase 20 | Pending |
+| LINKS-03 | Phase 20 | Pending |
+| TUT-01 | Phase 20 | Pending |
+| SITE-01 | Phase 20.1 | Pending |
+| SITE-02 | Phase 20.1 | Pending |
+| SITE-03 | Phase 20.1 | Pending |
+| SITE-04 | Phase 20.1 | Pending |
+| SITE-05 | Phase 20.1 | Pending |
 | MEASURE-01 | Phase 21 | Pending |
 | MEASURE-02 | Phase 21 | Pending |
 | MEASURE-03 | Phase 21 | Pending |
@@ -107,6 +141,7 @@ Brief: `CONTEXT.md`. Research: `research/SUMMARY.md` (+ STACK, FEATURES, ARCHITE
 | DRIFT-05 | Phase 22 | Pending |
 | DRIFT-06 | Phase 22 | Pending |
 | DRIFT-07 | Phase 22 | Pending |
+| TUT-02 | Phase 22 | Pending |
 | GEN-01 | Phase 23 | Pending |
 | GEN-02 | Phase 23 | Pending |
 | GEN-03 | Phase 23 | Pending |
@@ -117,4 +152,4 @@ Brief: `CONTEXT.md`. Research: `research/SUMMARY.md` (+ STACK, FEATURES, ARCHITE
 | EVAL-01 | Phase 24 | Pending |
 | EVAL-02 | Phase 24 | Pending |
 
-Coverage: 29/29 v1.3 requirements mapped, no duplicates.
+Coverage: 39/39 v1.3 requirements mapped, no duplicates.
