@@ -1,0 +1,70 @@
+# Backend class + UI surfaces of every Axis command module (crates/vox-gui/src/commands/*.rs).
+# class: daemon = orchestrator daemon RPC only (works remotely through GatewayClient where routed)
+#        db     = opens the workspace DB directly (local-only until plan 07 migrates it)
+#        host   = local filesystem / processes / VCS / CLI sidecar / OS (local by nature)
+#        shell  = Axis-local, same meaning in both modes (never gated)
+# surfaces: view_keys from contracts/gui/surface-registry.v1.yaml whose UI calls this module.
+# Enforced by `vox ci gui-catalog-parity` (gui_command_backends check).
+schema_version: 1
+commands:
+- { module: action_manifest, class: host, surfaces: [], notes: "reads contracts/operations/catalog.v1.yaml from the local repo" }
+- { module: activity, class: db, surfaces: [activity, chat] }
+- { module: app_state, class: shell, surfaces: [] }
+- { module: axis_remote, class: shell, surfaces: [settings], notes: "Remote Axis connect/disconnect/status" }
+- { module: browser, class: host, surfaces: [browser], notes: "split: browser_* = orch RPC; preview_* spawn processes; frames read local cache" }
+- { module: build_info, class: shell, surfaces: [] }
+- { module: catalog, class: shell, surfaces: [catalog] }
+- { module: chat, class: db, surfaces: [chat], notes: "split: chat_send_message/secretary_confirm_task = orch RPC" }
+- { module: chat_turn, class: db, surfaces: [chat] }
+- { module: coderabbit, class: host, surfaces: [coderabbit] }
+- { module: console_a2a, class: db, surfaces: [console] }
+- { module: control_plane, class: daemon, surfaces: [chat, dashboard, tasks], notes: "no remote route yet" }
+- { module: daemon, class: daemon, surfaces: [] }
+- { module: devlog, class: shell, surfaces: [] }
+- { module: discovery, class: db, surfaces: [console] }
+- { module: docs_index, class: host, surfaces: [] }
+- { module: dynamic_mapping, class: host, surfaces: [] }
+- { module: event_annotate, class: daemon, surfaces: [] }
+- { module: execute, class: host, surfaces: [approvals, catalog, oratio, populi, skills] }
+- { module: gamify, class: db, surfaces: [gamify, settings] }
+- { module: graphify, class: host, surfaces: [] }
+- { module: gui_db_pool, class: db, surfaces: [] }
+- { module: harness, class: host, surfaces: [chat], notes: "split: get_task_diff = orch tool_call; list_repo_files = local git" }
+- { module: harness_eval, class: db, surfaces: [harness-health] }
+- { module: harness_issues, class: host, surfaces: [chat, scientia], notes: "split: corpus scan/apply = tokio::fs; rows = db" }
+- { module: harness_town, class: host, surfaces: [gamify] }
+- { module: identity, class: shell, surfaces: [] }
+- { module: knowledge, class: db, surfaces: [memory, research] }
+- { module: llm_settings, class: host, surfaces: [settings] }
+- { module: mcp, class: daemon, surfaces: [approvals, chat, dashboard, mesh, needs-you, settings, skills, tasks, vox-search] }
+- { module: memory, class: db, surfaces: [memory] }
+- { module: mens_run_reports, class: host, surfaces: [mens] }
+- { module: mens_serve, class: host, surfaces: [mens] }
+- { module: mercatus, class: host, surfaces: [mercatus] }
+- { module: mesh, class: host, surfaces: [settings] }
+- { module: mic, class: host, surfaces: [chat] }
+- { module: mission_control, class: daemon, surfaces: [sub-agents], notes: "no remote route yet" }
+- { module: models, class: db, surfaces: [chat, models, runs, settings] }
+- { module: oauth, class: host, surfaces: [] }
+- { module: oratio, class: host, surfaces: [chat] }
+- { module: orchestrator, class: host, surfaces: [chat, console, dashboard, flow, needs-you, settings, tasks], notes: "split: streams/status = orch RPC; hopper_* = db; config writes Vox.toml" }
+- { module: plan_panel, class: db, surfaces: [chat] }
+- { module: policy, class: host, surfaces: [policies] }
+- { module: preferences, class: shell, surfaces: [memory, settings], notes: "Axis-local gui.* UI preferences; client-side in remote mode, never via the server DB (D1)" }
+- { module: process_util, class: host, surfaces: [] }
+- { module: pty, class: host, surfaces: [console] }
+- { module: research, class: host, surfaces: [research], notes: "split: start_research_async = orch RPC; save_research_doc writes docs/ locally" }
+- { module: routing_explain, class: db, surfaces: [models] }
+- { module: runs, class: db, surfaces: [runs] }
+- { module: scientia, class: db, surfaces: [publications, research, scientia] }
+- { module: scientia_review, class: host, surfaces: [scientia], notes: "split: only license/version detection reads local files" }
+- { module: search, class: host, surfaces: [memory], notes: "split: vox_search_query = db; open_locator spawns editor" }
+- { module: search_probe, class: host, surfaces: [research] }
+- { module: secrets, class: host, surfaces: [settings] }
+- { module: signing, class: host, surfaces: [settings] }
+- { module: speech_plugin_backend, class: host, surfaces: [] }
+- { module: stt_config, class: host, surfaces: [settings] }
+- { module: terminal_core, class: host, surfaces: [console] }
+- { module: user_config, class: host, surfaces: [settings] }
+- { module: vcs_isolation, class: daemon, surfaces: [repository], notes: "routed via /api/v2/vcs/isolation" }
+- { module: workspace_town, class: host, surfaces: [gamify] }

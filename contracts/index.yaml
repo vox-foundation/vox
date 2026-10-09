@@ -212,6 +212,14 @@ contracts:
     enforced_by:
       - vox ci contracts-index
 
+  - id: gui-command-backends-v1
+    path: contracts/gui/command-backends.v1.yaml
+    owner: platform-gui
+    kind: yaml
+    description: Backend class (daemon|db|host|shell) and UI surfaces of every Axis command module; drives Remote Axis gating.
+    enforced_by:
+      - vox ci gui-catalog-parity
+
   - id: completion-policy-v1
     path: contracts/operations/completion-policy.v1.yaml
     owner: platform-ci
