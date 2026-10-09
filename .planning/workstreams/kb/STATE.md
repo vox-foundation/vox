@@ -5,16 +5,16 @@ milestone_name: Vox Knowledge Base — corpus to context
 current_phase: 03
 current_phase_name: Provenance, Trust Tiers and Leak Closure
 status: executing
-stopped_at: Completed 03-15-PLAN.md
-last_updated: "2026-10-09T20:53:10.820Z"
+stopped_at: Completed 03-16-PLAN.md
+last_updated: "2026-10-09T21:29:42.849Z"
 last_activity: 2026-10-09
 last_activity_desc: Phase 03 execution started
-state_head: 0fc550fde3dd6fed4388f457dd7454af0fb25de7
+state_head: 609fdcc347c6af6b2ec0534c88f68e12d9714d11
 progress:
   total_phases: 12
   completed_phases: 2
   total_plans: 40
-  completed_plans: 39
+  completed_plans: 40
   percent: 17
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (shared project context) and .planning/workstreams/kb/
 ## Current Position
 
 Phase: 03 (Provenance, Trust Tiers and Leak Closure) — EXECUTING
-Plan: 3 of 16
+Plan: 4 of 16
 Status: Ready to execute
 Last activity: 2026-10-09 — Phase 03 execution started
 
@@ -86,6 +86,7 @@ Progress: [██░░░░░░░░] 17%
 | Phase 03 P13 | 180min | 2 tasks | 9 files |
 | Phase 03 P14 | 2h | 2 tasks | 5 files |
 | Phase 03 P15 | 1h | 2 tasks | 5 files |
+| Phase 03 P16 | 1.5h | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -124,6 +125,7 @@ Progress: [██░░░░░░░░] 17%
 - [Phase 03]: 03-14: Tavily CRAG does not fire under AutoChatPreamble (exclusion derived from trigger inside run_search_with_verification); explicit lines labelled [tier:untrusted] and lower min_trust_tier
 - [Phase 03]: 03-14: all numbered research Source fields built via sanitized_source (SanitizedText) on quick, deep and failed-run paths
 - [Phase 03]: 03-15: agent-written knowledge nodes are agent_fact/agent_concept (Untrusted); memory leg unchanged per D-07a; legacy fact/concept rows re-typed once in baseline-96 gate (graphify: ids excluded)
+- [Phase 03]: 03-16 D-08: Library docs are Trusted only when tracked at HEAD and unmodified (git ls-tree minus diff via GitExec, fail-closed); per-doc tier re-evaluated every reindex; put_kb_index_state no longer re-stamps rows
 
 ### Pending Todos
 
@@ -138,8 +140,8 @@ Progress: [██░░░░░░░░] 17%
 
 ## Session Continuity
 
-**Last session:** 2026-10-09T20:53:10.748Z
+**Last session:** 2026-10-09T21:29:42.803Z
 
-**Stopped At:** Completed 03-15-PLAN.md
+**Stopped At:** Completed 03-16-PLAN.md
 **Resume File:** None
 **Next:** `/gsd-plan-phase 1` (no research-phase needed)
