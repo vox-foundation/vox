@@ -91,8 +91,16 @@ pub fn tier_for_curated(has_mechanical_evidence: bool) -> ContextTrustTier {
     }
 }
 
+/// Node type for facts the model stored through `MemoryManager::persist_fact`
+/// (D-07/D-07a): agent-written graph rows, `Untrusted` via the default arm below.
+pub const AGENT_FACT_NODE_TYPE: &str = "agent_fact";
+/// Node type for the relation nodes `persist_fact` writes (D-07/D-07a); `Untrusted`.
+pub const AGENT_CONCEPT_NODE_TYPE: &str = "agent_concept";
+
 /// Tier for a knowledge-graph node type. Allowlist of two Advisory types;
-/// every other or missing type is `Untrusted` (D-06 taint rule).
+/// every other or missing type is `Untrusted` (D-06 taint rule). `fact` and `concept` are
+/// Advisory only for non-agent writers (D-07 narrows D-06): agent writers use
+/// [`AGENT_FACT_NODE_TYPE`] / [`AGENT_CONCEPT_NODE_TYPE`].
 pub fn tier_for_knowledge_node_type(node_type: Option<&str>) -> ContextTrustTier {
     match node_type {
         Some("fact" | "concept") => ContextTrustTier::Advisory,
@@ -166,6 +174,18 @@ mod tests {
     fn tier_for_curated_splits_on_evidence() {
         assert_eq!(tier_for_curated(false), Trusted);
         assert_eq!(tier_for_curated(true), SystemVerified);
+    }
+
+    #[test]
+    fn agent_written_node_types_are_untrusted() {
+        assert_eq!(
+            tier_for_knowledge_node_type(Some(AGENT_FACT_NODE_TYPE)),
+            Untrusted
+        );
+        assert_eq!(
+            tier_for_knowledge_node_type(Some(AGENT_CONCEPT_NODE_TYPE)),
+            Untrusted
+        );
     }
 
     #[test]

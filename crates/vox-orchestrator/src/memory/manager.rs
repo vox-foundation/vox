@@ -6,6 +6,7 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
+use vox_orchestrator_types::trust::{AGENT_CONCEPT_NODE_TYPE, AGENT_FACT_NODE_TYPE};
 
 use crate::services::persistence_obs::log_persistence_failure;
 use crate::types::AgentId;
@@ -203,13 +204,21 @@ impl MemoryManager {
                     log_persistence_failure("memory.persist_fact.save_memory", e);
                 }
 
-                // 2. Upsert a knowledge_node for this fact
+                // 2. Upsert a knowledge_node for this fact. D-07: graph rows written here are
+                //    model-originated, so they carry the agent node types (Untrusted).
                 let meta_json = format!(
                     "{{\"value\":{:?},\"media_url\":{:?},\"media_type\":{:?}}}",
                     v, m_url, m_type
                 );
                 if let Err(e) = db
-                    .upsert_knowledge_node(&k, &k, &v, Some("fact"), Some(&meta_json), None)
+                    .upsert_knowledge_node(
+                        &k,
+                        &k,
+                        &v,
+                        Some(AGENT_FACT_NODE_TYPE),
+                        Some(&meta_json),
+                        None,
+                    )
                     .await
                 {
                     log_persistence_failure("memory.persist_fact.upsert_knowledge_node", e);
@@ -218,7 +227,14 @@ impl MemoryManager {
                 // 3. Create knowledge_edge links for related facts
                 for r in rels {
                     if let Err(e) = db
-                        .upsert_knowledge_node(&r, &r, &r, Some("concept"), None, None)
+                        .upsert_knowledge_node(
+                            &r,
+                            &r,
+                            &r,
+                            Some(AGENT_CONCEPT_NODE_TYPE),
+                            None,
+                            None,
+                        )
                         .await
                     {
                         log_persistence_failure("memory.persist_fact.upsert_related_node", e);

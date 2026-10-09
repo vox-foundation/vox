@@ -389,3 +389,108 @@ fn kb_injection_research_sources_are_sanitized_for_every_redteam_case() {
     }
     assert!(checked >= 10, "red-team set shrank to {checked}");
 }
+
+/// D-07 as scoped by D-07a (WR-10): a fact the model stores through `memory_store` is an
+/// Untrusted graph row that never reaches the preamble; the MEMORY.md memory line still does.
+#[tokio::test(flavor = "multi_thread")]
+async fn kb_tiers_agent_fact_from_memory_store_never_reaches_the_preamble() {
+    use vox_orchestrator_mcp::memory_tools::{MemoryStoreParams, memory_store};
+
+    let db = Arc::new(VoxDb::open_memory().await.unwrap());
+    let mut state = ServerState::new_test()
+        .await
+        .with_db_initialized(db.clone())
+        .await;
+    let dir = tempfile::tempdir().unwrap();
+    state.orchestrator_config.memory =
+        vox_orchestrator::MemoryConfig::for_account("kbt", dir.path());
+    let out = memory_store(
+        &state,
+        MemoryStoreParams {
+            agent_id: 1,
+            key: "kb-agent-fact".into(),
+            value: "zephyragent marker text".into(),
+            relations: Some(vec!["zephyrrel".into()]),
+            media_url: None,
+            media_type: None,
+        },
+    )
+    .await;
+    assert!(out.contains("Stored"), "memory_store failed: {out}");
+
+    // persist_fact writes the graph rows in a spawned task: wait for both to exist.
+    let mut present = false;
+    for _ in 0..50 {
+        let ids: Vec<String> = db
+            .list_knowledge_nodes(None, 0, 100)
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|n| n.id)
+            .collect();
+        if ["kb-agent-fact", "zephyrrel"]
+            .iter()
+            .all(|w| ids.iter().any(|i| i == w))
+        {
+            present = true;
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+    assert!(present, "persist_fact graph rows never appeared");
+    let tiers = db
+        .trust_tiers_for_knowledge_nodes(&["kb-agent-fact".into(), "zephyrrel".into()])
+        .await
+        .unwrap();
+    assert_eq!(tiers["kb-agent-fact"], ContextTrustTier::Untrusted);
+    assert_eq!(tiers["zephyrrel"], ContextTrustTier::Untrusted);
+
+    let explicit = run_retrieval_bundle(
+        &state,
+        "zephyragent",
+        RetrievalTriggerMode::ExplicitToolQuery,
+        20,
+        None,
+        true,
+    )
+    .await
+    .expect("explicit bundle");
+    let line = explicit
+        .knowledge_lines
+        .iter()
+        .find(|l| l.contains("[node:kb-agent-fact]"))
+        .unwrap_or_else(|| panic!("agent fact missing: {:?}", explicit.knowledge_lines));
+    assert!(line.starts_with("[tier:untrusted] "), "{line}");
+    assert_eq!(
+        explicit.evidence.min_trust_tier,
+        Some(ContextTrustTier::Untrusted)
+    );
+
+    let pre = run_retrieval_bundle(
+        &state,
+        "zephyragent",
+        RetrievalTriggerMode::AutoChatPreamble,
+        20,
+        None,
+        true,
+    )
+    .await
+    .expect("preamble bundle");
+    for l in every_line(&pre) {
+        assert!(
+            !l.contains("[node:kb-agent-fact]") && !l.contains("[node:zephyrrel]"),
+            "agent graph row reached the preamble: {l}"
+        );
+    }
+    assert!(
+        !has(&pre.knowledge_lines, "zephyragent"),
+        "{:?}",
+        pre.knowledge_lines
+    );
+    // D-07a: the memory leg is not re-tiered in Phase 3; the MEMORY.md line stays.
+    assert!(
+        has(&pre.memory_lines, "zephyragent"),
+        "memory line dropped (D-07a pins it): {:?}",
+        pre.memory_lines
+    );
+}
