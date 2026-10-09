@@ -409,11 +409,39 @@ pub async fn kb_cite(state: &ServerState, params: KbCiteParams) -> String {
     .to_json()
 }
 
-/// `vox_kb_status`: the last index manifest plus a live DB-vs-Tantivy consistency check.
+/// The Phase 3 additions to the status payload, read live from the database: legacy VoxKB row
+/// counts (zero for a table that no longer exists) and findings-inbox counts. Counts only, no
+/// paths: the rest of the payload carries host paths, which is why the tool stays off the HTTP
+/// read role. A failed read is an error, never a silent zero.
+async fn status_counts(db: &VoxDb) -> Result<(serde_json::Value, serde_json::Value), String> {
+    let legacy = db
+        .legacy_kb_counts()
+        .await
+        .map_err(|e| format!("legacy VoxKB count failed: {e}"))?;
+    let inbox = db
+        .kb_findings_counts()
+        .await
+        .map_err(|e| format!("findings inbox count failed: {e}"))?;
+    Ok((
+        json!({
+            "knowledge_bases": legacy.knowledge_bases,
+            "kb_entries": legacy.kb_entries,
+            "kb_routing_rules": legacy.kb_routing_rules,
+        }),
+        json!({"total": inbox.total, "pending": inbox.pending}),
+    ))
+}
+
+/// `vox_kb_status`: the last index manifest plus a live DB-vs-Tantivy consistency check, the
+/// legacy VoxKB row counts and the findings-inbox counts.
 pub async fn kb_status(state: &ServerState) -> String {
     let db = match require_db(state) {
         Ok(db) => db,
         Err(e) => return err_json(e, REM_KB_DB),
+    };
+    let (legacy_voxkb, inbox) = match status_counts(&db).await {
+        Ok(c) => c,
+        Err(e) => return err_json(e, REM_KB_REINDEX),
     };
     let Some(dir) = lexical::default_index_dir() else {
         return err_json(
@@ -431,6 +459,8 @@ pub async fn kb_status(state: &ServerState) -> String {
             "indexed": false,
             "index_dir": index_dir,
             "consistent": false,
+            "legacy_voxkb": legacy_voxkb,
+            "inbox": inbox,
         }))
         .to_json();
     };
@@ -456,6 +486,8 @@ pub async fn kb_status(state: &ServerState) -> String {
         "db_chunk_count": st.db_chunk_count,
         "lexical_docs": st.lexical_docs,
         "consistent": st.consistent,
+        "legacy_voxkb": legacy_voxkb,
+        "inbox": inbox,
     }))
     .to_json()
 }

@@ -75,10 +75,35 @@ fn push_errors(out: &mut String, errors: Option<&Vec<Value>>) {
     }
 }
 
+/// The legacy VoxKB row counts and the findings-inbox counts, printed only when the daemon sent
+/// them (an older daemon sends neither, and the report is then unchanged). Until the Phase 12
+/// Inbox GUI exists, this is the interim way to see findings filed by the GUI side doors.
+fn push_phase3_counts(out: &mut String, v: &Value) {
+    if let Some(l) = v.get("legacy_voxkb") {
+        let _ = writeln!(
+            out,
+            "  legacy VoxKB:        {} knowledge bases, {} entries, {} routing rules",
+            n(l, "knowledge_bases"),
+            n(l, "kb_entries"),
+            n(l, "kb_routing_rules")
+        );
+    }
+    if let Some(i) = v.get("inbox") {
+        let _ = writeln!(
+            out,
+            "  inbox:               {} pending of {}",
+            n(i, "pending"),
+            n(i, "total")
+        );
+    }
+}
+
 /// Render the `vox_kb_status` data payload (pure).
 pub(crate) fn render_kb_status(v: &Value) -> String {
     if v.get("indexed").and_then(Value::as_bool) != Some(true) {
-        return "KB Library: not indexed. Run `vox kb reindex` to build it.\n".into();
+        let mut out = String::from("KB Library: not indexed. Run `vox kb reindex` to build it.\n");
+        push_phase3_counts(&mut out, v);
+        return out;
     }
     let errors = v.get("errors").and_then(Value::as_array);
     let mut out = String::from("KB Library index\n");
@@ -105,6 +130,7 @@ pub(crate) fn render_kb_status(v: &Value) -> String {
         )
     };
     let _ = writeln!(out, "  index consistency:   {verdict}");
+    push_phase3_counts(&mut out, v);
     out
 }
 
@@ -217,6 +243,73 @@ mod tests {
             assert!(out.contains(want), "missing {want:?} in:\n{out}");
         }
         assert!(!out.contains("NOT consistent"), "{out}");
+    }
+
+    fn phase3_counts() -> Value {
+        json!({
+            "legacy_voxkb": {"knowledge_bases": 1, "kb_entries": 2, "kb_routing_rules": 1},
+            "inbox": {"total": 3, "pending": 3},
+        })
+    }
+
+    #[test]
+    fn kb_status_renders_legacy_and_inbox_lines_when_not_indexed() {
+        let mut v = json!({"indexed": false, "consistent": false});
+        v.as_object_mut()
+            .unwrap()
+            .extend(phase3_counts().as_object().unwrap().clone());
+        let out = render_kb_status(&v);
+        assert!(
+            out.contains("not indexed") && out.contains("vox kb reindex"),
+            "{out}"
+        );
+        assert!(
+            out.contains("legacy VoxKB")
+                && out.contains("1 knowledge bases, 2 entries, 1 routing rules"),
+            "{out}"
+        );
+        assert!(
+            out.contains("inbox") && out.contains("3 pending of 3"),
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn kb_status_renders_legacy_and_inbox_lines_when_indexed() {
+        let mut v = status_json();
+        v.as_object_mut()
+            .unwrap()
+            .extend(phase3_counts().as_object().unwrap().clone());
+        let out = render_kb_status(&v);
+        assert!(
+            out.contains("legacy VoxKB")
+                && out.contains("1 knowledge bases, 2 entries, 1 routing rules"),
+            "{out}"
+        );
+        assert!(
+            out.contains("inbox") && out.contains("3 pending of 3"),
+            "{out}"
+        );
+        // The Phase 2 report is still there, ahead of the added lines.
+        assert!(
+            out.contains("index consistency:") && out.contains("tantivy-0.22"),
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn kb_status_without_phase3_keys_renders_as_before() {
+        let not_indexed = render_kb_status(&json!({"indexed": false, "consistent": false}));
+        assert_eq!(
+            not_indexed,
+            "KB Library: not indexed. Run `vox kb reindex` to build it.\n"
+        );
+        let indexed = render_kb_status(&status_json());
+        assert!(
+            !indexed.contains("legacy VoxKB") && !indexed.contains("inbox"),
+            "{indexed}"
+        );
+        assert!(indexed.trim_end().ends_with("consistent"), "{indexed}");
     }
 
     #[test]
