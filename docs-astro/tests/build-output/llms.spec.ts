@@ -3,6 +3,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { internalsDocIds, listDocPages } from '../../src/utils/page-index.mjs';
+import { statusPolicy } from '../../src/utils/page-status.mjs';
 import { DIST_DIR } from '../lib/dist';
 
 const DOCS_SRC = fileURLToPath(new URL('../../../docs/src', import.meta.url));
@@ -75,12 +76,19 @@ test.describe('llms.txt variants', () => {
   }
 
   for (const file of ['llms.txt', 'llms-full.txt']) {
-    test(`.well-known/${file} links no Internals page`, () => {
+    test(`.well-known/${file} links only current pages`, () => {
       const path = join(DIST_DIR, '.well-known', file);
       test.skip(!existsSync(path), `dist/.well-known/${file} is not published`);
-      const internalsRoutes = new Set([...INTERNALS].map((id) => `/${id}/`));
-      const linked = siteLinks(readFileSync(path, 'utf8')).filter((route) => internalsRoutes.has(route));
-      expect(linked).toEqual([]);
+      const statusByRoute = new Map(PAGES.map((page) => [page.id ? `/${page.id}/` : '/', page.status]));
+      const links = siteLinks(readFileSync(path, 'utf8'))
+        // Repo-root files (/AGENTS.md, /CLAUDE.md, /GEMINI.md) are not docs
+        // pages; 20-09 repoints them at their rendered routes and removes this skip.
+        .filter((route) => !route.endsWith('.md'));
+      expect(links.length).toBeGreaterThan(5);
+      const notPages = links.filter((route) => !statusByRoute.has(route));
+      expect(notPages, 'links to routes that are not docs pages').toEqual([]);
+      const nonCurrent = links.filter((route) => statusPolicy(statusByRoute.get(route)).noindex);
+      expect(nonCurrent, 'links to Internals, deprecated or legacy pages').toEqual([]);
     });
   }
 });

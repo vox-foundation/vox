@@ -17,7 +17,6 @@
 - [CLI Reference](https://voxlang.org/reference/cli/)
 - [Environment Variables SSOT](https://voxlang.org/reference/env-vars/)
 - [Secrets (Secret Management)](https://voxlang.org/reference/secrets-ssot/)
-- [MCP Tool Reference](https://voxlang.org/reference/mcp-tool-reference/)
 
 ## Architecture Authority
 - [Where things live](https://voxlang.org/architecture/where-things-live/)
