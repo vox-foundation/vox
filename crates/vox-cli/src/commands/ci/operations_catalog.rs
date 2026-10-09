@@ -456,6 +456,7 @@ fn write_inventory_report(repo_root: &Path, catalog: &OperationsCatalog) -> Resu
 pub fn verify(repo_root: &Path) -> Result<()> {
     let raw = read_utf8_path_capped(&repo_root.join(OPERATIONS_CATALOG_REL))
         .with_context(|| format!("read {}", OPERATIONS_CATALOG_REL))?;
+    // Constraint: the JSON Schema rejects rows missing exposure/requires/side_effect_class before `ensure_mcp_classified` runs; the per-op listing comes from `operations-sync --target mcp`.
     validate_operations_catalog_against_json_schema(repo_root, &raw)?;
     let catalog: OperationsCatalog =
         serde_yaml::from_str(&raw).context("parse operations catalog")?;
@@ -1263,5 +1264,165 @@ mod tests {
             "{text}"
         );
         assert!(!text.contains("tier"), "{text}");
+    }
+
+    const UNCLASSIFIED_CATALOG: &str = "schema_version: 1
+operations:
+- id: x.unclassified
+  title: Unclassified
+  description: d
+  product_lane: ai
+  mcp:
+    name: vox_x_unclassified
+";
+
+    /// Schema-valid but gate-failing: a read-role tool whose side effect is not `read_only`.
+    const LEAKY_CATALOG: &str = "schema_version: 1
+operations:
+- id: x.leaky
+  title: Leaky
+  description: d
+  product_lane: ai
+  side_effect_class: writes_files
+  mcp:
+    name: vox_x_leaky
+    http_read_role_eligible: true
+    exposure: public
+    requires: []
+";
+
+    const LEAKY_MCP_REGISTRY: &str = "version: 1
+tools:
+- name: vox_x_leaky
+  description: d
+  product_lane: ai
+  http_read_role_eligible: true
+";
+
+    fn real_repo_root() -> std::path::PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
+    }
+
+    fn write_rel(root: &Path, rel: &str, text: &str) {
+        let p = root.join(rel);
+        fs::create_dir_all(p.parent().expect("parent")).expect("mkdir");
+        fs::write(p, text).expect("write fixture");
+    }
+
+    #[test]
+    fn sync_mcp_target_fails_on_unclassified_catalog() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        write_rel(dir.path(), OPERATIONS_CATALOG_REL, UNCLASSIFIED_CATALOG);
+        let err = sync(dir.path(), "mcp", false).unwrap_err().to_string();
+        assert!(err.contains("MCP exposure-metadata problem(s)"), "{err}");
+        assert!(err.contains("missing `exposure`"), "{err}");
+    }
+
+    #[test]
+    fn verify_runs_classification_gate_after_structural_checks() {
+        // `verify` validates the JSON Schema first, which already rejects a row with no
+        // `exposure`/`requires`/`side_effect_class`; the gate is therefore only reachable with a
+        // schema-valid row that breaks a semantic invariant (read-role tool that is not read_only).
+        let dir = tempfile::tempdir().expect("tempdir");
+        let schema = fs::read_to_string(real_repo_root().join(OPERATIONS_CATALOG_SCHEMA_REL))
+            .expect("read real schema");
+        write_rel(dir.path(), OPERATIONS_CATALOG_SCHEMA_REL, &schema);
+        write_rel(dir.path(), OPERATIONS_CATALOG_REL, LEAKY_CATALOG);
+        write_rel(dir.path(), MCP_TOOL_REGISTRY_REL, LEAKY_MCP_REGISTRY);
+        write_rel(
+            dir.path(),
+            REGISTRY_REL,
+            "schema_version: 1\noperations: []\n",
+        );
+        let err = verify(dir.path()).unwrap_err().to_string();
+        assert!(err.contains("MCP exposure-metadata problem(s)"), "{err}");
+        assert!(err.contains("http_read_role_eligible"), "{err}");
+    }
+
+    #[test]
+    fn verify_rejects_unclassified_row_at_schema_validation() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let schema = fs::read_to_string(real_repo_root().join(OPERATIONS_CATALOG_SCHEMA_REL))
+            .expect("read real schema");
+        write_rel(dir.path(), OPERATIONS_CATALOG_SCHEMA_REL, &schema);
+        write_rel(dir.path(), OPERATIONS_CATALOG_REL, UNCLASSIFIED_CATALOG);
+        let err = format!("{:#}", verify(dir.path()).unwrap_err());
+        assert!(!err.contains("MCP exposure-metadata problem(s)"), "{err}");
+        assert!(
+            err.contains("catalog.v1.schema.json") && err.contains("/operations/0/mcp"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn catalog_schema_enums_match_vox_mcp_registry_vocabulary() {
+        use std::collections::BTreeSet;
+        use vox_mcp_registry::{Exposure, SideEffectClass, Subsystem};
+
+        // Compile-time guards: adding a variant forces this list (and the schema) to be updated.
+        let exposures = [Exposure::Public, Exposure::Operator, Exposure::Internal];
+        for e in exposures {
+            match e {
+                Exposure::Public | Exposure::Operator | Exposure::Internal => {}
+            }
+        }
+        let effects = [
+            SideEffectClass::None,
+            SideEffectClass::ReadOnly,
+            SideEffectClass::WritesFiles,
+            SideEffectClass::SpawnsProcess,
+            SideEffectClass::Network,
+            SideEffectClass::RemoteMutation,
+            SideEffectClass::Destructive,
+        ];
+        for e in effects {
+            match e {
+                SideEffectClass::None
+                | SideEffectClass::ReadOnly
+                | SideEffectClass::WritesFiles
+                | SideEffectClass::SpawnsProcess
+                | SideEffectClass::Network
+                | SideEffectClass::RemoteMutation
+                | SideEffectClass::Destructive => {}
+            }
+        }
+
+        let raw = fs::read_to_string(real_repo_root().join(OPERATIONS_CATALOG_SCHEMA_REL))
+            .expect("read schema");
+        let schema: serde_json::Value = serde_json::from_str(&raw).expect("schema json");
+        let enum_set = |v: &serde_json::Value| -> (usize, BTreeSet<String>) {
+            let arr = v.as_array().expect("enum array");
+            let set: BTreeSet<String> = arr
+                .iter()
+                .map(|x| x.as_str().expect("enum string").to_string())
+                .collect();
+            (arr.len(), set)
+        };
+        let mcp_props = &schema["definitions"]["mcpProjection"]["properties"];
+        let cases: [(&str, (usize, BTreeSet<String>), Vec<&str>); 3] = [
+            (
+                "exposure",
+                enum_set(&mcp_props["exposure"]["enum"]),
+                exposures.iter().map(|e| e.as_str()).collect(),
+            ),
+            (
+                "side_effect_class",
+                enum_set(
+                    &schema["definitions"]["operationRow"]["then"]["properties"]["side_effect_class"]
+                        ["enum"],
+                ),
+                effects.iter().map(|e| e.as_str()).collect(),
+            ),
+            (
+                "requires",
+                enum_set(&mcp_props["requires"]["items"]["enum"]),
+                Subsystem::ALL.iter().map(|s| s.as_str()).collect(),
+            ),
+        ];
+        for (name, (len, got), want) in cases {
+            let want_set: BTreeSet<String> = want.iter().map(|s| s.to_string()).collect();
+            assert_eq!(len, want.len(), "{name}: schema enum length");
+            assert_eq!(got, want_set, "{name}: schema enum vs vox_mcp_registry");
+        }
     }
 }
