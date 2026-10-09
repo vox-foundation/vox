@@ -133,18 +133,77 @@ pub fn refresh_coverage_snapshot(repo_root: &Path) -> Result<()> {
     .map_err(|e| anyhow!("{e:#}"))
 }
 
+const TOP_LEVEL: &str =
+    "top-level commands are cli-group nodes; the graph has no per-command coverage";
+const NO_CLI_KEY: &str = "no cli:<group>:<leaf> node in the vox-gui-surface snapshot";
+const NO_TOOL_KEY: &str = "no `tool:` node (the graph only extracts GUI-wired tools)";
+const NO_SURFACE_KEY: &str = "no surface: node in the snapshot";
+
+/// Graph node id a row would have: `Ok(key)`, or `Err(reason)` when its shape has no node.
+/// `None` for row kinds coverage does not apply to.
+fn graph_key(r: &IndexRow) -> Option<std::result::Result<String, &'static str>> {
+    match r.kind {
+        RowKind::Cli => {
+            let p = &r.cli.as_ref()?.path;
+            Some(match (p.first(), p.last()) {
+                (Some(g), Some(l)) if p.len() >= 2 => Ok(format!("cli:{g}:{l}")),
+                _ => Err(TOP_LEVEL),
+            })
+        }
+        RowKind::McpTool => Some(Ok(format!("tool:{}", r.mcp.as_ref()?.name))),
+        RowKind::Surface => Some(Ok(format!(
+            "surface:{}",
+            r.gui.as_ref()?.view_key.as_deref()?
+        ))),
+        _ => None,
+    }
+}
+
+fn miss_reason(r: &IndexRow, shape_err: Option<&'static str>) -> &'static str {
+    shape_err.unwrap_or(match r.kind {
+        RowKind::Cli => NO_CLI_KEY,
+        RowKind::McpTool => NO_TOOL_KEY,
+        _ => NO_SURFACE_KEY,
+    })
+}
+
 /// Join the snapshot onto cli / mcp / surface rows (D-07). A row whose graph key exists gets the
 /// snapshot status; otherwise `kind` is null with a reason. Rows sharing one key all stay rows
 /// and are marked `ambiguous`. With no snapshot the rows keep their 06.2-01 reason.
 pub(crate) fn apply_coverage(rows: &mut [IndexRow], snapshot: Option<&CoverageSnapshot>) {
-    // RED stub: marks every graph-keyed row as unknown without consulting the snapshot.
-    let _ = (snapshot.map(|s| s.entries.len()), HashMap::<u8, u8>::new());
-    for r in rows.iter_mut().filter(|r| r.kind == RowKind::Cli) {
-        r.coverage = Some(CoverageRef {
-            kind: None,
-            basis: "none".to_string(),
-            ambiguous: false,
-            reason: Some("RED stub".to_string()),
+    let Some(snap) = snapshot else { return };
+    let status: HashMap<&str, &str> = snap
+        .entries
+        .values()
+        .flatten()
+        .map(|e| (e.id.as_str(), e.status.as_str()))
+        .collect();
+    let keys: Vec<Option<std::result::Result<String, &'static str>>> =
+        rows.iter().map(graph_key).collect();
+    let mut shared: HashMap<&str, usize> = HashMap::new();
+    for k in keys.iter().flatten().filter_map(|k| k.as_ref().ok()) {
+        *shared.entry(k.as_str()).or_default() += 1;
+    }
+    for (r, key) in rows.iter_mut().zip(&keys) {
+        let Some(key) = key else { continue };
+        let hit = key.as_ref().ok().and_then(|k| {
+            status
+                .get(k.as_str())
+                .map(|s| (*s, shared.get(k.as_str()).copied().unwrap_or(0) > 1))
+        });
+        r.coverage = Some(match hit {
+            Some((kind, ambiguous)) => CoverageRef {
+                kind: Some(kind.to_string()),
+                basis: "graph-key".to_string(),
+                ambiguous,
+                reason: None,
+            },
+            None => CoverageRef {
+                kind: None,
+                basis: "none".to_string(),
+                ambiguous: false,
+                reason: Some(miss_reason(r, key.as_ref().err().copied()).to_string()),
+            },
         });
     }
 }
