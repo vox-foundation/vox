@@ -9,6 +9,27 @@ on:
       - 'crates/vox-doc-pipeline/**'
       - 'examples/**'
       - '.github/workflows/docs-deploy.yml'
+      # 20-09: repo Markdown mounted at /repo/<route>/ (contracts/documentation/site-mounted-repo-docs.v1.json)
+      - 'AGENTS.md'
+      - 'CHANGELOG.md'
+      - 'CLAUDE.md'
+      - 'GEMINI.md'
+      - 'LANGUAGE_DESIGN_PRIORITIES.md'
+      - 'README.md'
+      - '.github/copilot-instructions.md'
+      - 'apps/editor/vox-vscode/README.md'
+      - 'contracts/README.md'
+      - 'contracts/speech-to-code/README.md'
+      - 'contracts/speech-to-code/labeling_rubric.md'
+      - 'crates/**/README.md'
+      - 'scripts/README.md'
+      - 'scripts/coverage-graph/README.md'
+      - 'scripts/show/README.md'
+      - 'tree-sitter-vox/GRAMMAR_SSOT.md'
+      - 'tree-sitter-vox/README.md'
+      - 'contracts/documentation/site-mounted-repo-docs.v1.json'
+      - '.git-blame-ignore-revs'
+      - '.lycheeignore'
   workflow_dispatch:
     inputs:
       simulate_failure:

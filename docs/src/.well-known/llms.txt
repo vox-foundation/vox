@@ -8,9 +8,9 @@
 > Not the unrelated Vox-lang (English-to-assembly) project at github.com/Vox-lang/vox.
 
 ## Agent Policy Entry Points
-- [AGENTS.md](https://voxlang.org/AGENTS.md): Cross-tool policy for all coding agents (required reading)
-- [GEMINI.md](https://voxlang.org/GEMINI.md): Antigravity-specific overlay
-- [CLAUDE.md](https://voxlang.org/CLAUDE.md): Claude Code overlay
+- [AGENTS.md](https://voxlang.org/repo/agents-md/): Cross-tool policy for all coding agents (required reading)
+- [GEMINI.md](https://voxlang.org/repo/gemini-md/): Antigravity-specific overlay
+- [CLAUDE.md](https://voxlang.org/repo/claude-md/): Claude Code overlay
 
 ## Core Documentation
 - [Getting Started](https://voxlang.org/tutorials/tut-getting-started/): Install from source and build your first app

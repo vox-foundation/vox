@@ -4,9 +4,9 @@
 > One .vox file compiles to a database schema, a type-safe server, and a live browser UI.
 
 ## Agent Policy Entry Points
-- [AGENTS.md](https://voxlang.org/AGENTS.md): Cross-tool policy for all coding agents (required reading)
-- [GEMINI.md](https://voxlang.org/GEMINI.md): Antigravity-specific overlay for this repo
-- [CLAUDE.md](https://voxlang.org/CLAUDE.md): Claude Code overlay
+- [AGENTS.md](https://voxlang.org/repo/agents-md/): Cross-tool policy for all coding agents (required reading)
+- [GEMINI.md](https://voxlang.org/repo/gemini-md/): Antigravity-specific overlay for this repo
+- [CLAUDE.md](https://voxlang.org/repo/claude-md/): Claude Code overlay
 
 ## Core Documentation
 - [Getting Started](https://voxlang.org/tutorials/tut-getting-started/)

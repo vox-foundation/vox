@@ -14,6 +14,22 @@ on:
       - '.git-blame-ignore-revs'
       - '.lycheeignore'
       - '.github/workflows/docs-quality.yml'
+      # 20-09: repo Markdown mounted at /repo/<route>/ (contracts/documentation/site-mounted-repo-docs.v1.json)
+      - 'CHANGELOG.md'
+      - 'CLAUDE.md'
+      - 'GEMINI.md'
+      - 'LANGUAGE_DESIGN_PRIORITIES.md'
+      - '.github/copilot-instructions.md'
+      - 'apps/editor/vox-vscode/README.md'
+      - 'crates/**/README.md'
+      - 'examples/PARSE_STATUS.md'
+      - 'examples/STYLE.md'
+      - 'examples/compile-suite/README.md'
+      - 'scripts/README.md'
+      - 'scripts/coverage-graph/README.md'
+      - 'scripts/show/README.md'
+      - 'tree-sitter-vox/GRAMMAR_SSOT.md'
+      - 'tree-sitter-vox/README.md'
   push:
     branches: [main]
     paths:
@@ -28,6 +44,22 @@ on:
       - '.git-blame-ignore-revs'
       - '.lycheeignore'
       - '.github/workflows/docs-quality.yml'
+      # 20-09: repo Markdown mounted at /repo/<route>/ (contracts/documentation/site-mounted-repo-docs.v1.json)
+      - 'CHANGELOG.md'
+      - 'CLAUDE.md'
+      - 'GEMINI.md'
+      - 'LANGUAGE_DESIGN_PRIORITIES.md'
+      - '.github/copilot-instructions.md'
+      - 'apps/editor/vox-vscode/README.md'
+      - 'crates/**/README.md'
+      - 'examples/PARSE_STATUS.md'
+      - 'examples/STYLE.md'
+      - 'examples/compile-suite/README.md'
+      - 'scripts/README.md'
+      - 'scripts/coverage-graph/README.md'
+      - 'scripts/show/README.md'
+      - 'tree-sitter-vox/GRAMMAR_SSOT.md'
+      - 'tree-sitter-vox/README.md'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
