@@ -6,9 +6,9 @@ status: planning
 last_updated: "2026-10-09T00:15:00.000Z"
 last_activity: 2026-10-08
 progress:
-  total_phases: 5
+  total_phases: 6
   completed_phases: 0
-  total_plans: 0
+  total_plans: 12
   completed_plans: 0
   percent: 0
 ---
@@ -24,14 +24,14 @@ See: `.planning/PROJECT.md`; workstream brief `CONTEXT.md`; roadmap `ROADMAP.md`
 ## Current Position
 
 Phase: 20 of 20–24 (Deploy Unblock & Public-Surface Honesty)
-Plan: —
-Status: Awaiting roadmap approval
-Last activity: 2026-10-08 — Roadmap created (5 phases, 20–24)
+Plan: 0 of 12 (planned, 7 waves; checker passed after 2 revisions)
+Status: Ready to execute — `/gsd-execute-phase 20`
+Last activity: 2026-10-08 — Phase 20 planned (12 plans); Phase 20.1 (collapsible reader layout) inserted
 
 ## Progress
 
-**Phases Complete:** 0/5
-**Current Plan:** N/A
+**Phases Complete:** 0/6
+**Current Plan:** 20-01 (wave 1: 20-01..20-05 parallel)
 
 ## Accumulated Context
 
@@ -42,7 +42,9 @@ Last activity: 2026-10-08 — Roadmap created (5 phases, 20–24)
 
 ### Blockers / Gates
 
-- **DEPLOY-01 (Phase 20): user must rotate the Cloudflare Pages API token** (`Pages:Edit` on `vox-docs`). Blocks every reader-visible outcome; other Phase 20 work can proceed meanwhile.
+- DEPLOY-01: Cloudflare token rotated 2026-10-08; manual run 37869058499 green. Still needs a green push-triggered run before closing #462 (plan 20-11).
+- 20-01 checkpoint: user approves the `wrangler` pin version (recommended 4.146.0).
+- P20-D8 (archive unpublish → `/retired/`) and P20-D9 (`/repo/` prefix) are defaults; override before 20-12 / 20-09 run.
 - MEASURE-06 (Phase 21): user approves page dispositions case by case and the research/roadmap sidebar policy.
 - Phase 22: needs phase research (symbol-span hashing, attestation, FP measurement); user authorizes switching the gate to blocking after baselining.
 - v1.4 prerequisites (user-only): `vox-doc-verify` crate edges, bot PAT secret, `DocClaimJudge` routing category + budget.
