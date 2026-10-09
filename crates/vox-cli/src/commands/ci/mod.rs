@@ -6,6 +6,7 @@ mod command_sync;
 mod eval_matrix;
 mod exec_policy_contract;
 mod gui_catalog_parity;
+mod gui_command_backends;
 mod gui_surface_coverage;
 pub mod gui_surface_registry;
 mod operations_catalog;
