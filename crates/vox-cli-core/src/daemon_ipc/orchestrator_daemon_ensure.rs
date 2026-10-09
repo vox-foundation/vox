@@ -86,9 +86,28 @@ pub struct OrchestratorDaemonEnsure {
     addr: OnceCell<String>,
     token: OnceCell<String>,
     child: Mutex<Option<std::process::Child>>,
+    /// Canonical capability-profile id to adopt/spawn; empty means `dev`.
+    profile: String,
 }
 
 impl OrchestratorDaemonEnsure {
+    /// Ensure helper that only adopts (or spawns) a daemon serving `profile_id`
+    /// (`ActiveProfile::id_string()`; empty ⇒ `dev`).
+    pub fn for_profile(profile_id: impl Into<String>) -> Self {
+        Self {
+            profile: profile_id.into(),
+            ..Default::default()
+        }
+    }
+
+    fn requested_profile(&self) -> &str {
+        if self.profile.trim().is_empty() {
+            "dev"
+        } else {
+            self.profile.trim()
+        }
+    }
+
     /// Ensure one long-lived TCP daemon is reachable; returns its address.
     ///
     /// Cached on success (subsequent calls reuse the address); failures are
@@ -150,6 +169,7 @@ impl OrchestratorDaemonEnsure {
                 let child = quiet_command(daemon_bin)
                     .env("VOX_ORCHESTRATOR_DAEMON_SOCKET", &addr)
                     .env("VOX_ORCHESTRATOR_DAEMON_TOKEN", &spawned_token)
+                    .env("VOX_PROFILE", self.requested_profile())
                     .stdin(Stdio::null())
                     .stdout(Stdio::null())
                     .stderr(Stdio::null())
@@ -239,6 +259,22 @@ mod tests {
 
     /// Smoke test: constructing the helper and reading its (unset) token
     /// before `ensure()` is called must not panic.
+    #[test]
+    fn for_profile_defaults_empty_to_dev() {
+        assert_eq!(
+            OrchestratorDaemonEnsure::for_profile("").requested_profile(),
+            "dev"
+        );
+        assert_eq!(
+            OrchestratorDaemonEnsure::default().requested_profile(),
+            "dev"
+        );
+        assert_eq!(
+            OrchestratorDaemonEnsure::for_profile("models").requested_profile(),
+            "models"
+        );
+    }
+
     #[tokio::test]
     async fn token_is_none_before_ensure() {
         let ensure = OrchestratorDaemonEnsure::default();

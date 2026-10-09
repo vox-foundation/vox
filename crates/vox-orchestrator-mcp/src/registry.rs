@@ -94,12 +94,30 @@ pub fn tool_registry() -> Vec<rmcp::model::Tool> {
         .collect()
 }
 
+/// [`tool_registry`] filtered to what the host's active profile and boot report authorize.
+pub fn tool_registry_for(state: &crate::server_state::ServerState) -> Vec<rmcp::model::Tool> {
+    tool_registry()
+        .into_iter()
+        .filter(|t| {
+            crate::profiles::guard_tool(state, crate::profiles::CallContext::LOCAL_WRITE, &t.name)
+                .is_ok()
+        })
+        .collect()
+}
+
 /// Static registry plus federated workspace tools from `ServerState`.
 pub fn merged_tool_registry(state: &crate::server_state::ServerState) -> Vec<rmcp::model::Tool> {
-    let mut tool_list = tool_registry();
+    let mut tool_list = tool_registry_for(state);
     let ws = state.workspace_mcp.read();
     for entry in &ws.tools {
-        if tool_list.iter().any(|t| t.name == entry.name) {
+        if tool_list.iter().any(|t| t.name == entry.name)
+            || crate::profiles::guard_tool(
+                state,
+                crate::profiles::CallContext::LOCAL_WRITE,
+                &entry.name,
+            )
+            .is_err()
+        {
             continue;
         }
         let schema = entry.input_schema.as_object().cloned().unwrap_or_default();
@@ -163,5 +181,79 @@ mod merged_registry_tests {
             models.meta.as_ref().expect("meta").0["vox_requires"],
             serde_json::json!(["model_registry"])
         );
+    }
+}
+
+#[cfg(test)]
+mod profile_backcompat_tests {
+    use super::*;
+    use crate::ServerState;
+    use std::collections::BTreeSet;
+
+    fn names(tools: Vec<rmcp::model::Tool>) -> Vec<String> {
+        let mut v: Vec<String> = tools.into_iter().map(|t| t.name.to_string()).collect();
+        v.sort();
+        v
+    }
+
+    #[cfg(all(
+        not(feature = "news-publish"),
+        not(feature = "heavy-browser"),
+        not(feature = "gui-visual-review")
+    ))]
+    #[test]
+    fn snapshot_is_todays_default_feature_registry() {
+        let want: Vec<String> =
+            include_str!("../tests/fixtures/dev-advertised-tools.default-features.txt")
+                .lines()
+                .map(str::to_string)
+                .collect();
+        assert_eq!(names(tool_registry()), want);
+    }
+
+    #[cfg(all(
+        not(feature = "news-publish"),
+        not(feature = "heavy-browser"),
+        not(feature = "gui-visual-review")
+    ))]
+    #[tokio::test]
+    async fn dev_profile_advertises_the_snapshot() {
+        let state = ServerState::new_test().await;
+        let want: Vec<String> =
+            include_str!("../tests/fixtures/dev-advertised-tools.default-features.txt")
+                .lines()
+                .map(str::to_string)
+                .collect();
+        assert_eq!(names(tool_registry_for(&state)), want);
+    }
+
+    #[tokio::test]
+    async fn dev_profile_advertises_exactly_the_feature_filtered_registry() {
+        let state = ServerState::new_test().await;
+        let got: BTreeSet<String> = names(tool_registry_for(&state)).into_iter().collect();
+        let want: BTreeSet<String> = names(tool_registry()).into_iter().collect();
+        assert_eq!(got, want);
+    }
+
+    #[tokio::test]
+    async fn named_profile_advertises_only_its_tools_and_no_workspace_tools() {
+        let state = ServerState::new_test()
+            .await
+            .with_profile(crate::profiles::ActiveProfile::resolve(&["models"]).expect("models"));
+        let advertised = names(merged_tool_registry(&state));
+        assert!(advertised.contains(&"vox_list_models".to_string()));
+        assert!(!advertised.contains(&"vox_git_status".to_string()));
+        assert!(!advertised.contains(&"read_file".to_string()));
+        assert!(
+            advertised
+                .iter()
+                .all(|n| state.active_profile.contains_tool(n))
+        );
+    }
+
+    #[tokio::test]
+    async fn dev_profile_keeps_workspace_tools() {
+        let state = ServerState::new_full(vox_orchestrator::OrchestratorConfig::default());
+        assert!(names(merged_tool_registry(&state)).contains(&"read_file".to_string()));
     }
 }

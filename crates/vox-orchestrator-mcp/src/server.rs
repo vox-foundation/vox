@@ -151,13 +151,28 @@ impl VoxMcpServer {
     /// back protocol-level concerns (tool listing/resources/prompts); tool
     /// execution routes through a freshly constructed daemon-ensure helper.
     pub fn new(state: ServerState) -> Self {
+        let profile_id = state.active_profile.id_string();
         Self {
             state,
             daemon: std::sync::Arc::new(
-                vox_cli_core::daemon_ipc::orchestrator_daemon_ensure::OrchestratorDaemonEnsure::default(),
+                vox_cli_core::daemon_ipc::orchestrator_daemon_ensure::OrchestratorDaemonEnsure::for_profile(
+                    profile_id,
+                ),
             ),
         }
     }
+}
+
+/// Local profile check for stdio `call_tool` (the daemon re-checks in `dispatch`).
+pub fn profile_denial_result(state: &ServerState, name: &str) -> Option<CallToolResult> {
+    let canonical = crate::canonical_tool_name(name);
+    crate::profiles::guard_tool(state, crate::profiles::CallContext::LOCAL_WRITE, canonical)
+        .err()
+        .map(|denial| {
+            let json =
+                crate::profiles::denial_error_json(canonical, &denial, &state.active_profile);
+            CallToolResult::error(vec![rmcp::model::Content::text(json.to_string())])
+        })
 }
 
 impl ServerHandler for VoxMcpServer {
@@ -219,7 +234,14 @@ impl ServerHandler for VoxMcpServer {
         let skills = self.state.skill_registry.list(None);
         for skill in skills {
             for tool_name in &skill.tools {
-                if !tool_list.iter().any(|t| t.name == *tool_name) {
+                if !tool_list.iter().any(|t| t.name == *tool_name)
+                    && crate::profiles::guard_tool(
+                        &self.state,
+                        crate::profiles::CallContext::LOCAL_WRITE,
+                        tool_name,
+                    )
+                    .is_ok()
+                {
                     let mut meta_map = serde_json::Map::new();
                     meta_map.insert(
                         "vox_source".to_string(),
@@ -368,6 +390,9 @@ impl ServerHandler for VoxMcpServer {
             .map(serde_json::Value::Object)
             .unwrap_or_else(|| serde_json::Value::Object(Default::default()));
         let name_str = params.name.to_string();
+        if let Some(denied) = profile_denial_result(&self.state, &name_str) {
+            return Ok(denied);
+        }
         let (result_json, is_error): (String, bool) =
             match crate::daemon_route::call_tool_via_daemon(&self.daemon, &name_str, args).await {
                 Ok(json) => {
@@ -501,6 +526,18 @@ mod call_tool_tests {
         assert!(!tool_json_envelope_is_error(
             r#"{"error":{"code":"unrelated"}}"#
         ));
+    }
+
+    #[tokio::test]
+    async fn profile_denial_result_is_error_for_out_of_profile_tool() {
+        let state = crate::server_state::ServerState::new_test()
+            .await
+            .with_profile(crate::profiles::ActiveProfile::resolve(&["models"]).expect("models"));
+        let r = super::profile_denial_result(&state, "vox_git_status").expect("denied");
+        assert_eq!(r.is_error, Some(true));
+        assert!(super::profile_denial_result(&state, "vox_list_models").is_none());
+        let dev = crate::server_state::ServerState::new_test().await;
+        assert!(super::profile_denial_result(&dev, "vox_git_status").is_none());
     }
 }
 

@@ -218,7 +218,10 @@ pub mod lifecycle;
 pub mod plugin_skills_bridge;
 pub mod server;
 
-pub use lifecycle::{load_config, mcp_agent_fleet_env_enabled, run_stdio_server_blocking};
+pub use lifecycle::{
+    load_config, mcp_agent_fleet_env_enabled, run_stdio_server_blocking,
+    run_stdio_server_blocking_with_profile,
+};
 pub use params::ToolResult;
 pub use server::VoxMcpServer;
 pub use server_state::{CachedCatalog, ServerState};
