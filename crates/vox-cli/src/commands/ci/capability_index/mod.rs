@@ -4,6 +4,7 @@
 //! is safe inside `vox ci ssot-drift`: it never builds the code graph.
 
 mod coverage;
+mod docs_claims;
 mod inputs;
 mod join;
 mod nodes;

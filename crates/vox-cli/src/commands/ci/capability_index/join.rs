@@ -17,8 +17,8 @@ use super::owner::{
 use crate::command_catalog::{CatalogTier, tier_for_path};
 
 /// Default page-level docs link per row kind (D-06: the repo has no per-row anchors yet).
-const CLI_DOC: &str = "docs/src/reference/cli-command-surface.generated.md";
-const MCP_DOC: &str = "docs/src/reference/mcp-tool-registry-contract.md";
+pub(super) const CLI_DOC: &str = "docs/src/reference/cli-command-surface.generated.md";
+pub(super) const MCP_DOC: &str = "docs/src/reference/mcp-tool-registry-contract.md";
 
 /// One-line, control-free form of a catalog description (also blocks markup/newline injection into
 /// downstream one-line emitters such as llms.txt). `None` when nothing printable remains.
@@ -138,6 +138,8 @@ pub(crate) fn build_index(inputs: &Inputs) -> Result<CapabilityIndex> {
     nodes::apply_surface_join(&mut rows, &inputs.surfaces);
     let extra = nodes::non_operation_rows(&mut rows, inputs)?;
     rows.extend(extra);
+    let docs = nodes::apply_doc_claims(&mut rows, inputs)?;
+    rows.extend(docs);
     coverage::apply_coverage(&mut rows, inputs.coverage.as_ref());
     let mut seen = BTreeSet::new();
     for row in &rows {

@@ -15,6 +15,7 @@ use super::super::gui_surface_registry::{SurfaceRegistry, load_registry};
 pub(crate) use super::super::operations_catalog::OperationRow;
 use super::super::operations_catalog::read_catalog;
 use super::coverage::{CoverageSnapshot, SNAPSHOT_REL};
+use super::docs_claims::PageMeta;
 use super::owner::{CLI_COMMANDS_DIR, Layers};
 
 const LAYERS_REL: &str = "docs/src/architecture/layers.toml";
@@ -38,6 +39,9 @@ pub(crate) struct Inputs {
     pub skills: Vec<SkillInput>,
     /// Committed graph-coverage snapshot (D-07); `None` when the file is absent.
     pub coverage: Option<CoverageSnapshot>,
+    /// Opt-in docs pages (D-02, Pitfall 11): `/`-separated repo path -> frontmatter. Holds pages
+    /// that claim capabilities plus the pinned default targets; never every page.
+    pub doc_pages: BTreeMap<String, PageMeta>,
 }
 
 /// One skill plugin or skill bundle from the plugin catalog.
@@ -88,6 +92,7 @@ pub(crate) fn load(repo_root: &Path) -> Result<Inputs> {
         crate_descriptions,
         skills: load_skills(),
         coverage: load_coverage(repo_root)?,
+        doc_pages: BTreeMap::new(), // RED stub: loaded in the GREEN commit
     })
 }
 

@@ -9,7 +9,7 @@ use vox_capability_registry::{DocLink, GuiRef, IndexRow, RowKind, implicit_mcp_c
 
 use super::super::gui_surface_registry::{RepresentationTier, SurfaceEntry, SurfaceRegistry};
 use super::inputs::Inputs;
-use super::join::{no_snapshot_coverage, single_line};
+use super::join::{CLI_DOC, MCP_DOC, no_snapshot_coverage, single_line};
 use super::owner::owner_ref;
 
 /// Default page-level docs links (D-06: the repo has no per-row anchors yet).
@@ -213,6 +213,18 @@ pub(crate) fn non_operation_rows(rows: &mut [IndexRow], inputs: &Inputs) -> Resu
     Ok(out)
 }
 
+/// The default doc targets (D-06); each gets a `doc.` row even when nothing claims it.
+const PINNED_DOCS: [&str; 5] = [CLI_DOC, MCP_DOC, SURFACE_DOC, CRATE_DOC, SKILL_DOC];
+
+/// Claim doc links on the claimed rows, and the opt-in `doc.<path>` rows (D-02, D-06).
+///
+/// A claimed id that is not a row id is an error naming the page and the id. Ids are only ever
+/// compared with row ids, never turned into a path.
+pub(crate) fn apply_doc_claims(rows: &mut [IndexRow], inputs: &Inputs) -> Result<Vec<IndexRow>> {
+    let _ = (rows, inputs);
+    Ok(Vec::new()) // RED stub: implemented in the GREEN commit
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::inputs::{SkillInput, test_op};
@@ -364,5 +376,84 @@ mod tests {
         let err = build_index(&inputs_with(vec![], vec![e.clone(), e]))
             .expect_err("duplicate view_key must fail");
         assert!(err.to_string().contains("dup"), "got: {err}");
+    }
+
+    fn page(caps: &[&str]) -> super::super::docs_claims::PageMeta {
+        super::super::docs_claims::PageMeta {
+            title: Some("Page title".into()),
+            description: Some("Page  description\nline two".into()),
+            capabilities: caps.iter().map(|c| c.to_string()).collect(),
+        }
+    }
+
+    fn doc_inputs(pages: &[(&str, &[&str])]) -> Inputs {
+        let mut inp = inputs_with(
+            vec![test_op(
+                "secrets",
+                Some((&["secrets"], "active")),
+                None,
+                "d",
+            )],
+            vec![],
+        );
+        inp.doc_pages = pages
+            .iter()
+            .map(|(p, caps)| (p.to_string(), page(caps)))
+            .collect();
+        inp
+    }
+
+    #[test]
+    fn unknown_claim_is_error() {
+        let err = build_index(&doc_inputs(&[("docs/src/x.md", &["cli.nope"])]))
+            .expect_err("unknown claim must fail");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("docs/src/x.md") && msg.contains("cli.nope"),
+            "{msg}"
+        );
+    }
+
+    #[test]
+    fn claim_appends_doc_link_and_doc_row() {
+        let idx = build_index(&doc_inputs(&[("docs/src/p.md", &["cli.secrets"])])).expect("build");
+        let docs = &idx.row("cli.secrets").expect("row").docs;
+        assert_eq!(docs[0].origin, "default");
+        let last = docs.last().expect("docs");
+        assert_eq!(
+            (last.path.as_str(), last.origin.as_str()),
+            ("docs/src/p.md", "claim")
+        );
+        let d = idx.row("doc.docs/src/p.md").expect("doc row");
+        assert_eq!(d.refs, vec!["cli.secrets"]);
+        assert_eq!(d.title, "Page title");
+        assert_eq!(d.summary.as_deref(), Some("Page description line two"));
+        assert_eq!(d.domain.as_deref(), Some("docs"));
+        assert_eq!(d.docs[0].origin, "claim");
+        assert!(d.owner.is_none() && d.coverage.is_none() && d.gui.is_none());
+    }
+
+    #[test]
+    fn pinned_pages_get_doc_rows() {
+        let idx = build_index(&doc_inputs(&[])).expect("build");
+        for p in [
+            "docs/src/reference/cli-command-surface.generated.md",
+            "docs/src/reference/mcp-tool-registry-contract.md",
+            "docs/src/reference/gui-navigation.md",
+            "docs/src/architecture/where-things-live.md",
+            "docs/src/reference/plugin-catalog.generated.md",
+        ] {
+            let d = idx
+                .row(&format!("doc.{p}"))
+                .unwrap_or_else(|| panic!("no doc row for {p}"));
+            assert_eq!(d.docs[0].origin, "pinned");
+            assert_eq!(d.title, p, "no frontmatter title falls back to the path");
+        }
+    }
+
+    #[test]
+    fn unclaimed_pages_get_no_row() {
+        let idx = build_index(&doc_inputs(&[("docs/src/quiet.md", &[])])).expect("build");
+        assert!(idx.row("doc.docs/src/quiet.md").is_none());
     }
 }
