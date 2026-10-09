@@ -176,3 +176,42 @@ test('href attributes in raw HTML are rewritten too', () => {
   remarkDocLinks({ repoRoot: repo, repoUrl: REPO_URL })(tree, { path: page });
   assert.equal(tree.children[0].value, '<p><a href="/tutorials/tut-b/#x">b</a> <a href="https://x.dev/a.md">x</a></p>');
 });
+
+const MOUNTS = new Map([['AGENTS.md', 'agents-md']]);
+const mctx = { ...ctx, mounts: MOUNTS };
+
+test('mounted repo Markdown becomes its /repo/ route, keeping the anchor', () => {
+  assert.equal(resolveDocLink('../../AGENTS.md#scope', page, mctx)?.href, '/repo/agents-md/#scope');
+});
+
+test('unmounted repo Markdown and superpowers plans still go to blob', () => {
+  assert.equal(resolveDocLink('../../crates/vox-cli/src/main.rs', page, mctx)?.href, `${BLOB}/crates/vox-cli/src/main.rs`);
+  assert.equal(resolveDocLink('../superpowers/plans/p.md', page, mctx)?.href, `${BLOB}/docs/superpowers/plans/p.md`);
+});
+
+test('a generated mount page resolves links from mounted_from, not the mirror', () => {
+  const tree = { type: 'root', children: [{ type: 'link', url: '../../AGENTS.md', children: [] }] };
+  const mirrorFile = join(repo, 'docs-astro/src/content/docs/repo/crates-vox-cli-readme-md.md');
+  const file = { path: mirrorFile, data: { astro: { frontmatter: { mounted_from: 'crates/vox-cli/README.md' } } } };
+  remarkDocLinks({ repoRoot: repo, repoUrl: REPO_URL, mounts: MOUNTS })(tree, file);
+  assert.equal(tree.children[0].url, '/repo/agents-md/');
+});
+
+test('relative images in a mounted page point at the raw file; docs pages are untouched', () => {
+  const mounted = {
+    type: 'root',
+    children: [
+      { type: 'image', url: 'docs/src/assets/logo.png' },
+      { type: 'html', value: '<img src="docs/src/assets/logo.png" /><img src="https://x.dev/a.png" />' },
+    ],
+  };
+  remarkDocLinks({ repoRoot: repo, repoUrl: REPO_URL, mounts: MOUNTS })(mounted, { path: join(repo, 'AGENTS.md') });
+  assert.equal(mounted.children[0].url, `${REPO_URL}/raw/main/docs/src/assets/logo.png`);
+  assert.equal(
+    mounted.children[1].value,
+    `<img src="${REPO_URL}/raw/main/docs/src/assets/logo.png" /><img src="https://x.dev/a.png" />`,
+  );
+  const docs = { type: 'root', children: [{ type: 'image', url: 'assets/logo.png' }] };
+  remarkDocLinks({ repoRoot: repo, repoUrl: REPO_URL, mounts: MOUNTS })(docs, { path: page });
+  assert.equal(docs.children[0].url, 'assets/logo.png');
+});

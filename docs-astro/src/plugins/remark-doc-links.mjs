@@ -6,10 +6,13 @@
  * - A link to another docs page (`../reference/cli.md#vox-init`) becomes its
  *   Starlight route (`/reference/cli/#vox-init`), using the same docSlug()
  *   the sidebar and llms exclude list use.
- * - Anything else in the repository (source, contracts, directories, repo
- *   Markdown outside docs/src, the unpublished archive and superpowers plans)
- *   becomes a GitHub blob/tree URL; a `:N` / `:N-M` suffix becomes `#LN` /
- *   `#LN-LM`.
+ * - Repo Markdown outside docs/src that the site mounts (utils/repo-mounts.mjs)
+ *   becomes its `/repo/<route>/` page.
+ * - Anything else in the repository (source, contracts, directories, unmounted
+ *   repo Markdown, the unpublished archive and superpowers plans) becomes a
+ *   GitHub blob/tree URL; a `:N` / `:N-M` suffix becomes `#LN` / `#LN-LM`.
+ * - A mounted page resolves its links from its repo file, not the mirror, and
+ *   its relative images point at the raw file on GitHub.
  * - A relative link whose target does not exist, or that resolves outside the
  *   repository, throws for pages under docs/src, so a dead link fails the
  *   build instead of shipping a 404. Targets are only ever stat'ed, never read.
@@ -24,10 +27,12 @@ import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { docSlug } from '../utils/doc-slug.mjs';
 import { MIRROR_EXCLUDED } from '../../scripts/setup-content.mjs';
+import { MOUNT_DIR, discoverMounts } from '../utils/repo-mounts.mjs';
 
 const SCHEME_RE = /^[a-z][a-z0-9+.-]*:/i;
 const LINE_SUFFIX_RE = /:(\d+)(?:-(\d+))?$/;
 const HTML_HREF_RE = /(\bhref=")([^"]*)(")/g;
+const HTML_SRC_RE = /(\bsrc=")([^"]*)(")/g;
 
 /** Dead-link messages from every file rendered in this process. */
 const deadLinks = new Set();
@@ -47,7 +52,7 @@ const toPosix = (path) => path.split(sep).join('/');
  *
  * @param {string} url
  * @param {string} fromFile
- * @param {{ repoRoot: string, docsSrc: string, repoUrl: string, strict: boolean }} ctx
+ * @param {{ repoRoot: string, docsSrc: string, repoUrl: string, strict: boolean, mounts?: Map<string, string> }} ctx
  */
 export function resolveDocLink(url, fromFile, ctx) {
   if (!url || SCHEME_RE.test(url) || /^[#/]/.test(url)) return null;
@@ -84,9 +89,34 @@ export function resolveDocLink(url, fromFile, ctx) {
     }
   }
 
+  const repoPath = toPosix(relative(ctx.repoRoot, target));
+  const route = isDir ? undefined : ctx.mounts?.get(repoPath);
+  if (route) return { href: `/${MOUNT_DIR}/${route}/${fragment}` };
+
   if (lines) fragment = lines[2] ? `#L${lines[1]}-L${lines[2]}` : `#L${lines[1]}`;
-  const repoRel = encodeURI(toPosix(relative(ctx.repoRoot, target)));
+  const repoRel = encodeURI(repoPath);
   return { href: `${ctx.repoUrl}/${isDir ? 'tree' : 'blob'}/main/${repoRel}${fragment}` };
+}
+
+/**
+ * Raw GitHub URL for a relative image `url` in a mounted page, or null to
+ * leave it as is. A missing target only warns: mounted files are not under
+ * the docs link gate.
+ */
+export function resolveMountedImage(url, fromFile, ctx) {
+  if (!url || SCHEME_RE.test(url) || /^[#/]/.test(url)) return null;
+  let path = url.split(/[?#]/)[0];
+  try {
+    path = decodeURI(path);
+  } catch {
+    // keep the raw path
+  }
+  const target = resolve(dirname(fromFile), path);
+  if (!isWithin(ctx.repoRoot, target) || !existsSync(target) || statSync(target).isDirectory()) {
+    console.warn(`remark-doc-links: missing image '${url}' in ${fromFile} (resolved: ${target})`);
+    return null;
+  }
+  return { href: `${ctx.repoUrl}/raw/main/${encodeURI(toPosix(relative(ctx.repoRoot, target)))}` };
 }
 
 /** Real path of the file being processed, or null for virtual content. */
@@ -122,21 +152,29 @@ function visitLinks(tree, fn) {
 /**
  * Remark plugin factory.
  *
- * @param {{ repoRoot: string, repoUrl: string, docsSrc?: string }} options
+ * `mounts` (repo path -> route) defaults to discoverMounts() on first use.
+ *
+ * @param {{ repoRoot: string, repoUrl: string, docsSrc?: string, mounts?: Map<string, string> }} options
  */
 export function remarkDocLinks(options) {
   const repoRoot = realpathSync(options.repoRoot);
   const docsSrc = options.docsSrc ? realpathSync(options.docsSrc) : resolve(repoRoot, 'docs/src');
   const archive = resolve(docsSrc, 'archive');
+  let mounts = options.mounts;
 
   return function transformer(tree, file) {
-    const fromFile = sourcePath(file);
+    // A generated mount page lives in the content mirror; its links are
+    // relative to the repo file it was generated from.
+    const mountedFrom = file.data?.astro?.frontmatter?.mounted_from;
+    const fromFile = typeof mountedFrom === 'string' ? resolve(repoRoot, mountedFrom) : sourcePath(file);
     if (!fromFile) return;
+    mounts ??= new Map(discoverMounts({ repoRoot, docsSrc }).map((mount) => [mount.repoPath, mount.route]));
     const ctx = {
       repoRoot,
       docsSrc,
       repoUrl: options.repoUrl,
       strict: isWithin(docsSrc, fromFile) && !isWithin(archive, fromFile),
+      mounts,
     };
     const errors = [];
     const rewrite = (url) => {
@@ -156,6 +194,18 @@ export function remarkDocLinks(options) {
         node.value = node.value.replace(HTML_HREF_RE, (_, open, url, close) => open + rewrite(url) + close);
       }
     });
+    if (!isWithin(docsSrc, fromFile)) {
+      const image = (url) => resolveMountedImage(url, fromFile, ctx)?.href ?? url;
+      const imageIds = new Set();
+      visit(tree, (node) => {
+        if (node.type === 'image') node.url = image(node.url);
+        if (node.type === 'imageReference') imageIds.add(node.identifier);
+        if (node.type === 'html') node.value = node.value.replace(HTML_SRC_RE, (_, open, url, close) => open + image(url) + close);
+      });
+      visit(tree, (node) => {
+        if (node.type === 'definition' && imageIds.has(node.identifier)) node.url = image(node.url);
+      });
+    }
     if (errors.length) {
       for (const message of errors) deadLinks.add(message);
       throw new Error(errors.join('\n'));

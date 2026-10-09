@@ -4,57 +4,12 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { relativeLinkTargets } from '../../src/utils/repo-mounts.mjs';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 
-/** Remove fenced code blocks and inline code spans so example links are not checked. */
-function stripCode(markdown) {
-  const out = [];
-  let fence = null;
-  for (const line of markdown.split('\n')) {
-    const m = line.match(/^\s{0,3}(`{3,}|~{3,})/);
-    if (fence) {
-      // A closing fence carries no info string (CommonMark), so ```bash inside ```markdown does not close it.
-      if (m && m[1][0] === fence[0] && m[1].length >= fence.length && !line.slice(line.indexOf(m[1]) + m[1].length).trim()) fence = null;
-      out.push('');
-      continue;
-    }
-    if (m) {
-      fence = m[1];
-      out.push('');
-      continue;
-    }
-    out.push(line.replace(/(`+)[\s\S]*?\1/g, ''));
-  }
-  return out.join('\n');
-}
-
-/**
- * Relative link targets in `markdown`: inline `](target "title")` and reference
- * definitions `[label]: target` (footnotes `[^label]:` are not links), with code
- * stripped. URLs, anchors, absolute paths, autolinks and mailto are skipped.
- * Returned targets have the `#fragment` and a trailing `:N` / `:N-M` line suffix
- * removed and are URI-decoded.
- */
-export function relativeLinkTargets(markdown) {
-  const text = stripCode(markdown);
-  const raw = [];
-  for (const m of text.matchAll(/\]\(\s*([^)\s]+)(?:\s+"[^"]*")?\s*\)/g)) raw.push(m[1]);
-  for (const m of text.matchAll(/^\s{0,3}\[(?!\^)[^\]]+\]:\s*(\S+)/gm)) raw.push(m[1]);
-  const targets = [];
-  for (const t of raw) {
-    if (/^[a-z][a-z0-9+.-]*:/i.test(t) || /^[#/<]/.test(t)) continue;
-    let path = t.split('#')[0].replace(/:\d+(-\d+)?$/, '');
-    if (!path) continue;
-    try {
-      path = decodeURI(path);
-    } catch {
-      // keep the raw path; a malformed escape is still reported as missing
-    }
-    targets.push(path);
-  }
-  return targets;
-}
+// The guard's link extraction is shared with the /repo/ mount discovery.
+export { relativeLinkTargets };
 
 function livePages() {
   const out = execFileSync('git', ['ls-files', '-z', '--', 'docs/src'], { cwd: REPO_ROOT, encoding: 'utf8' });

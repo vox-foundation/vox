@@ -53,7 +53,8 @@ export default defineConfig({
         { icon: 'github', label: 'GitHub', href: 'https://github.com/vox-foundation/vox' }
       ],
       editLink: {
-        baseUrl: 'https://github.com/vox-foundation/vox/edit/main/docs/src/',
+        // Repo root; src/routeData.ts rewrites each page's edit URL to its true repo file.
+        baseUrl: 'https://github.com/vox-foundation/vox/edit/main/',
       },
       // Sidebar is generated from each page's frontmatter (category /
       // sort_order / title) by src/utils/sidebar.mjs; section order comes
