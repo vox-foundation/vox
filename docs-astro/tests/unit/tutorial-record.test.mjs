@@ -56,6 +56,14 @@ test('every tutorial carries the four checks', () => {
   }
 });
 
+test('every check of every tutorial passes', () => {
+  for (const t of record.tutorials) {
+    for (const k of CHECK_KEYS) {
+      assert.equal(t.checks[k], 'pass', `${t.path}: ${k} is ${t.checks[k]} — notes: ${t.notes.join('; ')}`);
+    }
+  }
+});
+
 test('skipsWithoutReason flags a bare marker and accepts a reasoned one', () => {
   assert.deepEqual(skipsWithoutReason('```vox\n// vox:skip\nfn a() {}\n```'), [2]);
   assert.deepEqual(skipsWithoutReason('// vox:skip — excerpt depends on out-of-file types'), []);

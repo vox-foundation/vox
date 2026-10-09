@@ -1,11 +1,11 @@
 {
   "x-vox-version": 1,
   "generated_by": "scripts/docs/tutorial-verify.vox",
-  "verified_at_commit": "f1cb89e99f081fa953a9c2b2180310cc2464a061",
+  "verified_at_commit": "b10e20dfdab2ae5b43e59352c94336416c43934f",
   "tutorials": [
     {
       "path": "docs/src/tutorials/tut-actor-basics.md",
-      "blob_sha": "c4b7faa2c249c483f3fa60780980c23a1b0f92de",
+      "blob_sha": "9cb0d66305069400ecd1741606ed9f666ea24bba",
       "checks": {
         "commands_in_registry": "pass",
         "snippets_compile": "pass",
