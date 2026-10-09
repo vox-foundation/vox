@@ -114,6 +114,9 @@ pub enum CiCmd {
         /// Shrink the unresolved-owner baseline (removal-only).
         #[arg(long, conflicts_with = "write")]
         tighten: bool,
+        /// Re-snapshot graph coverage from the built vox-gui-surface corpus (D-07).
+        #[arg(long, conflicts_with = "tighten")]
+        refresh_coverage: bool,
     },
     /// Gate: GUI honesty — typed toasts + no placeholder/dead elements in surfaces.
     #[command(name = "gui-honesty")]

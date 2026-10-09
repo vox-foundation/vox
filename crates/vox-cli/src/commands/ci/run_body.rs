@@ -115,7 +115,14 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::GuiVersionSync { write } => vox_cli_ci::gui_version_sync::run(&root, write),
         CiCmd::GuiSurfaceCoverage { write } => super::gui_surface_coverage::run(&root, write),
         CiCmd::GuiSurfaceRegistry { write } => super::gui_surface_registry::run(&root, write),
-        CiCmd::CapabilityIndex { write, tighten } => {
+        CiCmd::CapabilityIndex {
+            write,
+            tighten,
+            refresh_coverage,
+        } => {
+            if refresh_coverage {
+                super::capability_index::refresh_coverage_snapshot(&root)?;
+            }
             if tighten {
                 super::capability_index::tighten_baseline(&root)
             } else {

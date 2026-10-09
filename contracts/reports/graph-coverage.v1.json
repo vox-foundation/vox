@@ -1,0 +1,2931 @@
+{
+  "schema_version": 1,
+  "source": {
+    "corpus_id": "vox-gui-surface",
+    "git_sha": "75465d426a10ccaaa8d57c5bb9b14ab13fe3a40b",
+    "built_at": "2026-10-09T08:03:00.508681+00:00"
+  },
+  "entries": {
+    "cli-command": [
+      {
+        "id": "cli:ars:export",
+        "label": "export",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ars:feedback",
+        "label": "feedback",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ars:list",
+        "label": "list",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ars:publish",
+        "label": "publish",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ars:save",
+        "label": "save",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ars:search",
+        "label": "search",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ars:search",
+        "label": "search",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ars:share",
+        "label": "share",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ars:snippet",
+        "label": "snippet",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:audit:arch",
+        "label": "arch",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:audit:code",
+        "label": "code",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:audit:core",
+        "label": "core",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:audit:effort",
+        "label": "effort",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:audit:effort-route",
+        "label": "effort-route",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:audit:research-parity",
+        "label": "research-parity",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:audit:retirement",
+        "label": "retirement",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:auth:connect",
+        "label": "connect",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:auth:init",
+        "label": "init",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:auth:trust",
+        "label": "trust",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:auth:trust-list",
+        "label": "trust-list",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:auth:unlock",
+        "label": "unlock",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:auth:untrust",
+        "label": "untrust",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:auth:whoami",
+        "label": "whoami",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:bundle:apply",
+        "label": "apply",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:bundle:build",
+        "label": "build",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:bundle:list",
+        "label": "list",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:bundle:verify",
+        "label": "verify",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:catalog:add",
+        "label": "add",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:catalog:focus",
+        "label": "focus",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:catalog:list",
+        "label": "list",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:catalog:remove",
+        "label": "remove",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:affected-crates",
+        "label": "affected-crates",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:agentskills-compliance",
+        "label": "agentskills-compliance",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:ai-fixtures-coverage",
+        "label": "ai-fixtures-coverage",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:artifact-audit",
+        "label": "artifact-audit",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:artifact-prune",
+        "label": "artifact-prune",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:attention-config-parity",
+        "label": "attention-config-parity",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:attention-event-ledger-parity",
+        "label": "attention-event-ledger-parity",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:backend-tests",
+        "label": "backend-tests",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:bom-check",
+        "label": "bom-check",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:build-bench",
+        "label": "build-bench",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:build-cache-doctor",
+        "label": "build-cache-doctor",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:build-docs",
+        "label": "build-docs",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:build-timings",
+        "label": "build-timings",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:burn-rnd",
+        "label": "burn-rnd",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:cache-key-lint",
+        "label": "cache-key-lint",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:canonical-map-verify",
+        "label": "canonical-map-verify",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:capability-index",
+        "label": "capability-index",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:capability-snapshot",
+        "label": "capability-snapshot",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:capability-sync",
+        "label": "capability-sync",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:check-codex-ssot",
+        "label": "check-codex-ssot",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:check-docs-ssot",
+        "label": "check-docs-ssot",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:check-links",
+        "label": "check-links",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:check-summary-drift",
+        "label": "check-summary-drift",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:command-compliance",
+        "label": "command-compliance",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:command-sync",
+        "label": "command-sync",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:commit-lint",
+        "label": "commit-lint",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:compile-matrix",
+        "label": "compile-matrix",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:completion-audit",
+        "label": "completion-audit",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:completion-gates",
+        "label": "completion-gates",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:completion-ingest",
+        "label": "completion-ingest",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:config-gui-codegen",
+        "label": "config-gui-codegen",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:config-hygiene",
+        "label": "config-hygiene",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:config-registry-parity",
+        "label": "config-registry-parity",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:contracts-index",
+        "label": "contracts-index",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:coolify-eval",
+        "label": "coolify-eval",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:corpus-decl-coverage",
+        "label": "corpus-decl-coverage",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:coverage-gates",
+        "label": "coverage-gates",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:crate-budget",
+        "label": "crate-budget",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:crate-build-map-parity",
+        "label": "crate-build-map-parity",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:crate-edges",
+        "label": "crate-edges",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:cuda-features",
+        "label": "cuda-features",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:cuda-release-build",
+        "label": "cuda-release-build",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:data-ssot-guards",
+        "label": "data-ssot-guards",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:data-storage-guard",
+        "label": "data-storage-guard",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:db-schema-coverage",
+        "label": "db-schema-coverage",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:decide",
+        "label": "decide",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:dep-cycles",
+        "label": "dep-cycles",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:dep-sprawl",
+        "label": "dep-sprawl",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:deploy-status",
+        "label": "deploy-status",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:detect-rules-bench",
+        "label": "detect-rules-bench",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:determinism-audit",
+        "label": "determinism-audit",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:dev-loop-audit",
+        "label": "dev-loop-audit",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:discover",
+        "label": "discover",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:doc-inventory",
+        "label": "doc-inventory",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:docs-reality-audit",
+        "label": "docs-reality-audit",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:doctest-md",
+        "label": "doctest-md",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:emit-reports",
+        "label": "emit-reports",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:eval-matrix",
+        "label": "eval-matrix",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:exec-policy-contract",
+        "label": "exec-policy-contract",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:fan-in-budget",
+        "label": "fan-in-budget",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:feature-matrix",
+        "label": "feature-matrix",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:flake-budget",
+        "label": "flake-budget",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:fmt-check",
+        "label": "fmt-check",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:free-binary",
+        "label": "free-binary",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:generate",
+        "label": "generate",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:generate-plugin-catalog-docs",
+        "label": "generate-plugin-catalog-docs",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:grammar-drift",
+        "label": "grammar-drift",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:grammar-export-check",
+        "label": "grammar-export-check",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:grammar-ssot-parity",
+        "label": "grammar-ssot-parity",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:gui-catalog-parity",
+        "label": "gui-catalog-parity",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:gui-honesty",
+        "label": "gui-honesty",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:gui-smoke",
+        "label": "gui-smoke",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:gui-surface-coverage",
+        "label": "gui-surface-coverage",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:gui-surface-registry",
+        "label": "gui-surface-registry",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:gui-version-sync",
+        "label": "gui-version-sync",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:gui-visual-review",
+        "label": "gui-visual-review",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:harness-trust-guard",
+        "label": "harness-trust-guard",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:ignored-test-age",
+        "label": "ignored-test-age",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:ingest-trust",
+        "label": "ingest-trust",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:install-hooks",
+        "label": "install-hooks",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:job-timings",
+        "label": "job-timings",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:json-parse-check",
+        "label": "json-parse-check",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:k-complexity-budget",
+        "label": "k-complexity-budget",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:kill-stuck-tests",
+        "label": "kill-stuck-tests",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:line-endings",
+        "label": "line-endings",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:manifest",
+        "label": "manifest",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:mcp-vox-surface-parity",
+        "label": "mcp-vox-surface-parity",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:mens-scorecard",
+        "label": "mens-scorecard",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:mesh-gate",
+        "label": "mesh-gate",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:metrics",
+        "label": "metrics",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:model-routing-check",
+        "label": "model-routing-check",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:no-dei-import",
+        "label": "no-dei-import",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:no-plugin-cdylib-as-compile-dep",
+        "label": "no-plugin-cdylib-as-compile-dep",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:no-tauri-in-core",
+        "label": "no-tauri-in-core",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:node-pnpm-ssot-guard",
+        "label": "node-pnpm-ssot-guard",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:nomenclature-guard",
+        "label": "nomenclature-guard",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:openclaw-contract",
+        "label": "openclaw-contract",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:operations-sync",
+        "label": "operations-sync",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:operations-verify",
+        "label": "operations-verify",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:operator-env-guard",
+        "label": "operator-env-guard",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:parse-status",
+        "label": "parse-status",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:pipeline-parity",
+        "label": "pipeline-parity",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:plugin-abi-parity",
+        "label": "plugin-abi-parity",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:plugin-catalog-parity",
+        "label": "plugin-catalog-parity",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:plugin-catalog-sync",
+        "label": "plugin-catalog-sync",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:plugin-dep-boundary",
+        "label": "plugin-dep-boundary",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:plugin-skill-parity",
+        "label": "plugin-skill-parity",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:plugin-surface-sync",
+        "label": "plugin-surface-sync",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:pm-provenance",
+        "label": "pm-provenance",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:policy-allowlist-parity",
+        "label": "policy-allowlist-parity",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:policy-registry",
+        "label": "policy-registry",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:policy-registry-parity",
+        "label": "policy-registry-parity",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:policy-smoke",
+        "label": "policy-smoke",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:pre-push",
+        "label": "pre-push",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:profile-parity",
+        "label": "profile-parity",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:query-all-guard",
+        "label": "query-all-guard",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:release-build",
+        "label": "release-build",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:release-draft-guard",
+        "label": "release-draft-guard",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:repo-guards",
+        "label": "repo-guards",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:required-context-guard",
+        "label": "required-context-guard",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:retired-symbol-check",
+        "label": "retired-symbol-check",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:retirement-audit",
+        "label": "retirement-audit",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:row-serde-lint",
+        "label": "row-serde-lint",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:run",
+        "label": "run",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:run",
+        "label": "run",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:runtime-regress",
+        "label": "runtime-regress",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:rust-ecosystem-policy",
+        "label": "rust-ecosystem-policy",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:safety-inventory",
+        "label": "safety-inventory",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:scaling-audit",
+        "label": "scaling-audit",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:scientia-heuristics-parity",
+        "label": "scientia-heuristics-parity",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:scientia-novelty-ledger-contracts",
+        "label": "scientia-novelty-ledger-contracts",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:scientia-worthiness-contract",
+        "label": "scientia-worthiness-contract",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:script-hygiene",
+        "label": "script-hygiene",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:secret-env-guard",
+        "label": "secret-env-guard",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:secrets-contracts",
+        "label": "secrets-contracts",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:secrets-cutover-audit",
+        "label": "secrets-cutover-audit",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:secrets-cutover-gates",
+        "label": "secrets-cutover-gates",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:secrets-parity",
+        "label": "secrets-parity",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:source-token-budget",
+        "label": "source-token-budget",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:speech-runtime-suite",
+        "label": "speech-runtime-suite",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:spoke-check",
+        "label": "spoke-check",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:sql-surface-guard",
+        "label": "sql-surface-guard",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:ssot-audit",
+        "label": "ssot-audit",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:ssot-drift",
+        "label": "ssot-drift",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:status",
+        "label": "status",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:string-id-lint",
+        "label": "string-id-lint",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:sync-compose",
+        "label": "sync-compose",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:sync-ignore-files",
+        "label": "sync-ignore-files",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:test-inventory",
+        "label": "test-inventory",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:test-runtime-report",
+        "label": "test-runtime-report",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:tier-budget-check",
+        "label": "tier-budget-check",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:toestub-budget",
+        "label": "toestub-budget",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:toestub-scoped",
+        "label": "toestub-scoped",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:toestub-self-apply",
+        "label": "toestub-self-apply",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:toolchain-ssot",
+        "label": "toolchain-ssot",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:toolchain-workflow-lint",
+        "label": "toolchain-workflow-lint",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:turso-import-guard",
+        "label": "turso-import-guard",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:verify",
+        "label": "verify",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:verify",
+        "label": "verify",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:verify",
+        "label": "verify",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:verify",
+        "label": "verify",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:verify",
+        "label": "verify",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:vox-parse-check",
+        "label": "vox-parse-check",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:watch-run",
+        "label": "watch-run",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:workflow-concurrency-guard",
+        "label": "workflow-concurrency-guard",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:workflow-scripts",
+        "label": "workflow-scripts",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:yaml-parse-check",
+        "label": "yaml-parse-check",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:codex:cutover",
+        "label": "cutover",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:codex:export-legacy",
+        "label": "export-legacy",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:codex:import-legacy",
+        "label": "import-legacy",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:codex:import-orchestrator-memory",
+        "label": "import-orchestrator-memory",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:codex:import-skill-bundle",
+        "label": "import-skill-bundle",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:codex:socrates-eval-snapshot",
+        "label": "socrates-eval-snapshot",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:codex:socrates-metrics",
+        "label": "socrates-metrics",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:codex:verify",
+        "label": "verify",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:config:get",
+        "label": "get",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:config:list",
+        "label": "list",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:config:set",
+        "label": "set",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:config:sync",
+        "label": "sync",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:config:unset",
+        "label": "unset",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:container:build",
+        "label": "build",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:container:run",
+        "label": "run",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:audit",
+        "label": "audit",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:build-health",
+        "label": "build-health",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:build-regressions",
+        "label": "build-regressions",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:capability-list",
+        "label": "capability-list",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:discovery-watch",
+        "label": "discovery-watch",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:exec-history",
+        "label": "exec-history",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:explain",
+        "label": "explain",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:export",
+        "label": "export",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:feed-source-add",
+        "label": "feed-source-add",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:feed-source-list",
+        "label": "feed-source-list",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:import",
+        "label": "import",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:ingest-tick",
+        "label": "ingest-tick",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:introspect",
+        "label": "introspect",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:mens-metrics",
+        "label": "mens-metrics",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:mens-runs",
+        "label": "mens-runs",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:migrate",
+        "label": "migrate",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:mirror-search-corpus",
+        "label": "mirror-search-corpus",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:pref-get",
+        "label": "pref-get",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:pref-list",
+        "label": "pref-list",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:pref-set",
+        "label": "pref-set",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:prune",
+        "label": "prune",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:prune-apply",
+        "label": "prune-apply",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:prune-plan",
+        "label": "prune-plan",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:publication-approve",
+        "label": "publication-approve",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:publication-archive-code",
+        "label": "publication-archive-code",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:publication-archive-run",
+        "label": "publication-archive-run",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:publication-arxiv-handoff-record",
+        "label": "publication-arxiv-handoff-record",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:publication-autofill",
+        "label": "publication-autofill",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:publication-decision-explain",
+        "label": "publication-decision-explain",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:publication-discovery-explain",
+        "label": "publication-discovery-explain",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:publication-discovery-publish-rss",
+        "label": "publication-discovery-publish-rss",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:publication-discovery-refresh-evidence",
+        "label": "publication-discovery-refresh-evidence",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:publication-discovery-scan",
+        "label": "publication-discovery-scan",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:publication-external-jobs-dead-letter",
+        "label": "publication-external-jobs-dead-letter",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:publication-external-jobs-due",
+        "label": "publication-external-jobs-due",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:publication-external-jobs-replay",
+        "label": "publication-external-jobs-replay",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:publication-external-jobs-tick",
+        "label": "publication-external-jobs-tick",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:publication-external-pipeline-metrics",
+        "label": "publication-external-pipeline-metrics",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:publication-media-delete",
+        "label": "publication-media-delete",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:publication-media-list",
+        "label": "publication-media-list",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:publication-media-upsert",
+        "label": "publication-media-upsert",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:publication-novelty-fetch",
+        "label": "publication-novelty-fetch",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:publication-novelty-happy-path",
+        "label": "publication-novelty-happy-path",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:publication-openreview-profile",
+        "label": "publication-openreview-profile",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:publication-preflight",
+        "label": "publication-preflight",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:publication-prepare",
+        "label": "publication-prepare",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:publication-prepare-validated",
+        "label": "publication-prepare-validated",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:publication-publish",
+        "label": "publication-publish",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:publication-retry-failed",
+        "label": "publication-retry-failed",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:publication-route-simulate",
+        "label": "publication-route-simulate",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:publication-scholarly-pipeline-run",
+        "label": "publication-scholarly-pipeline-run",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:publication-scholarly-remote-status",
+        "label": "publication-scholarly-remote-status",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:publication-scholarly-remote-status-sync-all",
+        "label": "publication-scholarly-remote-status-sync-all",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:publication-scholarly-remote-status-sync-batch",
+        "label": "publication-scholarly-remote-status-sync-batch",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:publication-scholarly-staging-export",
+        "label": "publication-scholarly-staging-export",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:publication-status",
+        "label": "publication-status",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:publication-submit-local",
+        "label": "publication-submit-local",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:publication-transform-preview",
+        "label": "publication-transform-preview",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:publication-worthiness-evaluate",
+        "label": "publication-worthiness-evaluate",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:publication-zenodo-metadata",
+        "label": "publication-zenodo-metadata",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:reliability-agents",
+        "label": "reliability-agents",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:reliability-list",
+        "label": "reliability-list",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:research-ingest-file",
+        "label": "research-ingest-file",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:research-ingest-url",
+        "label": "research-ingest-url",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:research-list",
+        "label": "research-list",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:research-map-add",
+        "label": "research-map-add",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:research-map-list",
+        "label": "research-map-list",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:research-metrics",
+        "label": "research-metrics",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:research-refresh",
+        "label": "research-refresh",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:reset",
+        "label": "reset",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:retrieval-status",
+        "label": "retrieval-status",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:sample",
+        "label": "sample",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:schema",
+        "label": "schema",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:status",
+        "label": "status",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:sync-invocables",
+        "label": "sync-invocables",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:vacuum",
+        "label": "vacuum",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:db:verify",
+        "label": "verify",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:diag:doctor",
+        "label": "doctor",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:dispatch:preview",
+        "label": "preview",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:emit:client",
+        "label": "client",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:emit:openapi",
+        "label": "openapi",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ext:ars",
+        "label": "ars",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ext:export",
+        "label": "export",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ext:feedback",
+        "label": "feedback",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ext:list",
+        "label": "list",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ext:mens",
+        "label": "mens",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ext:oratio",
+        "label": "oratio",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ext:populi",
+        "label": "populi",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ext:publish",
+        "label": "publish",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ext:save",
+        "label": "save",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ext:search",
+        "label": "search",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ext:search",
+        "label": "search",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ext:share",
+        "label": "share",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ext:snippet",
+        "label": "snippet",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ext:train",
+        "label": "train",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:fabrica:build",
+        "label": "build",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:fabrica:bundle",
+        "label": "bundle",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:fabrica:check",
+        "label": "check",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:fabrica:compile",
+        "label": "compile",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:fabrica:dev",
+        "label": "dev",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:fabrica:fmt",
+        "label": "fmt",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:fabrica:run",
+        "label": "run",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:fabrica:script",
+        "label": "script",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:fabrica:test",
+        "label": "test",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:graph:brief",
+        "label": "brief",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:graph:coverage",
+        "label": "coverage",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:graph:crate-map",
+        "label": "crate-map",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:graph:focus",
+        "label": "focus",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:graph:forgotten",
+        "label": "forgotten",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:graph:gc",
+        "label": "gc",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:graph:history",
+        "label": "history",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:graph:index",
+        "label": "index",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:graph:ingest",
+        "label": "ingest",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:graph:log",
+        "label": "log",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:graph:query",
+        "label": "query",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:graph:rebuild",
+        "label": "rebuild",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:graph:refresh",
+        "label": "refresh",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:graph:search",
+        "label": "search",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:graph:status",
+        "label": "status",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:graph:timeline",
+        "label": "timeline",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:graph:why-rebuilt",
+        "label": "why-rebuilt",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:harness:eval",
+        "label": "eval",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:harness:history",
+        "label": "history",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:harness:publish",
+        "label": "publish",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:harness:report",
+        "label": "report",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:llm:prompt",
+        "label": "prompt",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:memory:search",
+        "label": "search",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:mens:check",
+        "label": "check",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:mens:corpus",
+        "label": "corpus",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:mens:dogfood",
+        "label": "dogfood",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:mens:eval-local",
+        "label": "eval-local",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:mens:export-gguf",
+        "label": "export-gguf",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:mens:fix",
+        "label": "fix",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:mens:generate",
+        "label": "generate",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:mens:merge-qlora",
+        "label": "merge-qlora",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:mens:models",
+        "label": "models",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:mens:pipeline",
+        "label": "pipeline",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:mens:probe",
+        "label": "probe",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:mens:review",
+        "label": "review",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:mens:serve",
+        "label": "serve",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:mens:status",
+        "label": "status",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:mens:train",
+        "label": "train",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:mens:train-uv",
+        "label": "train-uv",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:mens:watch-telemetry",
+        "label": "watch-telemetry",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:mens:workflow",
+        "label": "workflow",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:migrate:names",
+        "label": "names",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:migrate:web",
+        "label": "web",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:model:cas",
+        "label": "cas",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:model:check",
+        "label": "check",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:model:classify",
+        "label": "classify",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:model:costs",
+        "label": "costs",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:model:council-report",
+        "label": "council-report",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:model:discover",
+        "label": "discover",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:model:eval",
+        "label": "eval",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:model:eval-corpus",
+        "label": "eval-corpus",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:model:explain",
+        "label": "explain",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:model:list",
+        "label": "list",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:model:ls",
+        "label": "ls",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:model:preferences",
+        "label": "preferences",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:model:pricing",
+        "label": "pricing",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:model:pull",
+        "label": "pull",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:model:push",
+        "label": "push",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:model:refresh",
+        "label": "refresh",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:model:reset",
+        "label": "reset",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:model:rollup",
+        "label": "rollup",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:model:rollup",
+        "label": "rollup",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:model:scoreboard",
+        "label": "scoreboard",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:model:set",
+        "label": "set",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:model:shadow",
+        "label": "shadow",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:model:show",
+        "label": "show",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:model:show",
+        "label": "show",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:new:fn",
+        "label": "fn",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:new:skill",
+        "label": "skill",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:new:web",
+        "label": "web",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:oratio:doctor",
+        "label": "doctor",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:oratio:eval",
+        "label": "eval",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:oratio:eval-history",
+        "label": "eval-history",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:oratio:listen",
+        "label": "listen",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:oratio:record-transcribe",
+        "label": "record-transcribe",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:oratio:serve",
+        "label": "serve",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:oratio:status",
+        "label": "status",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:oratio:subtitle",
+        "label": "subtitle",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:oratio:transcribe",
+        "label": "transcribe",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:plan:create",
+        "label": "create",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:plan:replan",
+        "label": "replan",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:plan:status",
+        "label": "status",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:plugin:doctor",
+        "label": "doctor",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:plugin:info",
+        "label": "info",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:plugin:install",
+        "label": "install",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:plugin:list",
+        "label": "list",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:plugin:publish",
+        "label": "publish",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:plugin:remove",
+        "label": "remove",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:plugin:scaffold",
+        "label": "scaffold",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:pm:cache",
+        "label": "cache",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:pm:clear",
+        "label": "clear",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:pm:info",
+        "label": "info",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:pm:mirror",
+        "label": "mirror",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:pm:publish",
+        "label": "publish",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:pm:search",
+        "label": "search",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:pm:status",
+        "label": "status",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:pm:vendor",
+        "label": "vendor",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:pm:verify",
+        "label": "verify",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:pm:yank",
+        "label": "yank",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:policy:domains",
+        "label": "domains",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:policy:groups",
+        "label": "groups",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:policy:list",
+        "label": "list",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:policy:show",
+        "label": "show",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:policy:status",
+        "label": "status",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:populi:admin",
+        "label": "admin",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:populi:attest",
+        "label": "attest",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:populi:config",
+        "label": "config",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:populi:corpus",
+        "label": "corpus",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:populi:dispatch",
+        "label": "dispatch",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:populi:down",
+        "label": "down",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:populi:federation",
+        "label": "federation",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:populi:identity",
+        "label": "identity",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:populi:init",
+        "label": "init",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:populi:join",
+        "label": "join",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:populi:node",
+        "label": "node",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:populi:pair",
+        "label": "pair",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:populi:registry-snapshot",
+        "label": "registry-snapshot",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:populi:result",
+        "label": "result",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:populi:serve",
+        "label": "serve",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:populi:stats",
+        "label": "stats",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:populi:status",
+        "label": "status",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:populi:up",
+        "label": "up",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:repo:catalog",
+        "label": "catalog",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:repo:file",
+        "label": "file",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:repo:history",
+        "label": "history",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:repo:init",
+        "label": "init",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:repo:list",
+        "label": "list",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:repo:query",
+        "label": "query",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:repo:refresh",
+        "label": "refresh",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:repo:status",
+        "label": "status",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:repo:text",
+        "label": "text",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:research:down",
+        "label": "down",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:research:eval",
+        "label": "eval",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:research:flag",
+        "label": "flag",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:research:history",
+        "label": "history",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:research:preview",
+        "label": "preview",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:research:probe",
+        "label": "probe",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:research:publish",
+        "label": "publish",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:research:result",
+        "label": "result",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:research:run",
+        "label": "run",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:research:search",
+        "label": "search",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:research:show",
+        "label": "show",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:research:status",
+        "label": "status",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:research:up",
+        "label": "up",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:research:watch",
+        "label": "watch",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:capability-list",
+        "label": "capability-list",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:claims",
+        "label": "claims",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:cost",
+        "label": "cost",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:dashboard",
+        "label": "dashboard",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:diagnose",
+        "label": "diagnose",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:discovery-watch",
+        "label": "discovery-watch",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:evidence-assist",
+        "label": "evidence-assist",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:feed-source-add",
+        "label": "feed-source-add",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:feed-source-list",
+        "label": "feed-source-list",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:finding-candidate-validate",
+        "label": "finding-candidate-validate",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:ingest-tick",
+        "label": "ingest-tick",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:mirror-search-corpus",
+        "label": "mirror-search-corpus",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:novelty-evidence-bundle-validate",
+        "label": "novelty-evidence-bundle-validate",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-approve",
+        "label": "publication-approve",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-archive-code",
+        "label": "publication-archive-code",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-archive-run",
+        "label": "publication-archive-run",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-arxiv-bundle",
+        "label": "publication-arxiv-bundle",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-arxiv-handoff-record",
+        "label": "publication-arxiv-handoff-record",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-autofill",
+        "label": "publication-autofill",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-claim-review",
+        "label": "publication-claim-review",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-critic-approve",
+        "label": "publication-critic-approve",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-critic-gate-check",
+        "label": "publication-critic-gate-check",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-dashboard-snapshot",
+        "label": "publication-dashboard-snapshot",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-decision-explain",
+        "label": "publication-decision-explain",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-discovery-explain",
+        "label": "publication-discovery-explain",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-discovery-publish-rss",
+        "label": "publication-discovery-publish-rss",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-discovery-scan",
+        "label": "publication-discovery-scan",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-external-jobs-dead-letter",
+        "label": "publication-external-jobs-dead-letter",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-external-jobs-due",
+        "label": "publication-external-jobs-due",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-external-jobs-replay",
+        "label": "publication-external-jobs-replay",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-external-jobs-tick",
+        "label": "publication-external-jobs-tick",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-external-pipeline-metrics",
+        "label": "publication-external-pipeline-metrics",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-extract-claims",
+        "label": "publication-extract-claims",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-finding-page-render",
+        "label": "publication-finding-page-render",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-manuscript-draft",
+        "label": "publication-manuscript-draft",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-nanopub-build",
+        "label": "publication-nanopub-build",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-novelty-fetch",
+        "label": "publication-novelty-fetch",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-novelty-happy-path",
+        "label": "publication-novelty-happy-path",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-openreview-profile",
+        "label": "publication-openreview-profile",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-preflight",
+        "label": "publication-preflight",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-prepare",
+        "label": "publication-prepare",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-prepare-validated",
+        "label": "publication-prepare-validated",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-render-latex",
+        "label": "publication-render-latex",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-replay-execute",
+        "label": "publication-replay-execute",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-review-queue",
+        "label": "publication-review-queue",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-scholarly-pipeline-run",
+        "label": "publication-scholarly-pipeline-run",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-scholarly-remote-status",
+        "label": "publication-scholarly-remote-status",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-scholarly-remote-status-sync-all",
+        "label": "publication-scholarly-remote-status-sync-all",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-scholarly-remote-status-sync-batch",
+        "label": "publication-scholarly-remote-status-sync-batch",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-scholarly-staging-export",
+        "label": "publication-scholarly-staging-export",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-status",
+        "label": "publication-status",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-submit-local",
+        "label": "publication-submit-local",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-transform-preview",
+        "label": "publication-transform-preview",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-venue-recommend",
+        "label": "publication-venue-recommend",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-worthiness-evaluate",
+        "label": "publication-worthiness-evaluate",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:publication-zenodo-metadata",
+        "label": "publication-zenodo-metadata",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:research-list",
+        "label": "research-list",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:research-map-list",
+        "label": "research-map-list",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:research-refresh",
+        "label": "research-refresh",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:retrieval-status",
+        "label": "retrieval-status",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:scientia:scout",
+        "label": "scout",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:secrets:backend-status",
+        "label": "backend-status",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:secrets:get",
+        "label": "get",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:secrets:import-env",
+        "label": "import-env",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:secrets:login",
+        "label": "login",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:secrets:migrate-auth-store",
+        "label": "migrate-auth-store",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:secrets:set",
+        "label": "set",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:secrets:status",
+        "label": "status",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:secrets:sync",
+        "label": "sync",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:shell:check",
+        "label": "check",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:shell:repl",
+        "label": "repl",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:snapshot:orphans",
+        "label": "orphans",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:snippet:export",
+        "label": "export",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:snippet:save",
+        "label": "save",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:snippet:search",
+        "label": "search",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:telemetry:consent",
+        "label": "consent",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:telemetry:deny",
+        "label": "deny",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:telemetry:doctor",
+        "label": "doctor",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:telemetry:enqueue",
+        "label": "enqueue",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:telemetry:export",
+        "label": "export",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:telemetry:grant",
+        "label": "grant",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:telemetry:status",
+        "label": "status",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:telemetry:status",
+        "label": "status",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:telemetry:upload",
+        "label": "upload",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:workflow:drain",
+        "label": "drain",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:workflow:ls",
+        "label": "ls",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:workflow:preview",
+        "label": "preview",
+        "status": "cli_only"
+      }
+    ],
+    "surface": [
+      {
+        "id": "surface:activity",
+        "label": "activity",
+        "status": "orphan_backend"
+      },
+      {
+        "id": "surface:approvals",
+        "label": "approvals",
+        "status": "orphan_backend"
+      },
+      {
+        "id": "surface:browser",
+        "label": "browser",
+        "status": "orphan_backend"
+      },
+      {
+        "id": "surface:catalog",
+        "label": "catalog",
+        "status": "orphan_backend"
+      },
+      {
+        "id": "surface:chat",
+        "label": "chat",
+        "status": "orphan_backend"
+      },
+      {
+        "id": "surface:coderabbit",
+        "label": "coderabbit",
+        "status": "orphan_backend"
+      },
+      {
+        "id": "surface:console",
+        "label": "console",
+        "status": "orphan_backend"
+      },
+      {
+        "id": "surface:coverage",
+        "label": "coverage",
+        "status": "orphan_backend"
+      },
+      {
+        "id": "surface:dashboard",
+        "label": "dashboard",
+        "status": "orphan_backend"
+      },
+      {
+        "id": "surface:flow",
+        "label": "flow",
+        "status": "orphan_backend"
+      },
+      {
+        "id": "surface:gamify",
+        "label": "gamify",
+        "status": "orphan_backend"
+      },
+      {
+        "id": "surface:harness",
+        "label": "harness",
+        "status": "orphan_backend"
+      },
+      {
+        "id": "surface:harness-health",
+        "label": "harness-health",
+        "status": "orphan_backend"
+      },
+      {
+        "id": "surface:memory",
+        "label": "memory",
+        "status": "orphan_backend"
+      },
+      {
+        "id": "surface:mens",
+        "label": "mens",
+        "status": "orphan_backend"
+      },
+      {
+        "id": "surface:mercatus",
+        "label": "mercatus",
+        "status": "orphan_backend"
+      },
+      {
+        "id": "surface:mesh",
+        "label": "mesh",
+        "status": "orphan_backend"
+      },
+      {
+        "id": "surface:models",
+        "label": "models",
+        "status": "orphan_backend"
+      },
+      {
+        "id": "surface:needs-you",
+        "label": "needs-you",
+        "status": "orphan_backend"
+      },
+      {
+        "id": "surface:oratio",
+        "label": "oratio",
+        "status": "orphan_backend"
+      },
+      {
+        "id": "surface:policies",
+        "label": "policies",
+        "status": "orphan_backend"
+      },
+      {
+        "id": "surface:populi",
+        "label": "populi",
+        "status": "orphan_backend"
+      },
+      {
+        "id": "surface:publications",
+        "label": "publications",
+        "status": "orphan_backend"
+      },
+      {
+        "id": "surface:repository",
+        "label": "repository",
+        "status": "orphan_backend"
+      },
+      {
+        "id": "surface:research",
+        "label": "research",
+        "status": "orphan_backend"
+      },
+      {
+        "id": "surface:runs",
+        "label": "runs",
+        "status": "orphan_backend"
+      },
+      {
+        "id": "surface:scientia",
+        "label": "scientia",
+        "status": "orphan_backend"
+      },
+      {
+        "id": "surface:settings",
+        "label": "settings",
+        "status": "orphan_backend"
+      },
+      {
+        "id": "surface:skills",
+        "label": "skills",
+        "status": "orphan_backend"
+      },
+      {
+        "id": "surface:sub-agents",
+        "label": "sub-agents",
+        "status": "orphan_backend"
+      },
+      {
+        "id": "surface:tasks",
+        "label": "tasks",
+        "status": "orphan_backend"
+      },
+      {
+        "id": "surface:vox-search",
+        "label": "vox-search",
+        "status": "orphan_backend"
+      }
+    ],
+    "tool": [
+      {
+        "id": "tool:vox_mesh_nodes",
+        "label": "vox_mesh_nodes",
+        "status": "dead_end"
+      },
+      {
+        "id": "tool:vox_populi::inference_PROFILE",
+        "label": "vox_populi::inference_PROFILE",
+        "status": "orphan_backend"
+      }
+    ]
+  }
+}

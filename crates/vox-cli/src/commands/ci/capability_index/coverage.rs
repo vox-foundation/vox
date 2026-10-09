@@ -49,11 +49,21 @@ pub(crate) fn build_snapshot(
     source: CoverageSnapshotMeta,
     reports: Vec<(&str, CoverageReport)>,
 ) -> Result<CoverageSnapshot> {
-    // RED stub: keeps report order, no sorting, no statuses.
     let mut entries = BTreeMap::new();
     for (kind, report) in reports {
-        entries.insert(kind.to_string(), Vec::new());
-        let _ = report.entries.len();
+        let mut list = report
+            .entries
+            .iter()
+            .map(|e| {
+                Ok(SnapshotEntry {
+                    id: e.id.clone(),
+                    label: e.label.clone(),
+                    status: status_str(&e.status)?,
+                })
+            })
+            .collect::<Result<Vec<_>>>()?;
+        list.sort_by(|a, b| a.id.cmp(&b.id));
+        entries.insert(kind.to_string(), list);
     }
     Ok(CoverageSnapshot {
         schema_version: 1,
@@ -64,8 +74,9 @@ pub(crate) fn build_snapshot(
 
 /// The exact on-disk text of a snapshot (pretty JSON, trailing newline, no clock of our own).
 pub(crate) fn render(snapshot: &CoverageSnapshot) -> Result<String> {
-    // RED stub: not JSON.
-    Ok(format!("RED stub {}", snapshot.schema_version))
+    let mut text = serde_json::to_string_pretty(snapshot).context("serialize coverage snapshot")?;
+    text.push('\n');
+    Ok(text)
 }
 
 fn missing_graph(detail: &str) -> anyhow::Error {
@@ -77,11 +88,49 @@ fn missing_graph(detail: &str) -> anyhow::Error {
 /// Re-snapshot coverage from the already-built `vox-gui-surface` graph (D-07). Does not build the
 /// graph: run `vox graph rebuild --corpus vox-gui-surface` first.
 pub fn refresh_coverage_snapshot(repo_root: &Path) -> Result<()> {
-    // RED stub: no graph lookup yet.
-    bail!(
-        "RED stub: refresh not implemented for {}",
-        repo_root.display()
+    let reg = vox_config::graphify::load_all_corpora(repo_root)
+        .map_err(|e| missing_graph(&e.to_string()))?;
+    let corpus = reg
+        .corpora
+        .iter()
+        .find(|c| c.id == CORPUS_ID)
+        .ok_or_else(|| missing_graph("corpus is not registered"))?;
+    let graph_path = repo_root.join(&corpus.graph_path);
+    if !graph_path.is_file() {
+        return Err(missing_graph(&format!(
+            "{} is absent",
+            graph_path.display()
+        )));
+    }
+    let graph: serde_json::Value = serde_json::from_str(&read_utf8_path_capped(&graph_path)?)
+        .with_context(|| format!("parse graph JSON {}", graph_path.display()))?;
+    let manifest_path = repo_root.join(&corpus.manifest_path);
+    let manifest: vox_config::graphify::GraphifyManifest =
+        serde_json::from_str(&read_utf8_path_capped(&manifest_path)?)
+            .with_context(|| format!("parse manifest {}", manifest_path.display()))?;
+    let (Some(git_sha), Some(built_at)) = (manifest.git_sha, manifest.built_at) else {
+        bail!(
+            "{} lacks git_sha or built_at; rebuild with `vox graph rebuild --corpus {CORPUS_ID}`",
+            manifest_path.display()
+        );
+    };
+    let source = CoverageSnapshotMeta {
+        corpus_id: CORPUS_ID.to_string(),
+        git_sha,
+        built_at,
+    };
+    let reports = KINDS
+        .iter()
+        .map(|k| (*k, compute_coverage(&graph, k)))
+        .collect();
+    let snapshot = build_snapshot(source, reports)?;
+    write_or_verify_text(
+        &repo_root.join(SNAPSHOT_REL),
+        &render(&snapshot)?,
+        true,
+        "run `vox ci capability-index --refresh-coverage`",
     )
+    .map_err(|e| anyhow!("{e:#}"))
 }
 
 #[cfg(test)]
