@@ -8,7 +8,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use anyhow::{Result, bail};
-use vox_capability_registry::{OwnerRef, RowKind, SURFACE_CRATES};
+use vox_capability_registry::{
+    FALLBACK_DOMAIN, OwnerRef, REQUIRED_DOMAINS, RowKind, SURFACE_CRATES,
+};
 
 use super::inputs::{Domains, OperationRow};
 
@@ -19,7 +21,6 @@ pub(crate) const CLI_COMMANDS_DIR: &str = "crates/vox-cli/src/commands";
 pub(crate) const MCP_DISPATCH_PATH: &str = "crates/vox-orchestrator-mcp/src/dispatch.rs";
 const MCP_CRATE: &str = "vox-orchestrator-mcp";
 const CLI_CRATE: &str = "vox-cli";
-const FALLBACK_DOMAIN: &str = "platform";
 
 pub(super) fn owner_ref(layers: &Layers, krate: &str, rule: &str) -> OwnerRef {
     OwnerRef {
@@ -145,8 +146,20 @@ pub(crate) fn validate_domains(domains: &Domains, layers: &Layers) -> Result<()>
             "domains.v1.yaml {key}: `{name}` is not a crate in docs/src/architecture/layers.toml [crates]"
         )
     };
-    if !domains.domains.is_empty() && !known(FALLBACK_DOMAIN) {
-        bail!("domains.v1.yaml `domains` must contain the fallback domain `{FALLBACK_DOMAIN}`");
+    let mut seen = BTreeSet::new();
+    for d in &domains.domains {
+        if !seen.insert(d.id.as_str()) {
+            bail!("domains.v1.yaml `domains`: duplicate domain id `{}`", d.id);
+        }
+    }
+    // The generator assigns these ids without a lookup table (fallback, GUI surfaces, skill and
+    // doc rows); a vocabulary without them would emit rows `vox features` can never list.
+    if !domains.domains.is_empty() {
+        for id in REQUIRED_DOMAINS {
+            if !known(id) {
+                bail!("domains.v1.yaml `domains` must contain the domain `{id}`");
+            }
+        }
     }
     for (group, entry) in &domains.cli_groups {
         check_domain(format!("cli_groups.{group}"), &entry.domain)?;
@@ -360,9 +373,11 @@ mod tests {
         };
         Domains {
             schema_version: 1,
-            domains: ["secrets", "mesh", "compiler", "platform"]
-                .map(def)
-                .to_vec(),
+            domains: [
+                "secrets", "mesh", "compiler", "platform", "gui", "skills", "docs",
+            ]
+            .map(def)
+            .to_vec(),
             cli_groups: BTreeMap::from([
                 ("secrets".to_string(), entry("secrets", None)),
                 ("ars".to_string(), entry("compiler", Some("vox-cli"))),
@@ -448,6 +463,32 @@ mod tests {
         let err = validate_domains(&d, &l).expect_err("must fail");
         assert!(err.to_string().contains("cli_groups.zz"), "got: {err}");
         assert!(validate_domains(&domains(), &l).is_ok());
+    }
+
+    #[test]
+    fn generator_assigned_domains_must_be_in_the_vocabulary() {
+        let l = layers(&[("vox-cli", 5), ("vox-db", 2)]);
+        for missing in REQUIRED_DOMAINS {
+            let mut d = domains();
+            d.domains.retain(|x| x.id != missing);
+            let err = validate_domains(&d, &l).expect_err("missing required domain must fail");
+            assert!(err.to_string().contains(missing), "{missing}: {err}");
+        }
+    }
+
+    #[test]
+    fn duplicate_domain_ids_are_rejected() {
+        let mut d = domains();
+        d.domains.push(DomainDef {
+            id: "mesh".to_string(),
+            label: "Mesh again".to_string(),
+        });
+        let l = layers(&[("vox-cli", 5), ("vox-db", 2)]);
+        let err = validate_domains(&d, &l).expect_err("duplicate id must fail");
+        assert!(
+            err.to_string().contains("duplicate") && err.to_string().contains("mesh"),
+            "{err}"
+        );
     }
 
     #[test]

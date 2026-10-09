@@ -289,7 +289,13 @@ mod tests {
         ]);
         inp.domains = Domains {
             schema_version: 1,
-            domains: vec![def("secrets"), def("platform")],
+            domains: vec![
+                def("secrets"),
+                def("platform"),
+                def("gui"),
+                def("skills"),
+                def("docs"),
+            ],
             cli_groups: [(
                 "secrets".to_string(),
                 GroupEntry {
@@ -310,7 +316,11 @@ mod tests {
             Some("platform")
         );
         let vocab: Vec<&str> = idx.domains.iter().map(|d| d.id.as_str()).collect();
-        assert_eq!(vocab, vec!["secrets", "platform"], "file order");
+        assert_eq!(
+            vocab,
+            vec!["secrets", "platform", "gui", "skills", "docs"],
+            "file order"
+        );
         assert!(
             idx.row("cli.secrets.get")
                 .expect("cli")

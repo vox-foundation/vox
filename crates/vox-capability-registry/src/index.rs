@@ -16,6 +16,14 @@ const EMBEDDED_INDEX_JSON: &str =
 /// sibling capability (Pitfall 9). Shared by the generator's domain rule and the card's Related.
 pub const SURFACE_CRATES: [&str; 4] = ["vox-cli", "vox-cli-ci", "vox-orchestrator-mcp", "vox-gui"];
 
+/// Domain ids the generator assigns without a lookup table; `domains.v1.yaml` must define each.
+pub const FALLBACK_DOMAIN: &str = "platform";
+pub const GUI_DOMAIN: &str = "gui";
+pub const SKILLS_DOMAIN: &str = "skills";
+pub const DOCS_DOMAIN: &str = "docs";
+/// Every id in the group above; the generator rejects a vocabulary missing any.
+pub const REQUIRED_DOMAINS: [&str; 4] = [FALLBACK_DOMAIN, GUI_DOMAIN, SKILLS_DOMAIN, DOCS_DOMAIN];
+
 /// Kind of an index row. Declaration order is the sort order of serialized rows.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

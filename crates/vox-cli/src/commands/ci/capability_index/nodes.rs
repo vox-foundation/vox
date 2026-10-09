@@ -5,7 +5,10 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use anyhow::{Result, bail};
-use vox_capability_registry::{DocLink, GuiRef, IndexRow, RowKind, implicit_mcp_capability_id};
+use vox_capability_registry::{
+    DOCS_DOMAIN, DocLink, FALLBACK_DOMAIN, GUI_DOMAIN, GuiRef, IndexRow, RowKind, SKILLS_DOMAIN,
+    implicit_mcp_capability_id,
+};
 
 use super::super::gui_surface_registry::{RepresentationTier, SurfaceEntry, SurfaceRegistry};
 use super::docs_claims::PageMeta;
@@ -18,7 +21,6 @@ const SURFACE_DOC: &str = "docs/src/reference/gui-navigation.md";
 const CRATE_DOC: &str = "docs/src/architecture/where-things-live.md";
 const SKILL_DOC: &str = "docs/src/reference/plugin-catalog.generated.md";
 const GUI_CRATE: &str = "vox-gui";
-const FALLBACK_DOMAIN: &str = "platform";
 
 fn tier_str(t: RepresentationTier) -> &'static str {
     match t {
@@ -132,7 +134,7 @@ fn surface_row(e: &SurfaceEntry, view_key: &str, rows: &[IndexRow], inputs: &Inp
             .and_then(|g| d.cli_groups.get(g))
             .map(|g| g.domain.clone())
             .or_else(|| d.mcp_prefixes.get(view_key).cloned())
-            .unwrap_or_else(|| "gui".to_string()),
+            .unwrap_or_else(|| GUI_DOMAIN.to_string()),
     );
     row.owner = Some(owner_ref(&inputs.layers, GUI_CRATE, "surface_crate"));
     row.source_path = Some(format!("crates/{GUI_CRATE}/"));
@@ -192,7 +194,7 @@ pub(crate) fn non_operation_rows(rows: &mut [IndexRow], inputs: &Inputs) -> Resu
         let id = format!("skill.{}", s.id);
         let mut row = bare_row(id.clone(), RowKind::Skill, &s.id, SKILL_DOC);
         row.summary = single_line(&s.description);
-        row.domain = Some("skills".to_string());
+        row.domain = Some(SKILLS_DOMAIN.to_string());
         row.source_path = s.source_path.clone();
         let linked: BTreeSet<String> = s
             .exposes_tools
@@ -272,7 +274,7 @@ fn doc_row(path: &str, meta: Option<&PageMeta>) -> IndexRow {
     row.summary = meta
         .and_then(|m| m.description.as_deref())
         .and_then(single_line);
-    row.domain = Some("docs".to_string());
+    row.domain = Some(DOCS_DOMAIN.to_string());
     row.docs = vec![DocLink {
         path: path.to_string(),
         origin: origin.to_string(),
