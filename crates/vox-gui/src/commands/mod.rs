@@ -35,6 +35,7 @@ pub mod mercatus;
 pub mod mesh;
 pub mod mic;
 pub mod mission_control;
+pub mod model_active;
 pub mod models;
 pub mod oauth;
 pub mod oratio;

@@ -1941,6 +1941,11 @@ async fn handle_tool_call_inner(
             Ok(toestub_tools::toestub_findings_upsert(state, serde_json::from_value(args)?).await)
         }
         // ── gui_ops: models (plan 07) ──
+        "vox_models_preference_set" => Ok(crate::gui_ops::models::models_preference_set(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
         // ── gui_ops: prefs (plan 07) ──
         // ── gui_ops: chat (plan 07) ──
         // ── gui_ops: knowledge (plan 07) ──

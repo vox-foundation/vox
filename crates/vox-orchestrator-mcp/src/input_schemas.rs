@@ -849,6 +849,9 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
             r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"use_llm":{"type":"boolean","description":"When false, return heuristic JSON only"}},"required":["publication_id"],"additionalProperties":false}"#,
         ),
         // ── gui_ops: models (plan 07) ──
+        "vox_models_preference_set" => {
+            derived_tool_schema!(crate::gui_ops::models::ModelsPreferenceSetParams)
+        }
         // ── gui_ops: prefs (plan 07) ──
         // ── gui_ops: chat (plan 07) ──
         // ── gui_ops: knowledge (plan 07) ──

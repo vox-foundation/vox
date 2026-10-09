@@ -1370,6 +1370,15 @@ tools:
   side_effect_class: read_only
   requires:
   - mesh
+- name: vox_models_preference_set
+  description: Persist one Models/Settings preference (active_model, routing_priority, selection_policy) for the local GUI user; other keys are refused and values are validated.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
+  - model_registry
 - name: vox_my_files
   description: Returns all files currently owned by the specified agent.
   product_lane: ai

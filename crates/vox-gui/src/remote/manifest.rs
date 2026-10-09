@@ -11,8 +11,13 @@ const SURFACE_REGISTRY_YAML: &str =
     include_str!("../../../../contracts/gui/surface-registry.v1.yaml");
 
 /// Daemon-class modules whose every daemon method has a `RemoteRoute` (see `gateway_client::remote_route`).
-pub const REMOTE_ROUTED_DAEMON_MODULES: &[&str] =
-    &["daemon", "event_annotate", "mcp", "vcs_isolation"];
+pub const REMOTE_ROUTED_DAEMON_MODULES: &[&str] = &[
+    "daemon",
+    "event_annotate",
+    "mcp",
+    "model_active",
+    "vcs_isolation",
+];
 /// Daemon-class modules with at least one method the gateway does not expose yet.
 #[cfg(test)]
 pub const REMOTE_UNROUTED_DAEMON_MODULES: &[&str] = &["control_plane", "mission_control"];

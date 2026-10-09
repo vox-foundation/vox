@@ -45,6 +45,7 @@ commands:
 - { module: mesh, class: host, surfaces: [settings] }
 - { module: mic, class: host, surfaces: [chat] }
 - { module: mission_control, class: daemon, surfaces: [sub-agents], notes: "no remote route yet" }
+- { module: model_active, class: daemon, surfaces: [models], notes: "GET /api/v2/models/preferences + vox_models_preference_set" }
 - { module: models, class: db, surfaces: [chat, models, runs, settings] }
 - { module: oauth, class: host, surfaces: [] }
 - { module: oratio, class: host, surfaces: [chat] }

@@ -1640,6 +1640,11 @@
       "curated": true
     },
     {
+      "capability_id": "mcp.vox_models_preference_set",
+      "mcp_tool": "vox_models_preference_set",
+      "implicit": true
+    },
+    {
       "capability_id": "mcp.vox_my_files",
       "mcp_tool": "vox_my_files",
       "implicit": false,

@@ -4918,6 +4918,7 @@
     "model.scoreboard",
     "model.shadow",
     "model.show",
+    "models.preference.set",
     "my.files",
     "new",
     "new.fn",

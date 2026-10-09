@@ -11,6 +11,7 @@ tools:
     - vox_capability_model_manifest
     - vox_benchmark_list
     - vox_benchmark_record
+    - vox_models_preference_set
     - vox_chat_*
   include_lanes: []
 max_exposure: operator
