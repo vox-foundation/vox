@@ -741,6 +741,28 @@ mod tests {
     }
 
     #[test]
+    fn capabilities_key_is_accepted() {
+        let mut errs = Vec::new();
+        let content = "---\ntitle: \"Fixture\"\ndescription: \"A fixture page for testing.\"\ncategory: \"Concepts\"\ncapabilities: [cli.explain, mcp.vox_capability_explain]\n---\n\nBody.\n";
+        lint_frontmatter(Path::new("fixture.md"), content, &mut errs);
+        assert!(
+            errs.is_empty(),
+            "capabilities: must be accepted, got: {errs:?}"
+        );
+    }
+
+    #[test]
+    fn capabilities_block_list_is_accepted() {
+        let mut errs = Vec::new();
+        let content = "---\ntitle: \"Fixture\"\ndescription: \"A fixture page for testing.\"\ncategory: \"Concepts\"\ncapabilities:\n  - cli.explain\n  - mcp.vox_capability_explain\n---\n\nBody.\n";
+        lint_frontmatter(Path::new("fixture.md"), content, &mut errs);
+        assert!(
+            errs.is_empty(),
+            "capabilities: block list must be accepted, got: {errs:?}"
+        );
+    }
+
+    #[test]
     fn hand_authored_last_updated_is_exempt_under_archive() {
         let mut errs = Vec::new();
         let md_path = Path::new("docs/src/archive/old-doc.md");

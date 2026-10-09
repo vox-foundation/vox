@@ -86,8 +86,18 @@ description: "One specific sentence about what this page covers."
 category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: true
+# capabilities: [cli.secrets]   # optional: capability ids this page explains
 ---
 ```
+
+### Capability claims
+
+A page may declare which capabilities it explains with an optional `capabilities: [<capability id>, …]` frontmatter key (flow or block list). Ids come from [`contracts/capabilities/capability-index.v1.json`](../../../contracts/capabilities/capability-index.v1.json), for example `cli.secrets.get`, `mcp.vox_check`, `surface.mesh` or `crate.vox-secrets`.
+
+- `vox ci capability-index` validates every claimed id, so an unknown id fails `vox ci ssot-drift` with the page path and the id.
+- A claim adds the page as a doc link on each claimed capability (after its page-level default), and gives the page its own `doc.<path>` row. Pages that claim nothing get no row.
+- Malformed frontmatter is skipped by the index generator; the doc lint reports that error. `docs/src/archive/` is never read.
+- Regenerate with `vox ci capability-index --write`; never edit the index by hand.
 
 **Note on temporal metadata:** The `last_updated` field is automatically derived from the file's Git commit history by the documentation pipeline and AI search engine. You do *not* need to manually update dates in frontmatter. Manual dates are considered legacy and will be superseded by Git metadata.
 
