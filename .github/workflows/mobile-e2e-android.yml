@@ -1,11 +1,11 @@
 name: Mobile E2E - Android
 # Heavy GitHub-hosted macOS job. Not on pull_request/merge_group: android-e2e's
 # 45m timeout exceeds the fast-lane (PR/merge_group) 30-min cap
-# (workflow_policy_guard). Runs nightly instead, mirroring mobile-e2e-ios's
+# (workflow_policy_guard). Runs nightly instead, like the (since retired) iOS lane's
 # earlier move off push/PR for the same class of heavy macOS job.
 on:
   schedule:
-    - cron: '0 3 * * *' # Nightly, alongside mobile-e2e-ios
+    - cron: '0 3 * * *' # Nightly
   workflow_dispatch:
 
 concurrency:

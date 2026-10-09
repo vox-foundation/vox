@@ -791,3 +791,122 @@ fn ml_cuda_health_is_hosted_compile_only_and_fail_closed() {
         );
     }
 }
+
+/// `(job key, job body)` for each job under a workflow's top-level `jobs:` map.
+fn workflow_jobs(yml: &str) -> Vec<(&str, &str)> {
+    let Some((_, jobs)) = yml.split_once("\njobs:\n") else {
+        return Vec::new();
+    };
+    let mut starts = Vec::new();
+    let mut offset = 0;
+    for line in jobs.split_inclusive('\n') {
+        if let Some(key) = line
+            .strip_prefix("  ")
+            .filter(|rest| rest.starts_with(|c: char| c.is_ascii_alphanumeric()))
+            .and_then(|rest| rest.trim_end().strip_suffix(':'))
+        {
+            starts.push((key, offset));
+        }
+        offset += line.len();
+    }
+    starts
+        .iter()
+        .enumerate()
+        .map(|(i, &(key, start))| {
+            let end = starts.get(i + 1).map_or(jobs.len(), |&(_, s)| s);
+            (key, &jobs[start..end])
+        })
+        .collect()
+}
+
+/// Byte offset of the first non-comment line in `job` that compiles vox-gui —
+/// directly, via the `.cargo/config.toml` `gui-*` aliases, or through the
+/// Tauri CLI / tauri-action. Compiling vox-gui runs its build.rs, which needs
+/// every `bundle.externalBin` sidecar staged.
+fn first_vox_gui_compile(job: &str) -> Option<usize> {
+    let mut offset = 0;
+    for line in job.split_inclusive('\n') {
+        let code = line.trim_start();
+        if !code.starts_with('#')
+            && (code.contains("tauri-apps/tauri-action")
+                || code.contains("cargo tauri build")
+                || code.contains("cargo gui-")
+                || (code.contains("cargo ") && code.contains("-p vox-gui")))
+        {
+            return Some(offset);
+        }
+        offset += line.len();
+    }
+    None
+}
+
+/// tauri.conf.json `bundle.externalBin` is the ONLY list of GUI sidecars. Every
+/// job that compiles vox-gui must stage them through
+/// `./.github/actions/stage-tauri-sidecars` (which reads that list) before the
+/// compile. Hand-written per-workflow lists missed vox-ml-cli when it joined
+/// externalBin (44c208048), and build.rs's nested-cargo autobuild of it
+/// deadlocked `cargo tauri build --target` until the 3-hour cap.
+#[test]
+fn every_vox_gui_compile_stages_sidecars_from_tauri_conf() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let action =
+        std::fs::read_to_string(root.join(".github/actions/stage-tauri-sidecars/action.yml"))
+            .expect("read stage-tauri-sidecars action");
+    assert!(
+        action.contains("jq -r '.bundle.externalBin[]' \"$gui/tauri.conf.json\""),
+        "the staging action must read the sidecar list from tauri.conf.json"
+    );
+    assert!(
+        action.contains("cargo metadata"),
+        "the staging action must derive each sidecar's owning package, not hard-code it"
+    );
+    assert!(
+        action.contains("profile=dist") && action.contains("--profile \"$profile\""),
+        "sidecars ship inside the bundle and must build with --profile dist"
+    );
+    for name in ["vox-cli", "vox-ml-cli", "for bin in"] {
+        assert!(
+            !action.contains(name),
+            "the staging action must not hand-list sidecars; found `{name}`"
+        );
+    }
+
+    let mut seen = Vec::new();
+    for entry in std::fs::read_dir(root.join(".github/workflows")).expect("read workflows") {
+        let path = entry.expect("dir entry").path();
+        if !matches!(
+            path.extension().and_then(|e| e.to_str()),
+            Some("yml" | "yaml")
+        ) {
+            continue;
+        }
+        let file = path.file_name().unwrap().to_string_lossy().into_owned();
+        let yml = std::fs::read_to_string(&path).expect("read workflow");
+        for (job, body) in workflow_jobs(&yml) {
+            let Some(compile) = first_vox_gui_compile(body) else {
+                continue;
+            };
+            let stage = body.find("uses: ./.github/actions/stage-tauri-sidecars");
+            assert!(
+                stage.is_some_and(|s| s < compile),
+                "{file} job `{job}` compiles vox-gui without first staging its sidecars via \
+                 `uses: ./.github/actions/stage-tauri-sidecars` (do not hand-copy a sidecar list)"
+            );
+            seen.push(format!("{file}:{job}"));
+        }
+    }
+    // Detector self-check: the known GUI jobs must be found, or a scanner bug
+    // would let this test pass vacuously.
+    for known in [
+        "release-gui.yml:build-tauri",
+        "nightly-artifacts.yml:build-gui",
+        "gui-cross-build.yml:gui-cross-build",
+        "gui-cross-build.yml:gui-windows-build-smoke",
+        "nightly.yml:gui-orchestrator-relaunch-smoke",
+    ] {
+        assert!(
+            seen.iter().any(|s| s == known),
+            "expected {known} to be detected as a vox-gui compile; saw {seen:?}"
+        );
+    }
+}

@@ -11,12 +11,29 @@
 #   - trigger incremental reviews on demand by commenting `@coderabbitai review`
 # This collapses N per-push reviews into 1 deliberate review per ready PR.
 #
+# Free tier (2026-10-09): the open-source plan does not run automatic reviews on
+# this repository (CodeRabbit: "fewer than 10 stars"), but it still honours an
+# explicit `@coderabbitai review` comment. So reviews are on demand — one comment
+# per PR when it is marked ready (see AGENTS.md §PR & Review Discipline) — and the
+# "review skipped" / status comment it otherwise posts on every PR is turned off.
+#
 # NOTE: there is intentionally NO top-level `version:` key — CodeRabbit's config
 # schema (https://docs.coderabbit.ai/reference/configuration) does not define one,
 # and including it makes the validator flag an unexpected-property warning on every
 # review.
 
 reviews:
+  # No "review skipped" / status boilerplate in the PR thread.
+  review_status: false
+  # Review comments only: CodeRabbit must not push commits to the branch (the
+  # owner's Auto-fix and the PR author own it).
+  finishing_touches:
+    autofix:
+      enabled: false
+    fix_ci:
+      enabled: false
+    resolve_merge_conflict:
+      enabled: false
   auto_review:
     # Still review automatically when a PR is first opened.
     enabled: true

@@ -10,8 +10,9 @@
 # artifacts so reviewers can audit the numbers without re-running locally.
 #
 # Two jobs:
-#   - `umbrella`: runs `--gate all` with `--strict-block-ga`. Fails the PR
-#     if any block-GA gate is unmet. This is the canonical v1.0 gate.
+#   - `umbrella`: runs `--gate all --strict-block-ga --ga-baseline`. Fails on a
+#     regression (a GA gate unmet that the baseline does not list). The snapshot's
+#     `ga_met` is the canonical v1.0 verdict; the baseline only shrinks.
 #   - `arch-check-evidence`: runs `vox-arch-check` (which includes the
 #     evidence-ledger lint as Rule 14). Defaults to warn-only until the
 #     block-GA gates are met by real measurements — see the §10 acceptance
@@ -130,8 +131,11 @@ jobs:
         # records `incomplete: true` on those rows. `--strict-block-ga`
         # fails only on block-GA gates that are unmet — that's the v1.0
         # acceptance bar.
+        # --ga-baseline: fail only on REGRESSIONS (a GA gate unmet that is not listed as
+        # known-unmet). Red-by-design while v1.0 was in progress kept #577 permanently
+        # open and buried real breakage; ga_met in the snapshot stays the v1.0 verdict.
         run: |
-          target/debug/vox audit --gate all --strict-block-ga
+          target/debug/vox audit --gate all --strict-block-ga --ga-baseline contracts/reports/cr-l-ga-baseline.v1.json
         continue-on-error: true
 
       - name: Upload canonical snapshot
@@ -166,7 +170,7 @@ jobs:
       - name: Fail if umbrella reported block-GA violations
         if: steps.umbrella.outcome == 'failure'
         run: |
-          echo "::error::vox audit --strict-block-ga reported violations."
+          echo "::error::vox audit --strict-block-ga reported a GA regression (a gate not in contracts/reports/cr-l-ga-baseline.v1.json is unmet)."
           echo "::error::See the cr-l-gates-snapshot artifact for the snapshot JSON."
           echo "::error::Per docs/superpowers/specs/2026-05-21-v1-honest-completion-plan.md §10,"
           echo "::error::no 'v1.0 ready' claim is permitted until this job exits 0."

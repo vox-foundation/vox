@@ -532,12 +532,16 @@ Coverage of these classes by detector + severity + enforcement point (and the st
 
 ## PR & Review Discipline (Required, Cross-Tool)
 
-> **CodeRabbit is RETIRED.** Do not comment `@coderabbitai review`, do not wait on
-> an automated reviewer, and do not treat a PR as reviewed because it was opened.
-> No bot will review it. Review is now performed by the agent or human opening the
+> **CodeRabbit runs on demand (free tier, resumed 2026-10-09).** It does not review
+> automatically on this repository. When a PR is marked ready, comment
+> `@coderabbitai review` **once** (not per push); triage its findings like any other
+> review. It is advisory: never wait on it as a gate, never treat a PR as reviewed
+> because CodeRabbit commented, and never tick its Autofix/Autopilot boxes — it
+> must not push to the branch. Its status/skip boilerplate is turned off in
+> `.coderabbit.yaml`. Review is still performed by the agent or human opening the
 > PR, before asking for a merge.
 
-Because nothing reviews a PR automatically:
+Because no reviewer is guaranteed to look at a PR:
 
 - **Review your own diff before proposing a merge.** Read every hunk you are about
   to ship, not just the ones you remember writing. Run `/code-review high` (or an
@@ -561,11 +565,11 @@ working tree can hide a poisoned commit.
 
 One-line takeaway: **nothing reviews it but you.**
 
-**Residual CodeRabbit surfaces (not yet removed).** `.coderabbit.yaml`,
-`contracts/review/coderabbit-semantic-groups.v1.yaml`, and CodeRabbit entries in
+**Other CodeRabbit surfaces.** Beyond the live `.coderabbit.yaml`,
+`contracts/review/coderabbit-semantic-groups.v1.yaml` and CodeRabbit entries in
 `.github/workflows/ci.yml`, `contracts/operations/catalog.v1.yaml`, and the secrets
-registry are still present. Removing them is a tracked migration of its own — do not
-half-remove them in an unrelated PR, and do not rely on them meanwhile.
+registry belong to the older paid-tier integration; do not rely on them for the
+free-tier flow above, and change them only in a PR that is about them.
 
 ## Markdown Hygiene and Code Snippets (Doctest Policy)
 

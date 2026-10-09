@@ -704,7 +704,11 @@ pub fn emit_db_setup(module: &HirModule) -> String {
     out.push_str("        std::process::exit(2);\n");
     out.push_str("    }\n");
     out.push_str(&emit_schema_drift_verify(module));
-    out.push_str("    let db = Arc::new(codex);\n\n");
+    out.push_str("    let db = Arc::new(codex);\n");
+    out.push_str(&format!(
+        "    {}\n\n",
+        super::super::script_db::set_app_db_stmt("db.clone()")
+    ));
     out
 }
 

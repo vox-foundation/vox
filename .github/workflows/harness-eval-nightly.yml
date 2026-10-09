@@ -22,12 +22,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
-      # PUSH_TOKEN prefers the SSOT_AUTOREGEN_TOKEN PAT, which is independent of this job's
-      # own token scope. contents: write is kept as a fallback so a GITHUB_TOKEN push still
-      # works gracefully if the PAT is ever rotated out — see ci.yml's ssot-autoregen job
-      # for the identical pattern and rationale. Without it the fallback would 403, and the
-      # push step's retry loop would exhaust its attempts and hard-fail the job (loud, not silent).
-      contents: write   # job-scoped override (workflow default is contents: read) to push results
+      # The token pushes only a bot branch; results reach main through a PR in the merge
+      # queue (see the last step). The PAT (SSOT_AUTOREGEN_TOKEN) is preferred so that PR
+      # triggers the required check; GITHUB_TOKEN works as a degraded fallback.
+      contents: write        # push the bot results branch
+      pull-requests: write   # open and enqueue the results PR
     steps:
       # Pinned to the same immutable SHA ci.yml's ssot-autoregen job uses for actions/checkout,
       # for the same reason: this job has contents: write. persist-credentials:false avoids
@@ -67,43 +66,46 @@ jobs:
       - name: Publish results to git-tracked history
         run: ./target/release/vox harness publish
 
-      - name: Commit and push published results
+      # Keep the already-paid-for results even if the PR path below fails.
+      - name: Upload published results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: harness-eval-results-${{ github.run_id }}
+          path: docs/harness-eval-history/runs/
+          if-no-files-found: ignore
+          retention-days: 90
+
+      # main is reachable only through the merge queue (main-merge-queue ruleset +
+      # enforce_admins), so results land as a PR instead of a direct push. One file per
+      # run (docs/harness-eval-history/runs/<run_id>.jsonl): concurrent results PRs never
+      # conflict, which a shared append-only file did (GitHub's merge ignores merge=union).
+      - name: Open a results PR and enqueue it
         env:
-          # PAT (preferred) if its scope is confirmed appropriate for this automation (Step 1);
-          # github.token is the fallback. Passed via env, not inline ${{ }}, to avoid expression
-          # injection in the run block — matches ci.yml's ssot-autoregen job exactly.
-          PUSH_TOKEN: ${{ secrets.SSOT_AUTOREGEN_TOKEN || github.token }}
+          # A PR opened with GITHUB_TOKEN does not trigger other workflows, so the required
+          # check would never run on it; the PAT does. Passed via env, never inline.
+          GH_TOKEN: ${{ secrets.SSOT_AUTOREGEN_TOKEN || github.token }}
+          HAS_PAT: ${{ secrets.SSOT_AUTOREGEN_TOKEN != '' }}
+          RUN_ID: ${{ github.run_id }}
         run: |
           set -euo pipefail
-          if git diff --quiet -- docs/harness-eval-history/runs.jsonl; then
-            echo "nothing new published — nothing to commit."
+          trap 'echo "::error::results PR not opened; the results are in artifact harness-eval-results-${RUN_ID}"' ERR
+          if [ -z "$(git status --porcelain -- docs/harness-eval-history/runs)" ]; then
+            echo "nothing new published; nothing to commit."
             exit 0
           fi
+          if [ "$HAS_PAT" != "true" ]; then
+            echo "::warning::SSOT_AUTOREGEN_TOKEN is not set: the results PR is opened with GITHUB_TOKEN, which does not trigger the required CI check; push to it (or close and reopen it) to run CI."
+          fi
+          branch="bot/harness-eval-${RUN_ID}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # Local-only (not committed): two concurrent nightly-eval pushes both
-          # append a line to the same append-only JSONL tail, which a plain
-          # 3-way rebase treats as one overlapping hunk and conflicts on — even
-          # though the intent (keep both lines) is unambiguous. The builtin
-          # `union` merge driver takes both sides instead of conflicting.
-          mkdir -p .git/info
-          echo "docs/harness-eval-history/runs.jsonl merge=union" >> .git/info/attributes
-          git add docs/harness-eval-history/runs.jsonl
-          git commit -m "chore(harness-eval): publish nightly run results [skip ci]"
-          REMOTE="https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          # A concurrent merge to main between checkout and push is the common
-          # race here (append-only JSONL, so a rebase — with the union driver
-          # above — always replays cleanly). Retry with a rebase on top of the
-          # new tip; any OTHER rejection (protected branch, revoked token, ...)
-          # keeps failing after the retries and must fail the job loudly rather
-          # than silently drop tonight's already-paid-for live-eval results.
-          attempt=0
-          until git push "$REMOTE" HEAD:main; do
-            attempt=$((attempt + 1))
-            if [ "$attempt" -ge 3 ]; then
-              echo "::error::harness-eval-nightly push failed after ${attempt} attempts — results are committed locally but not pushed"
-              exit 1
-            fi
-            echo "push rejected (attempt ${attempt}/3) — rebasing onto origin/main and retrying"
-            git pull --rebase origin main
-          done
+          git switch -c "$branch"
+          git add docs/harness-eval-history/runs
+          git commit -m "chore(harness-eval): publish nightly run results"
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/${branch}"
+          url=$(gh pr create --base main --head "$branch" \
+            --title "chore(harness-eval): nightly results (run ${RUN_ID})" \
+            --body "Automated: results of harness-eval-nightly run ${RUN_ID}, one file per run under docs/harness-eval-history/runs/.")
+          # With the merge queue, --auto enqueues once the required checks pass.
+          gh pr merge "$url" --auto --squash

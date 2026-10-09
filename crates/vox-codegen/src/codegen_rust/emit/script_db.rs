@@ -31,6 +31,59 @@ pub(crate) fn with_script_db_emit_mode<R>(f: impl FnOnce() -> R) -> R {
     })
 }
 
+thread_local! {
+    static APP_DB_EMIT: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// True while emitting an app `lib.rs` (Tauri/Axum shells): lib fns have no `db`
+/// binding, so `db.*` lowers to the `VOX_APP_DB` handle the shell sets at startup.
+pub(crate) fn app_db_emit_mode() -> bool {
+    APP_DB_EMIT.with(|c| c.get())
+}
+
+pub(crate) fn with_app_db_emit_mode<R>(f: impl FnOnce() -> R) -> R {
+    APP_DB_EMIT.with(|c| {
+        let prev = c.replace(true);
+        let out = f();
+        c.set(prev);
+        out
+    })
+}
+
+thread_local! {
+    static APP_LANE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// True while emitting the Tauri app `lib.rs`, whose endpoints are lowered to
+/// plain lib fns ([`prepare_app_module`]) so calls to async fns get `.await`.
+pub(crate) fn app_lane_mode() -> bool {
+    APP_LANE.with(|c| c.get())
+}
+
+/// The Tauri lane's module: endpoints become `pub` lib fns (the shell's
+/// `#[tauri::command]`s are thin typed wrappers over them), and callers of
+/// async fns are promoted to async, exactly as in the script lane.
+pub(crate) fn prepare_app_module(module: &HirModule) -> HirModule {
+    let mut m = module.clone();
+    prepare_script_module(&mut m);
+    m
+}
+
+/// Emit under the app lane: auto-`.await` calls to `module`'s async fns.
+pub(crate) fn with_app_lane<R>(module: &HirModule, f: impl FnOnce() -> R) -> R {
+    set_script_async_fns(collect_script_async_names(module));
+    let prev = APP_LANE.with(|c| c.replace(true));
+    let out = f();
+    APP_LANE.with(|c| c.set(prev));
+    set_script_async_fns(HashSet::new());
+    out
+}
+
+/// Shell-side line that publishes the app's Codex to lib fns via `VOX_APP_DB`.
+pub(crate) fn set_app_db_stmt(arc_expr: &str) -> String {
+    format!("let _ = VOX_APP_DB.set({arc_expr});")
+}
+
 pub(crate) fn activity_journal_inner() -> bool {
     ACTIVITY_JOURNAL_INNER.with(|c| c.get())
 }
