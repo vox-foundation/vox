@@ -25,14 +25,31 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
+
+      # Response cache (.lycheecache) so a nightly run re-checks only URLs older
+      # than --max-cache-age. Restore on any ref; save only from main.
+      - name: Restore lychee cache
+        uses: actions/cache/restore@v5
+        with:
+          path: .lycheecache
+          key: lychee-${{ github.run_id }}
+          restore-keys: lychee-
+
       - name: Link Checker
         id: lychee
         uses: lycheeverse/lychee-action@v2
         with:
           # Exclude gitignored trees that exist locally (worktrees, npm) so `**/*.md` matches a clean clone.
           # NOTE: lychee's --exclude-path takes regex, not shell globs; `**` is invalid regex.
-          args: --root-dir . --verbose --no-progress --max-retries 5 --retry-wait-time 5 --accept "200..=299,429" --timeout 40 --exclude-path docs/src/archive --exclude-path '\.claude/' --exclude-path 'assets/skills/' --exclude-path 'node_modules/' '**/*.md'
+          args: --root-dir . --verbose --no-progress --max-retries 5 --retry-wait-time 5 --accept "200..=299,429" --cache --max-cache-age 3d --cache-exclude-status '429,500..=599' --timeout 40 --exclude-path docs/src/archive --exclude-path '\.claude/' --exclude-path 'assets/skills/' --exclude-path 'node_modules/' '**/*.md'
           fail: true
+
+      - name: Save lychee cache
+        if: always() && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v5
+        with:
+          path: .lycheecache
+          key: lychee-${{ github.run_id }}
 
       - name: Link Checker Guidance
         if: failure()

@@ -126,17 +126,22 @@ jobs:
       # Prove the offline link check can fail before trusting a green run: the
       # fixture holds one dead route and one dead anchor. Exit 2 = link failures;
       # 1 = runtime/input error, which does not count as detecting them.
+      # Both lychee steps run in docs-astro/ so the repo-root .lycheeignore (scoped
+      # to the nightly external check; e.g. `crates/.*` matches
+      # /contributors/publishing-crates/) cannot mask internal site links.
       - name: Link checker self-test (fixture must fail)
         id: lychee_selftest
         uses: lycheeverse/lychee-action@v2
         with:
           lycheeVersion: v0.24.2
+          workingDirectory: docs-astro
           fail: false
           jobSummary: false
           output: lychee/selftest.md
-          args: --offline --no-progress --root-dir ${{ github.workspace }}/docs-astro/dist --include-fragments --index-files index.html docs-astro/tests/fixtures/broken-link/index.html
+          args: --offline --no-progress --root-dir ${{ github.workspace }}/docs-astro/dist --include-fragments --index-files index.html tests/fixtures/broken-link/index.html
 
       - name: Assert link checker detects broken links
+        working-directory: docs-astro
         shell: bash
         env:
           SELFTEST_EXIT: ${{ steps.lychee_selftest.outputs.exit_code }}
@@ -149,6 +154,17 @@ jobs:
             cat lychee/selftest.md || true
             exit 1
           fi
+
+      # Hard gate: any broken internal link or anchor on the built site fails the
+      # job. Offline only; external links stay on the nightly link_checker.yml.
+      - name: Internal link check (built site)
+        uses: lycheeverse/lychee-action@v2
+        with:
+          lycheeVersion: v0.24.2
+          workingDirectory: docs-astro
+          fail: true
+          output: lychee/site.md
+          args: --offline --no-progress --root-dir ${{ github.workspace }}/docs-astro/dist --include-fragments --index-files index.html 'dist/**/*.html'
 
       - name: Docs unit tests
         working-directory: docs-astro

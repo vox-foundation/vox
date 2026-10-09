@@ -1,5 +1,5 @@
 // vox:caps fs env process
-// Re-render docs/src/assets/durable_essentialist_loop.webp.
+// Re-render docs-astro/public/media/durable_essentialist_loop.webp.
 // Migrated 2026-05-24 to canonical Vox idioms:
 //   - `-> str` -> `to str`
 //   - `!` -> `not`
@@ -46,7 +46,7 @@ fn run_step(label: str, cmd: str, args: list[str]) {
 fn main() {
     let repo = process.cwd()
     let tool_dir = path.join(repo, "apps/build-tools/render-durable-animation")
-    let webp_out = path.join(repo, "docs/src/assets/durable_essentialist_loop.webp")
+    let webp_out = path.join(repo, "docs-astro/public/media/durable_essentialist_loop.webp")
     let frames_dir = path.join(tool_dir, "frames")
 
     let chrome = detect_chrome()

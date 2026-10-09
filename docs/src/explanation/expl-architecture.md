@@ -220,7 +220,9 @@ The full checklist for adding a new language construct:
 ## The five pillars
 
 <div align="center">
-  <img src="../assets/vox_architecture_prism.png" alt="A diagram showing one source file generating multiple stack components." width="80%" />
+
+![A diagram showing one source file generating multiple stack components.](../assets/vox_architecture_prism.png)
+
   <p>
     <strong>Unified Compilation from a Single Source</strong><br />
     Vox uses a single .vox file to derive the entire technology stack. The compiler uses this unified source of truth to generate synchronized database schemas, API servers, and reactive UI components simultaneously.
@@ -309,7 +311,7 @@ resource "vox://tasks/open" "Open tasks right now" open_tasks_resource() to list
 [`vox-orchestrator`](https://github.com/vox-foundation/vox/tree/main/crates/vox-orchestrator/) routes work to agents by file affinity and ten policy modules (tier cascade, plan-mode trigger, risk matrix, budget gate, circuit breaker, calibration, …). Capabilities are extensible: dozens of first-party plugins (compiler, git, memory, RAG, testing, Mens-Candle-CUDA/Metal, WASM and OCI runtimes) load through [`vox-plugin-host`](https://github.com/vox-foundation/vox/tree/main/crates/vox-plugin-host/) behind a stable ABI.
 
 <div align="center">
-  <img src="../assets/durable_essentialist_loop.webp" alt="A continuous ribbon with four checkpoint markers — the durability loop the workflow runtime executes." width="600px" style="border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);" />
+  <img src="/media/durable_essentialist_loop.webp" alt="A continuous ribbon with four checkpoint markers — the durability loop the workflow runtime executes." width="600px" style="border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);" />
   <div style="max-width: 600px; text-align: left; margin-top: 15px;">
     <h3>Durable execution</h3>
     <p>

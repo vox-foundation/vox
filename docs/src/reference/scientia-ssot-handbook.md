@@ -51,7 +51,7 @@ Venue-specific remote status strings stored as received (normalized to adapter s
 
 ### `publication_status_events.status`
 
-Operator and automation labels (e.g. `arxiv_handoff:staging_exported`). Free-form but **document new slugs** in [operator flow §6](#6-one-page-arxiv-operator-assist-t016).
+Operator and automation labels (e.g. `arxiv_handoff:staging_exported`). Free-form but **document new slugs** in [operator flow §6](#arxiv-operator-assist-t016).
 
 ### Preflight / errors
 
