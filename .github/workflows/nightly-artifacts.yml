@@ -212,23 +212,14 @@ jobs:
           pnpm install
           pnpm build
 
-      # tauri.conf.json's externalBin lists TWO sidecars, vox and vox-ml-cli, each
-      # expected at target/release/<name>-<triple>. Only vox was staged, so build.rs
-      # auto-built vox-ml-cli with a nested cargo that waited forever on the target
-      # lock the outer `cargo tauri build --target` held (Linux/macOS hit the 180-min
-      # cap with no output).
-      - name: Build sidecars (vox, vox-ml-cli)
-        run: cargo build -p vox-cli -p vox-ml-cli --profile dist --target ${{ matrix.target }}
-
+      # Builds and stages every sidecar in tauri.conf.json's externalBin. A
+      # hand-written list here once missed vox-ml-cli, and build.rs auto-built it
+      # with a nested cargo that waited forever on the target lock the outer
+      # `cargo tauri build --target` held (180-min cap, no output).
       - name: Stage Tauri external sidecars
-        shell: bash
-        run: |
-          set -euo pipefail
-          ext=""; [[ "$RUNNER_OS" == "Windows" ]] && ext=".exe"
-          mkdir -p target/release
-          for bin in vox vox-ml-cli; do
-            cp "target/${{ matrix.target }}/dist/${bin}${ext}" "target/release/${bin}-${{ matrix.target }}${ext}"
-          done
+        uses: ./.github/actions/stage-tauri-sidecars
+        with:
+          target: ${{ matrix.target }}
 
       - name: Install tauri-cli
         run: cargo install tauri-cli --locked --version "^2"

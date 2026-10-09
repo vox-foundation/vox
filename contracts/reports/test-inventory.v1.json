@@ -2,18 +2,18 @@
   "schema_version": 1,
   "summary": {
     "workspace_crate_count": 130,
-    "rust_files_scanned": 4114,
-    "cargo_unit_test_functions": 11070,
-    "cargo_integration_test_functions": 3055,
+    "rust_files_scanned": 4115,
+    "cargo_unit_test_functions": 11080,
+    "cargo_integration_test_functions": 3063,
     "cargo_bench_functions": 0,
     "cargo_ignored_test_functions": 92,
-    "cargo_test_functions_total": 14125,
+    "cargo_test_functions_total": 14143,
     "webir_related_ignored_tests": 1,
     "webir_ignored_tests_likely_retired_note": 0
   },
   "crates": {
     "vox-actor-runtime": {
-      "unit_tests": 231,
+      "unit_tests": 232,
       "integration_tests": 5,
       "bench_tests": 0,
       "ignored_tests": 2,
@@ -37,7 +37,7 @@
       "integration_rs_files": 0
     },
     "vox-audit": {
-      "unit_tests": 152,
+      "unit_tests": 155,
       "integration_tests": 8,
       "bench_tests": 0,
       "ignored_tests": 2,
@@ -85,15 +85,15 @@
       "integration_rs_files": 3
     },
     "vox-cli": {
-      "unit_tests": 865,
-      "integration_tests": 277,
+      "unit_tests": 868,
+      "integration_tests": 278,
       "bench_tests": 0,
       "ignored_tests": 8,
       "has_integration_dir": true,
       "integration_rs_files": 97
     },
     "vox-cli-ci": {
-      "unit_tests": 444,
+      "unit_tests": 445,
       "integration_tests": 0,
       "bench_tests": 0,
       "ignored_tests": 0,
@@ -157,12 +157,12 @@
       "integration_rs_files": 5
     },
     "vox-codegen": {
-      "unit_tests": 277,
-      "integration_tests": 228,
+      "unit_tests": 278,
+      "integration_tests": 235,
       "bench_tests": 0,
       "ignored_tests": 8,
       "has_integration_dir": true,
-      "integration_rs_files": 58
+      "integration_rs_files": 59
     },
     "vox-codegen-ts": {
       "unit_tests": 169,
@@ -173,7 +173,7 @@
       "integration_rs_files": 5
     },
     "vox-compiler": {
-      "unit_tests": 577,
+      "unit_tests": 578,
       "integration_tests": 637,
       "bench_tests": 0,
       "ignored_tests": 2,
@@ -1055,7 +1055,7 @@
   },
   "rust_files_by_kind": {
     "benches": 4,
-    "integration_tests": 771,
+    "integration_tests": 772,
     "other": 27,
     "unit_src": 3312
   },

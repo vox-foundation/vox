@@ -7,7 +7,7 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -51,7 +51,7 @@ jobs:
     runs-on: ubuntu-latest
     # Cold `cargo build -p vox-cli` on ephemeral runners (no actions/cache hit)
     # routinely exceeds 20m; fail-closed at 40m so downstream gates are not skipped.
-    timeout-minutes: 40
+    timeout-minutes: 180
     outputs:
       cache-key: ${{ steps.k.outputs.key }}
       rust_changed: ${{ steps.filter.outputs.rust }}
@@ -77,6 +77,8 @@ jobs:
         run: |
           echo "rust=true"  >> "$GITHUB_OUTPUT"
           echo "docs=true"  >> "$GITHUB_OUTPUT"
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - id: rust
         uses: ./.github/actions/setup-rust
@@ -92,6 +94,8 @@ jobs:
 
       - id: k
         run: echo "key=${{ runner.os }}-cargo-${{ steps.rust.outputs.toolchain }}-${{ hashFiles('Cargo.lock') }}" >> "$GITHUB_OUTPUT"
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - uses: actions/cache@v5
         with:
@@ -104,11 +108,15 @@ jobs:
             ${{ runner.os }}-cargo-${{ steps.rust.outputs.toolchain }}-
       - name: Install system deps (dbus, required by wry/keyring on Linux)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
       - name: Build vox-cli (downstream artifact)
         # Includes the off-by-default features whose code is otherwise never compiled
         # in CI (extras-ludus/ars/coderabbit) so they can't silently drift against
         # moved APIs — see the ludus/vox-db identity drift (2026-06-30).
         run: cargo build -p vox-cli --locked --features completion-toestub,extras-ludus,ars,coderabbit
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       # Authoritative full gate: every affects_* flag is true.  affected_crates /
       # affected_p_args are still derived from the last commit so the all-features
@@ -130,6 +138,8 @@ jobs:
           ./target/debug/vox ci affected-crates --changed /tmp/changed.txt \
             --graph contracts/ci/crate-graph.v1.json \
             | grep -E '^(affected_crates|affected_p_args)=' >> "$GITHUB_OUTPUT"
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Log selective CI plan
         shell: bash
@@ -146,6 +156,8 @@ jobs:
             echo "- affects_contracts: ${{ steps.affected.outputs.affects_contracts }}"
             echo "- affects_scripts: ${{ steps.affected.outputs.affects_scripts }}"
           } >> "$GITHUB_STEP_SUMMARY"
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Upload vox-cli binary
         uses: actions/upload-artifact@v7
@@ -163,7 +175,7 @@ jobs:
     # the guards themselves even start.
     # 2026-10-08: with earlier steps fixed the Determinism Audit runs to completion
     # (13+ min alone) and the job was cut at 20; still well under the 180 nightly cap.
-    timeout-minutes: 45
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
@@ -172,8 +184,12 @@ jobs:
           path: target/debug
       - name: Ensure vox-cli executable
         run: chmod +x target/debug/vox
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
       - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
       - uses: ./.github/actions/setup-rust
         with:
           components: rustfmt, clippy
@@ -203,18 +219,26 @@ jobs:
             echo "::error::Found hardcoded versions in crate Cargo.toml files. Use 'version.workspace = true'."
             exit 1
           fi
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Line endings (forward-only)
         run: ./target/debug/vox --quiet ci line-endings
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: BOM check (no UTF-8 byte-order marks in tracked files)
         run: ./target/debug/vox --quiet ci bom-check
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Workspace manifest resolves (fix-forward guard)
         run: ./target/debug/vox --quiet ci manifest
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Format Check
-        if: needs.setup.outputs.full == 'true' || needs.setup.outputs.rust_changed == 'true'
+        if: ${{ !cancelled() && (needs.setup.outputs.full == 'true' || needs.setup.outputs.rust_changed == 'true') }}
         # Per-manifest, NOT `cargo fmt --all`: the latter passes every crate's
         # target root to one rustfmt process, overflowing the Windows
         # CreateProcess command-line limit (os error 206) on this large
@@ -268,6 +292,7 @@ jobs:
             echo "::error::rustfmt found unformatted files — run 'vox run scripts/fmt.vox' to fix"
             exit 1
           fi
+        timeout-minutes: 90
 
       # cargo-deny / cargo-audit run in the `full` job (same workflow, same
       # commit) — not duplicated here.
@@ -279,17 +304,21 @@ jobs:
           tool: cargo-shear,cargo-outdated
 
       - name: Unused dependency scan (cargo-shear, non-blocking)
-        if: needs.setup.outputs.full == 'true'
+        if: ${{ !cancelled() && (needs.setup.outputs.full == 'true') }}
         continue-on-error: true
         run: cargo shear
+        timeout-minutes: 90
 
       - name: Outdated crates report (cargo-outdated, non-blocking)
-        if: needs.setup.outputs.full == 'true'
+        if: ${{ !cancelled() && (needs.setup.outputs.full == 'true') }}
         continue-on-error: true
         run: cargo outdated --workspace
+        timeout-minutes: 90
 
       - name: Retired symbol documentation guard
         run: ./target/debug/vox --quiet ci retired-symbol-check
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - uses: pnpm/action-setup@v6
         with:
@@ -302,13 +331,19 @@ jobs:
         run: |
           cd crates/vox-gui/ui
           pnpm install --prefer-offline
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: GUI honesty gate
         run: cargo run -p vox-cli -- ci gui-honesty
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       # contracts-index, exec-policy, scientia contracts, plugin-catalog run inside ssot-drift.
       - name: SSOT drift bundle (operations-verify, sql-surface + query-all --all, capability-sync, nested guards)
         run: ./target/debug/vox --quiet ci ssot-drift
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       # Config registry gates — must run after vox binary is built (above).
       # config-hygiene: A/B/C checks + 116-row baseline (no new hardcoded values).
@@ -321,36 +356,52 @@ jobs:
           ./target/debug/vox --quiet ci config-registry-parity
           ./target/debug/vox --quiet ci config-gui-codegen --check
           ./target/debug/vox --quiet ci config-gui-codegen --fields --check
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Determinism Audit
         run: ./target/debug/vox --quiet ci determinism-audit
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Dependency Sprawl Check
         run: ./target/debug/vox --quiet ci dep-sprawl --cap 25
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Plugin Dependency Boundary (cdylib plugins must not link the spine)
         run: ./target/debug/vox --quiet ci plugin-dep-boundary
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: No cdylib plugin as a compile-time dependency (D-2)
         run: ./target/debug/vox --quiet ci no-plugin-cdylib-as-compile-dep
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       # Builds every current-platform plugin cdylib (default/CPU features), then loads each
       # through the host loader to assert its embedded ABI version matches the host. Catches a
       # plugin drifting from VOX_PLUGIN_ABI_VERSION (e.g. an SDK/ABI bump that wasn't rebuilt).
       - name: Plugin ABI parity (build + load every plugin)
-        if: needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_compiler == 'true' || needs.setup.outputs.affects_plugins == 'true'
+        if: ${{ !cancelled() && (needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_compiler == 'true' || needs.setup.outputs.affects_plugins == 'true') }}
         run: ./target/debug/vox --quiet ci plugin-abi-parity --build
+        timeout-minutes: 90
 
       - name: Profile parity (lean CLI crate budget)
-        if: needs.setup.outputs.full == 'true'
+        if: ${{ !cancelled() && (needs.setup.outputs.full == 'true') }}
         run: cargo run -p vox-cli -- ci profile-parity
         continue-on-error: true
+        timeout-minutes: 90
 
       - name: Dynamic Workspace Health Audit
         run: ./target/debug/vox run --interp scripts/quality/audit-workspace-health.vox
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Telemetry-Driven Architectural Audit
         run: ./target/debug/vox run --interp scripts/quality/audit-telemetry.vox
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Secrets SSOT parity + secret direct-read guard
         shell: bash
@@ -365,14 +416,20 @@ jobs:
           export VOX_SECRETS_REQUIRE_COMPAT_SUNSET=1
           export VOX_SECRETS_CUTOVER_PHASE=enforce
           ./target/debug/vox --quiet ci secrets-cutover-gates
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: OpenClaw + scaling policy SSOT (not in ssot-drift bundle)
         run: |
           ./target/debug/vox --quiet ci openclaw-contract
           ./target/debug/vox --quiet ci scaling-audit verify
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Vox script check (clean-build-artifacts reference automation)
         run: ./target/debug/vox --quiet check scripts/clean-build-artifacts.vox
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Vox script corpus check (all scripts/**/*.vox pass vox check)
         shell: bash
@@ -391,18 +448,26 @@ jobs:
             exit 1
           fi
           echo "OK: all scripts/**/*.vox pass vox check."
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Workflow scripts allowlist
         run: ./target/debug/vox --quiet ci workflow-scripts
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Script hygiene (.vox-only automation)
         run: ./target/debug/vox --quiet ci script-hygiene
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Doc inventory matches generator (Rust)
         run: ./target/debug/vox --quiet ci doc-inventory verify
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Docs — no stale `tanstack_start.rs` compiler path
-        if: needs.setup.outputs.docs_changed == 'true'
+        if: ${{ !cancelled() && (needs.setup.outputs.docs_changed == 'true') }}
         shell: bash
         run: |
           set -euo pipefail
@@ -410,9 +475,10 @@ jobs:
             echo "docs must not reference removed tanstack_start.rs; use route_manifest / vox_client / scaffold"
             exit 1
           fi
+        timeout-minutes: 90
 
       - name: Docs — no ghost references to retired HTMX / Pico / TanStack-virtual-routes (G.73)
-        if: needs.setup.outputs.docs_changed == 'true'
+        if: ${{ !cancelled() && (needs.setup.outputs.docs_changed == 'true') }}
         # Audit item G.73: retired surfaces must not appear in normative docs.
         # Allowlist: the audit-findings doc and archive/ may reference them for historical context.
         shell: bash
@@ -434,9 +500,10 @@ jobs:
             exit 1
           fi
           echo "No ghost retired-surface references in normative docs."
+        timeout-minutes: 90
 
       - name: Web TS codegen — forbidden legacy RPC shims in sources
-        if: needs.setup.outputs.docs_changed == 'true' || needs.setup.outputs.affects_compiler == 'true' || needs.setup.outputs.affects_web == 'true'
+        if: ${{ !cancelled() && (needs.setup.outputs.docs_changed == 'true' || needs.setup.outputs.affects_compiler == 'true' || needs.setup.outputs.affects_web == 'true') }}
         shell: bash
         run: |
           set -euo pipefail
@@ -444,9 +511,10 @@ jobs:
             echo "createServerFn must not appear in vox-codegen-ts sources"
             exit 1
           fi
+        timeout-minutes: 90
 
       - name: Normative docs — @query is GET (no POST /api/query claims)
-        if: needs.setup.outputs.docs_changed == 'true'
+        if: ${{ !cancelled() && (needs.setup.outputs.docs_changed == 'true') }}
         shell: bash
         run: |
           set -euo pipefail
@@ -454,6 +522,7 @@ jobs:
             echo "docs must not describe @query as POST /api/query"
             exit 1
           fi
+        timeout-minutes: 90
 
   # clippy + rustdoc are NOT here: the `full` job runs both workspace-wide on the
   # same commit. This job carries the guards that need the prebuilt vox binary.
@@ -461,7 +530,7 @@ jobs:
     name: Lints (TOESTUB-scoped + SSOT guards + hakari + grammar)
     needs: setup
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
@@ -470,8 +539,12 @@ jobs:
           path: target/debug
       - name: Ensure vox-cli executable
         run: chmod +x target/debug/vox
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
       - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
       - uses: ./.github/actions/setup-rust
         with:
           components: rustfmt, clippy, llvm-tools-preview
@@ -496,6 +569,8 @@ jobs:
         run: |
           cargo build -p vox-code-audit --bin toestub --locked
           echo "$PWD/target/debug" >> "$GITHUB_PATH"
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
       - name: TOESTUB (scoped)
         shell: bash
         run: |
@@ -514,9 +589,13 @@ jobs:
             done
             ./target/debug/vox --quiet ci toestub-scoped --mode enforce-warn "${ROOTS[@]}"
           fi
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Toolchain SSoT Drift Guard
         run: ./target/debug/vox --quiet ci toolchain-ssot
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       # These three guards shipped as CLI subcommands with unit tests but were
       # wired into no workflow and no script, so none of them could ever fail
@@ -528,6 +607,8 @@ jobs:
       # need no build.
       - name: Release Draft Guard (no auto-published public releases)
         run: ./target/debug/vox --quiet ci release-draft-guard
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       # The gate that guards the gate. See required_context_guard.rs: a job
       # named for the required context posts that context even when SKIPPED,
@@ -536,18 +617,26 @@ jobs:
       # never to run.
       - name: Required Context Guard (only ci.yml may claim the gate)
         run: ./target/debug/vox --quiet ci required-context-guard
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Toolchain Workflow Lint (all Rust installs via setup-rust)
         run: ./target/debug/vox --quiet ci toolchain-workflow-lint
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       # Same contract as toolchain-ssot, for the two JS pins the SSOT already
       # declares. Without this, `versions.node` / `versions.pnpm` can lie
       # indefinitely while every workflow installs something else.
       - name: Node/pnpm SSoT Guard (workflows match workspace-toolchain.v1.yaml)
         run: ./target/debug/vox --quiet ci node-pnpm-ssot-guard
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Cache Key Lint
         run: ./target/debug/vox --quiet ci cache-key-lint
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       # version_ssot.rs's own module doc claims drift here is "a CI failure
       # rather than a release surprise" -- ssot_probe (no args, no --write)
@@ -558,6 +647,8 @@ jobs:
       # the release bump path and stays in release-prepare.yml.
       - name: Version SSoT Drift Guard
         run: cargo run -q -p vox-cli-ci --example ssot_probe
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       # Workspace-wide pattern drift check (6 rules: reqwest_bypass, vox_path_literal,
       # timeout_literal, serde_default_dup, version_string, bearer_header).
@@ -565,6 +656,8 @@ jobs:
       # don't bypass it.
       - name: Workspace drift check (vox-drift-check)
         run: cargo run -p vox-drift-check --quiet -- . --severity warning --fail-on warning
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       # cargo-hakari is not on the runner image; without it this step failed with
       # "no such command: `hakari`" (hidden until the drift check before it passed).
@@ -574,16 +667,20 @@ jobs:
 
       - name: Verify Hakari (Workspace Dependency Determinism)
         run: cargo hakari generate --diff
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Grammar export check (EBNF/GBNF/Lark/JSON-Schema non-empty)
         run: ./target/debug/vox --quiet ci grammar-export-check
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
   compiler-gates:
     name: Compiler gates (WebIR + projection + golden examples + benches)
     needs: setup
     if: needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_compiler == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
@@ -592,8 +689,12 @@ jobs:
           path: target/debug
       - name: Ensure vox-cli executable
         run: chmod +x target/debug/vox
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
       - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
       - uses: ./.github/actions/setup-rust
         with:
           components: rustfmt, clippy
@@ -613,9 +714,13 @@ jobs:
         # scanner output. This is a blocking check and should run after vox-cli
         # builds so docs-only changes still validate deterministically.
         run: ./target/debug/vox ci test-inventory --check contracts/reports/test-inventory.v1.json
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: SPA scaffold manifest idempotency
         run: cargo nextest run -p vox-cli --test scaffold_spa_manifest_idempotent
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Eval benchmark matrix contract + vox-cli GPU compile smoke
         run: |
@@ -625,31 +730,43 @@ jobs:
           # `vox-cli --features gpu` (no such feature). `check` without the `cuda`
           # feature compiles the plugin against CPU candle, so no CUDA toolchain needed.
           cargo check -p vox-plugin-mens-candle-cuda
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: WebIR structural validate gate (TS codegen path)
         env:
           VOX_WEBIR_VALIDATE: "1"
         run: cargo nextest run -p vox-compiler --test web_ir_lower_emit_test --run-ignored ignored-only --no-capture
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Projection parity gate (WebIR + AppContract + RuntimeProjection)
         env:
           VOX_RUNTIME_PROJECTION_INCLUDE_HOST_PROBE: "0"
         run: cargo nextest run -p vox-compiler --test projection_parity_test
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Pipeline parity grep-gate (no silent empty-string drops in emitters)
         # Forbids `_ => String::new()` / `_ => "".to_string()` in HIR emitters.
         # Each unsupported (Feature, Target) cell must use unsupported_diagnostic()
         # to derive a code+message from the parity matrix. See §3.3 of the SSOT.
         run: cargo nextest run -p vox-compiler --test parity_grep_gate
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Pipeline parity empirical smoke test (matrix cells vs real emitters)
         # Drives HIR nodes through the real eval/codegen_rust/codegen_ts paths and
         # verifies the 5 accurately-seeded matrix cells (JSX, AsyncView, Spawn,
         # With, WorkflowVersion) match actual emitter behavior.
         run: cargo nextest run -p vox-compiler --test feature_matrix_parity_test
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Pipeline SSOT umbrella (grammar + golden ladder + matrix + k-budget)
         run: ./target/debug/vox --quiet ci pipeline-parity
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Golden examples strict-parse gate (A.13 — all examples/*.vox must parse)
         # A.13: VOX_EXAMPLES_STRICT_PARSE=1 must be the default in CI.
@@ -657,6 +774,8 @@ jobs:
         env:
           VOX_EXAMPLES_STRICT_PARSE: "1"
         run: cargo nextest run -p vox-compiler --test golden_examples_strict_parse --no-capture 2>&1
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
         # Gate enforcement: The build fails if any golden example contains syntax errors or unhandled tokens.
 
       - name: Golden examples fmt idempotency gate (A.12)
@@ -670,6 +789,8 @@ jobs:
             echo "vox fmt is not idempotent or examples have unformatted changes."
             exit 1
           fi
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
   # Split from compiler-gates, which had spent 19.7 of its 20 min before the
   # bench step started (nightly 37467949942): the vox-integration-tests
@@ -680,11 +801,13 @@ jobs:
     needs: setup
     if: needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_compiler == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v7
       - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
       - uses: ./.github/actions/setup-rust
         with:
           cache: "false"
@@ -702,9 +825,13 @@ jobs:
         # Runs every @test fn in examples/golden/**/*.vox through the eval layer.
         # Validates that the `vox test` command surface works end-to-end on golden examples.
         run: cargo nextest run -p vox-integration-tests --test golden_vox_test_runner --no-capture 2>&1
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: AgentOS ACI schema + guardrail integration gate
         run: cargo nextest run -p vox-integration-tests --test agentos_aci_bench --no-capture 2>&1
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Compiler pipeline benchmarks compile-smoke (CR-E1 gate)
         # Verifies benchmark code compiles cleanly; timing baselines are captured
@@ -713,12 +840,14 @@ jobs:
         # --no-run` built them under the bench profile (inherits release, thin
         # LTO), a cold release build of vox-compiler's whole dependency tree.
         run: cargo check -p vox-compiler --benches
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
   tests:
     name: Tests (nextest + llvm-cov + doctests)
     needs: setup
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
@@ -727,8 +856,12 @@ jobs:
           path: target/debug
       - name: Ensure vox-cli executable
         run: chmod +x target/debug/vox
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
       - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
       - uses: ./.github/actions/setup-rust
         with:
           components: rustfmt, clippy, llvm-tools-preview
@@ -782,43 +915,53 @@ jobs:
           if affected_has vox-cli; then
             cargo check -p vox-cli --features workflow-runtime,gui
           fi
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Arch-check (layer + fan-in + LoC + orphan + docstring)
-        if: needs.setup.outputs.full == 'true' || needs.setup.outputs.rust_changed == 'true'
+        if: ${{ !cancelled() && (needs.setup.outputs.full == 'true' || needs.setup.outputs.rust_changed == 'true') }}
         # Invocation delegated to scripts/arch-check.vox (SSOT).
         # Layer rule strict; the others warn-only by default. Source of truth:
         # docs/src/architecture/layers.toml.
         run: ./target/debug/vox --quiet run scripts/arch-check.vox
+        timeout-minutes: 90
 
       - name: Dependency cycle gate
-        if: needs.setup.outputs.full == 'true'
+        if: ${{ !cancelled() && (needs.setup.outputs.full == 'true') }}
         run: ./target/debug/vox --quiet ci dep-cycles --deny-new
+        timeout-minutes: 90
 
       - name: Crate build/dependency audit (refresh leaf-design map)
-        if: needs.setup.outputs.full == 'true'
+        if: ${{ !cancelled() && (needs.setup.outputs.full == 'true') }}
         run: ./target/debug/vox --quiet run --mode interp scripts/crate-build-audit.vox
         continue-on-error: true
+        timeout-minutes: 90
 
       - name: Crate-build-map parity gate
-        if: needs.setup.outputs.full == 'true'
+        if: ${{ !cancelled() && (needs.setup.outputs.full == 'true') }}
         run: ./target/debug/vox --quiet ci crate-build-map-parity
+        timeout-minutes: 90
 
       - name: Crate blast-radius budget gate
-        if: needs.setup.outputs.full == 'true'
+        if: ${{ !cancelled() && (needs.setup.outputs.full == 'true') }}
         run: ./target/debug/vox --quiet ci crate-budget
+        timeout-minutes: 90
 
       - name: Fan-in budget gate
-        if: needs.setup.outputs.full == 'true'
+        if: ${{ !cancelled() && (needs.setup.outputs.full == 'true') }}
         run: ./target/debug/vox --quiet ci fan-in-budget
+        timeout-minutes: 90
 
       - name: Crate edge ratchet + layer rule
-        if: needs.setup.outputs.full == 'true'
+        if: ${{ !cancelled() && (needs.setup.outputs.full == 'true') }}
         run: ./target/debug/vox --quiet ci crate-edges
+        timeout-minutes: 90
 
       - name: Plugin-candidacy classifier (advisory — non-gating)
-        if: needs.setup.outputs.full == 'true'
+        if: ${{ !cancelled() && (needs.setup.outputs.full == 'true') }}
         run: ./target/debug/vox --quiet run --mode interp scripts/plugin-candidacy.vox
         continue-on-error: true
+        timeout-minutes: 90
 
       # Blocking on purpose. `continue-on-error: true` here is what let the
       # baseline sit at all-zeros for months while every run reported a green
@@ -826,13 +969,14 @@ jobs:
       # baseline, so a failure here means "the baseline is unpopulated" (fix:
       # regenerate it) or "a scenario regressed" — both are real signal.
       - name: Build-bench (wall-clock scenarios vs committed baseline — ROUGH signal)
-        if: needs.setup.outputs.full == 'true'
+        if: ${{ !cancelled() && (needs.setup.outputs.full == 'true') }}
         run: |
           ./target/debug/vox --quiet ci build-bench \
             --label "ci-${{ github.run_number }}" \
             --repeat 1 \
             --compare contracts/ci/build-bench-baseline.v1.json \
             --write graphify-out/build-bench/ci-snapshot.json
+        timeout-minutes: 90
 
       - name: Upload build-time maps
         if: needs.setup.outputs.full == 'true'
@@ -846,20 +990,21 @@ jobs:
           if-no-files-found: ignore
 
       - name: Graphify corpus freshness gate (warning)
-        if: needs.setup.outputs.full == 'true'
+        if: ${{ !cancelled() && (needs.setup.outputs.full == 'true') }}
         # No VOX_GRAPHIFY_TTL_DAYS pin: the staleness window comes from
         # ttl_days_default in contracts/retrieval/vox-graph-corpora.v1.yaml,
         # the same value the GUI editor writes and `vox graphify status`
         # reports. Guarded by crates/vox-config/tests/graphify_ttl_parity.rs.
         run: ./target/debug/vox graphify status --strict
         continue-on-error: true
+        timeout-minutes: 90
 
 
       # Always the instrumented full-workspace run: this workflow is
       # schedule/dispatch only, so full == rust_changed == "true" every time and
       # the coverage report below always has an lcov to read.
       - name: Run Tests — llvm-cov nextest (full gate, Rust changed)
-        if: needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true'
+        if: ${{ !cancelled() && (needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true') }}
         env:
           INSTA_UPDATE: unseen
         run: |
@@ -867,6 +1012,7 @@ jobs:
           junit_cfg="${RUNNER_TEMP}/vox-nextest-junit.toml"
           printf '%s\n' '[profile.ci.junit]' 'path = "junit.xml"' >"${junit_cfg}"
           cargo llvm-cov nextest --workspace --exclude vox-gui --profile ci --tool-config-file "vox-ci:${junit_cfg}"
+        timeout-minutes: 90
 
       # Slow test partition — runs the three #[ignore = "slow; …"] tests explicitly.
       # These are excluded from the workspace nextest step above to keep CI wall-clock
@@ -880,23 +1026,25 @@ jobs:
       # native bundle build is a ~6-8 min cold build, too slow for a merge-blocking PR
       # check. It runs on a schedule instead: `.github/workflows/differential-gate-nightly.yml`.
       - name: Run slow test partition (arch-check, scientia timeout, codegen bundle)
-        if: needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true'
+        if: ${{ !cancelled() && (needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true') }}
         run: |
           cargo nextest run \
             -E 'test(arch_check_live_workspace_smoke_and_description_rule) or test(timeout_kills_long_running_child) or test(generated_ai_fixture_bundle_passes_cargo_check) or (package(vox-mesh-transport) + binary(interp_executor))' \
             --run-ignored ignored-only \
             --profile ci
+        timeout-minutes: 90
 
       - name: Serving path unit tests
-        if: needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true'
+        if: ${{ !cancelled() && (needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true') }}
         run: cargo test -p vox-ml-cli --features execution-api,gpu --lib
+        timeout-minutes: 90
 
       # Phase 5 — Test-tier budget check (warn-only until budgets file is updated post Phase 2+3).
       # Reads the nextest JUnit elapsed time and compares against contracts/budgets/test-tier-budgets.v1.yaml.
       # Does NOT re-run tests; no-op if budgets file is absent.
       # continue-on-error: true until tightened budgets land (Phase 5 follow-up).
       - name: Test-tier timing budget check (nextest full tier)
-        if: always() && needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true'
+        if: ${{ !cancelled() && (always() && needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true') }}
         continue-on-error: true
         run: |
           junit="target/nextest/ci/junit.xml"
@@ -907,9 +1055,10 @@ jobs:
           else
             echo "::notice title=Tier budget check skipped::JUnit artifact not found at ${junit}"
           fi
+        timeout-minutes: 90
 
       - name: Runtime governance report + warn-only checks (non-blocking)
-        if: always()
+        if: ${{ !cancelled() && (always()) }}
         shell: bash
         run: |
           set +e
@@ -955,6 +1104,7 @@ jobs:
           fi
 
           exit 0
+        timeout-minutes: 90
 
       - name: Upload insta snapshots (review and commit after first run)
         if: always()
@@ -993,17 +1143,20 @@ jobs:
           else
             echo "vox-db not in affected set — skipping replication smoke."
           fi
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       # Doctests run in the `full` job (`cargo test --workspace --doc`) — not duplicated here.
 
       - name: Line coverage report (summary, LCOV, gates enforce)
-        if: needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true'
+        if: ${{ !cancelled() && (needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true') }}
         run: |
           set -euo pipefail
           cargo llvm-cov report --text --summary-only
           cargo llvm-cov report --json --summary-only --output-path target/llvm-cov-summary.json
           cargo llvm-cov report --lcov --output-path target/llvm-cov-lcov.info
           ./target/debug/vox --quiet ci coverage-gates --summary-json target/llvm-cov-summary.json --mode enforce
+        timeout-minutes: 90
 
       # ADVISORY (non-blocking): the reach baseline (semantic-coverage.v1.json) is
       # measured from a local full-workspace lcov; CI's lcov differs, so the absolute
@@ -1012,7 +1165,7 @@ jobs:
       # NOT gating until the reach layer is calibrated to CI's lcov. The deterministic
       # `semcov-gates` check (silent-drop + weak-test) IS blocking.
       - name: Semantic-coverage reach ratchet (advisory — reported, not gating)
-        if: needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true'
+        if: ${{ !cancelled() && (needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true') }}
         continue-on-error: true
         run: |
           set -uo pipefail
@@ -1024,6 +1177,7 @@ jobs:
           python3 scripts/coverage-graph/ratchet_check.py \
             --report "$RUNNER_TEMP/REACHED_VS_PROVEN.md" \
             --baseline contracts/reports/semantic-coverage.v1.json
+        timeout-minutes: 90
 
       - name: Upload LLVM coverage artifacts
         if: (success() || failure()) && needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true'
@@ -1049,7 +1203,7 @@ jobs:
     # substantial jobs in this workflow (30/40m).
     # 2026-10-08: the feature matrix (21m) + build timings (8m) + workspace all-features
     # check no longer fit 35m once earlier failures stopped short-circuiting this job.
-    timeout-minutes: 90
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
@@ -1058,8 +1212,12 @@ jobs:
           path: target/debug
       - name: Ensure vox-cli executable
         run: chmod +x target/debug/vox
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
       - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
       - uses: ./.github/actions/setup-rust
         with:
           components: rustfmt, clippy
@@ -1076,17 +1234,25 @@ jobs:
 
       - name: TOESTUB contracts — suppression schema + ledger parse
         run: cargo run -p vox-code-audit --bin validate-toestub-contracts
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Safety inventory baseline (committed contracts/reports/safety-inventory)
         run: ./target/debug/vox ci safety-inventory --check contracts/reports/safety-inventory/baseline.v1.json
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Hardcoded values audit gate
         run: node tools/hardcoded-values-audit.mjs .vox/audit/ci-gate --ci-gate contracts/reports/hardcoded-baseline-count.txt
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Completion quality audit + gates (LLM premature-completion SSOT)
         run: |
           ./target/debug/vox --quiet ci completion-audit
           ./target/debug/vox --quiet ci completion-gates --mode enforce
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Detector rule SSOT — F1 score gate (contracts/code-audit/rules.v1.yaml)
         run: |
@@ -1094,26 +1260,32 @@ jobs:
             --rules contracts/code-audit/rules.v1.yaml \
             --fixtures-root contracts/code-audit/fixtures \
             --min-f1 0.70
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: TOESTUB full crates/ — syn parse failure budget (JSON envelope)
-        if: needs.setup.outputs.full == 'true'
+        if: ${{ !cancelled() && (needs.setup.outputs.full == 'true') }}
         env:
           VOX_TOESTUB_MAX_RUST_PARSE_FAILURES: 3
         run: |
           set -euo pipefail
           cargo run -p vox-code-audit -q --bin toestub -- --mode audit --format json --min-severity info crates \
             | ./target/debug/vox --quiet ci toestub-budget
+        timeout-minutes: 90
 
       - name: vox-cli build timings (default + GPU/stub + per-crate lanes; wall-clock)
-        if: needs.setup.outputs.full == 'true'
+        if: ${{ !cancelled() && (needs.setup.outputs.full == 'true') }}
         env:
           VOX_BENCHMARK_TELEMETRY: "1"
           # H.79: enforce soft build budget caps — fails if any lane exceeds budgets.json
           VOX_BUILD_TIMINGS_BUDGET_FAIL: "1"
         run: ./target/debug/vox --quiet ci build-timings --crates
+        timeout-minutes: 90
 
       - name: vox-cli feature matrix + no vox_orchestrator imports
         run: ./target/debug/vox --quiet ci feature-matrix && ./target/debug/vox --quiet ci no-vox-orchestrator-import
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Workspace-wide all-features check (A.4)
         shell: bash
@@ -1134,10 +1306,13 @@ jobs:
           else
             echo "No affected crates — skipping all-features check."
           fi
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Optional CUDA feature compile (Oratio + Populi Candle, when nvcc exists)
-        if: needs.setup.outputs.full == 'true'
+        if: ${{ !cancelled() && (needs.setup.outputs.full == 'true') }}
         run: ./target/debug/vox --quiet ci cuda-features
+        timeout-minutes: 90
 
       # `vox mens ...` / `vox populi ...` (used by the next two steps, including
       # transitively via corpus_prep.vox's golden-example extraction) delegate to
@@ -1147,13 +1322,14 @@ jobs:
       # that the panic is gone, the delegation actually attempts to run and needs
       # the target binary to exist and be on PATH.
       - name: Build vox-ml-cli (mens/populi CLI delegation target)
-        if: needs.setup.outputs.full == 'true'
+        if: ${{ !cancelled() && (needs.setup.outputs.full == 'true') }}
         run: |
           cargo build -p vox-ml-cli --locked
           echo "$PWD/target/debug" >> "$GITHUB_PATH"
+        timeout-minutes: 90
 
       - name: Mens corpus mix (strict required sources)
-        if: needs.setup.outputs.full == 'true'
+        if: ${{ !cancelled() && (needs.setup.outputs.full == 'true') }}
         shell: bash
         run: |
           set -euo pipefail
@@ -1185,10 +1361,12 @@ jobs:
               exit "$mix_status"
             fi
           fi
+        timeout-minutes: 90
 
       - name: Populi CI gate matrix (single manifest)
-        if: needs.setup.outputs.full == 'true'
+        if: ${{ !cancelled() && (needs.setup.outputs.full == 'true') }}
         run: ./target/debug/vox --quiet ci mens-gate --profile ci_full
+        timeout-minutes: 90
 
       - name: PM provenance strict gate (fixture)
         shell: bash
@@ -1199,6 +1377,8 @@ jobs:
           node='{"schema":"vox.pm.provenance/1","package":"fixture-pkg","version":"0.0.1","content_hash":"ab","built_at_epoch":99,"tool":"ci-fixture","registry":"http://127.0.0.1:9"}'
           printf '%s\n' "$node" > "$fx/fixture-pkg@0.0.1.json"
           ./target/debug/vox --quiet ci pm-provenance --strict --root "$RUNNER_TEMP/pm-fixture"
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
   # Advisory (nightly-only, not a required gate — the required gate lives in
   # ci.yml). Spawns a real vox-orchestrator-d process and pings it over a real
@@ -1228,7 +1408,7 @@ jobs:
     # A literal (not `${{ matrix.timeout }}`) per workflow_policy_guard, which
     # rejects expression timeouts. 90m covers the slower macOS leg on a cold
     # cache miss; Linux finishes well inside it.
-    timeout-minutes: 90
+    timeout-minutes: 180
     # BURN-IN: GitHub collapses a matrix into one result, so an unproven macOS
     # leg would fail the whole job. Advisory until it has a green history, per
     # this job's own note on introducing new legs. Remove this line to make
@@ -1237,8 +1417,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
-        if: runner.os == 'Linux'
+        if: ${{ !cancelled() && (runner.os == 'Linux') }}
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
+        timeout-minutes: 90
       - id: rust
         uses: ./.github/actions/setup-rust
         with:
@@ -1277,28 +1458,26 @@ jobs:
           cd crates/vox-gui/ui
           pnpm install --prefer-offline
           pnpm run build
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Build vox-orchestrator-d
         run: cargo build -p vox-orchestrator-d
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       # vox-gui's build.rs hard-fails unless every triple-suffixed Tauri sidecar
-      # in bundle.externalBin (vox, vox-ml-cli) is a file; it only checks
-      # `is_file()`. This test never builds a tauri::Builder or runs a sidecar
-      # (it spawns VOX_ORCHESTRATOR_D_BIN), so stage placeholders. Building the
+      # in bundle.externalBin is a file; it only checks `is_file()`. This test
+      # never builds a tauri::Builder or runs a sidecar (it spawns
+      # VOX_ORCHESTRATOR_D_BIN), so stage placeholders (host triple). Building the
       # real ones cost ~68 min on cold macOS (release vox 41m, plus build.rs
       # silently nested-building release vox-ml-cli because only vox was
       # staged) and ran the leg into its 90-min cap (nightly 37467949942).
       # VOX_GUI_SKIP_SIDECAR_AUTOBUILD makes a missing one fail loudly instead.
       - name: Stage placeholder Tauri sidecars (not executed by this test)
-        shell: bash
-        run: |
-          set -euo pipefail
-          triple="$(rustc -vV | sed -n 's|^host: ||p')"
-          mkdir -p target/release
-          for bin in vox vox-ml-cli; do
-            printf '#!/bin/sh\necho "placeholder sidecar staged by nightly relaunch smoke" >&2\nexit 1\n' > "target/release/${bin}-${triple}"
-            chmod +x "target/release/${bin}-${triple}"
-          done
+        uses: ./.github/actions/stage-tauri-sidecars
+        with:
+          placeholder: "true"
 
       # Compile separately from the run so the run step's timeout bounds the
       # test itself: a daemon that never answers fails in minutes, with the
@@ -1307,6 +1486,8 @@ jobs:
         env:
           VOX_GUI_SKIP_SIDECAR_AUTOBUILD: "1"
         run: cargo nextest run -p vox-gui --test gui_relaunch_smoke --no-run
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Relaunch smoke (CR-U6) — daemon relaunch + version parity
         timeout-minutes: 10
@@ -1315,13 +1496,14 @@ jobs:
           VOX_GUI_RELAUNCH_SMOKE: "1"
           VOX_ORCHESTRATOR_D_BIN: ${{ github.workspace }}/target/debug/vox-orchestrator-d
         run: cargo nextest run -p vox-gui --test gui_relaunch_smoke --no-capture
+        if: ${{ !cancelled() }}
 
   visualizer-ingest-smoke:
     name: Visualizer ingest unit (pnpm + tsx)
     needs: setup
     if: needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_web == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -1336,18 +1518,22 @@ jobs:
           cd apps/experimental/visualizer
           pnpm install
           pnpm run test:ingest
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
   web-vite-build-smoke:
     name: Web Vite build smoke (pnpm)
     needs: setup
     if: needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_web == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v7
 
       - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Install Rust toolchain
         uses: ./.github/actions/setup-rust
@@ -1365,13 +1551,15 @@ jobs:
         env:
           VOX_WEB_VITE_SMOKE: "1"
         run: cargo nextest run -p vox-integration-tests --test web_vite_smoke_test --run-ignored ignored-only --no-capture
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
   vox-vscode-extension:
     name: VS Code extension (compile + lint)
     needs: setup
     if: needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_gui == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -1384,6 +1572,8 @@ jobs:
           npm ci
           npm run compile
           npm run lint
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
   mesh-compose-config:
     name: Validate examples/mesh-compose.yml
@@ -1392,11 +1582,13 @@ jobs:
     # `docker compose config` only parses/validates the YAML (no daemon, no DinD),
     # so a GitHub-hosted runner — which ships Docker Compose v2 — is the right host.
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v7
       - name: docker compose config (mesh example)
         run: docker compose -f examples/mesh-compose.yml config
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
   docker-vox-image-smoke:
     name: Docker build smoke (default + mesh)
@@ -1407,9 +1599,13 @@ jobs:
       - uses: actions/checkout@v7
       - name: docker build default image
         run: docker build -t vox:ci-smoke .
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
       # Blessed doc name: vox:ci-mesh-worker (same image as historical vox:ci-mesh); see vox-cross-platform-runbook.md
       - name: docker build mesh worker image (mesh + script-execution)
         run: docker build --build-arg VOX_CLI_FEATURES=script-execution -t vox:ci-mesh -t vox:ci-mesh-worker .
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
   # Chromium/CDP (chromiumoxide): requires Chrome or Chromium on the runner (browser pool).
   # Canonical crate is `vox-plugin-browser` (historical `vox-browser` crate removed).
@@ -1417,7 +1613,7 @@ jobs:
     name: vox-plugin-browser CDP smoke (Chromium)
     # Tier: heavy (~15m).
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v7
 
@@ -1439,6 +1635,8 @@ jobs:
           done
           echo "::error::Chrome did not open the remote-debugging port" >&2
           exit 1
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       # Prefer nextest for ignored-only integration tests when present; compile-check so the lane
       # stays meaningful until CDP tests land on `vox-plugin-browser`.
@@ -1455,12 +1653,14 @@ jobs:
           else
             cargo nextest run -p vox-plugin-browser --lib --run-ignored ignored-only --no-capture
           fi
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
   gui-playwright-smoke:
     name: GUI Playwright golden route (full_stack_minimal)
     # Tier: heavy (~25m).
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v7
 
@@ -1485,6 +1685,8 @@ jobs:
           cd crates/vox-gui/ui
           pnpm install --prefer-offline
           pnpm typecheck
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       # Registry-driven visual-audit sweep: screenshots every GUI surface (derived from
       # SURFACE_REGISTRY, so new surfaces are covered automatically) and asserts no error-
@@ -1497,6 +1699,8 @@ jobs:
           cd crates/vox-gui/ui
           pnpm exec playwright install chromium firefox
           pnpm exec playwright test --project=chromium --workers=4
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Upload GUI visual-audit screenshots
         if: failure()
@@ -1521,11 +1725,15 @@ jobs:
           cd crates/vox-integration-tests
           pnpm install --prefer-offline
           pnpm exec playwright install chromium
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Golden route (ignored integration test)
         env:
           VOX_GUI_PLAYWRIGHT: "1"
         run: cargo nextest run -p vox-integration-tests --test playwright_golden_route_test --run-ignored ignored-only --no-capture
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
   # Review-bundle capture, both browsers — Firefox-only defects (occlusion/
   # layout) are otherwise invisible to CI (2026-07-18 review finding).
@@ -1535,7 +1743,7 @@ jobs:
   gui-review-capture:
     name: GUI review-bundle capture (${{ matrix.project }}, advisory)
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 180
     continue-on-error: true
     strategy:
       fail-fast: false
@@ -1563,6 +1771,7 @@ jobs:
           pnpm install --prefer-offline
           pnpm exec playwright install ${{ matrix.browser }}
           pnpm exec playwright test e2e/review/capture.spec.ts --project=${{ matrix.project }} --workers=2
+        if: ${{ !cancelled() }}
       - name: Upload review bundle
         if: ${{ always() }}
         uses: actions/upload-artifact@v7
@@ -1577,7 +1786,7 @@ jobs:
     needs: gui-review-capture
     if: ${{ always() }}
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 180
     continue-on-error: true
     steps:
       - uses: actions/checkout@v7
@@ -1593,6 +1802,7 @@ jobs:
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: cargo run -p vox-orchestrator-mcp --features gui-visual-review --bin gui-visual-review -- --bundle crates/vox-gui/ui/review-bundle/latest --ai --max-reviews 60 --browsers chromium,firefox
+        if: ${{ !cancelled() }}
       - name: Upload visual-review report + screens (always)
         if: ${{ always() }}
         uses: actions/upload-artifact@v7
@@ -1611,7 +1821,7 @@ jobs:
     # (it says why each cannot build --all-features on ubuntu-latest); the
     # audits job's A.4 step excludes the same list.
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:
@@ -1645,6 +1855,8 @@ jobs:
         # key here — every leg builds from the same lockfile).
       - name: Check with all features
         run: cargo check -p ${{ matrix.crate }} --all-features
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
   full:
     name: Full workspace (clippy, rustdoc, nextest, doctests, deny, audit)
@@ -1675,22 +1887,31 @@ jobs:
       # the test artifacts this job's cache hands to ci.yml's `tests` shards (a
       # rustdoc error ahead of nextest once left that cache without them).
       - run: cargo build -p vox-cli --locked
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
       # Build only: the instrumented llvm-cov job executes the whole suite once per night
       # (schedule/dispatch always sets full == rust_changed == true); running it here too
       # doubled the night's test time. --no-run still builds the artifacts the cache keeps.
       - run: cargo nextest run --workspace --exclude vox-gui --profile ci --locked --no-run
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
       - if: ${{ !cancelled() }}
         run: cargo clippy --workspace --exclude vox-gui --all-targets --locked -- -D warnings
+        timeout-minutes: 90
       - if: ${{ !cancelled() }}
         run: cargo doc --workspace --exclude vox-gui --no-deps --locked --keep-going
         env:
           RUSTDOCFLAGS: -D warnings
+        timeout-minutes: 90
       - if: ${{ !cancelled() }}
         run: cargo test --workspace --exclude vox-gui --doc --locked
+        timeout-minutes: 90
       - if: ${{ !cancelled() }}
         run: cargo deny check
+        timeout-minutes: 90
       - if: ${{ !cancelled() }}
         run: cargo audit
+        timeout-minutes: 90
 
   # Sole writer of the `workspace-windows` Swatinem cache that ci.yml's advisory
   # `windows` merge-queue leg reads (save-if: false there). Without this seed the
@@ -1698,7 +1919,7 @@ jobs:
   windows-cache-seed:
     name: Windows workspace check (seeds merge-queue cache)
     runs-on: windows-latest
-    timeout-minutes: 120
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
@@ -1712,6 +1933,8 @@ jobs:
           # `cargo check` must still refresh the seed.
           cache-on-failure: true
       - run: cargo check --workspace --exclude vox-gui --all-targets --locked
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
   ml-cuda-health:
     name: ML CUDA dependency health
@@ -1741,18 +1964,28 @@ jobs:
       # graph compile, but does not exercise a CUDA device or runtime kernels.
       - name: Verify CUDA compiler (compile-only)
         run: nvcc --version
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Install Linux build dependencies
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Compile CUDA plugin tests without running them
         run: cargo test --no-run -p vox-plugin-mens-candle-cuda --features cuda
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Validate CUDA feature owners
         run: cargo run -q -p vox-cli -- ci cuda-features
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
       - name: Validate CUDA release build
         run: cargo run -q -p vox-cli -- ci cuda-release-build
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
 
   compile-suite-smokes:
     name: Compile-suite codegen smokes (native-binary + desktop Tauri)
@@ -1760,7 +1993,7 @@ jobs:
     # workspace plus a cold `cargo tauri build` for the desktop app cannot fit that
     # lane's 30-min cap (it timed out on nearly every PR).
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
@@ -1772,6 +2005,8 @@ jobs:
           save-if: false   # restore-only: cache-seed.yml on main writes the shared `workspace` cache
       - name: Install system deps (dbus/GTK/WebKit)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
       # The desktop smoke scaffolds a React app and runs `pnpm install`.
       - uses: pnpm/action-setup@v6
         with:
@@ -1785,9 +2020,15 @@ jobs:
         with:
           tool: tauri-cli
       - run: cargo build -p vox-cli
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
       - name: Compile suite workspace native-binary smoke
         working-directory: examples/compile-suite
         run: ../../target/debug/vox compile --workspace --target native-binary
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
       - name: Compile suite desktop Tauri generation smoke
         working-directory: examples/compile-suite/packages/desktop
         run: ../../../../target/debug/vox compile --target desktop -o dist src/main.vox
+        timeout-minutes: 90
+        if: ${{ !cancelled() }}
