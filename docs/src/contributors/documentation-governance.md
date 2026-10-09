@@ -96,7 +96,7 @@ A page may declare which capabilities it explains with an optional `capabilities
 
 - `vox ci capability-index` validates every claimed id, so an unknown id fails `vox ci ssot-drift` with the page path and the id.
 - A claim adds the page as a doc link on each claimed capability (after its page-level default), and gives the page its own `doc.<path>` row. Pages that claim nothing get no row.
-- Malformed frontmatter is skipped by the index generator; the doc lint reports that error. `docs/src/archive/` is never read.
+- The doc lint is a line scanner: it does not parse YAML and does not check `capabilities`. The index generator is the check: a page whose `capabilities:` key it cannot read (for example a bare string instead of a list), or that has no closing `---`, fails `vox ci capability-index` with the page path. Other malformed frontmatter that makes no claim is skipped. `docs/src/archive/` is never read.
 - Regenerate with `vox ci capability-index --write`; never edit the index by hand.
 
 **Note on temporal metadata:** The `last_updated` field is automatically derived from the file's Git commit history by the documentation pipeline and AI search engine. You do *not* need to manually update dates in frontmatter. Manual dates are considered legacy and will be superseded by Git metadata.

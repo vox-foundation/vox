@@ -101,8 +101,9 @@ const DOCS_DIR: &str = "docs/src";
 const ARCHIVE_DIR: &str = "docs/src/archive";
 
 /// Opt-in docs pages (Pitfall 11): pages claiming capabilities plus the pinned default targets.
-/// `docs/src/archive/` is pruned before any read (AGENTS.md Archival Protocol); unreadable or
-/// malformed pages are skipped because the doc lint owns that error (Pitfall 10).
+/// `docs/src/archive/` is pruned before any read (AGENTS.md Archival Protocol). Frontmatter that
+/// is malformed but claims nothing is skipped (Pitfall 10); an unreadable page or an unreadable
+/// `capabilities:` claim is an error naming the page (see `docs_claims::parse_meta`).
 fn load_doc_pages(repo_root: &Path) -> Result<BTreeMap<String, PageMeta>> {
     let rel_of = |p: &Path| {
         p.strip_prefix(repo_root)
@@ -122,10 +123,9 @@ fn load_doc_pages(repo_root: &Path) -> Result<BTreeMap<String, PageMeta>> {
             continue;
         }
         let rel = rel_of(entry.path());
-        let Ok(text) = read_utf8_path_capped(entry.path()) else {
-            continue;
-        };
-        let meta = parse_meta(&text);
+        // An unreadable page could hold a claim; fail loudly instead of dropping it.
+        let text = read_utf8_path_capped(entry.path()).with_context(|| format!("read {rel}"))?;
+        let meta = parse_meta(&rel, &text)?;
         let pinned = PINNED_DOCS.contains(&rel.as_str());
         match meta {
             Some(m) if pinned || !m.capabilities.is_empty() => {
