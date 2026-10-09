@@ -1282,23 +1282,17 @@ jobs:
         run: cargo build -p vox-orchestrator-d
 
       # vox-gui's build.rs hard-fails unless every triple-suffixed Tauri sidecar
-      # in bundle.externalBin (vox, vox-ml-cli) is a file; it only checks
-      # `is_file()`. This test never builds a tauri::Builder or runs a sidecar
-      # (it spawns VOX_ORCHESTRATOR_D_BIN), so stage placeholders. Building the
+      # in bundle.externalBin is a file; it only checks `is_file()`. This test
+      # never builds a tauri::Builder or runs a sidecar (it spawns
+      # VOX_ORCHESTRATOR_D_BIN), so stage placeholders (host triple). Building the
       # real ones cost ~68 min on cold macOS (release vox 41m, plus build.rs
       # silently nested-building release vox-ml-cli because only vox was
       # staged) and ran the leg into its 90-min cap (nightly 37467949942).
       # VOX_GUI_SKIP_SIDECAR_AUTOBUILD makes a missing one fail loudly instead.
       - name: Stage placeholder Tauri sidecars (not executed by this test)
-        shell: bash
-        run: |
-          set -euo pipefail
-          triple="$(rustc -vV | sed -n 's|^host: ||p')"
-          mkdir -p target/release
-          for bin in vox vox-ml-cli; do
-            printf '#!/bin/sh\necho "placeholder sidecar staged by nightly relaunch smoke" >&2\nexit 1\n' > "target/release/${bin}-${triple}"
-            chmod +x "target/release/${bin}-${triple}"
-          done
+        uses: ./.github/actions/stage-tauri-sidecars
+        with:
+          placeholder: "true"
 
       # Compile separately from the run so the run step's timeout bounds the
       # test itself: a daemon that never answers fails in minutes, with the
