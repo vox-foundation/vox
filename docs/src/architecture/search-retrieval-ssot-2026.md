@@ -77,7 +77,7 @@ The compiler emits **`defineSchema` / `searchIndex(...)`** from `@search_index` 
 - **Chunk hybrid:** `VOX_SEARCH_CHUNK_VECTOR_WEIGHT` → `SearchPolicy.chunk_vector_fusion_weight` (default `0.60`), threaded into `VoxDb::query_search_document_chunks_hybrid` as a scalar so `vox-db` stays free of `SearchPolicy`.
 - **BM25 (memory index):** `VOX_SEARCH_BM25_K1`, `VOX_SEARCH_BM25_B` → clamped into `MemorySearchEngine` via `SearchPolicy` (`memory_bm25_k1` / `memory_bm25_b`).
 - **RRF fusion:** `VOX_SEARCH_RRF_K` → reciprocal-rank constant for `rrf_merge_line_lists`.
-- **Web hit capture:** `VOX_SEARCH_PERSIST_WEB_HITS_DISABLED` — when unset/false and a `WebFindingCapture` sink is injected, `execute_search_plan` and the Tavily CRAG path in `bundle.rs` hand SearXNG/DDG/Tavily-style web hits to the findings inbox as pending `Untrusted` `kb_findings` rows (deduplicated by content hash). The flag no longer writes `search_documents`: web text never enters the corpus (see [Trust tiers and the findings inbox](#trust-tiers-and-the-findings-inbox)).
+- **Web hit capture:** `VOX_SEARCH_PERSIST_WEB_HITS_DISABLED` — when unset/false and a `WebFindingCapture` sink is injected, `execute_search_plan` and the Tavily CRAG path in `bundle.rs` hand SearXNG/DDG/Tavily-style web hits to the findings inbox (the Tavily CRAG path captures only on explicit queries, because it does not fire for the automatic preamble) as pending `Untrusted` `kb_findings` rows (deduplicated by content hash). The flag no longer writes `search_documents`: web text never enters the corpus (see [Trust tiers and the findings inbox](#trust-tiers-and-the-findings-inbox)).
 - **Embedding model name:** `VOX_EMBEDDING_MODEL` (`SecretId::VoxEmbeddingModel`) — resolved in `embedding_env.rs` per provider (HF / OpenAI / OpenRouter defaults remain at the call site when unset).
 
 **Dependency slimming:** consumers that only need `EmbeddingService` (e.g. `vox-scientia-ingest`, `vox-plugin-publication`) should depend on `vox-search` with **`default-features = false`** and enable only `tantivy-lexical` / `web-scrape` as needed — avoids pulling default `qdrant-vector` + `tavily`.
@@ -112,22 +112,27 @@ KB Phase 3 gives every stored and injected retrieval line a trust tier, routes m
 | Tier (`ContextTrustTier`) | Wire string | What carries it |
 |---|---|---|
 | `SystemVerified` | `system_verified` | Curated content plus mechanical verification evidence (`tier_for_curated(true)`). |
-| `Trusted` | `trusted` | Curated content merged to git and indexed by the Library indexer. |
-| `Advisory` | `advisory` | Agent-derived content built from curated inputs only; knowledge-graph nodes of type `fact` or `concept`. |
-| `Untrusted` | `untrusted` | Inbox findings, live web hits, legacy web rows (re-tiered, never purged), `external_research` nodes, every other or missing node type, and anything derived from `Untrusted` input. |
+| `Trusted` | `trusted` | Library document tracked at HEAD with no staged or working-tree modification at reindex time (D-08); anything else in the Library is `Untrusted`. |
+| `Advisory` | `advisory` | Agent-derived content built from curated inputs only; knowledge-graph nodes of type `fact` or `concept` from non-agent writers only (D-07); memory-leg lines from MEMORY.md and the daily logs (unchanged in Phase 3 per D-07a, revisited with Phase 7 spotlighting). |
+| `Untrusted` | `untrusted` | Inbox findings, live web hits, legacy web rows (re-tiered, never purged), `external_research` nodes, agent-written knowledge-graph rows (`agent_fact`, `agent_concept`, written by the memory store's `persist_fact`), every other or missing node type, and anything derived from `Untrusted` input. |
 
 The type lives in `vox-orchestrator-types::trust` and has no `Default`: Turso cannot enforce a CHECK, so every writer names the tier at the type boundary, and parsing a stored string is fail-closed (anything unrecognised is `Untrusted`). Variants are ordered by ascending trust, so `min` picks the least trusted.
 
 **Taint rule (D-06).** An LLM synthesis of `Untrusted` input is `Untrusted`, never `Advisory`. Only the knowledge-node types `fact` and `concept` map to `Advisory` (`tier_for_knowledge_node_type`); research-source bookkeeping nodes and every other type are `Untrusted`. A finding can only be `Untrusted` or `Advisory` (`FindingTier`); it can never be `Trusted` or `SystemVerified`.
 
-**Where the tier is stored.** `search_documents.trust_tier` (`NOT NULL DEFAULT 'untrusted'`, baseline 96) is set by every writer. For Library corpus rows the single source is `kb_index_state.trust_tier`, aligned onto the rows by `put_kb_index_state` in one transaction. A static test pins the set of code allowed to write `search_documents` or `kb_findings`.
+**Agent-written graph rows (D-07).** A fact the model stores through the memory store tool lands in the knowledge graph as an `agent_fact` / `agent_concept` row, which is `Untrusted`; rows written before this change are re-typed once inside the baseline-96 gate. D-07 covers graph rows only (D-07a): the same fact's MEMORY.md line keeps reaching the preamble through the memory leg until Phase 7.
+
+**Where the tier is stored.** `search_documents.trust_tier` (`NOT NULL DEFAULT 'untrusted'`, baseline 96) is set by every writer. Library rows carry a per-document tier set by the indexer on every reindex, changed or unchanged (Trusted only when git tracks the file at HEAD with no staged or working-tree modification, D-08; Untrusted otherwise, and when git is unavailable). `kb_index_state.trust_tier` is the corpus ceiling and `put_kb_index_state` never re-stamps rows. The `vox_kb_reindex` report counts the Untrusted documents as `docs_untrusted`. A static test pins the set of code allowed to write `search_documents` or `kb_findings`.
 
 ### Injection rules
 
 - The automatic chat preamble (`AutoChatPreamble`) drops `Untrusted` hits (`SearchPolicy::exclude_untrusted_hits`). Explicit tool queries (`ExplicitToolQuery`) return them, labelled with a `[tier:<wire string>]` line prefix.
 - `RetrievalEvidenceEnvelope::min_trust_tier` is the minimum of the kept hits and is `Untrusted` when there are none; there is no blanket stamp.
 - Vector-sidecar lines carry no stored tier and count as `Untrusted`.
-- Known gap: Tavily `web_lines` appended in `bundle.rs` bypass the tier filter. Nothing consumes them today; Phase 7 must treat them `Untrusted` before any consumer reads them.
+- `run_search_with_verification` always excludes `Untrusted` hits for `AutoChatPreamble`, whatever policy the caller passes, and the Tavily CRAG leg does not fire on that trigger (no request, no credits, no capture).
+- Explicit-query Tavily lines carry a `[tier:untrusted]` prefix and lower the envelope minimum to `Untrusted`.
+- Agent-written knowledge-graph rows (`agent_fact`, `agent_concept`) are `Untrusted`, so they are dropped from the automatic preamble and labelled on explicit queries. Memory-leg lines are unchanged (D-07a).
+- Research-source `title`, `url`, `engine` and `snippet` are sanitized on the quick and deep research paths (one constructor builds every numbered source).
 
 ### The findings inbox
 
