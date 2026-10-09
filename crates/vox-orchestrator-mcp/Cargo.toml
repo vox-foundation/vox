@@ -109,6 +109,11 @@ vox-speech = { workspace = true, optional = true, features = ["compiler-rerank"]
 
 # Standard deps
 tokio = { workspace = true }
+# MCP HTTP gateway TLS termination (capability-profiles plan 04). The workspace pins select
+# the `ring` provider with default features off; never enable rustls/tokio-rustls defaults
+# here (they select `aws_lc_rs`). Provider changes need a transport-providers ledger entry.
+rustls = { workspace = true, features = ["std", "logging", "tls12"] }
+tokio-rustls = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml.workspace = true
@@ -173,6 +178,8 @@ jsonschema.workspace = true
 # feature-gated optional [dependencies] entry above is only what makes it
 # reachable from non-test code (the eval-gate check functions).
 wiremock.workspace = true
+# Self-signed certs for gateway TLS tests; same pin/features as vox-populi's tls_smoke test.
+rcgen = { version = "0.14", default-features = false, features = ["ring", "pem"] }
 # Task 8e: pre-main hermetic-test-env init (see src/lib.rs `hermetic_test_env`).
 ctor.workspace = true
 # Task 8e: process-exit cleanup of the temp VOX_HOME dir the ctor above creates.

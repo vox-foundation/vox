@@ -13,6 +13,7 @@ mod rpc_tools;
 mod vcs_feed;
 use rpc_tools::*;
 pub mod bind_policy;
+mod tls;
 mod token;
 mod ws;
 use anyhow::{Context, Result};
@@ -286,16 +287,17 @@ pub fn spawn_http_gateway_if_enabled(
     if !http_gateway_enabled() {
         return Ok(None);
     }
+    spawn_http_gateway(state, resolve_bind_policy_input()).map(Some)
+}
 
-    let bind_host = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMcpHttpHost)
-        .expose()
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| DEFAULT_BIND_HOST.to_string());
-    let bind_port = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMcpHttpPort)
-        .expose()
-        .and_then(|s| s.parse::<u16>().ok())
-        .unwrap_or(DEFAULT_BIND_PORT);
+/// Evaluate the bind policy first; nothing listens unless it passes.
+pub(crate) fn spawn_http_gateway(
+    state: ServerState,
+    bind_input: bind_policy::BindPolicyInput,
+) -> Result<tokio::task::JoinHandle<()>> {
+    let policy = bind_policy::evaluate_bind_policy(bind_input)?;
+    let bind_host = policy.addr.ip().to_string();
+    let bind_port = policy.addr.port();
     #[allow(unused_mut)]
     let mut bearer_token =
         vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMcpHttpBearerToken)
@@ -379,16 +381,8 @@ pub fn spawn_http_gateway_if_enabled(
 
     let app = build_app(gateway_state.clone());
 
-    let addr: SocketAddr = format!("{bind_host}:{bind_port}")
-        .parse()
-        .with_context(|| format!("invalid VOX_MCP_HTTP_HOST/PORT: {bind_host}:{bind_port}"))?;
-    let listener = std::net::TcpListener::bind(addr)
-        .with_context(|| format!("failed to bind MCP HTTP gateway at {addr}"))?;
-    listener
-        .set_nonblocking(true)
-        .context("failed to set nonblocking gateway listener")?;
-    let listener = tokio::net::TcpListener::from_std(listener)
-        .context("failed to convert listener to tokio")?;
+    let listener = std::net::TcpListener::bind(policy.addr)
+        .with_context(|| format!("failed to bind MCP HTTP gateway at {}", policy.addr))?;
 
     let mut info_allowed_tools: Vec<String> = allowed_tools.iter().cloned().collect();
     info_allowed_tools.sort();
@@ -412,20 +406,47 @@ pub fn spawn_http_gateway_if_enabled(
         port = info.bind_port,
         auth_required = info.auth_required,
         tools = %info.allowed_tools.join(","),
+        bind = %policy.summary(),
         "VOX_MCP_HTTP_ENABLED: gateway started"
     );
 
-    let handle = tokio::spawn(async move {
-        if let Err(e) = serve(
-            listener,
-            app.into_make_service_with_connect_info::<SocketAddr>(),
-        )
-        .await
-        {
-            tracing::error!("MCP HTTP gateway exited with error: {e}");
+    serve_gateway(listener, app, &policy.transport)
+}
+
+/// Serve `app` on an already-bound listener, terminating TLS when the policy says so.
+pub(super) fn serve_gateway(
+    listener: std::net::TcpListener,
+    app: Router,
+    transport: &bind_policy::GatewayTransport,
+) -> Result<tokio::task::JoinHandle<()>> {
+    use axum::serve::ListenerExt;
+    listener
+        .set_nonblocking(true)
+        .context("failed to set nonblocking gateway listener")?;
+    let listener = tokio::net::TcpListener::from_std(listener)
+        .context("failed to convert listener to tokio")?;
+    let make_service = app.into_make_service_with_connect_info::<SocketAddr>();
+    let handle = match transport {
+        bind_policy::GatewayTransport::PlainHttp => tokio::spawn(async move {
+            if let Err(e) = serve(listener, make_service).await {
+                tracing::error!("MCP HTTP gateway exited with error: {e}");
+            }
+        }),
+        bind_policy::GatewayTransport::Tls { cert, key } => {
+            let acceptor = tls::load_tls_acceptor(cert, key)?;
+            let tls_listener = tls::TlsListener::spawn(listener, acceptor)
+                .context("failed to start TLS listener")?;
+            // `tap_io` routes ConnectInfo<SocketAddr> through axum's generic Listener impl.
+            let tls_listener = tls_listener
+                .tap_io(|_io: &mut tokio_rustls::server::TlsStream<tokio::net::TcpStream>| {});
+            tokio::spawn(async move {
+                if let Err(e) = serve(tls_listener, make_service).await {
+                    tracing::error!("MCP HTTP gateway (TLS) exited with error: {e}");
+                }
+            })
         }
-    });
-    Ok(Some(handle))
+    };
+    Ok(handle)
 }
 
 pub(super) fn enforce_auth(
@@ -643,6 +664,36 @@ pub(super) fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
         diff |= ai ^ bi;
     }
     diff == 0
+}
+
+fn resolved_string(id: vox_secrets::SecretId) -> Option<String> {
+    vox_secrets::resolve_secret(id)
+        .expose()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+}
+
+/// Gather bind-policy inputs from Clavis/env. Shared by gateway startup and `vox doctor`.
+// toestub-ignore(skeleton/untested-pub-api) — thin Clavis reads; the policy it feeds is unit-tested in bind_policy.rs and startup refusal in network_policy_tests.rs
+pub fn resolve_bind_policy_input() -> bind_policy::BindPolicyInput {
+    use vox_secrets::SecretId;
+    bind_policy::BindPolicyInput {
+        host: resolved_string(SecretId::VoxMcpHttpHost)
+            .unwrap_or_else(|| DEFAULT_BIND_HOST.to_string()),
+        port: resolved_string(SecretId::VoxMcpHttpPort)
+            .and_then(|s| s.parse::<u16>().ok())
+            .unwrap_or(DEFAULT_BIND_PORT),
+        has_write_token: resolved_string(SecretId::VoxMcpHttpBearerToken).is_some(),
+        has_read_token: resolved_string(SecretId::VoxMcpHttpReadBearerToken).is_some(),
+        tls: tls::tls_material_from_paths(
+            resolved_string(SecretId::VoxMcpHttpTlsCert).map(std::path::PathBuf::from),
+            resolved_string(SecretId::VoxMcpHttpTlsKey).map(std::path::PathBuf::from),
+        ),
+        behind_tunnel: read_bool_env(SecretId::VoxMcpHttpBehindTunnel).unwrap_or(false),
+        allow_unauthenticated: read_bool_env(SecretId::VoxMcpHttpAllowUnauthenticated)
+            .unwrap_or(false),
+    }
 }
 
 pub(super) fn read_bool_env(id: vox_secrets::SecretId) -> Option<bool> {
@@ -1292,3 +1343,6 @@ mod tests {
         assert_eq!(out.data["error"]["code"], "tool_not_in_profile");
     }
 }
+
+#[cfg(test)]
+mod network_policy_tests;

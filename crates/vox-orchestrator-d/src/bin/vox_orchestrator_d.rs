@@ -270,6 +270,11 @@ async fn async_main() -> anyhow::Result<()> {
     ));
 
     if let Err(e) = vox_orchestrator_mcp::http_gateway::spawn_http_gateway_if_enabled(state) {
+        if e.downcast_ref::<vox_orchestrator_mcp::http_gateway::bind_policy::BindPolicyError>()
+            .is_some()
+        {
+            return Err(e.context("MCP HTTP gateway bind policy refused to start"));
+        }
         tracing::error!(error = %e, "Failed to spawn HTTP gateway");
     }
 
