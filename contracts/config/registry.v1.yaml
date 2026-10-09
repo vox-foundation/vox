@@ -1177,3 +1177,10 @@ knobs:
     status: active
     default_value: "0"
     since: "2026-10-08"
+  - name: capability_profile
+    env_var: VOX_PROFILE
+    description: Comma-separated capability profile ids scoping MCP/HTTP tools and daemon boot; unset or empty means dev.
+    owner_crate: vox-mcp-registry
+    status: active
+    default_value: "dev"
+    since: "2026-10-08"

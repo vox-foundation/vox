@@ -1063,6 +1063,13 @@ variables:
     introduced_in: "0.6.0"
     default: "agent"
     description: "Trusted MCP caller role for privileged operations. Set by the launcher (not tool requests). Values: human (privileged browser/privileged paths) or agent (default when unset or any other value)."
+  - name: "VOX_PROFILE"
+    owner_crate: "vox-mcp-registry"
+    kind: "string"
+    required: false
+    introduced_in: "0.6.0"
+    default: "dev"
+    description: "Comma-separated capability profile ids (contracts/profiles/<id>.v1.yaml) scoping the MCP/HTTP tool surface; unset or empty means dev (every tool). vox mcp / vox serve also read the VOX_PROFILE key in ~/.vox/config.toml; spawners (CLI, Axis) pass it to vox-orchestrator-d."
   - name: "VOX_MCP_DECODE_POLICY"
     owner_crate: "vox-secrets"
     kind: "string"
