@@ -7,7 +7,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use vox_capability_registry::{OwnerRef, RowKind};
 
 use super::inputs::OperationRow;
@@ -17,24 +17,104 @@ pub(crate) type Layers = BTreeMap<String, Option<u8>>;
 
 pub(crate) const CLI_COMMANDS_DIR: &str = "crates/vox-cli/src/commands";
 pub(crate) const MCP_DISPATCH_PATH: &str = "crates/vox-orchestrator-mcp/src/dispatch.rs";
+const MCP_CRATE: &str = "vox-orchestrator-mcp";
+const CLI_CRATE: &str = "vox-cli";
 
-pub(crate) fn resolve_owner(
-    _kind: RowKind,
-    _op: &OperationRow,
-    _layers: &Layers,
-    _group_owners: &BTreeMap<String, String>,
-    _cli_command_files: &BTreeSet<String>,
-) -> Result<Option<OwnerRef>> {
-    Ok(None)
+fn owner_ref(layers: &Layers, krate: &str, rule: &str) -> OwnerRef {
+    OwnerRef {
+        crate_name: krate.to_string(),
+        layer: layers.get(krate).copied().flatten(),
+        rule: rule.to_string(),
+    }
 }
 
+/// The owning crate of one row, or `None` when no rule resolves it (counted by the ratchet).
+/// An `owner_crate` override that is not a `layers.toml` key is an error naming the op id.
+pub(crate) fn resolve_owner(
+    kind: RowKind,
+    op: &OperationRow,
+    layers: &Layers,
+    group_owners: &BTreeMap<String, String>,
+    cli_command_files: &BTreeSet<String>,
+) -> Result<Option<OwnerRef>> {
+    if let Some(name) = &op.owner_crate {
+        if !layers.contains_key(name) {
+            bail!(
+                "catalog op `{}`: owner_crate `{name}` is not a crate in docs/src/architecture/layers.toml [crates]",
+                op.id
+            );
+        }
+        return Ok(Some(owner_ref(layers, name, "override")));
+    }
+    if kind == RowKind::McpTool {
+        return Ok(Some(owner_ref(layers, MCP_CRATE, "mcp_dispatch")));
+    }
+    let Some(cli) = &op.cli else {
+        return Ok(None);
+    };
+    // `vox_<x>::path` names its crate directly.
+    if let Some(first) = cli
+        .handler_rust
+        .as_deref()
+        .and_then(|h| h.split("::").next())
+        .filter(|f| f.starts_with("vox_"))
+    {
+        let krate = first.replace('_', "-");
+        if layers.contains_key(&krate) {
+            return Ok(Some(owner_ref(layers, &krate, "handler_path")));
+        }
+    }
+    let Some(group) = cli.path.first() else {
+        return Ok(None);
+    };
+    if let Some(krate) = group_owners.get(group) {
+        return Ok(Some(owner_ref(layers, krate, "group_table")));
+    }
+    for krate in [format!("vox-cli-{group}"), format!("vox-{group}")] {
+        if layers.contains_key(&krate) {
+            return Ok(Some(owner_ref(layers, &krate, "crate_name_match")));
+        }
+    }
+    let module = group.replace('-', "_");
+    let has_module = [
+        format!("{CLI_COMMANDS_DIR}/{module}.rs"),
+        format!("{CLI_COMMANDS_DIR}/{module}/mod.rs"),
+    ]
+    .iter()
+    .any(|p| cli_command_files.contains(p));
+    Ok(has_module.then(|| owner_ref(layers, CLI_CRATE, "cli_module")))
+}
+
+/// Where to read the implementation: the handler module when the catalog names one, the MCP
+/// dispatch table for tools, else the owning crate directory.
 pub(crate) fn source_path_for(
-    _kind: RowKind,
-    _op: &OperationRow,
-    _owner: Option<&OwnerRef>,
-    _cli_command_files: &BTreeSet<String>,
+    kind: RowKind,
+    op: &OperationRow,
+    owner: Option<&OwnerRef>,
+    cli_command_files: &BTreeSet<String>,
 ) -> Option<String> {
-    Some(String::new()) // RED stub: replaced by the real resolver in the GREEN commit
+    if kind == RowKind::McpTool {
+        return Some(MCP_DISPATCH_PATH.to_string());
+    }
+    let handler = op.cli.as_ref().and_then(|c| c.handler_rust.as_deref());
+    if let Some(rest) = handler.and_then(|h| h.strip_prefix("commands::")) {
+        let segs: Vec<&str> = rest.split("::").collect();
+        let a = segs[0];
+        let mut candidates = Vec::new();
+        if let Some(b) = segs.get(1) {
+            candidates.push(format!("{CLI_COMMANDS_DIR}/{a}/{b}.rs"));
+            candidates.push(format!("{CLI_COMMANDS_DIR}/{a}/{b}/mod.rs"));
+        }
+        candidates.push(format!("{CLI_COMMANDS_DIR}/{a}.rs"));
+        candidates.push(format!("{CLI_COMMANDS_DIR}/{a}/mod.rs"));
+        if let Some(found) = candidates
+            .into_iter()
+            .find(|c| cli_command_files.contains(c))
+        {
+            return Some(found);
+        }
+    }
+    owner.map(|o| format!("crates/{}/", o.crate_name))
 }
 
 #[cfg(test)]

@@ -1,6 +1,6 @@
 //! Pure join: committed inputs -> [`CapabilityIndex`]. No IO, no clock.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use anyhow::{Result, anyhow, bail};
 use vox_capability_registry::{
@@ -9,6 +9,7 @@ use vox_capability_registry::{
 };
 
 use super::inputs::{Inputs, OperationRow};
+use super::owner::{resolve_owner, source_path_for};
 
 /// Default page-level docs link per row kind (D-06: the repo has no per-row anchors yet).
 const CLI_DOC: &str = "docs/src/reference/cli-command-surface.generated.md";
@@ -59,7 +60,28 @@ fn base_row(op: &OperationRow, id: String, kind: RowKind, doc: &str) -> IndexRow
     }
 }
 
+/// Fill the Location fields (owner crate + rule + layer, source path) of a cli/mcp row.
+fn set_location(
+    row: &mut IndexRow,
+    kind: RowKind,
+    op: &OperationRow,
+    inputs: &Inputs,
+    group_owners: &BTreeMap<String, String>,
+) -> Result<()> {
+    let owner = resolve_owner(
+        kind,
+        op,
+        &inputs.layers,
+        group_owners,
+        &inputs.cli_command_files,
+    )?;
+    row.source_path = source_path_for(kind, op, owner.as_ref(), &inputs.cli_command_files);
+    row.owner = owner;
+    Ok(())
+}
+
 pub(crate) fn build_index(inputs: &Inputs) -> Result<CapabilityIndex> {
+    let group_owners: BTreeMap<String, String> = BTreeMap::new();
     let mut rows: Vec<IndexRow> = Vec::new();
     for op in &inputs.ops {
         if op.cli.is_none() && op.mcp.is_none() {
@@ -79,6 +101,7 @@ pub(crate) fn build_index(inputs: &Inputs) -> Result<CapabilityIndex> {
                 feature_gate: c.feature_gate.clone(),
             });
             row.equivalents = mcp_id.clone().into_iter().collect();
+            set_location(&mut row, RowKind::Cli, op, inputs, &group_owners)?;
             rows.push(row);
         }
         if let (Some(m), Some(id)) = (&op.mcp, &mcp_id) {
@@ -87,6 +110,7 @@ pub(crate) fn build_index(inputs: &Inputs) -> Result<CapabilityIndex> {
                 name: m.name.clone(),
             });
             row.equivalents = cli_id.clone().into_iter().collect();
+            set_location(&mut row, RowKind::McpTool, op, inputs, &group_owners)?;
             rows.push(row);
         }
     }
