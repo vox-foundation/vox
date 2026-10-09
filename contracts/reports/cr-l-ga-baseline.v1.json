@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "_comment": "Ratchet for `vox audit --gate all --strict-block-ga --ga-baseline <this>` (cr-l-gates.yml). Gates listed here are KNOWN unmet toward v1.0; CI fails only when any other GA gate is unmet (a regression). The snapshot's `ga_met` stays the honest v1.0 verdict: no 'v1.0 ready' claim while this list is non-empty. Remove a gate as soon as it is met (the audit prints which); never add one to make CI green, fix the regression instead. Measured on main 2026-10-09 (run 37864021083).",
+  "known_unmet": [
+    "spec-to-app",
+    "mens-on-distribution",
+    "repair-corpus",
+    "plan-fidelity",
+    "deploy",
+    "cr-a1",
+    "cr-a4",
+    "cr-d3",
+    "cr-p1",
+    "cr-p2"
+  ],
+  "reasons": {
+    "spec-to-app": "measurement harness not yet implemented (stub, exit 2)",
+    "mens-on-distribution": "measurement harness not yet implemented (stub, exit 2)",
+    "repair-corpus": "measurement harness not yet implemented (stub, exit 2)",
+    "plan-fidelity": "measurement harness not yet implemented (stub, exit 2)",
+    "deploy": "measurement harness not yet implemented (stub, exit 2)",
+    "cr-a1": "product gap: a lowering function over the cyclomatic budget of 15",
+    "cr-a4": "product gap: orchestration contracts without lifecycle metadata",
+    "cr-d3": "product gap: CLI subcommands without a .vox example",
+    "cr-p1": "external infra: marquee apps must be deployed live and answer /health",
+    "cr-p2": "external infra: 99.9% uptime over a 7-day monitor log"
+  }
+}
