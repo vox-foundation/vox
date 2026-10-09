@@ -4,6 +4,7 @@
 //! - `vox ci command-compliance` validates cross-registry consistency.
 //! - [`crate::manifest::build_model_manifest`] emits planner / external-model JSON.
 
+mod card;
 mod command_registry;
 mod document;
 mod explain;
@@ -19,6 +20,7 @@ mod validate;
 #[cfg(test)]
 mod test_fixture;
 
+pub use card::{render_card, render_features, render_resolution};
 pub use command_registry::{COMMAND_REGISTRY_REL, active_vox_cli_paths_from_command_registry_yaml};
 pub use document::{CapabilityRegistryDoc, CuratedCapability, Exemptions, RuntimeBuiltinMap};
 pub use explain::{
