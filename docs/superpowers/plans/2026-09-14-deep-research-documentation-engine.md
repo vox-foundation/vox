@@ -1,3 +1,5 @@
+> **Superseded (2026-10-08) by the docs-freshness workstream.** This design is retained for history only. The authoritative plan is `.planning/workstreams/docs-freshness/ROADMAP.md` (v1.3 Self-Maintaining Public Docs, phases 20–24). Do not implement from this document.
+
 # Automated Deep Research to Documentation Engine Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.

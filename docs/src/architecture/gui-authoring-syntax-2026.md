@@ -26,7 +26,7 @@ Vox is an **output language for large language models**. Every syntactic family 
 | HTML tag names | `<row>`, `<panel>` | Phase 6 partial |
 | ARIA / a11y attribute strings | `aria-label="…"` | Phase 6 partial |
 
-A single `text` element in [`speak.vox:28`](../../../crates/vox-dashboard/app/src/surfaces/speak.vox) carries six independent Tailwind tokens jammed into one opaque string. Removing only the angle brackets would not address any of this.
+A single `text` element in `speak.vox:28` carries six independent Tailwind tokens jammed into one opaque string. Removing only the angle brackets would not address any of this.
 
 VUV addresses the surface as a whole: **one syntax (function calls), one type system (Vox tokens), one validator (the compiler). No string-typed sub-languages.**
 
@@ -73,7 +73,7 @@ button(on_click: submit, disabled: is_submitting) { text("Send") }
 
 ## Before / after
 
-Source: [`crates/vox-dashboard/app/src/tabs/speak.vox`](../../../crates/vox-dashboard/app/src/surfaces/speak.vox), `ChatMessage`.
+Source: `crates/vox-dashboard/app/src/tabs/speak.vox`, `ChatMessage`.
 
 **Today (JSX + Tailwind strings):**
 

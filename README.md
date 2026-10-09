@@ -209,7 +209,9 @@ The suite exists to serve this question, so the language is still the core resea
 Mainstream languages predate LLMs by decades. They tolerate implicit state — nulls, exceptions, schemas restated three times across the stack. That's tractable for a person; it's a minefield for a statistical code generator. A million-token context window doesn't help when most of it is integration boilerplate.
 
 <div align="center">
-  <img src="docs/src/assets/old_internet_knot_abstract.png" alt="A diagram illustrating the complexity of traditional web development fragmentation." width="80%" />
+
+![A diagram illustrating the complexity of traditional web development fragmentation.](docs/src/assets/old_internet_knot_abstract.png)
+
   <p>
     <strong>Fragmentation in Traditional Web Development</strong><br />
     Traditional development requires restating data models and logic across frontend, API, backend, and database layers. This duplication creates significant maintenance overhead and increases the risk of integration drift.

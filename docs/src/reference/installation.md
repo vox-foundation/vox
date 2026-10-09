@@ -20,8 +20,14 @@ see [Packaging status](#packaging-status).
 ## Quick install (from source)
 
 **Prerequisites:** Rust **1.98.1** (`rust-toolchain.toml`; workspace
-`rust-version` is 1.96), Node.js >= 18 (frontend scaffolding), and a C compiler
-(gcc / clang / MSVC).
+`rust-version` is 1.96), Node.js >= 22.13 and pnpm >= 11 (the generated
+frontend), and a C compiler (gcc / clang / MSVC).
+
+The Node.js and pnpm minimums come from what `vox init` and `vox build`
+generate: the frontend `pnpm-workspace.yaml` uses pnpm 11 `allowBuilds`, and
+pnpm 11 itself requires Node.js 22.13 or newer (Vite 6 and Tailwind CSS 4 in the
+generated `package.json` need less). CI pins Node 24 and pnpm 11
+(`contracts/toolchain/workspace-toolchain.v1.yaml`).
 
 ```bash
 git clone https://github.com/vox-foundation/vox.git
@@ -164,7 +170,8 @@ vox doctor
 | Check | Required? | How to fix |
 |---|---|---|
 | Rust 1.98.1 (`rust-toolchain.toml`; workspace `rust-version` is 1.96) | Yes | [rustup.rs](https://rustup.rs) |
-| Node.js >= 18 | Optional | [nodejs.org](https://nodejs.org) |
+| Node.js >= 22.13 | Yes (optional for the `minimal` tier) | [nodejs.org](https://nodejs.org) |
+| pnpm >= 11 | Yes (optional for the `minimal` tier) | `npm install -g pnpm` |
 | Git | Yes | [git-scm.com](https://git-scm.com) |
 | C compiler (MSVC / gcc / clang) | Yes | Platform-specific, see below |
 | clang / LLVM | Optional | The workspace patches **`aegis`** with **`pure-rust`** defaults, so a typical Windows + MSVC build does **not** need `clang-cl` for Turso. Install LLVM only if you hit a toolchain that still expects native crypto builds. |
@@ -177,7 +184,8 @@ Example output:
 
 ```text
   ✓  Rust / Cargo              cargo 1.98.1
-  ✓  Node.js                   v20.11.0 (>= v18)
+  ✓  Node.js                   v24.4.0
+  ✓  pnpm                      v11.25.0
   ✓  Git                       git version 2.44.0
   ✓  C Compiler                MSVC Build Tools found
   ✓  Google AI Studio Key      configured (free Gemini models available)

@@ -2,10 +2,12 @@
 title: "Automated Deep Research to Documentation Engine Design Spec"
 description: "Design specification for the Automated Deep Research to Documentation Engine, wiring vox-research-shim, vox-scientia, vox-db, and vox-gui into a verified, publication-grade documentation generation and GUI discovery axis."
 category: "Architecture SSOTs"
-status: "current"
+status: "deprecated"
 training_eligible: true
 training_rationale: "Normative design specification for automated architecture documentation generation from empirical deep research findings."
 ---
+
+> **Superseded (2026-10-08) by the docs-freshness workstream.** This design is retained for history only. The authoritative plan is `.planning/workstreams/docs-freshness/ROADMAP.md` (v1.3 Self-Maintaining Public Docs, phases 20–24). Do not implement from this document.
 
 # Automated Deep Research to Documentation Engine Design Spec
 

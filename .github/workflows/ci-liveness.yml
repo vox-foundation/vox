@@ -2,12 +2,19 @@
 # a `nightly-failure` issue when a listed scheduled workflow has no *scheduled* run
 # within 2x its cron cadence (daily → 2 days, weekly → 14), and closes it when one lands.
 # A workflow GitHub auto-disabled (disabled_inactivity) is an error, not a skip.
+# Push-triggered deploy workflows get a separate check: a `Deploy stale:` issue when
+# there is no successful run on main within their listed age.
 name: CI liveness
 
 on:
   schedule:
     - cron: '0 12 * * *'
   workflow_dispatch:
+    inputs:
+      deploy_max_age_days:
+        description: "Override max age in days for the deploy-success check (0 forces a stale alert; for testing)"
+        type: string
+        default: ''
 
 concurrency:
   group: ${{ github.workflow }}
@@ -81,3 +88,37 @@ jobs:
             fi
           done <<< "$names"
           exit $fail
+      - name: Deploys succeeded recently
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          MAX_AGE_OVERRIDE: ${{ inputs.deploy_max_age_days }}
+        run: |
+          set -euo pipefail
+          # name|workflow file|max days since the last successful run on main.
+          deploys='Documentation|docs-deploy.yml|14'
+          if [ -n "$MAX_AGE_OVERRIDE" ] && ! [[ "$MAX_AGE_OVERRIDE" =~ ^[0-9]+$ ]]; then
+            echo "::error::deploy_max_age_days must be a whole number of days, got '$MAX_AGE_OVERRIDE'"
+            exit 1
+          fi
+          gh label create nightly-failure --color B60205 \
+            --description "A scheduled workflow is failing" --force >/dev/null
+          # Staleness is reported through the issue, not the exit code.
+          while IFS='|' read -r name file days; do
+            [ -n "$name" ] || continue
+            days=${MAX_AGE_OVERRIDE:-$days}
+            last=$(gh run list --workflow "$file" --branch main --status success --limit 1 \
+                   --json createdAt -q '.[0].createdAt // empty')
+            cutoff=$(date -u -d "$days days ago" +%s)
+            title="Deploy stale: $name"
+            num=$(gh issue list --label nightly-failure --state open --limit 100 --json number,title \
+                  --jq "map(select(.title == \"$title\"))[0].number // empty")
+            if [ "$days" -eq 0 ] || [ -z "$last" ] || [ "$(date -u -d "$last" +%s)" -lt "$cutoff" ]; then
+              [ -n "$num" ] || gh issue create --label nightly-failure --assignee brbrainerd --title "$title" \
+                --body "No successful run of \`$file\` on main in ${days}+ days (last success: ${last:-never}; threshold: ${days} days). Check the latest runs of \`$name\` and the deploy credentials."
+            elif [ -n "$num" ]; then
+              gh issue close "$num" --comment "Successful deploy landed at $last."
+            fi
+          done <<< "$deploys"

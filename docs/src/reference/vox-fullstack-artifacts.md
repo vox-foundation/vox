@@ -20,7 +20,7 @@ This document names **every major output** of `vox build` / `vox run` / `vox bun
 | TS SDK-only emit | Same files as client target | **`vox emit client <file> [-o DIR]`** — same outputs as **`vox build --target=client`** (Library mode): `vox-client.ts`, `openapi.json`, types/schemas, optional **`package.json`** ([`library_package_emit.rs`](../../../crates/vox-codegen-ts/src/library_package_emit.rs)) — without emitting Rust. |
 | Route manifest | `out_dir/routes.manifest.ts` | `voxRoutes` tree for SPA/Start adapters (`routes {` present). |
 | UI | `out_dir/*.tsx`, `out_dir/*.ts` | React components + router shell; SPA scaffold uses manifest when present. |
-| Static HTML shells | `target/generated/public/ssg-shells/**` | From [`vox-ssg`](../../../crates/vox-ssg/src/lib.rs): minimal shells for `routes {` / `@page` (hydration anchor, not a second UI runtime). |
+| Static HTML shells | `target/generated/public/ssg-shells/**` | From [`vox-cli/src/utils/ssg`](../../../crates/vox-cli/src/utils/ssg/mod.rs): minimal shells for `routes {` / `@page` (hydration anchor, not a second UI runtime). |
 | Embedded static (after frontend build) | `target/generated/public/**` | Vite `dist/` copied here for `rust_embed` in release flows. |
 
 **`vox run`** (app mode): builds TS to `dist/`, runs **`cargo run` in `target/generated`** — the **Rust binary** is the primary server.

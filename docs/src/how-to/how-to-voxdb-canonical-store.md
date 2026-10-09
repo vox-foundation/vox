@@ -23,7 +23,7 @@ Typical local path: `<VOX_DATA_DIR or platform default>/vox/vox.db` via [`defaul
 | Location | Role |
 |----------|------|
 | **`.vox/store.db`** (repo) | Optional project cache: snippets, share, LSP — [`open_project_db`](../../../crates/vox-db/src/project_store.rs). Do not treat as cross-repo SSOT. |
-| **`vox_training_telemetry.db`** | **Temporary** fallback when `vox.db` is still on a legacy `schema_version` chain. See [Training telemetry sidecar](#training-telemetry-sidecar). |
+| **`vox_training_telemetry.db`** | **Temporary** fallback when `vox.db` is still on a legacy `schema_version` chain. See [Historical `vox_training_telemetry.db`](#historical-vox_training_telemetrydb). |
 
 ## migrating off a legacy chain
 

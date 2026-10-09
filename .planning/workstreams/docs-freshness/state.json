@@ -1,0 +1,43 @@
+{
+  "contract": "1.0.0",
+  "flavor": "core",
+  "milestone": "v1.3 — Self-Maintaining Public Docs",
+  "phases": [
+    {
+      "number": "20",
+      "name": "Deploy Unblock & Public-Surface Honesty",
+      "status": "in_progress"
+    },
+    {
+      "number": "20.1",
+      "name": "Collapsible Reader Layout (INSERTED)",
+      "status": "pending"
+    },
+    {
+      "number": "21",
+      "name": "Measure & Prune",
+      "status": "pending"
+    },
+    {
+      "number": "22",
+      "name": "Deterministic Drift Gate & PR Impact",
+      "status": "pending"
+    },
+    {
+      "number": "23",
+      "name": "Generated Reference Expansion",
+      "status": "pending"
+    },
+    {
+      "number": "24",
+      "name": "Reader Trust Signals, Agent Surfaces & v1.4 Go/No-Go",
+      "status": "pending"
+    }
+  ],
+  "next": {
+    "command": "/gsd-progress --next",
+    "label": "Advance to the next step (plan phase 20)",
+    "reason": "Phase 20 of 6 — needs a plan"
+  },
+  "updated_at": "2026-10-09T11:29:10.161Z"
+}

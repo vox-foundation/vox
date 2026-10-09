@@ -1,0 +1,17 @@
+# Mechanical commits ignored by git blame and by the docs 'Last updated' date map (docs-astro/src/utils/git-dates.mjs)
+# Use with: git blame --ignore-revs-file .git-blame-ignore-revs
+
+# feat(docs): voxlang.org Cloudflare Pages migration + sidebar category overhaul (743 files)
+014a41d015bc4132554aa8de96e6152e14db3796
+
+# chore(docs): strip hand-authored last_updated frontmatter (337 files)
+4e98a0f87ee3cbae99925d6f14843e8fc00af192
+
+# refactor(secrets+docs): complete clavis→secrets rename and LLM content cleanup
+ce22efcf0a323176195fd6fe70770e4dc988920c
+
+# refactor(secrets+docs): complete clavis→secrets rename and LLM content cleanup
+c2c1b9f2c091b81516b29c50349b9c14a944695b
+
+# docs: fix stale crate names from 2026-05-08 rename series
+3456cc901b4b44bed8a00966206950544b7999b2
