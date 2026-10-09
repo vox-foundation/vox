@@ -256,6 +256,7 @@ plugins = [
     "skill-git", "skill-orchestrator", "skill-rag", "skill-v0",
     "runtime-wasm",
 ]
+profiles = ["dev"]
 
 [[bundle]]
 id = "vox-ml"
@@ -263,6 +264,7 @@ description = "Fullstack plus ML/GPU code plugins (NVIDIA CUDA stack)."
 status = "beta"
 extends = "vox-fullstack"
 plugins = ["mens-candle-cuda", "nvml-probe"]
+profiles = ["dev"]
 
 [[bundle]]
 id = "vox-ml-metal"
@@ -270,6 +272,7 @@ description = "Fullstack plus ML/GPU code plugins (Apple Metal stack)."
 status = "beta"
 extends = "vox-fullstack"
 plugins = ["mens-candle-metal"]
+profiles = ["dev"]
 
 [[bundle]]
 id = "vox-mesh"
@@ -277,6 +280,7 @@ description = "Server-side mesh deployment."
 status = "alpha"
 extends = "vox-base"
 plugins = ["populi-mesh", "skill-orchestrator"]
+profiles = ["mesh"]
 
 [[bundle]]
 id = "vox-server"
@@ -284,6 +288,7 @@ description = "Headless backend deployment: orchestrator + mesh, no GUI/ML."
 status = "beta"
 extends = "vox-base"
 plugins = ["populi-mesh", "skill-orchestrator", "skill-memory", "webhook", "runtime-container"]
+profiles = ["orchestrator", "knowledge", "mesh"]
 
 [[bundle]]
 id = "vox-edge"
@@ -291,6 +296,7 @@ description = "Edge / on-device deployment: lightweight runtime + local skills, 
 status = "beta"
 extends = "vox-base"
 plugins = ["skill-compiler", "skill-memory", "skill-v0", "runtime-wasm"]
+profiles = ["lang", "skills"]
 
 [[bundle]]
 id = "vox-dev"
@@ -302,6 +308,7 @@ plugins = [
     "populi-mesh", "oratio",
     "browser", "webhook",
 ]
+profiles = ["dev"]
 
 [[bundle]]
 id = "vox-mobile"

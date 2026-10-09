@@ -197,4 +197,16 @@ mod tests {
             &serde_json::json!({"success": false, "error": "boom"})
         ));
     }
+
+    #[test]
+    fn every_bundle_profile_id_resolves() {
+        for b in vox_plugin_catalog::all_bundles() {
+            let ids: Vec<&str> = b.profiles.iter().map(String::as_str).collect();
+            assert!(
+                ActiveProfile::resolve(&ids).is_ok(),
+                "bundle {} has unknown profile ids {ids:?}",
+                b.id
+            );
+        }
+    }
 }
