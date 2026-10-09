@@ -68,7 +68,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -80,6 +80,8 @@ operations:
   mcp:
     name: vox_agy_delegate
     http_read_role_eligible: false
+    exposure: internal
+    requires: []
   cli: null
 - id: agy.delegate.batch
   title: Agy Delegate Batch
@@ -87,7 +89,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -99,6 +101,8 @@ operations:
   mcp:
     name: vox_agy_delegate_batch
     http_read_role_eligible: false
+    exposure: internal
+    requires: []
   cli: null
 - id: agy.doctor
   title: Agy Doctor
@@ -106,7 +110,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -118,6 +122,8 @@ operations:
   mcp:
     name: vox_agy_doctor
     http_read_role_eligible: true
+    exposure: internal
+    requires: []
   cli: null
 - id: agy.ledger.digest
   title: Agy Ledger Digest
@@ -125,7 +131,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -137,6 +143,8 @@ operations:
   mcp:
     name: vox_agy_ledger_digest
     http_read_role_eligible: true
+    exposure: internal
+    requires: []
   cli: null
 - id: agy.pipeline
   title: Agy Pipeline
@@ -144,7 +152,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -156,6 +164,8 @@ operations:
   mcp:
     name: vox_agy_pipeline
     http_read_role_eligible: false
+    exposure: internal
+    requires: []
   cli: null
 - id: agy.review
   title: Agy Review
@@ -163,7 +173,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -175,6 +185,8 @@ operations:
   mcp:
     name: vox_agy_review
     http_read_role_eligible: false
+    exposure: internal
+    requires: []
   cli: null
 - id: ask.clarification
   title: Ask Clarification
@@ -201,7 +213,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -213,6 +225,8 @@ operations:
   mcp:
     name: vox_credentials_status
     http_read_role_eligible: true
+    exposure: internal
+    requires: []
   cli: null
 - id: feedback.list
   title: Feedback List
@@ -9564,7 +9578,7 @@ operations:
   description_human: null
   product_lane: platform
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -9576,6 +9590,8 @@ operations:
   mcp:
     name: vox_secrets_doctor
     http_read_role_eligible: false
+    exposure: internal
+    requires: []
   cli: null
 - id: secrets.get
   title: Secrets Get
@@ -13204,7 +13220,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -13216,6 +13232,9 @@ operations:
   mcp:
     name: vox_drain_agent
     http_read_role_eligible: false
+    exposure: internal
+    requires:
+    - agent_fleet
   cli: null
 - id: emergency.stop
   title: Emergency Stop
@@ -13223,7 +13242,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: destructive
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -13235,6 +13254,9 @@ operations:
   mcp:
     name: vox_emergency_stop
     http_read_role_eligible: false
+    exposure: internal
+    requires:
+    - agent_fleet
   cli: null
 - id: exec.time.query
   title: Exec Time Query
@@ -16011,7 +16033,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -16023,6 +16045,9 @@ operations:
   mcp:
     name: vox_gamify_battle_start
     http_read_role_eligible: false
+    exposure: internal
+    requires:
+    - db
   cli: null
 - id: ludus.battle.submit
   title: Ludus Battle Submit
@@ -16030,7 +16055,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -16042,6 +16067,9 @@ operations:
   mcp:
     name: vox_gamify_battle_submit
     http_read_role_eligible: false
+    exposure: internal
+    requires:
+    - db
   cli: null
 - id: ludus.collegium.join
   title: Ludus Collegium Join
@@ -16049,7 +16077,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -16061,6 +16089,9 @@ operations:
   mcp:
     name: vox_gamify_collegium_join
     http_read_role_eligible: false
+    exposure: internal
+    requires:
+    - db
   cli: null
 - id: ludus.hud
   title: Gamify Hud
@@ -16095,7 +16126,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -16107,6 +16138,9 @@ operations:
   mcp:
     name: vox_gamify_notification_ack
     http_read_role_eligible: false
+    exposure: internal
+    requires:
+    - db
   cli: null
 - id: ludus.notifications.ack.all
   title: Ludus Notifications Ack All
@@ -16114,7 +16148,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -16126,6 +16160,9 @@ operations:
   mcp:
     name: vox_gamify_notifications_ack_all
     http_read_role_eligible: false
+    exposure: internal
+    requires:
+    - db
   cli: null
 - id: ludus.notifications.list
   title: Ludus Notifications List
@@ -16133,7 +16170,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -16145,6 +16182,9 @@ operations:
   mcp:
     name: vox_gamify_notifications_list
     http_read_role_eligible: false
+    exposure: internal
+    requires:
+    - db
   cli: null
 - id: ludus.progress.snapshot
   title: Ludus Progress Snapshot
@@ -16152,7 +16192,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -16164,6 +16204,9 @@ operations:
   mcp:
     name: vox_gamify_progress_snapshot
     http_read_role_eligible: false
+    exposure: internal
+    requires:
+    - db
   cli: null
 - id: ludus.quest.list
   title: Ludus Quest List
@@ -16171,7 +16214,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -16183,6 +16226,9 @@ operations:
   mcp:
     name: vox_gamify_quest_list
     http_read_role_eligible: false
+    exposure: internal
+    requires:
+    - db
   cli: null
 - id: ludus.shop.buy
   title: Ludus Shop Buy
@@ -16190,7 +16236,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -16202,6 +16248,9 @@ operations:
   mcp:
     name: vox_gamify_shop_buy
     http_read_role_eligible: false
+    exposure: internal
+    requires:
+    - db
   cli: null
 - id: ludus.shop.catalog
   title: Ludus Shop Catalog
@@ -16209,7 +16258,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -16221,6 +16270,8 @@ operations:
   mcp:
     name: vox_gamify_shop_catalog
     http_read_role_eligible: false
+    exposure: internal
+    requires: []
   cli: null
 - id: map.agent.session
   title: Map Agent Session
@@ -17578,7 +17629,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -17590,6 +17641,8 @@ operations:
   mcp:
     name: vox_openclaw_discover
     http_read_role_eligible: false
+    exposure: internal
+    requires: []
   cli: null
 - id: openclaw.doctor
   title: Openclaw Doctor
@@ -17651,7 +17704,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -17663,6 +17716,8 @@ operations:
   mcp:
     name: vox_openclaw_gateway_call
     http_read_role_eligible: false
+    exposure: internal
+    requires: []
   cli: null
 - id: openclaw.health
   title: Openclaw Health
@@ -17670,7 +17725,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -17682,6 +17737,8 @@ operations:
   mcp:
     name: vox_openclaw_health
     http_read_role_eligible: false
+    exposure: internal
+    requires: []
   cli: null
 - id: openclaw.import
   title: Openclaw Import
@@ -17716,7 +17773,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -17728,6 +17785,8 @@ operations:
   mcp:
     name: vox_openclaw_import_skill
     http_read_role_eligible: false
+    exposure: internal
+    requires: []
   cli: null
 - id: openclaw.list-remote
   title: Openclaw List-remote
@@ -17762,7 +17821,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -17774,6 +17833,8 @@ operations:
   mcp:
     name: vox_openclaw_list_remote
     http_read_role_eligible: false
+    exposure: internal
+    requires: []
   cli: null
 - id: openclaw.notify
   title: Openclaw Notify
@@ -17781,7 +17842,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -17793,6 +17854,8 @@ operations:
   mcp:
     name: vox_openclaw_notify
     http_read_role_eligible: false
+    exposure: internal
+    requires: []
   cli:
     path:
     - openclaw
@@ -17837,7 +17900,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -17849,6 +17912,8 @@ operations:
   mcp:
     name: vox_openclaw_search_remote
     http_read_role_eligible: false
+    exposure: internal
+    requires: []
   cli: null
 - id: openclaw.serve
   title: Openclaw Serve
@@ -17994,7 +18059,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18006,6 +18071,8 @@ operations:
   mcp:
     name: vox_openclaw_subscribe
     http_read_role_eligible: false
+    exposure: internal
+    requires: []
   cli:
     path:
     - openclaw
@@ -18023,7 +18090,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18035,6 +18102,8 @@ operations:
   mcp:
     name: vox_openclaw_subscriptions
     http_read_role_eligible: false
+    exposure: internal
+    requires: []
   cli:
     path:
     - openclaw
@@ -18052,7 +18121,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18064,6 +18133,8 @@ operations:
   mcp:
     name: vox_openclaw_unsubscribe
     http_read_role_eligible: false
+    exposure: internal
+    requires: []
   cli:
     path:
     - openclaw
@@ -18081,7 +18152,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18093,6 +18164,8 @@ operations:
   mcp:
     name: vox_agent_list_remote
     http_read_role_eligible: false
+    exposure: internal
+    requires: []
   cli: null
 - id: agent.gateway.call
   title: Agent Gateway Call
@@ -18100,7 +18173,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18112,6 +18185,8 @@ operations:
   mcp:
     name: vox_agent_gateway_call
     http_read_role_eligible: false
+    exposure: internal
+    requires: []
   cli: null
 - id: agent.subscriptions
   title: Agent Subscriptions
@@ -18119,7 +18194,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18131,6 +18206,8 @@ operations:
   mcp:
     name: vox_agent_subscriptions
     http_read_role_eligible: false
+    exposure: internal
+    requires: []
   cli: null
 - id: agent.subscribe
   title: Agent Subscribe
@@ -18138,7 +18215,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18150,6 +18227,8 @@ operations:
   mcp:
     name: vox_agent_subscribe
     http_read_role_eligible: false
+    exposure: internal
+    requires: []
   cli: null
 - id: agent.unsubscribe
   title: Agent Unsubscribe
@@ -18157,7 +18236,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18169,6 +18248,8 @@ operations:
   mcp:
     name: vox_agent_unsubscribe
     http_read_role_eligible: false
+    exposure: internal
+    requires: []
   cli: null
 - id: agent.notify
   title: Agent Notify
@@ -18176,7 +18257,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18188,6 +18269,8 @@ operations:
   mcp:
     name: vox_agent_notify
     http_read_role_eligible: false
+    exposure: internal
+    requires: []
   cli: null
 - id: oplog
   title: Oplog
@@ -26313,6 +26396,9 @@ operations:
   mcp:
     name: vox_add_approval_allowlist_entry
     http_read_role_eligible: false
+    exposure: internal
+    requires:
+    - db
   cli: null
 - id: approvals.allowlist_list
   title: List Approval Allowlist
