@@ -51,7 +51,7 @@ pub(super) fn is_origin_allowed(
         if !is_loopback_host(host_part) {
             return false;
         }
-    } else if is_upgrade {
+    } else if is_upgrade && !has_bearer_authorization(headers) {
         // Browsers always send Origin on WS upgrades; a missing Origin here
         // is suspicious and we reject it defensively.
         return false;
@@ -78,6 +78,16 @@ fn is_loopback_host(host: &str) -> bool {
         }
     }
     false
+}
+
+/// Native (non-browser) clients such as Remote Axis send `Authorization: Bearer` on the upgrade
+/// and no `Origin`; browsers cannot set `Authorization` on a WebSocket handshake. The token itself
+/// is validated by `enforce_auth`, not here.
+fn has_bearer_authorization(headers: &HeaderMap) -> bool {
+    headers
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|v| v.starts_with(vox_http_client::BEARER_PREFIX))
 }
 
 pub(super) async fn check_origin_allowlist(
@@ -183,5 +193,31 @@ mod tests {
         headers2.insert("upgrade", HeaderValue::from_static("websocket"));
         headers2.insert("origin", HeaderValue::from_static("http://localhost"));
         assert!(is_origin_allowed(false, "/v1/ws", &headers2));
+    }
+
+    #[test]
+    fn test_ws_upgrade_without_origin_allowed_only_with_bearer() {
+        let mut headers = HeaderMap::new();
+        headers.insert("upgrade", HeaderValue::from_static("websocket"));
+        headers.insert("authorization", HeaderValue::from_static("Bearer t0ken"));
+        assert!(is_origin_allowed(false, "/v1/ws", &headers));
+
+        let mut basic = HeaderMap::new();
+        basic.insert("upgrade", HeaderValue::from_static("websocket"));
+        basic.insert(
+            "authorization",
+            HeaderValue::from_static("Basic Zm9vOmJhcg=="),
+        );
+        assert!(!is_origin_allowed(false, "/v1/ws", &basic));
+
+        // A browser always sends Origin; a non-loopback Origin stays denied even with a bearer.
+        let mut browser = HeaderMap::new();
+        browser.insert("upgrade", HeaderValue::from_static("websocket"));
+        browser.insert("authorization", HeaderValue::from_static("Bearer t0ken"));
+        browser.insert(
+            "origin",
+            HeaderValue::from_static("https://attacker.example"),
+        );
+        assert!(!is_origin_allowed(false, "/v1/ws", &browser));
     }
 }
