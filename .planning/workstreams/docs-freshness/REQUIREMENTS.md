@@ -38,7 +38,7 @@ Brief: `CONTEXT.md`. Research: `research/SUMMARY.md` (+ STACK, FEATURES, ARCHITE
 
 Measured 2026-10-08: 2,803 relative `.md` links across 438 live pages are written relative to the repo, but Starlight serves each page as a directory (`/tutorials/tut-getting-started/`), so the browser resolves them one level too deep. For example `../reference/installation.md` becomes `/tutorials/reference/installation.md`, which returns 404. Another 1,909 links point outside `docs/src/` (top targets: `AGENTS.md` ×123, `LANGUAGE_DESIGN_PRIORITIES.md` ×23, Rust sources, contracts) and all 404. `vox ci check-links` validates repo paths, so it passes. The lychee step on the built site only prints guidance and never fails.
 
-- [ ] **LINKS-01**: Relative links between docs pages (`foo.md`, `../x/bar.md#anchor`, `index.md` / `README.md`) render as working site routes. They are rewritten at build time (remark plugin in `docs-astro/src/plugins/`) to Starlight slugs, anchors preserved; source Markdown stays repo-relative so GitHub rendering keeps working.
+- [x] **LINKS-01**: Relative links between docs pages (`foo.md`, `../x/bar.md#anchor`, `index.md` / `README.md`) render as working site routes. They are rewritten at build time (remark plugin in `docs-astro/src/plugins/`) to Starlight slugs, anchors preserved; source Markdown stays repo-relative so GitHub rendering keeps working.
 - [ ] **LINKS-02**: Links that leave `docs/src/` resolve. Repo Markdown files (e.g. `AGENTS.md`, `LANGUAGE_DESIGN_PRIORITIES.md`, `README.md`, `CONTRIBUTING.md`, crate READMEs) are rendered as doc pages on the site from a single source (no hand copies). Non-Markdown repo files (source, contracts, `Cargo.toml`) link to their GitHub blob on `main`.
 - [ ] **LINKS-03**: The built site fails CI on any broken internal link (blocking check over `dist/`), including a deliberately broken fixture. External links are checked nightly, cached, and non-blocking.
 
@@ -119,7 +119,7 @@ Added 2026-10-08 (D12). The site runs stock Starlight 0.38 with no component ove
 | HONEST-01 | Phase 20 | Complete |
 | HONEST-02 | Phase 20 | Complete |
 | HONEST-03 | Phase 20 | Complete |
-| LINKS-01 | Phase 20 | Pending |
+| LINKS-01 | Phase 20 | Complete |
 | LINKS-02 | Phase 20 | Pending |
 | LINKS-03 | Phase 20 | Pending |
 | TUT-01 | Phase 20 | Complete |

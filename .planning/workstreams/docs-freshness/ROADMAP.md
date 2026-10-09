@@ -47,7 +47,7 @@ v1.3 makes voxlang.org stay accurate to the code without constant manual upkeep,
   6. `https://voxlang.org/tutorials/tut-getting-started/` links to a working installation page, every relative `.md` link on the built site resolves, repo Markdown such as `AGENTS.md` opens as a rendered doc page, and source/contract links open on GitHub. CI fails the build when a broken internal-link fixture is introduced.
   7. Every tutorial passes an audit against current code (commands in the registry, snippets compile, install steps match the installation reference, links resolve) and records the commit it was verified against.
 
-**Plans**: 8/12 plans executed, 7 waves
+**Plans**: 9/12 plans executed, 7 waves
 
 - [x] 20-01-PLAN.md — Wave 1: deploy workflow repair, edit-in-place failure issue, liveness check, pinned wrangler (DEPLOY-01, DEPLOY-02)
 - [x] 20-02-PLAN.md — Wave 1: git-derived page dates with mechanical commits ignored (DEPLOY-04)
@@ -57,7 +57,7 @@ v1.3 makes voxlang.org stay accurate to the code without constant manual upkeep,
 - [x] 20-06-PLAN.md — Wave 2: status banners, noindex, Internals sidebar, sitemap/robots (HONEST-01, HONEST-02)
 - [x] 20-12-PLAN.md — Wave 2: archive unpublished (content mirror), /retired/ page + redirect (LINKS-02)
 - [x] 20-07-PLAN.md — Wave 3: Internals excluded from every llms variant (HONEST-02)
-- [ ] 20-08-PLAN.md — Wave 4: build-time relative-link rewriting (LINKS-01, LINKS-02)
+- [x] 20-08-PLAN.md — Wave 4: build-time relative-link rewriting (LINKS-01, LINKS-02)
 - [ ] 20-09-PLAN.md — Wave 5: repo Markdown mounted at /repo/, workflow path filters for mounted sources (LINKS-02)
 - [ ] 20-10-PLAN.md — Wave 6: blocking built-site link check with self-test (LINKS-03)
 - [ ] 20-11-PLAN.md — Wave 7: live smoke checks; push-triggered deploy, #462 closure, escalation drills (DEPLOY-03, DEPLOY-01, DEPLOY-02)
@@ -169,7 +169,7 @@ Not started; scope is `VERIFY-*` and `BOT-*` in `REQUIREMENTS.md`. Proceeds only
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 20. Deploy Unblock & Public-Surface Honesty | 8/12 | In Progress|  |
+| 20. Deploy Unblock & Public-Surface Honesty | 9/12 | In Progress|  |
 | 20.1. Collapsible Reader Layout (INSERTED) | 0/TBD | Not started | - |
 | 21. Measure & Prune | 0/TBD | Not started | - |
 | 22. Deterministic Drift Gate & PR Impact | 0/TBD | Not started | - |
