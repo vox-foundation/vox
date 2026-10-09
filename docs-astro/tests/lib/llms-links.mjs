@@ -8,6 +8,10 @@ const TRAILING_PUNCTUATION = /[.,;:!?*_]+$/;
  * Same-origin URLs listed in an llms file: Markdown link targets and bare URLs,
  * fragment-stripped, deduped and sorted. External URLs are out of scope. With
  * `baseUrl`, `origin` is rewritten so a local preview can be checked.
+ *
+ * @param {string} text
+ * @param {{ origin?: string, baseUrl?: string }} [options]
+ * @returns {string[]}
  */
 export function extractLlmsUrls(text, { origin = 'https://voxlang.org', baseUrl } = {}) {
   const wanted = new URL(origin).origin;
@@ -34,6 +38,11 @@ export function extractLlmsUrls(text, { origin = 'https://voxlang.org', baseUrl 
 /**
  * Resolve every URL with `fetcher(url) -> { status }` (which must follow
  * redirects), at most 8 at a time. Non-2xx answers and thrown errors are failures.
+ *
+ * @param {string[]} urls
+ * @param {(url: string) => Promise<{ status: number }>} fetcher
+ * @param {{ concurrency?: number }} [options]
+ * @returns {Promise<{ ok: boolean, failures: { url: string, status?: number, error?: string }[] }>}
  */
 export async function checkUrls(urls, fetcher, { concurrency = 8 } = {}) {
   const failures = [];
