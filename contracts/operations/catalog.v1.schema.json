@@ -1,5 +1,5 @@
 {
-  "x-vox-version": 1,
+  "x-vox-version": 2,
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://voxlang.org/contracts/operations/catalog.v1.schema.json",
   "title": "operations catalog v1",
@@ -62,14 +62,23 @@
     },
     "mcpProjection": {
       "type": "object",
-      "required": ["name"],
+      "required": ["name", "exposure", "requires"],
       "properties": {
         "name": { "type": "string" },
         "http_read_role_eligible": { "type": "boolean", "default": false },
-        "tier": {
+        "exposure": {
           "type": "string",
-          "enum": ["core", "dev", "advanced"],
-          "default": "core"
+          "enum": ["public", "operator", "internal"],
+          "description": "Capability-profile exposure class (vox_mcp_registry::Exposure)."
+        },
+        "requires": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["db", "sessions", "agent_fleet", "model_registry", "llm_facade", "search_index", "memory", "research", "mesh", "attention", "clarification", "flywheel", "compiler", "browser", "speech"]
+          },
+          "description": "Subsystems the tool needs booted (vox_mcp_registry::Subsystem); [] when none."
         }
       },
       "additionalProperties": false
@@ -99,6 +108,16 @@
     "operationRow": {
       "type": "object",
       "required": ["id", "title", "description", "product_lane"],
+      "if": { "required": ["mcp"], "properties": { "mcp": { "type": "object" } } },
+      "then": {
+        "required": ["side_effect_class"],
+        "properties": {
+          "side_effect_class": {
+            "type": "string",
+            "enum": ["none", "read_only", "writes_files", "spawns_process", "network", "remote_mutation", "destructive"]
+          }
+        }
+      },
       "properties": {
         "id": { "type": "string" },
         "title": { "type": "string" },

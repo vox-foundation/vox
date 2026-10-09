@@ -11,6 +11,7 @@ use super::command_compliance::registry::{
     MCP_TOOL_REGISTRY_REL, REGISTRY_REL, validate_mcp_tool_registry_against_json_schema,
     validate_registry_against_json_schema,
 };
+use super::operations_catalog_exposure::ensure_mcp_classified;
 use crate::command_registry_model::{RegistryFile, RegistryOperation};
 use vox_bounded_fs::read_utf8_path_capped;
 use vox_capability_registry::{
@@ -147,12 +148,12 @@ pub struct McpProjection {
     pub name: String,
     #[serde(default)]
     pub http_read_role_eligible: bool,
-    #[serde(default = "default_mcp_tier")]
-    pub tier: String,
-}
-
-fn default_mcp_tier() -> String {
-    "core".to_string()
+    /// `public | operator | internal`; required for every MCP op (capability profiles).
+    #[serde(default)]
+    pub exposure: Option<String>,
+    /// Subsystem ids the tool needs booted; `[]` when none. Required for every MCP op.
+    #[serde(default)]
+    pub requires: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -186,8 +187,12 @@ struct McpCanonicalTool {
     product_lane: String,
     #[serde(default)]
     http_read_role_eligible: bool,
-    #[serde(default = "default_mcp_tier")]
-    tier: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    exposure: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    side_effect_class: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    requires: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -319,10 +324,14 @@ fn build_catalog_from_live_registries(repo_root: &Path) -> Result<OperationsCata
             row.description = t.description.clone();
         }
         row.product_lane = t.product_lane.clone();
+        if row.side_effect_class.is_none() {
+            row.side_effect_class = t.side_effect_class.clone();
+        }
         row.mcp = Some(McpProjection {
             name: t.name,
             http_read_role_eligible: t.http_read_role_eligible,
-            tier: t.tier,
+            exposure: t.exposure,
+            requires: t.requires,
         });
     }
 
@@ -565,6 +574,7 @@ pub fn verify(repo_root: &Path) -> Result<()> {
         }
     }
     verify_catalog_nomenclature(&catalog)?;
+    ensure_mcp_classified(&catalog)?;
     verify_mcp_dispatch_coverage(repo_root, &seen_mcp)?;
     verify_mcp_input_schema_coverage(repo_root, &seen_mcp)?;
     verify_catalog_read_role_vs_governance(repo_root, &catalog)?;
@@ -725,7 +735,9 @@ fn project_mcp_registry(catalog: &OperationsCatalog) -> McpCanonicalRegistry {
                 description: row.description.clone(),
                 product_lane: row.product_lane.clone(),
                 http_read_role_eligible: m.http_read_role_eligible,
-                tier: m.tier.clone(),
+                exposure: m.exposure.clone(),
+                side_effect_class: row.side_effect_class.clone(),
+                requires: m.requires.clone(),
             })
         })
         .collect();
@@ -940,6 +952,7 @@ pub fn sync(repo_root: &Path, target: &str, write: bool) -> Result<()> {
         }
         "mcp" => {
             let catalog = read_catalog(repo_root)?;
+            ensure_mcp_classified(&catalog)?;
             let text = mcp_registry_yaml_text(&catalog)?;
             let path = repo_root.join(MCP_TOOL_REGISTRY_REL);
             write_or_verify_text(
@@ -1223,5 +1236,32 @@ mod tests {
                 .is_file(),
             "expected vox-orchestrator-mcp input_schemas.rs (operations-verify anchor)"
         );
+    }
+
+    #[test]
+    fn mcp_projection_emits_exposure_metadata_and_no_tier() {
+        let mut row = create_row("x.ok", None, None, "active");
+        row.cli = None;
+        row.side_effect_class = Some("read_only".to_string());
+        row.mcp = Some(McpProjection {
+            name: "vox_x_ok".to_string(),
+            http_read_role_eligible: false,
+            exposure: Some("public".to_string()),
+            requires: Some(vec!["db".to_string(), "search_index".to_string()]),
+        });
+        let cat = OperationsCatalog {
+            schema_version: 1,
+            capability: Default::default(),
+            exemptions: Default::default(),
+            operations: vec![row],
+        };
+        let text = mcp_registry_yaml_text(&cat).expect("serialize");
+        assert!(text.contains("  exposure: public\n"), "{text}");
+        assert!(text.contains("  side_effect_class: read_only\n"), "{text}");
+        assert!(
+            text.contains("  requires:\n  - db\n  - search_index\n"),
+            "{text}"
+        );
+        assert!(!text.contains("tier"), "{text}");
     }
 }

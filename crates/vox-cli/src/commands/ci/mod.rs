@@ -9,6 +9,7 @@ mod gui_catalog_parity;
 mod gui_surface_coverage;
 pub mod gui_surface_registry;
 mod operations_catalog;
+mod operations_catalog_exposure;
 mod pipeline_parity;
 mod policy_allowlist_parity;
 mod policy_registry;
