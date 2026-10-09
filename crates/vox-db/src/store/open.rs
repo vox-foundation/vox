@@ -207,6 +207,7 @@ impl crate::VoxDb {
             // columns when `baseline_sql()` runs.
             Self::ensure_kb_library_columns(conn).await?;
             Self::backfill_search_document_trust_tiers(conn).await?;
+            Self::retier_agent_knowledge_nodes(conn).await?;
             conn.execute_batch(
                 "CREATE INDEX IF NOT EXISTS idx_search_documents_corpus ON search_documents(corpus);
                  CREATE UNIQUE INDEX IF NOT EXISTS idx_search_chunks_doc_hash ON search_document_chunks(document_id, chunk_hash);
@@ -311,6 +312,27 @@ impl crate::VoxDb {
             (),
         )
         .await?;
+        Ok(())
+    }
+
+    /// Baseline 96 (D-03, D-07): one-time re-type of legacy agent-written knowledge nodes, run
+    /// inside the version gate. Before baseline 96, `MemoryManager::persist_fact` was the only
+    /// producer of the `fact` and `concept` node types (graphify ingest ids are prefixed
+    /// `graphify:` and are left alone), so every such row is model-originated and becomes
+    /// `agent_fact` / `agent_concept` (Untrusted). Rows are re-typed, never deleted.
+    async fn retier_agent_knowledge_nodes(conn: &turso::Connection) -> Result<(), StoreError> {
+        use vox_orchestrator_types::trust::{AGENT_CONCEPT_NODE_TYPE, AGENT_FACT_NODE_TYPE};
+        for (from, to) in [
+            ("fact", AGENT_FACT_NODE_TYPE),
+            ("concept", AGENT_CONCEPT_NODE_TYPE),
+        ] {
+            conn.execute(
+                "UPDATE knowledge_nodes SET node_type = ?1 \
+                 WHERE node_type = ?2 AND id NOT LIKE 'graphify:%'",
+                (to, from),
+            )
+            .await?;
+        }
         Ok(())
     }
 

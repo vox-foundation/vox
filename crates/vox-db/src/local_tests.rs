@@ -1181,3 +1181,68 @@ async fn kb_trust_tier_backfill_runs_once() {
         "second open must not re-run the backfill"
     );
 }
+
+/// D-03 + D-07: legacy `persist_fact` graph rows (type fact / concept) are re-typed to the agent
+/// types once, in the baseline-96 gate; graphify ingest keeps its tier; nothing is deleted.
+#[tokio::test]
+async fn kb_agent_nodes_retyped_once_on_upgrade_never_deleted() {
+    use crate::ContextTrustTier;
+    use vox_orchestrator_types::trust::{AGENT_CONCEPT_NODE_TYPE, AGENT_FACT_NODE_TYPE};
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("v95.db").to_string_lossy().to_string();
+    {
+        let raw = turso::Builder::new_local(&path).build().await.unwrap();
+        raw.connect()
+            .unwrap()
+            .execute_batch(
+                "CREATE TABLE schema_version (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL DEFAULT (datetime('now')));
+                 INSERT INTO schema_version (version) VALUES (95);
+                 CREATE TABLE knowledge_nodes (
+                    id TEXT PRIMARY KEY, label TEXT NOT NULL, content TEXT,
+                    node_type TEXT NOT NULL DEFAULT 'concept', media_url TEXT, media_type TEXT,
+                    metadata TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')));
+                 CREATE TABLE knowledge_edges (
+                    src_id TEXT NOT NULL, dst_id TEXT NOT NULL, relation TEXT NOT NULL,
+                    weight REAL NOT NULL DEFAULT 1.0,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    PRIMARY KEY (src_id, dst_id, relation));
+                 INSERT INTO knowledge_nodes (id, label, node_type) VALUES
+                    ('k-fact', 'k-fact', 'fact'), ('k-concept', 'k-concept', 'concept'),
+                    ('graphify:c:node:x', 'x', 'concept'), ('ext', 'ext', 'external_research');",
+            )
+            .await
+            .unwrap();
+    }
+    let ids = ["k-fact", "k-concept", "graphify:c:node:x", "ext"].map(String::from);
+    let db = VoxDb::open(&path).await.unwrap();
+    let t = db.trust_tiers_for_knowledge_nodes(&ids).await.unwrap();
+    assert_eq!(t["k-fact"], ContextTrustTier::Untrusted);
+    assert_eq!(t["k-concept"], ContextTrustTier::Untrusted);
+    assert_eq!(t["graphify:c:node:x"], ContextTrustTier::Advisory);
+    assert_eq!(t["ext"], ContextTrustTier::Untrusted);
+    let listed = |ty: &'static str, want: &'static str| {
+        let db = &db;
+        async move {
+            db.list_knowledge_nodes(Some(ty), 0, 10)
+                .await
+                .unwrap()
+                .iter()
+                .any(|n| n.id == want)
+        }
+    };
+    assert!(listed(AGENT_FACT_NODE_TYPE, "k-fact").await);
+    assert!(listed(AGENT_CONCEPT_NODE_TYPE, "k-concept").await);
+    assert_eq!(db.list_knowledge_nodes(None, 0, 10).await.unwrap().len(), 4);
+
+    // The gate ran once: a non-agent fact written afterwards keeps Advisory across a reopen.
+    db.upsert_knowledge_node("k-new", "k-new", "c", Some("fact"), None, None)
+        .await
+        .unwrap();
+    drop(db);
+    let db = VoxDb::open(&path).await.unwrap();
+    let t = db
+        .trust_tiers_for_knowledge_nodes(&["k-new".to_string()])
+        .await
+        .unwrap();
+    assert_eq!(t["k-new"], ContextTrustTier::Advisory);
+}
