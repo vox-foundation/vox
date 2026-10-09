@@ -21,7 +21,7 @@ v1.3 makes voxlang.org stay accurate to the code without constant manual upkeep,
 
 ### 🚧 v1.3 Self-Maintaining Public Docs
 
-- [ ] **Phase 20: Deploy Unblock & Public-Surface Honesty** - voxlang.org deploying from `main` again with escalating liveness alerts, live smoke checks, correct git dates, status banners/noindex, an Internals section, one authoritative design, working links (repo Markdown rendered as pages), and every tutorial verified current
+- [x] **Phase 20: Deploy Unblock & Public-Surface Honesty** - voxlang.org deploying from `main` again with escalating liveness alerts, live smoke checks, correct git dates, status banners/noindex, an Internals section, one authoritative design, working links (repo Markdown rendered as pages), and every tutorial verified current (completed 2026-10-09)
 - [ ] **Phase 20.1: Collapsible Reader Layout (INSERTED)** - Left sidebar collapses to a hover-expand rail, right sidebar hides with an unobtrusive restore control, the article widens into the freed space, and docs pages plus the landing page work on phone, tablet and desktop
 - [ ] **Phase 21: Measure & Prune** - Deterministic report-only mention extractor + resolvers, `vox audit docs`, machine-generated Docs Reality Audit findings, prune report, and user-approved case-by-case dispositions applied with redirects
 - [ ] **Phase 22: Deterministic Drift Gate & PR Impact** - Symbol-span freshness ledger, in-place PR impact comment, tighten-only gate on reader-facing `current` pages, expiring suppressions, human re-attestation, docs-definition-of-done warning

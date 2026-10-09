@@ -107,7 +107,7 @@ Reuses existing infrastructure; adds one trial identity instead of a parallel st
 | v1.1 trial governance (grill G1–G25, R1–R9) | Signed immutable campaigns, atomic spend reservations, group-sequential stats, two-campaign promotion, dual-control designation, structural-only telemetry, linked retries instead of resume | — Pending — v1.1 implements it |
 
 ## Workstreams
-- `docs-freshness` — v1.3 Self-Maintaining Public Docs: the public site (voxlang.org, Starlight over `docs/src/`) stays accurate to the code without constant manual upkeep. Brief: `.planning/workstreams/docs-freshness/CONTEXT.md`.
+- `docs-freshness` — v1.3 Self-Maintaining Public Docs: the public site (voxlang.org, Starlight over `docs/src/`) stays accurate to the code without constant manual upkeep. Brief: `.planning/workstreams/docs-freshness/CONTEXT.md`. Phase 20 (deploy unblock + public-surface honesty) complete 2026-10-09: deploys live again, failures escalate to one edit-in-place issue, research/roadmap pages labelled Internals; next Phase 20.1.
 
 ---
-*Last updated: 2026-10-01 after v1.0 completion and v1.1 Research Trial Flywheel initialization*
+*Last updated: 2026-10-09 after docs-freshness Phase 20*
