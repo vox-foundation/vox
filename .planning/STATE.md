@@ -25,7 +25,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-01)
 
 **Core value:** The compiler, orchestrator, and runtime that everything else depends on must keep building and passing CI throughout.
-**Current focus:** Phase 06.2 — Capability Index SSOT (INSERTED)
+**Current focus:** Phase 06.3 — Universal Palette (INSERTED)
 
 ## Current Position
 
@@ -72,6 +72,7 @@ Recent decisions affecting current work:
 - [Phase 06.2]: 06.2-02: cli group owners in domains.v1.yaml only where a cli_dispatch arm provably calls into the crate; owner ratchet bootstraps at 0 unresolved
 - [Phase 06.2]: [06.2-03] Fuzzy score = max(jaro-winkler, 0.9 x token containment), threshold 0.75; card lines use single-space Label: value
 - [Phase 06.2]: 06.2-04: explain/features use the global --json flag (a local --json collides with GlobalOpts.json); no-match exits non-zero, shortlist exits 0
+- [Phase 06.2]: code review WR-01..07 fixed (Related ranking, skills from committed catalog.toml, claim errors fail with page path, invisible-char stripping, input bounds on original input, domain vocabulary validation, skill/doc rows in features)
 - [Phase 06.2]: 06.2-05: coverage refresh is two-step (vox graph rebuild --corpus vox-gui-surface, then vox ci capability-index --refresh-coverage --write); the drift path only reads the committed snapshot
 
 ### Pending Todos
@@ -83,6 +84,8 @@ None yet.
 - Phase 7 migration is gated on human approval of the Tier A schema and placement (new domain vs scientia extension; baseline 95).
 - Replay/promotion-eligible campaigns are gated on the Tier C evidence-storage decision (STORE-03).
 - A dedicated trial-engine crate and the `vox-cli-research` → `vox-eval` edge need user-authorized crate-edge exceptions.
+- [Phase 06.2] Owner decision pending for 06.2-08 (nightly coverage refresh: SSOT_AUTOREGEN_TOKEN vs GITHUB_TOKEN vs skip); until then refresh manually.
+- [Phase 06.2] Watch for 06.3+: GUI TS artifact is 514 KB raw (54 KB gzip); many capability titles are boilerplate (e.g. "Fabrica Fmt"); review info items IN-01..IN-04 open.
 
 ## Deferred Items
 
@@ -96,6 +99,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-09T08:46:39.667Z
+Last session: 2026-10-09T20:40:00Z
 Stopped at: Phase 06.2 complete, ready to plan Phase 06.3
 Resume file: None

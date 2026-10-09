@@ -47,6 +47,7 @@ Reuses existing infrastructure; adds one trial identity instead of a parallel st
 - ✓ HMAC tool-call receipts under two-tier formal-intent verification (ADR-029) — v1.0
 - ✓ Reporting-only Pareto frontier for model scoreboards (ADR-046) — v1.0
 - ✓ Candle/peft-rs/qlora-rs unified and compile-validated by a fail-closed hosted CUDA lane (ADR-034) — v1.0
+- ✓ Generated capability index (`contracts/capabilities/capability-index.v1.json`, 1544 rows) joining every CLI/MCP op to GUI surface, docs, owner crate/layer, domain, skills and a graph-coverage snapshot; drift-gated in `vox ci ssot-drift`; `vox explain` / `vox features` + MCP twins; generated llms.txt/vox-docs.json sections and GUI TS artifact (DISC-01..04) — Phase 06.2
 
 ### Active
 
@@ -57,7 +58,8 @@ Reuses existing infrastructure; adds one trial identity instead of a parallel st
 - [ ] Verified, provenance-rich, searchable knowledge accumulation with frozen per-arm manifests and memory ablations
 - [ ] Shadow challengers, two-campaign confirmation, and dual-control scoped champion designation
 - [ ] Adversarial/stress trials, mutation testing of gates, and operational hardening
-- [ ] Discoverability: one generated capability index feeding GUI palette, Capability Explorer, Architecture Atlas, `vox explain`/`vox features`, and llms.txt; CI coverage gate; time-to-find journeys (DISC-01..16)
+- [ ] Discoverability (remaining, DISC-05..16): universal ⌘K palette, Capability Explorer + CI coverage gate + orphan disposition, Architecture Atlas, time-to-find journeys — all consuming the Phase 06.2 index
+- [ ] Optional: nightly graph-coverage refresh job (06.2-08) — deferred pending owner decision on Actions PR permissions/token
 
 ### Out of Scope
 
@@ -107,7 +109,9 @@ Reuses existing infrastructure; adds one trial identity instead of a parallel st
 | ADR-029: Formal Intent and Tool Receipt Auditing | Two-tier verification with HMAC receipts for agent tool calls | ✓ Good — implemented in v1.0 Phase 5 |
 | ADR-046: Pareto-Frontier Model Reporting | Reporting-only Pareto view over reliability/cost/latency; not a routing change | ✓ Good — closed in v1.0 Phase 6 |
 | ADR-034: Candle/QLoRA stack upgrades | Versions verified unified; compile-validated by fail-closed hosted CUDA lane | ✓ Good — accepted 2026-10-01 (compile-only, no physical-GPU claim) |
+| Capability index is a separate generated join file, not an extension of the transport-only capability registry (06.2 D-01) | Lets presentation/join data churn without touching MCP/CLI codegen; one file feeds CLI, MCP, GUI, docs, agents | ✓ Good — shipped Phase 06.2 |
+| Graph coverage comes from a committed snapshot; drift gate never builds the graph (06.2 D-07/D-08) | Keeps ssot-drift deterministic; snapshot age is shown, not gated | ✓ Good — shipped Phase 06.2; nightly refresh (06.2-08) deferred |
 | v1.1 trial governance (grill G1–G25, R1–R9) | Signed immutable campaigns, atomic spend reservations, group-sequential stats, two-campaign promotion, dual-control designation, structural-only telemetry, linked retries instead of resume | — Pending — v1.1 implements it |
 
 ---
-*Last updated: 2026-10-08 after inserting discoverability phases 06.2–06.6*
+*Last updated: 2026-10-09 after Phase 06.2 (Capability Index SSOT)*
