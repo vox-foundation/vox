@@ -10,6 +10,8 @@ use crate::index::{CapabilityIndex, DomainDef, IndexRow, RowKind};
 
 /// Longest accepted query, in characters (not bytes).
 pub const MAX_QUERY_CHARS: usize = 256;
+/// Longest accepted `--domain` / `domain` value, in characters (matches the MCP input schema).
+pub const MAX_DOMAIN_CHARS: usize = 64;
 /// Most rows a fuzzy shortlist returns.
 pub const SHORTLIST_LIMIT: usize = 8;
 /// Hard cap on any result set (exact primary + `also`).
@@ -115,15 +117,23 @@ fn score(query: &str, query_tokens: &[String], row: &IndexRow) -> f64 {
     jw.max(0.9 * hit as f64 / query_tokens.len() as f64)
 }
 
+/// Whether `s` has more than `max` characters; scans at most `max + 1` of them.
+fn exceeds_chars(s: &str, max: usize) -> bool {
+    s.chars().nth(max).is_some()
+}
+
 /// Resolve `query` against `index`: exact alias first, then a ranked shortlist.
 pub fn resolve<'a>(index: &'a CapabilityIndex, query: &str) -> Result<Resolution<'a>> {
-    let q = query.trim().to_lowercase();
-    if q.is_empty() {
+    let trimmed = query.trim();
+    if trimmed.is_empty() {
         bail!("empty query: pass a command, tool, view, crate or skill name");
     }
-    if q.chars().count() > MAX_QUERY_CHARS {
+    // Bound the ORIGINAL input before any allocation: lowercasing can expand it (U+0130 -> 2 chars)
+    // and a multi-megabyte query must not be copied just to be rejected.
+    if exceeds_chars(trimmed, MAX_QUERY_CHARS) {
         bail!("query too long (max {MAX_QUERY_CHARS} characters)");
     }
+    let q = trimmed.to_lowercase();
     let mut exact: Vec<(u8, &IndexRow)> = index
         .rows
         .iter()
@@ -179,11 +189,16 @@ pub fn explain_rows<'a>(r: &Resolution<'a>) -> Vec<&'a IndexRow> {
 
 /// Rows of one domain, sorted by id; an unknown domain is an error listing the valid ids.
 pub fn rows_in_domain<'a>(index: &'a CapabilityIndex, domain: &str) -> Result<Vec<&'a IndexRow>> {
-    let d = domain.trim().to_lowercase();
+    let trimmed = domain.trim();
+    if exceeds_chars(trimmed, MAX_DOMAIN_CHARS) {
+        bail!("domain too long (max {MAX_DOMAIN_CHARS} characters)");
+    }
+    // At most MAX_DOMAIN_CHARS characters from here on, so echoing it in the error is bounded.
+    let d = trimmed.to_lowercase();
     if !index.domains.iter().any(|x| x.id == d) {
         let valid: Vec<&str> = index.domains.iter().map(|x| x.id.as_str()).collect();
         bail!(
-            "unknown domain `{domain}`; valid domains: {}",
+            "unknown domain `{trimmed}`; valid domains: {}",
             valid.join(", ")
         );
     }
@@ -348,6 +363,34 @@ mod tests {
         assert!(e.contains("256"), "{e}");
         // 256 multibyte chars are within the bound (chars, not bytes).
         assert!(resolve(&idx, &"é".repeat(256)).is_ok());
+    }
+
+    #[test]
+    fn query_bound_counts_original_characters_not_lowercased_ones() {
+        let idx = fixture_index();
+        // U+0130 lowercases to two chars; 200 of them are within the advertised 256 bound.
+        assert!(resolve(&idx, &"\u{130}".repeat(200)).is_ok());
+        // Whitespace padding is trimmed before the bound applies.
+        assert!(resolve(&idx, &format!("  {}  ", "a".repeat(256))).is_ok());
+        // A huge input is rejected on its original length.
+        let e = resolve(&idx, &"a".repeat(5_000_000))
+            .unwrap_err()
+            .to_string();
+        assert!(e.contains("256"), "{e}");
+    }
+
+    #[test]
+    fn domain_bound_and_bounded_echo() {
+        let idx = fixture_index();
+        let e = rows_in_domain(&idx, &"x".repeat(65))
+            .unwrap_err()
+            .to_string();
+        assert!(e.contains("64") && e.len() < 100, "{e}");
+        let e = rows_in_domain(&idx, &"x".repeat(MAX_DOMAIN_CHARS))
+            .unwrap_err()
+            .to_string();
+        assert!(e.contains("unknown domain") && e.len() < 200, "{e}");
+        assert!(rows_in_domain(&idx, " Secrets ").is_ok());
     }
 
     #[test]

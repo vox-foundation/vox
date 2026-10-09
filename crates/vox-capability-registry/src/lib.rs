@@ -24,8 +24,8 @@ pub use card::{render_card, render_features, render_resolution};
 pub use command_registry::{COMMAND_REGISTRY_REL, active_vox_cli_paths_from_command_registry_yaml};
 pub use document::{CapabilityRegistryDoc, CuratedCapability, Exemptions, RuntimeBuiltinMap};
 pub use explain::{
-    Candidate, MAX_QUERY_CHARS, MAX_RESULTS, Resolution, SHORTLIST_LIMIT, domain_counts,
-    domain_counts_json, explain_rows, resolve, rows_in_domain,
+    Candidate, MAX_DOMAIN_CHARS, MAX_QUERY_CHARS, MAX_RESULTS, Resolution, SHORTLIST_LIMIT,
+    domain_counts, domain_counts_json, explain_rows, resolve, rows_in_domain,
 };
 pub use ids::{implicit_cli_capability_id, implicit_mcp_capability_id};
 pub use index::{

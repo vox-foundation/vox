@@ -131,6 +131,15 @@ mod tests {
     }
 
     #[test]
+    fn features_overlong_domain_error_does_not_echo_it() {
+        let v = parse(&features(FeaturesArgs {
+            domain: Some("x".repeat(100_000)),
+        }));
+        assert_eq!(v["success"], false, "{}", v.to_string().len());
+        assert!(v.to_string().len() < 1_000, "response not bounded");
+    }
+
+    #[test]
     fn features_without_domain_returns_counts() {
         let v = parse(&features(FeaturesArgs { domain: None }));
         assert_eq!(v["success"], true, "{v}");
