@@ -59,13 +59,33 @@ v1.1 turns Vox's existing research pipeline, telemetry, evaluation, model routin
 **Plans:** 8 plans (06.2-08 optional, owner-gated)
 
 Plans:
+**Wave 1**
+
 - [ ] 06.2-01-PLAN.md — Tracer: index schema + `vox ci capability-index` generator + ssot-drift gate + embedded loader (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 06.2-02-PLAN.md — Owner crate/layer (D-04), domain vocabulary (D-09), tier, unresolved-owner ratchet (D-05) (wave 2)
 - [ ] 06.2-03-PLAN.md — vox-capability-registry resolver (exact→fuzzy) + explain card / features renderers (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 06.2-04-PLAN.md — `vox explain` / `vox features` CLI + MCP twins via operations catalog (wave 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 06.2-05-PLAN.md — Surface/crate/skill rows, GUI join, graph-coverage snapshot + `--refresh-coverage` (wave 4)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
 - [ ] 06.2-06-PLAN.md — `capabilities:` frontmatter claims → doc links/rows; doc-lint/Starlight/governance contract (wave 5)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
 - [ ] 06.2-07-PLAN.md — Generated llms.txt/llms-full.txt regions, vox-docs.json key, GUI TS artifact (wave 6)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+
 - [ ] 06.2-08-PLAN.md — OPTIONAL nightly coverage-refresh job (owner-gated checkpoint) (wave 7)
 
 ### Phase 06.3: Universal Palette (INSERTED)
