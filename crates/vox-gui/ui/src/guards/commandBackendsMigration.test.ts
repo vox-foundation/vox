@@ -20,3 +20,11 @@ describe('plan 07 db-command migration', () => {
     expect(moduleClass('model_active')).toBe('daemon');
   });
 });
+
+describe('plan 07 models group', () => {
+  it('models is daemon-class and its host-only commands live in models_host', () => {
+    expect(moduleClass('models')).toBe('daemon');
+    expect(moduleClass('models_host')).toBe('host');
+    expect(moduleClass('routing_explain')).toBe('daemon');
+  });
+});

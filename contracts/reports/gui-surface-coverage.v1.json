@@ -5402,6 +5402,7 @@
     "get_ludus_profile",
     "get_memory_status",
     "get_model_scoreboard",
+    "get_models_snapshot",
     "get_novelty_assessment",
     "get_orchestrator_config",
     "get_orchestrator_config_catalog",

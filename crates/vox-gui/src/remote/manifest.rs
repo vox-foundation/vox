@@ -16,6 +16,8 @@ pub const REMOTE_ROUTED_DAEMON_MODULES: &[&str] = &[
     "event_annotate",
     "mcp",
     "model_active",
+    "models",
+    "routing_explain",
     "vcs_isolation",
 ];
 /// Daemon-class modules with at least one method the gateway does not expose yet.
@@ -276,13 +278,21 @@ mod tests {
 
     #[test]
     fn real_inventory_gates_known_surfaces() {
-        let profile = strings(&["mesh", "repository", "models", "console", "vox-search"]);
+        let profile = strings(&[
+            "mesh",
+            "repository",
+            "models",
+            "activity",
+            "console",
+            "vox-search",
+        ]);
         let out = surface_availability(command_backends(), registry_surfaces(), Some(&profile));
         assert_eq!(reason_of(&out, "mesh"), None);
         assert_eq!(reason_of(&out, "repository"), None);
         assert_eq!(reason_of(&out, "vox-search"), None);
+        assert_eq!(reason_of(&out, "models"), None);
         assert_eq!(
-            reason_of(&out, "models"),
+            reason_of(&out, "activity"),
             Some(UnavailableReason::NotRemoteCapable)
         );
         assert_eq!(

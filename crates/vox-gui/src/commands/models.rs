@@ -1,334 +1,159 @@
-//! Tauri commands for model registry, routing preferences, and scoreboard surfaces.
+//! Tauri commands for the model registry, routing preferences and scoreboard surfaces, served by
+//! the daemon (`GET /api/v2/models/*` and `vox_models_preference_set`) so they work against a
+//! local or a remote Vox server.
 
 use std::sync::Arc;
 
-use serde::Serialize;
-use vox_config::AutoRoutingPriority;
-use vox_orchestrator::catalog::{MensCatalog, ModelCatalog};
-use vox_orchestrator::config::CostPreference;
-use vox_orchestrator::models::{
-    ModelRegistry, ModelSelectionRequest, ModelSpec, SelectionIntent, TaskCategory, decide,
-    select_with_default_registry,
+use serde_json::json;
+pub use vox_orchestrator_mcp::gui_ops::dto::models::{
+    ModelCardDto, ModelsPreferencesDto, ModelsSnapshotDto, NudgeDirection, ProviderStatusDto,
+    RoutingIntentionDto, RoutingPriorityDto, RoutingSummaryDto, ScoreboardRowDto,
 };
-use vox_orchestrator::orch_daemon::OrchDaemonClient;
+use vox_orchestrator_mcp::gui_ops::dto::models::{
+    axis_value, nudge_axis, priority_to_csv, priority_to_intentions,
+};
 
-use crate::commands::daemon::PersistentDaemon;
+use crate::remote::backend::BackendState;
+use crate::remote::calls::{BackendCalls, api_data, path_with_query, tool_data};
 
-#[derive(Debug, Serialize)]
-pub struct ModelCardDto {
-    pub id: String,
-    pub provider: String,
-    /// Debug-format `ProviderType` (`OpenRouter`, `VoxLocal`) so the picker
-    /// can match `inference_provider_status`. `provider` is often the org
-    /// prefix (`aion-labs`, `anthropic`), not the backend.
-    pub provider_type: String,
-    pub tier: String,
-    pub cost_per_1k: f64,
-    pub max_tokens: u32,
-    pub is_free: bool,
-    pub latency_p50_ms: Option<u32>,
-    pub success_rate: Option<f64>,
-    pub quality_score: Option<f64>,
+const PREF_TOOL: &str = "vox_models_preference_set";
+
+/// Empty-policy JSON returned when no `selection_policy` preference is persisted.
+const EMPTY_SELECTION_POLICY: &str = "{\"steps\":[]}";
+
+fn limit_query(path: &str, limit: Option<usize>) -> String {
+    path_with_query(path, &[("limit", limit.map(|l| l.to_string()))])
 }
 
-#[derive(Debug, Serialize)]
-pub struct RoutingPriorityDto {
-    pub efficiency: u8,
-    pub precision: u8,
-    pub latency: u8,
-    pub availability: u8,
-    pub balance: u8,
-    pub mobile: u8,
+async fn preferences<B: BackendCalls>(b: &B) -> Result<ModelsPreferencesDto, String> {
+    api_data(b.api_v2_get("/models/preferences").await?)
 }
 
-impl From<AutoRoutingPriority> for RoutingPriorityDto {
-    fn from(p: AutoRoutingPriority) -> Self {
-        Self {
-            efficiency: p.efficiency,
-            precision: p.precision,
-            latency: p.latency,
-            availability: p.availability,
-            balance: p.balance,
-            mobile: p.mobile,
-        }
-    }
+async fn set_preference<B: BackendCalls>(b: &B, key: &str, value: String) -> Result<(), String> {
+    let env = b
+        .call_tool(PREF_TOOL, json!({ "key": key, "value": value }))
+        .await?;
+    tool_data::<String>(PREF_TOOL, env).map(|_| ())
 }
 
-/// Parse a `VOX_AUTO_ROUTING_PRIORITY`-style CSV (`efficiency=25,precision=30,...`)
-/// onto a base priority, leaving any axes not present in the CSV untouched.
-fn apply_routing_csv(mut base: RoutingPriorityDto, csv: &str) -> RoutingPriorityDto {
-    for part in csv.split(',') {
-        let mut it = part.splitn(2, '=');
-        let key = it.next().map(str::trim).unwrap_or("").to_ascii_lowercase();
-        let Ok(parsed) = it.next().map(str::trim).unwrap_or("").parse::<u8>() else {
-            continue;
-        };
-        match key.as_str() {
-            "efficiency" | "cost" => base.efficiency = parsed,
-            "precision" | "quality" => base.precision = parsed,
-            "latency" | "speed" => base.latency = parsed,
-            "availability" => base.availability = parsed,
-            "balance" => base.balance = parsed,
-            "mobile" => base.mobile = parsed,
-            _ => {}
-        }
-    }
-    base
-}
-
-/// Resolve the effective routing priority: persisted DB pref (if present)
-/// overrides env/default; env/default is the base.
-async fn effective_routing_priority() -> RoutingPriorityDto {
-    let base: RoutingPriorityDto = AutoRoutingPriority::from_env().into();
-    if let Some(db) =
-        vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Runtime, true).await
-        && let Ok(Some(csv)) = db
-            .get_user_preference("local_user", "routing_priority")
-            .await
-        && !csv.trim().is_empty()
-    {
-        return apply_routing_csv(base, &csv);
-    }
-    base
-}
-
-#[derive(Debug, Serialize)]
-pub struct RoutingSummaryDto {
-    pub active_model: Option<String>,
-    pub exploration_spent_usd: f64,
-    pub exploration_budget_usd: f64,
-    pub routing_priority: RoutingPriorityDto,
-    pub arm_count: usize,
-    pub model_count: usize,
-    pub decision_preview: Option<DecisionPreviewDto>,
-    /// Family of the preview pick (`models::family::family_key`); `None` without a pick.
-    pub family: Option<String>,
-    /// `catalog` | `bootstrap` | `local` (`models::provenance::resolved_from`). The GUI shows a
-    /// concrete version only for `catalog`.
-    pub resolved_from: Option<String>,
-    /// `SelectionReason` display text of the preview pick.
-    pub reason: Option<String>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct DecisionPreviewDto {
-    pub selected_model: String,
-    pub discovery_state: String,
-    pub alternatives: Vec<String>,
-    pub rejection_reasons: Vec<String>,
-    pub intelligence_score: f64,
-    pub efficiency_score: f64,
-    pub latency_score: f64,
-}
-
-#[derive(Debug, Serialize)]
-pub struct ScoreboardRowDto {
-    pub model_id: String,
-    pub task_category: String,
-    pub strength_tag: String,
-    pub n_calls: i64,
-    pub success_rate: f64,
-    pub p50_latency_ms: Option<i64>,
-    pub cost_per_success_usd: Option<f64>,
-    pub quality_score: f64,
-}
-
-fn registry_from_cache() -> ModelRegistry {
-    ModelRegistry::from_cache()
-}
-
-/// `registry_from_cache` plus the persisted scoreboard, the way `vox model explain`
-/// (`crates/vox-cli/src/commands/model/explain.rs`) already builds it.
-///
-/// Without this the registry's `scoreboard_snapshot()` is an empty map, so every
-/// per-model observed statistic on the Models surface rendered as a blank. Degrades to
-/// the bare cached registry when no workspace DB is reachable — a GUI surface must not
-/// fail to list models just because telemetry is unavailable.
-pub(crate) async fn registry_with_scoreboard() -> ModelRegistry {
-    let mut reg = registry_from_cache();
-    let Some(db) =
-        vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Runtime, true).await
-    else {
-        return reg;
-    };
-    if let Ok(rows) = db.get_model_scoreboard(7).await {
-        reg.inject_scoreboard_latency(&rows);
-        reg.inject_scoreboard(
-            rows.into_iter()
-                .map(|row| {
-                    (
-                        row.model_id.clone(),
-                        vox_orchestrator::models::ModelScore::from(row),
-                    )
-                })
-                .collect(),
-        );
-    }
-    if let Ok(pricing) = db.get_pricing_catalog().await {
-        reg.inject_pricing_catalog(pricing);
-    }
-    reg.apply_routing_reference();
-    reg
-}
-
-/// Union live Mens runs into `reg` (local FS scan only — no OpenRouter fetch).
-/// Live rows overwrite cache/bootstrap entries for the same id via [`ModelRegistry::register`].
-fn merge_live_mens_specs(reg: &mut ModelRegistry, live: impl IntoIterator<Item = ModelSpec>) {
-    for spec in live {
-        reg.register(spec);
-    }
-}
-
-/// Cheap local catalog refresh: scan `mens/runs/` under the workspace root.
-async fn refresh_live_mens_catalog(reg: &mut ModelRegistry) {
-    let repo_root = vox_repository::resolve_repo_root_for_ci();
-    if let Ok(models) = MensCatalog::new(&repo_root).refresh().await {
-        merge_live_mens_specs(reg, models);
-    }
-}
-
-fn model_spec_to_card(m: &ModelSpec, success_rate: Option<f64>) -> ModelCardDto {
-    ModelCardDto {
-        id: m.id.clone(),
-        provider: m.provider.clone(),
-        provider_type: format!("{:?}", m.provider_type),
-        tier: format!("{:?}", m.capabilities.tier),
-        cost_per_1k: m.cost_per_1k,
-        max_tokens: u32::try_from(m.max_tokens).unwrap_or(u32::MAX),
-        is_free: m.is_free,
-        latency_p50_ms: m.capabilities.latency_p50_ms,
-        success_rate,
-        // Deliberately not surfaced (Task M0/M2): scoreboard quality is a constant
-        // until feedback rows exist — UI renders `—` for null.
-        quality_score: None,
-    }
-}
-
-#[tauri::command]
-pub async fn list_model_cards(limit: Option<usize>) -> Result<Vec<ModelCardDto>, String> {
-    let mut reg = registry_with_scoreboard().await;
-    refresh_live_mens_catalog(&mut reg).await;
-    // Warm OpenRouter live TTL cache in the background so autocomplete is hot.
-    tokio::spawn(async {
-        vox_orchestrator::catalog_live::warm_openrouter_live_cache_if_keyed().await;
-    });
-    let limit = limit.unwrap_or(2000);
-    let mut models = reg.list_models();
-    models.sort_by(|a, b| a.id.cmp(&b.id));
-
-    Ok(models
-        .into_iter()
-        .take(limit)
-        .map(|m| {
-            let sb = reg.scoreboard_snapshot().get(&m.id);
-            model_spec_to_card(&m, sb.map(|s| s.success_rate))
-        })
-        .collect())
-}
-
-/// Live keyed-provider model search for Loquela autocomplete.
-///
-/// Fetches OpenRouter / Anthropic / Google when those keys are present (OpenRouter
-/// list is TTL-cached in-process), always merges Mens FS runs, then filters/ranks
-/// by `query`. Does **not** read `model-catalog.v1.json`.
-#[tauri::command]
-pub async fn search_model_cards(
-    query: Option<String>,
+pub(crate) async fn list_model_cards_impl<B: BackendCalls>(
+    b: &B,
     limit: Option<usize>,
 ) -> Result<Vec<ModelCardDto>, String> {
-    let q = query.unwrap_or_default();
-    let limit = limit.unwrap_or(80).clamp(1, 500);
-    let repo_root = vox_repository::resolve_repo_root_for_ci();
-    let specs =
-        vox_orchestrator::catalog_live::search_live_keyed_models(&repo_root, &q, limit).await;
-    Ok(specs.iter().map(|m| model_spec_to_card(m, None)).collect())
+    api_data(b.api_v2_get(&limit_query("/models/cards", limit)).await?)
 }
 
-#[tauri::command]
-pub async fn get_auto_model_recommendation()
--> Result<vox_orchestrator::models::auto_select::AutoModelSelection, String> {
-    // Discrete-GPU VRAM comes from the nvml-probe plugin, if installed.
-    vox_orchestrator_mcp::server_state::vram_probe::register_nvml_vram_probe();
-    Ok(vox_orchestrator::models::auto_select::select_optimal_local_model_for_host())
-}
-
-/// Family, provenance and reason of a routing pick, for [`RoutingSummaryDto`].
-fn routing_provenance(
-    spec: &ModelSpec,
-    reason: &vox_orchestrator::models::select::SelectionReason,
-) -> (String, &'static str, String) {
-    (
-        vox_orchestrator::models::family::family_key(&spec.id),
-        vox_orchestrator::models::provenance::resolved_from(spec).as_str(),
-        reason.to_string(),
+pub(crate) async fn get_models_snapshot_impl<B: BackendCalls>(
+    b: &B,
+    limit: Option<usize>,
+) -> Result<ModelsSnapshotDto, String> {
+    api_data(
+        b.api_v2_get(&limit_query("/models/snapshot", limit))
+            .await?,
     )
 }
 
-pub async fn get_routing_summary(
-    daemon: &PersistentDaemon,
-    backend: &crate::remote::backend::Backend,
+pub(crate) async fn get_routing_summary_impl<B: BackendCalls>(
+    b: &B,
 ) -> Result<RoutingSummaryDto, String> {
-    let reg = registry_from_cache();
-    let cfg = vox_config::load_model_routing_config();
-    let active = crate::commands::model_active::get_active_model_impl(backend)
+    api_data(b.api_v2_get("/models/routing-summary").await?)
+}
+
+pub(crate) async fn get_model_scoreboard_impl<B: BackendCalls>(
+    b: &B,
+    window_days: Option<i64>,
+) -> Result<Vec<ScoreboardRowDto>, String> {
+    let path = path_with_query(
+        "/models/scoreboard",
+        &[("window_days", window_days.map(|w| w.to_string()))],
+    );
+    api_data(b.api_v2_get(&path).await?)
+}
+
+pub(crate) async fn inference_provider_status_impl<B: BackendCalls>(
+    b: &B,
+) -> Result<Vec<ProviderStatusDto>, String> {
+    api_data(b.api_v2_get("/models/provider-status").await?)
+}
+
+pub(crate) async fn get_selection_policy_impl<B: BackendCalls>(b: &B) -> String {
+    preferences(b)
         .await
         .ok()
-        .flatten();
-    let decision = decide(
-        &ModelSelectionRequest::from_intent(SelectionIntent::for_task(TaskCategory::CodeGen)),
-        &reg,
-    );
-    let (family, resolved_from, reason) = match &decision {
-        Some(d) => {
-            let (family, from, reason) =
-                routing_provenance(&d.outcome.model_spec, &d.outcome.reason);
-            (Some(family), Some(from.to_string()), Some(reason))
-        }
-        None => (None, None, None),
-    };
-    let decision_preview = decision.map(|d| DecisionPreviewDto {
-        selected_model: d.selected_model,
-        discovery_state: d.discovery_state.as_str().to_string(),
-        alternatives: d.alternatives,
-        rejection_reasons: d.rejection_reasons,
-        intelligence_score: d.score_breakdown.intelligence_score,
-        efficiency_score: d.score_breakdown.efficiency_score,
-        latency_score: d.score_breakdown.latency_score,
-    });
-    let exploration_spent_usd = async {
-        let addr = daemon.ensure().await.ok()?;
-        let client = match daemon.token().await {
-            Some(token) => OrchDaemonClient::with_token(addr, token),
-            None => OrchDaemonClient::new(addr),
-        };
-        client
-            .call(
-                vox_foundation::protocol::orch_daemon_method::STATUS,
-                serde_json::json!({}),
-            )
-            .await
-            .ok()
-    }
-    .await
-    .and_then(|status| {
-        status
-            .get("global_exploration_cost_usd")
-            .and_then(|v| v.as_f64())
-    })
-    .unwrap_or(0.0);
+        .map(|p| p.selection_policy)
+        .unwrap_or_else(|| EMPTY_SELECTION_POLICY.to_string())
+}
 
-    Ok(RoutingSummaryDto {
-        active_model: active,
-        exploration_spent_usd,
-        exploration_budget_usd: cfg.exploration.budget_usd_per_day,
-        routing_priority: effective_routing_priority().await,
-        arm_count: reg.arm_stats_snapshot().len(),
-        model_count: reg.list_models().len(),
-        decision_preview,
-        family,
-        resolved_from,
-        reason,
-    })
+pub(crate) async fn set_selection_policy_impl<B: BackendCalls>(
+    b: &B,
+    json: String,
+) -> Result<(), String> {
+    vox_orchestrator::models::SelectionPolicy::from_json(&json)
+        .map_err(|e| format!("invalid selection policy JSON: {e}"))?;
+    set_preference(b, "selection_policy", json).await
+}
+
+pub(crate) async fn set_routing_priority_impl<B: BackendCalls>(
+    b: &B,
+    p: RoutingPriorityDto,
+) -> Result<(), String> {
+    set_preference(b, "routing_priority", priority_to_csv(&p)).await
+}
+
+pub(crate) async fn get_routing_intentions_impl<B: BackendCalls>(
+    b: &B,
+) -> Result<Vec<RoutingIntentionDto>, String> {
+    Ok(priority_to_intentions(
+        &preferences(b).await?.routing_priority,
+    ))
+}
+
+pub(crate) async fn nudge_routing_intention_impl<B: BackendCalls>(
+    b: &B,
+    axis: String,
+    direction: String,
+) -> Result<(), String> {
+    let dir = match direction.to_ascii_lowercase().as_str() {
+        "promote" => NudgeDirection::Promote,
+        "doubt" => NudgeDirection::Doubt,
+        other => {
+            return Err(format!(
+                "unknown direction {other:?} (expected promote|doubt)"
+            ));
+        }
+    };
+    let base = preferences(b).await?.routing_priority;
+    if axis_value(&base, &axis).is_none() {
+        return Err(format!(
+            "unknown routing axis {axis:?} (expected one of efficiency|precision|latency|availability|balance|mobile)"
+        ));
+    }
+    set_routing_priority_impl(b, nudge_axis(&base, &axis, dir)).await
+}
+
+#[tauri::command]
+pub async fn list_model_cards(
+    limit: Option<usize>,
+    backend: tauri::State<'_, Arc<BackendState>>,
+) -> Result<Vec<ModelCardDto>, String> {
+    list_model_cards_impl(&backend.current().await, limit).await
+}
+
+/// One-call refresh of the Models surface (cards, routing summary, active model, providers).
+#[tauri::command]
+pub async fn get_models_snapshot(
+    limit: Option<usize>,
+    backend: tauri::State<'_, Arc<BackendState>>,
+) -> Result<ModelsSnapshotDto, String> {
+    get_models_snapshot_impl(&backend.current().await, limit).await
+}
+
+/// Live routing summary as the server sees it.
+#[tauri::command]
+pub async fn get_routing_summary_live(
+    backend: tauri::State<'_, Arc<BackendState>>,
+) -> Result<RoutingSummaryDto, String> {
+    get_routing_summary_impl(&backend.current().await).await
 }
 
 #[tauri::command]
@@ -339,582 +164,215 @@ pub async fn set_routing_priority(
     availability: u8,
     balance: u8,
     mobile: u8,
+    backend: tauri::State<'_, Arc<BackendState>>,
 ) -> Result<(), String> {
-    let csv = format!(
-        "efficiency={efficiency},precision={precision},latency={latency},availability={availability},balance={balance},mobile={mobile}"
-    );
-    unsafe {
-        std::env::set_var("VOX_AUTO_ROUTING_PRIORITY", &csv);
-    }
-    if let Some(db) =
-        vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Runtime, true).await
-    {
-        let _ = db
-            .set_user_preference("local_user", "routing_priority", &csv)
-            .await;
-    }
-    Ok(())
+    let p = RoutingPriorityDto {
+        efficiency,
+        precision,
+        latency,
+        availability,
+        balance,
+        mobile,
+    };
+    set_routing_priority_impl(&backend.current().await, p).await
 }
 
 #[tauri::command]
 pub async fn get_model_scoreboard(
     window_days: Option<i64>,
+    backend: tauri::State<'_, Arc<BackendState>>,
 ) -> Result<Vec<ScoreboardRowDto>, String> {
-    let window = window_days.unwrap_or(7);
-    let db_config = vox_db::DbConfig::resolve_canonical().map_err(|e| e.to_string())?;
-    let db = vox_db::VoxDb::connect(db_config)
-        .await
-        .map_err(|e| e.to_string())?;
-    let rows = db
-        .get_model_scoreboard(window)
-        .await
-        .map_err(|e| e.to_string())?;
-    Ok(rows
-        .into_iter()
-        .map(|r| ScoreboardRowDto {
-            model_id: r.model_id,
-            task_category: r.task_category,
-            strength_tag: r.strength_tag,
-            n_calls: r.n_calls,
-            success_rate: r.success_rate,
-            p50_latency_ms: r.p50_latency_ms,
-            cost_per_success_usd: r.cost_per_success_usd,
-            quality_score: r.quality_score,
-        })
-        .collect())
+    get_model_scoreboard_impl(&backend.current().await, window_days).await
 }
 
+/// Per-backend availability (B9) as seen by the server: credential presence for every
+/// candidate provider plus live local-server health.
 #[tauri::command]
-pub async fn explain_model_selection(
-    task: String,
-    complexity: Option<u8>,
-) -> Result<serde_json::Value, String> {
-    let task_category = match task.to_ascii_lowercase().as_str() {
-        "codegen" => TaskCategory::CodeGen,
-        "research" => TaskCategory::Research,
-        "review" => TaskCategory::Review,
-        "debugging" => TaskCategory::Debugging,
-        "parsing" => TaskCategory::Parsing,
-        _ => TaskCategory::General,
-    };
-    let mut intent = SelectionIntent::for_task(task_category);
-    if let Some(c) = complexity {
-        intent.complexity = c.clamp(1, 10);
-    }
-    let outcome = select_with_default_registry(&intent)
-        .ok_or_else(|| "no model matched selection intent".to_string())?;
-    Ok(serde_json::json!({
-        "model_id": outcome.model_id,
-        "reason": format!("{:?}", outcome.reason),
-        "effective_axes": {
-            "efficiency": outcome.effective_axes.efficiency,
-            "precision": outcome.effective_axes.precision,
-            "latency": outcome.effective_axes.latency,
-            "availability": outcome.effective_axes.availability,
-            "balance": outcome.effective_axes.balance,
-            "mobile": outcome.effective_axes.mobile,
-        },
-        "provider": outcome.model_spec.provider,
-        "tier": format!("{:?}", outcome.model_spec.capabilities.tier),
-        "cost_per_1k": outcome.model_spec.cost_per_1k,
-    }))
+pub async fn inference_provider_status(
+    backend: tauri::State<'_, Arc<BackendState>>,
+) -> Result<Vec<ProviderStatusDto>, String> {
+    inference_provider_status_impl(&backend.current().await).await
 }
 
+/// The persisted `selection_policy` preference (JSON for a
+/// [`vox_orchestrator::models::SelectionPolicy`]), or `{"steps":[]}` when absent or unreachable.
 #[tauri::command]
-pub async fn suggest_model_for_task(task: String) -> Result<String, String> {
-    let reg = registry_from_cache();
-    let task_category = match task.to_ascii_lowercase().as_str() {
-        "codegen" => TaskCategory::CodeGen,
-        "research" => TaskCategory::Research,
-        "review" => TaskCategory::Review,
-        _ => TaskCategory::General,
-    };
-    reg.best_for(task_category, 5, CostPreference::Performance)
-        .map(|m| m.id)
-        .ok_or_else(|| "no suitable model".to_string())
+pub async fn get_selection_policy(
+    backend: tauri::State<'_, Arc<BackendState>>,
+) -> Result<String, String> {
+    Ok(get_selection_policy_impl(&backend.current().await).await)
 }
 
-/// Live routing summary (registry + env; avoids heavy orchestrator bootstrap in Tauri).
+/// Persist a `selection_policy` preference after checking it parses as a `SelectionPolicy`.
+/// The daemon installs the policy at startup, so it takes effect on the next (re)start.
 #[tauri::command]
-pub async fn get_routing_summary_live(
-    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
-    backend: tauri::State<'_, Arc<crate::remote::backend::BackendState>>,
-) -> Result<RoutingSummaryDto, String> {
-    get_routing_summary(&daemon, &backend.current().await).await
+pub async fn set_selection_policy(
+    json: String,
+    backend: tauri::State<'_, Arc<BackendState>>,
+) -> Result<(), String> {
+    set_selection_policy_impl(&backend.current().await, json).await
 }
 
-/// Empty-policy JSON returned when no `selection_policy` preference is persisted.
-const EMPTY_SELECTION_POLICY: &str = "{\"steps\":[]}";
-
-/// Read the persisted `selection_policy` user-preference (JSON for a
-/// [`vox_orchestrator::models::SelectionPolicy`]). Mirrors
-/// [`effective_routing_priority`] / [`crate::commands::model_active::get_active_model`]: reads the
-/// `("local_user","selection_policy")` pref via `connect_workspace_journey_optional`.
-/// Returns the stored JSON, or the empty policy (`{"steps":[]}`) when absent.
+/// Live "intentions" for the Matrix surface: the real routing-priority axes, derived from the
+/// server's effective (preference → env → default) priority.
 #[tauri::command]
-// toestub-ignore(skeleton/untested-pub-api) — thin Tauri IPC over vox_db preferences; behavior covered by orchestrator selection-policy tests
-pub async fn get_selection_policy() -> String {
-    if let Some(db) =
-        vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Runtime, true).await
-        && let Ok(Some(json)) = db
-            .get_user_preference("local_user", "selection_policy")
-            .await
-        && !json.trim().is_empty()
-    {
-        return json;
-    }
-    EMPTY_SELECTION_POLICY.to_string()
+pub async fn get_routing_intentions(
+    backend: tauri::State<'_, Arc<BackendState>>,
+) -> Result<Vec<RoutingIntentionDto>, String> {
+    get_routing_intentions_impl(&backend.current().await).await
 }
 
-/// Persist a `selection_policy` user-preference. Validates that `json` parses as
-/// a [`vox_orchestrator::models::SelectionPolicy`] (rejecting invalid input)
-/// before writing the `("local_user","selection_policy")` pref. Mirrors
-/// [`set_routing_priority`].
-///
-/// NOTE: the daemon reads this preference and installs the active policy at
-/// startup (mirroring how `routing_priority` is applied), so a saved policy
-/// takes effect on the next orchestrator (re)start, not immediately.
+/// Promote or Doubt a single routing axis from the Matrix surface and persist it as the
+/// `routing_priority` preference, which the next orchestrator decision reads.
 #[tauri::command]
-// toestub-ignore(skeleton/untested-pub-api) — thin Tauri IPC over vox_db preferences; behavior covered by orchestrator selection-policy tests
-pub async fn set_selection_policy(json: String) -> Result<(), String> {
-    // Reject anything that isn't a well-formed SelectionPolicy.
-    vox_orchestrator::models::SelectionPolicy::from_json(&json)
-        .map_err(|e| format!("invalid selection policy JSON: {e}"))?;
-    if let Some(db) =
-        vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Runtime, true).await
-    {
-        db.set_user_preference("local_user", "selection_policy", &json)
-            .await
-            .map_err(|e| e.to_string())?;
-    }
-    Ok(())
-}
-
-/// The six live routing-priority axes, in display order. Each maps 1:1 to a
-/// field of [`RoutingPriorityDto`] / `vox_config::AutoRoutingPriority` and to a
-/// CSV key understood by [`apply_routing_csv`] / [`set_routing_priority`].
-const ROUTING_AXES: [(&str, &str); 6] = [
-    ("efficiency", "Efficiency"),
-    ("precision", "Precision"),
-    ("latency", "Latency"),
-    ("availability", "Availability"),
-    ("balance", "Balance"),
-    ("mobile", "Mobile"),
-];
-
-/// One cell of the Matrix "intentions" hex grid, derived from real routing
-/// state (no fabricated rows). The shape matches the GUI `Intention` type.
-#[derive(Debug, Clone, Serialize)]
-pub struct RoutingIntentionDto {
-    pub id: String,
-    pub parent: String,
-    pub branch: String,
-    pub phase: String,
-    pub conf: f64,
-    pub note: String,
-}
-
-/// Direction of a Matrix Promote/Doubt action on a routing axis.
-#[derive(Debug, Clone, Copy)]
-pub enum NudgeDirection {
-    /// Promote: increase this axis's weight (the orchestrator favors it more).
-    Promote,
-    /// Doubt: decrease this axis's weight (the orchestrator favors it less).
-    Doubt,
-}
-
-/// Step size (priority points) applied per Promote/Doubt action.
-const NUDGE_STEP: u8 = 5;
-
-fn axis_value(p: &RoutingPriorityDto, axis: &str) -> Option<u8> {
-    match axis {
-        "efficiency" => Some(p.efficiency),
-        "precision" => Some(p.precision),
-        "latency" => Some(p.latency),
-        "availability" => Some(p.availability),
-        "balance" => Some(p.balance),
-        "mobile" => Some(p.mobile),
-        _ => None,
-    }
-}
-
-fn axis_note(axis: &str) -> &'static str {
-    match axis {
-        "efficiency" => "Bias toward cheaper / lower-cost models.",
-        "precision" => "Bias toward higher-quality, more capable models.",
-        "latency" => "Bias toward faster (lower p50 latency) models.",
-        "availability" => "Bias toward models with higher observed success rate.",
-        "balance" => "Even weighting across cost, quality, and speed.",
-        "mobile" => "Bias toward on-device / mobile-friendly models.",
-        _ => "Routing priority axis.",
-    }
-}
-
-/// Project the live routing priority onto Matrix hex cells. Confidence is the
-/// axis weight normalized to 0..1; the top-weighted axis is `Validated`, the
-/// bottom-weighted is `Doubted`, the rest are `Active`.
-fn priority_to_intentions(p: &RoutingPriorityDto) -> Vec<RoutingIntentionDto> {
-    let values: Vec<u8> = ROUTING_AXES
-        .iter()
-        .map(|(id, _)| axis_value(p, id).unwrap_or(0))
-        .collect();
-    let max = values.iter().copied().max().unwrap_or(0);
-    let min = values.iter().copied().min().unwrap_or(0);
-    ROUTING_AXES
-        .iter()
-        .map(|(id, label)| {
-            let v = axis_value(p, id).unwrap_or(0);
-            // Distinct max/min so a uniform profile stays Active rather than
-            // flipping every cell to Validated+Doubted at once.
-            let phase = if max != min && v == max {
-                "Validated"
-            } else if max != min && v == min {
-                "Doubted"
-            } else {
-                "Active"
-            };
-            RoutingIntentionDto {
-                id: (*id).to_string(),
-                parent: "ROUTING-PRIORITY".to_string(),
-                branch: (*label).to_string(),
-                phase: phase.to_string(),
-                conf: f64::from(v) / 100.0,
-                note: axis_note(id).to_string(),
-            }
-        })
-        .collect()
-}
-
-/// Apply a single Promote/Doubt nudge to one axis, clamped to `0..=100`. An
-/// unknown axis is a no-op. Pure — does no I/O.
-fn nudge_axis(p: &RoutingPriorityDto, axis: &str, dir: NudgeDirection) -> RoutingPriorityDto {
-    let mut out = RoutingPriorityDto { ..*p };
-    let Some(cur) = axis_value(p, axis) else {
-        return out;
-    };
-    let next = match dir {
-        NudgeDirection::Promote => cur.saturating_add(NUDGE_STEP).min(100),
-        NudgeDirection::Doubt => cur.saturating_sub(NUDGE_STEP),
-    };
-    match axis {
-        "efficiency" => out.efficiency = next,
-        "precision" => out.precision = next,
-        "latency" => out.latency = next,
-        "availability" => out.availability = next,
-        "balance" => out.balance = next,
-        "mobile" => out.mobile = next,
-        _ => {}
-    }
-    out
-}
-
-fn priority_to_csv(p: &RoutingPriorityDto) -> String {
-    format!(
-        "efficiency={},precision={},latency={},availability={},balance={},mobile={}",
-        p.efficiency, p.precision, p.latency, p.availability, p.balance, p.mobile
-    )
-}
-
-/// Live "intentions" for the Matrix surface: the real routing-priority axes,
-/// derived from the effective (DB pref → env → default) priority. Replaces the
-/// former hardcoded seed.
-#[tauri::command]
-pub async fn get_routing_intentions() -> Result<Vec<RoutingIntentionDto>, String> {
-    Ok(priority_to_intentions(&effective_routing_priority().await))
-}
-
-/// Promote or Doubt a single routing axis from the Matrix surface. This is a
-/// real mutation: it nudges the axis weight and persists it via the same path
-/// as [`set_routing_priority`] (env var + `routing_priority` user-preference),
-/// so the next orchestrator decision reflects it.
-#[tauri::command]
-pub async fn nudge_routing_intention(axis: String, direction: String) -> Result<(), String> {
-    let dir = match direction.to_ascii_lowercase().as_str() {
-        "promote" => NudgeDirection::Promote,
-        "doubt" => NudgeDirection::Doubt,
-        other => {
-            return Err(format!(
-                "unknown direction {other:?} (expected promote|doubt)"
-            ));
-        }
-    };
-    let base = effective_routing_priority().await;
-    if axis_value(&base, &axis).is_none() {
-        return Err(format!(
-            "unknown routing axis {axis:?} (expected one of efficiency|precision|latency|availability|balance|mobile)"
-        ));
-    }
-    let next = nudge_axis(&base, &axis, dir);
-    let csv = priority_to_csv(&next);
-    unsafe {
-        std::env::set_var("VOX_AUTO_ROUTING_PRIORITY", &csv);
-    }
-    if let Some(db) =
-        vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Runtime, true).await
-    {
-        let _ = db
-            .set_user_preference("local_user", "routing_priority", &csv)
-            .await;
-    }
-    Ok(())
+pub async fn nudge_routing_intention(
+    axis: String,
+    direction: String,
+    backend: tauri::State<'_, Arc<BackendState>>,
+) -> Result<(), String> {
+    nudge_routing_intention_impl(&backend.current().await, axis, direction).await
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use serde_json::json;
 
-    #[test]
-    fn routing_priority_csv_shape() {
-        let csv = "efficiency=40,precision=30,latency=10,availability=10,balance=5,mobile=5";
-        assert!(csv.contains("efficiency=40"));
+    use super::*;
+    use crate::remote::calls::fake::FakeBackend;
+
+    fn prefs_env() -> serde_json::Value {
+        json!({"v": 1, "data": {"active_model": null, "selection_policy": "{\"steps\":[]}",
+            "routing_priority": {"efficiency": 20, "precision": 20, "latency": 20,
+                "availability": 20, "balance": 10, "mobile": 10}}})
     }
 
-    fn sample_priority() -> RoutingPriorityDto {
-        RoutingPriorityDto {
+    fn pref_ok() -> FakeBackend {
+        FakeBackend::new()
+            .on_get("/models/preferences", Ok(prefs_env()))
+            .on_tool(
+                PREF_TOOL,
+                Ok(json!({"success": true, "data": "routing_priority"})),
+            )
+    }
+
+    #[tokio::test]
+    async fn nudge_reads_preferences_then_writes_csv_through_op() {
+        let b = pref_ok();
+        nudge_routing_intention_impl(&b, "latency".into(), "promote".into())
+            .await
+            .unwrap();
+        let calls = b.calls();
+        assert_eq!(calls[0].0, "get:/models/preferences");
+        assert_eq!(calls[1].0, format!("tool:{PREF_TOOL}"));
+        assert_eq!(calls[1].1["key"], "routing_priority");
+        assert!(calls[1].1["value"].as_str().unwrap().contains("latency=25"));
+    }
+
+    #[tokio::test]
+    async fn nudge_rejects_unknown_axis_and_direction_without_writing() {
+        let b = pref_ok();
+        assert!(
+            nudge_routing_intention_impl(&b, "latency".into(), "up".into())
+                .await
+                .is_err()
+        );
+        assert!(
+            nudge_routing_intention_impl(&b, "nonsense".into(), "promote".into())
+                .await
+                .is_err()
+        );
+        assert!(b.calls().iter().all(|(k, _)| !k.starts_with("tool:")));
+    }
+
+    #[tokio::test]
+    async fn set_routing_priority_writes_full_csv() {
+        let b = pref_ok();
+        let p = RoutingPriorityDto {
             efficiency: 40,
             precision: 30,
             latency: 10,
             availability: 10,
             balance: 5,
             mobile: 5,
-        }
-    }
-
-    #[test]
-    fn axes_to_intentions_yields_one_cell_per_axis_with_normalized_confidence() {
-        let cells = priority_to_intentions(&sample_priority());
-        assert_eq!(cells.len(), ROUTING_AXES.len());
-        let eff = cells.iter().find(|c| c.id == "efficiency").unwrap();
-        assert_eq!(eff.parent, "ROUTING-PRIORITY");
-        // conf is the axis weight normalized to 0..1.
-        assert!((eff.conf - 0.40).abs() < 1e-6, "got {}", eff.conf);
-        assert_eq!(eff.branch, "Efficiency");
-    }
-
-    #[test]
-    fn top_axis_is_validated_bottom_is_doubted() {
-        let cells = priority_to_intentions(&sample_priority());
-        let eff = cells.iter().find(|c| c.id == "efficiency").unwrap();
-        assert_eq!(eff.phase, "Validated"); // highest weight
-        let lowest = cells
-            .iter()
-            .find(|c| c.id == "balance" || c.id == "mobile")
-            .unwrap();
-        assert_eq!(lowest.phase, "Doubted"); // tied-lowest weight
-    }
-
-    #[test]
-    fn nudge_promote_raises_axis_doubt_lowers_axis_and_clamps() {
-        let base = sample_priority();
-        let up = nudge_axis(&base, "latency", NudgeDirection::Promote);
-        assert!(up.latency > base.latency);
-        let down = nudge_axis(&base, "latency", NudgeDirection::Doubt);
-        assert!(down.latency < base.latency);
-        // Other axes are untouched by a nudge.
-        assert_eq!(up.precision, base.precision);
-        // Clamps at the ceiling.
-        let mut maxed = sample_priority();
-        maxed.precision = 100;
-        let still = nudge_axis(&maxed, "precision", NudgeDirection::Promote);
-        assert_eq!(still.precision, 100);
-        // Clamps at the floor.
-        let mut zeroed = sample_priority();
-        zeroed.mobile = 0;
-        let still0 = nudge_axis(&zeroed, "mobile", NudgeDirection::Doubt);
-        assert_eq!(still0.mobile, 0);
-    }
-
-    #[test]
-    fn nudge_unknown_axis_is_a_noop() {
-        let base = sample_priority();
-        let out = nudge_axis(&base, "nonsense", NudgeDirection::Promote);
-        assert_eq!(out.efficiency, base.efficiency);
-        assert_eq!(out.precision, base.precision);
-    }
-
-    #[test]
-    fn list_model_card_dto_serializes_provider_type() {
-        let card = ModelCardDto {
-            id: "mens/e2e-smoke-metal".into(),
-            provider: "populi_local".into(),
-            provider_type: "VoxLocal".into(),
-            tier: "Local".into(),
-            cost_per_1k: 0.0,
-            max_tokens: 512,
-            is_free: true,
-            latency_p50_ms: None,
-            success_rate: None,
-            quality_score: None,
         };
-        let json = serde_json::to_value(&card).expect("serialize ModelCardDto");
-        assert_eq!(json["provider_type"], "VoxLocal");
-        assert_eq!(json["id"], "mens/e2e-smoke-metal");
-        assert_eq!(json["provider"], "populi_local");
-    }
-
-    #[test]
-    fn priority_to_csv_round_trips_through_apply() {
-        let p = sample_priority();
-        let csv = priority_to_csv(&p);
-        let back = apply_routing_csv(
-            RoutingPriorityDto {
-                efficiency: 0,
-                precision: 0,
-                latency: 0,
-                availability: 0,
-                balance: 0,
-                mobile: 0,
-            },
-            &csv,
+        set_routing_priority_impl(&b, p).await.unwrap();
+        assert_eq!(
+            b.calls()[0].1,
+            json!({"key": "routing_priority", "value": "efficiency=40,precision=30,latency=10,availability=10,balance=5,mobile=5"})
         );
-        assert_eq!(back.efficiency, p.efficiency);
-        assert_eq!(back.mobile, p.mobile);
-    }
-
-    #[test]
-    fn model_card_dto_serializes_provider_type() {
-        let card = ModelCardDto {
-            id: "openai/gpt-4o".to_string(),
-            provider: "openai".to_string(),
-            provider_type: "OpenAi".to_string(),
-            tier: "Pro".to_string(),
-            cost_per_1k: 0.005,
-            max_tokens: 128_000,
-            is_free: false,
-            latency_p50_ms: Some(450),
-            success_rate: Some(0.99),
-            quality_score: None,
-        };
-        let val = serde_json::to_value(&card).expect("serialize");
-        assert_eq!(val["provider_type"], "OpenAi");
-        assert_eq!(val["id"], "openai/gpt-4o");
-        assert_eq!(val["provider"], "openai");
     }
 
     #[tokio::test]
-    async fn auto_model_recommendation_returns_valid_selection() {
-        let res = get_auto_model_recommendation().await;
-        assert!(res.is_ok());
-        let sel = res.unwrap();
-        assert!(!sel.selected_model_id.is_empty());
-        assert!(!sel.tier_reason.is_empty());
+    async fn intentions_project_server_priority() {
+        let b = pref_ok();
+        let cells = get_routing_intentions_impl(&b).await.unwrap();
+        assert_eq!(cells.len(), 6);
+        assert!((cells[0].conf - 0.20).abs() < 1e-6);
     }
 
-    fn sample_mens_spec(id: &str, max_tokens: u64) -> ModelSpec {
-        use vox_orchestrator::models::spec::{ModelCapabilities, PricingSource, ProviderType};
-        use vox_orchestrator::models::{ModelTier, StrengthTag};
-        ModelSpec {
-            id: id.to_string(),
-            canonical_slug: id.to_string(),
-            provider: "populi_local".to_string(),
-            provider_type: ProviderType::VoxLocal,
-            max_tokens,
-            cost_per_1k: 0.0,
-            cost_per_1k_input: 0.0,
-            cost_per_1k_output: 0.0,
-            is_free: true,
-            strengths: vec![StrengthTag::Generalist],
-            capabilities: ModelCapabilities {
-                tier: ModelTier::Local,
-                writes_vox: true,
-                ..Default::default()
-            },
-            supported_parameters: vec![],
-            observed_cost_per_1k: None,
-            cache_creation_cost_per_1k: 0.0,
-            cache_read_cost_per_1k: 0.0,
-            supports_prompt_caching: false,
-            pricing_source: PricingSource::Bootstrap,
-        }
+    #[tokio::test]
+    async fn selection_policy_validates_locally_and_degrades_to_empty() {
+        let b = pref_ok();
+        assert!(
+            set_selection_policy_impl(&b, "not json".into())
+                .await
+                .is_err()
+        );
+        assert!(b.calls().is_empty());
+        set_selection_policy_impl(&b, "{\"steps\":[]}".into())
+            .await
+            .unwrap();
+        assert_eq!(b.calls()[0].1["key"], "selection_policy");
+
+        assert_eq!(
+            get_selection_policy_impl(&FakeBackend::new()).await,
+            EMPTY_SELECTION_POLICY
+        );
     }
 
-    #[test]
-    fn merge_live_mens_specs_adds_new_runs_and_prefers_live_for_same_id() {
-        let mut reg = ModelRegistry::new();
-        reg.clear();
-        reg.register(sample_mens_spec("mens/stale-run", 4096));
-
-        merge_live_mens_specs(
-            &mut reg,
+    #[tokio::test]
+    async fn reads_hit_the_expected_routes() {
+        let empty = Ok(json!({"v": 1, "data": []}));
+        let b = FakeBackend::new()
+            .on_get("/models/cards?limit=5", empty.clone())
+            .on_get("/models/scoreboard?window_days=3", empty.clone())
+            .on_get("/models/provider-status", empty);
+        assert!(list_model_cards_impl(&b, Some(5)).await.unwrap().is_empty());
+        assert!(
+            get_model_scoreboard_impl(&b, Some(3))
+                .await
+                .unwrap()
+                .is_empty()
+        );
+        assert!(inference_provider_status_impl(&b).await.unwrap().is_empty());
+        let keys: Vec<_> = b.calls().into_iter().map(|c| c.0).collect();
+        assert_eq!(
+            keys,
             [
-                sample_mens_spec("mens/stale-run", 8192),
-                sample_mens_spec("mens/fresh-run", 8192),
-            ],
-        );
-
-        let ids: Vec<_> = reg.list_models().into_iter().map(|m| m.id).collect();
-        assert!(ids.contains(&"mens/fresh-run".to_string()));
-        assert_eq!(
-            reg.get("mens/stale-run").expect("stale-run").max_tokens,
-            8192
+                "get:/models/cards?limit=5",
+                "get:/models/scoreboard?window_days=3",
+                "get:/models/provider-status"
+            ]
         );
     }
 
-    fn provenance_spec(pricing_source: vox_orchestrator::models::spec::PricingSource) -> ModelSpec {
-        ModelSpec {
-            id: "acme/widget-5.5".into(),
-            canonical_slug: "acme/widget-5.5".into(),
-            provider: "test".into(),
-            provider_type: vox_orchestrator::models::ProviderType::OpenRouter,
-            max_tokens: 32_000,
-            cost_per_1k: 0.001,
-            cost_per_1k_input: 0.001,
-            cost_per_1k_output: 0.001,
-            is_free: false,
-            observed_cost_per_1k: None,
-            strengths: vec![vox_orchestrator::models::StrengthTag::Generalist],
-            capabilities: vox_orchestrator::models::ModelCapabilities::default(),
-            cache_creation_cost_per_1k: 0.0,
-            cache_read_cost_per_1k: 0.0,
-            supports_prompt_caching: false,
-            pricing_source,
-            supported_parameters: vec![],
-        }
+    #[tokio::test]
+    async fn snapshot_and_summary_surface_server_errors() {
+        let denied = Ok(json!({"v": 1, "error": {"code": "tool_not_in_profile", "message": "no"}}));
+        let b = FakeBackend::new()
+            .on_get("/models/snapshot", denied.clone())
+            .on_get("/models/routing-summary", denied);
+        assert!(get_models_snapshot_impl(&b, None).await.is_err());
+        assert!(get_routing_summary_impl(&b).await.is_err());
     }
 
     #[test]
-    fn routing_provenance_reports_family_catalog_source_and_reason() {
-        let (family, from, reason) = routing_provenance(
-            &provenance_spec(vox_orchestrator::models::spec::PricingSource::OpenRouter),
-            &vox_orchestrator::models::select::SelectionReason::Scored,
+    fn models_module_has_no_direct_db_access_or_env_mutation() {
+        let src = include_str!("models.rs");
+        assert!(!src.contains(concat!("vox", "_db")));
+        assert!(
+            !src.contains(concat!("set_", "var(")),
+            "routing priority must not mutate the GUI process env"
         );
-        assert_eq!(family, "acme/widget");
-        assert_eq!(from, "catalog");
-        assert_eq!(
-            reason,
-            "Chosen by the model scorer as the best match for your request"
-        );
-    }
-
-    #[test]
-    fn routing_provenance_marks_a_bootstrap_pick_as_bootstrap() {
-        let (_, from, _) = routing_provenance(
-            &provenance_spec(vox_orchestrator::models::spec::PricingSource::Bootstrap),
-            &vox_orchestrator::models::select::SelectionReason::Scored,
-        );
-        assert_eq!(from, "bootstrap");
-    }
-
-    #[test]
-    fn routing_summary_serializes_absent_provenance_as_null() {
-        let dto = RoutingSummaryDto {
-            active_model: None,
-            exploration_spent_usd: 0.0,
-            exploration_budget_usd: 0.0,
-            routing_priority: sample_priority(),
-            arm_count: 0,
-            model_count: 0,
-            decision_preview: None,
-            family: None,
-            resolved_from: None,
-            reason: None,
-        };
-        let v = serde_json::to_value(&dto).expect("serialize");
-        for key in ["family", "resolved_from", "reason"] {
-            assert!(
-                v.get(key).is_some_and(serde_json::Value::is_null),
-                "{key} must serialize as null, got {v}"
-            );
-        }
     }
 }

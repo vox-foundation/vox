@@ -82,6 +82,13 @@ export function installOperatorShellMock(opts: OperatorShellMockOptions = {}): v
           return 'mens-8b';
         case 'get_selection_policy':
           return { chain: ['mens-8b'], free_tier: true };
+        case 'get_models_snapshot': {
+          const inv = (window as any).__TAURI_INTERNALS__.invoke;
+          const [cards, routing, active_model, providers] = await Promise.all([
+            inv('list_model_cards'), inv('get_routing_summary_live'), inv('get_active_model'), inv('inference_provider_status'),
+          ]);
+          return { cards, routing, active_model, providers };
+        }
         case 'list_model_cards':
           return [{ model_id: 'mens-8b', display_name: 'Mens 8B', id: 'mens-8b' }];
         case 'get_model_scoreboard':

@@ -37,6 +37,7 @@ pub mod mic;
 pub mod mission_control;
 pub mod model_active;
 pub mod models;
+pub mod models_host;
 pub mod oauth;
 pub mod oratio;
 pub mod orchestrator;

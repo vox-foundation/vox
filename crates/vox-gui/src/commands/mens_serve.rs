@@ -8,8 +8,8 @@
 //! [`resolve_managed_binary_path`] (the same helper Task C1 fixed
 //! `crates/vox-cli/src/main.rs` to use), spawns it detached with stderr
 //! redirected to `~/.vox/run/mens-serve.stderr.log`, holds the [`Child`] in a
-//! slot, polls readiness by reusing [`llm_settings::probe_vox_local_bases`]
-//! (the exact same health-check logic `inference_provider_status` already
+//! slot, polls readiness by reusing [`vox_orchestrator_mcp::gui_ops::models::probe_vox_local_bases`]
+//! (the exact same health-check logic `GET /api/v2/models/provider-status` already
 //! uses for the VoxLocal row — not a second probe), and refuses to start a
 //! second instance while one is already held (an unsafe restart would either
 //! fail to bind the port or double-load a model into memory).
@@ -95,7 +95,7 @@ impl MensServeState {
 
     /// Core start logic: refuses an unsafe restart (already running), spawns
     /// via `spawn`, holds the child, then polls readiness against `port`
-    /// until [`llm_settings::probe_vox_local_bases`] reports the server
+    /// until [`vox_orchestrator_mcp::gui_ops::models::probe_vox_local_bases`] reports the server
     /// reachable or `D_60S` elapses (model load can be slow). `spawn` is
     /// injected so tests can stand in a lightweight process instead of the
     /// real `vox-ml-cli` binary (mirrors `daemon.rs`'s tests binding a real
@@ -120,7 +120,10 @@ impl MensServeState {
         let deadline = std::time::Instant::now() + D_60S;
         loop {
             let (reachable, _models) =
-                super::llm_settings::probe_vox_local_bases(std::slice::from_ref(&base)).await;
+                vox_orchestrator_mcp::gui_ops::models::probe_vox_local_bases(std::slice::from_ref(
+                    &base,
+                ))
+                .await;
             if reachable == Some(true) {
                 return Ok(());
             }

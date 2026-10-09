@@ -31,6 +31,13 @@ interface RoutingSummary {
   model_count: number;
 }
 
+type ModelsSnapshot = {
+  cards: ModelCard[];
+  routing: RoutingSummary;
+  active_model: string | null;
+  providers: ProviderStatus[];
+};
+
 /** The header line from whatever the daemon reported; a field it did not send is left out, never printed as "undefined". */
 function routingSummaryLine(s: Partial<RoutingSummary>): string {
   const parts = [
@@ -60,12 +67,11 @@ export function ModelsView({ pushToast, gamifyEnabled = false }: ModelsViewProps
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const [cards, routing, active, statuses] = await Promise.all([
-        invoke<ModelCard[]>('list_model_cards', { limit: 120 }),
-        invoke<RoutingSummary>('get_routing_summary_live'),
-        invoke<string | null>('get_active_model'),
-        invoke<ProviderStatus[]>('inference_provider_status').catch(() => [] as ProviderStatus[]),
-      ]);
+      const snap = await invoke<ModelsSnapshot>('get_models_snapshot', { limit: 120 });
+      const cards = snap.cards;
+      const routing = snap.routing;
+      const active = snap.active_model;
+      const statuses = snap.providers;
       setModels(cards);
       setSummary(routing);
       setActiveModel(active);

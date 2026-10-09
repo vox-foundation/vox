@@ -46,7 +46,8 @@ commands:
 - { module: mic, class: host, surfaces: [chat] }
 - { module: mission_control, class: daemon, surfaces: [sub-agents], notes: "no remote route yet" }
 - { module: model_active, class: daemon, surfaces: [models], notes: "GET /api/v2/models/preferences + vox_models_preference_set" }
-- { module: models, class: db, surfaces: [chat, models, runs, settings] }
+- { module: models, class: daemon, surfaces: [chat, models, runs, settings], notes: "GET /api/v2/models/* + vox_models_preference_set" }
+- { module: models_host, class: host, surfaces: [chat], notes: "keyed-provider search, local explain/suggest, host hardware recommendation" }
 - { module: oauth, class: host, surfaces: [] }
 - { module: oratio, class: host, surfaces: [chat] }
 - { module: orchestrator, class: host, surfaces: [chat, console, dashboard, flow, needs-you, settings, tasks], notes: "split: streams/status = orch RPC; hopper_* = db; config writes Vox.toml" }
@@ -56,7 +57,7 @@ commands:
 - { module: process_util, class: host, surfaces: [] }
 - { module: pty, class: host, surfaces: [console] }
 - { module: research, class: host, surfaces: [research], notes: "split: start_research_async = orch RPC; save_research_doc writes docs/ locally" }
-- { module: routing_explain, class: db, surfaces: [models] }
+- { module: routing_explain, class: daemon, surfaces: [models], notes: "GET /api/v2/models/routing-explain + routing-health" }
 - { module: runs, class: db, surfaces: [runs] }
 - { module: scientia, class: db, surfaces: [publications, research, scientia] }
 - { module: scientia_review, class: host, surfaces: [scientia], notes: "split: only license/version detection reads local files" }

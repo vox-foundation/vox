@@ -14,9 +14,6 @@ use crate::commands::daemon::PersistentDaemon;
 /// Deadline for one remote tool call over plan 06's `/v1/ws` RPC.
 const REMOTE_CALL_DEADLINE: std::time::Duration = std::time::Duration::from_secs(30);
 
-/// Codex user namespace every GUI preference has always been written under.
-pub const GUI_USER_ID: &str = "local_user";
-
 pub trait BackendCalls: Send + Sync {
     fn call_tool(
         &self,
