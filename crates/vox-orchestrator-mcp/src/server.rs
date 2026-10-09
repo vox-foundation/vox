@@ -400,10 +400,11 @@ impl ServerHandler for VoxMcpServer {
 
 /// Returns true when JSON looks like `ToolResult` with `success: false` (MCP `is_error` signal).
 pub fn tool_json_envelope_is_error(json: &str) -> bool {
-    serde_json::from_str::<serde_json::Value>(json)
-        .ok()
-        .and_then(|v| v.get("success").and_then(|s| s.as_bool()))
-        == Some(false)
+    let Ok(v) = serde_json::from_str::<serde_json::Value>(json) else {
+        return false;
+    };
+    v.get("success").and_then(|s| s.as_bool()) == Some(false)
+        || crate::profiles::is_profile_denial_json(&v)
 }
 
 /// How the workspace-federated `@tool` opt-in was resolved.
@@ -490,6 +491,16 @@ mod call_tool_tests {
     fn envelope_ok_when_not_tool_result_shape() {
         assert!(!tool_json_envelope_is_error("not json"));
         assert!(!tool_json_envelope_is_error(r#"{"foo":1}"#));
+    }
+
+    #[test]
+    fn envelope_error_for_profile_denial() {
+        assert!(tool_json_envelope_is_error(
+            r#"{"error":{"code":"tool_not_in_profile","message":"m"}}"#
+        ));
+        assert!(!tool_json_envelope_is_error(
+            r#"{"error":{"code":"unrelated"}}"#
+        ));
     }
 }
 

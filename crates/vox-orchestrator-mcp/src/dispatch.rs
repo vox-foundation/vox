@@ -125,6 +125,19 @@ async fn dispatch_tool_call(
     let start_time = std::time::Instant::now();
     let name_canonical = tool_aliases::canonical_tool_name(name);
 
+    if let Err(denial) = crate::profiles::guard_tool(
+        state,
+        crate::profiles::CallContext::LOCAL_WRITE,
+        name_canonical,
+    ) {
+        return Ok(crate::profiles::denial_error_json(
+            name_canonical,
+            &denial,
+            &state.active_profile,
+        )
+        .to_string());
+    }
+
     // Check if the agent ID or session ID is included in meta arguments
     let agent_id = args.get("agent_id").and_then(|v| v.as_str());
     let session_id = args.get("session_id").and_then(|v| v.as_str());
@@ -2370,5 +2383,39 @@ mod receipt_wrap_tests {
         assert!(receipt.is_none());
         let final_len = vox_orchestrator::sync_lock::rw_read(&*handle).len();
         assert_eq!(initial_len, final_len);
+    }
+}
+
+#[cfg(test)]
+mod profile_guard_tests {
+    use super::handle_tool_call;
+    use crate::profiles::ActiveProfile;
+    use crate::server_state::{ServerState, tool_json_envelope_is_error};
+    use serde_json::json;
+
+    #[tokio::test]
+    async fn dispatch_denies_tool_outside_profile() {
+        let state = ServerState::new_test()
+            .await
+            .with_profile(ActiveProfile::resolve(&["models"]).expect("models"));
+        let out = handle_tool_call(&state, "vox_git_status", json!({}))
+            .await
+            .expect("denial is an Ok envelope");
+        let v: serde_json::Value = serde_json::from_str(&out).expect("json");
+        assert_eq!(v["error"]["code"], "tool_not_in_profile");
+        assert!(tool_json_envelope_is_error(&out));
+    }
+
+    #[tokio::test]
+    async fn dev_dispatch_is_not_profile_gated() {
+        let state = ServerState::new_test().await;
+        let out = handle_tool_call(&state, "vox_git_status", json!({})).await;
+        if let Ok(s) = out {
+            let v: serde_json::Value = serde_json::from_str(&s).unwrap_or_default();
+            assert!(
+                !crate::profiles::is_profile_denial_json(&v),
+                "dev must not deny: {s}"
+            );
+        }
     }
 }

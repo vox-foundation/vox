@@ -751,10 +751,11 @@ impl ServerState {
 
 /// Returns true when JSON looks like `ToolResult` with `success: false` (MCP `is_error` signal).
 pub fn tool_json_envelope_is_error(json: &str) -> bool {
-    serde_json::from_str::<serde_json::Value>(json)
-        .ok()
-        .and_then(|v| v.get("success").and_then(|s| s.as_bool()))
-        == Some(false)
+    let Ok(v) = serde_json::from_str::<serde_json::Value>(json) else {
+        return false;
+    };
+    v.get("success").and_then(|s| s.as_bool()) == Some(false)
+        || crate::profiles::is_profile_denial_json(&v)
 }
 
 #[cfg(test)]
