@@ -299,11 +299,13 @@ pub fn render_features(index: &CapabilityIndex, domain: Option<&str>) -> Result<
     {
         ops.push(op_line(index, r));
     }
-    if ops.is_empty() {
+    if ops.is_empty() && rows.is_empty() {
         ops.push(format!("  {DASH}"));
     }
-    s.push_str(&ops.join("\n"));
-    s.push('\n');
+    if !ops.is_empty() {
+        s.push_str(&ops.join("\n"));
+        s.push('\n');
+    }
     let mut section = |title: &str, kind: RowKind, f: &dyn Fn(&IndexRow) -> String| {
         let lines: Vec<String> = rows
             .iter()
@@ -324,6 +326,14 @@ pub fn render_features(index: &CapabilityIndex, domain: Option<&str>) -> Result<
     });
     section("Crates", RowKind::Crate, &|r| {
         format!("  {} · {}", r.title, owner_text(r))
+    });
+    // Skill and doc rows live in the `skills` / `docs` domains; without these the text view of
+    // those domains was empty while `--json` listed them.
+    section("Skills", RowKind::Skill, &|r| {
+        format!("  {} · {}", r.title, r.id)
+    });
+    section("Docs", RowKind::Doc, &|r| {
+        format!("  {} · {}", r.title, r.id)
     });
     Ok(s)
 }
@@ -519,6 +529,40 @@ Related
         );
         assert!(out.contains("Crates:"), "{out}");
         assert!(render_features(&idx, Some("nope")).is_err());
+    }
+
+    #[test]
+    fn features_lists_skill_and_doc_rows() {
+        let mut idx = fixture_index();
+        idx.domains.push(crate::index::DomainDef {
+            id: "docs".into(),
+            label: "Docs".into(),
+        });
+        idx.domains.push(crate::index::DomainDef {
+            id: "skills".into(),
+            label: "Skills".into(),
+        });
+        let mut skill = row("skill.demo-skill", RowKind::Skill, "demo-skill");
+        skill.domain = Some("skills".into());
+        idx.rows.retain(|r| r.id != "skill.demo-skill");
+        idx.rows.push(skill);
+        let mut doc = row("doc.docs/src/x.md", RowKind::Doc, "X page");
+        doc.domain = Some("docs".into());
+        idx.rows.push(doc);
+
+        let s = render_features(&idx, Some("skills")).unwrap();
+        assert!(
+            s.contains("Skills:\n  demo-skill · skill.demo-skill"),
+            "{s}"
+        );
+        assert!(!s.contains('—'), "no placeholder when rows exist: {s}");
+        let d = render_features(&idx, Some("docs")).unwrap();
+        assert!(d.contains("Docs:\n  X page · doc.docs/src/x.md"), "{d}");
+        // A domain with no rows at all still prints the placeholder.
+        let e = render_features(&idx, Some("platform")).unwrap();
+        assert!(e.contains("cli.check") || e.contains("vox check"), "{e}");
+        idx.rows.clear();
+        assert!(render_features(&idx, Some("docs")).unwrap().contains('—'));
     }
 
     #[test]
