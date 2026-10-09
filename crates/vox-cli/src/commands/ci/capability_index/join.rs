@@ -20,12 +20,30 @@ use crate::command_catalog::{CatalogTier, tier_for_path};
 pub(super) const CLI_DOC: &str = "docs/src/reference/cli-command-surface.generated.md";
 pub(super) const MCP_DOC: &str = "docs/src/reference/mcp-tool-registry-contract.md";
 
-/// One-line, control-free form of a catalog description (also blocks markup/newline injection into
-/// downstream one-line emitters such as llms.txt). `None` when nothing printable remains.
+/// Invisible Unicode format characters (category Cf) that `char::is_control` (Cc only) misses:
+/// zero-width, bidi marks/overrides/isolates, word joiner, BOM and the U+E0000 tag block, the
+/// standard carriers of hidden text in LLM-facing files.
+fn is_invisible_format(c: char) -> bool {
+    matches!(
+        c as u32,
+        0x00AD
+            | 0x061C
+            | 0x200B..=0x200F
+            | 0x202A..=0x202E
+            | 0x2060..=0x2064
+            | 0x2066..=0x2069
+            | 0xFEFF
+            | 0xE0000..=0xE007F
+    )
+}
+
+/// One-line, control-free form of a catalog description (also blocks markup/newline/invisible-text
+/// injection into downstream one-line emitters such as llms.txt). `None` when nothing printable
+/// remains.
 pub(super) fn single_line(text: &str) -> Option<String> {
     let kept: String = text
         .chars()
-        .filter(|c| !c.is_control() || c.is_whitespace())
+        .filter(|c| c.is_whitespace() || !(c.is_control() || is_invisible_format(*c)))
         .collect();
     let line = kept.split_whitespace().collect::<Vec<_>>().join(" ");
     (!line.is_empty()).then_some(line)

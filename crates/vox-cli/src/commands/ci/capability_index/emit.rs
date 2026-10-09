@@ -480,6 +480,24 @@ mod tests {
     }
 
     #[test]
+    fn sanitizer_strips_bidi_zero_width_and_tag_characters() {
+        // RLO, zero-width space, BOM, isolates and a Unicode tag letter (hidden-text carrier).
+        let s = safe_line("a\u{202E}b\u{200B}c\u{FEFF}d\u{2066}e\u{2069}f\u{E0041}g");
+        assert_eq!(s, "abcdefg");
+        let mut idx = fixture();
+        idx.rows[0].title = "ti\u{E0049}\u{202E}tle".into();
+        let out = llms_full(&idx);
+        assert!(out.contains(": title\n"), "title not emitted: {out}");
+        assert!(
+            !out.contains('\u{202E}')
+                && !out
+                    .chars()
+                    .any(|c| ('\u{E0000}'..='\u{E007F}').contains(&c)),
+            "invisible characters survived"
+        );
+    }
+
+    #[test]
     fn real_llms_txt_keeps_smoke_invariants() {
         let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../..")
