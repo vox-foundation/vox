@@ -187,4 +187,103 @@ async fn capture_crag_tavily_reaches_sink_not_corpus() {
     );
     assert!(exec.durable_artifacts.is_empty());
     assert_eq!(db.search_corpus_row_counts().await.unwrap(), (0, 0));
+    // TRUST-01: an admitted Tavily line is labelled and lowers the envelope minimum.
+    assert!(
+        exec.web_lines
+            .iter()
+            .any(|l| l.starts_with("[tier:untrusted] [crag_tavily:https://example.test/t]")),
+        "{:?}",
+        exec.web_lines
+    );
+    assert_eq!(
+        exec.min_trust_tier,
+        Some(vox_db::ContextTrustTier::Untrusted)
+    );
+}
+
+/// CR-01 / WR-08: under `AutoChatPreamble` the Tavily leg does not fire at all, even when the
+/// caller passes a plain policy (as `goal.rs` does): zero requests, zero credits, no capture.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn crag_tavily_never_fires_for_auto_preamble_without_the_flag() {
+    use vox_search::bundle::{RetrievalTriggerMode, run_search_with_verification};
+    use vox_search::tavily_budget::TavilySessionBudget;
+
+    let tavily = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/search"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "query": "q", "answer": null, "images": [], "response_time": 0.1,
+            "results": [{"title": "Tavily page", "url": "https://example.test/t",
+                "content": "Tavily full content body.", "score": 0.9}],
+        })))
+        .mount(&tavily)
+        .await;
+    // SAFETY: set before any secret is resolved; the value is a fake key against loopback.
+    #[allow(unsafe_code)]
+    unsafe {
+        std::env::set_var("TAVILY_API_KEY", "tvly-test");
+    }
+    vox_config::snapshot::bump(&["TAVILY_API_KEY"]);
+
+    let tmp = tempfile::tempdir().unwrap();
+    let db = Arc::new(VoxDb::open_memory().await.unwrap());
+    let rec = Arc::new(Recorder::default());
+    let ctx = SearchRuntimeContext::new(
+        tmp.path().to_path_buf(),
+        Some(db),
+        tmp.path().join("log"),
+        tmp.path().join("lt.md"),
+    )
+    .with_web_capture(Some(rec.clone()));
+    let policy = SearchPolicy {
+        web_research_enabled: false,
+        tavily_enabled: true,
+        tavily_api_url: Some(tavily.uri()),
+        tavily_fire_on_empty: true,
+        prefer_rrf_merge: true,
+        searxng_url: None,
+        enable_wikipedia: false,
+        enable_openalex: false,
+        enable_arxiv: false,
+        persist_web_hits: true,
+        exclude_untrusted_hits: false,
+        ..SearchPolicy::default()
+    };
+    let budget = TavilySessionBudget::new(100);
+    let (exec, diag, _plan) = run_search_with_verification(
+        &ctx,
+        "zzqx unmatched crag probe",
+        RetrievalTriggerMode::AutoChatPreamble,
+        5,
+        &policy,
+        None,
+        Some(&budget),
+    )
+    .await
+    .unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+
+    assert!(tavily.received_requests().await.unwrap().is_empty());
+    assert!(!exec.web_lines.iter().any(|l| l.contains("crag_tavily")));
+    assert!(
+        !exec
+            .rrf_fused_lines
+            .iter()
+            .any(|l| l.contains("crag_tavily"))
+    );
+    assert!(
+        !rec.0
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|h| h.origin == FindingOrigin::CragTavily)
+    );
+    assert_eq!(budget.remaining(), 100);
+    assert!(
+        diag.notes
+            .iter()
+            .any(|n| n == "tavily_skipped=untrusted_excluded"),
+        "{:?}",
+        diag.notes
+    );
 }

@@ -20,6 +20,9 @@ pub enum RetrievalTriggerMode {
 }
 
 /// Run planner + optional second pass using policy thresholds.
+///
+/// `AutoChatPreamble` always excludes Untrusted hits (D-03, WR-08), whatever policy the caller
+/// passed; the Tavily CRAG leg does not fire under that exclusion (CR-01).
 pub async fn run_search_with_verification(
     ctx: &SearchRuntimeContext,
     query: &str,
@@ -29,6 +32,17 @@ pub async fn run_search_with_verification(
     lexical_fallback: Option<&dyn LexicalMemoryFallback>,
     budget: Option<&crate::tavily_budget::TavilySessionBudget>,
 ) -> Result<(SearchExecution, SearchDiagnostics, SearchPlan), String> {
+    let derived;
+    let policy =
+        if trigger == RetrievalTriggerMode::AutoChatPreamble && !policy.exclude_untrusted_hits {
+            derived = SearchPolicy {
+                exclude_untrusted_hits: true,
+                ..policy.clone()
+            };
+            &derived
+        } else {
+            policy
+        };
     let mut plan = heuristic_search_plan(
         query,
         trigger == RetrievalTriggerMode::VerificationPass,
@@ -145,7 +159,12 @@ pub async fn run_search_with_verification(
             && execution.repo_lines.is_empty()
             && execution.qdrant_lines.is_empty();
 
-        if policy.tavily_enabled {
+        if policy.tavily_enabled && policy.exclude_untrusted_hits {
+            // Tavily output is live web text (Untrusted): an exclusion run never fetches it.
+            diagnostics
+                .notes
+                .push("tavily_skipped=untrusted_excluded".to_string());
+        } else if policy.tavily_enabled {
             let tavily_should_fire = (policy.tavily_fire_on_empty && is_empty)
                 || (policy.tavily_fire_on_weak && execution.evidence_quality < threshold);
 
@@ -195,7 +214,7 @@ pub async fn run_search_with_verification(
                         let mut t_lines = Vec::new();
                         for h in &hits {
                             t_lines.push(format!(
-                                "[crag_tavily:{}] {} (score: {:.3})",
+                                "[tier:untrusted] [crag_tavily:{}] {} (score: {:.3})",
                                 h.url,
                                 h.content.replace('\n', " "),
                                 h.score
@@ -230,6 +249,10 @@ pub async fn run_search_with_verification(
 
                         // No durable artifact: Tavily hits are no longer mirrored into the corpus,
                         // so there is no persisted `tavily:<url>` resource to point at.
+                        if !t_lines.is_empty() {
+                            // Untrusted is the least tier, so this is min(old, Untrusted).
+                            execution.min_trust_tier = Some(vox_db::ContextTrustTier::Untrusted);
+                        }
                         execution.web_lines.extend(t_lines.iter().cloned());
                         if policy.prefer_rrf_merge {
                             execution.rrf_fused_lines.extend(t_lines);

@@ -144,3 +144,70 @@ async fn execute_search_plan_labels_tiers_and_excludes_untrusted_on_request() {
         "nothing kept means no tier, read as Untrusted"
     );
 }
+
+/// WR-08: `AutoChatPreamble` excludes Untrusted hits whatever policy the caller passed (the
+/// orchestrator goal path passes a plain `SearchPolicy`); explicit queries keep them, labelled.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn auto_preamble_trigger_drops_untrusted_chunks_without_the_flag() {
+    use vox_db::ContextTrustTier;
+    use vox_search::bundle::{RetrievalTriggerMode, run_search_with_verification};
+
+    let dir = tempfile::tempdir().expect("tempdir");
+    let mem_dir = dir.path().join("memory");
+    std::fs::create_dir_all(&mem_dir).expect("mkdir memory");
+    let md_path = mem_dir.join("longterm.md");
+    let db = Arc::new(VoxDb::open_memory().await.expect("open_memory"));
+    let trusted = db
+        .upsert_search_document(
+            "library:docs/src/t.md",
+            "T",
+            "text/markdown",
+            "h",
+            ContextTrustTier::Trusted,
+        )
+        .await
+        .unwrap();
+    db.replace_search_document_chunks(trusted, &["quillmark trustedhit".to_string()])
+        .await
+        .unwrap();
+    db.connection()
+        .execute_batch(
+            "INSERT INTO search_documents (id, source_uri, title) VALUES (800, 'web-ingest:x', 'W'); \
+             INSERT INTO search_document_chunks (document_id, chunk_index, body_text, created_at) \
+               VALUES (800, 0, 'quillmark webhit', '2000-01-01 00:00:00');",
+        )
+        .await
+        .unwrap();
+    let ctx = SearchRuntimeContext::new(dir.path().to_path_buf(), Some(db), mem_dir, md_path);
+    let policy = SearchPolicy::default();
+    assert!(!policy.exclude_untrusted_hits, "caller passes no flag");
+
+    let (auto, _, _) = run_search_with_verification(
+        &ctx,
+        "quillmark",
+        RetrievalTriggerMode::AutoChatPreamble,
+        8,
+        &policy,
+        None,
+        None,
+    )
+    .await
+    .unwrap();
+    assert_eq!(auto.chunk_lines.len(), 1, "{:?}", auto.chunk_lines);
+    assert!(auto.chunk_lines[0].starts_with("[tier:trusted] "));
+    assert_eq!(auto.min_trust_tier, Some(ContextTrustTier::Trusted));
+
+    let (explicit, _, _) = run_search_with_verification(
+        &ctx,
+        "quillmark",
+        RetrievalTriggerMode::ExplicitToolQuery,
+        8,
+        &policy,
+        None,
+        None,
+    )
+    .await
+    .unwrap();
+    assert_eq!(explicit.chunk_lines.len(), 2, "{:?}", explicit.chunk_lines);
+    assert_eq!(explicit.min_trust_tier, Some(ContextTrustTier::Untrusted));
+}
