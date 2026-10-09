@@ -138,7 +138,7 @@ An existing non-null catalog `side_effect_class` is kept unless the handler cont
 - V6 `exposure: public` ⇒ `side_effect_class` ∉ {`spawns_process`, `remote_mutation`, `destructive`}.
 
 **Anchor rows** pinned by Task 14's tests — do not change them; if the handler contradicts one, stop and report:
-`vox_git_status` (public, read_only, []), `vox_list_models` (public, read_only, [model_registry]), `vox_kb_query` (public, read_only, [search_index]), `vox_snapshot_restore` (operator, destructive, []), `vox_browser_open` (operator, network, [browser]), `vox_agy_delegate` (internal, spawns_process, []).
+`vox_git_status` (public, read_only, []), `vox_list_models` (public, read_only, [model_registry]), `vox_kb_query` (public, read_only, [search_index]), `vox_snapshot_restore` (operator, destructive, [db]), `vox_browser_open` (operator, network, [browser]), `vox_agy_delegate` (internal, spawns_process, []).
 
 **Edit shape.** Each op is located by its unique `mcp.name` line (`rg -n '^    name: <tool>$' contracts/operations/catalog.v1.yaml`). Edit only two places in that op's block: the op-level `side_effect_class:` line, and two new lines appended after `http_read_role_eligible:` in the `mcp:` block. Use serde_yaml's block style so a later `--target catalog` rewrite is a no-op. Example (`kb.query`, after Task 2 removed `tier`):
 
@@ -1690,7 +1690,7 @@ Start here: `crates/vox-orchestrator-mcp/src/git_tools.rs`, `git_exec.rs`, `vcs_
 | `vox_resolve_conflict` | operator | writes_files | [] |
 | `vox_snapshot_diff` | public | read_only | [] |
 | `vox_snapshot_list` | public | read_only | [] |
-| `vox_snapshot_restore` | operator | destructive | [] |
+| `vox_snapshot_restore` | operator | destructive | [db] |
 | `vox_transfer_file` | operator | writes_files | [] |
 | `vox_undo` | operator | writes_files | [] |
 | `vox_vcs_status` | public | read_only | [] |
@@ -2395,7 +2395,7 @@ fn anchor_tools_carry_expected_classification() {
             SideEffectClass::ReadOnly,
             &[Subsystem::SearchIndex],
         ),
-        ("vox_snapshot_restore", Exposure::Operator, SideEffectClass::Destructive, &[]),
+        ("vox_snapshot_restore", Exposure::Operator, SideEffectClass::Destructive, &[Subsystem::Db]),
         (
             "vox_browser_open",
             Exposure::Operator,
