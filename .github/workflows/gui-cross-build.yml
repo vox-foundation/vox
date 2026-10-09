@@ -3,7 +3,7 @@ name: GUI Cross-Platform Build (Win/macOS/Ubuntu)
 on:
   # Not on pull_request/merge_group: the full Win/macOS/Ubuntu matrix
   # (gui-cross-build 90m) exceeds the fast-lane (PR/merge_group) 30-min cap
-  # (workflow_policy_guard). Runs nightly instead, mirroring mobile-e2e-ios's
+  # (workflow_policy_guard). Runs nightly instead, like the (since retired) iOS lane's
   # move off push/PR (per-PR compile signal for vox-gui is still covered by
   # ci.yml's own Linux build).
   schedule:
