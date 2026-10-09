@@ -31,6 +31,7 @@ Point **`eval.voxlang.org`** to the same edge IP (or CNAME) where Coolify’s Tr
 1. Create or select a **Docker Compose** application in Coolify.
 2. Set **FQDN / domains** to **`https://eval.voxlang.org`** (or equivalent field for your Coolify version).
 3. Inject **`VOX_MCP_HTTP_BEARER_TOKEN`** (and any other env vars from compose) via Coolify **project/environment secrets**.
+   - **`VOX_MCP_HTTP_READ_BEARER_TOKEN`**: required since the gateway bind policy (capability-profiles plan 04): a `0.0.0.0` bind refuses to start without both tokens. Any random value (e.g. `openssl rand -hex 32`); not shared with the docs site. Compose also sets `VOX_MCP_HTTP_BEHIND_TUNNEL=1` because Traefik terminates TLS.
 4. `ghcr.io/brbrainerd/vox-eval` must be **public** for Coolify's `pull_policy: always` to fetch it without registry credentials (GitHub → `brbrainerd` account → **Packages** → `vox-eval` → **Package settings** → **Danger Zone** → confirm visibility is **Public** — already done as of 2026-07-18). GHCR packages are **private by default** on push regardless of repo visibility, so this needs a one-time check after the package is first created — this has bitten production deploys with `Error response from daemon: error from registry: unauthorized` / `exit status 1` on the `eval Pulling` step even though the image built and pushed successfully moments earlier. **Why a personal namespace, not `vox-foundation/vox-eval`:** the org's free-tier plan blocks changing an *org-owned* container package's visibility entirely — that package cannot be flipped public no matter who administers the org. A personal-account package has no such restriction. Visibility is a package-level setting (not per-tag), so this is a one-time fix, not something to redo per release. (If the visibility toggle on a package's settings page appears locked to org governance even under a personal account, check whether it's linked to an org repo via the `org.opencontainers.image.source` label — `docker-eval.yml` deliberately omits that label to avoid this.)
 5. Align Traefik / TLS with Coolify’s documented certificate workflow. Raw Compose labels use **`tls.certresolver=letsencrypt`**; your Coolify install may prefer UI-managed certs—avoid duplicate conflicting resolvers.
 
@@ -93,7 +94,7 @@ vox ci coolify-eval sync-compose \
 
 Or run **[`.github/workflows/coolify-eval-sync.yml`](../../../.github/workflows/coolify-eval-sync.yml)** with **`sync_compose: true`**.
 
-In Coolify, set **`VOX_MCP_HTTP_BEARER_TOKEN`** and any other env vars referenced by [`vox-eval.compose.yml`](../../../vox-eval.compose.yml). **`ghcr.io/brbrainerd/vox-eval`** must be public (see above) — Coolify has no registry credentials configured for it. Wait until the deployment finishes and the service is **running** and **healthy** (Compose healthcheck uses **`curl`** → **`http://localhost:3921/health`**).
+In Coolify, set **`VOX_MCP_HTTP_BEARER_TOKEN`**, **`VOX_MCP_HTTP_READ_BEARER_TOKEN`**, and any other env vars referenced by [`vox-eval.compose.yml`](../../../vox-eval.compose.yml). **`ghcr.io/brbrainerd/vox-eval`** must be public (see above) — Coolify has no registry credentials configured for it. Wait until the deployment finishes and the service is **running** and **healthy** (Compose healthcheck uses **`curl`** → **`http://localhost:3921/health`**).
 
 ### Step 3 — TLS and Traefik router
 

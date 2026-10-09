@@ -32,6 +32,10 @@ services:
       # Lock down rate limit for anonymous playground callers (10/min per IP)
       # Admin token below is for internal use only; never exposed to docs site
       - VOX_MCP_HTTP_BEARER_TOKEN=${VOX_MCP_HTTP_BEARER_TOKEN}
+      # Bind policy (capability-profiles plan 04): a non-loopback bind needs both tokens and
+      # TLS or a tunnel attestation. Traefik terminates TLS for eval.voxlang.org.
+      - VOX_MCP_HTTP_READ_BEARER_TOKEN=${VOX_MCP_HTTP_READ_BEARER_TOKEN}
+      - VOX_MCP_HTTP_BEHIND_TUNNEL=1
     ports:
       # Only expose to Traefik, not to the public directly.
       # Coolify will route eval.voxlang.org → container port 3921
