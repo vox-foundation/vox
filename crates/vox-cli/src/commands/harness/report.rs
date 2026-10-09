@@ -222,11 +222,8 @@ pub struct HistoryArgs {
 
 pub async fn run_history(args: HistoryArgs) -> anyhow::Result<()> {
     let db = vox_db::open_project_db().await?;
-    super::publish::sync_from_jsonl(
-        &db,
-        std::path::Path::new("docs/harness-eval-history/runs.jsonl"),
-    )
-    .await?;
+    super::publish::sync_from_history(&db, std::path::Path::new("docs/harness-eval-history"))
+        .await?;
 
     let mut runs = db.list_harness_eval_runs(args.limit).await?;
     if let Some(category) = &args.category {
@@ -275,11 +272,8 @@ pub struct ReportArgs {
 
 pub async fn run_report(args: ReportArgs) -> anyhow::Result<()> {
     let db = vox_db::open_project_db().await?;
-    super::publish::sync_from_jsonl(
-        &db,
-        std::path::Path::new("docs/harness-eval-history/runs.jsonl"),
-    )
-    .await?;
+    super::publish::sync_from_history(&db, std::path::Path::new("docs/harness-eval-history"))
+        .await?;
 
     let limit = if args.since.is_some() { 50 } else { 2 };
     let runs = db.list_harness_eval_runs(limit).await?;
