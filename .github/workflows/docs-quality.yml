@@ -123,6 +123,33 @@ jobs:
         working-directory: docs-astro
         run: pnpm build
 
+      # Prove the offline link check can fail before trusting a green run: the
+      # fixture holds one dead route and one dead anchor. Exit 2 = link failures;
+      # 1 = runtime/input error, which does not count as detecting them.
+      - name: Link checker self-test (fixture must fail)
+        id: lychee_selftest
+        uses: lycheeverse/lychee-action@v2
+        with:
+          lycheeVersion: v0.24.2
+          fail: false
+          jobSummary: false
+          output: lychee/selftest.md
+          args: --offline --no-progress --root-dir ${{ github.workspace }}/docs-astro/dist --include-fragments --index-files index.html docs-astro/tests/fixtures/broken-link/index.html
+
+      - name: Assert link checker detects broken links
+        shell: bash
+        env:
+          SELFTEST_EXIT: ${{ steps.lychee_selftest.outputs.exit_code }}
+        run: |
+          set -euo pipefail
+          if [ "${SELFTEST_EXIT}" != "2" ] \
+            || ! grep -qF 'this-route-does-not-exist' lychee/selftest.md \
+            || ! grep -qF 'no-such-anchor-p20' lychee/selftest.md; then
+            echo "::error::link checker cannot detect broken links (lychee exit ${SELFTEST_EXIT}; expected 2 with both fixture URLs reported)"
+            cat lychee/selftest.md || true
+            exit 1
+          fi
+
       - name: Docs unit tests
         working-directory: docs-astro
         run: node --test "tests/unit/*.test.mjs"
