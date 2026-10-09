@@ -311,8 +311,18 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Restore the shared `workspace` cache that cache-seed.yml refreshes on main
+      # every 6 h. setup-rust's own lockfile-keyed cache is only saved when this
+      # workflow runs on main, so after any Cargo.lock change it restored a stale
+      # target and the cold vox-cli build ran past this job's 15-min cap.
       - name: Install Rust toolchain
         uses: ./.github/actions/setup-rust
+        with:
+          cache: "false"
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: workspace
+          save-if: false
 
       - name: Install system deps (dbus, required by wry/keyring on Linux)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
