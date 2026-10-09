@@ -111,6 +111,9 @@ pub enum CiCmd {
         /// Write/update the index. Without this flag, verify only (also run by `ssot-drift`).
         #[arg(long)]
         write: bool,
+        /// Shrink the unresolved-owner baseline (removal-only).
+        #[arg(long, conflicts_with = "write")]
+        tighten: bool,
     },
     /// Gate: GUI honesty — typed toasts + no placeholder/dead elements in surfaces.
     #[command(name = "gui-honesty")]

@@ -46,7 +46,28 @@ pub(crate) fn unresolved_ids(index: &CapabilityIndex) -> BTreeSet<String> {
 
 /// Fail when a row lost (or never had) its owner and is not already in the baseline.
 pub(crate) fn check(live: &BTreeSet<String>, baseline: &OwnerRatchet) -> Result<()> {
-    let _ = (live.len(), baseline.max_unresolved); // RED stub: replaced in the GREEN commit
+    let known: BTreeSet<&str> = baseline.unresolved.iter().map(String::as_str).collect();
+    let added: Vec<&str> = live
+        .iter()
+        .map(String::as_str)
+        .filter(|id| !known.contains(id))
+        .collect();
+    if !added.is_empty() {
+        bail!(
+            "{} cli/mcp row(s) have no resolvable owner and are not in {BASELINE_REL}: {}. \
+             Fix the source, not the baseline: add the group to `cli_groups` (with an `owner`) in \
+             contracts/capabilities/domains.v1.yaml, or set `owner_crate` on the catalog op",
+            added.len(),
+            added.join(", ")
+        );
+    }
+    if live.len() > baseline.max_unresolved {
+        bail!(
+            "{} unresolved owners exceed max_unresolved {} in {BASELINE_REL}",
+            live.len(),
+            baseline.max_unresolved
+        );
+    }
     Ok(())
 }
 
@@ -56,8 +77,23 @@ pub(crate) fn tighten(
     live: &BTreeSet<String>,
     baseline: Option<&OwnerRatchet>,
 ) -> Result<OwnerRatchet> {
-    let _ = (live.len(), baseline.is_some()); // RED stub: replaced in the GREEN commit
-    bail!("not implemented")
+    let Some(base) = baseline else {
+        return Ok(OwnerRatchet::from_set(live));
+    };
+    let known: BTreeSet<&str> = base.unresolved.iter().map(String::as_str).collect();
+    let added: Vec<&str> = live
+        .iter()
+        .map(String::as_str)
+        .filter(|id| !known.contains(id))
+        .collect();
+    if !added.is_empty() {
+        bail!(
+            "--tighten would ADD {} unresolved owner(s) (tighten is removal-only): {}",
+            added.len(),
+            added.join(", ")
+        );
+    }
+    Ok(OwnerRatchet::from_set(live))
 }
 
 #[cfg(test)]

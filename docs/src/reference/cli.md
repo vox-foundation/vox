@@ -212,7 +212,7 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | Subcommand | Role |
 |------------|------|
 | `manifest` | `cargo metadata --locked` |
-| `capability-index [--write]` | Generate or verify [`contracts/capabilities/capability-index.v1.json`](../../../contracts/capabilities/capability-index.v1.json): one row per CLI and MCP projection of the operations catalog (committed inputs only; never builds the code graph). Check mode also runs inside **`ssot-drift`**. |
+| `capability-index [--write] [--tighten]` | Generate or verify [`contracts/capabilities/capability-index.v1.json`](../../../contracts/capabilities/capability-index.v1.json): one row per CLI and MCP projection of the operations catalog (committed inputs only; never builds the code graph). Check mode also runs inside **`ssot-drift`** and fails when a cli/mcp row has no resolvable owner and is not in [`contracts/capabilities/owner-ratchet.v1.json`](../../../contracts/capabilities/owner-ratchet.v1.json) (owner ratchet, D-05). `--tighten` shrinks that baseline (removal-only); `--write` never touches it. |
 | `check-docs-ssot` / `check-codex-ssot` | Required doc / Codex files + inventory / OpenAPI checks |
 | `check-summary-drift` | Runs `cargo run -p vox-doc-pipeline -- --check`; fails if `SUMMARY.md` is out of sync with `docs/src` |
 | `build-docs` | Regenerates `SUMMARY.md`, runs `mdbook build docs`, then `mdbook-sitemap-generator` (optional `MDBOOK_SITEMAP_DOMAIN`) |

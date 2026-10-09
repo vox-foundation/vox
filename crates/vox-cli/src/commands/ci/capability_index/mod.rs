@@ -37,10 +37,27 @@ fn render(index: &CapabilityIndex) -> Result<String> {
     Ok(text)
 }
 
-/// Generate (`write`) or verify the committed capability index.
+/// Read the committed owner-ratchet baseline; a missing file is an error (never silently empty).
+fn load_baseline(repo_root: &Path) -> Result<ratchet::OwnerRatchet> {
+    let path = repo_root.join(ratchet::BASELINE_REL);
+    if !path.is_file() {
+        return Err(anyhow!(
+            "missing {}; run `vox ci capability-index --tighten` once",
+            ratchet::BASELINE_REL
+        ));
+    }
+    serde_json::from_str(&read_utf8_path_capped(&path)?)
+        .with_context(|| format!("parse {}", ratchet::BASELINE_REL))
+}
+
+/// Generate (`write`) or verify the committed capability index. Never writes the owner-ratchet
+/// baseline, even with `write`: only `tighten_baseline` does.
 pub fn run(repo_root: &Path, write: bool) -> Result<()> {
     let loaded = inputs::load(repo_root)?;
     let index = join::build_index(&loaded)?;
+    // Before any artifact write/verify, so a new ownerless command reports the ratchet error
+    // rather than a generic "stale".
+    ratchet::check(&ratchet::unresolved_ids(&index), &load_baseline(repo_root)?)?;
     validate_against_schema(
         repo_root,
         &serde_json::to_value(&index).context("capability index to JSON value")?,
@@ -50,6 +67,26 @@ pub fn run(repo_root: &Path, write: bool) -> Result<()> {
         &render(&index)?,
         write,
         STALE_HINT,
+    )
+    .map_err(|e| anyhow!("{e:#}"))
+}
+
+/// `--tighten`: shrink the unresolved-owner baseline (removal-only; bootstraps a missing file).
+pub fn tighten_baseline(repo_root: &Path) -> Result<()> {
+    let loaded = inputs::load(repo_root)?;
+    let index = join::build_index(&loaded)?;
+    let path = repo_root.join(ratchet::BASELINE_REL);
+    let current = if path.is_file() {
+        Some(load_baseline(repo_root)?)
+    } else {
+        None
+    };
+    let next = ratchet::tighten(&ratchet::unresolved_ids(&index), current.as_ref())?;
+    write_or_verify_text(
+        &path,
+        &next.render()?,
+        true,
+        "run `vox ci capability-index --tighten`",
     )
     .map_err(|e| anyhow!("{e:#}"))
 }
