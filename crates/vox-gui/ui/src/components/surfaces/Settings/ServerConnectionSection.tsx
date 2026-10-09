@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { axisConnectRemote, axisDisconnectRemote } from '../../../transport';
 import { parseAxisError } from '../../../lib/axisError';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { useBackendStatus } from '../../../hooks/useBackendStatus';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../../ui/Dialog';
 import type { Toast } from '../../../types/tauri';
@@ -44,7 +45,7 @@ export function ServerConnectionSection({ pushToast }: { pushToast: (t: Toast) =
         setPending({ fingerprint: err.fingerprint, pinned: err.pinned ?? null });
       } else {
         setPending(null);
-        setError(err?.message ?? String(e));
+        setError(err?.message ?? sanitizeErrorForToast(e));
       }
     } finally {
       setBusy(false);
@@ -58,7 +59,7 @@ export function ServerConnectionSection({ pushToast }: { pushToast: (t: Toast) =
       setStatus(await axisDisconnectRemote());
       pushToast({ tone: 'info', title: 'Disconnected — using this machine', cause: 'backend-ok' });
     } catch (e) {
-      setError(parseAxisError(e)?.message ?? String(e));
+      setError(parseAxisError(e)?.message ?? sanitizeErrorForToast(e));
     } finally {
       setBusy(false);
     }
