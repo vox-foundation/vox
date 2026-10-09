@@ -194,7 +194,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -206,6 +206,9 @@ operations:
   mcp:
     name: vox_ask_clarification
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - clarification
   cli: null
 - id: credentials.status
   title: Credentials Status
@@ -272,7 +275,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -284,6 +287,8 @@ operations:
   mcp:
     name: vox_a2a_ack
     http_read_role_eligible: false
+    exposure: operator
+    requires: []
   cli: null
 - id: a2a.broadcast
   title: A2a Broadcast
@@ -291,7 +296,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -303,6 +308,8 @@ operations:
   mcp:
     name: vox_a2a_broadcast
     http_read_role_eligible: false
+    exposure: operator
+    requires: []
   cli: null
 - id: a2a.history
   title: A2a History
@@ -310,7 +317,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -322,6 +329,8 @@ operations:
   mcp:
     name: vox_a2a_history
     http_read_role_eligible: false
+    exposure: public
+    requires: []
   cli: null
 - id: a2a.inbox
   title: A2a Inbox
@@ -329,7 +338,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -341,6 +350,8 @@ operations:
   mcp:
     name: vox_a2a_inbox
     http_read_role_eligible: false
+    exposure: public
+    requires: []
   cli: null
 - id: a2a.send
   title: A2a Send
@@ -348,7 +359,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -360,6 +371,8 @@ operations:
   mcp:
     name: vox_a2a_send
     http_read_role_eligible: false
+    exposure: operator
+    requires: []
   cli: null
 - id: a2a.tasks
   title: A2a Tasks
@@ -367,7 +380,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -379,6 +392,9 @@ operations:
   mcp:
     name: vox_a2a_tasks
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - agent_fleet
   cli: null
 - id: add
   title: Add
@@ -412,7 +428,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -424,6 +440,9 @@ operations:
   mcp:
     name: vox_agent_assess
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - agent_fleet
   cli: null
 - id: agent.continue
   title: Agent Continue
@@ -431,7 +450,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -443,6 +462,9 @@ operations:
   mcp:
     name: vox_agent_continue
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - agent_fleet
   cli: null
 - id: agent.events
   title: Agent Events
@@ -450,7 +472,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -462,6 +484,9 @@ operations:
   mcp:
     name: vox_agent_events
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - db
   cli: null
 - id: agent.handoff
   title: Agent Handoff
@@ -469,7 +494,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -481,6 +506,9 @@ operations:
   mcp:
     name: vox_agent_handoff
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - agent_fleet
   cli: null
 - id: agent.status
   title: Agent Status
@@ -488,7 +516,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -500,6 +528,9 @@ operations:
   mcp:
     name: vox_agent_status
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - agent_fleet
   cli: null
 - id: answer.question
   title: Answer Question
@@ -507,7 +538,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -519,6 +550,8 @@ operations:
   mcp:
     name: vox_answer_question
     http_read_role_eligible: false
+    exposure: operator
+    requires: []
   cli: null
 - id: apply.structured.edit
   title: Apply Structured Edit
@@ -3603,7 +3636,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -3615,6 +3648,8 @@ operations:
   mcp:
     name: vox_ask_agent
     http_read_role_eligible: false
+    exposure: operator
+    requires: []
   cli: null
 - id: attention.history
   title: Attention History
@@ -3770,7 +3805,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -3782,6 +3817,8 @@ operations:
   mcp:
     name: vox_broadcast
     http_read_role_eligible: false
+    exposure: operator
+    requires: []
   cli: null
 - id: browser.act
   title: Browser Act
@@ -4640,7 +4677,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -4652,6 +4689,9 @@ operations:
   mcp:
     name: vox_cancel_task
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - agent_fleet
   cli: null
 - id: capability.model.manifest
   title: Capability Model Manifest
@@ -10135,7 +10175,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -10147,6 +10187,9 @@ operations:
   mcp:
     name: vox_complete_task
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - agent_fleet
   cli: null
 - id: completions
   title: Completions
@@ -10180,7 +10223,7 @@ operations:
   description_human: null
   product_lane: platform
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -10192,6 +10235,8 @@ operations:
   mcp:
     name: vox_config_get
     http_read_role_eligible: false
+    exposure: public
+    requires: []
   cli:
     path:
     - config
@@ -10236,7 +10281,7 @@ operations:
   description_human: null
   product_lane: platform
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -10248,6 +10293,8 @@ operations:
   mcp:
     name: vox_config_set
     http_read_role_eligible: false
+    exposure: operator
+    requires: []
   cli:
     path:
     - config
@@ -13249,7 +13296,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -13261,6 +13308,9 @@ operations:
   mcp:
     name: vox_doubt_task
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - agent_fleet
   cli: null
 - id: drain.agent
   title: Drain Agent
@@ -13647,7 +13697,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -13659,6 +13709,9 @@ operations:
   mcp:
     name: vox_fail_task
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - agent_fleet
   cli: null
 - id: file.graph
   title: File Graph
@@ -15674,7 +15727,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -15686,6 +15739,8 @@ operations:
   mcp:
     name: vox_handoff_context
     http_read_role_eligible: false
+    exposure: operator
+    requires: []
   cli: null
 - id: handoff.lineage
   title: Handoff Lineage
@@ -15693,7 +15748,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -15705,6 +15760,9 @@ operations:
   mcp:
     name: vox_handoff_lineage
     http_read_role_eligible: true
+    exposure: public
+    requires:
+    - db
   cli: null
 - id: heartbeat
   title: Heartbeat
@@ -15712,7 +15770,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -15724,6 +15782,9 @@ operations:
   mcp:
     name: vox_heartbeat
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - agent_fleet
   cli: null
 - id: init
   title: Init
@@ -15980,7 +16041,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -15992,6 +16053,8 @@ operations:
   mcp:
     name: vox_lock_status
     http_read_role_eligible: false
+    exposure: public
+    requires: []
   cli: null
 - id: login
   title: Login
@@ -18494,7 +18557,7 @@ operations:
   description_human: null
   product_lane: platform
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18506,6 +18569,8 @@ operations:
   mcp:
     name: vox_orchestrator_persistence_outbox_lifecycle
     http_read_role_eligible: true
+    exposure: public
+    requires: []
   cli: null
 - id: orchestrator.persistence.outbox.queue
   title: Orchestrator Persistence Outbox Queue
@@ -18513,7 +18578,7 @@ operations:
   description_human: null
   product_lane: platform
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18525,6 +18590,8 @@ operations:
   mcp:
     name: vox_orchestrator_persistence_outbox_queue
     http_read_role_eligible: true
+    exposure: public
+    requires: []
   cli: null
 - id: orchestrator.start
   title: Orchestrator Start
@@ -18532,7 +18599,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18544,6 +18611,8 @@ operations:
   mcp:
     name: vox_orchestrator_start
     http_read_role_eligible: false
+    exposure: public
+    requires: []
   cli: null
 - id: orchestrator.status
   title: Orchestrator Status
@@ -18551,7 +18620,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18563,6 +18632,8 @@ operations:
   mcp:
     name: vox_orchestrator_status
     http_read_role_eligible: true
+    exposure: public
+    requires: []
   cli: null
 - id: pause.agent
   title: Pause Agent
@@ -18570,7 +18641,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18582,6 +18653,9 @@ operations:
   mcp:
     name: vox_pause_agent
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - agent_fleet
   cli: null
 - id: pending.questions
   title: Pending Questions
@@ -18589,7 +18663,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18601,6 +18675,8 @@ operations:
   mcp:
     name: vox_pending_questions
     http_read_role_eligible: false
+    exposure: public
+    requires: []
   cli: null
 - id: pipeline.status
   title: Pipeline Status
@@ -18608,7 +18684,7 @@ operations:
   description_human: null
   product_lane: app
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: none
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18620,6 +18696,8 @@ operations:
   mcp:
     name: vox_pipeline_status
     http_read_role_eligible: false
+    exposure: public
+    requires: []
   cli: null
 - id: plan
   title: Plan
@@ -18627,7 +18705,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18639,6 +18717,10 @@ operations:
   mcp:
     name: vox_plan
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - llm_facade
+    - db
   cli:
     path:
     - plan
@@ -18682,7 +18764,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18694,6 +18776,9 @@ operations:
   mcp:
     name: vox_plan_list_sessions
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - db
   cli: null
 - id: plan.replan
   title: Plan Replan
@@ -18728,7 +18813,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18740,6 +18825,9 @@ operations:
   mcp:
     name: vox_plan_resume
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
   cli: null
 - id: plan.status
   title: Plan Status
@@ -18747,7 +18835,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18759,6 +18847,9 @@ operations:
   mcp:
     name: vox_plan_status
     http_read_role_eligible: true
+    exposure: public
+    requires:
+    - db
   cli:
     path:
     - plan
@@ -19074,7 +19165,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19086,6 +19177,8 @@ operations:
   mcp:
     name: vox_poll_events
     http_read_role_eligible: false
+    exposure: public
+    requires: []
   cli: null
 - id: populi
   title: Populi
@@ -19399,7 +19492,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19411,6 +19504,9 @@ operations:
   mcp:
     name: vox_questioning_pending
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - clarification
   cli: null
 - id: questioning.submit.answer
   title: Questioning Submit Answer
@@ -19418,7 +19514,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19430,6 +19526,9 @@ operations:
   mcp:
     name: vox_questioning_submit_answer
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - clarification
   cli: null
 - id: questioning.sync.ssot
   title: Questioning Sync Ssot
@@ -19437,7 +19536,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19449,6 +19548,9 @@ operations:
   mcp:
     name: vox_questioning_sync_ssot
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - clarification
   cli: null
 - id: queue.status
   title: Queue Status
@@ -19456,7 +19558,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19468,6 +19570,9 @@ operations:
   mcp:
     name: vox_queue_status
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - agent_fleet
   cli: null
 - id: rebalance
   title: Rebalance
@@ -19475,7 +19580,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19487,6 +19592,9 @@ operations:
   mcp:
     name: vox_rebalance
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - agent_fleet
   cli: null
 - id: recensio
   title: Recensio
@@ -19981,7 +20089,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19993,6 +20101,9 @@ operations:
   mcp:
     name: vox_reorder_task
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - agent_fleet
   cli: null
 - id: research.run
   title: Research Run
@@ -20302,7 +20413,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20314,6 +20425,10 @@ operations:
   mcp:
     name: vox_replan
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - llm_facade
+    - db
   cli: null
 - id: repo
   title: Repo
@@ -20768,7 +20883,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20780,6 +20895,9 @@ operations:
   mcp:
     name: vox_resume_agent
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - agent_fleet
   cli: null
 - id: retire.agent
   title: Retire Agent
@@ -20787,7 +20905,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20799,6 +20917,9 @@ operations:
   mcp:
     name: vox_retire_agent
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - agent_fleet
   cli: null
 - id: review
   title: Review
@@ -24683,7 +24804,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -24695,6 +24816,9 @@ operations:
   mcp:
     name: vox_spawn_agent
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - agent_fleet
   cli: null
 - id: speech.to.code
   title: Speech To Code
@@ -24777,7 +24901,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -24789,6 +24913,9 @@ operations:
   mcp:
     name: vox_submit_task
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - agent_fleet
   cli: null
 - id: suggest.model
   title: Suggest Model
@@ -24844,7 +24971,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -24856,6 +24983,9 @@ operations:
   mcp:
     name: vox_task_status
     http_read_role_eligible: true
+    exposure: public
+    requires:
+    - agent_fleet
   cli: null
 - id: telemetry
   title: Telemetry
@@ -25451,7 +25581,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -25463,6 +25593,9 @@ operations:
   mcp:
     name: vox_verify_task_claims
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - agent_fleet
   cli: null
 - id: visual.rag.query
   title: Visual Rag Query
@@ -26641,7 +26774,7 @@ operations:
   description_human: null
   product_lane: workflow
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -26653,6 +26786,8 @@ operations:
   mcp:
     name: vox_pending_approvals
     http_read_role_eligible: false
+    exposure: public
+    requires: []
   cli: null
 - id: approvals.resolve
   title: Resolve Approval
@@ -26672,6 +26807,8 @@ operations:
   mcp:
     name: vox_resolve_approval
     http_read_role_eligible: false
+    exposure: operator
+    requires: []
   cli: null
 - id: approvals.allowlist_add
   title: Add Approval Allowlist Entry
@@ -26701,7 +26838,7 @@ operations:
   description_human: null
   product_lane: workflow
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: session
   reversible: false
   requires_repo: null
@@ -26713,6 +26850,8 @@ operations:
   mcp:
     name: vox_list_approval_allowlist
     http_read_role_eligible: false
+    exposure: public
+    requires: []
   cli: null
 - id: kb.create
   title: Create Knowledge Base
