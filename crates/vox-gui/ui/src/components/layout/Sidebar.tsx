@@ -13,6 +13,9 @@ import { LEXICON, labelFor, sidebarParentLabel } from '../../lib/lexicon';
 import { SessionSidebarSection } from './SessionSidebarSection';
 import type { ChatSession } from '../../lib/useChatSessions';
 import type { Toast } from '../../types/tauri';
+import { surfaceAvailability, useBackendStatus } from '../../hooks/useBackendStatus';
+import { BackendStatusPill } from './BackendStatusPill';
+import { UNAVAILABLE_COPY } from './SurfaceUnavailable';
 
 export type SidebarMode = 'rail' | 'default' | 'wide';
 
@@ -153,6 +156,7 @@ export function Sidebar({
   };
 
   const { lang } = useLang();
+  const { status: backendStatus } = useBackendStatus();
   const activeRef = useRef<HTMLButtonElement>(null);
 
   const visibleTopLevel = TOP_LEVEL_VIEWS.filter(k => k !== 'settings');
@@ -298,21 +302,26 @@ export function Sidebar({
                 )}
                 {isExpanded && key !== 'chat' && children && (
                   <div className="ml-4 flex flex-col gap-0.5 border-l border-border-subtle pl-2">
-                    {children.map(childKey => (
-                      <button
-                        key={childKey}
-                        type="button"
-                        onClick={() => onOpenTab(childKey)}
-                        aria-current={view === childKey ? 'page' : undefined}
-                        className={`w-full rounded-lg px-2 py-1.5 text-left font-display text-[11px] tracking-widest uppercase transition ${
-                          view === childKey
-                            ? 'bg-brass/10 text-brass'
-                            : 'text-text-muted hover:bg-overlay-hover hover:text-text-secondary'
-                        }`}
-                      >
-                        {childLabelFor(childKey, lang)}
-                      </button>
-                    ))}
+                    {children.map(childKey => {
+                      const availability = surfaceAvailability(backendStatus, childKey);
+                      return (
+                        <button
+                          key={childKey}
+                          type="button"
+                          onClick={() => onOpenTab(childKey)}
+                          aria-current={view === childKey ? 'page' : undefined}
+                          data-unavailable={availability.available ? undefined : availability.reason ?? undefined}
+                          title={availability.available || !availability.reason ? undefined : UNAVAILABLE_COPY[availability.reason].title}
+                          className={`w-full rounded-lg px-2 py-1.5 text-left font-display text-[11px] tracking-widest uppercase transition ${
+                            view === childKey
+                              ? 'bg-brass/10 text-brass'
+                              : 'text-text-muted hover:bg-overlay-hover hover:text-text-secondary'
+                          } ${availability.available ? '' : 'opacity-50'}`}
+                        >
+                          {childLabelFor(childKey, lang)}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </React.Fragment>
@@ -321,6 +330,7 @@ export function Sidebar({
         </nav>
 
         <div className="flex flex-col gap-2 pt-3 shrink-0">
+          <BackendStatusPill collapsed={collapsed} />
           {settingsEntry && (
             <div className={`flex flex-col gap-0.5 pt-2 ${collapsed ? 'border-t border-border-subtle' : ''}`}>
               {!collapsed && <div className="mx-2 mb-1 border-b border-border-subtle px-0 pb-1 font-display text-[9px] uppercase tracking-[0.32em] text-text-muted">{labelFor('group:system', lang)}</div>}

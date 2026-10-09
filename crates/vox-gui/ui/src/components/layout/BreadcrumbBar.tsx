@@ -2,6 +2,8 @@ import React from 'react';
 import { breadcrumbsForView, type BreadcrumbSegment } from '../../lib/navigation';
 import { useCurrentLang } from '../../hooks/useLanguage';
 import { recordGamifyGuiEvent } from '../../lib/gamifyGuiEvents';
+import { surfaceAvailability, useBackendStatus } from '../../hooks/useBackendStatus';
+import { UNAVAILABLE_REASON_LABEL } from './SurfaceUnavailable';
 
 interface Props {
   viewKey: string;
@@ -12,6 +14,8 @@ interface Props {
 export function BreadcrumbBar({ viewKey, onNavigate, gamifyEnabled }: Props) {
   const lang = useCurrentLang();
   const segments = breadcrumbsForView(viewKey, lang);
+  const { status } = useBackendStatus();
+  const availability = surfaceAvailability(status, viewKey);
   if (segments.length === 0 || viewKey === 'chat') return null;
 
   const renderSegment = (seg: BreadcrumbSegment, index: number) => {
@@ -58,6 +62,11 @@ export function BreadcrumbBar({ viewKey, onNavigate, gamifyEnabled }: Props) {
           {renderSegment(seg, i)}
         </React.Fragment>
       ))}
+      {!availability.available && availability.reason && (
+        <span data-testid="breadcrumb-unavailable" className="font-display text-[10px] uppercase tracking-[0.14em] text-amber-300/80">
+          · {UNAVAILABLE_REASON_LABEL[availability.reason]}
+        </span>
+      )}
     </nav>
   );
 }
