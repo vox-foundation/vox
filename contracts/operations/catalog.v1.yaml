@@ -10377,7 +10377,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -10389,6 +10389,9 @@ operations:
   mcp:
     name: vox_db_conversation_edge_insert
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
   cli: null
 - id: db.conversation.version.append
   title: Db Conversation Version Append
@@ -10396,7 +10399,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -10408,6 +10411,9 @@ operations:
   mcp:
     name: vox_db_conversation_version_append
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
   cli: null
 - id: db.data.flow
   title: Db Data Flow
@@ -10415,7 +10421,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -10427,6 +10433,9 @@ operations:
   mcp:
     name: vox_db_data_flow
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - compiler
   cli: null
 - id: db.discovery-watch
   title: Db Discovery-watch
@@ -10515,7 +10524,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -10527,6 +10536,10 @@ operations:
   mcp:
     name: vox_db_explain_query
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - llm_facade
+    - compiler
   cli: null
 - id: db.export
   title: Db Export
@@ -11965,7 +11978,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -11977,6 +11990,9 @@ operations:
   mcp:
     name: vox_db_relationships
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - compiler
   cli: null
 - id: db.reliability-agents
   title: Db Reliability-agents
@@ -12227,7 +12243,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -12239,6 +12255,9 @@ operations:
   mcp:
     name: vox_db_research_metric_linked
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
   cli: null
 - id: db.research.session.upsert
   title: Db Research Session Upsert
@@ -12246,7 +12265,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -12258,6 +12277,9 @@ operations:
   mcp:
     name: vox_db_research_session_upsert
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
   cli: null
 - id: db.reset
   title: Db Reset
@@ -12346,7 +12368,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -12358,6 +12380,9 @@ operations:
   mcp:
     name: vox_db_sample_data
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - db
   cli: null
 - id: db.schema
   title: Db Schema
@@ -12365,7 +12390,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -12377,6 +12402,9 @@ operations:
   mcp:
     name: vox_db_schema
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - compiler
   cli:
     path:
     - db
@@ -12421,7 +12449,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -12433,6 +12461,10 @@ operations:
   mcp:
     name: vox_db_suggest_query
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - llm_facade
+    - compiler
   cli: null
 - id: db.sync-invocables
   title: Db Sync-invocables
@@ -12467,7 +12499,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -12479,6 +12511,9 @@ operations:
   mcp:
     name: vox_db_topic_evolution_append
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
   cli: null
 - id: db.trust.drift
   title: Db Trust Drift
@@ -12486,7 +12521,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -12498,6 +12533,9 @@ operations:
   mcp:
     name: vox_db_trust_drift
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - db
   cli: null
 - id: db.trust.propagate
   title: Db Trust Propagate
@@ -12505,7 +12543,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -12517,6 +12555,9 @@ operations:
   mcp:
     name: vox_db_trust_propagate
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
   cli: null
 - id: db.trust.rollups
   title: Db Trust Rollups
@@ -12524,7 +12565,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -12536,6 +12577,9 @@ operations:
   mcp:
     name: vox_db_trust_rollups
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - db
   cli: null
 - id: db.trust.summary
   title: Db Trust Summary
@@ -12543,7 +12587,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -12555,6 +12599,9 @@ operations:
   mcp:
     name: vox_db_trust_summary
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - db
   cli: null
 - id: db.vacuum
   title: Db Vacuum
