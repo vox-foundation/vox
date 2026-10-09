@@ -56,12 +56,12 @@ v1.1 turns Vox's existing research pipeline, telemetry, evaluation, model routin
   3. `vox explain mesh` and `vox features --domain secrets` print layer, CLI/GUI/MCP equivalents, and a docs link.
   4. `llms.txt` capability sections are generator output and link the MCP tool reference and GUI navigation.
 
-**Plans:** 8 plans (06.2-08 optional, owner-gated)
+**Plans:** 1/8 plans executed (06.2-08 optional, owner-gated)
 
 Plans:
 **Wave 1**
 
-- [ ] 06.2-01-PLAN.md — Tracer: index schema + `vox ci capability-index` generator + ssot-drift gate + embedded loader (wave 1)
+- [x] 06.2-01-PLAN.md — Tracer: index schema + `vox ci capability-index` generator + ssot-drift gate + embedded loader (wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -246,7 +246,7 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 1–6 | v1.0 | 23/23 | Complete | 2026-10-01 |
 | 06.1 Hosted CI gate and fast local loop (INSERTED) | v1.0 | plan-doc | In progress | - |
-| 06.2 Capability Index SSOT (INSERTED) | v1.1 | 0/8 | Planned | - |
+| 06.2 Capability Index SSOT (INSERTED) | v1.1 | 1/8 | In Progress|  |
 | 06.3 Universal Palette (INSERTED) | v1.1 | 0/TBD | Not started | - |
 | 06.4 Capability Explorer & Coverage Gate (INSERTED) | v1.1 | 0/TBD | Not started | - |
 | 06.5 Architecture Atlas (INSERTED) | v1.1 | 0/TBD | Not started | - |

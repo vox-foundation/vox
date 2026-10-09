@@ -5,17 +5,17 @@ milestone_name: Research Trial Flywheel
 current_phase: "06.2"
 current_phase_name: Capability Index SSOT (INSERTED)
 status: executing
-stopped_at: Phase 06.2 context gathered
-last_updated: "2026-10-09T06:13:05.330Z"
+stopped_at: Completed 06.2-01-PLAN.md
+last_updated: "2026-10-09T07:07:35.181Z"
 last_activity: 2026-10-08
-last_activity_desc: Milestone v1.1 initialized (requirements, research, roadmap)
-state_head: a3c4e8fda7890c77a62c851bd8c71090cc73cf1d
+last_activity_desc: Phase 06.2 execution started
+state_head: 79fa2a6a4a62646c62e8c03ceb655d7fedac0c9d
 progress:
   total_phases: 11
   completed_phases: 1
   total_plans: 8
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 9
 ---
 
 # Project State
@@ -25,16 +25,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-01)
 
 **Core value:** The compiler, orchestrator, and runtime that everything else depends on must keep building and passing CI throughout.
-**Current focus:** v1.1 — inserted Phase 06.2 (Capability Index SSOT), first of discoverability phases 06.2–06.6, then Phase 7
+**Current focus:** Phase 06.2 — Capability Index SSOT (INSERTED)
 
 ## Current Position
 
-Phase: 06.2 (Capability Index SSOT (INSERTED)) — READY TO EXECUTE
-Plan: —
+Phase: 06.2 (Capability Index SSOT (INSERTED)) — EXECUTING
+Plan: 2 of 8
 Status: Ready to execute
-Last activity: 2026-10-08 — Discoverability phases 06.2–06.6 (DISC-01..16) inserted into v1.1
+Last activity: 2026-10-08 — Phase 06.2 execution started
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░] 9%
 
 ## Performance Metrics
 
@@ -45,6 +45,11 @@ Progress: [░░░░░░░░░░] 0%
 - Total execution time: 0 hours
 
 *Updated after each plan completion*
+**Per-Plan Metrics:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 06.2 P01 | 60 min | 2 tasks | 24 files |
 
 ## Accumulated Context
 
@@ -57,6 +62,7 @@ Recent decisions affecting current work:
 - Research reconciliation added TRIAL-05, TELEM-02, METER-01, and SCORE-04 to Phase 7 because a baseline on the current tree would be untrustworthy (.planning/research/SUMMARY.md).
 
 - 2026-10-08: Discoverability inserted into v1.1 as phases 06.2–06.6 (user chose insertion over a separate milestone). Audience: contributors, .vox app authors, GUI end users. Done = coverage gate + one capability SSOT + time-to-find journeys + orphan count 0.
+- [Phase 06.2]: 06.2-01: capability index is a separate generated file from the transport-only capability registry (D-01); unknown values stay null with a reason — Keeps capability-registry.schema.json unchanged; later plans fill nullable fields
 
 ### Pending Todos
 
@@ -80,6 +86,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-09T03:46:51.158Z
-Stopped at: Phase 06.2 context gathered
-Resume file: .planning/phases/06.2-capability-index-ssot-inserted/06.2-CONTEXT.md
+Last session: 2026-10-09T07:07:35.166Z
+Stopped at: Completed 06.2-01-PLAN.md
+Resume file: None
