@@ -1,3 +1,5 @@
+PROJECT.md 74L
+PROJECT.md 81L
 PROJECT.md 132L
 # Vox
 ## What This Is
@@ -8,32 +10,27 @@ The compiler, orchestrator, and runtime that everything else depends on must kee
 ## Current Milestone: v1.1 Research Trial Flywheel
 **Goal:** Race research-agent conditions under preregistered, budgeted campaigns; rate answer quality, speed, and efficiency; accumulate verified, searchable knowledge; and propose — never silently apply — the next improvement.
 **Milestone value:** Each research run produces reproducible evidence, comparable quality/latency/cost metrics, searchable verified knowledge, and a safe proposal for the next experiment.
-... [lean-ctx: omitted 2 lines]
-- `vox research eval` as a bounded-concurrency matrix runner with spend reservations, arm isolation, hard-gate + Pareto scorecards, group-sequential stopping, and offline replay.
-... [lean-ctx: omitted 3 lines]
+... [lean-ctx: omitted 1 lines]
 ## Requirements
 ### Validated
 <!-- Shipped and confirmed valuable; inferred from the existing, working codebase. -->
 - ✓ `.vox` compiler pipeline (lex → parse → HIR → typeck → codegen) and a separate `--interp` execution path — `crates/vox-compiler/`
 ... [lean-ctx: omitted 1 lines]
 - ✓ Multi-agent orchestrator with D1-D10 policy modules and MCP tool/HTTP exposure — `crates/vox-orchestrator/`, `crates/vox-orchestrator-mcp/`
-- ✓ Tauri 2 desktop GUI (`vox-gui`) as the orchestration surface, replacing the retired Axum dashboard (`vox-dashboard` confirmed absent from the tree)
 ... [lean-ctx: omitted 1 lines]
 - ✓ Durable functions runtime (`workflow`/`activity`/`actor`/`@scheduled`) with journal-backed replay (ADR-019/021/041, locked)
-... [lean-ctx: omitted 4 lines]
+... [lean-ctx: omitted 1 lines]
 - ✓ ADR-045 ratified; `vox-gui` command surface sourced from `CommandCatalog`; Vox-native vs React interop boundary enforced — v1.0
-- ✓ `ResourceLockManager` multi-agent resource coordination (ADR-025) — v1.0
-... [lean-ctx: omitted 3 lines]
+... [lean-ctx: omitted 1 lines]
 ### Active
 <!-- Current scope for v1.1 Research Trial Flywheel. Detailed, phase-mapped requirements live in REQUIREMENTS.md. -->
 - [ ] Trial identity, signed campaign preregistration, structural telemetry, and atomic Tier A persistence with an observational baseline
-- [ ] Bounded parallel condition matrix with spend reservations, arm isolation, hard-gate + Pareto scorecards, and replayable reports
+... [lean-ctx: omitted 1 lines]
 - [ ] Verified, provenance-rich, searchable knowledge accumulation with frozen per-arm manifests and memory ablations
-... [lean-ctx: omitted 2 lines]
+... [lean-ctx: omitted 1 lines]
 ### Out of Scope
 <!-- Explicit boundaries, with reasoning, surfaced by the full-corpus ADR/SPEC ingest. -->
-... [lean-ctx: omitted 2 lines]
-- Internal Web IR strategy as a standalone initiative (ADR-012) — its direction is already subsumed by the locked ADR-036 (HIR core + WebIR projections); treated as ongoing compiler-track work rather than a discrete milestone deliverable here.
+... [lean-ctx: omitted 1 lines]
 - Re-litigating the ADR-030/ADR-031 "vox-dashboard" naming — both ADRs' core decisions (state_machine as reactive-state SSoT; vox-vscode deprecation) remain valid and locked; only their prose still names the retired `vox-dashboard` surface. No source edit needed per operator review; downstream readers should treat `vox-gui` as current.
 - Transport crypto provider collapse (`reqwest` 0.12→0.13, `ring`/`aws-lc-rs` dedup) — real, documented, and unresolved (see `contracts/crypto/transport-providers.v1.json`), but it's a codebase-audit finding, not an ADR/SPEC-sourced decision this milestone's ingest scope covers. Tracked for a future milestone.
 ## Context
@@ -46,36 +43,30 @@ The compiler, orchestrator, and runtime that everything else depends on must kee
 ## Constraints
 - **Build toolchain**: pinned Rust `1.98.1` (`rust-toolchain.toml`); a clean clone must build with only the pinned toolchain, a platform C compiler, and Node+pnpm — no cmake, nasm, Go, perl, or libclang via any dependency (AGENTS.md Build-toolchain invariant).
 - **Crate dependency edges**: CI-gated by `vox ci crate-edges` against `contracts/ci/crate-edges.allow.v1.json`; new edges need a narrower `-types`/`-core` crate or the <50-line defactor policy; `exceptions` ledger entries are user-authorized-only, never self-added — directly binds the EXTRACT-TO-PLUGIN and WIRE-UP dead-crate work.
-... [lean-ctx: omitted 2 lines]
+... [lean-ctx: omitted 1 lines]
 - **Cryptography**: application crypto exclusively through `vox-crypto`; MD5/SHA-1/AEGIS/DES/RC4/ECB permanently banned; transport TLS/QUIC crypto is allowlisted and ledgered separately (`contracts/crypto/transport-providers.v1.json`), never routed through `vox-crypto`.
-... [lean-ctx: omitted 2 lines]
+... [lean-ctx: omitted 1 lines]
 - **Test-first**: every new `pub fn` in `crates/*/src/**` needs an adjacent test (`skeleton/untested-pub-api` detector, pre-commit `tdd-guard` hook) — binds all six phases below, especially the wire-up and extraction work which touches call sites directly.
 ... [lean-ctx: omitted 1 lines]
 ## Key Decisions
 <!-- Locked ADRs load-bearing for this milestone, plus the non-locked/open decisions this milestone acts on. -->
-... [lean-ctx: omitted 2 lines]
+... [lean-ctx: omitted 1 lines]
 | ADR-045: Tauri GUI replaces Axum dashboard | `vox-dashboard` decommissioned and confirmed absent from the tree; `vox-gui` is the sole orchestration surface | ⚠️ Revisit — current & non-contradicted but not itself locked/Accepted; this milestone ratifies it |
-... [lean-ctx: omitted 2 lines]
-| ADR-026: Third-party code provenance policy | AGPL guardrails and attribution for vendored code | ✓ Good — locked; directly governs how EXTRACT-TO-PLUGIN work vendors/attributes code |
-... [lean-ctx: omitted 2 lines]
+... [lean-ctx: omitted 1 lines]
 | ADR-027: Dual-Track UI Surfaces | Split UI primitives into Vox-native vs React/TanStack interop tracks. Superseded 2026-05-03 by external-frontend-interop-plan-2026 | Boundary established and enforced in Phase 4 under the superseding plan (`authoring_track` in contracts/frontend/surface-ownership.v1.yaml) |
-| ADR-025: Multi-Agent Lock Coherence | Extends locks subsystem with `ResourceLockManager` for multi-agent contention | ✓ Good — implemented in v1.0 Phase 5 |
 ... [lean-ctx: omitted 2 lines]
-| ADR-034: Candle/QLoRA stack upgrades | Versions verified unified; compile-validated by fail-closed hosted CUDA lane | ✓ Good — accepted 2026-10-01 (compile-only, no physical-GPU claim) |
 | v1.1 trial governance (grill G1–G25, R1–R9) | Signed immutable campaigns, atomic spend reservations, group-sequential stats, two-campaign promotion, dual-control designation, structural-only telemetry, linked retries instead of resume | — Pending — v1.1 implements it |
 ## Workstreams
 - `research-trial-flywheel` — v1.1 Research Trial Flywheel (default; `.planning/workstreams/research-trial-flywheel/`)
 - `autonomy-ux` — v1.2 Unified Autonomy Control, run in parallel: one human-legible oversight control (more = safer) replacing the inverted Risk popover, Check replies, and duplicated spend chrome; every claimed effect wired in the backend for both sync chat and background tasks; the cross-agent attention/interruption budget made visible and controllable. Mode (cost↔intelligence) stays a separate axis. (`.planning/workstreams/autonomy-ux/`)
 - `docs-freshness` — v1.3 Self-Maintaining Public Docs, run in parallel: the public site (voxlang.org, Starlight over `docs/src/`) stays accurate to the code without constant manual upkeep. Drift between docs and code is detected in CI and surfaced to humans and LLM agents; agents draft fix PRs for human review; more reference is generated from code/contracts; the corpus is audited and pruned case by case; readers see per-page freshness. Brief: `.planning/workstreams/docs-freshness/CONTEXT.md`.
+... [lean-ctx: omitted 1 lines]
 ## Evolution
 This document evolves at phase transitions and milestone boundaries.
-**After each phase transition** (via `/gsd-transition`):
-... [lean-ctx: omitted 1 lines]
-2. Requirements validated? → Move to Validated with phase reference
-... [lean-ctx: omitted 3 lines]
-**After each milestone** (via `/gsd-complete-milestone`):
-... [lean-ctx: omitted 5 lines]
-*Last updated: 2026-10-08 — v1.2 Unified Autonomy Control started as the `autonomy-ux` workstream*
+... [lean-ctx: omitted 4 lines]
+*Last updated: 2026-10-09 — v1.4 Code Atlas started as the `code-atlas` workstream*
+[lean-ctx] full source: read "/Users/brbrainerd/dev/vox/.planning/PROJECT.md" directly (no MCP)  ·  or ctx_read("/Users/brbrainerd/dev/vox/.planning/PROJECT.md", mode="full")
+[lean-ctx] full source: read "/Users/brbrainerd/dev/vox/.planning/PROJECT.md" directly (no MCP)  ·  or ctx_read("/Users/brbrainerd/dev/vox/.planning/PROJECT.md", mode="full")
 
 
 [lean-ctx] full source: read "/Users/brbrainerd/dev/vox/.planning/PROJECT.md" directly (no MCP)  ·  or ctx_read("/Users/brbrainerd/dev/vox/.planning/PROJECT.md", mode="full")
