@@ -1,10 +1,9 @@
 import { test, expect } from '@playwright/test';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gunzipSync } from 'node:zlib';
-import matter from 'gray-matter';
-import { statusPolicy } from '../../src/utils/page-status.mjs';
+import { internalsDocIds, listDocPages, noindexRoutes } from '../../src/utils/page-index.mjs';
 import { DIST_DIR, readDist } from '../lib/dist';
 
 const NOINDEX = /<meta name="robots" content="noindex"\/?>/;
@@ -23,23 +22,59 @@ function readFragments(): Fragment[] {
     });
 }
 
-/** Research/roadmap source pages whose naive lower-cased route was built. */
-function internalsRoutes(): string[] {
-  const routes: string[] = [];
-  const walk = (dir: string) => {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      const full = join(dir, entry.name);
-      if (entry.isDirectory()) {
-        if (entry.name !== 'archive' && entry.name !== '.well-known') walk(full);
-      } else if (/\.mdx?$/.test(entry.name)) {
-        if (!statusPolicy(matter(readFileSync(full, 'utf8')).data.status).internals) continue;
-        const route = relative(DOCS_SRC, full).split('\\').join('/').replace(/\.mdx?$/, '').toLowerCase();
-        if (existsSync(join(DIST_DIR, route, 'index.html'))) routes.push(route);
-      }
+const PAGES = listDocPages(DOCS_SRC);
+const INTERNALS = internalsDocIds(PAGES);
+
+/** The top-level `<details>` sidebar group labelled `label`, and the whole top-level list. */
+function sidebarGroup(html: string, label: string): { group: string; before: string; after: string } {
+  const listStart = html.indexOf('<ul class="top-level');
+  expect(listStart, 'no top-level sidebar list').toBeGreaterThanOrEqual(0);
+  const tags = /<(\/?)(ul|details)\b[^>]*>/g;
+
+  // End of the top-level list: its matching </ul>.
+  tags.lastIndex = listStart;
+  let depth = 0;
+  let listEnd = -1;
+  for (let m; (m = tags.exec(html)); ) {
+    if (m[2] !== 'ul') continue;
+    depth += m[1] ? -1 : 1;
+    if (depth === 0) {
+      listEnd = m.index + m[0].length;
+      break;
     }
-  };
-  walk(DOCS_SRC);
-  return routes;
+  }
+  const list = html.slice(listStart, listEnd);
+
+  const labelAt = list.search(new RegExp(`<span class="large[^"]*">${label}</span>`));
+  expect(labelAt, `no sidebar group labelled ${label}`).toBeGreaterThan(0);
+  const start = list.lastIndexOf('<details', labelAt);
+
+  // The group must be top-level: no <details> is open around it.
+  const opened = (list.slice(0, start).match(/<details\b/g) ?? []).length;
+  const closed = (list.slice(0, start).match(/<\/details>/g) ?? []).length;
+  expect(opened - closed, `${label} is nested inside another group`).toBe(0);
+
+  const inner = /<(\/?)details\b[^>]*>/g;
+  inner.lastIndex = start;
+  depth = 0;
+  let end = -1;
+  for (let m; (m = inner.exec(list)); ) {
+    depth += m[1] ? -1 : 1;
+    if (depth === 0) {
+      end = m.index + m[0].length;
+      break;
+    }
+  }
+  return { group: list.slice(start, end), before: list.slice(0, start), after: list.slice(end) };
+}
+
+const hrefs = (html: string) =>
+  new Set([...html.matchAll(/href="([^"]+)"/g)].map((m) => m[1].replace(/\/$/, '')));
+
+function sitemapUrls(): string[] {
+  return readdirSync(DIST_DIR)
+    .filter((file) => /^sitemap-\d+\.xml$/.test(file))
+    .flatMap((file) => [...readFileSync(join(DIST_DIR, file), 'utf8').matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]));
 }
 
 test.describe('status banners and noindex', () => {
@@ -68,9 +103,8 @@ test.describe('status banners and noindex', () => {
   });
 
   test('every built research/roadmap page carries noindex', () => {
-    const routes = internalsRoutes();
-    expect(routes.length).toBeGreaterThan(100);
-    const missing = routes.filter((route) => !NOINDEX.test(readDist(route)));
+    expect(INTERNALS.length).toBeGreaterThan(100);
+    const missing = INTERNALS.filter((id) => !NOINDEX.test(readDist(id)));
     expect(missing).toEqual([]);
   });
 });
@@ -87,5 +121,42 @@ test.describe('Pagefind labelling', () => {
     expect(cli, 'no Pagefind fragment for reference/cli').toBeTruthy();
     expect(cli!.filters?.section ?? []).not.toContain('Internals');
     expect(cli!.meta?.title ?? '').not.toMatch(/^Internals/);
+  });
+});
+
+test.describe('Internals sidebar group', () => {
+  test('research/roadmap pages appear only in the last, collapsed Internals group', () => {
+    const { group, before, after } = sidebarGroup(readDist(''), 'Internals');
+    expect(group).toMatch(/^<details(?![^>]*\bopen\b)[^>]*>/);
+    expect(after, 'a sidebar group follows Internals').not.toMatch(/<details\b/);
+
+    const inside = hrefs(group);
+    const outside = hrefs(before + after);
+    const routes = INTERNALS.map((id) => `/${id}`);
+    expect(routes.filter((route) => !inside.has(route))).toEqual([]);
+    expect(routes.filter((route) => outside.has(route))).toEqual([]);
+    expect(inside.size).toBeGreaterThanOrEqual(100);
+    test.info().annotations.push({ type: 'internals-pages', description: String(routes.length) });
+  });
+});
+
+test.describe('sitemap and robots.txt', () => {
+  test('sitemap-index.xml is the only sitemap index', () => {
+    expect(existsSync(join(DIST_DIR, 'sitemap-index.xml'))).toBe(true);
+    expect(existsSync(join(DIST_DIR, 'sitemap.xml'))).toBe(false);
+  });
+
+  test('the sitemap lists no noindex page and not /retired/', () => {
+    const urls = sitemapUrls();
+    expect(urls.length).toBeGreaterThan(300);
+    const noindex = noindexRoutes(PAGES);
+    const listed = urls.map((url) => new URL(url).pathname).filter((path) => noindex.has(path) || path === '/retired/');
+    expect(listed).toEqual([]);
+  });
+
+  test('robots.txt points at sitemap-index.xml and disallows nothing', () => {
+    const robots = readFileSync(join(DIST_DIR, 'robots.txt'), 'utf8');
+    expect(robots).toContain('Sitemap: https://voxlang.org/sitemap-index.xml');
+    expect(robots).not.toMatch(/^\s*Disallow/im);
   });
 });

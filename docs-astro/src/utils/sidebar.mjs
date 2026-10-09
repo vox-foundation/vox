@@ -1,7 +1,8 @@
-import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { join, relative, extname } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import matter from 'gray-matter';
+import { listDocPages } from './page-index.mjs';
+import { isInternalsStatus } from './page-status.mjs';
 
 // SSOT: contracts/documentation/docs-sidebar-section-order.v1.json
 const __sidebarUtilsFile = fileURLToPath(import.meta.url);
@@ -23,54 +24,37 @@ const STATUS_BADGE = {
   legacy:       { text: 'Legacy',       variant: 'tip'     },
 };
 
-// Directories under docs/src/ that should never appear in the sidebar
-const EXCLUDED_DIRS = new Set(['archive', '.well-known']);
-
-function collectPages(dir, root) {
-  const pages = [];
-  let entries;
-  try {
-    entries = readdirSync(dir);
-  } catch {
-    return pages;
-  }
-  for (const entry of entries) {
-    const full = join(dir, entry);
-    let stat;
-    try {
-      stat = statSync(full);
-    } catch {
-      continue;
-    }
-    if (stat.isDirectory()) {
-      if (EXCLUDED_DIRS.has(entry)) continue;
-      pages.push(...collectPages(full, root));
-    } else if (extname(entry) === '.md') {
-      try {
-        const raw = readFileSync(full, 'utf8');
-        const { data } = matter(raw);
-        // Strip docs/src/ prefix and .md for Starlight link; normalise Windows separators
-        const rel = relative(root, full).replace(/\\/g, '/').replace(/\.md$/, '');
-        pages.push({
-          title:      data.title || entry.replace('.md', ''),
-          link:       rel,
-          category:   data.category || null,
-          sort_order: data.sort_order ?? 999,
-          status:     data.status || 'current',
-        });
-      } catch {
-        // skip unreadable / non-frontmatter files
-      }
-    }
-  }
-  return pages;
-}
-
 function makeItem(p) {
   const badge = STATUS_BADGE[p.status];
   return badge
     ? { label: p.title, link: p.link, badge }
     : { label: p.title, link: p.link };
+}
+
+const sortFn = (a, b) =>
+  a.sort_order - b.sort_order || a.title.localeCompare(b.title);
+
+/** Categories in SECTION_ORDER, then the rest (first-seen order, or alphabetical). */
+function orderedCategories(grouped, { alphabetical = false } = {}) {
+  const extra = [...grouped.keys()].filter((c) => !SECTION_ORDER.includes(c));
+  if (alphabetical) extra.sort();
+  return [...SECTION_ORDER.filter((c) => grouped.has(c)), ...extra];
+}
+
+function groupByCategory(pages) {
+  const grouped = new Map();
+  const rootItems = [];
+  for (const page of pages) {
+    if (!page.category) {
+      rootItems.push(page);
+    } else {
+      if (!grouped.has(page.category)) grouped.set(page.category, []);
+      grouped.get(page.category).push(page);
+    }
+  }
+  rootItems.sort(sortFn);
+  for (const items of grouped.values()) items.sort(sortFn);
+  return { rootItems, grouped };
 }
 
 export function getSidebar() {
@@ -80,50 +64,37 @@ export function getSidebar() {
   const repoRoot = join(thisFile, '..', '..', '..', '..');
   const docsSrc = join(repoRoot, 'docs', 'src');
 
-  const pages = collectPages(docsSrc, docsSrc);
+  // `.md` only: the `.mdx` home page is not a sidebar entry. Links are route
+  // ids, which differ from the file path for names like `qwen-3.7` or `README`.
+  const pages = listDocPages(docsSrc)
+    .filter((page) => page.relPath.endsWith('.md'))
+    .map((page) => ({ ...page, link: page.id }));
 
-  const grouped = new Map();
-  const rootItems = [];
+  // research/roadmap pages live only in the trailing Internals group.
+  const main = groupByCategory(pages.filter((page) => !isInternalsStatus(page.status)));
+  const internals = groupByCategory(pages.filter((page) => isInternalsStatus(page.status)));
 
-  for (const page of pages) {
-    if (!page.category) {
-      rootItems.push(page);
-    } else {
-      if (!grouped.has(page.category)) grouped.set(page.category, []);
-      grouped.get(page.category).push(page);
-    }
-  }
+  const sidebar = main.rootItems.map(makeItem);
 
-  const sortFn = (a, b) =>
-    a.sort_order - b.sort_order || a.title.localeCompare(b.title);
-
-  const sidebar = [];
-
-  rootItems.sort(sortFn);
-  for (const p of rootItems) {
-    sidebar.push(makeItem(p));
-  }
-
-  for (const section of SECTION_ORDER) {
-    const items = grouped.get(section);
-    if (!items || items.length === 0) continue;
-    items.sort(sortFn);
+  // Categories not in SECTION_ORDER come last, collapsed (catch-all for new sections).
+  for (const section of orderedCategories(main.grouped)) {
     sidebar.push({
       label: section,
-      items: items.map(makeItem),
-      collapsed: COLLAPSED_SECTIONS.has(section),
+      items: main.grouped.get(section).map(makeItem),
+      collapsed: !SECTION_ORDER.includes(section) || COLLAPSED_SECTIONS.has(section),
     });
-    grouped.delete(section);
   }
 
-  // Any category not in SECTION_ORDER appended at end (collapsed — catch-all for new sections)
-  for (const [section, items] of grouped) {
-    items.sort(sortFn);
-    sidebar.push({
+  const internalsItems = [
+    ...internals.rootItems.map(makeItem),
+    ...orderedCategories(internals.grouped, { alphabetical: true }).map((section) => ({
       label: section,
-      items: items.map(makeItem),
+      items: internals.grouped.get(section).map(makeItem),
       collapsed: true,
-    });
+    })),
+  ];
+  if (internalsItems.length > 0) {
+    sidebar.push({ label: 'Internals', items: internalsItems, collapsed: true });
   }
 
   return sidebar;

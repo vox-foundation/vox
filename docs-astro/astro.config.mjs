@@ -1,10 +1,17 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import sitemap from '@astrojs/sitemap';
+import { fileURLToPath } from 'node:url';
 import starlightLlmsTxt from 'starlight-llms-txt';
 import { voxGrammar } from './src/plugins/vox-grammar.mjs';
 import { getSidebar } from './src/utils/sidebar.mjs';
+import { listDocPages, noindexRoutes } from './src/utils/page-index.mjs';
 import { remarkVoxInclude } from './src/plugins/remark-vox-include.mjs';
+
+// Pages whose status sets robots noindex (src/utils/page-status.mjs) stay out
+// of the sitemap, as does the /retired/ notice page (a custom route).
+const noindex = noindexRoutes(listDocPages(fileURLToPath(new URL('../docs/src', import.meta.url))));
 
 export default defineConfig({
   site: 'https://voxlang.org/',
@@ -14,6 +21,13 @@ export default defineConfig({
     remarkPlugins: [remarkVoxInclude],
   },
   integrations: [
+    // Registered here, Starlight skips adding its own unfiltered sitemap.
+    sitemap({
+      filter: (page) => {
+        const path = new URL(page).pathname;
+        return !noindex.has(path) && path !== '/retired/';
+      },
+    }),
     starlight({
       title: 'Vox: The AI-Native Programming Language',
       description: 'Pre-1.0 documentation for Vox, an AI-native full-stack programming language that compiles .vox to Rust and TypeScript.',
