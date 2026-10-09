@@ -40,9 +40,9 @@ Research basis: `.planning/workstreams/kb/research/SUMMARY.md` and `docs/src/arc
 
 ### Provenance & Trust (TRUST)
 
-- [ ] **TRUST-01**: Every indexed row and finding has a required trust tier mapped onto `ContextTrustTier`: SystemVerified = curated + mechanical verification evidence; Trusted = curated (merged to git); Advisory = agent-derived; Untrusted = inbox / live web. Writes without a tier fail to compile or are rejected
+- [x] **TRUST-01**: Every indexed row and finding has a required trust tier mapped onto `ContextTrustTier`: SystemVerified = curated + mechanical verification evidence; Trusted = curated (merged to git); Advisory = agent-derived; Untrusted = inbox / live web. Writes without a tier fail to compile or are rejected
 - [ ] **TRUST-02**: Web hits are no longer written into the searchable corpus; `persist_web_hits` routes them into the `kb_findings` inbox as Untrusted
-- [ ] **TRUST-03**: Model output never re-enters the KB at elevated trust — the `signal_research` 0.95 confidence floor and the post-turn `accepted=1` chat writeback are removed or routed to the inbox
+- [x] **TRUST-03**: Model output never re-enters the KB at elevated trust — the `signal_research` 0.95 confidence floor and the post-turn `accepted=1` chat writeback are removed or routed to the inbox
 - [ ] **TRUST-04**: Each finding stores summary, short quotes, source URL, fetch date and content hash; a full-text snapshot is kept locally under a gitignored path and is never committed
 - [x] **TRUST-05**: Ingested and injected text passes a sanitizer (Unicode tag block, zero-width/bidi characters, HTML comments, off-allowlist markdown images) backed by property tests and a red-team fixture set
 - [ ] **TRUST-06**: Promotion eligibility fails closed when the trust lookup errors
@@ -166,9 +166,9 @@ Research basis: `.planning/workstreams/kb/research/SUMMARY.md` and `docs/src/arc
 | RET-02 | Phase 3 | Complete |
 | RET-03 | Phase 3 | Gaps Found |
 | RET-04 | Phase 5 | Pending |
-| TRUST-01 | Phase 3 | Gaps Found |
+| TRUST-01 | Phase 3 | Complete |
 | TRUST-02 | Phase 3 | Gaps Found |
-| TRUST-03 | Phase 3 | Gaps Found |
+| TRUST-03 | Phase 3 | Complete |
 | TRUST-04 | Phase 3 | Gaps Found |
 | TRUST-05 | Phase 3 | Complete |
 | TRUST-06 | Phase 3 | Gaps Found |
