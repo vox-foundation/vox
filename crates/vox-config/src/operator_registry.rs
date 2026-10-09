@@ -866,6 +866,20 @@ pub const OPERATOR_TUNING_ENVS: &[OperatorEnvSpec] = &[
 
         config_class: ConfigClass::UserPreference,
     },
+    OperatorEnvSpec {
+        name: "VOX_MCP_WORKSPACE_TOOLS",
+        description: "Advertise workspace-federated @tool functions in MCP tools/list (1/true to enable; dev profile only).",
+        defaults: "false",
+
+        config_class: ConfigClass::UserPreference,
+    },
+    OperatorEnvSpec {
+        name: "VOX_MCP_TIERS",
+        description: "DEPRECATED alias of VOX_MCP_WORKSPACE_TOOLS: only workspace/all opt in; ignored when VOX_MCP_WORKSPACE_TOOLS is set.",
+        defaults: "",
+
+        config_class: ConfigClass::UserPreference,
+    },
 ];
 
 fn map_class(c: vox_llm_config::ConfigClass) -> ConfigClass {
@@ -950,6 +964,18 @@ mod llm_view_tests {
                 k.env
             );
         }
+    }
+
+    #[test]
+    fn mcp_workspace_tools_and_deprecated_alias_registered() {
+        let find = |n: &str| {
+            operator_tuning_envs()
+                .iter()
+                .find(|e| e.name == n)
+                .map(|e| e.description)
+        };
+        assert!(find("VOX_MCP_WORKSPACE_TOOLS").is_some());
+        assert!(find("VOX_MCP_TIERS").is_some_and(|d| d.starts_with("DEPRECATED")));
     }
 
     #[test]
