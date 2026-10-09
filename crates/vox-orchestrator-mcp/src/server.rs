@@ -414,16 +414,19 @@ pub(crate) enum WorkspaceToolsOptIn {
     OnViaDeprecatedTiers,
 }
 
-/// `VOX_MCP_WORKSPACE_TOOLS` (when set) decides; otherwise the deprecated `VOX_MCP_TIERS`
+/// `VOX_MCP_WORKSPACE_TOOLS`, when set (even to empty), decides: `1`/`true` (trimmed,
+/// case-insensitive) is on, anything else is off. When unset, the deprecated `VOX_MCP_TIERS`
 /// alias opts in only for `workspace` or `all` (the values that revealed them before).
 pub(crate) fn workspace_tools_opt_in(
     workspace_tools: Option<&str>,
     legacy_tiers: Option<&str>,
 ) -> WorkspaceToolsOptIn {
     if let Some(v) = workspace_tools {
-        return match v.trim() {
-            "1" | "true" => WorkspaceToolsOptIn::On,
-            _ => WorkspaceToolsOptIn::Off,
+        let v = v.trim();
+        return if v == "1" || v.eq_ignore_ascii_case("true") {
+            WorkspaceToolsOptIn::On
+        } else {
+            WorkspaceToolsOptIn::Off
         };
     }
     let legacy_on = legacy_tiers.is_some_and(|v| {
@@ -575,6 +578,14 @@ mod list_filter_tests {
         assert_eq!(workspace_tools_opt_in(Some("1"), None), On);
         assert_eq!(workspace_tools_opt_in(Some("true"), None), On);
         assert_eq!(workspace_tools_opt_in(Some("0"), None), Off);
+        // Case-insensitive after trim; `yes` is deliberately not accepted.
+        assert_eq!(workspace_tools_opt_in(Some("TRUE"), None), On);
+        assert_eq!(workspace_tools_opt_in(Some("True"), None), On);
+        assert_eq!(workspace_tools_opt_in(Some(" 1 "), None), On);
+        assert_eq!(workspace_tools_opt_in(Some("yes"), None), Off);
+        // Set-but-empty is "set and off": it masks the deprecated alias.
+        assert_eq!(workspace_tools_opt_in(Some(""), None), Off);
+        assert_eq!(workspace_tools_opt_in(Some(""), Some("all")), Off);
         // The new variable wins over the deprecated alias when set.
         assert_eq!(workspace_tools_opt_in(Some("0"), Some("all")), Off);
         assert_eq!(workspace_tools_opt_in(None, Some("core")), Off);
