@@ -6,16 +6,16 @@ current_phase: 20
 current_phase_name: Deploy Unblock & Public-Surface Honesty
 current_plan: "20-01 (wave 1: 20-01..20-05 parallel)"
 status: planning
-stopped_at: Completed 20-06-PLAN.md
-last_updated: "2026-10-09T09:27:42.514Z"
+stopped_at: Completed 20-12-PLAN.md
+last_updated: "2026-10-09T09:35:29.104Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 20 planned (12 plans); Phase 20.1 (collapsible reader layout) inserted
-state_head: b8129d5f62a2667b47a90b616f92491bc9cc93bd
+state_head: 02ab8968ce26bbc823532c4daa89f253a1ccdf32
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 12
-  completed_plans: 6
+  completed_plans: 7
   percent: 0
 ---
 
@@ -30,7 +30,7 @@ See: `.planning/PROJECT.md`; workstream brief `CONTEXT.md`; roadmap `ROADMAP.md`
 ## Current Position
 
 Phase: 20 of 20–24 (Deploy Unblock & Public-Surface Honesty)
-Plan: 6 of 12 (planned, 7 waves; checker passed after 2 revisions)
+Plan: 7 of 12 (planned, 7 waves; checker passed after 2 revisions)
 Status: Ready to execute — `/gsd-execute-phase 20`
 Last activity: 2026-10-08 — Phase 20 planned (12 plans); Phase 20.1 (collapsible reader layout) inserted
 
@@ -56,6 +56,7 @@ Last activity: 2026-10-08 — Phase 20 planned (12 plans); Phase 20.1 (collapsib
 - [Phase 20]: 20-01: wrangler pinned at user-approved 4.146.0 (exact, pnpm 11 lockfile); allowBuilds workerd: false (postinstall unneeded for pages deploy)
 - [Phase 20]: 20-01: docs-deploy failures edit one docs-deploy-broken issue in place (no comments); only a green push run on main closes it
 - [Phase 20]: 20-06: page-status.mjs is the single status rule; sidebar links use Starlight route ids via docSlug
+- [Phase 20]: 20-12: docs content dir is a marker-guarded mirror of per-entry symlinks; the archive is excluded by not mirroring it (docsLoader has no exclude option)
 
 ### Blockers / Gates
 
@@ -69,9 +70,9 @@ Last activity: 2026-10-08 — Phase 20 planned (12 plans); Phase 20.1 (collapsib
 
 ## Session Continuity
 
-**Last session:** 2026-10-09T09:27:42.488Z
+**Last session:** 2026-10-09T09:35:29.090Z
 
-**Stopped At:** Completed 20-06-PLAN.md
+**Stopped At:** Completed 20-12-PLAN.md
 **Resume File:** None
 
 ## Performance Metrics
@@ -84,3 +85,4 @@ Last activity: 2026-10-08 — Phase 20 planned (12 plans); Phase 20.1 (collapsib
 | Phase 20 P05 | 25min | 3 tasks | 13 files |
 | Phase 20 P01 | 57min | 3 tasks | 5 files |
 | Phase 20 P06 | 9 min | 3 tasks | 12 files |
+| Phase 20 P12 | 10min | 2 tasks | 6 files |
