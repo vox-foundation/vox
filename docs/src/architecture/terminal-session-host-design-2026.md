@@ -72,6 +72,10 @@ GUI window. Both have to be fixed before switching between front-ends can work.
 
 ### 2.1 `SessionHost` trait (in `vox-terminal-core`)
 
+> **Status:** `LocalHost` shipped as a concrete struct (H1/H2, `crates/vox-terminal-core/src/host.rs`).
+> The trait below is extracted at H5, when `DaemonHost` gives it a second implementation.
+> `attach` returns blocks + `replay` bytes + `seq` + two live receivers (session events, raw output frames).
+
 ```text
 trait SessionHost: Send + Sync {
     async fn open(&self, spec: OpenSpec) -> Result<SessionId>;          // shell, cwd, cols, rows
@@ -136,10 +140,12 @@ there is no existing one-event-per-frame contract to preserve).
    doesn't change.
 2. **Chaining extras:** a `ChainDispatch(Vec<Arc<dyn ExtraDispatch>>)` that takes the
    first `Some`. The daemon binary wires `[McpExtraDispatch, TermDispatch]`.
-3. **`TermDispatch`** lives in `vox-terminal-core` (L3, same layer as
-   `vox-orchestrator`, so no new crate edge) and wraps a `LocalHost`. The daemon binary
-   (L5) adds the `vox-terminal-core` dependency. That is a new edge into an L5 binary,
-   so it **needs a `crate-edges` allowlist entry, which the owner approves**.
+3. **`TermDispatch`** lives in the daemon crate (`crates/vox-orchestrator-d/src/term_dispatch.rs`) and
+   wraps a `LocalHost`. It is there, not in `vox-terminal-core`, because the wire types
+   (`DispatchRequest`/`DispatchResponse`) live in `vox-foundation` and the core crate has no edge to it;
+   this keeps the total at **one** new edge, `vox-orchestrator-d → vox-terminal-core` (L5 → L3).
+   That edge is in the `crate-edges` exceptions ledger, approved by the owner on 2026-10-08.
+   It is registered only on loopback/stdio binds (§5).
 
 ## 3. Seamless switching (UX)
 
@@ -174,8 +180,9 @@ there is no existing one-event-per-frame contract to preserve).
 - `term.*` is arbitrary code execution as the daemon user. It is **never** served
   without the daemon auth token, and it is **refused on non-loopback binds**, even with
   an explicit token, until remote attach is designed (§7).
-- Agent input never reaches a PTY except through `term_run` and the approval gate;
-  `term.input` with `Origin::Agent` is rejected. Human raw keystrokes (`Origin::User`)
+- Agent input never reaches a PTY except through `term_run` and the approval gate (H8). Over the
+  wire, `origin: "agent"` is **refused on both `term.input` and `term.submit`** (a client could
+  otherwise claim any label); the in-process `term_run` path is the only way to act as an agent. Human raw keystrokes (`Origin::User`)
   go through ungated, as in any terminal.
 - The replay buffer can hold secrets typed or printed in the terminal. It stays in
   daemon memory and is never persisted. The transcript/corpus sink keeps redacting as

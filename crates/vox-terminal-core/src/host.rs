@@ -183,6 +183,15 @@ impl LocalHost {
         })
     }
 
+    pub fn block(&self, id: &str, block: BlockId) -> Option<Block> {
+        let entry = self.entry(id).ok()?;
+        lock(&entry.session)
+            .blocks()
+            .iter()
+            .find(|b| b.id == block)
+            .cloned()
+    }
+
     /// Classify `line` and run it through the session (`!cmd`, `/cmd`, `?ask`, …).
     pub fn submit(&self, id: &str, line: &str) -> Result<BlockId> {
         let entry = self.entry(id)?;
@@ -233,6 +242,8 @@ mod tests {
         assert_eq!(a.blocks.len(), 1);
         assert!(a.blocks[0].plain_output().contains("hi"));
         assert_eq!(a.blocks, b.blocks);
+        assert_eq!(host.block(&id, a.blocks[0].id), Some(a.blocks[0].clone()));
+        assert_eq!(host.block(&id, BlockId(999)), None);
         host.close(&id).unwrap();
     }
 
