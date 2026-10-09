@@ -6,8 +6,13 @@
  * - A link to another docs page (`../reference/cli.md#vox-init`) becomes its
  *   Starlight route (`/reference/cli/#vox-init`), using the same docSlug()
  *   the sidebar and llms exclude list use.
- * - A relative link whose target does not exist throws for pages under
- *   docs/src, so a dead link fails the build instead of shipping a 404.
+ * - Anything else in the repository (source, contracts, directories, repo
+ *   Markdown outside docs/src, the unpublished archive and superpowers plans)
+ *   becomes a GitHub blob/tree URL; a `:N` / `:N-M` suffix becomes `#LN` /
+ *   `#LN-LM`.
+ * - A relative link whose target does not exist, or that resolves outside the
+ *   repository, throws for pages under docs/src, so a dead link fails the
+ *   build instead of shipping a 404. Targets are only ever stat'ed, never read.
  *
  * Astro's content loader catches a remark error, logs it and keeps building,
  * so the throw alone does not fail `astro build`. Every dead link is also
@@ -15,9 +20,10 @@
  */
 
 import { existsSync, realpathSync, statSync } from 'node:fs';
-import { dirname, extname, relative, resolve, sep } from 'node:path';
+import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { docSlug } from '../utils/doc-slug.mjs';
+import { MIRROR_EXCLUDED } from '../../scripts/setup-content.mjs';
 
 const SCHEME_RE = /^[a-z][a-z0-9+.-]*:/i;
 const LINE_SUFFIX_RE = /:(\d+)(?:-(\d+))?$/;
@@ -47,8 +53,9 @@ export function resolveDocLink(url, fromFile, ctx) {
 
   const hashAt = url.indexOf('#');
   let path = hashAt === -1 ? url : url.slice(0, hashAt);
-  const fragment = hashAt === -1 ? '' : url.slice(hashAt);
-  if (LINE_SUFFIX_RE.test(path)) path = path.replace(LINE_SUFFIX_RE, '');
+  let fragment = hashAt === -1 ? '' : url.slice(hashAt);
+  const lines = path.match(LINE_SUFFIX_RE);
+  if (lines) path = path.slice(0, -lines[0].length);
   if (!path) return null;
   try {
     path = decodeURI(path);
@@ -57,22 +64,28 @@ export function resolveDocLink(url, fromFile, ctx) {
   }
 
   const target = resolve(dirname(fromFile), path);
-  const docsRel = isWithin(ctx.docsSrc, target) ? toPosix(relative(ctx.docsSrc, target)) : null;
-  const archived = docsRel !== null && (docsRel === 'archive' || docsRel.startsWith('archive/'));
-
-  if (!existsSync(target)) {
-    const message = `remark-doc-links: dead link '${url}' in ${fromFile} (resolved: ${target})`;
+  const fail = (reason) => {
+    const message = `remark-doc-links: ${reason} '${url}' in ${fromFile} (resolved: ${target})`;
     if (ctx.strict) throw new Error(message);
     console.warn(message);
     return null;
+  };
+  if (!isWithin(ctx.repoRoot, target)) return fail('link leaves the repository');
+  if (!existsSync(target)) return fail('dead link');
+
+  const isDir = statSync(target).isDirectory();
+  const docsRel = isWithin(ctx.docsSrc, target) ? toPosix(relative(ctx.docsSrc, target)) : null;
+  if (docsRel !== null && !MIRROR_EXCLUDED.includes(docsRel.split('/')[0])) {
+    const page = isDir ? ['index.md', 'index.mdx'].find((name) => existsSync(join(target, name))) : docsRel;
+    if (page && /\.mdx?$/.test(page) && !basename(page).startsWith('_')) {
+      const slug = docSlug(isDir ? `${docsRel}/${page}` : docsRel);
+      return { href: (slug ? `/${slug}/` : '/') + fragment };
+    }
   }
 
-  if (docsRel !== null && !archived && /\.mdx?$/.test(extname(target)) && statSync(target).isFile()) {
-    const slug = docSlug(docsRel);
-    return { href: (slug ? `/${slug}/` : '/') + fragment };
-  }
-
-  return null;
+  if (lines) fragment = lines[2] ? `#L${lines[1]}-L${lines[2]}` : `#L${lines[1]}`;
+  const repoRel = encodeURI(toPosix(relative(ctx.repoRoot, target)));
+  return { href: `${ctx.repoUrl}/${isDir ? 'tree' : 'blob'}/main/${repoRel}${fragment}` };
 }
 
 /** Real path of the file being processed, or null for virtual content. */
@@ -87,11 +100,22 @@ function sourcePath(file) {
   }
 }
 
-function visitLinks(node, fn) {
-  if (node.type === 'link' || node.type === 'definition') fn(node);
+function visit(node, fn) {
+  fn(node);
   if (Array.isArray(node.children)) {
-    for (const child of node.children) visitLinks(child, fn);
+    for (const child of node.children) visit(child, fn);
   }
+}
+
+/** Calls `fn` on every link and definition, skipping definitions an image uses. */
+function visitLinks(tree, fn) {
+  const imageIds = new Set();
+  visit(tree, (node) => {
+    if (node.type === 'imageReference') imageIds.add(node.identifier);
+  });
+  visit(tree, (node) => {
+    if (node.type === 'link' || (node.type === 'definition' && !imageIds.has(node.identifier))) fn(node);
+  });
 }
 
 /**

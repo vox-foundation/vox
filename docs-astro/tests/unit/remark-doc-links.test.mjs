@@ -17,6 +17,12 @@ function fixtureRepo() {
     'docs/src/tutorials/tut-b.md',
     'docs/src/reference/cli.md',
     'docs/src/adr/README.md',
+    'docs/src/page.md',
+    'docs/src/assets/logo.png',
+    'docs/src/archive/x.md',
+    'docs/superpowers/plans/p.md',
+    'crates/vox-cli/src/main.rs',
+    'AGENTS.md',
   ];
   for (const file of files) {
     mkdirSync(dirname(join(root, file)), { recursive: true });
@@ -98,4 +104,66 @@ test('build gate fails once any page had a dead link', () => {
   const tree = { type: 'root', children: [{ type: 'link', url: 'also-gone.md', children: [] }] };
   assert.throws(() => remarkDocLinks({ repoRoot: repo, repoUrl: REPO_URL })(tree, { path: from }));
   assert.throws(() => docLinksGate().hooks['astro:build:done'](), /dead link\(s\):[\s\S]*also-gone\.md/);
+});
+
+const page = join(docsSrc, 'page.md');
+const BLOB = `${REPO_URL}/blob/main`;
+
+test('source file with a line suffix becomes a blob #L link', () => {
+  assert.equal(href('../../crates/vox-cli/src/main.rs:42', page), `${BLOB}/crates/vox-cli/src/main.rs#L42`);
+});
+
+test('line range becomes #LN-LM', () => {
+  assert.equal(href('../../crates/vox-cli/src/main.rs:10-20', page), `${BLOB}/crates/vox-cli/src/main.rs#L10-L20`);
+});
+
+test('explicit fragment on a blob link is kept', () => {
+  assert.equal(href('../../crates/vox-cli/src/main.rs#main', page), `${BLOB}/crates/vox-cli/src/main.rs#main`);
+});
+
+test('out-of-tree directory becomes a tree link', () => {
+  assert.equal(href('../../crates/vox-cli/', page), `${REPO_URL}/tree/main/crates/vox-cli`);
+});
+
+test('repo Markdown outside docs/src goes to blob', () => {
+  assert.equal(href('../../AGENTS.md', page), `${BLOB}/AGENTS.md`);
+});
+
+test('archive pages go to blob, not a site route', () => {
+  assert.equal(href('../archive/x.md'), `${BLOB}/docs/src/archive/x.md`);
+});
+
+test('superpowers plans go to blob', () => {
+  assert.equal(href('../superpowers/plans/p.md', page), `${BLOB}/docs/superpowers/plans/p.md`);
+});
+
+test('non-Markdown file inside docs/src goes to blob', () => {
+  assert.equal(href('assets/logo.png', page), `${BLOB}/docs/src/assets/logo.png`);
+});
+
+test('docs directory with an index page maps to its route, without one to tree', () => {
+  assert.equal(href('tutorials/', page), '/tutorials/');
+  assert.equal(href('assets', page), `${REPO_URL}/tree/main/docs/src/assets`);
+});
+
+test('a link that escapes the repository throws', () => {
+  assert.throws(() => href('../../../../etc/passwd', page), /leaves the repository/);
+});
+
+test('missing out-of-tree target throws', () => {
+  assert.throws(() => href('../../crates/vox-gone/src/lib.rs:3', page), /dead link/);
+});
+
+test('definitions used by an image are left alone', () => {
+  const tree = {
+    type: 'root',
+    children: [
+      { type: 'paragraph', children: [{ type: 'imageReference', identifier: 'logo', children: [] }] },
+      { type: 'definition', identifier: 'logo', url: 'assets/logo.png' },
+      { type: 'definition', identifier: 'src', url: '../../AGENTS.md' },
+    ],
+  };
+  remarkDocLinks({ repoRoot: repo, repoUrl: REPO_URL })(tree, { path: page });
+  assert.equal(tree.children[1].url, 'assets/logo.png');
+  assert.equal(tree.children[2].url, `${BLOB}/AGENTS.md`);
 });
