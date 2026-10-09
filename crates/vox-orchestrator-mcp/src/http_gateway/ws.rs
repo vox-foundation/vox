@@ -265,3 +265,80 @@ pub(super) async fn ws_handle_message(
         },
     }
 }
+
+#[cfg(test)]
+mod envelope_parity_tests {
+    use std::sync::Arc;
+
+    use vox_foundation::protocol::orch_daemon_method;
+    use vox_orchestrator::orch_daemon::{self, ExtraDispatch};
+
+    use super::ws_handle_message;
+    use crate::daemon_extra::McpExtraDispatch;
+    use crate::http_gateway::{GatewayState, WsMessageIn};
+    use crate::profiles::CallContext;
+    use crate::server_state::ServerState;
+
+    /// `/v1/ws` `call_tool` → `data` must equal `orch.tool_call` → `result` for the same tool, for a
+    /// success envelope and for a tool-level error envelope.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn ws_call_tool_data_equals_local_orch_tool_call_result() {
+        let state = ServerState::new_test().await;
+        let mut gs = GatewayState::for_inproc_loopback(state.clone());
+        let tools: std::collections::HashSet<String> = ["vox_git_status", "vox_get_active_model"]
+            .map(String::from)
+            .into();
+        gs.allowed_tools = Arc::new(tools.clone());
+        gs.read_role_eligible_tools = Arc::new(tools);
+
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap().to_string();
+        let extra: Arc<dyn ExtraDispatch> = Arc::new(McpExtraDispatch::new(state.clone()));
+        tokio::spawn(orch_daemon::serve_listener_with_extra(
+            listener,
+            addr.clone(),
+            "parity-repo".into(),
+            state.orchestrator.clone(),
+            Some(extra),
+            None,
+        ));
+        let client = orch_daemon::OrchDaemonClient::new(addr);
+        for _ in 0..750 {
+            if client.ping().await.is_ok() {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
+
+        for (tool, args) in [
+            ("vox_git_status", serde_json::json!({})),
+            (
+                "vox_get_active_model",
+                serde_json::json!({ "unexpected_arg": true }),
+            ),
+        ] {
+            let local = client
+                .call(
+                    orch_daemon_method::TOOL_CALL,
+                    serde_json::json!({ "name": tool, "args": args.clone() }),
+                )
+                .await
+                .expect("orch.tool_call");
+            let req: WsMessageIn = serde_json::from_value(serde_json::json!({
+                "id": "1", "type": "call_tool", "name": tool, "args": args,
+            }))
+            .expect("ws frame");
+            let remote = ws_handle_message(
+                &gs,
+                req,
+                "127.0.0.1:9".parse().unwrap(),
+                CallContext::LOCAL_WRITE,
+            )
+            .await;
+            assert_eq!(
+                remote.data, local,
+                "{tool}: /v1/ws data differs from orch.tool_call result"
+            );
+        }
+    }
+}
