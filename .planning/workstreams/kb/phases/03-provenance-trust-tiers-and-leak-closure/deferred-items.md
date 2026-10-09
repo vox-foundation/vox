@@ -6,4 +6,9 @@
 
 ## 03-05
 
-- `vox ci sql-surface-guard --all` exits 1 on HEAD because of two test files that predate this plan (03-04): `crates/vox-orchestrator-mcp/tests/kb_findings_capture.rs:42` and `crates/vox-search/tests/web_capture_test.rs:65` use raw `.connection().query(..)` row counts. 03-05's own offenders (kb_library_index.rs, ingest_markdown_tree.rs) were fixed by adding `VoxDb::search_document_tiers`. Fix for the remaining two: add a typed count accessor in `store/ops_*.rs` (or an allowlist decision) in a plan that owns those tests.
+- **FIXED in `604a35abd` (03-04 follow-up, "typed count accessors for capture tests").** `vox ci sql-surface-guard --all` used to exit 1 on HEAD because `crates/vox-orchestrator-mcp/tests/kb_findings_capture.rs:42` and `crates/vox-search/tests/web_capture_test.rs:65` issued raw `.connection().query(..)` row counts; both now use `VoxDb::search_corpus_row_counts`. Nothing left to do here.
+
+## 03-12
+
+- `legacy_export_covers_all_baseline_tables` (feature `legacy-import`) still fails exactly as recorded under 03-03: the same five names (`kb_index_state`, `provider_quota_usage`, `research_domain_reputation`, `research_misguidance_events`, `web_cache`) and no others. 03-12 verified the three legacy VoxKB tables (`knowledge_bases`, `kb_entries`, `kb_routing_rules`) appear on both sides of the comparison, so the quarantine move did not widen the gap.
+- Local build hazard (not a code problem): with the default `[profile.dev] incremental = true`, rustc hung at ~0% CPU on `vox_db` (and, in the first run, `vox_corpus`) on this host, deterministically, for 25+ minutes. `CARGO_INCREMENTAL=0` (and `LEAN_CTX_DISABLED=1` to bypass the output wrapper) made the same `cargo check -p vox-db` finish in 1 m 12 s. Later plans on this host should export `CARGO_INCREMENTAL=0`.

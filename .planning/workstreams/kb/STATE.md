@@ -5,16 +5,16 @@ milestone_name: Vox Knowledge Base — corpus to context
 current_phase: 03
 current_phase_name: Provenance, Trust Tiers and Leak Closure
 status: executing
-stopped_at: Completed 03-11-PLAN.md
-last_updated: "2026-10-08T21:05:12.685Z"
+stopped_at: Completed 03-12-PLAN.md
+last_updated: "2026-10-09T01:08:32.831Z"
 last_activity: 2026-10-06
 last_activity_desc: Phase 03 execution started
-state_head: 0fe92f90950ea719ef170adceaa6ef30ffc7ff52
+state_head: 79058f5b92630b8839cc4f6aa60d1cf2fbeaaa98
 progress:
   total_phases: 12
   completed_phases: 2
   total_plans: 37
-  completed_plans: 35
+  completed_plans: 36
   percent: 17
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (shared project context) and .planning/workstreams/kb/
 ## Current Position
 
 Phase: 03 (Provenance, Trust Tiers and Leak Closure) — EXECUTING
-Plan: 12 of 13
+Plan: 13 of 13
 Status: Ready to execute
 Last activity: 2026-10-06 — Phase 03 execution started
 
@@ -82,6 +82,7 @@ Progress: [██░░░░░░░░] 17%
 | Phase 03 P09 | long | 2 tasks | 13 files |
 | Phase 03 P10 | 75 min | 2 tasks | 14 files |
 | Phase 03 P11 | 45min | 3 tasks | 14 files |
+| Phase 03 P12 | 180min | 2 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -115,6 +116,7 @@ Progress: [██░░░░░░░░] 17%
 - [Phase 03]: 03-09: tier label is a line prefix (rrf dedup key strips it); AutoChatPreamble drops Untrusted hits, envelope tier = min of kept hits (Untrusted when none); SanitizedText at bundle, research sources and vox_kb_* outputs
 - [Phase 03]: 03-10: D-02 option-a applied - 12 legacy vox_kb_* tools retired with no aliases (catalog, generated registries, dispatch, schemas, read-role list); legacy_voxkb_surface_absent guards it, extended by 03-12
 - [Phase 03]: 03-11: GUI side doors (Ingest URL/Text, Publish) file pending Untrusted findings via mcp helpers; save_research_doc deleted; toasts say Filed for review (D-05 interim)
+- [Phase 03]: 03-12: quarantine module always compiled; only baseline_sql gates the legacy VoxKB DDL (LEGACY_VOXKB_DDL must exist on default builds); digest-only re-update keeps baseline 96
 
 ### Pending Todos
 
@@ -129,8 +131,8 @@ Progress: [██░░░░░░░░] 17%
 
 ## Session Continuity
 
-**Last session:** 2026-10-08T21:05:12.657Z
+**Last session:** 2026-10-09T01:08:32.780Z
 
-**Stopped At:** Completed 03-11-PLAN.md
+**Stopped At:** Completed 03-12-PLAN.md
 **Resume File:** None
 **Next:** `/gsd-plan-phase 1` (no research-phase needed)
