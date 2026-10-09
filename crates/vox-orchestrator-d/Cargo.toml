@@ -30,9 +30,17 @@ clap = { workspace = true, features = ["derive"] }
 uuid = { workspace = true }
 workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
+[lib]
+path = "src/lib.rs"
+
 [[bin]]
 name = "vox-orchestrator-d"
 path = "src/bin/vox_orchestrator_d.rs"
+doc = false
+
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
