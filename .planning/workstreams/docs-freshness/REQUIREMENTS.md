@@ -26,7 +26,7 @@ Brief: `CONTEXT.md`. Research: `research/SUMMARY.md` (+ STACK, FEATURES, ARCHITE
 - [ ] **DEPLOY-01**: voxlang.org deploys successfully from `main` again (Cloudflare Pages token rotated by the user with `Pages:Edit` on `vox-docs`), and issue #462 is closed with the root cause recorded.
 - [ ] **DEPLOY-02**: A docs-deploy failure escalates once (single de-duplicated issue, assignee pinged, no repeat comments). A deploy that hasn't succeeded within N days raises a liveness alert through the existing `ci-liveness` mechanism.
 - [ ] **DEPLOY-03**: Post-deploy smoke checks run against the live site: home page and `/voxup` respond, every URL in the published `llms.txt` resolves, and no retired syntax appears on sampled pages.
-- [ ] **DEPLOY-04**: Per-page git dates are correct on the deployed site (full-history checkout; content symlink verified by a local build), and mechanical commits (fmt, regen, bulk renames) are excluded from the date.
+- [x] **DEPLOY-04**: Per-page git dates are correct on the deployed site (full-history checkout; content symlink verified by a local build), and mechanical commits (fmt, regen, bulk renames) are excluded from the date.
 
 ### Public-surface honesty (HONEST)
 
@@ -115,7 +115,7 @@ Added 2026-10-08 (D12). The site runs stock Starlight 0.38 with no component ove
 | DEPLOY-01 | Phase 20 | Pending |
 | DEPLOY-02 | Phase 20 | Pending |
 | DEPLOY-03 | Phase 20 | Pending |
-| DEPLOY-04 | Phase 20 | Pending |
+| DEPLOY-04 | Phase 20 | Complete |
 | HONEST-01 | Phase 20 | Pending |
 | HONEST-02 | Phase 20 | Pending |
 | HONEST-03 | Phase 20 | Pending |
