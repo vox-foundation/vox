@@ -7,7 +7,7 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-serde = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [dev-dependencies]

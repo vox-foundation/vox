@@ -2,10 +2,12 @@
 //!
 //! Consume [`TOOL_REGISTRY`] instead of duplicating name/description tables.
 
+mod boot;
 mod classification;
 mod exposure;
 mod subsystem;
 
+pub use boot::{BootReport, ProfileDenial};
 pub use classification::{ToolClassification, classify_tool_row};
 pub use exposure::{Exposure, SideEffectClass};
 pub use subsystem::{Subsystem, subsystem_closure};
