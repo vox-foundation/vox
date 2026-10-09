@@ -132,11 +132,23 @@ pub struct ServerState {
     /// Learned per-model prompt profiles (Track F).  Hydrated from DB at startup;
     /// updated in-process as variants are promoted through the confidence state machine.
     pub model_prompt_registry: Arc<ModelPromptRegistry>,
+
+    /// Capability profile this host serves (`dev` unless `--profile` / `VOX_PROFILE`).
+    pub active_profile: Arc<crate::profiles::ActiveProfile>,
+
+    /// Subsystems actually up. "Everything booted" until plan 03's conditioned boot.
+    pub boot_report: Arc<PrRwLock<crate::profiles::BootReport>>,
 }
 
 impl ServerState {
     pub fn feedback(&self) -> vox_orchestrator::feedback::FeedbackStore {
         self.feedback.clone()
+    }
+
+    /// Scope this state to `profile` (advertising and dispatch both honor it).
+    pub fn with_profile(mut self, profile: crate::profiles::ActiveProfile) -> Self {
+        self.active_profile = Arc::new(profile);
+        self
     }
 
     /// The trusted caller role for this server (human vs agent), used to authorize
@@ -326,6 +338,8 @@ impl ServerState {
             skill_search_index,
             active_skill_id: Arc::new(parking_lot::RwLock::new(None)),
             model_prompt_registry: Arc::new(ModelPromptRegistry::new()),
+            active_profile: Arc::new(crate::profiles::ActiveProfile::dev()),
+            boot_report: Arc::new(PrRwLock::new(crate::profiles::full_boot_report())),
         };
 
         // Spawn pollers
@@ -402,6 +416,8 @@ impl ServerState {
             )),
             active_skill_id: Arc::new(parking_lot::RwLock::new(None)),
             model_prompt_registry: Arc::new(ModelPromptRegistry::new()),
+            active_profile: Arc::new(crate::profiles::ActiveProfile::dev()),
+            boot_report: Arc::new(PrRwLock::new(crate::profiles::full_boot_report())),
         };
         Self::spawn_external_skill_hydration(
             state.skill_registry.clone(),
@@ -722,6 +738,8 @@ impl ServerState {
             )),
             active_skill_id: Arc::new(parking_lot::RwLock::new(None)),
             model_prompt_registry: Arc::new(ModelPromptRegistry::new()),
+            active_profile: Arc::new(crate::profiles::ActiveProfile::dev()),
+            boot_report: Arc::new(PrRwLock::new(crate::profiles::full_boot_report())),
         }
     }
 
@@ -744,6 +762,18 @@ mod tests {
     use super::*;
     use vox_orchestrator::feedback::FeedbackKind;
     use vox_orchestrator::types::TaskId;
+
+    #[tokio::test]
+    async fn with_profile_replaces_active_profile_and_keeps_boot_report() {
+        let state = ServerState::new_test().await;
+        let models = crate::profiles::ActiveProfile::resolve(&["models"]).expect("models");
+        let scoped = state.with_profile(models.clone());
+        assert_eq!(*scoped.active_profile, models);
+        assert_eq!(
+            *scoped.boot_report.read(),
+            crate::profiles::full_boot_report()
+        );
+    }
 
     #[tokio::test]
     async fn feedback_shared() {
