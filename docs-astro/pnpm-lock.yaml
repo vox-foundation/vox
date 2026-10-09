@@ -14,12 +14,18 @@ importers:
       '@astrojs/rss':
         specifier: ^4.0.19
         version: 4.0.19
+      '@astrojs/sitemap':
+        specifier: 3.7.2
+        version: 3.7.2
       '@astrojs/starlight':
         specifier: ^0.38.3
         version: 0.38.3(astro@6.1.9(@types/node@24.12.2)(rollup@4.60.2)(supports-color@10.2.2)(typescript@6.0.3)(yaml@2.9.0))(supports-color@10.2.2)
       astro:
         specifier: ^6.0.1
         version: 6.1.9(@types/node@24.12.2)(rollup@4.60.2)(supports-color@10.2.2)(typescript@6.0.3)(yaml@2.9.0)
+      github-slugger:
+        specifier: 2.0.0
+        version: 2.0.0
       gray-matter:
         specifier: ^4.0.3
         version: 4.0.3
