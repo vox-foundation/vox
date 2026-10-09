@@ -17478,7 +17478,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -17490,6 +17490,9 @@ operations:
   mcp:
     name: vox_news_approval_status
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - research
   cli: null
 - id: news.approve
   title: News Approve
@@ -17497,7 +17500,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -17509,6 +17512,9 @@ operations:
   mcp:
     name: vox_news_approve
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - research
   cli: null
 - id: news.draft.research
   title: News Draft Research
@@ -17516,7 +17522,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -17528,6 +17534,9 @@ operations:
   mcp:
     name: vox_news_draft_research
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - research
   cli: null
 - id: news.simulate.publish.gate
   title: News Simulate Publish Gate
@@ -17535,7 +17544,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -17547,6 +17556,9 @@ operations:
   mcp:
     name: vox_news_simulate_publish_gate
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - research
   cli: null
 - id: news.test.syndicate
   title: News Test Syndicate
@@ -17554,7 +17566,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -17566,6 +17578,9 @@ operations:
   mcp:
     name: vox_news_test_syndicate
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - research
   cli: null
 - id: openclaw
   title: Openclaw
@@ -19985,7 +20000,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19997,6 +20012,9 @@ operations:
   mcp:
     name: vox_research_run
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - research
   cli:
     path:
     - research
@@ -20014,7 +20032,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20026,6 +20044,9 @@ operations:
   mcp:
     name: vox_research_start
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - research
   cli: null
 - id: research.status
   title: Research Session Status
@@ -20033,7 +20054,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20045,6 +20066,9 @@ operations:
   mcp:
     name: vox_research_status
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - research
   cli:
     path:
     - research
@@ -20116,7 +20140,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20128,6 +20152,9 @@ operations:
   mcp:
     name: vox_research_get
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - research
   cli: null
 - id: research.history
   title: Research History
@@ -20216,7 +20243,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20228,6 +20255,9 @@ operations:
   mcp:
     name: vox_research_search
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - research
   cli:
     path:
     - research
@@ -21241,7 +21271,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21253,6 +21283,9 @@ operations:
   mcp:
     name: vox_schola_submit
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - agent_fleet
   cli: null
 - id: scientia
   title: Scientia
@@ -21286,7 +21319,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21298,6 +21331,9 @@ operations:
   mcp:
     name: vox_scientia_assist_suggestions
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - research
   cli: null
 - id: scientia.capability-list
   title: Scientia Capability-list
@@ -22844,7 +22880,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22856,6 +22892,9 @@ operations:
   mcp:
     name: vox_scientia_publication_approve
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - research
   cli: null
 - id: scientia.publication.arxiv.handoff.record
   title: Scientia Publication Arxiv Handoff Record
@@ -22863,7 +22902,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22875,6 +22914,9 @@ operations:
   mcp:
     name: vox_scientia_publication_arxiv_handoff_record
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - research
   cli: null
 - id: scientia.publication.decision.explain
   title: Scientia Publication Decision Explain
@@ -22882,7 +22924,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22894,6 +22936,9 @@ operations:
   mcp:
     name: vox_scientia_publication_decision_explain
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - research
   cli: null
 - id: scientia.publication.discovery.explain
   title: Scientia Publication Discovery Explain
@@ -22901,7 +22946,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22913,6 +22958,9 @@ operations:
   mcp:
     name: vox_scientia_publication_discovery_explain
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - research
   cli: null
 - id: scientia.publication.discovery.refresh.evidence
   title: Scientia Publication Discovery Refresh Evidence
@@ -22920,7 +22968,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22932,6 +22980,9 @@ operations:
   mcp:
     name: vox_scientia_publication_discovery_refresh_evidence
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - research
   cli: null
 - id: scientia.publication.discovery.scan
   title: Scientia Publication Discovery Scan
@@ -22939,7 +22990,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22951,6 +23002,9 @@ operations:
   mcp:
     name: vox_scientia_publication_discovery_scan
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - research
   cli: null
 - id: scientia.publication.external.jobs.dead.letter
   title: Scientia Publication External Jobs Dead Letter
@@ -22958,7 +23012,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22970,6 +23024,9 @@ operations:
   mcp:
     name: vox_scientia_publication_external_jobs_dead_letter
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - research
   cli: null
 - id: scientia.publication.external.jobs.due
   title: Scientia Publication External Jobs Due
@@ -22977,7 +23034,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22989,6 +23046,9 @@ operations:
   mcp:
     name: vox_scientia_publication_external_jobs_due
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - research
   cli: null
 - id: scientia.publication.external.jobs.replay
   title: Scientia Publication External Jobs Replay
@@ -22996,7 +23056,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23008,6 +23068,9 @@ operations:
   mcp:
     name: vox_scientia_publication_external_jobs_replay
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - research
   cli: null
 - id: scientia.publication.external.jobs.tick
   title: Scientia Publication External Jobs Tick
@@ -23015,7 +23078,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23027,6 +23090,9 @@ operations:
   mcp:
     name: vox_scientia_publication_external_jobs_tick
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - research
   cli: null
 - id: scientia.publication.external.pipeline.metrics
   title: Scientia Publication External Pipeline Metrics
@@ -23034,7 +23100,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23046,6 +23112,9 @@ operations:
   mcp:
     name: vox_scientia_publication_external_pipeline_metrics
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - research
   cli: null
 - id: scientia.publication.media.delete
   title: Scientia Publication Media Delete
@@ -23053,7 +23122,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: destructive
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23065,6 +23134,9 @@ operations:
   mcp:
     name: vox_scientia_publication_media_delete
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - research
   cli: null
 - id: scientia.publication.media.list
   title: Scientia Publication Media List
@@ -23072,7 +23144,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23084,6 +23156,9 @@ operations:
   mcp:
     name: vox_scientia_publication_media_list
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - research
   cli: null
 - id: scientia.publication.media.upsert
   title: Scientia Publication Media Upsert
@@ -23091,7 +23166,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23103,6 +23178,9 @@ operations:
   mcp:
     name: vox_scientia_publication_media_upsert
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - research
   cli: null
 - id: scientia.publication.novelty.fetch
   title: Scientia Publication Novelty Fetch
@@ -23110,7 +23188,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23122,6 +23200,9 @@ operations:
   mcp:
     name: vox_scientia_publication_novelty_fetch
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - research
   cli: null
 - id: scientia.publication.novelty.happy.path
   title: Scientia Publication Novelty Happy Path
@@ -23129,7 +23210,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23141,6 +23222,9 @@ operations:
   mcp:
     name: vox_scientia_publication_novelty_happy_path
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - research
   cli: null
 - id: scientia.publication.preflight
   title: Scientia Publication Preflight
@@ -23148,7 +23232,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23160,6 +23244,9 @@ operations:
   mcp:
     name: vox_scientia_publication_preflight
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - research
   cli: null
 - id: scientia.publication.prepare
   title: Scientia Publication Prepare
@@ -23167,7 +23254,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23179,6 +23266,9 @@ operations:
   mcp:
     name: vox_scientia_publication_prepare
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - research
   cli: null
 - id: scientia.publication.publish
   title: Scientia Publication Publish
@@ -23186,7 +23276,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23198,6 +23288,9 @@ operations:
   mcp:
     name: vox_scientia_publication_publish
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - research
   cli: null
 - id: scientia.publication.retry.failed
   title: Scientia Publication Retry Failed
@@ -23205,7 +23298,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23217,6 +23310,9 @@ operations:
   mcp:
     name: vox_scientia_publication_retry_failed
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - research
   cli: null
 - id: scientia.publication.route.simulate
   title: Scientia Publication Route Simulate
@@ -23224,7 +23320,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23236,6 +23332,9 @@ operations:
   mcp:
     name: vox_scientia_publication_route_simulate
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - research
   cli: null
 - id: scientia.publication.scholarly.pipeline.run
   title: Scientia Publication Scholarly Pipeline Run
@@ -23243,7 +23342,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23255,6 +23354,9 @@ operations:
   mcp:
     name: vox_scientia_publication_scholarly_pipeline_run
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - research
   cli: null
 - id: scientia.publication.scholarly.remote.status
   title: Scientia Publication Scholarly Remote Status
@@ -23262,7 +23364,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23274,6 +23376,9 @@ operations:
   mcp:
     name: vox_scientia_publication_scholarly_remote_status
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - research
   cli: null
 - id: scientia.publication.scholarly.remote.status.sync.all
   title: Scientia Publication Scholarly Remote Status Sync All
@@ -23281,7 +23386,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23293,6 +23398,9 @@ operations:
   mcp:
     name: vox_scientia_publication_scholarly_remote_status_sync_all
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - research
   cli: null
 - id: scientia.publication.scholarly.remote.status.sync.batch
   title: Scientia Publication Scholarly Remote Status Sync Batch
@@ -23300,7 +23408,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23312,6 +23420,9 @@ operations:
   mcp:
     name: vox_scientia_publication_scholarly_remote_status_sync_batch
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - research
   cli: null
 - id: scientia.publication.scholarly.staging.export
   title: Scientia Publication Scholarly Staging Export
@@ -23319,7 +23430,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23331,6 +23442,9 @@ operations:
   mcp:
     name: vox_scientia_publication_scholarly_staging_export
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - research
   cli: null
 - id: scientia.publication.status
   title: Scientia Publication Status
@@ -23338,7 +23452,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23350,6 +23464,9 @@ operations:
   mcp:
     name: vox_scientia_publication_status
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - research
   cli: null
 - id: scientia.publication.submit.local
   title: Scientia Publication Submit Local
@@ -23357,7 +23474,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23369,6 +23486,9 @@ operations:
   mcp:
     name: vox_scientia_publication_submit_local
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - research
   cli: null
 - id: scientia.research-list
   title: Scientia Research-list
@@ -23511,7 +23631,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23523,6 +23643,9 @@ operations:
   mcp:
     name: vox_scientia_worthiness_evaluate
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - research
   cli: null
 - id: script
   title: Script
