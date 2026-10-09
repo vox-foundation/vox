@@ -6,7 +6,7 @@
     {
       "number": "20",
       "name": "Deploy Unblock & Public-Surface Honesty",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "number": "20.1",
@@ -39,5 +39,5 @@
     "label": "Advance to the next step (plan phase 20)",
     "reason": "Phase 20 of 6 — needs a plan"
   },
-  "updated_at": "2026-10-09T07:42:42.267Z"
+  "updated_at": "2026-10-09T07:45:42.848Z"
 }

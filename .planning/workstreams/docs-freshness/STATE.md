@@ -6,16 +6,16 @@ current_phase: 20
 current_phase_name: Deploy Unblock & Public-Surface Honesty
 current_plan: "20-01 (wave 1: 20-01..20-05 parallel)"
 status: planning
-stopped_at: Completed 20-02-PLAN.md
-last_updated: "2026-10-09T07:42:46.291Z"
+stopped_at: Completed 20-03-PLAN.md
+last_updated: "2026-10-09T07:45:43.531Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 20 planned (12 plans); Phase 20.1 (collapsible reader layout) inserted
-state_head: 66c038f62d046e29d04467d952ec269190b4a945
+state_head: 0ec734092b57dca2933f540bde3516d5191b0986
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 12
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -30,7 +30,7 @@ See: `.planning/PROJECT.md`; workstream brief `CONTEXT.md`; roadmap `ROADMAP.md`
 ## Current Position
 
 Phase: 20 of 20–24 (Deploy Unblock & Public-Surface Honesty)
-Plan: 1 of 12 (planned, 7 waves; checker passed after 2 revisions)
+Plan: 2 of 12 (planned, 7 waves; checker passed after 2 revisions)
 Status: Ready to execute — `/gsd-execute-phase 20`
 Last activity: 2026-10-08 — Phase 20 planned (12 plans); Phase 20.1 (collapsible reader layout) inserted
 
@@ -48,6 +48,7 @@ Last activity: 2026-10-08 — Phase 20 planned (12 plans); Phase 20.1 (collapsib
 - [Phase 20]: 20-02: docs page dates come from git-dates.mjs via routeData middleware; Starlight lastUpdated off (content dir is a gitignored symlink)
 - [Phase 20]: 20-02: date-map key is docs/src/ + entry.filePath minus src/content/docs/ (shared by routeData and feed.xml)
 - [Phase 20]: 20-02: build-output specs are pure-fs Playwright tests over dist/ using tests/lib/dist.ts
+- [Phase 20]: 20-03: docs-freshness ROADMAP is the single authoritative docs design; overlapping specs deprecated with superseded notices
 
 ### Blockers / Gates
 
@@ -61,9 +62,9 @@ Last activity: 2026-10-08 — Phase 20 planned (12 plans); Phase 20.1 (collapsib
 
 ## Session Continuity
 
-**Last session:** 2026-10-09T07:42:46.279Z
+**Last session:** 2026-10-09T07:45:43.514Z
 
-**Stopped At:** Completed 20-02-PLAN.md
+**Stopped At:** Completed 20-03-PLAN.md
 **Resume File:** None
 
 ## Performance Metrics
@@ -71,3 +72,4 @@ Last activity: 2026-10-08 — Phase 20 planned (12 plans); Phase 20.1 (collapsib
 | Plan | Duration | Tasks | Files |
 |------|----------|-------|-------|
 | Phase 20 P02 | 12min | 3 tasks | 10 files |
+| Phase 20 P03 | 20min | 2 tasks | 5 files |

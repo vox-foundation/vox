@@ -32,7 +32,7 @@ Brief: `CONTEXT.md`. Research: `research/SUMMARY.md` (+ STACK, FEATURES, ARCHITE
 
 - [ ] **HONEST-01**: Pages with `status: research | roadmap | deprecated | legacy` render a visible status banner and are `noindex`, driven by frontmatter alone.
 - [ ] **HONEST-02**: Architecture/research/roadmap notes live under a separate **Internals** sidebar section, excluded from the main navigation, search-engine indexing, and every published llms.txt variant (D7).
-- [ ] **HONEST-03**: The overlapping designs (dormant Docs Reality Audit Program narrative, `docs/superpowers/specs/2026-08-22-docs-corpus-repair*`, `docs/superpowers/specs/2026-09-14-deep-research-documentation-engine*`) are merged into this workstream or marked superseded, so one design is authoritative.
+- [x] **HONEST-03**: The overlapping designs (dormant Docs Reality Audit Program narrative, `docs/superpowers/specs/2026-08-22-docs-corpus-repair*`, `docs/superpowers/specs/2026-09-14-deep-research-documentation-engine*`) are merged into this workstream or marked superseded, so one design is authoritative.
 
 ### Working links (LINKS)
 
@@ -118,7 +118,7 @@ Added 2026-10-08 (D12). The site runs stock Starlight 0.38 with no component ove
 | DEPLOY-04 | Phase 20 | Complete |
 | HONEST-01 | Phase 20 | Pending |
 | HONEST-02 | Phase 20 | Pending |
-| HONEST-03 | Phase 20 | Pending |
+| HONEST-03 | Phase 20 | Complete |
 | LINKS-01 | Phase 20 | Pending |
 | LINKS-02 | Phase 20 | Pending |
 | LINKS-03 | Phase 20 | Pending |

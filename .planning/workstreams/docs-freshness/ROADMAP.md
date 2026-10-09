@@ -47,11 +47,11 @@ v1.3 makes voxlang.org stay accurate to the code without constant manual upkeep,
   6. `https://voxlang.org/tutorials/tut-getting-started/` links to a working installation page, every relative `.md` link on the built site resolves, repo Markdown such as `AGENTS.md` opens as a rendered doc page, and source/contract links open on GitHub. CI fails the build when a broken internal-link fixture is introduced.
   7. Every tutorial passes an audit against current code (commands in the registry, snippets compile, install steps match the installation reference, links resolve) and records the commit it was verified against.
 
-**Plans**: 1/12 plans executed, 7 waves
+**Plans**: 2/12 plans executed, 7 waves
 
 - [ ] 20-01-PLAN.md — Wave 1: deploy workflow repair, edit-in-place failure issue, liveness check, pinned wrangler (DEPLOY-01, DEPLOY-02)
 - [x] 20-02-PLAN.md — Wave 1: git-derived page dates with mechanical commits ignored (DEPLOY-04)
-- [ ] 20-03-PLAN.md — Wave 1: supersede overlapping designs; governance text (HONEST-03)
+- [x] 20-03-PLAN.md — Wave 1: supersede overlapping designs; governance text (HONEST-03)
 - [ ] 20-04-PLAN.md — Wave 1: tutorial audit, fixes and verification record (TUT-01)
 - [ ] 20-05-PLAN.md — Wave 1: fix dead relative link targets + source guard (LINKS-01)
 - [ ] 20-06-PLAN.md — Wave 2: status banners, noindex, Internals sidebar, sitemap/robots (HONEST-01, HONEST-02)
@@ -169,7 +169,7 @@ Not started; scope is `VERIFY-*` and `BOT-*` in `REQUIREMENTS.md`. Proceeds only
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 20. Deploy Unblock & Public-Surface Honesty | 1/12 | In Progress|  |
+| 20. Deploy Unblock & Public-Surface Honesty | 2/12 | In Progress|  |
 | 20.1. Collapsible Reader Layout (INSERTED) | 0/TBD | Not started | - |
 | 21. Measure & Prune | 0/TBD | Not started | - |
 | 22. Deterministic Drift Gate & PR Impact | 0/TBD | Not started | - |
