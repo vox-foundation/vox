@@ -20,7 +20,7 @@ changes this file in the same commit and says so.
 | `02-profiles.md` | Profile manifests, `ActiveProfile`, `tools/list` + dispatch filtering (stdio + HTTP), `--profile`, `VOX_PROFILE`, `vox serve`, `profile_mismatch`, bundle `profiles` | 01 |
 | `03-subsystem-boot.md` | Conditioned daemon boot, `BootReport`, `subsystem_not_booted`, degraded boot | 01, 02 |
 | `04-network-policy.md` | Bind policy, TLS/`--behind-tunnel`, exposure-by-role off loopback, `GET /v1/profile` | 02, 03 |
-| `05-crate-extraction.md` | `vox-attention` (L2) and `vox-models` (L3) extracted from `vox-orchestrator` | 01 (and the uncommitted model-bench WIP landing first) |
+| `05-crate-extraction.md` | `vox-attention` (L2) and `vox-models` (L3) extracted from `vox-orchestrator` | **DEFERRED (D3)** — not a dependency of any other plan; runs only after user authorization of its edge diff |
 | `06-axis-remote.md` | Axis `Backend` enum, `GatewayClient`, command-backends manifest + CI, surface gating, connect flow | 04 |
 | `07-axis-db-migration.md` | Per-profile migration of `db`-class Axis commands behind daemon RPC / `/api/v2` | 06 |
 
@@ -126,7 +126,7 @@ impl ActiveProfile {
 pub enum ProfileError { #[error("profile_unknown: {0}")] Unknown(String) }
 
 // src/boot.rs
-#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct BootReport {
     pub booted: std::collections::BTreeSet<Subsystem>,
     pub failed: std::collections::BTreeMap<Subsystem, String>,
@@ -191,7 +191,7 @@ Advertising (`tools/list`, `GET /v1/tools`) = the tools for which `authorize_too
 ```yaml
 id: models
 description: "..."
-requires: [model_registry, llm_facade]
+requires: [db, model_registry, llm_facade]   # D1
 tools:
   include: [vox_list_models, vox_chat_*]   # exact names or trailing-* prefix
   include_lanes: []                        # product_lane values
@@ -199,7 +199,9 @@ max_exposure: operator
 axis_surfaces: [models, chat]
 ```
 
-- `contracts/gui/command-backends.v1.yaml` (plan 06): `commands: [{ module: <file stem>, class: daemon|db|host, surfaces: [..] }]`.
+- `contracts/gui/command-backends.v1.yaml` (plan 06): `schema_version: 1` + `commands: [{ module: <file stem>, class: daemon|db|host|shell, surfaces: [..], notes?: <string> }]`.
+  `shell` = Axis-local, same meaning in local and remote mode, never gated. `surfaces` and profile
+  `axis_surfaces` are `view_key`s from `contracts/gui/surface-registry.v1.yaml`.
 
 ## Env vars and flags (add to `contracts/config/env-vars.v1.yaml` + `docs/src/reference/env-vars.md`)
 
@@ -209,7 +211,8 @@ axis_surfaces: [models, chat]
 | `VOX_MCP_HTTP_HOST` (existing) | 04 | Bind host; non-loopback triggers bind policy. |
 | `VOX_MCP_HTTP_TLS_CERT`, `VOX_MCP_HTTP_TLS_KEY` | 04 | PEM paths. |
 | `VOX_MCP_HTTP_BEHIND_TUNNEL` | 04 | `1` = operator attests a TLS-terminating tunnel/proxy. |
-| `VOX_MCP_TIERS` | 01 | Retired: deprecation marker, ignored with a warning. |
+| `VOX_MCP_WORKSPACE_TOOLS` | 01 | `1` = also advertise workspace-federated `@tool`s in `tools/list` (only served under `dev`). Registered in `env-vars.v1.yaml` **and** `contracts/config/registry.v1.yaml`. |
+| `VOX_MCP_TIERS` | 01 | Deprecated alias of `VOX_MCP_WORKSPACE_TOOLS` (`workspace`/`all`/`dev`/`advanced` opt in); warns once when set; ignored when `VOX_MCP_WORKSPACE_TOOLS` is set. |
 
 CLI: `vox mcp --profile <ids>`; `vox serve --profile <ids> [--bind <host:port>] [--tls-cert <p> --tls-key <p> | --behind-tunnel]`
 (register in `contracts/cli/command-registry.yaml`, then `cargo run -p vox-cli -- ci command-sync`).
@@ -226,7 +229,12 @@ MCP tool error (stdio + WS), as the tool result `isError: true` with JSON text c
 ```
 
 HTTP: same JSON body with `ProfileDenial::http_status()`. Profile resolution errors: 400
-`profile_unknown`. Adopt mismatch: 409 `profile_mismatch`. Axis client-side: `version_mismatch`.
+`profile_unknown`. Adopt mismatch: 409 `profile_mismatch`. Axis client-side (Tauri command errors,
+same `{"error":{"code","message",...}}` envelope): `version_mismatch`, `local_only`,
+`not_remote_capable`, `tls_pin_required`, `tls_pin_mismatch`, `unauthorized`, `unreachable`,
+`invalid_url`, `insecure_url`. Per-surface reasons in `axis_backend_status`:
+`not_in_profile | needs_local_machine | not_remote_capable`.
+`axis_connect_remote(url, token?, accept_fingerprint?)`.
 
 `GET /v1/profile` (read or write token; loopback unauthenticated allowed only where today's
 gateway allows it):
@@ -310,3 +318,8 @@ gateway allows it):
 - Local and remote Axis reach the same server code: new GET-only daemon RPC `orch.api_v2_get` mirrors `/api/v2` reads locally.
 - Narrow preference tools replace `vox_preference_get/set` for Axis (model keys and `gui.*` keys only); safety settings such as `socrates_gate_enforced` stay unreachable from them. Per D1, `gui.*` preferences are client-side in remote mode.
 - Shared-file protocol for parallel group tasks: `dashboard_api.rs` route wiring happens once in plan 07 Task 1; groups append only under their own marker comments in `dispatch.rs`, `input_schemas.rs`, `catalog.v1.yaml`; generated files are regenerated after merge, never hand-merged.
+
+### From the reconciliation pass (2026-10-08)
+- New non-secret env reads (`VOX_PROFILE` in plan 02, `VOX_MCP_WORKSPACE_TOOLS` in plan 01) are registered in **both** `contracts/config/env-vars.v1.yaml` and `contracts/config/registry.v1.yaml` (`knobs:`), because `vox ci config-hygiene` / `config-registry-parity` read registered names from `registry.v1.yaml` + Clavis + `CONFIG_KEYS`, not from `env-vars.v1.yaml`. Plan 04's settings are Clavis `SecretId`s and need no `registry.v1.yaml` row.
+- GUI preferences (plan 07 Task 5): ops `vox_gui_preference_get` / `vox_gui_preference_set` are `exposure: internal` (loopback + `dev` only, `requires: [db]`); Axis uses them only in local mode and falls back to a client-side `axis-preferences.json` in remote mode or on denial. `preferences` stays `shell` in `command-backends.v1.yaml`.
+- Plan 07 consumes plan 06's names as written: `crate::remote::backend::{Backend, BackendState}` (managed `Arc<BackendState>`), `GatewayClient::{call_daemon_method, api_get}`, `axis_backend_status`, and the `gui_command_backends::problems` validator.

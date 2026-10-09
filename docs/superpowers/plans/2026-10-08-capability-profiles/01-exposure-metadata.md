@@ -1,6 +1,6 @@
 ---
 title: "Capability Profiles — Plan 01: Exposure metadata and CI gate"
-description: "Implementation plan that adds Exposure, SideEffectClass and Subsystem to vox-mcp-registry, classifies all 340 MCP operations in the operations catalog, removes the unused tier field, retires VOX_MCP_TIERS, and makes operations-sync fail on unclassified tools."
+description: "Implementation plan that adds Exposure, SideEffectClass and Subsystem to vox-mcp-registry, classifies all 340 MCP operations in the operations catalog, removes the unused tier field, moves the workspace-tool opt-in to VOX_MCP_WORKSPACE_TOOLS (VOX_MCP_TIERS becomes a deprecated alias), and makes operations-sync fail on unclassified tools."
 category: "architecture"
 status: "proposed"
 date: 2026-10-08
@@ -10,7 +10,7 @@ date: 2026-10-08
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Every one of the 340 MCP operations in `contracts/operations/catalog.v1.yaml` carries a validated `exposure`, `side_effect_class`, and `requires`; the generated `TOOL_REGISTRY` exposes them as typed fields; the unused `tier` field and `VOX_MCP_TIERS` are gone; and `vox ci operations-sync --target mcp` (plus the `vox-mcp-registry` build script) fails when any tool is unclassified.
+**Goal:** Every one of the 340 MCP operations in `contracts/operations/catalog.v1.yaml` carries a validated `exposure`, `side_effect_class`, and `requires`; the generated `TOOL_REGISTRY` exposes them as typed fields; the unused `tier` field is gone; the workspace-tool opt-in is `VOX_MCP_WORKSPACE_TOOLS=1` with `VOX_MCP_TIERS` as a deprecated alias; and `vox ci operations-sync --target mcp` (plus the `vox-mcp-registry` build script) fails when any tool is unclassified.
 
 **Architecture:** The vocabulary (`Exposure`, `SideEffectClass`, `Subsystem`, `subsystem_closure`) and a single row validator (`classify_tool_row`) live in `vox-mcp-registry/src/`. The same three source files are compiled into `vox-mcp-registry/build.rs` via `#[path]` modules, so the build-time gate and the `vox-cli` operations-sync gate share one implementation and cannot drift. The catalog (hand-edited SSOT) gains `mcp.exposure` / `mcp.requires` and a required non-null `side_effect_class`; `operations-sync` projects them into the generated `tool-registry.canonical.yaml`, which `build.rs` turns into typed `McpToolRegistryEntry` rows. Classification of the 340 tools is split into ten parallel group tasks that each touch only their own op blocks.
 
@@ -62,11 +62,12 @@ Plan-01-specific constraints:
 | `contracts/mcp/tool-registry.canonical.yaml` | Regenerate | `cargo run -q -p vox-cli -- ci operations-sync --target mcp --write`. |
 | `contracts/capability/capability-registry.schema.json` | Modify | Add `remote_mutation` to the `side_effect_class` enum (the capability projection copies catalog values). |
 | `contracts/capability/capability-registry.yaml`, `contracts/capability/model-manifest.generated.json`, `contracts/reports/operations-catalog-inventory.v1.json` | Regenerate | `operations-sync --target all --write`, `capability-sync --write`, `operations-verify`. |
-| `crates/vox-orchestrator-mcp/src/server.rs` | Modify | Retire `VOX_MCP_TIERS` (deprecation marker, warn-once, ignored); `retain_advertised_tools`; skill meta key `vox_source`. |
+| `crates/vox-orchestrator-mcp/src/server.rs` | Modify | `VOX_MCP_WORKSPACE_TOOLS` opt-in with `VOX_MCP_TIERS` as deprecated alias (marker, warn-once); `workspace_tools_opt_in`, `retain_advertised_tools`; skill meta key `vox_source`. |
 | `crates/vox-orchestrator-mcp/src/registry.rs` | Modify | Task 15: stop emitting `vox_tier`; workspace meta key `vox_source`. Task 16: emit `vox_exposure`, `vox_side_effect_class`, `vox_requires`. |
 | `crates/vox-orchestrator-mcp/src/lib.rs` | Modify | `pub mod profiles` re-export of the vocabulary (contract: `vox_orchestrator_mcp::profiles::*`). |
-| `contracts/config/env-vars.v1.yaml` | Modify | `VOX_MCP_TIERS` description → deprecated/ignored. |
-| `docs/src/reference/env-vars.md` | Modify | Add a retired `VOX_MCP_TIERS` row in the MCP section. |
+| `contracts/config/env-vars.v1.yaml` | Modify | `VOX_MCP_TIERS` description → deprecated alias; new `VOX_MCP_WORKSPACE_TOOLS` entry. |
+| `contracts/config/registry.v1.yaml` | Modify | New `mcp_workspace_tools` knob (`VOX_MCP_WORKSPACE_TOOLS`) so `config-hygiene` / `config-registry-parity` accept the new read. |
+| `docs/src/reference/env-vars.md` | Modify | Add `VOX_MCP_WORKSPACE_TOOLS` and deprecated `VOX_MCP_TIERS` rows in the MCP section. |
 | `docs/src/architecture/mcp-vox-language-exposure.md` | Modify | Replace "MCP tier policy" with "MCP tool visibility". |
 | `docs/src/architecture/where-things-live.md` | Modify | `vox-mcp-registry` row and "Add an MCP tool" row mention the exposure metadata. |
 
@@ -2686,21 +2687,30 @@ git commit -m "feat(mcp-registry): typed exposure fields on TOOL_REGISTRY; drop 
 
 ---
 
-### Task 15: Retire `VOX_MCP_TIERS`
+### Task 15: Move the workspace-tool opt-in to `VOX_MCP_WORKSPACE_TOOLS`; `VOX_MCP_TIERS` becomes a deprecated alias
+
+Per `00-contracts.md` Amendments ("From plan 01"): today's default (workspace-federated tools hidden from
+`tools/list`) is preserved; the opt-in moves from `VOX_MCP_TIERS` to `VOX_MCP_WORKSPACE_TOOLS=1`;
+`VOX_MCP_TIERS` is still honoured as a **deprecated alias** with a one-time warning. Catalog tools never
+carried a non-`core` tier, so the tier filter collapses to "show or hide workspace-federated tools".
 
 **Files:**
 - Modify: `crates/vox-orchestrator-mcp/src/server.rs` — `list_tools` (L210–224 tier filter, L234 skill meta key), new helpers before `#[cfg(test)] mod call_tool_tests` (L418), new test module at end
 - Modify: `crates/vox-orchestrator-mcp/src/registry.rs` — L70 (delete), L92 (meta key), L112–119 (test)
-- Modify: `contracts/config/env-vars.v1.yaml` — the `VOX_MCP_TIERS` entry (≈L1180–1185)
+- Modify: `contracts/config/env-vars.v1.yaml` — the `VOX_MCP_TIERS` entry (≈L1180–1185) and a new `VOX_MCP_WORKSPACE_TOOLS` entry directly after it
+- Modify: `contracts/config/registry.v1.yaml` — new `mcp_workspace_tools` knob (append at the end of `knobs:`); required because `config-hygiene` / `config-registry-parity` resolve registered names from `registry.v1.yaml` + Clavis + `CONFIG_KEYS`, **not** from `env-vars.v1.yaml`
 - Modify: `docs/src/reference/env-vars.md` — MCP section (after the `VOX_MCP_TEST_INFER_STUB_BODY` row, ≈L262)
 - Modify: `docs/src/architecture/mcp-vox-language-exposure.md` — "## MCP tier policy" section (≈L44–54)
 
 **Interfaces:**
 - Consumes: nothing new.
 - Produces:
-  - `pub(crate) fn retain_advertised_tools(tools: &mut Vec<rmcp::model::Tool>)` in `server.rs`
+  - `pub(crate) enum WorkspaceToolsOptIn { Off, On, OnViaDeprecatedTiers }` and
+    `pub(crate) fn workspace_tools_opt_in(workspace_tools: Option<&str>, legacy_tiers: Option<&str>) -> WorkspaceToolsOptIn` in `server.rs` (pure; env values passed in so tests never mutate process env)
+  - `pub(crate) fn retain_advertised_tools(tools: &mut Vec<rmcp::model::Tool>, include_workspace: bool)` in `server.rs`
   - Tool meta key `vox_source` (`"workspace"` | `"skill"`) replaces `vox_tier`; catalog tools no longer carry `vox_tier`.
-  - Behaviour: `VOX_MCP_TIERS` is ignored; when set, one `tracing::warn!` per process. `tools/list` equals today's default (`VOX_MCP_TIERS` unset): all compiled catalog tools + skill macro tools; workspace-federated tools are dispatchable but not advertised.
+  - Behaviour: unset ⇒ `tools/list` equals today's default (all compiled catalog tools + skill macro tools; workspace-federated tools dispatchable but not advertised). `VOX_MCP_WORKSPACE_TOOLS=1|true` ⇒ workspace-federated tools are also advertised. If `VOX_MCP_WORKSPACE_TOOLS` is set to any value, it wins over `VOX_MCP_TIERS`. Otherwise `VOX_MCP_TIERS` containing `workspace` or `all` (the values that revealed them before) or `dev` / `advanced` (named by the contract amendment) turns the opt-in on. Whenever `VOX_MCP_TIERS` is set, one `tracing::warn!` per process names `VOX_MCP_WORKSPACE_TOOLS` as the replacement.
+  - Plan 02 restricts workspace/skill tools to the `dev` profile through `guard_tool` (non-registry names are `ToolNotInProfile` under any named profile); this task does not know about profiles.
 
 Parallel-safe with: Tasks 1–13. Must land before Task 14.
 
@@ -2716,7 +2726,7 @@ mod list_filter_tests {
 
     use rmcp::model::{Meta, Tool};
 
-    use super::retain_advertised_tools;
+    use super::{retain_advertised_tools, workspace_tools_opt_in, WorkspaceToolsOptIn};
 
     fn tool(name: &'static str, source: Option<&str>) -> Tool {
         let mut meta = serde_json::Map::new();
@@ -2731,16 +2741,45 @@ mod list_filter_tests {
         .with_meta(Meta(meta))
     }
 
-    #[test]
-    fn advertised_list_hides_workspace_federated_and_keeps_catalog_and_skill_tools() {
-        let mut tools = vec![
+    fn sample() -> Vec<Tool> {
+        vec![
             tool("vox_git_status", None),
             tool("read_file", Some("workspace")),
             tool("skill_macro", Some("skill")),
-        ];
-        retain_advertised_tools(&mut tools);
-        let names: Vec<&str> = tools.iter().map(|t| t.name.as_ref()).collect();
-        assert_eq!(names, vec!["vox_git_status", "skill_macro"]);
+        ]
+    }
+
+    fn names(tools: &[Tool]) -> Vec<&str> {
+        tools.iter().map(|t| t.name.as_ref()).collect()
+    }
+
+    #[test]
+    fn default_hides_workspace_federated_and_keeps_catalog_and_skill_tools() {
+        let mut tools = sample();
+        retain_advertised_tools(&mut tools, false);
+        assert_eq!(names(&tools), vec!["vox_git_status", "skill_macro"]);
+    }
+
+    #[test]
+    fn opt_in_keeps_workspace_federated_tools() {
+        let mut tools = sample();
+        retain_advertised_tools(&mut tools, true);
+        assert_eq!(names(&tools), vec!["vox_git_status", "read_file", "skill_macro"]);
+    }
+
+    #[test]
+    fn opt_in_resolution() {
+        use WorkspaceToolsOptIn::*;
+        assert_eq!(workspace_tools_opt_in(None, None), Off);
+        assert_eq!(workspace_tools_opt_in(Some("1"), None), On);
+        assert_eq!(workspace_tools_opt_in(Some("true"), None), On);
+        assert_eq!(workspace_tools_opt_in(Some("0"), None), Off);
+        // The new variable wins over the deprecated alias when set.
+        assert_eq!(workspace_tools_opt_in(Some("0"), Some("all")), Off);
+        assert_eq!(workspace_tools_opt_in(None, Some("core")), Off);
+        for legacy in ["workspace", "all", "dev", "advanced", "core,workspace", " all "] {
+            assert_eq!(workspace_tools_opt_in(None, Some(legacy)), OnViaDeprecatedTiers, "{legacy}");
+        }
     }
 }
 ```
@@ -2770,15 +2809,19 @@ In `crates/vox-orchestrator-mcp/src/registry.rs` replace the test `merged_worksp
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `cargo nextest run -p vox-orchestrator-mcp list_filter merged_workspace_tools catalog_tools_no_longer`
-Expected: compile failure `cannot find function retain_advertised_tools in module super`.
+Expected: compile failure `cannot find function retain_advertised_tools in module super` (and `workspace_tools_opt_in`).
 
 - [ ] **Step 3: Implement in `server.rs`**
 
 Replace the tier block in `list_tools` (from the `// E.56 MCP tool tiering` comment through the closing `}` of `if !allowed_tiers.contains(&"all") { … }`, L210–224) with:
 
 ```rust
-        warn_if_retired_tiers_env_set();
-        retain_advertised_tools(&mut tool_list);
+        let opt_in = workspace_tools_opt_in(
+            std::env::var("VOX_MCP_WORKSPACE_TOOLS").ok().as_deref(),
+            std::env::var("VOX_MCP_TIERS").ok().as_deref(),
+        );
+        warn_if_deprecated_tiers_env_set();
+        retain_advertised_tools(&mut tool_list, opt_in != WorkspaceToolsOptIn::Off);
 ```
 
 Change the skill meta key (L234) from `"vox_tier".to_string()` to `"vox_source".to_string()`.
@@ -2786,9 +2829,44 @@ Change the skill meta key (L234) from `"vox_tier".to_string()` to `"vox_source".
 Insert before `#[cfg(test)] mod call_tool_tests` (L418):
 
 ```rust
-/// Workspace-federated `@tool` functions are dispatchable by name but never advertised in
-/// `tools/list`.
-pub(crate) fn retain_advertised_tools(tools: &mut Vec<rmcp::model::Tool>) {
+/// How the workspace-federated `@tool` opt-in was resolved.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum WorkspaceToolsOptIn {
+    Off,
+    On,
+    OnViaDeprecatedTiers,
+}
+
+/// `VOX_MCP_WORKSPACE_TOOLS` (when set) decides; otherwise the deprecated `VOX_MCP_TIERS`
+/// alias opts in for `workspace`, `all`, `dev`, or `advanced`.
+pub(crate) fn workspace_tools_opt_in(
+    workspace_tools: Option<&str>,
+    legacy_tiers: Option<&str>,
+) -> WorkspaceToolsOptIn {
+    if let Some(v) = workspace_tools {
+        return match v.trim() {
+            "1" | "true" => WorkspaceToolsOptIn::On,
+            _ => WorkspaceToolsOptIn::Off,
+        };
+    }
+    let legacy_on = legacy_tiers.is_some_and(|v| {
+        v.split(',')
+            .map(str::trim)
+            .any(|t| matches!(t, "workspace" | "all" | "dev" | "advanced"))
+    });
+    if legacy_on {
+        WorkspaceToolsOptIn::OnViaDeprecatedTiers
+    } else {
+        WorkspaceToolsOptIn::Off
+    }
+}
+
+/// Workspace-federated `@tool` functions are always dispatchable by name; they are advertised in
+/// `tools/list` only when `include_workspace` is set.
+pub(crate) fn retain_advertised_tools(tools: &mut Vec<rmcp::model::Tool>, include_workspace: bool) {
+    if include_workspace {
+        return;
+    }
     tools.retain(|t| {
         t.meta
             .as_ref()
@@ -2798,13 +2876,13 @@ pub(crate) fn retain_advertised_tools(tools: &mut Vec<rmcp::model::Tool>) {
     });
 }
 
-// vox-deprecated-since="0.6.0" retire-by="0.7.0" reason="capability-profiles" canonical="vox_mcp_registry::Exposure"
-fn warn_if_retired_tiers_env_set() {
+// vox-deprecated-since="0.6.0" retire-by="0.7.0" reason="capability-profiles" canonical="VOX_MCP_WORKSPACE_TOOLS"
+fn warn_if_deprecated_tiers_env_set() {
     static WARNED: std::sync::Once = std::sync::Once::new();
     if std::env::var_os("VOX_MCP_TIERS").is_some() {
         WARNED.call_once(|| {
             tracing::warn!(
-                "VOX_MCP_TIERS is retired and ignored; MCP tool visibility follows catalog exposure metadata"
+                "VOX_MCP_TIERS is deprecated; use VOX_MCP_WORKSPACE_TOOLS=1 to advertise workspace-federated tools"
             );
         });
     }
@@ -2816,18 +2894,44 @@ fn warn_if_retired_tiers_env_set() {
 Delete line 70 (`meta_map.insert("vox_tier".to_string(), Value::String(e.tier.to_string()));`).
 In `merged_tool_registry`, change `"vox_tier".to_string()` (L92) to `"vox_source".to_string()`.
 
-- [ ] **Step 5: Update env-var SSOT and docs**
+- [ ] **Step 5: Update env-var SSOT, config registry, and docs**
 
 In `contracts/config/env-vars.v1.yaml`, set the `VOX_MCP_TIERS` entry's `description` value to:
 
 ```yaml
-    description: "DEPRECATED (2026-10-08): retired and ignored (a warning is logged when set). MCP tool visibility follows catalog exposure metadata (capability profiles)."
+    description: "DEPRECATED (2026-10-08): alias for VOX_MCP_WORKSPACE_TOOLS. Values workspace, all, dev, or advanced advertise workspace-federated MCP tools; a warning is logged whenever it is set. Ignored when VOX_MCP_WORKSPACE_TOOLS is set."
+```
+
+and insert directly after that entry:
+
+```yaml
+  - name: "VOX_MCP_WORKSPACE_TOOLS"
+    owner_crate: "vox-orchestrator-mcp"
+    kind: "bool"
+    required: false
+    introduced_in: "0.6.0"
+    default: "0"
+    description: "1 = advertise workspace-federated @tool functions in MCP tools/list (they are always dispatchable by name). Served only under the dev capability profile."
+```
+
+
+In `contracts/config/registry.v1.yaml`, append to `knobs:`:
+
+```yaml
+  - name: mcp_workspace_tools
+    env_var: VOX_MCP_WORKSPACE_TOOLS
+    description: Advertise workspace-federated @tool functions in MCP tools/list (dev profile only). Replaces the deprecated VOX_MCP_TIERS opt-in.
+    owner_crate: vox-orchestrator-mcp
+    status: active
+    default_value: "0"
+    since: "2026-10-08"
 ```
 
 In `docs/src/reference/env-vars.md`, add after the `VOX_MCP_TEST_INFER_STUB_BODY` row:
 
 ```markdown
-| `VOX_MCP_TIERS` | **DEPRECATED (2026-10-08, ignored):** formerly filtered `tools/list` by tier; every catalog tool was `core`, so it had no effect on catalog tools. Setting it now only logs a warning. Tool visibility follows the catalog's `mcp.exposure` metadata. |
+| `VOX_MCP_WORKSPACE_TOOLS` | `1` = also advertise workspace-federated `@tool` functions in MCP `tools/list` (they are always dispatchable by name). Only served under the `dev` capability profile. Default off. |
+| `VOX_MCP_TIERS` | **DEPRECATED (2026-10-08):** alias for `VOX_MCP_WORKSPACE_TOOLS`; `workspace`, `all`, `dev`, or `advanced` opt in. Logs a warning when set; ignored when `VOX_MCP_WORKSPACE_TOOLS` is set. |
 ```
 
 In `docs/src/architecture/mcp-vox-language-exposure.md`, replace the whole `## MCP tier policy` section (heading, sentence, table, and the `VOX_MCP_TIERS=all` line) with:
@@ -2837,9 +2941,10 @@ In `docs/src/architecture/mcp-vox-language-exposure.md`, replace the whole `## M
 
 `tools/list` advertises every catalog tool compiled into the server plus instructional macro tools
 from installed skills (`vox_source: skill`). Federated `@tool` functions (`vox_source: workspace`)
-are dispatchable by name but are not advertised.
+are dispatchable by name; set `VOX_MCP_WORKSPACE_TOOLS=1` to also advertise them.
 
-`VOX_MCP_TIERS` is retired and ignored; setting it logs a warning.
+`VOX_MCP_TIERS` is a deprecated alias for that opt-in (`workspace`, `all`, `dev`, `advanced`);
+setting it logs a warning.
 ```
 
 - [ ] **Step 6: Run the tests and checks**
@@ -2853,14 +2958,14 @@ cargo run -q -p vox-cli -- ci config-registry-parity
 cargo run -q -p vox-cli -- ci retirement-audit
 cargo run -p vox-doc-pipeline -- --lint-only --paths reference/env-vars.md architecture/mcp-vox-language-exposure.md
 ```
-Expected: tests PASS; clean build and clippy; `config-hygiene` reports no new violation (the `server.rs|VOX_MCP_TIERS` key stays grandfathered because the read stays in `server.rs`); parity OK; `retirement-audit` lists the new `capability-profiles` marker without failing; doc lint OK.
+Expected: tests PASS; clean build and clippy; `config-hygiene` reports no new violation (the `server.rs|VOX_MCP_TIERS` key stays grandfathered because the read stays in `server.rs`; `VOX_MCP_WORKSPACE_TOOLS` is registered in `registry.v1.yaml`); `config-registry-parity` OK; `retirement-audit` lists the new `capability-profiles` marker without failing; doc lint OK.
 
 - [ ] **Step 7: Format and commit**
 
 ```bash
 vox run scripts/fmt.vox
-git add crates/vox-orchestrator-mcp/src/server.rs crates/vox-orchestrator-mcp/src/registry.rs contracts/config/env-vars.v1.yaml docs/src/reference/env-vars.md docs/src/architecture/mcp-vox-language-exposure.md
-git commit -m "refactor(mcp): retire VOX_MCP_TIERS; vox_tier meta becomes vox_source" -m "Capability profiles plan 01 Task 15. The tier filter is replaced by a fixed rule equal to the old default (catalog + skill tools listed, workspace-federated tools dispatchable but unlisted). VOX_MCP_TIERS is ignored with a one-time warning and carries the deprecation marker."
+git add crates/vox-orchestrator-mcp/src/server.rs crates/vox-orchestrator-mcp/src/registry.rs contracts/config/env-vars.v1.yaml contracts/config/registry.v1.yaml docs/src/reference/env-vars.md docs/src/architecture/mcp-vox-language-exposure.md
+git commit -m "refactor(mcp): VOX_MCP_WORKSPACE_TOOLS opt-in; VOX_MCP_TIERS deprecated alias" -m "Capability profiles plan 01 Task 15. The tier filter collapses to the only thing it ever did: show or hide workspace-federated tools. Default unchanged (hidden); VOX_MCP_WORKSPACE_TOOLS=1 opts in; VOX_MCP_TIERS keeps working as a deprecated alias with a one-time warning. vox_tier meta becomes vox_source."
 ```
 
 ---
@@ -3077,12 +3182,12 @@ Expected: no output.
 ```bash
 rg -n 'std::env::var\("VOX_MCP_TIERS"\)' crates
 ```
-Expected: no output.
+Expected: exactly one hit, the deprecated-alias read in `crates/vox-orchestrator-mcp/src/server.rs` `list_tools` (next to the `VOX_MCP_WORKSPACE_TOOLS` read).
 
 ```bash
 rg -l 'VOX_MCP_TIERS' crates contracts docs/src scripts --glob '!docs/src/archive/**' | sort
 ```
-Expected exactly these 7 files (registry/baseline entries, the warn-only read, the retirement docs, and one historical findings doc):
+Expected exactly these 7 files (registry/baseline entries, the deprecated-alias read, the env and visibility docs, and one historical findings doc):
 
 ```text
 contracts/config/config-hygiene-baseline.txt
@@ -3134,17 +3239,17 @@ Expected: all PASS / OK; `git status` clean. No commit is needed unless Step 5 f
 | §3 `operations-sync` fails if any op lacks `exposure` / `side_effect_class` / `requires` | 2 (gate), 14 (`build.rs` second gate), 17 (mutations A/B) |
 | §3 initial `internal` set | 12 (values), 14 (`spec_internal_set_is_internal`, exact-set test) |
 | §3 `tier` removed from the registry schema | 2 (catalog + schema), 13 (`tool-registry.schema.json`), 14 (struct, tests), 17 (sweep) |
-| §3 `VOX_MCP_TIERS` retired with deprecation marker | 15 (marker, warn-once, env SSOT, docs), 17 (sweep) |
+| §3 `VOX_MCP_TIERS` retired with deprecation marker (Amendment: kept as deprecated alias of `VOX_MCP_WORKSPACE_TOOLS`) | 15 (opt-in resolver, marker, warn-once, env SSOT + `registry.v1.yaml`, docs), 17 (sweep) |
 | §9.1 contract tests in the registry generator | 1 (`classify_tool_row` tests), 2 (gate tests), 14 (registry-wide tests) |
 | §9.2 mutation-verified exposure guard | 17 (mutations A, B, C with presence checks) |
 | 00-contracts `Exposure`, `SideEffectClass`, `Subsystem`, `subsystem_closure` verbatim | 1 |
 | 00-contracts `McpToolRegistryEntry` (no `tier`) + `registry_entry` | 14 |
 | 00-contracts `vox_orchestrator_mcp::profiles::*` re-export | 16 |
 | 00-contracts catalog / canonical / schema shapes | 2, 13 |
-| 00-contracts env table row for `VOX_MCP_TIERS` | 15 |
+| 00-contracts env rows for `VOX_MCP_TIERS` (deprecated alias) and `VOX_MCP_WORKSPACE_TOOLS` | 15 |
 | Classification of all 340 ops, split by domain, with handler evidence | 3–12 (41+53+32+52+38+25+15+17+30+37 = 340) |
 | Reference sweep with exact expected results | 17 Step 5 |
-| Global constraint: `dev` reproduces today's behaviour | 15 (`tools/list` equals the old `VOX_MCP_TIERS`-unset default) |
+| Global constraint: `dev` reproduces today's behaviour | 15 (`tools/list` with both vars unset equals the old `VOX_MCP_TIERS`-unset default; `workspace`/`all` still opt in) |
 | Global constraint: no new crate edges | 1 (only external `serde` / `serde_json`) |
 
 Out of scope here (later plans): profile manifests and the "profile tools covered by subsystem closure" generator check (02), runtime filtering/dispatch denial (02–04), boot gating (03).
@@ -3153,10 +3258,10 @@ Out of scope here (later plans): profile manifests and the "profile tools covere
 
 1. **Proposals are not evidence.** The per-group tables come from names, descriptions, existing values, and a first pass over handlers; some rows will change on full handler review (especially `requires` for graph search, and the LLM-or-not question for `vox_db_suggest_query`, `vox_browser_extract_json`, `vox_speech_to_code`). The procedure forces evidence and an `Overrides:` record, and the gate rejects invariant violations, but reviewers should read the evidence in each commit body rather than the tables.
 2. **Intentional red window.** Between Task 2 and Task 13, `operations-verify` and `ssot-drift` fail. Pushing in that window would trip the pre-push hook and CI. Mitigation: integrate Tasks 3–12 quickly; push only after Task 13.
-3. **Workspace-federated tools stay unlisted.** Retiring `VOX_MCP_TIERS` removes the only opt-in (`workspace`/`all`) to advertise them; the default behaviour is preserved exactly. If federated tools should be listed in `dev`, that is a behaviour change to decide in `00-contracts.md` / plan 02.
+3. **Deprecated-alias widening.** `VOX_MCP_TIERS=dev` / `advanced` did **not** reveal workspace-federated tools before (their tier was `workspace`); the contract amendment names them as alias values, so they now opt in. Only `workspace` / `all` reproduce the old effect exactly. Low impact (opt-in only, dev profile only), but a visible change for anyone who set `VOX_MCP_TIERS=dev`.
 4. **`side_effect_class` naming.** `writes_files` also covers in-process orchestrator/session state, and the precedence ranks local writes above `network`, so tools that both call an LLM and persist read as `writes_files`. The enum is fixed by the contract; the convention is documented in the Classification Procedure and should be copied into the contract doc.
 5. **Schema versioning.** The catalog schema change is breaking for a reader that relied on `tier` or on optional `side_effect_class`. `x-vox-version` is bumped, but the file is not renamed (`catalog.v1.*`) because it has one in-repo producer and consumer; renaming paths across tooling is not worth it. Flag for review against the data-storage policy.
 6. **Large-file edits.** `catalog.v1.yaml` is 33.5k lines; line numbers shift with every group merge. All instructions locate ops by their unique `name:` line, never by line number.
 7. **`workspace-hack` drift.** Adding `serde` to `vox-mcp-registry` may require `cargo hakari generate` if hakari verification is enforced; Task 1 Step 8 covers it.
 8. **`gui-catalog-parity` safety classes.** `to_safety_class` maps every non-read class (including `network`) to `mutating`; populated values will change GUI safety labels for MCP-only actions. Not a correctness break, but visible in the action manifest.
-9. **Recorded contract additions.** `classification.rs` (`ToolClassification`, `classify_tool_row`), the `vox_source` / `vox_exposure` / `vox_side_effect_class` / `vox_requires` meta keys, the internal-set extensions (agent-gateway family, browser cookie export/import), and `remote_mutation` in the capability-registry schema are not yet in `00-contracts.md`; they should be added there in the commit that lands this plan.
+9. **Recorded contract additions.** `classification.rs` (`ToolClassification`, `classify_tool_row`), the `vox_source` / `vox_exposure` / `vox_side_effect_class` / `vox_requires` meta keys, the internal-set extensions (agent-gateway family, browser cookie export/import), `remote_mutation` in the capability-registry schema, and the `VOX_MCP_WORKSPACE_TOOLS` opt-in are recorded in `00-contracts.md` § Amendments ("From plan 01").

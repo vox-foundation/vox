@@ -8,6 +8,11 @@ date: 2026-10-08
 
 # Model and Attention Crate Extraction Implementation Plan
 
+> **STATUS: DEFERRED (decision D3, `00-contracts.md` Amendments, 2026-10-08).** Do not execute any task
+> in this plan until (1) the main-checkout model-bench WIP is committed and rebased onto #598, and (2) the
+> user has seen the exact crate-edge diff (Task 3) and authorized it. Plans 01–04, 06 and 07 do not depend
+> on this plan. Per D4, `vox-models → vox-populi` stays an **optional** edge (Option A in Task 3).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Move `crates/vox-orchestrator/src/{attention,budget}/`, `budget_gate.rs` and `fatigue_monitor.rs` into a new

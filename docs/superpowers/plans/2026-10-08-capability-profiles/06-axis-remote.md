@@ -50,7 +50,7 @@ Plan-specific constraints:
 
 ## Contract changes this plan makes to `00-contracts.md`
 
-`00-contracts.md` says a plan that needs a contract change must make it in the same commit. Task 1 does that:
+These contract changes are already applied to `00-contracts.md` (body + Amendments "From plan 06") by the reconciliation pass; Task 1 Step 3 only verifies them:
 
 1. The `command-backends.v1.yaml` row gains a fourth class, `shell`, and an optional `notes`; the file gains a `schema_version: 1` header.
    - `shell` means: Axis-local, with the same meaning in local and remote mode (app chrome, build info, UI preferences, Remote Axis connect/disconnect). It is never gated.
@@ -117,7 +117,7 @@ The inventory was built by reading every module in `crates/vox-gui/src/commands/
 | 40 | orchestrator | host | chat, console, dashboard, flow, needs-you, settings, tasks | **split:** status/agent streams + `get_orchestrator_status` are orch RPC; `hopper_*` = db; config/task-policy writes `Vox.toml` |
 | 41 | plan_panel | db | chat | `GuiDbPool` |
 | 42 | policy | host | policies | local policy registry + status files |
-| 43 | preferences | shell | memory, settings | **deliberate exception:** Axis-local UI preferences (theme, layout) in the local workspace DB; they must keep working when remote |
+| 43 | preferences | shell | memory, settings | **deliberate exception (D1):** Axis-local `gui.*` UI preferences (theme, layout) are **client-side in remote mode** and never go to the server. Until plan 07 Task 5 they read the client machine's local workspace DB; plan 07 moves remote mode to a client-side settings file and local mode to loopback-only daemon ops. They must keep working when remote. |
 | 44 | process_util | host | [] | helper: quiet `Command` builders |
 | 45 | pty | host | console | local PTY |
 | 46 | research | host | research | **split:** `start_research_async` = orch RPC; flag/persist = db; `save_research_doc` writes `docs/` locally |
@@ -173,7 +173,6 @@ The inventory was built by reading every module in `crates/vox-gui/src/commands/
 
 **Modify**
 
-- `docs/superpowers/plans/2026-10-08-capability-profiles/00-contracts.md`
 - `contracts/index.yaml`
 - `crates/vox-cli/src/commands/ci/mod.rs`
 - `crates/vox-cli/src/commands/ci/gui_catalog_parity.rs`
@@ -184,7 +183,7 @@ The inventory was built by reading every module in `crates/vox-gui/src/commands/
 - `crates/vox-gui/ui/src/{transport.ts,types/tauri.ts,main.tsx}`
 - `crates/vox-gui/ui/src/components/layout/{surfaceComponents.tsx,Sidebar.tsx,BreadcrumbBar.tsx}`
 - `crates/vox-gui/ui/src/components/surfaces/Settings/{SettingsView.tsx,settingsIndex.ts}`
-- `docs/src/how-to/run-vox-as-a-server.md`
+- `docs/src/how-to/how-to-run-vox-as-a-server.md`
 - `docs/src/reference/capability-profiles.md`
 - `docs/src/architecture/where-things-live.md`
 
@@ -232,7 +231,6 @@ Expected: both exit 0. If not, fix the environment, not the code. Do not commit 
 **Files:**
 - Create: `contracts/gui/command-backends.v1.yaml`
 - Modify: `contracts/index.yaml`
-- Modify: `docs/superpowers/plans/2026-10-08-capability-profiles/00-contracts.md`
 
 **Interfaces:** the manifest format consumed by Task 2 (CI) and Task 5 (runtime).
 
@@ -293,7 +291,7 @@ commands:
 - { module: orchestrator, class: host, surfaces: [chat, console, dashboard, flow, needs-you, settings, tasks], notes: "split: streams/status = orch RPC; hopper_* = db; config writes Vox.toml" }
 - { module: plan_panel, class: db, surfaces: [chat] }
 - { module: policy, class: host, surfaces: [policies] }
-- { module: preferences, class: shell, surfaces: [memory, settings], notes: "Axis-local UI preferences in the local workspace DB; must keep working when remote" }
+- { module: preferences, class: shell, surfaces: [memory, settings], notes: "Axis-local gui.* UI preferences; client-side in remote mode, never via the server DB (D1)" }
 - { module: process_util, class: host, surfaces: [] }
 - { module: pty, class: host, surfaces: [console] }
 - { module: research, class: host, surfaces: [research], notes: "split: start_research_async = orch RPC; save_research_doc writes docs/ locally" }
@@ -325,36 +323,14 @@ commands:
       - vox ci gui-catalog-parity
 ```
 
-- [ ] **Step 3: Amend `00-contracts.md`.** Replace the line
+- [ ] **Step 3: Confirm the contract text is already amended.** The reconciliation pass applied this plan's contract changes to `00-contracts.md` (§Contract files `command-backends.v1.yaml` line and §Wire shapes Axis client-side codes). Verify, do not re-edit:
 
-```markdown
-- `contracts/gui/command-backends.v1.yaml` (plan 06): `commands: [{ module: <file stem>, class: daemon|db|host, surfaces: [..] }]`.
+```bash
+rg -n 'class: daemon\|db\|host\|shell' docs/superpowers/plans/2026-10-08-capability-profiles/00-contracts.md
+rg -n 'axis_connect_remote\(url, token\?, accept_fingerprint\?\)' docs/superpowers/plans/2026-10-08-capability-profiles/00-contracts.md
 ```
 
-with
-
-```markdown
-- `contracts/gui/command-backends.v1.yaml` (plan 06): `schema_version: 1` + `commands: [{ module: <file stem>, class: daemon|db|host|shell, surfaces: [..], notes?: <string> }]`.
-  `shell` = Axis-local, same meaning in local and remote mode, never gated. `surfaces` and profile
-  `axis_surfaces` are `view_key`s from `contracts/gui/surface-registry.v1.yaml`.
-```
-
-and replace
-
-```markdown
-`profile_unknown`. Adopt mismatch: 409 `profile_mismatch`. Axis client-side: `version_mismatch`.
-```
-
-with
-
-```markdown
-`profile_unknown`. Adopt mismatch: 409 `profile_mismatch`. Axis client-side (Tauri command errors,
-same `{"error":{"code","message",...}}` envelope): `version_mismatch`, `local_only`,
-`not_remote_capable`, `tls_pin_required`, `tls_pin_mismatch`, `unauthorized`, `unreachable`,
-`invalid_url`, `insecure_url`. Per-surface reasons in `axis_backend_status`:
-`not_in_profile | needs_local_machine | not_remote_capable`.
-`axis_connect_remote(url, token?, accept_fingerprint?)`.
-```
+Expected: one hit each.
 
 - [ ] **Step 4: Validate the index.**
 
@@ -367,7 +343,7 @@ Expected: exit 0.
 - [ ] **Step 5: Commit.**
 
 ```bash
-git add contracts/gui/command-backends.v1.yaml contracts/index.yaml docs/superpowers/plans/2026-10-08-capability-profiles/00-contracts.md
+git add contracts/gui/command-backends.v1.yaml contracts/index.yaml
 git commit -m "feat(gui): classify every Axis command module by backend class"
 ```
 
@@ -1324,6 +1300,14 @@ mod tests {
         assert_eq!(reason_of(&out, "settings"), None, "Axis-local surfaces are always available");
     }
 
+    /// `dev` serves `axis_surfaces: ["*"]` (00-contracts Amendments "From plan 02"): every surface is in profile.
+    #[test]
+    fn wildcard_axis_surfaces_put_every_surface_in_profile() {
+        let out = surface_availability(command_backends(), registry_surfaces(), Some(&strings(&["*"])));
+        assert!(out.iter().all(|a| a.reason != Some(UnavailableReason::NotInProfile)), "{out:?}");
+        assert_eq!(reason_of(&out, "mesh"), None);
+    }
+
     #[test]
     fn embedded_manifest_parses_and_covers_axis_remote() {
         assert_eq!(module_class("axis_remote"), Some(ModuleClass::Shell));
@@ -1432,7 +1416,7 @@ fn remote_reason(backends: &CommandBackends, surface: &str, served: &[String]) -
     if AXIS_LOCAL_SURFACES.contains(&surface) {
         return None;
     }
-    if !served.iter().any(|s| s == surface) {
+    if !served.iter().any(|s| s == surface || s == "*") {
         return Some(UnavailableReason::NotInProfile);
     }
     let rows = || backends.commands.iter().filter(|r| r.surfaces.iter().any(|s| s == surface));
@@ -4103,7 +4087,7 @@ cargo run -p vox-cli -- serve --profile mesh --bind 127.0.0.1:3921 --tls-cert ~/
 ### Task 14: Docs — Remote Axis how-to, profile reference, where-things-live
 
 **Files:**
-- Modify: `docs/src/how-to/run-vox-as-a-server.md` (created by plan 04; if absent, create it with the frontmatter below)
+- Modify: `docs/src/how-to/how-to-run-vox-as-a-server.md` (created by plan 04 Task 11, which this plan depends on; append only)
 - Modify: `docs/src/reference/capability-profiles.md` (created by plan 02; same rule)
 - Modify: `docs/src/architecture/where-things-live.md`
 
@@ -4111,18 +4095,7 @@ cargo run -p vox-cli -- serve --profile mesh --bind 127.0.0.1:3921 --tls-cert ~/
 
 **Parallel-safe with:** Tasks 10–13.
 
-- [ ] **Step 1: Write the how-to section.** If the how-to file is missing, start it with:
-
-```markdown
----
-title: "Run Vox as a server"
-description: "Serve one Vox capability profile over MCP and HTTP with vox serve, secure it for the LAN, and attach Axis remotely."
-category: "how-to"
-status: "current"
----
-```
-
-Append:
+- [ ] **Step 1: Write the how-to section.** The file exists (plan 04 Task 11). Append to it:
 
 ````markdown
 ## Remote Axis
@@ -4200,7 +4173,7 @@ Axis client-side error codes: `local_only`, `not_remote_capable`, `version_misma
 - [ ] **Step 4: Lint.**
 
 ```bash
-cargo run -p vox-doc-pipeline -- --lint-only --paths how-to/run-vox-as-a-server.md reference/capability-profiles.md architecture/where-things-live.md
+cargo run -p vox-doc-pipeline -- --lint-only --paths how-to/how-to-run-vox-as-a-server.md reference/capability-profiles.md architecture/where-things-live.md
 ```
 
 Expected: exit 0.
@@ -4208,7 +4181,7 @@ Expected: exit 0.
 - [ ] **Step 5: Commit.**
 
 ```bash
-git add docs/src/how-to/run-vox-as-a-server.md docs/src/reference/capability-profiles.md docs/src/architecture/where-things-live.md
+git add docs/src/how-to/how-to-run-vox-as-a-server.md docs/src/reference/capability-profiles.md docs/src/architecture/where-things-live.md
 git commit -m "docs: Remote Axis how-to, Axis surfaces reference, where-things-live row"
 ```
 

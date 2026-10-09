@@ -87,7 +87,7 @@ Plan-04-specific constraints:
 | `crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/mod.rs` | Modify | Register the check. |
 | `crates/vox-cli/src/commands/serve_network.rs` | Create | `ServeNetworkArgs` (`--bind`, `--tls-cert`, `--tls-key`, `--behind-tunnel`) → env. |
 | `crates/vox-cli/src/commands/mod.rs`, `crates/vox-cli/src/lib.rs`, `crates/vox-cli/src/cli_dispatch/mod.rs`, `crates/vox-cli/src/commands/serve.rs` (plan 02) | Modify | Flatten `ServeNetworkArgs` into `Cli::Serve`; pass env to the spawned daemon. |
-| `vox-eval.compose.yml`, `docker/vox-eval.compose.yml`, `docs/src/architecture/eval-sandbox-deployment.md` | Modify | Read token + `VOX_MCP_HTTP_BEHIND_TUNNEL=1` (behind a user checkpoint). |
+| `vox-eval.compose.yml`, `docker/vox-eval.compose.yml`, `docs/src/architecture/eval-sandbox-deployment.md` | Modify | Read token + `VOX_MCP_HTTP_BEHIND_TUNNEL=1` (D2: operator adds the Coolify read-token secret; no exemption). |
 | `docs/src/how-to/how-to-run-vox-as-a-server.md` | Create | Operator how-to. |
 | `docs/src/reference/mcp-http-gateway-contract.md` | Modify | Bind policy + `/v1/profile` section. |
 
@@ -115,9 +115,7 @@ rg -n "pub active_profile|pub boot_report|fn boot_report_snapshot" crates/vox-or
 rg -n "pub async fn run|fn serve_child_env" crates/vox-cli/src/commands/serve.rs
 ```
 
-Expected: one hit for each name. If any is missing, STOP: the plan that owns it has not landed.
-If a name differs, substitute the actual name in this plan's code (the call sites are listed in
-Step 2); the semantics must match.
+Expected: one hit for each name. If any is missing, STOP: the plan that owns it (02 or 03) has not landed. These names are fixed by `00-contracts.md` and plans 02/03; do not substitute alternatives.
 
 - [ ] **Step 2: List plan 02's hard-coded loopback contexts in the gateway**
 
@@ -2723,25 +2721,32 @@ git commit -m "feat(cli): vox serve --bind/--tls-cert/--tls-key/--behind-tunnel"
 
 ---
 
-### Task 10: Keep the public eval sandbox deployable (USER CHECKPOINT)
+### Task 10: Keep the public eval sandbox deployable (decision D2 — no exemption)
 
-Depends on Task 4. **Parallel-safe with:** Tasks 5–9, 11.
+Depends on Task 4. **Parallel-safe with:** Tasks 5–9, 11. **Must merge in the same PR as Task 4.**
 
 `vox-eval.compose.yml` (and its mirror `docker/vox-eval.compose.yml`) runs `vox mcp` with
 `VOX_MCP_HTTP_HOST=0.0.0.0`, `VOX_MCP_HTTP_PUBLIC_EVAL_ENABLED=1`, and only the write token,
 behind Coolify's Traefik TLS. After Task 4 that container **refuses to start** (no read token, no
-TLS, no tunnel attestation), so `eval.voxlang.org` goes down on its next deploy.
+TLS, no tunnel attestation), so `eval.voxlang.org` would go down on its next deploy.
+
+Decision D2 (`00-contracts.md` Amendments): **no public-eval exemption** from the
+"network-exposed requires auth" rule. The operator adds a `VOX_MCP_HTTP_READ_BEARER_TOKEN` Coolify
+project secret (any random value; never handed out) before the first deploy that includes Task 4.
+This task changes only the compose files' environment wiring/comments and the deployment doc — no
+policy, code, or test changes. `/v1/eval` stays reachable without a token exactly as today
+(`VOX_MCP_HTTP_PUBLIC_EVAL_ENABLED=1`); only gateway startup requirements change.
 
 **Files:** `vox-eval.compose.yml`, `docker/vox-eval.compose.yml`, `docs/src/architecture/eval-sandbox-deployment.md`.
 
-- [ ] **Step 1: CHECKPOINT — ask the user**
+- [ ] **Step 1: Operator prerequisite (record, do not block on it in code)**
 
-Stop and ask: "The eval sandbox needs a `VOX_MCP_HTTP_READ_BEARER_TOKEN` Coolify project secret
-(any random value; it is never handed out) before the next deploy that includes plan 04. Will you
-add it, or should the policy gain a public-eval-only exemption instead (spec change)?" Do not
-continue this task until the user answers. Record the answer in the PR description.
+Add to the PR description, under "Deploy prerequisites": "Before deploying this PR to
+`eval.voxlang.org`, add the Coolify project secret `VOX_MCP_HTTP_READ_BEARER_TOKEN` (random value,
+e.g. `openssl rand -hex 32`). Without it the gateway refuses to start." Do not add any exemption,
+flag, or skip path to the bind policy.
 
-- [ ] **Step 2: Update both compose files identically (if the user chose the secret)**
+- [ ] **Step 2: Update both compose files identically**
 
 In the `environment:` list of each file, after `- VOX_MCP_HTTP_BEARER_TOKEN=${VOX_MCP_HTTP_BEARER_TOKEN}`:
 
@@ -2884,7 +2889,7 @@ curl -s https://vox.lan:3921/v1/profile -H "Authorization: Bearer $READ_TOKEN"
 {
   "profiles": ["models"],
   "max_exposure": "operator",
-  "subsystems": { "booted": ["llm_facade", "model_registry"], "failed": [] },
+  "subsystems": { "booted": ["db", "llm_facade", "model_registry"], "failed": [] },
   "tools": ["vox_list_models"],
   "axis_surfaces": ["chat", "models"],
   "server_version": "0.6.0"
@@ -3107,7 +3112,7 @@ and order match the contract JSON.
 1. **Plans 02/03 are plans, not code yet.** If their final code renames a helper or field, Task 0
    catches it; only the call sites listed there change.
 2. **Eval sandbox outage.** Task 4 makes `eval.voxlang.org`'s current config refuse to start.
-   Task 10 is a user checkpoint; merging Task 4 without Task 10 (and the Coolify secret) breaks the
+   Per D2 there is no exemption: Task 10 wires the read token and the operator must add the Coolify secret before deploy; merging Task 4 without Task 10 (or deploying without the secret) breaks the
    docs playground on its next deploy.
 3. **Origin guard vs remote clients.** `origin_guard::is_origin_allowed` rejects a WebSocket
    upgrade without an `Origin` header, and any browser `Origin` that is not loopback. LAN browsers

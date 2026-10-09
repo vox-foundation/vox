@@ -94,7 +94,7 @@ Plan-02-specific constraints:
 **Interfaces:**
 - Consumes: `vox_mcp_registry::Subsystem` (plan 01; `Copy + Ord + Serialize`, `as_str()`).
 - Produces (verbatim from 00-contracts):
-  - `pub struct BootReport { pub booted: BTreeSet<Subsystem>, pub failed: BTreeMap<Subsystem, String> }` deriving `Debug, Clone, Default, PartialEq, Eq, serde::Serialize`
+  - `pub struct BootReport { pub booted: BTreeSet<Subsystem>, pub failed: BTreeMap<Subsystem, String> }` deriving `Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize` (Deserialize per 00-contracts Amendments "From plan 03")
   - `impl BootReport { pub fn is_up(&self, s: Subsystem) -> bool; pub fn missing_for(&self, requires: &[Subsystem]) -> Option<Subsystem>; }`
   - `pub enum ProfileDenial { ToolNotInProfile, SubsystemNotBooted(Subsystem), ExposureDenied, InsufficientRole }` with `pub const fn code(&self) -> &'static str` and `pub const fn http_status(&self) -> u16`.
 
@@ -166,6 +166,17 @@ mod tests {
         assert_eq!(v["failed"]["db"], "x");
     }
 
+    /// Amendment "From plan 03": stdio `vox mcp` deserializes the daemon's `orch.boot_report`.
+    #[test]
+    fn report_round_trips_through_json() {
+        let r = BootReport {
+            booted: [Subsystem::LlmFacade].into_iter().collect(),
+            failed: [(Subsystem::Db, "no store".to_string())].into_iter().collect(),
+        };
+        let back: BootReport = serde_json::from_value(serde_json::to_value(&r).expect("ser")).expect("de");
+        assert_eq!(back, r);
+    }
+
     #[test]
     fn denial_codes_and_statuses_match_the_contract() {
         let cases = [
@@ -205,7 +216,7 @@ use crate::Subsystem;
 
 /// Which subsystems the daemon actually brought up. Plan 03 fills this from the conditioned boot;
 /// until then hosts use an "everything booted" report.
-#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct BootReport {
     pub booted: BTreeSet<Subsystem>,
     pub failed: BTreeMap<Subsystem, String>,
@@ -281,7 +292,7 @@ git commit -m "feat(mcp-registry): add BootReport and ProfileDenial"
 - Produces (verbatim from 00-contracts): `ProfileManifest`, `pub const DEV_PROFILE_ID: &str = "dev"`, `pub static PROFILES: &[ProfileManifest]`, `ActiveProfile { ids, tools, subsystems, axis_surfaces, max_exposure }` with `dev()`, `resolve(&[&str]) -> Result<Self, ProfileError>`, `from_env()`, `contains_tool(&str)`, `id_string()`, and `ProfileError::Unknown(String)` (`"profile_unknown: {0}"`).
 - Generated-code semantics: tools sorted ascending; the synthesized `dev` has `requires: Subsystem::ALL`, every registry tool, `max_exposure: Exposure::Internal`, `axis_surfaces: &["*"]` (`"*"` = every Axis surface; see Self-Review / contract note).
 
-Parallel-safe with: Task 13.
+Parallel-safe with: none; Task 13 runs right after this task (same push), because the new `"VOX_PROFILE"` read fails `config-registry-parity` until Task 13 registers it.
 
 - [ ] **Step 1: Author the 12 manifests.** Create each file exactly as below. Tool names come from `contracts/mcp/tool-registry.canonical.yaml`; trailing `*` is a prefix glob.
 
@@ -290,7 +301,7 @@ Parallel-safe with: Task 13.
 ```yaml
 id: models
 description: "Model registry, active-model selection, model suggestion, benchmarks, and chat through the selected model."
-requires: [model_registry, llm_facade]
+requires: [db, model_registry, llm_facade]   # D1: scoreboard, bench evidence, chat history
 tools:
   include:
     - vox_list_models
@@ -699,6 +710,16 @@ mod tests {
             ActiveProfile::resolve(&["repo-read", "models"]).expect("rr,m").max_exposure,
             Exposure::Operator
         );
+    }
+
+    /// Decision D1 (00-contracts Amendments): `models` boots the DB; `attention` and `skills` stay DB-free.
+    #[test]
+    fn models_requires_db_attention_and_skills_are_db_free() {
+        assert!(ActiveProfile::resolve(&["models"]).expect("models").subsystems.contains(&Subsystem::Db));
+        for id in ["attention", "skills"] {
+            let p = ActiveProfile::resolve(&[id]).expect(id);
+            assert!(!p.subsystems.contains(&Subsystem::Db), "{id} must not require db");
+        }
     }
 
     #[test]
@@ -3012,18 +3033,23 @@ git commit -m "feat(cli): add vox serve --profile"
 
 **Files:**
 - Modify: `contracts/config/env-vars.v1.yaml` (insert after the `VOX_MCP_CALLER_ROLE` entry, ~L1059–1065)
+- Modify: `contracts/config/registry.v1.yaml` (append a knob to `knobs:`) — required because `vox ci config-hygiene` and `vox ci config-registry-parity` resolve registered names from `registry.v1.yaml` + Clavis + `CONFIG_KEYS`, **not** from `env-vars.v1.yaml`; without it the new `"VOX_PROFILE"` literal in `vox-mcp-registry` fails both gates.
 - Modify: `docs/src/reference/env-vars.md` (insert after the `VOX_MCP_HTTP_TRUST_X_FORWARDED_FOR` row, ~L273)
 
-**Interfaces:** Produces the env-var SSOT row consumed by `vox ci data-storage-guard` / env-var parity checks.
+**Interfaces:** Produces the env-var SSOT rows consumed by `vox ci config-hygiene`, `vox ci config-registry-parity` and `vox ci data-storage-guard`.
 
-Parallel-safe with: Task 1, Task 2, Tasks 4–12.
+Parallel-safe with: Task 1, Tasks 4–12. Must land in the same push as Task 2 (which adds the `"VOX_PROFILE"` read).
 
-- [ ] **Step 1: Run the guard first to see the gap** (after Task 2 has landed so `std::env::var("VOX_PROFILE")` exists in `vox-mcp-registry`):
+- [ ] **Step 1: Run the gates first to see the gap** (after Task 2 has landed so `std::env::var("VOX_PROFILE")` exists in `vox-mcp-registry`):
 
-Run: `cargo run -p vox-cli -- ci data-storage-guard`
-Expected: FAIL or warning naming `VOX_PROFILE` as unregistered (if the guard does not scan for it, record "no finding" and continue — the registry row is required by policy regardless).
+```bash
+cargo run -q -p vox-cli -- ci config-registry-parity
+cargo run -q -p vox-cli -- ci config-hygiene
+```
 
-- [ ] **Step 2: Add the contract row.**
+Expected: both FAIL naming `VOX_PROFILE` as unregistered (`config-hygiene` as `env-var-not-in-registry`).
+
+- [ ] **Step 2: Add the contract rows.** `env-vars.v1.yaml`:
 
 ```yaml
   - name: "VOX_PROFILE"
@@ -3035,6 +3061,18 @@ Expected: FAIL or warning naming `VOX_PROFILE` as unregistered (if the guard doe
     description: "Comma-separated capability profile ids (contracts/profiles/<id>.v1.yaml) scoping the MCP/HTTP tool surface; unset or empty means dev (every tool). vox mcp / vox serve also read the VOX_PROFILE key in ~/.vox/config.toml; spawners (CLI, Axis) pass it to vox-orchestrator-d."
 ```
 
+`registry.v1.yaml` (append to `knobs:`):
+
+```yaml
+  - name: capability_profile
+    env_var: VOX_PROFILE
+    description: Comma-separated capability profile ids scoping MCP/HTTP tools and daemon boot; unset or empty means dev.
+    owner_crate: vox-mcp-registry
+    status: active
+    default_value: "dev"
+    since: "2026-10-08"
+```
+
 - [ ] **Step 3: Add the docs row.**
 
 ```markdown
@@ -3044,12 +3082,14 @@ Expected: FAIL or warning naming `VOX_PROFILE` as unregistered (if the guard doe
 - [ ] **Step 4: Verify and commit.**
 
 ```bash
+cargo run -q -p vox-cli -- ci config-registry-parity
+cargo run -q -p vox-cli -- ci config-hygiene
 cargo run -p vox-cli -- ci data-storage-guard
-git add contracts/config/env-vars.v1.yaml docs/src/reference/env-vars.md
+git add contracts/config/env-vars.v1.yaml contracts/config/registry.v1.yaml docs/src/reference/env-vars.md
 git commit -m "docs(env): register VOX_PROFILE"
 ```
 
-Expected: guard passes.
+Expected: all three pass.
 
 ---
 
@@ -3352,7 +3392,7 @@ unknown subsystems, or a tool whose `requires` is not covered by the profile's s
 | Profile | Contents | Subsystems (`requires`) | Max exposure |
 |---|---|---|---|
 | `dev` | Every tool (synthesized; the default) | all | internal |
-| `models` | Model list/select/suggest, model manifest, benchmarks, chat | `model_registry`, `llm_facade` | operator |
+| `models` | Model list/select/suggest, model manifest, benchmarks, chat | `db`, `model_registry`, `llm_facade` | operator |
 | `knowledge` | `vox_memory_*`, `vox_session_*`, `vox_kb_*`, `vox_search_*`, `vox_knowledge_query` | `memory`, `sessions`, `search_index` | operator |
 | `research` | `vox_research_*`, Scientia discovery/evaluation/prepare, news drafts — no publish/approve | `research` | operator |
 | `research-publish` | Scientia/news publish, approve, submission, external jobs | `research` | operator |
@@ -3545,7 +3585,7 @@ Record the observed outputs in the PR description (this is evidence, not a gate)
 | Reference docs + `where-things-live` | 12 (`cli.md`), 13, 15 |
 | No new crate edges | 9 (string compare in cli-core), 14 (file-existence check), 16 (`ci crate-edges`) |
 
-Contract notes found while planning (not edited here; for the 00-contracts owner):
+Contract notes found while planning (all three are now recorded in `00-contracts.md` § Amendments "From plan 02"; plan 06 treats `"*"` as a wildcard in `remote_reason`):
 
 1. `dev.axis_surfaces` is `["*"]` meaning "every surface" — plan 06's surface gating must treat `"*"` as a wildcard (00-contracts does not define dev's surfaces).
 2. `ProfileDenial` is placed in `src/boot.rs` as in the 00-contracts code block; it is re-exported from `lib.rs`, so callers are unaffected.

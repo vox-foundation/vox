@@ -50,7 +50,7 @@ Plan-03-specific constraints:
 | `crates/vox-orchestrator-d/src/boot_plan.rs` | create | generic `BootStep<C>`, `run_boot_plan`, `DependencyMode`, `profile_roots`, `every_required_failed`, `planned_step_names` + unit tests |
 | `crates/vox-orchestrator-d/src/daemon_steps.rs` | create | `DaemonBootCtx`, the daemon step fns, `DAEMON_STEPS` table (20 rows), `plugins_install_dir` + unit tests (dev order) |
 | `crates/vox-orchestrator-d/src/bin/vox_orchestrator_d.rs` | modify | `async_main` L211–384 replaced by the boot plan; imports trimmed |
-| `crates/vox-orchestrator-d/tests/boot_profiles.rs` | create | real-table boot tests: `models` (no store, no Populi), `knowledge` (no agent fleet, store opened) |
+| `crates/vox-orchestrator-d/tests/boot_profiles.rs` | create | real-table boot tests: `attention` (no store, no Populi), `models` (store opened per D1, no sessions/Populi), `knowledge` (no agent fleet, store opened) |
 | `crates/vox-orchestrator-mcp/src/server_state.rs` | modify | `mod boot_gate;`, `new_for_daemon` delegates to `new_for_daemon_gated` |
 | `crates/vox-orchestrator-mcp/src/server_state/boot_gate.rs` | create | `set_boot_report`, `boot_report_snapshot`, `subsystem_up`, `subsystem_not_booted_json` + tests |
 | `crates/vox-orchestrator-mcp/src/daemon_extra.rs` | modify | serve `orch.boot_report`; gate `research.run` / `research.persist_claims` |
@@ -103,44 +103,30 @@ Marker steps succeed without IO. Each one exists so the subsystem shows up in th
 
 ---
 
-### Task 1: Reconcile plan-02 `ServerState` fields and add boot-report accessors
+### Task 1: Confirm plan-02 `ServerState` fields and add boot-report accessors
 
 **Files:**
 - Create: `crates/vox-orchestrator-mcp/src/server_state/boot_gate.rs`
-- Modify: `crates/vox-orchestrator-mcp/src/server_state.rs` (add `mod boot_gate;` next to the existing `mod vram_probe;` / `mod webhook_intake;` declarations)
-- Possibly modify: `crates/vox-mcp-registry/src/boot.rs` (add `serde::Deserialize` to `BootReport`) and `docs/superpowers/plans/2026-10-08-capability-profiles/00-contracts.md` (record that change in the same commit, as the contracts file requires)
+- Modify: `crates/vox-orchestrator-mcp/src/server_state.rs` (add `mod boot_gate;` next to the existing `mod webhook_intake;` / `pub mod vram_probe;` declarations)
 
 **Interfaces:**
-- Consumes (plan 02, assumed names, verified in Step 1): `ServerState.active_profile: Arc<ActiveProfile>`, `ServerState.boot_report: Arc<parking_lot::RwLock<BootReport>>` defaulting to "all booted"; `BootReport::is_up`; `ProfileDenial::SubsystemNotBooted(s).code()`.
+- Consumes (plan 02 Task 4, fixed names): `ServerState.active_profile: Arc<ActiveProfile>`, `ServerState.boot_report: Arc<parking_lot::RwLock<BootReport>>` (`PrRwLock` alias in `server_state.rs`) defaulting to `profiles::full_boot_report()` ("all booted"); `BootReport::is_up`; `BootReport: serde::Deserialize` (plan 02 Task 1 derives it per `00-contracts.md` Amendments "From plan 03"); `ProfileDenial::SubsystemNotBooted(s).code()`; `profiles::denial_error_json` (tool-call wire JSON).
 - Produces:
   - `impl ServerState { pub fn set_boot_report(&self, report: BootReport); pub fn boot_report_snapshot(&self) -> BootReport; pub fn subsystem_up(&self, s: Subsystem) -> bool }`
-  - `pub fn subsystem_not_booted_json(kind: &str, name: &str, s: Subsystem) -> String` (wire shape from `00-contracts.md` §Wire shapes)
-  - `BootReport: serde::Deserialize` (contract amendment)
+  - `pub fn subsystem_not_booted_json(kind: &str, name: &str, s: Subsystem) -> String` — the same wire shape for **non-tool daemon RPC methods** (`research.run`, `research.persist_claims`; Task 7). Tool paths keep using plan 02's `profiles::denial_error_json`; a test below pins that both render byte-identical JSON for a tool.
 
-- [ ] **Step 1: Verify what plan 02 actually landed.**
+- [ ] **Step 1: Confirm plan 02 landed as written.**
 
 ```bash
 cd /Users/brbrainerd/dev/vox/.worktrees/capability-profiles
-rg -n "active_profile|boot_report" crates/vox-orchestrator-mcp/src/server_state.rs
-rg -n "derive\(.*\)" crates/vox-mcp-registry/src/boot.rs
-rg -n "fn denial_json|subsystem_not_booted" crates/vox-orchestrator-mcp/src
+rg -n "pub active_profile: Arc<crate::profiles::ActiveProfile>|pub boot_report: Arc<PrRwLock<crate::profiles::BootReport>>" crates/vox-orchestrator-mcp/src/server_state.rs
+rg -n "serde::Deserialize" crates/vox-mcp-registry/src/boot.rs
+rg -n "pub fn denial_error_json|pub fn full_boot_report" crates/vox-orchestrator-mcp/src/profiles.rs
 ```
 
-Expected: two fields with the assumed names and types. If plan 02 used different names, use plan 02's names everywhere in this plan; the field *names* are not part of `00-contracts.md`. If `boot_report` is a plain `BootReport` and not shared, change it to `Arc<parking_lot::RwLock<BootReport>>` in this task. The HTTP gateway and `McpExtraDispatch` each hold `ServerState` *clones*, so the report must be shared through an `Arc`. If plan 02 already has a helper that renders the `subsystem_not_booted` wire JSON, delete `subsystem_not_booted_json` from the code below and call that helper instead.
+Expected: two field hits, one `Deserialize` hit on `BootReport`, two helper hits. Any miss means plan 02 is not fully merged: stop and finish plan 02 (Tasks 1 and 4) first. This plan does not redefine those names.
 
-- [ ] **Step 2: If `BootReport` lacks `Deserialize`, add it** (`crates/vox-mcp-registry/src/boot.rs`):
-
-```rust
-#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct BootReport {
-    pub booted: std::collections::BTreeSet<Subsystem>,
-    pub failed: std::collections::BTreeMap<Subsystem, String>,
-}
-```
-
-Then, in `00-contracts.md` §Types `src/boot.rs`, change `serde::Serialize` → `serde::Serialize, serde::Deserialize` on `BootReport` and add the sentence: "`Deserialize` added by plan 03 so stdio `vox mcp` can read the daemon's report over `orch.boot_report`."
-
-- [ ] **Step 3: Write the failing tests** in the new `boot_gate.rs` (full file):
+- [ ] **Step 2: Write the failing tests** in the new `boot_gate.rs` (full file):
 
 ```rust
 //! Boot-report plumbing between `vox-orchestrator-d`'s boot plan and the MCP gate.
@@ -230,6 +216,19 @@ mod tests {
     }
 
     #[test]
+    fn tool_rendering_matches_plan_02_denial_error_json() {
+        let s = Subsystem::SearchIndex;
+        let ours: serde_json::Value =
+            serde_json::from_str(&subsystem_not_booted_json("tool", "vox_kb_query", s)).expect("json");
+        let theirs = crate::profiles::denial_error_json(
+            "vox_kb_query",
+            &ProfileDenial::SubsystemNotBooted(s),
+            &crate::profiles::ActiveProfile::dev(),
+        );
+        assert_eq!(ours, theirs);
+    }
+
+    #[test]
     fn boot_report_round_trips_through_json() {
         let r = report(&[Subsystem::LlmFacade], &[(Subsystem::Db, "no store")]);
         let back: BootReport =
@@ -246,20 +245,20 @@ mod boot_gate;
 pub use boot_gate::subsystem_not_booted_json;
 ```
 
-- [ ] **Step 4: Run, expect failure first** (before Step 2 if `Deserialize` was missing, or before the `mod` line):
+- [ ] **Step 3: Run, expect failure first** (before adding the `mod` line):
 
 ```bash
 cargo nextest run -p vox-orchestrator-mcp boot_gate
 ```
 
-Expected before: compile error (`cannot find function subsystem_not_booted_json` / `BootReport: Deserialize not satisfied`). Expected after: `4 tests run: 4 passed`.
+Expected before: compile error (`cannot find function subsystem_not_booted_json`). Expected after: `5 tests run: 5 passed`.
 
-- [ ] **Step 5: Checks and commit.**
+- [ ] **Step 4: Checks and commit.**
 
 ```bash
 cargo check -p vox-orchestrator-mcp && cargo clippy -p vox-orchestrator-mcp --all-targets -- -D warnings
 vox run scripts/fmt.vox
-git add crates/vox-orchestrator-mcp/src/server_state.rs crates/vox-orchestrator-mcp/src/server_state/boot_gate.rs crates/vox-mcp-registry/src/boot.rs docs/superpowers/plans/2026-10-08-capability-profiles/00-contracts.md
+git add crates/vox-orchestrator-mcp/src/server_state.rs crates/vox-orchestrator-mcp/src/server_state/boot_gate.rs
 git commit -m "feat(mcp): shared BootReport accessors on ServerState" -m "Plan 03 task 1: the daemon publishes its boot report through set_boot_report so every ServerState clone (gateway, extra dispatch) gates on the same data."
 ```
 
@@ -1250,21 +1249,36 @@ mod tests {
         }
     }
 
+    const NON_DB_PROFILE_BANNED: [&str; 8] = [
+        "sessions",
+        "agent_fleet",
+        "populi_federation_poller",
+        "a2a_remote_result_poller",
+        "a2a_remote_worker_poller",
+        "clarification_inbox",
+        "socrates_research_poller",
+        "flywheel",
+    ];
+
+    /// D1: `attention` is DB-free.
     #[test]
-    fn models_plan_has_no_db_session_or_mesh_steps() {
+    fn attention_plan_has_no_db_session_or_mesh_steps() {
+        let attention = ActiveProfile::resolve(&["attention"]).expect("attention profile exists");
+        let planned = planned_step_names(DAEMON_STEPS, &attention.subsystems);
+        for banned in std::iter::once("db").chain(NON_DB_PROFILE_BANNED) {
+            assert!(!planned.contains(&banned), "{banned} planned for attention: {planned:?}");
+        }
+        assert!(planned.contains(&"attention_calibration"));
+        assert!(planned.contains(&"skills") && planned.contains(&"server_state"));
+    }
+
+    /// D1: `models` plans `db` (and `routing_preferences`) but nothing that depends on sessions or mesh.
+    #[test]
+    fn models_plan_has_db_but_no_session_or_mesh_steps() {
         let models = ActiveProfile::resolve(&["models"]).expect("models profile exists");
         let planned = planned_step_names(DAEMON_STEPS, &models.subsystems);
-        for banned in [
-            "db",
-            "sessions",
-            "agent_fleet",
-            "populi_federation_poller",
-            "a2a_remote_result_poller",
-            "a2a_remote_worker_poller",
-            "clarification_inbox",
-            "socrates_research_poller",
-            "flywheel",
-        ] {
+        assert!(planned.contains(&"db") && planned.contains(&"routing_preferences"), "{planned:?}");
+        for banned in NON_DB_PROFILE_BANNED {
             assert!(!planned.contains(&banned), "{banned} planned for models: {planned:?}");
         }
         assert!(planned.contains(&"skills") && planned.contains(&"server_state"));
@@ -1301,7 +1315,7 @@ mod tests {
 }
 ```
 
-If plan 02 attaches the profile some other way than the `active_profile` field (Task 1 Step 1), replace the line `state.active_profile = Arc::new(ctx.profile.clone());` with plan 02's mechanism. Note that `db` uses `connect_workspace_journey_optional_at(.., ctx.start_dir.as_deref(), ..)`. With `start_dir = None` (production) this is identical to today's `connect_workspace_journey_optional`, which passes the current dir into the same function.
+The line `state.active_profile = Arc::new(ctx.profile.clone());` is what plan 02's `ServerState::with_profile` does (plan 02 Task 4); either form is fine because the field is `pub`. Note that `db` uses `connect_workspace_journey_optional_at(.., ctx.start_dir.as_deref(), ..)`. With `start_dir = None` (production) this is identical to today's `connect_workspace_journey_optional`, which passes the current dir into the same function.
 
 - [ ] **Step 3: Run:**
 
@@ -1309,7 +1323,7 @@ If plan 02 attaches the profile some other way than the `active_profile` field (
 cargo nextest run -p vox-orchestrator-d daemon_steps
 ```
 
-Expected: `7 tests run: 7 passed`.
+Expected: `8 tests run: 8 passed`.
 
 - [ ] **Step 4: Checks + commit.**
 
@@ -1330,7 +1344,7 @@ git commit -m "feat(daemon): boot step table with dev-order back-compat test" -m
 - Modify: `crates/vox-orchestrator-d/src/bin/vox_orchestrator_d.rs` L5–13 (imports) and L211–384 (body)
 
 **Interfaces:**
-- Consumes: `ActiveProfile::from_env` (plan 02), `boot_plan::*`, `daemon_steps::*`, `ServerState::set_boot_report`.
+- Consumes: the `active_profile` binding from plan 02 Task 8 (`resolve_daemon_profile`), `boot_plan::*`, `daemon_steps::*`, `ServerState::set_boot_report`.
 - Produces: no new API; process exits non-zero when `every_required_failed`.
 
 - [ ] **Step 1: Failing test first** (bin `tests` module). It pins the exit message so the bail text stays stable for operators and `vox doctor`.
@@ -1357,7 +1371,7 @@ Run `cargo nextest run -p vox-orchestrator-d all_required_failed_message` → co
 use vox_orchestrator::{OrchestratorConfig, orch_daemon};
 use vox_orchestrator_d::boot_plan::{self, DependencyMode};
 use vox_orchestrator_d::daemon_steps::{self, DaemonBootCtx};
-use vox_orchestrator_mcp::profiles::{ActiveProfile, BootReport};
+use vox_orchestrator_mcp::profiles::BootReport;
 ```
 
 and change `use std::sync::{Arc, Mutex, RwLock};` to `use std::sync::Arc;`.
@@ -1378,10 +1392,10 @@ fn all_required_failed_message(profile_id: &str, report: &BootReport) -> String 
 }
 ```
 
-Replace L211 (`let cfg = load_config();`) through L384 (end of the `spawn_http_gateway_if_enabled` block) with the code below. If plan 02 already resolves `ActiveProfile` earlier in `async_main`, reuse that binding and drop the first statement:
+Replace L211 (`let cfg = load_config();`) through L384 (end of the `spawn_http_gateway_if_enabled` block) with the code below. Plan 02 Task 8 already binds `active_profile` (via `resolve_daemon_profile()`, which fails fast with `profile_unknown: … (VOX_PROFILE)`) right after tracing init, above L211, so that binding survives and is reused here. The replaced block also removes plan 02's `.with_profile(active_profile)` on `new_for_daemon`; the `server_state` step sets the same field from `ctx.profile`:
 
 ```rust
-    let profile = ActiveProfile::from_env().map_err(|e| anyhow::anyhow!("{e}"))?;
+    let profile = active_profile; // resolved by plan 02 Task 8 (`resolve_daemon_profile`)
     let mut ctx = DaemonBootCtx::new(
         load_config(),
         None,
@@ -1436,19 +1450,19 @@ L386–397 (stdio / TCP serve) stay unchanged; they use `orch` and `repository_i
 cargo nextest run -p vox-orchestrator-d
 ```
 
-Expected: 8 existing bin tests + 1 new + 12 (`boot_plan`) + 7 (`daemon_steps`): `28 tests run: 28 passed`.
+Expected: 8 existing bin tests + 1 new + 12 (`boot_plan`) + 8 (`daemon_steps`): `29 tests run: 29 passed`.
 
-- [ ] **Step 4: Smoke the real binary under `dev` and `models`** (throwaway dir, stdio transport so no token file is written):
+- [ ] **Step 4: Smoke the real binary under `dev` and `attention`** (D1: `attention` is the DB-free profile) (throwaway dir, stdio transport so no token file is written):
 
 ```bash
 cd "$(mktemp -d)" && printf '[package]\nname = "smoke"\nversion = "0.0.0"\n' > Vox.toml
 echo '{"id":"1","method":"orch.ping","params":{}}' | RUST_LOG=info VOX_ORCHESTRATOR_DAEMON_SOCKET=stdio cargo run -q --manifest-path /Users/brbrainerd/dev/vox/.worktrees/capability-profiles/Cargo.toml -p vox-orchestrator-d 2>dev.log | head -1
 rm -rf .vox
-echo '{"id":"1","method":"orch.ping","params":{}}' | RUST_LOG=info VOX_PROFILE=models VOX_ORCHESTRATOR_DAEMON_SOCKET=stdio cargo run -q --manifest-path /Users/brbrainerd/dev/vox/.worktrees/capability-profiles/Cargo.toml -p vox-orchestrator-d 2>models.log | head -1
-rg -c "boot step ok" dev.log models.log; rg "daemon boot plan finished" models.log; ls .vox 2>&1
+echo '{"id":"1","method":"orch.ping","params":{}}' | RUST_LOG=info VOX_PROFILE=attention VOX_ORCHESTRATOR_DAEMON_SOCKET=stdio cargo run -q --manifest-path /Users/brbrainerd/dev/vox/.worktrees/capability-profiles/Cargo.toml -p vox-orchestrator-d 2>attention.log | head -1
+rg -c "boot step ok" dev.log attention.log; rg "daemon boot plan finished" attention.log; ls .vox 2>&1
 ```
 
-Expected: both runs print a `{"id":"1",...,"ok":true,...}` line. The runner logs `boot step ok` only for subsystem steps (core steps don't log it). `dev.log` therefore has 20 such lines, because the temp dir is a real project and the store opens. `models.log` has 3 (`model_registry`, `routing_preferences`, `llm_facade`), and its summary line shows `booted={ModelRegistry, LlmFacade}` and `failed={}`. The final `ls .vox` reports "No such file or directory": the models run opened no store.
+Expected: both runs print a `{"id":"1",...,"ok":true,...}` line. The runner logs `boot step ok` only for subsystem steps (core steps don't log it). `dev.log` therefore has 20 such lines, because the temp dir is a real project and the store opens. `attention.log` has 1 (`attention_calibration`), and its summary line shows `booted={Attention}` and `failed={}`. The final `ls .vox` reports "No such file or directory": the attention run opened no store. (`models` is not used here: per D1 it requires `db` and opens the store.)
 
 - [ ] **Step 5: Checks + commit.**
 
@@ -1461,7 +1475,7 @@ git commit -m "feat(daemon): boot through the profile-gated plan" -m "Plan 03 ta
 
 ---
 
-### Task 6: Real-table boot tests (`models`, `knowledge`)
+### Task 6: Real-table boot tests (`attention`, `models`, `knowledge`)
 
 **Files:**
 - Create: `crates/vox-orchestrator-d/tests/boot_profiles.rs`
@@ -1469,7 +1483,7 @@ git commit -m "feat(daemon): boot through the profile-gated plan" -m "Plan 03 ta
 **Interfaces:**
 - Consumes: `DaemonBootCtx`, `DAEMON_STEPS`, `run_boot_plan`, `ActiveProfile::resolve`, `vox_db::store::DEFAULT_PROJECT_STORE_PATH`.
 
-Seams. `BootOutcome.ran` records step execution, as produced by the runner. Whether the project store file (`vox_db::store::DEFAULT_PROJECT_STORE_PATH` under a temp project) exists is the real-IO observation that a turso connection was opened. `knowledge` is the positive control that proves this observation is live. Note: the Populi pollers compile to no-ops in this binary because `vox-orchestrator`'s `populi-transport` feature is not enabled for `vox-orchestrator-d`. So the ran-list is their only observable, which is why the mutation in Task 10 targets the runner.
+Seams. `BootOutcome.ran` records step execution, as produced by the runner. Whether the project store file (`vox_db::store::DEFAULT_PROJECT_STORE_PATH` under a temp project) exists is the real-IO observation that a turso connection was opened. Per decision D1 (`00-contracts.md` Amendments) the DB-free profile under test is **`attention`**; `models` requires `db` and is a second positive control next to `knowledge`. Note: the Populi pollers compile to no-ops in this binary because `vox-orchestrator`'s `populi-transport` feature is not enabled for `vox-orchestrator-d`. So the ran-list is their only observable, which is why the mutation in Task 10 targets the runner.
 
 - [ ] **Step 1: Write the tests:**
 
@@ -1527,10 +1541,11 @@ async fn boot(ids: &[&str], dir: &Path) -> (DaemonBootCtx, BootOutcome) {
     (ctx, out)
 }
 
+/// D1: `attention` is DB-free, so it is the profile that must open no turso connection.
 #[tokio::test(flavor = "multi_thread")]
-async fn models_profile_opens_no_store_and_starts_no_populi_pollers() {
+async fn attention_profile_opens_no_store_and_starts_no_populi_pollers() {
     let dir = project_dir();
-    let (ctx, out) = boot(&["models"], dir.path()).await;
+    let (ctx, out) = boot(&["attention"], dir.path()).await;
 
     assert!(!out.ran.contains(&"db"), "db step ran: {:?}", out.ran);
     for step in POPULI_STEPS {
@@ -1539,7 +1554,7 @@ async fn models_profile_opens_no_store_and_starts_no_populi_pollers() {
     assert!(ctx.db.is_none());
     assert!(
         !store_db(dir.path()).exists(),
-        "models boot opened {}",
+        "attention boot opened {}",
         store_db(dir.path()).display()
     );
     assert!(ctx.populi_poll_join.lock().unwrap().is_none());
@@ -1549,6 +1564,24 @@ async fn models_profile_opens_no_store_and_starts_no_populi_pollers() {
     assert_eq!(out.report.booted, ctx.profile.subsystems);
     assert!(out.report.failed.is_empty(), "{:?}", out.report.failed);
     assert_eq!(state.boot_report_snapshot(), out.report);
+}
+
+/// D1: `models` requires `db` (scoreboard, bench evidence, chat history) but nothing that hangs off it.
+#[tokio::test(flavor = "multi_thread")]
+async fn models_profile_boots_db_but_no_sessions_or_populi_pollers() {
+    let dir = project_dir();
+    let (ctx, out) = boot(&["models"], dir.path()).await;
+
+    assert!(out.ran.contains(&"db"), "{:?}", out.ran);
+    assert!(store_db(dir.path()).exists());
+    assert!(out.report.booted.contains(&Subsystem::Db));
+    assert!(ctx.state.as_ref().expect("state").db.is_some());
+    for step in POPULI_STEPS.iter().copied().chain(["sessions", "agent_fleet"]) {
+        assert!(!out.ran.contains(&step), "{step} ran: {:?}", out.ran);
+    }
+    assert!(ctx.populi_poll_join.lock().unwrap().is_none());
+    assert_eq!(out.report.booted, ctx.profile.subsystems);
+    assert!(out.report.failed.is_empty(), "{:?}", out.report.failed);
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -1574,7 +1607,7 @@ async fn knowledge_profile_opens_store_but_not_agent_fleet() {
 cargo nextest run -p vox-orchestrator-d --test boot_profiles
 ```
 
-Expected: `2 tests run: 2 passed`. If plan 02's `knowledge` manifest does not put `Sessions` in the closure, change that last assertion to a subsystem the manifest's `requires` does list. Read it with `rg -n "requires" contracts/profiles/knowledge.v1.yaml`. Task 10 then proves these tests can fail.
+Expected: `3 tests run: 3 passed`. (Plan 02's `knowledge` manifest is `requires: [memory, sessions, search_index]`, so `Sessions` is in its closure.) Task 10 then proves these tests can fail.
 
 - [ ] **Step 3: Checks + commit.**
 
@@ -1582,7 +1615,7 @@ Expected: `2 tests run: 2 passed`. If plan 02's `knowledge` manifest does not pu
 cargo clippy -p vox-orchestrator-d --all-targets -- -D warnings
 vox run scripts/fmt.vox
 git add crates/vox-orchestrator-d/tests/boot_profiles.rs
-git commit -m "test(daemon): profile boot tests for models and knowledge" -m "Plan 03 task 6: models opens no project store and plans no Populi pollers; knowledge opens the store (positive control) and never starts the agent fleet."
+git commit -m "test(daemon): profile boot tests for attention, models and knowledge" -m "Plan 03 task 6: attention opens no project store and plans no Populi pollers; models opens the store (D1) but no sessions or pollers; knowledge opens the store and never starts the agent fleet."
 ```
 
 ---
@@ -2021,7 +2054,7 @@ Expected: `1`.
 - [ ] **Step 3: Tests must fail:**
 
 ```bash
-cargo nextest run -p vox-orchestrator-d --test boot_profiles models_profile_opens_no_store_and_starts_no_populi_pollers
+cargo nextest run -p vox-orchestrator-d --test boot_profiles attention_profile_opens_no_store_and_starts_no_populi_pollers
 cargo nextest run -p vox-orchestrator-d skips_steps_outside_closure
 ```
 
@@ -2144,16 +2177,16 @@ Expected: all green. `crate-edges` must report no new edge, because `tempfile` i
 - **Spec coverage.** §5 "runs each existing boot step only if its subsystem is in [the closure]": Tasks 3–5. "`dev` … reproduces today's order exactly": the Task 4 order tests plus lenient mode. §8 "degrades rather than aborts … dependent tools drop from `tools/list` … exits non-zero if every required subsystem fails": Tasks 3, 5, 8. §9.3 boot tests (`models` opens no turso connection, starts no Populi pollers): Task 6, in the crate's `tests/` dir rather than `vox-test-harness` (justified above). §9.2 mutation-verified guards: Task 10.
 - **Contract names used verbatim:** `Subsystem`, `Subsystem::ALL`, `deps()`, `as_str()`, `subsystem_closure`, `BootReport{booted,failed}`, `is_up`, `ActiveProfile{ids,subsystems}`, `ActiveProfile::{dev,resolve,from_env,id_string}`, `PROFILES`, `ProfileManifest.requires`, `DEV_PROFILE_ID`, `ProfileDenial::SubsystemNotBooted(s).code()`, `registry_entry`, `McpToolRegistryEntry.requires`, wire shape `{"error":{"code","message","subsystem"}}`.
 - **Every new `pub fn` has a same-file test:** `planned_step_names`, `run_boot_plan`, `profile_roots`, `every_required_failed`, `DependencyMode::for_profile` (boot_plan.rs); `DaemonBootCtx::new`, `plugins_install_dir` (daemon_steps.rs); `set_boot_report`, `boot_report_snapshot`, `subsystem_up`, `subsystem_not_booted_json`, `new_for_daemon_gated` (boot_gate.rs); `fetch_daemon_boot_report` (daemon_route.rs).
-- **No placeholders.** The only conditional instructions are the reconciliation points with plans 01/02, which are being written in parallel: field names on `ServerState`, an existing denial-JSON helper, and the `knowledge` manifest's `requires`. Each has an exact grep and an exact fallback.
+- **No placeholders.** Names from plans 01/02 are fixed (plan 02 Tasks 1, 4, 5, 8): `ServerState.active_profile`, `ServerState.boot_report`, `profiles::denial_error_json`, `resolve_daemon_profile`, and the `knowledge` manifest `requires: [memory, sessions, search_index]`. Task 1 Step 1 only confirms they landed. The one remaining verify-and-fix step is Task 9's catalog `requires` audit, which fixes plan 01 data, not names.
 - **Ordering.** The table is topologically sorted (tested). The HTTP gateway moved after the exit decision, but it was already the last effect before serving, so no observable order changes for `dev`.
 
 ## Risks
 
-- **Plan 01/02 drift.** This plan assumes `ServerState.active_profile` / `ServerState.boot_report: Arc<parking_lot::RwLock<BootReport>>` and plan 02's gate inside `handle_tool_call_with_mode`. Task 1 Step 1 checks this. If plan 02 put the gate only in `server.rs`/HTTP and not in dispatch, `orch.tool_call` (GUI, stdio-via-daemon) would bypass it. Task 7's last test catches that, and the fix belongs in plan 02's gate location.
-- **Contract amendment needed.** `BootReport` must derive `serde::Deserialize` so stdio can read `orch.boot_report`. The new RPC method `orch.boot_report` is also not in `00-contracts.md`. Record both there: the derive in Task 1 Step 2, and one line under §Wire shapes for the method when Task 7 lands.
-- **Hard-to-gate subsystems.** `model_registry` is built inside `Orchestrator::new`, so it cannot be skipped, only reported; plan 05 (`vox-models` extraction) is what makes it optional. `llm_facade`, `search_index`, `memory`, `compiler`, `browser` and `speech` have no boot-time work today. Their steps are markers, so "booted" means "allowed", not "warmed up". A provider outage surfaces per call, not in the report. Research also has hidden work in `ServerState::new_for_daemon`: the scientia mesh jobs and the `vox-publisher` intake (feature `news-publish`) inside the same call. Both are now gated (Task 2). Skill hydration, webhook intake and the NVML VRAM probe inside the constructor stay unconditional core work.
+- **Plan 01/02 drift.** This plan relies on `ServerState.active_profile` / `ServerState.boot_report: Arc<parking_lot::RwLock<BootReport>>` and plan 02 Task 5's gate in `dispatch_tool_call` (reached by every `handle_tool_call*` entry point, including `handle_tool_call_with_mode` behind `orch.tool_call`). Task 1 Step 1 confirms the fields; Task 7's last test proves `orch.tool_call` hits the gate.
+- **Contract amendments (already recorded).** `BootReport: serde::Deserialize` (derived in plan 02 Task 1), the `orch.boot_report` RPC, marker subsystems, lenient `dev` / strict named profiles, and gating of non-tool daemon methods are all in `00-contracts.md` § Amendments ("From plan 03"). D1 changes the "no turso" boot test to `attention` (Task 6) and adds a `models`-boots-`db` test.
+- **Hard-to-gate subsystems.** `model_registry` is built inside `Orchestrator::new`, so it cannot be skipped, only reported; plan 05 (`vox-models` extraction, DEFERRED per D3 and not a dependency of this plan) would make it optional later. `llm_facade`, `search_index`, `memory`, `compiler`, `browser` and `speech` have no boot-time work today. Their steps are markers, so "booted" means "allowed", not "warmed up". A provider outage surfaces per call, not in the report. Research also has hidden work in `ServerState::new_for_daemon`: the scientia mesh jobs and the `vox-publisher` intake (feature `news-publish`) inside the same call. Both are now gated (Task 2). Skill hydration, webhook intake and the NVML VRAM probe inside the constructor stay unconditional core work.
 - **Populi observability.** The pollers are no-ops in the daemon build (`populi-transport` off), so tests can observe "not started" only through the step ran-list. If the feature is enabled later, add a join-slot assertion with `populi_control_url` set.
-- **Behaviour change outside `dev`.** Named profiles lose persisted routing preferences when `db` is outside the closure (`models` scores with defaults). This is intended, but users switching from `dev` to `models` will notice; it is documented in Task 11.
+- **Behaviour change outside `dev`.** Named profiles whose closure lacks `db` (e.g. `attention`, `skills`) skip `routing_preferences`, so any model scoring they do uses defaults. `models` keeps persisted routing preferences because it requires `db` (D1). Documented in Task 11.
 - **`dev` exactness under failure.** Lenient mode keeps the step order and side effects. But two things now differ in reporting: tools needing a failed `db` answer `subsystem_not_booted` instead of the handler's own "VoxDb is not connected" envelope, and `SessionManager::new` failure no longer aborts the daemon. Both are improvements the spec asks for, so call them out in the PR.
 - **Env-sensitive tests.** Task 6 assumes `VOX_WORKSPACE_JOURNEY_STORE` is not `canonical`; the test asserts this up front. It opens a real project store in a tempdir, as `hitl_rehydrate_on_restart_tests.rs` already does elsewhere.
 - **`arch/god_object` on `server_state.rs`.** It is already 827 lines and grows by ~12. If the detector fires, move the delegate into `boot_gate.rs` (Task 12) instead of suppressing it.
