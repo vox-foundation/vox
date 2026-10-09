@@ -57,3 +57,34 @@ fn web_ir_lowers_endpoint_only_module() {
         "endpoint-only fixture should not introduce WebIR view roots"
     );
 }
+
+/// mental-tracker (2026-10-08): a command body that called a private helper or another
+/// endpoint did not compile in main.rs, and an async command returning a bare value is
+/// rejected by Tauri. Endpoints now live in lib.rs; commands are typed wrappers.
+#[test]
+fn tauri_commands_wrap_endpoint_lib_fns() {
+    let src = "fn _double(n: int) to int { return n * 2 }\n\
+               query twice(n: int) to int { return _double(n) }\n\
+               query four(n: int) to int { return twice(twice(n)) }\n";
+    let hir = lower_module(&parse(lex(src)).expect("parse"));
+    let rust = generate(&hir, "demo_app", RustAppShell::TauriApp).expect("rust generate");
+    let main = &rust.files["src-tauri/src/main.rs"];
+    let lib = &rust.files["src-tauri/src/lib.rs"];
+    assert!(
+        main.contains("async fn twice(request: serde_json::Value) -> Result<i64, String>"),
+        "{main}"
+    );
+    assert!(
+        main.contains("let n: i64 = serde_json::from_value(request[\"n\"].clone())"),
+        "{main}"
+    );
+    assert!(main.contains("Ok(demo_app::twice(n))"), "{main}");
+    assert!(
+        !main.contains("_double"),
+        "helper calls stay in lib.rs:\n{main}"
+    );
+    assert!(
+        lib.contains("pub fn twice(") && lib.contains("pub fn four("),
+        "{lib}"
+    );
+}

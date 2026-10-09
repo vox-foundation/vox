@@ -121,28 +121,11 @@ where
                 format!("{}::{}", o, field)
             } else {
                 let mut is_json_or_record = false;
-                if let Some(inferred) = inferred_types {
-                    eprintln!(
-                        "DEBUGLOG: FieldAccess obj={:?} span={:?}",
-                        obj,
-                        hir_expr_span(obj)
-                    );
-                    if let Some(obj_ty) = inferred.get(&hir_expr_span(obj)) {
-                        eprintln!("DEBUGLOG: Found obj_ty: {:?}", obj_ty);
-                        if let HirType::Named(n) = obj_ty {
-                            if n == "Json"
-                                || n == "Value"
-                                || (n.starts_with('{') && n.ends_with('}'))
-                            {
-                                is_json_or_record = true;
-                            }
-                        }
-                    } else {
-                        eprintln!(
-                            "DEBUGLOG: obj_ty NOT found in inferred map! Map size = {}",
-                            inferred.len()
-                        );
-                    }
+                if let Some(inferred) = inferred_types
+                    && let Some(HirType::Named(n)) = inferred.get(&hir_expr_span(obj))
+                    && (n == "Json" || n == "Value" || (n.starts_with('{') && n.ends_with('}')))
+                {
+                    is_json_or_record = true;
                 }
 
                 if is_json_or_record {
@@ -253,7 +236,18 @@ where
             format!("{}({})", op_str, emit(expr, OwnershipMode::Owned))
         }
         HirExpr::Match(obj, arms, _) => {
-            let mut s = format!("match {} {{\n", emit(obj, OwnershipMode::Owned));
+            // `match db.T.op() { Ok(..) => .., Error(..) => .. }` matches the op's Vox
+            // `Result[T, str]`, so keep the Result instead of the usual unwrapped value.
+            let matches_result = super::method_emit::is_db_table_op_call(obj)
+                && arms.iter().any(|a| {
+                    matches!(&a.pattern, vox_compiler::hir::HirPattern::Constructor(n, _, _) if n == "Ok" || n == "Error")
+                });
+            let scrutinee = if matches_result {
+                super::method_emit::with_db_result_mode(|| emit(obj, OwnershipMode::Owned))
+            } else {
+                emit(obj, OwnershipMode::Owned)
+            };
+            let mut s = format!("match {scrutinee} {{\n");
             for arm in arms {
                 s.push_str(&format!(
                     "    {} => {{\n",

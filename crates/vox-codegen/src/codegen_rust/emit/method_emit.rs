@@ -15,6 +15,12 @@ fn db_ref(fallible: bool) -> String {
         } else {
             "&**VOX_SCRIPT_DB.get().expect(\"vox script db\")".into()
         }
+    } else if super::script_db::app_db_emit_mode() {
+        if fallible {
+            "VOX_APP_DB.get().expect(\"vox app db: not initialized\").as_ref()".into()
+        } else {
+            "&**VOX_APP_DB.get().expect(\"vox app db: not initialized\")".into()
+        }
     } else if fallible {
         "&db".into()
     } else {
@@ -22,8 +28,43 @@ fn db_ref(fallible: bool) -> String {
     }
 }
 
+thread_local! {
+    /// Set while emitting a db op that is the scrutinee of a `match` with `Ok`/`Error`
+    /// arms. Vox types every db op `Result[T, str]`, but codegen normally unwraps it
+    /// (`?` / `.expect`) because most code uses the value; a match on the Result needs the
+    /// Result itself. Consumed by the outermost db op only (nested args see `false`).
+    static DB_RESULT_MODE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Emit `f` with the next db op keeping its `Result` (see [`DB_RESULT_MODE`]).
+pub(super) fn with_db_result_mode<R>(f: impl FnOnce() -> R) -> R {
+    DB_RESULT_MODE.with(|c| c.set(true));
+    let out = f();
+    DB_RESULT_MODE.with(|c| c.set(false));
+    out
+}
+
+fn take_db_result_mode() -> bool {
+    DB_RESULT_MODE.with(|c| c.replace(false))
+}
+
+thread_local! {
+    /// True while rendering the db op that took [`DB_RESULT_MODE`]; read by
+    /// [`await_or_expect_suffix`]. Saved/restored per op so nested ops are unaffected.
+    static DB_OP_AS_RESULT: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+fn db_op_as_result() -> bool {
+    DB_OP_AS_RESULT.with(|c| c.get())
+}
+
+/// `.await` keeping the `Result` with a `String` error, matching Vox `Result[T, str]`.
+const AWAIT_AS_RESULT: &str = ".await.map_err(|e| e.to_string())";
+
 fn await_or_expect_suffix(fallible: bool, expect_msg: &str) -> String {
-    if fallible {
+    if db_op_as_result() {
+        AWAIT_AS_RESULT.into()
+    } else if fallible {
         ".await?".into()
     } else {
         format!(".await.expect(\"{expect_msg}\")")
@@ -80,7 +121,10 @@ where
     F: Fn(&HirExpr) -> String,
 {
     let db = db_ref(fallible);
+    // Taken before the args so a db op nested in an argument stays in value form.
+    let as_result = take_db_result_mode();
     let args_str = emit_param_values(emit_expr, args);
+    let prev_as_result = DB_OP_AS_RESULT.with(|c| c.replace(as_result));
 
     let rendered = match op {
         HirDbTableOp::Insert => {
@@ -88,7 +132,7 @@ where
                 .first()
                 .cloned()
                 .unwrap_or_else(|| "serde_json::json!({})".to_string());
-            if fallible {
+            if fallible && !as_result {
                 format!(
                     "{{ let item: {table_name} = serde_json::from_value({val}).map_err(|e| vox_db::StoreError::Serialization(format!(\"{{}}\", e)))?; {table_name}::insert({db}, &item).await? }}"
                 )
@@ -114,7 +158,7 @@ where
                 .get(1)
                 .cloned()
                 .unwrap_or_else(|| "serde_json::json!({})".to_string());
-            if fallible {
+            if fallible && !as_result {
                 format!(
                     "{{ let item: {table_name} = serde_json::from_value({val}).map_err(|e| vox_db::StoreError::Serialization(format!(\"{{}}\", e)))?; {table_name}::update({db}, {id_arg}, &item).await?; }}"
                 )
@@ -137,6 +181,7 @@ where
         HirDbTableOp::All => emit_all_op(emit_expr, table_name, order_by, limit, fallible, &db),
         HirDbTableOp::Count => {
             if order_by.is_some() || limit.is_some() {
+                DB_OP_AS_RESULT.with(|c| c.set(prev_as_result));
                 return "/* vox codegen: invalid count modifiers (typecheck should reject) */ 0"
                     .into();
             }
@@ -163,6 +208,7 @@ where
             )
         }
     };
+    DB_OP_AS_RESULT.with(|c| c.set(prev_as_result));
     if plan.is_some_and(|p| p.capabilities.requires_sync)
         && matches!(
             op,
