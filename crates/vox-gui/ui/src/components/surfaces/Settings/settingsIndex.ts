@@ -32,6 +32,7 @@ export const SETTINGS_INDEX: SettingEntry[] = [
   { id: 'theme', section: 'theme', label: 'Theme', hint: 'Arcane, Void, or Glacier', keywords: ['dark', 'appearance', 'color'] },
   { id: 'display-hud-tiles', section: 'display', label: 'HUD tiles', hint: 'Enable, disable, and reorder top status tiles', keywords: ['hud', 'status bar', 'kpi', 'tiles', 'display'] },
   { id: 'gamify', section: 'gamify', label: 'Gamification', hint: 'Enable and pick a mode', keywords: ['ludus', 'rewards', 'xp'] },
+  { id: 'server-connection', section: 'server', label: 'Connect to server', hint: 'Attach Axis to a remote Vox server', keywords: ['remote', 'server', 'lan', 'profile', 'connect', 'gateway'] },
   // Registry-derived entries (generated from CONFIG_KEYS by `vox ci config-gui-codegen`).
   ...GENERATED_SETTINGS_INDEX,
 ];

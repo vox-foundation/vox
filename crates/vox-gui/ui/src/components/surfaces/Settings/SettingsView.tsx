@@ -21,10 +21,15 @@ import type { HudTilesConfig } from '../../../hooks/useHudTiles';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 import { ACTION_REGISTRY, DEFAULT_BINDINGS, type Bindings, parseBindings, serializeBindings, chordFromEvent } from '../../../lib/keybinds';
 import { useOnboardingGate } from '../Onboarding/useOnboardingGate';
+import { useBackendStatus } from '../../../hooks/useBackendStatus';
+import { SurfaceUnavailable } from '../../layout/SurfaceUnavailable';
+import { ServerConnectionSection } from './ServerConnectionSection';
+import { sectionLockedRemotely } from './settingsBackends';
 
 const GUI_PREF_KEYS = ['theme', 'telemetry', 'sign', 'checkpointMins'] as const;
 
-const SECTIONS = [
+export const SECTIONS = [
+  { id: 'server',       icon: 'link',    label: 'Server' },
   { id: 'orchestrator', icon: 'cpu',     label: 'Orchestrator' },
   { id: 'scaling',      icon: 'cpu',     label: 'Scaling' },
   { id: 'llm',          icon: 'bolt',    label: 'LLM & providers' },
@@ -1069,6 +1074,9 @@ interface SettingsViewProps {
 export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTilesChange }: SettingsViewProps) {
   const { lang, setLang } = useLang();
   const [section, setSection] = useState('orchestrator');
+  const { status: backendStatus } = useBackendStatus();
+  const sectionLocked = sectionLockedRemotely(section, backendStatus.mode);
+  const shownSection = sectionLocked ? '' : section;
   const [filter, setFilter] = useState('');
   const [keybindings, setKeybindings] = useState<Bindings>(DEFAULT_BINDINGS);
   const [capturingId, setCapturingId] = useState<string | null>(null);
@@ -1386,7 +1394,9 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
 
       {/* Content */}
       <Glass className="col-span-12 md:col-span-9 p-5">
-        {section === 'orchestrator' && (
+        {sectionLocked && <SurfaceUnavailable viewKey={`settings:${section}`} reason="needs_local_machine" />}
+        {shownSection === 'server' && <ServerConnectionSection pushToast={pushToast} />}
+        {shownSection === 'orchestrator' && (
           <>
             <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('set-orchestrator')}</h2>
             <p className="mt-0.5 text-[11px] text-text-muted">Global scheduling, budget, and verification policy</p>
@@ -1436,7 +1446,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
           </>
         )}
 
-        {section === 'scaling' && (
+        {shownSection === 'scaling' && (
           <>
             <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('set-scaling')}</h2>
             <p className="mt-0.5 text-[11px] text-text-muted">Spawn and retire agents automatically based on queue load and local host resources</p>
@@ -1469,7 +1479,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
           </>
         )}
 
-        {section === 'llm' && (
+        {shownSection === 'llm' && (
           <LlmSettingsSection
             pushToast={pushToast}
             onJumpToKeysSecrets={() => {
@@ -1481,7 +1491,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
           />
         )}
 
-        {section === 'routing' && (
+        {shownSection === 'routing' && (
           <>
             <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('set-routing')}</h2>
             <p className="mt-0.5 text-[11px] text-text-muted">Emphasis tunes how the scorer trades off intelligence, efficiency, and responsiveness (persisted to VOX_AUTO_ROUTING_PRIORITY)</p>
@@ -1557,22 +1567,22 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
           </>
         )}
 
-        {section === 'runtime' && <RuntimeConfigSection pushToast={pushToast} />}
-        {section === 'voice' && <SttSettingsSection pushToast={pushToast} />}
+        {shownSection === 'runtime' && <RuntimeConfigSection pushToast={pushToast} />}
+        {shownSection === 'voice' && <SttSettingsSection pushToast={pushToast} />}
 
-        {section === 'mesh' && <MeshPeersSection pushToast={pushToast} />}
+        {shownSection === 'mesh' && <MeshPeersSection pushToast={pushToast} />}
 
-        {section === 'signing' && (
+        {shownSection === 'signing' && (
           <SigningKeysSection vals={vals} update={update} pushToast={pushToast} gamifyEnabled={gamifyEnabled} />
         )}
 
-        {section === 'secrets' && (
+        {shownSection === 'secrets' && (
           <div id="keys-secrets-section" tabIndex={-1}>
             <KeysSecretsSection pushToast={pushToast} gamifyEnabled={gamifyEnabled} />
           </div>
         )}
 
-        {section === 'telemetry' && (
+        {shownSection === 'telemetry' && (
           <>
             <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('set-telemetry')}</h2>
             <p className="mt-0.5 text-[11px] text-text-muted">Where Vox sends spans, metrics, and traces</p>
@@ -1594,9 +1604,9 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
           </>
         )}
 
-        {section === 'onboarding' && <OnboardingSection />}
+        {shownSection === 'onboarding' && <OnboardingSection />}
 
-        {section === 'keybinds' && (
+        {shownSection === 'keybinds' && (
           <>
             <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('set-keybinds')}</h2>
             <p className="mt-0.5 text-[11px] text-text-muted">Click a shortcut to rebind it. Press any key combination to set the new chord.</p>
@@ -1633,7 +1643,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
           </>
         )}
 
-        {section === 'gamify' && (
+        {shownSection === 'gamify' && (
           <div className="space-y-3">
             <label className="flex items-center justify-between rounded-lg border border-border-subtle bg-overlay-subtle p-3 text-sm">
               <span>Gamification enabled</span>
@@ -1653,7 +1663,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
           </div>
         )}
 
-        {section === 'theme' && (
+        {shownSection === 'theme' && (
           <>
             <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('set-theme')}</h2>
             <p className="mt-0.5 text-[11px] text-text-muted">Aesthetic mode for the GUI layer</p>
@@ -1679,7 +1689,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
           </>
         )}
 
-        {section === 'display' && (
+        {shownSection === 'display' && (
           <>
             <Row label="Latin labels" hint="Show nav and section names in Latin">
               <Toggle on={lang === 'la'} onClick={() => setLang(lang === 'la' ? 'en' : 'la')} />
