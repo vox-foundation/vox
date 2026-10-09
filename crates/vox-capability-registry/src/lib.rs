@@ -6,6 +6,7 @@
 
 mod command_registry;
 mod document;
+mod explain;
 mod ids;
 mod index;
 mod loader;
@@ -15,8 +16,15 @@ mod registry;
 mod types;
 mod validate;
 
+#[cfg(test)]
+mod test_fixture;
+
 pub use command_registry::{COMMAND_REGISTRY_REL, active_vox_cli_paths_from_command_registry_yaml};
 pub use document::{CapabilityRegistryDoc, CuratedCapability, Exemptions, RuntimeBuiltinMap};
+pub use explain::{
+    Candidate, MAX_QUERY_CHARS, MAX_RESULTS, Resolution, SHORTLIST_LIMIT, domain_counts,
+    explain_rows, resolve, rows_in_domain,
+};
 pub use ids::{implicit_cli_capability_id, implicit_mcp_capability_id};
 pub use index::{
     CapabilityIndex, CliRef, CoverageRef, CoverageSnapshotMeta, DocLink, DomainDef, GuiRef,
