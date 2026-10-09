@@ -2,7 +2,10 @@
 
 use std::collections::BTreeSet;
 
-use crate::{Exposure, Subsystem, subsystem_closure};
+use crate::{
+    BootReport, Exposure, McpToolRegistryEntry, ProfileDenial, Subsystem, registry_entry,
+    subsystem_closure,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ProfileManifest {
@@ -105,6 +108,50 @@ impl ActiveProfile {
                 .unwrap_or(Exposure::Public),
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CallerRole {
+    Read,
+    Write,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CallContext {
+    pub role: CallerRole,
+    pub loopback: bool,
+}
+
+impl CallContext {
+    pub const LOCAL_WRITE: CallContext = CallContext {
+        role: CallerRole::Write,
+        loopback: true,
+    };
+}
+
+/// The single profile decision. Check order is part of the contract (00-contracts.md).
+pub fn authorize_tool(
+    profile: &ActiveProfile,
+    boot: &BootReport,
+    ctx: CallContext,
+    tool: &str,
+) -> Result<&'static McpToolRegistryEntry, ProfileDenial> {
+    let entry = registry_entry(tool)
+        .filter(|_| profile.contains_tool(tool))
+        .ok_or(ProfileDenial::ToolNotInProfile)?;
+    if !ctx.loopback && entry.exposure == Exposure::Internal {
+        return Err(ProfileDenial::ExposureDenied);
+    }
+    if ctx.role == CallerRole::Read && entry.exposure == Exposure::Operator {
+        return Err(ProfileDenial::ExposureDenied);
+    }
+    if ctx.role == CallerRole::Read && !entry.http_read_role_eligible {
+        return Err(ProfileDenial::InsufficientRole);
+    }
+    if let Some(s) = boot.missing_for(entry.requires) {
+        return Err(ProfileDenial::SubsystemNotBooted(s));
+    }
+    Ok(entry)
 }
 
 #[cfg(test)]
@@ -325,5 +372,205 @@ mod tests {
             ActiveProfile::from_env(),
             ActiveProfile::from_raw(raw.as_deref())
         );
+    }
+}
+
+#[cfg(test)]
+mod authorize_tests {
+    use super::*;
+    use crate::{
+        BootReport, Exposure, McpToolRegistryEntry, ProfileDenial, Subsystem, TOOL_REGISTRY,
+    };
+    use std::collections::BTreeSet;
+
+    const READ_REMOTE: CallContext = CallContext {
+        role: CallerRole::Read,
+        loopback: false,
+    };
+    const READ_LOCAL: CallContext = CallContext {
+        role: CallerRole::Read,
+        loopback: true,
+    };
+    const WRITE_REMOTE: CallContext = CallContext {
+        role: CallerRole::Write,
+        loopback: false,
+    };
+
+    fn profile_with(tools: &[&'static str]) -> ActiveProfile {
+        ActiveProfile {
+            ids: vec!["test"],
+            tools: tools.iter().copied().collect(),
+            subsystems: BTreeSet::new(),
+            axis_surfaces: BTreeSet::new(),
+            max_exposure: Exposure::Internal,
+        }
+    }
+
+    fn full_boot() -> BootReport {
+        BootReport {
+            booted: Subsystem::ALL.iter().copied().collect(),
+            failed: Default::default(),
+        }
+    }
+
+    fn find(
+        pred: impl Fn(&McpToolRegistryEntry) -> bool,
+        what: &str,
+    ) -> &'static McpToolRegistryEntry {
+        TOOL_REGISTRY
+            .iter()
+            .find(|e| pred(e))
+            .unwrap_or_else(|| panic!("registry has no {what} tool (plan 01 classification)"))
+    }
+
+    #[test]
+    fn step1_unknown_tool_is_not_in_profile() {
+        let r = authorize_tool(
+            &ActiveProfile::dev(),
+            &full_boot(),
+            CallContext::LOCAL_WRITE,
+            "vox_does_not_exist",
+        );
+        assert_eq!(r, Err(ProfileDenial::ToolNotInProfile));
+    }
+
+    #[test]
+    fn step1_precedes_step2() {
+        let internal = find(|e| e.exposure == Exposure::Internal, "internal");
+        let r = authorize_tool(
+            &profile_with(&[]),
+            &BootReport::default(),
+            READ_REMOTE,
+            internal.name,
+        );
+        assert_eq!(r, Err(ProfileDenial::ToolNotInProfile));
+    }
+
+    #[test]
+    fn step2_internal_off_loopback_is_exposure_denied_before_role_checks() {
+        let internal = find(
+            |e| e.exposure == Exposure::Internal && !e.http_read_role_eligible,
+            "internal non-read-eligible",
+        );
+        let p = profile_with(&[internal.name]);
+        assert_eq!(
+            authorize_tool(&p, &BootReport::default(), WRITE_REMOTE, internal.name),
+            Err(ProfileDenial::ExposureDenied)
+        );
+        assert_eq!(
+            authorize_tool(&p, &BootReport::default(), READ_REMOTE, internal.name),
+            Err(ProfileDenial::ExposureDenied)
+        );
+    }
+
+    #[test]
+    fn internal_on_loopback_is_allowed_for_write() {
+        let internal = find(|e| e.exposure == Exposure::Internal, "internal");
+        let p = profile_with(&[internal.name]);
+        assert!(authorize_tool(&p, &full_boot(), CallContext::LOCAL_WRITE, internal.name).is_ok());
+    }
+
+    #[test]
+    fn step3_operator_with_read_role_is_exposure_denied_before_step4() {
+        let op = find(
+            |e| e.exposure == Exposure::Operator && !e.http_read_role_eligible,
+            "operator non-read-eligible",
+        );
+        let p = profile_with(&[op.name]);
+        assert_eq!(
+            authorize_tool(&p, &BootReport::default(), READ_LOCAL, op.name),
+            Err(ProfileDenial::ExposureDenied)
+        );
+    }
+
+    #[test]
+    fn step4_public_not_read_eligible_is_insufficient_role_before_step5() {
+        let e = find(
+            |e| {
+                e.exposure == Exposure::Public
+                    && !e.http_read_role_eligible
+                    && !e.requires.is_empty()
+            },
+            "public, non-read-eligible, with requires",
+        );
+        let p = profile_with(&[e.name]);
+        assert_eq!(
+            authorize_tool(&p, &BootReport::default(), READ_LOCAL, e.name),
+            Err(ProfileDenial::InsufficientRole)
+        );
+    }
+
+    #[test]
+    fn step5_first_missing_subsystem_is_reported() {
+        let e = find(|e| !e.requires.is_empty(), "with requires");
+        let p = profile_with(&[e.name]);
+        assert_eq!(
+            authorize_tool(&p, &BootReport::default(), CallContext::LOCAL_WRITE, e.name),
+            Err(ProfileDenial::SubsystemNotBooted(e.requires[0]))
+        );
+    }
+
+    #[test]
+    fn all_checks_pass_returns_the_registry_entry() {
+        let e = find(
+            |e| e.exposure == Exposure::Public && e.http_read_role_eligible,
+            "public read-eligible",
+        );
+        let p = profile_with(&[e.name]);
+        let got = authorize_tool(&p, &full_boot(), READ_REMOTE, e.name).expect("authorized");
+        assert_eq!(got.name, e.name);
+    }
+
+    #[test]
+    fn local_write_constant_is_write_on_loopback() {
+        assert_eq!(
+            CallContext::LOCAL_WRITE,
+            CallContext {
+                role: CallerRole::Write,
+                loopback: true,
+            }
+        );
+    }
+
+    /// Controller: browser tools are never served to a read-role caller.
+    #[test]
+    fn read_role_is_denied_every_browser_tool() {
+        let boot = full_boot();
+        let browser: Vec<_> = TOOL_REGISTRY
+            .iter()
+            .filter(|e| e.name.starts_with("vox_browser_"))
+            .collect();
+        assert!(!browser.is_empty(), "registry has no browser tools");
+        for e in browser {
+            let p = profile_with(&[e.name]);
+            for ctx in [READ_REMOTE, READ_LOCAL] {
+                let err = authorize_tool(&p, &boot, ctx, e.name).expect_err(e.name);
+                assert!(
+                    matches!(
+                        err,
+                        ProfileDenial::ExposureDenied | ProfileDenial::InsufficientRole
+                    ),
+                    "{} served to read role: {err:?}",
+                    e.name
+                );
+            }
+        }
+    }
+
+    /// Controller: these two stay off the read-role allowlist.
+    #[test]
+    fn skill_use_and_search_structural_are_not_read_role_eligible() {
+        for name in ["vox_skill_use", "vox_search_structural"] {
+            let e = find(|e| e.name == name, name);
+            assert!(
+                !e.http_read_role_eligible,
+                "{name} must not be http_read_role_eligible"
+            );
+            let p = profile_with(&[e.name]);
+            assert_eq!(
+                authorize_tool(&p, &full_boot(), READ_LOCAL, e.name),
+                Err(ProfileDenial::InsufficientRole)
+            );
+        }
     }
 }
