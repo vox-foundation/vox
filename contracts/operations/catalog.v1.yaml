@@ -19165,7 +19165,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19177,6 +19177,8 @@ operations:
   mcp:
     name: vox_propose_skill
     http_read_role_eligible: false
+    exposure: public
+    requires: []
   cli: null
 - id: publish.message
   title: Publish Message
@@ -23673,7 +23675,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23685,6 +23687,8 @@ operations:
   mcp:
     name: vox_skill_info
     http_read_role_eligible: false
+    exposure: public
+    requires: []
   cli:
     path:
     - skill
@@ -23702,7 +23706,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23714,6 +23718,8 @@ operations:
   mcp:
     name: vox_skill_discover
     http_read_role_eligible: true
+    exposure: public
+    requires: []
   cli:
     path:
     - skill
@@ -23758,7 +23764,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23769,7 +23775,9 @@ operations:
   latin_aliases: null
   mcp:
     name: vox_skill_use
-    http_read_role_eligible: true
+    http_read_role_eligible: false
+    exposure: public
+    requires: []
   cli: null
 - id: snapshot
   title: Snapshot
@@ -23803,7 +23811,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23815,6 +23823,8 @@ operations:
   mcp:
     name: vox_skill_install
     http_read_role_eligible: false
+    exposure: operator
+    requires: []
   cli:
     path:
     - skill
@@ -23832,7 +23842,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23844,6 +23854,8 @@ operations:
   mcp:
     name: vox_skill_list
     http_read_role_eligible: false
+    exposure: public
+    requires: []
   cli:
     path:
     - skill
@@ -23861,7 +23873,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23873,6 +23885,8 @@ operations:
   mcp:
     name: vox_skill_parse
     http_read_role_eligible: false
+    exposure: public
+    requires: []
   cli: null
 - id: skill.promote
   title: Skill Promote
@@ -23907,7 +23921,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23919,6 +23933,8 @@ operations:
   mcp:
     name: vox_skill_search
     http_read_role_eligible: false
+    exposure: public
+    requires: []
   cli:
     path:
     - skill
@@ -23963,7 +23979,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23975,6 +23991,8 @@ operations:
   mcp:
     name: vox_skill_uninstall
     http_read_role_eligible: false
+    exposure: operator
+    requires: []
   cli:
     path:
     - skill
@@ -23992,7 +24010,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -24004,6 +24022,8 @@ operations:
   mcp:
     name: vox_skill_add
     http_read_role_eligible: false
+    exposure: operator
+    requires: []
   cli:
     path:
     - skill
@@ -24075,7 +24095,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: destructive
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -24087,6 +24107,8 @@ operations:
   mcp:
     name: vox_skill_remove
     http_read_role_eligible: false
+    exposure: operator
+    requires: []
   cli: null
 - id: skill.run
   title: Skill Run
@@ -24094,7 +24116,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -24106,6 +24128,8 @@ operations:
   mcp:
     name: vox_skill_run
     http_read_role_eligible: false
+    exposure: operator
+    requires: []
   cli:
     path:
     - skill
@@ -26013,7 +26037,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -26025,6 +26049,8 @@ operations:
   mcp:
     name: vox_plugin_list
     http_read_role_eligible: false
+    exposure: public
+    requires: []
   cli:
     path:
     - plugin
@@ -26069,7 +26095,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -26081,6 +26107,8 @@ operations:
   mcp:
     name: vox_plugin_catalog
     http_read_role_eligible: false
+    exposure: public
+    requires: []
   cli: null
 - id: plugin.doctor
   title: Plugin Doctor
@@ -26115,7 +26143,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -26127,6 +26155,8 @@ operations:
   mcp:
     name: vox_plugin_info
     http_read_role_eligible: false
+    exposure: public
+    requires: []
   cli:
     path:
     - plugin
@@ -26156,6 +26186,8 @@ operations:
   mcp:
     name: vox_plugin_install
     http_read_role_eligible: false
+    exposure: operator
+    requires: []
   cli:
     path:
     - plugin
@@ -26185,6 +26217,8 @@ operations:
   mcp:
     name: vox_plugin_remove
     http_read_role_eligible: false
+    exposure: operator
+    requires: []
   cli:
     path:
     - plugin
