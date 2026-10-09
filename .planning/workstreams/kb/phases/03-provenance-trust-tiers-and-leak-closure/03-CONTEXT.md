@@ -26,3 +26,7 @@ Recorded 2026-10-04. Binding for executors.
   Library reindex stamps a `docs/src` file `Trusted` only if it is tracked by git and has no
   working-tree modifications; untracked or modified files are indexed `Untrusted`. Enforces the
   TRUST-01 "merged to git" definition. Resolves review finding WR-09.
+- **D-07a D-07 scope = knowledge-graph rows only (2026-10-09, user decision):** D-07 applies to
+  agent-written `knowledge_nodes` rows (`agent_fact`/`agent_concept` → Untrusted). The memory
+  search leg (MEMORY.md and daily logs) is NOT re-tiered in Phase 3 and keeps feeding the chat
+  preamble as before; revisit with Phase 7 spotlighting.

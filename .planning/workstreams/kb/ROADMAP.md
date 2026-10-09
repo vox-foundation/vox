@@ -116,7 +116,7 @@ Plans:
   4. Property tests and a red-team fixture set show the sanitizer neutralises Unicode tag-block, zero-width/bidi characters, HTML comments and off-allowlist markdown images, at both the ingest and the injection boundary.
   5. `KbStore` LIKE search, `KbRouter`, the signal adapters, `kb_lines` and the 12 legacy `vox_kb_*` CRUD tools are absent from source and the tool catalog, and colliding names are replaced, not aliased. A seeded-DB migration test shows legacy `kb_entries`/`knowledge_bases` rows are counted before quarantine and non-empty rows appear in the inbox as pending.
 
-**Plans:** 13/13 plans executed (replanned 2026-10-06 against the post-02-12 tree; D-01 and D-02 pre-approved in 03-CONTEXT.md, so no decision checkpoints)
+**Plans:** 13/16 plans executed; 03-14..03-16 are gap closure, added 2026-10-08 (replanned 2026-10-06 against the post-02-12 tree; D-01 and D-02 pre-approved in 03-CONTEXT.md, so no decision checkpoints)
 
 Plans:
 **Wave 1**
@@ -149,6 +149,17 @@ Plans:
 - [x] 03-11-PLAN.md — GUI side doors (Ingest URL/Text, Publish) file findings via mcp helpers; Playwright stepper
 - [x] 03-12-PLAN.md — KbStore/KbRouter/legacy CRUD deletion and VoxKB DDL quarantine
 - [x] 03-13-PLAN.md — `vox kb status` legacy/inbox counts, retirement registries, SSOT docs, CHANGELOG
+
+**Gap closure** (from 03-VERIFICATION.md gaps and decisions D-07/D-08)
+
+**Wave 1**
+
+- [ ] 03-14-PLAN.md — CR-01 + WR-08: Tavily never fires for AutoChatPreamble, exclusion derived from the trigger, explicit Tavily lines labelled Untrusted; WR-05: every research-source field sanitized
+- [ ] 03-15-PLAN.md — D-07/D-07a: agent-written knowledge-graph rows (`agent_fact`/`agent_concept`) are Untrusted, and legacy rows are re-typed in the baseline-96 gate; the memory leg is unchanged until Phase 7
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 03-16-PLAN.md — D-08: Library docs Trusted only when committed and unmodified (GitExec), per-document tier on every reindex; SSOT and CHANGELOG for all four closures
 
 **Research flag**: none (in-repo quarantine and catalog-ops patterns).
 
