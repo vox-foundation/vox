@@ -1,8 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { checkUrls, extractLlmsUrls } from './lib/llms-links.mjs';
 
 test.setTimeout(60_000);
 
 const PRIMARY = process.env.BASE_URL ?? 'https://voxlang.org';
+const LLMS_FILES = ['/llms.txt', '/.well-known/llms.txt', '/.well-known/llms-full.txt'];
 
 test.describe('voxlang.org live site', () => {
   test('home page loads with Vox title', async ({ page }) => {
@@ -40,6 +42,31 @@ test.describe('voxlang.org live site', () => {
     expect(body).toContain('table');
     expect(body).not.toMatch(/@endpoint\(kind/);
   });
+
+  test('/voxup installer is served as a shell script', async ({ request }) => {
+    const resp = await request.get(PRIMARY + '/voxup', { timeout: 15_000 });
+    expect(resp.status()).toBe(200);
+    expect((await resp.text()).startsWith('#!')).toBe(true);
+  });
+
+  test('/voxup.ps1 installer is served', async ({ request }) => {
+    const resp = await request.get(PRIMARY + '/voxup.ps1', { timeout: 15_000 });
+    expect(resp.status()).toBe(200);
+  });
+
+  for (const file of LLMS_FILES) {
+    test(`every voxlang.org URL in ${file} resolves (llms links)`, async ({ request }) => {
+      const resp = await request.get(PRIMARY + file, { timeout: 15_000 });
+      expect(resp.status()).toBe(200);
+      const urls = extractLlmsUrls(await resp.text(), { baseUrl: PRIMARY });
+      expect(urls.length).toBeGreaterThan(0);
+      const result = await checkUrls(urls, async (url: string) => ({
+        status: (await request.get(url, { timeout: 15_000 })).status(),
+      }));
+      expect(result.failures, `${file} lists URLs that do not resolve`).toEqual([]);
+      expect(result.ok).toBe(true);
+    });
+  }
 
   test('sidebar renders new section labels on a docs page', async ({ page }) => {
     // Sidebar appears on docs pages, not the splash. Pick a known sidebar page.
