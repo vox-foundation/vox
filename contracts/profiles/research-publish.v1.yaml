@@ -1,0 +1,24 @@
+id: research-publish
+description: "Scientia/news publish, approve, submission, and external-job controls. Operator-only; opt in explicitly (usually composed as research,research-publish)."
+requires: [research]
+tools:
+  include:
+    - vox_scientia_publication_approve
+    - vox_scientia_publication_publish
+    - vox_scientia_publication_submit_local
+    - vox_scientia_publication_arxiv_handoff_record
+    - vox_scientia_publication_retry_failed
+    - vox_scientia_publication_external_jobs_dead_letter
+    - vox_scientia_publication_external_jobs_due
+    - vox_scientia_publication_external_jobs_replay
+    - vox_scientia_publication_external_jobs_tick
+    - vox_scientia_publication_scholarly_pipeline_run
+    - vox_scientia_publication_scholarly_remote_status_sync_all
+    - vox_scientia_publication_scholarly_remote_status_sync_batch
+    - vox_scientia_publication_media_upsert
+    - vox_scientia_publication_media_delete
+    - vox_news_approve
+    - vox_news_test_syndicate
+  include_lanes: []
+max_exposure: operator
+axis_surfaces: [scientia]

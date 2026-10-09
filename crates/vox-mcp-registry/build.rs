@@ -1,8 +1,9 @@
 //! Emit `TOOL_REGISTRY` from `contracts/mcp/tool-registry.canonical.yaml`.
 
+use std::collections::{BTreeSet, HashSet};
 use std::env;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
@@ -69,7 +70,7 @@ fn main() {
     let root: Root =
         serde_yaml::from_str(&raw).unwrap_or_else(|e| panic!("parse {}: {e}", yaml_path.display()));
 
-    let mut names = std::collections::HashSet::<&str>::new();
+    let mut names = HashSet::<&str>::new();
     for t in &root.tools {
         if !names.insert(t.name.as_str()) {
             panic!("duplicate tool name in MCP registry: {}", t.name);
@@ -119,4 +120,274 @@ fn main() {
 
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
     fs::write(out_dir.join("tool_registry.rs"), lines).expect("write tool_registry.rs");
+
+    let profiles_rs = emit_profiles(workspace_root, &root.tools);
+    fs::write(out_dir.join("profiles.rs"), profiles_rs).expect("write profiles.rs");
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ProfileFile {
+    id: String,
+    description: String,
+    #[serde(default)]
+    requires: Vec<String>,
+    tools: ProfileTools,
+    max_exposure: String,
+    #[serde(default)]
+    axis_surfaces: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ProfileTools {
+    #[serde(default)]
+    include: Vec<String>,
+    #[serde(default)]
+    include_lanes: Vec<String>,
+}
+
+/// Classified view of a registry row. `ToolEntry` keeps the YAML fields optional so a
+/// missing key is a classification error; profile expansion only sees rows that passed.
+struct ClassifiedTool {
+    name: String,
+    product_lane: String,
+    exposure: String,
+    requires: Vec<String>,
+}
+
+fn classify_tools(tools: &[ToolEntry]) -> Vec<ClassifiedTool> {
+    tools
+        .iter()
+        .map(|t| {
+            let class = classification::classify_tool_row(
+                t.http_read_role_eligible,
+                t.exposure.as_deref(),
+                t.side_effect_class.as_deref(),
+                t.requires.as_deref(),
+            )
+            .unwrap_or_else(|errs| panic!("MCP tool `{}`: {}", t.name, errs.join("; ")));
+            ClassifiedTool {
+                name: t.name.clone(),
+                product_lane: t.product_lane.clone(),
+                exposure: class.exposure.as_str().to_string(),
+                requires: class
+                    .requires
+                    .iter()
+                    .map(|s| s.as_str().to_string())
+                    .collect(),
+            }
+        })
+        .collect()
+}
+
+/// Mirrors `Subsystem::deps` (src/subsystem.rs). Drift is caught at runtime by
+/// `profile::tests::named_profiles_respect_max_exposure_and_subsystem_closure`.
+const SUBSYSTEM_DEPS: &[(&str, &[&str])] = &[
+    ("db", &[]),
+    ("sessions", &["db"]),
+    ("agent_fleet", &["sessions"]),
+    ("model_registry", &[]),
+    ("llm_facade", &["model_registry"]),
+    ("search_index", &["db"]),
+    ("memory", &["db", "search_index"]),
+    ("research", &["llm_facade", "search_index", "db"]),
+    ("mesh", &["db"]),
+    ("attention", &[]),
+    ("clarification", &["db"]),
+    ("flywheel", &["db"]),
+    ("compiler", &[]),
+    ("browser", &[]),
+    ("speech", &[]),
+];
+
+fn exposure_rank(s: &str) -> u8 {
+    match s {
+        "public" => 0,
+        "operator" => 1,
+        "internal" => 2,
+        other => panic!("unknown exposure `{other}`"),
+    }
+}
+
+fn exposure_variant(s: &str) -> &'static str {
+    match s {
+        "public" => "Public",
+        "operator" => "Operator",
+        "internal" => "Internal",
+        other => panic!("unknown exposure `{other}`"),
+    }
+}
+
+fn subsystem_variant(s: &str) -> String {
+    s.split('_')
+        .map(|part| {
+            let mut c = part.chars();
+            match c.next() {
+                Some(f) => f.to_ascii_uppercase().to_string() + c.as_str(),
+                None => String::new(),
+            }
+        })
+        .collect()
+}
+
+fn subsystem_closure_names(roots: &[String]) -> BTreeSet<String> {
+    let mut out = BTreeSet::new();
+    let mut stack: Vec<String> = roots.to_vec();
+    while let Some(s) = stack.pop() {
+        let deps = SUBSYSTEM_DEPS
+            .iter()
+            .find(|(n, _)| *n == s)
+            .unwrap_or_else(|| panic!("unknown subsystem `{s}`"))
+            .1;
+        if out.insert(s) {
+            stack.extend(deps.iter().map(|d| d.to_string()));
+        }
+    }
+    out
+}
+
+fn str_slice(items: impl IntoIterator<Item = String>) -> String {
+    let parts: Vec<String> = items
+        .into_iter()
+        .map(|s| format!("\"{}\"", escape_rust_string(&s)))
+        .collect();
+    format!("&[{}]", parts.join(", "))
+}
+
+fn emit_profiles(workspace_root: &Path, tools: &[ToolEntry]) -> String {
+    let tools = classify_tools(tools);
+    let dir = workspace_root.join("contracts/profiles");
+    println!("cargo:rerun-if-changed={}", dir.display());
+    let mut paths: Vec<PathBuf> = fs::read_dir(&dir)
+        .unwrap_or_else(|e| panic!("read {}: {e}", dir.display()))
+        .map(|e| e.expect("profiles dir entry").path())
+        .filter(|p| p.extension().is_some_and(|x| x == "yaml"))
+        .collect();
+    paths.sort();
+
+    let mut out = String::new();
+    out.push_str("// @generated by vox-mcp-registry/build.rs — do not edit.\n\n");
+    out.push_str("pub static PROFILES: &[ProfileManifest] = &[\n");
+    let mut seen = HashSet::new();
+    for path in &paths {
+        println!("cargo:rerun-if-changed={}", path.display());
+        let raw =
+            fs::read_to_string(path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+        let p: ProfileFile =
+            serde_yaml::from_str(&raw).unwrap_or_else(|e| panic!("parse {}: {e}", path.display()));
+        let stem = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .and_then(|n| n.strip_suffix(".v1.yaml"))
+            .unwrap_or_else(|| {
+                panic!("profile file {} must be named <id>.v1.yaml", path.display())
+            });
+        if p.id != stem {
+            panic!(
+                "profile id `{}` does not match file name {}",
+                p.id,
+                path.display()
+            );
+        }
+        if p.id == "dev" {
+            panic!("profile id `dev` is reserved (synthesized from the full registry)");
+        }
+        if !seen.insert(p.id.clone()) {
+            panic!("duplicate profile id `{}`", p.id);
+        }
+        let max = exposure_rank(&p.max_exposure);
+        if max == 2 {
+            panic!(
+                "profile `{}`: named profiles may not set max_exposure: internal",
+                p.id
+            );
+        }
+        let closure = subsystem_closure_names(&p.requires);
+
+        let mut resolved: BTreeSet<&str> = BTreeSet::new();
+        for pat in &p.tools.include {
+            if let Some(prefix) = pat.strip_suffix('*') {
+                let matches: Vec<&ClassifiedTool> = tools
+                    .iter()
+                    .filter(|t| t.name.starts_with(prefix))
+                    .collect();
+                if matches.is_empty() {
+                    panic!(
+                        "profile `{}`: include pattern `{pat}` matches no tool",
+                        p.id
+                    );
+                }
+                for t in matches {
+                    if exposure_rank(&t.exposure) <= max {
+                        resolved.insert(&t.name);
+                    }
+                }
+            } else {
+                let t = tools
+                    .iter()
+                    .find(|t| t.name == *pat)
+                    .unwrap_or_else(|| panic!("profile `{}`: unknown tool `{pat}`", p.id));
+                if exposure_rank(&t.exposure) > max {
+                    panic!(
+                        "profile `{}`: tool `{pat}` has exposure `{}` above max_exposure `{}`",
+                        p.id, t.exposure, p.max_exposure
+                    );
+                }
+                resolved.insert(&t.name);
+            }
+        }
+        for lane in &p.tools.include_lanes {
+            if !PRODUCT_LANES.contains(&lane.as_str()) {
+                panic!("profile `{}`: unknown product lane `{lane}`", p.id);
+            }
+            for t in tools
+                .iter()
+                .filter(|t| t.product_lane == *lane && exposure_rank(&t.exposure) <= max)
+            {
+                resolved.insert(&t.name);
+            }
+        }
+        if resolved.is_empty() {
+            panic!("profile `{}` resolves to no tools", p.id);
+        }
+        for name in &resolved {
+            let t = tools
+                .iter()
+                .find(|t| t.name == *name)
+                .expect("resolved from registry");
+            for r in &t.requires {
+                if !closure.contains(r) {
+                    panic!(
+                        "profile `{}`: tool `{name}` requires subsystem `{r}`, which is not in the closure of requires {:?}",
+                        p.id, p.requires
+                    );
+                }
+            }
+        }
+
+        let requires: Vec<String> = p
+            .requires
+            .iter()
+            .map(|s| format!("Subsystem::{}", subsystem_variant(s)))
+            .collect();
+        out.push_str(&format!(
+            "    ProfileManifest {{ id: \"{}\", description: \"{}\", requires: &[{}], tools: {}, max_exposure: Exposure::{}, axis_surfaces: {} }},\n",
+            escape_rust_string(&p.id),
+            escape_rust_string(&p.description),
+            requires.join(", "),
+            str_slice(resolved.iter().map(|s| (*s).to_string())),
+            exposure_variant(&p.max_exposure),
+            str_slice(p.axis_surfaces.iter().cloned()),
+        ));
+    }
+
+    let mut all: Vec<String> = tools.iter().map(|t| t.name.clone()).collect();
+    all.sort();
+    out.push_str(&format!(
+        "    ProfileManifest {{ id: \"dev\", description: \"Every tool and every subsystem (default; today's behaviour).\", requires: Subsystem::ALL, tools: {}, max_exposure: Exposure::Internal, axis_surfaces: &[\"*\"] }},\n",
+        str_slice(all),
+    ));
+    out.push_str("];\n");
+    out
 }

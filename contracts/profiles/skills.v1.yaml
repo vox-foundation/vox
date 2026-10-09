@@ -1,0 +1,9 @@
+id: skills
+description: "Agent skill discovery, search, install/uninstall, inspection, and use."
+requires: []
+tools:
+  include:
+    - vox_skill_*
+  include_lanes: []
+max_exposure: operator
+axis_surfaces: [skills]

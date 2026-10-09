@@ -1,0 +1,11 @@
+id: speech
+description: "Oratio speech capture/transcription and speech-to-code."
+# vox_speech_to_code requires llm_facade in addition to speech.
+requires: [speech, llm_facade]
+tools:
+  include:
+    - vox_oratio_*
+    - vox_speech_to_code
+  include_lanes: []
+max_exposure: operator
+axis_surfaces: [speech]

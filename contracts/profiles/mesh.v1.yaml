@@ -1,0 +1,18 @@
+id: mesh
+description: "Populi mesh nodes, dispatch and queue stats, local Populi status, and A2A messaging."
+# vox_a2a_tasks requires agent_fleet (orchestrator task DAG). That root is outside
+# this profile, so the tool is omitted; the remaining vox_a2a_* tools require nothing.
+requires: [mesh]
+tools:
+  include:
+    - vox_mesh_*
+    - vox_populi_local_status
+    - vox_a2a_ack
+    - vox_a2a_broadcast
+    - vox_a2a_history
+    - vox_a2a_inbox
+    - vox_a2a_send
+    - vox_publish_message
+  include_lanes: []
+max_exposure: operator
+axis_surfaces: [mesh]

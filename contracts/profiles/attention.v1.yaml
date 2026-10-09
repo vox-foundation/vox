@@ -1,0 +1,14 @@
+id: attention
+description: "Attention budget history and reset, budget status, and trust overrides."
+# D1: this profile stays DB-free. vox_attention_summary and vox_cost_history require [db]
+# and are excluded; every listed tool's requires sit inside the attention closure.
+requires: [attention]
+tools:
+  include:
+    - vox_attention_history
+    - vox_attention_reset
+    - vox_budget_status
+    - vox_trust_override
+  include_lanes: []
+max_exposure: operator
+axis_surfaces: [attention]

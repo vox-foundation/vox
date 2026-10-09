@@ -5,11 +5,13 @@
 mod boot;
 mod classification;
 mod exposure;
+mod profile;
 mod subsystem;
 
 pub use boot::{BootReport, ProfileDenial};
 pub use classification::{ToolClassification, classify_tool_row};
 pub use exposure::{Exposure, SideEffectClass};
+pub use profile::{ActiveProfile, DEV_PROFILE_ID, PROFILES, ProfileError, ProfileManifest};
 pub use subsystem::{Subsystem, subsystem_closure};
 
 /// One MCP tool row: identity, bell-curve [`product_lane`](McpToolRegistryEntry::product_lane),

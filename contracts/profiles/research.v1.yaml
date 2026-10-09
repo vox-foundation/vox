@@ -1,0 +1,30 @@
+id: research
+description: "Autonomous research runs and Scientia discovery, evaluation, and preparation — without publish, approve, or external-job controls."
+requires: [research]
+tools:
+  include:
+    - vox_research_*
+    - vox_scientia_assist_suggestions
+    - vox_scientia_worthiness_evaluate
+    - vox_scientia_publication_decision_explain
+    - vox_scientia_publication_discovery_explain
+    - vox_scientia_publication_discovery_refresh_evidence
+    - vox_scientia_publication_discovery_scan
+    - vox_scientia_publication_external_pipeline_metrics
+    - vox_scientia_publication_media_list
+    - vox_scientia_publication_novelty_fetch
+    - vox_scientia_publication_novelty_happy_path
+    - vox_scientia_publication_preflight
+    - vox_scientia_publication_prepare
+    - vox_scientia_publication_route_simulate
+    - vox_scientia_publication_scholarly_remote_status
+    - vox_scientia_publication_scholarly_staging_export
+    - vox_scientia_publication_status
+    - vox_news_approval_status
+    - vox_news_draft_research
+    - vox_news_simulate_publish_gate
+    - vox_db_research_session_upsert
+    - vox_db_research_metric_linked
+  include_lanes: []
+max_exposure: operator
+axis_surfaces: [research, scientia]

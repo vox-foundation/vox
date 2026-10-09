@@ -1,0 +1,51 @@
+id: orchestrator
+description: "Tasks, agents, queue, file locks, plans, handoffs, HITL approvals, and clarification questions."
+# vox_set_agent_budget requires attention. vox_drain_agent is exposure internal (dev only).
+requires: [agent_fleet, clarification, llm_facade, attention]
+tools:
+  include:
+    - vox_submit_task
+    - vox_task_status
+    - vox_complete_task
+    - vox_fail_task
+    - vox_cancel_task
+    - vox_reorder_task
+    - vox_doubt_task
+    - vox_verify_task_claims
+    - vox_orchestrator_status
+    - vox_orchestrator_start
+    - vox_spawn_agent
+    - vox_retire_agent
+    - vox_pause_agent
+    - vox_resume_agent
+    - vox_rebalance
+    - vox_set_agent_budget
+    - vox_queue_status
+    - vox_lock_status
+    - vox_claim_file
+    - vox_transfer_file
+    - vox_my_files
+    - vox_check_file_owner
+    - vox_plan
+    - vox_plan_status
+    - vox_plan_resume
+    - vox_plan_list_sessions
+    - vox_replan
+    - vox_handoff_context
+    - vox_handoff_lineage
+    - vox_agent_handoff
+    - vox_agent_status
+    - vox_agent_events
+    - vox_agent_assess
+    - vox_agent_continue
+    - vox_heartbeat
+    - vox_poll_events
+    - vox_pending_approvals
+    - vox_resolve_approval
+    - vox_list_approval_allowlist
+    - vox_ask_clarification
+    - vox_answer_question
+    - vox_pending_questions
+  include_lanes: []
+max_exposure: operator
+axis_surfaces: [tasks, agents, approvals, plan]

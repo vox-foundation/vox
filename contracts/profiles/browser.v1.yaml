@@ -1,0 +1,11 @@
+id: browser
+description: "Chromium browser automation (vox_browser_*). Never part of any bundle default; opt in explicitly."
+# vox_browser_act, vox_browser_extract, and vox_browser_extract_json require llm_facade.
+# Cookie export/import are exposure internal and are clipped by max_exposure.
+requires: [browser, llm_facade]
+tools:
+  include:
+    - vox_browser_*
+  include_lanes: []
+max_exposure: operator
+axis_surfaces: [browser]

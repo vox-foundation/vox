@@ -1,0 +1,17 @@
+id: models
+description: "Model registry, active-model selection, model suggestion, benchmarks, and chat through the selected model."
+requires: [db, model_registry, llm_facade] # D1: scoreboard, bench evidence, chat history
+tools:
+  include:
+    - vox_list_models
+    - vox_set_model
+    - vox_get_active_model
+    - vox_set_active_model
+    - vox_suggest_model
+    - vox_capability_model_manifest
+    - vox_benchmark_list
+    - vox_benchmark_record
+    - vox_chat_*
+  include_lanes: []
+max_exposure: operator
+axis_surfaces: [models, chat]
