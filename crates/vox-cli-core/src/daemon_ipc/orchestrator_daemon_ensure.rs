@@ -131,11 +131,14 @@ impl OrchestratorDaemonEnsure {
                 // port-squatters: any process that merely answers ping (but
                 // doesn't share our token) is not adopted.
                 if let Some(existing_token) = read_token_file()
-                    && OrchDaemonClient::with_token(addr.clone(), existing_token.clone())
-                        .ping()
-                        .await
-                        .is_ok()
+                    && let Ok(resp) =
+                        OrchDaemonClient::with_token(addr.clone(), existing_token.clone())
+                            .ping()
+                            .await
                 {
+                    if !ping_profile_matches(&resp, self.requested_profile()) {
+                        return Err(profile_mismatch_error(&resp, self.requested_profile()));
+                    }
                     let _ = self.token.set(existing_token);
                     return Ok(addr);
                 }
@@ -242,6 +245,31 @@ impl OrchestratorDaemonEnsure {
 /// shared `orchestrator-daemon.token` file, which could rotate the token out
 /// from under an unrelated long-lived TCP daemon a GUI session was using —
 /// see `crates/vox-orchestrator-d/src/bin/vox_orchestrator_d.rs`).
+fn ping_profile(ping: &serde_json::Value) -> &str {
+    ping.get("profile")
+        .and_then(|v| v.as_str())
+        .unwrap_or("dev")
+}
+
+/// True when the daemon's ping reports `requested` (canonical id string; empty means `dev`).
+/// A daemon predating capability profiles reports none and counts as `dev`.
+pub fn ping_profile_matches(ping: &serde_json::Value, requested: &str) -> bool {
+    let requested = if requested.trim().is_empty() {
+        "dev"
+    } else {
+        requested.trim()
+    };
+    ping_profile(ping) == requested
+}
+
+pub fn profile_mismatch_error(ping: &serde_json::Value, requested: &str) -> String {
+    format!(
+        "profile_mismatch: the running vox-orchestrator-d serves profile `{}`, but `{requested}` was requested; stop that daemon or request `--profile {}`",
+        ping_profile(ping),
+        ping_profile(ping)
+    )
+}
+
 pub async fn ping_existing_daemon() -> Option<OrchDaemonClient> {
     let addr = match std::env::var("VOX_ORCHESTRATOR_DAEMON_SOCKET") {
         Ok(s) if s.contains(':') => s,
@@ -259,6 +287,24 @@ mod tests {
 
     /// Smoke test: constructing the helper and reading its (unset) token
     /// before `ensure()` is called must not panic.
+    #[test]
+    fn ping_profile_matches_treats_missing_as_dev() {
+        let old = serde_json::json!({"ok": true});
+        assert!(ping_profile_matches(&old, "dev"));
+        assert!(ping_profile_matches(&old, ""));
+        assert!(!ping_profile_matches(&old, "models"));
+        let models = serde_json::json!({"ok": true, "profile": "knowledge,models"});
+        assert!(ping_profile_matches(&models, "knowledge,models"));
+        assert!(!ping_profile_matches(&models, "dev"));
+    }
+
+    #[test]
+    fn profile_mismatch_error_names_both_profiles() {
+        let msg = profile_mismatch_error(&serde_json::json!({"profile": "mesh"}), "models");
+        assert!(msg.starts_with("profile_mismatch:"), "{msg}");
+        assert!(msg.contains("`mesh`") && msg.contains("`models`"), "{msg}");
+    }
+
     #[test]
     fn for_profile_defaults_empty_to_dev() {
         assert_eq!(
