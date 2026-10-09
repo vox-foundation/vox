@@ -17,3 +17,12 @@ Recorded 2026-10-04. Binding for executors.
   inert, GUI/CLI research web hits unpersisted, GUI findings via toasts + `vox kb status`).
 - **D-06 All other assumptions (taint rule, DPO-only MENS signals, sanitizer caps, snapshot
   location, etc.):** accepted at their recommended defaults.
+- **D-07 Agent-written facts are Untrusted (gap closure, 2026-10-08, user decision):** model- or
+  web-derived rows written through the model-callable memory store (`MemoryManager::persist_fact`
+  and anything else reachable from a model tool call) must map to `ContextTrustTier::Untrusted`,
+  never Advisory, so they cannot pass `exclude_untrusted_hits`. Narrows D-06: `fact`/`concept`
+  stay Advisory only for non-agent writers. Resolves review finding WR-10.
+- **D-08 Trusted means git-tracked and unmodified (gap closure, 2026-10-08, user decision):** the
+  Library reindex stamps a `docs/src` file `Trusted` only if it is tracked by git and has no
+  working-tree modifications; untracked or modified files are indexed `Untrusted`. Enforces the
+  TRUST-01 "merged to git" definition. Resolves review finding WR-09.
