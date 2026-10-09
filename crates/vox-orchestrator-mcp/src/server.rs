@@ -221,6 +221,9 @@ impl ServerHandler for VoxMcpServer {
         _params: Option<PaginatedRequestParams>,
         _ctx: RequestContext<RoleServer>,
     ) -> Result<ListToolsResult, ErrorData> {
+        if let Some(report) = crate::daemon_route::fetch_daemon_boot_report().await {
+            self.state.set_boot_report(report);
+        }
         let mut tool_list = crate::registry::merged_tool_registry(&self.state);
 
         let opt_in = workspace_tools_opt_in(

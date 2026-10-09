@@ -46,3 +46,36 @@ pub async fn call_tool_via_daemon(
 
     Ok(value.to_string())
 }
+
+/// The boot report of an **already-running** daemon, for filtering `tools/list`.
+/// `None` when no daemon answers; listing tools must never spawn one.
+pub async fn fetch_daemon_boot_report() -> Option<crate::profiles::BootReport> {
+    let client =
+        vox_cli_core::daemon_ipc::orchestrator_daemon_ensure::ping_existing_daemon().await?;
+    let value = client
+        .call(orch_daemon_method::BOOT_REPORT, serde_json::json!({}))
+        .await
+        .ok()?;
+    serde_json::from_value(value).ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// No daemon listening => `None`, and nothing is spawned (fails fast on a port nothing binds).
+    #[tokio::test]
+    #[serial_test::serial(orchestrator_daemon_socket_env)]
+    async fn fetch_daemon_boot_report_is_none_without_a_running_daemon() {
+        // SAFETY: serialized via `#[serial_test::serial]` on every test that mutates this var.
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::set_var("VOX_ORCHESTRATOR_DAEMON_SOCKET", "127.0.0.1:1");
+        }
+        assert!(fetch_daemon_boot_report().await.is_none());
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::remove_var("VOX_ORCHESTRATOR_DAEMON_SOCKET");
+        }
+    }
+}
