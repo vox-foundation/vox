@@ -1,27 +1,36 @@
 /**
- * Starlight route middleware: suppress Pagefind indexing for archive content.
+ * Starlight route middleware.
  *
- * Starlight renders `pagefind: false` frontmatter by adding `<meta name="robots"
- * content="noindex"> to the page <head>.  We replicate this for any route whose
- * slug starts with "archive/" so we never have to touch individual files.
+ * 1. "Last updated" dates. Starlight's own lookup (`lastUpdated: true`) runs
+ *    `git log` on `src/content/docs`, a gitignored symlink to `docs/src`, so
+ *    it finds no history and no page gets a date. Dates come from the
+ *    repo-root git-date map instead, which skips mechanical commits and
+ *    follows renames.
+ * 2. `<meta name="robots" content="noindex">` for archive content and the raw
+ *    SUMMARY page, so crawlers skip them. This affects crawlers only; Pagefind
+ *    indexing is controlled by `data-pagefind-body` / frontmatter `pagefind`.
  *
  * Ref: https://starlight.astro.build/reference/route-data/
  */
 import { defineRouteMiddleware } from '@astrojs/starlight/route-data';
+import { getGitDates } from './utils/git-dates.mjs';
+
+let gitDates: Map<string, string> | undefined;
 
 export const onRequest = defineRouteMiddleware((context) => {
-  const slug = context.locals.starlightRoute?.id ?? '';
+  const route = context.locals.starlightRoute;
+  if (!route) return;
 
-  // Suppress Pagefind for any archive/ path and the raw SUMMARY page
+  gitDates ??= getGitDates();
+  const key = 'docs/src/' + route.entry.filePath.replace(/\\/g, '/').replace(/^.*?src\/content\/docs\//, '');
+  const iso = gitDates.get(key);
+  if (iso) route.lastUpdated = new Date(iso);
+
+  const slug = route.id ?? '';
   if (slug.startsWith('archive/') || slug === 'summary') {
-    // Inject a <meta name="robots" content="noindex"> into the page head.
-    // Starlight's Pagefind integration respects this to skip the page.
-    const { head } = context.locals.starlightRoute;
-    if (head) {
-      head.push({
-        tag: 'meta',
-        attrs: { name: 'robots', content: 'noindex' },
-      });
-    }
+    route.head?.push({
+      tag: 'meta',
+      attrs: { name: 'robots', content: 'noindex' },
+    });
   }
 });

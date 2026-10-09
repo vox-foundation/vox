@@ -3,6 +3,11 @@ import { getCollection } from 'astro:content';
 import type { APIContext } from 'astro';
 import { getGitDates } from '../utils/git-dates.mjs';
 
+/** Git-date map key for a collection entry: same rule as `routeData.ts`. */
+function repoPath(filePath: string): string {
+  return 'docs/src/' + filePath.replace(/\\/g, '/').replace(/^.*?src\/content\/docs\//, '');
+}
+
 export async function GET(context: APIContext) {
   const docs = await getCollection('docs');
   const gitDates = getGitDates();
@@ -11,7 +16,7 @@ export async function GET(context: APIContext) {
   // error in authored docs (documentation-governance.md), so filtering on it
   // matched zero documents and the feed shipped empty.
   const items = docs
-    .map(doc => ({ doc, date: gitDates.get(doc.id) }))
+    .map(doc => ({ doc, date: doc.filePath ? gitDates.get(repoPath(doc.filePath)) : undefined }))
     .filter((entry): entry is { doc: typeof entry.doc; date: string } => Boolean(entry.date))
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 30)
@@ -29,7 +34,8 @@ export async function GET(context: APIContext) {
   if (items.length === 0) {
     throw new Error(
       `feed.xml produced 0 items from ${docs.length} docs and ` +
-        `${gitDates.size} git dates. Refusing to publish an empty feed.`,
+        `${gitDates.size} git dates (sample filePath ${docs[0]?.filePath}, ` +
+        `sample git key ${gitDates.keys().next().value}). Refusing to publish an empty feed.`,
     );
   }
 

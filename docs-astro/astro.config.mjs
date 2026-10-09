@@ -42,7 +42,7 @@ export default defineConfig({
           llmsFullTxt: true,
         }),
       ],
-      lastUpdated: true,
+      lastUpdated: false,
       pagefind: true,
     }),
   ],
