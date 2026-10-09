@@ -220,6 +220,12 @@ pub fn domain_counts(index: &CapabilityIndex) -> Vec<(&DomainDef, usize, usize, 
         .collect()
 }
 
+/// `--json` / MCP `data` shape of the domain overview: `[{id, label, cli, mcp, surface}]`.
+#[must_use]
+pub fn domain_counts_json(_index: &CapabilityIndex) -> serde_json::Value {
+    serde_json::json!("RED stub: domain_counts_json")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -384,5 +390,16 @@ mod tests {
         let counts = domain_counts(&idx);
         let (d, cli, mcp, gui) = counts[0];
         assert_eq!((d.id.as_str(), cli, mcp, gui), ("secrets", 2, 1, 0));
+    }
+
+    #[test]
+    fn domain_counts_json_shape() {
+        let v = domain_counts_json(&fixture_index());
+        let first = &v.as_array().expect("array")[0];
+        assert_eq!(
+            first,
+            &serde_json::json!({"id": "secrets", "label": first["label"], "cli": 2, "mcp": 1, "surface": 0})
+        );
+        assert_eq!(v.as_array().unwrap().len(), 3);
     }
 }
