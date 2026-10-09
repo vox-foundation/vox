@@ -120,6 +120,8 @@ pub mod openclaw;
 pub mod play;
 pub mod pm;
 pub mod pm_lifecycle;
+/// `--profile <ids>` resolution shared by `vox mcp` / `vox serve`.
+pub mod profile_arg;
 pub mod repair;
 /// Explicit multi-repo catalog and read-only polyrepo queries (`vox repo`).
 pub mod repo;

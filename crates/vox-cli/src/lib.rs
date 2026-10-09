@@ -461,7 +461,11 @@ pub enum Cli {
         cmd: commands::migrate::MigrateCmd,
     },
     /// Start the Vox MCP (Model Context Protocol) server
-    Mcp,
+    Mcp {
+        /// Capability profile ids (comma-separated), e.g. `models,knowledge`. Default: `VOX_PROFILE`, then `~/.vox/config.toml`, then `dev`.
+        #[arg(long, value_name = "IDS")]
+        profile: Option<String>,
+    },
     /// Export the Vox language grammar in various formats for MENS training.
     Grammar {
         /// Arguments.
