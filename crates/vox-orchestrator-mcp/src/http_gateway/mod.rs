@@ -12,6 +12,7 @@ use scientia_feed::{TopicMessage, spawn_scientia_queue_poller};
 mod rpc_tools;
 mod vcs_feed;
 use rpc_tools::*;
+pub mod bind_policy;
 mod token;
 mod ws;
 use anyhow::{Context, Result};
