@@ -1,6 +1,7 @@
 //! Committed inputs of the capability index.
 //!
-//! Reads only checked-in contracts, never `command_catalog::build_catalog()`: the clap tree varies
+//! Reads only checked-in files (contracts, the plugin catalog toml), never the catalog compiled into
+//! the binary or `command_catalog::build_catalog()`: the clap tree varies
 //! with cargo features, the committed catalog does not.
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -21,6 +22,7 @@ use super::owner::{CLI_COMMANDS_DIR, Layers};
 
 const LAYERS_REL: &str = "docs/src/architecture/layers.toml";
 const DOMAINS_REL: &str = "contracts/capabilities/domains.v1.yaml";
+const CATALOG_REL: &str = "crates/vox-plugin-catalog/catalog.toml";
 
 /// Everything `join::build_index` needs; pure data so the join is testable without IO.
 #[derive(Default)]
@@ -91,7 +93,7 @@ pub(crate) fn load(repo_root: &Path) -> Result<Inputs> {
         domains: load_domains(repo_root)?,
         surfaces: load_registry(repo_root)?,
         crate_descriptions,
-        skills: load_skills(),
+        skills: load_skills(repo_root)?,
         coverage: load_coverage(repo_root)?,
         doc_pages: load_doc_pages(repo_root)?,
     })
@@ -172,10 +174,26 @@ fn load_crate_descriptions(repo_root: &Path, layers: &Layers) -> Result<BTreeMap
     Ok(out)
 }
 
-/// Skill plugins (payload kind skill) then skill bundles, from the embedded plugin catalog.
-fn load_skills() -> Vec<SkillInput> {
-    let plugins = vox_plugin_catalog::all_plugins()
-        .iter()
+/// The two catalog tables the index reads; other tables (`bundle`, `component`) are ignored.
+/// Same table names as `vox_plugin_catalog`'s private `CatalogFile`.
+#[derive(Deserialize)]
+struct SkillCatalog {
+    #[serde(default, rename = "plugin")]
+    plugins: Vec<vox_plugin_catalog::schema::PluginCatalogEntry>,
+    #[serde(default, rename = "skill-bundle")]
+    skill_bundles: Vec<vox_plugin_catalog::schema::SkillBundleEntry>,
+}
+
+/// Skill plugins (payload kind skill) then skill bundles, read from the checked-in
+/// `crates/vox-plugin-catalog/catalog.toml` (not the copy compiled into the running binary, which
+/// is stale right after `plugin-catalog-sync --write` rewrote the file).
+fn load_skills(repo_root: &Path) -> Result<Vec<SkillInput>> {
+    let path = repo_root.join(CATALOG_REL);
+    let cat: SkillCatalog = toml::from_str(&read_utf8_path_capped(&path)?)
+        .with_context(|| format!("parse {CATALOG_REL}"))?;
+    let plugins = cat
+        .plugins
+        .into_iter()
         .filter(|p| {
             matches!(
                 p.payload_kind,
@@ -183,20 +201,18 @@ fn load_skills() -> Vec<SkillInput> {
             )
         })
         .map(|p| SkillInput {
-            id: p.id.clone(),
-            description: p.description.clone(),
-            exposes_tools: p.exposes_tools.clone().unwrap_or_default(),
+            id: p.id,
+            description: p.description,
+            exposes_tools: p.exposes_tools.unwrap_or_default(),
             source_path: None,
         });
-    let bundles = vox_plugin_catalog::all_skill_bundles()
-        .iter()
-        .map(|b| SkillInput {
-            id: b.id.clone(),
-            description: b.description.clone(),
-            exposes_tools: Vec::new(),
-            source_path: Some(b.bundle_path.clone()),
-        });
-    plugins.chain(bundles).collect()
+    let bundles = cat.skill_bundles.into_iter().map(|b| SkillInput {
+        id: b.id,
+        description: b.description,
+        exposes_tools: Vec::new(),
+        source_path: Some(b.bundle_path),
+    });
+    Ok(plugins.chain(bundles).collect())
 }
 
 fn load_domains(repo_root: &Path) -> Result<Domains> {
@@ -262,6 +278,31 @@ pub(crate) fn test_op(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn skills_come_from_the_checked_in_catalog_file() {
+        const CATALOG: &str = "[[plugin]]\nid = \"skill-zz\"\npayload-kind = \"skill\"\n\
+            description = \"d\"\nexposes-tools = [\"vox_a\"]\ndefault-source = \"local:x\"\n\n\
+            [[plugin]]\nid = \"code-zz\"\npayload-kind = \"code\"\ndescription = \"c\"\n\
+            default-source = \"local:y\"\n\n\
+            [[skill-bundle]]\nid = \"b\"\ndescription = \"bd\"\nlicense = \"MIT\"\nsource = \"s\"\n\
+            pin = \"p\"\nbundle-path = \"assets/skills/b\"\n";
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join(CATALOG_REL);
+        std::fs::create_dir_all(path.parent().expect("parent")).expect("mkdir");
+        std::fs::write(&path, CATALOG).expect("write catalog");
+        let skills = load_skills(dir.path()).expect("load");
+        let ids: Vec<&str> = skills.iter().map(|s| s.id.as_str()).collect();
+        // Only the file's rows: not the (different) catalog compiled into this binary.
+        assert_eq!(ids, ["skill-zz", "b"]);
+        assert_eq!(skills[0].exposes_tools, ["vox_a"]);
+        assert_eq!(skills[1].source_path.as_deref(), Some("assets/skills/b"));
+        let empty = tempfile::tempdir().expect("tempdir");
+        assert!(
+            load_skills(empty.path()).is_err(),
+            "missing catalog must fail"
+        );
+    }
 
     #[test]
     fn test_op_builds_both_projections() {
