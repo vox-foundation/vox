@@ -5,16 +5,16 @@ milestone_name: Vox Knowledge Base — corpus to context
 current_phase: 03
 current_phase_name: Provenance, Trust Tiers and Leak Closure
 status: executing
-stopped_at: Completed 03-13-PLAN.md
-last_updated: "2026-10-09T08:18:06.465Z"
-last_activity: 2026-10-06
+stopped_at: Completed 03-14-PLAN.md
+last_updated: "2026-10-09T20:32:08.194Z"
+last_activity: 2026-10-09
 last_activity_desc: Phase 03 execution started
-state_head: c690da24e5cb33d4ffbdac851fd30bad6eb32ee7
+state_head: 62d988136139728f935782dd22f3e3dc9117f6dc
 progress:
   total_phases: 12
   completed_phases: 2
   total_plans: 40
-  completed_plans: 37
+  completed_plans: 38
   percent: 17
 ---
 
@@ -29,10 +29,10 @@ See: .planning/PROJECT.md (shared project context) and .planning/workstreams/kb/
 
 ## Current Position
 
-Phase: 03 (Provenance, Trust Tiers and Leak Closure) — READY TO EXECUTE
-Plan: 13 of 13
+Phase: 03 (Provenance, Trust Tiers and Leak Closure) — EXECUTING
+Plan: 2 of 16
 Status: Ready to execute
-Last activity: 2026-10-06 — Phase 03 execution started
+Last activity: 2026-10-09 — Phase 03 execution started
 
 Progress: [██░░░░░░░░] 17%
 
@@ -84,6 +84,7 @@ Progress: [██░░░░░░░░] 17%
 | Phase 03 P11 | 45min | 3 tasks | 14 files |
 | Phase 03 P12 | 180min | 2 tasks | 16 files |
 | Phase 03 P13 | 180min | 2 tasks | 9 files |
+| Phase 03 P14 | 2h | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -119,6 +120,8 @@ Progress: [██░░░░░░░░] 17%
 - [Phase 03]: 03-11: GUI side doors (Ingest URL/Text, Publish) file pending Untrusted findings via mcp helpers; save_research_doc deleted; toasts say Filed for review (D-05 interim)
 - [Phase 03]: 03-12: quarantine module always compiled; only baseline_sql gates the legacy VoxKB DDL (LEGACY_VOXKB_DDL must exist on default builds); digest-only re-update keeps baseline 96
 - [Phase 03]: 03-13: vox_kb_status adds counts-only legacy_voxkb and inbox objects (Phase 2 keys unchanged); VoxKB retirement recorded via voxkb-kbstore-surface registry rows and an AGENTS.md row
+- [Phase 03]: 03-14: Tavily CRAG does not fire under AutoChatPreamble (exclusion derived from trigger inside run_search_with_verification); explicit lines labelled [tier:untrusted] and lower min_trust_tier
+- [Phase 03]: 03-14: all numbered research Source fields built via sanitized_source (SanitizedText) on quick, deep and failed-run paths
 
 ### Pending Todos
 
@@ -133,8 +136,8 @@ Progress: [██░░░░░░░░] 17%
 
 ## Session Continuity
 
-**Last session:** 2026-10-09T02:55:07.650Z
+**Last session:** 2026-10-09T20:32:08.121Z
 
-**Stopped At:** Completed 03-13-PLAN.md
+**Stopped At:** Completed 03-14-PLAN.md
 **Resume File:** None
 **Next:** `/gsd-plan-phase 1` (no research-phase needed)
