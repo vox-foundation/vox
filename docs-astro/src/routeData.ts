@@ -65,7 +65,7 @@ function sourcePath(filePath: string, mountedFrom: unknown): string {
 /** docs/src dates, then mounted repo files' dates (a separate log, so docs/src dates are unchanged by mounts). */
 function loadGitDates(): Map<string, string> {
   const root = getRepoRoot();
-  const dates = new Map(getGitDates(root ?? undefined));
+  const dates = new Map<string, string>(getGitDates(root ?? undefined));
   if (root) {
     const mounted = discoverMounts({ repoRoot: root }).map((mount) => mount.repoPath);
     if (mounted.length) for (const [path, iso] of getGitDates(root, { paths: mounted })) if (!dates.has(path)) dates.set(path, iso);
