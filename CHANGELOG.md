@@ -23,11 +23,14 @@ All notable changes to the Vox project are documented here.
 
 ### Removed
 
+- **The 12 legacy `vox_kb_*` CRUD tools are retired, with no aliases (KB Phase 3, D-02).** Retired tools: `vox_kb_create`, `vox_kb_list`, `vox_kb_delete`, `vox_kb_add_entry`, `vox_kb_delete_entry`, `vox_kb_list_entries`, `vox_kb_review_entry`, `vox_kb_get_feed`, `vox_kb_add_rule`, `vox_kb_list_rules`, `vox_kb_query` and `vox_kb_clip`; the model-callable writers among them (`vox_kb_clip`, `vox_kb_add_entry`) are retired with the rest. A call to any of them now answers as an unknown tool. External MCP allowlists and prompts must switch to `vox_kb_search` / `vox_kb_get` / `vox_kb_cite` for reading the Library index.
+- **The legacy VoxKB store is retired.** The `KbStore` LIKE-search store, the `KbRouter` keyword router, the three model-output signal adapters and their vox-db CRUD and row types are retired and deleted. A fresh database no longer creates `knowledge_bases`, `kb_entries` or `kb_routing_rules` (the DDL moved behind the `quarantine` feature); an existing database keeps them and its rows are copied into the findings inbox on every attach.
 - **Tantivy docs mirror in `vox-search`**, which had no writer: the module is gone, along with the public `SearchExecution` supplemental Tantivy lines field (`tantivy_doc_lines`) and `SearchPolicy::tantivy_index_root`. The Library indexer owns the Tantivy index now.
 
 ### Notes
 
 - After upgrading, restart a running `vox-orchestrator-d`; an old daemon keeps serving the previous tool table and answers `vox_kb_*` calls as unknown tools.
+- `vox_config::sanitize_chatml` and the `vox-corpus` arca replay copy remain separate prompt sanitizers outside the KB path; the one KB-text sanitizer is `vox_db::kb_text::sanitize`.
 
 ### Fixed
 
@@ -40,6 +43,13 @@ All notable changes to the Vox project are documented here.
 
 ### Changed
 
+- **Model and web text reaches the knowledge base only as a pending, `Untrusted` finding (KB Phase 3).** Web hits from the search web leg and the Tavily path, every research turn and the GUI side doors file rows in the new `kb_findings` inbox instead of the corpus. `persist_web_hits` (`VOX_SEARCH_PERSIST_WEB_HITS_DISABLED`) therefore means "capture into the inbox when a sink is injected", not "mirror into `search_documents`". A chat turn no longer writes model output into the knowledge base, and the legacy KB text (keyword enrichment, `@name` dumps) no longer reaches any chat prompt.
+- **Trust tiers decide what the automatic chat preamble may inject.** Every `search_documents` row carries a stored `trust_tier` (SystemVerified, Trusted, Advisory, Untrusted). Legacy web rows are re-tiered `Untrusted` (not purged) and dropped from the automatic chat context; explicit tools still return them, labelled `[tier:untrusted]`. The envelope tier is the minimum of the kept hits. Retrieved text and every `vox_kb_*` tool result pass one KB-text sanitizer.
+- **GUI Ingest URL, Ingest Text and Publish research doc file pending findings.** They no longer write `docs/src` or the knowledge graph, and the caller-less `save_research_doc` command is deleted. Until the Phase 12 Inbox GUI, filed findings are visible only through the toast and `vox kb status`. `vox research publish` writes a local draft under `.vox/cache/research-drafts/` instead of `docs/src`.
+- **`@kb` bucket mentions are inert until Phase 7.** The mention still parses but injects nothing.
+- **MENS `KbSignals` reads reviewed findings only and emits DPO pairs, never SFT.** SFT data already exported from legacy `mens_queued=1` rows cannot be recalled.
+- **`vox kb status` and `vox_kb_status` report the legacy VoxKB row counts and the pending/total inbox counts** (new `legacy_voxkb` and `inbox` objects; every Phase 2 field is unchanged). `vox_kb_status` stays off the HTTP read role.
+- **vox-db schema baseline 96** (`kb_findings`, `search_documents.trust_tier`). Existing databases migrate in place; the legacy VoxKB tables are quarantined, never dropped.
 - **MENS picks its Candle backend the same way everywhere.** `vox mens train`, `vox mens serve`, `merge-qlora` and `eval-local` now share `vox_populi::mens::select_mens_backend`: an explicit `--device` wins; otherwise CUDA on an NVIDIA host, Metal on any Mac (Intel included), and a CPU plugin elsewhere (`--device cpu` on an NVIDIA host reuses the CUDA plugin). Previously training guessed from the OS (CUDA on every non-Mac host, GPU or not) while serving probed hardware and failed outright on a host with no GPU. The pre-train plugin self-heal now also runs for the default `--device best` (previously only for an explicit `--device cuda`/`metal`), and is skipped where no prebuilt plugin is published for the platform; there, and on Windows hosts without a GPU (which used to get a from-source CUDA build and now select `mens-candle-cpu`), the load error explains how to build the plugin from source.
 - **`VOX_MENS_FORCE_TRAIN` overrides `vox mens train`'s VRAM-fit refusal.** When the accelerator lane is calibrated (has a row in `contracts/mens/memory-model.v1.yaml`) and the real, measured `memory_model::sweep`/`plan_for` verdict refuses the config even at `batch_size=1`, `vox mens train` refuses to proceed unless `VOX_MENS_FORCE_TRAIN=1` (or `true`) is set; unset or `0` still rejects. An uncalibrated lane (no measured basis to accept or refuse) is a separate, warn-and-proceed case, not a refusal. This replaced the earlier params_b-only `budget_gate`/`ModelPlan.over_budget` gate in `train_arm.rs`, deleted as part of the 2026-09-11 memory-model SSOT migration, with the same operator-override contract applied to the new measured entry point.
 

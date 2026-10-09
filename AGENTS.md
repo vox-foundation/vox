@@ -582,6 +582,7 @@ Do **NOT** use the following retired symbols, crates, or env vars. Using them wi
 |---|---|
 | `vox-dei` (old large orchestrator crate) | `vox-orchestrator` |
 | `vox-ars` (crate) | `vox-openclaw-runtime` |
+| KbStore, KbRouter, legacy vox_kb_* CRUD tools | `vox_kb_search` / `vox_kb_get` / `vox_kb_cite` (Library index) and the `kb_findings` inbox for anything model- or web-derived (retired KB Phase 3, D-02; no aliases) |
 | `vox-ludus` | `vox-gamify` |
 | `vox-lexer`, `vox-parser`, `vox-hir`, `vox-typeck` | `vox-compiler` (monolith) |
 | `@component fn Name()` | `component Name() {}` |
