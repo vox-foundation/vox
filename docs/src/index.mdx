@@ -8,7 +8,6 @@ training_eligible: true
 ---
 
 import VoxPlayground from '../../docs-astro/src/components/VoxPlayground.astro';
-import oldInternetKnot from './assets/old_internet_knot_abstract.png';
 
 <div style="text-align: center; padding: 1.5rem 0 0.5rem;">
   <h1 style="font-size: 2.25rem; line-height: 1.15; margin-bottom: 0.75rem;">The Language That Speaks First to LLMs</h1>
@@ -28,7 +27,9 @@ import oldInternetKnot from './assets/old_internet_knot_abstract.png';
 Mainstream languages predate LLMs by decades. They tolerate implicit state — nulls, exceptions, schemas restated three times across the stack. That's tractable for a person; it's a minefield for a statistical code generator. A million-token context window doesn't help when most of it is integration boilerplate.
 
 <div align="center">
-  <img src={oldInternetKnot.src} alt="A diagram illustrating the complexity of traditional web development fragmentation." width="80%" />
+
+![A diagram illustrating the complexity of traditional web development fragmentation.](./assets/old_internet_knot_abstract.png)
+
   <p>
     <strong>Fragmentation in Traditional Web Development</strong><br />
     Traditional development requires restating data models and logic across frontend, API, backend, and database layers. This duplication creates significant maintenance overhead and increases the risk of integration drift.
