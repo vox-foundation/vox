@@ -25,14 +25,58 @@ pub struct FeaturesArgs {
     pub domain: Option<String>,
 }
 
+fn err(msg: impl Into<String>, remediation: &str) -> String {
+    ToolResult::<Value>::err_with_remediation(msg, remediation).to_json()
+}
+
 /// Rows for the best match (exact or shortlist); error envelope for no match or a bad query.
-pub fn explain(_args: ExplainArgs) -> String {
-    ToolResult::<Value>::err_with_remediation("RED stub: explain", "RED stub").to_json()
+pub fn explain(args: ExplainArgs) -> String {
+    let index = bundled_index();
+    let r = match resolve(index, &args.query) {
+        Ok(r) => r,
+        Err(e) => return err(e.to_string(), "pass a query of 1-256 characters"),
+    };
+    let kind = match r {
+        Resolution::Exact { .. } => "exact",
+        Resolution::Shortlist(_) => "shortlist",
+        Resolution::NoMatch => {
+            return err(
+                format!("no capability matches `{}`", args.query.trim()),
+                "call vox_capability_features to browse by domain",
+            );
+        }
+    };
+    let text = render_resolution(index, &args.query, &r);
+    match serde_json::to_value(explain_rows(&r)) {
+        Ok(rows) => {
+            ToolResult::ok_with_meta(rows, json!({ "text": text, "match": kind })).to_json()
+        }
+        Err(e) => err(format!("serialize rows: {e}"), "report this as a bug"),
+    }
 }
 
 /// Rows of one domain, or the per-domain counts when `domain` is absent.
-pub fn features(_args: FeaturesArgs) -> String {
-    ToolResult::<Value>::err_with_remediation("RED stub: features", "RED stub").to_json()
+pub fn features(args: FeaturesArgs) -> String {
+    let index = bundled_index();
+    let Some(d) = args.domain.as_deref() else {
+        let text = render_features(index, None).unwrap_or_default();
+        return ToolResult::ok_with_meta(domain_counts_json(index), json!({ "text": text }))
+            .to_json();
+    };
+    let rows = match rows_in_domain(index, d) {
+        Ok(rows) => rows,
+        Err(e) => {
+            return err(
+                e.to_string(),
+                "call vox_capability_features without a domain to list valid domains",
+            );
+        }
+    };
+    let text = render_features(index, Some(d)).unwrap_or_default();
+    match serde_json::to_value(rows) {
+        Ok(v) => ToolResult::ok_with_meta(v, json!({ "text": text })).to_json(),
+        Err(e) => err(format!("serialize rows: {e}"), "report this as a bug"),
+    }
 }
 
 #[cfg(test)]

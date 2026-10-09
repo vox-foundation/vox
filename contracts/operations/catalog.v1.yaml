@@ -4599,7 +4599,10 @@ operations:
   mens_planner_visible: null
   canonical_name: null
   latin_aliases: null
-  mcp: null
+  mcp:
+    name: vox_capability_explain
+    http_read_role_eligible: false
+    tier: core
   cli:
     path:
     - explain
@@ -4628,7 +4631,10 @@ operations:
   mens_planner_visible: null
   canonical_name: null
   latin_aliases: null
-  mcp: null
+  mcp:
+    name: vox_capability_features
+    http_read_role_eligible: false
+    tier: core
   cli:
     path:
     - features

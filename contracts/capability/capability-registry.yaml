@@ -7527,8 +7527,8 @@ curated:
   parameters: null
 - id: cli.explain
   title: Explain Capability
-  description_human: null
-  description_model: Explain a Vox capability (what it is, its owning crate and layer, CLI/GUI/MCP equivalents and docs link), answered from contracts/capabilities/capability-index.v1.json.
+  description_human: Explain a Vox capability (what it is, its owning crate and layer, CLI/GUI/MCP equivalents and docs link), answered from contracts/capabilities/capability-index.v1.json.
+  description_model: null
   intent_tags:
   - discovery
   - capability
@@ -11190,8 +11190,8 @@ curated:
   parameters: null
 - id: cli.features
   title: List Capabilities by Domain
-  description_human: null
-  description_model: List Vox capabilities by domain with layer, CLI/GUI/MCP equivalents and docs path, answered from contracts/capabilities/capability-index.v1.json.
+  description_human: List Vox capabilities by domain with layer, CLI/GUI/MCP equivalents and docs path, answered from contracts/capabilities/capability-index.v1.json.
+  description_model: null
   intent_tags:
   - discovery
   - capability
@@ -19460,6 +19460,42 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_cancel_task
+  cli_path: null
+  parameters: null
+- id: mcp.vox_capability_explain
+  title: Explain Capability
+  description_human: null
+  description_model: Explain a Vox capability (what it is, its owning crate and layer, CLI/GUI/MCP equivalents and docs link), answered from contracts/capabilities/capability-index.v1.json.
+  intent_tags:
+  - discovery
+  - capability
+  side_effect_class: read_only
+  scope_kind: repository
+  reversible: true
+  requires_repo: false
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  mcp_tool: vox_capability_explain
+  cli_path: null
+  parameters: null
+- id: mcp.vox_capability_features
+  title: List Capabilities by Domain
+  description_human: null
+  description_model: List Vox capabilities by domain with layer, CLI/GUI/MCP equivalents and docs path, answered from contracts/capabilities/capability-index.v1.json.
+  intent_tags:
+  - discovery
+  - capability
+  side_effect_class: read_only
+  scope_kind: repository
+  reversible: true
+  requires_repo: false
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  mcp_tool: vox_capability_features
   cli_path: null
   parameters: null
 - id: mcp.vox_capability_model_manifest

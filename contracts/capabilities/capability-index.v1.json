@@ -17956,7 +17956,9 @@
         }
       ],
       "skills": [],
-      "equivalents": [],
+      "equivalents": [
+        "mcp.vox_capability_explain"
+      ],
       "refs": [],
       "coverage": {
         "kind": null,
@@ -26385,7 +26387,9 @@
         }
       ],
       "skills": [],
-      "equivalents": [],
+      "equivalents": [
+        "mcp.vox_capability_features"
+      ],
       "refs": [],
       "coverage": {
         "kind": null,
@@ -46147,6 +46151,86 @@
       ],
       "skills": [],
       "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no graph-coverage snapshot committed"
+      }
+    },
+    {
+      "id": "mcp.vox_capability_explain",
+      "kind": "mcp_tool",
+      "title": "Explain Capability",
+      "summary": "Explain a Vox capability (what it is, its owning crate and layer, CLI/GUI/MCP equivalents and docs link), answered from contracts/capabilities/capability-index.v1.json.",
+      "op_id": "capability.explain",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "platform",
+      "side_effect_class": "read_only",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_capability_explain"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-capability-registry",
+        "layer": 2,
+        "rule": "override"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [
+        "cli.explain"
+      ],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no graph-coverage snapshot committed"
+      }
+    },
+    {
+      "id": "mcp.vox_capability_features",
+      "kind": "mcp_tool",
+      "title": "List Capabilities by Domain",
+      "summary": "List Vox capabilities by domain with layer, CLI/GUI/MCP equivalents and docs path, answered from contracts/capabilities/capability-index.v1.json.",
+      "op_id": "capability.features",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "platform",
+      "side_effect_class": "read_only",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_capability_features"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-capability-registry",
+        "layer": 2,
+        "rule": "override"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [
+        "cli.features"
+      ],
       "refs": [],
       "coverage": {
         "kind": null,
