@@ -115,6 +115,12 @@ pub struct OperationRow {
     /// Optional human-facing description for CLI-only capabilities (planner); defaults to [`Self::description`].
     #[serde(default)]
     pub description_human: Option<String>,
+    /// Optional owning-crate override for the capability index (must be a `layers.toml [crates]` key).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owner_crate: Option<String>,
+    /// Optional capability-index domain override (must be an id in `contracts/capabilities/domains.v1.yaml`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub domain: Option<String>,
     pub product_lane: String,
     #[serde(default)]
     pub intent_tags: Vec<String>,
@@ -301,6 +307,8 @@ fn build_catalog_from_live_registries(repo_root: &Path) -> Result<OperationsCata
             title: title_from_id(&id),
             description: t.description.clone(),
             description_human: None,
+            owner_crate: None,
+            domain: None,
             product_lane: t.product_lane.clone(),
             intent_tags: Vec::new(),
             side_effect_class: None,
@@ -337,6 +345,8 @@ fn build_catalog_from_live_registries(repo_root: &Path) -> Result<OperationsCata
             title: title_from_id(&id),
             description: format!("CLI operation `vox {}`", op.path.join(" ")),
             description_human: None,
+            owner_crate: None,
+            domain: None,
             product_lane: op
                 .product_lane
                 .clone()
@@ -398,6 +408,8 @@ fn apply_prev_planner_metadata(row: &mut OperationRow, prev: Option<&OperationRo
     row.human_takeover_friendly = p.human_takeover_friendly;
     row.mens_planner_visible = p.mens_planner_visible;
     row.description_human = p.description_human.clone();
+    row.owner_crate = p.owner_crate.clone();
+    row.domain = p.domain.clone();
 }
 
 fn write_inventory_report(repo_root: &Path, catalog: &OperationsCatalog) -> Result<()> {
@@ -1081,6 +1093,8 @@ mod tests {
             title: "".to_string(),
             description: "".to_string(),
             description_human: None,
+            owner_crate: None,
+            domain: None,
             product_lane: "platform".to_string(),
             intent_tags: vec![],
             side_effect_class: None,

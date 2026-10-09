@@ -5,6 +5,7 @@
 
 mod inputs;
 mod join;
+mod owner;
 
 use std::path::Path;
 
@@ -97,7 +98,11 @@ mod tests {
         if extra_op {
             ops.push(test_op("c", Some((&["c"], "active")), None, "new op"));
         }
-        join::build_index(&inputs::Inputs { ops }).expect("build synthetic index")
+        join::build_index(&inputs::Inputs {
+            ops,
+            ..Default::default()
+        })
+        .expect("build synthetic index")
     }
 
     #[test]

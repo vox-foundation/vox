@@ -113,7 +113,10 @@ mod tests {
     use vox_capability_registry::RowKind;
 
     fn inputs(ops: Vec<OperationRow>) -> Inputs {
-        Inputs { ops }
+        Inputs {
+            ops,
+            ..Default::default()
+        }
     }
 
     fn ids(idx: &CapabilityIndex) -> Vec<&str> {
@@ -151,6 +154,34 @@ mod tests {
         let cov = a.coverage.as_ref().expect("coverage object");
         assert!(cov.kind.is_none());
         assert!(cov.reason.as_deref().is_some_and(|r| !r.is_empty()));
+    }
+
+    #[test]
+    fn rows_carry_owner_and_source_path() {
+        let mut inp = inputs(vec![test_op(
+            "secrets.get",
+            Some((&["secrets", "get"], "active")),
+            Some("vox_secrets_get"),
+            "d",
+        )]);
+        inp.layers = [("vox-secrets", 1u8), ("vox-orchestrator-mcp", 4)]
+            .into_iter()
+            .map(|(n, l)| (n.to_string(), Some(l)))
+            .collect();
+        let idx = build_index(&inp).expect("build");
+        let cli = idx.row("cli.secrets.get").expect("cli row");
+        let owner = cli.owner.as_ref().expect("cli owner");
+        assert_eq!(
+            (owner.crate_name.as_str(), owner.rule.as_str(), owner.layer),
+            ("vox-secrets", "crate_name_match", Some(1))
+        );
+        assert_eq!(cli.source_path.as_deref(), Some("crates/vox-secrets/"));
+        let mcp = idx.row("mcp.vox_secrets_get").expect("mcp row");
+        assert_eq!(mcp.owner.as_ref().expect("mcp owner").rule, "mcp_dispatch");
+        assert_eq!(
+            mcp.source_path.as_deref(),
+            Some("crates/vox-orchestrator-mcp/src/dispatch.rs")
+        );
     }
 
     #[test]
