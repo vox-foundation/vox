@@ -53,7 +53,10 @@ mod tests {
     async fn auth_rejects_bad_bearer() {
         let state = make_state(5).await;
         let mut headers = HeaderMap::new();
-        headers.insert(AUTHORIZATION, vox_http_client::bearer_auth_header("nope").unwrap());
+        headers.insert(
+            AUTHORIZATION,
+            vox_http_client::bearer_auth_header("nope").unwrap(),
+        );
         assert!(enforce_auth(&state, &headers).is_err());
     }
 
@@ -61,7 +64,10 @@ mod tests {
     async fn auth_accepts_read_bearer_as_read_role() {
         let state = make_state(5).await;
         let mut headers = HeaderMap::new();
-        headers.insert(AUTHORIZATION, vox_http_client::bearer_auth_header("read-token").unwrap());
+        headers.insert(
+            AUTHORIZATION,
+            vox_http_client::bearer_auth_header("read-token").unwrap(),
+        );
         assert_eq!(
             resolve_access_role(&state, &headers).expect("read token accepted"),
             AccessRole::Read
@@ -70,15 +76,19 @@ mod tests {
 
     #[test]
     fn parse_allowed_tools_default_has_safe_entries() {
-        let set = parse_allowed_tools_from_value(None).expect("default allowlist should parse");
+        let set = parse_allowed_tools_from_value(None, &crate::profiles::ActiveProfile::dev())
+            .expect("default allowlist should parse");
         assert!(set.contains("vox_orchestrator_status"));
         assert!(set.contains("vox_validate_file"));
     }
 
     #[test]
     fn parse_allowed_tools_rejects_unknown() {
-        let err = parse_allowed_tools_from_value(Some("definitely_not_a_real_tool"))
-            .expect_err("unknown tool should fail");
+        let err = parse_allowed_tools_from_value(
+            Some("definitely_not_a_real_tool"),
+            &crate::profiles::ActiveProfile::dev(),
+        )
+        .expect_err("unknown tool should fail");
         assert!(err.to_string().contains("unknown tool"));
     }
 
@@ -191,7 +201,10 @@ mod tests {
         );
         let peer: SocketAddr = "127.0.0.1:1234".parse().expect("socket parse");
         let mut headers = HeaderMap::new();
-        headers.insert(AUTHORIZATION, vox_http_client::bearer_auth_header("read-token").unwrap());
+        headers.insert(
+            AUTHORIZATION,
+            vox_http_client::bearer_auth_header("read-token").unwrap(),
+        );
         let resp = http_tools(State(state), ConnectInfo(peer), headers).await;
         assert_eq!(resp.status(), StatusCode::OK);
         let body = to_bytes(resp.into_body(), 1024 * 1024)
@@ -228,7 +241,10 @@ mod tests {
         );
         let peer: SocketAddr = "127.0.0.1:1234".parse().expect("socket parse");
         let mut headers = HeaderMap::new();
-        headers.insert(AUTHORIZATION, vox_http_client::bearer_auth_header("read-token").unwrap());
+        headers.insert(
+            AUTHORIZATION,
+            vox_http_client::bearer_auth_header("read-token").unwrap(),
+        );
         let resp = http_call_tool(
             State(state),
             ConnectInfo(peer),
@@ -274,7 +290,10 @@ mod tests {
         );
         let peer: SocketAddr = "127.0.0.1:1234".parse().expect("socket parse");
         let mut headers = HeaderMap::new();
-        headers.insert(AUTHORIZATION, vox_http_client::bearer_auth_header("read-token").unwrap());
+        headers.insert(
+            AUTHORIZATION,
+            vox_http_client::bearer_auth_header("read-token").unwrap(),
+        );
         let resp = http_info(State(state), ConnectInfo(peer), headers).await;
         assert_eq!(resp.status(), StatusCode::OK);
         let body = to_bytes(resp.into_body(), 1024 * 1024)
@@ -331,7 +350,10 @@ mod tests {
             .expect("test http client");
         let tools_resp = client
             .get(format!("http://{addr}/v1/tools"))
-            .header("authorization", vox_http_client::bearer_auth_header_string("read-token"))
+            .header(
+                "authorization",
+                vox_http_client::bearer_auth_header_string("read-token"),
+            )
             .send()
             .await
             .expect("tools request");
@@ -348,7 +370,10 @@ mod tests {
 
         let call_resp = client
             .post(format!("http://{addr}/v1/tools/call"))
-            .header("authorization", vox_http_client::bearer_auth_header_string("read-token"))
+            .header(
+                "authorization",
+                vox_http_client::bearer_auth_header_string("read-token"),
+            )
             .json(&serde_json::json!({
                 "name": "vox_inline_edit",
                 "args": {}
@@ -380,7 +405,8 @@ mod tests {
         unsafe {
             std::env::set_var("VOX_MCP_HTTP_BEARER_TOKEN", "gateway-env-token");
         }
-        let resolver = vox_secrets::resolver::SecretResolver::new(vox_secrets::backend::NoopBackend);
+        let resolver =
+            vox_secrets::resolver::SecretResolver::new(vox_secrets::backend::NoopBackend);
         let lenient = resolver.resolve(
             vox_secrets::SecretId::VoxMcpHttpBearerToken,
             &vox_secrets::resolver::ResolveOptions {

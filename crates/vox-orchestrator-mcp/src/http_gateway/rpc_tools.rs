@@ -59,6 +59,20 @@ pub(super) async fn http_call_tool(
                 .into_response();
         }
     };
+    let canonical = canonical_tool_name(req.name.as_str()).to_string();
+    if let Err(denial) = crate::profiles::guard_tool(
+        &state.server_state,
+        crate::profiles::CallContext::LOCAL_WRITE,
+        &canonical,
+    ) {
+        let status = StatusCode::from_u16(denial.http_status()).unwrap_or(StatusCode::FORBIDDEN);
+        let body = crate::profiles::denial_error_json(
+            &canonical,
+            &denial,
+            &state.server_state.active_profile,
+        );
+        return (status, Json(body)).into_response();
+    }
     call_tool_response(&state, req.name, req.args, Some(connect.0), role).await
 }
 pub(super) async fn call_tool_response(
@@ -78,6 +92,21 @@ pub(super) async fn call_tool_response_value(
     role: AccessRole,
 ) -> ToolCallResponse {
     let canonical = canonical_tool_name(name.as_str()).to_string();
+    if let Err(denial) = crate::profiles::guard_tool(
+        &state.server_state,
+        crate::profiles::CallContext::LOCAL_WRITE,
+        &canonical,
+    ) {
+        return ToolCallResponse {
+            success: false,
+            is_error: true,
+            result: crate::profiles::denial_error_json(
+                &canonical,
+                &denial,
+                &state.server_state.active_profile,
+            ),
+        };
+    }
     if !visible_tools_for_role(state, role).contains(&canonical) {
         return ToolCallResponse {
             success: false,

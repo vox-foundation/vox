@@ -338,7 +338,7 @@ pub fn spawn_http_gateway_if_enabled(
             .and_then(|s| s.parse::<u32>().ok())
             .filter(|n| *n > 0)
             .unwrap_or(DEFAULT_RATE_LIMIT_PER_MINUTE);
-    let allowed_tools = Arc::new(parse_allowed_tools()?);
+    let allowed_tools = Arc::new(parse_allowed_tools(&state.active_profile)?);
     let read_role_eligible_tools = Arc::new(metadata_read_role_eligible_tools());
     let read_role_tools_override = parse_read_role_allowed_tools_override()?.map(Arc::new);
 
@@ -465,9 +465,12 @@ pub(super) fn enforce_rate_limit(
     })
 }
 
-pub(super) fn parse_allowed_tools() -> Result<HashSet<String>> {
+pub(super) fn parse_allowed_tools(
+    profile: &crate::profiles::ActiveProfile,
+) -> Result<HashSet<String>> {
     parse_allowed_tools_from_value(
         vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMcpHttpAllowedTools).expose(),
+        profile,
     )
 }
 
@@ -478,7 +481,8 @@ pub(super) fn parse_read_role_allowed_tools_override() -> Result<Option<HashSet<
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty());
     if let Some(csv) = explicit {
-        parse_allowed_tools_from_value(Some(csv.as_str())).map(Some)
+        parse_allowed_tools_from_value(Some(csv.as_str()), &crate::profiles::ActiveProfile::dev())
+            .map(Some)
     } else {
         Ok(None)
     }
@@ -536,7 +540,7 @@ pub(super) fn resolve_access_role(
 }
 
 pub(super) fn visible_tools_for_role(state: &GatewayState, role: AccessRole) -> HashSet<String> {
-    match role {
+    let mut visible = match role {
         AccessRole::Write => (*state.allowed_tools).clone(),
         AccessRole::Read => {
             let mut visible: HashSet<String> = state
@@ -549,10 +553,24 @@ pub(super) fn visible_tools_for_role(state: &GatewayState, role: AccessRole) -> 
             }
             visible
         }
-    }
+    };
+    visible.retain(|name| {
+        crate::profiles::guard_tool(
+            &state.server_state,
+            crate::profiles::CallContext::LOCAL_WRITE,
+            name,
+        )
+        .is_ok()
+    });
+    visible
 }
 
-pub(super) fn parse_allowed_tools_from_value(raw: Option<&str>) -> Result<HashSet<String>> {
+/// `VOX_MCP_HTTP_ALLOWED_TOOLS` intersected with the profile. Unset means
+/// `DEFAULT_ALLOWED_TOOLS` under `dev`, and the profile's own tools under a named profile.
+pub(super) fn parse_allowed_tools_from_value(
+    raw: Option<&str>,
+    profile: &crate::profiles::ActiveProfile,
+) -> Result<HashSet<String>> {
     let mut set = HashSet::new();
     if let Some(s) = raw {
         for v in s.split(',') {
@@ -562,22 +580,39 @@ pub(super) fn parse_allowed_tools_from_value(raw: Option<&str>) -> Result<HashSe
             }
         }
     }
+    let explicit = !set.is_empty();
+    let dev = crate::profiles::is_dev(profile);
 
-    if set.is_empty() {
-        for n in DEFAULT_ALLOWED_TOOLS.iter() {
-            set.insert(canonical_tool_name(n).to_string());
+    if !explicit {
+        if dev {
+            for n in DEFAULT_ALLOWED_TOOLS.iter() {
+                set.insert(canonical_tool_name(n).to_string());
+            }
+        } else {
+            for n in profile.tools.iter() {
+                if crate::registry::dispatchable_under_features(n) {
+                    set.insert((*n).to_string());
+                }
+            }
         }
     }
 
-    let mut registry_names: HashSet<&str> = HashSet::new();
-    for e in TOOL_REGISTRY.iter() {
-        registry_names.insert(e.name);
+    let registry_names: HashSet<&str> = TOOL_REGISTRY.iter().map(|e| e.name).collect();
+    for name in set.iter() {
+        if !registry_names.contains(name.as_str()) {
+            anyhow::bail!("unknown tool in VOX_MCP_HTTP_ALLOWED_TOOLS: {name}");
+        }
     }
 
-    for name in set.iter() {
-        let name_str: &str = name;
-        if !registry_names.contains(name_str) {
-            anyhow::bail!("unknown tool in VOX_MCP_HTTP_ALLOWED_TOOLS: {name}");
+    if explicit && !dev {
+        let before = set.len();
+        set.retain(|n| profile.contains_tool(n));
+        if set.len() < before {
+            tracing::warn!(
+                profile = %profile.id_string(),
+                dropped = before - set.len(),
+                "VOX_MCP_HTTP_ALLOWED_TOOLS entries outside the active profile are ignored"
+            );
         }
     }
     Ok(set)
@@ -1143,5 +1178,116 @@ mod tests {
             outcome["success"], false,
             "rejected approval must surface as a failed call"
         );
+    }
+
+    fn models_profile() -> crate::profiles::ActiveProfile {
+        crate::profiles::ActiveProfile::resolve(&["models"]).expect("models")
+    }
+
+    #[test]
+    fn dev_allowlist_default_is_unchanged() {
+        let got = parse_allowed_tools_from_value(None, &crate::profiles::ActiveProfile::dev())
+            .expect("parse");
+        let want: HashSet<String> = DEFAULT_ALLOWED_TOOLS
+            .iter()
+            .map(|n| canonical_tool_name(n).to_string())
+            .collect();
+        assert_eq!(got, want);
+    }
+
+    #[test]
+    fn named_profile_allowlist_defaults_to_profile_tools() {
+        let p = models_profile();
+        let got = parse_allowed_tools_from_value(None, &p).expect("parse");
+        let want: HashSet<String> = p
+            .tools
+            .iter()
+            .filter(|n| crate::registry::dispatchable_under_features(n))
+            .map(|n| n.to_string())
+            .collect();
+        assert_eq!(got, want);
+    }
+
+    #[test]
+    fn explicit_allowlist_is_intersected_with_profile() {
+        let got = parse_allowed_tools_from_value(
+            Some("vox_list_models,vox_git_status"),
+            &models_profile(),
+        )
+        .expect("parse");
+        assert_eq!(got, ["vox_list_models".to_string()].into_iter().collect());
+    }
+
+    #[test]
+    fn explicit_allowlist_still_rejects_unknown_names() {
+        let err =
+            parse_allowed_tools_from_value(Some("definitely_not_a_real_tool"), &models_profile())
+                .expect_err("unknown");
+        assert!(err.to_string().contains("unknown tool"));
+    }
+
+    #[tokio::test]
+    async fn visible_tools_are_profile_filtered() {
+        let server_state = ServerState::new_test().await.with_profile(models_profile());
+        let allowed: HashSet<String> = ["vox_list_models", "vox_git_status"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        let state = GatewayState::for_test_with_state(server_state, allowed).await;
+        let visible = visible_tools_for_role(&state, AccessRole::Write);
+        assert!(visible.contains("vox_list_models"));
+        assert!(!visible.contains("vox_git_status"));
+    }
+
+    #[tokio::test]
+    async fn dev_visible_tools_keep_non_registry_allowlisted_names() {
+        let allowed: HashSet<String> = ["vox_run_shell", "vox_git_status"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        let state =
+            GatewayState::for_test_with_state(ServerState::new_test().await, allowed.clone()).await;
+        assert_eq!(visible_tools_for_role(&state, AccessRole::Write), allowed);
+    }
+
+    #[tokio::test]
+    async fn http_call_outside_profile_is_404_tool_not_in_profile() {
+        use axum::body::{Body, to_bytes};
+        use axum::http::Request;
+        use tower::ServiceExt;
+        let server_state = ServerState::new_test().await.with_profile(models_profile());
+        let allowed: HashSet<String> = ["vox_git_status".to_string()].into_iter().collect();
+        let app = build_app(GatewayState::for_test_with_state(server_state, allowed).await);
+        let peer: SocketAddr = "127.0.0.1:1234".parse().unwrap();
+        let mut req = Request::builder()
+            .method("POST")
+            .uri("/v1/tools/call")
+            .header("content-type", "application/json")
+            .body(Body::from(
+                serde_json::json!({ "name": "vox_git_status", "args": {} }).to_string(),
+            ))
+            .unwrap();
+        req.extensions_mut().insert(ConnectInfo(peer));
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+        let bytes = to_bytes(resp.into_body(), 64 * 1024).await.unwrap();
+        let v: Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(v["error"]["code"], "tool_not_in_profile");
+    }
+
+    #[tokio::test]
+    async fn ws_call_outside_profile_returns_denial_json() {
+        let server_state = ServerState::new_test().await.with_profile(models_profile());
+        let state = GatewayState::for_test_with_state(server_state, HashSet::new()).await;
+        let msg = WsMessageIn {
+            id: Some("1".to_string()),
+            msg_type: "call_tool".to_string(),
+            name: Some("vox_git_status".to_string()),
+            args: None,
+        };
+        let peer: SocketAddr = "127.0.0.1:1234".parse().unwrap();
+        let out = ws_handle_message(&state, msg, peer, AccessRole::Write).await;
+        assert!(!out.success && out.is_error);
+        assert_eq!(out.data["error"]["code"], "tool_not_in_profile");
     }
 }
