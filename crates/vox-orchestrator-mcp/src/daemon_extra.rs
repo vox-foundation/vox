@@ -272,8 +272,8 @@ mod tests {
     use super::McpExtraDispatch;
     use crate::profiles::Subsystem;
 
-    #[test]
-    fn new_wraps_a_server_state_whose_default_report_is_fully_booted() {
+    #[tokio::test]
+    async fn new_wraps_a_server_state_whose_default_report_is_fully_booted() {
         let state = crate::ServerState::new_full(crate::load_config());
         let extra = McpExtraDispatch::new(state);
         assert!(extra.state.subsystem_up(Subsystem::Db));
