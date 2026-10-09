@@ -67,7 +67,6 @@ pub fn tool_registry() -> Vec<rmcp::model::Tool> {
                 "vox_http_read_role_eligible".to_string(),
                 Value::Bool(e.http_read_role_eligible),
             );
-            meta_map.insert("vox_tier".to_string(), Value::String(e.tier.to_string()));
             rmcp::model::Tool::new_with_raw(
                 std::borrow::Cow::Owned(n.to_string()),
                 Some(std::borrow::Cow::Owned(e.description.to_string())),
@@ -89,7 +88,7 @@ pub fn merged_tool_registry(state: &crate::server_state::ServerState) -> Vec<rmc
         let schema = entry.input_schema.as_object().cloned().unwrap_or_default();
         let mut meta_map = serde_json::Map::new();
         meta_map.insert(
-            "vox_tier".to_string(),
+            "vox_source".to_string(),
             Value::String("workspace".to_string()),
         );
         tool_list.push(
@@ -111,10 +110,20 @@ mod merged_registry_tests {
     use vox_orchestrator::OrchestratorConfig;
 
     #[tokio::test]
-    async fn merged_workspace_tools_carry_workspace_tier_meta() {
+    async fn merged_workspace_tools_carry_workspace_source_meta() {
         let state = ServerState::new_full(OrchestratorConfig::default());
         let tools = merged_tool_registry(&state);
         let read_file = tools.iter().find(|t| t.name == "read_file").unwrap();
-        assert_eq!(read_file.meta.as_ref().unwrap().0["vox_tier"], "workspace");
+        let meta = &read_file.meta.as_ref().unwrap().0;
+        assert_eq!(meta["vox_source"], "workspace");
+        assert!(meta.get("vox_tier").is_none());
+    }
+
+    #[test]
+    fn catalog_tools_no_longer_carry_tier_meta() {
+        for t in super::tool_registry() {
+            let meta = &t.meta.as_ref().expect("catalog tools carry meta").0;
+            assert!(meta.get("vox_tier").is_none(), "{}", t.name);
+        }
     }
 }
