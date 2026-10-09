@@ -1,18 +1,108 @@
 //! Pure join: committed inputs -> [`CapabilityIndex`]. No IO, no clock.
 
-use anyhow::Result;
-use vox_capability_registry::CapabilityIndex;
+use std::collections::BTreeSet;
 
-use super::inputs::Inputs;
+use anyhow::{Result, anyhow, bail};
+use vox_capability_registry::{
+    CapabilityIndex, CliRef, CoverageRef, DocLink, IndexRow, McpRef, RowKind,
+    implicit_cli_capability_id, implicit_mcp_capability_id,
+};
 
-pub(crate) fn build_index(_inputs: &Inputs) -> Result<CapabilityIndex> {
-    // RED stub: replaced in the GREEN commit.
+use super::inputs::{Inputs, OperationRow};
+
+/// Default page-level docs link per row kind (D-06: the repo has no per-row anchors yet).
+const CLI_DOC: &str = "docs/src/reference/cli-command-surface.generated.md";
+const MCP_DOC: &str = "docs/src/reference/mcp-tool-registry-contract.md";
+
+/// One-line, control-free form of a catalog description (also blocks markup/newline injection into
+/// downstream one-line emitters such as llms.txt). `None` when nothing printable remains.
+fn single_line(text: &str) -> Option<String> {
+    let kept: String = text
+        .chars()
+        .filter(|c| !c.is_control() || c.is_whitespace())
+        .collect();
+    let line = kept.split_whitespace().collect::<Vec<_>>().join(" ");
+    (!line.is_empty()).then_some(line)
+}
+
+/// Fields common to every row built from a catalog op; kind-specific fields are set by the caller.
+fn base_row(op: &OperationRow, id: String, kind: RowKind, doc: &str) -> IndexRow {
+    IndexRow {
+        id,
+        kind,
+        title: op.title.clone(),
+        summary: single_line(op.description_human.as_deref().unwrap_or(&op.description)),
+        op_id: Some(op.id.clone()),
+        status: None,
+        domain: None,
+        product_lane: Some(op.product_lane.clone()),
+        side_effect_class: op.side_effect_class.clone(),
+        tier: None,
+        cli: None,
+        mcp: None,
+        gui: None,
+        owner: None,
+        source_path: None,
+        docs: vec![DocLink {
+            path: doc.to_string(),
+            origin: "default".to_string(),
+        }],
+        skills: Vec::new(),
+        equivalents: Vec::new(),
+        refs: Vec::new(),
+        coverage: Some(CoverageRef {
+            kind: None,
+            basis: "none".to_string(),
+            ambiguous: false,
+            reason: Some("no graph-coverage snapshot committed".to_string()),
+        }),
+    }
+}
+
+pub(crate) fn build_index(inputs: &Inputs) -> Result<CapabilityIndex> {
+    let mut rows: Vec<IndexRow> = Vec::new();
+    for op in &inputs.ops {
+        if op.cli.is_none() && op.mcp.is_none() {
+            bail!(
+                "catalog op `{}` has neither a cli nor an mcp projection",
+                op.id
+            );
+        }
+        let cli_id = op.cli.as_ref().map(|c| implicit_cli_capability_id(&c.path));
+        let mcp_id = op.mcp.as_ref().map(|m| implicit_mcp_capability_id(&m.name));
+        if let (Some(c), Some(id)) = (&op.cli, &cli_id) {
+            let mut row = base_row(op, id.clone(), RowKind::Cli, CLI_DOC);
+            row.status = Some(c.status.clone());
+            row.cli = Some(CliRef {
+                path: c.path.clone(),
+                invocation: format!("vox {}", c.path.join(" ")),
+                feature_gate: c.feature_gate.clone(),
+            });
+            row.equivalents = mcp_id.clone().into_iter().collect();
+            rows.push(row);
+        }
+        if let (Some(m), Some(id)) = (&op.mcp, &mcp_id) {
+            let mut row = base_row(op, id.clone(), RowKind::McpTool, MCP_DOC);
+            row.mcp = Some(McpRef {
+                name: m.name.clone(),
+            });
+            row.equivalents = cli_id.clone().into_iter().collect();
+            rows.push(row);
+        }
+    }
+    let mut seen = BTreeSet::new();
+    for row in &rows {
+        if !seen.insert(row.id.as_str()) {
+            return Err(anyhow!("duplicate capability index id `{}`", row.id));
+        }
+    }
+    rows.sort_by(|a, b| (a.kind, &a.id).cmp(&(b.kind, &b.id)));
     Ok(CapabilityIndex {
         schema_version: 1,
         generator: "vox ci capability-index".to_string(),
         coverage_snapshot: None,
         domains: Vec::new(),
-        rows: Vec::new(),
+        rows,
     })
 }
 

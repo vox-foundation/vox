@@ -629,6 +629,10 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
         crate::commands::ci::capability_sync::run(root, false)
     )?;
     ds!(
+        "capability_index",
+        crate::commands::ci::capability_index::run(root, false)
+    )?;
+    ds!(
         "plugin_surface",
         vox_cli_ci::plugin_surface::run(root, false)
     )?;
@@ -895,10 +899,11 @@ mod stale_ref_guard_tests {
     /// DISC-02: `run_ssot_drift` must dispatch `capability_index` as a stage, or a stale
     /// capability index never blocks `vox ci pre-push`/CI. Source-text check (same rationale
     /// as `run_ssot_drift_dispatches_cache_key_lint`); needle split so it cannot match itself.
+    /// Whitespace is stripped first because rustfmt wraps this long call across lines.
     #[test]
     fn run_ssot_drift_dispatches_capability_index() {
-        let src = include_str!("docs.rs");
-        let needle = format!("{}{}", "ds!(\"capability", "_index\"");
+        let src: String = include_str!("docs.rs").split_whitespace().collect();
+        let needle = format!("{}{}", "ds!(\"capability", "_index\",");
         assert!(
             src.contains(&needle),
             "run_ssot_drift must call ds!(\"capability_index\", ...)"

@@ -1776,6 +1776,18 @@ operations:
 - surface: vox-cli
   path:
   - ci
+  - capability-index
+  status: active
+  latin_ns: ci
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
   - capability-snapshot
   status: active
   latin_ns: ci

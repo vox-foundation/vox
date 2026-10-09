@@ -55,6 +55,7 @@ ci/build-docs
 ci/build-timings
 ci/cache-key-lint
 ci/canonical-map-verify
+ci/capability-index
 ci/capability-snapshot
 ci/capability-sync
 ci/check-codex-ssot

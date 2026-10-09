@@ -4637,6 +4637,17 @@
       "curated": true
     },
     {
+      "capability_id": "cli.ci.capability-index",
+      "cli_path": [
+        "ci",
+        "capability-index"
+      ],
+      "implicit": false,
+      "title": "Ci Capability-index",
+      "description_model": "CLI operation `vox ci capability-index`",
+      "curated": true
+    },
+    {
       "capability_id": "cli.ci.capability-snapshot",
       "cli_path": [
         "ci",
