@@ -31,7 +31,7 @@ use crate::sync_poison::{poison_rw_read, poison_rw_write};
 
 type GuardResult = std::result::Result<(), Json<Value>>;
 
-fn enforce_dashboard_read(
+pub(crate) fn enforce_dashboard_read(
     gs: &GatewayState,
     peer: &SocketAddr,
     headers: &HeaderMap,
@@ -49,7 +49,7 @@ fn enforce_dashboard_read(
     Ok(())
 }
 
-fn enforce_dashboard_write(
+pub(crate) fn enforce_dashboard_write(
     gs: &GatewayState,
     peer: &SocketAddr,
     headers: &HeaderMap,
@@ -802,6 +802,14 @@ pub fn router() -> Router<GatewayState> {
         .route("/hopper/inbox", get(get_hopper_inbox))
         .route("/hopper/assigned", get(get_hopper_assigned))
         .route("/hopper/history", get(get_hopper_history))
+        .merge(crate::gui_ops::models::api_v2_router())
+        .merge(crate::gui_ops::prefs::api_v2_router())
+        .merge(crate::gui_ops::chat::api_v2_router())
+        .merge(crate::gui_ops::knowledge::api_v2_router())
+        .merge(crate::gui_ops::research::api_v2_router())
+        .merge(crate::gui_ops::attention::api_v2_router())
+        .merge(crate::gui_ops::orchestrator::api_v2_router())
+        .merge(crate::gui_ops::harness::api_v2_router())
 }
 
 #[cfg(test)]

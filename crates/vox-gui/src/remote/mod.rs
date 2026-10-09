@@ -1,6 +1,7 @@
 //! Remote Axis: attach the GUI to a `vox serve` gateway instead of the local daemon.
 
 pub mod backend;
+pub mod calls;
 pub mod credentials;
 pub mod error;
 pub mod gate;

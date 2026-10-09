@@ -848,7 +848,14 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_scientia_assist_suggestions" => parse_obj(
             r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"use_llm":{"type":"boolean","description":"When false, return heuristic JSON only"}},"required":["publication_id"],"additionalProperties":false}"#,
         ),
-
+        // ── gui_ops: models (plan 07) ──
+        // ── gui_ops: prefs (plan 07) ──
+        // ── gui_ops: chat (plan 07) ──
+        // ── gui_ops: knowledge (plan 07) ──
+        // ── gui_ops: research (plan 07) ──
+        // ── gui_ops: orchestrator (plan 07) ──
+        // ── gui_ops: harness (plan 07) ──
+        // ── gui_ops: gamify (plan 07) ──
         _ => Map::new(),
     }
 }

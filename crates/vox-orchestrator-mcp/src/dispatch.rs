@@ -1940,6 +1940,14 @@ async fn handle_tool_call_inner(
         "vox_code_audit_findings_upsert" => {
             Ok(toestub_tools::toestub_findings_upsert(state, serde_json::from_value(args)?).await)
         }
+        // ── gui_ops: models (plan 07) ──
+        // ── gui_ops: prefs (plan 07) ──
+        // ── gui_ops: chat (plan 07) ──
+        // ── gui_ops: knowledge (plan 07) ──
+        // ── gui_ops: research (plan 07) ──
+        // ── gui_ops: orchestrator (plan 07) ──
+        // ── gui_ops: harness (plan 07) ──
+        // ── gui_ops: gamify (plan 07) ──
         _ => {
             // Check skill macro tools
             let skills = state.skill_registry.list(None);

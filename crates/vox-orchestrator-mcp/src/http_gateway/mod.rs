@@ -6,7 +6,7 @@
 
 mod status;
 use status::*;
-mod dashboard_api;
+pub(crate) mod dashboard_api;
 mod scientia_feed;
 use scientia_feed::{TopicMessage, spawn_scientia_queue_poller};
 mod profile_info;
@@ -132,6 +132,36 @@ pub struct GatewayState {
 }
 
 impl GatewayState {
+    pub(crate) fn server_state(&self) -> &ServerState {
+        &self.server_state
+    }
+
+    /// Gateway state for `orch.api_v2_get`: the caller already authenticated on the daemon's
+    /// token-checked TCP RPC, so HTTP auth is off and the peer is loopback. GET-only is
+    /// enforced by `gui_ops::inproc::api_v2_get`, not here.
+    pub(crate) fn for_inproc_loopback(server_state: ServerState) -> Self {
+        let hopper = crate::gui_ops::orchestrator::hopper_for(&server_state);
+        Self {
+            server_state,
+            bearer_token: None,
+            read_bearer_token: None,
+            dashboard_token: None,
+            allow_unauthenticated: true,
+            health_auth_required: false,
+            require_forwarded_https: false,
+            trust_forwarded_for: false,
+            behind_tunnel: false,
+            allowed_tools: Arc::new(HashSet::new()),
+            read_role_eligible_tools: Arc::new(HashSet::new()),
+            read_role_tools_override: None,
+            calls_per_minute: DEFAULT_RATE_LIMIT_PER_MINUTE,
+            rate_limiter: new_identity_rate_limiter(DEFAULT_RATE_LIMIT_PER_MINUTE),
+            public_eval_enabled: false,
+            public_eval_rate_limiter: new_identity_rate_limiter(10),
+            topic_tx: tokio::sync::broadcast::channel(scientia_feed::TOPIC_CHANNEL_CAPACITY).0,
+            hopper,
+        }
+    }
     /// Minimal stub for tests — unauthenticated, no tools, no rate-limiting.
     #[cfg(test)]
     pub(crate) async fn for_test() -> Self {
@@ -150,10 +180,7 @@ impl GatewayState {
         server_state: ServerState,
         allowed_tools: HashSet<String>,
     ) -> Self {
-        let hopper: Arc<dyn vox_orchestrator::hopper::HopperIntake> =
-            Arc::new(vox_orchestrator::hopper::InMemoryHopper::new(Arc::new(
-                server_state.orchestrator.event_bus.clone(),
-            )));
+        let hopper = crate::gui_ops::orchestrator::hopper_for(&server_state);
         Self {
             server_state,
             bearer_token: None,
@@ -378,10 +405,7 @@ pub(crate) fn spawn_http_gateway(
     // Construct the production task hopper (Hp-T1), sharing the orchestrator's
     // EventBus so admitted/overridden items reach the same dashboard WS
     // subscribers. This is the first non-test caller of `InMemoryHopper` (B3).
-    let hopper: Arc<dyn vox_orchestrator::hopper::HopperIntake> =
-        Arc::new(vox_orchestrator::hopper::InMemoryHopper::new(Arc::new(
-            state.orchestrator.event_bus.clone(),
-        )));
+    let hopper = crate::gui_ops::orchestrator::hopper_for(&state);
 
     let gateway_state = GatewayState {
         server_state: state,

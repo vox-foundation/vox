@@ -34125,6 +34125,14 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: false
+# ── gui_ops: models (plan 07) ──
+# ── gui_ops: prefs (plan 07) ──
+# ── gui_ops: chat (plan 07) ──
+# ── gui_ops: knowledge (plan 07) ──
+# ── gui_ops: research (plan 07) ──
+# ── gui_ops: orchestrator (plan 07) ──
+# ── gui_ops: harness (plan 07) ──
+# ── gui_ops: gamify (plan 07) ──
 exemptions:
   mcp_tools: []
   cli_paths:

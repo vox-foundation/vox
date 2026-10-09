@@ -135,6 +135,9 @@ pub mod orch_daemon_method {
     /// {subsystem id: error}}`) — which capability-profile subsystems this daemon booted.
     /// Read by stdio `vox mcp` to filter `tools/list` (capability profiles plan 03).
     pub const BOOT_REPORT: &str = "orch.boot_report";
+    /// Params: `{"path": "/models/cards?limit=10"}` → the `/api/v2` JSON envelope. GET-only;
+    /// runs the dashboard router in-process inside the daemon (Axis local mode).
+    pub const API_V2_GET: &str = "orch.api_v2_get";
 }
 
 pub mod dei_method {

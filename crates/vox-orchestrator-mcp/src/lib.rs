@@ -81,6 +81,7 @@ pub mod grammar_tools;
 /// Graphify corpus freshness and lexical search (`vox_graphify_status`, `vox_graphify_search`).
 pub mod graph_tools;
 /// GUI registry + validation tools (`vox_gui_components`, `vox_gui_tokens`, `vox_gui_rules`, `vox_validate_vuv`).
+pub mod gui_ops;
 pub mod gui_registry_tools;
 /// `vox_search_history`: first-parent repo history for agents (same facade as `vox graph history`).
 pub mod history_tools;

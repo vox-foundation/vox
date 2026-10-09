@@ -201,6 +201,19 @@ impl ExtraDispatch for McpExtraDispatch {
                     Err(e) => error(&req.id, format!("serialize boot report: {e}")),
                 },
             ),
+            orch_daemon_method::API_V2_GET => {
+                let path = req
+                    .params
+                    .get("path")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                Some(
+                    match crate::gui_ops::inproc::api_v2_get(&self.state, path).await {
+                        Ok(v) => result(&req.id, v),
+                        Err(e) => error(&req.id, e),
+                    },
+                )
+            }
             orch_daemon_method::TOOL_CALL => {
                 let Some(name) = req.params.get("name").and_then(|v| v.as_str()) else {
                     return Some(error(&req.id, "params.name (string) required"));
