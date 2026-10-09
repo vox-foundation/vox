@@ -61,7 +61,7 @@ New (GUI, `crates/vox-gui/src/`):
 | Path | Responsibility |
 |---|---|
 | `remote/calls.rs` | `BackendCalls` trait, impl for plan 06 `Backend`, `tool_data` / `api_data` / `path_with_query` helpers, `FakeBackend` (cfg(test)) |
-| `remote/local_prefs.rs` | `AxisLocalPrefs`: client-side `gui.*` preference store (`<app_config_dir>/axis-preferences.json`) used in remote mode and as the local fallback (D1) |
+| `remote/local_prefs.rs` | `AxisLocalPrefs`: client-side `gui.*` preference store (`<app_config_dir>/axis-preferences.json`) used in remote mode only (D1); local mode never writes it |
 | `commands/model_active.rs` | `get_active_model`, `set_active_model` (pattern task) |
 | `commands/models_host.rs` | `search_model_cards`, `explain_model_selection`, `suggest_model_for_task`, `get_auto_model_recommendation` (host: client-side registry cache / client GPU) |
 | `commands/locator.rs` | `open_locator` (host: spawns editor) |
@@ -99,8 +99,8 @@ Deleted at the end: `crates/vox-gui/src/commands/gui_db_pool.rs`.
 | 16 | `chat_archive_session` (chat) | `chat_find_gui_conversation_id`, `chat_archive_conversation` | chat | models | — | new op `vox_chat_session_archive` |
 | 17 | `chat_unarchive_session` (chat) | `..._including_archived`, `chat_unarchive_conversation` | chat | models | — | `vox_chat_session_archive {archived:false}` |
 | 18 | `chat_send_message` (chat) | `chat_get_gui_messages`, `chat_append_message` (+ `vox_chat_message` via daemon) | chat | models | T `vox_chat_message` (turn only) | `vox_chat_message` + `vox_chat_session_append` + route #13 |
-| 19 | `get_gui_preference` (preferences) | `get_user_preference("local_user",key)` | App, settings, memory, main.tsx | all Axis (D1: client-side when remote) | — (as #1) | remote: client-side `axis-preferences.json`; local: new `internal` op `vox_gui_preference_get` (loopback + `dev` only), client-side fallback |
-| 20 | `set_gui_preference` (preferences) | `set_user_preference` | settings, memory, hooks | all Axis (D1: client-side when remote) | — (as #2) | remote: client-side; local: new `internal` op `vox_gui_preference_set` (keys `gui.*` only), client-side fallback |
+| 19 | `get_gui_preference` (preferences) | `get_user_preference("local_user",key)` | App, settings, memory, main.tsx | all Axis (D1: client-side when remote) | — (as #1) | remote: client-side `axis-preferences.json`; local: new `internal` op `vox_gui_preference_get` (loopback + `dev` only) (errors surfaced, no client-side fallback) |
+| 20 | `set_gui_preference` (preferences) | `set_user_preference` | settings, memory, hooks | all Axis (D1: client-side when remote) | — (as #2) | remote: client-side; local: new `internal` op `vox_gui_preference_set` (keys `gui.*` only) (errors surfaced, no client-side fallback) |
 | 21 | `list_knowledge_nodes` (knowledge) | `list_knowledge_nodes` | memory | knowledge | — (`vox_kb_*` use `KbStore`, other tables) | new route `GET /api/v2/knowledge/nodes` |
 | 22 | `delete_knowledge_node` (knowledge) | `delete_knowledge_node` | memory | knowledge | — | new op `vox_kb_node_delete` |
 | 23 | `get_kb_health` (knowledge) | `get_knowledge_health` | memory | knowledge | — | new route `GET /api/v2/knowledge/health` |
@@ -858,6 +858,63 @@ pub fn validate_routing_priority_csv(csv: &str) -> Result<(), String>;
 pub(crate) async fn get_active_model_impl<B: BackendCalls>(b: &B) -> Result<Option<String>, String>;
 pub(crate) async fn set_active_model_impl<B: BackendCalls>(b: &B, model_id: String) -> Result<(), String>;
 ```
+
+- [ ] **Step 0: GATE — remote and local tool-call envelopes are identical (STOP if not).** Task 1's `BackendCalls` Remote arm passes plan 06's `/v1/ws` `call_tool` reply `data` to the same `tool_data` that parses the local `orch.tool_call` result. Prove they are the same JSON before building on it. Append to `crates/vox-orchestrator-mcp/src/http_gateway/ws.rs`:
+
+```rust
+#[cfg(test)]
+mod envelope_parity_tests {
+    use std::sync::Arc;
+
+    use vox_foundation::protocol::orch_daemon_method;
+    use vox_orchestrator::orch_daemon::{self, ExtraDispatch};
+
+    use super::ws_handle_message;
+    use crate::daemon_extra::McpExtraDispatch;
+    use crate::http_gateway::{AccessRole, GatewayState, WsMessageIn};
+    use crate::server_state::ServerState;
+
+    /// `/v1/ws` `call_tool` → `data` must equal `orch.tool_call` → `result` for the same tool, for a
+    /// success envelope and for a tool-level error envelope.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn ws_call_tool_data_equals_local_orch_tool_call_result() {
+        let state = ServerState::new_test().await;
+        let mut gs = GatewayState::for_inproc_loopback(state.clone()); // Task 1
+        gs.allowed_tools = Arc::new(["vox_git_status", "vox_get_active_model"].map(String::from).into());
+
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap().to_string();
+        let extra: Arc<dyn ExtraDispatch> = Arc::new(McpExtraDispatch::new(state.clone()));
+        tokio::spawn(orch_daemon::serve_listener_with_extra(
+            listener, addr.clone(), "parity-repo".into(), state.orchestrator.clone(), Some(extra), None,
+        ));
+        let client = orch_daemon::OrchDaemonClient::new(addr);
+        for _ in 0..750 {
+            if client.ping().await.is_ok() { break; }
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
+
+        for (tool, args) in [
+            ("vox_git_status", serde_json::json!({})),
+            ("vox_get_active_model", serde_json::json!({ "unexpected_arg": true })),
+        ] {
+            let local = client
+                .call(orch_daemon_method::TOOL_CALL, serde_json::json!({ "name": tool, "args": args.clone() }))
+                .await
+                .expect("orch.tool_call");
+            let req: WsMessageIn = serde_json::from_value(serde_json::json!({
+                "id": "1", "type": "call_tool", "name": tool, "args": args,
+            }))
+            .expect("ws frame");
+            let remote = ws_handle_message(&gs, req, "127.0.0.1:9".parse().unwrap(), AccessRole::Write).await;
+            assert_eq!(remote.data, local, "{tool}: /v1/ws data differs from orch.tool_call result");
+        }
+    }
+}
+```
+
+Run: `cargo nextest run -p vox-orchestrator-mcp ws_call_tool_data_equals_local_orch_tool_call_result`.
+Expected: PASS. **If it fails, STOP**: do not start Step 1 or any later group task. Record the diff (e.g. the daemon wraps unparseable output as `{"raw": …}` while the gateway returns a bare string) in the PR description and ask the user whether to normalise the gateway (`call_tool_response_value`) or the daemon (`McpExtraDispatch` `TOOL_CALL` arm); the parity test stays as the guard either way. Commit the test alone: `test(mcp): pin ws call_tool / orch.tool_call envelope parity`.
 
 - [ ] **Step 1: Failing server tests** — append to `gui_ops/models.rs`'s `mod tests`:
 
@@ -1730,7 +1787,7 @@ pub struct GuiPreferenceSetParams { pub key: String, pub value: String }
 pub async fn gui_preference_get(state: &ServerState, p: GuiPreferenceGetParams) -> String; // ToolResult<Option<String>>
 pub async fn gui_preference_set(state: &ServerState, p: GuiPreferenceSetParams) -> String; // ToolResult<String>
 
-// crates/vox-gui/src/remote/local_prefs.rs (client-side store, remote mode + local fallback)
+// crates/vox-gui/src/remote/local_prefs.rs (client-side store, remote mode only)
 pub(crate) struct AxisLocalPrefs;
 impl AxisLocalPrefs {
     pub(crate) fn at(path: std::path::PathBuf) -> Self;
@@ -1753,12 +1810,20 @@ Behaviour:
 - **Remote** (`Backend::Remote(_)`): `AxisLocalPrefs` only. The backend is never called.
 - **Local**: `vox_gui_preference_get` / `vox_gui_preference_set` through `orch.tool_call`. If the local
   daemon denies them (`tool_not_in_profile` / `subsystem_not_booted` — e.g. Axis started its daemon with a
-  named `VOX_PROFILE`) or is unreachable, fall back to `AxisLocalPrefs`, so preferences always work.
+  named `VOX_PROFILE`) or is unreachable, the error is **returned to the UI**; Axis does not silently write
+  the client file in local mode (no split between two stores).
+
+**Known limitations (accepted consequences of D1):**
+- No cross-machine sync in remote mode: `gui.*` preferences live in each Axis machine's
+  `axis-preferences.json`, so they do not follow the user to another machine connected to the same server.
+- No migration of values set remotely before this task: between plan 06 and this task, remote-mode
+  preferences went to the client machine's local workspace DB; they are not copied into
+  `axis-preferences.json`.
 
 - [ ] **Step 1: Failing tests.**
   - Server (`gui_ops/prefs.rs`): `gui_preference_set` refuses `socrates_gate_enforced` and `attention_enabled` (row not written; `state.orchestrator.config_handle()` unchanged) and accepts `gui.theme`; `gui_preference_get` returns `null` data for a missing `gui.*` key and refuses `attention_enabled`. `authorize_tool(&ActiveProfile::dev(), &all_up, CallContext { role: CallerRole::Write, loopback: false }, "vox_gui_preference_set")` → `Err(ProfileDenial::ExposureDenied)`; with `CallContext::LOCAL_WRITE` → `Ok`. `ActiveProfile::resolve(&["models"])` does not contain either tool.
   - GUI (`local_prefs.rs`, tempdir): `set` then `get` round-trips; missing file → `Ok(None)`; non-`gui.` key → `Err`.
-  - GUI (`preferences.rs`, `FakeBackend`): remote → no backend call recorded and the value comes from `AxisLocalPrefs`; local → `tool:vox_gui_preference_get` / `tool:vox_gui_preference_set` recorded; local with the fake returning a `tool_not_in_profile` denial → value served from `AxisLocalPrefs`. `include_str!("preferences.rs")` contains no `vox_db`.
+  - GUI (`preferences.rs`, `FakeBackend`): remote → no backend call recorded and the value comes from `AxisLocalPrefs`; local → `tool:vox_gui_preference_get` / `tool:vox_gui_preference_set` recorded; local with the fake returning a `tool_not_in_profile` denial → `Err` starting with `tool_not_in_profile` **and** the tempdir `axis-preferences.json` is not created (no silent client write); local with the fake returning `Err("unreachable")` → the same `Err`, file not created. `include_str!("preferences.rs")` contains no `vox_db`.
   - UI guard (`commandBackendsMigration.test.ts`): `moduleClass('preferences') === 'shell'`.
 - [ ] **Step 2: Run, expect FAIL.**
 - [ ] **Step 3: Implement.**
@@ -1822,23 +1887,16 @@ use crate::remote::backend::{Backend, BackendState};
 use crate::remote::calls::{BackendCalls, tool_data};
 use crate::remote::local_prefs::AxisLocalPrefs;
 
-fn is_daemon_denial(err: &str) -> bool {
-    err.starts_with("tool_not_in_profile") || err.starts_with("subsystem_not_booted")
-}
-
+/// Local mode never writes the client file: a denial or an unreachable daemon is surfaced to the UI
+/// (reviewer decision), so preferences have exactly one home per mode.
 pub(crate) async fn get_gui_preference_impl<B: BackendCalls>(
     b: &B, remote: bool, local: &AxisLocalPrefs, key: String,
 ) -> Result<Option<String>, String> {
     if remote {
         return local.get(&key);
     }
-    match b.call_tool("vox_gui_preference_get", json!({ "key": key })).await {
-        Ok(env) => match tool_data::<Option<String>>("vox_gui_preference_get", env) {
-            Err(e) if is_daemon_denial(&e) => local.get(&key),
-            other => other,
-        },
-        Err(_) => local.get(&key),
-    }
+    let env = b.call_tool("vox_gui_preference_get", json!({ "key": key })).await?;
+    tool_data::<Option<String>>("vox_gui_preference_get", env)
 }
 
 pub(crate) async fn set_gui_preference_impl<B: BackendCalls>(
@@ -1847,14 +1905,8 @@ pub(crate) async fn set_gui_preference_impl<B: BackendCalls>(
     if remote {
         return local.set(&key, &value);
     }
-    match b.call_tool("vox_gui_preference_set", json!({ "key": key, "value": value })).await {
-        Ok(env) => match tool_data::<String>("vox_gui_preference_set", env) {
-            Ok(_) => Ok(()),
-            Err(e) if is_daemon_denial(&e) => local.set(&key, &value),
-            Err(e) => Err(e),
-        },
-        Err(_) => local.set(&key, &value),
-    }
+    let env = b.call_tool("vox_gui_preference_set", json!({ "key": key, "value": value })).await?;
+    tool_data::<String>("vox_gui_preference_set", env).map(|_| ())
 }
 
 #[tauri::command]
@@ -1888,7 +1940,7 @@ Catalog (append under the prefs marker comment): `id: gui.preference.get` → MC
 `id: gui.preference.set` → `vox_gui_preference_set`, `side_effect_class: writes_files`,
 `mcp.exposure: internal`, `mcp.requires: [db]`. Neither is added to any named profile (only `dev` serves
 `internal`). Manifest row stays `preferences / shell / [memory, settings]`; set its `notes` to
-"Axis-local gui.* preferences: remote = client-side axis-preferences.json (D1); local = loopback-only internal ops on the local daemon, client-side fallback". `operations-sync --write`.
+"Axis-local gui.* preferences: remote = client-side axis-preferences.json (D1); local = loopback-only internal ops on the local daemon, errors surfaced (no client-side fallback)". `operations-sync --write`.
 
 - [ ] **Step 4: Mutation-verify** both guards, with before/after presence checks:
   - `gui.` key guard: make `is_gui_preference_key` return `key.len() <= 128` only; `grep -c 'starts_with(GUI_PREFERENCE_PREFIX)' crates/vox-orchestrator-mcp/src/gui_ops/prefs.rs` → `0`; both server refusal tests FAIL; restore (grep → `1`), PASS.
@@ -1996,7 +2048,7 @@ Routes gated by surface `memory` (`/search/query` by `memory` or `vox-search`). 
 
 ### Task 8: Mesh group (`console_a2a.rs`)
 
-**Files:** `crates/vox-gui/src/commands/console_a2a.rs`; `crates/vox-orchestrator-mcp/src/a2a_tools.rs` (test, and the binding fix if needed); manifest; `ui/e2e/console-remote.spec.ts`; guard test.
+**Files:** `crates/vox-gui/src/commands/console_a2a.rs`; `crates/vox-orchestrator-mcp/src/a2a_tools.rs` (test, and the binding fix if needed); manifest; `crates/vox-gui/src/remote/manifest.rs` (real-gate tests); new `crates/vox-gui/ui/e2e/fixtures/remote-gate-mesh-console.json`; `ui/e2e/console-remote.spec.ts`; guard test.
 
 **Interfaces:** existing tool `vox_a2a_send` (`A2ASendParams { sender_id, receiver_id, msg_type, payload, correlation_id, tenant_id, sender_session_id, route }`); the mesh profile already includes `vox_a2a_*`.
 
@@ -2042,7 +2094,45 @@ pub(crate) async fn send_to_agent_impl<B: BackendCalls>(b: &B, agent_id: String,
 
 (If Step 1's server test shows a different success key, use it here and in the GUI test.) Manifest row `console_a2a / daemon / [console]`.
 
-- [ ] **Step 4: Playwright** `console-remote.spec.ts`: `installRemoteMode(page, 'console', { send_to_agent: 'm-1', discovery_suggest: [] }, ['console'])`, type into the composer as `e2e/console-workbench.spec.ts` does, assert the sent note renders; screenshot `console-remote.png`. Console also calls `discovery_*` (`discovery.rs` flips in Task 11): land this spec with whichever of Tasks 8/11 merges last. Note: plan 06 classes `pty` and `terminal_core` (`host`) under the `console` surface, so with the real Rust availability computation `console` stays `needs_local_machine` remotely until those modules are split off the surface; this spec drives the mocked status (all of `console` available) and therefore pins the command path only, not the gate.
+- [ ] **Step 4: Assert the honest remote state with the REAL gate (no hand-written surfaces).** `console_a2a` has no surface of its own (its only surface is `console`), and `pty` / `terminal_core` are `host`-class modules on `console`, so console stays **unavailable remotely** (`needs_local_machine`) after this task. This task therefore migrates `console_a2a`'s db commands and pins that state; it does **not** claim console works remotely (`00-contracts.md` Amendments: console is host-only in remote mode for now).
+  - **Rust (real gate).** Append to the test module of `crates/vox-gui/src/remote/manifest.rs` (plan 06 Task 5):
+
+```rust
+    /// Plan 07 Task 8: console_a2a is daemon-class now, but console stays host-only remotely.
+    #[test]
+    fn console_stays_needs_local_machine_remotely_after_console_a2a_migration() {
+        assert_eq!(module_class("console_a2a"), Some(ModuleClass::Daemon));
+        let host_on_console: Vec<&str> = command_backends()
+            .commands
+            .iter()
+            .filter(|r| r.class == ModuleClass::Host && r.surfaces.iter().any(|s| s == "console"))
+            .map(|r| r.module.as_str())
+            .collect();
+        assert!(host_on_console.contains(&"pty") && host_on_console.contains(&"terminal_core"), "{host_on_console:?}");
+        let served = strings(&["mesh", "console"]);
+        let out = surface_availability(command_backends(), registry_surfaces(), Some(&served));
+        assert_eq!(reason_of(&out, "console"), Some(UnavailableReason::NeedsLocalMachine));
+        assert_eq!(reason_of(&out, "mesh"), None);
+    }
+
+    /// The Playwright fixture is the real gate's output, byte-for-byte; regenerate by pasting the
+    /// `left` value from a failure into `ui/e2e/fixtures/remote-gate-mesh-console.json`.
+    #[test]
+    fn remote_gate_fixture_matches_real_gate() {
+        let served = strings(&["mesh", "console"]);
+        let got = serde_json::json!({
+            "axis_surfaces": served,
+            "surfaces": surface_availability(command_backends(), registry_surfaces(), Some(&served)),
+        });
+        let want: serde_json::Value = serde_json::from_str(include_str!(
+            "../../ui/e2e/fixtures/remote-gate-mesh-console.json"
+        ))
+        .expect("fixture json");
+        assert_eq!(got, want);
+    }
+```
+
+  - **Playwright** `crates/vox-gui/ui/e2e/console-remote.spec.ts`: import the committed fixture `./fixtures/remote-gate-mesh-console.json` (produced by the real gate above — never edited by hand) and call `installRemoteMode(page, 'console', {}, fixture.axis_surfaces, Object.fromEntries(fixture.surfaces.filter((s) => !s.available).map((s) => [s.surface, s.reason])))`. Assert the console surface renders plan 06's `needs_local_machine` copy ("This surface works on files, processes, or settings on this machine. Disconnect from the server to use it.") and that `__VOX_INVOKES__` contains no `send_to_agent` / `pty_*` call; assert `mesh` (from the same fixture) is navigable. Screenshot `console-remote-unavailable.png`. The migrated `send_to_agent` path is covered by Step 1's `FakeBackend` test and the server `a2a_send` test, and locally by the unchanged `e2e/console-workbench.spec.ts`.
 - [ ] **Step 5: Verify and commit.** `rg -n 'vox_db' crates/vox-gui/src/commands/console_a2a.rs` → empty; `ci gui-catalog-parity` → ok; commit `feat(axis): send console notes via vox_a2a_send`.
 
 **Parallel-safe with:** all other group tasks.
@@ -2158,7 +2248,7 @@ Reads here are MCP ops rather than `/api/v2` routes because `/api/v2` has no `in
 - [ ] **Step 2: Run, expect FAIL.**
 - [ ] **Step 3: Implement**; `get_gamify_settings`/`set_gamify_settings` move verbatim to `gamify_settings.rs`. Manifest rows `gamify / daemon / [gamify]`, `discovery / daemon / [console]`, `gamify_settings / host / [gamify, settings]`. `operations-sync --write`.
 - [ ] **Step 4: Mutation-verify** the internal-exposure denial: in the `vox_gamify_profile` catalog block change `exposure: internal` → `public`, `operations-sync --write`; the Step 1 denial test FAILs; restore, regenerate, PASS.
-- [ ] **Step 5:** Land `console-remote.spec.ts` (Task 8) if not landed; re-run `e2e/console-workbench.spec.ts` and the gamify specs (`rg -l gamify crates/vox-gui/ui/e2e`).
+- [ ] **Step 5:** Re-run `cargo nextest run -p vox-gui remote_gate_fixture_matches_real_gate console_stays_needs_local_machine` and `e2e/console-remote.spec.ts` (`discovery` flipping to `daemon` leaves console `needs_local_machine`, because `pty`/`terminal_core` stay `host`; regenerate the fixture only if the test reports drift); re-run `e2e/console-workbench.spec.ts` and the gamify specs (`rg -l gamify crates/vox-gui/ui/e2e`).
 - [ ] **Step 6: Verify and commit.** `rg -n 'vox_db' crates/vox-gui/src/commands/{gamify,discovery}.rs` → empty (gamify tests that used `VoxDb::connect(Memory)` move to `gui_ops/gamify.rs`); `ci gui-catalog-parity` → ok; commit `feat(axis): route dev-only gamify commands through internal MCP ops`.
 
 ---
@@ -2279,6 +2369,7 @@ Tasks 3–11 may run in parallel subagents, each in its own worktree branched fr
 
 - **D1 (decided).** `models` requires `db`, so Models/Chat persist against a `models` server; `attention` and `skills` stay DB-free, so the attention spend route returns zeros with the server's caps there; `gui.*` preferences are client-side in remote mode, so preferences set on one Axis machine do not follow the user to another machine connected to the same server. That last point is a deliberate trade-off of D1, not a bug.
 - **Plans 02/06 interface fidelity.** Task 0 pins ~12 names from plans 02 and 06 (`BackendState::current`, `GatewayClient::{call_daemon_method, api_get}`, `axis_backend_status`, plan 06's `problems` validator, `ServerState::with_profile`). If either plan changes a signature before this one runs, update Task 0 and the affected task in the same commit.
+- **Remote/local envelope parity.** The Remote arm of `BackendCalls::call_tool` assumes `/v1/ws` `call_tool` `data` equals the local `orch.tool_call` result. Task 2 Step 0 pins this with a test and is a hard STOP if it fails.
 - **Behaviour changes in `dev`.** (a) The gateway's `/api/v2/hopper/*` switch from `InMemoryHopper` to `SqliteHopper` when a DB is attached (Task 10). (b) `set_routing_priority` stops mutating the GUI process env (`VOX_AUTO_ROUTING_PRIORITY`); the daemon reads the preference, as it already does for `selection_policy`. (c) `list_model_cards` reflects the daemon's registry plus its Mens scan instead of the GUI's cached registry. (d) `set_active_model` validates against the live orchestrator registry instead of `ModelRegistry::from_cache()`. All four go in the PR descriptions; none removes data.
 - **Read-token clients lose writes.** All new mutations are `operator`, so a read-token Axis cannot set the active model; calls fail with `exposure_denied` and the existing error toasts show it. (GUI preferences are unaffected: client-side when remote, per D1.)
 - **`vox_a2a_send` sender binding and DB choice.** Console operator id `0` may be rejected by `resolve_sender_binding` (Task 8 Step 1 pins and fixes it). The GUI previously wrote through `DbConfig::resolve_for_mesh()`, which can differ from the daemon's DB; afterwards console notes land in the daemon's DB, which its A2A pollers read.

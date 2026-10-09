@@ -2709,7 +2709,7 @@ carried a non-`core` tier, so the tier filter collapses to "show or hide workspa
     `pub(crate) fn workspace_tools_opt_in(workspace_tools: Option<&str>, legacy_tiers: Option<&str>) -> WorkspaceToolsOptIn` in `server.rs` (pure; env values passed in so tests never mutate process env)
   - `pub(crate) fn retain_advertised_tools(tools: &mut Vec<rmcp::model::Tool>, include_workspace: bool)` in `server.rs`
   - Tool meta key `vox_source` (`"workspace"` | `"skill"`) replaces `vox_tier`; catalog tools no longer carry `vox_tier`.
-  - Behaviour: unset ⇒ `tools/list` equals today's default (all compiled catalog tools + skill macro tools; workspace-federated tools dispatchable but not advertised). `VOX_MCP_WORKSPACE_TOOLS=1|true` ⇒ workspace-federated tools are also advertised. If `VOX_MCP_WORKSPACE_TOOLS` is set to any value, it wins over `VOX_MCP_TIERS`. Otherwise `VOX_MCP_TIERS` containing `workspace` or `all` (the values that revealed them before) or `dev` / `advanced` (named by the contract amendment) turns the opt-in on. Whenever `VOX_MCP_TIERS` is set, one `tracing::warn!` per process names `VOX_MCP_WORKSPACE_TOOLS` as the replacement.
+  - Behaviour: unset ⇒ `tools/list` equals today's default (all compiled catalog tools + skill macro tools; workspace-federated tools dispatchable but not advertised). `VOX_MCP_WORKSPACE_TOOLS=1|true` ⇒ workspace-federated tools are also advertised. If `VOX_MCP_WORKSPACE_TOOLS` is set to any value, it wins over `VOX_MCP_TIERS`. Otherwise `VOX_MCP_TIERS` containing `workspace` or `all` (the values that revealed them before) turns the opt-in on; `dev`, `advanced` and other values keep today's behaviour (hidden). Whenever `VOX_MCP_TIERS` is set, one `tracing::warn!` per process names `VOX_MCP_WORKSPACE_TOOLS` as the replacement.
   - Plan 02 restricts workspace/skill tools to the `dev` profile through `guard_tool` (non-registry names are `ToolNotInProfile` under any named profile); this task does not know about profiles.
 
 Parallel-safe with: Tasks 1–13. Must land before Task 14.
@@ -2777,7 +2777,10 @@ mod list_filter_tests {
         // The new variable wins over the deprecated alias when set.
         assert_eq!(workspace_tools_opt_in(Some("0"), Some("all")), Off);
         assert_eq!(workspace_tools_opt_in(None, Some("core")), Off);
-        for legacy in ["workspace", "all", "dev", "advanced", "core,workspace", " all "] {
+        // Not widened: these never revealed workspace tools and still do not.
+        assert_eq!(workspace_tools_opt_in(None, Some("dev")), Off);
+        assert_eq!(workspace_tools_opt_in(None, Some("advanced")), Off);
+        for legacy in ["workspace", "all", "core,workspace", " all "] {
             assert_eq!(workspace_tools_opt_in(None, Some(legacy)), OnViaDeprecatedTiers, "{legacy}");
         }
     }
@@ -2838,7 +2841,7 @@ pub(crate) enum WorkspaceToolsOptIn {
 }
 
 /// `VOX_MCP_WORKSPACE_TOOLS` (when set) decides; otherwise the deprecated `VOX_MCP_TIERS`
-/// alias opts in for `workspace`, `all`, `dev`, or `advanced`.
+/// alias opts in only for `workspace` or `all` (the values that revealed them before).
 pub(crate) fn workspace_tools_opt_in(
     workspace_tools: Option<&str>,
     legacy_tiers: Option<&str>,
@@ -2852,7 +2855,7 @@ pub(crate) fn workspace_tools_opt_in(
     let legacy_on = legacy_tiers.is_some_and(|v| {
         v.split(',')
             .map(str::trim)
-            .any(|t| matches!(t, "workspace" | "all" | "dev" | "advanced"))
+            .any(|t| matches!(t, "workspace" | "all"))
     });
     if legacy_on {
         WorkspaceToolsOptIn::OnViaDeprecatedTiers
@@ -2899,7 +2902,7 @@ In `merged_tool_registry`, change `"vox_tier".to_string()` (L92) to `"vox_source
 In `contracts/config/env-vars.v1.yaml`, set the `VOX_MCP_TIERS` entry's `description` value to:
 
 ```yaml
-    description: "DEPRECATED (2026-10-08): alias for VOX_MCP_WORKSPACE_TOOLS. Values workspace, all, dev, or advanced advertise workspace-federated MCP tools; a warning is logged whenever it is set. Ignored when VOX_MCP_WORKSPACE_TOOLS is set."
+    description: "DEPRECATED (2026-10-08): alias for VOX_MCP_WORKSPACE_TOOLS. Values workspace or all advertise workspace-federated MCP tools (other values, including dev and advanced, do not); a warning is logged whenever it is set. Ignored when VOX_MCP_WORKSPACE_TOOLS is set."
 ```
 
 and insert directly after that entry:
@@ -2931,7 +2934,7 @@ In `docs/src/reference/env-vars.md`, add after the `VOX_MCP_TEST_INFER_STUB_BODY
 
 ```markdown
 | `VOX_MCP_WORKSPACE_TOOLS` | `1` = also advertise workspace-federated `@tool` functions in MCP `tools/list` (they are always dispatchable by name). Only served under the `dev` capability profile. Default off. |
-| `VOX_MCP_TIERS` | **DEPRECATED (2026-10-08):** alias for `VOX_MCP_WORKSPACE_TOOLS`; `workspace`, `all`, `dev`, or `advanced` opt in. Logs a warning when set; ignored when `VOX_MCP_WORKSPACE_TOOLS` is set. |
+| `VOX_MCP_TIERS` | **DEPRECATED (2026-10-08):** alias for `VOX_MCP_WORKSPACE_TOOLS`; only `workspace` or `all` opt in. Logs a warning when set; ignored when `VOX_MCP_WORKSPACE_TOOLS` is set. |
 ```
 
 In `docs/src/architecture/mcp-vox-language-exposure.md`, replace the whole `## MCP tier policy` section (heading, sentence, table, and the `VOX_MCP_TIERS=all` line) with:
@@ -2943,7 +2946,7 @@ In `docs/src/architecture/mcp-vox-language-exposure.md`, replace the whole `## M
 from installed skills (`vox_source: skill`). Federated `@tool` functions (`vox_source: workspace`)
 are dispatchable by name; set `VOX_MCP_WORKSPACE_TOOLS=1` to also advertise them.
 
-`VOX_MCP_TIERS` is a deprecated alias for that opt-in (`workspace`, `all`, `dev`, `advanced`);
+`VOX_MCP_TIERS` is a deprecated alias for that opt-in (`workspace` or `all` only);
 setting it logs a warning.
 ```
 
@@ -3249,7 +3252,7 @@ Expected: all PASS / OK; `git status` clean. No commit is needed unless Step 5 f
 | 00-contracts env rows for `VOX_MCP_TIERS` (deprecated alias) and `VOX_MCP_WORKSPACE_TOOLS` | 15 |
 | Classification of all 340 ops, split by domain, with handler evidence | 3–12 (41+53+32+52+38+25+15+17+30+37 = 340) |
 | Reference sweep with exact expected results | 17 Step 5 |
-| Global constraint: `dev` reproduces today's behaviour | 15 (`tools/list` with both vars unset equals the old `VOX_MCP_TIERS`-unset default; `workspace`/`all` still opt in) |
+| Global constraint: `dev` reproduces today's behaviour | 15 (`tools/list` with both vars unset equals the old `VOX_MCP_TIERS`-unset default; `workspace`/`all` still opt in, `dev`/`advanced` do not) |
 | Global constraint: no new crate edges | 1 (only external `serde` / `serde_json`) |
 
 Out of scope here (later plans): profile manifests and the "profile tools covered by subsystem closure" generator check (02), runtime filtering/dispatch denial (02–04), boot gating (03).
@@ -3258,7 +3261,7 @@ Out of scope here (later plans): profile manifests and the "profile tools covere
 
 1. **Proposals are not evidence.** The per-group tables come from names, descriptions, existing values, and a first pass over handlers; some rows will change on full handler review (especially `requires` for graph search, and the LLM-or-not question for `vox_db_suggest_query`, `vox_browser_extract_json`, `vox_speech_to_code`). The procedure forces evidence and an `Overrides:` record, and the gate rejects invariant violations, but reviewers should read the evidence in each commit body rather than the tables.
 2. **Intentional red window.** Between Task 2 and Task 13, `operations-verify` and `ssot-drift` fail. Pushing in that window would trip the pre-push hook and CI. Mitigation: integrate Tasks 3–12 quickly; push only after Task 13.
-3. **Deprecated-alias widening.** `VOX_MCP_TIERS=dev` / `advanced` did **not** reveal workspace-federated tools before (their tier was `workspace`); the contract amendment names them as alias values, so they now opt in. Only `workspace` / `all` reproduce the old effect exactly. Low impact (opt-in only, dev profile only), but a visible change for anyone who set `VOX_MCP_TIERS=dev`.
+3. **Deprecated alias is not widened.** Only the `VOX_MCP_TIERS` values that reveal workspace-federated tools today (`workspace`, `all`) opt in through the alias; `dev`, `advanced`, `core` and anything else keep today's behaviour (workspace tools stay hidden). Pinned by `opt_in_resolution`.
 4. **`side_effect_class` naming.** `writes_files` also covers in-process orchestrator/session state, and the precedence ranks local writes above `network`, so tools that both call an LLM and persist read as `writes_files`. The enum is fixed by the contract; the convention is documented in the Classification Procedure and should be copied into the contract doc.
 5. **Schema versioning.** The catalog schema change is breaking for a reader that relied on `tier` or on optional `side_effect_class`. `x-vox-version` is bumped, but the file is not renamed (`catalog.v1.*`) because it has one in-repo producer and consumer; renaming paths across tooling is not worth it. Flag for review against the data-storage policy.
 6. **Large-file edits.** `catalog.v1.yaml` is 33.5k lines; line numbers shift with every group merge. All instructions locate ops by their unique `name:` line, never by line number.

@@ -212,7 +212,7 @@ axis_surfaces: [models, chat]
 | `VOX_MCP_HTTP_TLS_CERT`, `VOX_MCP_HTTP_TLS_KEY` | 04 | PEM paths. |
 | `VOX_MCP_HTTP_BEHIND_TUNNEL` | 04 | `1` = operator attests a TLS-terminating tunnel/proxy. |
 | `VOX_MCP_WORKSPACE_TOOLS` | 01 | `1` = also advertise workspace-federated `@tool`s in `tools/list` (only served under `dev`). Registered in `env-vars.v1.yaml` **and** `contracts/config/registry.v1.yaml`. |
-| `VOX_MCP_TIERS` | 01 | Deprecated alias of `VOX_MCP_WORKSPACE_TOOLS` (`workspace`/`all`/`dev`/`advanced` opt in); warns once when set; ignored when `VOX_MCP_WORKSPACE_TOOLS` is set. |
+| `VOX_MCP_TIERS` | 01 | Deprecated alias of `VOX_MCP_WORKSPACE_TOOLS` (only `workspace`/`all` opt in, as today); warns once when set; ignored when `VOX_MCP_WORKSPACE_TOOLS` is set. |
 
 CLI: `vox mcp --profile <ids>`; `vox serve --profile <ids> [--bind <host:port>] [--tls-cert <p> --tls-key <p> | --behind-tunnel]`
 (register in `contracts/cli/command-registry.yaml`, then `cargo run -p vox-cli -- ci command-sync`).
@@ -271,7 +271,7 @@ gateway allows it):
 
 ### User decisions
 - **D1 (DB for small profiles):** `models` profile `requires` includes `db` (scoreboard, bench evidence, chat history). `attention` and `skills` stay DB-free. In remote mode Axis stores GUI preferences **client-side** (Axis local settings), never via server DB. Plan 03's "models opens no turso" boot test becomes "attention opens no turso"; a separate test asserts `models` boots `db`.
-- **D2 (eval sandbox):** no public-eval exemption. The operator adds `VOX_MCP_HTTP_READ_BEARER_TOKEN` in Coolify before plan 04 Task 4 deploys; plan 04 Task 10 updates `vox-eval.compose.yml` docs/comments only.
+- **D2 (eval sandbox):** no public-eval exemption. The operator adds `VOX_MCP_HTTP_READ_BEARER_TOKEN` in Coolify before plan 04 Task 4 deploys; plan 04 Task 10 changes only deployment config and docs: both compose files (`vox-eval.compose.yml`, `docker/vox-eval.compose.yml`) pass the read-token secret through (`VOX_MCP_HTTP_READ_BEARER_TOKEN=${VOX_MCP_HTTP_READ_BEARER_TOKEN}`) and set `VOX_MCP_HTTP_BEHIND_TUNNEL=1` (Traefik terminates TLS), plus comments and the deployment doc. No policy or code change.
 - **D3 (plan 05):** deferred. Runs only after the main-checkout model-bench WIP is committed and rebased onto #598; the exact edge diff is presented to the user for authorization at that time. Plans 01–04, 06, 07 must not depend on plan 05.
 - **D4:** `vox-models` → `vox-populi` stays an **optional** edge (identical behaviour).
 
@@ -282,7 +282,7 @@ gateway allows it):
 - `remote_mutation` added to `capability-registry.schema.json`.
 - `side_effect_class` precedence when a tool does several things: `destructive` > `remote_mutation` > `spawns_process` > `network` > `writes_files` > `read_only` > `none`.
 - Gate invariants: `http_read_role_eligible ⇒ side_effect_class ∈ {none, read_only}`; `exposure == operator ⇒ side_effect_class ∉ {none, read_only}`; `exposure == public ⇒ side_effect_class ∉ {spawns_process, remote_mutation, destructive}`.
-- Federated workspace tools: today's default (hidden) is preserved. The opt-in moves from `VOX_MCP_TIERS` to `VOX_MCP_WORKSPACE_TOOLS=1` (register in env-vars contract); `VOX_MCP_TIERS=dev|advanced` is honoured as a deprecated alias with a warning. Workspace/skill tools are only ever served under `dev`.
+- Federated workspace tools: today's default (hidden) is preserved. The opt-in moves from `VOX_MCP_TIERS` to `VOX_MCP_WORKSPACE_TOOLS=1` (register in env-vars contract); `VOX_MCP_TIERS` is honoured as a deprecated alias (with a one-time warning) **only for the values that reveal workspace tools today: `workspace` and `all`**; `dev`, `advanced` and other values keep current behaviour (workspace tools hidden). The alias is not widened. Workspace/skill tools are only ever served under `dev`.
 - Catalog stays `catalog.v1.yaml` (no rename): the new fields are enforced by our generator; bump the schema's `x-vox-version` and note it in the plan.
 
 ### From plan 02
@@ -321,5 +321,6 @@ gateway allows it):
 
 ### From the reconciliation pass (2026-10-08)
 - New non-secret env reads (`VOX_PROFILE` in plan 02, `VOX_MCP_WORKSPACE_TOOLS` in plan 01) are registered in **both** `contracts/config/env-vars.v1.yaml` and `contracts/config/registry.v1.yaml` (`knobs:`), because `vox ci config-hygiene` / `config-registry-parity` read registered names from `registry.v1.yaml` + Clavis + `CONFIG_KEYS`, not from `env-vars.v1.yaml`. Plan 04's settings are Clavis `SecretId`s and need no `registry.v1.yaml` row.
-- GUI preferences (plan 07 Task 5): ops `vox_gui_preference_get` / `vox_gui_preference_set` are `exposure: internal` (loopback + `dev` only, `requires: [db]`); Axis uses them only in local mode and falls back to a client-side `axis-preferences.json` in remote mode or on denial. `preferences` stays `shell` in `command-backends.v1.yaml`.
+- GUI preferences (plan 07 Task 5): ops `vox_gui_preference_get` / `vox_gui_preference_set` are `exposure: internal` (loopback + `dev` only, `requires: [db]`); Axis uses them only in local mode (a denial or unreachable daemon is surfaced as an error, never silently redirected); remote mode uses only the client-side `axis-preferences.json`. Accepted limitations: no cross-machine sync in remote mode; values set remotely before plan 07 Task 5 are not migrated. `preferences` stays `shell` in `command-backends.v1.yaml`.
 - Plan 07 consumes plan 06's names as written: `crate::remote::backend::{Backend, BackendState}` (managed `Arc<BackendState>`), `GatewayClient::{call_daemon_method, api_get}`, `axis_backend_status`, and the `gui_command_backends::problems` validator.
+- Console is **host-only in remote mode** for now: `pty` and `terminal_core` are `host`-class modules on the `console` surface, so plan 06's real gate reports `console` as `needs_local_machine` against any remote server. Plan 07 Task 8 migrates `console_a2a`'s db commands and asserts that honest unavailable state; un-gating console remotely needs a separate surface split (follow-up).
