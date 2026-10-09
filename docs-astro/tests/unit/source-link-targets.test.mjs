@@ -14,7 +14,8 @@ function stripCode(markdown) {
   for (const line of markdown.split('\n')) {
     const m = line.match(/^\s{0,3}(`{3,}|~{3,})/);
     if (fence) {
-      if (m && m[1][0] === fence[0] && m[1].length >= fence.length) fence = null;
+      // A closing fence carries no info string (CommonMark), so ```bash inside ```markdown does not close it.
+      if (m && m[1][0] === fence[0] && m[1].length >= fence.length && !line.slice(line.indexOf(m[1]) + m[1].length).trim()) fence = null;
       out.push('');
       continue;
     }
@@ -73,12 +74,18 @@ test('relativeLinkTargets: inline, reference, code-stripped, skips non-relative'
     '```md',
     '[fenced](fenced.md)',
     '```',
+    '```markdown',
+    '```bash',
+    '[nested](still-code.md)',
+    '```',
+    '[after](after.md)',
   ].join('\n');
   assert.deepEqual(relativeLinkTargets(md), [
     '../a.md',
     'b.md',
     '../../crates/x/src/lib.rs',
     'my file.md',
+    'after.md',
     './ref.md',
   ]);
 });
