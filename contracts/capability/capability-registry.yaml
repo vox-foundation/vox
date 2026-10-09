@@ -2321,7 +2321,7 @@ curated:
   description_human: CLI operation `vox check`
   description_model: null
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -5607,7 +5607,7 @@ curated:
   description_human: 'Get the current runtime orchestrator and toolchain configuration (wire aliases: vox_get_config).'
   description_model: null
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -5643,7 +5643,7 @@ curated:
   description_human: 'Update the orchestrator configuration dynamically (wire alias: vox_set_config).'
   description_model: null
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -7063,7 +7063,7 @@ curated:
   description_human: Return the complete database schema digest as JSON.
   description_model: null
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -12353,7 +12353,7 @@ curated:
   intent_tags:
   - retrieval
   - graph
-  side_effect_class: none
+  side_effect_class: read_only
   scope_kind: repository
   reversible: true
   requires_repo: true
@@ -12411,7 +12411,7 @@ curated:
   intent_tags:
   - retrieval
   - graph
-  side_effect_class: none
+  side_effect_class: read_only
   scope_kind: repository
   reversible: true
   requires_repo: true
@@ -12958,7 +12958,7 @@ curated:
   description_human: Hybrid retrieval over memory logs, VoxDb document chunks, and repo inventory (`vox memory search`; MCP `vox_memory_search`).
   description_model: null
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -14154,7 +14154,7 @@ curated:
   description_human: Send a domain-scoped notification over the OpenClaw gateway.
   description_model: null
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -14283,7 +14283,7 @@ curated:
   description_human: Subscribe the OpenClaw gateway session to a domain.
   description_model: null
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -14301,7 +14301,7 @@ curated:
   description_human: List active OpenClaw gateway subscriptions for the current session.
   description_model: null
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -14319,7 +14319,7 @@ curated:
   description_human: Unsubscribe the OpenClaw gateway session from a domain.
   description_model: null
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -14337,7 +14337,7 @@ curated:
   description_human: Generate a Cursor-style structured task plan for a goal. Optionally writes PLAN.md to workspace root.
   description_model: null
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -14390,7 +14390,7 @@ curated:
   description_human: Plan session status via vox-orchestrator-d (ai.plan.status) for a session_id.
   description_model: null
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -14460,7 +14460,7 @@ curated:
   description_human: Show manifest details for one installed or catalog Vox plugin.
   description_model: null
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -14496,7 +14496,7 @@ curated:
   description_human: List installed Vox plugins with id, version, and discovered skill count.
   description_model: null
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -15371,7 +15371,7 @@ curated:
   description_human: Re-resolve the explicit repo catalog and write a snapshot cache for the current workspace repository.
   description_model: null
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -15426,7 +15426,7 @@ curated:
   description_human: Read a path across cataloged local repositories with per-repository path sandboxing.
   description_model: null
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -15445,7 +15445,7 @@ curated:
   description_human: Read recent Git history per cataloged local repository, optionally filtered by path or substring.
   description_model: null
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -15464,7 +15464,7 @@ curated:
   description_human: Search cataloged local repositories for text or regex matches and group results by repository_id.
   description_model: null
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -15665,7 +15665,7 @@ curated:
   description_human: CLI `vox research run` and MCP `vox_research_run` — orchestrator `run_research` pipeline (web retrieval via `vox-search`, synthesis, judge when LLM configured).
   description_model: null
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -15683,7 +15683,7 @@ curated:
   description_human: MCP `vox_research_search` — full-text search over persisted research sessions, reports, and verified claims with confidence filtering.
   description_model: null
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -15719,7 +15719,7 @@ curated:
   description_human: MCP `vox_research_status` — read stage / progress for an async research session created by `vox_research_start`.
   description_model: null
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -17487,7 +17487,7 @@ curated:
   description_human: Add a skill from a git URL or local path into the user .vox/skills root.
   description_model: null
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -17541,7 +17541,7 @@ curated:
   description_human: List bare SKILL.md skills found under the standard interop roots, with install status.
   description_model: null
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -17577,7 +17577,7 @@ curated:
   description_human: Get detailed info on a specific skill by ID.
   description_model: null
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -17595,7 +17595,7 @@ curated:
   description_human: Install a skill from a VoxSkillBundle JSON payload.
   description_model: null
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -17613,7 +17613,7 @@ curated:
   description_human: List all installed skills.
   description_model: null
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -17649,7 +17649,7 @@ curated:
   description_human: Execute a skill script in the sandbox (parity with CLI `vox skill run`).
   description_model: null
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -17667,7 +17667,7 @@ curated:
   description_human: Search installed skills by keyword.
   description_model: null
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -17703,7 +17703,7 @@ curated:
   description_human: Uninstall an installed skill by ID.
   description_model: null
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18148,7 +18148,7 @@ curated:
   - gui
   - visual
   - testing
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18170,7 +18170,7 @@ curated:
   - visual
   - testing
   - baseline
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18259,7 +18259,7 @@ curated:
   description_human: null
   description_model: Acknowledge a message in an agent's inbox.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18275,7 +18275,7 @@ curated:
   description_human: null
   description_model: Broadcast an A2A message to all agents.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18291,7 +18291,7 @@ curated:
   description_human: null
   description_model: Query the A2A message audit trail.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18307,7 +18307,7 @@ curated:
   description_human: null
   description_model: Read unacknowledged messages in an agent's inbox.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18323,7 +18323,7 @@ curated:
   description_human: null
   description_model: Send a targeted A2A message from one agent to another.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18339,7 +18339,7 @@ curated:
   description_human: null
   description_model: Returns the full DAG of current orchestrator tasks.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18371,7 +18371,7 @@ curated:
   description_human: null
   description_model: Evaluates remaining work, returns completion estimate.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18387,7 +18387,7 @@ curated:
   description_human: null
   description_model: Triggers auto-continuation for idle agents.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18403,7 +18403,7 @@ curated:
   description_human: null
   description_model: Streams event history for agents.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18419,7 +18419,7 @@ curated:
   description_human: null
   description_model: Invoke an arbitrary agent Gateway method with JSON params.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18435,7 +18435,7 @@ curated:
   description_human: null
   description_model: Passes plan/context from one agent to another.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18451,7 +18451,7 @@ curated:
   description_human: null
   description_model: List remote agent skills through the native agent runtime adapter.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18467,7 +18467,7 @@ curated:
   description_human: null
   description_model: Send a domain-scoped notification over the agent gateway.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18483,7 +18483,7 @@ curated:
   description_human: null
   description_model: Returns current agent state, activity, mood, queue depth.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18499,7 +18499,7 @@ curated:
   description_human: null
   description_model: Subscribe the agent gateway session to a domain.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18515,7 +18515,7 @@ curated:
   description_human: null
   description_model: List active agent gateway subscriptions for the current session.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18531,7 +18531,7 @@ curated:
   description_human: null
   description_model: Unsubscribe the agent gateway session from a domain.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18547,7 +18547,7 @@ curated:
   description_human: null
   description_model: Delegate a code-generation or refactoring task to Gemini via the agy CLI. Runs agy -p in an isolated git worktree (jail), auto-accepts all prompts, retries on quota/timeout, and auto-logs to the handoff ledger. Returns the diff for human review.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18563,7 +18563,7 @@ curated:
   description_human: null
   description_model: Fan out multiple file-disjoint agy delegation tasks with bounded concurrency (≤8 workers). Each worker gets its own worktree and ledger entry. All results returned for review before integration.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18579,7 +18579,7 @@ curated:
   description_human: null
   description_model: Detect whether the Antigravity `agy` CLI is installed and ready; returns status plus exact install/auth remediation. Call before vox_agy_delegate.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18595,7 +18595,7 @@ curated:
   description_human: null
   description_model: Read the handoff ledger and return historical Gemini failure-category frequencies + entry count — the flywheel input injected as explicit avoid-rules into the next launch statement (Stage 1).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18611,7 +18611,7 @@ curated:
   description_human: null
   description_model: 'Run one Antigravity delegation end-to-end with deterministic verification: delegate via agy in a worktree jail, capture diff + spend proxy, run the plan-specified gates INSIDE the jail, classify green/partial/failed by effect, write a provisional ledger entry, and return a verdict-ready report for the human merge gate. Use this (not vox_agy_delegate) when you want the result proven, not asserted.'
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18627,7 +18627,7 @@ curated:
   description_human: null
   description_model: Record the Claude-side adversarial code review of a delegation as an append-only {id}-review ledger addendum (verdict + §B failure categories + findings + prompt lessons). Closes the review phase before the human merge gate and feeds the flywheel.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18643,7 +18643,7 @@ curated:
   description_human: null
   description_model: Answer a pending question from another agent.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18659,7 +18659,7 @@ curated:
   description_human: null
   description_model: Apply a structured file edit with validation (.vox AST/HIR, .rs shadow cargo check) and bounded LLM repair on failure.
   intent_tags: []
-  side_effect_class: writes_files
+  side_effect_class: spawns_process
   scope_kind: repository
   reversible: false
   requires_repo: true
@@ -18675,7 +18675,7 @@ curated:
   description_human: null
   description_model: Ask another agent a question.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18691,7 +18691,7 @@ curated:
   description_human: null
   description_model: Raise a clarification question to the user and declare gating task IDs.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18707,7 +18707,7 @@ curated:
   description_human: null
   description_model: Returns the history of attention shifts.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18723,7 +18723,7 @@ curated:
   description_human: null
   description_model: Resets the attention budget for the agent pool.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18739,7 +18739,7 @@ curated:
   description_human: null
   description_model: Returns a summary of agent attention allocation and focus shifts over a time window.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18755,7 +18755,7 @@ curated:
   description_human: null
   description_model: Record a user behavior event and receive pattern suggestions.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18771,7 +18771,7 @@ curated:
   description_human: null
   description_model: Analyze recent behavior and summarize detected patterns.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18787,7 +18787,7 @@ curated:
   description_human: null
   description_model: List recent benchmark_event rows from Codex for this repository (requires VoxDb). Also covers build times and eval scores. Trust/sensitivity SSOT — docs/src/architecture/telemetry-trust-ssot.md.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18803,7 +18803,7 @@ curated:
   description_human: null
   description_model: Record a new benchmark observation (e.g. wall-clock time for a build phase). Trust/sensitivity SSOT — docs/src/architecture/telemetry-trust-ssot.md.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18819,7 +18819,7 @@ curated:
   description_human: null
   description_model: Broadcast a message to all agents on the board.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18835,7 +18835,7 @@ curated:
   description_human: null
   description_model: LLM proposes a single JSON action (click/fill/goto/wait/noop); host executes it on the page.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18851,7 +18851,7 @@ curated:
   description_human: null
   description_model: Navigate to the previous history entry for page_id.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18867,7 +18867,7 @@ curated:
   description_human: null
   description_model: Click an element by CSS selector or xpath:/… target.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18883,7 +18883,7 @@ curated:
   description_human: null
   description_model: Click an element by ref from the latest accessibility snapshot; use snapshot refs, not CSS selectors. Callers must check data.ok and data.needs_human because sensitive refs return data.ok=false.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18899,7 +18899,7 @@ curated:
   description_human: null
   description_model: Click at viewport coordinates (x,y) on an existing page_id session.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18915,7 +18915,7 @@ curated:
   description_human: null
   description_model: Close a browser tab by page_id and shut down the host when no tabs remain.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18931,7 +18931,7 @@ curated:
   description_human: null
   description_model: Export cookies to a file under the browser profiles directory. Returns count and path only — cookie values never appear in the MCP payload.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18947,7 +18947,7 @@ curated:
   description_human: null
   description_model: Import cookies from a cookies.json file jailed under the browser profiles directory. MCP result has no cookie values.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18963,7 +18963,7 @@ curated:
   description_human: null
   description_model: Use configured chat model + visible page text to answer an extraction instruction.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18979,7 +18979,7 @@ curated:
   description_human: null
   description_model: Like vox_browser_extract but forces a JSON object matching a JSON Schema description string.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18995,7 +18995,7 @@ curated:
   description_human: null
   description_model: Focus an input and type text (CSS selector or xpath:/…).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19011,7 +19011,7 @@ curated:
   description_human: null
   description_model: Fill an element by ref from the latest accessibility snapshot; use snapshot refs, not CSS selectors. Callers must check data.ok and data.needs_human because sensitive refs return data.ok=false.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19027,7 +19027,7 @@ curated:
   description_human: null
   description_model: Navigate to the next history entry for page_id.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19043,7 +19043,7 @@ curated:
   description_human: null
   description_model: Navigate an existing tab to a URL.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19059,7 +19059,7 @@ curated:
   description_human: null
   description_model: Read HTML for the full document (empty target) or a fragment selector.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19075,7 +19075,7 @@ curated:
   description_human: null
   description_model: List all currently open browser sessions with page_id, URL, and title.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19091,7 +19091,7 @@ curated:
   description_human: null
   description_model: Open a Chromium tab at URL via CD (chromiumoxide). Returns page_id for follow-up tools.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19107,7 +19107,7 @@ curated:
   description_human: null
   description_model: Open a Chromium tab with launch mode ephemeral, named, or attach. Named mode requires save_profile or stored cookie consent. Empty VOX_BROWSER_ALLOWED_HOSTS with Named or Attach is an operator risk — set the var in production.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19123,7 +19123,7 @@ curated:
   description_human: null
   description_model: Get URL/title and history navigation booleans for page_id.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19139,7 +19139,7 @@ curated:
   description_human: null
   description_model: Press a key/chord on the active page.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19155,7 +19155,7 @@ curated:
   description_human: null
   description_model: Reload the current page_id.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19171,7 +19171,7 @@ curated:
   description_human: null
   description_model: Capture one CDP screencast frame, persist under browser-frames cache, return path and viewport dimensions.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19187,7 +19187,7 @@ curated:
   description_human: null
   description_model: Save a full-page PNG to a path (creates parent dirs).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19203,7 +19203,7 @@ curated:
   description_human: null
   description_model: Capture viewport-only PNG, persist under browser-frames cache, return path and dimensions.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19219,7 +19219,7 @@ curated:
   description_human: null
   description_model: Scroll by dx/dy viewport deltas.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19235,7 +19235,7 @@ curated:
   description_human: null
   description_model: Set or clear per-page control owner (human or agent) for shared CDP sessions.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19251,7 +19251,7 @@ curated:
   description_human: null
   description_model: Set viewport width/height for deterministic coordinate mapping.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19267,7 +19267,7 @@ curated:
   description_human: null
   description_model: Capture a compact accessibility snapshot with stable element refs for ref-based actions; use these refs instead of CSS selectors.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19283,7 +19283,7 @@ curated:
   description_human: null
   description_model: Stop pending navigation/load for page_id.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19299,7 +19299,7 @@ curated:
   description_human: null
   description_model: Read inner text for a CSS or xpath target.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19315,7 +19315,7 @@ curated:
   description_human: null
   description_model: Type text into the focused editable element on page_id.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19331,7 +19331,7 @@ curated:
   description_human: null
   description_model: Wait until a selector appears or timeout (seconds).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19347,7 +19347,7 @@ curated:
   description_human: null
   description_model: Returns token usage and approximate costs across all agents.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19363,7 +19363,7 @@ curated:
   description_human: null
   description_model: Run cargo build for a crate or the whole workspace.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19379,7 +19379,7 @@ curated:
   description_human: null
   description_model: Return detailed signatures and docs for all builtin functions.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: none
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19395,7 +19395,7 @@ curated:
   description_human: null
   description_model: Cancels an active or queued task.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19411,7 +19411,7 @@ curated:
   description_human: null
   description_model: Return the live Vox capability model manifest JSON (MCP tools, CLI paths, runtime builtin maps) merged from contracts/capability and registries at the workspace root.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19427,7 +19427,7 @@ curated:
   description_human: null
   description_model: Start tracking a new logical change.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19443,7 +19443,7 @@ curated:
   description_human: null
   description_model: Show the history of a change.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19459,7 +19459,7 @@ curated:
   description_human: null
   description_model: Retrieve the full chat history for the current session.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19475,7 +19475,7 @@ curated:
   description_human: null
   description_model: Send a chat message to the Vox AI. Resolves @mentions, injects editor context, queries LLM, persists history.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19491,7 +19491,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox check`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19507,7 +19507,7 @@ curated:
   description_human: null
   description_model: Check which agent currently owns a given file path.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19523,7 +19523,7 @@ curated:
   description_human: null
   description_model: Returns the current gamification mood and status of the agent companion.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19539,7 +19539,7 @@ curated:
   description_human: null
   description_model: Run cargo check for the entire workspace and return diagnostics.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19555,7 +19555,7 @@ curated:
   description_human: null
   description_model: Request ownership of a specific file.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19571,7 +19571,7 @@ curated:
   description_human: null
   description_model: Record or update TOESTUB anti-pattern findings from external reviews (GitHub/CodeRabbit).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19587,7 +19587,7 @@ curated:
   description_human: null
   description_model: Get current context token usage and whether compaction is recommended.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19603,7 +19603,7 @@ curated:
   description_human: null
   description_model: 'Parse a .vox file and return its AST as a JSON tree. Argument: path (relative to repo root).'
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19619,7 +19619,7 @@ curated:
   description_human: null
   description_model: Mark a task as completed, releasing its file locks.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19635,7 +19635,7 @@ curated:
   description_human: null
   description_model: 'Get the current runtime orchestrator and toolchain configuration (wire aliases: vox_get_config).'
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19651,7 +19651,7 @@ curated:
   description_human: null
   description_model: 'Update the orchestrator configuration dynamically (wire alias: vox_set_config).'
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19667,7 +19667,7 @@ curated:
   description_human: null
   description_model: Show the N-way diff of a conflict.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19683,7 +19683,7 @@ curated:
   description_human: null
   description_model: List active file conflicts between agents.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19699,7 +19699,7 @@ curated:
   description_human: null
   description_model: Get the token budget status and summarize recommendation for an agent.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19715,7 +19715,7 @@ curated:
   description_human: null
   description_model: Get a time-series cost breakdown of operations.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19731,7 +19731,7 @@ curated:
   description_human: null
   description_model: Get code coverage report for a crate using cargo-llvm-cov.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19747,7 +19747,7 @@ curated:
   description_human: null
   description_model: List every inference provider with a present Clavis credential plus the agy delegation status — the credential-aware model-selection surface. OpenRouter is one of many.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19763,7 +19763,7 @@ curated:
   description_human: null
   description_model: Insert conversation_edges between two conversations (V17).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19779,7 +19779,7 @@ curated:
   description_human: null
   description_model: Append conversation_versions for a conversation_id (V17).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19795,7 +19795,7 @@ curated:
   description_human: null
   description_model: Return the data flow map.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19811,7 +19811,7 @@ curated:
   description_human: null
   description_model: Explain a query or mutation in plain English.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19827,7 +19827,7 @@ curated:
   description_human: null
   description_model: Return the entity-relationship graph for the database.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19843,7 +19843,7 @@ curated:
   description_human: null
   description_model: Upsert research_sessions then append research_metrics with matching session_id text (links structured + legacy telemetry).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19859,7 +19859,7 @@ curated:
   description_human: null
   description_model: Upsert research_sessions by session_key (V17). Empty repository_id defaults to workspace repository_id.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19875,7 +19875,7 @@ curated:
   description_human: null
   description_model: Fetch sample data from a given database table.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19891,7 +19891,7 @@ curated:
   description_human: null
   description_model: Return the complete database schema digest as JSON.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19907,7 +19907,7 @@ curated:
   description_human: null
   description_model: Suggest the correct Vox query expression for an intent.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19923,7 +19923,7 @@ curated:
   description_human: null
   description_model: Append topic_evolution_events for a topic_id (V17).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19939,7 +19939,7 @@ curated:
   description_human: null
   description_model: Compare mean trust observation scores in a recent time window vs the prior equal-length window (optional entity_type/dimension filters).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19955,7 +19955,7 @@ curated:
   description_human: null
   description_model: Domain-clique affinity propagation over model trust rollups for a base dimension; optional persist writes *_propagated observations.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19971,7 +19971,7 @@ curated:
   description_human: null
   description_model: List trust_rollups rows with optional entity_type/dimension/domain filters for multidimensional trust inspection.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19987,7 +19987,7 @@ curated:
   description_human: null
   description_model: Aggregate trust_rollups by dimension, domain, entity_type, or combined keys (mean/min/max score, counts, sample mass).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20003,7 +20003,7 @@ curated:
   description_human: null
   description_model: Return detailed metadata for all @decorators in the Vox language.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: none
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20019,7 +20019,7 @@ curated:
   description_human: null
   description_model: Mark a task as suspicious, triggering a rigorous ResolutionAgent audit and potentially unlocking doubt-related achievements.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20035,7 +20035,7 @@ curated:
   description_human: null
   description_model: Remove all queued tasks from an agent without retiring it.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20051,7 +20051,7 @@ curated:
   description_human: null
   description_model: Trigger a global emergency stop across the orchestrator, cancelling all active tasks.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: destructive
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20067,7 +20067,7 @@ curated:
   description_human: null
   description_model: Query historical execution time for a tool.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20083,7 +20083,7 @@ curated:
   description_human: null
   description_model: Record an execution duration and outcome.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20099,7 +20099,7 @@ curated:
   description_human: null
   description_model: Export the Vox EBNF grammar.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: none
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20115,7 +20115,7 @@ curated:
   description_human: null
   description_model: Mark a task as failed with a reason string.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20131,7 +20131,7 @@ curated:
   description_human: null
   description_model: List all pending and withheld feedback requests.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20147,7 +20147,7 @@ curated:
   description_human: null
   description_model: Get a JSON graph of all files and their owning agents (affinity map).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20163,7 +20163,7 @@ curated:
   description_human: null
   description_model: Start a bug battle from a synthetic finding (companion name + rule + message).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20179,7 +20179,7 @@ curated:
   description_human: null
   description_model: Submit code for the active bug battle for a companion (success flag).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20195,7 +20195,7 @@ curated:
   description_human: null
   description_model: Join a collegium and emit a Ludus collegium_joined policy event.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20211,7 +20211,7 @@ curated:
   description_human: null
   description_model: Mark one Ludus notification as read for the canonical user (Codex gamify_notifications), by notification id.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20227,7 +20227,7 @@ curated:
   description_human: null
   description_model: Mark all unread Ludus notifications as read for the canonical user.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20243,7 +20243,7 @@ curated:
   description_human: null
   description_model: List unread Ludus (gamification) notifications for the current canonical user from Codex.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20259,7 +20259,7 @@ curated:
   description_human: null
   description_model: 'Ludus digest: KPI summary, unread notifications, and recent reward-policy snapshots over a rolling day window.'
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20275,7 +20275,7 @@ curated:
   description_human: null
   description_model: List Ludus quests for the canonical user (read-only).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20291,7 +20291,7 @@ curated:
   description_human: null
   description_model: Buy a shop item by 1-based index; optional idempotency_key dedupes duplicate purchases.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20307,7 +20307,7 @@ curated:
   description_human: null
   description_model: Crystal shop catalog with effective prices for the current gamify mode.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20326,7 +20326,7 @@ curated:
   - codegen
   - vox
   - llm
-  side_effect_class: none
+  side_effect_class: network
   scope_kind: repository
   reversible: true
   requires_repo: true
@@ -20342,7 +20342,7 @@ curated:
   description_human: null
   description_model: Show sticky MCP chat override and resolved ModelSpec (no LLM call).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20358,7 +20358,7 @@ curated:
   description_human: null
   description_model: Retrieve a value from the shared context.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20374,7 +20374,7 @@ curated:
   description_human: null
   description_model: LLM fill-in-the-middle completion for single-line editor fragments.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20390,7 +20390,7 @@ curated:
   description_human: null
   description_model: Show line-by-line git blame for a file.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20406,7 +20406,7 @@ curated:
   description_human: null
   description_model: Show uncommitted git diff for a file or the whole tree.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20422,7 +20422,7 @@ curated:
   description_human: null
   description_model: 'Show recent git commits (default: last 10).'
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20438,7 +20438,7 @@ curated:
   description_human: null
   description_model: Get current git working tree status.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20454,7 +20454,7 @@ curated:
   description_human: null
   description_model: Retrieve the components registered in the primitive component registry.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: session
   reversible: false
   requires_repo: null
@@ -20470,7 +20470,7 @@ curated:
   description_human: null
   description_model: List the registered GUI design rules (gui-design-rule/*) so a generator can read the constraint set before emitting.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: session
   reversible: false
   requires_repo: null
@@ -20486,7 +20486,7 @@ curated:
   description_human: null
   description_model: Retrieve design tokens in W3C DTCG format.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: session
   reversible: false
   requires_repo: null
@@ -20502,7 +20502,7 @@ curated:
   description_human: null
   description_model: Handoff summarized context from one agent to another.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20518,7 +20518,7 @@ curated:
   description_human: null
   description_model: Returns the historical lineage of agent-to-agent task delegations and context handoffs.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20534,7 +20534,7 @@ curated:
   description_human: null
   description_model: Send an active heartbeat from a Vox agent session.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20550,7 +20550,7 @@ curated:
   description_human: null
   description_model: AI inline edit on a file range. Editor sends current text; Rust queries LLM and returns replacement.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20566,7 +20566,7 @@ curated:
   description_human: null
   description_model: List ordered canonical developer-journey steps from Codex (SSOT `developer_journey_steps`).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20678,7 +20678,7 @@ curated:
   description_human: null
   description_model: Get the feed of knowledge entries.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: session
   reversible: false
   requires_repo: null
@@ -20694,7 +20694,7 @@ curated:
   description_human: null
   description_model: List all available knowledge bases.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: session
   reversible: false
   requires_repo: null
@@ -20710,7 +20710,7 @@ curated:
   description_human: null
   description_model: List all knowledge entries in a knowledge base.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: session
   reversible: false
   requires_repo: null
@@ -20726,7 +20726,7 @@ curated:
   description_human: null
   description_model: List ingestion filter rules.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: session
   reversible: false
   requires_repo: null
@@ -20742,7 +20742,7 @@ curated:
   description_human: null
   description_model: Query knowledge bases with semantic search.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: session
   reversible: false
   requires_repo: null
@@ -20774,7 +20774,7 @@ curated:
   description_human: null
   description_model: Query the knowledge graph (VoxDB) for related concepts by keyword.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20790,7 +20790,7 @@ curated:
   description_human: null
   description_model: Return all primary keywords, decorators, types, and builtins in the Vox language.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: none
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20806,7 +20806,7 @@ curated:
   description_human: null
   description_model: Record a learned behavioral pattern with confidence score.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20822,7 +20822,7 @@ curated:
   description_human: null
   description_model: Run cargo clippy for a crate or whole workspace.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20838,7 +20838,7 @@ curated:
   description_human: null
   description_model: List MCP tools currently allowlisted for auto-approval in a repository (T0.3).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: session
   reversible: false
   requires_repo: null
@@ -20854,7 +20854,7 @@ curated:
   description_human: null
   description_model: List available context keys by prefix.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20870,7 +20870,7 @@ curated:
   description_human: null
   description_model: List all models in the orchestrator registry (ids, providers, free/paid).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20886,7 +20886,7 @@ curated:
   description_human: null
   description_model: Returns a list of all current file locks.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20902,7 +20902,7 @@ curated:
   description_human: null
   description_model: 'Map a Vox agent session ID to an existing orchestrator agent (wire aliases: vox_map_opencode_session, vox_map_vscode_session).'
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20918,7 +20918,7 @@ curated:
   description_human: null
   description_model: List all section keys from MEMORY.md.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20934,7 +20934,7 @@ curated:
   description_human: null
   description_model: Append an entry to today's daily memory log.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20950,7 +20950,7 @@ curated:
   description_human: null
   description_model: Retrieve a fact from long-term memory by key.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20966,7 +20966,7 @@ curated:
   description_human: null
   description_model: Recall typed memory facts for an agent from VoxDb.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20982,7 +20982,7 @@ curated:
   description_human: null
   description_model: Persist a typed memory fact to VoxDb agent_memory table.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20998,7 +20998,7 @@ curated:
   description_human: null
   description_model: Hybrid retrieval over memory logs, VoxDb document chunks, and repo inventory (`vox memory search`; MCP `vox_memory_search`).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21014,7 +21014,7 @@ curated:
   description_human: null
   description_model: Persist a key-value fact to long-term memory (MEMORY.md).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21046,7 +21046,7 @@ curated:
   description_human: null
   description_model: List Vox Populi mesh nodes (control plane preferred, local-registry fallback) with status, GPU, trust tier, advertised models.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21062,7 +21062,7 @@ curated:
   description_human: null
   description_model: Vox Populi mesh pending-queue stats (control plane preferred, local queue_depth fallback).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21078,7 +21078,7 @@ curated:
   description_human: null
   description_model: Returns all files currently owned by the specified agent.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21094,7 +21094,7 @@ curated:
   description_human: null
   description_model: Return distinct approver count and whether dual approval is satisfied for a news_id.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21110,7 +21110,7 @@ curated:
   description_human: null
   description_model: Record a maker-checker approval for a news_id in VoxDb (two distinct approvers required before live syndication).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21126,7 +21126,7 @@ curated:
   description_human: null
   description_model: Writes docs/news/drafts/{id}.md from the embedded research template (dry_run in frontmatter).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21142,7 +21142,7 @@ curated:
   description_human: null
   description_model: Parse news markdown and report what would block live publish (dry_run, approvals, armed) without posting.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21158,7 +21158,7 @@ curated:
   description_human: null
   description_model: Validates a markdown string against the UnifiedNewsItem parser and executes a pure dry_run without posting anything live.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21174,7 +21174,7 @@ curated:
   description_human: null
   description_model: Resolve OpenClaw gateway/catalog endpoints from well-known discovery plus local overrides.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21190,7 +21190,7 @@ curated:
   description_human: null
   description_model: Invoke an arbitrary OpenClaw Gateway WS method with JSON params.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21206,7 +21206,7 @@ curated:
   description_human: null
   description_model: Probe OpenClaw HTTP and WS readiness using the shared discovery configuration.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21222,7 +21222,7 @@ curated:
   description_human: null
   description_model: Import an OpenClaw skill by slug and optionally install it into the local Vox skills registry.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21238,7 +21238,7 @@ curated:
   description_human: null
   description_model: List remote OpenClaw skills through the native OpenClaw runtime adapter.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21254,7 +21254,7 @@ curated:
   description_human: null
   description_model: Send a domain-scoped notification over the OpenClaw gateway.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21270,7 +21270,7 @@ curated:
   description_human: null
   description_model: Search remote OpenClaw skills by keyword query.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21286,7 +21286,7 @@ curated:
   description_human: null
   description_model: Subscribe the OpenClaw gateway session to a domain.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21302,7 +21302,7 @@ curated:
   description_human: null
   description_model: List active OpenClaw gateway subscriptions for the current session.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21318,7 +21318,7 @@ curated:
   description_human: null
   description_model: Unsubscribe the OpenClaw gateway session from a domain.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21334,7 +21334,7 @@ curated:
   description_human: null
   description_model: Show recent operations with undo support.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21391,7 +21391,7 @@ curated:
   - oratio
   - speech
   - stt
-  side_effect_class: spawns_process
+  side_effect_class: writes_files
   scope_kind: repository
   reversible: true
   requires_repo: true
@@ -21407,7 +21407,7 @@ curated:
   description_human: null
   description_model: Return the latest persistence outbox lifecycle health snapshot (queue size, replay successes/failures, and per-op replay failure counts).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21423,7 +21423,7 @@ curated:
   description_human: null
   description_model: Inspect queued persistence outbox entries with optional lane filter, limit, and replay payload inclusion.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21439,7 +21439,7 @@ curated:
   description_human: null
   description_model: Probe embedded orchestrator + worker readiness. AgentFleet runs in-process when VOX_MCP_AGENT_FLEET is enabled (default); this tool does not spawn a separate process.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21455,7 +21455,7 @@ curated:
   description_human: null
   description_model: 'Get a full snapshot of the orchestrator state: agents, queues, and completed tasks.'
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21471,7 +21471,7 @@ curated:
   description_human: null
   description_model: Pause an agent queue (new work is held).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21487,7 +21487,7 @@ curated:
   description_human: null
   description_model: List human-in-the-loop tool-call approvals currently awaiting a decision.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21503,7 +21503,7 @@ curated:
   description_human: null
   description_model: List all questions waiting for my answer.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21519,7 +21519,7 @@ curated:
   description_human: null
   description_model: Get current compiler pipeline health and status (lexer, parser, typeck, codegen).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: none
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21535,7 +21535,7 @@ curated:
   description_human: null
   description_model: Generate a Cursor-style structured task plan for a goal. Optionally writes PLAN.md to workspace root.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21551,7 +21551,7 @@ curated:
   description_human: null
   description_model: List active and recent plan sessions.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21567,7 +21567,7 @@ curated:
   description_human: null
   description_model: Resume a suspended or pending plan session.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21583,7 +21583,7 @@ curated:
   description_human: null
   description_model: Plan session status via vox-orchestrator-d (ai.plan.status) for a session_id.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21599,7 +21599,7 @@ curated:
   description_human: null
   description_model: List plugins available in the Vox plugin catalog (marketplace index).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21615,7 +21615,7 @@ curated:
   description_human: null
   description_model: Show manifest details for one installed or catalog Vox plugin.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21647,7 +21647,7 @@ curated:
   description_human: null
   description_model: List installed Vox plugins with id, version, and discovered skill count.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21679,7 +21679,7 @@ curated:
   description_human: null
   description_model: Poll recent orchestrator events for all agents.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21695,7 +21695,7 @@ curated:
   description_human: null
   description_model: Return mens environment variables and the local mens registry file contents (CPU-first node records).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21711,7 +21711,7 @@ curated:
   description_human: null
   description_model: Get a user preference value by key from VoxDb.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21727,7 +21727,7 @@ curated:
   description_human: null
   description_model: List all user preferences, optionally filtered by a key prefix.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21743,7 +21743,7 @@ curated:
   description_human: null
   description_model: Set a user preference key to a value in VoxDb.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21778,7 +21778,7 @@ curated:
   description_human: null
   description_model: Surface a mined recurring operation procedure as a non-blocking "save as skill?" suggestion in the NeedsYou inbox.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21794,7 +21794,7 @@ curated:
   description_human: null
   description_model: Publish a message to the bulletin board for all agents to receive.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21810,7 +21810,7 @@ curated:
   description_human: null
   description_model: Return open clarification session + unanswered question rows with MC options and belief_state_json for UI (requires VoxDb; same session_id as chat/plan).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21826,7 +21826,7 @@ curated:
   description_human: null
   description_model: Store the user's answer to a pending Socrates clarification for an MCP session (requires VoxDb; pairs with socrates.questioning in chat/plan responses).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21842,7 +21842,7 @@ curated:
   description_human: null
   description_model: Dual-write the information-theoretic questioning markdown SSOT into publication_manifests and search (requires VoxDb + workspace file).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21858,7 +21858,7 @@ curated:
   description_human: null
   description_model: Returns the specific queue and tasks for an agent.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21874,7 +21874,7 @@ curated:
   description_human: null
   description_model: Rebalances tasks dynamically across agents.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21890,7 +21890,7 @@ curated:
   description_human: null
   description_model: Record a cost event from a Vox agent session token usage.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21906,7 +21906,7 @@ curated:
   description_human: null
   description_model: Redo a previously undone operation.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: destructive
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21922,7 +21922,7 @@ curated:
   description_human: null
   description_model: Change the priority of a queued task.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21938,7 +21938,7 @@ curated:
   description_human: null
   description_model: 'Replan via vox-orchestrator-d (ai.plan.replan): session_id + delta_hint; optional write_to_disk and mode.'
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21973,7 +21973,7 @@ curated:
   description_human: null
   description_model: Re-resolve the explicit repo catalog and write a snapshot cache for the current workspace repository.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21989,7 +21989,7 @@ curated:
   description_human: null
   description_model: Refresh the on-disk repo index cache for the current workspace.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22005,7 +22005,7 @@ curated:
   description_human: null
   description_model: Return repo index cache status (bounded walk under repo root, `.vox/cache/repos/...`).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22021,7 +22021,7 @@ curated:
   description_human: null
   description_model: Read a path across cataloged local repositories with per-repository path sandboxing.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22037,7 +22037,7 @@ curated:
   description_human: null
   description_model: Read recent Git history per cataloged local repository, optionally filtered by path or substring.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22053,7 +22053,7 @@ curated:
   description_human: null
   description_model: Search cataloged local repositories for text or regex matches and group results by repository_id.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22088,7 +22088,7 @@ curated:
   description_human: null
   description_model: MCP `vox_research_get` — fetch the completed research payload (answer + sources) for a session when available.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22104,7 +22104,7 @@ curated:
   description_human: null
   description_model: CLI `vox research run` and MCP `vox_research_run` — orchestrator `run_research` pipeline (web retrieval via `vox-search`, synthesis, judge when LLM configured).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22120,7 +22120,7 @@ curated:
   description_human: null
   description_model: MCP `vox_research_search` — full-text search over persisted research sessions, reports, and verified claims with confidence filtering.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22136,7 +22136,7 @@ curated:
   description_human: null
   description_model: MCP `vox_research_start` — creates a persisted research session and runs the same web-retrieval pipeline as `vox_research_run` in the background (returns session_id immediately).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22152,7 +22152,7 @@ curated:
   description_human: null
   description_model: MCP `vox_research_status` — read stage / progress for an async research session created by `vox_research_start`.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22184,7 +22184,7 @@ curated:
   description_human: null
   description_model: Resolve a file conflict.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22200,7 +22200,7 @@ curated:
   description_human: null
   description_model: Resolve a pending clarification or doubt request with a specific action.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22216,7 +22216,7 @@ curated:
   description_human: null
   description_model: Resume a previously paused agent queue.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22232,7 +22232,7 @@ curated:
   description_human: null
   description_model: 'Retire an agent: release locks and affinity, unregister heartbeat, return remaining tasks.'
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22248,7 +22248,7 @@ curated:
   description_human: null
   description_model: Run cargo test for a specific crate, optionally filtered by test name.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22264,7 +22264,7 @@ curated:
   description_human: null
   description_model: Enqueue a background orchestrator task for Mens training intent; canonical execution remains `vox mens train`.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22280,7 +22280,7 @@ curated:
   description_human: null
   description_model: Bounded Research-routed LLM assist — returns heuristic block plus optional JSON-only checklist/gap suggestions grounded on manifest scientia_evidence; never authoritative for novelty.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22296,7 +22296,7 @@ curated:
   description_human: null
   description_model: Record one digest-bound approval for a scientia publication manifest.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22312,7 +22312,7 @@ curated:
   description_human: null
   description_model: Append-only operator milestone for arXiv-assist workflow (publication_status_events with status arxiv_handoff:*; does not change manifest state). Stage published requires arxiv_id.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22328,7 +22328,7 @@ curated:
   description_human: null
   description_model: CLI `vox scientia publication-decision-explain`; MCP `vox_scientia_publication_decision_explain`.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22344,7 +22344,7 @@ curated:
   description_human: null
   description_model: Machine explanation JSON for one publication_id — discovery rank, completion report, evidence completeness, transform preview labels (machine_suggested / requires_human_review).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22360,7 +22360,7 @@ curated:
   description_human: null
   description_model: Merge live Socrates telemetry + JSON sidecars into a stored scientia manifest, refresh scientia_evidence (headings, discovery signals), upsert digest, append discovery_evidence_refreshed status (scientia only).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22376,7 +22376,7 @@ curated:
   description_human: null
   description_model: Deterministic SCIENTIA discovery scan — rank publication_manifests rows by structured scientia_evidence signals (no LLM).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22392,7 +22392,7 @@ curated:
   description_human: null
   description_model: List external_submission_jobs in terminal failed status (not scheduled for retry), newest first.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22408,7 +22408,7 @@ curated:
   description_human: null
   description_model: List external_submission_jobs rows due for retry (queued, or retryable_failed with elapsed next_retry_at_ms) up to an optional limit.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22424,7 +22424,7 @@ curated:
   description_human: null
   description_model: Requeue one dead-letter scholarly job (status failed → queued) by external_submission_jobs.id for the next publication_external_jobs_tick.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22440,7 +22440,7 @@ curated:
   description_human: null
   description_model: Process one or more batches of due scholarly submit jobs (preflight dual-approval + digest match, lease row, submit using stored adapter). Optional lock_ttl_ms, lock_owner, iterations, interval_secs, max_runtime_secs, and jitter_secs between ticks.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22456,7 +22456,7 @@ curated:
   description_human: null
   description_model: Read-only JSON rollup of scholarly external_submission_jobs (queue snapshot, in-window status view, percentiles, per-adapter terminal/retry ratios), attempts, snapshots, scholarly_submissions (incl. in-window view), and publication_attempts by channel. metrics_schema_version 2. Optional since_hours (default 168).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22472,7 +22472,7 @@ curated:
   description_human: null
   description_model: Delete one publication media asset by publication_id + asset_ref.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: destructive
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22488,7 +22488,7 @@ curated:
   description_human: null
   description_model: List publication media assets for a scientia publication id.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22504,7 +22504,7 @@ curated:
   description_human: null
   description_model: Insert/update one publication media asset row for a scientia publication id.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22520,7 +22520,7 @@ curated:
   description_human: null
   description_model: CLI `vox scientia publication-novelty-fetch`; MCP `vox_scientia_publication_novelty_fetch`.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22536,7 +22536,7 @@ curated:
   description_human: null
   description_model: CLI `vox scientia publication-novelty-happy-path`; MCP `vox_scientia_publication_novelty_happy_path`.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22552,7 +22552,7 @@ curated:
   description_human: null
   description_model: Run publication_preflight checks on a stored scientia manifest; returns readiness_score and findings JSON (no writes). Optional with_worthiness adds heuristic worthiness rubric output from the repo default YAML.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22568,7 +22568,7 @@ curated:
   description_human: null
   description_model: Create/update a canonical scientia publication manifest and return its content digest. Optional scholarly_metadata (ScientificPublicationMetadata) is merged under metadata_json.scientific_publication.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22584,7 +22584,7 @@ curated:
   description_human: null
   description_model: Publish a prepared publication id to selected channels (dry-run by default) and record publication_attempts. Live publish requires digest dual-approval, armed (orchestrator [news].publish_armed and/or VOX_NEWS_PUBLISH_ARMED), and respects orchestrator [news].dry_run merged with tool dry_run. Optional json=true returns a single-line compact JSON tool envelope.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22600,7 +22600,7 @@ curated:
   description_human: null
   description_model: Retry failed channels from the most recent publication attempt, optionally scoped to one channel. Optional json=true returns a single-line compact JSON tool envelope.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22616,7 +22616,7 @@ curated:
   description_human: null
   description_model: Simulate per-channel routing outcomes for a prepared publication id (policy + topic filters + template derivation).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22632,7 +22632,7 @@ curated:
   description_human: null
   description_model: 'Run scholarly pipeline on a stored manifest: preflight, dual-approval gate, optional venue staging export (output_dir + venue), then scholarly submit (unless dry_run). Optional json_compact returns a single-line JSON payload inside the tool result envelope (matches CLI --json).'
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22648,7 +22648,7 @@ curated:
   description_human: null
   description_model: Poll remote scholarly repository status for the latest stored submission (or a specific external_submission_id) using the adapter recorded in VoxDb.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22664,7 +22664,7 @@ curated:
   description_human: null
   description_model: Poll remote scholarly status for every scholarly_submissions row on a publication (multi-deposit / multi-adapter); persists snapshots and best-effort continues per row.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22680,7 +22680,7 @@ curated:
   description_human: null
   description_model: 'Batch remote status poll: run sync-all logic for up to N publications ranked by recent scholarly_submissions activity (cron-friendly). Optional iterations, interval_secs, max_runtime_secs, and jitter_secs run repeated batches for a supervised worker.'
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22696,7 +22696,7 @@ curated:
   description_human: null
   description_model: Load a stored scientia publication manifest from VoxDb and write venue-scoped scholarly staging files (body.md, CITATION.cff, crossref_work.json, optional citations.json; zenodo.json for Zenodo; arxiv_handoff.json plus arxiv_bundle.tar.gz for arxiv-assist) under output_dir, then validate the tree.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22712,7 +22712,7 @@ curated:
   description_human: null
   description_model: Return manifest state, digest-bound approval count, discovery rank, manifest completion, transform preview stub, destination_readiness inside preflight, and scholarly submission rows.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22728,7 +22728,7 @@ curated:
   description_human: null
   description_model: Submit an approved scientia publication through the scholarly adapter (optional adapter arg or VOX_SCHOLARLY_ADAPTER; default local_ledger), with external_submission_jobs ledger updates.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22744,7 +22744,7 @@ curated:
   description_human: null
   description_model: Evaluate publication-worthiness.contract YAML (repo-relative or default) against WorthinessInputs metrics JSON; returns Publish / AskForEvidence / Abstain decision (no writes).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22762,7 +22762,7 @@ curated:
   intent_tags:
   - retrieval
   - graph
-  side_effect_class: none
+  side_effect_class: read_only
   scope_kind: repository
   reversible: true
   requires_repo: true
@@ -22780,7 +22780,7 @@ curated:
   intent_tags:
   - retrieval
   - graph
-  side_effect_class: none
+  side_effect_class: read_only
   scope_kind: repository
   reversible: true
   requires_repo: true
@@ -22798,7 +22798,7 @@ curated:
   intent_tags:
   - retrieval
   - graph
-  side_effect_class: none
+  side_effect_class: read_only
   scope_kind: repository
   reversible: true
   requires_repo: true
@@ -22834,7 +22834,7 @@ curated:
   intent_tags:
   - retrieval
   - graph
-  side_effect_class: none
+  side_effect_class: read_only
   scope_kind: repository
   reversible: true
   requires_repo: true
@@ -22852,7 +22852,7 @@ curated:
   intent_tags:
   - retrieval
   - graph
-  side_effect_class: none
+  side_effect_class: read_only
   scope_kind: repository
   reversible: true
   requires_repo: true
@@ -22906,7 +22906,7 @@ curated:
   intent_tags:
   - retrieval
   - graph
-  side_effect_class: none
+  side_effect_class: read_only
   scope_kind: repository
   reversible: true
   requires_repo: true
@@ -22924,7 +22924,7 @@ curated:
   intent_tags:
   - retrieval
   - graph
-  side_effect_class: none
+  side_effect_class: writes_files
   scope_kind: repository
   reversible: true
   requires_repo: true
@@ -22940,7 +22940,7 @@ curated:
   description_human: null
   description_model: Returns a JSON snapshot of all managed secret resolution statuses. Agents should use this instead of probing environment variables directly.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22956,7 +22956,7 @@ curated:
   description_human: null
   description_model: Rank workspace paths for an intent via the semantic-fs bridge (read-only inventory search).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22972,7 +22972,7 @@ curated:
   description_human: null
   description_model: Tick lifecycle and remove archived sessions.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22988,7 +22988,7 @@ curated:
   description_human: null
   description_model: Replace a session's history with a summary string.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23004,7 +23004,7 @@ curated:
   description_human: null
   description_model: Create a new persistent session for an agent.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23020,7 +23020,7 @@ curated:
   description_human: null
   description_model: Get detailed info about a specific session.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23036,7 +23036,7 @@ curated:
   description_human: null
   description_model: List all active sessions with state and token usage.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23052,7 +23052,7 @@ curated:
   description_human: null
   description_model: Reset a session's conversation history (keeps metadata).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23068,7 +23068,7 @@ curated:
   description_human: null
   description_model: Set sticky MCP chat model id for chat / inline / ghost (empty string clears).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23084,7 +23084,7 @@ curated:
   description_human: null
   description_model: Set custom VoxDB-powered budget limits for an agent.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23100,7 +23100,7 @@ curated:
   description_human: null
   description_model: Set a key-value pair in the shared orchestrator context store. Supports TTL.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23116,7 +23116,7 @@ curated:
   description_human: null
   description_model: Set per-agent model override in the orchestrator registry.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23132,7 +23132,7 @@ curated:
   description_human: null
   description_model: Add a skill from a git URL or local path into the user .vox/skills root.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23148,7 +23148,7 @@ curated:
   description_human: null
   description_model: List bare SKILL.md skills found under the standard interop roots, with install status.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23164,7 +23164,7 @@ curated:
   description_human: null
   description_model: Get detailed info on a specific skill by ID.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23180,7 +23180,7 @@ curated:
   description_human: null
   description_model: Install a skill from a VoxSkillBundle JSON payload.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23196,7 +23196,7 @@ curated:
   description_human: null
   description_model: List all installed skills.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23212,7 +23212,7 @@ curated:
   description_human: null
   description_model: Parse a SKILL.md and preview its manifest before installing.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23228,7 +23228,7 @@ curated:
   description_human: null
   description_model: Remove a user-installed skill directory (ownership-scoped to .vox/skills).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: destructive
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23244,7 +23244,7 @@ curated:
   description_human: null
   description_model: Execute a skill script in the sandbox (parity with CLI `vox skill run`).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23260,7 +23260,7 @@ curated:
   description_human: null
   description_model: Search installed skills by keyword.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23276,7 +23276,7 @@ curated:
   description_human: null
   description_model: Uninstall an installed skill by ID.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23292,7 +23292,7 @@ curated:
   description_human: null
   description_model: Load the full SKILL.md body for an installed skill by id or name (tier-2 disclosure).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23308,7 +23308,7 @@ curated:
   description_human: null
   description_model: Show the file-level diff between two snapshots.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23324,7 +23324,7 @@ curated:
   description_human: null
   description_model: List recent file snapshots for an agent.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23359,7 +23359,7 @@ curated:
   description_human: null
   description_model: Spawn a new orchestrator agent queue (optional dynamic/transient agent for auto-retire).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23375,7 +23375,7 @@ curated:
   description_human: null
   description_model: 'Orchestrated speech-to-code: transcribe workspace audio (Oratio) or accept prompt text, then vox_generate_code with shared session_id; optional route_mode, emit_trace_path JSONL for MENS.'
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23391,7 +23391,7 @@ curated:
   description_human: null
   description_model: Submit a new task to the orchestrator. Routes to the best agent by file affinity.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23407,7 +23407,7 @@ curated:
   description_human: null
   description_model: Suggest the best model for a task category string (codegen, review, etc.).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23423,7 +23423,7 @@ curated:
   description_human: null
   description_model: Get the current status of a specific task by ID.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23439,7 +23439,7 @@ curated:
   description_human: null
   description_model: Run cargo test for the entire workspace.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23455,7 +23455,7 @@ curated:
   description_human: null
   description_model: Get the Testing Decision Engine's requirement classification (Required/Recommended/Deferred/Skip) for a task by ID.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23471,7 +23471,7 @@ curated:
   description_human: null
   description_model: Search the MCP tool registry by keyword and return matching tools (name, description, input schema) for progressive tool disclosure.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: none
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23487,7 +23487,7 @@ curated:
   description_human: null
   description_model: Transfer ownership of a file to another agent.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23503,7 +23503,7 @@ curated:
   description_human: null
   description_model: Overrides the trust tier for the agent context.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23519,7 +23519,7 @@ curated:
   description_human: null
   description_model: Undo the last operation or a specific operation by ID.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: destructive
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23535,7 +23535,7 @@ curated:
   description_human: null
   description_model: Validate a .vox file using the full compiler pipeline (lexer → parser → typeck → HIR).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23551,7 +23551,7 @@ curated:
   description_human: null
   description_model: Validate Vox source code passed as a string (no filesystem read). Returns LSP-style diagnostics with stable codes and structured autofix suggestions for the iterative AI-assistant repair loop.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: none
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23567,7 +23567,7 @@ curated:
   description_human: null
   description_model: Validate Vox/VUV source against the compile-time GUI guarantees (contrast, layer-occlusion, a11y, structural web-IR) without writing files.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: none
   scope_kind: session
   reversible: false
   requires_repo: null
@@ -23583,7 +23583,7 @@ curated:
   description_human: null
   description_model: Get unified VCS status.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23599,7 +23599,7 @@ curated:
   description_human: null
   description_model: Check receipt ids an agent claims against the orchestrator's receipt ledger; returns which are valid, fabricated (no ledger entry) or unverified (tag mismatch). Read-only.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23615,7 +23615,7 @@ curated:
   description_human: null
   description_model: 'NOT IMPLEMENTED: multimodal RAG is planned but not wired up; this tool always returns an error. Use vox_search or memory retrieval tools instead.'
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: none
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23634,7 +23634,7 @@ curated:
   - gui
   - visual
   - testing
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23654,7 +23654,7 @@ curated:
   - visual
   - testing
   - baseline
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23689,7 +23689,7 @@ curated:
   description_human: null
   description_model: Reloads/refreshes the workspace MCP registry and scan config.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23705,7 +23705,7 @@ curated:
   description_human: null
   description_model: Merge an agent's workspace changes back to main.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23721,7 +23721,7 @@ curated:
   description_human: null
   description_model: Returns a list of all .vox files in the workspace repository.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23737,7 +23737,7 @@ curated:
   description_human: null
   description_model: Show files modified in an agent's workspace.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
