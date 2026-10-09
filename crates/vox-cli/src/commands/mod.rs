@@ -131,6 +131,8 @@ pub(crate) mod repo_upgrade;
 pub mod safety;
 /// Headless daemon + HTTP gateway scoped to a capability profile (`vox serve`).
 pub mod serve;
+/// `vox serve` network flags mapped to MCP HTTP gateway env for the spawned daemon.
+pub mod serve_network;
 /// TOESTUB structural testing guard logic.
 #[cfg(feature = "stub-check")]
 pub mod stub_check;

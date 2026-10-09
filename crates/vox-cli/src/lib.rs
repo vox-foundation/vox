@@ -471,6 +471,8 @@ pub enum Cli {
         /// Capability profile ids (comma-separated), e.g. `orchestrator,knowledge,mesh`. Default: `VOX_PROFILE`, then `~/.vox/config.toml`, then `dev`.
         #[arg(long, value_name = "IDS")]
         profile: Option<String>,
+        #[command(flatten)]
+        network: crate::commands::serve_network::ServeNetworkArgs,
     },
     /// Export the Vox language grammar in various formats for MENS training.
     Grammar {

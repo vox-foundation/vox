@@ -11,7 +11,10 @@ use vox_secrets::SecretId;
 
 const DEFAULT_DAEMON_ADDR: &str = "127.0.0.1:9745";
 
-pub async fn run(profile_flag: Option<&str>) -> Result<()> {
+pub async fn run(
+    profile_flag: Option<&str>,
+    network: &crate::commands::serve_network::ServeNetworkArgs,
+) -> Result<()> {
     let profile = crate::commands::profile_arg::resolve_cli_profile(profile_flag)?;
     let profile_id = profile.id_string();
 
@@ -33,6 +36,9 @@ pub async fn run(profile_flag: Option<&str>) -> Result<()> {
     let shown = daemon_bin.display().to_string();
     let mut cmd = std::process::Command::new(&daemon_bin);
     for (key, value) in serve_child_env(&profile_id, socket) {
+        cmd.env(key, value);
+    }
+    for (key, value) in network.gateway_env()? {
         cmd.env(key, value);
     }
     cmd.stdin(Stdio::null());
