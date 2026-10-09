@@ -31,7 +31,7 @@ v1.1 turns Vox's existing research pipeline, telemetry, evaluation, model routin
 
 ### 🚧 v1.1 Research Trial Flywheel
 
-- [ ] **Phase 06.2: Capability Index SSOT** (INSERTED) - One generated index joining CLI/MCP/GUI/docs/crates/skills/graph coverage; `vox explain`, `vox features`, generated llms.txt
+- [x] **Phase 06.2: Capability Index SSOT** (INSERTED) - One generated index joining CLI/MCP/GUI/docs/crates/skills/graph coverage; `vox explain`, `vox features`, generated llms.txt (completed 2026-10-09)
 - [ ] **Phase 06.3: Universal Palette** (INSERTED) - ⌘K finds and runs every indexed capability; action registry; `?` shortcut sheet
 - [ ] **Phase 06.4: Capability Explorer & Coverage Gate** (INSERTED) - Domain-grouped explorer with status, generic_form tier, CI coverage gate, orphan disposition to 0
 - [ ] **Phase 06.5: Architecture Atlas** (INSERTED) - Navigable L0–L5 layer/crate map with edges, blast radius, and capability cross-links
@@ -56,7 +56,7 @@ v1.1 turns Vox's existing research pipeline, telemetry, evaluation, model routin
   3. `vox explain mesh` and `vox features --domain secrets` print layer, CLI/GUI/MCP equivalents, and a docs link.
   4. `llms.txt` capability sections are generator output and link the MCP tool reference and GUI navigation.
 
-**Plans:** 7/8 plans executed (06.2-08 optional, owner-gated)
+**Plans:** 8/8 plans complete
 
 Plans:
 **Wave 1**
@@ -86,7 +86,7 @@ Plans:
 
 **Wave 7** *(blocked on Wave 6 completion)*
 
-- [ ] 06.2-08-PLAN.md — OPTIONAL nightly coverage-refresh job (owner-gated checkpoint) (wave 7)
+- [x] 06.2-08-PLAN.md — OPTIONAL nightly coverage-refresh job (owner-gated checkpoint) (wave 7)
 
 ### Phase 06.3: Universal Palette (INSERTED)
 
@@ -246,7 +246,7 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 1–6 | v1.0 | 23/23 | Complete | 2026-10-01 |
 | 06.1 Hosted CI gate and fast local loop (INSERTED) | v1.0 | plan-doc | In progress | - |
-| 06.2 Capability Index SSOT (INSERTED) | v1.1 | 7/8 | In Progress|  |
+| 06.2 Capability Index SSOT (INSERTED) | v1.1 | 8/8 | Complete    | 2026-10-09 |
 | 06.3 Universal Palette (INSERTED) | v1.1 | 0/TBD | Not started | - |
 | 06.4 Capability Explorer & Coverage Gate (INSERTED) | v1.1 | 0/TBD | Not started | - |
 | 06.5 Architecture Atlas (INSERTED) | v1.1 | 0/TBD | Not started | - |
