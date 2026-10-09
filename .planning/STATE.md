@@ -5,16 +5,16 @@ milestone_name: Research Trial Flywheel
 current_phase: "06.2"
 current_phase_name: Capability Index SSOT (INSERTED)
 status: executing
-stopped_at: Completed 06.2-02-PLAN.md
-last_updated: "2026-10-09T07:21:52.081Z"
+stopped_at: Completed 06.2-03-PLAN.md
+last_updated: "2026-10-09T07:31:50.028Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 06.2 execution started
-state_head: c8a449859309ee127fbed48e6740fa1ad76b68eb
+state_head: 289d7d309df432320e5e857b7b14fae37b67a912
 progress:
   total_phases: 11
   completed_phases: 1
   total_plans: 8
-  completed_plans: 2
+  completed_plans: 3
   percent: 9
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-01)
 ## Current Position
 
 Phase: 06.2 (Capability Index SSOT (INSERTED)) — EXECUTING
-Plan: 3 of 8
+Plan: 4 of 8
 Status: Ready to execute
 Last activity: 2026-10-08 — Phase 06.2 execution started
 
@@ -51,6 +51,7 @@ Progress: [█░░░░░░░░░] 9%
 |------|----------|-------|-------|
 | Phase 06.2 P01 | 60 min | 2 tasks | 24 files |
 | Phase 06.2 P02 | 75min | 3 tasks | 15 files |
+| Phase 06.2 P03 | 35min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -65,6 +66,7 @@ Recent decisions affecting current work:
 - 2026-10-08: Discoverability inserted into v1.1 as phases 06.2–06.6 (user chose insertion over a separate milestone). Audience: contributors, .vox app authors, GUI end users. Done = coverage gate + one capability SSOT + time-to-find journeys + orphan count 0.
 - [Phase 06.2]: 06.2-01: capability index is a separate generated file from the transport-only capability registry (D-01); unknown values stay null with a reason — Keeps capability-registry.schema.json unchanged; later plans fill nullable fields
 - [Phase 06.2]: 06.2-02: cli group owners in domains.v1.yaml only where a cli_dispatch arm provably calls into the crate; owner ratchet bootstraps at 0 unresolved
+- [Phase 06.2]: [06.2-03] Fuzzy score = max(jaro-winkler, 0.9 x token containment), threshold 0.75; card lines use single-space Label: value
 
 ### Pending Todos
 
@@ -88,6 +90,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-09T07:21:52.061Z
-Stopped at: Completed 06.2-02-PLAN.md
+Last session: 2026-10-09T07:31:50.012Z
+Stopped at: Completed 06.2-03-PLAN.md
 Resume file: None
