@@ -27,6 +27,8 @@ const SCHEMA_REL: &str = "contracts/capabilities/capability-index.v1.schema.json
 const STALE_HINT: &str = "run `vox ci capability-index --write`";
 const LLMS_REL: &str = "docs/src/.well-known/llms.txt";
 const LLMS_FULL_REL: &str = "docs/src/.well-known/llms-full.txt";
+const DOCS_JSON_REL: &str = "docs/src/.well-known/vox-docs.json";
+const TS_REL: &str = "crates/vox-gui/ui/src/generated/capabilityIndex.generated.ts";
 
 /// Validate a serialized index document against the committed JSON Schema.
 fn validate_against_schema(repo_root: &Path, instance: &serde_json::Value) -> Result<()> {
@@ -77,7 +79,18 @@ pub fn run(repo_root: &Path, write: bool) -> Result<()> {
         STALE_HINT,
     )
     .map_err(|e| anyhow!("{e:#}"))?;
-    sync_llms_regions(repo_root, &index, write)
+    sync_llms_regions(repo_root, &index, write)?;
+    let docs_path = repo_root.join(DOCS_JSON_REL);
+    let docs_json = emit::docs_json_with_capabilities(&read_utf8_path_capped(&docs_path)?, &index)?;
+    write_or_verify_text(&docs_path, &docs_json, write, STALE_HINT)
+        .map_err(|e| anyhow!("{e:#}"))?;
+    write_or_verify_text(
+        &repo_root.join(TS_REL),
+        &emit::generate_ts(&index),
+        write,
+        STALE_HINT,
+    )
+    .map_err(|e| anyhow!("{e:#}"))
 }
 
 /// Rewrite (or verify) only the generated marker region of each hand-written llms file.

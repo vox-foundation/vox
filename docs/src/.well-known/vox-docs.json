@@ -48,15 +48,154 @@
   },
   "agent_hints": {
     "preferred_context": "Prioritize the 'reference' pillar for syntax queries and 'tutorials' for code structure queries. The 'explanations' pillar covers design philosophy and architectural decisions. Read /reference/stability/ before claiming a surface is production-ready.",
-    "rag_optimization": "Headers follow H1 \u2192 H2 \u2192 H3 hierarchy for reliable semantic chunking. Vox code blocks are tagged with the 'vox' language identifier for syntax-aware parsing.",
+    "rag_optimization": "Headers follow H1 → H2 → H3 hierarchy for reliable semantic chunking. Vox code blocks are tagged with the 'vox' language identifier for syntax-aware parsing.",
     "llm_training_signal": "Pages with 'training_eligible: true' frontmatter contain verified, canonical Vox code examples suitable for fine-tuning datasets.",
     "canonical_keywords": [
-      "Vox language", "AI-native language", "compiler-verified code", "MCP tools",
-      "durable workflows", "null-free language", "Rust codegen", "TypeScript codegen",
-      "actor model", "LLM tooling"
+      "Vox language",
+      "AI-native language",
+      "compiler-verified code",
+      "MCP tools",
+      "durable workflows",
+      "null-free language",
+      "Rust codegen",
+      "TypeScript codegen",
+      "actor model",
+      "LLM tooling"
     ],
     "retired_syntax": [
-      "@endpoint", "@table type", "@mcp.tool"
+      "@endpoint",
+      "@table type",
+      "@mcp.tool"
+    ]
+  },
+  "capabilities": {
+    "index": "contracts/capabilities/capability-index.v1.json",
+    "explain_cli": "vox explain <thing>",
+    "features_cli": "vox features --domain <d>",
+    "explain_mcp": "vox_capability_explain",
+    "features_mcp": "vox_capability_features",
+    "mcp_tool_reference": "https://voxlang.org/reference/mcp-tool-registry-contract/",
+    "gui_navigation": "https://voxlang.org/reference/gui-navigation/",
+    "domains": [
+      {
+        "id": "compiler",
+        "label": "Compiler",
+        "cli": 30,
+        "mcp": 9,
+        "surfaces": 0
+      },
+      {
+        "id": "orchestrator",
+        "label": "Orchestrator & agents",
+        "cli": 28,
+        "mcp": 65,
+        "surfaces": 2
+      },
+      {
+        "id": "mesh",
+        "label": "Mesh / Populi",
+        "cli": 6,
+        "mcp": 3,
+        "surfaces": 2
+      },
+      {
+        "id": "ml",
+        "label": "ML / Mens",
+        "cli": 51,
+        "mcp": 0,
+        "surfaces": 2
+      },
+      {
+        "id": "research",
+        "label": "Research / Scientia",
+        "cli": 78,
+        "mcp": 62,
+        "surfaces": 2
+      },
+      {
+        "id": "secrets",
+        "label": "Secrets",
+        "cli": 20,
+        "mcp": 0,
+        "surfaces": 0
+      },
+      {
+        "id": "gui",
+        "label": "GUI",
+        "cli": 15,
+        "mcp": 5,
+        "surfaces": 17
+      },
+      {
+        "id": "data",
+        "label": "Data & DB",
+        "cli": 89,
+        "mcp": 18,
+        "surfaces": 0
+      },
+      {
+        "id": "ci",
+        "label": "CI & governance",
+        "cli": 215,
+        "mcp": 0,
+        "surfaces": 0
+      },
+      {
+        "id": "skills",
+        "label": "Plugins & skills",
+        "cli": 317,
+        "mcp": 58,
+        "surfaces": 2
+      },
+      {
+        "id": "vcs",
+        "label": "VCS & repo",
+        "cli": 28,
+        "mcp": 19,
+        "surfaces": 1
+      },
+      {
+        "id": "runtime",
+        "label": "Runtime & scripts",
+        "cli": 14,
+        "mcp": 2,
+        "surfaces": 0
+      },
+      {
+        "id": "speech",
+        "label": "Speech",
+        "cli": 1,
+        "mcp": 3,
+        "surfaces": 1
+      },
+      {
+        "id": "gamify",
+        "label": "Gamification",
+        "cli": 50,
+        "mcp": 10,
+        "surfaces": 1
+      },
+      {
+        "id": "deploy",
+        "label": "Build & deploy",
+        "cli": 27,
+        "mcp": 0,
+        "surfaces": 0
+      },
+      {
+        "id": "docs",
+        "label": "Docs",
+        "cli": 0,
+        "mcp": 0,
+        "surfaces": 0
+      },
+      {
+        "id": "platform",
+        "label": "Platform (other)",
+        "cli": 29,
+        "mcp": 88,
+        "surfaces": 2
+      }
     ]
   }
 }
