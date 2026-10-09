@@ -3,6 +3,7 @@
 mod commands;
 mod config;
 mod drive;
+mod remote;
 
 use commands::app_state::GuiState;
 use std::sync::Mutex;
