@@ -139,7 +139,7 @@ Also use `VOX_BIN` (when set) for `--help`, so the flag check and the snippet ch
 
 ### WR-05: Deploy and quality path filters are hand-copied lists that drift from the dynamic mount set and the sidebar contract
 
-**Status:** Deferred — see deferred-items.md.
+**Status:** Fixed after phase close — `docs-astro/tests/unit/workflow-paths.test.mjs` fails when a mounted repo file or build input is outside the workflow path filters; docs-deploy now triggers on `contracts/documentation/**`.
 
 **File:** `.github/workflows/docs-deploy.yml:5-33`, `.github/workflows/docs-quality.yml:4-63`
 **Issue:** `discoverMounts()` mounts every repo `.md` that any docs page links to. The `on.push.paths` lists are a static snapshot of today's 26 mounts. They match today (I checked against `dist/repo/`), but nothing enforces that. A new docs link to, say, `apps/foo/README.md` mounts that file, and edits to it never trigger a redeploy, so `/repo/apps-foo-readme-md/` goes stale silently. `docs-deploy.yml` also does not trigger on `contracts/documentation/docs-sidebar-section-order.v1.json`, which `sidebar.mjs` reads at build time, so a sidebar-order change never deploys.

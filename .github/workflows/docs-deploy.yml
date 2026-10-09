@@ -27,7 +27,7 @@ on:
       - 'scripts/show/README.md'
       - 'tree-sitter-vox/GRAMMAR_SSOT.md'
       - 'tree-sitter-vox/README.md'
-      - 'contracts/documentation/site-mounted-repo-docs.v1.json'
+      - 'contracts/documentation/**'
       - '.git-blame-ignore-revs'
       - '.lycheeignore'
   workflow_dispatch:
