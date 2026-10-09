@@ -1,8 +1,15 @@
 ---
 phase: 20-deploy-unblock-public-surface-honesty
-verified: 2026-10-09T17:33:23Z
-status: human_needed
-score: 6/7 must-haves verified
+verified: 2026-10-09T20:10:00Z
+status: passed
+score: 7/7 must-haves verified
+re_verification:
+  previous_status: human_needed
+  previous_score: 6/7
+  gaps_closed:
+    - "DEPLOY-02 escalation half: live drill passed (20-UAT.md test 1)"
+  gaps_remaining: []
+  regressions: []
 covered_files:
   - ".git-blame-ignore-revs"
   - ".github/workflows/ci-liveness.yml"
@@ -94,8 +101,8 @@ covered_files:
   - "scripts/docs/tutorial-verify.vox"
   - "scripts/render-durable-animation.vox"
   - "tree-sitter-vox/README.md"
-covered_digest: "v1:sha256:82ec8abd05242f11dbfdbf51c7d7fd81cd9ccaad2e0d1670226b229e01b419e3"
-behavior_unverified: 1
+covered_digest: "v1:sha256:f2f261e8642635d0a5b397b085c36d4186da8b9577589f203f38e202fb61539f"
+behavior_unverified: 0
 overrides_applied: 0
 deferred:
   - truth: "Research/findings pages that ship as `status: current` (review WR-06: 64 of 102 `*research*`/`*findings*` architecture pages) get the honesty treatment"
@@ -104,23 +111,14 @@ deferred:
   - truth: "The tutorial record goes stale when the command registry or installation.md changes, not only when the tutorial blob changes (review IN-05)"
     addressed_in: "Phase 22"
     evidence: "Phase 22 goal: 'Code changes that break reader-facing docs are caught at PR time by deterministic checks only'"
-behavior_unverified_items:
-  - truth: "ROADMAP SC 2 / DEPLOY-02 (escalation half): a forced docs-deploy failure opens or updates exactly one de-duplicated issue with the assignee pinged and no repeat comments"
-    test: "Dispatch docs-deploy.yml on main with simulate_failure=true twice, then let a green push run land (the 20-11 drill the user skipped)"
-    expected: "Exactly one open `docs-deploy-broken` + `nightly-failure` issue, assigned to brbrainerd, no comments added by the second failure, managed body section shows `consecutive: 2`; the next green push run closes it with one 'Recovered' comment"
-    why_human: "The new notify-on-failure job has never run on GitHub. Its shell logic was exercised locally against a stubbed `gh` (one create, then in-place edits, no comments, counter 1→2→3), but real `failure()` gating with skipped downstream jobs, label/assignee handling and the notification ping only show on a live run, and dispatching workflows is outside the verifier's read-only remit"
-human_verification:
-  - test: "Run the DEPLOY-02 escalation drill: dispatch docs-deploy.yml on main with simulate_failure=true twice, then let a normal push deploy land"
-    expected: "One `docs-deploy-broken` issue opened (assignee brbrainerd pinged once), edited in place by the second failure with no new comments and `consecutive: 2`; closed by the next green push run"
-    why_human: "Requires dispatching workflows and observing GitHub issue state; the user chose to skip the live drill, so this half of DEPLOY-02 has no live evidence"
 ---
 
 # Phase 20: Deploy Unblock & Public-Surface Honesty Verification Report
 
 **Phase Goal:** Readers and scrapers see the current docs on voxlang.org again, a broken deploy can never silently persist, and the public surface stops presenting research and roadmap notes as current reference.
-**Verified:** 2026-10-09T17:33:23Z
-**Status:** human_needed
-**Re-verification:** No — initial verification
+**Verified:** 2026-10-09T20:10:00Z
+**Status:** passed
+**Re-verification:** Yes — after the DEPLOY-02 live drill (20-UAT.md). The only covered file changed since the initial report is `.github/workflows/docs-deploy.yml` (WR-05 path glob, PR #640); `docs-astro/tests/unit/workflow-paths.test.mjs` passes 4/4 against it and the drill's recovery run 37982158404 executed that exact file.
 
 Verified against branch `docs-freshness/phase-20-close` (origin/main `43a74412b` + planning commit `757ff9327`, which touches only `.planning/`), the live site https://voxlang.org, and read-only GitHub state. SUMMARY claims were not used as evidence.
 
@@ -131,14 +129,14 @@ Verified against branch `docs-freshness/phase-20-close` (origin/main `43a74412b`
 | # | Truth | Status | Evidence |
 |---|-------|--------|----------|
 | 1 | A push to `main` touching `docs/src/` produces a green docs-deploy run and the change is live; #462 closed with root cause recorded | ✓ VERIFIED | Run 37960645178: `push` on `main` for `43a74412b` (PR #635 squash, touches `docs/src/`), all four jobs green, failure notifier skipped. Phase-20 artifacts are live (`/retired/` 200 with noindex, Internals banners, `/repo/agents-md/`). #462 CLOSED 2026-10-09T16:56:12Z by the recovery job; brbrainerd's comment records both causes (build breaks May–Sep; expired/under-scoped Cloudflare token from 2026-09-20, fixed by rotating with `Pages:Edit` on `vox-docs`) |
-| 2 | A forced deploy failure opens/updates exactly one de-duplicated issue (assignee pinged, no repeat comments); no success within N days raises a ci-liveness alert | ⚠️ PRESENT_BEHAVIOR_UNVERIFIED | **Liveness half verified live:** `ci-liveness.yml` "Deploys succeeded recently" step (14-day threshold, `deploy_max_age_days` override) opened #636 "Deploy stale: Documentation" (label `nightly-failure`, assignee brbrainerd) at 0 days and closed it with "Successful deploy landed at 2026-10-09T16:39:07Z". **Escalation half present and wired, not exercised live:** `notify-on-failure` (`if: failure() && github.ref == 'refs/heads/main'`, `issues: write` only) finds the lowest open `docs-deploy-broken` issue, creates with `--assignee brbrainerd` or edits the marker-delimited section in place, and never comments. A local run against a stubbed `gh` gave 1 create + 2 edits, 0 comments, `consecutive: 3`. The live drill was skipped by the user, so this goes to human verification |
+| 2 | A forced deploy failure opens/updates exactly one de-duplicated issue (assignee pinged, no repeat comments); no success within N days raises a ci-liveness alert | ✓ VERIFIED | **Liveness:** `ci-liveness.yml` "Deploy docs" row live. **Escalation (live drill):** dispatch runs 37975768983 and 37975892538 opened #639 once (assignee brbrainerd) and edited it in place to `consecutive: 2` with 0 comments; green push run 37982158404 (298bbe08d, PR #640) closed #639 with one "Recovered:" comment; 0 open `docs-deploy-broken` issues afterwards |
 | 3 | Post-deploy smoke checks: home and `/voxup` respond, every llms.txt URL resolves, sampled pages free of retired syntax; a broken llms link fails the check | ✓ VERIFIED | `smoke-test` job runs `tests/smoke.spec.ts` after the Cloudflare deploy (main only). Re-run by the verifier against the live site: **31/31 passed**. `tests/unit/llms-links.test.mjs` asserts that a 404 in the URL list fails `checkUrls` (one of 744 unit tests, all passing locally) |
 | 4 | "Last updated" on the deployed site matches the last substantive commit (fmt, regen, bulk ignored), verified through the content symlink | ✓ VERIFIED | `git-dates.mjs` reads `git log -M --name-status -- docs/src` from the repo root (not the symlinked mirror). It skips `.git-blame-ignore-revs` SHAs, `chore(ssot): auto-regenerate`/`style:`/fmt subjects and >100-file commits, and follows renames. Recomputed locally: 236 pages differ from naive last-commit dates. Live samples match the computed dates, not the naive ones. Example: `/adr/001-burn-backend-selection/` shows 2026-03-25T02:55:18Z, not 2026-07-23 (`4e98a0f87`, the 337-file frontmatter strip). The same holds for `/reference/orchestration-unified/`, `/explanation/mcp_serverless_research/` and `/architecture/mesh-phase3-vcs-gossip-plan-2026/` |
 | 5 | Status `research/roadmap/deprecated/legacy` → banner + noindex from frontmatter; Internals sidebar only; excluded from every llms variant; overlapping designs superseded | ✓ VERIFIED | Live: a research page has the "Internals — research note" banner and `robots noindex`; deprecated `/api/vox-codegen-ts/` has the "Deprecated:" banner and noindex. All rules come from `page-status.mjs` via `routeData.ts`. A structural sidebar parse of a live page found all 133 research/roadmap pages only inside the `Internals` group. None of the 133 Internals titles appears as a page in live `/llms-full.txt` or `/llms-small.txt`; `/llms.txt`, `/.well-known/llms.txt` and `/.well-known/llms-full.txt` contain none of them (some current pages still cross-link to Internals pages, which is expected). They are absent from `sitemap-0.xml` and `feed.xml`. Both specs carry `status: "deprecated"` and a "Superseded (2026-10-08) by the docs-freshness workstream" notice; `docs-reality-audit-program.md` is `status: "roadmap"` and marked "Dormant", to be reactivated by phase 21 |
 | 6 | tut-getting-started links to a working install page; relative `.md` links resolve; repo Markdown renders; source/contract links go to GitHub; CI fails on a broken-link fixture | ✓ VERIFIED | Live tut-getting-started `<main>` links `/reference/installation/` and `#quick-install-from-source` (200, anchor present). In a 46-page live sample, no `<main>` contains a relative `.md` href, and all 175 internal hrefs resolve to 200 (after trailing-slash redirects). `/repo/agents-md/` renders AGENTS.md ("Agents Policy"); contract/source links are `github.com/.../blob/main/...` (200). docs-quality run 37960645034 on main ran the fixture self-test (lychee must exit 2 naming the dead route and the dead anchor) and then the blocking `fail: true` built-site check, both green. Nightly `link_checker.yml` handles external links with a lychee cache |
 | 7 | Every tutorial audited against current code, recording the commit it was verified against | ✓ VERIFIED | `contracts/documentation/tutorial-verification.v1.json` lists all 7 tutorials as all-pass with `verified_at_commit: b10e20dfd`. Each `blob_sha` equals HEAD's blob, enforced by `tutorial-record.test.mjs`. Independent check: every `vox <cmd>` in the 7 tutorials resolves to an `active` row in `command-registry.yaml`, and tut-getting-started's Rust 1.98.1 matches `rust-toolchain.toml` and `installation.md` (Node/pnpm minimums link to that page). Snippets are compiled by `ci doctest-md --strict`, green on main. All 7 tutorials carry `status:` |
 
-**Score:** 6/7 truths verified (1 present, behavior-unverified)
+**Score:** 7/7 truths verified
 
 ### Deferred Items
 
@@ -192,7 +190,7 @@ Step 7c: SKIPPED. No `scripts/*/tests/probe-*.sh` exist and no plan declares one
 | Requirement | Source Plan | Status | Evidence |
 |-------------|-------------|--------|----------|
 | DEPLOY-01 | 20-01, 20-11 | ✓ SATISFIED | Truth 1 |
-| DEPLOY-02 | 20-01, 20-11 | ? NEEDS HUMAN | Liveness half verified live; escalation half behavior-unverified (truth 2). REQUIREMENTS.md already lists it as Pending |
+| DEPLOY-02 | 20-01, 20-11 | ✓ SATISFIED | Truth 2 (liveness + live escalation drill) |
 | DEPLOY-03 | 20-07, 20-09, 20-11 | ✓ SATISFIED | Truth 3 |
 | DEPLOY-04 | 20-02, 20-03 | ✓ SATISFIED | Truth 4 |
 | HONEST-01 | 20-06 | ✓ SATISFIED | Truth 5 |
@@ -216,21 +214,11 @@ No orphaned requirements: all 11 phase-20 IDs are claimed by at least one plan.
 | `.github/workflows/link_checker.yml` | — | The nightly external link check has failed on its scheduled runs (#578 open; last scheduled run 37930815687 on `33642200d`, before the phase merge). The phase's cached version has not had a scheduled run yet | ℹ️ Info | Non-blocking by design (LINKS-03). Watch the first post-merge nightly |
 | `docs-astro/tests/smoke.spec.ts` | 11 | Live Internals-exclusion check covers 3 of 5 llms files (`/llms-full.txt`, `/llms-small.txt` are covered only by the build-output `llms.spec.ts`) | ℹ️ Info | Verified clean live by the verifier |
 
-### Human Verification Required
-
-### 1. DEPLOY-02 escalation drill
-
-**Test:** Dispatch `docs-deploy.yml` on `main` with `simulate_failure=true`, wait for the failure, dispatch it again, then let a normal push-triggered deploy land.
-**Expected:** The first failure opens one `docs-deploy-broken` + `nightly-failure` issue assigned to brbrainerd, who gets one notification. The second failure edits that issue's body in place (`consecutive: 2`, latest run updated) and adds no comment. The next green push run closes it with a single "Recovered" comment.
-**Why human:** The job has never run on GitHub. The shell logic passes against a stubbed `gh`, but real `failure()` evaluation with skipped downstream jobs, label/assignee handling and the ping only show on a live run, and the verifier must not dispatch workflows.
-
 ### Gaps Summary
 
-No blocking gaps. Six of seven success criteria are verified against main, CI runs on main, and the live site; the strongest evidence is the green push deploy, #462's closure, the live 31/31 smoke run, and live dates and sidebar placement matching the code's rules.
-
-The remaining item is the escalation half of DEPLOY-02. The code is present, wired, and logically correct under a local stub, but it has never run live because the user skipped the failure drill. That is a human-action item, not a code defect, so the phase is `human_needed` rather than `gaps_found`. Review warnings WR-03 and WR-05 are non-blocking and recorded in deferred-items.md. WR-06 (research notes still marked `current`) and IN-05 (tutorial record freshness) are covered by phases 21 and 22.
+No gaps. All seven success criteria are verified against main, CI runs on main, and the live site. The escalation half of DEPLOY-02, previously human_needed, passed its live drill (see truth 2 and 20-UAT.md). Review warnings WR-03 and WR-05 were recorded in deferred-items.md; WR-05 was fixed after phase close (PR #640). WR-06 (research notes still marked `current`) and IN-05 (tutorial record freshness) are covered by phases 21 and 22.
 
 ---
 
-_Verified: 2026-10-09T17:33:23Z_
+_Verified: 2026-10-09T17:33:23Z; re-verified 2026-10-09T20:10:00Z_
 _Verifier: Claude (gsd-verifier)_

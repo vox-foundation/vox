@@ -2,21 +2,21 @@
 gsd_state_version: "1.0"
 milestone: v1.3
 milestone_name: Self-Maintaining Public Docs
-current_phase: 20
-current_phase_name: Deploy Unblock & Public-Surface Honesty
-current_plan: "20-01 (wave 1: 20-01..20-05 parallel)"
+current_phase: "20.1"
+current_phase_name: Collapsible Reader Layout
+current_plan: Not started
 status: planning
-stopped_at: Completed 20-11-PLAN.md
-last_updated: "2026-10-09T17:28:55.860Z"
-last_activity: 2026-10-08
-last_activity_desc: Phase 20 planned (12 plans); Phase 20.1 (collapsible reader layout) inserted
-state_head: 43a74412bc924efa61c1c09ac18ac71aba9bac3d
+stopped_at: Phase 20 complete, ready to plan Phase 20.1
+last_updated: "2026-10-09T20:05:55.542Z"
+last_activity: 2026-10-09
+last_activity_desc: Phase 20 complete, transitioned to Phase 20.1
+state_head: c3dda8dc6fb14f4539aefc29a31ea51eb446166f
 progress:
   total_phases: 6
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 12
   completed_plans: 12
-  percent: 0
+  percent: 17
 ---
 
 # Project State
@@ -29,15 +29,15 @@ See: `.planning/PROJECT.md`; workstream brief `CONTEXT.md`; roadmap `ROADMAP.md`
 
 ## Current Position
 
-Phase: 20 of 20–24 (Deploy Unblock & Public-Surface Honesty)
+Phase: 20.1 of 20–24 (Collapsible Reader Layout)
 Plan: 12 of 12 (planned, 7 waves; checker passed after 2 revisions)
-Status: Ready to execute — `/gsd-execute-phase 20`
-Last activity: 2026-10-08 — Phase 20 planned (12 plans); Phase 20.1 (collapsible reader layout) inserted
+Status: Ready to plan
+Last activity: 2026-10-09 — Phase 20 complete, transitioned to Phase 20.1
 
 ## Progress
 
 **Phases Complete:** 0/6
-**Current Plan:** 20-01 (wave 1: 20-01..20-05 parallel)
+**Current Plan:** Not started
 
 ## Accumulated Context
 
@@ -77,7 +77,7 @@ Last activity: 2026-10-08 — Phase 20 planned (12 plans); Phase 20.1 (collapsib
 
 **Last session:** 2026-10-09T17:28:55.832Z
 
-**Stopped At:** Completed 20-11-PLAN.md
+**Stopped At:** Phase 20 complete, ready to plan Phase 20.1
 **Resume File:** None
 
 ## Performance Metrics
