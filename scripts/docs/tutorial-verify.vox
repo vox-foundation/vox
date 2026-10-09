@@ -40,8 +40,8 @@ fn read_or_empty(path: str) to str {
     return c.unwrap()
 }
 
-// Runs a command (argv, no shell); returns stdout + stderr, or "" when it cannot start.
-fn run_text(cmd: str, args: list[str]) to str {
+// `--help` output (stdout + stderr), or "" when the command cannot start or exits non-zero.
+fn help_text(cmd: str, args: list[str]) to str {
     let proc = process.run(cmd, args)
     if proc is null {
         return ""
@@ -50,7 +50,16 @@ fn run_text(cmd: str, args: list[str]) to str {
         return ""
     }
     let res = proc.unwrap()
+    if res.code != 0 {
+        return ""
+    }
     return res.stdout + res.stderr
+}
+
+// Commands crates/vox-cli/src/main.rs hands to vox-ml-cli (bare or under
+// `ext`); their flags are in vox-ml-cli's --help, not vox-cli's.
+fn ml_delegated(cmd: str) to bool {
+    return cmd is "mens" or cmd is "oratio" or cmd is "speech" or cmd is "populi" or cmd is "mesh" or cmd is "train" or cmd is "quantize"
 }
 
 fn run_code(cmd: str, args: list[str]) to int {
@@ -293,14 +302,32 @@ fn check_commands(lines: list[str], registry: list[str]) to list[str] {
         if flags.len() is 0 {
             continue
         }
+        let segs = rpath.split(" ")
+        let first = segs.get(0).unwrap_or("")
+        let mut ml_head = first
+        if first is "ext" {
+            ml_head = segs.get(1).unwrap_or("")
+        }
+        let delegated = ml_delegated(ml_head)
         let mut help_args: list[str] = ["run", "-q", "-p", "vox-cli", "--"]
-        for seg in rpath.split(" ") {
+        if delegated {
+            help_args = ["run", "-q", "-p", "vox-ml-cli", "--"]
+            if ml_head is "train" {
+                help_args = help_args.push("mens")
+            }
+        }
+        let mut skip_ext = delegated and first is "ext"
+        for seg in segs {
+            if skip_ext {
+                skip_ext = false
+                continue
+            }
             help_args = help_args.push(seg)
         }
         help_args = help_args.push("--help")
-        let help = run_text("cargo", help_args)
-        if help.len() is 0 or help.contains("vox-ml-cli") {
-            notes = notes.push("`vox " + rpath + "`: delegated to vox-ml-cli; flags not checked")
+        let help = help_text("cargo", help_args)
+        if help.len() is 0 {
+            notes = notes.push("fail: could not run `cargo " + help_args.join(" ") + "`; flags " + flags.join(" ") + " not checked")
             continue
         }
         for f in flags {
