@@ -4,6 +4,7 @@ mod ai_fixture_ts_diagnostic;
 mod back_button_test;
 mod component_registry_sync;
 mod const_emit_test;
+mod db_app_lib_emit;
 mod deep_link_test;
 mod deprecated_emit_test;
 mod emit_unsupported_expr_test;

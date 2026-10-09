@@ -65,6 +65,21 @@ pub(crate) fn result_ok_struct_name(ty: &HirType) -> Option<String> {
     }
 }
 
+/// A PascalCase type that emits as itself, i.e. a user struct/table (not `Json`,
+/// `Result`, or another name `emit_type` maps to `serde_json::Value`).
+pub(crate) fn struct_name(ty: &HirType) -> Option<String> {
+    match ty {
+        HirType::Named(n)
+            if n != "Json"
+                && n.chars().next().is_some_and(|c| c.is_ascii_uppercase())
+                && emit_type(ty) == *n =>
+        {
+            Some(n.clone())
+        }
+        _ => None,
+    }
+}
+
 pub(crate) fn emit_type(ty: &HirType) -> String {
     match ty {
         HirType::Named(n) => match n.as_str() {
@@ -148,6 +163,17 @@ mod tests {
             )),
             "std::rc::Rc<dyn Fn(i64) -> i64 + 'static>"
         );
+    }
+
+    #[test]
+    fn struct_name_only_for_types_emitted_as_themselves() {
+        assert_eq!(
+            struct_name(&HirType::Named("Note".into())),
+            Some("Note".into())
+        );
+        assert_eq!(struct_name(&HirType::Named("Json".into())), None);
+        assert_eq!(struct_name(&HirType::Named("Element".into())), None);
+        assert_eq!(struct_name(&HirType::Named("str".into())), None);
     }
 
     #[test]
