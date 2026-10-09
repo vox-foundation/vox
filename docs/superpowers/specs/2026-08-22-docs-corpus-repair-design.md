@@ -2,8 +2,10 @@
 title: "Docs Corpus Repair and Visual Enablement"
 description: "Evidence-backed repair of the documentation corpus: agent-facing artifact drift, retired-surface references, detector holes, retirement/archival, and mermaid rendering. No new subsystems."
 category: "architecture"
-status: "roadmap"
+status: "deprecated"
 ---
+
+> **Superseded (2026-10-08) by the docs-freshness workstream.** This design is retained for history only. The authoritative plan is `.planning/workstreams/docs-freshness/ROADMAP.md` (v1.3 Self-Maintaining Public Docs, phases 20–24). Do not implement from this document.
 
 # Docs Corpus Repair and Visual Enablement — Design
 
