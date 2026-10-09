@@ -1117,7 +1117,7 @@ variables:
     kind: "string"
     required: false
     introduced_in: "0.3.0"
-    description: "TODO"
+    description: "Bind host for the MCP HTTP gateway (IP literal or localhost; default 127.0.0.1). A non-loopback host requires write + read tokens and TLS or VOX_MCP_HTTP_BEHIND_TUNNEL."
   - name: "VOX_MCP_HTTP_PORT"
     owner_crate: "vox-secrets"
     kind: "string"
@@ -4310,6 +4310,24 @@ variables:
     required: false
     introduced_in: "0.4.0"
     description: "Enables the public eval sandbox endpoint on the MCP HTTP server when set to '1'."
+  - name: "VOX_MCP_HTTP_TLS_CERT"
+    owner_crate: "vox-orchestrator-mcp"
+    kind: "string"
+    required: false
+    introduced_in: "0.6.0"
+    description: "PEM certificate path for TLS termination on the MCP HTTP gateway; requires VOX_MCP_HTTP_TLS_KEY. Satisfies the network bind policy's TLS-or-tunnel requirement."
+  - name: "VOX_MCP_HTTP_TLS_KEY"
+    owner_crate: "vox-orchestrator-mcp"
+    kind: "string"
+    required: false
+    introduced_in: "0.6.0"
+    description: "PEM private-key path for TLS termination on the MCP HTTP gateway; requires VOX_MCP_HTTP_TLS_CERT."
+  - name: "VOX_MCP_HTTP_BEHIND_TUNNEL"
+    owner_crate: "vox-orchestrator-mcp"
+    kind: "bool"
+    required: false
+    introduced_in: "0.6.0"
+    description: "Set to 1 when a TLS-terminating tunnel/proxy fronts the MCP HTTP gateway. Satisfies TLS-or-tunnel, forces token auth even on a loopback bind, and treats every caller as non-loopback."
   - name: "VOX_TELEMETRY"
     owner_crate: "vox-telemetry"
     kind: "string"
