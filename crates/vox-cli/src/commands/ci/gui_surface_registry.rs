@@ -38,7 +38,7 @@ pub struct SurfaceEntry {
     pub notes: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SurfaceRegistry {
     pub x_vox_version: u32,
     pub schema_version: u8,
@@ -178,7 +178,7 @@ fn top_level_groups(repo_root: &Path) -> Result<BTreeSet<String>> {
     Ok(groups)
 }
 
-fn load_registry(repo_root: &Path) -> Result<SurfaceRegistry> {
+pub(crate) fn load_registry(repo_root: &Path) -> Result<SurfaceRegistry> {
     let path = repo_root.join(REGISTRY_PATH);
     let raw = fs::read_to_string(&path).with_context(|| format!("read {}", path.display()))?;
     // Validate against the JSON schema first (parse YAML → JSON value).

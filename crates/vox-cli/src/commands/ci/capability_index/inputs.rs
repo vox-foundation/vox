@@ -11,6 +11,7 @@ use serde::Deserialize;
 use vox_bounded_fs::read_utf8_path_capped;
 use vox_capability_registry::DomainDef;
 
+use super::super::gui_surface_registry::{SurfaceRegistry, load_registry};
 pub(crate) use super::super::operations_catalog::OperationRow;
 use super::super::operations_catalog::read_catalog;
 use super::owner::{CLI_COMMANDS_DIR, Layers};
@@ -28,6 +29,22 @@ pub(crate) struct Inputs {
     pub cli_command_files: BTreeSet<String>,
     /// `contracts/capabilities/domains.v1.yaml`.
     pub domains: Domains,
+    /// `contracts/gui/surface-registry.v1.yaml` (schema-validated by `gui_surface_registry`).
+    pub surfaces: SurfaceRegistry,
+    /// `crates/<name>/Cargo.toml` `package.description`, for layers keys whose manifest has one.
+    pub crate_descriptions: BTreeMap<String, String>,
+    /// Skill plugins (with the MCP tools they expose) and skill bundles from the plugin catalog.
+    pub skills: Vec<SkillInput>,
+}
+
+/// One skill plugin or skill bundle from the plugin catalog.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct SkillInput {
+    pub id: String,
+    pub description: String,
+    pub exposes_tools: Vec<String>,
+    /// Repo-relative skill directory (bundles only).
+    pub source_path: Option<String>,
 }
 
 /// `contracts/capabilities/domains.v1.yaml`: the domain vocabulary and its match tables (D-09).
@@ -56,12 +73,65 @@ pub(crate) struct GroupEntry {
 }
 
 pub(crate) fn load(repo_root: &Path) -> Result<Inputs> {
+    let layers = load_layers(repo_root)?;
+    let crate_descriptions = load_crate_descriptions(repo_root, &layers)?;
     Ok(Inputs {
         ops: read_catalog(repo_root)?.operations,
-        layers: load_layers(repo_root)?,
+        layers,
         cli_command_files: load_cli_command_files(repo_root)?,
         domains: load_domains(repo_root)?,
+        surfaces: load_registry(repo_root)?,
+        crate_descriptions,
+        skills: load_skills(),
     })
+}
+
+/// `package.description` of every layers crate whose manifest exists and carries a plain string.
+fn load_crate_descriptions(repo_root: &Path, layers: &Layers) -> Result<BTreeMap<String, String>> {
+    let mut out = BTreeMap::new();
+    for name in layers.keys() {
+        let path = repo_root.join("crates").join(name).join("Cargo.toml");
+        if !path.is_file() {
+            continue;
+        }
+        let doc: toml::Value = toml::from_str(&read_utf8_path_capped(&path)?)
+            .with_context(|| format!("parse {} as TOML", path.display()))?;
+        if let Some(d) = doc
+            .get("package")
+            .and_then(|p| p.get("description"))
+            .and_then(toml::Value::as_str)
+        {
+            out.insert(name.clone(), d.to_string());
+        }
+    }
+    Ok(out)
+}
+
+/// Skill plugins (payload kind skill) then skill bundles, from the embedded plugin catalog.
+fn load_skills() -> Vec<SkillInput> {
+    let plugins = vox_plugin_catalog::all_plugins()
+        .iter()
+        .filter(|p| {
+            matches!(
+                p.payload_kind,
+                vox_plugin_catalog::schema::PayloadKind::Skill
+            )
+        })
+        .map(|p| SkillInput {
+            id: p.id.clone(),
+            description: p.description.clone(),
+            exposes_tools: p.exposes_tools.clone().unwrap_or_default(),
+            source_path: None,
+        });
+    let bundles = vox_plugin_catalog::all_skill_bundles()
+        .iter()
+        .map(|b| SkillInput {
+            id: b.id.clone(),
+            description: b.description.clone(),
+            exposes_tools: Vec::new(),
+            source_path: Some(b.bundle_path.clone()),
+        });
+    plugins.chain(bundles).collect()
 }
 
 fn load_domains(repo_root: &Path) -> Result<Domains> {

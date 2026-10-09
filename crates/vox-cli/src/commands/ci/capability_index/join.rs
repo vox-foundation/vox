@@ -9,6 +9,7 @@ use vox_capability_registry::{
 };
 
 use super::inputs::{Inputs, OperationRow};
+use super::nodes;
 use super::owner::{
     group_owners, resolve_domain, resolve_owner, source_path_for, validate_domains,
 };
@@ -20,7 +21,7 @@ const MCP_DOC: &str = "docs/src/reference/mcp-tool-registry-contract.md";
 
 /// One-line, control-free form of a catalog description (also blocks markup/newline injection into
 /// downstream one-line emitters such as llms.txt). `None` when nothing printable remains.
-fn single_line(text: &str) -> Option<String> {
+pub(super) fn single_line(text: &str) -> Option<String> {
     let kept: String = text
         .chars()
         .filter(|c| !c.is_control() || c.is_whitespace())
@@ -128,6 +129,9 @@ pub(crate) fn build_index(inputs: &Inputs) -> Result<CapabilityIndex> {
             rows.push(row);
         }
     }
+    nodes::apply_surface_join(&mut rows, &inputs.surfaces);
+    let extra = nodes::non_operation_rows(&mut rows, inputs)?;
+    rows.extend(extra);
     let mut seen = BTreeSet::new();
     for row in &rows {
         if !seen.insert(row.id.as_str()) {

@@ -60,6 +60,21 @@ mod tests {
         assert_eq!(got, want);
     }
 
+    /// Success criterion 3: `vox explain mesh` prints layer, GUI view, MCP tool and docs.
+    #[test]
+    fn explain_mesh_success_criterion() {
+        let out = explain_output(bundled_index(), "mesh", false).unwrap();
+        for needle in [
+            "view mesh",
+            "vox_mesh_nodes",
+            "Crate:",
+            "(L",
+            "gui-navigation.md",
+        ] {
+            assert!(out.contains(needle), "card lacks {needle}:\n{out}");
+        }
+    }
+
     #[test]
     fn explain_no_match_is_err() {
         let e = explain_output(bundled_index(), "zzqqxx-no-such", false).unwrap_err();

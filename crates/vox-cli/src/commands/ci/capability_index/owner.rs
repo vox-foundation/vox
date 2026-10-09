@@ -23,7 +23,7 @@ const FALLBACK_DOMAIN: &str = "platform";
 /// Crates that hold every handler; their name says nothing about a domain (Pitfall 9).
 const SURFACE_CRATES: [&str; 4] = ["vox-cli", "vox-cli-ci", "vox-orchestrator-mcp", "vox-gui"];
 
-fn owner_ref(layers: &Layers, krate: &str, rule: &str) -> OwnerRef {
+pub(super) fn owner_ref(layers: &Layers, krate: &str, rule: &str) -> OwnerRef {
     OwnerRef {
         crate_name: krate.to_string(),
         layer: layers.get(krate).copied().flatten(),
