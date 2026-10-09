@@ -198,6 +198,14 @@ pub mod speech_constraints;
 // Wired from sibling modules (`dispatch`, `registry`, …); anchor for unwired-module scans.
 pub use vox_mcp_registry::TOOL_REGISTRY;
 
+/// Capability-profile vocabulary shared by stdio MCP, the HTTP gateway, and the daemon.
+pub mod profiles {
+    pub use vox_mcp_registry::{
+        Exposure, McpToolRegistryEntry, SideEffectClass, Subsystem, registry_entry,
+        subsystem_closure,
+    };
+}
+
 pub use dispatch::{handle_tool_call, handle_tool_call_with_mode};
 pub use registry::tool_registry;
 pub use tool_aliases::canonical_tool_name;

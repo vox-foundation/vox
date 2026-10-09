@@ -67,6 +67,23 @@ pub fn tool_registry() -> Vec<rmcp::model::Tool> {
                 "vox_http_read_role_eligible".to_string(),
                 Value::Bool(e.http_read_role_eligible),
             );
+            meta_map.insert(
+                "vox_exposure".to_string(),
+                Value::String(e.exposure.as_str().to_string()),
+            );
+            meta_map.insert(
+                "vox_side_effect_class".to_string(),
+                Value::String(e.side_effect_class.as_str().to_string()),
+            );
+            meta_map.insert(
+                "vox_requires".to_string(),
+                Value::Array(
+                    e.requires
+                        .iter()
+                        .map(|s| Value::String(s.as_str().to_string()))
+                        .collect(),
+                ),
+            );
             rmcp::model::Tool::new_with_raw(
                 std::borrow::Cow::Owned(n.to_string()),
                 Some(std::borrow::Cow::Owned(e.description.to_string())),
@@ -125,5 +142,26 @@ mod merged_registry_tests {
             let meta = &t.meta.as_ref().expect("catalog tools carry meta").0;
             assert!(meta.get("vox_tier").is_none(), "{}", t.name);
         }
+    }
+
+    #[test]
+    fn catalog_tools_carry_exposure_metadata() {
+        let tools = super::tool_registry();
+        let git = tools
+            .iter()
+            .find(|t| t.name == "vox_git_status")
+            .expect("vox_git_status advertised");
+        let meta = &git.meta.as_ref().expect("meta").0;
+        assert_eq!(meta["vox_exposure"], "public");
+        assert_eq!(meta["vox_side_effect_class"], "read_only");
+        assert_eq!(meta["vox_requires"], serde_json::json!([]));
+        let models = tools
+            .iter()
+            .find(|t| t.name == "vox_list_models")
+            .expect("vox_list_models advertised");
+        assert_eq!(
+            models.meta.as_ref().expect("meta").0["vox_requires"],
+            serde_json::json!(["model_registry"])
+        );
     }
 }
