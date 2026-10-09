@@ -3,11 +3,14 @@
 //! The index is derived only from committed inputs (the operations catalog today), so check mode
 //! is safe inside `vox ci ssot-drift`: it never builds the code graph.
 
+mod coverage;
 mod inputs;
 mod join;
 mod nodes;
 mod owner;
 mod ratchet;
+
+pub use coverage::refresh_coverage_snapshot;
 
 use std::path::Path;
 
