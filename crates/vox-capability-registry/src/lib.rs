@@ -7,6 +7,7 @@
 mod command_registry;
 mod document;
 mod ids;
+mod index;
 mod loader;
 mod manifest;
 mod openai;
@@ -17,6 +18,10 @@ mod validate;
 pub use command_registry::{COMMAND_REGISTRY_REL, active_vox_cli_paths_from_command_registry_yaml};
 pub use document::{CapabilityRegistryDoc, CuratedCapability, Exemptions, RuntimeBuiltinMap};
 pub use ids::{implicit_cli_capability_id, implicit_mcp_capability_id};
+pub use index::{
+    CapabilityIndex, CliRef, CoverageRef, CoverageSnapshotMeta, DocLink, DomainDef, GuiRef,
+    IndexRow, McpRef, OwnerRef, RowKind, bundled_index,
+};
 pub use loader::{CAPABILITY_REGISTRY_REL, load_document};
 pub use manifest::{ModelCapabilityManifest, build_model_manifest};
 pub use openai::{capability_to_openai_function, mens_chat_parameters};

@@ -113,6 +113,7 @@ impl vox_cli_ci::HeavyGuardHost for VoxCliProviders {
             CiCmd::GuiCatalogParity => super::gui_catalog_parity::run(root),
             CiCmd::GuiSurfaceCoverage { write } => super::gui_surface_coverage::run(root, *write),
             CiCmd::GuiSurfaceRegistry { write } => super::gui_surface_registry::run(root, *write),
+            CiCmd::CapabilityIndex { write } => super::capability_index::run(root, *write),
             CiCmd::ExecPolicyContract => super::exec_policy_contract::run(root),
             CiCmd::OperationsVerify => super::operations_catalog::verify(root),
             CiCmd::OperationsSync { target, write } => {

@@ -891,4 +891,17 @@ mod stale_ref_guard_tests {
             "run_ssot_drift must call ds!(\"cache_key_lint\", ...)"
         );
     }
+
+    /// DISC-02: `run_ssot_drift` must dispatch `capability_index` as a stage, or a stale
+    /// capability index never blocks `vox ci pre-push`/CI. Source-text check (same rationale
+    /// as `run_ssot_drift_dispatches_cache_key_lint`); needle split so it cannot match itself.
+    #[test]
+    fn run_ssot_drift_dispatches_capability_index() {
+        let src = include_str!("docs.rs");
+        let needle = format!("{}{}", "ds!(\"capability", "_index\"");
+        assert!(
+            src.contains(&needle),
+            "run_ssot_drift must call ds!(\"capability_index\", ...)"
+        );
+    }
 }

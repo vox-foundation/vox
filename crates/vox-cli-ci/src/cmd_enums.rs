@@ -105,6 +105,13 @@ pub enum CiCmd {
         #[arg(long)]
         write: bool,
     },
+    /// Generate or verify the capability index (`contracts/capabilities/capability-index.v1.json`).
+    #[command(name = "capability-index")]
+    CapabilityIndex {
+        /// Write/update the index. Without this flag, verify only (also run by `ssot-drift`).
+        #[arg(long)]
+        write: bool,
+    },
     /// Gate: GUI honesty — typed toasts + no placeholder/dead elements in surfaces.
     #[command(name = "gui-honesty")]
     GuiHonesty,

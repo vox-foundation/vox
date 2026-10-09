@@ -200,7 +200,7 @@ struct InventoryReport {
     cli_path_count: usize,
 }
 
-fn normalize_lf(s: &str) -> String {
+pub(crate) fn normalize_lf(s: &str) -> String {
     s.replace("\r\n", "\n").replace('\r', "\n")
 }
 
@@ -903,7 +903,12 @@ fn capability_registry_yaml_text(catalog: &OperationsCatalog) -> Result<String> 
     Ok(text)
 }
 
-fn write_or_verify_text(path: &Path, text: &str, write: bool, stale_hint: &str) -> Result<()> {
+pub(crate) fn write_or_verify_text(
+    path: &Path,
+    text: &str,
+    write: bool,
+    stale_hint: &str,
+) -> Result<()> {
     if write {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
