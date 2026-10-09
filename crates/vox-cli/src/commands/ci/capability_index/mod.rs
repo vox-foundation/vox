@@ -85,4 +85,70 @@ mod tests {
             "every catalog op must have an index row (run `vox ci capability-index --write`)"
         );
     }
+
+    // --- DISC-02: check mode must fail on drift (mutation-style, tempdir only) ---
+
+    fn synthetic(extra_op: bool) -> CapabilityIndex {
+        use inputs::test_op;
+        let mut ops = vec![
+            test_op("a", Some((&["a"], "active")), Some("vox_a"), "first"),
+            test_op("b", Some((&["b"], "active")), None, "second"),
+        ];
+        if extra_op {
+            ops.push(test_op("c", Some((&["c"], "active")), None, "new op"));
+        }
+        join::build_index(&inputs::Inputs { ops }).expect("build synthetic index")
+    }
+
+    #[test]
+    fn drift_detects_deleted_row() {
+        let dir = tempfile::TempDir::new().expect("tempdir");
+        let path = dir.path().join("capability-index.v1.json");
+        let fresh = render(&synthetic(false)).expect("render");
+
+        write_or_verify_text(&path, &fresh, true, STALE_HINT).expect("write");
+        write_or_verify_text(&path, &fresh, false, STALE_HINT).expect("fresh file verifies");
+
+        let mut mutated = synthetic(false);
+        mutated.rows.remove(0);
+        std::fs::write(&path, render(&mutated).expect("render")).expect("write mutated");
+        let err = write_or_verify_text(&path, &fresh, false, STALE_HINT)
+            .expect_err("a deleted row must be reported");
+        assert!(err.to_string().contains("is stale"), "got: {err}");
+    }
+
+    #[test]
+    fn drift_detects_new_op() {
+        let dir = tempfile::TempDir::new().expect("tempdir");
+        let path = dir.path().join("capability-index.v1.json");
+        write_or_verify_text(
+            &path,
+            &render(&synthetic(false)).expect("render"),
+            true,
+            STALE_HINT,
+        )
+        .expect("write committed index");
+        let err = write_or_verify_text(
+            &path,
+            &render(&synthetic(true)).expect("render"),
+            false,
+            STALE_HINT,
+        )
+        .expect_err("a catalog op added without regeneration must be reported");
+        assert!(err.to_string().contains("is stale"), "got: {err}");
+    }
+
+    #[test]
+    fn drift_detects_missing_file() {
+        let dir = tempfile::TempDir::new().expect("tempdir");
+        let path = dir.path().join("absent.json");
+        let err = write_or_verify_text(
+            &path,
+            &render(&synthetic(false)).expect("render"),
+            false,
+            STALE_HINT,
+        )
+        .expect_err("absent index must be reported");
+        assert!(err.to_string().contains("missing"), "got: {err}");
+    }
 }
