@@ -20,11 +20,15 @@ permissions:
 
 jobs:
   android-e2e:
-    # Tier: heavy (GitHub-hosted macOS).
-    runs-on: macos-15-intel
+    # Nothing here needs macOS or the Android SDK (codegen only). macos-15-intel was a
+    # slow x86_64 runner whose cache key (no arch) restored the arm64 macOS target, so
+    # every run was a 43+ min cold build that hit the timeout.
+    runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
+      - name: Install system deps (libdbus/GTK/WebKit)
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
       - uses: ./.github/actions/setup-rust
       - uses: pnpm/action-setup@v6
         with:
@@ -38,13 +42,17 @@ jobs:
         run: cd apps/vox-mental-tracker && pnpm install --frozen-lockfile
       - name: Build vox CLI
         run: cargo build -p vox-cli
-      - name: Build web bundle
-        run: cd apps/vox-mental-tracker && pnpm build
+      # No separate `pnpm build` (a second, unused release compile of vox-cli), and no
+      # Playwright here: the same `pnpm e2e` suite runs in vox-mental-tracker.yml's
+      # playwright job, with browsers installed. Codegen needs tauri-cli.
+      - name: Install tauri-cli
+        uses: taiki-e/install-action@v2
+        with:
+          tool: tauri-cli
       - name: Tauri mobile codegen (Android)
         run: |
           cd apps/vox-mental-tracker
           ../../target/debug/vox compile --target mobile-android -o dist src/main.vox
+      # Codegen writes next to the app's Vox.toml, not under the repo root.
       - name: Verify generated Tauri workspace
-        run: test -f target/generated/src-tauri/tauri.conf.json
-      - name: Run Playwright (web)
-        run: cd apps/vox-mental-tracker && pnpm e2e
+        run: test -f apps/vox-mental-tracker/target/generated/src-tauri/tauri.conf.json

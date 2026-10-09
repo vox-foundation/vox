@@ -590,8 +590,8 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::CrateBudget { exit_zero } => {
             vox_cli_ci::crate_budget::run_crate_budget(&root, exit_zero)
         }
-        CiCmd::CrateBuildMapParity => {
-            vox_cli_ci::crate_build_map_parity::run_crate_build_map_parity(&root)
+        CiCmd::CrateBuildMapParity { write } => {
+            vox_cli_ci::crate_build_map_parity::run_crate_build_map_parity(&root, write)
         }
         CiCmd::FanInBudget { exit_zero } => {
             vox_cli_ci::fan_in_budget::run_fan_in_budget(&root, exit_zero)

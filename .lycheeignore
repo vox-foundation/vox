@@ -221,3 +221,7 @@ https://doi\.org/10\.3233/ISU-2010-0613
 # compare/release URLs in a repo that is not public. Same policy as the
 # wravery/webview2-rs entry above: we do not control the vendored content.
 https://github\.com/tzervas/peft-rs/.*
+# graphify.net (Cloudflare challenge) and openrouter.zendesk.com (help-center bot
+# block) answer 403 to any non-JS client, so a link checker cannot verify them.
+.*graphify\.net/.*
+.*openrouter\.zendesk\.com/.*

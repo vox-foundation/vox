@@ -45,13 +45,19 @@ jobs:
       - name: Build vox CLI
         run: cargo build -p vox-cli
 
-      - name: Build web bundle
-        run: cd apps/vox-mental-tracker && pnpm build
+      # No separate `pnpm build`: its build:vox step was a second, silent release
+      # compile of vox-cli (14-30 min) whose dist/ the codegen below never used.
+      # `vox compile --target mobile-*` runs `cargo tauri build`, so it needs tauri-cli.
+      - name: Install tauri-cli
+        uses: taiki-e/install-action@v2
+        with:
+          tool: tauri-cli
 
       - name: Tauri mobile codegen (iOS)
         run: |
           cd apps/vox-mental-tracker
           ../../target/debug/vox compile --target mobile-ios -o dist src/main.vox
 
+      # Codegen writes next to the app's Vox.toml, not under the repo root.
       - name: Verify generated Tauri workspace
-        run: test -f target/generated/src-tauri/tauri.conf.json
+        run: test -f apps/vox-mental-tracker/target/generated/src-tauri/tauri.conf.json

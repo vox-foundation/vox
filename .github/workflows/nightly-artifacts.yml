@@ -212,24 +212,23 @@ jobs:
           pnpm install
           pnpm build
 
-      # Same sidecar-staging requirement as release-gui.yml: tauri.conf.json's
-      # externalBin expects target/release/vox-<triple> to exist before build.
-      - name: Build vox CLI sidecar
-        run: cargo build -p vox-cli --profile dist --target ${{ matrix.target }}
+      # tauri.conf.json's externalBin lists TWO sidecars, vox and vox-ml-cli, each
+      # expected at target/release/<name>-<triple>. Only vox was staged, so build.rs
+      # auto-built vox-ml-cli with a nested cargo that waited forever on the target
+      # lock the outer `cargo tauri build --target` held (Linux/macOS hit the 180-min
+      # cap with no output).
+      - name: Build sidecars (vox, vox-ml-cli)
+        run: cargo build -p vox-cli -p vox-ml-cli --profile dist --target ${{ matrix.target }}
 
-      - name: Stage Tauri external sidecar (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force (Split-Path "target/release/vox-${{ matrix.target }}.exe") | Out-Null
-          Copy-Item target/${{ matrix.target }}/dist/vox.exe target/release/vox-${{ matrix.target }}.exe -Force
-
-      - name: Stage Tauri external sidecar (Unix)
-        if: runner.os != 'Windows'
+      - name: Stage Tauri external sidecars
         shell: bash
         run: |
-          mkdir -p "$(dirname "target/release/vox-${{ matrix.target }}")"
-          cp target/${{ matrix.target }}/dist/vox target/release/vox-${{ matrix.target }}
+          set -euo pipefail
+          ext=""; [[ "$RUNNER_OS" == "Windows" ]] && ext=".exe"
+          mkdir -p target/release
+          for bin in vox vox-ml-cli; do
+            cp "target/${{ matrix.target }}/dist/${bin}${ext}" "target/release/${bin}-${{ matrix.target }}${ext}"
+          done
 
       - name: Install tauri-cli
         run: cargo install tauri-cli --locked --version "^2"
@@ -240,8 +239,15 @@ jobs:
       # for the day is created/updated once by the `publish` job below. Using
       # tauri-action's built-in release-publish here would create a second,
       # competing release write path against the same nightly ref.
+      # The Tauri CLI runs plain cargo, so the `cargo gui-build` alias (link.exe) cannot
+      # apply; set the Windows linker by env instead (lld-link cannot link vox-gui, see
+      # .cargo/config.toml). Ignored on other targets. Sidecar autobuild is off so a
+      # missing sidecar fails in seconds instead of deadlocking.
       - name: Build Tauri Application (unsigned nightly exercise build)
         working-directory: ./crates/vox-gui
+        env:
+          CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER: link.exe
+          VOX_GUI_SKIP_SIDECAR_AUTOBUILD: "1"
         run: cargo tauri build --target ${{ matrix.target }}
 
       - name: Collect GUI bundle artifacts

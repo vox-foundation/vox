@@ -158,6 +158,10 @@ jobs:
             contracts/reports/deploy/
             contracts/reports/corpus-feedback/
             contracts/reports/spec-to-app/
+            # cr-a1/a4/d3 and cr-p1/p2 write here; without these the offenders behind
+            # an unmet gate were invisible without rebuilding and re-running the bins.
+            contracts/reports/arch/
+            contracts/reports/perf/
 
       - name: Fail if umbrella reported block-GA violations
         if: steps.umbrella.outcome == 'failure'

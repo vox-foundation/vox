@@ -64,8 +64,11 @@ jobs:
               disabled_manually) echo "skip $name (disabled_manually)"; continue ;;
               *) echo "::error::'$name' state is '${state:-unknown}' (GitHub disables crons after 60 days of inactivity)"; fail=1; continue ;;
             esac
-            last=$(gh run list --workflow "$(basename "$file")" --event schedule --limit 1 \
-                   --json createdAt -q '.[0].createdAt // empty')
+            # Filter by event client-side: the API's own `event=schedule` filter can return
+            # a stale run (bench-nightly came back as 2026-09-22 while scheduled runs had
+            # landed every day since), which opened false "Nightly stale" issues.
+            last=$(gh run list --workflow "$(basename "$file")" --limit 100 \
+                   --json createdAt,event -q '[.[] | select(.event == "schedule") | .createdAt] | max // empty')
             cutoff=$(date -u -d "$days days ago" +%s)
             title="Nightly stale: $name"
             num=$(gh issue list --label nightly-failure --state open --limit 100 --json number,title \
