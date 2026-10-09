@@ -82,28 +82,28 @@ Brief: `CONTEXT.md`. Research: `research/SUMMARY.md` (+ STACK, FEATURES, ARCHITE
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DATA-01 | — | Pending |
-| DATA-02 | — | Pending |
-| DATA-03 | — | Pending |
-| DATA-04 | — | Pending |
-| DATA-05 | — | Pending |
-| DATA-06 | — | Pending |
-| ATLAS-01 | — | Pending |
-| ATLAS-02 | — | Pending |
-| ATLAS-03 | — | Pending |
-| ATLAS-04 | — | Pending |
-| ATLAS-05 | — | Pending |
-| ATLAS-06 | — | Pending |
-| BRANCH-01 | — | Pending |
-| BRANCH-02 | — | Pending |
-| BRANCH-03 | — | Pending |
-| DOCK-01 | — | Pending |
-| DOCK-02 | — | Pending |
-| DOCK-03 | — | Pending |
-| DOCK-04 | — | Pending |
-| LIVE-01 | — | Pending |
-| LIVE-02 | — | Pending |
-| MENTION-01 | — | Pending |
-| VOX-01 | — | Pending |
-| VOX-02 | — | Pending |
-| PROOF-01 | — | Pending |
+| DATA-01 | Phase 25 | Pending |
+| DATA-02 | Phase 25 | Pending |
+| DATA-03 | Phase 25 | Pending |
+| DATA-04 | Phase 25 | Pending |
+| DATA-05 | Phase 25 | Pending |
+| DATA-06 | Phase 25 | Pending |
+| ATLAS-01 | Phase 26 | Pending |
+| ATLAS-02 | Phase 26 | Pending |
+| ATLAS-03 | Phase 26 | Pending |
+| ATLAS-04 | Phase 26 | Pending |
+| ATLAS-05 | Phase 26 | Pending |
+| ATLAS-06 | Phase 26 | Pending |
+| BRANCH-01 | Phase 27 | Pending |
+| BRANCH-02 | Phase 27 | Pending |
+| BRANCH-03 | Phase 27 | Pending |
+| DOCK-01 | Phase 28 | Pending |
+| DOCK-02 | Phase 28 | Pending |
+| DOCK-03 | Phase 28 | Pending |
+| DOCK-04 | Phase 28 | Pending |
+| LIVE-01 | Phase 29 | Pending |
+| LIVE-02 | Phase 29 | Pending |
+| MENTION-01 | Phase 30 | Pending |
+| VOX-01 | Phase 25 | Pending |
+| VOX-02 | Phase 30 | Pending |
+| PROOF-01 | Phase 31 | Pending |
