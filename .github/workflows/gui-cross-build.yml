@@ -102,19 +102,15 @@ jobs:
       # aborts before a window appears, and Windows never sees it because it loads
       # icon.ico instead.
       # This lane compiles and tests vox-gui; it never runs a sidecar. build.rs only
-      # checks the two externalBin files (vox, vox-ml-cli) exist, and with them missing
-      # it silently built both in release from inside the first vox-gui compile, while
-      # this job then built vox-cli in release again: three full builds per leg, past
-      # the 90-min cap on every leg since 2026-10-05. Placeholders + autobuild off.
+      # checks the externalBin files exist, and with them missing it silently built
+      # them in release from inside the first vox-gui compile, while this job then
+      # built vox-cli in release again: three full builds per leg, past the 90-min
+      # cap on every leg since 2026-10-05. Placeholders + autobuild off.
       - name: Stage Tauri external sidecar placeholders
-        shell: bash
-        run: |
-          set -euo pipefail
-          ext=""; [[ "$RUNNER_OS" == "Windows" ]] && ext=".exe"
-          mkdir -p target/release
-          for bin in vox vox-ml-cli; do
-            touch "target/release/${bin}-${{ matrix.target }}${ext}"
-          done
+        uses: ./.github/actions/stage-tauri-sidecars
+        with:
+          target: ${{ matrix.target }}
+          placeholder: "true"
 
       - name: Tauri prerequisites (icon bit depth, sidecar paths)
         run: cargo test -p vox-gui --test gui_tauri_prereqs
@@ -168,13 +164,14 @@ jobs:
           pnpm install --prefer-offline
           pnpm run build
 
-      - name: Build vox CLI sidecar (release)
-        run: cargo build -p vox-cli --release
-
-      - name: Stage Tauri external sidecar
-        shell: pwsh
-        run: |
-          Copy-Item target/release/vox.exe target/release/vox-x86_64-pc-windows-msvc.exe -Force
+      # The headless smoke below never runs a sidecar, so placeholders suffice. This
+      # used to build release vox and stage only it, leaving vox-ml-cli for build.rs
+      # to nest-build inside `cargo gui-build`.
+      - name: Stage Tauri external sidecar placeholders
+        uses: ./.github/actions/stage-tauri-sidecars
+        with:
+          target: x86_64-pc-windows-msvc
+          placeholder: "true"
 
       - name: Tauri prerequisite tests
         run: cargo test -p vox-gui --test gui_tauri_prereqs
