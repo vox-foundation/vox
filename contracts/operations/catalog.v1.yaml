@@ -3757,7 +3757,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -3769,6 +3769,10 @@ operations:
   mcp:
     name: vox_browser_act
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - browser
+    - llm_facade
   cli: null
 - id: browser.click
   title: Browser Click
@@ -3776,7 +3780,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -3788,6 +3792,9 @@ operations:
   mcp:
     name: vox_browser_click
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - browser
   cli: null
 - id: browser.click.ref
   title: Browser Click Ref
@@ -3795,7 +3802,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -3807,6 +3814,9 @@ operations:
   mcp:
     name: vox_browser_click_ref
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - browser
   cli: null
 - id: browser.click.xy
   title: Browser Click Xy
@@ -3814,7 +3824,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -3826,6 +3836,9 @@ operations:
   mcp:
     name: vox_browser_click_xy
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - browser
   cli: null
 - id: browser.close
   title: Browser Close
@@ -3833,7 +3846,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -3845,6 +3858,9 @@ operations:
   mcp:
     name: vox_browser_close
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - browser
   cli: null
 - id: browser.back
   title: Browser Back
@@ -3852,7 +3868,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -3864,6 +3880,9 @@ operations:
   mcp:
     name: vox_browser_back
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - browser
   cli: null
 - id: browser.forward
   title: Browser Forward
@@ -3871,7 +3890,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -3883,6 +3902,9 @@ operations:
   mcp:
     name: vox_browser_forward
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - browser
   cli: null
 - id: browser.reload
   title: Browser Reload
@@ -3890,7 +3912,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -3902,6 +3924,9 @@ operations:
   mcp:
     name: vox_browser_reload
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - browser
   cli: null
 - id: browser.stop
   title: Browser Stop
@@ -3909,7 +3934,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -3921,6 +3946,9 @@ operations:
   mcp:
     name: vox_browser_stop
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - browser
   cli: null
 - id: browser.extract
   title: Browser Extract
@@ -3928,7 +3956,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -3940,6 +3968,10 @@ operations:
   mcp:
     name: vox_browser_extract
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - browser
+    - llm_facade
   cli: null
 - id: browser.extract.json
   title: Browser Extract Json
@@ -3947,7 +3979,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -3959,6 +3991,10 @@ operations:
   mcp:
     name: vox_browser_extract_json
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - browser
+    - llm_facade
   cli: null
 - id: browser.fill
   title: Browser Fill
@@ -3966,7 +4002,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -3978,6 +4014,9 @@ operations:
   mcp:
     name: vox_browser_fill
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - browser
   cli: null
 - id: browser.fill.ref
   title: Browser Fill Ref
@@ -3985,7 +4024,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -3997,6 +4036,9 @@ operations:
   mcp:
     name: vox_browser_fill_ref
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - browser
   cli: null
 - id: browser.goto
   title: Browser Goto
@@ -4004,7 +4046,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -4016,6 +4058,9 @@ operations:
   mcp:
     name: vox_browser_goto
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - browser
   cli: null
 - id: browser.html
   title: Browser Html
@@ -4023,7 +4068,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -4035,6 +4080,9 @@ operations:
   mcp:
     name: vox_browser_html
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - browser
   cli: null
 - id: browser.open
   title: Browser Open
@@ -4042,7 +4090,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -4054,6 +4102,9 @@ operations:
   mcp:
     name: vox_browser_open
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - browser
   cli: null
 - id: browser.open.ex
   title: Browser Open Extended
@@ -4061,7 +4112,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -4073,6 +4124,9 @@ operations:
   mcp:
     name: vox_browser_open_ex
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - browser
   cli: null
 - id: browser.cookies.export
   title: Browser Cookies Export
@@ -4080,7 +4134,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -4092,6 +4146,9 @@ operations:
   mcp:
     name: vox_browser_cookies_export
     http_read_role_eligible: false
+    exposure: internal
+    requires:
+    - browser
   cli: null
 - id: browser.cookies.import
   title: Browser Cookies Import
@@ -4099,7 +4156,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -4111,6 +4168,9 @@ operations:
   mcp:
     name: vox_browser_cookies_import
     http_read_role_eligible: false
+    exposure: internal
+    requires:
+    - browser
   cli: null
 - id: browser.list.pages
   title: Browser List Pages
@@ -4118,7 +4178,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -4130,6 +4190,9 @@ operations:
   mcp:
     name: vox_browser_list_pages
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - browser
   cli: null
 - id: browser.page.info
   title: Browser Page Info
@@ -4137,7 +4200,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -4149,6 +4212,9 @@ operations:
   mcp:
     name: vox_browser_page_info
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - browser
   cli: null
 - id: browser.snapshot
   title: Browser Snapshot
@@ -4156,7 +4222,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -4168,6 +4234,9 @@ operations:
   mcp:
     name: vox_browser_snapshot
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - browser
   cli: null
 - id: browser.screenshot
   title: Browser Screenshot
@@ -4175,7 +4244,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -4187,6 +4256,9 @@ operations:
   mcp:
     name: vox_browser_screenshot
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - browser
   cli: null
 - id: browser.screenshot.viewport
   title: Browser Screenshot Viewport
@@ -4194,7 +4266,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -4206,6 +4278,9 @@ operations:
   mcp:
     name: vox_browser_screenshot_viewport
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - browser
   cli: null
 - id: browser.scroll
   title: Browser Scroll
@@ -4213,7 +4288,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -4225,6 +4300,9 @@ operations:
   mcp:
     name: vox_browser_scroll
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - browser
   cli: null
 - id: browser.press
   title: Browser Press
@@ -4232,7 +4310,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -4244,6 +4322,9 @@ operations:
   mcp:
     name: vox_browser_press
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - browser
   cli: null
 - id: browser.type
   title: Browser Type
@@ -4251,7 +4332,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: remote_mutation
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -4263,6 +4344,9 @@ operations:
   mcp:
     name: vox_browser_type
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - browser
   cli: null
 - id: browser.set.viewport
   title: Browser Set Viewport
@@ -4270,7 +4354,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -4282,6 +4366,9 @@ operations:
   mcp:
     name: vox_browser_set_viewport
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - browser
   cli: null
 - id: browser.screencast.frame
   title: Browser Screencast Frame
@@ -4289,7 +4376,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -4301,6 +4388,9 @@ operations:
   mcp:
     name: vox_browser_screencast_frame
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - browser
   cli: null
 - id: browser.set.control.lock
   title: Browser Set Control Lock
@@ -4308,7 +4398,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -4320,6 +4410,9 @@ operations:
   mcp:
     name: vox_browser_set_control_lock
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - browser
   cli: null
 - id: browser.text
   title: Browser Text
@@ -4327,7 +4420,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -4339,6 +4432,9 @@ operations:
   mcp:
     name: vox_browser_text
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - browser
   cli: null
 - id: browser.wait.for
   title: Browser Wait For
@@ -4346,7 +4442,7 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -4358,6 +4454,9 @@ operations:
   mcp:
     name: vox_browser_wait_for
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - browser
   cli: null
 - id: budget.status
   title: Budget Status
