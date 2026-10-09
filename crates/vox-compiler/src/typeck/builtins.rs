@@ -1763,7 +1763,9 @@ impl BuiltinTypes {
                 }
                 "get" => {
                     // get(pk: <resolved primary-key type>) -> Result[Option[Record]]
-                    let record_ty = Ty::Record(fields.clone());
+                    // Rows are the table's own type (structurally a Record; nominal so codegen
+                    // emits struct field access on the `Table` struct it returns).
+                    let record_ty = obj_ty.clone();
                     let key_ty = primary_key
                         .as_ref()
                         .map(|(_, ty)| ty.as_ref().clone())
@@ -1802,7 +1804,9 @@ impl BuiltinTypes {
                 }
                 "query" => {
                     // query(sql: str) -> Result[List[Record]] (Simplified params)
-                    let record_ty = Ty::Record(fields.clone());
+                    // Rows are the table's own type (structurally a Record; nominal so codegen
+                    // emits struct field access on the `Table` struct it returns).
+                    let record_ty = obj_ty.clone();
                     Some(Ty::Fn(
                         vec![Ty::Str],
                         Box::new(Ty::Result(
@@ -1812,7 +1816,9 @@ impl BuiltinTypes {
                     ))
                 }
                 "all" => {
-                    let record_ty = Ty::Record(fields.clone());
+                    // Rows are the table's own type (structurally a Record; nominal so codegen
+                    // emits struct field access on the `Table` struct it returns).
+                    let record_ty = obj_ty.clone();
                     Some(Ty::Fn(
                         vec![],
                         Box::new(Ty::Result(
@@ -1826,7 +1832,9 @@ impl BuiltinTypes {
                     Box::new(Ty::Result(Box::new(Ty::Int), Box::new(Ty::Str))),
                 )),
                 "find" => {
-                    let record_ty = Ty::Record(fields.clone());
+                    // Rows are the table's own type (structurally a Record; nominal so codegen
+                    // emits struct field access on the `Table` struct it returns).
+                    let record_ty = obj_ty.clone();
                     let key_ty = primary_key
                         .as_ref()
                         .map(|(_, ty)| ty.as_ref().clone())
@@ -1921,5 +1929,34 @@ impl Default for BuiltinTypes {
     fn default() -> Self {
         let mut env = TypeEnv::new();
         Self::register_all(&mut env)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn table_reads_return_rows_of_the_table_type() {
+        // Rows are the table's own (nominal) type so codegen emits struct field
+        // access on the generated struct, not JSON indexing.
+        let builtins = BuiltinTypes::register_all(&mut TypeEnv::new());
+        let note = Ty::Table("Note".into(), vec![("title".into(), Ty::Str)], None);
+        let ret = |m: &str| match builtins.lookup_method(&note, m) {
+            Some(Ty::Fn(_, ret)) => *ret,
+            other => panic!("{m}: {other:?}"),
+        };
+        let list_of_rows = Ty::Result(
+            Box::new(Ty::List(Box::new(note.clone()))),
+            Box::new(Ty::Str),
+        );
+        assert_eq!(ret("all"), list_of_rows);
+        assert_eq!(
+            ret("get"),
+            Ty::Result(
+                Box::new(Ty::Option(Box::new(note.clone()))),
+                Box::new(Ty::Str)
+            )
+        );
     }
 }

@@ -42,8 +42,13 @@ pub fn emit_lib(module: &HirModule) -> String {
     let mut out = String::new();
     out.push_str("use serde::{Serialize, Deserialize};\n");
 
-    if !module.tables.is_empty() && !script_db::script_db_emit_mode() {
+    let app_db = !module.tables.is_empty() && !script_db::script_db_emit_mode();
+    if app_db {
         out.push_str("use vox_db::Codex;\n");
+        out.push_str(
+            "/// Set by the app shell at startup; lib fns reach the database through it.\n",
+        );
+        out.push_str("pub static VOX_APP_DB: std::sync::OnceLock<std::sync::Arc<Codex>> = std::sync::OnceLock::new();\n");
     }
 
     if super::types::module_uses_vox_json_type(module) {
@@ -102,7 +107,12 @@ pub fn emit_lib(module: &HirModule) -> String {
     }
 
     for func in &module.functions {
-        out.push_str(&emit_fn_with_actor_handlers(func, module));
+        let emitted = if app_db {
+            script_db::with_app_db_emit_mode(|| emit_fn_with_actor_handlers(func, module))
+        } else {
+            emit_fn_with_actor_handlers(func, module)
+        };
+        out.push_str(&emitted);
     }
     out.push_str(&super::durability_lower::emit_workflow_dispatcher(
         &module.functions,
