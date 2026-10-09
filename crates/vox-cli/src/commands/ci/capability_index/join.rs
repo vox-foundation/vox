@@ -9,7 +9,10 @@ use vox_capability_registry::{
 };
 
 use super::inputs::{Inputs, OperationRow};
-use super::owner::{resolve_owner, source_path_for};
+use super::owner::{
+    group_owners, resolve_domain, resolve_owner, source_path_for, validate_domains,
+};
+use crate::command_catalog::{CatalogTier, tier_for_path};
 
 /// Default page-level docs link per row kind (D-06: the repo has no per-row anchors yet).
 const CLI_DOC: &str = "docs/src/reference/cli-command-surface.generated.md";
@@ -60,8 +63,9 @@ fn base_row(op: &OperationRow, id: String, kind: RowKind, doc: &str) -> IndexRow
     }
 }
 
-/// Fill the Location fields (owner crate + rule + layer, source path) of a cli/mcp row.
-fn set_location(
+/// Fill the Location and grouping fields (owner crate + rule + layer, source path, domain) of a
+/// cli/mcp row.
+fn set_placement(
     row: &mut IndexRow,
     kind: RowKind,
     op: &OperationRow,
@@ -76,12 +80,14 @@ fn set_location(
         &inputs.cli_command_files,
     )?;
     row.source_path = source_path_for(kind, op, owner.as_ref(), &inputs.cli_command_files);
+    row.domain = Some(resolve_domain(kind, op, owner.as_ref(), &inputs.domains)?);
     row.owner = owner;
     Ok(())
 }
 
 pub(crate) fn build_index(inputs: &Inputs) -> Result<CapabilityIndex> {
-    let group_owners: BTreeMap<String, String> = BTreeMap::new();
+    validate_domains(&inputs.domains, &inputs.layers)?;
+    let group_owners = group_owners(&inputs.domains);
     let mut rows: Vec<IndexRow> = Vec::new();
     for op in &inputs.ops {
         if op.cli.is_none() && op.mcp.is_none() {
@@ -95,13 +101,21 @@ pub(crate) fn build_index(inputs: &Inputs) -> Result<CapabilityIndex> {
         if let (Some(c), Some(id)) = (&op.cli, &cli_id) {
             let mut row = base_row(op, id.clone(), RowKind::Cli, CLI_DOC);
             row.status = Some(c.status.clone());
+            row.tier = Some(
+                match tier_for_path(&c.path, c.feature_gate.is_some()) {
+                    CatalogTier::Recommended => "recommended",
+                    CatalogTier::Advanced => "advanced",
+                    CatalogTier::FeatureGated => "feature_gated",
+                }
+                .to_string(),
+            );
             row.cli = Some(CliRef {
                 path: c.path.clone(),
                 invocation: format!("vox {}", c.path.join(" ")),
                 feature_gate: c.feature_gate.clone(),
             });
             row.equivalents = mcp_id.clone().into_iter().collect();
-            set_location(&mut row, RowKind::Cli, op, inputs, &group_owners)?;
+            set_placement(&mut row, RowKind::Cli, op, inputs, &group_owners)?;
             rows.push(row);
         }
         if let (Some(m), Some(id)) = (&op.mcp, &mcp_id) {
@@ -110,7 +124,7 @@ pub(crate) fn build_index(inputs: &Inputs) -> Result<CapabilityIndex> {
                 name: m.name.clone(),
             });
             row.equivalents = cli_id.clone().into_iter().collect();
-            set_location(&mut row, RowKind::McpTool, op, inputs, &group_owners)?;
+            set_placement(&mut row, RowKind::McpTool, op, inputs, &group_owners)?;
             rows.push(row);
         }
     }
@@ -125,7 +139,7 @@ pub(crate) fn build_index(inputs: &Inputs) -> Result<CapabilityIndex> {
         schema_version: 1,
         generator: "vox ci capability-index".to_string(),
         coverage_snapshot: None,
-        domains: Vec::new(),
+        domains: inputs.domains.domains.clone(),
         rows,
     })
 }

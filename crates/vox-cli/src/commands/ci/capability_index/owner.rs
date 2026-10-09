@@ -19,6 +19,9 @@ pub(crate) const CLI_COMMANDS_DIR: &str = "crates/vox-cli/src/commands";
 pub(crate) const MCP_DISPATCH_PATH: &str = "crates/vox-orchestrator-mcp/src/dispatch.rs";
 const MCP_CRATE: &str = "vox-orchestrator-mcp";
 const CLI_CRATE: &str = "vox-cli";
+const FALLBACK_DOMAIN: &str = "platform";
+/// Crates that hold every handler; their name says nothing about a domain (Pitfall 9).
+const SURFACE_CRATES: [&str; 4] = ["vox-cli", "vox-cli-ci", "vox-orchestrator-mcp", "vox-gui"];
 
 fn owner_ref(layers: &Layers, krate: &str, rule: &str) -> OwnerRef {
     OwnerRef {
@@ -128,19 +131,92 @@ pub(crate) fn group_owners(domains: &Domains) -> BTreeMap<String, String> {
 
 /// Reject a malformed `domains.v1.yaml`: every table domain must be in the vocabulary and every
 /// owner / crate key must be a `layers.toml` crate. Errors name the yaml key.
-pub(crate) fn validate_domains(_domains: &Domains, _layers: &Layers) -> Result<()> {
-    let _ = (_domains.schema_version, _layers.len()); // RED stub: replaced in the GREEN commit
+pub(crate) fn validate_domains(domains: &Domains, layers: &Layers) -> Result<()> {
+    let known = |id: &str| domains.domains.iter().any(|d| d.id == id);
+    let check_domain = |key: String, id: &str| -> Result<()> {
+        if known(id) {
+            return Ok(());
+        }
+        bail!("domains.v1.yaml {key}: domain `{id}` is not in `domains`")
+    };
+    let check_crate = |key: String, name: &str| -> Result<()> {
+        if layers.contains_key(name) {
+            return Ok(());
+        }
+        bail!(
+            "domains.v1.yaml {key}: `{name}` is not a crate in docs/src/architecture/layers.toml [crates]"
+        )
+    };
+    if !domains.domains.is_empty() && !known(FALLBACK_DOMAIN) {
+        bail!("domains.v1.yaml `domains` must contain the fallback domain `{FALLBACK_DOMAIN}`");
+    }
+    for (group, entry) in &domains.cli_groups {
+        check_domain(format!("cli_groups.{group}"), &entry.domain)?;
+        if let Some(owner) = &entry.owner {
+            check_crate(format!("cli_groups.{group}.owner"), owner)?;
+        }
+    }
+    for (prefix, id) in &domains.mcp_prefixes {
+        check_domain(format!("mcp_prefixes.{prefix}"), id)?;
+    }
+    for (name, id) in &domains.crates {
+        check_crate(format!("crates.{name}"), name)?;
+        check_domain(format!("crates.{name}"), id)?;
+    }
     Ok(())
 }
 
-/// The curated domain of one cli/mcp row (D-09).
+/// First token of an MCP tool name after `vox_` (`vox_mesh_nodes` -> `mesh`).
+fn mcp_prefix(name: &str) -> Option<&str> {
+    name.strip_prefix("vox_")
+        .unwrap_or(name)
+        .split('_')
+        .next()
+        .filter(|p| !p.is_empty())
+}
+
+/// The curated domain of one cli/mcp row (D-09): catalog override, group / prefix table, owner
+/// crate table (never for a surface crate), `platform`.
 pub(crate) fn resolve_domain(
-    _kind: RowKind,
-    _op: &OperationRow,
-    _owner: Option<&OwnerRef>,
-    _domains: &Domains,
+    kind: RowKind,
+    op: &OperationRow,
+    owner: Option<&OwnerRef>,
+    domains: &Domains,
 ) -> Result<String> {
-    Ok("stub".to_string()) // RED stub: replaced in the GREEN commit
+    if let Some(id) = &op.domain {
+        if !domains.domains.iter().any(|d| &d.id == id) {
+            bail!(
+                "catalog op `{}`: domain `{id}` is not in contracts/capabilities/domains.v1.yaml `domains`",
+                op.id
+            );
+        }
+        return Ok(id.clone());
+    }
+    let cli_group = op
+        .cli
+        .as_ref()
+        .and_then(|c| c.path.first())
+        .and_then(|g| domains.cli_groups.get(g))
+        .map(|e| e.domain.clone());
+    let from_table = if kind == RowKind::McpTool {
+        op.mcp
+            .as_ref()
+            .and_then(|m| mcp_prefix(&m.name))
+            .and_then(|p| domains.mcp_prefixes.get(p))
+            .cloned()
+            .or(cli_group)
+    } else {
+        cli_group
+    };
+    if let Some(id) = from_table {
+        return Ok(id);
+    }
+    let from_crate = owner
+        .filter(|o| !SURFACE_CRATES.contains(&o.crate_name.as_str()))
+        .and_then(|o| domains.crates.get(&o.crate_name));
+    Ok(from_crate
+        .cloned()
+        .unwrap_or_else(|| FALLBACK_DOMAIN.to_string()))
 }
 
 #[cfg(test)]

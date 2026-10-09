@@ -12,6 +12,10 @@
 #      vox-orchestrator-mcp and vox-gui (they hold everything, so they say nothing about a domain)
 #   4. `platform`
 #
+# Single-arm groups (architect, bundle-app, commands, completions, component, doctor, login, logout,
+# memory, script, stop, train) are handled by arms in cli_dispatch/mod.rs and cli_dispatch/lanes.rs,
+# so their owner is vox-cli.
+#
 # `cli_groups[*].owner` is the owning crate for a group whose dispatch arm provably calls into that
 # crate (checked against crates/vox-cli/src/cli_dispatch/). A group with no `owner` and no
 # same-named crate or commands/ module stays unresolved and is counted by the owner ratchet
@@ -56,7 +60,7 @@ domains:
 
 cli_groups:
   add: { domain: deploy }
-  architect: { domain: ci }
+  architect: { domain: ci, owner: vox-cli }
   # `vox ars` is the Latin lane for snippet/share/skill/openclaw/ludus; run_ars_cmd in
   # cli_dispatch/lanes.rs calls commands::extras::* inside vox-cli.
   ars: { domain: skills, owner: vox-cli }
@@ -64,16 +68,16 @@ cli_groups:
   auth: { domain: secrets }
   build: { domain: compiler }
   bundle: { domain: deploy }
-  bundle-app: { domain: deploy }
+  bundle-app: { domain: deploy, owner: vox-cli }
   catalog: { domain: platform }
   chat: { domain: orchestrator }
   check: { domain: compiler }
   ci: { domain: ci }
   codex: { domain: data }
-  commands: { domain: platform }
+  commands: { domain: platform, owner: vox-cli }
   compile: { domain: compiler }
-  completions: { domain: platform }
-  component: { domain: compiler }
+  completions: { domain: platform, owner: vox-cli }
+  component: { domain: compiler, owner: vox-cli }
   config: { domain: platform }
   container: { domain: deploy }
   db: { domain: data }
@@ -83,7 +87,7 @@ cli_groups:
   # run_diag_cmd in cli_dispatch/lanes.rs (doctor, architect, stub-check) lives in vox-cli.
   diag: { domain: platform, owner: vox-cli }
   dispatch: { domain: orchestrator }
-  doctor: { domain: platform }
+  doctor: { domain: platform, owner: vox-cli }
   drift-check: { domain: ci }
   emit: { domain: compiler }
   ext: { domain: skills }
@@ -101,11 +105,11 @@ cli_groups:
   live: { domain: runtime }
   llm: { domain: orchestrator }
   lock: { domain: deploy }
-  login: { domain: secrets }
-  logout: { domain: secrets }
+  login: { domain: secrets, owner: vox-cli }
+  logout: { domain: secrets, owner: vox-cli }
   lsp: { domain: compiler }
   mcp: { domain: orchestrator }
-  memory: { domain: orchestrator }
+  memory: { domain: orchestrator, owner: vox-cli }
   # main.rs delegates every `vox mens ...` invocation to the vox-ml-cli binary.
   mens: { domain: ml, owner: vox-ml-cli }
   migrate: { domain: compiler }
@@ -129,7 +133,7 @@ cli_groups:
   rollback: { domain: orchestrator }
   run: { domain: runtime }
   scientia: { domain: research }
-  script: { domain: runtime }
+  script: { domain: runtime, owner: vox-cli }
   secrets: { domain: secrets }
   share: { domain: skills }
   # `vox shell` dispatches to crate::commands::runtime::shell.
@@ -139,13 +143,14 @@ cli_groups:
   snapshot: { domain: data }
   snippet: { domain: skills }
   speech: { domain: speech }
-  stop: { domain: orchestrator }
+  stop: { domain: orchestrator, owner: vox-cli }
   stub-check: { domain: ci }
   sync: { domain: deploy }
   telemetry: { domain: platform }
   term: { domain: runtime }
   test: { domain: compiler }
-  train: { domain: ml }
+  # `vox train` is a deprecated stub arm in cli_dispatch/mod.rs (points at `vox mens train`).
+  train: { domain: ml, owner: vox-cli }
   update: { domain: deploy }
   upgrade: { domain: deploy }
   visus: { domain: gui }
