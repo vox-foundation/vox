@@ -127,6 +127,26 @@ mod tests {
             index_ops, catalog_ops,
             "every catalog op must have an index row (run `vox ci capability-index --write`)"
         );
+
+        // Coverage is never silently unknown: kind null always carries a reason, and every
+        // cli / mcp / surface row has a coverage object.
+        for r in &index.rows {
+            let needs = matches!(
+                r.kind,
+                vox_capability_registry::RowKind::Cli
+                    | vox_capability_registry::RowKind::McpTool
+                    | vox_capability_registry::RowKind::Surface
+            );
+            match &r.coverage {
+                Some(c) if c.kind.is_none() => assert!(
+                    c.reason.as_deref().is_some_and(|x| !x.is_empty()),
+                    "{}: coverage kind is null without a reason",
+                    r.id
+                ),
+                Some(_) => {}
+                None => assert!(!needs, "{}: missing coverage object", r.id),
+            }
+        }
     }
 
     // --- DISC-02: check mode must fail on drift (mutation-style, tempdir only) ---

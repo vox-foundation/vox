@@ -4,13 +4,13 @@
 //! file and never build or open the code graph. Coverage is never invented: a row with no graph
 //! key keeps `kind: null` and a reason.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 
 use anyhow::{Context, Result, anyhow, bail};
 use serde::{Deserialize, Serialize};
 use vox_bounded_fs::read_utf8_path_capped;
-use vox_capability_registry::CoverageSnapshotMeta;
+use vox_capability_registry::{CoverageRef, CoverageSnapshotMeta, IndexRow, RowKind};
 use vox_graph_reader::coverage::{CoverageReport, compute_coverage};
 
 use super::super::operations_catalog::write_or_verify_text;
@@ -133,6 +133,22 @@ pub fn refresh_coverage_snapshot(repo_root: &Path) -> Result<()> {
     .map_err(|e| anyhow!("{e:#}"))
 }
 
+/// Join the snapshot onto cli / mcp / surface rows (D-07). A row whose graph key exists gets the
+/// snapshot status; otherwise `kind` is null with a reason. Rows sharing one key all stay rows
+/// and are marked `ambiguous`. With no snapshot the rows keep their 06.2-01 reason.
+pub(crate) fn apply_coverage(rows: &mut [IndexRow], snapshot: Option<&CoverageSnapshot>) {
+    // RED stub: marks every graph-keyed row as unknown without consulting the snapshot.
+    let _ = (snapshot.map(|s| s.entries.len()), HashMap::<u8, u8>::new());
+    for r in rows.iter_mut().filter(|r| r.kind == RowKind::Cli) {
+        r.coverage = Some(CoverageRef {
+            kind: None,
+            basis: "none".to_string(),
+            ambiguous: false,
+            reason: Some("RED stub".to_string()),
+        });
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -216,5 +232,181 @@ mod tests {
             "got: {err}"
         );
         assert!(!dir.path().join(SNAPSHOT_REL).exists());
+    }
+
+    // --- apply_coverage / join (D-07, D-08) ---
+
+    use super::super::inputs::{Inputs, OperationRow, test_op};
+    use super::super::join::build_index;
+    use vox_capability_registry::CapabilityIndex;
+
+    fn snap(entries: &[(&str, &str, &str)]) -> CoverageSnapshot {
+        let mut map: BTreeMap<String, Vec<SnapshotEntry>> = BTreeMap::new();
+        for (kind, id, status) in entries {
+            map.entry((*kind).to_string())
+                .or_default()
+                .push(SnapshotEntry {
+                    id: (*id).to_string(),
+                    label: (*id).to_string(),
+                    status: (*status).to_string(),
+                });
+        }
+        CoverageSnapshot {
+            schema_version: 1,
+            source: meta(),
+            entries: map,
+        }
+    }
+
+    fn index_with(ops: Vec<OperationRow>, coverage: Option<CoverageSnapshot>) -> CapabilityIndex {
+        build_index(&Inputs {
+            ops,
+            coverage,
+            ..Default::default()
+        })
+        .expect("build")
+    }
+
+    fn cov(idx: &CapabilityIndex, id: &str) -> CoverageRef {
+        idx.row(id)
+            .and_then(|r| r.coverage.clone())
+            .unwrap_or_else(|| panic!("{id} has no coverage object"))
+    }
+
+    #[test]
+    fn cli_key_hit() {
+        let idx = index_with(
+            vec![test_op(
+                "ars.ludus.status",
+                Some((&["ars", "ludus", "status"], "active")),
+                None,
+                "d",
+            )],
+            Some(snap(&[("cli-command", "cli:ars:status", "cli_only")])),
+        );
+        let c = cov(&idx, "cli.ars.ludus.status");
+        assert_eq!(c.kind.as_deref(), Some("cli_only"));
+        assert_eq!(c.basis, "graph-key");
+        assert!(!c.ambiguous && c.reason.is_none());
+    }
+
+    #[test]
+    fn ambiguous_key_marks_every_sharing_row() {
+        let idx = index_with(
+            vec![
+                test_op(
+                    "a",
+                    Some((&["ars", "ludus", "status"], "active")),
+                    None,
+                    "d",
+                ),
+                test_op(
+                    "b",
+                    Some((&["ars", "other", "status"], "active")),
+                    None,
+                    "d",
+                ),
+                test_op("c", Some((&["ars", "solo"], "active")), None, "d"),
+            ],
+            Some(snap(&[
+                ("cli-command", "cli:ars:status", "cli_only"),
+                ("cli-command", "cli:ars:solo", "surfaced"),
+            ])),
+        );
+        for id in ["cli.ars.ludus.status", "cli.ars.other.status"] {
+            assert!(cov(&idx, id).ambiguous, "{id} shares a graph key");
+        }
+        assert!(!cov(&idx, "cli.ars.solo").ambiguous);
+        assert_eq!(idx.rows.len(), 3, "rows are never merged");
+    }
+
+    #[test]
+    fn top_level_cli_has_reason() {
+        let idx = index_with(
+            vec![test_op("check", Some((&["check"], "active")), None, "d")],
+            Some(snap(&[("cli-command", "cli:ars:status", "cli_only")])),
+        );
+        let c = cov(&idx, "cli.check");
+        assert!(c.kind.is_none());
+        let reason = c.reason.expect("reason");
+        assert!(reason.contains("top-level commands"), "got: {reason}");
+    }
+
+    #[test]
+    fn mcp_hit_and_miss() {
+        let idx = index_with(
+            vec![
+                test_op("x", None, Some("vox_x"), "d"),
+                test_op("y", None, Some("vox_y"), "d"),
+            ],
+            Some(snap(&[("tool", "tool:vox_x", "surfaced")])),
+        );
+        assert_eq!(cov(&idx, "mcp.vox_x").kind.as_deref(), Some("surfaced"));
+        let miss = cov(&idx, "mcp.vox_y");
+        assert!(miss.kind.is_none());
+        assert!(
+            miss.reason.expect("reason").contains("`tool:`"),
+            "reason must name the missing key shape"
+        );
+    }
+
+    #[test]
+    fn surface_hit() {
+        use crate::commands::ci::gui_surface_registry::{
+            RepresentationTier, SurfaceEntry, SurfaceRegistry,
+        };
+        let entry = SurfaceEntry {
+            view_key: Some("mesh".to_string()),
+            cli_group: None,
+            representation_tier: RepresentationTier::LiveBackend,
+            nav_label: Some("Mesh".to_string()),
+            nav_icon: None,
+            nav_group: None,
+            parent_surface: None,
+            notes: None,
+        };
+        let idx = build_index(&Inputs {
+            surfaces: SurfaceRegistry {
+                x_vox_version: 1,
+                schema_version: 1,
+                surfaces: vec![entry],
+            },
+            coverage: Some(snap(&[("surface", "surface:mesh", "surfaced")])),
+            ..Default::default()
+        })
+        .expect("build");
+        assert_eq!(cov(&idx, "surface.mesh").kind.as_deref(), Some("surfaced"));
+    }
+
+    #[test]
+    fn no_snapshot_keeps_reason() {
+        let idx = index_with(
+            vec![test_op(
+                "x",
+                Some((&["x", "y"], "active")),
+                Some("vox_x"),
+                "d",
+            )],
+            None,
+        );
+        for id in ["cli.x.y", "mcp.vox_x"] {
+            let c = cov(&idx, id);
+            assert!(c.kind.is_none());
+            assert_eq!(
+                c.reason.as_deref(),
+                Some("no graph-coverage snapshot committed")
+            );
+        }
+        assert!(idx.coverage_snapshot.is_none());
+    }
+
+    #[test]
+    fn snapshot_meta_copied_verbatim() {
+        let s = snap(&[("tool", "tool:vox_x", "surfaced")]);
+        let idx = index_with(
+            vec![test_op("x", None, Some("vox_x"), "d")],
+            Some(s.clone()),
+        );
+        assert_eq!(idx.coverage_snapshot.as_ref(), Some(&s.source));
     }
 }

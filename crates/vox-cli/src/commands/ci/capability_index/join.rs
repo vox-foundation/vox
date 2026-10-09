@@ -8,6 +8,7 @@ use vox_capability_registry::{
     implicit_cli_capability_id, implicit_mcp_capability_id,
 };
 
+use super::coverage;
 use super::inputs::{Inputs, OperationRow};
 use super::nodes;
 use super::owner::{
@@ -137,6 +138,7 @@ pub(crate) fn build_index(inputs: &Inputs) -> Result<CapabilityIndex> {
     nodes::apply_surface_join(&mut rows, &inputs.surfaces);
     let extra = nodes::non_operation_rows(&mut rows, inputs)?;
     rows.extend(extra);
+    coverage::apply_coverage(&mut rows, inputs.coverage.as_ref());
     let mut seen = BTreeSet::new();
     for row in &rows {
         if !seen.insert(row.id.as_str()) {
@@ -147,7 +149,7 @@ pub(crate) fn build_index(inputs: &Inputs) -> Result<CapabilityIndex> {
     Ok(CapabilityIndex {
         schema_version: 1,
         generator: "vox ci capability-index".to_string(),
-        coverage_snapshot: None,
+        coverage_snapshot: inputs.coverage.as_ref().map(|s| s.source.clone()),
         domains: inputs.domains.domains.clone(),
         rows,
     })

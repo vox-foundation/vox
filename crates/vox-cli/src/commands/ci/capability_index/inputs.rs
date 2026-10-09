@@ -14,6 +14,7 @@ use vox_capability_registry::DomainDef;
 use super::super::gui_surface_registry::{SurfaceRegistry, load_registry};
 pub(crate) use super::super::operations_catalog::OperationRow;
 use super::super::operations_catalog::read_catalog;
+use super::coverage::{CoverageSnapshot, SNAPSHOT_REL};
 use super::owner::{CLI_COMMANDS_DIR, Layers};
 
 const LAYERS_REL: &str = "docs/src/architecture/layers.toml";
@@ -35,6 +36,8 @@ pub(crate) struct Inputs {
     pub crate_descriptions: BTreeMap<String, String>,
     /// Skill plugins (with the MCP tools they expose) and skill bundles from the plugin catalog.
     pub skills: Vec<SkillInput>,
+    /// Committed graph-coverage snapshot (D-07); `None` when the file is absent.
+    pub coverage: Option<CoverageSnapshot>,
 }
 
 /// One skill plugin or skill bundle from the plugin catalog.
@@ -83,7 +86,19 @@ pub(crate) fn load(repo_root: &Path) -> Result<Inputs> {
         surfaces: load_registry(repo_root)?,
         crate_descriptions,
         skills: load_skills(),
+        coverage: load_coverage(repo_root)?,
     })
+}
+
+/// The committed coverage snapshot; a missing file is `None` (rows then say why), never an error.
+fn load_coverage(repo_root: &Path) -> Result<Option<CoverageSnapshot>> {
+    let path = repo_root.join(SNAPSHOT_REL);
+    if !path.is_file() {
+        return Ok(None);
+    }
+    serde_json::from_str(&read_utf8_path_capped(&path)?)
+        .map(Some)
+        .with_context(|| format!("parse {SNAPSHOT_REL}"))
 }
 
 /// `package.description` of every layers crate whose manifest exists and carries a plain string.
