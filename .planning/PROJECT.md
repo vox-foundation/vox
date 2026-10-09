@@ -22,7 +22,9 @@ The compiler, orchestrator, and runtime that everything else depends on must kee
 - Verified findings persisted authoritatively with provenance, projected into memory and search, frozen per arm, and measured via memory ablations.
 - Shadow challengers and dual-control, scope-bound champion designation with safety suspension — no automatic runtime mutation.
 
-Reuses existing infrastructure; adds one trial identity instead of a parallel stack. No GUI/dashboard work.
+Reuses existing infrastructure; adds one trial identity instead of a parallel stack. No research-trial GUI/dashboard work.
+
+**Inserted ahead of Phase 7 — Discoverability (phases 06.2–06.6, added 2026-10-08):** make every Vox capability findable and runnable from one generated capability index — a universal ⌘K palette, a Capability Explorer with a CI coverage gate and orphan-backend disposition, an Architecture Atlas of layers/crates, and Playwright time-to-find journeys — for contributors, `.vox` app authors, and GUI end users.
 
 ## Requirements
 
@@ -55,6 +57,7 @@ Reuses existing infrastructure; adds one trial identity instead of a parallel st
 - [ ] Verified, provenance-rich, searchable knowledge accumulation with frozen per-arm manifests and memory ablations
 - [ ] Shadow challengers, two-campaign confirmation, and dual-control scoped champion designation
 - [ ] Adversarial/stress trials, mutation testing of gates, and operational hardening
+- [ ] Discoverability: one generated capability index feeding GUI palette, Capability Explorer, Architecture Atlas, `vox explain`/`vox features`, and llms.txt; CI coverage gate; time-to-find journeys (DISC-01..16)
 
 ### Out of Scope
 
@@ -107,4 +110,4 @@ Reuses existing infrastructure; adds one trial identity instead of a parallel st
 | v1.1 trial governance (grill G1–G25, R1–R9) | Signed immutable campaigns, atomic spend reservations, group-sequential stats, two-campaign promotion, dual-control designation, structural-only telemetry, linked retries instead of resume | — Pending — v1.1 implements it |
 
 ---
-*Last updated: 2026-10-01 after v1.0 completion and v1.1 Research Trial Flywheel initialization*
+*Last updated: 2026-10-08 after inserting discoverability phases 06.2–06.6*

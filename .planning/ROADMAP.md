@@ -3,7 +3,7 @@
 ## Milestones
 
 - ✅ **v1.0 Architectural Housekeeping** — Phases 1–6 (shipped 2026-10-01) — [archive](milestones/v1.0-ROADMAP.md)
-- 🚧 **v1.1 Research Trial Flywheel** — Phases 7–11 (in progress)
+- 🚧 **v1.1 Research Trial Flywheel** — Phases 06.2–06.6 (inserted discoverability) and 7–11 (in progress)
 
 ## Overview
 
@@ -31,6 +31,11 @@ v1.1 turns Vox's existing research pipeline, telemetry, evaluation, model routin
 
 ### 🚧 v1.1 Research Trial Flywheel
 
+- [ ] **Phase 06.2: Capability Index SSOT** (INSERTED) - One generated index joining CLI/MCP/GUI/docs/crates/skills/graph coverage; `vox explain`, `vox features`, generated llms.txt
+- [ ] **Phase 06.3: Universal Palette** (INSERTED) - ⌘K finds and runs every indexed capability; action registry; `?` shortcut sheet
+- [ ] **Phase 06.4: Capability Explorer & Coverage Gate** (INSERTED) - Domain-grouped explorer with status, generic_form tier, CI coverage gate, orphan disposition to 0
+- [ ] **Phase 06.5: Architecture Atlas** (INSERTED) - Navigable L0–L5 layer/crate map with edges, blast radius, and capability cross-links
+- [ ] **Phase 06.6: Time-to-Find Journeys** (INSERTED) - Playwright cold-start journeys with interaction budgets, gated in hosted CI
 - [ ] **Phase 7: Trial Identity, Contracts & Observational Baseline** - One signed campaign/run identity, atomic Tier A persistence, structural telemetry, hermetic fixtures, and a no-policy-change baseline
 - [ ] **Phase 8: Race Harness & Multidimensional Scorecards** - Bounded parallel condition matrix with spend reservations, arm isolation, group-sequential stopping, hard-gate + Pareto scoring, and reports
 - [ ] **Phase 9: Verified Knowledge Loop** - Tier C evidence decision, authoritative findings with provenance, acknowledged projections, frozen per-arm manifests, and memory ablations
@@ -38,6 +43,75 @@ v1.1 turns Vox's existing research pipeline, telemetry, evaluation, model routin
 - [ ] **Phase 11: Adversarial Trials & Hardening** - Adversarial/stress trials, mutation-tested gates, evidence bundles, and full gate pass
 
 ## Phase Details
+
+### Phase 06.2: Capability Index SSOT (INSERTED)
+
+**Goal:** One generated capability index is the single source that answers "what can Vox do, where is it, and how do I reach it" for CLI, GUI, MCP, docs, and agents.
+**Depends on:** Nothing (reads existing `contracts/operations/catalog.v1.yaml`, `contracts/gui/surface-registry.v1.yaml`, `contracts/gui/omnisearch-index.v1.yaml`, `layers.toml`, skills catalog, `vox graph coverage`)
+**Requirements**: DISC-01, DISC-02, DISC-03, DISC-04
+**Success Criteria** (what must be TRUE):
+
+  1. `contracts/capabilities/capability-index.v1.json` exists, is generated, and every operations-catalog entry has a row with surface, doc, crate, layer, and coverage kind (null only where genuinely absent).
+  2. Adding a CLI command or GUI surface without regenerating fails `vox ci ssot-drift`.
+  3. `vox explain mesh` and `vox features --domain secrets` print layer, CLI/GUI/MCP equivalents, and a docs link.
+  4. `llms.txt` capability sections are generator output and link the MCP tool reference and GUI navigation.
+
+**Plans**: TBD
+
+### Phase 06.3: Universal Palette (INSERTED)
+
+**Goal:** ⌘K is the one place to find and run anything in Vox.
+**Depends on:** Phase 06.2
+**Requirements**: DISC-05, DISC-06, DISC-07
+**Success Criteria** (what must be TRUE):
+
+  1. Omnibar results draw from the capability index; searching any CLI verb, MCP tool, skill, crate, doc, setting, or keybind returns it.
+  2. Selecting a CLI verb runs it or opens a prefilled Catalog form; selecting a surface navigates to it.
+  3. `?` opens a generated shortcut sheet; every keybind appears as a palette action.
+  4. A Playwright spec with mock IPC covers palette search + run, with review-bundle screenshots.
+
+**Plans**: TBD
+
+### Phase 06.4: Capability Explorer & Coverage Gate (INSERTED)
+
+**Goal:** Users can browse everything Vox can do by domain, and CI keeps every capability reachable or explicitly exempted.
+**Depends on:** Phase 06.2
+**Requirements**: DISC-08, DISC-09, DISC-10, DISC-11
+**Success Criteria** (what must be TRUE):
+
+  1. A top-level Capability Explorer surface (promoted from the hidden Settings → Coverage table) groups capabilities by domain with status badges and links to surface/CLI/docs.
+  2. Catalog generic forms count as `generic_form`; the registry's `none` tier (80 of 112 today) shrinks accordingly.
+  3. A CI check fails on a capability with no representation and no owner+reason exemption.
+  4. The undispositioned OrphanBackend/DeadEnd count is 0 and ratcheted.
+
+**Plans**: TBD
+
+### Phase 06.5: Architecture Atlas (INSERTED)
+
+**Goal:** Contributors can see Vox's layers, crates, and their relationships in the GUI and jump from structure to capabilities, code, and docs.
+**Depends on:** Phase 06.2
+**Requirements**: DISC-12, DISC-13, DISC-14
+**Success Criteria** (what must be TRUE):
+
+  1. The Atlas surface renders L0–L5 bands with every `layers.toml` crate and its dependency edges.
+  2. Selecting a crate shows its crate-map community/blast radius, the capabilities it backs, and source/doc links.
+  3. Explorer ↔ Atlas cross-links work in both directions.
+  4. A Playwright visual stepper covers atlas navigation in light/dark themes.
+
+**Plans**: TBD
+
+### Phase 06.6: Time-to-Find Journeys (INSERTED)
+
+**Goal:** Discoverability is measured, not asserted: scripted journeys prove common things are found fast and stay fast.
+**Depends on:** Phases 06.3, 06.4, 06.5
+**Requirements**: DISC-15, DISC-16
+**Success Criteria** (what must be TRUE):
+
+  1. At least 8 cold-start journeys spanning contributor, `.vox` author, and GUI-operator tasks each pass within their recorded interaction budget.
+  2. Journeys capture screenshots into `crates/vox-gui/ui/review-bundle/latest/`.
+  3. The suite runs in the hosted `ui` lane and fails on budget regression.
+
+**Plans**: TBD
 
 ### Phase 7: Trial Identity, Contracts & Observational Baseline
 
@@ -136,12 +210,17 @@ v1.1 turns Vox's existing research pipeline, telemetry, evaluation, model routin
 
 ## Progress
 
-**Execution Order:** Phases execute in numeric order: 7 → 8 → 9 → 10 → 11
+**Execution Order:** Phases execute in numeric order: 06.2 → 06.3 → 06.4 → 06.5 → 06.6 → 7 → 8 → 9 → 10 → 11
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 1–6 | v1.0 | 23/23 | Complete | 2026-10-01 |
 | 06.1 Hosted CI gate and fast local loop (INSERTED) | v1.0 | plan-doc | In progress | - |
+| 06.2 Capability Index SSOT (INSERTED) | v1.1 | 0/TBD | Not started | - |
+| 06.3 Universal Palette (INSERTED) | v1.1 | 0/TBD | Not started | - |
+| 06.4 Capability Explorer & Coverage Gate (INSERTED) | v1.1 | 0/TBD | Not started | - |
+| 06.5 Architecture Atlas (INSERTED) | v1.1 | 0/TBD | Not started | - |
+| 06.6 Time-to-Find Journeys (INSERTED) | v1.1 | 0/TBD | Not started | - |
 | 7. Trial Identity, Contracts & Observational Baseline | v1.1 | 0/TBD | Not started | - |
 | 8. Race Harness & Multidimensional Scorecards | v1.1 | 0/TBD | Not started | - |
 | 9. Verified Knowledge Loop | v1.1 | 0/TBD | Not started | - |
