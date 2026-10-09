@@ -4535,7 +4535,7 @@ operations:
   description_human: null
   product_lane: app
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -4547,6 +4547,9 @@ operations:
   mcp:
     name: vox_build_crate
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - compiler
   cli: null
 - id: builtin.registry
   title: Builtin Registry
@@ -4554,7 +4557,7 @@ operations:
   description_human: null
   product_lane: app
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: none
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -4566,6 +4569,9 @@ operations:
   mcp:
     name: vox_builtin_registry
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - compiler
   cli: null
 - id: bundle
   title: Bundle (plugins)
@@ -4847,7 +4853,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -4859,6 +4865,9 @@ operations:
   mcp:
     name: vox_ghost_text
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - llm_facade
   cli: null
 - id: check
   title: Check
@@ -4866,7 +4875,7 @@ operations:
   description_human: null
   product_lane: app
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -4878,6 +4887,9 @@ operations:
   mcp:
     name: vox_check
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - compiler
   cli:
     path:
     - check
@@ -4932,7 +4944,7 @@ operations:
   description_human: null
   product_lane: app
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -4944,6 +4956,9 @@ operations:
   mcp:
     name: vox_check_workspace
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - compiler
   cli: null
 - id: ci
   title: Ci
@@ -10044,7 +10059,7 @@ operations:
   description_human: null
   product_lane: app
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -10056,6 +10071,9 @@ operations:
   mcp:
     name: vox_compiler::ast_inspect
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - compiler
   cli: null
 - id: complete.task
   title: Complete Task
@@ -10323,7 +10341,7 @@ operations:
   description_human: null
   product_lane: app
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -10335,6 +10353,9 @@ operations:
   mcp:
     name: vox_coverage_report
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - compiler
   cli: null
 - id: db
   title: Db
@@ -12715,7 +12736,7 @@ operations:
   description_human: null
   product_lane: app
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: none
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -12727,6 +12748,9 @@ operations:
   mcp:
     name: vox_decorator_registry
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - compiler
   cli: null
 - id: dei
   title: Dei
@@ -13209,7 +13233,7 @@ operations:
   description_human: null
   product_lane: app
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: none
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -13221,6 +13245,9 @@ operations:
   mcp:
     name: vox_export_grammar_ebnf
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - compiler
   cli: null
 - id: fabrica
   title: Fabrica
@@ -14886,7 +14913,7 @@ operations:
   - codegen
   - vox
   - llm
-  side_effect_class: none
+  side_effect_class: network
   scope_kind: repository
   reversible: true
   requires_repo: true
@@ -14898,6 +14925,10 @@ operations:
   mcp:
     name: vox_generate_code
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - llm_facade
+    - compiler
   cli: null
 - id: graph
   title: Vox Graph
@@ -15613,7 +15644,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -15625,6 +15656,9 @@ operations:
   mcp:
     name: vox_journey_canonical_steps
     http_read_role_eligible: true
+    exposure: public
+    requires:
+    - db
   cli: null
 - id: knowledge.query
   title: Knowledge Query
@@ -15651,7 +15685,7 @@ operations:
   description_human: null
   product_lane: app
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: none
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -15663,6 +15697,9 @@ operations:
   mcp:
     name: vox_language_surface
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - compiler
   cli: null
 - id: learn.pattern
   title: Learn Pattern
@@ -15689,7 +15726,7 @@ operations:
   description_human: null
   product_lane: app
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -15701,6 +15738,9 @@ operations:
   mcp:
     name: vox_lint_crate
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - compiler
   cli: null
 - id: list.context
   title: List Context
@@ -20927,7 +20967,7 @@ operations:
   description_human: null
   product_lane: app
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -20939,6 +20979,9 @@ operations:
   mcp:
     name: vox_run_tests
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - compiler
   cli: null
 - id: schola.submit
   title: Schola Submit
@@ -24698,7 +24741,7 @@ operations:
   description_human: null
   product_lane: app
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -24710,6 +24753,9 @@ operations:
   mcp:
     name: vox_test_all
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - compiler
   cli: null
 - id: test.decision
   title: Test Decision
@@ -24717,7 +24763,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -24729,6 +24775,8 @@ operations:
   mcp:
     name: vox_test_decision
     http_read_role_eligible: true
+    exposure: public
+    requires: []
   cli: null
 - id: toestub.findings.upsert
   title: Toestub Findings Upsert
@@ -24736,7 +24784,7 @@ operations:
   description_human: null
   product_lane: platform
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -24748,6 +24796,8 @@ operations:
   mcp:
     name: vox_code_audit_findings_upsert
     http_read_role_eligible: false
+    exposure: public
+    requires: []
   cli: null
 - id: tool.search
   title: Tool Search
@@ -24909,7 +24959,7 @@ operations:
   description_human: null
   product_lane: app
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -24921,6 +24971,9 @@ operations:
   mcp:
     name: vox_validate_file
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - compiler
   cli: null
 - id: validate.source
   title: Validate Source
@@ -24928,7 +24981,7 @@ operations:
   description_human: null
   product_lane: app
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: none
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -24940,6 +24993,9 @@ operations:
   mcp:
     name: vox_validate_source
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - compiler
   cli: null
 - id: vcs.status
   title: Vcs Status
@@ -25007,7 +25063,7 @@ operations:
   - gui
   - visual
   - testing
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -25019,6 +25075,9 @@ operations:
   mcp:
     name: vox_visus_audit
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - browser
   cli:
     path:
     - visus
@@ -25040,7 +25099,7 @@ operations:
   - visual
   - testing
   - baseline
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -25052,6 +25111,10 @@ operations:
   mcp:
     name: vox_visus_baseline
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - browser
+    - db
   cli:
     path:
     - visus
@@ -26449,7 +26512,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: session
   reversible: false
   requires_repo: null
@@ -26461,6 +26524,8 @@ operations:
   mcp:
     name: vox_gui_components
     http_read_role_eligible: true
+    exposure: public
+    requires: []
   cli: null
 - id: gui.drive
   title: Gui Drive
@@ -26806,7 +26871,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: session
   reversible: false
   requires_repo: null
@@ -26818,6 +26883,8 @@ operations:
   mcp:
     name: vox_gui_tokens
     http_read_role_eligible: true
+    exposure: public
+    requires: []
   cli: null
 - id: gui.validate
   title: GUI VUV Validation
@@ -26826,7 +26893,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: none
   scope_kind: session
   reversible: false
   requires_repo: null
@@ -26838,6 +26905,9 @@ operations:
   mcp:
     name: vox_validate_vuv
     http_read_role_eligible: true
+    exposure: public
+    requires:
+    - compiler
   cli: null
 - id: gui.rules
   title: GUI Design Rules
@@ -26846,7 +26916,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: session
   reversible: false
   requires_repo: null
@@ -26858,6 +26928,8 @@ operations:
   mcp:
     name: vox_gui_rules
     http_read_role_eligible: true
+    exposure: public
+    requires: []
   cli: null
 - id: bundle-app
   title: Bundle App
