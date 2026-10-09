@@ -19,6 +19,1344 @@
 - [Secrets (Secret Management)](https://voxlang.org/reference/secrets-ssot/)
 - [MCP Tool Reference](https://voxlang.org/reference/mcp-tool-reference/)
 
+<!-- BEGIN GENERATED capability-index: vox ci capability-index --write -->
+## Capability index (generated)
+Every CLI command and MCP tool, grouped by domain. Query it: `vox explain <thing>` or MCP `vox_capability_explain`.
+
+### Compiler
+- `vox build`: Build
+- `vox check` / `vox_check`: Check
+- `vox compile`: Compile
+- `vox component`: Component
+- `vox emit`: Emit
+- `vox emit client`: Emit Client
+- `vox emit openapi`: Emit Openapi
+- `vox fabrica`: Fabrica
+- `vox fabrica build`: Fabrica Build
+- `vox fabrica bundle`: Fabrica Bundle
+- `vox fabrica check`: Fabrica Check
+- `vox fabrica compile`: Fabrica Compile
+- `vox fabrica dev`: Fabrica Dev
+- `vox fabrica fmt`: Fabrica Fmt
+- `vox fabrica run`: Fabrica Run
+- `vox fabrica script`: Fabrica Script
+- `vox fabrica test`: Fabrica Test
+- `vox fmt`: Fmt
+- `vox generate`: Generate
+- `vox grammar`: Grammar
+- `vox init`: Init
+- `vox lsp`: Lsp
+- `vox migrate`: Migrate
+- `vox migrate names`: Migrate Names
+- `vox migrate web`: Migrate Web Sources
+- `vox new`: New
+- `vox new fn`: New Fn
+- `vox new skill`: New Skill
+- `vox new web`: New Web
+- `vox test`: Test
+- `vox_check_file_owner`: Check File Owner
+- `vox_check_mood`: Check Mood
+- `vox_check_workspace`: Check Workspace
+- `vox_test_all`: Test All
+- `vox_test_decision`: Test Decision
+- `vox_validate_file`: Validate File
+- `vox_validate_source`: Validate Source
+- `vox_validate_vuv`: GUI VUV Validation
+
+### Orchestrator & agents
+- `vox chat`: Chat
+- `vox dei`: Dei
+- `vox dei oplog list`: Dei Oplog List
+- `vox dei snapshot diff`: Dei Snapshot Diff
+- `vox dei snapshot list`: Dei Snapshot List
+- `vox dei snapshot restore`: Dei Snapshot Restore
+- `vox dei takeover-status`: Dei Takeover-status
+- `vox dei workspace create`: Dei Workspace Create
+- `vox dei workspace merge`: Dei Workspace Merge
+- `vox dei workspace status`: Dei Workspace Status
+- `vox dispatch`: Dispatch
+- `vox dispatch preview`: Dispatch Preview
+- `vox harness`: Harness
+- `vox harness eval`: Harness Eval
+- `vox harness history`: Harness History
+- `vox harness publish`: Harness Publish
+- `vox harness report`: Harness Report
+- `vox llm`: Llm
+- `vox llm prompt`: Llm Prompt
+- `vox mcp`: Mcp
+- `vox memory`: Memory
+- `vox memory search` / `vox_memory_search`: Memory Search
+- `vox plan` / `vox_plan`: Plan
+- `vox plan create`: Plan Create
+- `vox plan replan`: Plan Replan
+- `vox plan status` / `vox_plan_status`: Plan Status
+- `vox rollback`: Rollback
+- `vox stop`: Stop
+- `vox_a2a_ack`: A2a Ack
+- `vox_a2a_broadcast`: A2a Broadcast
+- `vox_a2a_history`: A2a History
+- `vox_a2a_inbox`: A2a Inbox
+- `vox_a2a_send`: A2a Send
+- `vox_a2a_tasks`: A2a Tasks
+- `vox_agent_assess`: Agent Assess
+- `vox_agent_continue`: Agent Continue
+- `vox_agent_events`: Agent Events
+- `vox_agent_gateway_call`: Agent Gateway Call
+- `vox_agent_handoff`: Agent Handoff
+- `vox_agent_list_remote`: Agent List Remote
+- `vox_agent_notify`: Agent Notify
+- `vox_agent_status`: Agent Status
+- `vox_agent_subscribe`: Agent Subscribe
+- `vox_agent_subscriptions`: Agent Subscriptions
+- `vox_agent_unsubscribe`: Agent Unsubscribe
+- `vox_agy_delegate`: Agy Delegate
+- `vox_agy_delegate_batch`: Agy Delegate Batch
+- `vox_agy_doctor`: Agy Doctor
+- `vox_agy_ledger_digest`: Agy Ledger Digest
+- `vox_agy_pipeline`: Agy Pipeline
+- `vox_agy_review`: Agy Review
+- `vox_ask_agent`: Ask Agent
+- `vox_ask_clarification`: Ask Clarification
+- `vox_attention_history`: Attention History
+- `vox_attention_reset`: Attention Reset
+- `vox_attention_summary`: Attention Summary
+- `vox_behavior_record`: Behavior Record
+- `vox_behavior_summary`: Behavior Summary
+- `vox_benchmark_list`: Benchmark List
+- `vox_benchmark_record`: Benchmark Record
+- `vox_chat_history`: Chat History
+- `vox_chat_message`: Chat Message
+- `vox_handoff_context`: Handoff Context
+- `vox_handoff_lineage`: Handoff Lineage
+- `vox_memory_list_keys`: Memory List Keys
+- `vox_memory_log`: Memory Log
+- `vox_memory_recall`: Memory Recall
+- `vox_memory_recall_db`: Memory Recall Db
+- `vox_memory_save_db`: Memory Save Db
+- `vox_memory_store`: Memory Store
+- `vox_orchestrator_persistence_outbox_lifecycle`: Orchestrator Persistence Outbox Lifecycle
+- `vox_orchestrator_persistence_outbox_queue`: Orchestrator Persistence Outbox Queue
+- `vox_orchestrator_start`: Orchestrator Start
+- `vox_orchestrator_status`: Orchestrator Status
+- `vox_pending_approvals`: Pending Approvals
+- `vox_pending_questions`: Pending Questions
+- `vox_plan_list_sessions`: Plan List Sessions
+- `vox_plan_resume`: Plan Resume
+- `vox_preference_get`: Preference Get
+- `vox_preference_list`: Preference List
+- `vox_preference_set`: Preference Set
+- `vox_questioning_pending`: Questioning Pending
+- `vox_questioning_submit_answer`: Questioning Submit Answer
+- `vox_questioning_sync_ssot`: Questioning Sync Ssot
+- `vox_session_cleanup`: Session Cleanup
+- `vox_session_compact`: Session Compact
+- `vox_session_create`: Session Create
+- `vox_session_info`: Session Info
+- `vox_session_list`: Session List
+- `vox_session_reset`: Session Reset
+
+### Mesh / Populi
+- `vox populi`: Populi
+- `vox populi down`: Populi Down
+- `vox populi registry-snapshot`: Populi Registry-snapshot
+- `vox populi serve`: Populi Serve
+- `vox populi status`: Populi Status
+- `vox populi up`: Populi Up
+- `vox_mesh_dispatch`: Mesh Dispatch
+- `vox_mesh_nodes`: Mesh Nodes
+- `vox_mesh_queue_stats`: Mesh Queue Stats
+
+### ML / Mens
+- `vox mens`: Mens
+- `vox mens bench-completion`: Mens Bench-completion
+- `vox mens check`: Mens Check
+- `vox mens cloud-estimate`: Mens Cloud-estimate
+- `vox mens corpus`: Mens Corpus
+- `vox mens eval-gate`: Mens Eval-gate
+- `vox mens eval-local`: Mens Eval-local
+- `vox mens fix`: Mens Fix
+- `vox mens generate`: Mens Generate
+- `vox mens merge-qlora`: Mens Merge-qlora
+- `vox mens merge-weights`: Mens Merge-weights
+- `vox mens pipeline`: Mens Pipeline
+- `vox mens plan`: Mens Plan
+- `vox mens probe`: Mens Probe
+- `vox mens review`: Mens Review
+- `vox mens serve`: Mens Serve
+- `vox mens status`: Mens Status
+- `vox mens system-prompt-template`: Mens System-prompt-template
+- `vox mens train`: Mens Train
+- `vox mens train-uv`: Mens Train-uv
+- `vox mens watch-telemetry`: Mens Watch-telemetry
+- `vox mens workflow check`: Mens Workflow Check
+- `vox mens workflow inspect`: Mens Workflow Inspect
+- `vox mens workflow list`: Mens Workflow List
+- `vox mens workflow run`: Mens Workflow Run
+- `vox model`: Model
+- `vox model cas`: Model Cas
+- `vox model cas ls`: Model Cas Ls
+- `vox model cas pull`: Model Cas Pull
+- `vox model cas push`: Model Cas Push
+- `vox model classify`: Model Classify
+- `vox model costs`: Model Costs
+- `vox model council-report`: Model Council-report
+- `vox model discover`: Model Discover
+- `vox model eval`: Model Eval
+- `vox model eval-corpus`: Model Eval-corpus
+- `vox model explain`: Model Explain
+- `vox model list`: Model List
+- `vox model preferences`: Model Preferences
+- `vox model preferences reset`: Model Preferences Reset
+- `vox model preferences set`: Model Preferences Set
+- `vox model pricing`: Model Pricing
+- `vox model pricing check`: Model Pricing Check
+- `vox model pricing refresh`: Model Pricing Refresh
+- `vox model pricing rollup`: Model Pricing Rollup
+- `vox model pricing show`: Model Pricing Show
+- `vox model rollup`: Model Rollup
+- `vox model scoreboard`: Model Scoreboard
+- `vox model shadow`: Model Shadow
+- `vox model show`: Model Show
+- `vox train`: Train
+
+### Research / Scientia
+- `vox research`: Research
+- `vox research down`: Research Down
+- `vox research eval`: Research Eval
+- `vox research flag`: Research Flag
+- `vox research history`: Research History
+- `vox research preview`: Research Preview
+- `vox research probe`: Research Probe
+- `vox research publish`: Research Publish
+- `vox research result`: Research Result
+- `vox research run` / `vox_research_run`: Research Run
+- `vox research search` / `vox_research_search`: Research Knowledgebase Search
+- `vox research show`: Research Show
+- `vox research status` / `vox_research_status`: Research Session Status
+- `vox research up`: Research Up
+- `vox research watch`: Research Watch
+- `vox scientia`: Scientia
+- `vox scientia capability-list`: Scientia Capability-list
+- `vox scientia claims`: Scientia Claims
+- `vox scientia collection-transform-preview`: Scientia Collection-transform-preview
+- `vox scientia cost`: Scientia Cost
+- `vox scientia dashboard`: Scientia Dashboard
+- `vox scientia diagnose`: Scientia Diagnose
+- `vox scientia discovery-watch`: Scientia Discovery-watch
+- `vox scientia evidence-assist`: Scientia Evidence-assist
+- `vox scientia feed-source-add`: Scientia Feed-source-add
+- `vox scientia feed-source-list`: Scientia Feed-source-list
+- `vox scientia finding-candidate-validate`: Scientia Finding-candidate-validate
+- `vox scientia ingest-tick`: Scientia Ingest-tick
+- `vox scientia mirror-search-corpus`: Scientia Mirror-search-corpus
+- `vox scientia novelty-evidence-bundle-validate`: Scientia Novelty-evidence-bundle-validate
+- `vox scientia publication-approve`: Scientia Publication-approve
+- `vox scientia publication-archive-code`: Scientia Publication-archive-code
+- `vox scientia publication-archive-run`: Scientia Publication-archive-run
+- `vox scientia publication-arxiv-bundle`: Scientia Publication-arxiv-bundle
+- `vox scientia publication-arxiv-handoff-record`: Scientia Publication-arxiv-handoff-record
+- `vox scientia publication-autofill`: Scientia Publication-autofill
+- `vox scientia publication-claim-review`: Scientia Publication-claim-review
+- `vox scientia publication-critic-approve`: Scientia Publication-critic-approve
+- `vox scientia publication-critic-gate-check`: Scientia Publication-critic-gate-check
+- `vox scientia publication-dashboard-snapshot`: Scientia Publication-dashboard-snapshot
+- `vox scientia publication-decision-explain`: Scientia Publication-decision-explain
+- `vox scientia publication-discovery-explain`: Scientia Publication-discovery-explain
+- `vox scientia publication-discovery-publish-rss`: Scientia Publication-discovery-publish-rss
+- `vox scientia publication-discovery-scan`: Scientia Publication-discovery-scan
+- `vox scientia publication-external-jobs-dead-letter`: Scientia Publication-external-jobs-dead-letter
+- `vox scientia publication-external-jobs-due`: Scientia Publication-external-jobs-due
+- `vox scientia publication-external-jobs-replay`: Scientia Publication-external-jobs-replay
+- `vox scientia publication-external-jobs-tick`: Scientia Publication-external-jobs-tick
+- `vox scientia publication-external-pipeline-metrics`: Scientia Publication-external-pipeline-metrics
+- `vox scientia publication-extract-claims`: Scientia Publication-extract-claims
+- `vox scientia publication-finding-page-render`: Scientia Publication-finding-page-render
+- `vox scientia publication-manuscript-draft`: Scientia Publication-manuscript-draft
+- `vox scientia publication-nanopub-build`: Scientia Publication-nanopub-build
+- `vox scientia publication-novelty-fetch`: Scientia Publication-novelty-fetch
+- `vox scientia publication-novelty-happy-path`: Scientia Publication-novelty-happy-path
+- `vox scientia publication-openreview-profile`: Scientia Publication-openreview-profile
+- `vox scientia publication-preflight`: Scientia Publication-preflight
+- `vox scientia publication-prepare`: Scientia Publication-prepare
+- `vox scientia publication-prepare-validated`: Scientia Publication-prepare-validated
+- `vox scientia publication-render-latex`: Scientia Publication-render-latex
+- `vox scientia publication-replay-execute`: Scientia Publication-replay-execute
+- `vox scientia publication-review-queue`: Scientia Publication-review-queue
+- `vox scientia publication-scholarly-pipeline-run`: Scientia Publication-scholarly-pipeline-run
+- `vox scientia publication-scholarly-remote-status`: Scientia Publication-scholarly-remote-status
+- `vox scientia publication-scholarly-remote-status-sync-all`: Scientia Publication-scholarly-remote-status-sync-all
+- `vox scientia publication-scholarly-remote-status-sync-batch`: Scientia Publication-scholarly-remote-status-sync-batch
+- `vox scientia publication-scholarly-staging-export`: Scientia Publication-scholarly-staging-export
+- `vox scientia publication-status`: Scientia Publication-status
+- `vox scientia publication-submit-local`: Scientia Publication-submit-local
+- `vox scientia publication-transform-preview`: Scientia Publication-transform-preview
+- `vox scientia publication-venue-recommend`: Scientia Publication-venue-recommend
+- `vox scientia publication-worthiness-evaluate`: Scientia Publication-worthiness-evaluate
+- `vox scientia publication-zenodo-metadata`: Scientia Publication-zenodo-metadata
+- `vox scientia research-list`: Scientia Research-list
+- `vox scientia research-map-list`: Scientia Research-map-list
+- `vox scientia research-refresh`: Scientia Research-refresh
+- `vox scientia retrieval-status`: Scientia Retrieval-status
+- `vox scientia scout`: Scientia Scout
+- `vox_kb_add_entry`: Add Knowledge Entry
+- `vox_kb_add_rule`: Add Knowledge Rule
+- `vox_kb_clip`: Clip Knowledge Fact
+- `vox_kb_create`: Create Knowledge Base
+- `vox_kb_delete`: Delete Knowledge Base
+- `vox_kb_delete_entry`: Delete Knowledge Entry
+- `vox_kb_get_feed`: Get Knowledge Feed
+- `vox_kb_list`: List Knowledge Bases
+- `vox_kb_list_entries`: List Knowledge Entries
+- `vox_kb_list_rules`: List Knowledge Rules
+- `vox_kb_query`: Query Knowledge Base
+- `vox_kb_review_entry`: Review Knowledge Entry
+- `vox_news_approval_status`: News Approval Status
+- `vox_news_approve`: News Approve
+- `vox_news_draft_research`: News Draft Research
+- `vox_news_simulate_publish_gate`: News Simulate Publish Gate
+- `vox_news_test_syndicate`: News Test Syndicate
+- `vox_research_get`: Research Session Result
+- `vox_research_start`: Research Start (async MCP)
+- `vox_scientia_assist_suggestions`: Scientia Assist Suggestions
+- `vox_scientia_publication_approve`: Scientia Publication Approve
+- `vox_scientia_publication_arxiv_handoff_record`: Scientia Publication Arxiv Handoff Record
+- `vox_scientia_publication_decision_explain`: Scientia Publication Decision Explain
+- `vox_scientia_publication_discovery_explain`: Scientia Publication Discovery Explain
+- `vox_scientia_publication_discovery_refresh_evidence`: Scientia Publication Discovery Refresh Evidence
+- `vox_scientia_publication_discovery_scan`: Scientia Publication Discovery Scan
+- `vox_scientia_publication_external_jobs_dead_letter`: Scientia Publication External Jobs Dead Letter
+- `vox_scientia_publication_external_jobs_due`: Scientia Publication External Jobs Due
+- `vox_scientia_publication_external_jobs_replay`: Scientia Publication External Jobs Replay
+- `vox_scientia_publication_external_jobs_tick`: Scientia Publication External Jobs Tick
+- `vox_scientia_publication_external_pipeline_metrics`: Scientia Publication External Pipeline Metrics
+- `vox_scientia_publication_media_delete`: Scientia Publication Media Delete
+- `vox_scientia_publication_media_list`: Scientia Publication Media List
+- `vox_scientia_publication_media_upsert`: Scientia Publication Media Upsert
+- `vox_scientia_publication_novelty_fetch`: Scientia Publication Novelty Fetch
+- `vox_scientia_publication_novelty_happy_path`: Scientia Publication Novelty Happy Path
+- `vox_scientia_publication_preflight`: Scientia Publication Preflight
+- `vox_scientia_publication_prepare`: Scientia Publication Prepare
+- `vox_scientia_publication_publish`: Scientia Publication Publish
+- `vox_scientia_publication_retry_failed`: Scientia Publication Retry Failed
+- `vox_scientia_publication_route_simulate`: Scientia Publication Route Simulate
+- `vox_scientia_publication_scholarly_pipeline_run`: Scientia Publication Scholarly Pipeline Run
+- `vox_scientia_publication_scholarly_remote_status`: Scientia Publication Scholarly Remote Status
+- `vox_scientia_publication_scholarly_remote_status_sync_all`: Scientia Publication Scholarly Remote Status Sync All
+- `vox_scientia_publication_scholarly_remote_status_sync_batch`: Scientia Publication Scholarly Remote Status Sync Batch
+- `vox_scientia_publication_scholarly_staging_export`: Scientia Publication Scholarly Staging Export
+- `vox_scientia_publication_status`: Scientia Publication Status
+- `vox_scientia_publication_submit_local`: Scientia Publication Submit Local
+- `vox_scientia_worthiness_evaluate`: Scientia Worthiness Evaluate
+- `vox_search_callees`: Vox Search Callees
+- `vox_search_callers`: Vox Search Callers
+- `vox_search_compare`: Vox Search Compare
+- `vox_search_history`: Vox Search History
+- `vox_search_path`: Vox Search Path
+- `vox_search_set_ttl`: Vox Search Set TTL
+- `vox_search_structural`: Vox Search Structural
+
+### Secrets
+- `vox auth`: Auth
+- `vox auth connect`: Auth Connect
+- `vox auth init`: Auth Init
+- `vox auth login`: Auth Login
+- `vox auth trust`: Auth Trust
+- `vox auth trust-list`: Auth Trust-list
+- `vox auth unlock`: Auth Unlock
+- `vox auth untrust`: Auth Untrust
+- `vox auth whoami`: Auth Whoami
+- `vox login`: Login
+- `vox logout`: Logout
+- `vox secrets`: Secrets
+- `vox secrets backend-status`: Secrets Backend-status
+- `vox secrets get`: Secrets Get
+- `vox secrets import-env`: Secrets Import-env
+- `vox secrets login`: Secrets Login
+- `vox secrets migrate-auth-store`: Secrets Migrate-auth-store
+- `vox secrets set`: Secrets Set
+- `vox secrets status`: Secrets Status
+- `vox secrets sync`: Secrets Sync
+
+### GUI
+- `vox gui`: Gui
+- `vox gui drive`: Gui Drive
+- `vox gui drive headless`: Gui Drive Headless
+- `vox gui drive headless send`: Gui Drive Headless Send
+- `vox gui drive headless set`: Gui Drive Headless Set
+- `vox gui drive headless state`: Gui Drive Headless State
+- `vox gui drive send`: Gui Drive Send
+- `vox gui drive set`: Gui Drive Set
+- `vox gui drive show`: Gui Drive Show
+- `vox gui drive start`: Gui Drive Start
+- `vox gui drive state`: Gui Drive State
+- `vox gui drive stop`: Gui Drive Stop
+- `vox gui drive wait`: Gui Drive Wait
+- `vox visus audit` / `vox_visus_audit`: Visus Audit
+- `vox visus baseline` / `vox_visus_baseline`: Visus Baseline
+- `vox_gui_components`: GUI Component Registry
+- `vox_gui_rules`: GUI Design Rules
+- `vox_gui_tokens`: GUI Design Tokens
+
+### Data & DB
+- `vox codex`: Codex
+- `vox codex cutover`: Codex Cutover
+- `vox codex export-legacy`: Codex Export-legacy
+- `vox codex import-legacy`: Codex Import-legacy
+- `vox codex import-orchestrator-memory`: Codex Import-orchestrator-memory
+- `vox codex import-skill-bundle`: Codex Import-skill-bundle
+- `vox codex socrates-eval-snapshot`: Codex Socrates-eval-snapshot
+- `vox codex socrates-metrics`: Codex Socrates-metrics
+- `vox codex verify`: Codex Verify
+- `vox db`: Db
+- `vox db audit`: Db Audit
+- `vox db build-health`: Db Build-health
+- `vox db build-regressions`: Db Build-regressions
+- `vox db capability-list`: Db Capability-list
+- `vox db discovery-watch`: Db Discovery-watch
+- `vox db exec-history`: Db Exec-history
+- `vox db explain`: Db Explain
+- `vox db export`: Db Export
+- `vox db feed-source-add`: Db Feed-source-add
+- `vox db feed-source-list`: Db Feed-source-list
+- `vox db import`: Db Import
+- `vox db ingest-tick`: Db Ingest-tick
+- `vox db introspect`: Db Introspect
+- `vox db mens-metrics`: Db Mens-metrics
+- `vox db mens-runs`: Db Mens-runs
+- `vox db migrate`: Db Migrate
+- `vox db mirror-search-corpus`: Db Mirror-search-corpus
+- `vox db pref-get`: Db Pref-get
+- `vox db pref-list`: Db Pref-list
+- `vox db pref-set`: Db Pref-set
+- `vox db prune`: Db Prune
+- `vox db prune-apply`: Db Prune-apply
+- `vox db prune-plan`: Db Prune-plan
+- `vox db publication-approve`: Db Publication-approve
+- `vox db publication-archive-code`: Db Publication-archive-code
+- `vox db publication-archive-run`: Db Publication-archive-run
+- `vox db publication-arxiv-handoff-record`: Db Publication-arxiv-handoff-record
+- `vox db publication-autofill`: Db Publication-autofill
+- `vox db publication-decision-explain`: Db Publication-decision-explain
+- `vox db publication-discovery-explain`: Db Publication-discovery-explain
+- `vox db publication-discovery-publish-rss`: Db Publication-discovery-publish-rss
+- `vox db publication-discovery-refresh-evidence`: Db Publication-discovery-refresh-evidence
+- `vox db publication-discovery-scan`: Db Publication-discovery-scan
+- `vox db publication-external-jobs-dead-letter`: Db Publication-external-jobs-dead-letter
+- `vox db publication-external-jobs-due`: Db Publication-external-jobs-due
+- `vox db publication-external-jobs-replay`: Db Publication-external-jobs-replay
+- `vox db publication-external-jobs-tick`: Db Publication-external-jobs-tick
+- `vox db publication-external-pipeline-metrics`: Db Publication-external-pipeline-metrics
+- `vox db publication-media-delete`: Db Publication-media-delete
+- `vox db publication-media-list`: Db Publication-media-list
+- `vox db publication-media-upsert`: Db Publication-media-upsert
+- `vox db publication-novelty-fetch`: Db Publication-novelty-fetch
+- `vox db publication-novelty-happy-path`: Db Publication-novelty-happy-path
+- `vox db publication-openreview-profile`: Db Publication-openreview-profile
+- `vox db publication-preflight`: Db Publication-preflight
+- `vox db publication-prepare`: Db Publication-prepare
+- `vox db publication-prepare-validated`: Db Publication-prepare-validated
+- `vox db publication-publish`: Db Publication-publish
+- `vox db publication-retry-failed`: Db Publication-retry-failed
+- `vox db publication-route-simulate`: Db Publication-route-simulate
+- `vox db publication-scholarly-pipeline-run`: Db Publication-scholarly-pipeline-run
+- `vox db publication-scholarly-remote-status`: Db Publication-scholarly-remote-status
+- `vox db publication-scholarly-remote-status-sync-all`: Db Publication-scholarly-remote-status-sync-all
+- `vox db publication-scholarly-remote-status-sync-batch`: Db Publication-scholarly-remote-status-sync-batch
+- `vox db publication-scholarly-staging-export`: Db Publication-scholarly-staging-export
+- `vox db publication-status`: Db Publication-status
+- `vox db publication-submit-local`: Db Publication-submit-local
+- `vox db publication-transform-preview`: Db Publication-transform-preview
+- `vox db publication-worthiness-evaluate`: Db Publication-worthiness-evaluate
+- `vox db publication-zenodo-metadata`: Db Publication-zenodo-metadata
+- `vox db reliability-agents`: Db Reliability-agents
+- `vox db reliability-list`: Db Reliability-list
+- `vox db research-ingest-file`: Db Research-ingest-file
+- `vox db research-ingest-url`: Db Research-ingest-url
+- `vox db research-list`: Db Research-list
+- `vox db research-map-add`: Db Research-map-add
+- `vox db research-map-list`: Db Research-map-list
+- `vox db research-metrics`: Db Research-metrics
+- `vox db research-refresh`: Db Research-refresh
+- `vox db reset`: Db Reset
+- `vox db retrieval-status`: Db Retrieval-status
+- `vox db sample`: Db Sample
+- `vox db schema` / `vox_db_schema`: Db Schema
+- `vox db status`: Db Status
+- `vox db sync-invocables`: Db Sync-invocables
+- `vox db vacuum`: Db Vacuum
+- `vox db verify`: Db Verify
+- `vox snapshot`: Snapshot
+- `vox snapshot orphans`: Snapshot Orphans
+- `vox_db_conversation_edge_insert`: Db Conversation Edge Insert
+- `vox_db_conversation_version_append`: Db Conversation Version Append
+- `vox_db_data_flow`: Db Data Flow
+- `vox_db_explain_query`: Db Explain Query
+- `vox_db_relationships`: Db Relationships
+- `vox_db_research_metric_linked`: Db Research Metric Linked
+- `vox_db_research_session_upsert`: Db Research Session Upsert
+- `vox_db_sample_data`: Db Sample Data
+- `vox_db_suggest_query`: Db Suggest Query
+- `vox_db_topic_evolution_append`: Db Topic Evolution Append
+- `vox_db_trust_drift`: Db Trust Drift
+- `vox_db_trust_propagate`: Db Trust Propagate
+- `vox_db_trust_rollups`: Db Trust Rollups
+- `vox_db_trust_summary`: Db Trust Summary
+- `vox_snapshot_diff`: Snapshot Diff
+- `vox_snapshot_list`: Snapshot List
+- `vox_snapshot_restore`: Snapshot Restore
+
+### CI & governance
+- `vox architect`: Architect
+- `vox audit`: Audit
+- `vox audit arch`: Audit Arch
+- `vox audit code`: Audit Code
+- `vox audit core`: Audit Core
+- `vox audit effort`: Audit Effort
+- `vox audit effort-route`: Audit Effort-route
+- `vox audit research-parity`: Audit Research-parity
+- `vox audit retirement`: Audit Retirement
+- `vox ci`: Ci
+- `vox ci affected-crates`: Ci Affected-crates
+- `vox ci agentskills-compliance`: Ci Agentskills-compliance
+- `vox ci ai-fixtures-coverage`: Ci Ai-fixtures-coverage
+- `vox ci artifact-audit`: Ci Artifact-audit
+- `vox ci artifact-prune`: Ci Artifact-prune
+- `vox ci attention-config-parity`: Ci Attention-config-parity
+- `vox ci attention-event-ledger-parity`: Ci Attention-event-ledger-parity
+- `vox ci backend-tests`: Ci Backend-tests
+- `vox ci bom-check`: Ci Bom-check
+- `vox ci build-bench`: Ci Build-bench
+- `vox ci build-cache-doctor`: Ci Build-cache-doctor
+- `vox ci build-docs`: Ci Build-docs
+- `vox ci build-timings`: Ci Build-timings
+- `vox ci cache-key-lint`: Ci Cache-key-lint
+- `vox ci canonical-map-verify`: Ci Canonical-map-verify
+- `vox ci capability-index`: Ci Capability-index
+- `vox ci capability-snapshot`: Ci Capability-snapshot
+- `vox ci capability-sync`: Ci Capability-sync
+- `vox ci check-codex-ssot`: Ci Check-codex-ssot
+- `vox ci check-docs-ssot`: Ci Check-docs-ssot
+- `vox ci check-links`: Ci Check-links
+- `vox ci check-summary-drift`: Ci Check-summary-drift
+- `vox ci command-compliance`: Ci Command-compliance
+- `vox ci command-sync`: Ci Command-sync
+- `vox ci commit-lint`: Ci Commit-lint
+- `vox ci compile-matrix`: Ci Compile-matrix
+- `vox ci completion-audit`: Ci Completion-audit
+- `vox ci completion-gates`: Ci Completion-gates
+- `vox ci completion-ingest`: Ci Completion-ingest
+- `vox ci config-gui-codegen`: Ci Config-gui-codegen
+- `vox ci config-hygiene`: Ci Config-hygiene
+- `vox ci config-registry-parity`: Ci Config-registry-parity
+- `vox ci contracts-index`: Ci Contracts-index
+- `vox ci coolify-eval`: Ci Coolify-eval
+- `vox ci coolify-eval discover`: Ci Coolify-eval Discover
+- `vox ci coolify-eval sync-compose`: Ci Coolify-eval Sync-compose
+- `vox ci corpus-decl-coverage`: Ci Corpus-decl-coverage
+- `vox ci coverage-gates`: Ci Coverage-gates
+- `vox ci crate-budget`: Ci Crate-budget
+- `vox ci crate-build-map-parity`: Ci Crate-build-map-parity
+- `vox ci crate-edges`: Ci Crate-edges
+- `vox ci cuda-features`: Ci Cuda-features
+- `vox ci cuda-release-build`: Ci Cuda-release-build
+- `vox ci data-ssot-guards`: Ci Data-ssot-guards
+- `vox ci data-storage-guard`: Ci Data-storage-guard
+- `vox ci db-schema-coverage`: Ci Db-schema-coverage
+- `vox ci dep-cycles`: Ci Dep-cycles
+- `vox ci dep-sprawl`: Ci Dep-sprawl
+- `vox ci deploy-status`: Ci Deploy-status
+- `vox ci detect-rules-bench`: Ci Detect-rules-bench
+- `vox ci determinism-audit`: Ci Determinism-audit
+- `vox ci dev-loop-audit`: Ci Dev-loop-audit
+- `vox ci doc-inventory`: Ci Doc-inventory
+- `vox ci doc-inventory generate`: Ci Doc-inventory Generate
+- `vox ci doc-inventory verify`: Ci Doc-inventory Verify
+- `vox ci docs-reality-audit`: Ci Docs-reality-audit
+- `vox ci docs-reality-audit metrics`: Ci Docs-reality-audit Metrics
+- `vox ci docs-reality-audit verify`: Ci Docs-reality-audit Verify
+- `vox ci doctest-md`: Ci Doctest-md
+- `vox ci eval-matrix`: Ci Eval-matrix
+- `vox ci eval-matrix run`: Ci Eval-matrix Run
+- `vox ci eval-matrix verify`: Ci Eval-matrix Verify
+- `vox ci exec-policy-contract`: Ci Exec-policy-contract
+- `vox ci fan-in-budget`: Ci Fan-in-budget
+- `vox ci feature-matrix`: Ci Feature-matrix
+- `vox ci flake-budget`: Ci Flake-budget
+- `vox ci fmt-check`: Ci Fmt-check
+- `vox ci free-binary`: Ci Free-binary
+- `vox ci generate-plugin-catalog-docs`: Ci Generate-plugin-catalog-docs
+- `vox ci grammar-drift`: Ci Grammar-drift
+- `vox ci grammar-export-check`: Ci Grammar-export-check
+- `vox ci grammar-ssot-parity`: Ci Grammar-ssot-parity
+- `vox ci gui-catalog-parity`: Ci Gui-catalog-parity
+- `vox ci gui-honesty`: Ci Gui-honesty
+- `vox ci gui-smoke`: Ci Gui-smoke
+- `vox ci gui-surface-coverage`: Ci Gui-surface-coverage
+- `vox ci gui-surface-registry`: Ci Gui-surface-registry
+- `vox ci gui-version-sync`: Ci Gui-version-sync
+- `vox ci gui-visual-review`: Ci Gui-visual-review
+- `vox ci harness-trust-guard`: Ci Harness-trust-guard
+- `vox ci ignored-test-age`: Ci Ignored-test-age
+- `vox ci install-hooks`: Ci Install-hooks
+- `vox ci job-timings`: Ci Job-timings
+- `vox ci json-parse-check`: Ci Json-parse-check
+- `vox ci k-complexity-budget`: Ci K-complexity-budget
+- `vox ci kill-stuck-tests`: Ci Kill-stuck-tests
+- `vox ci line-endings`: Ci Line-endings
+- `vox ci manifest`: Ci Manifest
+- `vox ci mcp-vox-surface-parity`: Ci Mcp-vox-surface-parity
+- `vox ci mens-scorecard`: Ci Mens-scorecard
+- `vox ci mens-scorecard burn-rnd`: Ci Mens-scorecard Burn-rnd
+- `vox ci mens-scorecard decide`: Ci Mens-scorecard Decide
+- `vox ci mens-scorecard ingest-trust`: Ci Mens-scorecard Ingest-trust
+- `vox ci mens-scorecard run`: Ci Mens-scorecard Run
+- `vox ci mens-scorecard verify`: Ci Mens-scorecard Verify
+- `vox ci mesh-gate`: Ci Mesh-gate
+- `vox ci model-routing-check`: Ci Model-routing-check
+- `vox ci no-dei-import`: Ci No-dei-import
+- `vox ci no-plugin-cdylib-as-compile-dep`: Ci No-plugin-cdylib-as-compile-dep
+- `vox ci no-tauri-in-core`: Ci No-tauri-in-core
+- `vox ci node-pnpm-ssot-guard`: Ci Node-pnpm-ssot-guard
+- `vox ci nomenclature-guard`: Ci Nomenclature-guard
+- `vox ci openclaw-contract`: Ci Openclaw-contract
+- `vox ci operations-sync`: Ci Operations-sync
+- `vox ci operations-verify`: Ci Operations-verify
+- `vox ci operator-env-guard`: Ci Operator-env-guard
+- `vox ci parse-status`: Ci Parse-status
+- `vox ci pipeline-parity`: Ci Pipeline-parity
+- `vox ci plugin-abi-parity`: Ci Plugin-abi-parity
+- `vox ci plugin-catalog-parity`: Ci Plugin-catalog-parity
+- `vox ci plugin-catalog-sync`: Ci Plugin-catalog-sync
+- `vox ci plugin-dep-boundary`: Ci Plugin-dep-boundary
+- `vox ci plugin-skill-parity`: Ci Plugin-skill-parity
+- `vox ci plugin-surface-sync`: Ci Plugin-surface-sync
+- `vox ci pm-provenance`: Ci Pm-provenance
+- `vox ci policy-allowlist-parity`: Ci Policy-allowlist-parity
+- `vox ci policy-registry`: Ci Policy-registry
+- `vox ci policy-registry-parity`: Ci Policy-registry-parity
+- `vox ci policy-smoke`: Ci Policy-smoke
+- `vox ci pre-push`: Ci Pre-push
+- `vox ci profile-parity`: Ci Profile-parity
+- `vox ci query-all-guard`: Ci Query-all-guard
+- `vox ci release-build`: Ci Release-build
+- `vox ci release-draft-guard`: Ci Release-draft-guard
+- `vox ci repo-guards`: Ci Repo-guards
+- `vox ci required-context-guard`: Ci Required-context-guard
+- `vox ci retired-symbol-check`: Ci Retired-symbol-check
+- `vox ci retirement-audit`: Ci Retirement-audit
+- `vox ci row-serde-lint`: Ci Row-serde-lint
+- `vox ci runtime-regress`: Ci Runtime-regress
+- `vox ci rust-ecosystem-policy`: Ci Rust-ecosystem-policy
+- `vox ci safety-inventory`: Ci Safety-inventory
+- `vox ci scaling-audit`: Ci Scaling-audit
+- `vox ci scaling-audit emit-reports`: Ci Scaling-audit Emit-reports
+- `vox ci scaling-audit verify`: Ci Scaling-audit Verify
+- `vox ci scientia-heuristics-parity`: Ci Scientia-heuristics-parity
+- `vox ci scientia-novelty-ledger-contracts`: Ci Scientia-novelty-ledger-contracts
+- `vox ci scientia-worthiness-contract`: Ci Scientia-worthiness-contract
+- `vox ci script-hygiene`: Ci Script-hygiene
+- `vox ci secret-env-guard`: Ci Secret-env-guard
+- `vox ci secrets-contracts`: Ci Secrets-contracts
+- `vox ci secrets-cutover-audit`: Ci Secrets-cutover-audit
+- `vox ci secrets-cutover-gates`: Ci Secrets-cutover-gates
+- `vox ci secrets-parity`: Ci Secrets-parity
+- `vox ci source-token-budget`: Ci Source-token-budget
+- `vox ci speech-runtime-suite`: Ci Speech-runtime-suite
+- `vox ci spoke-check`: Ci Spoke-check
+- `vox ci sql-surface-guard`: Ci Sql-surface-guard
+- `vox ci ssot-audit`: Ci Ssot-audit
+- `vox ci ssot-drift`: Ci Ssot-drift
+- `vox ci status`: Ci Status
+- `vox ci string-id-lint`: Ci String-id-lint
+- `vox ci sync-ignore-files`: Ci Sync-ignore-files
+- `vox ci test-inventory`: Ci Test-inventory
+- `vox ci test-runtime-report`: Ci Test-runtime-report
+- `vox ci tier-budget-check`: Ci Tier-budget-check
+- `vox ci toestub-budget`: Ci Toestub-budget
+- `vox ci toestub-scoped`: Ci Toestub-scoped
+- `vox ci toestub-self-apply`: Ci Toestub-self-apply
+- `vox ci toolchain-ssot`: Ci Toolchain-ssot
+- `vox ci toolchain-workflow-lint`: Ci Toolchain-workflow-lint
+- `vox ci turso-import-guard`: Ci Turso-import-guard
+- `vox ci vox-parse-check`: Ci Vox-parse-check
+- `vox ci watch-run`: Ci Watch-run
+- `vox ci workflow-concurrency-guard`: Ci Workflow-concurrency-guard
+- `vox ci workflow-scripts`: Ci Workflow-scripts
+- `vox ci yaml-parse-check`: Ci Yaml-parse-check
+- `vox drift-check`: Drift Check
+- `vox policy`: Policy
+- `vox policy domains`: Policy Domains
+- `vox policy groups`: Policy Groups
+- `vox policy list`: Policy List
+- `vox policy show`: Policy Show
+- `vox policy status`: Policy Status
+- `vox recensio`: Recensio
+- `vox recensio coderabbit`: Recensio Coderabbit
+- `vox recensio coderabbit batch-submit`: Recensio Coderabbit Batch-submit
+- `vox recensio coderabbit db-backfill`: Recensio Coderabbit Db-backfill
+- `vox recensio coderabbit db-report`: Recensio Coderabbit Db-report
+- `vox recensio coderabbit db-status`: Recensio Coderabbit Db-status
+- `vox recensio coderabbit deadletter-retry`: Recensio Coderabbit Deadletter-retry
+- `vox recensio coderabbit historical-submit`: Recensio Coderabbit Historical-submit
+- `vox recensio coderabbit ingest`: Recensio Coderabbit Ingest
+- `vox recensio coderabbit learning-sync`: Recensio Coderabbit Learning-sync
+- `vox recensio coderabbit semantic-submit`: Recensio Coderabbit Semantic-submit
+- `vox recensio coderabbit stack-submit`: Recensio Coderabbit Stack-submit
+- `vox recensio coderabbit submit`: Recensio Coderabbit Submit
+- `vox recensio coderabbit tasks`: Recensio Coderabbit Tasks
+- `vox recensio coderabbit wait`: Recensio Coderabbit Wait
+- `vox review`: Review
+- `vox review coderabbit`: Review Coderabbit
+- `vox review coderabbit batch-submit`: Review Coderabbit Batch-submit
+- `vox review coderabbit db-backfill`: Review Coderabbit Db-backfill
+- `vox review coderabbit db-report`: Review Coderabbit Db-report
+- `vox review coderabbit db-status`: Review Coderabbit Db-status
+- `vox review coderabbit deadletter-retry`: Review Coderabbit Deadletter-retry
+- `vox review coderabbit historical-submit`: Review Coderabbit Historical-submit
+- `vox review coderabbit ingest`: Review Coderabbit Ingest
+- `vox review coderabbit learning-sync`: Review Coderabbit Learning-sync
+- `vox review coderabbit semantic-submit`: Review Coderabbit Semantic-submit
+- `vox review coderabbit stack-submit`: Review Coderabbit Stack-submit
+- `vox review coderabbit submit`: Review Coderabbit Submit
+- `vox review coderabbit tasks`: Review Coderabbit Tasks
+- `vox review coderabbit wait`: Review Coderabbit Wait
+- `vox stub-check`: Stub-check
+
+### Plugins & skills
+- `vox ars`: Ars
+- `vox ars ludus`: Ars Ludus
+- `vox ars ludus arena-join`: Ars Ludus Arena-join
+- `vox ars ludus arena-leaderboard`: Ars Ludus Arena-leaderboard
+- `vox ars ludus arena-show`: Ars Ludus Arena-show
+- `vox ars ludus audit`: Ars Ludus Audit
+- `vox ars ludus auth`: Ars Ludus Auth
+- `vox ars ludus battle-start`: Ars Ludus Battle-start
+- `vox ars ludus battle-submit`: Ars Ludus Battle-submit
+- `vox ars ludus challenge-list`: Ars Ludus Challenge-list
+- `vox ars ludus challenge-start`: Ars Ludus Challenge-start
+- `vox ars ludus challenge-submit`: Ars Ludus Challenge-submit
+- `vox ars ludus collegium-join`: Ars Ludus Collegium-join
+- `vox ars ludus collegium-list`: Ars Ludus Collegium-list
+- `vox ars ludus collegium-new`: Ars Ludus Collegium-new
+- `vox ars ludus collegium-status`: Ars Ludus Collegium-status
+- `vox ars ludus companion-create`: Ars Ludus Companion-create
+- `vox ars ludus companion-interact`: Ars Ludus Companion-interact
+- `vox ars ludus companion-list`: Ars Ludus Companion-list
+- `vox ars ludus companion-show`: Ars Ludus Companion-show
+- `vox ars ludus digest`: Ars Ludus Digest
+- `vox ars ludus digest-weekly`: Ars Ludus Digest-weekly
+- `vox ars ludus disable`: Ars Ludus Disable
+- `vox ars ludus dispute-appeal`: Ars Ludus Dispute-appeal
+- `vox ars ludus dispute-file`: Ars Ludus Dispute-file
+- `vox ars ludus dispute-status`: Ars Ludus Dispute-status
+- `vox ars ludus dispute-vote`: Ars Ludus Dispute-vote
+- `vox ars ludus enable`: Ars Ludus Enable
+- `vox ars ludus feedback-rate`: Ars Ludus Feedback-rate
+- `vox ars ludus glyph-list`: Ars Ludus Glyph-list
+- `vox ars ludus hint`: Ars Ludus Hint
+- `vox ars ludus leaderboard-show`: Ars Ludus Leaderboard-show
+- `vox ars ludus metrics`: Ars Ludus Metrics
+- `vox ars ludus mode`: Ars Ludus Mode
+- `vox ars ludus monte-carlo-sweep`: Ars Ludus Monte-carlo-sweep
+- `vox ars ludus morning`: Ars Ludus Morning
+- `vox ars ludus notify-clear`: Ars Ludus Notify-clear
+- `vox ars ludus notify-list`: Ars Ludus Notify-list
+- `vox ars ludus pack-init`: Ars Ludus Pack-init
+- `vox ars ludus pack-list`: Ars Ludus Pack-list
+- `vox ars ludus profile-merge`: Ars Ludus Profile-merge
+- `vox ars ludus quest-generate`: Ars Ludus Quest-generate
+- `vox ars ludus quest-list`: Ars Ludus Quest-list
+- `vox ars ludus record`: Ars Ludus Record
+- `vox ars ludus reward-claim`: Ars Ludus Reward-claim
+- `vox ars ludus shield-use`: Ars Ludus Shield-use
+- `vox ars ludus shop-buy`: Ars Ludus Shop-buy
+- `vox ars ludus shop-list`: Ars Ludus Shop-list
+- `vox ars ludus status`: Ars Ludus Status
+- `vox ars ludus sync-github`: Ars Ludus Sync-github
+- `vox ars openclaw`: Ars Openclaw
+- `vox ars openclaw approvals`: Ars Openclaw Approvals
+- `vox ars openclaw approve`: Ars Openclaw Approve
+- `vox ars openclaw config`: Ars Openclaw Config
+- `vox ars openclaw deny`: Ars Openclaw Deny
+- `vox ars openclaw doctor`: Ars Openclaw Doctor
+- `vox ars openclaw gateway-call`: Ars Openclaw Gateway-call
+- `vox ars openclaw import`: Ars Openclaw Import
+- `vox ars openclaw list-remote`: Ars Openclaw List-remote
+- `vox ars openclaw notify`: Ars Openclaw Notify
+- `vox ars openclaw search-remote`: Ars Openclaw Search-remote
+- `vox ars openclaw serve`: Ars Openclaw Serve
+- `vox ars openclaw sidecar`: Ars Openclaw Sidecar
+- `vox ars openclaw sidecar start`: Ars Openclaw Sidecar Start
+- `vox ars openclaw sidecar status`: Ars Openclaw Sidecar Status
+- `vox ars openclaw sidecar stop`: Ars Openclaw Sidecar Stop
+- `vox ars openclaw subscribe`: Ars Openclaw Subscribe
+- `vox ars openclaw subscriptions`: Ars Openclaw Subscriptions
+- `vox ars openclaw unsubscribe`: Ars Openclaw Unsubscribe
+- `vox ars share`: Ars Share
+- `vox ars share feedback`: Ars Share Feedback
+- `vox ars share list`: Ars Share List
+- `vox ars share publish`: Ars Share Publish
+- `vox ars share search`: Ars Share Search
+- `vox ars skill`: Ars Skill
+- `vox ars skill add`: Ars Skill Add
+- `vox ars skill context-assemble`: Ars Skill Context-assemble
+- `vox ars skill create`: Ars Skill Create
+- `vox ars skill discover`: Ars Skill Discover
+- `vox ars skill eval-task`: Ars Skill Eval-task
+- `vox ars skill info`: Ars Skill Info
+- `vox ars skill install`: Ars Skill Install
+- `vox ars skill list`: Ars Skill List
+- `vox ars skill promote`: Ars Skill Promote
+- `vox ars skill run`: Ars Skill Run
+- `vox ars skill search`: Ars Skill Search
+- `vox ars skill suggest`: Ars Skill Suggest
+- `vox ars skill uninstall`: Ars Skill Uninstall
+- `vox ars snippet`: Ars Snippet
+- `vox ars snippet export`: Ars Snippet Export
+- `vox ars snippet save`: Ars Snippet Save
+- `vox ars snippet search`: Ars Snippet Search
+- `vox ext`: Ext
+- `vox ext ars`: Ext Ars
+- `vox ext ars ludus`: Ext Ars Ludus
+- `vox ext ars ludus arena-join`: Ext Ars Ludus Arena-join
+- `vox ext ars ludus arena-leaderboard`: Ext Ars Ludus Arena-leaderboard
+- `vox ext ars ludus arena-show`: Ext Ars Ludus Arena-show
+- `vox ext ars ludus audit`: Ext Ars Ludus Audit
+- `vox ext ars ludus auth`: Ext Ars Ludus Auth
+- `vox ext ars ludus battle-start`: Ext Ars Ludus Battle-start
+- `vox ext ars ludus battle-submit`: Ext Ars Ludus Battle-submit
+- `vox ext ars ludus challenge-list`: Ext Ars Ludus Challenge-list
+- `vox ext ars ludus challenge-start`: Ext Ars Ludus Challenge-start
+- `vox ext ars ludus challenge-submit`: Ext Ars Ludus Challenge-submit
+- `vox ext ars ludus collegium-join`: Ext Ars Ludus Collegium-join
+- `vox ext ars ludus collegium-list`: Ext Ars Ludus Collegium-list
+- `vox ext ars ludus collegium-new`: Ext Ars Ludus Collegium-new
+- `vox ext ars ludus collegium-status`: Ext Ars Ludus Collegium-status
+- `vox ext ars ludus companion-create`: Ext Ars Ludus Companion-create
+- `vox ext ars ludus companion-interact`: Ext Ars Ludus Companion-interact
+- `vox ext ars ludus companion-list`: Ext Ars Ludus Companion-list
+- `vox ext ars ludus companion-show`: Ext Ars Ludus Companion-show
+- `vox ext ars ludus digest`: Ext Ars Ludus Digest
+- `vox ext ars ludus digest-weekly`: Ext Ars Ludus Digest-weekly
+- `vox ext ars ludus disable`: Ext Ars Ludus Disable
+- `vox ext ars ludus dispute-appeal`: Ext Ars Ludus Dispute-appeal
+- `vox ext ars ludus dispute-file`: Ext Ars Ludus Dispute-file
+- `vox ext ars ludus dispute-status`: Ext Ars Ludus Dispute-status
+- `vox ext ars ludus dispute-vote`: Ext Ars Ludus Dispute-vote
+- `vox ext ars ludus enable`: Ext Ars Ludus Enable
+- `vox ext ars ludus feedback-rate`: Ext Ars Ludus Feedback-rate
+- `vox ext ars ludus glyph-list`: Ext Ars Ludus Glyph-list
+- `vox ext ars ludus hint`: Ext Ars Ludus Hint
+- `vox ext ars ludus leaderboard-show`: Ext Ars Ludus Leaderboard-show
+- `vox ext ars ludus metrics`: Ext Ars Ludus Metrics
+- `vox ext ars ludus mode`: Ext Ars Ludus Mode
+- `vox ext ars ludus monte-carlo-sweep`: Ext Ars Ludus Monte-carlo-sweep
+- `vox ext ars ludus morning`: Ext Ars Ludus Morning
+- `vox ext ars ludus notify-clear`: Ext Ars Ludus Notify-clear
+- `vox ext ars ludus notify-list`: Ext Ars Ludus Notify-list
+- `vox ext ars ludus pack-init`: Ext Ars Ludus Pack-init
+- `vox ext ars ludus pack-list`: Ext Ars Ludus Pack-list
+- `vox ext ars ludus profile-merge`: Ext Ars Ludus Profile-merge
+- `vox ext ars ludus quest-generate`: Ext Ars Ludus Quest-generate
+- `vox ext ars ludus quest-list`: Ext Ars Ludus Quest-list
+- `vox ext ars ludus record`: Ext Ars Ludus Record
+- `vox ext ars ludus reward-claim`: Ext Ars Ludus Reward-claim
+- `vox ext ars ludus shield-use`: Ext Ars Ludus Shield-use
+- `vox ext ars ludus shop-buy`: Ext Ars Ludus Shop-buy
+- `vox ext ars ludus shop-list`: Ext Ars Ludus Shop-list
+- `vox ext ars ludus status`: Ext Ars Ludus Status
+- `vox ext ars ludus sync-github`: Ext Ars Ludus Sync-github
+- `vox ext ars openclaw`: Ext Ars Openclaw
+- `vox ext ars openclaw approvals`: Ext Ars Openclaw Approvals
+- `vox ext ars openclaw approve`: Ext Ars Openclaw Approve
+- `vox ext ars openclaw config`: Ext Ars Openclaw Config
+- `vox ext ars openclaw deny`: Ext Ars Openclaw Deny
+- `vox ext ars openclaw doctor`: Ext Ars Openclaw Doctor
+- `vox ext ars openclaw gateway-call`: Ext Ars Openclaw Gateway-call
+- `vox ext ars openclaw import`: Ext Ars Openclaw Import
+- `vox ext ars openclaw list-remote`: Ext Ars Openclaw List-remote
+- `vox ext ars openclaw notify`: Ext Ars Openclaw Notify
+- `vox ext ars openclaw search-remote`: Ext Ars Openclaw Search-remote
+- `vox ext ars openclaw serve`: Ext Ars Openclaw Serve
+- `vox ext ars openclaw sidecar`: Ext Ars Openclaw Sidecar
+- `vox ext ars openclaw sidecar start`: Ext Ars Openclaw Sidecar Start
+- `vox ext ars openclaw sidecar status`: Ext Ars Openclaw Sidecar Status
+- `vox ext ars openclaw sidecar stop`: Ext Ars Openclaw Sidecar Stop
+- `vox ext ars openclaw subscribe`: Ext Ars Openclaw Subscribe
+- `vox ext ars openclaw subscriptions`: Ext Ars Openclaw Subscriptions
+- `vox ext ars openclaw unsubscribe`: Ext Ars Openclaw Unsubscribe
+- `vox ext ars share`: Ext Ars Share
+- `vox ext ars share feedback`: Ext Ars Share Feedback
+- `vox ext ars share list`: Ext Ars Share List
+- `vox ext ars share publish`: Ext Ars Share Publish
+- `vox ext ars share search`: Ext Ars Share Search
+- `vox ext ars skill`: Ext Ars Skill
+- `vox ext ars skill add`: Ext Ars Skill Add
+- `vox ext ars skill context-assemble`: Ext Ars Skill Context-assemble
+- `vox ext ars skill create`: Ext Ars Skill Create
+- `vox ext ars skill discover`: Ext Ars Skill Discover
+- `vox ext ars skill eval-task`: Ext Ars Skill Eval-task
+- `vox ext ars skill info`: Ext Ars Skill Info
+- `vox ext ars skill install`: Ext Ars Skill Install
+- `vox ext ars skill list`: Ext Ars Skill List
+- `vox ext ars skill promote`: Ext Ars Skill Promote
+- `vox ext ars skill run`: Ext Ars Skill Run
+- `vox ext ars skill search`: Ext Ars Skill Search
+- `vox ext ars skill suggest`: Ext Ars Skill Suggest
+- `vox ext ars skill uninstall`: Ext Ars Skill Uninstall
+- `vox ext ars snippet`: Ext Ars Snippet
+- `vox ext ars snippet export`: Ext Ars Snippet Export
+- `vox ext ars snippet save`: Ext Ars Snippet Save
+- `vox ext ars snippet search`: Ext Ars Snippet Search
+- `vox ext ludus`: Ext Ludus
+- `vox ext ludus arena-join`: Ext Ludus Arena-join
+- `vox ext ludus arena-leaderboard`: Ext Ludus Arena-leaderboard
+- `vox ext ludus arena-show`: Ext Ludus Arena-show
+- `vox ext ludus audit`: Ext Ludus Audit
+- `vox ext ludus auth`: Ext Ludus Auth
+- `vox ext ludus battle-start`: Ext Ludus Battle-start
+- `vox ext ludus battle-submit`: Ext Ludus Battle-submit
+- `vox ext ludus challenge-list`: Ext Ludus Challenge-list
+- `vox ext ludus challenge-start`: Ext Ludus Challenge-start
+- `vox ext ludus challenge-submit`: Ext Ludus Challenge-submit
+- `vox ext ludus collegium-join`: Ext Ludus Collegium-join
+- `vox ext ludus collegium-list`: Ext Ludus Collegium-list
+- `vox ext ludus collegium-new`: Ext Ludus Collegium-new
+- `vox ext ludus collegium-status`: Ext Ludus Collegium-status
+- `vox ext ludus companion-create`: Ext Ludus Companion-create
+- `vox ext ludus companion-interact`: Ext Ludus Companion-interact
+- `vox ext ludus companion-list`: Ext Ludus Companion-list
+- `vox ext ludus companion-show`: Ext Ludus Companion-show
+- `vox ext ludus digest`: Ext Ludus Digest
+- `vox ext ludus digest-weekly`: Ext Ludus Digest-weekly
+- `vox ext ludus disable`: Ext Ludus Disable
+- `vox ext ludus dispute-appeal`: Ext Ludus Dispute-appeal
+- `vox ext ludus dispute-file`: Ext Ludus Dispute-file
+- `vox ext ludus dispute-status`: Ext Ludus Dispute-status
+- `vox ext ludus dispute-vote`: Ext Ludus Dispute-vote
+- `vox ext ludus enable`: Ext Ludus Enable
+- `vox ext ludus feedback-rate`: Ext Ludus Feedback-rate
+- `vox ext ludus glyph-list`: Ext Ludus Glyph-list
+- `vox ext ludus hint`: Ext Ludus Hint
+- `vox ext ludus leaderboard-show`: Ext Ludus Leaderboard-show
+- `vox ext ludus metrics`: Ext Ludus Metrics
+- `vox ext ludus mode`: Ext Ludus Mode
+- `vox ext ludus monte-carlo-sweep`: Ext Ludus Monte-carlo-sweep
+- `vox ext ludus morning`: Ext Ludus Morning
+- `vox ext ludus notify-clear`: Ext Ludus Notify-clear
+- `vox ext ludus notify-list`: Ext Ludus Notify-list
+- `vox ext ludus pack-init`: Ext Ludus Pack-init
+- `vox ext ludus pack-list`: Ext Ludus Pack-list
+- `vox ext ludus profile-merge`: Ext Ludus Profile-merge
+- `vox ext ludus quest-generate`: Ext Ludus Quest-generate
+- `vox ext ludus quest-list`: Ext Ludus Quest-list
+- `vox ext ludus record`: Ext Ludus Record
+- `vox ext ludus reward-claim`: Ext Ludus Reward-claim
+- `vox ext ludus shield-use`: Ext Ludus Shield-use
+- `vox ext ludus shop-buy`: Ext Ludus Shop-buy
+- `vox ext ludus shop-list`: Ext Ludus Shop-list
+- `vox ext ludus status`: Ext Ludus Status
+- `vox ext ludus sync-github`: Ext Ludus Sync-github
+- `vox ext mens`: Ext Mens
+- `vox ext openclaw`: Ext Openclaw
+- `vox ext openclaw approvals`: Ext Openclaw Approvals
+- `vox ext openclaw approve`: Ext Openclaw Approve
+- `vox ext openclaw config`: Ext Openclaw Config
+- `vox ext openclaw deny`: Ext Openclaw Deny
+- `vox ext openclaw doctor`: Ext Openclaw Doctor
+- `vox ext openclaw gateway-call`: Ext Openclaw Gateway-call
+- `vox ext openclaw import`: Ext Openclaw Import
+- `vox ext openclaw list-remote`: Ext Openclaw List-remote
+- `vox ext openclaw notify`: Ext Openclaw Notify
+- `vox ext openclaw search-remote`: Ext Openclaw Search-remote
+- `vox ext openclaw serve`: Ext Openclaw Serve
+- `vox ext openclaw sidecar`: Ext Openclaw Sidecar
+- `vox ext openclaw sidecar start`: Ext Openclaw Sidecar Start
+- `vox ext openclaw sidecar status`: Ext Openclaw Sidecar Status
+- `vox ext openclaw sidecar stop`: Ext Openclaw Sidecar Stop
+- `vox ext openclaw subscribe`: Ext Openclaw Subscribe
+- `vox ext openclaw subscriptions`: Ext Openclaw Subscriptions
+- `vox ext openclaw unsubscribe`: Ext Openclaw Unsubscribe
+- `vox ext oratio`: Ext Oratio
+- `vox ext populi`: Ext Populi
+- `vox ext skill`: Ext Skill
+- `vox ext skill add`: Ext Skill Add
+- `vox ext skill context-assemble`: Ext Skill Context-assemble
+- `vox ext skill create`: Ext Skill Create
+- `vox ext skill discover`: Ext Skill Discover
+- `vox ext skill eval-task`: Ext Skill Eval-task
+- `vox ext skill info`: Ext Skill Info
+- `vox ext skill install`: Ext Skill Install
+- `vox ext skill list`: Ext Skill List
+- `vox ext skill promote`: Ext Skill Promote
+- `vox ext skill run`: Ext Skill Run
+- `vox ext skill search`: Ext Skill Search
+- `vox ext skill suggest`: Ext Skill Suggest
+- `vox ext skill uninstall`: Ext Skill Uninstall
+- `vox ext train`: Ext Train
+- `vox openclaw`: Openclaw
+- `vox openclaw approvals`: Openclaw Approvals
+- `vox openclaw approve`: Openclaw Approve
+- `vox openclaw config`: Openclaw Config
+- `vox openclaw deny`: Openclaw Deny
+- `vox openclaw doctor`: Openclaw Doctor
+- `vox openclaw gateway-call`: Openclaw Gateway-call
+- `vox openclaw import`: Openclaw Import
+- `vox openclaw list-remote`: Openclaw List-remote
+- `vox openclaw notify` / `vox_openclaw_notify`: Openclaw Notify
+- `vox openclaw search-remote`: Openclaw Search-remote
+- `vox openclaw serve`: Openclaw Serve
+- `vox openclaw sidecar`: Openclaw Sidecar
+- `vox openclaw sidecar start`: Openclaw Sidecar Start
+- `vox openclaw sidecar status`: Openclaw Sidecar Status
+- `vox openclaw sidecar stop`: Openclaw Sidecar Stop
+- `vox openclaw subscribe` / `vox_openclaw_subscribe`: Openclaw Subscribe
+- `vox openclaw subscriptions` / `vox_openclaw_subscriptions`: Openclaw Subscriptions
+- `vox openclaw unsubscribe` / `vox_openclaw_unsubscribe`: Openclaw Unsubscribe
+- `vox plugin`: Plugin
+- `vox plugin doctor`: Plugin Doctor
+- `vox plugin info` / `vox_plugin_info`: Plugin Info
+- `vox plugin install` / `vox_plugin_install`: Plugin Install
+- `vox plugin list` / `vox_plugin_list`: Plugin List
+- `vox plugin publish`: Plugin Publish
+- `vox plugin remove` / `vox_plugin_remove`: Plugin Remove
+- `vox plugin scaffold`: Plugin Scaffold
+- `vox share`: Share
+- `vox skill`: Skill
+- `vox skill add` / `vox_skill_add`: Skill Add
+- `vox skill context-assemble`: Skill Context-assemble
+- `vox skill create`: Skill Create
+- `vox skill discover` / `vox_skill_discover`: Skill Discover
+- `vox skill eval-task`: Skill Eval-task
+- `vox skill info` / `vox_skill_info`: Skill Info
+- `vox skill install` / `vox_skill_install`: Skill Install
+- `vox skill list` / `vox_skill_list`: Skill List
+- `vox skill promote`: Skill Promote
+- `vox skill run` / `vox_skill_run`: Skill Run
+- `vox skill search` / `vox_skill_search`: Skill Search
+- `vox skill suggest`: Skill Suggest
+- `vox skill uninstall` / `vox_skill_uninstall`: Skill Uninstall
+- `vox snippet`: Snippet
+- `vox snippet export`: Snippet Export
+- `vox snippet save`: Snippet Save
+- `vox snippet search`: Snippet Search
+- `vox_browser_act`: Browser Act
+- `vox_browser_back`: Browser Back
+- `vox_browser_click`: Browser Click
+- `vox_browser_click_ref`: Browser Click Ref
+- `vox_browser_click_xy`: Browser Click Xy
+- `vox_browser_close`: Browser Close
+- `vox_browser_cookies_export`: Browser Cookies Export
+- `vox_browser_cookies_import`: Browser Cookies Import
+- `vox_browser_extract`: Browser Extract
+- `vox_browser_extract_json`: Browser Extract Json
+- `vox_browser_fill`: Browser Fill
+- `vox_browser_fill_ref`: Browser Fill Ref
+- `vox_browser_forward`: Browser Forward
+- `vox_browser_goto`: Browser Goto
+- `vox_browser_html`: Browser Html
+- `vox_browser_list_pages`: Browser List Pages
+- `vox_browser_open`: Browser Open
+- `vox_browser_open_ex`: Browser Open Extended
+- `vox_browser_page_info`: Browser Page Info
+- `vox_browser_press`: Browser Press
+- `vox_browser_reload`: Browser Reload
+- `vox_browser_screencast_frame`: Browser Screencast Frame
+- `vox_browser_screenshot`: Browser Screenshot
+- `vox_browser_screenshot_viewport`: Browser Screenshot Viewport
+- `vox_browser_scroll`: Browser Scroll
+- `vox_browser_set_control_lock`: Browser Set Control Lock
+- `vox_browser_set_viewport`: Browser Set Viewport
+- `vox_browser_snapshot`: Browser Snapshot
+- `vox_browser_stop`: Browser Stop
+- `vox_browser_text`: Browser Text
+- `vox_browser_type`: Browser Type
+- `vox_browser_wait_for`: Browser Wait For
+- `vox_openclaw_discover`: Openclaw Discover
+- `vox_openclaw_gateway_call`: Openclaw Gateway Call
+- `vox_openclaw_health`: Openclaw Health
+- `vox_openclaw_import_skill`: Openclaw Import Skill
+- `vox_openclaw_list_remote`: Openclaw List Remote
+- `vox_openclaw_search_remote`: Openclaw Search Remote
+- `vox_plugin_catalog`: Plugin Catalog
+- `vox_skill_parse`: Skill Parse
+- `vox_skill_remove`: Skill Remove
+- `vox_skill_use`: Skill Use
+
+### VCS & repo
+- `vox graph`: Vox Graph
+- `vox graph coverage`: Graph Coverage
+- `vox graph crate-map`: Graph Crate-map
+- `vox graph gc`: Graph Gc
+- `vox graph history`: Vox Graph History
+- `vox graph history brief`: Graph History Brief
+- `vox graph history focus`: Graph History Focus
+- `vox graph history forgotten`: Graph History Forgotten
+- `vox graph history log`: Graph History Log
+- `vox graph history search`: Graph History Search
+- `vox graph history timeline`: Graph History Timeline
+- `vox graph index`: Graph Index
+- `vox graph ingest`: Vox Graph Ingest
+- `vox graph query` / `vox_search_neighbors`: Vox Search Neighbors
+- `vox graph rebuild` / `vox_search_rebuild`: Vox Search Rebuild
+- `vox graph refresh`: Graph Refresh
+- `vox graph status` / `vox_search_status`: Vox Search Status
+- `vox graph why-rebuilt`: Graph Why-rebuilt
+- `vox repo`: Repo
+- `vox repo catalog`: Repo Catalog
+- `vox repo catalog list` / `vox_repo_catalog_list`: Repo Catalog List
+- `vox repo catalog refresh` / `vox_repo_catalog_refresh`: Repo Catalog Refresh
+- `vox repo init`: Repo Init
+- `vox repo query`: Repo Query
+- `vox repo query file` / `vox_repo_query_file`: Repo Query File
+- `vox repo query history` / `vox_repo_query_history`: Repo Query History
+- `vox repo query text` / `vox_repo_query_text`: Repo Query Text
+- `vox repo status` / `vox_repo_status`: Repo Status
+- `vox_change_create`: Change Create
+- `vox_change_log`: Change Log
+- `vox_git_blame`: Git Blame
+- `vox_git_diff`: Git Diff
+- `vox_git_log`: Git Log
+- `vox_git_status`: Git Status
+- `vox_repo_index_refresh`: Repo Index Refresh
+- `vox_repo_index_status`: Repo Index Status
+- `vox_workspace_create`: Workspace Create
+- `vox_workspace_mcp_refresh`: Workspace MCP Refresh
+- `vox_workspace_merge`: Workspace Merge
+- `vox_workspace_modules`: Workspace Modules
+- `vox_workspace_status`: Workspace Status
+
+### Runtime & scripts
+- `vox dev`: Dev
+- `vox live`: Live
+- `vox play`: Play
+- `vox repl`: Repl
+- `vox run`: Run
+- `vox script`: Script
+- `vox shell`: Shell
+- `vox shell check`: Shell Check
+- `vox shell repl`: Shell Repl
+- `vox term`: Term
+- `vox workflow`: Workflow
+- `vox workflow drain`: Workflow Drain
+- `vox workflow ls`: Workflow Ls
+- `vox workflow preview`: Workflow Preview
+- `vox_exec_time_query`: Exec Time Query
+- `vox_exec_time_record`: Exec Time Record
+
+### Speech
+- `vox speech`: Speech
+- `vox_oratio_listen`: Oratio Listen
+- `vox_oratio_status`: Oratio Status
+- `vox_oratio_transcribe`: Oratio Transcribe
+
+### Gamification
+- `vox gamify`: Gamify
+- `vox gamify arena-join`: Gamify Arena-join
+- `vox gamify arena-leaderboard`: Gamify Arena-leaderboard
+- `vox gamify arena-show`: Gamify Arena-show
+- `vox gamify audit`: Gamify Audit
+- `vox gamify auth`: Gamify Auth
+- `vox gamify battle-start`: Gamify Battle-start
+- `vox gamify battle-submit`: Gamify Battle-submit
+- `vox gamify challenge-list`: Gamify Challenge-list
+- `vox gamify challenge-start`: Gamify Challenge-start
+- `vox gamify challenge-submit`: Gamify Challenge-submit
+- `vox gamify collegium-join`: Gamify Collegium-join
+- `vox gamify collegium-list`: Gamify Collegium-list
+- `vox gamify collegium-new`: Gamify Collegium-new
+- `vox gamify collegium-status`: Gamify Collegium-status
+- `vox gamify companion-create`: Gamify Companion-create
+- `vox gamify companion-interact`: Gamify Companion-interact
+- `vox gamify companion-list`: Gamify Companion-list
+- `vox gamify companion-show`: Gamify Companion-show
+- `vox gamify digest`: Gamify Digest
+- `vox gamify digest-weekly`: Gamify Digest-weekly
+- `vox gamify disable`: Gamify Disable
+- `vox gamify dispute-appeal`: Gamify Dispute-appeal
+- `vox gamify dispute-file`: Gamify Dispute-file
+- `vox gamify dispute-status`: Gamify Dispute-status
+- `vox gamify dispute-vote`: Gamify Dispute-vote
+- `vox gamify enable`: Gamify Enable
+- `vox gamify feedback-rate`: Gamify Feedback-rate
+- `vox gamify glyph-list`: Gamify Glyph-list
+- `vox gamify hint`: Gamify Hint
+- `vox gamify hud`: Gamify Hud
+- `vox gamify leaderboard-show`: Gamify Leaderboard-show
+- `vox gamify metrics`: Gamify Metrics
+- `vox gamify mode`: Gamify Mode
+- `vox gamify monte-carlo-sweep`: Gamify Monte-carlo-sweep
+- `vox gamify morning`: Gamify Morning
+- `vox gamify notify-clear`: Gamify Notify-clear
+- `vox gamify notify-list`: Gamify Notify-list
+- `vox gamify pack-init`: Gamify Pack-init
+- `vox gamify pack-list`: Gamify Pack-list
+- `vox gamify profile-merge`: Gamify Profile-merge
+- `vox gamify quest-generate`: Gamify Quest-generate
+- `vox gamify quest-list`: Gamify Quest-list
+- `vox gamify record`: Gamify Record
+- `vox gamify reward-claim`: Gamify Reward-claim
+- `vox gamify shield-use`: Gamify Shield-use
+- `vox gamify shop-buy`: Gamify Shop-buy
+- `vox gamify shop-list`: Gamify Shop-list
+- `vox gamify status`: Gamify Status
+- `vox gamify sync-github`: Gamify Sync-github
+- `vox_gamify_battle_start`: Ludus Battle Start
+- `vox_gamify_battle_submit`: Ludus Battle Submit
+- `vox_gamify_collegium_join`: Ludus Collegium Join
+- `vox_gamify_notification_ack`: Ludus Notification Ack
+- `vox_gamify_notifications_ack_all`: Ludus Notifications Ack All
+- `vox_gamify_notifications_list`: Ludus Notifications List
+- `vox_gamify_progress_snapshot`: Ludus Progress Snapshot
+- `vox_gamify_quest_list`: Ludus Quest List
+- `vox_gamify_shop_buy`: Ludus Shop Buy
+- `vox_gamify_shop_catalog`: Ludus Shop Catalog
+
+### Build & deploy
+- `vox add`: Add
+- `vox bundle`: Bundle (plugins)
+- `vox bundle-app`: Bundle App
+- `vox bundle apply`: Bundle Apply
+- `vox bundle build`: Bundle Build
+- `vox bundle list`: Bundle List
+- `vox bundle verify`: Bundle Verify
+- `vox container`: Container
+- `vox container build`: Container Build
+- `vox container run`: Container Run
+- `vox deploy`: Deploy
+- `vox lock`: Lock
+- `vox pm`: Pm
+- `vox pm cache`: Pm Cache
+- `vox pm cache clear`: Pm Cache Clear
+- `vox pm cache status`: Pm Cache Status
+- `vox pm info`: Pm Info
+- `vox pm mirror`: Pm Mirror
+- `vox pm publish`: Pm Publish
+- `vox pm search`: Pm Search
+- `vox pm vendor`: Pm Vendor
+- `vox pm verify`: Pm Verify
+- `vox pm yank`: Pm Yank
+- `vox remove`: Remove
+- `vox sync`: Sync
+- `vox update`: Update
+- `vox upgrade`: Upgrade
+
+### Platform (other)
+- `vox catalog`: Catalog
+- `vox catalog add`: Catalog Add
+- `vox catalog focus`: Catalog Focus
+- `vox catalog list`: Catalog List
+- `vox catalog remove`: Catalog Remove
+- `vox commands`: Commands
+- `vox completions`: Completions
+- `vox config`: Config
+- `vox config get` / `vox_config_get`: Config Get
+- `vox config list`: Config List
+- `vox config set` / `vox_config_set`: Config Set
+- `vox config sync`: Config Sync
+- `vox config unset`: Config Unset
+- `vox diag`: Diag
+- `vox diag doctor`: Diag Doctor
+- `vox doctor`: Doctor
+- `vox explain` / `vox_capability_explain`: Explain Capability
+- `vox features` / `vox_capability_features`: List Capabilities by Domain
+- `vox repair`: Repair
+- `vox telemetry`: Telemetry
+- `vox telemetry consent`: Telemetry Consent
+- `vox telemetry consent deny`: Telemetry Consent Deny
+- `vox telemetry consent grant`: Telemetry Consent Grant
+- `vox telemetry consent status`: Telemetry Consent Status
+- `vox telemetry doctor`: Telemetry Doctor
+- `vox telemetry enqueue`: Telemetry Enqueue
+- `vox telemetry export`: Telemetry Export
+- `vox telemetry status`: Telemetry Status
+- `vox telemetry upload`: Telemetry Upload
+- `vox_add_approval_allowlist_entry`: Add Approval Allowlist Entry
+- `vox_answer_question`: Answer Question
+- `vox_apply_structured_edit`: Apply Structured Edit
+- `vox_broadcast`: Broadcast
+- `vox_budget_status`: Budget Status
+- `vox_build_crate`: Build Crate
+- `vox_builtin_registry`: Builtin Registry
+- `vox_cancel_task`: Cancel Task
+- `vox_capability_model_manifest`: Capability Model Manifest
+- `vox_claim_file`: Claim File
+- `vox_code_audit_findings_upsert`: Toestub Findings Upsert
+- `vox_compaction_status`: Compaction Status
+- `vox_compiler::ast_inspect`: Compiler::ast Inspect
+- `vox_complete_task`: Complete Task
+- `vox_conflict_diff`: Conflict Diff
+- `vox_conflicts`: Conflicts
+- `vox_context_budget`: Context Budget
+- `vox_cost_history`: Cost History
+- `vox_coverage_report`: Coverage Report
+- `vox_credentials_status`: Credentials Status
+- `vox_decorator_registry`: Decorator Registry
+- `vox_doubt_task`: Doubt Task
+- `vox_drain_agent`: Drain Agent
+- `vox_emergency_stop`: Emergency Stop
+- `vox_export_grammar_ebnf`: Export Grammar Ebnf
+- `vox_fail_task`: Fail Task
+- `vox_feedback_list`: Feedback List
+- `vox_file_graph`: File Graph
+- `vox_generate_code`: Generate Code
+- `vox_get_active_model`: Get Active Model
+- `vox_get_context`: Get Context
+- `vox_ghost_text`: Chat Ghost Text
+- `vox_heartbeat`: Heartbeat
+- `vox_inline_edit`: Inline Edit
+- `vox_journey_canonical_steps`: Journey Canonical Steps
+- `vox_knowledge_query`: Knowledge Query
+- `vox_language_surface`: Language Surface
+- `vox_learn_pattern`: Learn Pattern
+- `vox_lint_crate`: Lint Crate
+- `vox_list_approval_allowlist`: List Approval Allowlist
+- `vox_list_context`: List Context
+- `vox_list_models`: List Models
+- `vox_lock_status`: Lock Status
+- `vox_map_agent_session`: Map Agent Session
+- `vox_my_files`: My Files
+- `vox_oplog`: Oplog
+- `vox_pause_agent`: Pause Agent
+- `vox_pipeline_status`: Pipeline Status
+- `vox_poll_events`: Poll Events
+- `vox_populi_local_status`: Populi Local Status
+- `vox_project_init`: Project Init
+- `vox_propose_skill`: Propose Skill
+- `vox_publish_message`: Publish Message
+- `vox_queue_status`: Queue Status
+- `vox_rebalance`: Rebalance
+- `vox_record_cost`: Record Cost
+- `vox_redo`: Redo
+- `vox_reorder_task`: Reorder Task
+- `vox_replan`: Replan
+- `vox_resolve_approval`: Resolve Approval
+- `vox_resolve_conflict`: Resolve Conflict
+- `vox_resolve_feedback`: Resolve Feedback
+- `vox_resume_agent`: Resume Agent
+- `vox_retire_agent`: Retire Agent
+- `vox_run_tests`: Run Tests
+- `vox_schola_submit`: Schola Submit
+- `vox_secrets_doctor`: Secrets Doctor
+- `vox_semantic_fs_discover`: Semantic filesystem discover
+- `vox_set_active_model`: Set Active Model
+- `vox_set_agent_budget`: Set Agent Budget
+- `vox_set_context`: Set Context
+- `vox_set_model`: Set Model
+- `vox_spawn_agent`: Spawn Agent
+- `vox_speech_to_code`: Speech To Code
+- `vox_submit_task`: Submit Task
+- `vox_suggest_model`: Suggest Model
+- `vox_task_status`: Task Status
+- `vox_tool_search`: Tool Search
+- `vox_transfer_file`: Transfer File
+- `vox_trust_override`: Trust Override
+- `vox_undo`: Undo
+- `vox_vcs_status`: Vcs Status
+- `vox_verify_task_claims`: Verify Task Claims
+- `vox_visual_rag_query`: Visual Rag Query
+<!-- END GENERATED capability-index -->
+
 ## Architecture Authority
 - [Where things live](https://voxlang.org/architecture/where-things-live/)
 - [Classification SSOT](https://voxlang.org/architecture/classification-ssot-2026/)

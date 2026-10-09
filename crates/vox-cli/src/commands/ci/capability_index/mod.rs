@@ -25,6 +25,8 @@ use super::operations_catalog::write_or_verify_text;
 const INDEX_REL: &str = "contracts/capabilities/capability-index.v1.json";
 const SCHEMA_REL: &str = "contracts/capabilities/capability-index.v1.schema.json";
 const STALE_HINT: &str = "run `vox ci capability-index --write`";
+const LLMS_REL: &str = "docs/src/.well-known/llms.txt";
+const LLMS_FULL_REL: &str = "docs/src/.well-known/llms-full.txt";
 
 /// Validate a serialized index document against the committed JSON Schema.
 fn validate_against_schema(repo_root: &Path, instance: &serde_json::Value) -> Result<()> {
@@ -74,7 +76,28 @@ pub fn run(repo_root: &Path, write: bool) -> Result<()> {
         write,
         STALE_HINT,
     )
-    .map_err(|e| anyhow!("{e:#}"))
+    .map_err(|e| anyhow!("{e:#}"))?;
+    sync_llms_regions(repo_root, &index, write)
+}
+
+/// Rewrite (or verify) only the generated marker region of each hand-written llms file.
+fn sync_llms_regions(repo_root: &Path, index: &CapabilityIndex, write: bool) -> Result<()> {
+    for (rel, body) in [
+        (LLMS_REL, emit::llms_compact(index)),
+        (LLMS_FULL_REL, emit::llms_full(index)),
+    ] {
+        let path = repo_root.join(rel);
+        let current = read_utf8_path_capped(&path)?;
+        let next = emit::splice_region(&current, &body).with_context(|| {
+            format!(
+                "{rel}: add the marker pair `{}` / `{}` where the section belongs",
+                emit::BEGIN_MARKER,
+                emit::END_MARKER
+            )
+        })?;
+        write_or_verify_text(&path, &next, write, STALE_HINT).map_err(|e| anyhow!("{e:#}"))?;
+    }
+    Ok(())
 }
 
 /// `--tighten`: shrink the unresolved-owner baseline (removal-only; bootstraps a missing file).

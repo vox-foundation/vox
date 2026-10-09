@@ -1,39 +1,163 @@
 //! Pure text emitters over the capability index: generated regions for `llms.txt` /
 //! `llms-full.txt`. No IO; `mod.rs` owns reading and writing.
 
+use std::collections::BTreeMap;
+
 use anyhow::{Result, bail};
-use vox_capability_registry::CapabilityIndex;
+use vox_capability_registry::{CapabilityIndex, IndexRow, RowKind};
+
+use super::join::single_line;
 
 pub(crate) const BEGIN_MARKER: &str =
     "<!-- BEGIN GENERATED capability-index: vox ci capability-index --write -->";
 pub(crate) const END_MARKER: &str = "<!-- END GENERATED capability-index -->";
 
+const SITE: &str = "https://voxlang.org";
+const INDEX_URL: &str = "https://github.com/vox-foundation/vox/blob/main/contracts/capabilities/capability-index.v1.json";
+const QUERY_HINT: &str = "Query it: `vox explain <thing>`, `vox features --domain <d>`, MCP `vox_capability_explain` / `vox_capability_features`.";
+
 /// Replace the text between the (unique) marker pair with `body`; bytes outside are untouched.
+/// Never appends: a missing, duplicated or reversed marker is an error.
 pub(crate) fn splice_region(doc: &str, body: &str) -> Result<String> {
-    if !doc.contains(BEGIN_MARKER) || !doc.contains(END_MARKER) {
-        bail!("missing marker pair");
+    let (begins, ends) = (
+        doc.matches(BEGIN_MARKER).count(),
+        doc.matches(END_MARKER).count(),
+    );
+    if begins == 0 || ends == 0 {
+        bail!("missing marker: expected one `{BEGIN_MARKER}` and one `{END_MARKER}`");
     }
-    Ok(doc.replace("old", body))
+    if begins != 1 || ends != 1 {
+        bail!(
+            "marker order/duplicates: found {begins} BEGIN and {ends} END markers, expected one each"
+        );
+    }
+    let (Some(b), Some(e)) = (doc.find(BEGIN_MARKER), doc.find(END_MARKER)) else {
+        bail!("missing marker");
+    };
+    let head_end = b + BEGIN_MARKER.len();
+    if e < head_end {
+        bail!("marker order/duplicates: END precedes BEGIN");
+    }
+    Ok(format!(
+        "{}\n{}\n{}",
+        &doc[..head_end],
+        body.trim_end(),
+        &doc[e..]
+    ))
 }
 
-/// One printable line with no HTML comment delimiters.
+/// One printable line with no HTML comment delimiters (markup/prompt-injection guard).
 pub(crate) fn safe_line(s: &str) -> String {
-    s.to_string()
+    let mut line = single_line(s).unwrap_or_default();
+    // Loop: removing one delimiter can splice the surrounding text into a new one.
+    while line.contains("<!--") || line.contains("-->") {
+        line = line.replace("<!--", "").replace("-->", "");
+    }
+    line
 }
 
 /// Published site URL of a repo doc path (`docs/src/<x>.md` -> `https://voxlang.org/<x>/`).
 pub(crate) fn site_url(repo_path: &str) -> String {
-    repo_path.to_string()
+    let rest = repo_path.strip_prefix("docs/src/").unwrap_or(repo_path);
+    let rest = rest.strip_suffix(".md").unwrap_or(rest);
+    format!("{SITE}/{rest}/")
+}
+
+/// Inline-code span that cannot be closed early by the content.
+fn code(s: &str) -> String {
+    format!("`{}`", safe_line(s).replace('`', ""))
+}
+
+fn count_kind(index: &CapabilityIndex, domain: &str, kind: RowKind) -> usize {
+    index
+        .rows
+        .iter()
+        .filter(|r| r.kind == kind && r.domain.as_deref() == Some(domain))
+        .count()
 }
 
 /// Compact capability region for `llms.txt` (per-domain counts plus links).
 pub(crate) fn llms_compact(index: &CapabilityIndex) -> String {
-    format!("{} domains", index.domains.len())
+    let mut out = String::from("## Capabilities (generated from the capability index)\n");
+    for d in &index.domains {
+        out.push_str(&format!(
+            "- {}: {} CLI commands, {} MCP tools, {} GUI surfaces\n",
+            safe_line(&d.label),
+            count_kind(index, &d.id, RowKind::Cli),
+            count_kind(index, &d.id, RowKind::McpTool),
+            count_kind(index, &d.id, RowKind::Surface),
+        ));
+    }
+    // CLI surface links the hand-written reference: the Starlight slug of
+    // `cli-command-surface.generated.md` is unverified (RESEARCH A2).
+    out.push_str(&format!(
+        "\n- [MCP tool reference]({}): every MCP tool, its schema and contract\n\
+         - [GUI navigation]({}): desktop app surfaces and how to reach them\n\
+         - [CLI reference]({}): all `vox` subcommands\n\
+         - [Capability index JSON]({INDEX_URL}): the machine-readable index this section is generated from\n\
+         \n{QUERY_HINT}\n",
+        site_url("docs/src/reference/mcp-tool-registry-contract.md"),
+        site_url("docs/src/reference/gui-navigation.md"),
+        site_url("docs/src/reference/cli.md"),
+    ));
+    out
 }
 
-/// Full capability region for `llms-full.txt` (one line per operation, grouped by domain).
+/// Full capability region for `llms-full.txt`: one line per operation (a CLI row and its MCP
+/// equivalent share a line), grouped by domain in vocabulary order.
 pub(crate) fn llms_full(index: &CapabilityIndex) -> String {
-    format!("{} rows", index.rows.len())
+    let mut ops: BTreeMap<String, (Option<&IndexRow>, Option<&IndexRow>)> = BTreeMap::new();
+    for r in &index.rows {
+        let slot = ops
+            .entry(r.op_id.clone().unwrap_or_else(|| r.id.clone()))
+            .or_default();
+        match r.kind {
+            RowKind::Cli => slot.0 = Some(r),
+            RowKind::McpTool => slot.1 = Some(r),
+            _ => {}
+        }
+    }
+    let mut by_domain: BTreeMap<String, Vec<(String, String)>> = BTreeMap::new();
+    for (cli, mcp) in ops.into_values() {
+        let Some(primary) = cli.or(mcp) else { continue };
+        let names: Vec<String> = [
+            cli.and_then(|r| r.cli.as_ref())
+                .map(|c| code(&c.invocation)),
+            mcp.and_then(|r| r.mcp.as_ref()).map(|m| code(&m.name)),
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
+        let domain = primary
+            .domain
+            .clone()
+            .unwrap_or_else(|| "other".to_string());
+        by_domain.entry(domain).or_default().push((
+            primary.id.clone(),
+            format!("- {}: {}", names.join(" / "), safe_line(&primary.title)),
+        ));
+    }
+    let mut out = String::from(
+        "## Capability index (generated)\nEvery CLI command and MCP tool, grouped by domain. \
+         Query it: `vox explain <thing>` or MCP `vox_capability_explain`.\n",
+    );
+    let mut section = |label: &str, mut items: Vec<(String, String)>| {
+        items.sort();
+        out.push_str(&format!("\n### {}\n", safe_line(label)));
+        for (_, line) in items {
+            out.push_str(&line);
+            out.push('\n');
+        }
+    };
+    for d in &index.domains {
+        if let Some(items) = by_domain.remove(&d.id) {
+            section(&d.label, items);
+        }
+    }
+    for (id, items) in by_domain {
+        section(&id, items);
+    }
+    out
 }
 
 #[cfg(test)]
