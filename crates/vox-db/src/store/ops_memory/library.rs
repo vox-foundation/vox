@@ -282,6 +282,24 @@ impl crate::VoxDb {
         }
     }
 
+    /// Set the trust tier of the single `search_documents` row `(corpus, rel_path)`; an unknown
+    /// pair is a no-op. Used by the Library indexer so unchanged and unreadable documents still
+    /// get their per-document tier on every run (D-08).
+    pub async fn set_library_document_tier(
+        &self,
+        corpus: &str,
+        rel_path: &str,
+        tier: ContextTrustTier,
+    ) -> Result<(), StoreError> {
+        self.conn
+            .execute(
+                "UPDATE search_documents SET trust_tier = ?1 WHERE corpus = ?2 AND rel_path = ?3",
+                params![tier.as_db_str(), corpus, rel_path],
+            )
+            .await?;
+        Ok(())
+    }
+
     /// Number of hash-keyed chunk rows in `corpus`.
     pub async fn library_chunk_count(&self, corpus: &str) -> Result<i64, StoreError> {
         let mut rows = self
@@ -356,9 +374,9 @@ impl crate::VoxDb {
 
     /// Insert or replace the manifest row for `state.corpus`; `indexed_at` is set to now.
     ///
-    /// `state.trust_tier` is the single source of the corpus tier: in the same transaction it is
-    /// written onto every `search_documents` row of `state.corpus`, so rows the indexer skipped as
-    /// unchanged cannot drift from the manifest. (Phase 11 must exempt evidence-bearing rows.)
+    /// Writes the manifest only. `state.trust_tier` is the corpus *ceiling*; row tiers are set per
+    /// document by the indexer on every run (D-08: Trusted only when committed and unmodified),
+    /// so this write must never re-stamp `search_documents`.
     pub async fn put_kb_index_state(&self, state: &KbIndexState) -> Result<(), StoreError> {
         let conn = self.conn.clone();
         let state = state.clone();
@@ -394,11 +412,6 @@ impl crate::VoxDb {
                     state.errors_json.as_str(),
                     state.duration_ms
                 ],
-            )
-            .await?;
-            conn.execute(
-                "UPDATE search_documents SET trust_tier = ?1 WHERE corpus = ?2",
-                params![state.trust_tier.as_db_str(), state.corpus.as_str()],
             )
             .await?;
             Ok(())
@@ -681,6 +694,55 @@ mod tests {
             .unwrap();
         assert_eq!((second.doc_count, second.corpus_commit), (9, None));
         assert_eq!(db.get_kb_index_state("other").await.unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn set_library_document_tier_is_corpus_and_path_scoped() {
+        let db = VoxDb::open_memory().await.unwrap();
+        for (corpus, path, h) in [
+            (KB_LIBRARY_CORPUS, "docs/src/a.md", "a"),
+            (KB_LIBRARY_CORPUS, "docs/src/b.md", "b"),
+            ("other", "docs/src/o.md", "c"),
+        ] {
+            let mut d = doc(path);
+            d.corpus = corpus;
+            db.apply_library_document(&d, &[chunk(&h.repeat(64), "H", "x")])
+                .await
+                .unwrap();
+        }
+        let tiers = |db: VoxDb| async move {
+            db.search_document_tiers()
+                .await
+                .unwrap()
+                .into_iter()
+                .map(|(uri, corpus, t)| (corpus, uri, t))
+                .collect::<Vec<_>>()
+        };
+        db.set_library_document_tier(
+            KB_LIBRARY_CORPUS,
+            "docs/src/a.md",
+            ContextTrustTier::Untrusted,
+        )
+        .await
+        .unwrap();
+        let t = tiers(db.clone()).await;
+        assert_eq!(t.len(), 3);
+        let untrusted: Vec<_> = t
+            .iter()
+            .filter(|r| r.2 == ContextTrustTier::Untrusted)
+            .collect();
+        assert_eq!(untrusted.len(), 1, "{t:?}");
+        assert_eq!(untrusted[0].0, KB_LIBRARY_CORPUS);
+        // Unknown pair, and a path that exists only in another corpus: Ok, nothing changes.
+        for path in ["docs/src/zzz.md", "docs/src/o.md"] {
+            db.set_library_document_tier(KB_LIBRARY_CORPUS, path, ContextTrustTier::Untrusted)
+                .await
+                .unwrap();
+            assert_eq!(tiers(db.clone()).await, t, "{path}");
+        }
+        // The manifest write never re-stamps rows (D-08).
+        db.put_kb_index_state(&state(None)).await.unwrap();
+        assert_eq!(tiers(db).await, t);
     }
 
     #[tokio::test]

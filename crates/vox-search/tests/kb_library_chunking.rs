@@ -220,6 +220,7 @@ async fn kb_chunking_end_to_end() {
         hasher: &hasher,
         corpus_commit: None,
         trust_tier: vox_db::ContextTrustTier::Trusted,
+        is_committed_clean: &|_: &str| true,
     };
     index_library(&db, dir.path(), &dir.path().join("lex"), &deps)
         .await
@@ -376,6 +377,7 @@ async fn kb_archive_excluded() {
         hasher: &hasher,
         corpus_commit: None,
         trust_tier: vox_db::ContextTrustTier::Trusted,
+        is_committed_clean: &|_: &str| true,
     };
     index_library(&db, root, &root.join("lex"), &deps)
         .await

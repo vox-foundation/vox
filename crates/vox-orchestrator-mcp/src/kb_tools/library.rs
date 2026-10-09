@@ -142,8 +142,10 @@ fn hasher(bytes: &[u8]) -> String {
 static KB_REINDEX_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 /// Index `<repo_root>/docs/src` into `db` and `lexical_dir` with the vox-crypto hasher. The
-/// trust tier is `tier_for_curated(false)` = trusted (curated, merged to git; AP-12). Refuses with `reindex already
-/// running` while another call holds [`KB_REINDEX_LOCK`].
+/// corpus ceiling is `tier_for_curated(false)` = trusted, but a file gets it only when git tracks
+/// it at HEAD with no staged or working-tree modification (curated, merged to git; D-08); every
+/// other file is Untrusted. Refuses with `reindex already running` while another call holds
+/// [`KB_REINDEX_LOCK`].
 pub(crate) async fn reindex_at(
     db: &VoxDb,
     repo_root: &Path,
@@ -153,10 +155,12 @@ pub(crate) async fn reindex_at(
     let Ok(_guard) = KB_REINDEX_LOCK.try_lock() else {
         return Err("reindex already running".into());
     };
+    let clean = committed_clean_docs(repo_root).await;
     let deps = IndexDeps {
         hasher: &hasher,
         corpus_commit,
         trust_tier: vox_db::tier_for_curated(false),
+        is_committed_clean: &|rel: &str| clean.contains(rel),
     };
     index_library(db, repo_root, lexical_dir, &deps)
         .await
@@ -189,6 +193,7 @@ fn report_json(r: &IndexReport) -> serde_json::Value {
     json!({
         "docs_seen": r.docs_seen,
         "docs_unchanged": r.docs_unchanged,
+        "docs_untrusted": r.docs_untrusted,
         "docs_changed": r.docs_changed,
         "docs_pruned": r.docs_pruned,
         "chunks_inserted": r.chunks_inserted,
@@ -201,6 +206,64 @@ fn report_json(r: &IndexReport) -> serde_json::Value {
         "corpus_commit": r.corpus_commit,
         "duration_ms": r.duration_ms,
     })
+}
+
+/// Corpus files git tracks at HEAD with no staged or working-tree change (D-08): `ls-tree` at
+/// HEAD minus `diff` against HEAD, both read-only with fixed arguments, through [`GitExec`].
+/// Paths are top-level-relative with forward slashes, equal to the walker's `rel_path` when
+/// `repo_root` is the git top-level. In a subdirectory checkout nothing matches, so every file
+/// is Untrusted. Any git failure (missing git, not a checkout, no HEAD) yields an empty set:
+/// fail-closed.
+async fn committed_clean_docs(repo_root: &Path) -> std::collections::HashSet<String> {
+    let git = crate::git_exec::GitExec::new(repo_root);
+    let mut tracked = std::collections::HashSet::new();
+    let mut dirty = std::collections::HashSet::new();
+    for root in vox_search::kb_ids::KB_CORPUS_ROOTS {
+        for (args, set) in [
+            (
+                [
+                    "ls-tree",
+                    "-r",
+                    "-z",
+                    "--name-only",
+                    "--full-name",
+                    "HEAD",
+                    "--",
+                    root,
+                ]
+                .as_slice(),
+                &mut tracked,
+            ),
+            (
+                [
+                    "diff",
+                    "-z",
+                    "--name-only",
+                    "--no-renames",
+                    "HEAD",
+                    "--",
+                    root,
+                ]
+                .as_slice(),
+                &mut dirty,
+            ),
+        ] {
+            match git.run(args).await {
+                Ok(out) => set.extend(
+                    out.stdout
+                        .split('\0')
+                        .filter(|p| !p.is_empty())
+                        .map(str::to_string),
+                ),
+                Err(e) => {
+                    tracing::debug!(target: "vox.kb.reindex", error = %e, "git tier check failed; Library docs are Untrusted");
+                    return Default::default();
+                }
+            }
+        }
+    }
+    tracked.retain(|p| !dirty.contains(p));
+    tracked
 }
 
 /// `HEAD` of the repository, or `None` when git is unavailable or the root is not a checkout.
@@ -958,6 +1021,7 @@ mod tests {
         for k in [
             "docs_seen",
             "docs_unchanged",
+            "docs_untrusted",
             "docs_changed",
             "docs_pruned",
             "chunks_inserted",
@@ -985,5 +1049,143 @@ mod tests {
         assert_eq!(hits["data"]["hits"][0]["heading_path"], "A › S", "{hits}");
         let v = tool(&state, "vox_kb_reindex", json!({})).await;
         assert_eq!(v["data"]["docs_unchanged"], 1, "{v}");
+    }
+
+    /// Run `git <args>` in `repo` through [`GitExec`] with identity, signing and hooks neutralized.
+    async fn git(repo: &Path, args: &[&str]) {
+        let mut full = vec![
+            "-c",
+            "user.name=vox-test",
+            "-c",
+            "user.email=vox-test@example.invalid",
+            "-c",
+            "commit.gpgsign=false",
+            "-c",
+            "core.hooksPath=/dev/null",
+        ];
+        full.extend_from_slice(args);
+        crate::git_exec::GitExec::new(repo)
+            .run(&full)
+            .await
+            .unwrap_or_else(|e| panic!("git {args:?}: {e}"));
+    }
+
+    /// Temp git repo with `docs/src/{clean,modified}.md` committed, then `modified.md` edited,
+    /// `untracked.md` written and `staged.md` written and `git add`-ed.
+    async fn git_repo_fixture() -> (TempDir, std::path::PathBuf) {
+        for v in ["GIT_DIR", "GIT_WORK_TREE"] {
+            assert!(
+                std::env::var_os(v).is_none(),
+                "{v} is set: refusing to run git init/commit against a possibly real repository"
+            );
+        }
+        let tmp = tempfile::tempdir().unwrap();
+        let repo = tmp.path().join("repo");
+        let docs = repo.join("docs/src");
+        tokio::fs::create_dir_all(&docs).await.unwrap();
+        git(&repo, &["init", "-q"]).await;
+        tokio::fs::write(docs.join("clean.md"), "# Clean\n## S\nclean body\n")
+            .await
+            .unwrap();
+        tokio::fs::write(docs.join("modified.md"), "# Mod\n## S\noriginal body\n")
+            .await
+            .unwrap();
+        git(&repo, &["add", "."]).await;
+        git(&repo, &["commit", "-q", "-m", "init"]).await;
+        tokio::fs::write(docs.join("modified.md"), "# Mod\n## S\nedited body\n")
+            .await
+            .unwrap();
+        tokio::fs::write(docs.join("untracked.md"), "# U\n## S\nuntracked body\n")
+            .await
+            .unwrap();
+        tokio::fs::write(docs.join("staged.md"), "# St\n## S\nstaged body\n")
+            .await
+            .unwrap();
+        git(&repo, &["add", "docs/src/staged.md"]).await;
+        (tmp, repo)
+    }
+
+    /// `(rel_path, tier)` of every Library row, ordered by path.
+    async fn library_tiers(db: &VoxDb) -> Vec<(String, vox_db::ContextTrustTier)> {
+        db.search_document_tiers()
+            .await
+            .unwrap()
+            .into_iter()
+            .filter(|r| r.1 == KB_LIBRARY_CORPUS)
+            .map(|r| (r.0, r.2))
+            .collect()
+    }
+
+    fn tier_of(
+        rows: &[(String, vox_db::ContextTrustTier)],
+        name: &str,
+    ) -> vox_db::ContextTrustTier {
+        rows.iter()
+            .find(|r| r.0.ends_with(name))
+            .unwrap_or_else(|| panic!("no row for {name}: {rows:?}"))
+            .1
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn kb_reindex_git_gate_trusts_only_committed_unmodified_docs() {
+        use vox_db::ContextTrustTier::{Trusted, Untrusted};
+        let (tmp, repo) = git_repo_fixture().await;
+        let db = VoxDb::open_memory().await.unwrap();
+        let r = reindex_at(&db, &repo, &tmp.path().join("lex"), None)
+            .await
+            .unwrap();
+        let t = library_tiers(&db).await;
+        assert_eq!(t.len(), 4, "{t:?}");
+        assert_eq!(tier_of(&t, "clean.md"), Trusted, "{t:?}");
+        for n in ["modified.md", "untracked.md", "staged.md"] {
+            assert_eq!(tier_of(&t, n), Untrusted, "{n}: {t:?}");
+        }
+        assert_eq!(r.docs_untrusted, 3);
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn kb_reindex_git_gate_non_checkout_is_untrusted() {
+        let (tmp, repo) = one_doc_repo("# A\n## S\nbody\n").await;
+        let db = VoxDb::open_memory().await.unwrap();
+        reindex_at(&db, &repo, &tmp.path().join("lex"), None)
+            .await
+            .unwrap();
+        let t = library_tiers(&db).await;
+        assert_eq!(t.len(), 1);
+        assert_eq!(t[0].1, vox_db::ContextTrustTier::Untrusted);
+        let st = db
+            .get_kb_index_state(KB_LIBRARY_CORPUS)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(st.trust_tier, vox_db::ContextTrustTier::Trusted, "ceiling");
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn kb_reindex_git_gate_retiers_unchanged_docs() {
+        use vox_db::ContextTrustTier::{Trusted, Untrusted};
+        let (tmp, repo) = git_repo_fixture().await;
+        let lex = tmp.path().join("lex");
+        let db = VoxDb::open_memory().await.unwrap();
+        reindex_at(&db, &repo, &lex, None).await.unwrap();
+        assert_eq!(tier_of(&library_tiers(&db).await, "modified.md"), Untrusted);
+
+        // Commit the edit without touching the file again: same content hash, now Trusted.
+        git(&repo, &["add", "docs/src/modified.md"]).await;
+        git(&repo, &["commit", "-q", "-m", "edit"]).await;
+        let r = reindex_at(&db, &repo, &lex, None).await.unwrap();
+        assert_eq!(r.docs_changed, 0, "{r:?}");
+        assert_eq!(tier_of(&library_tiers(&db).await, "modified.md"), Trusted);
+
+        // Untrack a previously clean doc: unchanged content, demoted.
+        git(&repo, &["rm", "--cached", "-q", "docs/src/clean.md"]).await;
+        let r = reindex_at(&db, &repo, &lex, None).await.unwrap();
+        assert_eq!(r.docs_changed, 0, "{r:?}");
+        assert!(r.docs_unchanged >= 1, "{r:?}");
+        assert_eq!(tier_of(&library_tiers(&db).await, "clean.md"), Untrusted);
+        assert!(report_json(&r).get("docs_untrusted").is_some());
     }
 }

@@ -59,6 +59,8 @@ impl LibraryRetriever {
             hasher,
             corpus_commit: None,
             trust_tier: vox_db::tier_for_curated(false),
+            // A synthetic eval corpus in a throwaway DB is not tier-gated.
+            is_committed_clean: &|_: &str| true,
         };
         let report = index_library(&db, &tree, &lexical, &deps).await?;
         if let Some(e) = report.errors.first() {

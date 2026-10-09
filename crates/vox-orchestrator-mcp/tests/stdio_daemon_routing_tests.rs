@@ -349,6 +349,7 @@ async fn kb_resources_and_tools_via_daemon() {
         hasher: &hasher,
         corpus_commit: None,
         trust_tier: vox_db::ContextTrustTier::Trusted,
+        is_committed_clean: &|_: &str| true,
     };
     let lex_dir = vox_search::library::lexical::default_index_dir().expect("index dir");
     vox_search::library::index_library(&db, &repo, &lex_dir, &deps)

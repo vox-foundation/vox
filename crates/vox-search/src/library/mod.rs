@@ -21,8 +21,12 @@ pub struct IndexDeps<'a> {
     /// Hex digest of the given bytes (production: `vox_crypto::hex_encode(&secure_hash(b))`).
     pub hasher: &'a (dyn Fn(&[u8]) -> String + Sync),
     pub corpus_commit: Option<String>,
-    /// The corpus tier, chosen once by the construction site; aligned onto every Library row.
+    /// The corpus ceiling, chosen once by the construction site and recorded in `kb_index_state`.
+    /// A file is stamped this tier only when [`Self::is_committed_clean`] holds for it.
     pub trust_tier: vox_db::ContextTrustTier,
+    /// Per D-08, a corpus-relative path (`docs/src/x.md`) for which this returns false is indexed
+    /// Untrusted. Production derives it from git: tracked at HEAD and unmodified.
+    pub is_committed_clean: &'a (dyn Fn(&str) -> bool + Sync),
 }
 
 /// A file or directory that could not be read or indexed (unreadable directory, bad file), or a
@@ -41,6 +45,8 @@ pub struct IndexReport {
     pub docs_changed: usize,
     /// Files whose content hash matched the stored one: no DB writes at all.
     pub docs_unchanged: usize,
+    /// Walked files whose tier this run is Untrusted (not committed-and-clean), changed or not.
+    pub docs_untrusted: usize,
     /// Stored documents no longer present in the tree (deleted or renamed), removed this run.
     pub docs_pruned: usize,
     /// Card chunks in the library after this run (one per document).
@@ -91,9 +97,28 @@ pub async fn index_library(
         report.docs_seen += 1;
         // Every walked path is kept, errored or not: a transient read error never prunes a doc.
         walked.push(file.rel_path.clone());
+        // D-08: the tier is decided for every walked file on every run, changed or not.
+        let tier = if (deps.is_committed_clean)(&file.rel_path) {
+            deps.trust_tier
+        } else {
+            vox_db::ContextTrustTier::Untrusted
+        };
+        if tier == vox_db::ContextTrustTier::Untrusted {
+            report.docs_untrusted += 1;
+        }
         let raw = match vox_bounded_fs::read_utf8_path_capped(&file.abs) {
             Ok(s) => s,
             Err(e) => {
+                // Content we cannot read now is not vouched for (fail-closed; no-op without a row).
+                db.set_library_document_tier(
+                    KB_LIBRARY_CORPUS,
+                    &file.rel_path,
+                    vox_db::ContextTrustTier::Untrusted,
+                )
+                .await?;
+                if tier != vox_db::ContextTrustTier::Untrusted {
+                    report.docs_untrusted += 1;
+                }
                 report.errors.push(FileError {
                     path: file.rel_path,
                     error: format!("{e:#}"),
@@ -110,6 +135,8 @@ pub async fn index_library(
                 .as_deref()
                 == Some(file_hash.as_str())
         {
+            db.set_library_document_tier(KB_LIBRARY_CORPUS, &file.rel_path, tier)
+                .await?;
             report.docs_unchanged += 1;
             continue;
         }
@@ -134,7 +161,7 @@ pub async fn index_library(
             frontmatter_json: &parsed.frontmatter_json,
             indexed_commit: deps.corpus_commit.as_deref(),
             index_error: None,
-            trust_tier: deps.trust_tier,
+            trust_tier: tier,
         };
         let diff = db.apply_library_document(&doc, &inputs).await?;
         report.chunks_inserted += diff.inserted;
@@ -313,6 +340,7 @@ mod tests {
             hasher: &hasher,
             corpus_commit: None,
             trust_tier: vox_db::ContextTrustTier::Trusted,
+            is_committed_clean: &|_: &str| true,
         };
         let report = index_library(&db, repo.path(), &lex, &deps).await.unwrap();
         assert_eq!(report.lexical_backend, LEXICAL_BACKEND);

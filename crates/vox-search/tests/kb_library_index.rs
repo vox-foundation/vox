@@ -22,6 +22,7 @@ fn deps_with(tier: vox_db::ContextTrustTier) -> IndexDeps<'static> {
         hasher: &hasher,
         corpus_commit: Some("abc123".into()),
         trust_tier: tier,
+        is_committed_clean: &|_: &str| true,
     }
 }
 
@@ -703,4 +704,55 @@ async fn kb_library_tier_rows_agree_with_corpus_tier() {
             );
         }
     }
+}
+
+// ---- 03-16 (D-08): per-file tier follows the commit gate, on changed and unchanged docs ----
+
+#[tokio::test]
+async fn kb_library_tier_follows_the_commit_gate_per_file() {
+    use vox_db::ContextTrustTier::{Trusted, Untrusted};
+    let repo = tree(&[("a.md", DOC_A), ("b.md", DOC_B)]);
+    let lex = repo.path().join("lex");
+    let db = VoxDb::open_memory().await.unwrap();
+    let tiers = |db: VoxDb| async move {
+        db.search_document_tiers()
+            .await
+            .unwrap()
+            .into_iter()
+            .filter(|r| r.1 == KB_LIBRARY_CORPUS)
+            .map(|r| (r.0, r.2))
+            .collect::<Vec<_>>()
+    };
+    let tier_of = |rows: &[(String, vox_db::ContextTrustTier)], n: &str| {
+        rows.iter().find(|r| r.0.ends_with(n)).expect(n).1
+    };
+
+    let only_a = |p: &str| p.ends_with("a.md");
+    let mut deps = deps_with(Trusted);
+    deps.is_committed_clean = &only_a;
+    let r = index_library(&db, repo.path(), &lex, &deps).await.unwrap();
+    assert_eq!(r.docs_untrusted, 1, "{r:?}");
+    let t = tiers(db.clone()).await;
+    assert_eq!(
+        (tier_of(&t, "a.md"), tier_of(&t, "b.md")),
+        (Trusted, Untrusted)
+    );
+
+    // Unchanged tree, classifier flipped: skip-path re-tier, both directions.
+    let only_b = |p: &str| p.ends_with("b.md");
+    deps.is_committed_clean = &only_b;
+    let r = index_library(&db, repo.path(), &lex, &deps).await.unwrap();
+    assert_eq!((r.docs_unchanged, r.docs_untrusted), (2, 1), "{r:?}");
+    let t = tiers(db.clone()).await;
+    assert_eq!(
+        (tier_of(&t, "a.md"), tier_of(&t, "b.md")),
+        (Untrusted, Trusted)
+    );
+    // The manifest still records the ceiling.
+    let st = db
+        .get_kb_index_state(KB_LIBRARY_CORPUS)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(st.trust_tier, Trusted);
 }
