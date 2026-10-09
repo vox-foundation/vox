@@ -50,6 +50,8 @@ pub mod benchmark_tools;
 pub mod browser_tools;
 /// Trusted caller role for browser control-lock authorization.
 pub mod caller_role;
+/// `vox_capability_explain` / `vox_capability_features`: answers from the embedded capability index.
+pub mod capability_tools;
 pub mod chat_hop;
 /// Shared LLM model resolution for chat tools.
 pub mod chat_model_resolve;
