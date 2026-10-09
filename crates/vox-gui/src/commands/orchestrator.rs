@@ -33,6 +33,7 @@ const STREAM_RECONNECT_BACKOFF: std::time::Duration = D_2S;
 pub fn spawn_orchestrator_status_stream(
     app_handle: tauri::AppHandle,
     daemon: Arc<PersistentDaemon>,
+    backend: Arc<crate::remote::backend::BackendState>,
 ) {
     tokio::spawn(async move {
         loop {
@@ -59,6 +60,9 @@ pub fn spawn_orchestrator_status_stream(
             });
 
             while let Some(raw) = rx.recv().await {
+                if backend.is_remote() {
+                    continue;
+                }
                 let gui_status = to_gui_status(raw);
                 if let Ok(value) = serde_json::to_value(&gui_status) {
                     let _ = app_handle.emit(ORCH_STATUS_EVENT, value);
@@ -109,7 +113,11 @@ fn extract_offset(value: &serde_json::Value) -> Option<u64> {
 /// rather than exiting. Each emitted payload is the raw serialized
 /// `AgentEvent` (or T1.3 replay envelope) forwarded verbatim from the daemon.
 // toestub-ignore(skeleton/untested-pub-api) — spawns a background task bridging the orchestrator daemon to Tauri events; covered by integration
-pub fn spawn_agent_event_stream(app_handle: tauri::AppHandle, daemon: Arc<PersistentDaemon>) {
+pub fn spawn_agent_event_stream(
+    app_handle: tauri::AppHandle,
+    daemon: Arc<PersistentDaemon>,
+    backend: Arc<crate::remote::backend::BackendState>,
+) {
     tokio::spawn(async move {
         let mut last_offset: Option<u64> = None;
         loop {
@@ -142,6 +150,9 @@ pub fn spawn_agent_event_stream(app_handle: tauri::AppHandle, daemon: Arc<Persis
             });
 
             while let Some(value) = rx.recv().await {
+                if backend.is_remote() {
+                    continue;
+                }
                 if let Some(offset) = extract_offset(&value) {
                     last_offset = Some(offset);
                 }

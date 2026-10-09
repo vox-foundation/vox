@@ -4,6 +4,8 @@
 pub mod commands;
 #[path = "../src/config/mod.rs"]
 pub mod config;
+#[path = "../src/remote/mod.rs"]
+pub mod remote;
 
 pub mod vox_gui {
     pub use crate::commands;

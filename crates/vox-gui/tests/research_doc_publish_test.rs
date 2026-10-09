@@ -4,6 +4,8 @@
 mod commands;
 #[path = "../src/config/mod.rs"]
 mod config;
+#[path = "../src/remote/mod.rs"]
+mod remote;
 
 use commands::gui_db_pool::GuiDbPool;
 use commands::research::{

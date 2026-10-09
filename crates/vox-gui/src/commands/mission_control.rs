@@ -9,21 +9,15 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use vox_foundation::protocol::orch_daemon_method;
-use vox_orchestrator::orch_daemon::OrchDaemonClient;
 
-use crate::commands::daemon::PersistentDaemon;
+use crate::remote::backend::BackendState;
 
 async fn call_orchestrator_daemon(
-    daemon: &PersistentDaemon,
+    backend: &BackendState,
     method: &str,
     params: serde_json::Value,
 ) -> Result<serde_json::Value, String> {
-    let addr = daemon.ensure().await?;
-    let client = match daemon.token().await {
-        Some(token) => OrchDaemonClient::with_token(addr, token),
-        None => OrchDaemonClient::new(addr),
-    };
-    client.call(method, params).await.map_err(|e| e.to_string())
+    backend.call(method, params).await.map_err(String::from)
 }
 
 // ---------------------------------------------------------------------------
@@ -55,7 +49,7 @@ pub struct SubagentTreeNode {
 /// The daemon serves this via `orch.subagent_tree` (ExtraDispatch hook).
 #[tauri::command]
 pub async fn list_subagent_tree(
-    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+    daemon: tauri::State<'_, Arc<BackendState>>,
 ) -> Result<Vec<SubagentTreeNode>, String> {
     let resp = call_orchestrator_daemon(
         &daemon,
@@ -88,7 +82,7 @@ pub struct McApprovalRow {
 /// provides a direct path for MissionControlPanel without an extra MCP hop.
 #[tauri::command]
 pub async fn list_mc_approvals(
-    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+    daemon: tauri::State<'_, Arc<BackendState>>,
 ) -> Result<Vec<McApprovalRow>, String> {
     let resp = call_orchestrator_daemon(
         &daemon,
@@ -125,7 +119,7 @@ pub struct MeshPolicyResult {
 #[tauri::command]
 pub async fn set_task_mesh_policy(
     input: SetMeshPolicyInput,
-    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+    daemon: tauri::State<'_, Arc<BackendState>>,
 ) -> Result<MeshPolicyResult, String> {
     let resp = call_orchestrator_daemon(
         &daemon,
@@ -143,4 +137,28 @@ pub async fn set_task_mesh_policy(
         .unwrap_or(if ok { "ok" } else { "error" })
         .to_string();
     Ok(MeshPolicyResult { ok, message })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::commands::daemon::PersistentDaemon;
+    use crate::remote::gateway_client::test_support::{duplex_client, profile};
+
+    #[tokio::test]
+    async fn remote_backend_surfaces_typed_not_remote_capable_error() {
+        let (client, _server) = duplex_client(profile(&["mission-control"])).await;
+        let backend = BackendState::new(Arc::new(PersistentDaemon::default()));
+        backend.set_remote(Arc::new(client), None).await;
+        let err = call_orchestrator_daemon(
+            &backend,
+            orch_daemon_method::SUBAGENT_TREE,
+            serde_json::json!({}),
+        )
+        .await
+        .unwrap_err();
+        let v: serde_json::Value = serde_json::from_str(&err).expect("error envelope");
+        assert_eq!(v["error"]["code"], "not_remote_capable");
+        assert_eq!(v["error"]["method"], orch_daemon_method::SUBAGENT_TREE);
+    }
 }

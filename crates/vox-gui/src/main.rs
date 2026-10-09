@@ -5,6 +5,18 @@ mod config;
 mod drive;
 mod remote;
 
+/// `tauri::generate_handler!` plus the (root, module, command) table the remote-mode gate needs.
+macro_rules! axis_invoke_handler {
+    ($($root:ident :: $module:ident :: $cmd:ident),* $(,)?) => {{
+        const COMMAND_MODULES: &remote::gate::CommandTable =
+            &[$((stringify!($root), stringify!($module), stringify!($cmd))),*];
+        let inner = remote::gate::typed_handler(tauri::generate_handler![$($root::$module::$cmd),*]);
+        move |invoke: tauri::ipc::Invoke<tauri::Wry>| {
+            remote::gate::gate_invoke(COMMAND_MODULES, invoke, &inner)
+        }
+    }};
+}
+
 use commands::app_state::GuiState;
 use std::sync::Mutex;
 use tauri::{Manager, RunEvent};
@@ -57,6 +69,7 @@ async fn main() {
         }
     }
 
+    let persistent_daemon = std::sync::Arc::new(commands::daemon::PersistentDaemon::default());
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
@@ -76,9 +89,10 @@ async fn main() {
         .manage(commands::mic::MicCaptureState::default())
         .manage(commands::pty::PtyManager::default())
         .manage(commands::terminal_core::TerminalSessionManager::default())
-        .manage(std::sync::Arc::new(
-            commands::daemon::PersistentDaemon::default(),
-        ))
+        .manage(persistent_daemon.clone())
+        .manage(std::sync::Arc::new(remote::backend::BackendState::new(
+            persistent_daemon,
+        )))
         .manage(std::sync::Arc::new(
             commands::browser::BrowserState::default(),
         ))
@@ -122,6 +136,10 @@ async fn main() {
                 .state::<std::sync::Arc<commands::daemon::PersistentDaemon>>()
                 .inner()
                 .clone();
+            let backend = app
+                .state::<std::sync::Arc<remote::backend::BackendState>>()
+                .inner()
+                .clone();
             if let Err(err) = tokio::task::block_in_place(|| {
                 tauri::async_runtime::block_on(daemon.ensure())
             }) {
@@ -135,10 +153,11 @@ async fn main() {
             commands::orchestrator::spawn_orchestrator_status_stream(
                 app.handle().clone(),
                 daemon.clone(),
+                backend.clone(),
             );
             // B4: start the live agent-event stream, re-emitting each AgentEvent
             // as the "vox://agent-events" Tauri event.
-            commands::orchestrator::spawn_agent_event_stream(app.handle().clone(), daemon.clone());
+            commands::orchestrator::spawn_agent_event_stream(app.handle().clone(), daemon.clone(), backend.clone());
             // T3.1: background supervision task — periodically pings the
             // cached orchestrator daemon and clears/re-resolves it if it has
             // gone unreachable, so liveness is actively monitored rather than
@@ -172,7 +191,7 @@ async fn main() {
             commands::orchestrator::spawn_orchestrator_config_watch(app.handle().clone());
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![
+        .invoke_handler(axis_invoke_handler![
             commands::activity::activity_query,
             commands::catalog::get_command_catalog,
             commands::discovery::discovery_suggest,

@@ -478,9 +478,12 @@ impl PersistentDaemon {
 /// (adopting or spawning as needed). Used by Axis Drive to stamp `orch_fresh`.
 #[tauri::command]
 pub async fn orchestrator_daemon_ready(
-    state: tauri::State<'_, std::sync::Arc<PersistentDaemon>>,
+    state: tauri::State<'_, std::sync::Arc<crate::remote::backend::BackendState>>,
 ) -> Result<bool, String> {
-    Ok(state.ensure_live().await.is_ok())
+    Ok(match state.current().await {
+        crate::remote::backend::Backend::Local(daemon) => daemon.ensure_live().await.is_ok(),
+        crate::remote::backend::Backend::Remote(_) => true,
+    })
 }
 
 /// Axis Drive must not adopt a foreign orch that predates this process's
@@ -494,9 +497,15 @@ fn refuse_drive_foreign_adopt() -> bool {
 /// `None` when versions match or no mismatch has been observed yet.
 #[tauri::command]
 pub async fn orchestrator_version_mismatch(
-    state: tauri::State<'_, std::sync::Arc<PersistentDaemon>>,
+    state: tauri::State<'_, std::sync::Arc<crate::remote::backend::BackendState>>,
 ) -> Result<Option<VersionMismatch>, String> {
-    Ok(state.last_version_mismatch.read().await.clone())
+    Ok(match state.current().await {
+        crate::remote::backend::Backend::Local(daemon) => {
+            daemon.last_version_mismatch.read().await.clone()
+        }
+        // Remote major.minor is enforced at connect time (`version_mismatch`).
+        crate::remote::backend::Backend::Remote(_) => None,
+    })
 }
 
 /// Adopt only when ping proves the daemon was launched with a human MCP role.

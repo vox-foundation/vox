@@ -14,21 +14,15 @@ use std::sync::Arc;
 
 use serde_json::Value;
 use vox_foundation::protocol::orch_daemon_method;
-use vox_orchestrator::orch_daemon::OrchDaemonClient;
 
-use crate::commands::daemon::PersistentDaemon;
+use crate::remote::backend::BackendState;
 
 async fn call_orchestrator_daemon(
-    daemon: &PersistentDaemon,
+    backend: &BackendState,
     method: &str,
-    params: Value,
-) -> Result<Value, String> {
-    let addr = daemon.ensure().await?;
-    let client = match daemon.token().await {
-        Some(token) => OrchDaemonClient::with_token(addr, token),
-        None => OrchDaemonClient::new(addr),
-    };
-    client.call(method, params).await.map_err(|e| e.to_string())
+    params: serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    backend.call(method, params).await.map_err(String::from)
 }
 
 /// Build the RPC params for a strategy mutation, distinguishing "field absent"
@@ -65,7 +59,7 @@ fn build_set_strategy_params(
 /// GET-equivalent: live isolation status (default + per-agent + active conflicts).
 #[tauri::command]
 pub async fn get_vcs_isolation(
-    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+    daemon: tauri::State<'_, Arc<BackendState>>,
 ) -> Result<Value, String> {
     call_orchestrator_daemon(
         &daemon,
@@ -81,7 +75,7 @@ pub async fn set_vcs_isolation_strategy(
     default: Option<String>,
     agent_id: Option<u64>,
     strategy: Option<String>,
-    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+    daemon: tauri::State<'_, Arc<BackendState>>,
 ) -> Result<Value, String> {
     let params = build_set_strategy_params(default, agent_id, strategy);
     call_orchestrator_daemon(

@@ -277,6 +277,7 @@ pub async fn chat_turn(
     input: ChatTurnInput,
     pool: State<'_, GuiDbPool>,
     daemon: State<'_, Arc<PersistentDaemon>>,
+    backend: State<'_, Arc<crate::remote::backend::BackendState>>,
 ) -> Result<ChatTurnDto, ChatTurnError> {
     if input.session_id.trim().is_empty() {
         return Err(classify_turn_error("session_id must not be empty"));
@@ -286,7 +287,7 @@ pub async fn chat_turn(
     }
     let result = match input.execution {
         Execution::Sync => run_sync(input, pool, daemon).await,
-        Execution::Background => run_background(app_handle, input, daemon).await,
+        Execution::Background => run_background(app_handle, input, backend).await,
         Execution::Plan => run_plan(input, daemon).await,
     };
     result.map_err(|e| classify_turn_error(&e))
@@ -364,12 +365,12 @@ async fn run_sync(
 async fn run_background(
     app_handle: tauri::AppHandle,
     input: ChatTurnInput,
-    daemon: State<'_, Arc<PersistentDaemon>>,
+    backend: State<'_, Arc<crate::remote::backend::BackendState>>,
 ) -> Result<ChatTurnDto, String> {
     let result = crate::commands::control_plane::submit_orchestrator_task(
         app_handle,
         background_input(&input),
-        daemon,
+        backend,
     )
     .await?;
     Ok(ChatTurnDto {

@@ -11,7 +11,6 @@ use std::sync::Arc;
 
 use serde_json::Value;
 use vox_foundation::protocol::orch_daemon_method;
-use vox_orchestrator::orch_daemon::OrchDaemonClient;
 
 /// Execute an MCP tool against the persistent daemon and return the parsed
 /// result envelope.
@@ -23,7 +22,7 @@ use vox_orchestrator::orch_daemon::OrchDaemonClient;
 /// `permission_mode` (T0.3, `"ask" | "accept_edits" | "accept_all" | "plan"`)
 /// is the GUI's selected `PermissionMode`, set on the outgoing
 /// `DispatchRequest`'s own top-level field via
-/// [`OrchDaemonClient::with_permission_mode`] — NEVER folded into `args`,
+/// [`vox_orchestrator::orch_daemon::OrchDaemonClient::with_permission_mode`] — NEVER folded into `args`,
 /// which is caller/tool-composed JSON the LLM agent can influence. Omitted
 /// or `None` leaves the client's mode unset, which the daemon's dispatch
 /// gate treats as the fail-safe `ask` default (today's always-park
@@ -33,24 +32,22 @@ pub async fn invoke_mcp_tool(
     tool: String,
     args: Value,
     permission_mode: Option<String>,
-    daemon: tauri::State<'_, Arc<crate::commands::daemon::PersistentDaemon>>,
+    daemon: tauri::State<'_, Arc<crate::remote::backend::BackendState>>,
 ) -> Result<Value, String> {
-    let addr = daemon.ensure().await?;
-    let mut client = match daemon.token().await {
-        Some(token) => OrchDaemonClient::with_token(addr, token),
-        None => OrchDaemonClient::new(addr),
-    };
-    if let Some(mode) = permission_mode {
-        client = client.with_permission_mode(mode);
-    }
-    let value = client
+    let value = daemon
         .call_with_deadline(
             orch_daemon_method::TOOL_CALL,
             serde_json::json!({ "name": tool, "args": args }),
             deadline_for_tool(&tool),
+            permission_mode,
         )
         .await
-        .map_err(|e| format!("MCP tool '{tool}' failed: {e}"))?;
+        .map_err(|e| match e {
+            crate::remote::error::AxisError::Daemon(msg) => {
+                format!("MCP tool '{tool}' failed: {msg}")
+            }
+            other => String::from(other),
+        })?;
 
     let is_error = value.get("success") == Some(&serde_json::Value::Bool(false));
 
