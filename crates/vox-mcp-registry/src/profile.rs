@@ -151,6 +151,12 @@ pub fn authorize_tool(
     if let Some(s) = boot.missing_for(entry.requires) {
         return Err(ProfileDenial::SubsystemNotBooted(s));
     }
+    // A listed requirement can be up while a dependency it cannot run without
+    // is down (search_index depends on db). Deny on the first missing closure member.
+    let closure: Vec<Subsystem> = subsystem_closure(entry.requires).into_iter().collect();
+    if let Some(s) = boot.missing_for(&closure) {
+        return Err(ProfileDenial::SubsystemNotBooted(s));
+    }
     Ok(entry)
 }
 
@@ -507,6 +513,31 @@ mod authorize_tests {
         assert_eq!(
             authorize_tool(&p, &BootReport::default(), CallContext::LOCAL_WRITE, e.name),
             Err(ProfileDenial::SubsystemNotBooted(e.requires[0]))
+        );
+    }
+
+    #[test]
+    fn down_dependency_of_an_up_requirement_is_not_booted() {
+        let e = registry_entry("vox_kb_list").expect("vox_kb_list");
+        assert!(
+            subsystem_closure(e.requires).contains(&Subsystem::Db),
+            "vox_kb_list requires must close over db"
+        );
+        let boot = BootReport {
+            booted: subsystem_closure(e.requires)
+                .into_iter()
+                .filter(|s| *s != Subsystem::Db)
+                .collect(),
+            failed: [(Subsystem::Db, "down".to_string())].into_iter().collect(),
+        };
+        assert_eq!(
+            authorize_tool(
+                &ActiveProfile::dev(),
+                &boot,
+                CallContext::LOCAL_WRITE,
+                e.name
+            ),
+            Err(ProfileDenial::SubsystemNotBooted(Subsystem::Db))
         );
     }
 

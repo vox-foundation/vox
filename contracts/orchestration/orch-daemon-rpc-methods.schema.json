@@ -58,7 +58,8 @@
         "orch.safety_budget_signals",
         "orch.safety_ledger",
         "orch.safety_locks",
-        "orch.attention_snapshot"
+        "orch.attention_snapshot",
+        "orch.boot_report"
       ]
     },
     "params": {

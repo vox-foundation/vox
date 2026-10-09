@@ -7,8 +7,10 @@ mod common;
 
 use std::sync::Arc;
 
+use vox_foundation::protocol::{DispatchPayload, DispatchRequest, dei_method, orch_daemon_method};
 use vox_orchestrator::orch_daemon::{self, ExtraDispatch};
 use vox_orchestrator_mcp::daemon_extra::McpExtraDispatch;
+use vox_orchestrator_mcp::profiles::{BootReport, Subsystem};
 use vox_orchestrator_mcp::{ServerState, load_config};
 
 const D_15S: std::time::Duration = std::time::Duration::from_secs(15);
@@ -355,4 +357,122 @@ async fn daemon_list_and_resolve_pending_approvals_via_extra_dispatch() {
     let _ = call.await.expect("join");
 
     server.abort();
+}
+
+fn req(method: &str, params: serde_json::Value) -> DispatchRequest {
+    serde_json::from_value(serde_json::json!({ "id": "t1", "method": method, "params": params }))
+        .expect("dispatch request")
+}
+
+fn all_but(down: Subsystem) -> BootReport {
+    BootReport {
+        booted: Subsystem::ALL
+            .iter()
+            .copied()
+            .filter(|s| *s != down)
+            .collect(),
+        failed: [(down, "test: down".to_string())].into_iter().collect(),
+    }
+}
+
+#[tokio::test]
+async fn boot_report_method_returns_the_daemon_report() {
+    let state = ServerState::new_full(load_config());
+    let report = all_but(Subsystem::Db);
+    state.set_boot_report(report.clone());
+    let extra = McpExtraDispatch::new(state);
+    let resp = extra
+        .try_handle(&req(orch_daemon_method::BOOT_REPORT, serde_json::json!({})))
+        .await
+        .expect("orch.boot_report handled");
+    let DispatchPayload::Result { value } = resp.payload else {
+        panic!("orch.boot_report returned an error payload");
+    };
+    let got: BootReport = serde_json::from_value(value).expect("BootReport json");
+    assert_eq!(got, report);
+}
+
+#[tokio::test]
+async fn research_run_refused_when_research_not_booted() {
+    let state = ServerState::new_full(load_config());
+    state.set_boot_report(all_but(Subsystem::Research));
+    let extra = McpExtraDispatch::new(state);
+    let resp = extra
+        .try_handle(&req(
+            dei_method::RESEARCH_RUN,
+            serde_json::json!({ "query": "q" }),
+        ))
+        .await
+        .expect("research.run handled");
+    let DispatchPayload::Error { message, .. } = resp.payload else {
+        panic!("research.run must be refused when Research is down");
+    };
+    assert!(
+        message.contains("subsystem_not_booted") && message.contains("\"research\""),
+        "{message}"
+    );
+}
+
+#[tokio::test]
+async fn persist_claims_refused_when_db_not_booted() {
+    let state = ServerState::new_full(load_config());
+    state.set_boot_report(all_but(Subsystem::Db));
+    let extra = McpExtraDispatch::new(state);
+    let resp = extra
+        .try_handle(&req(
+            dei_method::RESEARCH_PERSIST_CLAIMS,
+            serde_json::json!({ "session_id": 1, "claims": [] }),
+        ))
+        .await
+        .expect("research.persist_claims handled");
+    let DispatchPayload::Error { message, .. } = resp.payload else {
+        panic!("persist_claims must be refused when Db is down");
+    };
+    assert!(
+        message.contains("subsystem_not_booted") && message.contains("\"db\""),
+        "{message}"
+    );
+}
+
+#[test]
+fn tool_call_for_db_tool_refused_when_db_not_booted() {
+    // `dispatch_tool_call`'s async state is larger than libtest's 2 MiB thread.
+    // The daemon polls it on 32 MiB workers (`DEFAULT_ORCH_WORKER_STACK`).
+    std::thread::Builder::new()
+        .name("tool-call-boot-gate".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(|| {
+            tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("runtime")
+                .block_on(async {
+                    let entry = vox_mcp_registry::registry_entry("vox_kb_list")
+                        .expect("vox_kb_list registered");
+                    assert!(
+                        vox_mcp_registry::subsystem_closure(entry.requires)
+                            .contains(&Subsystem::Db),
+                        "vox_kb_list must require db (directly or transitively)"
+                    );
+                    let state = ServerState::new_full(load_config());
+                    state.set_boot_report(all_but(Subsystem::Db));
+                    let extra = McpExtraDispatch::new(state);
+                    let resp = extra
+                        .try_handle(&req(
+                            orch_daemon_method::TOOL_CALL,
+                            serde_json::json!({ "name": "vox_kb_list", "args": {} }),
+                        ))
+                        .await
+                        .expect("orch.tool_call handled");
+                    let text = match resp.payload {
+                        DispatchPayload::Result { value } => value.to_string(),
+                        DispatchPayload::Error { message, .. } => message,
+                        _ => panic!("unexpected payload"),
+                    };
+                    assert!(text.contains("subsystem_not_booted"), "{text}");
+                });
+        })
+        .expect("spawn")
+        .join()
+        .expect("tool_call boot-gate thread panicked");
 }

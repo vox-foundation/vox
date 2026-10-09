@@ -131,6 +131,10 @@ pub mod orch_daemon_method {
     /// real-time cognitive attention budget/threshold summary (T2.3 follow-up:
     /// `vox attention snapshot`). Mirrors `BudgetManager::attention_snapshot`.
     pub const ATTENTION_SNAPSHOT: &str = "orch.attention_snapshot";
+    /// Params: `{}` → the daemon's `BootReport` (`{"booted": [subsystem ids], "failed":
+    /// {subsystem id: error}}`) — which capability-profile subsystems this daemon booted.
+    /// Read by stdio `vox mcp` to filter `tools/list` (capability profiles plan 03).
+    pub const BOOT_REPORT: &str = "orch.boot_report";
 }
 
 pub mod dei_method {
