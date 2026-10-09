@@ -105,4 +105,43 @@ mod tests {
             serde_json::from_value(serde_json::to_value(&r).expect("ser")).expect("de");
         assert_eq!(back, r);
     }
+
+    fn daemon_parts() -> (
+        std::sync::Arc<vox_orchestrator::Orchestrator>,
+        vox_orchestrator::OrchestratorConfig,
+        vox_repository::RepositoryContext,
+        std::sync::Arc<tokio::sync::Mutex<vox_orchestrator::SessionManager>>,
+        std::sync::Arc<vox_skills::SkillRegistry>,
+    ) {
+        let build = vox_orchestrator::bootstrap::build_repo_scoped_orchestrator(
+            vox_orchestrator::OrchestratorConfig::for_testing(),
+            None,
+        );
+        let sm = vox_orchestrator::SessionManager::new(vox_orchestrator::SessionConfig {
+            persist: false,
+            ..vox_orchestrator::SessionConfig::default()
+        })
+        .expect("in-memory session manager");
+        (
+            std::sync::Arc::new(build.orchestrator),
+            build.config,
+            build.repository,
+            std::sync::Arc::new(tokio::sync::Mutex::new(sm)),
+            vox_skills::new_registry_arc(),
+        )
+    }
+
+    #[tokio::test]
+    async fn gated_constructor_skips_research_subscriber_when_told() {
+        let (o, c, r, s, k) = daemon_parts();
+        let state = ServerState::new_for_daemon_gated(o, c, r, s, k, false);
+        assert_eq!(state.research_events.receiver_count(), 0);
+    }
+
+    #[tokio::test]
+    async fn new_for_daemon_still_spawns_research_subscriber() {
+        let (o, c, r, s, k) = daemon_parts();
+        let state = ServerState::new_for_daemon(o, c, r, s, k);
+        assert!(state.research_events.receiver_count() >= 1);
+    }
 }

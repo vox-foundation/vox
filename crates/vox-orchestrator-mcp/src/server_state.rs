@@ -369,6 +369,25 @@ impl ServerState {
         session_manager: Arc<TokMutex<SessionManager>>,
         skill_registry: Arc<SkillRegistry>,
     ) -> Self {
+        Self::new_for_daemon_gated(
+            orchestrator,
+            orchestrator_config,
+            repository,
+            session_manager,
+            skill_registry,
+            true,
+        )
+    }
+
+    /// [`Self::new_for_daemon`] with the Research-only scientia mesh jobs made optional (skipped when `Research` is outside the capability-profile closure).
+    pub fn new_for_daemon_gated(
+        orchestrator: Arc<Orchestrator>,
+        orchestrator_config: OrchestratorConfig,
+        repository: vox_repository::RepositoryContext,
+        session_manager: Arc<TokMutex<SessionManager>>,
+        skill_registry: Arc<SkillRegistry>,
+        spawn_research_jobs: bool,
+    ) -> Self {
         let workspace_root = Some(repository.root.clone());
         let workspace_mcp_root = workspace_root
             .clone()
@@ -427,7 +446,9 @@ impl ServerState {
             workspace_mcp_root,
             state.skill_search_index.clone(),
         );
-        state.spawn_scientia_research_mesh_background_jobs();
+        if spawn_research_jobs {
+            state.spawn_scientia_research_mesh_background_jobs();
+        }
         // Phase 3 D-04: no [orchestrator.webhook] section => no-op.
         let _ = webhook_intake::spawn_webhook_intake_poller(
             state.orchestrator_config.webhook.as_ref(),
