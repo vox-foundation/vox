@@ -10,7 +10,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use anyhow::{Result, bail};
 use vox_capability_registry::{OwnerRef, RowKind};
 
-use super::inputs::OperationRow;
+use super::inputs::{Domains, OperationRow};
 
 /// `docs/src/architecture/layers.toml [crates]`: crate name -> layer.
 pub(crate) type Layers = BTreeMap<String, Option<u8>>;
@@ -117,10 +117,37 @@ pub(crate) fn source_path_for(
     owner.map(|o| format!("crates/{}/", o.crate_name))
 }
 
+/// `group -> owner crate` for the cli groups whose dispatch provably calls into one crate.
+pub(crate) fn group_owners(domains: &Domains) -> BTreeMap<String, String> {
+    domains
+        .cli_groups
+        .iter()
+        .filter_map(|(g, e)| e.owner.clone().map(|o| (g.clone(), o)))
+        .collect()
+}
+
+/// Reject a malformed `domains.v1.yaml`: every table domain must be in the vocabulary and every
+/// owner / crate key must be a `layers.toml` crate. Errors name the yaml key.
+pub(crate) fn validate_domains(_domains: &Domains, _layers: &Layers) -> Result<()> {
+    let _ = (_domains.schema_version, _layers.len()); // RED stub: replaced in the GREEN commit
+    Ok(())
+}
+
+/// The curated domain of one cli/mcp row (D-09).
+pub(crate) fn resolve_domain(
+    _kind: RowKind,
+    _op: &OperationRow,
+    _owner: Option<&OwnerRef>,
+    _domains: &Domains,
+) -> Result<String> {
+    Ok("stub".to_string()) // RED stub: replaced in the GREEN commit
+}
+
 #[cfg(test)]
 mod tests {
-    use super::super::inputs::test_op;
+    use super::super::inputs::{GroupEntry, test_op};
     use super::*;
+    use vox_capability_registry::DomainDef;
 
     fn layers(names: &[(&str, u8)]) -> Layers {
         names
@@ -246,6 +273,132 @@ mod tests {
         let l = layers(&[("vox-secrets", 1)]);
         let o = resolve(RowKind::Cli, &op, &l).expect("ok").expect("owner");
         assert_eq!(o.layer, Some(1));
+    }
+
+    fn domains() -> Domains {
+        let def = |id: &str| DomainDef {
+            id: id.to_string(),
+            label: id.to_string(),
+        };
+        let entry = |domain: &str, owner: Option<&str>| GroupEntry {
+            domain: domain.to_string(),
+            owner: owner.map(str::to_string),
+        };
+        Domains {
+            schema_version: 1,
+            domains: ["secrets", "mesh", "compiler", "platform"]
+                .map(def)
+                .to_vec(),
+            cli_groups: BTreeMap::from([
+                ("secrets".to_string(), entry("secrets", None)),
+                ("ars".to_string(), entry("compiler", Some("vox-cli"))),
+            ]),
+            mcp_prefixes: BTreeMap::from([("mesh".to_string(), "mesh".to_string())]),
+            crates: BTreeMap::from([
+                ("vox-cli".to_string(), "compiler".to_string()),
+                ("vox-db".to_string(), "compiler".to_string()),
+            ]),
+        }
+    }
+
+    fn owner(name: &str) -> OwnerRef {
+        OwnerRef {
+            crate_name: name.to_string(),
+            layer: Some(5),
+            rule: "x".to_string(),
+        }
+    }
+
+    #[test]
+    fn domain_override_wins() {
+        let mut op = cli_op(&["zz", "x"]);
+        op.domain = Some("secrets".into());
+        let d = resolve_domain(RowKind::Cli, &op, None, &domains()).expect("ok");
+        assert_eq!(d, "secrets");
+    }
+
+    #[test]
+    fn unknown_domain_override_is_error() {
+        let mut op = cli_op(&["secrets", "get"]);
+        op.domain = Some("nope".into());
+        let err = resolve_domain(RowKind::Cli, &op, None, &domains()).expect_err("must fail");
+        assert!(err.to_string().contains("secrets.get"), "got: {err}");
+    }
+
+    #[test]
+    fn cli_group_table_domain() {
+        let op = cli_op(&["secrets", "get"]);
+        let d = resolve_domain(RowKind::Cli, &op, None, &domains()).expect("ok");
+        assert_eq!(d, "secrets");
+    }
+
+    #[test]
+    fn mcp_prefix_domain() {
+        let op = test_op("mesh.nodes", None, Some("vox_mesh_nodes"), "d");
+        let d = resolve_domain(RowKind::McpTool, &op, None, &domains()).expect("ok");
+        assert_eq!(d, "mesh");
+    }
+
+    #[test]
+    fn paired_mcp_row_falls_back_to_cli_group() {
+        let op = test_op(
+            "secrets.get",
+            Some((&["secrets", "get"], "active")),
+            Some("vox_zzz_get"),
+            "d",
+        );
+        let d = resolve_domain(RowKind::McpTool, &op, None, &domains()).expect("ok");
+        assert_eq!(d, "secrets");
+    }
+
+    #[test]
+    fn surface_crate_never_gives_domain() {
+        let op = cli_op(&["zz"]);
+        let d = resolve_domain(RowKind::Cli, &op, Some(&owner("vox-cli")), &domains()).expect("ok");
+        assert_eq!(d, "platform", "vox-cli is a surface crate");
+        let d = resolve_domain(RowKind::Cli, &op, Some(&owner("vox-db")), &domains()).expect("ok");
+        assert_eq!(d, "compiler", "a domain crate does give its domain");
+    }
+
+    #[test]
+    fn table_value_outside_vocabulary_is_error() {
+        let mut d = domains();
+        d.cli_groups.insert(
+            "zz".to_string(),
+            GroupEntry {
+                domain: "bogus".to_string(),
+                owner: None,
+            },
+        );
+        let l = layers(&[("vox-cli", 5), ("vox-db", 2)]);
+        let err = validate_domains(&d, &l).expect_err("must fail");
+        assert!(err.to_string().contains("cli_groups.zz"), "got: {err}");
+        assert!(validate_domains(&domains(), &l).is_ok());
+    }
+
+    #[test]
+    fn owner_and_crate_keys_must_be_layer_crates() {
+        let mut d = domains();
+        d.cli_groups.insert(
+            "zz".to_string(),
+            GroupEntry {
+                domain: "mesh".to_string(),
+                owner: Some("vox-nope".to_string()),
+            },
+        );
+        let l = layers(&[("vox-cli", 5), ("vox-db", 2)]);
+        let err = validate_domains(&d, &l).expect_err("unknown owner must fail");
+        assert!(err.to_string().contains("vox-nope"), "got: {err}");
+        let l = layers(&[("vox-cli", 5)]);
+        let err = validate_domains(&domains(), &l).expect_err("unknown crates key must fail");
+        assert!(err.to_string().contains("vox-db"), "got: {err}");
+    }
+
+    #[test]
+    fn group_owners_extracts_owner_entries() {
+        let owners = group_owners(&domains());
+        assert_eq!(owners.len(), 1);
+        assert_eq!(owners.get("ars").map(String::as_str), Some("vox-cli"));
     }
 
     #[test]

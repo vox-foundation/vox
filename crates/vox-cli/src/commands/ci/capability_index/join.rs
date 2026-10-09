@@ -209,6 +209,92 @@ mod tests {
     }
 
     #[test]
+    fn tier_matches_catalog_rule() {
+        let mut gated = test_op("g", Some((&["zz", "x"], "active")), None, "d");
+        gated.cli.as_mut().expect("cli").feature_gate = Some("extras".into());
+        let idx = build_index(&inputs(vec![
+            test_op(
+                "check",
+                Some((&["check"], "active")),
+                Some("vox_check"),
+                "d",
+            ),
+            test_op("ci.x", Some((&["ci", "x"], "active")), None, "d"),
+            gated,
+        ]))
+        .expect("build");
+        let tier = |id: &str| idx.row(id).expect("row").tier.clone();
+        assert_eq!(tier("cli.check").as_deref(), Some("recommended"));
+        assert_eq!(tier("cli.ci.x").as_deref(), Some("advanced"));
+        assert_eq!(tier("cli.zz.x").as_deref(), Some("feature_gated"));
+        assert_eq!(tier("mcp.vox_check"), None, "mcp rows carry no cli tier");
+    }
+
+    #[test]
+    fn rows_carry_domain_and_index_lists_vocabulary() {
+        use super::super::inputs::{Domains, GroupEntry};
+        use vox_capability_registry::DomainDef;
+        let def = |id: &str| DomainDef {
+            id: id.to_string(),
+            label: format!("L {id}"),
+        };
+        let mut inp = inputs(vec![
+            test_op("s.get", Some((&["secrets", "get"], "active")), None, "d"),
+            test_op("m", None, Some("vox_zz_m"), "d"),
+        ]);
+        inp.domains = Domains {
+            schema_version: 1,
+            domains: vec![def("secrets"), def("platform")],
+            cli_groups: [(
+                "secrets".to_string(),
+                GroupEntry {
+                    domain: "secrets".to_string(),
+                    owner: None,
+                },
+            )]
+            .into(),
+            ..Default::default()
+        };
+        let idx = build_index(&inp).expect("build");
+        assert_eq!(
+            idx.row("cli.secrets.get").expect("cli").domain.as_deref(),
+            Some("secrets")
+        );
+        assert_eq!(
+            idx.row("mcp.vox_zz_m").expect("mcp").domain.as_deref(),
+            Some("platform")
+        );
+        let vocab: Vec<&str> = idx.domains.iter().map(|d| d.id.as_str()).collect();
+        assert_eq!(vocab, vec!["secrets", "platform"], "file order");
+        assert!(
+            idx.row("cli.secrets.get")
+                .expect("cli")
+                .product_lane
+                .is_some(),
+            "product_lane stays as a secondary facet"
+        );
+    }
+
+    #[test]
+    fn invalid_domain_table_fails_generation() {
+        use super::super::inputs::{Domains, GroupEntry};
+        let mut inp = inputs(vec![test_op("a", Some((&["a"], "active")), None, "d")]);
+        inp.domains = Domains {
+            cli_groups: [(
+                "a".to_string(),
+                GroupEntry {
+                    domain: "bogus".to_string(),
+                    owner: None,
+                },
+            )]
+            .into(),
+            ..Default::default()
+        };
+        let err = build_index(&inp).expect_err("bogus domain must fail");
+        assert!(err.to_string().contains("cli_groups.a"), "got: {err}");
+    }
+
+    #[test]
     fn non_active_cli_row_keeps_status() {
         let idx = build_index(&inputs(vec![test_op(
             "old",

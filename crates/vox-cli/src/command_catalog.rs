@@ -396,7 +396,7 @@ fn collect_aliases(cmd: &Command) -> Vec<String> {
     aliases
 }
 
-fn tier_for_path(path: &[String], feature_gated: bool) -> CatalogTier {
+pub(crate) fn tier_for_path(path: &[String], feature_gated: bool) -> CatalogTier {
     if feature_gated {
         return CatalogTier::FeatureGated;
     }
