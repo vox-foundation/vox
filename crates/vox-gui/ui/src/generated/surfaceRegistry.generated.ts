@@ -105,6 +105,7 @@ export const SURFACE_REGISTRY: SurfaceRegistryEntry[] = [
   { viewKey: null, cliGroup: 'script', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: 'vox-search', cliGroup: 'search', tier: 'live_backend', navLabel: 'Search Index', navIcon: 'search', navGroup: 'knowledge', parentSurface: 'knowledge' },
   { viewKey: null, cliGroup: 'secrets', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
+  { viewKey: null, cliGroup: 'serve', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'share', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'shell', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: 'skills', cliGroup: 'skill', tier: 'live_backend', navLabel: 'Skills', navIcon: 'puzzle', navGroup: 'develop', parentSurface: 'commands' },
