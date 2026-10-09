@@ -208,21 +208,12 @@ impl ServerHandler for VoxMcpServer {
     ) -> Result<ListToolsResult, ErrorData> {
         let mut tool_list = crate::registry::merged_tool_registry(&self.state);
 
-        // E.56 MCP tool tiering: load core by default, dev/advanced require opt-in
-        let allowed_tiers_env =
-            std::env::var("VOX_MCP_TIERS").unwrap_or_else(|_| "core".to_string());
-        let allowed_tiers: Vec<&str> = allowed_tiers_env.split(',').collect();
-
-        if !allowed_tiers.contains(&"all") {
-            tool_list.retain(|t| {
-                if let Some(meta) = &t.meta {
-                    if let Some(serde_json::Value::String(tier)) = meta.0.get("vox_tier") {
-                        return allowed_tiers.contains(&tier.as_str());
-                    }
-                }
-                true
-            });
-        }
+        let opt_in = workspace_tools_opt_in(
+            std::env::var("VOX_MCP_WORKSPACE_TOOLS").ok().as_deref(),
+            std::env::var("VOX_MCP_TIERS").ok().as_deref(),
+        );
+        warn_if_deprecated_tiers_env_set();
+        retain_advertised_tools(&mut tool_list, opt_in != WorkspaceToolsOptIn::Off);
 
         // Auto-register tools from installed skills
         let skills = self.state.skill_registry.list(None);
@@ -231,7 +222,7 @@ impl ServerHandler for VoxMcpServer {
                 if !tool_list.iter().any(|t| t.name == *tool_name) {
                     let mut meta_map = serde_json::Map::new();
                     meta_map.insert(
-                        "vox_tier".to_string(),
+                        "vox_source".to_string(),
                         serde_json::Value::String("skill".to_string()),
                     );
                     tool_list.push(
@@ -415,6 +406,65 @@ pub fn tool_json_envelope_is_error(json: &str) -> bool {
         == Some(false)
 }
 
+/// How the workspace-federated `@tool` opt-in was resolved.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum WorkspaceToolsOptIn {
+    Off,
+    On,
+    OnViaDeprecatedTiers,
+}
+
+/// `VOX_MCP_WORKSPACE_TOOLS` (when set) decides; otherwise the deprecated `VOX_MCP_TIERS`
+/// alias opts in only for `workspace` or `all` (the values that revealed them before).
+pub(crate) fn workspace_tools_opt_in(
+    workspace_tools: Option<&str>,
+    legacy_tiers: Option<&str>,
+) -> WorkspaceToolsOptIn {
+    if let Some(v) = workspace_tools {
+        return match v.trim() {
+            "1" | "true" => WorkspaceToolsOptIn::On,
+            _ => WorkspaceToolsOptIn::Off,
+        };
+    }
+    let legacy_on = legacy_tiers.is_some_and(|v| {
+        v.split(',')
+            .map(str::trim)
+            .any(|t| matches!(t, "workspace" | "all"))
+    });
+    if legacy_on {
+        WorkspaceToolsOptIn::OnViaDeprecatedTiers
+    } else {
+        WorkspaceToolsOptIn::Off
+    }
+}
+
+/// Workspace-federated `@tool` functions are always dispatchable by name; they are advertised in
+/// `tools/list` only when `include_workspace` is set.
+pub(crate) fn retain_advertised_tools(tools: &mut Vec<rmcp::model::Tool>, include_workspace: bool) {
+    if include_workspace {
+        return;
+    }
+    tools.retain(|t| {
+        t.meta
+            .as_ref()
+            .and_then(|m| m.0.get("vox_source"))
+            .and_then(serde_json::Value::as_str)
+            != Some("workspace")
+    });
+}
+
+// vox-deprecated-since="0.6.0" retire-by="0.7.0" reason="capability-profiles" canonical="VOX_MCP_WORKSPACE_TOOLS"
+fn warn_if_deprecated_tiers_env_set() {
+    static WARNED: std::sync::Once = std::sync::Once::new();
+    if std::env::var_os("VOX_MCP_TIERS").is_some() {
+        WARNED.call_once(|| {
+            tracing::warn!(
+                "VOX_MCP_TIERS is deprecated; use VOX_MCP_WORKSPACE_TOOLS=1 to advertise workspace-federated tools"
+            );
+        });
+    }
+}
+
 #[cfg(test)]
 mod call_tool_tests {
     use super::tool_json_envelope_is_error;
@@ -464,5 +514,79 @@ mod prompt_tests {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         let err = get_vox_prompt(&root, "no-such-prompt").expect_err("unknown prompt");
         assert!(err.message.contains("unknown prompt"));
+    }
+}
+
+#[cfg(test)]
+mod list_filter_tests {
+    use std::borrow::Cow;
+    use std::sync::Arc;
+
+    use rmcp::model::{Meta, Tool};
+
+    use super::{WorkspaceToolsOptIn, retain_advertised_tools, workspace_tools_opt_in};
+
+    fn tool(name: &'static str, source: Option<&str>) -> Tool {
+        let mut meta = serde_json::Map::new();
+        if let Some(s) = source {
+            meta.insert("vox_source".into(), serde_json::Value::String(s.into()));
+        }
+        Tool::new_with_raw(
+            Cow::Borrowed(name),
+            Some(Cow::Borrowed("test tool")),
+            Arc::new(serde_json::Map::new()),
+        )
+        .with_meta(Meta(meta))
+    }
+
+    fn sample() -> Vec<Tool> {
+        vec![
+            tool("vox_git_status", None),
+            tool("read_file", Some("workspace")),
+            tool("skill_macro", Some("skill")),
+        ]
+    }
+
+    fn names(tools: &[Tool]) -> Vec<&str> {
+        tools.iter().map(|t| t.name.as_ref()).collect()
+    }
+
+    #[test]
+    fn default_hides_workspace_federated_and_keeps_catalog_and_skill_tools() {
+        let mut tools = sample();
+        retain_advertised_tools(&mut tools, false);
+        assert_eq!(names(&tools), vec!["vox_git_status", "skill_macro"]);
+    }
+
+    #[test]
+    fn opt_in_keeps_workspace_federated_tools() {
+        let mut tools = sample();
+        retain_advertised_tools(&mut tools, true);
+        assert_eq!(
+            names(&tools),
+            vec!["vox_git_status", "read_file", "skill_macro"]
+        );
+    }
+
+    #[test]
+    fn opt_in_resolution() {
+        use WorkspaceToolsOptIn::*;
+        assert_eq!(workspace_tools_opt_in(None, None), Off);
+        assert_eq!(workspace_tools_opt_in(Some("1"), None), On);
+        assert_eq!(workspace_tools_opt_in(Some("true"), None), On);
+        assert_eq!(workspace_tools_opt_in(Some("0"), None), Off);
+        // The new variable wins over the deprecated alias when set.
+        assert_eq!(workspace_tools_opt_in(Some("0"), Some("all")), Off);
+        assert_eq!(workspace_tools_opt_in(None, Some("core")), Off);
+        // Not widened: these never revealed workspace tools and still do not.
+        assert_eq!(workspace_tools_opt_in(None, Some("dev")), Off);
+        assert_eq!(workspace_tools_opt_in(None, Some("advanced")), Off);
+        for legacy in ["workspace", "all", "core,workspace", " all "] {
+            assert_eq!(
+                workspace_tools_opt_in(None, Some(legacy)),
+                OnViaDeprecatedTiers,
+                "{legacy}"
+            );
+        }
     }
 }

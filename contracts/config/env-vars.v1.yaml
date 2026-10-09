@@ -1182,7 +1182,14 @@ variables:
     kind: "string"
     required: false
     introduced_in: "0.3.0"
-    description: "TODO"
+    description: "DEPRECATED (2026-10-08): alias for VOX_MCP_WORKSPACE_TOOLS. Values workspace or all advertise workspace-federated MCP tools (other values, including dev and advanced, do not); a warning is logged whenever it is set. Ignored when VOX_MCP_WORKSPACE_TOOLS is set."
+  - name: "VOX_MCP_WORKSPACE_TOOLS"
+    owner_crate: "vox-orchestrator-mcp"
+    kind: "bool"
+    required: false
+    introduced_in: "0.6.0"
+    default: "0"
+    description: "1 = advertise workspace-federated @tool functions in MCP tools/list (they are always dispatchable by name). Served only under the dev capability profile."
   - name: "VOX_MCP_TOOL_ARG_SCHEMA_VALIDATE"
     owner_crate: "vox-ml-cli"
     kind: "string"
