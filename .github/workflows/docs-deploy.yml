@@ -170,7 +170,7 @@ jobs:
 
       - name: Deploy to Cloudflare Pages
         working-directory: docs-astro
-        run: npx wrangler pages deploy dist --project-name=vox-docs --branch=main --commit-dirty=true
+        run: pnpm exec wrangler pages deploy dist --project-name=vox-docs --branch=main --commit-dirty=true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
