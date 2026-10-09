@@ -6,16 +6,16 @@ current_phase: 20
 current_phase_name: Deploy Unblock & Public-Surface Honesty
 current_plan: "20-01 (wave 1: 20-01..20-05 parallel)"
 status: planning
-stopped_at: Completed 20-05-PLAN.md
-last_updated: "2026-10-09T08:20:31.902Z"
+stopped_at: Completed 20-01-PLAN.md
+last_updated: "2026-10-09T09:18:54.985Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 20 planned (12 plans); Phase 20.1 (collapsible reader layout) inserted
-state_head: 7cc26c2910fb955ea8fb0501b2c8018b1317b9a3
+state_head: e5fdf388cf33e98a1fbb0bdcb70c9a9fb26313b5
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 12
-  completed_plans: 4
+  completed_plans: 5
   percent: 0
 ---
 
@@ -30,7 +30,7 @@ See: `.planning/PROJECT.md`; workstream brief `CONTEXT.md`; roadmap `ROADMAP.md`
 ## Current Position
 
 Phase: 20 of 20–24 (Deploy Unblock & Public-Surface Honesty)
-Plan: 4 of 12 (planned, 7 waves; checker passed after 2 revisions)
+Plan: 5 of 12 (planned, 7 waves; checker passed after 2 revisions)
 Status: Ready to execute — `/gsd-execute-phase 20`
 Last activity: 2026-10-08 — Phase 20 planned (12 plans); Phase 20.1 (collapsible reader layout) inserted
 
@@ -53,6 +53,8 @@ Last activity: 2026-10-08 — Phase 20 planned (12 plans); Phase 20.1 (collapsib
 - [Phase 20]: 20-04: User-facing minimums are Node.js >= 22.13 and pnpm >= 11 (generated pnpm-workspace.yaml uses pnpm 11 allowBuilds; pnpm 11 requires Node 22.13). CI's Node 24 / pnpm 11 pin is cited, not used as the minimum.
 - [Phase 20]: 20-04: tut-actor-basics documents shipped actor behavior only (on handlers, spawn_process mailbox, empty dispatch in vox build, no spawn/send/state/persistence) instead of the aspirational model.
 - [Phase 20]: 20-05: vox-ssg relinked to crates/vox-cli/src/utils/ssg/mod.rs; retired-crate links unlinked as inline code, never redirected
+- [Phase 20]: 20-01: wrangler pinned at user-approved 4.146.0 (exact, pnpm 11 lockfile); allowBuilds workerd: false (postinstall unneeded for pages deploy)
+- [Phase 20]: 20-01: docs-deploy failures edit one docs-deploy-broken issue in place (no comments); only a green push run on main closes it
 
 ### Blockers / Gates
 
@@ -66,9 +68,9 @@ Last activity: 2026-10-08 — Phase 20 planned (12 plans); Phase 20.1 (collapsib
 
 ## Session Continuity
 
-**Last session:** 2026-10-09T08:20:31.865Z
+**Last session:** 2026-10-09T09:18:54.966Z
 
-**Stopped At:** Completed 20-05-PLAN.md
+**Stopped At:** Completed 20-01-PLAN.md
 **Resume File:** None
 
 ## Performance Metrics
@@ -79,3 +81,4 @@ Last activity: 2026-10-08 — Phase 20 planned (12 plans); Phase 20.1 (collapsib
 | Phase 20 P03 | 20min | 2 tasks | 5 files |
 | Phase 20 P04 | 3h | 3 tasks | 9 files |
 | Phase 20 P05 | 25min | 3 tasks | 13 files |
+| Phase 20 P01 | 57min | 3 tasks | 5 files |
