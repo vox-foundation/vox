@@ -41,6 +41,7 @@ use std::sync::Arc;
 use ws::*;
 
 use crate::params::ToolResult;
+use crate::profiles::{CallContext, CallerRole, ProfileDenial};
 use crate::server_state::{ServerState, tool_json_envelope_is_error};
 use crate::{canonical_tool_name, handle_tool_call, tool_registry};
 pub use vox_mcp_registry::TOOL_REGISTRY;
@@ -108,6 +109,9 @@ pub struct GatewayState {
     health_auth_required: bool,
     require_forwarded_https: bool,
     trust_forwarded_for: bool,
+    /// `VOX_MCP_HTTP_BEHIND_TUNNEL`: a same-host tunnel/proxy makes remote callers arrive from
+    /// 127.0.0.1, so no peer is treated as loopback.
+    behind_tunnel: bool,
     allowed_tools: Arc<HashSet<String>>,
     read_role_eligible_tools: Arc<HashSet<String>>,
     read_role_tools_override: Option<Arc<HashSet<String>>>,
@@ -158,6 +162,7 @@ impl GatewayState {
             health_auth_required: false,
             require_forwarded_https: false,
             trust_forwarded_for: false,
+            behind_tunnel: false,
             allowed_tools: Arc::new(allowed_tools.clone()),
             read_role_eligible_tools: Arc::new(allowed_tools),
             read_role_tools_override: None,
@@ -168,6 +173,26 @@ impl GatewayState {
             topic_tx: tokio::sync::broadcast::channel(scientia_feed::TOPIC_CHANNEL_CAPACITY).0,
             hopper,
         }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_tokens(mut self, write: Option<&str>, read: Option<&str>) -> Self {
+        self.bearer_token = write.map(str::to_string);
+        self.read_bearer_token = read.map(str::to_string);
+        self.allow_unauthenticated = false;
+        self
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_behind_tunnel(mut self, on: bool) -> Self {
+        self.behind_tunnel = on;
+        self
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_dashboard_token(mut self, token: &str) -> Self {
+        self.dashboard_token = Some(DashboardToken(token.to_string()));
+        self
     }
 }
 
@@ -365,6 +390,7 @@ pub(crate) fn spawn_http_gateway(
         health_auth_required,
         require_forwarded_https,
         trust_forwarded_for,
+        behind_tunnel: policy.behind_tunnel,
         allowed_tools: allowed_tools.clone(),
         read_role_eligible_tools,
         read_role_tools_override,
@@ -552,7 +578,7 @@ pub(super) fn resolve_access_role(
     if let Some(dt) = state.dashboard_token.as_ref()
         && constant_time_eq(got.as_bytes(), dt.0.as_bytes())
     {
-        let is_loopback = peer.map(|p| p.ip().is_loopback()).unwrap_or(false);
+        let is_loopback = peer.map(|p| caller_is_loopback(state, p)).unwrap_or(false);
         if is_loopback {
             return Ok(AccessRole::Write);
         }
@@ -561,8 +587,40 @@ pub(super) fn resolve_access_role(
     Err("missing or invalid bearer token".to_string())
 }
 
+/// Peer-derived, never header-derived. Behind a same-host tunnel every remote caller arrives
+/// from 127.0.0.1, so `behind_tunnel` disables loopback trust entirely.
+pub(super) fn caller_is_loopback(state: &GatewayState, peer: &SocketAddr) -> bool {
+    !state.behind_tunnel && bind_policy::is_loopback_ip(peer.ip())
+}
+
+pub(super) fn call_context(
+    state: &GatewayState,
+    peer: &SocketAddr,
+    role: AccessRole,
+) -> CallContext {
+    CallContext {
+        role: match role {
+            AccessRole::Read => CallerRole::Read,
+            AccessRole::Write => CallerRole::Write,
+        },
+        loopback: caller_is_loopback(state, peer),
+    }
+}
+
+/// Advertised set = gateway allowlist for the role, filtered by `guard_tool` for `ctx`.
+/// `/v1/tools`, `/v1/info`, WS `list_tools`, and `/v1/profile` all use this.
+pub(super) fn visible_tools_for(state: &GatewayState, ctx: CallContext) -> HashSet<String> {
+    let role = match ctx.role {
+        CallerRole::Read => AccessRole::Read,
+        CallerRole::Write => AccessRole::Write,
+    };
+    let mut visible = visible_tools_for_role(state, role);
+    visible.retain(|name| crate::profiles::guard_tool(&state.server_state, ctx, name).is_ok());
+    visible
+}
+
 pub(super) fn visible_tools_for_role(state: &GatewayState, role: AccessRole) -> HashSet<String> {
-    let mut visible = match role {
+    match role {
         AccessRole::Write => (*state.allowed_tools).clone(),
         AccessRole::Read => {
             let mut visible: HashSet<String> = state
@@ -575,16 +633,7 @@ pub(super) fn visible_tools_for_role(state: &GatewayState, role: AccessRole) -> 
             }
             visible
         }
-    };
-    visible.retain(|name| {
-        crate::profiles::guard_tool(
-            &state.server_state,
-            crate::profiles::CallContext::LOCAL_WRITE,
-            name,
-        )
-        .is_ok()
-    });
-    visible
+    }
 }
 
 /// `VOX_MCP_HTTP_ALLOWED_TOOLS` intersected with the profile. Unset means
@@ -1286,7 +1335,7 @@ mod tests {
             .map(|s| s.to_string())
             .collect();
         let state = GatewayState::for_test_with_state(server_state, allowed).await;
-        let visible = visible_tools_for_role(&state, AccessRole::Write);
+        let visible = visible_tools_for(&state, crate::profiles::CallContext::LOCAL_WRITE);
         assert!(visible.contains("vox_list_models"));
         assert!(!visible.contains("vox_git_status"));
     }
@@ -1299,7 +1348,10 @@ mod tests {
             .collect();
         let state =
             GatewayState::for_test_with_state(ServerState::new_test().await, allowed.clone()).await;
-        assert_eq!(visible_tools_for_role(&state, AccessRole::Write), allowed);
+        assert_eq!(
+            visible_tools_for(&state, crate::profiles::CallContext::LOCAL_WRITE),
+            allowed
+        );
     }
 
     #[tokio::test]
@@ -1338,7 +1390,8 @@ mod tests {
             args: None,
         };
         let peer: SocketAddr = "127.0.0.1:1234".parse().unwrap();
-        let out = ws_handle_message(&state, msg, peer, AccessRole::Write).await;
+        let out =
+            ws_handle_message(&state, msg, peer, crate::profiles::CallContext::LOCAL_WRITE).await;
         assert!(!out.success && out.is_error);
         assert_eq!(out.data["error"]["code"], "tool_not_in_profile");
     }

@@ -41,7 +41,7 @@ pub(super) async fn handle_ws(
                             if let Ok(ref req) = parsed {
                                 if req.msg_type == "auth" {
                                     if let Some(token_val) = req.args.as_ref().and_then(|v| v.get("token")).and_then(|t| t.as_str()) {
-                                        if peer.ip().is_loopback() {
+                                        if caller_is_loopback(&state, &peer) {
                                             if let Some(dt) = state.dashboard_token.as_ref() {
                                                 if constant_time_eq(token_val.as_bytes(), dt.0.as_bytes()) {
                                                     role_opt = Some(AccessRole::Write);
@@ -139,7 +139,10 @@ pub(super) async fn handle_ws(
                         }
 
                         let reply = match parsed {
-                            Ok(req) => ws_handle_message(&state, req, peer, role).await,
+                            Ok(req) => {
+                                let ctx = call_context(&state, &peer, role);
+                                ws_handle_message(&state, req, peer, ctx).await
+                            }
                             Err(e) => WsMessageOut {
                                 id: None,
                                 msg_type: "error".to_string(),
@@ -213,11 +216,11 @@ pub(super) async fn ws_handle_message(
     state: &GatewayState,
     req: WsMessageIn,
     peer: SocketAddr,
-    role: AccessRole,
+    ctx: CallContext,
 ) -> WsMessageOut {
     match req.msg_type.as_str() {
         "list_tools" => {
-            let mut tools: Vec<String> = visible_tools_for_role(state, role).into_iter().collect();
+            let mut tools: Vec<String> = visible_tools_for(state, ctx).into_iter().collect();
             tools.sort();
             WsMessageOut {
                 id: req.id,
@@ -242,7 +245,7 @@ pub(super) async fn ws_handle_message(
             let args = req
                 .args
                 .unwrap_or_else(|| Value::Object(serde_json::Map::new()));
-            let result = call_tool_response_value(state, name, args, Some(peer), role).await;
+            let result = call_tool_response_value(state, name, args, Some(peer), ctx).await;
             WsMessageOut {
                 id: req.id,
                 msg_type: "call_tool_result".to_string(),
