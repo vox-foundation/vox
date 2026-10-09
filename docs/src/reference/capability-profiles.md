@@ -103,3 +103,34 @@ Denials use one JSON shape on stdio MCP (tool result with `isError: true`), WebS
 
 The decision order is fixed and implemented once, in `vox_mcp_registry::authorize_tool`:
 membership → internal off loopback → operator for read role → read-role eligibility → booted subsystems.
+
+## Boot and degraded mode
+
+`vox-orchestrator-d` boots only the subsystems in the active profile's closure (the profile's
+`requires` plus their dependencies). Steps run in a fixed order; `dev` runs every step in the
+same order as before profiles existed.
+
+| Subsystem | Boot step(s) | Notes |
+|---|---|---|
+| `db` | `db` | Opens the workspace journey store and syncs the orchestrator schema. |
+| `model_registry` | `model_registry`, `routing_preferences` | Persisted routing preferences need `db`; without it the scorer defaults stand. |
+| `llm_facade`, `search_index`, `memory`, `compiler`, `browser`, `speech` | one step each | Initialised lazily per call; the step declares them available. |
+| `sessions` | `sessions` | |
+| `agent_fleet` | `agent_fleet` | Still honours `VOX_MCP_AGENT_FLEET`. |
+| `mesh` | `populi_federation_poller`, `a2a_remote_result_poller`, `a2a_remote_worker_poller` | |
+| `clarification` | `clarification_inbox` | |
+| `research` | `socrates_research_poller` (+ scientia mesh jobs) | |
+| `flywheel` | `flywheel` | |
+| `attention` | `attention_calibration` | |
+
+**Failure degrades, it does not abort.** A failed step puts its subsystem in the boot report's
+`failed` map with the error, and boot continues. Under any named profile, subsystems that depend
+on a failed one are not started and are recorded as `dependency <x> failed`. Under `dev`, they
+still start, matching pre-profile behaviour (for example, sessions fall back to file persistence
+when the store is unavailable). The daemon exits non-zero only when **every** subsystem the
+profile `requires` failed.
+
+**What clients see.** Tools whose `requires` include a subsystem that is not up are dropped from
+`tools/list`. Calling one anyway returns `subsystem_not_booted` (HTTP 503) with the subsystem
+name. Stdio `vox mcp` reads the daemon's report through the `orch.boot_report` RPC, and the
+daemon-only RPCs `research.run` and `research.persist_claims` apply the same check.
