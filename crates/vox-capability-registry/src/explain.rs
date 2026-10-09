@@ -6,7 +6,7 @@
 
 use anyhow::{Result, bail};
 
-use crate::index::{CapabilityIndex, DomainDef, IndexRow};
+use crate::index::{CapabilityIndex, DomainDef, IndexRow, RowKind};
 
 /// Longest accepted query, in characters (not bytes).
 pub const MAX_QUERY_CHARS: usize = 256;
@@ -37,36 +37,192 @@ pub enum Resolution<'a> {
     NoMatch,
 }
 
+/// Exact-match aliases of a row, lowercased, with their priority
+/// (0 id, 1 cli forms, 2 mcp name, 3 surface view key, 4 crate, 5 skill).
+fn aliases(row: &IndexRow) -> Vec<(u8, String)> {
+    let mut a = vec![(0, row.id.to_lowercase())];
+    if let Some(c) = &row.cli {
+        let path = c.path.join(" ").to_lowercase();
+        a.push((1, c.invocation.to_lowercase()));
+        a.push((1, path.replace(' ', ".")));
+        a.push((1, path));
+    }
+    if let Some(m) = &row.mcp {
+        let name = m.name.to_lowercase();
+        if let Some(short) = name.strip_prefix("vox_") {
+            a.push((2, short.to_string()));
+        }
+        a.push((2, name));
+    }
+    let tail = |prefix: &str| row.id.strip_prefix(prefix).map(str::to_lowercase);
+    match row.kind {
+        RowKind::Surface => {
+            if let Some(k) = row.gui.as_ref().and_then(|g| g.view_key.as_ref()) {
+                a.push((3, k.to_lowercase()));
+            }
+        }
+        RowKind::Crate => {
+            if let Some(name) = tail("crate.") {
+                if let Some(short) = name.strip_prefix("vox-") {
+                    a.push((4, short.to_string()));
+                }
+                a.push((4, name));
+            }
+        }
+        RowKind::Skill => a.extend(tail("skill.").map(|s| (5, s))),
+        _ => {}
+    }
+    a
+}
+
+fn tokens(s: &str) -> Vec<String> {
+    s.split(|c: char| !c.is_alphanumeric())
+        .filter(|t| !t.is_empty())
+        .map(str::to_lowercase)
+        .collect()
+}
+
+/// Fuzzy score: best of Jaro-Winkler against any alias/title, and 0.9 x the share of query
+/// tokens found as whole tokens of the row's id, title, cli path, mcp name or view key.
+fn score(query: &str, query_tokens: &[String], row: &IndexRow) -> f64 {
+    let title = row.title.to_lowercase();
+    let jw = aliases(row)
+        .iter()
+        .map(|(_, a)| a)
+        .chain(std::iter::once(&title))
+        .map(|a| strsim::jaro_winkler(query, a))
+        .fold(0.0, f64::max);
+    if query_tokens.is_empty() {
+        return jw;
+    }
+    let mut row_tokens = tokens(&row.id);
+    row_tokens.extend(tokens(&row.title));
+    row_tokens.extend(
+        row.cli
+            .iter()
+            .flat_map(|c| c.path.iter().flat_map(|p| tokens(p))),
+    );
+    row_tokens.extend(row.mcp.iter().flat_map(|m| tokens(&m.name)));
+    row_tokens.extend(
+        row.gui
+            .iter()
+            .flat_map(|g| g.view_key.iter().flat_map(|k| tokens(k))),
+    );
+    let hit = query_tokens
+        .iter()
+        .filter(|t| row_tokens.contains(t))
+        .count();
+    jw.max(0.9 * hit as f64 / query_tokens.len() as f64)
+}
+
 /// Resolve `query` against `index`: exact alias first, then a ranked shortlist.
 pub fn resolve<'a>(index: &'a CapabilityIndex, query: &str) -> Result<Resolution<'a>> {
-    let _ = (index, query, FUZZY_THRESHOLD);
-    bail!("RED stub: resolve not implemented")
+    let q = query.trim().to_lowercase();
+    if q.is_empty() {
+        bail!("empty query: pass a command, tool, view, crate or skill name");
+    }
+    if q.chars().count() > MAX_QUERY_CHARS {
+        bail!("query too long (max {MAX_QUERY_CHARS} characters)");
+    }
+    let mut exact: Vec<(u8, &IndexRow)> = index
+        .rows
+        .iter()
+        .filter_map(|r| {
+            aliases(r)
+                .iter()
+                .filter(|(_, a)| *a == q)
+                .map(|(p, _)| *p)
+                .min()
+                .map(|p| (p, r))
+        })
+        .collect();
+    if !exact.is_empty() {
+        exact.sort_by(|(pa, a), (pb, b)| (pa, a.kind, &a.id).cmp(&(pb, b.kind, &b.id)));
+        let mut rows = exact.into_iter().map(|(_, r)| r);
+        let primary = rows.next().expect("exact is non-empty");
+        let also = rows.take(MAX_RESULTS - 1).collect();
+        return Ok(Resolution::Exact { primary, also });
+    }
+    let qt = tokens(&q);
+    let mut cands: Vec<Candidate> = index
+        .rows
+        .iter()
+        .map(|row| Candidate {
+            row,
+            score: score(&q, &qt, row),
+        })
+        .filter(|c| c.score >= FUZZY_THRESHOLD)
+        .collect();
+    if cands.is_empty() {
+        return Ok(Resolution::NoMatch);
+    }
+    cands.sort_by(|a, b| {
+        b.score
+            .total_cmp(&a.score)
+            .then_with(|| a.row.id.cmp(&b.row.id))
+    });
+    cands.truncate(SHORTLIST_LIMIT);
+    Ok(Resolution::Shortlist(cands))
 }
 
 /// The rows both transports print for a resolution (D-12).
 #[must_use]
 pub fn explain_rows<'a>(r: &Resolution<'a>) -> Vec<&'a IndexRow> {
-    let _ = r;
-    vec![]
+    match r {
+        Resolution::Exact { primary, also } => std::iter::once(*primary)
+            .chain(also.iter().copied())
+            .collect(),
+        Resolution::Shortlist(c) => c.iter().map(|c| c.row).collect(),
+        Resolution::NoMatch => vec![],
+    }
 }
 
 /// Rows of one domain, sorted by id; an unknown domain is an error listing the valid ids.
 pub fn rows_in_domain<'a>(index: &'a CapabilityIndex, domain: &str) -> Result<Vec<&'a IndexRow>> {
-    let _ = (index, domain);
-    bail!("RED stub: rows_in_domain not implemented")
+    let d = domain.trim().to_lowercase();
+    if !index.domains.iter().any(|x| x.id == d) {
+        let valid: Vec<&str> = index.domains.iter().map(|x| x.id.as_str()).collect();
+        bail!(
+            "unknown domain `{domain}`; valid domains: {}",
+            valid.join(", ")
+        );
+    }
+    let mut rows: Vec<&IndexRow> = index
+        .rows
+        .iter()
+        .filter(|r| r.domain.as_deref() == Some(d.as_str()))
+        .collect();
+    rows.sort_by(|a, b| a.id.cmp(&b.id));
+    Ok(rows)
 }
 
 /// Per domain (vocabulary order): number of cli, mcp_tool and surface rows.
 #[must_use]
 pub fn domain_counts(index: &CapabilityIndex) -> Vec<(&DomainDef, usize, usize, usize)> {
-    let _ = index;
-    vec![]
+    let count = |d: &DomainDef, k: RowKind| {
+        index
+            .rows
+            .iter()
+            .filter(|r| r.kind == k && r.domain.as_deref() == Some(d.id.as_str()))
+            .count()
+    };
+    index
+        .domains
+        .iter()
+        .map(|d| {
+            (
+                d,
+                count(d, RowKind::Cli),
+                count(d, RowKind::McpTool),
+                count(d, RowKind::Surface),
+            )
+        })
+        .collect()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::index::RowKind;
     use crate::test_fixture::{cli_ref, fixture_index, row};
 
     fn exact_id<'a>(r: &Resolution<'a>) -> &'a str {
