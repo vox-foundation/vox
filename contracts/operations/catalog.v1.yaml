@@ -220,7 +220,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -232,6 +232,8 @@ operations:
   mcp:
     name: vox_feedback_list
     http_read_role_eligible: true
+    exposure: public
+    requires: []
   cli: null
 - id: resolve.feedback
   title: Resolve Feedback
@@ -239,7 +241,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -251,6 +253,8 @@ operations:
   mcp:
     name: vox_resolve_feedback
     http_read_role_eligible: false
+    exposure: operator
+    requires: []
   cli: null
 - id: a2a.ack
   title: A2a Ack
@@ -3662,7 +3666,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -3674,6 +3678,9 @@ operations:
   mcp:
     name: vox_behavior_record
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - memory
   cli: null
 - id: behavior.summary
   title: Behavior Summary
@@ -3681,7 +3688,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -3693,6 +3700,9 @@ operations:
   mcp:
     name: vox_behavior_summary
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - memory
   cli: null
 - id: benchmark.list
   title: Benchmark List
@@ -4814,7 +4824,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -4826,6 +4836,8 @@ operations:
   mcp:
     name: vox_check_mood
     http_read_role_eligible: false
+    exposure: public
+    requires: []
   cli: null
 - id: check.workspace
   title: Check Workspace
@@ -9926,7 +9938,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -9938,6 +9950,8 @@ operations:
   mcp:
     name: vox_compaction_status
     http_read_role_eligible: false
+    exposure: public
+    requires: []
   cli: null
 - id: compiler::ast.inspect
   title: Compiler::ast Inspect
@@ -14836,7 +14850,7 @@ operations:
   intent_tags:
   - retrieval
   - graph
-  side_effect_class: none
+  side_effect_class: read_only
   scope_kind: repository
   reversible: true
   requires_repo: true
@@ -14848,6 +14862,8 @@ operations:
   mcp:
     name: vox_search_status
     http_read_role_eligible: true
+    exposure: public
+    requires: []
   cli:
     path:
     - graph
@@ -14894,7 +14910,7 @@ operations:
   intent_tags:
   - retrieval
   - graph
-  side_effect_class: none
+  side_effect_class: writes_files
   scope_kind: repository
   reversible: true
   requires_repo: true
@@ -14905,7 +14921,9 @@ operations:
   latin_aliases: null
   mcp:
     name: vox_search_structural
-    http_read_role_eligible: true
+    http_read_role_eligible: false
+    exposure: public
+    requires: []
   cli: null
 - id: graph.ingest
   title: Vox Graph Ingest
@@ -14973,7 +14991,7 @@ operations:
   intent_tags:
   - retrieval
   - graph
-  side_effect_class: none
+  side_effect_class: read_only
   scope_kind: repository
   reversible: true
   requires_repo: true
@@ -14985,6 +15003,8 @@ operations:
   mcp:
     name: vox_search_neighbors
     http_read_role_eligible: true
+    exposure: public
+    requires: []
   cli:
     path:
     - graph
@@ -15004,7 +15024,7 @@ operations:
   intent_tags:
   - retrieval
   - graph
-  side_effect_class: none
+  side_effect_class: read_only
   scope_kind: repository
   reversible: true
   requires_repo: true
@@ -15016,6 +15036,8 @@ operations:
   mcp:
     name: vox_search_path
     http_read_role_eligible: true
+    exposure: public
+    requires: []
   cli: null
 - id: graph.callers
   title: Vox Search Callers
@@ -15025,7 +15047,7 @@ operations:
   intent_tags:
   - retrieval
   - graph
-  side_effect_class: none
+  side_effect_class: read_only
   scope_kind: repository
   reversible: true
   requires_repo: true
@@ -15037,6 +15059,8 @@ operations:
   mcp:
     name: vox_search_callers
     http_read_role_eligible: false
+    exposure: public
+    requires: []
   cli: null
 - id: graph.callees
   title: Vox Search Callees
@@ -15046,7 +15070,7 @@ operations:
   intent_tags:
   - retrieval
   - graph
-  side_effect_class: none
+  side_effect_class: read_only
   scope_kind: repository
   reversible: true
   requires_repo: true
@@ -15058,6 +15082,8 @@ operations:
   mcp:
     name: vox_search_callees
     http_read_role_eligible: false
+    exposure: public
+    requires: []
   cli: null
 - id: graph.compare
   title: Vox Search Compare
@@ -15067,7 +15093,7 @@ operations:
   intent_tags:
   - retrieval
   - graph
-  side_effect_class: none
+  side_effect_class: read_only
   scope_kind: repository
   reversible: true
   requires_repo: true
@@ -15079,6 +15105,8 @@ operations:
   mcp:
     name: vox_search_compare
     http_read_role_eligible: true
+    exposure: public
+    requires: []
   cli: null
 - id: graph.history_mcp
   title: Vox Search History
@@ -15100,6 +15128,8 @@ operations:
   mcp:
     name: vox_search_history
     http_read_role_eligible: false
+    exposure: public
+    requires: []
   cli: null
 - id: graph.coverage
   title: Graph Coverage
@@ -15229,6 +15259,8 @@ operations:
   mcp:
     name: vox_search_rebuild
     http_read_role_eligible: false
+    exposure: public
+    requires: []
   cli:
     path:
     - graph
@@ -15287,6 +15319,8 @@ operations:
   mcp:
     name: vox_search_set_ttl
     http_read_role_eligible: false
+    exposure: operator
+    requires: []
   cli: null
 - id: get.active.model
   title: Get Active Model
@@ -15313,7 +15347,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -15325,6 +15359,8 @@ operations:
   mcp:
     name: vox_get_context
     http_read_role_eligible: false
+    exposure: public
+    requires: []
   cli: null
 - id: git.blame
   title: Git Blame
@@ -15533,7 +15569,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -15545,6 +15581,9 @@ operations:
   mcp:
     name: vox_knowledge_query
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - search_index
   cli: null
 - id: language.surface
   title: Language Surface
@@ -15571,7 +15610,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -15583,6 +15622,9 @@ operations:
   mcp:
     name: vox_learn_pattern
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - memory
   cli: null
 - id: lint.crate
   title: Lint Crate
@@ -15609,7 +15651,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -15621,6 +15663,8 @@ operations:
   mcp:
     name: vox_list_context
     http_read_role_eligible: false
+    exposure: public
+    requires: []
   cli: null
 - id: list.models
   title: List Models
@@ -16113,7 +16157,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -16125,6 +16169,9 @@ operations:
   mcp:
     name: vox_memory_list_keys
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - memory
   cli: null
 - id: memory.log
   title: Memory Log
@@ -16132,7 +16179,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -16144,6 +16191,9 @@ operations:
   mcp:
     name: vox_memory_log
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - memory
   cli: null
 - id: memory.recall
   title: Memory Recall
@@ -16151,7 +16201,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -16163,6 +16213,9 @@ operations:
   mcp:
     name: vox_memory_recall
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - memory
   cli: null
 - id: memory.recall.db
   title: Memory Recall Db
@@ -16170,7 +16223,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -16182,6 +16235,9 @@ operations:
   mcp:
     name: vox_memory_recall_db
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - memory
   cli: null
 - id: memory.save.db
   title: Memory Save Db
@@ -16189,7 +16245,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -16201,6 +16257,9 @@ operations:
   mcp:
     name: vox_memory_save_db
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - memory
   cli: null
 - id: memory.search
   title: Memory Search
@@ -16208,7 +16267,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: network
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -16220,6 +16279,9 @@ operations:
   mcp:
     name: vox_memory_search
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - memory
   cli:
     path:
     - memory
@@ -16237,7 +16299,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -16249,6 +16311,8 @@ operations:
   mcp:
     name: vox_semantic_fs_discover
     http_read_role_eligible: true
+    exposure: public
+    requires: []
   cli: null
 - id: memory.store
   title: Memory Store
@@ -16256,7 +16320,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -16268,6 +16332,9 @@ operations:
   mcp:
     name: vox_memory_store
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - memory
   cli: null
 - id: mens
   title: Mens
@@ -18900,7 +18967,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18912,6 +18979,9 @@ operations:
   mcp:
     name: vox_preference_get
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - memory
   cli: null
 - id: preference.list
   title: Preference List
@@ -18919,7 +18989,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18931,6 +19001,9 @@ operations:
   mcp:
     name: vox_preference_list
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - memory
   cli: null
 - id: preference.set
   title: Preference Set
@@ -18938,7 +19011,7 @@ operations:
   description_human: null
   product_lane: data
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18950,6 +19023,9 @@ operations:
   mcp:
     name: vox_preference_set
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - memory
   cli: null
 - id: project.init
   title: Project Init
@@ -23162,7 +23238,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23174,6 +23250,9 @@ operations:
   mcp:
     name: vox_session_cleanup
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - sessions
   cli: null
 - id: session.compact
   title: Session Compact
@@ -23181,7 +23260,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23193,6 +23272,9 @@ operations:
   mcp:
     name: vox_session_compact
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - sessions
   cli: null
 - id: session.create
   title: Session Create
@@ -23200,7 +23282,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23212,6 +23294,9 @@ operations:
   mcp:
     name: vox_session_create
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - sessions
   cli: null
 - id: session.info
   title: Session Info
@@ -23219,7 +23304,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23231,6 +23316,9 @@ operations:
   mcp:
     name: vox_session_info
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - sessions
   cli: null
 - id: session.list
   title: Session List
@@ -23238,7 +23326,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23250,6 +23338,9 @@ operations:
   mcp:
     name: vox_session_list
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - sessions
   cli: null
 - id: session.reset
   title: Session Reset
@@ -23257,7 +23348,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23269,6 +23360,9 @@ operations:
   mcp:
     name: vox_session_reset
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - sessions
   cli: null
 - id: set.active.model
   title: Set Active Model
@@ -23314,7 +23408,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23326,6 +23420,8 @@ operations:
   mcp:
     name: vox_set_context
     http_read_role_eligible: false
+    exposure: public
+    requires: []
   cli: null
 - id: set.model
   title: Set Model
@@ -24656,7 +24752,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: none
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -24668,6 +24764,8 @@ operations:
   mcp:
     name: vox_tool_search
     http_read_role_eligible: true
+    exposure: public
+    requires: []
   cli: null
 - id: train
   title: Train
@@ -24886,7 +24984,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: none
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -24898,6 +24996,8 @@ operations:
   mcp:
     name: vox_visual_rag_query
     http_read_role_eligible: false
+    exposure: public
+    requires: []
   cli: null
 - id: visus.audit
   title: Visus Audit
@@ -26108,6 +26208,9 @@ operations:
   mcp:
     name: vox_kb_create
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - search_index
   cli: null
 - id: kb.list
   title: List Knowledge Bases
@@ -26115,7 +26218,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: session
   reversible: false
   requires_repo: null
@@ -26127,6 +26230,9 @@ operations:
   mcp:
     name: vox_kb_list
     http_read_role_eligible: true
+    exposure: public
+    requires:
+    - search_index
   cli: null
 - id: kb.delete
   title: Delete Knowledge Base
@@ -26146,6 +26252,9 @@ operations:
   mcp:
     name: vox_kb_delete
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - search_index
   cli: null
 - id: kb.add_entry
   title: Add Knowledge Entry
@@ -26165,6 +26274,9 @@ operations:
   mcp:
     name: vox_kb_add_entry
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - search_index
   cli: null
 - id: kb.delete_entry
   title: Delete Knowledge Entry
@@ -26184,6 +26296,9 @@ operations:
   mcp:
     name: vox_kb_delete_entry
     http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - search_index
   cli: null
 - id: kb.list_entries
   title: List Knowledge Entries
@@ -26191,7 +26306,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: session
   reversible: false
   requires_repo: null
@@ -26203,6 +26318,9 @@ operations:
   mcp:
     name: vox_kb_list_entries
     http_read_role_eligible: true
+    exposure: public
+    requires:
+    - search_index
   cli: null
 - id: kb.review_entry
   title: Review Knowledge Entry
@@ -26222,6 +26340,9 @@ operations:
   mcp:
     name: vox_kb_review_entry
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - search_index
   cli: null
 - id: kb.get_feed
   title: Get Knowledge Feed
@@ -26229,7 +26350,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: session
   reversible: false
   requires_repo: null
@@ -26241,6 +26362,9 @@ operations:
   mcp:
     name: vox_kb_get_feed
     http_read_role_eligible: true
+    exposure: public
+    requires:
+    - search_index
   cli: null
 - id: kb.add_rule
   title: Add Knowledge Rule
@@ -26260,6 +26384,9 @@ operations:
   mcp:
     name: vox_kb_add_rule
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - search_index
   cli: null
 - id: kb.list_rules
   title: List Knowledge Rules
@@ -26267,7 +26394,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: session
   reversible: false
   requires_repo: null
@@ -26279,6 +26406,9 @@ operations:
   mcp:
     name: vox_kb_list_rules
     http_read_role_eligible: true
+    exposure: public
+    requires:
+    - search_index
   cli: null
 - id: kb.query
   title: Query Knowledge Base
@@ -26286,7 +26416,7 @@ operations:
   description_human: null
   product_lane: ai
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: session
   reversible: false
   requires_repo: null
@@ -26298,6 +26428,9 @@ operations:
   mcp:
     name: vox_kb_query
     http_read_role_eligible: true
+    exposure: public
+    requires:
+    - search_index
   cli: null
 - id: kb.clip
   title: Clip Knowledge Fact
@@ -26317,6 +26450,9 @@ operations:
   mcp:
     name: vox_kb_clip
     http_read_role_eligible: false
+    exposure: public
+    requires:
+    - search_index
   cli: null
 - id: gui
   title: Gui
