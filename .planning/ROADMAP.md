@@ -56,7 +56,7 @@ v1.1 turns Vox's existing research pipeline, telemetry, evaluation, model routin
   3. `vox explain mesh` and `vox features --domain secrets` print layer, CLI/GUI/MCP equivalents, and a docs link.
   4. `llms.txt` capability sections are generator output and link the MCP tool reference and GUI navigation.
 
-**Plans:** 6/8 plans executed (06.2-08 optional, owner-gated)
+**Plans:** 7/8 plans executed (06.2-08 optional, owner-gated)
 
 Plans:
 **Wave 1**
@@ -82,7 +82,7 @@ Plans:
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
-- [ ] 06.2-07-PLAN.md — Generated llms.txt/llms-full.txt regions, vox-docs.json key, GUI TS artifact (wave 6)
+- [x] 06.2-07-PLAN.md — Generated llms.txt/llms-full.txt regions, vox-docs.json key, GUI TS artifact (wave 6)
 
 **Wave 7** *(blocked on Wave 6 completion)*
 
@@ -246,7 +246,7 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 1–6 | v1.0 | 23/23 | Complete | 2026-10-01 |
 | 06.1 Hosted CI gate and fast local loop (INSERTED) | v1.0 | plan-doc | In progress | - |
-| 06.2 Capability Index SSOT (INSERTED) | v1.1 | 6/8 | In Progress|  |
+| 06.2 Capability Index SSOT (INSERTED) | v1.1 | 7/8 | In Progress|  |
 | 06.3 Universal Palette (INSERTED) | v1.1 | 0/TBD | Not started | - |
 | 06.4 Capability Explorer & Coverage Gate (INSERTED) | v1.1 | 0/TBD | Not started | - |
 | 06.5 Architecture Atlas (INSERTED) | v1.1 | 0/TBD | Not started | - |
