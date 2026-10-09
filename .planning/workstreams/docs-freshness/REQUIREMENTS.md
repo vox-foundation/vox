@@ -54,7 +54,7 @@ Added 2026-10-08 (D12). The site runs stock Starlight 0.38 with no component ove
 
 ### Tutorials current (TUT)
 
-- [ ] **TUT-01**: Every tutorial (7 today) is audited and corrected against current code. Every `vox` command and flag exists in `command-registry.yaml`, every `vox` snippet compiles as a doctest (`vox:skip` only with a stated reason), install and prerequisite steps match `reference/installation.md`, and every link resolves. Each tutorial records the commit it was verified against.
+- [x] **TUT-01**: Every tutorial (7 today) is audited and corrected against current code. Every `vox` command and flag exists in `command-registry.yaml`, every `vox` snippet compiles as a doctest (`vox:skip` only with a stated reason), install and prerequisite steps match `reference/installation.md`, and every link resolves. Each tutorial records the commit it was verified against.
 - [ ] **TUT-02**: Tutorials are executable docs-as-tests. A `.vox` harness runs each tutorial's steps end to end in CI (on PRs touching `docs/src/tutorials/**`, the CLI, or the compiler, plus nightly), and a failing tutorial blocks the merge.
 
 ### Measurement & pruning (MEASURE)
@@ -122,7 +122,7 @@ Added 2026-10-08 (D12). The site runs stock Starlight 0.38 with no component ove
 | LINKS-01 | Phase 20 | Pending |
 | LINKS-02 | Phase 20 | Pending |
 | LINKS-03 | Phase 20 | Pending |
-| TUT-01 | Phase 20 | Pending |
+| TUT-01 | Phase 20 | Complete |
 | SITE-01 | Phase 20.1 | Pending |
 | SITE-02 | Phase 20.1 | Pending |
 | SITE-03 | Phase 20.1 | Pending |
