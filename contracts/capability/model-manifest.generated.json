@@ -14229,6 +14229,16 @@
       "curated": true
     },
     {
+      "capability_id": "cli.serve",
+      "cli_path": [
+        "serve"
+      ],
+      "implicit": false,
+      "title": "Serve",
+      "description_model": "CLI operation `vox serve`",
+      "curated": true
+    },
+    {
       "capability_id": "cli.share",
       "cli_path": [
         "share"
