@@ -1,7 +1,7 @@
 {
   "x-vox-version": 1,
   "generated_by": "scripts/docs/tutorial-verify.vox",
-  "verified_at_commit": "a0060c8492d9bc8fef7dc49cc8d893666ca1d0d1",
+  "verified_at_commit": "f1cb89e99f081fa953a9c2b2180310cc2464a061",
   "tutorials": [
     {
       "path": "docs/src/tutorials/tut-actor-basics.md",
@@ -16,7 +16,7 @@
     },
     {
       "path": "docs/src/tutorials/tut-first-app.md",
-      "blob_sha": "bccafff8201e2346baa6569bdf9ee33f2c542e89",
+      "blob_sha": "5d9140bce0c65fea94feb21384da5dd6310338e2",
       "checks": {
         "commands_in_registry": "pass",
         "snippets_compile": "pass",
@@ -27,7 +27,7 @@
     },
     {
       "path": "docs/src/tutorials/tut-first-vox-app-checkpoints.md",
-      "blob_sha": "07817fedd5b42b1fa62ece99e3d8f17fc07db632",
+      "blob_sha": "c480747fc8102656a7ada071ba1f35549fd35b8d",
       "checks": {
         "commands_in_registry": "pass",
         "snippets_compile": "pass",
@@ -60,7 +60,7 @@
     },
     {
       "path": "docs/src/tutorials/tut-workflow-durability.md",
-      "blob_sha": "d61e9c9ba79f609b5fc8d2de895026d20df9cb60",
+      "blob_sha": "14fda8a6d63a07c9e5ca1cbefb045efd2bf1f9a4",
       "checks": {
         "commands_in_registry": "pass",
         "snippets_compile": "pass",

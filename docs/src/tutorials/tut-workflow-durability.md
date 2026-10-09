@@ -13,7 +13,7 @@ schema_type: "HowTo"
 Learn how to build resilient, long-running processes using Vox workflows. This tutorial explains the durability story Vox supports today: interpreted workflow step replay, stable activity ids, and idempotent activities.
 
 > [!WARNING]
-> Interpreted workflow runtime durability and generated-Rust workflow durability are different things. The durable replay and recovery story shown here uses the interpreted path (`vox mens workflow ...`), not compiled native async functions.
+> Interpreted workflow runtime durability and generated-Rust workflow durability are different things. The durable replay and recovery story shown here uses the interpreted path (`vox mens workflow ...`), not compiled native async functions. `vox mens workflow` is provided by the separately installed `vox-ml-cli`; the journaled interpreted runtime needs it built with the `workflow-runtime` feature (`cargo install --locked --path crates/vox-ml-cli --features workflow-runtime`). See [Installing Vox → Beyond the CLI](../reference/installation.md#beyond-the-cli).
 
 ## 1. The Challenge of Long-Running Tasks
 
@@ -21,12 +21,40 @@ Traditional async functions lose their state if the server restarts or a network
 
 ## 2. Defining a Workflow
 
-Use the bare `activity` and `workflow` keywords to describe long-running orchestration. 
-
-Use the bare `activity` and `workflow` keywords to describe long-running orchestration. 
+Use the bare `activity` and `workflow` keywords to describe long-running orchestration. An `activity` does the side-effectful work; a `workflow` sequences activities and propagates their errors with `?`:
 
 ```vox
-{{#include ../../../examples/golden/getting_started.vox:logic}}
+activity charge_card(amount: int) to Result[str] {
+    if amount > 1000 {
+        return Error("amount too large")
+    }
+    return Ok("tx_" + str(amount))
+}
+
+activity send_receipt(tx: str) to Result[str] {
+    return Ok("emailed:" + tx)
+}
+
+workflow checkout(amount: int) to Result[str] {
+    let tx = charge_card(amount)?
+    let receipt = send_receipt(tx)?
+    return Ok(receipt)
+}
+```
+
+Source: `examples/golden/durable_workflow_real.vox`
+
+An activity call inside a workflow can carry execution options in a `with` block:
+
+```vox
+activity fetch_invoice(id: str) to Result[str] {
+    return Ok("invoice:" + id)
+}
+
+workflow bill(id: str) to Result[str] {
+    let invoice = fetch_invoice(id) with { retries: 3, timeout: "30s", initial_backoff: "1s" }
+    return invoice
+}
 ```
 
 The `with` block provides execution options for the activity:
