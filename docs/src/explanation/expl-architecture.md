@@ -237,7 +237,7 @@ table Task {
 }
 ```
 
-The declaration is the [schema](https://github.com/vox-foundation/vox/tree/main/crates/vox-db/), the [wire format](https://github.com/vox-foundation/vox/tree/main/crates/vox-protocol/), and the typed client. `index Task.by_owner on (owner)` lives next to it. [Migrations](https://github.com/vox-foundation/vox/tree/main/crates/vox-db/) come from the diff against the previous schema.
+The declaration is the [schema](https://github.com/vox-foundation/vox/tree/main/crates/vox-db/), the wire format, and the typed client. `index Task.by_owner on (owner)` lives next to it. [Migrations](https://github.com/vox-foundation/vox/tree/main/crates/vox-db/) come from the diff against the previous schema.
 
 → [`table` reference](../reference/ref-decorators.md) · [migration guide](../how-to/how-to-database.md)
 
@@ -325,7 +325,7 @@ resource "vox://tasks/open" "Open tasks right now" open_tasks_resource() to list
 The shape of the four pillars above is downstream of one decision: *design the language after the model*. Three subsystems make that concrete.
 
 - **Grammar-constrained decoding.** [`vox-constrained-gen`](https://github.com/vox-foundation/vox/tree/main/crates/vox-constrained-gen/) is an Earley/PDA decoder with a deadlock watchdog. Token-stream constraint, not post-hoc validation — invalid Vox cannot be sampled.
-- **Measurable detectors.** Rules live in [`rules.v1.yaml`](https://github.com/vox-foundation/vox/blob/main/crates/vox-rule-pack/rules/rules.v1.yaml) with a JSON Schema and an [F1 bench scorer](https://en.wikipedia.org/wiki/F-score) over fixture corpora. Stub, hollow-fn, victory-claim, AI-laziness, secret, magic-value, deprecated-symbol, and effect-system rules are all scored against ground truth, not vibes.
+- **Measurable detectors.** Rules live in [`rules.v1.yaml`](https://github.com/vox-foundation/vox/blob/main/contracts/code-audit/rules.v1.yaml) with a JSON Schema and an [F1 bench scorer](https://en.wikipedia.org/wiki/F-score) over fixture corpora. Stub, hollow-fn, victory-claim, AI-laziness, secret, magic-value, deprecated-symbol, and effect-system rules are all scored against ground truth, not vibes.
 - **Local training.** Vox is new; mainstream languages saturate the public training corpus, Vox doesn't. `vox populi` runs QLoRA fine-tunes and OpenAI-compatible serving on detected CUDA / Metal / WebGPU — [Burn](https://github.com/tracel-ai/burn) + [Candle](https://github.com/huggingface/candle), no Python. Requires the `gpu` cargo feature.
 
 → [`examples/golden/`](https://github.com/vox-foundation/vox/tree/main/examples/golden/) · [Rosetta comparison](expl-rosetta-inventory.md) · [why Vox for AI](why-vox-for-ai.md)
@@ -349,16 +349,16 @@ fn classify(score: int, override: bool, calibrated: bool) to str {
 
 **`?` propagation + `match` exhaustiveness.** The `?` postfix unwraps `Ok(value)` or short-circuits the function with the `Error`. The only way to consume a `Result` is `match`, and `match` arms must cover both `Ok` and `Error` — the compiler refuses to build silent error-swallowing code.
 
-**Sandboxed execution.** Script-shaped files run under the HIR interpreter by default ([ADR-048](../adr/048-interpreter-is-the-execution-and-sandbox-tier.md)). Isolation is capability denial plus counted bounds (steps, heap, depth, output, disk bytes, file counts), imposed by the receiver via repeatable `--caps`. [`vox-bounded-fs`](https://github.com/vox-foundation/vox/tree/main/crates/vox-bounded-fs/) caps reads by size; [`vox-exec-grammar`](https://github.com/vox-foundation/vox/tree/main/crates/vox-exec-grammar/) classifies shell-out risk before execution. Native compile is an explicit hatch (`--mode script`), not a sandbox.
+**Sandboxed execution.** Script-shaped files run under the HIR interpreter by default ([ADR-048](../adr/048-interpreter-is-the-execution-and-sandbox-tier.md)). Isolation is capability denial plus counted bounds (steps, heap, depth, output, disk bytes, file counts), imposed by the receiver via repeatable `--caps`. [`vox-bounded-fs`](https://github.com/vox-foundation/vox/tree/main/crates/vox-bounded-fs/) caps reads by size; [`vox-container-types::exec_grammar`](https://github.com/vox-foundation/vox/tree/main/crates/vox-container-types/src/exec_grammar/) classifies shell-out risk before execution. Native compile is an explicit hatch (`--mode script`), not a sandbox.
 
-**`vox audit`** runs the [rule pack](https://github.com/vox-foundation/vox/blob/main/crates/vox-rule-pack/rules/rules.v1.yaml) — stub, hollow-fn, victory-claim, AI-laziness, secret, magic-value, deprecated-symbol, and effect-system detectors — each [F1-scored](https://en.wikipedia.org/wiki/F-score) against fixture corpora. Rules are calibrated, not vibes.
+**`vox audit`** runs the [rule pack](https://github.com/vox-foundation/vox/blob/main/contracts/code-audit/rules.v1.yaml) — stub, hollow-fn, victory-claim, AI-laziness, secret, magic-value, deprecated-symbol, and effect-system detectors — each [F1-scored](https://en.wikipedia.org/wiki/F-score) against fixture corpora. Rules are calibrated, not vibes.
 
 ### Engineering invariants
 
 Properties enforced on the project itself, invisible from the language surface:
 
 - **Layered crate graph.** All 101 workspace crates declare a layer (L0 pure types → L5 surfaces) in [`layers.toml`](../architecture/layers.toml). [`vox-arch-check`](https://github.com/vox-foundation/vox/tree/main/crates/vox-arch-check/) blocks inversions, fan-in violations, LoC budget overruns, and orphaned modules.
-- **Sandboxed execution.** The HIR interpreter is the isolation tier ([ADR-048](../adr/048-interpreter-is-the-execution-and-sandbox-tier.md)). [`vox-bounded-fs`](https://github.com/vox-foundation/vox/tree/main/crates/vox-bounded-fs/) (size-capped reads), [`vox-exec-grammar`](https://github.com/vox-foundation/vox/tree/main/crates/vox-exec-grammar/) (shell risk classifier). Caps are repeatable `--caps` on `vox run`.
+- **Sandboxed execution.** The HIR interpreter is the isolation tier ([ADR-048](../adr/048-interpreter-is-the-execution-and-sandbox-tier.md)). [`vox-bounded-fs`](https://github.com/vox-foundation/vox/tree/main/crates/vox-bounded-fs/) (size-capped reads), [`vox-container-types::exec_grammar`](https://github.com/vox-foundation/vox/tree/main/crates/vox-container-types/src/exec_grammar/) (shell risk classifier). Caps are repeatable `--caps` on `vox run`.
 - **Declared capabilities.** [`vox-capability-registry`](https://github.com/vox-foundation/vox/tree/main/crates/vox-capability-registry/) gates what tools can do; [`vox-identity`](https://github.com/vox-foundation/vox/tree/main/crates/vox-identity/) signs with [ed25519](https://en.wikipedia.org/wiki/EdDSA#Ed25519) against a trust ledger; [`vox-secrets`](https://github.com/vox-foundation/vox/tree/main/crates/vox-secrets/) is the only path to a secret value.
 
 ---

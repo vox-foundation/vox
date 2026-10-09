@@ -167,3 +167,12 @@ test('definitions used by an image are left alone', () => {
   assert.equal(tree.children[1].url, 'assets/logo.png');
   assert.equal(tree.children[2].url, `${BLOB}/AGENTS.md`);
 });
+
+test('href attributes in raw HTML are rewritten too', () => {
+  const tree = {
+    type: 'root',
+    children: [{ type: 'html', value: '<p><a href="tutorials/tut-b.md#x">b</a> <a href="https://x.dev/a.md">x</a></p>' }],
+  };
+  remarkDocLinks({ repoRoot: repo, repoUrl: REPO_URL })(tree, { path: page });
+  assert.equal(tree.children[0].value, '<p><a href="/tutorials/tut-b/#x">b</a> <a href="https://x.dev/a.md">x</a></p>');
+});

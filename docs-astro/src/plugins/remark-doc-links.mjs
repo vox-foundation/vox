@@ -27,6 +27,7 @@ import { MIRROR_EXCLUDED } from '../../scripts/setup-content.mjs';
 
 const SCHEME_RE = /^[a-z][a-z0-9+.-]*:/i;
 const LINE_SUFFIX_RE = /:(\d+)(?:-(\d+))?$/;
+const HTML_HREF_RE = /(\bhref=")([^"]*)(")/g;
 
 /** Dead-link messages from every file rendered in this process. */
 const deadLinks = new Set();
@@ -138,12 +139,21 @@ export function remarkDocLinks(options) {
       strict: isWithin(docsSrc, fromFile) && !isWithin(archive, fromFile),
     };
     const errors = [];
-    visitLinks(tree, (node) => {
+    const rewrite = (url) => {
       try {
-        const resolved = resolveDocLink(node.url, fromFile, ctx);
-        if (resolved) node.url = resolved.href;
+        return resolveDocLink(url, fromFile, ctx)?.href ?? url;
       } catch (err) {
         errors.push(err.message);
+        return url;
+      }
+    };
+    visitLinks(tree, (node) => {
+      node.url = rewrite(node.url);
+    });
+    // Raw HTML blocks (`<a href="../adr/x.md">`) are not link nodes.
+    visit(tree, (node) => {
+      if (node.type === 'html') {
+        node.value = node.value.replace(HTML_HREF_RE, (_, open, url, close) => open + rewrite(url) + close);
       }
     });
     if (errors.length) {
