@@ -1,277 +1,129 @@
 ---
 phase: 03-provenance-trust-tiers-and-leak-closure
-reviewed: 2026-10-08T00:00:00Z
+reviewed: 2026-10-09T00:00:00Z
 depth: standard
-files_reviewed: 98
+scope: gap-closure diff 88fc5e996..HEAD (plans 03-14, 03-15, 03-16)
+files_reviewed: 19
 files_reviewed_list:
-  - contracts/capability/capability-registry.yaml
-  - contracts/db/baseline-version-policy.yaml
-  - contracts/documentation/retired-symbols.v1.yaml
-  - contracts/mcp/http-read-role-governance.yaml
-  - contracts/mcp/tool-registry.canonical.yaml
-  - contracts/operations/catalog.v1.yaml
-  - contracts/retirement/retired-surfaces.v1.yaml
-  - crates/vox-cli-research/src/lib.rs
-  - crates/vox-cli/src/commands/db_research/retrieval.rs
-  - crates/vox-cli/src/commands/kb.rs
-  - crates/vox-cli/src/commands/kb/gate.rs
-  - crates/vox-cli/src/commands/kb/gate/tests.rs
-  - crates/vox-db-types/Cargo.toml
-  - crates/vox-db-types/src/kb_text.rs
-  - crates/vox-db-types/src/lib.rs
-  - crates/vox-db/src/codex_legacy.rs
-  - crates/vox-db/src/lib.rs
+  - CHANGELOG.md
   - crates/vox-db/src/local_tests.rs
-  - crates/vox-db/src/questioning_telemetry.rs
-  - crates/vox-db/src/research.rs
-  - crates/vox-db/src/schema/domains/knowledge.rs
-  - crates/vox-db/src/schema/domains/mod.rs
-  - crates/vox-db/src/schema/domains/quarantine.rs
-  - crates/vox-db/src/schema/manifest.rs
-  - crates/vox-db/src/store/mod.rs
   - crates/vox-db/src/store/open.rs
-  - crates/vox-db/src/store/ops_memory/kb_findings.rs
-  - crates/vox-db/src/store/ops_memory/kb_legacy.rs
-  - crates/vox-db/src/store/ops_memory/knowledge.rs
   - crates/vox-db/src/store/ops_memory/library.rs
-  - crates/vox-db/src/store/ops_memory/mod.rs
-  - crates/vox-db/src/store/ops_memory/search.rs
-  - crates/vox-db/tests/kb_findings_store.rs
-  - crates/vox-db/tests/kb_library_store.rs
-  - crates/vox-db/tests/tiered_writer_invariant.rs
-  - crates/vox-gui/src/commands/knowledge.rs
-  - crates/vox-gui/src/commands/research.rs
-  - crates/vox-gui/src/main.rs
-  - crates/vox-gui/ui/e2e/kb-inbox-side-doors.spec.ts
-  - crates/vox-gui/ui/src/components/surfaces/Memory/MemoryView.test.tsx
-  - crates/vox-gui/ui/src/components/surfaces/Memory/MemoryView.tsx
-  - crates/vox-gui/ui/src/components/surfaces/Research/DocPublishModal.test.tsx
-  - crates/vox-gui/ui/src/components/surfaces/Research/DocPublishModal.tsx
-  - crates/vox-gui/ui/src/components/surfaces/Research/ResearchView.test.tsx
-  - crates/vox-gui/ui/src/components/surfaces/Research/ResearchView.tsx
-  - crates/vox-gui/ui/src/components/surfaces/Research/researchActions.ts
-  - crates/vox-ml-cli/src/commands/mens/pipeline.rs
-  - crates/vox-orchestrator-mcp/src/chat_tools/chat/message.rs
-  - crates/vox-orchestrator-mcp/src/chat_tools/chat/message_kb_leak_tests.rs
   - crates/vox-orchestrator-mcp/src/chat_tools/chat/research_turn.rs
-  - crates/vox-orchestrator-mcp/src/chat_tools/mod.rs
-  - crates/vox-orchestrator-mcp/src/dispatch.rs
-  - crates/vox-orchestrator-mcp/src/input_schemas.rs
-  - crates/vox-orchestrator-mcp/src/kb_tools/findings.rs
   - crates/vox-orchestrator-mcp/src/kb_tools/library.rs
-  - crates/vox-orchestrator-mcp/src/kb_tools/mod.rs
-  - crates/vox-orchestrator-mcp/src/memory_tools/handlers_memory.rs
-  - crates/vox-orchestrator-mcp/src/memory_tools/retrieval.rs
-  - crates/vox-orchestrator-mcp/src/scope_guard.rs
-  - crates/vox-orchestrator-mcp/src/server_state.rs
-  - crates/vox-orchestrator-mcp/src/task_tools/tests.rs
-  - crates/vox-orchestrator-mcp/tests/kb_findings_capture.rs
-  - crates/vox-orchestrator-mcp/tests/kb_findings_gui.rs
-  - crates/vox-orchestrator-mcp/tests/kb_legacy_migration.rs
+  - crates/vox-orchestrator-mcp/tests/kb_retrieval_tavily.rs
   - crates/vox-orchestrator-mcp/tests/kb_retrieval_tiers.rs
-  - crates/vox-orchestrator-mcp/tests/kb_status_inbox.rs
-  - crates/vox-orchestrator-mcp/tests/legacy_voxkb_retired.rs
   - crates/vox-orchestrator-mcp/tests/stdio_daemon_routing_tests.rs
-  - crates/vox-orchestrator-types/src/lib.rs
   - crates/vox-orchestrator-types/src/trust.rs
-  - crates/vox-orchestrator/src/context_envelope.rs
-  - crates/vox-orchestrator/src/lib.rs
   - crates/vox-orchestrator/src/memory/manager.rs
-  - crates/vox-orchestrator/src/orchestrator/task_dispatch/submit/goal.rs
-  - crates/vox-research-shim/src/research/orchestrator/config.rs
-  - crates/vox-research-shim/src/research/orchestrator/helpers.rs
-  - crates/vox-research-shim/src/research/orchestrator/pipeline.rs
-  - crates/vox-research-shim/src/research/orchestrator/web_gather.rs
-  - crates/vox-research-shim/src/research/persistence.rs
-  - crates/vox-research-shim/src/research/types.rs
-  - crates/vox-research-shim/tests/scientia_phase_0a_persistence.rs
-  - crates/vox-search/src/a2a_contract.rs
   - crates/vox-search/src/bundle.rs
-  - crates/vox-search/src/capture.rs
-  - crates/vox-search/src/context.rs
-  - crates/vox-search/src/execution.rs
-  - crates/vox-search/src/ingest.rs
   - crates/vox-search/src/kb_eval/library.rs
-  - crates/vox-search/src/lib.rs
   - crates/vox-search/src/library/mod.rs
-  - crates/vox-search/src/policy.rs
-  - crates/vox-search/src/rrf.rs
-  - crates/vox-search/src/trust.rs
   - crates/vox-search/tests/execute_search_plan_smoke.rs
-  - crates/vox-search/tests/ingest_markdown_tree.rs
   - crates/vox-search/tests/kb_library_chunking.rs
   - crates/vox-search/tests/kb_library_index.rs
   - crates/vox-search/tests/web_capture_test.rs
+  - docs/src/architecture/search-retrieval-ssot-2026.md
 findings:
-  critical: 1
-  warning: 10
+  critical: 0
+  warning: 2
   info: 5
-  total: 16
+  total: 7
 status: issues_found
 ---
 
-# Phase 3: Code Review Report
+# Phase 3: Code Review Report (gap-closure re-review)
 
-**Reviewed:** 2026-10-08
-**Depth:** standard (changed hunks read in full, callers and writers cross-checked)
-**Files Reviewed:** 98 (plus the 11 deleted files, checked for dangling references)
+**Reviewed:** 2026-10-09
+**Depth:** standard (changed hunks read in full; callers, writers and the previous 03-REVIEW.md cross-checked)
+**Files Reviewed:** 19
 **Status:** issues_found
 
 ## Summary
 
-The core machinery is sound. `FindingTier` cannot express `Trusted`. `ContextTrustTier::from_db_str` fails closed. The sanitizer is careful: fixpoint passes, no slicing panics, fail-closed on non-convergence. The tiered-writer invariant test and the type-level `upsert_search_document` tier parameter close the "writer forgets a tier" class. The legacy VoxKB surface is genuinely gone from `crates/`, the MCP contracts and the GUI. I found no dangling references to the 11 deleted files (only the intentional ban lists, CHANGELOG and plan docs mention them). The legacy migration is idempotent, and it only reads the legacy tables, so it deletes nothing.
+The four gap closures hold on the paths they target. I found no remaining bypass of the headline invariant ("an unprompted preamble never carries an Untrusted hit") and no Critical issue.
 
-The phase's headline invariant is "an unprompted preamble never carries an Untrusted hit, and nothing elevates model or web output". That invariant has a live hole: the Tavily leg in `run_search_with_verification` bypasses `exclude_untrusted_hits`, the tier label and `min_trust_tier` (CR-01). The remaining issues are redaction and sanitization ordering and coverage, an unverified retraction check behind a fail-closed gate, unbounded inbox growth, and a few places where the "Trusted/Advisory" tier is granted on weaker evidence than the docs claim.
+- **CR-01 / WR-08 (Tavily, trigger-derived exclusion): closed.** `run_search_with_verification` now derives `exclude_untrusted_hits = true` whenever `trigger == AutoChatPreamble`, before `execute_search_plan`, the verification second pass and the Tavily leg all read `policy` (the shadowed `policy` binding covers all three). Under exclusion the Tavily block never builds a client, spends a credit or captures, so a preamble neither fetches nor leaks it. Outside the preamble the lines are labelled `[tier:untrusted]` and `min_trust_tier` is set to `Untrusted`. I checked every other `TavilyClient` user (`probe.rs`, `web_dispatcher.rs`, the web leg inside `execute_search_plan`) and every caller of `run_search_with_verification` (`message.rs`, `retrieval.rs`, `goal.rs`, `web_gather.rs`, GUI and CLI search): the unprompted callers all use `AutoChatPreamble`. The orchestrator `goal.rs` path, which passes a plain policy, is covered by `auto_preamble_trigger_drops_untrusted_chunks_without_the_flag`.
+- **WR-05 (research-source sanitization): closed for the prompt path.** `sanitized_source` sanitizes `url`, `title`, `engine` and `snippet` (sanitize first, cap second) for `sources_from_hits` and `pipeline_sources` (deep and failed-run). The new red-team tests check url, engine and block.
+- **WR-10 / D-07 / D-07a (agent-written graph rows): closed for graph rows.** `persist_fact` writes `agent_fact` / `agent_concept`. Both map to `Untrusted` through the default arm of `tier_for_knowledge_node_type`, and the tier is computed from `node_type` at read time, so no stored tier can go stale. I grepped every `knowledge_nodes` writer (`upsert_knowledge_node`, the two raw INSERTs in `research.rs` and `research_pipeline.rs`): none writes `fact` or `concept`, so no other model-reachable path lands Advisory. The memory leg (MEMORY.md and daily logs) is deliberately unchanged per D-07a. See IN-03.
+- **WR-09 / D-08 (git-gated Library tier): closed on the reindex path.** The tier is decided for every walked file on every run (changed, unchanged and unreadable). `put_kb_index_state` no longer re-stamps rows. `IndexDeps` has exactly one non-test production constructor (`reindex_at`), and any git failure yields an empty set, so the whole corpus is Untrusted (fail-closed). `-z` output avoids path quoting, and `--no-renames` plus `ls-tree` minus `diff HEAD` handles staged, modified, untracked and untracked-after-`rm --cached` files. The remaining gaps are on the upgrade path (WR-01, WR-02) and are not reindex bugs.
 
-Cross-checked against `deferred-items.md`: the `legacy_export_covers_all_baseline_tables` failure is a real gap but not a Phase 3 regression (see IN-02). The other deferred items are not live bugs.
+New problems are limited to the upgrade path: both one-time re-tier steps run only when the database is below baseline 96, so a database already at 96 never gets them.
 
-## Critical Issues
+## Status of findings from the previous 03-REVIEW.md
 
-### CR-01: Tavily web hits bypass `exclude_untrusted_hits`, the tier label and `min_trust_tier`, and reach the chat preamble
+| ID | Status | Note |
+|---|---|---|
+| CR-01 Tavily bypass | Resolved | See Summary. |
+| WR-05 research-source sanitization | Resolved (prompt path) | Third constructor remains, see IN-02. |
+| WR-08 exclusion only in MCP caller | Resolved | Derived in `bundle.rs`. |
+| WR-09 Library Trusted from working tree | Resolved on reindex | Upgrade-path residual: WR-02 below. |
+| WR-10 model memory store elevates to Advisory | Resolved for graph rows; memory leg accepted by D-07a | Residual: IN-03. |
+| WR-01, WR-02, WR-03, WR-04, WR-06, WR-07 | Still open | None of their files is in this diff. Recorded as deferred in `deferred-items.md` (WR-01 and WR-07 owned by Phase 9). Not re-counted below. |
+| IN-01 .. IN-05 | Still open | Deferred. IN-02 (`legacy_export_covers_all_baseline_tables`) is still red. |
 
-**File:** `crates/vox-search/src/bundle.rs:233-236` (consumer: `crates/vox-orchestrator-mcp/src/chat_tools/chat/message.rs:766-776`)
-**Issue:** `execute_search_plan` honours `policy.exclude_untrusted_hits` for web, chunk, knowledge and Qdrant lines. The post-pass in `run_search_with_verification` (Tavily CRAG leg, default-enabled `tavily` cargo feature, runtime `policy.tavily_enabled`) then does this unconditionally:
-
-```rust
-execution.web_lines.extend(t_lines.iter().cloned());
-if policy.prefer_rrf_merge {
-    execution.rrf_fused_lines.extend(t_lines);
-}
-```
-
-- `exclude_untrusted_hits` is never consulted, so the knob's documented guarantee ("drop Untrusted ... web hits before fusion") does not hold on this path.
-- `rrf_fused_lines` is the first block `chat_message` injects into the prompt (`[AUTONOMOUS RESEARCH — RRF FUSION]`). The MCP caller sets `exclude_untrusted_hits = true` for `AutoChatPreamble`. The `skip_web` flag only clears `web_research_enabled`, not `tavily_enabled`. With Tavily configured, and `tavily_fire_on_empty` or `fire_on_weak` firing (which is common when local evidence is thin), live web text lands in an unprompted preamble.
-- The Tavily lines carry no `[tier:untrusted]` label (`[crag_tavily:<url>] ...`).
-- `execution.min_trust_tier` is not updated. The envelope can therefore report `Trusted` or `Advisory` for a bundle that contains live web text, and `RetrievalEvidenceEnvelope::into_context_envelope` consumes that value (`retrieval.rs:155`).
-- The text is sanitized at the bundle boundary, but sanitization is not the tier guarantee D-03/D-05 promise.
-
-The Tavily path has no equivalent of the `execute_search_plan` gate, and no test covers it (`message_kb_leak_tests.rs` and `kb_retrieval_tiers.rs` stub SearXNG only).
-
-**Fix:**
-```rust
-// bundle.rs, after building t_lines
-let t_lines: Vec<String> = hits.iter().map(|h| format!(
-    "[tier:untrusted] [crag_tavily:{}] {} (score: {:.3})",
-    h.url, h.content.replace('\n', " "), h.score)).collect();
-// capture block unchanged (capture is still wanted) ...
-if !policy.exclude_untrusted_hits {
-    execution.web_lines.extend(t_lines.iter().cloned());
-    if policy.prefer_rrf_merge { execution.rrf_fused_lines.extend(t_lines); }
-    execution.min_trust_tier = Some(
-        execution.min_trust_tier.map_or(ContextTrustTier::Untrusted, |m| m.min(ContextTrustTier::Untrusted)));
-}
-```
-Better: gate the whole Tavily firing on `!policy.exclude_untrusted_hits` (a preamble should not spend credits on a result it must discard). Add a wiremock-backed Tavily test beside `kb_retrieval_tiers.rs`.
+The previous WR-02 (redact before sanitize) is the only open item I would not leave for later: it lets a secret split by a zero-width character reach the inbox in plaintext. It is not part of this diff, so it is not re-counted here.
 
 ## Warnings
 
-### WR-01: Promotion retraction check reads Crossref `update-to`, which is the field on the retraction notice, not on the retracted paper
+### WR-01: Legacy `fact` / `concept` re-type runs only below baseline 96, so a database already at 96 keeps Advisory agent rows
 
-**File:** `crates/vox-search/src/trust.rs:53-79` (new consumer at `:84-98`, `promotion_eligibility` at `:277`)
-**Issue:** `check_retraction` looks for `message.update-to[].type == "retraction"`. In the Crossref REST schema `update-to` lists the works this record updates, so it appears on the retraction notice's record. A retracted paper's own record carries the pointer in `updated-by`. Looking up the retracted paper's DOI (the only DOI a promotion path will have) returns `Clean`. That is harmless for ranking, which was already fail-open. TRUST-06 now builds a fail-closed promotion gate on it, and the tests (`promotion_lookup_retraction_is_retracted`) use a mock that encodes the same assumption, so they cannot detect it. Separately, a 404 for DataCite or arXiv DOIs maps to `Unavailable` and is therefore ineligible; that is safe but should be a deliberate `NotApplicable`.
-**Fix:** Also deserialize `updated-by` (and optionally `relation.is-retracted-by`), and test against a captured real Crossref payload for a known retracted DOI:
+**File:** `crates/vox-db/src/store/open.rs:210, 318-337`
+**Issue:** `retier_agent_knowledge_nodes` is called inside `if current_version < BASELINE_VERSION`. Baseline 96 was introduced earlier in this phase (plan 03-03) and is unreleased, but any database that a Phase 3 binary has already opened is recorded at 96. For those databases the re-type never runs. Rows written by the old `persist_fact` stay `fact` / `concept`, which map to Advisory and pass `exclude_untrusted_hits`, so the leak that D-07 closes stays open for them. The test only covers a v95 to v96 upgrade. Two further gaps:
+- The `id NOT LIKE 'graphify:%'` guard also skips a legacy agent fact whose model-chosen key starts with `graphify:`, and that row stays Advisory.
+- Nothing needs the gate: the UPDATE is idempotent and cheap, and I confirmed no non-agent writer produces `fact` or `concept` (see Summary).
+
+**Fix:** Run the re-type on every open, outside the version gate (the same shape as `ensure_latency_columns`), and drop the `graphify:` exclusion in favor of the id prefix plus the node-type check the graphify writer actually uses:
 ```rust
-#[serde(default, rename = "updated-by")] updated_by: Vec<CrossrefUpdate>,
-// retracted = update_to.iter().chain(updated_by.iter()).any(|u| u.update_type.eq_ignore_ascii_case("retraction"))
+// open.rs, next to ensure_latency_columns(conn) after the gate
+Self::retier_agent_knowledge_nodes(conn).await?;
 ```
+Update `kb_agent_nodes_retyped_once_on_upgrade_never_deleted` to also open a DB recorded at 96 that holds a `fact` row, and fix the test's final assertion ("k-new keeps Advisory across reopen"), which would then need a distinct non-agent type or be deleted.
 
-### WR-02: Redaction runs before sanitization, so invisible characters defeat redaction and are then stripped, reassembling the secret
+### WR-02: Baseline-96 backfill still stamps Library rows with the corpus ceiling, contradicting D-08
 
-**File:** `crates/vox-orchestrator-mcp/src/kb_tools/findings.rs:91-93, 143-151`
-**Issue:** `clean()` is `sanitize(redact(raw))`, and the summary and quotes path is the same order. `redact_owned` regexes (email, key, token) do not match when a zero-width or tag-block codepoint is interleaved (`sk-\u{200B}abc...`). `sanitize` then strips the codepoint, so the full secret or email is stored in the title, summary, quote or URL. Pasted or scraped text from sites that inject zero-width characters into tokens hits this accidentally; it needs no attacker.
-**Fix:** Sanitize first, then redact, then sanitize again (idempotent) so redaction output cannot form a new construct:
-```rust
-fn clean(raw: &str) -> SanitizedText {
-    SanitizedText::new(&vox_redact::redact_owned(&vox_db::kb_text::sanitize(raw)))
-}
+**File:** `crates/vox-db/src/store/open.rs:281-312` (comment at 278-281), `docs/src/architecture/search-retrieval-ssot-2026.md` ("Where the tier is stored")
+**Issue:** 03-16 made `kb_index_state.trust_tier` a ceiling that never re-stamps rows, but `backfill_search_document_trust_tiers` still does `UPDATE search_documents SET trust_tier = <ceiling> WHERE corpus = ?` for every corpus. A database that has an indexed Library at v95, or one at v96 whose rows were stamped by the old `put_kb_index_state`, carries `Trusted` on every Library row, including untracked or modified files, until someone runs `vox_kb_reindex`. Nothing triggers a reindex on upgrade, and the preamble injects `Trusted` hits unlabelled. The function comment and the SSOT ("the single corpus-level source") are now stale.
+**Fix:** In the backfill, set Library-corpus rows to `untrusted` (fail-closed) and let the next reindex promote git-clean documents. Also correct the doc comment. If the gate cannot be rerun for databases already at 96, run the same demotion once at MCP startup when `kb_index_state.indexed_commit` is older than the 03-16 change, or surface `docs_untrusted == 0` as a doctor warning.
+```sql
+UPDATE search_documents SET trust_tier = 'untrusted' WHERE corpus = 'library'
 ```
-Apply the same order to `summary` and `extract_quotes`.
-
-### WR-03: Snapshot stores the raw, unredacted, unsanitized text, contradicting the module's own contract, and its hash does not match what is written
-
-**File:** `crates/vox-orchestrator-mcp/src/kb_tools/findings.rs:99-112, 133, 151-152`
-**Issue:** The module doc says "Everything stored is redacted then sanitized". The snapshot, though, is `content` verbatim: secrets pasted into GUI "Ingest Text", and hidden-instruction payloads from scraped pages, persist in plaintext under `.vox/cache/kb-findings/`. The snapshot is the artefact a reviewer or the planned promotion step (Phase 9) would read, so it bypasses the sanitizer the rest of the design depends on. Also `content_hash` is computed over the full `content`, but `write_snapshot` truncates to `MAX_SNAPSHOT_BYTES`. For inputs over 2 MiB the file cannot reproduce the recorded hash, so the "evidence for the content hash" claim fails.
-**Fix:** Write `clean(content)` (truncated) to the snapshot, and hash exactly the bytes written (or record both `content_hash` and `snapshot_bytes_truncated` in provenance). If raw evidence is genuinely required, store it with a restrictive mode and document that readers must sanitize.
-
-### WR-04: `provenance` is an unvalidated `serde_json::Value` that bypasses the `SanitizedText` guarantee
-
-**File:** `crates/vox-db/src/store/ops_memory/kb_findings.rs:66,143`; callers `crates/vox-orchestrator-mcp/src/kb_tools/findings.rs:169,324-335,392`, `crates/vox-gui/src/commands/knowledge.rs:96-101,196-201`
-**Issue:** The store header claims "an unsanitized string cannot reach a row through this writer". Provenance contradicts that: it is stored as-is and read back as `serde_json::Value`. Callers put raw web titles (`doc.title`), the user's search `query` (not redacted; it may contain a key), legacy `source_ref` and `kb_name`, and the pasted `source_url` into it. Any later renderer, promotion drafter or MENS exporter that reads `provenance.query` (the DPO builder already does, `pipeline.rs:603`) consumes unsanitized, unredacted text.
-**Fix:** Make provenance a typed struct of `SanitizedText` leaves (or sanitize string leaves in `insert_pending_finding`, as `clean()` in `kb_tools/library.rs` already does for tool output). Redact `query`.
-
-### WR-05: Quick-research source URL and engine are not sanitized before entering the prompt; deep-path sources are not sanitized at all
-
-**File:** `crates/vox-orchestrator-mcp/src/chat_tools/chat/research_turn.rs:182-195, 223-230, 695-705`
-**Issue:** `sources_from_hits` now sanitizes `title` and `snippet`, but `url: h.path.clone()` is raw, and `sources_context_block` only replaces newlines (`flatten`). A result URL carrying tag-block or zero-width characters, or a `)![x](https://evil/?q=` suffix, goes straight into the `[n] title — url (engine)` line of the quick-research context. `pipeline_sources` (deep path, also used for failed-run sources shown in the trace) sanitizes nothing: title, URL and snippet are raw. They are not prompt-injected today, but they feed the GUI trace and `capture_research_sources`.
-**Fix:** `url: SanitizedText::new(&h.path).into_string()` (and `engine`), and run `pipeline_sources` through the same helper.
-
-### WR-06: Legacy migration silently skips orphaned entries and aborts the whole pass on one failure
-
-**File:** `crates/vox-db/src/store/ops_memory/kb_legacy.rs:83`, `crates/vox-orchestrator-mcp/src/kb_tools/findings.rs:351`
-**Issue:** The page query is `FROM kb_entries e JOIN knowledge_bases b ON b.id = e.kb_id`. FK enforcement is not guaranteed on this connection, so an entry whose `kb_id` has no row (or whose KB was deleted by the old `vox_kb_delete` under a non-cascading connection) is never returned. It is counted in `kb_entries` but is not in `migrated`, `skipped_empty` or `already_present`. It stays only in the quarantined table and is never surfaced, which is exactly the "no data loss" gap RET-03 forbids. Also `capture_finding(...).await?` aborts the loop on the first error (for example one disk-write failure), so every later entry is blocked on every startup until the cause is fixed. Pagination by `e.id > cursor` makes the abort deterministic.
-**Fix:** `LEFT JOIN knowledge_bases b ... COALESCE(b.name, '(orphaned)')`, and on a per-entry error increment a `failed` counter and continue; log the total. Add an assertion `migrated + skipped_empty + already_present + failed == kb_entries` to `kb_legacy_migration.rs`.
-
-### WR-07: Inbox and snapshot growth is unbounded and driven by every search
-
-**File:** `crates/vox-orchestrator-mcp/src/kb_tools/findings.rs:98-112, 132-141, 405-420`; `crates/vox-search/src/policy.rs` (`persist_web_hits` default true)
-**Issue:** `dedupe_key = hash(origin, scope, content_hash)`. A page whose body differs slightly between fetches (ads, timestamps) files a new pending finding and a new snapshot (up to 2 MiB each) on every search. The same URL under `WebSearch`, `ResearchQuick`, `ResearchGather` and `CragTavily` origins is filed once per origin. There is no per-run cap, no inbox size limit and no snapshot garbage collection; capture tasks are spawned per search with no backpressure. A chat session or a hostile page that varies per request can fill the disk and swamp the review inbox.
-**Fix:** Dedupe on `(source_url, content_hash)` regardless of origin when a URL exists; cap findings per capture call and total pending count (reject-and-log above a threshold); prune snapshots with no live finding row.
-
-### WR-08: The "unprompted retrieval excludes Untrusted" invariant is enforced only in the MCP caller, not at the search layer
-
-**File:** `crates/vox-orchestrator-mcp/src/memory_tools/retrieval.rs:330` vs `crates/vox-orchestrator/src/orchestrator/task_dispatch/submit/goal.rs:277-308`
-**Issue:** `exclude_untrusted_hits` is set only inside `run_retrieval_bundle` as `trigger == AutoChatPreamble`. The orchestrator's goal-submit path calls `run_search_with_verification` with `RetrievalTriggerMode::AutoChatPreamble` and a plain `SearchPolicy::from_env()` (flag false). Legacy Untrusted web chunks and Untrusted knowledge nodes are therefore fed into `fused_text` and sent to the CRAG relevance LLM, and counted in the Socrates evidence totals. Impact is limited (the LLM only returns a relevance enum), but the invariant is brittle: any new `AutoChatPreamble` caller silently leaks.
-**Fix:** Derive the flag where the trigger is consumed. In `execute_search_plan`, `let exclude = policy.exclude_untrusted_hits || trigger == AutoChatPreamble`, or set the flag in `goal.rs` and add a test.
-
-### WR-09: Library chunks are stamped `Trusted` from the working tree, not from merged git content
-
-**File:** `crates/vox-orchestrator-mcp/src/kb_tools/library.rs:156-160`, `crates/vox-search/src/library/mod.rs` (`index_library` walks `docs/src`), `crates/vox-db/src/store/ops_memory/library.rs:355-406`
-**Issue:** `tier_for_curated(false)` is applied to every `docs/src/**/*.md` file on disk, and `put_kb_index_state` re-stamps every row of the corpus with that tier. Nothing checks `git ls-files` or that the file is committed. An agent write to `docs/src` (the edit and codegen tools can write there), or any untracked or uncommitted LLM output, becomes `Trusted` on the next `vox_kb_reindex`, and the unprompted preamble then injects it unlabelled as curated. This is the same elevation path the phase closes for the GUI and CLI publish writers, left open through the filesystem. The `corpus_commit` is recorded but not used to gate tiers.
-**Fix:** Index only tracked, unmodified files as `Trusted` (for example `git ls-files -z docs/src` plus a clean-status check) and tier dirty or untracked docs `Advisory` or skip them. At minimum, record the dirty state in `kb_index_state` and surface it in `vox kb status`.
-
-### WR-10: Model-callable memory store still elevates model and web output to `Advisory`
-
-**File:** `crates/vox-orchestrator/src/memory/manager.rs:212,221`, `crates/vox-orchestrator-mcp/src/memory_tools/handlers_memory.rs:37`, `crates/vox-orchestrator-types/src/trust.rs:93-98`
-**Issue:** `tier_for_knowledge_node_type` maps `fact` and `concept` to `Advisory`. `persist_fact`, reached from the model-callable memory-store tool, writes exactly those node types with arbitrary model-supplied content, including text the model just read from the web in the same turn. Those nodes then pass `exclude_untrusted_hits` (Advisory is not Untrusted) and are injected into the preamble as `[tier:advisory]`. This directly contradicts the D-06 taint rule the phase states ("an LLM synthesis of Untrusted input is Untrusted, never Advisory") and the TRUST-03 goal. Closing the chat write-back (`message.rs`) but leaving this tool open leaves a model-to-Advisory path.
-**Fix:** Either write model-originated facts with a distinct `node_type` (for example `agent_fact`) that maps to `Untrusted`, or require provenance proving the content derived only from curated inputs before the `fact` node type is used. Add the node type to the `tier_for_knowledge_node_type` tests.
+(use the `KB_LIBRARY_CORPUS` constant; keep the `vox://publication/%` advisory rule).
 
 ## Info
 
-### IN-01: Finding reader does not clamp the tier to `FindingTier`
+### IN-01: Library git gate fails closed silently and is blind to `assume-unchanged` / `skip-worktree`
 
-**File:** `crates/vox-db/src/store/ops_memory/kb_findings.rs:116`
-**Issue:** The module promises a finding "can never be Trusted", but `finding_row` decodes the stored string with `ContextTrustTier::from_db_str`. A row written by raw SQL or a later migration with `trust_tier = 'trusted'` reads back as `Trusted`. Nothing consumes it yet, but Phase 9/12 readers will trust `KbFindingRow.trust_tier`.
-**Fix:** `.min(ContextTrustTier::Advisory)` on read.
+**File:** `crates/vox-orchestrator-mcp/src/kb_tools/library.rs:213-266`
+**Issue:** Any git failure (missing git, `safe.directory` "dubious ownership", no HEAD, repo root not the git top-level) logs at `debug` and returns an empty set, so every doc is Untrusted. That is the right fail-closed result, but the operator only sees `docs_untrusted == docs_seen` with no reason. Separately, `git diff HEAD --name-only` does not report paths whose index entry carries the `assume-unchanged` or `skip-worktree` flag, so a modified doc with that flag set still counts as clean. Reaching that state needs a deliberate `git update-index`.
+**Fix:** Log the git failure at `warn` and add a `tier_gate: "git unavailable"` field to `report_json`. Optionally reject any path that `git ls-files -v -- docs/src` reports with a lowercase tag (`h`, `S`).
 
-### IN-02: Deferred `legacy_export_covers_all_baseline_tables` is a real export gap
+### IN-02: "The only way to build a numbered `Source`" is not enforced
 
-**File:** `crates/vox-db/src/codex_legacy.rs:~190` (see `deferred-items.md`, 03-03 and 03-12)
-**Issue:** Not a Phase 3 regression, but the phase touched this list twice and recorded a red test as "deferred". `LEGACY_EXPORT_TABLES` omits `kb_index_state`, `provider_quota_usage`, `research_domain_reputation`, `research_misguidance_events` and `web_cache`, so a legacy export or import under the `legacy-import` feature drops them. If that lane is in the `ci-gate` quarantine it should be tracked there explicitly.
-**Fix:** Add the five names in sorted position (or list them in the skip set) in this phase's closing plan; it is a five-line change.
+**File:** `crates/vox-orchestrator-mcp/src/chat_tools/chat/research_turn.rs:193-205, 214-238`; `crates/vox-gui/src/commands/knowledge.rs:265-277`
+**Issue:** `Source` has public fields and `sources_context_block` sanitizes nothing itself; it relies on constructor discipline. `save_research_session_to_kb` builds `Source` literals directly from stored citations. That path only reaches `capture_research_sources`, which sanitizes through `clean()`, so there is no live prompt leak. A future caller that builds a `Source` and passes it to `sources_context_block` would not be sanitized.
+**Fix:** Run `sanitized_source` in the GUI mapping, or make the fields private to the module and expose a constructor, or call `SanitizedText` inside `sources_context_block` (idempotent, cheap). Correct the doc comment either way.
 
-### IN-03: `clean()` on Library tool output rewrites the text that `vox_kb_cite` and `vox_kb_get` return
+### IN-03: Model-originated text still reaches the preamble through the memory leg (accepted by D-07a)
 
-**File:** `crates/vox-orchestrator-mcp/src/kb_tools/library.rs:46-60, 385-407`
-**Issue:** Sanitizing every string leaf (including `body`, `quote` and `uri`) means a cited chunk can differ from the stored chunk whose `chunk_hash` it carries: images, HTML comments and `[INST]`-like tokens in curated docs are replaced. The citation then cannot be verified against the hash. This is an accepted trade-off for TRUST-05, but nothing flags the altered text to the caller.
-**Fix:** Add a `"sanitized": true/false` flag (compare input and output once per leaf), or leave identifier and hash fields untouched.
+**File:** `crates/vox-search/src/execution.rs:384-386` (unchanged), `crates/vox-orchestrator-mcp/src/memory_tools/handlers_memory.rs`
+**Issue:** WR-10 asked that model output stored through the memory tool never be Advisory. D-07a narrows that to graph rows. The same `memory_store` call still writes the value to MEMORY.md, and that line reaches the automatic preamble as Advisory, including text the model copied from the web in the same turn. The e2e test pins this on purpose. This is an explicit user decision and not a defect in the plans, but the invariant "nothing elevates model or web output" is therefore not yet true end to end. It should stay on the Phase 7 list with an owner.
+**Fix:** Keep `deferred-items.md` as the tracker. When Phase 7 lands, tier memory-file lines by origin and drop the pinned assertion.
 
-### IN-04: Publish slug validation is narrower than the path it proposes
+### IN-04: Tier invariants for `knowledge_nodes` rest on convention
 
-**File:** `crates/vox-orchestrator-mcp/src/kb_tools/findings.rs:226-240`
-**Issue:** The slug check rejects `/`, `\`, `..` and a leading `.`, but allows NUL, newlines, `:` and Windows reserved names, which end up in the stored `proposed_path`. Nothing writes the path yet, so this is latent. The Phase 9 promotion step must re-validate rather than trust the stored string.
-**Fix:** Restrict to `[a-z0-9-]+` (the CLI's `render_published_doc` already normalizes) and re-validate at promotion time.
+**File:** `crates/vox-orchestrator-types/src/trust.rs:94-111`, `crates/vox-db/src/schema/domains/knowledge.rs:7`
+**Issue:** `fact` and `concept` stay Advisory for "non-agent writers", but no writer is non-agent today, and the DDL default `node_type DEFAULT 'concept'` is Advisory. `tiered_writer_invariant.rs` pins `search_documents` and `kb_findings` writers, not `knowledge_nodes` writers, so a future model-reachable call to `upsert_knowledge_node(.., Some("fact"), ..)` would silently re-open D-07. The DDL default is already in `deferred-items.md`.
+**Fix:** Add a static test that scans non-test `.rs` for `upsert_knowledge_node` and `INTO knowledge_nodes` callers with an allow-list, mirroring the existing writer invariant. Longer term, drop the `fact` / `concept` Advisory arm until a real curated writer exists.
 
-### IN-05: Store and DPO builder robustness
+### IN-05: Tavily tests mutate process env alongside parallel tests
 
-**File:** `crates/vox-db/src/store/ops_memory/kb_findings.rs:178-209,236-258`; `crates/vox-ml-cli/src/commands/mens/pipeline.rs:592-634`
-**Issue:**
-- A negative `limit` in `kb_findings_list` is unbounded in SQLite.
-- One row with an unknown `origin` or `status` fails the whole list and `kb_findings_unqueued_reviewed`, which blocks the MENS stage for every other row.
-- `kb_findings_dpo_records` treats any non-null `reviewed_by` as a human review, takes the cross product of every approved and rejected row for the same `query` (pairs from unrelated sources), and does not verify the `query` string is not itself attacker-influenced (it is the user's chat query, but it is unredacted; see WR-04).
-**Fix:** Clamp `limit` to `1..=MAX`, skip-and-log undecodable rows, and pair on `(query, source_url host)` or require an explicit reviewer allowlist.
+**File:** `crates/vox-search/tests/web_capture_test.rs:137, 224`, `crates/vox-orchestrator-mcp/tests/kb_retrieval_tavily.rs:44-49`
+**Issue:** `set_var` runs inside `multi_thread` tests after the mock server's worker threads exist, and `web_capture_test.rs` holds several tests in one binary that run on parallel threads and read env through `SearchPolicy`. Setting env while other threads read it is the unsound pattern that the `unsafe` block exists to flag. It is the same pattern the existing `capture_crag_tavily_reaches_sink_not_corpus` already uses, so flakiness risk is not new, but the second copy doubles it. The new preamble test also depends on the key being present to be meaningful: if `vox_config::snapshot::bump` ever stops reflecting the key, the "no request" assertion passes vacuously.
+**Fix:** Mark both Tavily tests `#[serial]` (the crate already uses `serial_test` elsewhere), and add a positive control in the same test (the explicit-trigger assertion in `kb_retrieval_tavily.rs` already does this; add the equivalent to the `web_capture_test.rs` case, for example a second `run_search_with_verification` with `ExplicitToolQuery` that must reach the mock).
 
 ---
 
-_Reviewed: 2026-10-08_
+_Reviewed: 2026-10-09_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
