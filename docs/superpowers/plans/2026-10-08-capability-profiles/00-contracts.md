@@ -258,3 +258,55 @@ gateway allows it):
 - New `.md` under `docs/src/` has frontmatter; lint with `cargo run -p vox-doc-pipeline -- --lint-only --paths <path relative to docs/src>`.
 - Per-crate checks before each commit: `cargo check -p <crate>`, `cargo clippy -p <crate> --all-targets -- -D warnings`, targeted `cargo nextest run -p <crate> <filter>`.
 - `dev` profile must reproduce today's behaviour exactly (back-compat tests in plans 02 and 03).
+
+## Amendments (2026-10-08, after plan drafting) — these override anything above
+
+### User decisions
+- **D1 (DB for small profiles):** `models` profile `requires` includes `db` (scoreboard, bench evidence, chat history). `attention` and `skills` stay DB-free. In remote mode Axis stores GUI preferences **client-side** (Axis local settings), never via server DB. Plan 03's "models opens no turso" boot test becomes "attention opens no turso"; a separate test asserts `models` boots `db`.
+- **D2 (eval sandbox):** no public-eval exemption. The operator adds `VOX_MCP_HTTP_READ_BEARER_TOKEN` in Coolify before plan 04 Task 4 deploys; plan 04 Task 10 updates `vox-eval.compose.yml` docs/comments only.
+- **D3 (plan 05):** deferred. Runs only after the main-checkout model-bench WIP is committed and rebased onto #598; the exact edge diff is presented to the user for authorization at that time. Plans 01–04, 06, 07 must not depend on plan 05.
+- **D4:** `vox-models` → `vox-populi` stays an **optional** edge (identical behaviour).
+
+### From plan 01
+- Shared validator: `vox-mcp-registry/src/classification.rs` with `ToolClassification` and `classify_tool_row`, included by `build.rs` via `#[path]` (together with `exposure.rs`, `subsystem.rs`) so build-time and `operations-sync` gates share one implementation.
+- Tool `_meta` keys: `vox_tier` → `vox_source` (`workspace` | `skill`); new `vox_exposure`, `vox_side_effect_class`, `vox_requires`.
+- Internal set additionally includes the `vox_agent_*` gateway family and browser cookie export/import tools.
+- `remote_mutation` added to `capability-registry.schema.json`.
+- `side_effect_class` precedence when a tool does several things: `destructive` > `remote_mutation` > `spawns_process` > `network` > `writes_files` > `read_only` > `none`.
+- Gate invariants: `http_read_role_eligible ⇒ side_effect_class ∈ {none, read_only}`; `exposure == operator ⇒ side_effect_class ∉ {none, read_only}`; `exposure == public ⇒ side_effect_class ∉ {spawns_process, remote_mutation, destructive}`.
+- Federated workspace tools: today's default (hidden) is preserved. The opt-in moves from `VOX_MCP_TIERS` to `VOX_MCP_WORKSPACE_TOOLS=1` (register in env-vars contract); `VOX_MCP_TIERS=dev|advanced` is honoured as a deprecated alias with a warning. Workspace/skill tools are only ever served under `dev`.
+- Catalog stays `catalog.v1.yaml` (no rename): the new fields are enforced by our generator; bump the schema's `x-vox-version` and note it in the plan.
+
+### From plan 02
+- `dev` has `axis_surfaces: ["*"]` (wildcard = every surface); plan 06 treats `*` accordingly.
+- Helpers reused by later plans: in `vox_orchestrator_mcp::profiles` — `guard_tool`, `denial_error_json`, `full_boot_report`, `is_dev`; in `vox-cli-core` — `ping_profile_matches`, `profile_mismatch_error`, `OrchestratorDaemonEnsure::for_profile`.
+- `ProfileDenial` lives in `boot.rs` (re-exported from `lib.rs` either way).
+- `VOX_MCP_HTTP_ALLOWED_TOOLS` composes by intersection with the profile; unset ⇒ `dev` keeps today's default list, a named profile defaults to its own tool set.
+
+### From plan 03
+- `BootReport` derives `serde::Deserialize` as well as `Serialize`.
+- New daemon RPC method `orch.boot_report` returning the `BootReport` JSON (stdio `vox mcp` reads it).
+- Marker subsystems (`llm_facade`, `search_index`, `memory`, `compiler`, `browser`, `speech`; `model_registry` until plan 05): "booted" = permitted, not pre-warmed.
+- `dev` uses lenient dependency handling (today's behaviour: dependents still start when `db` fails); named profiles are strict (dependents of a failed subsystem are recorded failed with `dependency <x> failed`).
+- Daemon methods that are not tool calls (`research.run`, `research.persist_claims`, …) are also gated by the profile (their subsystem must be booted).
+
+### From plan 04
+- `--behind-tunnel` (or `VOX_MCP_HTTP_BEHIND_TUNNEL=1`) on a loopback bind counts as network-exposed: tokens required and every caller is treated as `loopback: false`.
+- `VOX_MCP_HTTP_TLS_CERT`, `VOX_MCP_HTTP_TLS_KEY`, `VOX_MCP_HTTP_BEHIND_TUNNEL` are registered as `vox_secrets::SecretId`s, matching existing `VOX_MCP_HTTP_*` handling.
+- `GET /v1/profile` `tools` == the set `GET /v1/tools` returns for the same caller (env allowlist ∩ `guard_tool`).
+- `--bind` accepts only an IP `host:port`.
+- `/api/v2/mesh/nodes/{id}/kill` is loopback-only.
+- TLS reuses the pinned `rustls`/`tokio-rustls` on `ring`; never call `ServerConfig::builder()` (use the explicit-provider builder). Any lockfile package/provider change is a STOP for user authorization.
+
+### From plan 06
+- Command-backend classes are `daemon | db | host | shell` (`shell` = Axis-local code: build info, identity, logging, settings). Manifest has `schema_version: 1` and optional `notes` per row.
+- `surfaces` and profile `axis_surfaces` use view keys from the GUI surface registry (`surface-registry.v1.yaml`).
+- Axis client error codes: `local_only`, `not_remote_capable`, `tls_pin_required`, `tls_pin_mismatch`, `unauthorized`, `unreachable`, `invalid_url`, `insecure_url`, `version_mismatch`.
+- Per-surface availability reasons: `not_in_profile`, `needs_local_machine`, `not_remote_capable`.
+- `axis_connect_remote(url, token, accept_fingerprint: Option<String>)`.
+- Gateway origin guard: a WebSocket upgrade with **no** `Origin` header is allowed only when a valid bearer token is presented (native clients); browser `Origin`s keep today's rules. Mutation-verified in plan 06 Task 3.
+
+### From plan 07
+- Local and remote Axis reach the same server code: new GET-only daemon RPC `orch.api_v2_get` mirrors `/api/v2` reads locally.
+- Narrow preference tools replace `vox_preference_get/set` for Axis (model keys and `gui.*` keys only); safety settings such as `socrates_gate_enforced` stay unreachable from them. Per D1, `gui.*` preferences are client-side in remote mode.
+- Shared-file protocol for parallel group tasks: `dashboard_api.rs` route wiring happens once in plan 07 Task 1; groups append only under their own marker comments in `dispatch.rs`, `input_schemas.rs`, `catalog.v1.yaml`; generated files are regenerated after merge, never hand-merged.
