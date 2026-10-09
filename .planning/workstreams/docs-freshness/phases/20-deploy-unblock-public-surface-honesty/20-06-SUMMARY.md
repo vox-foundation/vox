@@ -108,6 +108,10 @@ Frontmatter `status` now drives everything public about a page from one module (
 **3. Task 1 page walk, later replaced**
 - Task 1's "every research/roadmap page has noindex" check first used a naive lower-cased route walk, because `docSlug` did not exist until Task 2. Task 3 switched it to `internalsDocIds(listDocPages())`, which covers all 133 pages with no existence filter.
 
+## Requirements
+
+HONEST-01 is marked complete. HONEST-02 stays open: its llms.txt exclusion is 20-07's work, which reads `internalsDocIds` from this plan.
+
 ## Threat Flags
 
 None. Banner HTML comes only from constants in `page-status.mjs`, and the status value is used as a lookup key (T-06-1; the unit test checks that a `<script>` status gets no banner). The new direct dependencies are exact pins of versions already in the lockfile (T-06-3).
