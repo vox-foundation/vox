@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "has_compile_times": true,
-  "crates_without_compile_times": 1,
+  "crates_without_compile_times": 0,
   "crates": [
     {
       "crate": "vox-actor-runtime",
@@ -853,9 +853,9 @@
     {
       "crate": "vox-terminal-core",
       "compile_s": 2.7,
-      "dependents": 5,
+      "dependents": 6,
       "blast_s": 55.0,
-      "fan_in": 2
+      "fan_in": 3
     },
     {
       "crate": "vox-test-harness",
