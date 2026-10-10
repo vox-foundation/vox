@@ -1104,6 +1104,22 @@ tools:
   exposure: public
   side_effect_class: read_only
   requires: []
+- name: vox_gui_preference_get
+  description: Read one Axis `gui.*` preference from the local workspace database (loopback-only).
+  product_lane: data
+  http_read_role_eligible: false
+  exposure: internal
+  side_effect_class: read_only
+  requires:
+  - db
+- name: vox_gui_preference_set
+  description: Write one Axis `gui.*` preference to the local workspace database (loopback-only).
+  product_lane: data
+  http_read_role_eligible: false
+  exposure: internal
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_gui_rules
   description: List the registered GUI design rules (gui-design-rule/*) so a generator can read the constraint set before emitting.
   product_lane: ai

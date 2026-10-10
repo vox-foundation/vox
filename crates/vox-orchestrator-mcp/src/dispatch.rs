@@ -1947,6 +1947,16 @@ async fn handle_tool_call_inner(
         )
         .await),
         // ── gui_ops: prefs (plan 07) ──
+        "vox_gui_preference_get" => Ok(crate::gui_ops::prefs::gui_preference_get(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_gui_preference_set" => Ok(crate::gui_ops::prefs::gui_preference_set(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
         // ── gui_ops: chat (plan 07) ──
         "vox_chat_session_create" => Ok(crate::gui_ops::chat::chat_session_create(
             state,

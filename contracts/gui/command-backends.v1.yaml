@@ -53,7 +53,7 @@ commands:
 - { module: orchestrator, class: host, surfaces: [chat, console, dashboard, flow, needs-you, settings, tasks], notes: "split: streams/status = orch RPC; hopper_* = db; config writes Vox.toml" }
 - { module: plan_panel, class: db, surfaces: [chat] }
 - { module: policy, class: host, surfaces: [policies] }
-- { module: preferences, class: shell, surfaces: [memory, settings], notes: "Axis-local gui.* UI preferences; client-side in remote mode, never via the server DB (D1)" }
+- { module: preferences, class: shell, surfaces: [memory, settings], notes: "Axis-local gui.* preferences: remote = client-side axis-preferences.json (D1); local = loopback-only internal ops on the local daemon, errors surfaced (no client-side fallback)" }
 - { module: process_util, class: host, surfaces: [] }
 - { module: pty, class: host, surfaces: [console] }
 - { module: research, class: host, surfaces: [research], notes: "split: start_research_async = orch RPC; save_research_doc writes docs/ locally" }

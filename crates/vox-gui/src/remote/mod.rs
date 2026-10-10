@@ -6,5 +6,6 @@ pub mod credentials;
 pub mod error;
 pub mod gate;
 pub mod gateway_client;
+pub mod local_prefs;
 pub mod manifest;
 pub mod tls_pin;

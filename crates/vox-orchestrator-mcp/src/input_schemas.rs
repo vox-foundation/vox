@@ -853,6 +853,12 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
             derived_tool_schema!(crate::gui_ops::models::ModelsPreferenceSetParams)
         }
         // ── gui_ops: prefs (plan 07) ──
+        "vox_gui_preference_get" => {
+            derived_tool_schema!(crate::gui_ops::prefs::GuiPreferenceGetParams)
+        }
+        "vox_gui_preference_set" => {
+            derived_tool_schema!(crate::gui_ops::prefs::GuiPreferenceSetParams)
+        }
         // ── gui_ops: chat (plan 07) ──
         "vox_chat_session_create" => {
             derived_tool_schema!(crate::gui_ops::chat::ChatSessionCreateParams)

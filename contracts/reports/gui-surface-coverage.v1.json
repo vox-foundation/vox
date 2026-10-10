@@ -4803,6 +4803,8 @@
     "gui.drive.state",
     "gui.drive.stop",
     "gui.drive.wait",
+    "gui.preference.get",
+    "gui.preference.set",
     "gui.rules",
     "gui.tokens",
     "gui.validate",

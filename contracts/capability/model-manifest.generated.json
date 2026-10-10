@@ -1286,6 +1286,16 @@
       "curated": true
     },
     {
+      "capability_id": "mcp.vox_gui_preference_get",
+      "mcp_tool": "vox_gui_preference_get",
+      "implicit": true
+    },
+    {
+      "capability_id": "mcp.vox_gui_preference_set",
+      "mcp_tool": "vox_gui_preference_set",
+      "implicit": true
+    },
+    {
       "capability_id": "mcp.vox_gui_rules",
       "mcp_tool": "vox_gui_rules",
       "implicit": false,

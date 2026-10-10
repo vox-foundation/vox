@@ -35,3 +35,9 @@ describe('plan 07 chat group', () => {
     expect(moduleClass('chat_turn')).toBe('daemon');
   });
 });
+
+describe('plan 07 preferences', () => {
+  it('preferences stays shell-class: client-side when remote, loopback daemon ops locally (D1)', () => {
+    expect(moduleClass('preferences')).toBe('shell');
+  });
+});
