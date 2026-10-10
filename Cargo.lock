@@ -17988,8 +17988,11 @@ name = "vox-orchestrator-d"
 version = "0.6.0"
 dependencies = [
  "anyhow",
+ "async-trait",
+ "base64 0.22.1",
  "clap",
  "dirs",
+ "serde_json",
  "tokio",
  "tracing",
  "uuid",
@@ -18001,6 +18004,7 @@ dependencies = [
  "vox-repository",
  "vox-secrets",
  "vox-skills",
+ "vox-terminal-core",
  "workspace-hack",
 ]
 

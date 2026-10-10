@@ -1673,6 +1673,62 @@ pub trait ExtraDispatch: Send + Sync {
     /// Return `Some(response)` to handle `req`; `None` to fall through to the
     /// built-in `orch.*` dispatch.
     async fn try_handle(&self, req: &DispatchRequest) -> Option<DispatchResponse>;
+
+    /// Serve `req` as a long-lived push stream (e.g. `term.attach`). Return
+    /// `Some(result)` to claim it: frames go out through `out` until the stream
+    /// ends, then the connection closes (same as the built-in `SUBSCRIBE*`
+    /// methods). `None` falls through to `try_handle` / built-in dispatch.
+    /// Runs after the daemon auth gate, so a stream never starts unauthenticated.
+    async fn try_stream(
+        &self,
+        _req: &DispatchRequest,
+        _out: &mut dyn FrameSink,
+    ) -> Option<anyhow::Result<()>> {
+        None
+    }
+}
+
+/// Where a streaming [`ExtraDispatch`] writes its frames (TCP or stdio peer).
+#[async_trait::async_trait]
+pub trait FrameSink: Send {
+    async fn send(&mut self, resp: &DispatchResponse) -> anyhow::Result<()>;
+}
+
+struct WriteSink<'a, W>(&'a mut W);
+
+#[async_trait::async_trait]
+impl<W: AsyncWriteExt + Unpin + Send> FrameSink for WriteSink<'_, W> {
+    async fn send(&mut self, resp: &DispatchResponse) -> anyhow::Result<()> {
+        write_frame(&mut *self.0, resp).await
+    }
+}
+
+/// Several [`ExtraDispatch`] hooks behind one: the first that claims a request wins.
+pub struct ChainDispatch(pub Vec<Arc<dyn ExtraDispatch>>);
+
+#[async_trait::async_trait]
+impl ExtraDispatch for ChainDispatch {
+    async fn try_handle(&self, req: &DispatchRequest) -> Option<DispatchResponse> {
+        for ex in &self.0 {
+            if let Some(resp) = ex.try_handle(req).await {
+                return Some(resp);
+            }
+        }
+        None
+    }
+
+    async fn try_stream(
+        &self,
+        req: &DispatchRequest,
+        out: &mut dyn FrameSink,
+    ) -> Option<anyhow::Result<()>> {
+        for ex in &self.0 {
+            if let Some(r) = ex.try_stream(req, out).await {
+                return Some(r);
+            }
+        }
+        None
+    }
 }
 
 /// Run one non-subscribe request to a [`DispatchResponse`], catching panics
@@ -1763,6 +1819,12 @@ async fn handle_connection(
             let from_offset = parse_from_offset(&req.params);
             stream_agent_events_from(&req.id, &orch, &mut write_half, from_offset).await?;
             break;
+        }
+        if let Some(ex) = extra.as_ref() {
+            if let Some(r) = ex.try_stream(&req, &mut WriteSink(&mut write_half)).await {
+                r?;
+                break;
+            }
         }
         let resp =
             dispatch_one_framed(repository_id.clone(), orch.clone(), extra.clone(), req).await;
@@ -1894,6 +1956,12 @@ pub async fn run_stdio_server_with_extra(
             stream_agent_events_from(&req.id, &orch, &mut stdout, from_offset).await?;
             break;
         }
+        if let Some(ex) = extra.as_ref() {
+            if let Some(r) = ex.try_stream(&req, &mut WriteSink(&mut stdout)).await {
+                r?;
+                break;
+            }
+        }
         let resp =
             dispatch_one_framed(repository_id.clone(), orch.clone(), extra.clone(), req).await;
         write_frame(&mut stdout, &resp).await?;
@@ -1958,5 +2026,157 @@ mod panic_frame_tests {
             }
             other => panic!("expected Error payload, got {other:?}"),
         }
+    }
+}
+
+#[cfg(test)]
+mod stream_tests {
+    use super::*;
+    use crate::OrchestratorConfig;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+
+    /// Streams two `Event` frames for `test.stream`; answers `test.ping2` as a plain request.
+    struct StreamExtra {
+        streamed: Arc<AtomicBool>,
+    }
+
+    #[async_trait::async_trait]
+    impl ExtraDispatch for StreamExtra {
+        async fn try_handle(&self, req: &DispatchRequest) -> Option<DispatchResponse> {
+            (req.method == "test.ping2")
+                .then(|| response_result(&req.id, serde_json::json!("pong")))
+        }
+
+        async fn try_stream(
+            &self,
+            req: &DispatchRequest,
+            out: &mut dyn FrameSink,
+        ) -> Option<anyhow::Result<()>> {
+            if req.method != "test.stream" {
+                return None;
+            }
+            self.streamed.store(true, Ordering::SeqCst);
+            for n in 1..=2 {
+                let frame = DispatchResponse {
+                    id: req.id.clone(),
+                    payload: DispatchPayload::Event {
+                        value: serde_json::json!({ "n": n }),
+                    },
+                };
+                if let Err(e) = out.send(&frame).await {
+                    return Some(Err(e));
+                }
+            }
+            Some(Ok(()))
+        }
+    }
+
+    struct Plain;
+
+    #[async_trait::async_trait]
+    impl ExtraDispatch for Plain {
+        async fn try_handle(&self, req: &DispatchRequest) -> Option<DispatchResponse> {
+            (req.method == "test.plain")
+                .then(|| response_result(&req.id, serde_json::json!("plain")))
+        }
+    }
+
+    fn req(method: &str, token: Option<&str>) -> String {
+        let r = DispatchRequest {
+            id: "1".into(),
+            method: method.into(),
+            params: serde_json::json!({}),
+            auth_token: token.map(Into::into),
+            permission_mode: None,
+        };
+        let mut l = serde_json::to_string(&r).unwrap();
+        l.push('\n');
+        l
+    }
+
+    /// Serve one connection with `extra`/`token`; send `lines`; return every frame read until EOF.
+    async fn roundtrip(
+        extra: Arc<dyn ExtraDispatch>,
+        token: Option<&str>,
+        lines: &[String],
+    ) -> Vec<DispatchPayload> {
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let addr = listener.local_addr().expect("addr");
+        let orch = Arc::new(Orchestrator::new(OrchestratorConfig::for_testing()));
+        let token: Option<Arc<str>> = token.map(Arc::from);
+        tokio::spawn(async move {
+            let (socket, _) = listener.accept().await.expect("accept");
+            let _ = handle_connection(socket, "repo".into(), orch, Some(extra), token).await;
+        });
+        let mut stream = TcpStream::connect(addr).await.expect("connect");
+        let (rd, mut wr) = stream.split();
+        for l in lines {
+            wr.write_all(l.as_bytes()).await.unwrap();
+        }
+        wr.flush().await.unwrap();
+        let mut rd = BufReader::new(rd);
+        let mut out = vec![];
+        let mut buf = String::new();
+        // A stream closes the connection when it ends; plain requests are ended by
+        // the caller dropping the socket, so cap the number of frames we wait for.
+        while out.len() < 8 {
+            buf.clear();
+            let read = tokio::time::timeout(
+                std::time::Duration::from_millis(500),
+                rd.read_line(&mut buf),
+            )
+            .await;
+            match read {
+                Ok(Ok(n)) if n > 0 => out.push(
+                    serde_json::from_str::<DispatchResponse>(buf.trim())
+                        .unwrap()
+                        .payload,
+                ),
+                _ => break,
+            }
+        }
+        out
+    }
+
+    #[tokio::test]
+    async fn streaming_extra_pushes_frames_then_closes() {
+        let streamed = Arc::new(AtomicBool::new(false));
+        let extra = Arc::new(StreamExtra {
+            streamed: streamed.clone(),
+        });
+        let frames = roundtrip(extra, None, &[req("test.stream", None)]).await;
+        assert_eq!(frames.len(), 2, "{frames:?}");
+        assert!(matches!(&frames[1], DispatchPayload::Event { value } if value["n"] == 2));
+        assert!(streamed.load(Ordering::SeqCst));
+    }
+
+    #[tokio::test]
+    async fn chain_routes_streams_and_plain_requests_to_the_right_extra() {
+        let streamed = Arc::new(AtomicBool::new(false));
+        let chain: Arc<dyn ExtraDispatch> = Arc::new(ChainDispatch(vec![
+            Arc::new(Plain),
+            Arc::new(StreamExtra { streamed }),
+        ]));
+        let plain = roundtrip(chain.clone(), None, &[req("test.plain", None)]).await;
+        assert!(matches!(&plain[0], DispatchPayload::Result { value } if value == "plain"));
+        let stream = roundtrip(chain, None, &[req("test.stream", None)]).await;
+        assert_eq!(stream.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn stream_without_the_daemon_token_is_rejected_before_it_starts() {
+        let streamed = Arc::new(AtomicBool::new(false));
+        let extra = Arc::new(StreamExtra {
+            streamed: streamed.clone(),
+        });
+        let frames = roundtrip(extra, Some("secret"), &[req("test.stream", None)]).await;
+        assert!(
+            matches!(&frames[0], DispatchPayload::Error { message, .. } if message.contains("unauthorized"))
+        );
+        assert!(
+            !streamed.load(Ordering::SeqCst),
+            "stream must not start unauthenticated"
+        );
     }
 }
