@@ -704,6 +704,26 @@
       "curated": true
     },
     {
+      "capability_id": "mcp.vox_chat_session_append",
+      "mcp_tool": "vox_chat_session_append",
+      "implicit": true
+    },
+    {
+      "capability_id": "mcp.vox_chat_session_archive",
+      "mcp_tool": "vox_chat_session_archive",
+      "implicit": true
+    },
+    {
+      "capability_id": "mcp.vox_chat_session_create",
+      "mcp_tool": "vox_chat_session_create",
+      "implicit": true
+    },
+    {
+      "capability_id": "mcp.vox_chat_session_rename",
+      "mcp_tool": "vox_chat_session_rename",
+      "implicit": true
+    },
+    {
       "capability_id": "mcp.vox_check",
       "mcp_tool": "vox_check",
       "implicit": false,

@@ -600,6 +600,38 @@ tools:
   requires:
   - llm_facade
   - db
+- name: vox_chat_session_append
+  description: Append one message to a GUI chat session's display transcript, creating the session on first use.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
+- name: vox_chat_session_archive
+  description: Archive a GUI chat session, or restore an archived one with archived=false.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
+- name: vox_chat_session_create
+  description: Create a GUI chat session (display transcript) tagged with the server repository.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
+- name: vox_chat_session_rename
+  description: Rename a GUI chat session.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_check
   description: CLI operation `vox check`
   product_lane: app

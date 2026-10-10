@@ -15,8 +15,8 @@ commands:
 - { module: browser, class: host, surfaces: [browser], notes: "split: browser_* = orch RPC; preview_* spawn processes; frames read local cache" }
 - { module: build_info, class: shell, surfaces: [] }
 - { module: catalog, class: shell, surfaces: [catalog] }
-- { module: chat, class: db, surfaces: [chat], notes: "split: chat_send_message/secretary_confirm_task = orch RPC" }
-- { module: chat_turn, class: db, surfaces: [chat] }
+- { module: chat, class: daemon, surfaces: [chat], notes: "GET /api/v2/chat/* + vox_chat_session_*; secretary_confirm_task = SUBMIT_TASK (no remote route yet)" }
+- { module: chat_turn, class: daemon, surfaces: [chat], notes: "vox_chat_message / vox_plan + vox_chat_session_append; background = SUBMIT_TASK (no remote route yet)" }
 - { module: coderabbit, class: host, surfaces: [coderabbit] }
 - { module: console_a2a, class: db, surfaces: [console] }
 - { module: control_plane, class: daemon, surfaces: [chat, dashboard, tasks], notes: "no remote route yet" }

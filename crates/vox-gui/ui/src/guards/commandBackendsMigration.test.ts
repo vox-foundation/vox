@@ -28,3 +28,10 @@ describe('plan 07 models group', () => {
     expect(moduleClass('routing_explain')).toBe('daemon');
   });
 });
+
+describe('plan 07 chat group', () => {
+  it('chat and chat_turn reach sessions through the daemon, not a GUI db pool', () => {
+    expect(moduleClass('chat')).toBe('daemon');
+    expect(moduleClass('chat_turn')).toBe('daemon');
+  });
+});

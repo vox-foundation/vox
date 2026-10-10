@@ -16,8 +16,7 @@ use serde::{Deserialize, Serialize};
 use tauri::State;
 
 use crate::commands::control_plane::SubmitTaskInput;
-use crate::commands::daemon::PersistentDaemon; // NB: commands::daemon, not crate::daemon
-use crate::commands::gui_db_pool::{GuiDbPool, map_db_err};
+use crate::remote::calls::BackendCalls;
 
 /// Routing fields that must exist on both input structs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -275,8 +274,6 @@ pub fn background_input(input: &ChatTurnInput) -> SubmitTaskInput {
 pub async fn chat_turn(
     app_handle: tauri::AppHandle,
     input: ChatTurnInput,
-    pool: State<'_, GuiDbPool>,
-    daemon: State<'_, Arc<PersistentDaemon>>,
     backend: State<'_, Arc<crate::remote::backend::BackendState>>,
 ) -> Result<ChatTurnDto, ChatTurnError> {
     if input.session_id.trim().is_empty() {
@@ -286,57 +283,27 @@ pub async fn chat_turn(
         return Err(classify_turn_error("content must not be empty"));
     }
     let result = match input.execution {
-        Execution::Sync => run_sync(input, pool, daemon).await,
+        Execution::Sync => run_sync(&backend.current().await, &input).await,
         Execution::Background => run_background(app_handle, input, backend).await,
-        Execution::Plan => run_plan(input, daemon).await,
+        Execution::Plan => run_plan(&backend.current().await, &input).await,
     };
     result.map_err(|e| classify_turn_error(&e))
 }
 
-async fn run_sync(
-    input: ChatTurnInput,
-    pool: State<'_, GuiDbPool>,
-    daemon: State<'_, Arc<PersistentDaemon>>,
-) -> Result<ChatTurnDto, String> {
-    let addr = daemon.ensure().await?;
-    let client = match daemon.token().await {
-        Some(token) => vox_orchestrator::orch_daemon::OrchDaemonClient::with_token(addr, token),
-        None => vox_orchestrator::orch_daemon::OrchDaemonClient::new(addr),
-    };
-    let _in_flight = daemon.in_flight_guard();
-    // Task 15d review round 1 (B1): `vox_chat_message` needs its own,
-    // longer-than-generic client read deadline — a Deep-intent turn's
-    // server-side budget (`dispatch_timeout::DEEP_CHAT_MESSAGE_TIMEOUT`,
-    // 300s) exceeds `OrchDaemonClient`'s generic default
-    // (`ORCH_CLIENT_READ_DEADLINE`, 195s), so without this every Deep chat
-    // turn would still time out client-side even after the server-side fix.
-    // See `CHAT_MESSAGE_CLIENT_DEADLINE`'s doc comment.
-    let envelope = client
-        .call_with_deadline(
-            vox_foundation::protocol::orch_daemon_method::TOOL_CALL,
-            serde_json::json!({ "name": "vox_chat_message", "args": sync_tool_args(&input) }),
-            vox_orchestrator_mcp::dispatch_timeout::CHAT_MESSAGE_CLIENT_DEADLINE,
-        )
-        .await
-        .map_err(|e| e.to_string())?;
+/// `vox_chat_message` (with its longer client deadline, see
+/// [`crate::remote::calls::deadline_for_tool`]) and then the assistant reply into the
+/// display transcript.
+async fn run_sync<B: BackendCalls>(b: &B, input: &ChatTurnInput) -> Result<ChatTurnDto, String> {
+    let envelope = b
+        .call_tool("vox_chat_message", sync_tool_args(input))
+        .await?;
     let reply = crate::commands::chat::parse_chat_message_envelope(&envelope)?;
-    let grounding_flagged = if input.grounding_check_enabled == Some(true) {
-        Some(vox_orchestrator::grounding::assess_reply_confidence(&reply.content).flagged)
-    } else {
-        None
-    };
-    let db = pool.handle()?;
-    let conv_id = db
-        .chat_ensure_gui_session(&input.session_id, "Chat")
-        .await
-        .map_err(map_db_err)?;
+    let grounding_flagged =
+        crate::commands::chat::grounding_flag(input.grounding_check_enabled, &reply.content);
     let dto = crate::commands::chat::persist_assistant_reply(
-        &db,
-        conv_id,
-        &reply.content,
-        reply.model_id.as_deref(),
-        reply.latency_ms,
-        reply.selection_reason.as_deref(),
+        b,
+        &input.session_id,
+        &reply,
         grounding_flagged,
     )
     .await?;
@@ -465,24 +432,8 @@ fn parse_plan_envelope(envelope: &serde_json::Value) -> Result<ChatTurnDto, Stri
 /// Dispatch a `/plan` turn: calls `vox_plan` (not `vox_chat_message`) and
 /// returns the `plan_session_id`/`plan_version` it persisted, instead of an
 /// assistant reply — there is no chat message to persist here.
-async fn run_plan(
-    input: ChatTurnInput,
-    daemon: State<'_, Arc<PersistentDaemon>>,
-) -> Result<ChatTurnDto, String> {
-    let addr = daemon.ensure().await?;
-    let client = match daemon.token().await {
-        Some(token) => vox_orchestrator::orch_daemon::OrchDaemonClient::with_token(addr, token),
-        None => vox_orchestrator::orch_daemon::OrchDaemonClient::new(addr),
-    };
-    // Same in-flight guard as `run_sync` — plan LLM rounds can run long.
-    let _in_flight = daemon.in_flight_guard();
-    let envelope = client
-        .call(
-            vox_foundation::protocol::orch_daemon_method::TOOL_CALL,
-            serde_json::json!({ "name": "vox_plan", "args": plan_tool_args(&input) }),
-        )
-        .await
-        .map_err(|e| e.to_string())?;
+async fn run_plan<B: BackendCalls>(b: &B, input: &ChatTurnInput) -> Result<ChatTurnDto, String> {
+    let envelope = b.call_tool("vox_plan", plan_tool_args(input)).await?;
     parse_plan_envelope(&envelope)
 }
 
@@ -761,5 +712,71 @@ mod tests {
         assert_eq!(args["session_id"], "s-plan-2");
         assert_eq!(args["require_approval"], true);
         assert!(args.get("model_override").is_none());
+    }
+
+    #[tokio::test]
+    async fn sync_turn_calls_chat_then_appends_the_reply() {
+        use crate::remote::calls::fake::FakeBackend;
+        let b = FakeBackend::new()
+            .on_tool(
+                "vox_chat_message",
+                Ok(serde_json::json!({
+                    "success": true,
+                    "data": {"message": {"content": "hi"}, "model_used": "m/x", "events": [{"k": 1}]}
+                })),
+            )
+            .on_tool(
+                "vox_chat_session_append",
+                Ok(serde_json::json!({"success": true, "data": {
+                    "id": 4, "role": "assistant", "content": "hi",
+                    "created_at": "2026-10-09 00:00:00", "task_id": null, "model_id": "m/x"
+                }})),
+            );
+        let input: ChatTurnInput = serde_json::from_value(serde_json::json!({
+            "session_id": "s-sync",
+            "content": "hello"
+        }))
+        .expect("deserialize");
+        let dto = run_sync(&b, &input).await.expect("turn");
+        assert_eq!(dto.id, 4);
+        assert_eq!(dto.model_id.as_deref(), Some("m/x"));
+        assert_eq!(dto.events, vec![serde_json::json!({"k": 1})]);
+        let calls = b.calls();
+        let keys: Vec<&str> = calls.iter().map(|(k, _)| k.as_str()).collect();
+        assert_eq!(
+            keys,
+            vec!["tool:vox_chat_message", "tool:vox_chat_session_append"]
+        );
+        assert_eq!(calls[1].1["session_id"], "s-sync");
+        assert_eq!(calls[1].1["role"], "assistant");
+    }
+
+    #[tokio::test]
+    async fn plan_turn_calls_vox_plan_and_persists_nothing() {
+        use crate::remote::calls::fake::FakeBackend;
+        let b = FakeBackend::new().on_tool(
+            "vox_plan",
+            Ok(serde_json::json!({"success": true, "data": {
+                "plan_md": "# Plan", "plan_session_id": "p1", "plan_version": 2
+            }})),
+        );
+        let input: ChatTurnInput = serde_json::from_value(serde_json::json!({
+            "session_id": "s-plan",
+            "content": "plan it"
+        }))
+        .expect("deserialize");
+        let dto = run_plan(&b, &input).await.expect("plan");
+        assert_eq!(dto.plan_session_id.as_deref(), Some("p1"));
+        assert_eq!(b.calls().len(), 1);
+        assert_eq!(b.calls()[0].0, "tool:vox_plan");
+    }
+
+    #[test]
+    fn chat_turn_module_has_no_direct_db_access() {
+        let src = include_str!("chat_turn.rs");
+        let (body, _) = src.split_once("#[cfg(test)]").unwrap();
+        assert!(!body.contains("vox_db"));
+        assert!(!body.contains("GuiDbPool"));
+        assert!(!body.contains("PersistentDaemon"));
     }
 }

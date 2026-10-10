@@ -34151,6 +34151,94 @@ operations:
   cli: null
 # ── gui_ops: prefs (plan 07) ──
 # ── gui_ops: chat (plan 07) ──
+- id: chat.session.create
+  title: Chat Session Create
+  description: Create a GUI chat session (display transcript) tagged with the server repository.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_chat_session_create
+    http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
+  cli: null
+- id: chat.session.append
+  title: Chat Session Append
+  description: Append one message to a GUI chat session's display transcript, creating the session on first use.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_chat_session_append
+    http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
+  cli: null
+- id: chat.session.rename
+  title: Chat Session Rename
+  description: Rename a GUI chat session.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_chat_session_rename
+    http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
+  cli: null
+- id: chat.session.archive
+  title: Chat Session Archive
+  description: Archive a GUI chat session, or restore an archived one with archived=false.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_chat_session_archive
+    http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
+  cli: null
 # ── gui_ops: knowledge (plan 07) ──
 # ── gui_ops: research (plan 07) ──
 # ── gui_ops: orchestrator (plan 07) ──

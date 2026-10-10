@@ -1948,6 +1948,26 @@ async fn handle_tool_call_inner(
         .await),
         // ── gui_ops: prefs (plan 07) ──
         // ── gui_ops: chat (plan 07) ──
+        "vox_chat_session_create" => Ok(crate::gui_ops::chat::chat_session_create(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_chat_session_append" => Ok(crate::gui_ops::chat::chat_session_append(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_chat_session_rename" => Ok(crate::gui_ops::chat::chat_session_rename(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_chat_session_archive" => Ok(crate::gui_ops::chat::chat_session_archive(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
         // ── gui_ops: knowledge (plan 07) ──
         // ── gui_ops: research (plan 07) ──
         // ── gui_ops: orchestrator (plan 07) ──

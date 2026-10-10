@@ -854,6 +854,18 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         }
         // ── gui_ops: prefs (plan 07) ──
         // ── gui_ops: chat (plan 07) ──
+        "vox_chat_session_create" => {
+            derived_tool_schema!(crate::gui_ops::chat::ChatSessionCreateParams)
+        }
+        "vox_chat_session_append" => {
+            derived_tool_schema!(crate::gui_ops::chat::ChatSessionAppendParams)
+        }
+        "vox_chat_session_rename" => {
+            derived_tool_schema!(crate::gui_ops::chat::ChatSessionRenameParams)
+        }
+        "vox_chat_session_archive" => {
+            derived_tool_schema!(crate::gui_ops::chat::ChatSessionArchiveParams)
+        }
         // ── gui_ops: knowledge (plan 07) ──
         // ── gui_ops: research (plan 07) ──
         // ── gui_ops: orchestrator (plan 07) ──

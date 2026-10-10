@@ -11,9 +11,6 @@ use super::backend::Backend;
 use super::error::AxisError;
 use crate::commands::daemon::PersistentDaemon;
 
-/// Deadline for one remote tool call over plan 06's `/v1/ws` RPC.
-const REMOTE_CALL_DEADLINE: std::time::Duration = std::time::Duration::from_secs(30);
-
 pub trait BackendCalls: Send + Sync {
     fn call_tool(
         &self,
@@ -34,22 +31,37 @@ async fn daemon_client(daemon: &PersistentDaemon) -> Result<OrchDaemonClient, St
     })
 }
 
+/// Client read deadline for one tool call: `vox_chat_message` gets the longer
+/// `CHAT_MESSAGE_CLIENT_DEADLINE` (a Deep turn's server-side budget exceeds the generic
+/// `ORCH_CLIENT_READ_DEADLINE`), every other tool the generic one. Used in both modes.
+pub fn deadline_for_tool(tool: &str) -> std::time::Duration {
+    if tool == "vox_chat_message" {
+        vox_orchestrator_mcp::dispatch_timeout::CHAT_MESSAGE_CLIENT_DEADLINE
+    } else {
+        vox_orchestrator::orch_daemon::ORCH_CLIENT_READ_DEADLINE
+    }
+}
+
 impl BackendCalls for Backend {
     async fn call_tool(&self, tool: &str, args: Value) -> Result<Value, String> {
         match self {
-            Backend::Local(daemon) => daemon_client(daemon)
-                .await?
-                .call(
-                    orch_daemon_method::TOOL_CALL,
-                    serde_json::json!({ "name": tool, "args": args }),
-                )
-                .await
-                .map_err(|e| format!("{tool}: {e}")),
+            Backend::Local(daemon) => {
+                let client = daemon_client(daemon).await?;
+                let _in_flight = daemon.in_flight_guard();
+                client
+                    .call_with_deadline(
+                        orch_daemon_method::TOOL_CALL,
+                        serde_json::json!({ "name": tool, "args": args }),
+                        deadline_for_tool(tool),
+                    )
+                    .await
+                    .map_err(|e| format!("{tool}: {e}"))
+            }
             Backend::Remote(gw) => gw
                 .call_daemon_method(
                     orch_daemon_method::TOOL_CALL,
                     serde_json::json!({ "name": tool, "args": args }),
-                    REMOTE_CALL_DEADLINE,
+                    deadline_for_tool(tool),
                 )
                 .await
                 .map_err(String::from),
@@ -110,21 +122,24 @@ pub fn api_data<T: DeserializeOwned>(envelope: Value) -> Result<T, String> {
     serde_json::from_value(data).map_err(|e| format!("bad /api/v2 payload: {e}"))
 }
 
-/// `path?k=v&..` with RFC 3986 unreserved characters kept and everything else percent-encoded.
+/// One path segment or query value with RFC 3986 unreserved characters kept and everything else
+/// percent-encoded.
+pub fn encode_component(s: &str) -> String {
+    s.bytes()
+        .map(|b| match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
+                (b as char).to_string()
+            }
+            _ => format!("%{b:02X}"),
+        })
+        .collect()
+}
+
+/// `path?k=v&..` with each value passed through [`encode_component`]; `None` values are skipped.
 pub fn path_with_query(path: &str, pairs: &[(&str, Option<String>)]) -> String {
-    fn enc(s: &str) -> String {
-        s.bytes()
-            .map(|b| match b {
-                b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
-                    (b as char).to_string()
-                }
-                _ => format!("%{b:02X}"),
-            })
-            .collect()
-    }
     let q: Vec<String> = pairs
         .iter()
-        .filter_map(|(k, v)| v.as_ref().map(|v| format!("{k}={}", enc(v))))
+        .filter_map(|(k, v)| v.as_ref().map(|v| format!("{k}={}", encode_component(v))))
         .collect();
     if q.is_empty() {
         path.to_string()
@@ -224,6 +239,30 @@ mod tests {
             api_data::<Vec<u8>>(json!({"v": 1, "error": {"code": "db_error", "message": "down"}}))
                 .unwrap_err();
         assert_eq!(e, "db_error: down");
+    }
+
+    #[test]
+    fn encode_component_escapes_path_separators() {
+        assert_eq!(encode_component("a/b?c"), "a%2Fb%3Fc");
+        assert_eq!(encode_component("uuid-1.2_~"), "uuid-1.2_~");
+    }
+
+    #[test]
+    fn deadline_for_tool_gives_chat_the_longer_deadline() {
+        assert_eq!(
+            deadline_for_tool("vox_chat_message"),
+            vox_orchestrator_mcp::dispatch_timeout::CHAT_MESSAGE_CLIENT_DEADLINE
+        );
+    }
+
+    #[test]
+    fn deadline_for_tool_gives_everything_else_the_generic_deadline() {
+        for tool in ["vox_read_file", "vox_plan", "vox_chat_session_append"] {
+            assert_eq!(
+                deadline_for_tool(tool),
+                vox_orchestrator::orch_daemon::ORCH_CLIENT_READ_DEADLINE
+            );
+        }
     }
 
     #[test]
