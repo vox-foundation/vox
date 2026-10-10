@@ -745,10 +745,42 @@ interface LlmSpendDto {
   perSessionBudgetUsd: number;
 }
 
+/**
+ * Recorded spend vs budget from the connected Vox server (single SSOT aggregate). Best-effort:
+ * stays hidden when the read fails. Shown inside Runtime locally, and on its own remotely, where
+ * Runtime's config editor is locked to this machine but the spend is the server's.
+ */
+function LlmSpendMeter() {
+  const [spend, setSpend] = useState<LlmSpendDto | null>(null);
+  const reload = useCallback(async () => {
+    try {
+      setSpend(await invoke<LlmSpendDto>('get_llm_spend', {}));
+    } catch {
+      setSpend(null);
+    }
+  }, []);
+  useEffect(() => { reload(); }, [reload]);
+  useEffect(() => {
+    // Guarded: listen() rejects outside Tauri (bare browser/tests).
+    const un = listen('vox://llm-config-changed', () => { reload(); }).catch(() => undefined);
+    return () => { un.then((f) => f?.()); };
+  }, [reload]);
+  if (!spend) return null;
+  return (
+    <div className="mt-3 rounded-sm border border-border-subtle bg-black/20 p-3" data-testid="llm-spend">
+      <div className="font-mono text-[10px] uppercase tracking-wide text-text-muted">LLM spend (recorded actuals)</div>
+      <div className="mt-1 flex flex-wrap gap-x-6 gap-y-1 font-mono text-[11px] text-text-secondary">
+        <span>session ${spend.sessionUsd.toFixed(4)} / ${spend.perSessionBudgetUsd.toFixed(2)}</span>
+        <span>today ${spend.dayUsd.toFixed(4)} / ${spend.dailyBudgetUsd.toFixed(2)}</span>
+        <span>total ${spend.totalUsd.toFixed(4)}</span>
+      </div>
+    </div>
+  );
+}
+
 function RuntimeConfigSection({ pushToast }: { pushToast: (t: Toast) => void }) {
   const [fields, setFields] = useState<UserConfigFieldDto[]>([]);
   const [loading, setLoading] = useState(true);
-  const [spend, setSpend] = useState<LlmSpendDto | null>(null);
   // In-flight edits keyed by config key; cleared on reload.
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
@@ -763,12 +795,6 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: Toast) => void }) 
       pushToast({ tone: 'warn', title: 'Could not load runtime config', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setLoading(false);
-    }
-    // Recorded spend vs budget (single SSOT aggregate); best-effort, never blocks config.
-    try {
-      setSpend(await invoke<LlmSpendDto>('get_llm_spend', {}));
-    } catch {
-      /* store may be unavailable on a fresh install — leave spend hidden */
     }
   }, [pushToast]);
 
@@ -861,16 +887,7 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: Toast) => void }) 
       <p className="mt-0.5 text-[11px] text-text-muted">
         Core user config persisted to your Vox user config (effective values: ENV &gt; Vox.toml &gt; global &gt; defaults)
       </p>
-      {spend && (
-        <div className="mt-3 rounded-sm border border-border-subtle bg-black/20 p-3" data-testid="llm-spend">
-          <div className="font-mono text-[10px] uppercase tracking-wide text-text-muted">LLM spend (recorded actuals)</div>
-          <div className="mt-1 flex flex-wrap gap-x-6 gap-y-1 font-mono text-[11px] text-text-secondary">
-            <span>session ${spend.sessionUsd.toFixed(4)} / ${spend.perSessionBudgetUsd.toFixed(2)}</span>
-            <span>today ${spend.dayUsd.toFixed(4)} / ${spend.dailyBudgetUsd.toFixed(2)}</span>
-            <span>total ${spend.totalUsd.toFixed(4)}</span>
-          </div>
-        </div>
-      )}
+      <LlmSpendMeter />
       {loading ? (
         <div className="mt-4 text-[12px] text-text-muted">Loading…</div>
       ) : (
@@ -1395,6 +1412,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
       {/* Content */}
       <Glass className="col-span-12 md:col-span-9 p-5">
         {sectionLocked && <SurfaceUnavailable viewKey={`settings:${section}`} reason="needs_local_machine" />}
+        {sectionLocked && section === 'runtime' && <LlmSpendMeter />}
         {shownSection === 'server' && <ServerConnectionSection pushToast={pushToast} />}
         {shownSection === 'orchestrator' && (
           <>

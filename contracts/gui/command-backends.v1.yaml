@@ -37,6 +37,7 @@ commands:
 - { module: identity, class: shell, surfaces: [] }
 - { module: knowledge, class: daemon, surfaces: [memory, research], notes: "GET /api/v2/knowledge/{nodes,health} + vox_kb_* ops (ingest_url scrapes server-side)" }
 - { module: llm_settings, class: host, surfaces: [settings] }
+- { module: llm_spend, class: daemon, surfaces: [settings], notes: "GET /api/v2/llm/spend (server spend + caps; zeros when the server has no DB, D1)" }
 - { module: locator, class: host, surfaces: [memory], notes: "open_locator spawns the editor / browser on the Axis host" }
 - { module: mcp, class: daemon, surfaces: [approvals, chat, dashboard, mesh, needs-you, settings, skills, tasks, vox-search] }
 - { module: memory, class: daemon, surfaces: [memory], notes: "GET /api/v2/knowledge/{corpus-counts,recall} + vox_memory_reindex; shard tiles and recent recalls stay client-side" }

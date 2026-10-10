@@ -11,4 +11,4 @@ tools:
     - vox_trust_override
   include_lanes: []
 max_exposure: operator
-axis_surfaces: [attention]
+axis_surfaces: [attention, settings]

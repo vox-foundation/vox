@@ -64,3 +64,10 @@ describe('plan 07 mesh group', () => {
     for (const m of ['pty', 'terminal_core']) expect(moduleClass(m)).toBe('host');
   });
 });
+
+describe('plan 07 attention group', () => {
+  it('llm_spend reads the server spend; user_config stays on the host', () => {
+    expect(moduleClass('llm_spend')).toBe('daemon');
+    expect(moduleClass('user_config')).toBe('host');
+  });
+});

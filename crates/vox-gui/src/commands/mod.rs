@@ -27,6 +27,7 @@ pub mod harness_town;
 pub mod identity;
 pub mod knowledge;
 pub mod llm_settings;
+pub mod llm_spend;
 pub mod locator;
 pub mod mcp;
 pub mod memory;

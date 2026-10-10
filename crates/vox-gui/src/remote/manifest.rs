@@ -17,6 +17,7 @@ pub const REMOTE_ROUTED_DAEMON_MODULES: &[&str] = &[
     "event_annotate",
     "harness_issues",
     "knowledge",
+    "llm_spend",
     "mcp",
     "memory",
     "model_active",
