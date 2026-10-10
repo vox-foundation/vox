@@ -1,9 +1,9 @@
 //! Local KPI schema for Ludus (fun / quality / grind signals).
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// Aggregates derivable from `gamify_policy_snapshots` and counters.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LudusKpiSummary {
     pub events_recorded: i64,
     pub total_xp_awarded: i64,

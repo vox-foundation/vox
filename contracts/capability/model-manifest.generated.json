@@ -1145,6 +1145,42 @@
       "curated": true
     },
     {
+      "capability_id": "mcp.vox_gamify_companions",
+      "mcp_tool": "vox_gamify_companions",
+      "implicit": false,
+      "title": "Gamify Companions",
+      "description_model": "The canonical user's companions with a server-rendered mood SVG (loopback-only).",
+      "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_gamify_discovery_record",
+      "mcp_tool": "vox_gamify_discovery_record",
+      "implicit": false,
+      "title": "Gamify Discovery Record",
+      "description_model": "Record a Console discovery exposure (seen or used) for the canonical user (loopback-only).",
+      "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_gamify_due_actions",
+      "mcp_tool": "vox_gamify_due_actions",
+      "implicit": false,
+      "title": "Gamify Due Actions",
+      "description_model": "List discovery actions due for resurfacing for the canonical user (loopback-only).",
+      "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_gamify_leaderboard",
+      "mcp_tool": "vox_gamify_leaderboard",
+      "implicit": false,
+      "title": "Gamify Leaderboard",
+      "description_model": "Top Ludus players by XP for Axis (loopback-only).",
+      "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
       "capability_id": "mcp.vox_gamify_notification_ack",
       "mcp_tool": "vox_gamify_notification_ack",
       "implicit": false,
@@ -1172,6 +1208,15 @@
       "curated": true
     },
     {
+      "capability_id": "mcp.vox_gamify_profile",
+      "mcp_tool": "vox_gamify_profile",
+      "implicit": false,
+      "title": "Gamify Profile",
+      "description_model": "Read the canonical user's Ludus profile (regenerating energy) for Axis (loopback-only).",
+      "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
       "capability_id": "mcp.vox_gamify_progress_snapshot",
       "mcp_tool": "vox_gamify_progress_snapshot",
       "implicit": false,
@@ -1187,6 +1232,15 @@
       "title": "Ludus Quest List",
       "description_model": "List Ludus quests for the canonical user (read-only).",
       "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_gamify_record_event",
+      "mcp_tool": "vox_gamify_record_event",
+      "implicit": false,
+      "title": "Gamify Record Event",
+      "description_model": "Route one Axis GUI event through the Ludus reward policy (loopback-only).",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {

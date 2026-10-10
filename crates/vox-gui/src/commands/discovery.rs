@@ -2,8 +2,15 @@
 //! per-command help lookup, and exposure recording. Ranking/ledger logic lives in
 //! `vox_gamify::discovery`; these commands adapt the command catalog to it.
 
+use std::sync::Arc;
+
 use serde::Serialize;
+use serde_json::json;
+use tauri::State;
 use vox_cli::command_catalog::{CommandCatalogEntry, build_catalog};
+
+use crate::remote::backend::BackendState;
+use crate::remote::calls::{BackendCalls, tool_data};
 
 /// A single suggestion returned to the UI.
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -110,27 +117,31 @@ pub fn discovery_help(action_id: String) -> Result<Option<ActionHelp>, String> {
     }))
 }
 
-/// Record an exposure (seen/used) for the current user. `used=true` ⇒ Recall::Used.
-#[tauri::command]
-pub async fn discovery_record(
+const RECORD_TOOL: &str = "vox_gamify_discovery_record";
+
+pub(crate) async fn discovery_record_impl<B: BackendCalls>(
+    b: &B,
     action_id: String,
     used: bool,
     now_ms: i64,
     dwell_ms: i64,
 ) -> Result<(), String> {
-    let config = vox_db::DbConfig::resolve_for_mesh().map_err(|e| e.to_string())?;
-    let db = vox_db::Codex::connect(config)
-        .await
-        .map_err(|e| e.to_string())?;
-    let user_id = vox_gamify::db::canonical_user_id();
-    let recall = if used {
-        vox_gamify::discovery::Recall::Used
-    } else {
-        vox_gamify::discovery::Recall::Seen
-    };
-    vox_gamify::discovery::ledger::record(&db, &user_id, &action_id, recall, now_ms, dwell_ms)
-        .await
-        .map_err(|e| e.to_string())
+    let args =
+        json!({ "action_id": action_id, "used": used, "now_ms": now_ms, "dwell_ms": dwell_ms });
+    tool_data(RECORD_TOOL, b.call_tool(RECORD_TOOL, args).await?)
+}
+
+/// Record an exposure (seen/used) for the current user through the daemon's dev-only
+/// `vox_gamify_discovery_record` op. `used=true` ⇒ Recall::Used.
+#[tauri::command]
+pub async fn discovery_record(
+    backend: State<'_, Arc<BackendState>>,
+    action_id: String,
+    used: bool,
+    now_ms: i64,
+    dwell_ms: i64,
+) -> Result<(), String> {
+    discovery_record_impl(&backend.current().await, action_id, used, now_ms, dwell_ms).await
 }
 
 #[cfg(test)]
@@ -162,5 +173,27 @@ mod tests {
             "got: {:?}",
             s.iter().map(|x| &x.completion).collect::<Vec<_>>()
         );
+    }
+
+    #[tokio::test]
+    async fn record_calls_the_discovery_op_with_the_tauri_arguments() {
+        let b = crate::remote::calls::fake::FakeBackend::new()
+            .on_tool(RECORD_TOOL, Ok(json!({ "success": true, "data": null })));
+        discovery_record_impl(&b, "vox.config.show".into(), true, 10, 5)
+            .await
+            .unwrap();
+        assert_eq!(
+            b.calls()[0],
+            (
+                format!("tool:{RECORD_TOOL}"),
+                json!({ "action_id": "vox.config.show", "used": true, "now_ms": 10, "dwell_ms": 5 })
+            )
+        );
+    }
+
+    #[test]
+    fn module_has_no_direct_db_access() {
+        let src = include_str!("discovery.rs");
+        assert!(!src.contains(concat!("vox", "_db")));
     }
 }

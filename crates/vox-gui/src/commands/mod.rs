@@ -19,6 +19,7 @@ pub mod dynamic_mapping;
 pub mod event_annotate;
 pub mod execute;
 pub mod gamify;
+pub mod gamify_settings;
 pub mod graphify;
 pub mod gui_db_pool;
 pub mod harness;

@@ -2090,6 +2090,34 @@ async fn handle_tool_call_inner(
             Ok(crate::gui_ops::harness::issue_decide(state, serde_json::from_value(args)?).await)
         }
         // ── gui_ops: gamify (plan 07) ──
+        "vox_gamify_profile" => {
+            Ok(crate::gui_ops::gamify::gamify_profile(state, serde_json::from_value(args)?).await)
+        }
+        "vox_gamify_due_actions" => Ok(crate::gui_ops::gamify::gamify_due_actions(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_gamify_record_event" => Ok(crate::gui_ops::gamify::gamify_record_event(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_gamify_leaderboard" => Ok(crate::gui_ops::gamify::gamify_leaderboard(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_gamify_companions" => Ok(crate::gui_ops::gamify::gamify_companions(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_gamify_discovery_record" => Ok(crate::gui_ops::gamify::gamify_discovery_record(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
         _ => {
             // Check skill macro tools
             let skills = state.skill_registry.list(None);

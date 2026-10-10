@@ -982,6 +982,38 @@ tools:
   side_effect_class: writes_files
   requires:
   - db
+- name: vox_gamify_companions
+  description: The canonical user's companions with a server-rendered mood SVG (loopback-only).
+  product_lane: workflow
+  http_read_role_eligible: false
+  exposure: internal
+  side_effect_class: read_only
+  requires:
+  - db
+- name: vox_gamify_discovery_record
+  description: Record a Console discovery exposure (seen or used) for the canonical user (loopback-only).
+  product_lane: workflow
+  http_read_role_eligible: false
+  exposure: internal
+  side_effect_class: writes_files
+  requires:
+  - db
+- name: vox_gamify_due_actions
+  description: List discovery actions due for resurfacing for the canonical user (loopback-only).
+  product_lane: workflow
+  http_read_role_eligible: false
+  exposure: internal
+  side_effect_class: read_only
+  requires:
+  - db
+- name: vox_gamify_leaderboard
+  description: Top Ludus players by XP for Axis (loopback-only).
+  product_lane: workflow
+  http_read_role_eligible: false
+  exposure: internal
+  side_effect_class: read_only
+  requires:
+  - db
 - name: vox_gamify_notification_ack
   description: Mark one Ludus notification as read for the canonical user (Codex gamify_notifications), by notification id.
   product_lane: ai
@@ -1006,6 +1038,14 @@ tools:
   side_effect_class: read_only
   requires:
   - db
+- name: vox_gamify_profile
+  description: Read the canonical user's Ludus profile (regenerating energy) for Axis (loopback-only).
+  product_lane: workflow
+  http_read_role_eligible: false
+  exposure: internal
+  side_effect_class: read_only
+  requires:
+  - db
 - name: vox_gamify_progress_snapshot
   description: 'Ludus digest: KPI summary, unread notifications, and recent reward-policy snapshots over a rolling day window.'
   product_lane: ai
@@ -1020,6 +1060,14 @@ tools:
   http_read_role_eligible: false
   exposure: internal
   side_effect_class: read_only
+  requires:
+  - db
+- name: vox_gamify_record_event
+  description: Route one Axis GUI event through the Ludus reward policy (loopback-only).
+  product_lane: workflow
+  http_read_role_eligible: false
+  exposure: internal
+  side_effect_class: writes_files
   requires:
   - db
 - name: vox_gamify_shop_buy

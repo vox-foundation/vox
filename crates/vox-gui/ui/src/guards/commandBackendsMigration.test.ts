@@ -81,3 +81,12 @@ describe('plan 07 orchestrator group', () => {
     expect(MANIFEST).not.toMatch(/module: orchestrator,[^\n]*hopper_\* = db/);
   });
 });
+
+describe('plan 07 gamify group', () => {
+  it('gamify and discovery go through the daemon; gamify settings stay on the host', () => {
+    expect(moduleClass('gamify')).toBe('daemon');
+    expect(moduleClass('discovery')).toBe('daemon');
+    expect(moduleClass('gamify_settings')).toBe('host');
+    expect(MANIFEST).toMatch(/module: gamify_settings,[^\n]*surfaces: \[gamify, settings\]/);
+  });
+});

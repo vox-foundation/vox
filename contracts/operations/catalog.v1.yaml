@@ -34840,6 +34840,138 @@ operations:
     - db
   cli: null
 # ── gui_ops: gamify (plan 07) ──
+- id: gamify.profile
+  title: Gamify Profile
+  description: Read the canonical user's Ludus profile (regenerating energy) for Axis (loopback-only).
+  description_human: null
+  product_lane: workflow
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_gamify_profile
+    http_read_role_eligible: false
+    exposure: internal
+    requires:
+    - db
+  cli: null
+- id: gamify.due_actions
+  title: Gamify Due Actions
+  description: List discovery actions due for resurfacing for the canonical user (loopback-only).
+  description_human: null
+  product_lane: workflow
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_gamify_due_actions
+    http_read_role_eligible: false
+    exposure: internal
+    requires:
+    - db
+  cli: null
+- id: gamify.record_event
+  title: Gamify Record Event
+  description: Route one Axis GUI event through the Ludus reward policy (loopback-only).
+  description_human: null
+  product_lane: workflow
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_gamify_record_event
+    http_read_role_eligible: false
+    exposure: internal
+    requires:
+    - db
+  cli: null
+- id: gamify.leaderboard
+  title: Gamify Leaderboard
+  description: Top Ludus players by XP for Axis (loopback-only).
+  description_human: null
+  product_lane: workflow
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_gamify_leaderboard
+    http_read_role_eligible: false
+    exposure: internal
+    requires:
+    - db
+  cli: null
+- id: gamify.companions
+  title: Gamify Companions
+  description: The canonical user's companions with a server-rendered mood SVG (loopback-only).
+  description_human: null
+  product_lane: workflow
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_gamify_companions
+    http_read_role_eligible: false
+    exposure: internal
+    requires:
+    - db
+  cli: null
+- id: gamify.discovery_record
+  title: Gamify Discovery Record
+  description: Record a Console discovery exposure (seen or used) for the canonical user (loopback-only).
+  description_human: null
+  product_lane: workflow
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_gamify_discovery_record
+    http_read_role_eligible: false
+    exposure: internal
+    requires:
+    - db
+  cli: null
 exemptions:
   mcp_tools: []
   cli_paths:

@@ -23,12 +23,13 @@ commands:
 - { module: control_plane, class: daemon, surfaces: [chat, dashboard, tasks], notes: "no remote route yet" }
 - { module: daemon, class: daemon, surfaces: [] }
 - { module: devlog, class: shell, surfaces: [] }
-- { module: discovery, class: db, surfaces: [console] }
+- { module: discovery, class: daemon, surfaces: [console], notes: "vox_gamify_discovery_record (internal, loopback-only); suggest/help read the local command catalog" }
 - { module: docs_index, class: host, surfaces: [] }
 - { module: dynamic_mapping, class: host, surfaces: [] }
 - { module: event_annotate, class: daemon, surfaces: [] }
 - { module: execute, class: host, surfaces: [approvals, catalog, oratio, populi, skills] }
-- { module: gamify, class: db, surfaces: [gamify, settings] }
+- { module: gamify, class: daemon, surfaces: [gamify], notes: "dev-only vox_gamify_* ops (internal exposure: loopback under dev; remote servers never serve them)" }
+- { module: gamify_settings, class: host, surfaces: [gamify, settings], notes: "reads and writes this machine's Vox config file" }
 - { module: graphify, class: host, surfaces: [] }
 - { module: gui_db_pool, class: db, surfaces: [] }
 - { module: harness, class: host, surfaces: [chat], notes: "split: get_task_diff = orch tool_call; list_repo_files = local git" }

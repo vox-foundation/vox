@@ -1,6 +1,6 @@
 {
   "schema_version": 3,
-  "generated_at": "2026-10-10T06:46:24.268Z",
+  "generated_at": "2026-10-10T08:39:36.023Z",
   "description": "Per-file comment/doc counts for LLM batch targeting. Rust: lines_triple_slash=///, lines_inner_doc=//!, lines_plain_comment=// excluding doc. Markdown: lines_total=all lines; lines_other_doc_signal=# heading count. hotspot_tier: 1=plan-listed path, 2=high-density heuristic, 0=other. symbol_hints (schema v3): plan-hotspot Rust only; /// or //! linked to next item; containing_symbol, doc_preview, comment_type, quality_tag (mechanical|operational|section_divider|user_help|narrative|ssot_sensitive).",
   "first_read_for_agents": [
     "AGENTS.md",
@@ -13686,7 +13686,7 @@
     {
       "path": "crates/vox-orchestrator-mcp/src/input_schemas.rs",
       "kind": "rust",
-      "lines_total": 1306,
+      "lines_total": 1324,
       "lines_triple_slash": 3,
       "lines_inner_doc": 12,
       "lines_plain_comment": 43,
@@ -17734,7 +17734,7 @@
     {
       "path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
       "kind": "rust",
-      "lines_total": 2571,
+      "lines_total": 2599,
       "lines_triple_slash": 38,
       "lines_inner_doc": 6,
       "lines_plain_comment": 159,
@@ -28083,17 +28083,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-gui/src/commands/gamify.rs",
-      "kind": "rust",
-      "lines_total": 646,
-      "lines_triple_slash": 12,
-      "lines_inner_doc": 3,
-      "lines_plain_comment": 4,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-codegen/src/codegen_rust/pipeline.rs",
       "kind": "rust",
       "lines_total": 510,
@@ -29931,6 +29920,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-gui/src/commands/discovery.rs",
+      "kind": "rust",
+      "lines_total": 199,
+      "lines_triple_slash": 10,
+      "lines_inner_doc": 3,
+      "lines_plain_comment": 1,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-speech/src/eval.rs",
       "kind": "rust",
       "lines_total": 189,
@@ -30850,17 +30850,6 @@
       "lines_triple_slash": 8,
       "lines_inner_doc": 4,
       "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-gui/src/commands/discovery.rs",
-      "kind": "rust",
-      "lines_total": 166,
-      "lines_triple_slash": 9,
-      "lines_inner_doc": 3,
-      "lines_plain_comment": 1,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -32527,6 +32516,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-gui/src/commands/gamify.rs",
+      "kind": "rust",
+      "lines_total": 543,
+      "lines_triple_slash": 7,
+      "lines_inner_doc": 3,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-cli-ci/src/affected_cmd.rs",
       "kind": "rust",
       "lines_total": 476,
@@ -33739,7 +33739,7 @@
     {
       "path": "crates/vox-gui/src/remote/manifest.rs",
       "kind": "rust",
-      "lines_total": 370,
+      "lines_total": 372,
       "lines_triple_slash": 7,
       "lines_inner_doc": 2,
       "lines_plain_comment": 1,
@@ -38313,6 +38313,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-orchestrator-mcp/src/gui_ops/gamify.rs",
+      "kind": "rust",
+      "lines_total": 310,
+      "lines_triple_slash": 1,
+      "lines_inner_doc": 5,
+      "lines_plain_comment": 1,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-speech/src/subtitle/srt.rs",
       "kind": "rust",
       "lines_total": 300,
@@ -42421,6 +42432,17 @@
       "lines_total": 181,
       "lines_triple_slash": 4,
       "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-orchestrator-mcp/src/gui_ops/dto/gamify.rs",
+      "kind": "rust",
+      "lines_total": 180,
+      "lines_triple_slash": 2,
+      "lines_inner_doc": 2,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
@@ -48620,6 +48642,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-gui/src/commands/gamify_settings.rs",
+      "kind": "rust",
+      "lines_total": 30,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 2,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-cli/src/commands/runtime/shell/backends/nushell.rs",
       "kind": "rust",
       "lines_total": 29,
@@ -49161,7 +49194,7 @@
     {
       "path": "crates/vox-orchestrator-mcp/src/gui_ops/dto/mod.rs",
       "kind": "rust",
-      "lines_total": 10,
+      "lines_total": 11,
       "lines_triple_slash": 0,
       "lines_inner_doc": 2,
       "lines_plain_comment": 0,
@@ -53010,17 +53043,6 @@
     },
     {
       "path": "crates/vox-ml-cli/src/lib.rs",
-      "kind": "rust",
-      "lines_total": 16,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-orchestrator-mcp/src/gui_ops/gamify.rs",
       "kind": "rust",
       "lines_total": 16,
       "lines_triple_slash": 0,
@@ -58289,6 +58311,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-gui/ui/src/guards/commandBackendsMigration.test.ts",
+      "kind": "typescript",
+      "lines_total": 92,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 1,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "approx // and block comments"
+    },
+    {
       "path": "crates/vox-orchestrator-mcp/src/secrets_tools.rs",
       "kind": "rust",
       "lines_total": 92,
@@ -58735,17 +58768,6 @@
       "lines_triple_slash": 0,
       "lines_inner_doc": 0,
       "lines_plain_comment": 6,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "approx // and block comments"
-    },
-    {
-      "path": "crates/vox-gui/ui/src/guards/commandBackendsMigration.test.ts",
-      "kind": "typescript",
-      "lines_total": 83,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 1,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "approx // and block comments"
@@ -60115,6 +60137,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-gui/src/commands/mod.rs",
+      "kind": "rust",
+      "lines_total": 69,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-gui/ui/src/lib/slashCommands.ts",
       "kind": "typescript",
       "lines_total": 69,
@@ -60220,17 +60253,6 @@
       "lines_triple_slash": 0,
       "lines_inner_doc": 0,
       "lines_plain_comment": 2,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-gui/src/commands/mod.rs",
-      "kind": "rust",
-      "lines_total": 68,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"

@@ -20287,6 +20287,70 @@ curated:
   mcp_tool: vox_gamify_collegium_join
   cli_path: null
   parameters: null
+- id: mcp.vox_gamify_companions
+  title: Gamify Companions
+  description_human: null
+  description_model: The canonical user's companions with a server-rendered mood SVG (loopback-only).
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_gamify_companions
+  cli_path: null
+  parameters: null
+- id: mcp.vox_gamify_discovery_record
+  title: Gamify Discovery Record
+  description_human: null
+  description_model: Record a Console discovery exposure (seen or used) for the canonical user (loopback-only).
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_gamify_discovery_record
+  cli_path: null
+  parameters: null
+- id: mcp.vox_gamify_due_actions
+  title: Gamify Due Actions
+  description_human: null
+  description_model: List discovery actions due for resurfacing for the canonical user (loopback-only).
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_gamify_due_actions
+  cli_path: null
+  parameters: null
+- id: mcp.vox_gamify_leaderboard
+  title: Gamify Leaderboard
+  description_human: null
+  description_model: Top Ludus players by XP for Axis (loopback-only).
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_gamify_leaderboard
+  cli_path: null
+  parameters: null
 - id: mcp.vox_gamify_notification_ack
   title: Ludus Notification Ack
   description_human: null
@@ -20335,6 +20399,22 @@ curated:
   mcp_tool: vox_gamify_notifications_list
   cli_path: null
   parameters: null
+- id: mcp.vox_gamify_profile
+  title: Gamify Profile
+  description_human: null
+  description_model: Read the canonical user's Ludus profile (regenerating energy) for Axis (loopback-only).
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_gamify_profile
+  cli_path: null
+  parameters: null
 - id: mcp.vox_gamify_progress_snapshot
   title: Ludus Progress Snapshot
   description_human: null
@@ -20365,6 +20445,22 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_gamify_quest_list
+  cli_path: null
+  parameters: null
+- id: mcp.vox_gamify_record_event
+  title: Gamify Record Event
+  description_human: null
+  description_model: Route one Axis GUI event through the Ludus reward policy (loopback-only).
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_gamify_record_event
   cli_path: null
   parameters: null
 - id: mcp.vox_gamify_shop_buy

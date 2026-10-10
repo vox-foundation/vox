@@ -1,55 +1,31 @@
-//! Typed gamification (Ludus) Tauri commands. These mirror the CLI's gamify DB
-//! access exactly: connect via `Codex::connect(DbConfig::resolve_for_mesh())`
-//! and call the `vox_gamify::db` API. See `crates/vox-cli/src/commands/extras/ludus/`.
+//! Typed gamification (Ludus) Tauri commands. Served by the daemon's dev-only `vox_gamify_*`
+//! MCP ops (`internal` exposure: loopback under `dev` only), so a remote server reports Gamify
+//! as not in profile.
 
+use std::sync::Arc;
+
+use serde_json::json;
+use tauri::State;
 use vox_gamify::notifications::{Notification, NotificationType};
-use vox_gamify::profile::LudusProfile;
+pub use vox_orchestrator_mcp::gui_ops::dto::gamify::{
+    CompanionDto, DueActionDto, GuiEventResultDto, LeaderboardEntryDto, LudusProfileDto,
+};
 
-#[derive(Debug, serde::Serialize)]
-pub struct LudusProfileDto {
-    pub user_id: String,
-    pub level: u64,
-    pub xp: u64,
-    pub xp_to_next_level: u64,
-    pub xp_progress: f64,
-    pub total_xp_earned: u64,
-    pub crystals: u64,
-    pub lumens: i64,
-    pub energy: u64,
-    pub max_energy: u64,
-    pub current_streak: u64,
-    pub prestige_level: u32,
-    pub title: String,
-    pub full_title: String,
-    pub trust_tier: String,
-}
+use crate::remote::backend::BackendState;
+use crate::remote::calls::{BackendCalls, tool_data};
 
-impl LudusProfileDto {
-    fn from_profile(p: &LudusProfile) -> Self {
-        Self {
-            user_id: p.user_id.clone(),
-            level: p.level,
-            xp: p.xp,
-            xp_to_next_level: p.xp_to_next_level(),
-            xp_progress: p.xp_progress(),
-            total_xp_earned: p.total_xp_earned,
-            crystals: p.crystals,
-            lumens: p.lumens,
-            energy: p.energy,
-            max_energy: p.max_energy,
-            current_streak: p.streak.current_streak,
-            prestige_level: p.prestige_level,
-            title: p.title(),
-            full_title: p.full_title(),
-            trust_tier: format!("{:?}", p.trust_tier),
-        }
-    }
-}
-
-#[derive(Debug, serde::Serialize)]
-pub struct DueActionDto {
-    pub action_id: String,
-}
+const PROFILE_TOOL: &str = "vox_gamify_profile";
+const NOTIFICATIONS_TOOL: &str = "vox_gamify_notifications_list";
+const ACK_TOOL: &str = "vox_gamify_notification_ack";
+const DUE_ACTIONS_TOOL: &str = "vox_gamify_due_actions";
+const PROGRESS_TOOL: &str = "vox_gamify_progress_snapshot";
+const RECORD_EVENT_TOOL: &str = "vox_gamify_record_event";
+const LEADERBOARD_TOOL: &str = "vox_gamify_leaderboard";
+const COMPANIONS_TOOL: &str = "vox_gamify_companions";
+const QUESTS_TOOL: &str = "vox_gamify_quest_list";
+const NOTIFICATIONS_DEFAULT_LIMIT: u32 = 20;
+/// `vox_gamify_quest_list` clamps to 200; the surface has always shown every active quest.
+const QUESTS_LIMIT: u32 = 200;
 
 #[derive(Debug, serde::Serialize)]
 pub struct KpiSummaryDto {
@@ -114,121 +90,52 @@ impl LudusNotificationDto {
     }
 }
 
-async fn open_gamify_db() -> Result<vox_db::Codex, String> {
-    let config = vox_db::DbConfig::resolve_for_mesh().map_err(|e| e.to_string())?;
-    vox_db::Codex::connect(config)
-        .await
-        .map_err(|e| e.to_string())
-}
-
-pub async fn get_ludus_profile_impl(db: &vox_db::Codex) -> Result<LudusProfileDto, String> {
-    let user_id = vox_gamify::db::canonical_user_id();
-    let mut profile = vox_gamify::db::get_profile(db, &user_id)
-        .await
-        .map_err(|e| e.to_string())?
-        .unwrap_or_else(|| LudusProfile::new_default(&user_id));
-    profile.regen_energy();
-    if let Err(e) = vox_gamify::db::upsert_profile(db, &profile).await {
-        tracing::error!("failed to upsert profile after energy regen: {}", e);
-    }
-    Ok(LudusProfileDto::from_profile(&profile))
-}
-
-#[tauri::command]
-pub async fn get_ludus_profile() -> Result<LudusProfileDto, String> {
-    let db = open_gamify_db().await?;
-    get_ludus_profile_impl(&db).await
-}
-
-#[tauri::command]
-pub async fn list_ludus_notifications(
-    limit: Option<u32>,
-) -> Result<Vec<LudusNotificationDto>, String> {
-    let db = open_gamify_db().await?;
-    let user_id = vox_gamify::db::canonical_user_id();
-    let notes = vox_gamify::db::list_unread_notifications(&db, &user_id, limit.unwrap_or(20))
-        .await
-        .map_err(|e| e.to_string())?;
-    Ok(notes
-        .iter()
-        .map(LudusNotificationDto::from_notification)
-        .collect())
-}
-
-#[tauri::command]
-pub async fn ack_ludus_notification(notification_id: String) -> Result<(), String> {
-    let db = open_gamify_db().await?;
-    let user_id = vox_gamify::db::canonical_user_id();
-    vox_gamify::db::mark_notification_read_for_user(&db, &user_id, &notification_id)
-        .await
-        .map_err(|e| e.to_string())?;
-    Ok(())
-}
-
-#[tauri::command]
-pub async fn gamify_due_actions(limit: u32) -> Result<Vec<DueActionDto>, String> {
-    let db = open_gamify_db().await?;
-    let user_id = vox_gamify::db::canonical_user_id();
-    let now_ms = vox_gamify::util::now_unix() * 1000;
-    let action_ids = vox_gamify::db::due_action_ids(&db, &user_id, now_ms, limit)
-        .await
-        .map_err(|e| e.to_string())?;
-    Ok(action_ids
-        .into_iter()
-        .map(|id| DueActionDto { action_id: id })
-        .collect())
-}
-
-#[tauri::command]
-pub async fn gamify_kpi_summary() -> Result<KpiSummaryDto, String> {
-    let db = open_gamify_db().await?;
-    let user_id = vox_gamify::db::canonical_user_id();
-    let summary = vox_gamify::db::load_kpi_summary(&db, &user_id)
-        .await
-        .map_err(|e| e.to_string())?;
-    Ok(KpiSummaryDto::from_summary(&summary))
-}
-
-/// Best-effort: map unread gamify notifications to the GUI alert JSON shape
-/// (`{id, level, title, body}`) consumed by `LudusBanner`. Returns empty on any error.
-pub async fn fetch_gamify_alerts() -> Vec<serde_json::Value> {
-    let Ok(config) = vox_db::DbConfig::resolve_for_mesh() else {
-        return Vec::new();
-    };
-    let Ok(db) = vox_db::Codex::connect(config).await else {
-        return Vec::new();
-    };
-    let user_id = vox_gamify::db::canonical_user_id();
-    let notes = match vox_gamify::db::list_unread_notifications(&db, &user_id, 10).await {
-        Ok(n) => n,
-        Err(_) => return Vec::new(),
-    };
-    notes
-        .iter()
-        .map(|n| {
-            serde_json::json!({
-                "id": n.id,
-                "level": notification_level(&n.notification_type),
-                "title": n.title,
-                "body": n.message,
-            })
-        })
-        .collect()
-}
-
 #[derive(Debug, serde::Serialize)]
-pub struct GamifySettingsDto {
-    pub enabled: bool,
-    pub mode: String,
+pub struct QuestDto {
+    pub id: String,
+    pub quest_type: String,
+    pub description: String,
+    pub hint: String,
+    pub target: u32,
+    pub progress: u32,
+    pub xp_reward: u64,
+    pub crystal_reward: u64,
+    pub completed: bool,
+    pub status: String,
+    pub expires_at: i64,
 }
 
-#[tauri::command]
-pub async fn get_gamify_settings() -> Result<GamifySettingsDto, String> {
-    let cfg = vox_gamify::config_gate::load_disk();
-    Ok(GamifySettingsDto {
-        enabled: cfg.gamify_enabled,
-        mode: cfg.gamify_mode.as_config_str().to_string(),
-    })
+impl QuestDto {
+    fn from_quest(q: &vox_gamify::quest::Quest) -> Self {
+        Self {
+            id: q.id.clone(),
+            quest_type: format!("{:?}", q.quest_type),
+            description: q.description.clone(),
+            hint: q.hint.clone(),
+            target: q.target,
+            progress: q.progress,
+            xp_reward: q.xp_reward,
+            crystal_reward: q.crystal_reward,
+            completed: q.completed,
+            status: q.status.clone(),
+            expires_at: q.expires_at,
+        }
+    }
+}
+
+#[derive(serde::Deserialize)]
+struct NotificationsData {
+    notifications: Vec<Notification>,
+}
+
+#[derive(serde::Deserialize)]
+struct ProgressData {
+    kpi: vox_gamify::kpi::LudusKpiSummary,
+}
+
+#[derive(serde::Deserialize)]
+struct QuestsData {
+    quests: Vec<vox_gamify::quest::Quest>,
 }
 
 /// Map GUI hook names from the TypeScript layer to reward_policy event types.
@@ -258,39 +165,6 @@ pub(crate) fn map_gui_hook_event_type(hook: &str) -> &str {
     }
 }
 
-#[derive(Debug, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GuiEventResultDto {
-    pub xp_granted: u32,
-    pub lumens_granted: u32,
-    pub achievement_title: Option<String>,
-}
-
-fn gui_event_result_from_route(
-    result: &vox_gamify::reward_policy::RouteResult,
-) -> GuiEventResultDto {
-    let xp = result.reward.as_ref().map(|r| r.xp).unwrap_or(0);
-    let lumens = result
-        .reward
-        .as_ref()
-        .map(|r| r.lumens.max(0) as u32)
-        .unwrap_or(0);
-    let achievement_title = if let Some((_, title)) = &result.leveled_up {
-        Some(title.clone())
-    } else if xp > 0 {
-        Some("XP".to_string())
-    } else if lumens > 0 {
-        Some("Lumens".to_string())
-    } else {
-        None
-    };
-    GuiEventResultDto {
-        xp_granted: xp.min(u32::MAX as u64) as u32,
-        lumens_granted: lumens,
-        achievement_title,
-    }
-}
-
 fn merge_gui_event_json(hook: &str, metadata: Option<serde_json::Value>) -> serde_json::Value {
     let routed = map_gui_hook_event_type(hook);
     let mut event_json = serde_json::json!({ "type": routed, "source": "gui" });
@@ -306,168 +180,165 @@ fn merge_gui_event_json(hook: &str, metadata: Option<serde_json::Value>) -> serd
     event_json
 }
 
-/// Thin Tauri bridge: GUI hooks → `vox_gamify::event_router` (no XP math in TS).
-#[tauri::command]
-pub async fn record_gui_event(
+async fn call<T: serde::de::DeserializeOwned, B: BackendCalls>(
+    b: &B,
+    tool: &str,
+    args: serde_json::Value,
+) -> Result<T, String> {
+    tool_data(tool, b.call_tool(tool, args).await?)
+}
+
+pub(crate) async fn get_ludus_profile_impl<B: BackendCalls>(
+    b: &B,
+) -> Result<LudusProfileDto, String> {
+    call(b, PROFILE_TOOL, json!({})).await
+}
+
+pub(crate) async fn list_ludus_notifications_impl<B: BackendCalls>(
+    b: &B,
+    limit: Option<u32>,
+) -> Result<Vec<LudusNotificationDto>, String> {
+    let limit = limit.unwrap_or(NOTIFICATIONS_DEFAULT_LIMIT);
+    let data: NotificationsData = call(b, NOTIFICATIONS_TOOL, json!({ "limit": limit })).await?;
+    Ok(data
+        .notifications
+        .iter()
+        .map(LudusNotificationDto::from_notification)
+        .collect())
+}
+
+pub(crate) async fn ack_ludus_notification_impl<B: BackendCalls>(
+    b: &B,
+    notification_id: String,
+) -> Result<(), String> {
+    call::<serde_json::Value, _>(b, ACK_TOOL, json!({ "notification_id": notification_id }))
+        .await
+        .map(|_| ())
+}
+
+pub(crate) async fn gamify_due_actions_impl<B: BackendCalls>(
+    b: &B,
+    limit: u32,
+) -> Result<Vec<DueActionDto>, String> {
+    call(b, DUE_ACTIONS_TOOL, json!({ "limit": limit })).await
+}
+
+pub(crate) async fn gamify_kpi_summary_impl<B: BackendCalls>(
+    b: &B,
+) -> Result<KpiSummaryDto, String> {
+    let data: ProgressData = call(b, PROGRESS_TOOL, json!({})).await?;
+    Ok(KpiSummaryDto::from_summary(&data.kpi))
+}
+
+pub(crate) async fn record_gui_event_impl<B: BackendCalls>(
+    b: &B,
     event_type: String,
     metadata: Option<serde_json::Value>,
 ) -> Result<GuiEventResultDto, String> {
-    let event_json = merge_gui_event_json(&event_type, metadata);
-    let db = open_gamify_db().await?;
-    let routed = vox_gamify::event_router::route_event_auto_user(&db, &event_json)
-        .await
-        .map_err(|e| e.to_string())?;
-    Ok(gui_event_result_from_route(&routed))
+    let event = merge_gui_event_json(&event_type, metadata);
+    call(b, RECORD_EVENT_TOOL, json!({ "event": event })).await
 }
 
-#[tauri::command]
-pub async fn set_gamify_settings(enabled: bool, mode: String) -> Result<(), String> {
-    let mut cfg = vox_gamify::config_gate::load_disk();
-    cfg.gamify_enabled = enabled;
-    cfg.gamify_mode = match mode.to_lowercase().as_str() {
-        "serious" => vox_config::GamifyMode::Serious,
-        "learning" => vox_config::GamifyMode::Learning,
-        _ => vox_config::GamifyMode::Balanced,
-    };
-    cfg.save().map_err(|e| format!("save config: {e}"))?;
-    Ok(())
-}
-
-// ── Leaderboard / companions / quests surfaces (F3) ──────────────────────────
-
-#[derive(Debug, serde::Serialize)]
-pub struct LeaderboardEntryDto {
-    pub rank: u32,
-    pub user_id: String,
-    pub level: u64,
-    pub score: i64,
-}
-
-/// Top players by XP. Mirrors `vox ludus leaderboard` (the CLI's
-/// `leaderboard_show`) over `vox_gamify::db::leaderboard`.
-#[tauri::command]
-pub async fn list_gamify_leaderboard(
+pub(crate) async fn list_gamify_leaderboard_impl<B: BackendCalls>(
+    b: &B,
     limit: Option<u32>,
 ) -> Result<Vec<LeaderboardEntryDto>, String> {
-    let db = open_gamify_db().await?;
-    let rows = vox_gamify::db::leaderboard(&db, limit.unwrap_or(20) as i64)
-        .await
-        .map_err(|e| e.to_string())?;
-    Ok(rows
-        .iter()
-        .enumerate()
-        .map(|(i, r)| LeaderboardEntryDto {
-            rank: (i + 1) as u32,
-            user_id: r.user_id.clone(),
-            level: r.level,
-            score: r.score,
-        })
-        .collect())
+    call(b, LEADERBOARD_TOOL, json!({ "limit": limit })).await
 }
 
-#[derive(Debug, serde::Serialize)]
-pub struct CompanionDto {
-    pub id: String,
-    pub name: String,
-    pub description: Option<String>,
-    pub language: String,
-    pub mood: String,
-    pub health: i32,
-    pub max_health: i32,
-    pub energy: i32,
-    pub max_energy: i32,
-    pub code_quality: u8,
-    pub last_active: i64,
-    /// Inline SVG markup (no external runtime) rendered from the companion's
-    /// current mood via `sprite_svg::generate_svg_from_mood`.
-    pub svg: String,
+pub(crate) async fn list_gamify_companions_impl<B: BackendCalls>(
+    b: &B,
+) -> Result<Vec<CompanionDto>, String> {
+    call(b, COMPANIONS_TOOL, json!({})).await
 }
 
-/// The user's companions, each with a freshly rendered mood SVG. Mirrors
-/// `vox_gamify::db::list_companions`.
+pub(crate) async fn list_gamify_quests_impl<B: BackendCalls>(
+    b: &B,
+) -> Result<Vec<QuestDto>, String> {
+    let data: QuestsData = call(b, QUESTS_TOOL, json!({ "limit": QUESTS_LIMIT })).await?;
+    Ok(data.quests.iter().map(QuestDto::from_quest).collect())
+}
+
 #[tauri::command]
-pub async fn list_gamify_companions() -> Result<Vec<CompanionDto>, String> {
-    let db = open_gamify_db().await?;
-    let user_id = vox_gamify::db::canonical_user_id();
-    let companions = vox_gamify::db::list_companions(&db, &user_id)
-        .await
-        .map_err(|e| e.to_string())?;
-    Ok(companions
-        .iter()
-        .map(|c| CompanionDto {
-            id: c.id.clone(),
-            name: c.name.clone(),
-            description: c.description.clone(),
-            language: c.language.clone(),
-            mood: format!("{:?}", c.mood),
-            health: c.health,
-            max_health: c.max_health,
-            energy: c.energy,
-            max_energy: c.max_energy,
-            code_quality: c.code_quality,
-            last_active: c.last_active,
-            svg: vox_gamify::sprite_svg::generate_svg_from_mood(c.mood, None).svg_body,
-        })
-        .collect())
+pub async fn get_ludus_profile(
+    backend: State<'_, Arc<BackendState>>,
+) -> Result<LudusProfileDto, String> {
+    get_ludus_profile_impl(&backend.current().await).await
 }
 
-#[derive(Debug, serde::Serialize)]
-pub struct QuestDto {
-    pub id: String,
-    pub quest_type: String,
-    pub description: String,
-    pub hint: String,
-    pub target: u32,
-    pub progress: u32,
-    pub xp_reward: u64,
-    pub crystal_reward: u64,
-    pub completed: bool,
-    pub status: String,
-    pub expires_at: i64,
-}
-
-/// The user's active quests. Mirrors `vox_gamify::db::list_quests`.
 #[tauri::command]
-pub async fn list_gamify_quests() -> Result<Vec<QuestDto>, String> {
-    let db = open_gamify_db().await?;
-    let user_id = vox_gamify::db::canonical_user_id();
-    let quests = vox_gamify::db::list_quests(&db, &user_id)
-        .await
-        .map_err(|e| e.to_string())?;
-    Ok(quests
-        .iter()
-        .map(|q| QuestDto {
-            id: q.id.clone(),
-            quest_type: format!("{:?}", q.quest_type),
-            description: q.description.clone(),
-            hint: q.hint.clone(),
-            target: q.target,
-            progress: q.progress,
-            xp_reward: q.xp_reward,
-            crystal_reward: q.crystal_reward,
-            completed: q.completed,
-            status: q.status.clone(),
-            expires_at: q.expires_at,
-        })
-        .collect())
+pub async fn list_ludus_notifications(
+    backend: State<'_, Arc<BackendState>>,
+    limit: Option<u32>,
+) -> Result<Vec<LudusNotificationDto>, String> {
+    list_ludus_notifications_impl(&backend.current().await, limit).await
+}
+
+#[tauri::command]
+pub async fn ack_ludus_notification(
+    backend: State<'_, Arc<BackendState>>,
+    notification_id: String,
+) -> Result<(), String> {
+    ack_ludus_notification_impl(&backend.current().await, notification_id).await
+}
+
+#[tauri::command]
+pub async fn gamify_due_actions(
+    backend: State<'_, Arc<BackendState>>,
+    limit: u32,
+) -> Result<Vec<DueActionDto>, String> {
+    gamify_due_actions_impl(&backend.current().await, limit).await
+}
+
+#[tauri::command]
+pub async fn gamify_kpi_summary(
+    backend: State<'_, Arc<BackendState>>,
+) -> Result<KpiSummaryDto, String> {
+    gamify_kpi_summary_impl(&backend.current().await).await
+}
+
+/// Thin Tauri bridge: GUI hooks → `vox_gamify::event_router` on the daemon (no XP math in TS).
+#[tauri::command]
+pub async fn record_gui_event(
+    backend: State<'_, Arc<BackendState>>,
+    event_type: String,
+    metadata: Option<serde_json::Value>,
+) -> Result<GuiEventResultDto, String> {
+    record_gui_event_impl(&backend.current().await, event_type, metadata).await
+}
+
+/// Top players by XP. Mirrors `vox ludus leaderboard`.
+#[tauri::command]
+pub async fn list_gamify_leaderboard(
+    backend: State<'_, Arc<BackendState>>,
+    limit: Option<u32>,
+) -> Result<Vec<LeaderboardEntryDto>, String> {
+    list_gamify_leaderboard_impl(&backend.current().await, limit).await
+}
+
+/// The user's companions, each with a mood SVG rendered by the daemon.
+#[tauri::command]
+pub async fn list_gamify_companions(
+    backend: State<'_, Arc<BackendState>>,
+) -> Result<Vec<CompanionDto>, String> {
+    list_gamify_companions_impl(&backend.current().await).await
+}
+
+/// The user's active quests.
+#[tauri::command]
+pub async fn list_gamify_quests(
+    backend: State<'_, Arc<BackendState>>,
+) -> Result<Vec<QuestDto>, String> {
+    list_gamify_quests_impl(&backend.current().await).await
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::remote::calls::fake::FakeBackend;
 
-    #[test]
-    fn dto_maps_core_fields_and_bounds_progress() {
-        let mut p = LudusProfile::new_default("u1");
-        p.level = 3;
-        p.xp = 200;
-        p.crystals = 42;
-        let dto = LudusProfileDto::from_profile(&p);
-        assert_eq!(dto.user_id, "u1");
-        assert_eq!(dto.level, 3);
-        assert_eq!(dto.crystals, 42);
-        assert!(dto.xp_progress >= 0.0 && dto.xp_progress <= 1.0);
-        assert!(!dto.title.is_empty());
+    fn ok(data: serde_json::Value) -> Result<serde_json::Value, String> {
+        Ok(json!({ "success": true, "data": data }))
     }
 
     #[test]
@@ -478,6 +349,101 @@ mod tests {
             notification_level(&NotificationType::CompanionStatus),
             "info"
         );
+    }
+
+    #[tokio::test]
+    async fn commands_call_the_gamify_ops_with_the_tauri_arguments() {
+        let b = FakeBackend::new()
+            .on_tool(ACK_TOOL, ok(json!({ "marked_read": 1 })))
+            .on_tool(
+                DUE_ACTIONS_TOOL,
+                ok(json!([{ "action_id": "vox.config.show" }])),
+            )
+            .on_tool(
+                RECORD_EVENT_TOOL,
+                ok(json!({ "xpGranted": 8, "lumensGranted": 0, "achievementTitle": "XP" })),
+            )
+            .on_tool(LEADERBOARD_TOOL, ok(json!([])))
+            .on_tool(COMPANIONS_TOOL, ok(json!([])));
+        ack_ludus_notification_impl(&b, "n1".into()).await.unwrap();
+        let due = gamify_due_actions_impl(&b, 3).await.unwrap();
+        assert_eq!(due[0].action_id, "vox.config.show");
+        let rec = record_gui_event_impl(
+            &b,
+            "task_submitted".into(),
+            Some(json!({ "description": "x" })),
+        )
+        .await
+        .unwrap();
+        assert_eq!(rec.xp_granted, 8);
+        list_gamify_leaderboard_impl(&b, None).await.unwrap();
+        list_gamify_companions_impl(&b).await.unwrap();
+        let calls = b.calls();
+        assert_eq!(
+            calls[0],
+            (
+                format!("tool:{ACK_TOOL}"),
+                json!({ "notification_id": "n1" })
+            )
+        );
+        assert_eq!(calls[1].1, json!({ "limit": 3 }));
+        assert_eq!(
+            calls[2].1,
+            json!({ "event": { "type": "task_submitted", "source": "gui", "description": "x" } })
+        );
+        assert_eq!(calls[3].1, json!({ "limit": null }));
+        assert_eq!(calls[4].0, format!("tool:{COMPANIONS_TOOL}"));
+    }
+
+    #[tokio::test]
+    async fn kpi_summary_extracts_data_kpi() {
+        let b = FakeBackend::new().on_tool(
+            PROGRESS_TOOL,
+            ok(json!({
+                "kpi": {
+                    "events_recorded": 10, "total_xp_awarded": 50, "total_crystals_awarded": 5,
+                    "grind_capped_events": 2, "avg_effective_multiplier": 1.5,
+                    "hint_events_logged": 0, "quests_completed_total": 3,
+                    "notifications_unread": 0, "hints_shown": 0, "hints_dismissed": 0
+                },
+                "notifications": [],
+                "policy_recent": []
+            })),
+        );
+        let kpi = gamify_kpi_summary_impl(&b).await.unwrap();
+        assert_eq!(kpi.events_recorded, 10);
+        assert_eq!(kpi.grind_ratio, 0.2);
+        assert_eq!(kpi.total_xp, 50);
+    }
+
+    #[tokio::test]
+    async fn list_reads_unwrap_their_envelopes_and_propagate_denial() {
+        let b = FakeBackend::new()
+            .on_tool(NOTIFICATIONS_TOOL, ok(json!({ "notifications": [] })))
+            .on_tool(QUESTS_TOOL, ok(json!({ "quests": [] })))
+            .on_tool(
+                PROFILE_TOOL,
+                Ok(json!({ "error": { "code": "exposure_denied", "message": "dev-only" } })),
+            );
+        assert!(
+            list_ludus_notifications_impl(&b, None)
+                .await
+                .unwrap()
+                .is_empty()
+        );
+        assert!(list_gamify_quests_impl(&b).await.unwrap().is_empty());
+        let err = get_ludus_profile_impl(&b).await.unwrap_err();
+        assert!(err.contains("exposure_denied"), "{err}");
+        let calls = b.calls();
+        assert_eq!(calls[0].1, json!({ "limit": NOTIFICATIONS_DEFAULT_LIMIT }));
+        assert_eq!(calls[1].1, json!({ "limit": QUESTS_LIMIT }));
+    }
+
+    #[test]
+    fn module_has_no_direct_db_access() {
+        let src = include_str!("gamify.rs");
+        assert!(!src.contains(concat!("vox", "_db")));
+        assert!(!src.contains(concat!("fetch_gamify", "_alerts")));
     }
 
     #[test]
@@ -543,39 +509,6 @@ mod tests {
     }
 
     #[test]
-    fn gui_event_result_from_route_maps_xp_and_level_up_title() {
-        use vox_gamify::reward_policy::{PolicyReward, RouteResult};
-
-        let leveled = gui_event_result_from_route(&RouteResult {
-            reward: Some(PolicyReward {
-                xp: 120,
-                crystals: 0,
-                lumens: 0,
-                grant_shield: false,
-                effective_multiplier: 1.0,
-                grind_capped: false,
-            }),
-            leveled_up: Some((5, "Initiate".to_string())),
-        });
-        assert_eq!(leveled.xp_granted, 120);
-        assert_eq!(leveled.achievement_title.as_deref(), Some("Initiate"));
-
-        let xp_only = gui_event_result_from_route(&RouteResult {
-            reward: Some(PolicyReward {
-                xp: 5,
-                crystals: 0,
-                lumens: 0,
-                grant_shield: false,
-                effective_multiplier: 1.0,
-                grind_capped: false,
-            }),
-            leveled_up: None,
-        });
-        assert_eq!(xp_only.xp_granted, 5);
-        assert_eq!(xp_only.achievement_title.as_deref(), Some("XP"));
-    }
-
-    #[test]
     fn merge_gui_event_json_includes_metadata_and_routed_type() {
         let json = merge_gui_event_json(
             "chat_message_sent",
@@ -584,42 +517,6 @@ mod tests {
         assert_eq!(json["type"], "message_sent");
         assert_eq!(json["source"], "gui");
         assert_eq!(json["session_id"], "abc");
-    }
-
-    #[tokio::test]
-    async fn energy_regen_persists_to_db() {
-        let db = vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
-            .await
-            .expect("db");
-        vox_gamify::db::apply_ludus_migrations(&db)
-            .await
-            .expect("migrations");
-        let user_id = vox_gamify::db::canonical_user_id();
-
-        let mut p = LudusProfile::new_default(&user_id);
-        p.energy = 0;
-        p.last_energy_regen = vox_gamify::util::now_unix() - 7200; // 2 hours ago
-        vox_gamify::db::upsert_profile(&db, &p)
-            .await
-            .expect("upsert");
-
-        // Call the impl
-        let _dto = get_ludus_profile_impl(&db).await.expect("impl");
-
-        // Reload from DB
-        let reloaded = vox_gamify::db::get_profile(&db, &user_id)
-            .await
-            .expect("get")
-            .unwrap();
-        assert!(reloaded.energy > 0, "energy must persist after regen");
-    }
-
-    #[test]
-    fn due_action_to_dto() {
-        let dto = DueActionDto {
-            action_id: "my_action".to_string(),
-        };
-        assert_eq!(dto.action_id, "my_action");
     }
 
     #[test]

@@ -952,6 +952,24 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
             derived_tool_schema!(crate::gui_ops::harness::IssueDecideParams)
         }
         // ── gui_ops: gamify (plan 07) ──
+        "vox_gamify_profile" => {
+            derived_tool_schema!(crate::gui_ops::gamify::GamifyProfileParams)
+        }
+        "vox_gamify_due_actions" => {
+            derived_tool_schema!(crate::gui_ops::gamify::GamifyDueActionsParams)
+        }
+        "vox_gamify_record_event" => {
+            derived_tool_schema!(crate::gui_ops::gamify::GamifyRecordEventParams)
+        }
+        "vox_gamify_leaderboard" => {
+            derived_tool_schema!(crate::gui_ops::gamify::GamifyLeaderboardParams)
+        }
+        "vox_gamify_companions" => {
+            derived_tool_schema!(crate::gui_ops::gamify::GamifyCompanionsParams)
+        }
+        "vox_gamify_discovery_record" => {
+            derived_tool_schema!(crate::gui_ops::gamify::GamifyDiscoveryRecordParams)
+        }
         _ => Map::new(),
     }
 }

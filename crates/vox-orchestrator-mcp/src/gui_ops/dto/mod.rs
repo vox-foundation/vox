@@ -2,6 +2,7 @@
 //! shape.
 pub mod attention;
 pub mod chat;
+pub mod gamify;
 pub mod harness;
 pub mod knowledge;
 pub mod models;
