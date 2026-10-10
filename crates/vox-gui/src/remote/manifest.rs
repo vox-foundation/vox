@@ -12,6 +12,7 @@ const SURFACE_REGISTRY_YAML: &str =
 
 /// Daemon-class modules whose every daemon method has a `RemoteRoute` (see `gateway_client::remote_route`).
 pub const REMOTE_ROUTED_DAEMON_MODULES: &[&str] = &[
+    "console_a2a",
     "daemon",
     "event_annotate",
     "harness_issues",
@@ -316,5 +317,44 @@ mod tests {
             reason_of(&out, "chat"),
             Some(UnavailableReason::NotInProfile)
         );
+    }
+
+    /// Plan 07 Task 8: console_a2a is daemon-class now, but console stays host-only remotely.
+    #[test]
+    fn console_stays_needs_local_machine_remotely_after_console_a2a_migration() {
+        assert_eq!(module_class("console_a2a"), Some(ModuleClass::Daemon));
+        let host_on_console: Vec<&str> = command_backends()
+            .commands
+            .iter()
+            .filter(|r| r.class == ModuleClass::Host && r.surfaces.iter().any(|s| s == "console"))
+            .map(|r| r.module.as_str())
+            .collect();
+        assert!(
+            host_on_console.contains(&"pty") && host_on_console.contains(&"terminal_core"),
+            "{host_on_console:?}"
+        );
+        let served = strings(&["mesh", "console"]);
+        let out = surface_availability(command_backends(), registry_surfaces(), Some(&served));
+        assert_eq!(
+            reason_of(&out, "console"),
+            Some(UnavailableReason::NeedsLocalMachine)
+        );
+        assert_eq!(reason_of(&out, "mesh"), None);
+    }
+
+    /// The Playwright fixture is the real gate's output, byte-for-byte; regenerate by pasting the
+    /// `left` value from a failure into `ui/e2e/fixtures/remote-gate-mesh-console.json`.
+    #[test]
+    fn remote_gate_fixture_matches_real_gate() {
+        let served = strings(&["mesh", "console"]);
+        let got = serde_json::json!({
+            "axis_surfaces": served,
+            "surfaces": surface_availability(command_backends(), registry_surfaces(), Some(&served)),
+        });
+        let want: serde_json::Value = serde_json::from_str(include_str!(
+            "../../ui/e2e/fixtures/remote-gate-mesh-console.json"
+        ))
+        .expect("fixture json");
+        assert_eq!(got, want);
     }
 }

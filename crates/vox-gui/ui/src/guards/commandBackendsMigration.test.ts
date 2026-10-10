@@ -57,3 +57,10 @@ describe('plan 07 research group', () => {
     expect(moduleClass('research_host')).toBe('host');
   });
 });
+
+describe('plan 07 mesh group', () => {
+  it('console_a2a sends through the daemon; the console terminal stays host-class', () => {
+    expect(moduleClass('console_a2a')).toBe('daemon');
+    for (const m of ['pty', 'terminal_core']) expect(moduleClass(m)).toBe('host');
+  });
+});

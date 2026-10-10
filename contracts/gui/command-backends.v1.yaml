@@ -18,7 +18,7 @@ commands:
 - { module: chat, class: daemon, surfaces: [chat], notes: "GET /api/v2/chat/* + vox_chat_session_*; secretary_confirm_task = SUBMIT_TASK (no remote route yet)" }
 - { module: chat_turn, class: daemon, surfaces: [chat], notes: "vox_chat_message / vox_plan + vox_chat_session_append; background = SUBMIT_TASK (no remote route yet)" }
 - { module: coderabbit, class: host, surfaces: [coderabbit] }
-- { module: console_a2a, class: db, surfaces: [console] }
+- { module: console_a2a, class: daemon, surfaces: [console], notes: "vox_a2a_send route=db as the reserved console operator (sender 0); console itself stays host-only remotely (pty, terminal_core)" }
 - { module: control_plane, class: daemon, surfaces: [chat, dashboard, tasks], notes: "no remote route yet" }
 - { module: daemon, class: daemon, surfaces: [] }
 - { module: devlog, class: shell, surfaces: [] }

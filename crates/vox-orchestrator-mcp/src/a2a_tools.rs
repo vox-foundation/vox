@@ -238,6 +238,10 @@ fn normalize_sender_session_id(sender_session_id: Option<&str>) -> Option<&str> 
     sender_session_id.map(str::trim).filter(|s| !s.is_empty())
 }
 
+/// Sender id reserved for the human console operator (Axis console notes). Orchestrator agent ids
+/// start at 1, so 0 never names a spawned agent.
+pub const CONSOLE_OPERATOR_SENDER_ID: u64 = 0;
+
 /// When a session is mapped, `sender_session_id` is required and must match. When unmapped, returns
 /// [`SenderBindingOutcome::Unbound`] so the handler can attach payload advisories (not log-only).
 fn resolve_sender_binding(
@@ -245,6 +249,9 @@ fn resolve_sender_binding(
     sender: AgentId,
     sender_session_id: Option<&str>,
 ) -> Result<SenderBindingOutcome, String> {
+    if sender.0 == CONSOLE_OPERATOR_SENDER_ID {
+        return Ok(SenderBindingOutcome::Unbound);
+    }
     let status = orch.status();
     let Some(summary) = status.agents.iter().find(|a| a.id == sender) else {
         return Err(format!("Sender agent {} is not registered", sender.0));
@@ -1155,5 +1162,79 @@ mod semcov_wave1d_tests {
         assert!(!a2a_message_may_surface_to_pilot(
             &A2AMessageType::ConflictResolved
         ));
+    }
+}
+
+#[cfg(test)]
+mod console_operator_tests {
+    use super::*;
+    use crate::gui_ops::test_support::{state_with_memory_db, tool_json};
+
+    #[tokio::test]
+    async fn console_operator_sends_durable_note_to_registered_agent() {
+        let (state, db) = state_with_memory_db().await;
+        let receiver = state.orchestrator.spawn_agent("console-target").unwrap();
+        let out = a2a_send(
+            &state,
+            A2ASendParams {
+                sender_id: CONSOLE_OPERATOR_SENDER_ID,
+                receiver_id: receiver.0,
+                msg_type: "free_form".into(),
+                payload: "hello".into(),
+                correlation_id: None,
+                tenant_id: None,
+                sender_session_id: None,
+                route: Some("db".into()),
+            },
+        )
+        .await;
+        let v = tool_json(&out);
+        assert_eq!(v["success"], true, "{v}");
+        let uuid = v["data"]["db_message_uuid"]
+            .as_str()
+            .expect("db uuid")
+            .to_string();
+        let repository_id = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxRepositoryRoot)
+            .expose()
+            .unwrap_or("default")
+            .to_string();
+        let inbox = vox_orchestrator::a2a::poll_inbox_from_db(&db, receiver, &repository_id)
+            .await
+            .unwrap();
+        let msg = inbox
+            .iter()
+            .find(|m| m.message_uuid == uuid)
+            .expect("note in receiver inbox");
+        assert_eq!(msg.sender_agent, "0");
+        assert_eq!(msg.payload, "hello");
+    }
+
+    #[tokio::test]
+    async fn unregistered_nonzero_sender_is_still_rejected() {
+        let (state, _db) = state_with_memory_db().await;
+        let receiver = state.orchestrator.spawn_agent("console-target").unwrap();
+        let out = a2a_send(
+            &state,
+            A2ASendParams {
+                sender_id: 9_999,
+                receiver_id: receiver.0,
+                msg_type: "free_form".into(),
+                payload: "hello".into(),
+                correlation_id: None,
+                tenant_id: None,
+                sender_session_id: None,
+                route: Some("db".into()),
+            },
+        )
+        .await;
+        let v = tool_json(&out);
+        assert_eq!(v["success"], false, "{v}");
+        assert!(
+            v["error"]
+                .as_str()
+                .unwrap_or_default()
+                .contains("not registered"),
+            "{v}"
+        );
     }
 }

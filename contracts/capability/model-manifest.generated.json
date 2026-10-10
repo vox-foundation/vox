@@ -706,22 +706,38 @@
     {
       "capability_id": "mcp.vox_chat_session_append",
       "mcp_tool": "vox_chat_session_append",
-      "implicit": true
+      "implicit": false,
+      "title": "Chat Session Append",
+      "description_model": "Append one message to a GUI chat session's display transcript, creating the session on first use.",
+      "side_effect_class": "writes_files",
+      "curated": true
     },
     {
       "capability_id": "mcp.vox_chat_session_archive",
       "mcp_tool": "vox_chat_session_archive",
-      "implicit": true
+      "implicit": false,
+      "title": "Chat Session Archive",
+      "description_model": "Archive a GUI chat session, or restore an archived one with archived=false.",
+      "side_effect_class": "writes_files",
+      "curated": true
     },
     {
       "capability_id": "mcp.vox_chat_session_create",
       "mcp_tool": "vox_chat_session_create",
-      "implicit": true
+      "implicit": false,
+      "title": "Chat Session Create",
+      "description_model": "Create a GUI chat session (display transcript) tagged with the server repository.",
+      "side_effect_class": "writes_files",
+      "curated": true
     },
     {
       "capability_id": "mcp.vox_chat_session_rename",
       "mcp_tool": "vox_chat_session_rename",
-      "implicit": true
+      "implicit": false,
+      "title": "Chat Session Rename",
+      "description_model": "Rename a GUI chat session.",
+      "side_effect_class": "writes_files",
+      "curated": true
     },
     {
       "capability_id": "mcp.vox_check",
@@ -1288,12 +1304,20 @@
     {
       "capability_id": "mcp.vox_gui_preference_get",
       "mcp_tool": "vox_gui_preference_get",
-      "implicit": true
+      "implicit": false,
+      "title": "GUI Preference Get",
+      "description_model": "Read one Axis `gui.*` preference from the local workspace database (loopback-only).",
+      "side_effect_class": "read_only",
+      "curated": true
     },
     {
       "capability_id": "mcp.vox_gui_preference_set",
       "mcp_tool": "vox_gui_preference_set",
-      "implicit": true
+      "implicit": false,
+      "title": "GUI Preference Set",
+      "description_model": "Write one Axis `gui.*` preference to the local workspace database (loopback-only).",
+      "side_effect_class": "writes_files",
+      "curated": true
     },
     {
       "capability_id": "mcp.vox_gui_rules",
@@ -1338,22 +1362,38 @@
     {
       "capability_id": "mcp.vox_harness_corpus_scan",
       "mcp_tool": "vox_harness_corpus_scan",
-      "implicit": true
+      "implicit": false,
+      "title": "Harness Corpus Scan",
+      "description_model": "Scan the server workspace golden corpus for stale frontmatter and record new harness issues.",
+      "side_effect_class": "writes_files",
+      "curated": true
     },
     {
       "capability_id": "mcp.vox_harness_fix_propose",
       "mcp_tool": "vox_harness_fix_propose",
-      "implicit": true
+      "implicit": false,
+      "title": "Harness Fix Propose",
+      "description_model": "Ask the LLM facade for a corrected file for a harness issue and store it as a pending fix proposal.",
+      "side_effect_class": "writes_files",
+      "curated": true
     },
     {
       "capability_id": "mcp.vox_harness_fix_resolve",
       "mcp_tool": "vox_harness_fix_resolve",
-      "implicit": true
+      "implicit": false,
+      "title": "Harness Fix Resolve",
+      "description_model": "Approve (write the proposed content verbatim) or reject a pending harness fix proposal.",
+      "side_effect_class": "writes_files",
+      "curated": true
     },
     {
       "capability_id": "mcp.vox_harness_issue_decide",
       "mcp_tool": "vox_harness_issue_decide",
-      "implicit": true
+      "implicit": false,
+      "title": "Harness Issue Decide",
+      "description_model": "Record a human confirm/dismiss decision for a harness issue.",
+      "side_effect_class": "writes_files",
+      "curated": true
     },
     {
       "capability_id": "mcp.vox_heartbeat",
@@ -1462,17 +1502,29 @@
     {
       "capability_id": "mcp.vox_kb_import_research_session",
       "mcp_tool": "vox_kb_import_research_session",
-      "implicit": true
+      "implicit": false,
+      "title": "KB Import Research Session",
+      "description_model": "Persist a research session's citations and report into the knowledge base.",
+      "side_effect_class": "writes_files",
+      "curated": true
     },
     {
       "capability_id": "mcp.vox_kb_ingest_text",
       "mcp_tool": "vox_kb_ingest_text",
-      "implicit": true
+      "implicit": false,
+      "title": "KB Ingest Text",
+      "description_model": "Ingest pasted text into the knowledge base as a document node keyed by content hash.",
+      "side_effect_class": "writes_files",
+      "curated": true
     },
     {
       "capability_id": "mcp.vox_kb_ingest_url",
       "mcp_tool": "vox_kb_ingest_url",
-      "implicit": true
+      "implicit": false,
+      "title": "KB Ingest URL",
+      "description_model": "Scrape a web page (honouring robots.txt) and ingest it into the knowledge base.",
+      "side_effect_class": "network",
+      "curated": true
     },
     {
       "capability_id": "mcp.vox_kb_list",
@@ -1510,7 +1562,11 @@
     {
       "capability_id": "mcp.vox_kb_node_delete",
       "mcp_tool": "vox_kb_node_delete",
-      "implicit": true
+      "implicit": false,
+      "title": "KB Node Delete",
+      "description_model": "Delete one knowledge-base node and its incident edges (Axis Memory surface).",
+      "side_effect_class": "destructive",
+      "curated": true
     },
     {
       "capability_id": "mcp.vox_kb_query",
@@ -1656,7 +1712,11 @@
     {
       "capability_id": "mcp.vox_memory_reindex",
       "mcp_tool": "vox_memory_reindex",
-      "implicit": true
+      "implicit": false,
+      "title": "Memory Reindex",
+      "description_model": "Two-way sync between the daemon's MEMORY.md store and the memory database.",
+      "side_effect_class": "writes_files",
+      "curated": true
     },
     {
       "capability_id": "mcp.vox_memory_save_db",
@@ -1717,7 +1777,11 @@
     {
       "capability_id": "mcp.vox_models_preference_set",
       "mcp_tool": "vox_models_preference_set",
-      "implicit": true
+      "implicit": false,
+      "title": "Models Preference Set",
+      "description_model": "Persist one Models/Settings preference (active_model, routing_priority, selection_policy) for the local GUI user; other keys are refused and values are validated.",
+      "side_effect_class": "writes_files",
+      "curated": true
     },
     {
       "capability_id": "mcp.vox_my_files",
@@ -2350,17 +2414,29 @@
     {
       "capability_id": "mcp.vox_research_engine_config_set",
       "mcp_tool": "vox_research_engine_config_set",
-      "implicit": true
+      "implicit": false,
+      "title": "Research Engine Config Set",
+      "description_model": "Persist the research engine provider/lane config to the server's Vox.toml and preferences.",
+      "side_effect_class": "writes_files",
+      "curated": true
     },
     {
       "capability_id": "mcp.vox_research_engine_probe",
       "mcp_tool": "vox_research_engine_probe",
-      "implicit": true
+      "implicit": false,
+      "title": "Research Engine Probe",
+      "description_model": "Probe one search provider (or all when provider is omitted) with a test query using server secrets.",
+      "side_effect_class": "network",
+      "curated": true
     },
     {
       "capability_id": "mcp.vox_research_flag_misleading",
       "mcp_tool": "vox_research_flag_misleading",
-      "implicit": true
+      "implicit": false,
+      "title": "Research Flag Misleading",
+      "description_model": "Record that a research session's answer misled the user (Axis Research surface).",
+      "side_effect_class": "writes_files",
+      "curated": true
     },
     {
       "capability_id": "mcp.vox_research_get",
@@ -2374,7 +2450,11 @@
     {
       "capability_id": "mcp.vox_research_publish_doc",
       "mcp_tool": "vox_research_publish_doc",
-      "implicit": true
+      "implicit": false,
+      "title": "Research Publish Doc",
+      "description_model": "Write a research session's doc draft under docs/src/research on the server and store it as an artifact.",
+      "side_effect_class": "writes_files",
+      "curated": true
     },
     {
       "capability_id": "mcp.vox_research_run",
@@ -2489,7 +2569,11 @@
     {
       "capability_id": "mcp.vox_scientia_discovery_ack",
       "mcp_tool": "vox_scientia_discovery_ack",
-      "implicit": true
+      "implicit": false,
+      "title": "Scientia Discovery Ack",
+      "description_model": "Acknowledge one discovery-inbox row so it leaves the unacknowledged list.",
+      "side_effect_class": "writes_files",
+      "curated": true
     },
     {
       "capability_id": "mcp.vox_scientia_publication_approve",
@@ -2512,12 +2596,20 @@
     {
       "capability_id": "mcp.vox_scientia_publication_autofill",
       "mcp_tool": "vox_scientia_publication_autofill",
-      "implicit": true
+      "implicit": false,
+      "title": "Scientia Publication Autofill",
+      "description_model": "Plan (or apply) metadata autofill for a publication manifest from server workspace provenance.",
+      "side_effect_class": "writes_files",
+      "curated": true
     },
     {
       "capability_id": "mcp.vox_scientia_publication_claim_review",
       "mcp_tool": "vox_scientia_publication_claim_review",
-      "implicit": true
+      "implicit": false,
+      "title": "Scientia Publication Claim Review",
+      "description_model": "Record a human review decision for one claim of a publication.",
+      "side_effect_class": "writes_files",
+      "curated": true
     },
     {
       "capability_id": "mcp.vox_scientia_publication_decision_explain",
@@ -2630,7 +2722,11 @@
     {
       "capability_id": "mcp.vox_scientia_publication_nanopublish",
       "mcp_tool": "vox_scientia_publication_nanopublish",
-      "implicit": true
+      "implicit": false,
+      "title": "Scientia Publication Nanopublish",
+      "description_model": "Build and publish a nanopublication for a human-approved publication claim.",
+      "side_effect_class": "remote_mutation",
+      "curated": true
     },
     {
       "capability_id": "mcp.vox_scientia_publication_novelty_fetch",

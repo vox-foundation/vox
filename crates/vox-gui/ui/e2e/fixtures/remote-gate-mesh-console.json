@@ -1,0 +1,168 @@
+{
+  "axis_surfaces": [
+    "mesh",
+    "console"
+  ],
+  "surfaces": [
+    {
+      "surface": "activity",
+      "available": false,
+      "reason": "not_in_profile"
+    },
+    {
+      "surface": "approvals",
+      "available": false,
+      "reason": "not_in_profile"
+    },
+    {
+      "surface": "browser",
+      "available": false,
+      "reason": "not_in_profile"
+    },
+    {
+      "surface": "chat",
+      "available": false,
+      "reason": "not_in_profile"
+    },
+    {
+      "surface": "coderabbit",
+      "available": false,
+      "reason": "not_in_profile"
+    },
+    {
+      "surface": "console",
+      "available": false,
+      "reason": "needs_local_machine"
+    },
+    {
+      "surface": "coverage",
+      "available": true,
+      "reason": null
+    },
+    {
+      "surface": "dashboard",
+      "available": false,
+      "reason": "not_in_profile"
+    },
+    {
+      "surface": "flow",
+      "available": false,
+      "reason": "not_in_profile"
+    },
+    {
+      "surface": "harness",
+      "available": false,
+      "reason": "not_in_profile"
+    },
+    {
+      "surface": "harness-health",
+      "available": false,
+      "reason": "not_in_profile"
+    },
+    {
+      "surface": "mercatus",
+      "available": false,
+      "reason": "not_in_profile"
+    },
+    {
+      "surface": "mesh",
+      "available": true,
+      "reason": null
+    },
+    {
+      "surface": "needs-you",
+      "available": false,
+      "reason": "not_in_profile"
+    },
+    {
+      "surface": "policies",
+      "available": false,
+      "reason": "not_in_profile"
+    },
+    {
+      "surface": "publications",
+      "available": false,
+      "reason": "not_in_profile"
+    },
+    {
+      "surface": "runs",
+      "available": false,
+      "reason": "not_in_profile"
+    },
+    {
+      "surface": "sub-agents",
+      "available": false,
+      "reason": "not_in_profile"
+    },
+    {
+      "surface": "tasks",
+      "available": false,
+      "reason": "not_in_profile"
+    },
+    {
+      "surface": "catalog",
+      "available": false,
+      "reason": "not_in_profile"
+    },
+    {
+      "surface": "settings",
+      "available": true,
+      "reason": null
+    },
+    {
+      "surface": "gamify",
+      "available": false,
+      "reason": "not_in_profile"
+    },
+    {
+      "surface": "memory",
+      "available": false,
+      "reason": "not_in_profile"
+    },
+    {
+      "surface": "mens",
+      "available": false,
+      "reason": "not_in_profile"
+    },
+    {
+      "surface": "models",
+      "available": false,
+      "reason": "not_in_profile"
+    },
+    {
+      "surface": "oratio",
+      "available": false,
+      "reason": "not_in_profile"
+    },
+    {
+      "surface": "populi",
+      "available": false,
+      "reason": "not_in_profile"
+    },
+    {
+      "surface": "repository",
+      "available": false,
+      "reason": "not_in_profile"
+    },
+    {
+      "surface": "research",
+      "available": false,
+      "reason": "not_in_profile"
+    },
+    {
+      "surface": "scientia",
+      "available": false,
+      "reason": "not_in_profile"
+    },
+    {
+      "surface": "vox-search",
+      "available": false,
+      "reason": "not_in_profile"
+    },
+    {
+      "surface": "skills",
+      "available": false,
+      "reason": "not_in_profile"
+    }
+  ]
+}
