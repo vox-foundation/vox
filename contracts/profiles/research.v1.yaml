@@ -20,6 +20,12 @@ tools:
     - vox_scientia_publication_scholarly_remote_status
     - vox_scientia_publication_scholarly_staging_export
     - vox_scientia_publication_status
+    - vox_scientia_publication_autofill
+    - vox_scientia_discovery_ack
+    - vox_harness_corpus_scan
+    - vox_harness_fix_propose
+    - vox_harness_fix_resolve
+    - vox_harness_issue_decide
     - vox_news_approval_status
     - vox_news_draft_research
     - vox_news_simulate_publish_gate

@@ -16,7 +16,8 @@ const SPEC_INTERNAL_EXACT: &[&str] = &[
     "vox_secrets_doctor",
     "vox_credentials_status",
 ];
-/// Internal beyond the spec list: the native agent-gateway family and browser cookie transfer.
+/// Internal beyond the spec list: the native agent-gateway family, browser cookie transfer, and
+/// the Axis `gui.*` preference ops (loopback-only by design).
 const RECORDED_INTERNAL_EXTENSIONS: &[&str] = &[
     "vox_agent_list_remote",
     "vox_agent_notify",
@@ -25,6 +26,8 @@ const RECORDED_INTERNAL_EXTENSIONS: &[&str] = &[
     "vox_agent_unsubscribe",
     "vox_browser_cookies_export",
     "vox_browser_cookies_import",
+    "vox_gui_preference_get",
+    "vox_gui_preference_set",
 ];
 
 fn in_spec_internal_set(name: &str) -> bool {

@@ -113,8 +113,8 @@ async fn main() {
                 drive::bridge::hide_drive_window_early(&app.handle().clone());
             }
             // `.setup()` runs synchronously on a worker thread already inside
-            // the #[tokio::main] runtime (needed below so scientia's
-            // tokio::spawn calls have an ambient reactor) — block_on alone
+            // the #[tokio::main] runtime (needed so the pool connect has an
+            // ambient reactor) — block_on alone
             // panics with "Cannot start a runtime from within a runtime".
             // block_in_place is the sanctioned way to block synchronously
             // from within a multi-thread runtime's worker thread.
@@ -123,10 +123,6 @@ async fn main() {
                     commands::gui_db_pool::GuiDbPool::connect_workspace(),
                 )
             });
-            if let Ok(db) = pool.handle() {
-                commands::scientia::spawn_scientia_queue_stream(app.handle().clone(), db.clone());
-                commands::scientia::spawn_discovery_surfaced_stream(app.handle().clone(), db);
-            }
             app.manage(pool);
 
             // Single persistent orchestrator daemon shared by tool calls,
@@ -164,6 +160,9 @@ async fn main() {
             // only checked reactively the next time a stream/command touches
             // the daemon.
             daemon.clone().spawn_supervisor();
+            // F2: Scientia queue + discovery push bridges poll the active backend.
+            commands::scientia::spawn_scientia_queue_stream(app.handle().clone(), backend.clone());
+            commands::scientia::spawn_discovery_surfaced_stream(app.handle().clone(), backend.clone());
             let daemon = app
                 .state::<std::sync::Arc<commands::daemon::PersistentDaemon>>()
                 .inner()
@@ -351,11 +350,11 @@ async fn main() {
             commands::harness_town::vcs_town_status,
             commands::research::start_research_async,
             commands::research::flag_research_misleading,
-            commands::research::save_research_doc,
+            commands::research_host::save_research_doc,
             commands::research::persist_research_claims,
             commands::research::generate_research_doc_draft,
             commands::research::publish_research_doc,
-            commands::research::execute_sandbox_probe,
+            commands::research_host::execute_sandbox_probe,
             commands::search_probe::get_research_engine_status,
             commands::search_probe::save_research_engine_config,
             commands::search_probe::probe_search_provider,

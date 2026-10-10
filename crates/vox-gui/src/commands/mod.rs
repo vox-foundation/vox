@@ -48,6 +48,7 @@ pub mod preferences;
 pub mod process_util;
 pub mod pty;
 pub mod research;
+pub mod research_host;
 pub mod routing_explain;
 pub mod runs;
 pub mod scientia;

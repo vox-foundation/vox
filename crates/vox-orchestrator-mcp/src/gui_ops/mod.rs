@@ -14,6 +14,7 @@ pub mod models;
 pub mod orchestrator;
 pub mod prefs;
 pub mod research;
+pub mod scientia;
 pub mod search;
 
 use std::sync::Arc;
@@ -65,6 +66,17 @@ pub(crate) fn enforce_dashboard_surface(
             ),
         ))
     }
+}
+
+/// Dashboard read auth (`enforce_dashboard_read`) plus the plan-07 surface gate.
+pub(crate) fn enforce_route(
+    gs: &GatewayState,
+    peer: &std::net::SocketAddr,
+    headers: &axum::http::HeaderMap,
+    surfaces: &[&str],
+) -> Result<(), Json<Value>> {
+    crate::http_gateway::dashboard_api::enforce_dashboard_read(gs, peer, headers)?;
+    enforce_dashboard_surface(gs, surfaces)
 }
 
 #[cfg(test)]

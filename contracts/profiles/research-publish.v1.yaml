@@ -17,6 +17,8 @@ tools:
     - vox_scientia_publication_scholarly_remote_status_sync_batch
     - vox_scientia_publication_media_upsert
     - vox_scientia_publication_media_delete
+    - vox_scientia_publication_claim_review
+    - vox_scientia_publication_nanopublish
     - vox_news_approve
     - vox_news_test_syndicate
   include_lanes: []

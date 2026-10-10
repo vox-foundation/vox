@@ -2007,8 +2007,48 @@ async fn handle_tool_call_inner(
         )
         .await),
         // ── gui_ops: research (plan 07) ──
+        "vox_research_flag_misleading" => Ok(crate::gui_ops::research::flag_misleading(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_research_publish_doc" => {
+            Ok(crate::gui_ops::research::publish_doc(state, serde_json::from_value(args)?).await)
+        }
+        "vox_research_engine_config_set" => Ok(crate::gui_ops::research::engine_config_set(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_research_engine_probe" => {
+            Ok(crate::gui_ops::research::engine_probe(state, serde_json::from_value(args)?).await)
+        }
+        "vox_scientia_publication_claim_review" => {
+            Ok(crate::gui_ops::scientia::claim_review(state, serde_json::from_value(args)?).await)
+        }
+        "vox_scientia_publication_nanopublish" => {
+            Ok(crate::gui_ops::scientia::nanopublish(state, serde_json::from_value(args)?).await)
+        }
+        "vox_scientia_publication_autofill" => {
+            Ok(crate::gui_ops::scientia::autofill(state, serde_json::from_value(args)?).await)
+        }
+        "vox_scientia_discovery_ack" => {
+            Ok(crate::gui_ops::scientia::discovery_ack(state, serde_json::from_value(args)?).await)
+        }
         // ── gui_ops: orchestrator (plan 07) ──
         // ── gui_ops: harness (plan 07) ──
+        "vox_harness_corpus_scan" => {
+            Ok(crate::gui_ops::harness::corpus_scan(state, serde_json::from_value(args)?).await)
+        }
+        "vox_harness_fix_propose" => {
+            Ok(crate::gui_ops::harness::fix_propose(state, serde_json::from_value(args)?).await)
+        }
+        "vox_harness_fix_resolve" => {
+            Ok(crate::gui_ops::harness::fix_resolve(state, serde_json::from_value(args)?).await)
+        }
+        "vox_harness_issue_decide" => {
+            Ok(crate::gui_ops::harness::issue_decide(state, serde_json::from_value(args)?).await)
+        }
         // ── gui_ops: gamify (plan 07) ──
         _ => {
             // Check skill macro tools

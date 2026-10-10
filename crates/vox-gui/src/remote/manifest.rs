@@ -14,19 +14,28 @@ const SURFACE_REGISTRY_YAML: &str =
 pub const REMOTE_ROUTED_DAEMON_MODULES: &[&str] = &[
     "daemon",
     "event_annotate",
+    "harness_issues",
     "knowledge",
     "mcp",
     "memory",
     "model_active",
     "models",
     "routing_explain",
+    "scientia",
+    "scientia_review",
     "search",
+    "search_probe",
     "vcs_isolation",
 ];
 /// Daemon-class modules with at least one method the gateway does not expose yet.
 #[cfg(test)]
-pub const REMOTE_UNROUTED_DAEMON_MODULES: &[&str] =
-    &["chat", "chat_turn", "control_plane", "mission_control"];
+pub const REMOTE_UNROUTED_DAEMON_MODULES: &[&str] = &[
+    "chat",
+    "chat_turn",
+    "control_plane",
+    "mission_control",
+    "research",
+];
 /// Surfaces that configure this Axis install itself; available in both modes.
 pub const AXIS_LOCAL_SURFACES: &[&str] = &["settings", "coverage"];
 

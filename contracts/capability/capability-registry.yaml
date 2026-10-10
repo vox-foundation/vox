@@ -19503,6 +19503,70 @@ curated:
   mcp_tool: vox_chat_message
   cli_path: null
   parameters: null
+- id: mcp.vox_chat_session_append
+  title: Chat Session Append
+  description_human: null
+  description_model: Append one message to a GUI chat session's display transcript, creating the session on first use.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_chat_session_append
+  cli_path: null
+  parameters: null
+- id: mcp.vox_chat_session_archive
+  title: Chat Session Archive
+  description_human: null
+  description_model: Archive a GUI chat session, or restore an archived one with archived=false.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_chat_session_archive
+  cli_path: null
+  parameters: null
+- id: mcp.vox_chat_session_create
+  title: Chat Session Create
+  description_human: null
+  description_model: Create a GUI chat session (display transcript) tagged with the server repository.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_chat_session_create
+  cli_path: null
+  parameters: null
+- id: mcp.vox_chat_session_rename
+  title: Chat Session Rename
+  description_human: null
+  description_model: Rename a GUI chat session.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_chat_session_rename
+  cli_path: null
+  parameters: null
 - id: mcp.vox_check
   title: Check
   description_human: null
@@ -20482,6 +20546,38 @@ curated:
   mcp_tool: vox_gui_components
   cli_path: null
   parameters: null
+- id: mcp.vox_gui_preference_get
+  title: GUI Preference Get
+  description_human: null
+  description_model: Read one Axis `gui.*` preference from the local workspace database (loopback-only).
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_gui_preference_get
+  cli_path: null
+  parameters: null
+- id: mcp.vox_gui_preference_set
+  title: GUI Preference Set
+  description_human: null
+  description_model: Write one Axis `gui.*` preference to the local workspace database (loopback-only).
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_gui_preference_set
+  cli_path: null
+  parameters: null
 - id: mcp.vox_gui_rules
   title: GUI Design Rules
   description_human: null
@@ -20544,6 +20640,70 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_handoff_lineage
+  cli_path: null
+  parameters: null
+- id: mcp.vox_harness_corpus_scan
+  title: Harness Corpus Scan
+  description_human: null
+  description_model: Scan the server workspace golden corpus for stale frontmatter and record new harness issues.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_harness_corpus_scan
+  cli_path: null
+  parameters: null
+- id: mcp.vox_harness_fix_propose
+  title: Harness Fix Propose
+  description_human: null
+  description_model: Ask the LLM facade for a corrected file for a harness issue and store it as a pending fix proposal.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_harness_fix_propose
+  cli_path: null
+  parameters: null
+- id: mcp.vox_harness_fix_resolve
+  title: Harness Fix Resolve
+  description_human: null
+  description_model: Approve (write the proposed content verbatim) or reject a pending harness fix proposal.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_harness_fix_resolve
+  cli_path: null
+  parameters: null
+- id: mcp.vox_harness_issue_decide
+  title: Harness Issue Decide
+  description_human: null
+  description_model: Record a human confirm/dismiss decision for a harness issue.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_harness_issue_decide
   cli_path: null
   parameters: null
 - id: mcp.vox_heartbeat
@@ -20706,6 +20866,54 @@ curated:
   mcp_tool: vox_kb_get_feed
   cli_path: null
   parameters: null
+- id: mcp.vox_kb_import_research_session
+  title: KB Import Research Session
+  description_human: null
+  description_model: Persist a research session's citations and report into the knowledge base.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_kb_import_research_session
+  cli_path: null
+  parameters: null
+- id: mcp.vox_kb_ingest_text
+  title: KB Ingest Text
+  description_human: null
+  description_model: Ingest pasted text into the knowledge base as a document node keyed by content hash.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_kb_ingest_text
+  cli_path: null
+  parameters: null
+- id: mcp.vox_kb_ingest_url
+  title: KB Ingest URL
+  description_human: null
+  description_model: Scrape a web page (honouring robots.txt) and ingest it into the knowledge base.
+  intent_tags: []
+  side_effect_class: network
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_kb_ingest_url
+  cli_path: null
+  parameters: null
 - id: mcp.vox_kb_list
   title: List Knowledge Bases
   description_human: null
@@ -20752,6 +20960,22 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_kb_list_rules
+  cli_path: null
+  parameters: null
+- id: mcp.vox_kb_node_delete
+  title: KB Node Delete
+  description_human: null
+  description_model: Delete one knowledge-base node and its incident edges (Axis Memory surface).
+  intent_tags: []
+  side_effect_class: destructive
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_kb_node_delete
   cli_path: null
   parameters: null
 - id: mcp.vox_kb_query
@@ -20994,6 +21218,22 @@ curated:
   mcp_tool: vox_memory_recall_db
   cli_path: null
   parameters: null
+- id: mcp.vox_memory_reindex
+  title: Memory Reindex
+  description_human: null
+  description_model: Two-way sync between the daemon's MEMORY.md store and the memory database.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_memory_reindex
+  cli_path: null
+  parameters: null
 - id: mcp.vox_memory_save_db
   title: Memory Save Db
   description_human: null
@@ -21088,6 +21328,22 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_mesh_queue_stats
+  cli_path: null
+  parameters: null
+- id: mcp.vox_models_preference_set
+  title: Models Preference Set
+  description_human: null
+  description_model: Persist one Models/Settings preference (active_model, routing_priority, selection_policy) for the local GUI user; other keys are refused and values are validated.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_models_preference_set
   cli_path: null
   parameters: null
 - id: mcp.vox_my_files
@@ -22100,6 +22356,54 @@ curated:
   mcp_tool: vox_repo_status
   cli_path: null
   parameters: null
+- id: mcp.vox_research_engine_config_set
+  title: Research Engine Config Set
+  description_human: null
+  description_model: Persist the research engine provider/lane config to the server's Vox.toml and preferences.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_research_engine_config_set
+  cli_path: null
+  parameters: null
+- id: mcp.vox_research_engine_probe
+  title: Research Engine Probe
+  description_human: null
+  description_model: Probe one search provider (or all when provider is omitted) with a test query using server secrets.
+  intent_tags: []
+  side_effect_class: network
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_research_engine_probe
+  cli_path: null
+  parameters: null
+- id: mcp.vox_research_flag_misleading
+  title: Research Flag Misleading
+  description_human: null
+  description_model: Record that a research session's answer misled the user (Axis Research surface).
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_research_flag_misleading
+  cli_path: null
+  parameters: null
 - id: mcp.vox_research_get
   title: Research Session Result
   description_human: null
@@ -22114,6 +22418,22 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_research_get
+  cli_path: null
+  parameters: null
+- id: mcp.vox_research_publish_doc
+  title: Research Publish Doc
+  description_human: null
+  description_model: Write a research session's doc draft under docs/src/research on the server and store it as an artifact.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_research_publish_doc
   cli_path: null
   parameters: null
 - id: mcp.vox_research_run
@@ -22308,6 +22628,22 @@ curated:
   mcp_tool: vox_scientia_assist_suggestions
   cli_path: null
   parameters: null
+- id: mcp.vox_scientia_discovery_ack
+  title: Scientia Discovery Ack
+  description_human: null
+  description_model: Acknowledge one discovery-inbox row so it leaves the unacknowledged list.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_scientia_discovery_ack
+  cli_path: null
+  parameters: null
 - id: mcp.vox_scientia_publication_approve
   title: Scientia Publication Approve
   description_human: null
@@ -22338,6 +22674,38 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_scientia_publication_arxiv_handoff_record
+  cli_path: null
+  parameters: null
+- id: mcp.vox_scientia_publication_autofill
+  title: Scientia Publication Autofill
+  description_human: null
+  description_model: Plan (or apply) metadata autofill for a publication manifest from server workspace provenance.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_scientia_publication_autofill
+  cli_path: null
+  parameters: null
+- id: mcp.vox_scientia_publication_claim_review
+  title: Scientia Publication Claim Review
+  description_human: null
+  description_model: Record a human review decision for one claim of a publication.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_scientia_publication_claim_review
   cli_path: null
   parameters: null
 - id: mcp.vox_scientia_publication_decision_explain
@@ -22530,6 +22898,22 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_scientia_publication_media_upsert
+  cli_path: null
+  parameters: null
+- id: mcp.vox_scientia_publication_nanopublish
+  title: Scientia Publication Nanopublish
+  description_human: null
+  description_model: Build and publish a nanopublication for a human-approved publication claim.
+  intent_tags: []
+  side_effect_class: remote_mutation
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_scientia_publication_nanopublish
   cli_path: null
   parameters: null
 - id: mcp.vox_scientia_publication_novelty_fetch

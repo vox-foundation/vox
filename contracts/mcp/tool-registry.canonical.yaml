@@ -1149,6 +1149,39 @@ tools:
   side_effect_class: read_only
   requires:
   - db
+- name: vox_harness_corpus_scan
+  description: Scan the server workspace golden corpus for stale frontmatter and record new harness issues.
+  product_lane: data
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
+- name: vox_harness_fix_propose
+  description: Ask the LLM facade for a corrected file for a harness issue and store it as a pending fix proposal.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
+  - llm_facade
+- name: vox_harness_fix_resolve
+  description: Approve (write the proposed content verbatim) or reject a pending harness fix proposal.
+  product_lane: data
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
+- name: vox_harness_issue_decide
+  description: Record a human confirm/dismiss decision for a harness issue.
+  product_lane: data
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_heartbeat
   description: Send an active heartbeat from a Vox agent session.
   product_lane: ai
@@ -1930,6 +1963,30 @@ tools:
   exposure: public
   side_effect_class: read_only
   requires: []
+- name: vox_research_engine_config_set
+  description: Persist the research engine provider/lane config to the server's Vox.toml and preferences.
+  product_lane: data
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
+- name: vox_research_engine_probe
+  description: Probe one search provider (or all when provider is omitted) with a test query using server secrets.
+  product_lane: data
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: network
+  requires:
+  - db
+- name: vox_research_flag_misleading
+  description: Record that a research session's answer misled the user (Axis Research surface).
+  product_lane: data
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_research_get
   description: MCP `vox_research_get` — fetch the completed research payload (answer + sources) for a session when available.
   product_lane: ai
@@ -1938,6 +1995,14 @@ tools:
   side_effect_class: read_only
   requires:
   - research
+- name: vox_research_publish_doc
+  description: Write a research session's doc draft under docs/src/research on the server and store it as an artifact.
+  product_lane: data
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_research_run
   description: CLI `vox research run` and MCP `vox_research_run` — orchestrator `run_research` pipeline (web retrieval via `vox-search`, synthesis, judge when LLM configured).
   product_lane: ai
@@ -2031,6 +2096,14 @@ tools:
   side_effect_class: network
   requires:
   - research
+- name: vox_scientia_discovery_ack
+  description: Acknowledge one discovery-inbox row so it leaves the unacknowledged list.
+  product_lane: data
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_scientia_publication_approve
   description: Record one digest-bound approval for a scientia publication manifest.
   product_lane: data
@@ -2047,6 +2120,22 @@ tools:
   side_effect_class: writes_files
   requires:
   - research
+- name: vox_scientia_publication_autofill
+  description: Plan (or apply) metadata autofill for a publication manifest from server workspace provenance.
+  product_lane: data
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
+- name: vox_scientia_publication_claim_review
+  description: Record a human review decision for one claim of a publication.
+  product_lane: data
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_scientia_publication_decision_explain
   description: CLI `vox scientia publication-decision-explain`; MCP `vox_scientia_publication_decision_explain`.
   product_lane: data
@@ -2143,6 +2232,14 @@ tools:
   side_effect_class: writes_files
   requires:
   - research
+- name: vox_scientia_publication_nanopublish
+  description: Build and publish a nanopublication for a human-approved publication claim.
+  product_lane: data
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: remote_mutation
+  requires:
+  - db
 - name: vox_scientia_publication_novelty_fetch
   description: CLI `vox scientia publication-novelty-fetch`; MCP `vox_scientia_publication_novelty_fetch`.
   product_lane: data

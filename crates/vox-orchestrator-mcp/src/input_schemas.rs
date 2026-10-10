@@ -889,8 +889,44 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
             derived_tool_schema!(crate::gui_ops::knowledge::MemoryReindexParams)
         }
         // ── gui_ops: research (plan 07) ──
+        "vox_research_flag_misleading" => {
+            derived_tool_schema!(crate::gui_ops::research::ResearchFlagParams)
+        }
+        "vox_research_publish_doc" => {
+            derived_tool_schema!(crate::gui_ops::research::ResearchPublishDocParams)
+        }
+        "vox_research_engine_config_set" => {
+            derived_tool_schema!(crate::gui_ops::research::ResearchEngineConfigSetParams)
+        }
+        "vox_research_engine_probe" => {
+            derived_tool_schema!(crate::gui_ops::research::ResearchEngineProbeParams)
+        }
+        "vox_scientia_publication_claim_review" => {
+            derived_tool_schema!(crate::gui_ops::scientia::ClaimReviewParams)
+        }
+        "vox_scientia_publication_nanopublish" => {
+            derived_tool_schema!(crate::gui_ops::scientia::NanopublishParams)
+        }
+        "vox_scientia_publication_autofill" => {
+            derived_tool_schema!(crate::gui_ops::scientia::AutofillParams)
+        }
+        "vox_scientia_discovery_ack" => {
+            derived_tool_schema!(crate::gui_ops::scientia::DiscoveryAckParams)
+        }
         // ── gui_ops: orchestrator (plan 07) ──
         // ── gui_ops: harness (plan 07) ──
+        "vox_harness_corpus_scan" => {
+            derived_tool_schema!(crate::gui_ops::harness::CorpusScanParams)
+        }
+        "vox_harness_fix_propose" => {
+            derived_tool_schema!(crate::gui_ops::harness::FixProposeParams)
+        }
+        "vox_harness_fix_resolve" => {
+            derived_tool_schema!(crate::gui_ops::harness::FixResolveParams)
+        }
+        "vox_harness_issue_decide" => {
+            derived_tool_schema!(crate::gui_ops::harness::IssueDecideParams)
+        }
         // ── gui_ops: gamify (plan 07) ──
         _ => Map::new(),
     }

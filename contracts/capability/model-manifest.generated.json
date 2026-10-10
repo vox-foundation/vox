@@ -1336,6 +1336,26 @@
       "curated": true
     },
     {
+      "capability_id": "mcp.vox_harness_corpus_scan",
+      "mcp_tool": "vox_harness_corpus_scan",
+      "implicit": true
+    },
+    {
+      "capability_id": "mcp.vox_harness_fix_propose",
+      "mcp_tool": "vox_harness_fix_propose",
+      "implicit": true
+    },
+    {
+      "capability_id": "mcp.vox_harness_fix_resolve",
+      "mcp_tool": "vox_harness_fix_resolve",
+      "implicit": true
+    },
+    {
+      "capability_id": "mcp.vox_harness_issue_decide",
+      "mcp_tool": "vox_harness_issue_decide",
+      "implicit": true
+    },
+    {
       "capability_id": "mcp.vox_heartbeat",
       "mcp_tool": "vox_heartbeat",
       "implicit": false,
@@ -2328,6 +2348,21 @@
       "curated": true
     },
     {
+      "capability_id": "mcp.vox_research_engine_config_set",
+      "mcp_tool": "vox_research_engine_config_set",
+      "implicit": true
+    },
+    {
+      "capability_id": "mcp.vox_research_engine_probe",
+      "mcp_tool": "vox_research_engine_probe",
+      "implicit": true
+    },
+    {
+      "capability_id": "mcp.vox_research_flag_misleading",
+      "mcp_tool": "vox_research_flag_misleading",
+      "implicit": true
+    },
+    {
       "capability_id": "mcp.vox_research_get",
       "mcp_tool": "vox_research_get",
       "implicit": false,
@@ -2335,6 +2370,11 @@
       "description_model": "MCP `vox_research_get` — fetch the completed research payload (answer + sources) for a session when available.",
       "side_effect_class": "read_only",
       "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_research_publish_doc",
+      "mcp_tool": "vox_research_publish_doc",
+      "implicit": true
     },
     {
       "capability_id": "mcp.vox_research_run",
@@ -2447,6 +2487,11 @@
       "curated": true
     },
     {
+      "capability_id": "mcp.vox_scientia_discovery_ack",
+      "mcp_tool": "vox_scientia_discovery_ack",
+      "implicit": true
+    },
+    {
       "capability_id": "mcp.vox_scientia_publication_approve",
       "mcp_tool": "vox_scientia_publication_approve",
       "implicit": false,
@@ -2463,6 +2508,16 @@
       "description_model": "Append-only operator milestone for arXiv-assist workflow (publication_status_events with status arxiv_handoff:*; does not change manifest state). Stage published requires arxiv_id.",
       "side_effect_class": "writes_files",
       "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_scientia_publication_autofill",
+      "mcp_tool": "vox_scientia_publication_autofill",
+      "implicit": true
+    },
+    {
+      "capability_id": "mcp.vox_scientia_publication_claim_review",
+      "mcp_tool": "vox_scientia_publication_claim_review",
+      "implicit": true
     },
     {
       "capability_id": "mcp.vox_scientia_publication_decision_explain",
@@ -2571,6 +2626,11 @@
       "description_model": "Insert/update one publication media asset row for a scientia publication id.",
       "side_effect_class": "writes_files",
       "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_scientia_publication_nanopublish",
+      "mcp_tool": "vox_scientia_publication_nanopublish",
+      "implicit": true
     },
     {
       "capability_id": "mcp.vox_scientia_publication_novelty_fetch",

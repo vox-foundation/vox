@@ -48,3 +48,12 @@ describe('plan 07 knowledge/memory/search group', () => {
     expect(moduleClass('locator')).toBe('host');
   });
 });
+
+describe('plan 07 research group', () => {
+  it('research, scientia and harness-issue modules are daemon-class; local doc/sandbox I/O stays on the host', () => {
+    for (const m of ['scientia', 'scientia_review', 'research', 'search_probe', 'harness_issues']) {
+      expect(moduleClass(m)).toBe('daemon');
+    }
+    expect(moduleClass('research_host')).toBe('host');
+  });
+});

@@ -34396,8 +34396,273 @@ operations:
     - memory
   cli: null
 # ── gui_ops: research (plan 07) ──
+- id: research.flag_misleading
+  title: Research Flag Misleading
+  description: Record that a research session's answer misled the user (Axis Research surface).
+  description_human: null
+  product_lane: data
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_research_flag_misleading
+    http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
+  cli: null
+- id: research.publish_doc
+  title: Research Publish Doc
+  description: Write a research session's doc draft under docs/src/research on the server and store it as an artifact.
+  description_human: null
+  product_lane: data
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_research_publish_doc
+    http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
+  cli: null
+- id: research.engine_config.set
+  title: Research Engine Config Set
+  description: Persist the research engine provider/lane config to the server's Vox.toml and preferences.
+  description_human: null
+  product_lane: data
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_research_engine_config_set
+    http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
+  cli: null
+- id: research.engine_probe
+  title: Research Engine Probe
+  description: Probe one search provider (or all when provider is omitted) with a test query using server secrets.
+  description_human: null
+  product_lane: data
+  intent_tags: []
+  side_effect_class: network
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_research_engine_probe
+    http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
+  cli: null
+- id: scientia.publication.claim_review
+  title: Scientia Publication Claim Review
+  description: Record a human review decision for one claim of a publication.
+  description_human: null
+  product_lane: data
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_scientia_publication_claim_review
+    http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
+  cli: null
+- id: scientia.publication.nanopublish
+  title: Scientia Publication Nanopublish
+  description: Build and publish a nanopublication for a human-approved publication claim.
+  description_human: null
+  product_lane: data
+  intent_tags: []
+  side_effect_class: remote_mutation
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_scientia_publication_nanopublish
+    http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
+  cli: null
+- id: scientia.publication.autofill
+  title: Scientia Publication Autofill
+  description: Plan (or apply) metadata autofill for a publication manifest from server workspace provenance.
+  description_human: null
+  product_lane: data
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_scientia_publication_autofill
+    http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
+  cli: null
+- id: scientia.discovery.ack
+  title: Scientia Discovery Ack
+  description: Acknowledge one discovery-inbox row so it leaves the unacknowledged list.
+  description_human: null
+  product_lane: data
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_scientia_discovery_ack
+    http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
+  cli: null
 # ── gui_ops: orchestrator (plan 07) ──
 # ── gui_ops: harness (plan 07) ──
+- id: harness.corpus_scan
+  title: Harness Corpus Scan
+  description: Scan the server workspace golden corpus for stale frontmatter and record new harness issues.
+  description_human: null
+  product_lane: data
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_harness_corpus_scan
+    http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
+  cli: null
+- id: harness.fix_propose
+  title: Harness Fix Propose
+  description: Ask the LLM facade for a corrected file for a harness issue and store it as a pending fix proposal.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_harness_fix_propose
+    http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
+    - llm_facade
+  cli: null
+- id: harness.fix_resolve
+  title: Harness Fix Resolve
+  description: Approve (write the proposed content verbatim) or reject a pending harness fix proposal.
+  description_human: null
+  product_lane: data
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_harness_fix_resolve
+    http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
+  cli: null
+- id: harness.issue_decide
+  title: Harness Issue Decide
+  description: Record a human confirm/dismiss decision for a harness issue.
+  description_human: null
+  product_lane: data
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_harness_issue_decide
+    http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
+  cli: null
 # ── gui_ops: gamify (plan 07) ──
 exemptions:
   mcp_tools: []

@@ -257,6 +257,8 @@ mod tests {
             "vox_scientia_publication_publish",
             "vox_scientia_publication_approve",
             "vox_news_approve",
+            "vox_scientia_publication_claim_review",
+            "vox_scientia_publication_nanopublish",
         ] {
             assert!(!r.contains_tool(t), "research must not contain {t}");
         }

@@ -32,7 +32,7 @@ commands:
 - { module: gui_db_pool, class: db, surfaces: [] }
 - { module: harness, class: host, surfaces: [chat], notes: "split: get_task_diff = orch tool_call; list_repo_files = local git" }
 - { module: harness_eval, class: db, surfaces: [harness-health] }
-- { module: harness_issues, class: host, surfaces: [chat, scientia], notes: "split: corpus scan/apply = tokio::fs; rows = db" }
+- { module: harness_issues, class: daemon, surfaces: [chat, scientia], notes: "GET /api/v2/harness/{fix-proposals,issues} + vox_harness_* ops (corpus scan walks the server workspace)" }
 - { module: harness_town, class: host, surfaces: [gamify] }
 - { module: identity, class: shell, surfaces: [] }
 - { module: knowledge, class: daemon, surfaces: [memory, research], notes: "GET /api/v2/knowledge/{nodes,health} + vox_kb_* ops (ingest_url scrapes server-side)" }
@@ -57,13 +57,14 @@ commands:
 - { module: preferences, class: shell, surfaces: [memory, settings], notes: "Axis-local gui.* preferences: remote = client-side axis-preferences.json (D1); local = loopback-only internal ops on the local daemon, errors surfaced (no client-side fallback)" }
 - { module: process_util, class: host, surfaces: [] }
 - { module: pty, class: host, surfaces: [console] }
-- { module: research, class: host, surfaces: [research], notes: "split: start_research_async = orch RPC; save_research_doc writes docs/ locally" }
+- { module: research, class: daemon, surfaces: [research], notes: "GET /api/v2/research/sessions/{id}/doc-draft + vox_research_{flag_misleading,publish_doc}; start/persist ride orch RPC (unrouted remotely)" }
+- { module: research_host, class: host, surfaces: [research], notes: "save_research_doc writes docs/ locally; execute_sandbox_probe runs the local sandbox" }
 - { module: routing_explain, class: daemon, surfaces: [models], notes: "GET /api/v2/models/routing-explain + routing-health" }
 - { module: runs, class: db, surfaces: [runs] }
-- { module: scientia, class: db, surfaces: [publications, research, scientia] }
-- { module: scientia_review, class: host, surfaces: [scientia], notes: "split: only license/version detection reads local files" }
+- { module: scientia, class: daemon, surfaces: [publications, research, scientia], notes: "GET /api/v2/research/sessions*, /scientia/{manifests,queue,cost,discoveries}; push streams poll the gateway" }
+- { module: scientia_review, class: daemon, surfaces: [scientia], notes: "GET /api/v2/scientia/publications/{id}/* + vox_scientia_publication_* / discovery_ack ops" }
 - { module: search, class: daemon, surfaces: [memory], notes: "GET /api/v2/search/query; open_locator moved to locator (host)" }
-- { module: search_probe, class: host, surfaces: [research] }
+- { module: search_probe, class: daemon, surfaces: [research], notes: "GET /api/v2/research/engine-status + vox_research_engine_{config_set,probe}" }
 - { module: secrets, class: host, surfaces: [settings] }
 - { module: signing, class: host, surfaces: [settings] }
 - { module: speech_plugin_backend, class: host, surfaces: [] }
