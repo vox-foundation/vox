@@ -1440,6 +1440,21 @@
       "curated": true
     },
     {
+      "capability_id": "mcp.vox_kb_import_research_session",
+      "mcp_tool": "vox_kb_import_research_session",
+      "implicit": true
+    },
+    {
+      "capability_id": "mcp.vox_kb_ingest_text",
+      "mcp_tool": "vox_kb_ingest_text",
+      "implicit": true
+    },
+    {
+      "capability_id": "mcp.vox_kb_ingest_url",
+      "mcp_tool": "vox_kb_ingest_url",
+      "implicit": true
+    },
+    {
       "capability_id": "mcp.vox_kb_list",
       "mcp_tool": "vox_kb_list",
       "implicit": false,
@@ -1471,6 +1486,11 @@
       "scope_kind": "session",
       "reversible": false,
       "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_kb_node_delete",
+      "mcp_tool": "vox_kb_node_delete",
+      "implicit": true
     },
     {
       "capability_id": "mcp.vox_kb_query",
@@ -1612,6 +1632,11 @@
       "description_model": "Recall typed memory facts for an agent from VoxDb.",
       "side_effect_class": "read_only",
       "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_memory_reindex",
+      "mcp_tool": "vox_memory_reindex",
+      "implicit": true
     },
     {
       "capability_id": "mcp.vox_memory_save_db",

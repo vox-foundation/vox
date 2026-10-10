@@ -1229,6 +1229,30 @@ tools:
   side_effect_class: read_only
   requires:
   - search_index
+- name: vox_kb_import_research_session
+  description: Persist a research session's citations and report into the knowledge base.
+  product_lane: data
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
+- name: vox_kb_ingest_text
+  description: Ingest pasted text into the knowledge base as a document node keyed by content hash.
+  product_lane: data
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
+- name: vox_kb_ingest_url
+  description: Scrape a web page (honouring robots.txt) and ingest it into the knowledge base.
+  product_lane: data
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: network
+  requires:
+  - db
 - name: vox_kb_list
   description: List all available knowledge bases.
   product_lane: ai
@@ -1253,6 +1277,14 @@ tools:
   side_effect_class: read_only
   requires:
   - search_index
+- name: vox_kb_node_delete
+  description: Delete one knowledge-base node and its incident edges (Axis Memory surface).
+  product_lane: data
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: destructive
+  requires:
+  - db
 - name: vox_kb_query
   description: Query knowledge bases with semantic search.
   product_lane: ai
@@ -1369,6 +1401,15 @@ tools:
   exposure: public
   side_effect_class: read_only
   requires:
+  - memory
+- name: vox_memory_reindex
+  description: Two-way sync between the daemon's MEMORY.md store and the memory database.
+  product_lane: data
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
   - memory
 - name: vox_memory_save_db
   description: Persist a typed memory fact to VoxDb agent_memory table.

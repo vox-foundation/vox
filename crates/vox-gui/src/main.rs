@@ -377,7 +377,7 @@ async fn main() {
             commands::scientia_review::run_autofill,
             commands::scientia_review::get_archive_status,
             commands::search::vox_search_query,
-            commands::search::open_locator,
+            commands::locator::open_locator,
             commands::policy::policy_list,
             commands::policy::policy_show,
             commands::policy::policy_status,

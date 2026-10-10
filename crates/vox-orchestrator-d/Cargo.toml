@@ -14,7 +14,7 @@ license.workspace = true
 # `token-counting` feature, which mirrors this one).
 vox-orchestrator = { workspace = true, features = ["token-counting"] }
 # Shipping MCP server: keep the full default tool surface (news/scientia/visus).
-vox-orchestrator-mcp = { workspace = true, features = ["news-publish", "gui-visual-review", "heavy-browser", "token-counting"] }
+vox-orchestrator-mcp = { workspace = true, features = ["news-publish", "gui-visual-review", "heavy-browser", "token-counting", "web-scrape"] }
 vox-skills.workspace = true
 vox-db.workspace = true
 vox-secrets.workspace = true

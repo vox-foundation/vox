@@ -35,10 +35,11 @@ commands:
 - { module: harness_issues, class: host, surfaces: [chat, scientia], notes: "split: corpus scan/apply = tokio::fs; rows = db" }
 - { module: harness_town, class: host, surfaces: [gamify] }
 - { module: identity, class: shell, surfaces: [] }
-- { module: knowledge, class: db, surfaces: [memory, research] }
+- { module: knowledge, class: daemon, surfaces: [memory, research], notes: "GET /api/v2/knowledge/{nodes,health} + vox_kb_* ops (ingest_url scrapes server-side)" }
 - { module: llm_settings, class: host, surfaces: [settings] }
+- { module: locator, class: host, surfaces: [memory], notes: "open_locator spawns the editor / browser on the Axis host" }
 - { module: mcp, class: daemon, surfaces: [approvals, chat, dashboard, mesh, needs-you, settings, skills, tasks, vox-search] }
-- { module: memory, class: db, surfaces: [memory] }
+- { module: memory, class: daemon, surfaces: [memory], notes: "GET /api/v2/knowledge/{corpus-counts,recall} + vox_memory_reindex; shard tiles and recent recalls stay client-side" }
 - { module: mens_run_reports, class: host, surfaces: [mens] }
 - { module: mens_serve, class: host, surfaces: [mens] }
 - { module: mercatus, class: host, surfaces: [mercatus] }
@@ -61,7 +62,7 @@ commands:
 - { module: runs, class: db, surfaces: [runs] }
 - { module: scientia, class: db, surfaces: [publications, research, scientia] }
 - { module: scientia_review, class: host, surfaces: [scientia], notes: "split: only license/version detection reads local files" }
-- { module: search, class: host, surfaces: [memory], notes: "split: vox_search_query = db; open_locator spawns editor" }
+- { module: search, class: daemon, surfaces: [memory], notes: "GET /api/v2/search/query; open_locator moved to locator (host)" }
 - { module: search_probe, class: host, surfaces: [research] }
 - { module: secrets, class: host, surfaces: [settings] }
 - { module: signing, class: host, surfaces: [settings] }

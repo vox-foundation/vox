@@ -27,6 +27,7 @@ pub mod harness_town;
 pub mod identity;
 pub mod knowledge;
 pub mod llm_settings;
+pub mod locator;
 pub mod mcp;
 pub mod memory;
 pub mod mens_run_reports;

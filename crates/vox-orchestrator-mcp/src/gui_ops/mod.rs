@@ -14,6 +14,7 @@ pub mod models;
 pub mod orchestrator;
 pub mod prefs;
 pub mod research;
+pub mod search;
 
 use std::sync::Arc;
 

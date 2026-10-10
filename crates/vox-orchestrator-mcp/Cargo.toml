@@ -38,6 +38,9 @@ heavy-browser = []
 # `cargo test`. OFF by default so plain consumers of this crate (vox-server, vox-gui,
 # ...) never link a mock-HTTP-server crate; `vox-cli` opts in explicitly.
 eval-gate = ["dep:wiremock"]
+# Server-side URL ingest for Axis (`vox_kb_ingest_url`). OFF by default like the rest of
+# the heavy retrieval stack; the daemon binary and vox-cli `heavy-retrieval` opt in.
+web-scrape = ["vox-search/web-scrape"]
 
 [dependencies]
 vox-orchestrator-driver = { workspace = true }

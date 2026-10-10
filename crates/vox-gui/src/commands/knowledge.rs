@@ -1,373 +1,206 @@
-//! Knowledge base management commands for the Vox GUI.
-//! Handles browsing, searching, node deletion, health metrics, manual text ingestion,
-//! URL ingestion (via web scraping), and persisting research session findings.
+//! Knowledge base management commands for the Vox GUI, served by the daemon
+//! (`GET /api/v2/knowledge/*` and the `vox_kb_*` ops) so they work against a local or a
+//! remote Vox server: browsing, node deletion, health metrics, manual text ingestion,
+//! URL ingestion (server-side scrape) and persisting research session findings.
 
+use std::sync::Arc;
+
+use serde_json::json;
 use tauri::State;
-use vox_db::KnowledgeNodeRecord;
+pub use vox_orchestrator_mcp::gui_ops::dto::knowledge::{KbHealthDto, KnowledgeNodeRow};
 
-use crate::commands::gui_db_pool::{GuiDbPool, map_db_err};
+use crate::remote::backend::BackendState;
+use crate::remote::calls::{BackendCalls, api_data, path_with_query, tool_data};
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct KnowledgeNodeRow {
-    pub id: String,
-    pub label: String,
-    pub snippet: String,
-    pub node_type: Option<String>,
-    pub created_at: String,
-}
+const DELETE_TOOL: &str = "vox_kb_node_delete";
+const INGEST_TEXT_TOOL: &str = "vox_kb_ingest_text";
+const INGEST_URL_TOOL: &str = "vox_kb_ingest_url";
+const IMPORT_SESSION_TOOL: &str = "vox_kb_import_research_session";
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct KbHealthDto {
-    pub node_count: usize,
-    pub edge_count: usize,
-    pub fts_available: bool,
-    pub corpus_counts: std::collections::HashMap<String, usize>,
-}
-
-#[tauri::command]
-pub async fn list_knowledge_nodes(
-    pool: State<'_, GuiDbPool>,
+pub(crate) async fn list_nodes_impl<B: BackendCalls>(
+    b: &B,
     node_type: Option<String>,
     page: Option<usize>,
     limit: Option<usize>,
 ) -> Result<Vec<KnowledgeNodeRow>, String> {
-    let db = pool.handle()?;
-    let p = page.unwrap_or(0);
-    let l = limit.unwrap_or(50);
-    let records = db
-        .list_knowledge_nodes(node_type.as_deref(), p, l)
-        .await
-        .map_err(map_db_err)?;
-
-    Ok(records
-        .into_iter()
-        .map(|r: KnowledgeNodeRecord| {
-            let snippet = if r.content.chars().count() > 200 {
-                let first_200: String = r.content.chars().take(200).collect();
-                format!("{first_200}...")
-            } else {
-                r.content
-            };
-            KnowledgeNodeRow {
-                id: r.id,
-                label: r.label,
-                snippet,
-                node_type: r.node_type,
-                created_at: r.created_at,
-            }
-        })
-        .collect())
+    let path = path_with_query(
+        "/knowledge/nodes",
+        &[
+            ("node_type", node_type),
+            ("page", page.map(|p| p.to_string())),
+            ("limit", limit.map(|l| l.to_string())),
+        ],
+    );
+    api_data(b.api_v2_get(&path).await?)
 }
 
-#[tauri::command]
-pub async fn delete_knowledge_node(pool: State<'_, GuiDbPool>, id: String) -> Result<(), String> {
-    let db = pool.handle()?;
-    db.delete_knowledge_node(&id).await.map_err(map_db_err)
+pub(crate) async fn health_impl<B: BackendCalls>(b: &B) -> Result<KbHealthDto, String> {
+    api_data(b.api_v2_get("/knowledge/health").await?)
 }
 
-#[tauri::command]
-pub async fn get_kb_health(pool: State<'_, GuiDbPool>) -> Result<KbHealthDto, String> {
-    let db = pool.handle()?;
-    let health = db.get_knowledge_health().await.map_err(map_db_err)?;
-    Ok(KbHealthDto {
-        node_count: health.node_count,
-        edge_count: health.edge_count,
-        fts_available: health.fts_available,
-        corpus_counts: health.corpus_counts,
-    })
+pub(crate) async fn delete_node_impl<B: BackendCalls>(b: &B, id: String) -> Result<(), String> {
+    let _: String = tool_data(
+        DELETE_TOOL,
+        b.call_tool(DELETE_TOOL, json!({ "id": id })).await?,
+    )?;
+    Ok(())
 }
 
-#[tauri::command]
-pub async fn ingest_text(
-    pool: State<'_, GuiDbPool>,
+pub(crate) async fn ingest_text_impl<B: BackendCalls>(
+    b: &B,
     title: String,
     content: String,
     source_url: Option<String>,
 ) -> Result<String, String> {
-    let db = pool.handle()?;
-    if content.trim().is_empty() {
-        return Err("Content cannot be empty".to_string());
-    }
-    let label = if title.trim().is_empty() {
-        "Manual Ingest".to_string()
-    } else {
-        title.trim().to_string()
-    };
-    let content_hash = vox_crypto::hash_fast_hex(content.as_bytes());
-    let node_id = format!("doc:{content_hash}");
-    let meta = serde_json::json!({
-        "title": label,
-        "source_url": source_url,
-        "ingest_type": "text",
-    })
-    .to_string();
+    let args = json!({ "title": title, "content": content, "source_url": source_url });
+    tool_data(INGEST_TEXT_TOOL, b.call_tool(INGEST_TEXT_TOOL, args).await?)
+}
 
-    db.upsert_knowledge_node(
-        &node_id,
-        &label,
-        &content,
-        Some("document"),
-        Some(&meta),
-        None,
+pub(crate) async fn ingest_url_impl<B: BackendCalls>(b: &B, url: String) -> Result<String, String> {
+    tool_data(
+        INGEST_URL_TOOL,
+        b.call_tool(INGEST_URL_TOOL, json!({ "url": url })).await?,
     )
-    .await
-    .map_err(map_db_err)?;
-
-    Ok(node_id)
 }
 
-fn get_robots_url(target_url: &str) -> Option<(String, String)> {
-    let remainder = target_url
-        .strip_prefix("http://")
-        .map(|r| ("http://", r))
-        .or_else(|| target_url.strip_prefix("https://").map(|r| ("https://", r)))?;
-    let (scheme, rest) = remainder;
-    let (host, path) = match rest.split_once('/') {
-        Some((h, p)) => (h, format!("/{}", p)),
-        None => (rest, "/".to_string()),
-    };
-    if host.is_empty() {
-        return None;
-    }
-    let robots_url = format!("{scheme}{host}/robots.txt");
-    Some((robots_url, path))
-}
-
-async fn check_robots_allowed(client: &reqwest::Client, target_url: &str) -> bool {
-    let Some((robots_url, target_path)) = get_robots_url(target_url) else {
-        return true;
-    };
-    if let Ok(resp) = client.get(&robots_url).send().await
-        && resp.status().is_success()
-        && let Ok(text) = resp.text().await
-    {
-        let mut in_relevant_agent = false;
-        for line in text.lines() {
-            let trimmed = line.trim();
-            if trimmed.is_empty() || trimmed.starts_with('#') {
-                continue;
-            }
-            if let Some((k, v)) = trimmed.split_once(':') {
-                let key = k.trim().to_lowercase();
-                let val = v.trim();
-                if key == "user-agent" {
-                    in_relevant_agent = val == "*" || val.to_lowercase().contains("vox");
-                } else if in_relevant_agent && key == "disallow" {
-                    if val.is_empty() {
-                        continue;
-                    }
-                    if val == "/" || target_path.starts_with(val) {
-                        return false;
-                    }
-                }
-            }
-        }
-    }
-    true
+pub(crate) async fn import_session_impl<B: BackendCalls>(
+    b: &B,
+    session_id: i64,
+) -> Result<usize, String> {
+    tool_data(
+        IMPORT_SESSION_TOOL,
+        b.call_tool(IMPORT_SESSION_TOOL, json!({ "session_id": session_id }))
+            .await?,
+    )
 }
 
 #[tauri::command]
-pub async fn ingest_url(pool: State<'_, GuiDbPool>, url: String) -> Result<String, String> {
-    let db = pool.handle()?;
-    let clean_url = url.trim();
-    if clean_url.is_empty() {
-        return Err("URL cannot be empty".to_string());
-    }
-    if !clean_url.starts_with("http://") && !clean_url.starts_with("https://") {
-        return Err("URL must start with http:// or https://".to_string());
-    }
-
-    let policy = vox_search::policy::SearchPolicy::from_env();
-    let timeout_ms = policy.scraper_timeout_ms.max(1000);
-
-    if policy.scraper_robots_txt_respect {
-        let client = vox_http_client::client_builder()
-            .timeout(std::time::Duration::from_millis(timeout_ms))
-            .user_agent("VoxResearchBot/1.0 (+https://vox.dev/research-bot)")
-            .build()
-            .map_err(|e| format!("Failed to create HTTP client: {e}"))?;
-
-        if !check_robots_allowed(&client, clean_url).await {
-            return Err(format!("Scraping disallowed by robots.txt for {clean_url}"));
-        }
-    }
-
-    let doc = vox_search::scraper::fetch_and_extract(clean_url, timeout_ms)
-        .await
-        .map_err(|e| format!("Failed to scrape URL {clean_url}: {e}"))?;
-
-    let url_hash = vox_crypto::hash_fast_hex(clean_url.as_bytes());
-    let node_id = format!("web:{url_hash}");
-    let meta = serde_json::json!({
-        "url": doc.url,
-        "title": doc.title,
-        "text_density": doc.text_density,
-        "ingest_type": "url",
-    })
-    .to_string();
-
-    let label = if doc.title.trim().is_empty() {
-        clean_url
-    } else {
-        doc.title.trim()
-    };
-
-    db.upsert_knowledge_node(
-        &node_id,
-        label,
-        &doc.markdown,
-        Some("web_scrape"),
-        Some(&meta),
-        None,
-    )
-    .await
-    .map_err(map_db_err)?;
-
-    Ok(node_id)
+pub async fn list_knowledge_nodes(
+    backend: State<'_, Arc<BackendState>>,
+    node_type: Option<String>,
+    page: Option<usize>,
+    limit: Option<usize>,
+) -> Result<Vec<KnowledgeNodeRow>, String> {
+    list_nodes_impl(&backend.current().await, node_type, page, limit).await
 }
 
-#[derive(serde::Deserialize)]
-struct MinimalArtifactCitation {
-    #[serde(default)]
-    url: String,
-    #[serde(default)]
+#[tauri::command]
+pub async fn delete_knowledge_node(
+    backend: State<'_, Arc<BackendState>>,
+    id: String,
+) -> Result<(), String> {
+    delete_node_impl(&backend.current().await, id).await
+}
+
+#[tauri::command]
+pub async fn get_kb_health(backend: State<'_, Arc<BackendState>>) -> Result<KbHealthDto, String> {
+    health_impl(&backend.current().await).await
+}
+
+#[tauri::command]
+pub async fn ingest_text(
+    backend: State<'_, Arc<BackendState>>,
     title: String,
-    #[serde(default)]
-    snippet: String,
+    content: String,
+    source_url: Option<String>,
+) -> Result<String, String> {
+    ingest_text_impl(&backend.current().await, title, content, source_url).await
 }
 
-#[derive(serde::Deserialize)]
-struct MinimalArtifactResult {
-    #[serde(default)]
-    citations: Vec<MinimalArtifactCitation>,
-}
-
-#[derive(serde::Deserialize)]
-struct MinimalArtifact {
-    #[serde(default)]
-    result: Option<MinimalArtifactResult>,
+#[tauri::command]
+pub async fn ingest_url(
+    backend: State<'_, Arc<BackendState>>,
+    url: String,
+) -> Result<String, String> {
+    ingest_url_impl(&backend.current().await, url).await
 }
 
 #[tauri::command]
 pub async fn save_research_session_to_kb(
-    pool: State<'_, GuiDbPool>,
+    backend: State<'_, Arc<BackendState>>,
     session_id: i64,
 ) -> Result<usize, String> {
-    let db = pool.handle()?;
-    let session = db
-        .get_research_session(session_id)
-        .await
-        .map_err(map_db_err)?
-        .ok_or_else(|| format!("Research session {session_id} not found"))?;
-
-    let artifact = db
-        .get_research_artifact(session_id)
-        .await
-        .map_err(map_db_err)?
-        .ok_or_else(|| format!("No artifact found for research session {session_id}"))?;
-
-    let parsed: MinimalArtifact = serde_json::from_str(&artifact.artifact_json)
-        .map_err(|e| format!("Failed to parse session artifact JSON: {e}"))?;
-
-    let citations = parsed.result.map(|r| r.citations).unwrap_or_default();
-
-    let sources: Vec<vox_orchestrator_mcp::chat_tools::chat::research_turn::Source> = citations
-        .into_iter()
-        .enumerate()
-        .map(
-            |(idx, c)| vox_orchestrator_mcp::chat_tools::chat::research_turn::Source {
-                n: idx + 1,
-                url: c.url,
-                title: c.title,
-                engine: "research_session".to_string(),
-                snippet: c.snippet,
-            },
-        )
-        .collect();
-
-    let saved = vox_orchestrator_mcp::chat_tools::chat::research_turn::persist_research_findings_to_knowledgebase(
-        Some(db.as_ref()),
-        &session.query_text,
-        &sources,
-        Some(artifact.report_markdown.as_str()),
-    )
-    .await;
-
-    Ok(saved)
+    import_session_impl(&backend.current().await, session_id).await
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::remote::calls::fake::FakeBackend;
 
-    #[test]
-    fn test_get_robots_url_parsing() {
+    fn ok_tool(data: serde_json::Value) -> Result<serde_json::Value, String> {
+        Ok(json!({ "success": true, "data": data }))
+    }
+
+    #[tokio::test]
+    async fn reads_go_to_the_knowledge_routes() {
+        let b = FakeBackend::new()
+            .on_get(
+                "/knowledge/nodes?node_type=document&limit=10",
+                Ok(json!({ "v": 1, "data": [{
+                    "id": "doc:1", "label": "Remote note", "snippet": "s",
+                    "node_type": "document", "created_at": "now"
+                }]})),
+            )
+            .on_get(
+                "/knowledge/health",
+                Ok(json!({ "v": 1, "data": {
+                    "node_count": 1, "edge_count": 0, "fts_available": true, "corpus_counts": {}
+                }})),
+            );
+        let rows = list_nodes_impl(&b, Some("document".into()), None, Some(10))
+            .await
+            .unwrap();
+        assert_eq!(rows[0].label, "Remote note");
+        assert_eq!(health_impl(&b).await.unwrap().node_count, 1);
+    }
+
+    #[tokio::test]
+    async fn mutations_go_through_the_kb_ops_with_unchanged_arguments() {
+        let b = FakeBackend::new()
+            .on_tool(DELETE_TOOL, ok_tool(json!("doc:1")))
+            .on_tool(INGEST_TEXT_TOOL, ok_tool(json!("doc:abc")))
+            .on_tool(INGEST_URL_TOOL, ok_tool(json!("web:xyz")))
+            .on_tool(IMPORT_SESSION_TOOL, ok_tool(json!(3)));
+        delete_node_impl(&b, "doc:1".into()).await.unwrap();
+        let id = ingest_text_impl(&b, "T".into(), "body".into(), None)
+            .await
+            .unwrap();
+        assert_eq!(id, "doc:abc");
         assert_eq!(
-            get_robots_url("https://example.com/docs/guide"),
-            Some((
-                "https://example.com/robots.txt".to_string(),
-                "/docs/guide".to_string()
-            ))
+            ingest_url_impl(&b, "https://e.x".into()).await.unwrap(),
+            "web:xyz"
         );
+        assert_eq!(import_session_impl(&b, 42).await.unwrap(), 3);
+        let calls = b.calls();
+        let keys: Vec<&str> = calls.iter().map(|(k, _)| k.as_str()).collect();
         assert_eq!(
-            get_robots_url("http://sub.domain.org/"),
-            Some((
-                "http://sub.domain.org/robots.txt".to_string(),
-                "/".to_string()
-            ))
+            keys,
+            vec![
+                "tool:vox_kb_node_delete",
+                "tool:vox_kb_ingest_text",
+                "tool:vox_kb_ingest_url",
+                "tool:vox_kb_import_research_session"
+            ]
         );
-        assert_eq!(
-            get_robots_url("http://domain.org"),
-            Some(("http://domain.org/robots.txt".to_string(), "/".to_string()))
+        assert_eq!(calls[1].1["content"], "body");
+        assert_eq!(calls[3].1["session_id"], 42);
+    }
+
+    #[tokio::test]
+    async fn profile_denials_surface_as_errors() {
+        let b = FakeBackend::new().on_tool(
+            INGEST_URL_TOOL,
+            Ok(json!({ "error": { "code": "tool_not_in_profile", "message": "no" } })),
         );
-        assert_eq!(get_robots_url("invalid-url"), None);
+        let e = ingest_url_impl(&b, "https://e.x".into()).await.unwrap_err();
+        assert!(e.starts_with("tool_not_in_profile"), "{e}");
     }
 
     #[test]
-    fn test_dto_serialization() {
-        let row = KnowledgeNodeRow {
-            id: "doc:123".into(),
-            label: "Test Doc".into(),
-            snippet: "Test snippet".into(),
-            node_type: Some("document".into()),
-            created_at: "2026-09-30T12:00:00Z".into(),
-        };
-        let row_json = serde_json::to_value(&row).expect("serialize KnowledgeNodeRow");
-        assert_eq!(row_json["id"], "doc:123");
-        assert_eq!(row_json["label"], "Test Doc");
-
-        let mut corpus_counts = std::collections::HashMap::new();
-        corpus_counts.insert("document".to_string(), 5);
-        let health = KbHealthDto {
-            node_count: 5,
-            edge_count: 2,
-            fts_available: true,
-            corpus_counts,
-        };
-        let health_json = serde_json::to_value(&health).expect("serialize KbHealthDto");
-        assert_eq!(health_json["node_count"], 5);
-        assert_eq!(health_json["fts_available"], true);
-    }
-
-    #[test]
-    fn test_minimal_artifact_deserialization() {
-        let json_str = r#"{
-            "result": {
-                "citations": [
-                    {
-                        "url": "https://example.com/a",
-                        "title": "Example A",
-                        "snippet": "Snippet A"
-                    }
-                ]
-            }
-        }"#;
-        let parsed: MinimalArtifact =
-            serde_json::from_str(json_str).expect("deserialize MinimalArtifact");
-        assert!(parsed.result.is_some());
-        let citations = parsed.result.unwrap().citations;
-        assert_eq!(citations.len(), 1);
-        assert_eq!(citations[0].url, "https://example.com/a");
-        assert_eq!(citations[0].title, "Example A");
+    fn knowledge_module_no_longer_touches_the_db_directly() {
+        let src = include_str!("knowledge.rs");
+        assert!(!src.contains(&["vox_", "db::"].concat()));
+        assert!(!src.contains(&["Gui", "DbPool"].concat()));
     }
 }

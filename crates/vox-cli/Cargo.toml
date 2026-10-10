@@ -59,7 +59,7 @@ database = ["vox-corpus/database"]
 # single switch turns tantivy on across every vox-search instance in the graph
 # (vox-orchestrator / vox-research-shim / vox-orchestrator-mcp included). Shipped release
 # binaries enable this so end users keep full `vox search`. See WS2-T3.
-heavy-retrieval = ["vox-search/tantivy-lexical", "vox-search/web-scrape"]
+heavy-retrieval = ["vox-search/tantivy-lexical", "vox-search/web-scrape", "vox-orchestrator-mcp/web-scrape"]
 
 
 

@@ -1979,6 +1979,33 @@ async fn handle_tool_call_inner(
         )
         .await),
         // ── gui_ops: knowledge (plan 07) ──
+        "vox_kb_node_delete" => Ok(crate::gui_ops::knowledge::kb_node_delete(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_kb_ingest_text" => Ok(crate::gui_ops::knowledge::kb_ingest_text(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_kb_ingest_url" => Ok(crate::gui_ops::knowledge::kb_ingest_url(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_kb_import_research_session" => {
+            Ok(crate::gui_ops::knowledge::kb_import_research_session(
+                state,
+                serde_json::from_value(args)?,
+            )
+            .await)
+        }
+        "vox_memory_reindex" => Ok(crate::gui_ops::knowledge::memory_reindex(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
         // ── gui_ops: research (plan 07) ──
         // ── gui_ops: orchestrator (plan 07) ──
         // ── gui_ops: harness (plan 07) ──

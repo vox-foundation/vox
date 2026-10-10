@@ -283,10 +283,10 @@ pub use store::{
     QuestionOptionParams, QuestionOptionRow, QuestionRow, QuestionSessionCreateParams,
     QuestionSessionRow, QuestionStopEventParams, QuestionStopEventRow, RegisterAgentParams,
     RegressionRow, SaveMemoryParams, SaveSnippetParams, ScheduledEntry, ScholarlySubmissionRow,
-    SessionEventRow, SessionRow, SkillCandidateRow, SkillExecutionParams, SkillExecutionRow,
-    SkillManifestEntry, SkillReliabilityReport, SnippetEntry, StoreError, ThroughputProfileRow,
-    TrainingPair, TrustRollupEntry, UpsertAccountSecretCiphertextParams, UserEntry, WarningRow,
-    WorkflowExecutionRow,
+    SearchCorpusCounts, SessionEventRow, SessionRow, SkillCandidateRow, SkillExecutionParams,
+    SkillExecutionRow, SkillManifestEntry, SkillReliabilityReport, SnippetEntry, StoreError,
+    ThroughputProfileRow, TrainingPair, TrustRollupEntry, UpsertAccountSecretCiphertextParams,
+    UserEntry, WarningRow, WorkflowExecutionRow,
 };
 pub use sync_invocables::InvocableSyncEngine;
 pub use syntax_k_telemetry::SyntaxKEventMeta;

@@ -14,10 +14,13 @@ const SURFACE_REGISTRY_YAML: &str =
 pub const REMOTE_ROUTED_DAEMON_MODULES: &[&str] = &[
     "daemon",
     "event_annotate",
+    "knowledge",
     "mcp",
+    "memory",
     "model_active",
     "models",
     "routing_explain",
+    "search",
     "vcs_isolation",
 ];
 /// Daemon-class modules with at least one method the gateway does not expose yet.

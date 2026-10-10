@@ -873,6 +873,21 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
             derived_tool_schema!(crate::gui_ops::chat::ChatSessionArchiveParams)
         }
         // ── gui_ops: knowledge (plan 07) ──
+        "vox_kb_node_delete" => {
+            derived_tool_schema!(crate::gui_ops::knowledge::KbNodeDeleteParams)
+        }
+        "vox_kb_ingest_text" => {
+            derived_tool_schema!(crate::gui_ops::knowledge::KbIngestTextParams)
+        }
+        "vox_kb_ingest_url" => {
+            derived_tool_schema!(crate::gui_ops::knowledge::KbIngestUrlParams)
+        }
+        "vox_kb_import_research_session" => {
+            derived_tool_schema!(crate::gui_ops::knowledge::KbImportResearchSessionParams)
+        }
+        "vox_memory_reindex" => {
+            derived_tool_schema!(crate::gui_ops::knowledge::MemoryReindexParams)
+        }
         // ── gui_ops: research (plan 07) ──
         // ── gui_ops: orchestrator (plan 07) ──
         // ── gui_ops: harness (plan 07) ──

@@ -417,6 +417,54 @@ impl crate::VoxDb {
     }
 }
 
+/// Row counts behind the Memory surface's corpus tiles. A table that does not exist in
+/// this database counts as zero.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct SearchCorpusCounts {
+    pub proj: u32,
+    pub docs: u32,
+    pub chats: u32,
+    pub rules: u32,
+    pub web: u32,
+    /// Memories written in the last hour (drives the knowledge shard's "hot" flag).
+    pub recent_memories: u32,
+}
+
+impl crate::VoxDb {
+    async fn count_or_zero(&self, sql: &str) -> u32 {
+        let Ok(mut rows) = self.conn.query(sql, ()).await else {
+            return 0;
+        };
+        match rows.next().await {
+            Ok(Some(row)) => row.get::<i64>(0).map(|n| n as u32).unwrap_or(0),
+            _ => 0,
+        }
+    }
+
+    pub async fn search_corpus_counts(&self) -> Result<SearchCorpusCounts, StoreError> {
+        Ok(SearchCorpusCounts {
+            proj: self
+                .count_or_zero("SELECT COUNT(*) FROM search_documents")
+                .await,
+            docs: self
+                .count_or_zero("SELECT COUNT(*) FROM knowledge_nodes")
+                .await,
+            chats: self
+                .count_or_zero("SELECT COUNT(*) FROM memories WHERE memory_type = 'chat'")
+                .await,
+            rules: self.count_or_zero("SELECT COUNT(*) FROM components").await,
+            web: self
+                .count_or_zero("SELECT COUNT(*) FROM search_document_chunks")
+                .await,
+            recent_memories: self
+                .count_or_zero(
+                    "SELECT COUNT(*) FROM memories WHERE created_at > datetime('now', '-1 hour')",
+                )
+                .await,
+        })
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct KnowledgeNodeRecord {
     pub id: String,
@@ -501,6 +549,21 @@ async fn find_reachable_knowledge_nodes_fallback(
 #[cfg(test)]
 mod tests {
     use crate::VoxDb;
+
+    #[tokio::test]
+    async fn search_corpus_counts_counts_knowledge_nodes_as_docs() {
+        let db = VoxDb::in_memory().await.expect("in_memory db");
+        assert_eq!(
+            db.search_corpus_counts().await.expect("counts"),
+            super::SearchCorpusCounts::default()
+        );
+        db.upsert_knowledge_node("n1", "One", "body", Some("doc"), None, None)
+            .await
+            .expect("upsert");
+        let counts = db.search_corpus_counts().await.expect("counts");
+        assert_eq!(counts.docs, 1);
+        assert_eq!(counts.proj, 0);
+    }
 
     #[tokio::test]
     async fn test_knowledge_node_lifecycle_and_ops() {

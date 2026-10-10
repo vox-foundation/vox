@@ -41,3 +41,10 @@ describe('plan 07 preferences', () => {
     expect(moduleClass('preferences')).toBe('shell');
   });
 });
+
+describe('plan 07 knowledge/memory/search group', () => {
+  it('knowledge, memory and search are daemon-class; opening a hit stays on the host', () => {
+    for (const m of ['knowledge', 'memory', 'search']) expect(moduleClass(m)).toBe('daemon');
+    expect(moduleClass('locator')).toBe('host');
+  });
+});
