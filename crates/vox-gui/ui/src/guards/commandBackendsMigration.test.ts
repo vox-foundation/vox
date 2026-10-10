@@ -71,3 +71,13 @@ describe('plan 07 attention group', () => {
     expect(moduleClass('user_config')).toBe('host');
   });
 });
+
+describe('plan 07 orchestrator group', () => {
+  it('hopper, context budget, plan panel, runs, activity and harness eval are daemon-class; orchestrator status/config stays on the host', () => {
+    for (const m of ['hopper', 'context_budget', 'plan_panel', 'runs', 'activity', 'harness_eval']) {
+      expect(moduleClass(m)).toBe('daemon');
+    }
+    expect(moduleClass('orchestrator')).toBe('host');
+    expect(MANIFEST).not.toMatch(/module: orchestrator,[^\n]*hopper_\* = db/);
+  });
+});

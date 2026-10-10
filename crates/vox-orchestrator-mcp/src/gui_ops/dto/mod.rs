@@ -5,5 +5,6 @@ pub mod chat;
 pub mod harness;
 pub mod knowledge;
 pub mod models;
+pub mod orchestrator;
 pub mod research;
 pub mod routing_explain;

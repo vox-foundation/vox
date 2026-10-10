@@ -44,6 +44,7 @@ pub use ops_mens_intelligence::{CorpusQualitySummary, GrpoStepRow};
 mod open;
 mod ops;
 mod ops_a2a;
+pub mod ops_activity;
 mod ops_agents;
 pub mod ops_build;
 mod ops_cas;
@@ -81,6 +82,7 @@ mod ops_skill_identity;
 mod ops_skills;
 mod ops_user_identity;
 
+pub use ops_activity::{ActivityLogEntry, ActivityLogFilter};
 pub use ops_agents::LlmSpendSummary;
 pub use ops_discovery_inbox::DiscoveryInboxRow;
 pub use ops_finding_candidates::{FindingCandidateClass, FindingCandidateRow, InsertOutcome};

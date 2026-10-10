@@ -13,7 +13,10 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::Value;
 
-use crate::gui_ops::dto::harness::{HarnessFixProposalDto, HarnessIssueDto};
+use crate::gui_ops::dto::harness::{
+    CategorySummaryDto, HarnessEvalRunDto, HarnessFixProposalDto, HarnessIssueDto,
+    RegressionFlagDto,
+};
 use crate::gui_ops::{api_db, enforce_route, require_db};
 use crate::http_gateway::GatewayState;
 use crate::params::ToolResult;
@@ -437,10 +440,177 @@ pub async fn get_issues_for_session(
     }
 }
 
+// ─── Eval history & regressions (Harness Health) ─────────────────────────────
+
+const HARNESS_EVAL_SURFACES: &[&str] = &["harness-health"];
+const EVAL_HISTORY_DEFAULT_LIMIT: usize = 50;
+
+#[derive(Debug, Deserialize)]
+pub struct EvalHistoryQuery {
+    pub limit: Option<usize>,
+}
+
+async fn eval_history(
+    db: &vox_db::VoxDb,
+    limit: usize,
+) -> Result<Vec<HarnessEvalRunDto>, vox_db::StoreError> {
+    let runs = db.list_harness_eval_runs(limit).await?;
+    let run_ids: Vec<String> = runs.iter().map(|r| r.run_id.clone()).collect();
+    let mut task_results_by_run = db.get_harness_eval_task_results_for_runs(&run_ids).await?;
+    Ok(runs
+        .into_iter()
+        .map(|r| {
+            let task_results = task_results_by_run.remove(&r.run_id).unwrap_or_default();
+            let mut by_category: std::collections::BTreeMap<String, (i64, i64)> =
+                std::collections::BTreeMap::new();
+            for t in &task_results {
+                let entry = by_category.entry(t.category.clone()).or_default();
+                if t.status == "pass" {
+                    entry.0 += 1;
+                } else if t.status == "fail" {
+                    entry.1 += 1;
+                }
+            }
+            HarnessEvalRunDto {
+                run_id: r.run_id,
+                git_sha: r.git_sha,
+                triggered_by: r.triggered_by,
+                pass_count: r.pass_count,
+                fail_count: r.fail_count,
+                skip_count: r.skip_count,
+                total_cost_usd: r.total_cost_usd,
+                started_at_ms: r.started_at_ms,
+                category_breakdown: by_category
+                    .into_iter()
+                    .map(|(category, (pass_count, fail_count))| CategorySummaryDto {
+                        category,
+                        pass_count,
+                        fail_count,
+                    })
+                    .collect(),
+            }
+        })
+        .collect())
+}
+
+/// The stored SHAs become a `git diff` argument, so anything that isn't a lowercase hex SHA
+/// (e.g. a `--output=` flag) is refused before the subprocess is built.
+fn is_valid_git_sha(s: &str) -> bool {
+    (7..=40).contains(&s.len())
+        && s.chars()
+            .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
+}
+
+/// Compare the two most recent runs; empty when fewer than two exist.
+async fn eval_regressions(
+    db: &vox_db::VoxDb,
+    repo_root: &FsPath,
+) -> Result<Vec<RegressionFlagDto>, String> {
+    let runs = db
+        .list_harness_eval_runs(2)
+        .await
+        .map_err(|e| e.to_string())?;
+    if runs.len() < 2 {
+        return Ok(vec![]);
+    }
+    let (current, previous) = (&runs[0], &runs[1]);
+    if !is_valid_git_sha(&previous.git_sha) || !is_valid_git_sha(&current.git_sha) {
+        return Err(format!(
+            "refusing to run git diff with a malformed git_sha (previous={:?}, current={:?})",
+            previous.git_sha, current.git_sha
+        ));
+    }
+    let map = |e: vox_db::StoreError| e.to_string();
+    let previous_task_results = db
+        .get_harness_eval_task_results(&previous.run_id)
+        .await
+        .map_err(map)?;
+    let current_task_results = db
+        .get_harness_eval_task_results(&current.run_id)
+        .await
+        .map_err(map)?;
+    let previous_events = db
+        .get_model_selection_events(&previous.run_id)
+        .await
+        .map_err(map)?;
+    let current_events = db
+        .get_model_selection_events(&current.run_id)
+        .await
+        .map_err(map)?;
+    let range = format!("{}..{}", previous.git_sha, current.git_sha);
+    let changed_files: Vec<String> = crate::git_exec::GitExec::new(repo_root)
+        .run(&["diff", "--name-only", &range, "--"])
+        .await
+        .map(|out| out.stdout.lines().map(str::to_string).collect())
+        .unwrap_or_default();
+    Ok(vox_db::detect_regressions(
+        previous,
+        current,
+        &previous_task_results,
+        &current_task_results,
+        &previous_events,
+        &current_events,
+        &changed_files,
+    )
+    .into_iter()
+    .map(|f| RegressionFlagDto {
+        kind: format!("{:?}", f.kind),
+        previous_run_id: f.previous_run_id,
+        current_run_id: f.current_run_id,
+        previous_git_sha: f.previous_git_sha,
+        current_git_sha: f.current_git_sha,
+        changed_files: f.changed_files,
+        flipped_task_ids: f.flipped_task_ids,
+        detail: f.detail,
+    })
+    .collect())
+}
+
+/// GET /api/v2/harness/eval/history?limit=
+pub async fn get_eval_history(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Query(q): Query<EvalHistoryQuery>,
+) -> Json<Value> {
+    if let Err(e) = enforce_route(&gs, &connect.0, &headers, HARNESS_EVAL_SURFACES) {
+        return e;
+    }
+    let db = match api_db(&gs) {
+        Ok(db) => db,
+        Err(e) => return e,
+    };
+    match eval_history(&db, q.limit.unwrap_or(EVAL_HISTORY_DEFAULT_LIMIT)).await {
+        Ok(rows) => ok(rows),
+        Err(e) => err("db_error", &e.to_string()),
+    }
+}
+
+/// GET /api/v2/harness/eval/regressions
+pub async fn get_eval_regressions(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+) -> Json<Value> {
+    if let Err(e) = enforce_route(&gs, &connect.0, &headers, HARNESS_EVAL_SURFACES) {
+        return e;
+    }
+    let db = match api_db(&gs) {
+        Ok(db) => db,
+        Err(e) => return e,
+    };
+    match eval_regressions(&db, &gs.server_state().repository.root).await {
+        Ok(rows) => ok(rows),
+        Err(e) => err("harness_eval_error", &e),
+    }
+}
+
 pub fn api_v2_router() -> Router<GatewayState> {
     Router::new()
         .route("/harness/fix-proposals", get(get_fix_proposals))
         .route("/harness/issues", get(get_issues))
+        .route("/harness/eval/history", get(get_eval_history))
+        .route("/harness/eval/regressions", get(get_eval_regressions))
         .route(
             "/harness/issues/by-session/{key}",
             get(get_issues_for_session),
@@ -647,5 +817,65 @@ mod tests {
         )
         .await;
         assert_eq!(denied["error"]["code"], "tool_not_in_profile", "{denied}");
+    }
+
+    #[test]
+    fn is_valid_git_sha_rejects_a_dash_prefixed_value() {
+        assert!(!is_valid_git_sha("--output=/tmp/evil"));
+        assert!(!is_valid_git_sha("ABC1234"));
+        assert!(is_valid_git_sha("abc1234"));
+    }
+
+    fn eval_run(run_id: &str, git_sha: &str, started_at_ms: i64) -> vox_db::HarnessEvalRunRecord {
+        vox_db::HarnessEvalRunRecord {
+            run_id: run_id.to_string(),
+            triggered_by: "local".to_string(),
+            git_sha: git_sha.to_string(),
+            git_branch: "main".to_string(),
+            changed_files: vec![],
+            config_version: None,
+            samples_per_task: 3,
+            task_count: 10,
+            pass_count: 9,
+            fail_count: 1,
+            skip_count: 0,
+            total_cost_usd: 0.05,
+            started_at_ms,
+            finished_at_ms: started_at_ms + 1000,
+        }
+    }
+
+    #[tokio::test]
+    async fn eval_history_and_regressions_routes() {
+        let (gs, db) = gateway_with_memory_db().await;
+        let empty =
+            body(get_eval_regressions(State(gs.clone()), peer(), HeaderMap::new()).await).await;
+        assert_eq!(empty["data"], serde_json::json!([]), "{empty}");
+
+        db.record_harness_eval_run(&eval_run("r1", "abc1234", 1000))
+            .await
+            .unwrap();
+        let history = body(
+            get_eval_history(
+                State(gs.clone()),
+                peer(),
+                HeaderMap::new(),
+                Query(EvalHistoryQuery { limit: None }),
+            )
+            .await,
+        )
+        .await;
+        let rows = history["data"]
+            .as_array()
+            .unwrap_or_else(|| panic!("{history}"));
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0]["run_id"], "r1");
+        assert_eq!(rows[0]["pass_count"], 9);
+
+        db.record_harness_eval_run(&eval_run("r2", "--output=/tmp/evil", 2000))
+            .await
+            .unwrap();
+        let refused = body(get_eval_regressions(State(gs), peer(), HeaderMap::new()).await).await;
+        assert_eq!(refused["error"]["code"], "harness_eval_error", "{refused}");
     }
 }

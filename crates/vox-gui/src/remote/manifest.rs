@@ -12,17 +12,23 @@ const SURFACE_REGISTRY_YAML: &str =
 
 /// Daemon-class modules whose every daemon method has a `RemoteRoute` (see `gateway_client::remote_route`).
 pub const REMOTE_ROUTED_DAEMON_MODULES: &[&str] = &[
+    "activity",
     "console_a2a",
+    "context_budget",
     "daemon",
     "event_annotate",
+    "harness_eval",
     "harness_issues",
+    "hopper",
     "knowledge",
     "llm_spend",
     "mcp",
     "memory",
     "model_active",
     "models",
+    "plan_panel",
     "routing_explain",
+    "runs",
     "scientia",
     "scientia_review",
     "search",
@@ -298,6 +304,7 @@ mod tests {
             "repository",
             "models",
             "activity",
+            "tasks",
             "console",
             "vox-search",
         ]);
@@ -306,8 +313,10 @@ mod tests {
         assert_eq!(reason_of(&out, "repository"), None);
         assert_eq!(reason_of(&out, "vox-search"), None);
         assert_eq!(reason_of(&out, "models"), None);
+        // Plan 07 Task 10: every module behind activity is daemon-routed now.
+        assert_eq!(reason_of(&out, "activity"), None);
         assert_eq!(
-            reason_of(&out, "activity"),
+            reason_of(&out, "tasks"),
             Some(UnavailableReason::NotRemoteCapable)
         );
         assert_eq!(

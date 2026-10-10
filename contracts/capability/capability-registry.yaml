@@ -20594,6 +20594,38 @@ curated:
   mcp_tool: vox_gui_rules
   cli_path: null
   parameters: null
+- id: mcp.vox_gui_run_finish
+  title: Finish GUI run
+  description_human: null
+  description_model: Mark a GUI run completed or failed, joining approval and telemetry totals when a task id is given.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_gui_run_finish
+  cli_path: null
+  parameters: null
+- id: mcp.vox_gui_run_start
+  title: Start GUI run
+  description_human: null
+  description_model: Record a running GUI-initiated run in the agent_runs journal.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_gui_run_start
+  cli_path: null
+  parameters: null
 - id: mcp.vox_gui_tokens
   title: GUI Design Tokens
   description_human: null
@@ -20720,6 +20752,70 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_heartbeat
+  cli_path: null
+  parameters: null
+- id: mcp.vox_hopper_cancel
+  title: Cancel hopper task
+  description_human: null
+  description_model: Cancel a hopper item, removing it from the open queue.
+  intent_tags: []
+  side_effect_class: destructive
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_hopper_cancel
+  cli_path: null
+  parameters: null
+- id: mcp.vox_hopper_mark_done
+  title: Mark hopper task done
+  description_human: null
+  description_model: Mark a hopper item completed.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_hopper_mark_done
+  cli_path: null
+  parameters: null
+- id: mcp.vox_hopper_reprioritize
+  title: Reprioritize hopper task
+  description_human: null
+  description_model: Override a hopper item's priority (0 background, 1 normal, 2 urgent) with a developer capability.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_hopper_reprioritize
+  cli_path: null
+  parameters: null
+- id: mcp.vox_hopper_submit
+  title: Submit hopper task
+  description_human: null
+  description_model: Submit an intent to the persistent task hopper as a developer-sourced item.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_hopper_submit
   cli_path: null
   parameters: null
 - id: mcp.vox_inline_edit
@@ -21833,6 +21929,38 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_plan_list_sessions
+  cli_path: null
+  parameters: null
+- id: mcp.vox_plan_node_upsert
+  title: Edit live plan node
+  description_human: null
+  description_model: Edit a not-yet-dispatched plan node's description, or insert a new step (blocked while the plan is unapproved).
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_plan_node_upsert
+  cli_path: null
+  parameters: null
+- id: mcp.vox_plan_nodes_approve
+  title: Approve plan nodes
+  description_human: null
+  description_model: Approve every blocked_on_approval node in a plan session; returns how many were released.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_plan_nodes_approve
   cli_path: null
   parameters: null
 - id: mcp.vox_plan_resume

@@ -46,6 +46,14 @@ tools:
     - vox_ask_clarification
     - vox_answer_question
     - vox_pending_questions
+    - vox_hopper_submit
+    - vox_hopper_reprioritize
+    - vox_hopper_cancel
+    - vox_hopper_mark_done
+    - vox_plan_node_upsert
+    - vox_plan_nodes_approve
+    - vox_gui_run_start
+    - vox_gui_run_finish
   include_lanes: []
 max_exposure: operator
 axis_surfaces: [tasks, agents, approvals, plan]

@@ -1127,6 +1127,22 @@ tools:
   exposure: public
   side_effect_class: read_only
   requires: []
+- name: vox_gui_run_finish
+  description: Mark a GUI run completed or failed, joining approval and telemetry totals when a task id is given.
+  product_lane: workflow
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
+- name: vox_gui_run_start
+  description: Record a running GUI-initiated run in the agent_runs journal.
+  product_lane: workflow
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_gui_tokens
   description: Retrieve design tokens in W3C DTCG format.
   product_lane: ai
@@ -1190,6 +1206,38 @@ tools:
   side_effect_class: writes_files
   requires:
   - agent_fleet
+- name: vox_hopper_cancel
+  description: Cancel a hopper item, removing it from the open queue.
+  product_lane: workflow
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: destructive
+  requires:
+  - db
+- name: vox_hopper_mark_done
+  description: Mark a hopper item completed.
+  product_lane: workflow
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
+- name: vox_hopper_reprioritize
+  description: Override a hopper item's priority (0 background, 1 normal, 2 urgent) with a developer capability.
+  product_lane: workflow
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
+- name: vox_hopper_submit
+  description: Submit an intent to the persistent task hopper as a developer-sourced item.
+  product_lane: workflow
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_inline_edit
   description: AI inline edit on a file range. Editor sends current text; Rust queries LLM and returns replacement.
   product_lane: ai
@@ -1721,6 +1769,22 @@ tools:
   http_read_role_eligible: false
   exposure: public
   side_effect_class: read_only
+  requires:
+  - db
+- name: vox_plan_node_upsert
+  description: Edit a not-yet-dispatched plan node's description, or insert a new step (blocked while the plan is unapproved).
+  product_lane: workflow
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
+- name: vox_plan_nodes_approve
+  description: Approve every blocked_on_approval node in a plan session; returns how many were released.
+  product_lane: workflow
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
   requires:
   - db
 - name: vox_plan_resume

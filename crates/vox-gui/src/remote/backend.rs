@@ -167,7 +167,8 @@ mod tests {
 
     #[tokio::test]
     async fn remote_mode_reports_profile_gates_surfaces_and_refuses_unrouted_methods() {
-        let (client, _server) = duplex_client(profile(&["mesh", "models", "activity"])).await;
+        let (client, _server) =
+            duplex_client(profile(&["mesh", "models", "activity", "tasks"])).await;
         let state = BackendState::new(Arc::new(PersistentDaemon::default()));
         state.set_remote(Arc::new(client), None).await;
         assert!(state.is_remote());
@@ -185,11 +186,9 @@ mod tests {
         };
         assert_eq!(reason("mesh"), None);
         assert_eq!(reason("models"), None);
-        assert_eq!(
-            reason("activity"),
-            Some(UnavailableReason::NotRemoteCapable)
-        );
-        assert_eq!(reason("tasks"), Some(UnavailableReason::NotInProfile));
+        assert_eq!(reason("activity"), None);
+        assert_eq!(reason("tasks"), Some(UnavailableReason::NotRemoteCapable));
+        assert_eq!(reason("chat"), Some(UnavailableReason::NotInProfile));
 
         let err = state
             .call(orch_daemon_method::SUBAGENT_TREE, serde_json::json!({}))

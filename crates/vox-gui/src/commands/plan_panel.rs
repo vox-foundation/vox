@@ -1,400 +1,221 @@
-//! Tauri commands for GUI-driven edits to a live plan DAG. Writes go through
-//! the same `upsert_plan_node` primitive the orchestrator's own plan-synthesis
-//! code uses, so edits take effect automatically for any node the scheduler
-//! hasn't dispatched yet.
+//! Tauri commands for GUI-driven edits to a live plan DAG. Served by the daemon
+//! (`GET /api/v2/plan/*` and the `vox_plan_node_upsert` / `vox_plan_nodes_approve` ops), which
+//! write through the same `upsert_plan_node` primitive the orchestrator's plan synthesis uses —
+//! so edits take effect for any node the scheduler hasn't dispatched yet.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
+use serde_json::json;
 use tauri::State;
-use vox_db::{PlanNodeRow, VoxDb};
+pub use vox_orchestrator_mcp::gui_ops::dto::orchestrator::{
+    InsertPlanNodeInput, LatestPlanSessionForChat, PlanNodeDto, UpdatePlanNodeInput,
+};
 
-use crate::commands::gui_db_pool::{GuiDbPool, map_db_err};
+use crate::remote::backend::BackendState;
+use crate::remote::calls::{BackendCalls, api_data, encode_component, path_with_query, tool_data};
 
-fn pool_db(pool: &GuiDbPool) -> Result<Arc<VoxDb>, String> {
-    pool.handle()
-}
+const UPSERT_TOOL: &str = "vox_plan_node_upsert";
+const APPROVE_TOOL: &str = "vox_plan_nodes_approve";
 
-#[derive(Debug, Deserialize)]
-pub struct UpdatePlanNodeInput {
-    pub plan_session_id: String,
-    pub plan_version: i64,
-    pub node_id: String,
-    pub description: String,
-}
-
-/// Edit a not-yet-dispatched plan node's description from the GUI. Writes
-/// through the same `upsert_plan_node` primitive the orchestrator's own
-/// plan-synthesis code uses — `enqueue_runnable_plan_nodes` re-reads current
-/// DB state immediately before dispatching each node, so this edit takes
-/// effect automatically for any node the scheduler hasn't reached yet.
-#[tauri::command]
-pub async fn update_plan_node(
-    pool: State<'_, GuiDbPool>,
+pub(crate) async fn update_impl<B: BackendCalls>(
+    b: &B,
     input: UpdatePlanNodeInput,
 ) -> Result<(), String> {
-    let db = pool_db(&pool)?;
-    let rows = db
-        .load_plan_nodes_with_status(&input.plan_session_id, input.plan_version)
-        .await
-        .map_err(map_db_err)?;
-    let existing = rows
-        .iter()
-        .find(|r| r.node_id == input.node_id)
-        .ok_or_else(|| format!("plan node {} not found", input.node_id))?;
-    db.upsert_plan_node(
-        &input.plan_session_id,
-        input.plan_version,
-        &input.node_id,
-        &input.description,
-        &existing.dependencies_json,
-        &existing.execution_policy_json,
-        &existing.status,
-        existing.workflow_invocation.as_deref(),
-    )
-    .await
-    .map_err(map_db_err)?;
-    Ok(())
+    let args = json!({ "mode": "update", "update": input });
+    tool_data(UPSERT_TOOL, b.call_tool(UPSERT_TOOL, args).await?)
 }
 
-#[derive(Debug, Deserialize)]
-pub struct InsertPlanNodeInput {
-    pub plan_session_id: String,
-    pub plan_version: i64,
-    pub node_id: String,
-    pub description: String,
-    pub depends_on: Vec<String>,
-}
-
-/// Insert a new intermediate step into the live plan. Joins the same
-/// dependency graph `enqueue_runnable_plan_nodes` walks — becomes runnable
-/// as soon as its `depends_on` entries complete, same as any agent-created
-/// node.
-///
-/// Gated: if any existing node in this plan/version is still
-/// `blocked_on_approval`, the plan hasn't been approved yet, so the new node
-/// is inserted `blocked_on_approval` too — otherwise the GUI could create a
-/// node the scheduler dispatches immediately, bypassing the approval gate
-/// entirely.
-#[tauri::command]
-pub async fn insert_plan_node(
-    pool: State<'_, GuiDbPool>,
+pub(crate) async fn insert_impl<B: BackendCalls>(
+    b: &B,
     input: InsertPlanNodeInput,
 ) -> Result<(), String> {
-    let db = pool_db(&pool)?;
-    let deps_json = serde_json::to_string(&input.depends_on).map_err(|e| e.to_string())?;
-    let existing = db
-        .load_plan_nodes_with_status(&input.plan_session_id, input.plan_version)
-        .await
-        .map_err(map_db_err)?;
-    let plan_unapproved = existing.iter().any(|r| r.status == "blocked_on_approval");
-    let status = if plan_unapproved {
-        "blocked_on_approval"
-    } else {
-        "pending"
-    };
-    db.upsert_plan_node(
-        &input.plan_session_id,
-        input.plan_version,
-        &input.node_id,
-        &input.description,
-        &deps_json,
-        "{}",
-        status,
-        None,
-    )
-    .await
-    .map_err(map_db_err)?;
-    Ok(())
+    let args = json!({ "mode": "insert", "insert": input });
+    tool_data(UPSERT_TOOL, b.call_tool(UPSERT_TOOL, args).await?)
 }
 
-/// Read-only fetch of the current plan-node rows for a session/version, so
-/// the GUI's plan panel can render the live DAG state.
-#[tauri::command]
-pub async fn list_plan_nodes(
-    pool: State<'_, GuiDbPool>,
-    plan_session_id: String,
+pub(crate) async fn list_nodes_impl<B: BackendCalls>(
+    b: &B,
+    plan_session_id: &str,
     plan_version: i64,
-) -> Result<Vec<PlanNodeRow>, String> {
-    let db = pool_db(&pool)?;
-    db.load_plan_nodes_with_status(&plan_session_id, plan_version)
-        .await
-        .map_err(map_db_err)
+) -> Result<Vec<PlanNodeDto>, String> {
+    let path = path_with_query(
+        &format!("/plan/sessions/{}/nodes", encode_component(plan_session_id)),
+        &[("version", Some(plan_version.to_string()))],
+    );
+    api_data(b.api_v2_get(&path).await?)
 }
 
-/// Batched open-task counts for the sidebar's task-count badges, one round trip for every
-/// visible session instead of one `invoke` per session. Keyed by chat session id (matches
-/// `ChatSessionDto::session_id`); a session absent from the returned map has zero open tasks.
-#[tauri::command]
-pub async fn plan_open_task_counts(
-    pool: State<'_, GuiDbPool>,
-    session_ids: Vec<String>,
-) -> Result<std::collections::HashMap<String, i64>, String> {
-    let db = pool_db(&pool)?;
-    db.open_task_counts_for_sessions(&session_ids)
-        .await
-        .map_err(map_db_err)
+pub(crate) async fn open_task_counts_impl<B: BackendCalls>(
+    b: &B,
+    session_ids: &[String],
+) -> Result<HashMap<String, i64>, String> {
+    if session_ids.is_empty() {
+        return Ok(HashMap::new());
+    }
+    let path = path_with_query(
+        "/plan/open-task-counts",
+        &[("session_ids", Some(session_ids.join(",")))],
+    );
+    api_data(b.api_v2_get(&path).await?)
 }
 
-/// Approve every `blocked_on_approval` node in a plan session so the scheduler
-/// picks them up — the `PlanPanel` footer's "Approve" button. One-line
-/// delegation to the same primitive `approve_plan_inner`
-/// (`vox-orchestrator-mcp/src/chat_tools/plan.rs`) uses for the MCP/CLI path;
-/// duplicated here rather than adding a `vox-gui` -> `vox-orchestrator-mcp`
-/// crate edge for a single SQL call.
-#[tauri::command]
-pub async fn approve_plan_nodes(
-    pool: State<'_, GuiDbPool>,
+pub(crate) async fn approve_impl<B: BackendCalls>(
+    b: &B,
     plan_session_id: String,
 ) -> Result<u64, String> {
-    let db = pool_db(&pool)?;
-    db.approve_all_blocked_plan_nodes(&plan_session_id)
-        .await
-        .map_err(map_db_err)
+    let args = json!({ "plan_session_id": plan_session_id });
+    tool_data(APPROVE_TOOL, b.call_tool(APPROVE_TOOL, args).await?)
 }
 
-/// The most recently updated `plan_sessions` row linked to a chat session, if any — used to
-/// pick which plan DAG the sidebar's task badge opens when a chat session has dispatched more
-/// than one goal (each dispatch mints its own `plan_sessions` row; see `goal.rs`).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct LatestPlanSessionForChat {
-    pub plan_session_id: String,
-    pub plan_version: i64,
+pub(crate) async fn latest_for_chat_impl<B: BackendCalls>(
+    b: &B,
+    session_id: &str,
+) -> Result<Option<LatestPlanSessionForChat>, String> {
+    let path = format!("/plan/latest-for-chat/{}", encode_component(session_id));
+    api_data(b.api_v2_get(&path).await?)
 }
 
+/// Edit a not-yet-dispatched plan node's description.
+#[tauri::command]
+pub async fn update_plan_node(
+    backend: State<'_, Arc<BackendState>>,
+    input: UpdatePlanNodeInput,
+) -> Result<(), String> {
+    update_impl(&backend.current().await, input).await
+}
+
+/// Insert a new intermediate step into the live plan; inserted `blocked_on_approval` while the
+/// plan is still unapproved.
+#[tauri::command]
+pub async fn insert_plan_node(
+    backend: State<'_, Arc<BackendState>>,
+    input: InsertPlanNodeInput,
+) -> Result<(), String> {
+    insert_impl(&backend.current().await, input).await
+}
+
+/// The current plan-node rows for a session/version, for the plan panel's live DAG.
+#[tauri::command]
+pub async fn list_plan_nodes(
+    backend: State<'_, Arc<BackendState>>,
+    plan_session_id: String,
+    plan_version: i64,
+) -> Result<Vec<PlanNodeDto>, String> {
+    list_nodes_impl(&backend.current().await, &plan_session_id, plan_version).await
+}
+
+/// Batched open-task counts for the sidebar's task-count badges, keyed by chat session id; a
+/// session absent from the map has zero open tasks.
+#[tauri::command]
+pub async fn plan_open_task_counts(
+    backend: State<'_, Arc<BackendState>>,
+    session_ids: Vec<String>,
+) -> Result<HashMap<String, i64>, String> {
+    open_task_counts_impl(&backend.current().await, &session_ids).await
+}
+
+/// Approve every `blocked_on_approval` node in a plan session — the `PlanPanel` footer's
+/// "Approve" button.
+#[tauri::command]
+pub async fn approve_plan_nodes(
+    backend: State<'_, Arc<BackendState>>,
+    plan_session_id: String,
+) -> Result<u64, String> {
+    approve_impl(&backend.current().await, plan_session_id).await
+}
+
+/// The most recently updated plan session linked to a chat session, if any.
 #[tauri::command]
 pub async fn latest_plan_session_for_chat(
-    pool: State<'_, GuiDbPool>,
+    backend: State<'_, Arc<BackendState>>,
     session_id: String,
 ) -> Result<Option<LatestPlanSessionForChat>, String> {
-    let db = pool_db(&pool)?;
-    let Some(plan_session_id) = db
-        .latest_plan_session_id_for_origin(&session_id)
-        .await
-        .map_err(map_db_err)?
-    else {
-        return Ok(None);
-    };
-    let Some(row) = db
-        .get_plan_session_by_id(&plan_session_id)
-        .await
-        .map_err(map_db_err)?
-    else {
-        return Ok(None);
-    };
-    Ok(Some(LatestPlanSessionForChat {
-        plan_session_id,
-        plan_version: row.current_version,
-    }))
+    latest_for_chat_impl(&backend.current().await, &session_id).await
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::commands::gui_db_pool::GuiDbPool;
-    use tauri::Manager;
+    use crate::remote::calls::fake::FakeBackend;
 
     #[tokio::test]
-    async fn update_plan_node_writes_through_to_the_db() {
-        let app = tauri::test::mock_app();
-        app.manage(GuiDbPool::connect_memory().await.expect("memory pool"));
-        let pool = app.state::<GuiDbPool>();
-        let db = pool.handle().unwrap();
-
-        db.create_plan_session("ps1", None, "test goal", "sequential")
+    async fn reads_go_to_the_plan_routes() {
+        let b = FakeBackend::new()
+            .on_get(
+                "/plan/sessions/ps%2F1/nodes?version=2",
+                Ok(json!({ "v": 1, "data": [{
+                    "plan_session_id": "ps/1", "version": 2, "node_id": "n1",
+                    "description": "d", "dependencies_json": "[]",
+                    "execution_policy_json": "{}", "status": "pending",
+                    "workflow_invocation": null
+                }] })),
+            )
+            .on_get(
+                "/plan/open-task-counts?session_ids=a%2Cb",
+                Ok(json!({ "v": 1, "data": { "a": 3 } })),
+            )
+            .on_get(
+                "/plan/latest-for-chat/chat-x",
+                Ok(json!({ "v": 1, "data": null })),
+            );
+        let nodes = list_nodes_impl(&b, "ps/1", 2).await.unwrap();
+        assert_eq!(nodes[0].node_id, "n1");
+        let counts = open_task_counts_impl(&b, &["a".into(), "b".into()])
             .await
             .unwrap();
-        db.append_plan_version("ps1", 1, None, None, None)
-            .await
-            .unwrap();
-        db.upsert_plan_node(
-            "ps1",
-            1,
-            "n1",
-            "original description",
-            "[]",
-            "{}",
-            "pending",
-            None,
-        )
-        .await
-        .unwrap();
+        assert_eq!(counts.get("a"), Some(&3));
+        assert_eq!(latest_for_chat_impl(&b, "chat-x").await.unwrap(), None);
+    }
 
-        update_plan_node(
-            pool,
+    #[tokio::test]
+    async fn empty_session_list_skips_the_round_trip() {
+        let b = FakeBackend::new();
+        assert!(open_task_counts_impl(&b, &[]).await.unwrap().is_empty());
+        assert!(b.calls().is_empty());
+    }
+
+    #[tokio::test]
+    async fn writes_go_to_the_upsert_and_approve_ops() {
+        let b = FakeBackend::new()
+            .on_tool(UPSERT_TOOL, Ok(json!({ "success": true, "data": null })))
+            .on_tool(APPROVE_TOOL, Ok(json!({ "success": true, "data": 2 })));
+        update_impl(
+            &b,
             UpdatePlanNodeInput {
-                plan_session_id: "ps1".to_string(),
+                plan_session_id: "ps1".into(),
                 plan_version: 1,
-                node_id: "n1".to_string(),
-                description: "edited description".to_string(),
+                node_id: "n1".into(),
+                description: "edited".into(),
             },
         )
         .await
         .unwrap();
-
-        let rows = db.load_plan_nodes_with_status("ps1", 1).await.unwrap();
-        let edited = rows.iter().find(|r| r.node_id == "n1").unwrap();
-        assert_eq!(edited.description, "edited description");
-    }
-
-    #[tokio::test]
-    async fn insert_plan_node_adds_a_new_pending_node() {
-        let app = tauri::test::mock_app();
-        app.manage(GuiDbPool::connect_memory().await.expect("memory pool"));
-        let pool = app.state::<GuiDbPool>();
-        let db = pool.handle().unwrap();
-
-        db.create_plan_session("ps2", None, "test goal", "sequential")
-            .await
-            .unwrap();
-        db.append_plan_version("ps2", 1, None, None, None)
-            .await
-            .unwrap();
-
-        insert_plan_node(
-            pool,
+        insert_impl(
+            &b,
             InsertPlanNodeInput {
-                plan_session_id: "ps2".to_string(),
+                plan_session_id: "ps1".into(),
                 plan_version: 1,
-                node_id: "n-new".to_string(),
-                description: "a step the user added".to_string(),
-                depends_on: vec![],
+                node_id: "n2".into(),
+                description: "new".into(),
+                depends_on: vec!["n1".into()],
             },
         )
         .await
         .unwrap();
-
-        let rows = db.load_plan_nodes_with_status("ps2", 1).await.unwrap();
-        let added = rows.iter().find(|r| r.node_id == "n-new").unwrap();
-        assert_eq!(added.description, "a step the user added");
-        assert_eq!(added.status, "pending");
+        assert_eq!(approve_impl(&b, "ps1".into()).await.unwrap(), 2);
+        let calls = b.calls();
+        assert_eq!(calls[0].1["mode"], "update");
+        assert_eq!(calls[0].1["update"]["description"], "edited");
+        assert_eq!(calls[1].1["mode"], "insert");
+        assert_eq!(calls[1].1["insert"]["depends_on"], json!(["n1"]));
+        assert_eq!(calls[2].1, json!({ "plan_session_id": "ps1" }));
     }
 
-    #[tokio::test]
-    async fn insert_plan_node_is_gated_when_the_plan_is_still_unapproved() {
-        let app = tauri::test::mock_app();
-        app.manage(GuiDbPool::connect_memory().await.expect("memory pool"));
-        let pool = app.state::<GuiDbPool>();
-        let db = pool.handle().unwrap();
-
-        db.create_plan_session("ps-gate", None, "test goal", "sequential")
-            .await
-            .unwrap();
-        db.append_plan_version("ps-gate", 1, None, None, None)
-            .await
-            .unwrap();
-        db.upsert_plan_node(
-            "ps-gate",
-            1,
-            "n1",
-            "first step",
-            "[]",
-            "{}",
-            "blocked_on_approval",
-            None,
-        )
-        .await
-        .unwrap();
-
-        insert_plan_node(
-            pool,
-            InsertPlanNodeInput {
-                plan_session_id: "ps-gate".to_string(),
-                plan_version: 1,
-                node_id: "n-new".to_string(),
-                description: "a step added before approval".to_string(),
-                depends_on: vec![],
-            },
-        )
-        .await
-        .unwrap();
-
-        let rows = db.load_plan_nodes_with_status("ps-gate", 1).await.unwrap();
-        let added = rows.iter().find(|r| r.node_id == "n-new").unwrap();
-        assert_eq!(
-            added.status, "blocked_on_approval",
-            "a node inserted into an unapproved plan must not be immediately runnable"
-        );
-    }
-
-    #[tokio::test]
-    async fn list_plan_nodes_returns_the_current_rows() {
-        let app = tauri::test::mock_app();
-        app.manage(GuiDbPool::connect_memory().await.expect("memory pool"));
-        let pool = app.state::<GuiDbPool>();
-        let db = pool.handle().unwrap();
-
-        db.create_plan_session("ps3", None, "test goal", "sequential")
-            .await
-            .unwrap();
-        db.append_plan_version("ps3", 1, None, None, None)
-            .await
-            .unwrap();
-        db.upsert_plan_node("ps3", 1, "n1", "first step", "[]", "{}", "pending", None)
-            .await
-            .unwrap();
-
-        let rows = list_plan_nodes(pool, "ps3".to_string(), 1).await.unwrap();
-        assert_eq!(rows.len(), 1);
-        assert_eq!(rows[0].node_id, "n1");
-        assert_eq!(rows[0].description, "first step");
-    }
-
-    #[tokio::test]
-    async fn plan_open_task_counts_batches_across_sessions() {
-        let app = tauri::test::mock_app();
-        app.manage(GuiDbPool::connect_memory().await.expect("memory pool"));
-        let pool = app.state::<GuiDbPool>();
-        let db = pool.handle().unwrap();
-
-        db.create_plan_session("ps-count-1", Some("chat-x"), "goal", "sequential")
-            .await
-            .unwrap();
-        db.append_plan_version("ps-count-1", 1, None, None, None)
-            .await
-            .unwrap();
-        db.upsert_plan_node("ps-count-1", 1, "n1", "step", "[]", "{}", "pending", None)
-            .await
-            .unwrap();
-
-        let counts = plan_open_task_counts(pool, vec!["chat-x".to_string(), "chat-y".to_string()])
-            .await
-            .unwrap();
-        assert_eq!(counts.get("chat-x").copied(), Some(1));
-        assert_eq!(counts.get("chat-y"), None);
-    }
-
-    #[tokio::test]
-    async fn latest_plan_session_for_chat_returns_none_for_a_session_with_no_dispatched_goals() {
-        let app = tauri::test::mock_app();
-        app.manage(GuiDbPool::connect_memory().await.expect("memory pool"));
-        let pool = app.state::<GuiDbPool>();
-
-        let result = latest_plan_session_for_chat(pool, "chat-with-no-tasks".to_string())
-            .await
-            .unwrap();
-        assert_eq!(result, None);
-    }
-
-    #[tokio::test]
-    async fn latest_plan_session_for_chat_returns_id_and_version_after_append_plan_version() {
-        let app = tauri::test::mock_app();
-        app.manage(GuiDbPool::connect_memory().await.expect("memory pool"));
-        let pool = app.state::<GuiDbPool>();
-        let db = pool.handle().unwrap();
-
-        db.create_plan_session("ps-latest", Some("chat-origin"), "goal", "sequential")
-            .await
-            .unwrap();
-        db.append_plan_version("ps-latest", 2, Some(1), None, None)
-            .await
-            .unwrap();
-
-        let result = latest_plan_session_for_chat(pool, "chat-origin".to_string())
-            .await
-            .unwrap()
-            .expect("linked plan session");
-        assert_eq!(result.plan_session_id, "ps-latest");
-        assert_eq!(result.plan_version, 2);
+    #[test]
+    fn module_has_no_direct_db_access() {
+        let src = include_str!("plan_panel.rs");
+        assert!(!src.contains(concat!("vox", "_db")));
+        assert!(!src.contains(concat!("Gui", "DbPool")));
     }
 }

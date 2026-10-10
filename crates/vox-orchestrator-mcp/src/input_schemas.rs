@@ -914,6 +914,30 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
             derived_tool_schema!(crate::gui_ops::scientia::DiscoveryAckParams)
         }
         // ── gui_ops: orchestrator (plan 07) ──
+        "vox_hopper_submit" => {
+            derived_tool_schema!(crate::gui_ops::orchestrator::HopperSubmitParams)
+        }
+        "vox_hopper_reprioritize" => {
+            derived_tool_schema!(crate::gui_ops::orchestrator::HopperReprioritizeParams)
+        }
+        "vox_hopper_cancel" => {
+            derived_tool_schema!(crate::gui_ops::orchestrator::HopperItemParams)
+        }
+        "vox_hopper_mark_done" => {
+            derived_tool_schema!(crate::gui_ops::orchestrator::HopperItemParams)
+        }
+        "vox_plan_node_upsert" => {
+            derived_tool_schema!(crate::gui_ops::orchestrator::PlanNodeUpsertParams)
+        }
+        "vox_plan_nodes_approve" => {
+            derived_tool_schema!(crate::gui_ops::orchestrator::PlanNodesApproveParams)
+        }
+        "vox_gui_run_start" => {
+            derived_tool_schema!(crate::gui_ops::dto::orchestrator::StartGuiRunInput)
+        }
+        "vox_gui_run_finish" => {
+            derived_tool_schema!(crate::gui_ops::dto::orchestrator::FinishGuiRunInput)
+        }
         // ── gui_ops: harness (plan 07) ──
         "vox_harness_corpus_scan" => {
             derived_tool_schema!(crate::gui_ops::harness::CorpusScanParams)

@@ -34573,6 +34573,182 @@ operations:
     - db
   cli: null
 # ── gui_ops: orchestrator (plan 07) ──
+- id: orchestrator.hopper_submit
+  title: Submit hopper task
+  description: Submit an intent to the persistent task hopper as a developer-sourced item.
+  description_human: null
+  product_lane: workflow
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_hopper_submit
+    http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
+  cli: null
+- id: orchestrator.hopper_reprioritize
+  title: Reprioritize hopper task
+  description: Override a hopper item's priority (0 background, 1 normal, 2 urgent) with a developer capability.
+  description_human: null
+  product_lane: workflow
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_hopper_reprioritize
+    http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
+  cli: null
+- id: orchestrator.hopper_cancel
+  title: Cancel hopper task
+  description: Cancel a hopper item, removing it from the open queue.
+  description_human: null
+  product_lane: workflow
+  intent_tags: []
+  side_effect_class: destructive
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_hopper_cancel
+    http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
+  cli: null
+- id: orchestrator.hopper_mark_done
+  title: Mark hopper task done
+  description: Mark a hopper item completed.
+  description_human: null
+  product_lane: workflow
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_hopper_mark_done
+    http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
+  cli: null
+- id: orchestrator.plan_node_upsert
+  title: Edit live plan node
+  description: Edit a not-yet-dispatched plan node's description, or insert a new step (blocked while the plan is unapproved).
+  description_human: null
+  product_lane: workflow
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_plan_node_upsert
+    http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
+  cli: null
+- id: orchestrator.plan_nodes_approve
+  title: Approve plan nodes
+  description: Approve every blocked_on_approval node in a plan session; returns how many were released.
+  description_human: null
+  product_lane: workflow
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_plan_nodes_approve
+    http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
+  cli: null
+- id: orchestrator.gui_run_start
+  title: Start GUI run
+  description: Record a running GUI-initiated run in the agent_runs journal.
+  description_human: null
+  product_lane: workflow
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_gui_run_start
+    http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
+  cli: null
+- id: orchestrator.gui_run_finish
+  title: Finish GUI run
+  description: Mark a GUI run completed or failed, joining approval and telemetry totals when a task id is given.
+  description_human: null
+  product_lane: workflow
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_gui_run_finish
+    http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
+  cli: null
 # ── gui_ops: harness (plan 07) ──
 - id: harness.corpus_scan
   title: Harness Corpus Scan

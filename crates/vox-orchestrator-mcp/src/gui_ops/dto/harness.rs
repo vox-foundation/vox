@@ -59,3 +59,38 @@ impl From<vox_db::HarnessFixProposalRow> for HarnessFixProposalDto {
         }
     }
 }
+
+/// Per-category pass/fail rollup for one harness eval run (design spec §10.2).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CategorySummaryDto {
+    pub category: String,
+    pub pass_count: i64,
+    pub fail_count: i64,
+}
+
+/// One row of the Harness Health recent-runs table.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HarnessEvalRunDto {
+    pub run_id: String,
+    pub git_sha: String,
+    pub triggered_by: String,
+    pub pass_count: i64,
+    pub fail_count: i64,
+    pub skip_count: i64,
+    pub total_cost_usd: f64,
+    pub started_at_ms: i64,
+    pub category_breakdown: Vec<CategorySummaryDto>,
+}
+
+/// One flagged regression for the Harness Health banner (design spec §10.2).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RegressionFlagDto {
+    pub kind: String,
+    pub previous_run_id: String,
+    pub current_run_id: String,
+    pub previous_git_sha: String,
+    pub current_git_sha: String,
+    pub changed_files: Vec<String>,
+    pub flipped_task_ids: Vec<String>,
+    pub detail: String,
+}

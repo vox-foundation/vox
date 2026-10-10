@@ -2036,6 +2036,46 @@ async fn handle_tool_call_inner(
             Ok(crate::gui_ops::scientia::discovery_ack(state, serde_json::from_value(args)?).await)
         }
         // ── gui_ops: orchestrator (plan 07) ──
+        "vox_hopper_submit" => Ok(crate::gui_ops::orchestrator::hopper_submit(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_hopper_reprioritize" => Ok(crate::gui_ops::orchestrator::hopper_reprioritize(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_hopper_cancel" => Ok(crate::gui_ops::orchestrator::hopper_cancel(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_hopper_mark_done" => Ok(crate::gui_ops::orchestrator::hopper_mark_done(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_plan_node_upsert" => Ok(crate::gui_ops::orchestrator::plan_node_upsert(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_plan_nodes_approve" => Ok(crate::gui_ops::orchestrator::plan_nodes_approve(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_gui_run_start" => Ok(crate::gui_ops::orchestrator::gui_run_start(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_gui_run_finish" => Ok(crate::gui_ops::orchestrator::gui_run_finish(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
         // ── gui_ops: harness (plan 07) ──
         "vox_harness_corpus_scan" => {
             Ok(crate::gui_ops::harness::corpus_scan(state, serde_json::from_value(args)?).await)

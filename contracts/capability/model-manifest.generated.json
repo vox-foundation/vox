@@ -1331,6 +1331,24 @@
       "curated": true
     },
     {
+      "capability_id": "mcp.vox_gui_run_finish",
+      "mcp_tool": "vox_gui_run_finish",
+      "implicit": false,
+      "title": "Finish GUI run",
+      "description_model": "Mark a GUI run completed or failed, joining approval and telemetry totals when a task id is given.",
+      "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_gui_run_start",
+      "mcp_tool": "vox_gui_run_start",
+      "implicit": false,
+      "title": "Start GUI run",
+      "description_model": "Record a running GUI-initiated run in the agent_runs journal.",
+      "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
       "capability_id": "mcp.vox_gui_tokens",
       "mcp_tool": "vox_gui_tokens",
       "implicit": false,
@@ -1401,6 +1419,42 @@
       "implicit": false,
       "title": "Heartbeat",
       "description_model": "Send an active heartbeat from a Vox agent session.",
+      "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_hopper_cancel",
+      "mcp_tool": "vox_hopper_cancel",
+      "implicit": false,
+      "title": "Cancel hopper task",
+      "description_model": "Cancel a hopper item, removing it from the open queue.",
+      "side_effect_class": "destructive",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_hopper_mark_done",
+      "mcp_tool": "vox_hopper_mark_done",
+      "implicit": false,
+      "title": "Mark hopper task done",
+      "description_model": "Mark a hopper item completed.",
+      "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_hopper_reprioritize",
+      "mcp_tool": "vox_hopper_reprioritize",
+      "implicit": false,
+      "title": "Reprioritize hopper task",
+      "description_model": "Override a hopper item's priority (0 background, 1 normal, 2 urgent) with a developer capability.",
+      "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_hopper_submit",
+      "mcp_tool": "vox_hopper_submit",
+      "implicit": false,
+      "title": "Submit hopper task",
+      "description_model": "Submit an intent to the persistent task hopper as a developer-sourced item.",
       "side_effect_class": "writes_files",
       "curated": true
     },
@@ -2084,6 +2138,24 @@
       "title": "Plan List Sessions",
       "description_model": "List active and recent plan sessions.",
       "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_plan_node_upsert",
+      "mcp_tool": "vox_plan_node_upsert",
+      "implicit": false,
+      "title": "Edit live plan node",
+      "description_model": "Edit a not-yet-dispatched plan node's description, or insert a new step (blocked while the plan is unapproved).",
+      "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_plan_nodes_approve",
+      "mcp_tool": "vox_plan_nodes_approve",
+      "implicit": false,
+      "title": "Approve plan nodes",
+      "description_model": "Approve every blocked_on_approval node in a plan session; returns how many were released.",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {

@@ -405,6 +405,26 @@ impl crate::VoxDb {
         }
     }
 
+    /// Input + output tokens of the most recent `llm_interactions` row for a session (0 if
+    /// none). The newest call is what currently occupies the context window; a SUM over all
+    /// rows would grow unbounded across turns.
+    pub async fn latest_interaction_tokens(&self, session_id: &str) -> Result<u64, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT COALESCE(input_tokens, 0) + COALESCE(output_tokens, 0)
+                 FROM llm_interactions
+                 WHERE session_id = ?1
+                 ORDER BY rowid DESC LIMIT 1",
+                params![session_id],
+            )
+            .await?;
+        Ok(match rows.next().await? {
+            Some(r) => r.get::<i64>(0).unwrap_or(0).max(0) as u64,
+            None => 0,
+        })
+    }
+
     // ── LLM Feedback (llm_feedback) ───────────────────────────────────────────
 
     /// Append a `llm_feedback` row linked to an `llm_interactions` rowid.
@@ -1001,5 +1021,58 @@ mod spend_tests {
             s1.session_usd
         );
         assert!((s1.total_usd - 0.07).abs() < 1e-9, "total still all");
+    }
+}
+
+#[cfg(test)]
+mod interaction_token_tests {
+    use crate::store::types::ModelOutcome;
+    use crate::{DbConfig, VoxDb};
+
+    fn outcome<'a>(session: &'a str, input: i64, output: i64) -> ModelOutcome<'a> {
+        ModelOutcome {
+            session_id: session,
+            user_id: None,
+            tenant_id: None,
+            prompt: "p",
+            response: "r",
+            model_id: "m",
+            provider: "openrouter",
+            task_category: "general",
+            strength_tag: "generalist",
+            latency_ms: Some(10),
+            input_tokens: Some(input),
+            output_tokens: Some(output),
+            cache_read_tokens: Some(0),
+            trace_id: None,
+            context_utilization_pct: None,
+            success: true,
+            cost_usd: Some(0.0),
+            quality_score: Some(1.0),
+            ttft_ms: None,
+            tpot_ms: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn latest_interaction_tokens_is_zero_for_unknown_session() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
+        assert_eq!(db.latest_interaction_tokens("nope").await.expect("read"), 0);
+    }
+
+    #[tokio::test]
+    async fn latest_interaction_tokens_reads_only_the_newest_row() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
+        db.record_llm_outcome(outcome("s1", 100, 20))
+            .await
+            .expect("rec 1");
+        db.record_llm_outcome(outcome("s1", 300, 40))
+            .await
+            .expect("rec 2");
+        db.record_llm_outcome(outcome("s2", 9, 9))
+            .await
+            .expect("rec 3");
+        assert_eq!(db.latest_interaction_tokens("s1").await.expect("read"), 340);
+        assert_eq!(db.latest_interaction_tokens("s2").await.expect("read"), 18);
     }
 }
