@@ -6,11 +6,11 @@ current_phase: "20.1"
 current_phase_name: Collapsible Reader Layout
 current_plan: Not started
 status: planning
-stopped_at: Phase 20 complete, ready to plan Phase 20.1
-last_updated: "2026-10-09T20:05:55.542Z"
+stopped_at: Phase 20.1 UI-SPEC approved
+last_updated: "2026-10-10T10:00:13.924Z"
 last_activity: 2026-10-09
 last_activity_desc: Phase 20 complete, transitioned to Phase 20.1
-state_head: c3dda8dc6fb14f4539aefc29a31ea51eb446166f
+state_head: a153a2d537e415c7a802459a15bd867aa769a64a
 progress:
   total_phases: 6
   completed_phases: 1
@@ -75,10 +75,10 @@ Last activity: 2026-10-09 — Phase 20 complete, transitioned to Phase 20.1
 
 ## Session Continuity
 
-**Last session:** 2026-10-09T17:28:55.832Z
+**Last session:** 2026-10-10T10:00:13.838Z
 
-**Stopped At:** Phase 20 complete, ready to plan Phase 20.1
-**Resume File:** None
+**Stopped At:** Phase 20.1 UI-SPEC approved
+**Resume File:** .planning/workstreams/docs-freshness/phases/20.1-collapsible-reader-layout/20.1-UI-SPEC.md
 
 ## Performance Metrics
 
