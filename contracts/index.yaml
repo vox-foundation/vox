@@ -128,6 +128,33 @@ contracts:
     enforced_by:
       - vox ci check-links
 
+  - id: documentation-kb-taxonomy
+    path: contracts/documentation/kb-taxonomy.v1.yaml
+    owner: knowledge-base
+    kind: yaml
+    description: "SKOS-lite KB vocabulary: topic/domain prefLabels, altLabel synonyms, deprecated aliases (KB Phase 4)."
+    enforced_by:
+      - vox-doc-pipeline facet lint
+      - vox_kb_search altLabel expansion
+
+  - id: documentation-kb-facets-schema
+    path: contracts/documentation/kb-facets.v1.schema.json
+    owner: knowledge-base
+    kind: json-schema
+    description: "Generated JSON Schema of the KB doc facets (from vox_kb_facets::Facets); source of the GUI facet type."
+    enforced_by:
+      - cargo test -p vox-kb-facets --test facet_schema_golden
+      - vox ci config-gui-codegen --kb-facets --check
+
+  - id: documentation-kb-facet-backlog
+    path: contracts/documentation/kb-facet-backlog.v1.yaml
+    owner: knowledge-base
+    kind: yaml
+    description: "Shrink-only allowlist of existing docs and the facet rule ids they still violate (KB Phase 4, D-04)."
+    enforced_by:
+      - vox-doc-pipeline facet lint
+      - vox ci pre-push facet backlog gate
+
   - id: documentation-docs-reality-audit-program-v1
     path: contracts/documentation/docs-reality-audit.program.v1.yaml
     owner: platform-ci
