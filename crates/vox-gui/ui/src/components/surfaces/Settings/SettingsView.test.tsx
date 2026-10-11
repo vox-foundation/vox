@@ -88,6 +88,7 @@ vi.mock('./PriorityChainEditor', () => ({
 }));
 
 import { SettingsView } from './SettingsView';
+import { getBindings, resetKeybindStoreForTests } from '../../../lib/keybindStore';
 import { LanguageProvider } from '../../../hooks/useLanguage';
 
 function wrapper({ children }: { children: React.ReactNode }) {
@@ -103,6 +104,7 @@ describe('SettingsView', () => {
   beforeEach(() => {
     invokeMock.mockClear();
     recordGamifyMock.mockClear();
+    resetKeybindStoreForTests();
   });
 
   it('renders without crashing', () => {
@@ -234,6 +236,30 @@ describe('SettingsView', () => {
       'gui.keybinds',
       expect.stringContaining('"open-palette":"Mod+P"'),
     ));
+  });
+
+  it('keybinds: a rebind lands in the shared store, and reset restores defaults (D-17)', async () => {
+    const user = userEvent.setup();
+    render(<SettingsView pushToast={vi.fn()} />, { wrapper });
+    await user.click(screen.getByRole('button', { name: /keybinds/i }));
+    const btn = await screen.findByTestId('keybind-btn-open-palette');
+    await user.click(btn);
+    fireEvent.keyDown(window, { key: 'p', ctrlKey: true, cancelable: true }, { capture: true });
+    await waitFor(() => expect(getBindings()['open-palette']).toBe('Mod+P'));
+    await user.click(screen.getByRole('button', { name: /reset to defaults/i }));
+    await waitFor(() => expect(getBindings()['open-palette']).toBe('Mod+K'));
+    expect(btn.textContent).toBe('Mod+K');
+  });
+
+  it('keybinds: a change made elsewhere in the store shows in Settings (D-17)', async () => {
+    const user = userEvent.setup();
+    const { setBindings } = await import('../../../lib/keybindStore');
+    const { DEFAULT_BINDINGS } = await import('../../../lib/keybinds');
+    render(<SettingsView pushToast={vi.fn()} />, { wrapper });
+    await user.click(screen.getByRole('button', { name: /keybinds/i }));
+    const btn = await screen.findByTestId('keybind-btn-toggle-sidebar');
+    React.act(() => setBindings({ ...DEFAULT_BINDINGS, 'toggle-sidebar': 'Mod+Shift+Y' }));
+    expect(btn.textContent).toBe('Mod+Shift+Y');
   });
 
   it('toggles display language and persists vox.lang', () => {
