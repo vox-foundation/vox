@@ -3,8 +3,8 @@ gsd_state_version: "1.0"
 milestone: v1.4
 milestone_name: Code Atlas
 status: planning
-last_updated: "2026-10-09T16:35:00.000Z"
-last_activity: 2026-10-09
+last_updated: "2026-10-11T16:20:00.000Z"
+last_activity: 2026-10-11
 progress:
   total_phases: 7
   completed_phases: 0
@@ -17,7 +17,7 @@ progress:
 
 ## Project Reference
 
-See: `.planning/PROJECT.md`; workstream brief `CONTEXT.md`; roadmap `ROADMAP.md`; requirements `REQUIREMENTS.md` (25 v1.4 requirements, all mapped); research `research/SUMMARY.md`.
+See: `.planning/PROJECT.md`; workstream brief `CONTEXT.md`; roadmap `ROADMAP.md`; requirements `REQUIREMENTS.md` (25 v1.4 requirements, all mapped); research `research/SUMMARY.md`; handoff `HANDOFF.md`.
 
 **Core value:** The Graphify codebase graph — crates → modules → files → symbols, including `.vox` kinds — is a navigable visual language on any branch or worktree, docked beside Chat so the atlas updates as the conversation names and changes code.
 
@@ -25,8 +25,8 @@ See: `.planning/PROJECT.md`; workstream brief `CONTEXT.md`; roadmap `ROADMAP.md`
 
 Phase: 25 of 25–31 (Graph Data Floor)
 Plan: —
-Status: Roadmap drafted, awaiting approval
-Last activity: 2026-10-09 — v1.4 roadmap written (phases 25–31)
+Status: Discussing Phase 25 (2 of 4 areas decided)
+Last activity: 2026-10-11 — handoff written; phase 25 discuss checkpoint saved
 
 ## Progress
 
@@ -39,6 +39,7 @@ Last activity: 2026-10-09 — v1.4 roadmap written (phases 25–31)
 
 - D1–D7 recorded in `REQUIREMENTS.md` (workstream `code-atlas`; milestone v1.4; phases 25+ after docs-freshness 24; codebase graph not Agent Flow; all seven capabilities in-milestone; pulses and vs-`main` later in this milestone, never faked; xyflow 12 + dockview 6.6.1; no new crate / no GUI→reader edge / no reader→compiler edge; same-webview float only).
 - Roadmap: data floor before canvas; canvas before dock; `code_touch` before pulses; vs-`main` as Phase 27 (later, still this milestone). VOX-01 extractor in 25; VOX-02 chrome in 30.
+- Phase 25 (discussion, partial): existing edges → `calls`; ship `crate_dep` + query-time `contains`; dangling kept as `mentions`+`dangling`; empty query = crate level; explicit `level` param; focused crate = crate + 1-hop `crate_dep`; default corpus `repo-code-graph` + its identity. See `phases/25-graph-data-floor/25-DISCUSS-CHECKPOINT.json`.
 
 ### Blockers / Gates
 
@@ -49,10 +50,9 @@ Last activity: 2026-10-09 — v1.4 roadmap written (phases 25–31)
 
 ### Todos
 
-- Await orchestrator / user approval of `ROADMAP.md`.
-- Next after approval: `/gsd-plan-phase 25`
+- Finish `/gsd-discuss-phase 25 --ws code-atlas` (stale-cache policy, Vox kind set), then `/gsd-plan-phase 25 --ws code-atlas`.
 
 ## Session Continuity
 
-**Stopped At:** Roadmap drafted, awaiting approval
-**Resume File:** `.planning/workstreams/code-atlas/ROADMAP.md`
+**Stopped At:** Phase 25 discussion — edge-kind honesty and empty-query LOD decided; stale-cache policy asked but unanswered; Vox kind set not started
+**Resume File:** `.planning/workstreams/code-atlas/HANDOFF.md` (checkpoint: `phases/25-graph-data-floor/25-DISCUSS-CHECKPOINT.json`)
