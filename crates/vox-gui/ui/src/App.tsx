@@ -15,6 +15,9 @@ import { useActiveView } from './hooks/useActiveView';
 import { useDocViewer } from './hooks/useDocViewer';
 import { TaskDiffDialog } from './components/surfaces/Chat/TaskDiffDialog';
 import { DocViewerDrawer } from './components/layout/DocViewerDrawer';
+import { ExplainDrawer } from './components/layout/ExplainDrawer';
+import { useCapabilityIndex } from './hooks/useCapabilityIndex';
+import { getLoadedCapabilityIndex } from './lib/capabilityIndexLoader';
 import { InspectorDrawer } from './debugger/InspectorDrawer';
 import { ResearchEngineDrawer } from './components/surfaces/Research/ResearchEngineDrawer';
 import { Omnibar } from './components/layout/Omnibar';
@@ -1031,6 +1034,16 @@ export default function App() {
   // Palette → Catalog: select a CLI command and show its form (D-01: never executes).
   const [catalogPrefill, setCatalogPrefill] = useState<{ path: string[]; nonce: number } | null>(null);
 
+  // Palette → explain card (D-07) for rows with no direct GUI action (MCP tool, crate, skill).
+  const [explainRowId, setExplainRowId] = useState<string | null>(null);
+  const capIdx = useCapabilityIndex(explainRowId !== null);
+  const explainRow = useMemo(
+    () => (explainRowId ? (capIdx.rows.find((r) => r.id === explainRowId) ?? null) : null),
+    [explainRowId, capIdx.rows],
+  );
+  const catalogPaths = useMemo(() => new Set(data.skills.map((e) => e.path.join(' '))), [data.skills]);
+  const closeExplain = useCallback(() => setExplainRowId(null), []);
+
   const onOpenFeedbackContext = useCallback((feedbackId: string) => {
     navigateTo('chat');
     setFocusedFeedbackId(feedbackId);
@@ -2042,6 +2055,7 @@ export default function App() {
           handleLoquelaSubmit({ description: query, session_id: activeSessionId, execution_mode: 'chat' });
         }}
         onOpenDoc={(path) => openDocTab(path)}
+        onExplain={setExplainRowId}
         agents={data.agents}
         skills={installedSkillEntries}
         gamifyEnabled={gamifySettings.enabled}
@@ -2055,6 +2069,24 @@ export default function App() {
       />
 
       <DocViewerDrawer doc={activeDoc} onClose={closeDocViewer} />
+      <ExplainDrawer
+        row={explainRow}
+        rows={capIdx.rows}
+        domains={capIdx.domains}
+        catalogPaths={catalogPaths}
+        coverageAsOf={getLoadedCapabilityIndex()?.CAPABILITY_COVERAGE_AS_OF ?? null}
+        onClose={closeExplain}
+        onOpenForm={(path) => {
+          setCatalogPrefill((p) => ({ path, nonce: (p?.nonce ?? 0) + 1 }));
+          navigateTo('catalog');
+          closeExplain();
+        }}
+        onOpenDoc={(path) => {
+          openDocTab(path);
+          closeExplain();
+        }}
+        pushToast={pushToast}
+      />
       <TaskDiffDialog open={diffOpen} loading={diffLoading} text={diffText} onClose={() => setDiffOpen(false)} />
       <InspectorDrawer open={isInspectorOpen} onClose={() => setIsInspectorOpen(false)} />
       <ResearchEngineDrawer
