@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ACTION_REGISTRY, chordFromEvent, matchAction, DEFAULT_BINDINGS } from './keybinds';
+import { ACTION_REGISTRY, chordFromEvent, matchAction, parseBindings, DEFAULT_BINDINGS } from './keybinds';
 describe('keybinds', () => {
   it('registry lists only real, dispatchable actions', () => {
     expect(ACTION_REGISTRY.map(a => a.id)).toContain('open-palette');
@@ -91,5 +91,25 @@ describe('paletteActionRows (D-13 helper, DISC-07 edges)', () => {
   it('empty bindings fall back to defaults', () => {
     const rows = paletteActionRows({}, ids, false);
     expect(rows.find(r => r.id === 'toggle-sidebar')?.chord).toBe('Ctrl+B');
+  });
+});
+
+describe('parseBindings (WR-12: a corrupt stored value must never reach formatChord)', () => {
+  it('drops non-string chords and non-action keys, keeps valid overrides', () => {
+    const b = parseBindings(JSON.stringify({ 'open-palette': 5, 'toggle-sidebar': 'Mod+Y', 'show-shortcuts': null, bogus: 'Mod+Z' }));
+    expect(b['open-palette']).toBe(DEFAULT_BINDINGS['open-palette']);
+    expect(b['show-shortcuts']).toBe(DEFAULT_BINDINGS['show-shortcuts']);
+    expect(b['toggle-sidebar']).toBe('Mod+Y');
+    expect(b).not.toHaveProperty('bogus');
+  });
+
+  it('non-object JSON (null, array, number) gives defaults', () => {
+    for (const j of ['null', '[1,2]', '7', '"x"']) expect(parseBindings(j)).toEqual(DEFAULT_BINDINGS);
+  });
+
+  it('paletteActionRows never throws on a parsed corrupt value', () => {
+    const b = parseBindings(JSON.stringify({ 'open-palette': { a: 1 } }));
+    const rows = paletteActionRows(b, new Set(['open-palette']), true);
+    expect(rows[0].chord).toBe('⌘K');
   });
 });

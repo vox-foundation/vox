@@ -38,9 +38,20 @@ export function matchAction(chord: string, bindings: Bindings): ActionId | null 
   return hit ?? null;
 }
 export function serializeBindings(b: Bindings): string { return JSON.stringify(b); }
+/** Stored value -> bindings. Only string chords for known actions survive; anything else falls back to the default (WR-12). */
 export function parseBindings(json: string | null): Bindings {
-  if (!json) return { ...DEFAULT_BINDINGS };
-  try { return { ...DEFAULT_BINDINGS, ...JSON.parse(json) }; } catch { return { ...DEFAULT_BINDINGS }; }
+  const out: Bindings = { ...DEFAULT_BINDINGS };
+  if (!json) return out;
+  try {
+    const parsed: unknown = JSON.parse(json);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      for (const { id } of ACTION_REGISTRY) {
+        const v = (parsed as Record<string, unknown>)[id];
+        if (typeof v === 'string') out[id] = v;
+      }
+    }
+  } catch { /* corrupt JSON: defaults */ }
+  return out;
 }
 
 /** Render a stored chord ("Mod+Shift+D") for display: ⌘⇧D on macOS, Ctrl+Shift+D elsewhere. */
