@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { CommandCatalog, CommandCatalogEntry, CommandCatalogArgument } from '../types/catalog';
 import { voxTransport } from '../transport';
 import { sanitizeErrorForToast } from '../lib/backendGuard';
@@ -24,7 +24,16 @@ export function argControl(arg: CommandCatalogArgument): ArgControl {
     return 'text';
 }
 
-export function CommandCatalogForm({ catalog }: { catalog: CommandCatalog }) {
+export function CommandCatalogForm({
+    catalog,
+    initialPath,
+    nonce,
+}: {
+    catalog: CommandCatalog;
+    /** Palette handoff: command path to select; re-applied whenever `nonce` changes. */
+    initialPath?: string[];
+    nonce?: number;
+}) {
     const [selectedPath, setSelectedPath] = useState<string | null>(null);
     const [argsInput, setArgsInput] = useState('');
     const [argValues, setArgValues] = useState<Record<string, string | boolean>>({});
@@ -48,6 +57,16 @@ export function CommandCatalogForm({ catalog }: { catalog: CommandCatalog }) {
         setArgValues(seeded);
         setOutput(null);
     };
+
+    // Select the palette-chosen command (selecting only fills the form; Run stays explicit).
+    useEffect(() => {
+        if (!initialPath || nonce === undefined) return;
+        handleCommandSelect(initialPath);
+        document
+            .querySelector(`[data-catalog-path="${CSS.escape(initialPath.join(' '))}"]`)
+            ?.scrollIntoView?.({ block: 'center' });
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on nonce on purpose
+    }, [nonce]);
 
     const handleExecute = async () => {
         if (!selectedPath) return;
@@ -86,6 +105,8 @@ export function CommandCatalogForm({ catalog }: { catalog: CommandCatalog }) {
                         return (
                             <li 
                                 key={p}
+                                data-catalog-path={p}
+                                aria-current={isSelected ? 'true' : undefined}
                                 onClick={() => handleCommandSelect(cmd.path)}
                                 className={`cursor-pointer p-2 mb-1 text-sm font-mono transition-colors border-l-2 ${
                                     isSelected ? 'bg-cyan/10 border-cyan text-cyan' : 'border-transparent text-steel hover:bg-overlay-subtle'

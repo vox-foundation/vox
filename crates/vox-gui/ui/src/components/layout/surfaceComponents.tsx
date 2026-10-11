@@ -48,6 +48,7 @@ export interface SurfaceProps {
   selectedAgentId?: string;
   setSelectedAgentId?: (id: string) => void;
   skills?: CatalogEntry[];
+  catalogPrefill?: { path: string[]; nonce: number } | null;
   onAttachContext?: (items: Array<{ kind: 'file' | 'url' | 'image'; label: string }>) => void;
   onNavigate?: (viewKey: string) => void;
   onOpenChat?: () => void;
@@ -111,7 +112,7 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
         />
       );
     case 'catalog':
-      return <Catalog skills={props.data.skills} />;
+      return <Catalog catalog={props.data.skills} prefill={props.catalogPrefill} />;
     case 'memory':
       return <MemoryView pushToast={props.pushToast} onAttachContext={props.onAttachContext} />;
     case 'vox-search':

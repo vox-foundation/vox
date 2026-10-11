@@ -1028,6 +1028,9 @@ export default function App() {
 
   const [focusedFeedbackId, setFocusedFeedbackId] = useState<string | null>(null);
 
+  // Palette → Catalog: select a CLI command and show its form (D-01: never executes).
+  const [catalogPrefill, setCatalogPrefill] = useState<{ path: string[]; nonce: number } | null>(null);
+
   const onOpenFeedbackContext = useCallback((feedbackId: string) => {
     navigateTo('chat');
     setFocusedFeedbackId(feedbackId);
@@ -1836,6 +1839,7 @@ export default function App() {
     selectedAgentId,
     setSelectedAgentId,
     skills: data.skills,
+    catalogPrefill,
     onAttachContext: attachContext,
     onNavigate: navigateTo,
     onOpenChat: () => navigateTo('chat'),
@@ -2029,6 +2033,10 @@ export default function App() {
           });
         }}
         onSubmitTask={() => handleSubmitTaskAction(navigateTo, focusComposer)}
+        onOpenCatalogForm={(path) => {
+          setCatalogPrefill((p) => ({ path, nonce: (p?.nonce ?? 0) + 1 }));
+          navigateTo('catalog');
+        }}
         onSendToChat={(query) => {
           navigateTo('chat');
           handleLoquelaSubmit({ description: query, session_id: activeSessionId, execution_mode: 'chat' });

@@ -38,5 +38,13 @@ test.describe('Universal palette', () => {
     await expect(row).toContainText('CLI');
     await expect(row).toContainText('MCP');
     await shot(page, 'universal-palette-01-cli-row');
+
+    // Activate the row (D-01: opens the Catalog form, never executes). Enter-on-top-row is
+    // covered by the Omnibar unit test; Best match (a later plan) will put this row first.
+    await row.click();
+    await expect.poll(async () => page.evaluate(() => window.location.hash)).toContain('view=catalog');
+    await expect(page.getByRole('heading', { name: 'vox check' })).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('[data-catalog-path="check"]')).toHaveAttribute('aria-current', 'true');
+    await shot(page, 'universal-palette-02-prefilled-form');
   });
 });
