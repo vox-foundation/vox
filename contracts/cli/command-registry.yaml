@@ -9268,6 +9268,18 @@ operations:
 - surface: vox-cli
   path:
   - model
+  - eval-compare
+  status: active
+  latin_ns: null
+  product_lane: ai
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - model
   - eval-corpus
   status: active
   latin_ns: null

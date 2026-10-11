@@ -383,6 +383,7 @@ migrate
 migrate/names
 migrate/web
 model
+model/bench
 model/cas
 model/cas/ls
 model/cas/pull
@@ -392,6 +393,7 @@ model/costs
 model/council-report
 model/discover
 model/eval
+model/eval-compare
 model/eval-corpus
 model/explain
 model/list

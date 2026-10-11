@@ -25944,6 +25944,33 @@ operations:
     catalog_group: null
     ref_cli_required: false
     reachability_required: null
+- id: model.eval-compare
+  title: Model Eval-compare
+  description: CLI operation `vox model eval-compare`
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - model
+    - eval-compare
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
 - id: model.rollup
   title: Model Rollup
   description: Perform batch aggregation of telemetry into the scoreboard.
