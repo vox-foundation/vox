@@ -24,6 +24,10 @@ pub struct Fixture {
     pub signature: String,
     /// Absolute path to the fixture's `tests.vox`.
     pub tests_path: PathBuf,
+    /// Absolute path to the fixture's `spec.toml`.
+    pub spec_path: PathBuf,
+    /// Absolute path to the fixture's `reference.vox`.
+    pub reference_path: PathBuf,
 }
 
 /// Load every fixture declared by `<corpus_root>/manifest.v1.yaml`, reading each
@@ -72,6 +76,11 @@ pub fn load_corpus(corpus_root: &Path) -> Result<Vec<Fixture>> {
             .and_then(|f| f.get("tests"))
             .and_then(|v| v.as_str())
             .with_context(|| format!("fixture {id} missing `files.tests`"))?;
+        let reference_rel = entry
+            .get("files")
+            .and_then(|f| f.get("reference"))
+            .and_then(|v| v.as_str())
+            .with_context(|| format!("fixture {id} missing `files.reference`"))?;
 
         let spec_path = corpus_root.join(spec_rel);
         let spec_raw = std::fs::read_to_string(&spec_path)
@@ -96,6 +105,8 @@ pub fn load_corpus(corpus_root: &Path) -> Result<Vec<Fixture>> {
             prompt: field("prompt")?,
             signature: field("signature")?,
             tests_path: corpus_root.join(tests_rel),
+            reference_path: corpus_root.join(reference_rel),
+            spec_path,
         });
     }
     Ok(out)
@@ -158,6 +169,28 @@ mod tests {
         );
         assert!(first.signature.starts_with("fn fizzbuzz"));
         assert!(first.tests_path.exists(), "tests.vox path resolves on disk");
+    }
+
+    #[test]
+    fn load_corpus_records_spec_and_reference_paths() {
+        let fixtures = load_corpus(&corpus_root()).expect("corpus loads");
+        for f in &fixtures {
+            assert!(f.spec_path.is_file(), "{} spec.toml", f.id);
+            assert!(f.reference_path.is_file(), "{} reference.vox", f.id);
+        }
+    }
+
+    #[test]
+    fn load_corpus_requires_files_reference() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("manifest.v1.yaml"),
+            "fixtures:\n  - id: \"001\"\n    slug: a\n    added_at: \"2026-01-01\"\n    \
+             training_eligible: false\n    files:\n      spec: s.toml\n      tests: t.vox\n",
+        )
+        .unwrap();
+        let err = load_corpus(dir.path()).unwrap_err().to_string();
+        assert!(err.contains("files.reference"), "{err}");
     }
 
     #[test]

@@ -30,6 +30,7 @@ use vox_corpus::humaneval_runner::conditions::{
 use vox_corpus::humaneval_runner::{
     Fixture, VerifyOutcome, eligible_after, held_out, load_corpus, verify_program,
 };
+use vox_crypto::facades::{hex_encode, interop_sha256, secure_hash};
 use vox_eval::corpus_score::{AttemptOutcome, CorpusScore, FixtureOutcome};
 use vox_eval::provenance::{MensLineage, RunProvenance, SamplingRecord};
 use vox_eval::report::{
@@ -130,34 +131,142 @@ pub fn mens_row_identity(model: &str, harness: &str, checkpoint: Option<&str>) -
     }
 }
 
-/// sha256-based row identity over every knob that can change a score.
+/// Every knob that can change a score; the input of [`config_digest`].
+#[derive(Debug, Clone)]
+pub struct ConfigKnobs<'a> {
+    pub model_id: &'a str,
+    pub harness: &'a str,
+    pub n: usize,
+    pub k: usize,
+    pub condition: &'a str,
+    pub context_hash: &'a str,
+    pub temperature: f32,
+    pub top_p: f32,
+    pub max_tokens: u64,
+    pub seed: u64,
+    pub problem_set_hash: &'a str,
+}
+
+/// BLAKE3 row identity (16 hex chars) over every knob that can change a score.
 ///
-/// An earlier design hashed with `DefaultHasher`, which Rust does not
-/// guarantee stable across releases — a toolchain bump would silently re-key
-/// every historical row.
+/// An earlier design hashed with `DefaultHasher`, which Rust does not guarantee stable
+/// across releases; hashing goes through `vox-crypto` per the crypto policy.
 #[must_use]
-#[allow(clippy::too_many_arguments)]
-pub fn config_digest(
-    harness: &str,
-    n: usize,
-    k: usize,
-    condition: &str,
-    context_hash: &str,
-    temperature: f32,
-    max_tokens: u64,
-) -> String {
-    use sha2::Digest;
-    let mut h = sha2::Sha256::new();
-    h.update(format!(
-        "{harness}|{n}|{k}|{condition}|{context_hash}|{temperature}|{max_tokens}"
-    ));
-    // `Sha256::finalize()` returns a `GenericArray`, which does not implement
-    // `LowerHex` directly (unlike a `[u8]` slice) — format each byte.
-    h.finalize()
-        .iter()
-        .take(8)
-        .map(|b| format!("{b:02x}"))
-        .collect()
+pub fn config_digest(c: &ConfigKnobs<'_>) -> String {
+    let joined = format!(
+        "{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
+        c.model_id,
+        c.harness,
+        c.n,
+        c.k,
+        c.condition,
+        c.context_hash,
+        c.temperature,
+        c.top_p,
+        c.max_tokens,
+        c.seed,
+        c.problem_set_hash
+    );
+    hex_encode(&secure_hash(joined.as_bytes())[..8])
+}
+
+/// SHA-256 (per D-11, so it can be checked outside Vox) over the problem content.
+///
+/// For each fixture sorted by id: the id, then the raw bytes of `spec.toml`,
+/// `reference.vox` and `tests.vox`, each as a u64-LE length followed by the bytes. Raw
+/// bytes: no UTF-8 decoding and no newline normalization. Selection order is irrelevant;
+/// a repeated id is an error.
+pub fn problem_set_hash(fixtures: &[Fixture]) -> Result<String> {
+    let mut refs: Vec<&Fixture> = fixtures.iter().collect();
+    refs.sort_by(|a, b| a.id.cmp(&b.id));
+    if let Some(w) = refs.windows(2).find(|w| w[0].id == w[1].id) {
+        anyhow::bail!(
+            "duplicate fixture id `{}` in the selected problem set",
+            w[0].id
+        );
+    }
+    let mut buf = Vec::new();
+    let mut put = |bytes: &[u8]| {
+        buf.extend_from_slice(&(bytes.len() as u64).to_le_bytes());
+        buf.extend_from_slice(bytes);
+    };
+    for f in refs {
+        put(f.id.as_bytes());
+        for path in [&f.spec_path, &f.reference_path, &f.tests_path] {
+            let bytes =
+                std::fs::read(path).with_context(|| format!("reading {}", path.display()))?;
+            put(&bytes);
+        }
+    }
+    Ok(hex_encode(&interop_sha256(&buf)))
+}
+
+/// BLAKE3 of the prompt template with placeholder context, signature and task, so the
+/// hash changes exactly when the template text changes.
+#[must_use]
+pub fn prompt_template_hash() -> String {
+    let ctx = PromptContext {
+        condition: Condition::C0ZeroShot,
+        context_text: "{context}".to_string(),
+        context_hash: String::new(),
+    };
+    let rendered = build_prompt(&ctx, "{signature}", "{task}");
+    hex_encode(&secure_hash(rendered.as_bytes()))
+}
+
+/// BLAKE3 over the condition id, a 0x00 separator and the context text.
+// vox-corpus keeps its own FNV `hash_context` (no vox-crypto edge); the record uses this one.
+#[must_use]
+pub fn context_hash_blake3(condition_id: &str, context_text: &str) -> String {
+    let mut buf = Vec::with_capacity(condition_id.len() + 1 + context_text.len());
+    buf.extend_from_slice(condition_id.as_bytes());
+    buf.push(0);
+    buf.extend_from_slice(context_text.as_bytes());
+    hex_encode(&secure_hash(&buf))
+}
+
+/// Split `vox --version` output (`vox 0.6.0+build.12 (abc1234)`) into the version string
+/// (same shape as `VOX_VERSION`) and the git sha in parentheses.
+#[must_use]
+pub fn parse_vox_version_line(line: &str) -> Option<(String, String)> {
+    let (_program, version) = line.trim().split_once(' ')?;
+    let version = version.trim();
+    let open = version.rfind('(')?;
+    let sha = version[open + 1..].strip_suffix(')')?.trim();
+    (!sha.is_empty()).then(|| (version.to_string(), sha.to_string()))
+}
+
+/// Which exact `vox` binary verified the candidates: version, git sha, and a SHA-256 of
+/// its bytes. Any failure is an error; the caller records the identity as missing.
+fn verifier_identity(vox_bin: &Path) -> Result<VerifierIdentity> {
+    let out = std::process::Command::new(vox_bin)
+        .arg("--version")
+        .output()
+        .with_context(|| format!("running {} --version", vox_bin.display()))?;
+    anyhow::ensure!(
+        out.status.success(),
+        "`{} --version` failed",
+        vox_bin.display()
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let line = stdout.lines().next().unwrap_or_default().trim().to_string();
+    let parsed = parse_vox_version_line(&line);
+    let bytes = std::fs::read(vox_bin).with_context(|| format!("reading {}", vox_bin.display()))?;
+    Ok(VerifierIdentity {
+        version_line: parsed.as_ref().map_or(line, |(v, _)| v.clone()),
+        git_sha: parsed.map(|(_, sha)| sha),
+        binary_sha256: hex_encode(&interop_sha256(&bytes)),
+    })
+}
+
+/// The manifest's own hand-maintained `corpus.corpus_hash`; informational only.
+fn corpus_manifest_hash(corpus_root: &Path) -> Option<String> {
+    let raw = std::fs::read_to_string(corpus_root.join("manifest.v1.yaml")).ok()?;
+    let doc: serde_yaml::Value = serde_yaml::from_str(&raw).ok()?;
+    doc.get("corpus")?
+        .get("corpus_hash")?
+        .as_str()
+        .map(str::to_string)
 }
 
 /// How a generation error must be accounted for.
@@ -874,17 +983,43 @@ pub async fn run(args: EvalCorpusArgs) -> Result<()> {
 
     let (row_model_id, row_harness_id) =
         mens_row_identity(&args.model, &args.harness, args.checkpoint.as_deref());
-    let digest = config_digest(
-        &args.harness,
-        args.n,
-        args.k,
-        condition.id(),
-        &ctx.context_hash,
-        args.temperature,
-        args.max_tokens,
-    );
+    let psh = problem_set_hash(&fixtures)?;
+    let context_hash = context_hash_blake3(condition.id(), &ctx.context_text);
+    let digest = config_digest(&ConfigKnobs {
+        model_id: &row_model_id,
+        harness: &row_harness_id,
+        n: args.n,
+        k: args.k,
+        condition: condition.id(),
+        context_hash: &context_hash,
+        temperature: args.temperature,
+        top_p: args.top_p,
+        max_tokens: args.max_tokens,
+        seed: args.seed,
+        problem_set_hash: &psh,
+    });
 
     let vox_bin = resolve_vox_binary(args.vox_bin.as_deref())?;
+    let verifier = match verifier_identity(&vox_bin) {
+        Ok(v) => {
+            if v.version_line != crate::VOX_VERSION {
+                eprintln!(
+                    "{} verifier binary is `{}` but the harness is `{}`; the run will be incomplete",
+                    "warning:".yellow(),
+                    v.version_line,
+                    crate::VOX_VERSION
+                );
+            }
+            Some(v)
+        }
+        Err(e) => {
+            eprintln!(
+                "{} verifier identity unavailable: {e:#}",
+                "warning:".yellow()
+            );
+            None
+        }
+    };
     let timeout = std::time::Duration::from_secs(args.timeout_secs);
     let workdir = std::env::temp_dir().join(format!("vox-eval-corpus-{}", std::process::id()));
 
@@ -949,12 +1084,15 @@ pub async fn run(args: EvalCorpusArgs) -> Result<()> {
         provider: live_config.as_ref().map(|c| c.provider.clone()),
         request_date,
         samples: &drawn.samples,
-        context_hash: Some(ctx.context_hash.clone()),
-        problem_set_hash: None,
-        prompt_template_hash: None,
-        corpus_manifest_hash: None,
-        fingerprint: None,
-        verifier: None,
+        context_hash: Some(context_hash),
+        problem_set_hash: Some(psh),
+        prompt_template_hash: Some(prompt_template_hash()),
+        corpus_manifest_hash: corpus_manifest_hash(&args.corpus),
+        fingerprint: {
+            let (fp, kind) = vox_compiler::llm_prompt::grammar_fingerprint();
+            Some((fp, kind.to_string()))
+        },
+        verifier,
         mens: None,
         runner: resolve_runner(
             args.runner.as_deref(),
@@ -1031,30 +1169,212 @@ mod tests {
         assert_eq!(harness, "vox-harness");
     }
 
+    fn knobs() -> ConfigKnobs<'static> {
+        ConfigKnobs {
+            model_id: "acme/m",
+            harness: "vox-harness",
+            n: 10,
+            k: 1,
+            condition: "C1",
+            context_hash: "ctxhash",
+            temperature: 0.8,
+            top_p: 0.95,
+            max_tokens: 4096,
+            seed: 7,
+            problem_set_hash: "psh",
+        }
+    }
+
     #[test]
-    fn config_digest_is_stable_and_covers_every_knob() {
-        let a = config_digest("vox-harness", 10, 1, "C1", "ctxhash", 0.8, 4096);
+    fn config_digest_covers_every_knob() {
+        let base = knobs();
+        let a = config_digest(&base);
+        assert_eq!(a, config_digest(&knobs()), "stable");
+        assert_eq!(a.len(), 16);
+        let variants: [(&str, ConfigKnobs<'static>); 11] = [
+            (
+                "model_id",
+                ConfigKnobs {
+                    model_id: "acme/other",
+                    ..knobs()
+                },
+            ),
+            (
+                "harness",
+                ConfigKnobs {
+                    harness: "claude-code",
+                    ..knobs()
+                },
+            ),
+            ("n", ConfigKnobs { n: 11, ..knobs() }),
+            ("k", ConfigKnobs { k: 2, ..knobs() }),
+            (
+                "condition",
+                ConfigKnobs {
+                    condition: "C0",
+                    ..knobs()
+                },
+            ),
+            (
+                "context_hash",
+                ConfigKnobs {
+                    context_hash: "OTHER",
+                    ..knobs()
+                },
+            ),
+            (
+                "temperature",
+                ConfigKnobs {
+                    temperature: 0.2,
+                    ..knobs()
+                },
+            ),
+            (
+                "top_p",
+                ConfigKnobs {
+                    top_p: 0.5,
+                    ..knobs()
+                },
+            ),
+            (
+                "max_tokens",
+                ConfigKnobs {
+                    max_tokens: 2048,
+                    ..knobs()
+                },
+            ),
+            ("seed", ConfigKnobs { seed: 8, ..knobs() }),
+            (
+                "problem_set_hash",
+                ConfigKnobs {
+                    problem_set_hash: "other",
+                    ..knobs()
+                },
+            ),
+        ];
+        for (name, v) in &variants {
+            assert_ne!(a, config_digest(v), "{name} must be part of row identity");
+        }
+    }
+
+    /// Three files per fixture under `dir`, with the given contents.
+    fn fixture_with(dir: &Path, id: &str, spec: &str, reference: &str, tests: &str) -> Fixture {
+        let write = |name: &str, body: &str| {
+            let p = dir.join(format!("{id}.{name}"));
+            std::fs::write(&p, body).unwrap();
+            p
+        };
+        Fixture {
+            id: id.to_string(),
+            slug: format!("{id}-x"),
+            training_eligible: false,
+            added_at: "2026-01-01".to_string(),
+            prompt: "p".to_string(),
+            signature: "fn f() to int".to_string(),
+            tests_path: write("tests", tests),
+            spec_path: write("spec", spec),
+            reference_path: write("reference", reference),
+        }
+    }
+
+    #[test]
+    fn problem_set_hash_is_byte_sensitive_and_order_independent() {
+        let dir = tempfile::tempdir().unwrap();
+        let a = fixture_with(dir.path(), "001", "spec-a", "ref-a", "tests-a");
+        let b = fixture_with(dir.path(), "002", "spec-b", "ref-b", "tests-b");
+        let h = problem_set_hash(&[a.clone(), b.clone()]).unwrap();
+        assert_eq!(h.len(), 64);
+        assert!(h.bytes().all(|c| matches!(c, b'0'..=b'9' | b'a'..=b'f')));
+        assert_eq!(h, problem_set_hash(&[a.clone(), b.clone()]).unwrap());
         assert_eq!(
-            a,
-            config_digest("vox-harness", 10, 1, "C1", "ctxhash", 0.8, 4096)
+            h,
+            problem_set_hash(&[b.clone(), a.clone()]).unwrap(),
+            "order-independent"
         );
-        assert_eq!(a.len(), 16, "sha256 prefix");
+        for path in [&a.spec_path, &a.reference_path, &a.tests_path] {
+            let orig = std::fs::read(path).unwrap();
+            std::fs::write(path, [orig.as_slice(), b"x"].concat()).unwrap();
+            assert_ne!(
+                h,
+                problem_set_hash(&[a.clone(), b.clone()]).unwrap(),
+                "one byte in {} must change the hash",
+                path.display()
+            );
+            std::fs::write(path, orig).unwrap();
+        }
+        assert_eq!(
+            h,
+            problem_set_hash(&[a, b]).unwrap(),
+            "restored content, restored hash"
+        );
+    }
+
+    #[test]
+    fn problem_set_hash_rejects_duplicate_ids() {
+        let dir = tempfile::tempdir().unwrap();
+        let a = fixture_with(dir.path(), "001", "s", "r", "t");
+        let err = problem_set_hash(&[a.clone(), a]).unwrap_err().to_string();
+        assert!(err.contains("duplicate fixture id"), "{err}");
+    }
+
+    #[test]
+    fn problem_set_hash_framing_has_no_boundary_collisions() {
+        let d1 = tempfile::tempdir().unwrap();
+        let d2 = tempfile::tempdir().unwrap();
+        let one = fixture_with(d1.path(), "ab", "c", "r", "t");
+        let two = fixture_with(d2.path(), "a", "bc", "r", "t");
         assert_ne!(
-            a,
-            config_digest("claude-code", 10, 1, "C1", "ctxhash", 0.8, 4096)
+            problem_set_hash(&[one]).unwrap(),
+            problem_set_hash(&[two]).unwrap()
+        );
+        // The empty set is defined: SHA-256 of the empty framing.
+        assert_eq!(
+            problem_set_hash(&[]).unwrap(),
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        );
+    }
+
+    #[test]
+    fn parse_vox_version_line_extracts_git_sha() {
+        assert_eq!(
+            parse_vox_version_line("vox 0.6.0+build.12 (abc1234)"),
+            Some((
+                "0.6.0+build.12 (abc1234)".to_string(),
+                "abc1234".to_string()
+            ))
+        );
+        assert_eq!(parse_vox_version_line("vox 0.6.0"), None);
+        assert_eq!(parse_vox_version_line("vox 0.6.0 ()"), None);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn verifier_identity_reads_version_and_hashes_the_binary() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let bin = dir.path().join("vox");
+        let script = b"#!/bin/sh\necho \"vox 1.2.3+build.4 (deadbee)\"\n";
+        std::fs::write(&bin, script).unwrap();
+        std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let id = verifier_identity(&bin).unwrap();
+        assert_eq!(id.version_line, "1.2.3+build.4 (deadbee)");
+        assert_eq!(id.git_sha.as_deref(), Some("deadbee"));
+        assert_eq!(id.binary_sha256, hex_encode(&interop_sha256(script)));
+        assert!(verifier_identity(&dir.path().join("missing")).is_err());
+    }
+
+    #[test]
+    fn template_and_context_hashes_are_blake3() {
+        let t = prompt_template_hash();
+        assert_eq!(t.len(), 64);
+        assert_eq!(t, prompt_template_hash());
+        assert_eq!(
+            context_hash_blake3("C1", "text"),
+            hex_encode(&secure_hash(b"C1\0text"))
         );
         assert_ne!(
-            a,
-            config_digest("vox-harness", 10, 1, "C0", "ctxhash", 0.8, 4096)
-        );
-        assert_ne!(
-            a,
-            config_digest("vox-harness", 10, 1, "C1", "OTHER", 0.8, 4096)
-        );
-        assert_ne!(
-            a,
-            config_digest("vox-harness", 10, 1, "C1", "ctxhash", 0.2, 4096),
-            "temperature must be part of row identity"
+            context_hash_blake3("C0", "same"),
+            context_hash_blake3("C1", "same")
         );
     }
 
@@ -1287,6 +1607,8 @@ mod tests {
             added_at: "2026-01-01".to_string(),
             prompt: "return one".to_string(),
             signature: "fn f() to int".to_string(),
+            spec_path: tests_path.clone(),
+            reference_path: tests_path.clone(),
             tests_path,
         }
     }
