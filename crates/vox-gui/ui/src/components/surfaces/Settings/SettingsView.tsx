@@ -1079,6 +1079,8 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
     const onKey = (e: KeyboardEvent) => {
       e.preventDefault();
       e.stopPropagation();
+      // A modifier alone is the first keydown of every chord; keep capturing until the real key.
+      if (['Control', 'Meta', 'Shift', 'Alt', 'AltGraph'].includes(e.key)) return;
       const chord = chordFromEvent(e);
       const next = { ...keybindings, [capturingId]: chord };
       setBindings(next);
