@@ -10,6 +10,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use super::anchors::{extract_marked_block, readme_anchor};
+use super::facets::FacetCtx;
 use super::types::{LintError, LintKind};
 
 // These must match the `sections` array in contracts/documentation/docs-sidebar-section-order.v1.json.
@@ -129,6 +130,7 @@ pub(crate) fn collect_lint_errors_target_with_root(
     target: &Path,
     errors: &mut Vec<LintError>,
     repo_root: &Path,
+    facet_ctx: Option<&FacetCtx>,
 ) {
     use rayon::prelude::*;
 
@@ -140,7 +142,7 @@ pub(crate) fn collect_lint_errors_target_with_root(
 
     let collected: Vec<LintError> = md_files
         .par_iter()
-        .flat_map_iter(|path| lint_one_file(path, repo_root))
+        .flat_map_iter(|path| lint_one_file(path, repo_root, facet_ctx))
         .collect();
     errors.extend(collected);
 }
@@ -180,10 +182,13 @@ fn gather_md_files(target: &Path, out: &mut Vec<PathBuf>) {
 
 /// Lint a single file (frontmatter + fences + doctests) into a fresh error vector.
 /// Returning an owned `Vec` keeps each unit of work independent for `rayon`.
-fn lint_one_file(path: &Path, repo_root: &Path) -> Vec<LintError> {
+fn lint_one_file(path: &Path, repo_root: &Path, facet_ctx: Option<&FacetCtx>) -> Vec<LintError> {
     let mut errors = Vec::new();
     let content = vox_bounded_fs::read_utf8_path_capped(path).unwrap_or_default();
     lint_file(path, &content, repo_root, &mut errors);
+    if let Some(ctx) = facet_ctx {
+        super::facets::lint_facets(path, &content, repo_root, ctx, &mut errors);
+    }
     crate::pipeline::doctest::check_doctests(path, &content, &mut errors);
     errors
 }
@@ -854,7 +859,7 @@ mod tests {
             f.write_all(body.as_bytes()).unwrap();
         }
         let mut errors = Vec::new();
-        collect_lint_errors_target_with_root(&dir, &mut errors, Path::new("."));
+        collect_lint_errors_target_with_root(&dir, &mut errors, Path::new("."), None);
         assert!(
             errors
                 .iter()

@@ -4,11 +4,13 @@
 //! facets through this crate, so a doc cannot be eligible in one consumer and ineligible in
 //! another.
 
+pub mod backlog;
 pub mod frontmatter;
 pub mod provenance;
 pub mod summary;
 pub mod taxonomy;
 
+pub use backlog::{BACKLOG_REL, Backlog, BacklogRow};
 pub use taxonomy::{Concept, LabelMatch, TAXONOMY_REL, Taxonomy, facet_card_lines};
 
 pub use frontmatter::{frontmatter_range, frontmatter_yaml};

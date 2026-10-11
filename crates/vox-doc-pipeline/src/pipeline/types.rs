@@ -70,4 +70,29 @@ pub enum LintKind {
     ReadmeSyncSourceMissing {
         path: String,
     },
+    /// A KB facet finding; the rule id is the backlog key.
+    Facet(FacetIssue),
+}
+
+/// One facet-lint finding (KB Phase 4). The stable rule id (see `facets.rs`) is also the key
+/// the facet backlog uses to excuse a doc from exactly this rule.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FacetIssue {
+    /// The taxonomy or backlog contract could not be read or validated (fail closed).
+    ContractUnreadable {
+        path: String,
+        error: String,
+    },
+    /// A facet value in frontmatter does not deserialize.
+    ParseError {
+        msg: String,
+    },
+    MissingTopic,
+    MissingDomain,
+    MissingAuthorship,
+    MissingSummary,
+    /// The backlog lists a rule the doc no longer violates (warning).
+    BacklogStale {
+        rule: String,
+    },
 }
