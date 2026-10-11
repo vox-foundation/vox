@@ -4,6 +4,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installTauriMock } from './lib/tauriMock';
 import { addMockInitScript } from './lib/tauriMockShared';
+import { addInvokeOverrides } from './lib/invokeOverrides';
 
 /**
  * Universal palette (phase 06.3): capability-index rows in the Cmd/Ctrl+K palette.
@@ -161,5 +162,106 @@ test.describe('Universal palette', () => {
     await again.getByRole('button', { name: 'Open form' }).click();
     await expect.poll(async () => page.evaluate(() => window.location.hash)).toContain('view=catalog');
     await expect(page.getByRole('heading', { name: 'vox check' })).toBeVisible({ timeout: 10_000 });
+  });
+});
+
+test.describe('run from the palette (D-01, D-03, D-04)', () => {
+  const arg = (over: Record<string, unknown>) => ({
+    name: 'x', short: null, long: null, help: null, required: false, takes_value: true, value_kind: 'value', ...over,
+  });
+  const entry = (path: string[], args: unknown[]) => ({
+    path, command: `vox ${path.join(' ')}`, about: `Run vox ${path.join(' ')}`, aliases: [], has_subcommands: false,
+    compiled_in: true, source_group: 'core', feature_gate: null, tier: 'recommended', arguments: args,
+  });
+
+  test.beforeEach(async ({ page }) => {
+    await addMockInitScript(page, installTauriMock, 'dashboard');
+    await addInvokeOverrides(page, {
+      responses: {
+        get_command_catalog: {
+          generated_from: 'e2e',
+          entries: [
+            entry(['features'], [arg({ name: 'domain', long: 'domain' })]),
+            entry(['check'], [arg({ name: 'path', long: 'path' })]),
+            entry(['plugin', 'remove'], [arg({ name: 'name', required: true })]),
+          ],
+        },
+      },
+    });
+    // Self-contained gate mock (same shape as invokeOverrides): records every execute_command and
+    // refuses `plugin remove` unless it carries confirmed: true, like the Rust gate (plan 02).
+    await page.addInitScript(() => {
+      const internals = (window as any).__TAURI_INTERNALS__;
+      const base = internals.invoke;
+      (window as any).__EXEC_CALLS__ = [];
+      internals.invoke = async (cmd: string, args?: any) => {
+        if (cmd === 'execute_command') {
+          (window as any).__EXEC_CALLS__.push({ path: args?.path, args: args?.args, confirmed: args?.confirmed });
+          const p = (args?.path ?? []).join(' ');
+          if (p === 'plugin remove' && args?.confirmed !== true) throw 'confirmation_required: cli.plugin.remove';
+          if (p === 'features') return { exit_code: 0, stdout: 'features: parser, codegen', stderr: '' };
+        }
+        return base(cmd, args);
+      };
+    });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/');
+    await page.waitForSelector('nav', { timeout: 20_000 });
+    await page.evaluate(() => (document as any).fonts?.ready);
+  });
+
+  test('a read-only verb runs from ⌘K with a toast and a full-output dialog', async ({ page }) => {
+    await page.keyboard.press('Control+k');
+    const palette = page.getByRole('dialog', { name: 'Command palette' });
+    await palette.getByPlaceholder(/search surfaces, commands/i).fill('vox features');
+    const row = palette.getByRole('button', { name: /^vox features\b/ });
+    await expect(row).toBeVisible({ timeout: 10_000 });
+    await expect(row).toContainText('↵ runs');
+    await page.keyboard.press('Enter');
+
+    const stack = page.getByTestId('toast-stack');
+    await expect(stack).toContainText('vox features — exit 0', { timeout: 10_000 });
+    await expect(stack).toContainText('features: parser, codegen');
+    await shot(page, 'universal-palette-07-run-toast');
+
+    await stack.getByRole('button', { name: 'View full output' }).click();
+    const out = page.getByRole('dialog').filter({ hasText: 'stdout' });
+    await expect(out).toContainText('features: parser, codegen');
+    await shot(page, 'universal-palette-08-run-output');
+
+    const calls = await page.evaluate(() => (window as any).__EXEC_CALLS__);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].path).toEqual(['features']);
+    expect(calls[0].confirmed).toBeUndefined();
+  });
+
+  test('a destructive verb opens its form on Enter and needs explicit confirmation', async ({ page }) => {
+    await page.keyboard.press('Control+k');
+    const palette = page.getByRole('dialog', { name: 'Command palette' });
+    await palette.getByPlaceholder(/search surfaces, commands/i).fill('vox plugin remove');
+    const row = palette.getByRole('button', { name: /^vox plugin remove\b/ });
+    await expect(row).toBeVisible({ timeout: 10_000 });
+    await expect(row).toContainText('↵ opens form');
+    await page.keyboard.press('Enter');
+
+    await expect(page.getByRole('heading', { name: 'vox plugin remove' })).toBeVisible({ timeout: 10_000 });
+    // Enter alone ran nothing.
+    expect(await page.evaluate(() => (window as any).__EXEC_CALLS__)).toHaveLength(0);
+
+    await page.getByLabel('name', { exact: true }).fill('demo');
+    await page.getByRole('button', { name: 'Run', exact: true }).click();
+    const confirm = page.getByRole('dialog', { name: 'Run a destructive command?' });
+    await expect(confirm).toBeVisible();
+    await shot(page, 'universal-palette-09-confirm');
+    expect(await page.evaluate(() => (window as any).__EXEC_CALLS__)).toHaveLength(1);
+
+    await confirm.getByRole('button', { name: 'Run anyway' }).click();
+    await expect(page.getByText('Exit Code: 0')).toBeVisible({ timeout: 10_000 });
+
+    const calls = await page.evaluate(() => (window as any).__EXEC_CALLS__);
+    expect(calls).toHaveLength(2);
+    expect(calls[0].confirmed).toBeUndefined();
+    expect(calls[1].confirmed).toBe(true);
+    expect(calls[1].args.__positionals).toEqual(['demo']);
   });
 });
