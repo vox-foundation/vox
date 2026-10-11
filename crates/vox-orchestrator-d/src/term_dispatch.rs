@@ -312,6 +312,70 @@ mod tests {
         host.close(&sid).unwrap();
     }
 
+    /// One scenario, run against any host: the two implementations must be indistinguishable.
+    async fn host_scenario(host: &dyn vox_terminal_core::SessionHost) {
+        let id = host.open(OpenSpec::default()).await.unwrap();
+        host.submit(&id, "!echo hi").await.unwrap();
+        assert!(host.list().await.unwrap().iter().any(|s| s.id == id));
+
+        let mut a = host.attach(&id).await.unwrap();
+        assert_eq!(a.blocks.len(), 1);
+        assert!(a.blocks[0].plain_output().contains("hi"));
+
+        host.submit(&id, "!echo two").await.unwrap();
+        tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                if matches!(
+                    a.events.recv().await.unwrap(),
+                    SessionEvent::BlockOpened { .. }
+                ) {
+                    break;
+                }
+            }
+        })
+        .await
+        .expect("live BlockOpened event");
+
+        assert!(host.attach("nope").await.is_err());
+        host.close(&id).await.unwrap();
+        assert!(host.submit(&id, "!echo x").await.is_err());
+    }
+
+    #[tokio::test]
+    async fn local_and_daemon_hosts_pass_the_same_scenario() {
+        host_scenario(&LocalHost::default()).await;
+
+        let (addr, _daemon_host) = start(Some("t")).await;
+        let client =
+            vox_orchestrator::orch_daemon::OrchDaemonClient::with_token(addr.to_string(), "t");
+        host_scenario(&vox_terminal_core::DaemonHost::new(client)).await;
+    }
+
+    #[test]
+    fn daemon_host_method_names_match_the_protocol() {
+        use vox_terminal_core::daemon_host as d;
+        assert_eq!(
+            [
+                d::OPEN,
+                d::LIST,
+                d::ATTACH,
+                d::INPUT,
+                d::SUBMIT,
+                d::RESIZE,
+                d::CLOSE
+            ],
+            [
+                term_method::OPEN,
+                term_method::LIST,
+                term_method::ATTACH,
+                term_method::INPUT,
+                term_method::SUBMIT,
+                term_method::RESIZE,
+                term_method::CLOSE
+            ]
+        );
+    }
+
     #[tokio::test]
     async fn requests_without_the_daemon_token_are_rejected_and_create_nothing() {
         let (addr, host) = start(Some("secret")).await;

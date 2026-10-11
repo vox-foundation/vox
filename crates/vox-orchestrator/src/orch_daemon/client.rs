@@ -444,7 +444,7 @@ impl OrchDaemonClient {
     /// stream with an error rather than being silently swallowed, so a caller
     /// using `subscribe_events_from_offset` can detect "you lagged, reconnect"
     /// and re-subscribe with an updated offset.
-    async fn subscribe_with_method(
+    pub async fn subscribe_with_method(
         &self,
         method: &str,
         params: serde_json::Value,

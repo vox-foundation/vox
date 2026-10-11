@@ -19180,6 +19180,8 @@ name = "vox-terminal-core"
 version = "0.6.0"
 dependencies = [
  "anyhow",
+ "async-trait",
+ "base64 0.22.1",
  "portable-pty",
  "serde",
  "serde_json",

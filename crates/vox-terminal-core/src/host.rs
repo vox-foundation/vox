@@ -3,13 +3,14 @@
 //! implementation; the daemon exposes one over `term.*` (see
 //! `docs/src/architecture/terminal-session-host-design-2026.md`).
 //!
-//! The `SessionHost` trait is deliberately not extracted yet: it lands with the
-//! second implementation (`DaemonHost`, task H5) so it is shaped by two real users.
+//! [`SessionHost`] is the front-end-facing seam: `LocalHost` serves a session
+//! in-process, `DaemonHost` (see `daemon_host`) attaches to one hosted by the daemon.
 
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use anyhow::{Result, anyhow};
+use async_trait::async_trait;
 use tokio::sync::broadcast;
 
 use crate::block::{Block, BlockId};
@@ -61,6 +62,43 @@ pub struct Attachment {
     pub seq: u64,
     pub events: broadcast::Receiver<SessionEvent>,
     pub output: broadcast::Receiver<OutputFrame>,
+}
+
+/// What a front-end needs from a terminal session host, local or remote.
+#[async_trait]
+pub trait SessionHost: Send + Sync {
+    async fn open(&self, spec: OpenSpec) -> Result<SessionId>;
+    async fn list(&self) -> Result<Vec<SessionInfo>>;
+    async fn attach(&self, id: &str) -> Result<Attachment>;
+    async fn submit(&self, id: &str, line: &str) -> Result<BlockId>;
+    async fn input(&self, id: &str, bytes: &[u8]) -> Result<()>;
+    async fn resize(&self, id: &str, cols: u16, rows: u16) -> Result<()>;
+    async fn close(&self, id: &str) -> Result<()>;
+}
+
+#[async_trait]
+impl SessionHost for LocalHost {
+    async fn open(&self, spec: OpenSpec) -> Result<SessionId> {
+        LocalHost::open(self, spec).await
+    }
+    async fn list(&self) -> Result<Vec<SessionInfo>> {
+        Ok(LocalHost::list(self))
+    }
+    async fn attach(&self, id: &str) -> Result<Attachment> {
+        LocalHost::attach(self, id)
+    }
+    async fn submit(&self, id: &str, line: &str) -> Result<BlockId> {
+        LocalHost::submit(self, id, line)
+    }
+    async fn input(&self, id: &str, bytes: &[u8]) -> Result<()> {
+        LocalHost::input(self, id, bytes)
+    }
+    async fn resize(&self, id: &str, cols: u16, rows: u16) -> Result<()> {
+        LocalHost::resize(self, id, cols, rows)
+    }
+    async fn close(&self, id: &str) -> Result<()> {
+        LocalHost::close(self, id)
+    }
 }
 
 struct Replay {

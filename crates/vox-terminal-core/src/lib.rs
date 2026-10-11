@@ -21,6 +21,7 @@ pub mod agent;
 pub mod block;
 pub mod commands;
 pub mod corpus;
+pub mod daemon_host;
 pub mod host;
 pub mod input;
 pub mod osc633;
@@ -32,7 +33,8 @@ pub mod vox_interp;
 // Flat re-exports for ergonomic use by front-ends.
 pub use agent::{AgentAdapterConfig, translate_event};
 pub use block::{Block, BlockId, BlockKind, BlockStatus, OutputChunk, Stream};
-pub use host::{Attachment, LocalHost, OpenSpec, SessionId, SessionInfo};
+pub use daemon_host::DaemonHost;
+pub use host::{Attachment, LocalHost, OpenSpec, OutputFrame, SessionHost, SessionId, SessionInfo};
 pub use input::{InputIntent, classify};
 pub use osc633::{Osc633Event, Osc633Parser};
 pub use pty::{PtyHandle, ShellBackend, ShellKind, default_shell, spawn_pty};
