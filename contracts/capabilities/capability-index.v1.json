@@ -3363,7 +3363,7 @@
       "status": "active",
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "spawns_process",
       "tier": "feature_gated",
       "cli": {
         "path": [
@@ -4440,7 +4440,7 @@
       "status": "active",
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "destructive",
       "tier": "feature_gated",
       "cli": {
         "path": [
@@ -6022,7 +6022,7 @@
       "status": "active",
       "domain": "platform",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -16304,7 +16304,7 @@
       "status": "active",
       "domain": "data",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "destructive",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -18656,7 +18656,7 @@
       "status": "active",
       "domain": "data",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "destructive",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -19236,7 +19236,7 @@
       "status": "active",
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "destructive",
       "tier": "feature_gated",
       "cli": {
         "path": [
@@ -23345,7 +23345,7 @@
       "status": "active",
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "spawns_process",
       "tier": "feature_gated",
       "cli": {
         "path": [
@@ -24444,7 +24444,7 @@
       "status": "active",
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "destructive",
       "tier": "feature_gated",
       "cli": {
         "path": [
@@ -27877,7 +27877,7 @@
       "status": "active",
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "spawns_process",
       "tier": "feature_gated",
       "cli": {
         "path": [
@@ -28806,7 +28806,7 @@
       "status": "active",
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "destructive",
       "tier": "feature_gated",
       "cli": {
         "path": [
@@ -32114,7 +32114,7 @@
       "status": "active",
       "domain": "vcs",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -33385,7 +33385,7 @@
       "status": "active",
       "domain": "gui",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "spawns_process",
       "tier": "feature_gated",
       "cli": {
         "path": [
@@ -36263,7 +36263,7 @@
       "status": "active",
       "domain": "ml",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "destructive",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -37711,7 +37711,7 @@
       "status": "active",
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "spawns_process",
       "tier": "feature_gated",
       "cli": {
         "path": [
@@ -38638,7 +38638,7 @@
       "status": "active",
       "domain": "deploy",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -39406,7 +39406,7 @@
       "status": "active",
       "domain": "mesh",
       "product_lane": "workflow",
-      "side_effect_class": null,
+      "side_effect_class": "spawns_process",
       "tier": "feature_gated",
       "cli": {
         "path": [
@@ -40378,7 +40378,7 @@
       "status": "active",
       "domain": "deploy",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -41062,7 +41062,7 @@
       "status": "active",
       "domain": "research",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "spawns_process",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -42472,7 +42472,7 @@
       "status": "active",
       "domain": "orchestrator",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "destructive",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -46898,7 +46898,7 @@
       "status": "active",
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "destructive",
       "tier": "feature_gated",
       "cli": {
         "path": [
@@ -47281,7 +47281,7 @@
       "status": "active",
       "domain": "orchestrator",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "spawns_process",
       "tier": "feature_gated",
       "cli": {
         "path": [
@@ -61344,7 +61344,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "destructive",
       "tier": null,
       "cli": null,
       "mcp": {

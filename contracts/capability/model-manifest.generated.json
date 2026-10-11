@@ -2777,6 +2777,7 @@
       "implicit": false,
       "title": "Skill Uninstall",
       "description_model": "Uninstall an installed skill by ID.",
+      "side_effect_class": "destructive",
       "curated": true
     },
     {
@@ -3853,6 +3854,7 @@
       "implicit": false,
       "title": "Ars Openclaw Sidecar Stop",
       "description_model": "CLI operation `vox ars openclaw sidecar stop`",
+      "side_effect_class": "spawns_process",
       "curated": true
     },
     {
@@ -4115,6 +4117,7 @@
       "implicit": false,
       "title": "Ars Skill Uninstall",
       "description_model": "CLI operation `vox ars skill uninstall`",
+      "side_effect_class": "destructive",
       "curated": true
     },
     {
@@ -4475,6 +4478,7 @@
       "implicit": false,
       "title": "Catalog Remove",
       "description_model": "CLI operation `vox catalog remove`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -6839,6 +6843,7 @@
       "implicit": false,
       "title": "Db Prune",
       "description_model": "CLI operation `vox db prune`",
+      "side_effect_class": "destructive",
       "curated": true
     },
     {
@@ -7378,6 +7383,7 @@
       "implicit": false,
       "title": "Db Reset",
       "description_model": "CLI operation `vox db reset`",
+      "side_effect_class": "destructive",
       "curated": true
     },
     {
@@ -7513,6 +7519,7 @@
       "implicit": false,
       "title": "Dei Snapshot Restore",
       "description_model": "CLI operation `vox dei snapshot restore`",
+      "side_effect_class": "destructive",
       "curated": true
     },
     {
@@ -8561,6 +8568,7 @@
       "implicit": false,
       "title": "Ext Ars Openclaw Sidecar Stop",
       "description_model": "CLI operation `vox ext ars openclaw sidecar stop`",
+      "side_effect_class": "spawns_process",
       "curated": true
     },
     {
@@ -8845,6 +8853,7 @@
       "implicit": false,
       "title": "Ext Ars Skill Uninstall",
       "description_model": "CLI operation `vox ext ars skill uninstall`",
+      "side_effect_class": "destructive",
       "curated": true
     },
     {
@@ -9688,6 +9697,7 @@
       "implicit": false,
       "title": "Ext Openclaw Sidecar Stop",
       "description_model": "CLI operation `vox ext openclaw sidecar stop`",
+      "side_effect_class": "spawns_process",
       "curated": true
     },
     {
@@ -9913,6 +9923,7 @@
       "implicit": false,
       "title": "Ext Skill Uninstall",
       "description_model": "CLI operation `vox ext skill uninstall`",
+      "side_effect_class": "destructive",
       "curated": true
     },
     {
@@ -10674,6 +10685,7 @@
       "implicit": false,
       "title": "Graph Gc",
       "description_model": "CLI operation `vox graph gc`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -11050,6 +11062,7 @@
       "implicit": false,
       "title": "Gui Drive Stop",
       "description_model": "CLI operation `vox gui drive stop`",
+      "side_effect_class": "spawns_process",
       "scope_kind": "session",
       "reversible": false,
       "curated": true
@@ -11712,6 +11725,7 @@
       "implicit": false,
       "title": "Model Preferences Reset",
       "description_model": "Clear all VOX_CAPABILITY_* vault entries (best-effort).",
+      "side_effect_class": "destructive",
       "curated": true
     },
     {
@@ -12048,6 +12062,7 @@
       "implicit": false,
       "title": "Openclaw Sidecar Stop",
       "description_model": "CLI operation `vox openclaw sidecar stop`",
+      "side_effect_class": "spawns_process",
       "curated": true
     },
     {
@@ -12260,6 +12275,7 @@
       "implicit": false,
       "title": "Pm Cache Clear",
       "description_model": "CLI operation `vox pm cache clear`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -12435,6 +12451,7 @@
       "implicit": false,
       "title": "Populi Down",
       "description_model": "CLI operation `vox populi down`",
+      "side_effect_class": "spawns_process",
       "curated": true
     },
     {
@@ -12666,6 +12683,7 @@
       "implicit": false,
       "title": "Remove",
       "description_model": "CLI operation `vox remove`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -12845,6 +12863,7 @@
       "implicit": false,
       "title": "Research Down",
       "description_model": "CLI operation `vox research down`",
+      "side_effect_class": "spawns_process",
       "curated": true
     },
     {
@@ -13175,6 +13194,7 @@
       "implicit": false,
       "title": "Rollback",
       "description_model": "Roll back the orchestration stack or task execution state using the vox-bounded-fs ledger",
+      "side_effect_class": "destructive",
       "curated": true
     },
     {
@@ -14180,6 +14200,7 @@
       "implicit": false,
       "title": "Skill Uninstall",
       "description_model": "Uninstall an installed skill by ID.",
+      "side_effect_class": "destructive",
       "curated": true
     },
     {
@@ -14264,6 +14285,7 @@
       "implicit": false,
       "title": "Stop",
       "description_model": "CLI operation `vox stop` (emergency stop the orchestrator via MCP/daemon local stop request)",
+      "side_effect_class": "spawns_process",
       "curated": true
     },
     {

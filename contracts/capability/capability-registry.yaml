@@ -1277,7 +1277,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox ars openclaw sidecar stop`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -1694,7 +1694,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox ars skill uninstall`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: destructive
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -2286,7 +2286,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox catalog remove`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -6145,7 +6145,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox db prune`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: destructive
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -7027,7 +7027,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox db reset`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: destructive
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -7245,7 +7245,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox dei snapshot restore`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: destructive
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -8864,7 +8864,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox ext ars openclaw sidecar stop`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -9303,7 +9303,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox ext ars skill uninstall`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: destructive
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -10636,7 +10636,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox ext openclaw sidecar stop`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -10995,7 +10995,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox ext skill uninstall`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: destructive
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -12217,7 +12217,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox graph gc`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -12712,7 +12712,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox gui drive stop`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: session
   reversible: false
   requires_repo: null
@@ -13774,7 +13774,7 @@ curated:
   description_human: null
   description_model: Clear all VOX_CAPABILITY_* vault entries (best-effort).
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: destructive
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -14320,7 +14320,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox openclaw sidecar stop`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -14659,7 +14659,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox pm cache clear`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -14947,7 +14947,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox populi down`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -15319,7 +15319,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox remove`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -15577,7 +15577,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox research down`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -16111,7 +16111,7 @@ curated:
   description_human: null
   description_model: Roll back the orchestration stack or task execution state using the vox-bounded-fs ledger
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: destructive
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -17759,7 +17759,7 @@ curated:
   description_human: Uninstall an installed skill by ID.
   description_model: null
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: destructive
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -17900,7 +17900,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox stop` (emergency stop the orchestrator via MCP/daemon local stop request)
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -23368,7 +23368,7 @@ curated:
   description_human: null
   description_model: Uninstall an installed skill by ID.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: destructive
   scope_kind: null
   reversible: null
   requires_repo: null
