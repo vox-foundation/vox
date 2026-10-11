@@ -650,6 +650,43 @@ mod tests {
     }
 
     #[test]
+    fn generate_ts_chunks_every_row() {
+        use std::collections::BTreeSet;
+        let mut idx = fixture();
+        idx.rows = (0..450)
+            .map(|i| cli_row(&format!("chunk{i}"), "T", "d", "op"))
+            .collect();
+        let ts = generate_ts(&idx);
+        let declared: Vec<&str> = ts
+            .lines()
+            .filter_map(|l| l.strip_prefix("const ")?.split(':').next())
+            .filter(|n| n.starts_with("ROWS_"))
+            .collect();
+        assert_eq!(declared.len(), 3, "expected 450 rows in 3 chunks:\n{ts}");
+        let export = ts
+            .lines()
+            .find(|l| l.starts_with("export const CAPABILITY_INDEX"))
+            .expect("export line");
+        let spread: Vec<&str> = export
+            .split("...")
+            .skip(1)
+            .map(|s| s.trim_end_matches(|c| c == ',' || c == ' ' || c == ']' || c == ';'))
+            .collect();
+        assert_eq!(spread.len(), declared.len(), "spread: {export}");
+        assert_eq!(
+            spread.iter().collect::<BTreeSet<_>>(),
+            declared.iter().collect::<BTreeSet<_>>(),
+            "every declared chunk must be spread exactly once: {export}"
+        );
+        assert_eq!(
+            ts.lines()
+                .filter(|l| l.starts_with("  { id: ") && l.contains(", kind: '"))
+                .count(),
+            450
+        );
+    }
+
+    #[test]
     fn ts_strings_are_json_escaped() {
         let mut idx = fixture();
         let nasty = "say \"hi\" \\ back\nnext";
