@@ -23,11 +23,16 @@ use clap::Parser;
 use owo_colors::OwoColorize;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use vox_actor_runtime::llm::LlmConfig;
 use vox_corpus::humaneval_runner::conditions::{Condition, build_context, build_prompt};
 use vox_corpus::humaneval_runner::{
     Fixture, eligible_after, held_out, load_corpus, verify_program,
 };
 use vox_eval::corpus_score::{AttemptOutcome, CorpusScore, FixtureOutcome, score_corpus};
+use vox_orchestrator::catalog::{MensCatalog, ModelCatalog};
+use vox_orchestrator::models::{ModelRegistry, ModelSpec, TaskCategory, llm_config_for_spec};
+
+use super::bench::resolve_target;
 
 /// `vox model eval-corpus` arguments.
 #[derive(Parser, Debug, Clone)]
@@ -236,23 +241,57 @@ fn select_fixtures(all: &[Fixture], args: &EvalCorpusArgs) -> Vec<Fixture> {
     }
 }
 
+/// Register every listable `<repo_root>/mens/runs/*` checkpoint on `base`, so a freshly
+/// trained `mens/<run>` resolves like any other registry id.
+///
+/// Production passes `ModelRegistry::from_cache()`; tests pass `ModelRegistry::default()`.
+pub async fn with_mens_runs(mut base: ModelRegistry, repo_root: &Path) -> Result<ModelRegistry> {
+    for spec in MensCatalog::new(repo_root).refresh().await? {
+        base.register(spec);
+    }
+    Ok(base)
+}
+
+/// Resolve a `--model` id to its spec and a dispatchable facade config, the same
+/// `resolve_target` + `llm_config_for_spec` pair `vox models bench` uses.
+///
+/// An unknown `mens/*` id is a hard error: `resolve_target` would otherwise synthesize an
+/// OpenRouter spec for it, and a score for a local checkpoint must never come from (or
+/// leak prompts to) a cloud model.
+pub fn resolve_eval_model(registry: &ModelRegistry, raw: &str) -> Result<(ModelSpec, LlmConfig)> {
+    let (spec, synthesized) = resolve_target(registry, raw);
+    if synthesized && raw.trim().starts_with("mens/") {
+        anyhow::bail!(
+            "`{}` was not found under mens/runs (no listable checkpoint with that name); \
+             it will not be routed to a cloud provider. Train it first or check the name.",
+            raw.trim()
+        );
+    }
+    let config = llm_config_for_spec(&spec, TaskCategory::CodeGen);
+    Ok((spec, config))
+}
+
+/// One generated candidate plus the measurements recorded with it.
+#[derive(Debug, Clone)]
+pub struct Generated {
+    pub code: String,
+    pub total_tokens: u32,
+    pub latency_ms: i64,
+    pub cost_usd: Option<f64>,
+    /// Model string the provider reported (provenance: what actually answered).
+    pub provider_model: String,
+}
+
 /// Generate one candidate solution through the model-agnostic LLM facade.
 ///
-/// Returns `(source, total_tokens, latency_ms, cost_usd)`. All LLM traffic
-/// goes through `vox_actor_runtime::llm` per the workspace's model-agnostic
-/// boundary — never a vendor SDK or hostname.
-async fn generate_candidate(
-    model_id: &str,
-    prompt: &str,
-    temperature: f32,
-    max_tokens: u64,
-) -> Result<(String, u32, i64, Option<f64>), String> {
+/// `config` already carries model, temperature, top_p, max_tokens and seed; they are not
+/// overridden here. All LLM traffic goes through `vox_actor_runtime::llm` per the
+/// workspace's model-agnostic boundary — never a vendor SDK or hostname.
+async fn generate_candidate(config: &LlmConfig, prompt: &str) -> Result<Generated, String> {
     use vox_actor_runtime::ActivityOptions;
-    use vox_actor_runtime::llm::{LlmChatMessage, LlmConfig, llm_chat};
+    use vox_actor_runtime::llm::{LlmChatMessage, llm_chat};
 
-    let mut config = LlmConfig::openrouter(model_id);
-    config.max_tokens = Some(max_tokens);
-    config.temperature = Some(temperature);
+    let mut config = config.clone();
     config.telemetry_task_category = Some("eval-corpus".to_string());
 
     let messages = vec![LlmChatMessage {
@@ -271,12 +310,13 @@ async fn generate_candidate(
         vox_actor_runtime::ActivityResult::Cancelled => return Err("activity cancelled".into()),
     }?;
 
-    Ok((
-        extract_vox_code(&response.content),
-        response.prompt_tokens + response.completion_tokens,
+    Ok(Generated {
+        code: extract_vox_code(&response.content),
+        total_tokens: response.prompt_tokens + response.completion_tokens,
         latency_ms,
-        response.cost_usd,
-    ))
+        cost_usd: response.cost_usd,
+        provider_model: response.model,
+    })
 }
 
 /// Build the scoreboard row recording a corpus run.
@@ -365,6 +405,15 @@ pub async fn run(args: EvalCorpusArgs) -> Result<()> {
         None => None,
     };
     let measured = solutions.is_none();
+    let live_config: Option<LlmConfig> = if measured {
+        let registry = with_mens_runs(ModelRegistry::from_cache(), &repo_root).await?;
+        let (_spec, mut config) = resolve_eval_model(&registry, &args.model)?;
+        config.max_tokens = Some(args.max_tokens);
+        config.temperature = Some(args.temperature);
+        Some(config)
+    } else {
+        None
+    };
 
     println!(
         "{} {} / {} [{}] — {} fixture(s), {} attempt(s) each",
@@ -415,15 +464,9 @@ pub async fn run(args: EvalCorpusArgs) -> Result<()> {
                 },
                 None => {
                     let prompt = build_prompt(&ctx, &fixture.signature, &fixture.prompt);
-                    match generate_candidate(
-                        &args.model,
-                        &prompt,
-                        args.temperature,
-                        args.max_tokens,
-                    )
-                    .await
-                    {
-                        Ok(v) => v,
+                    let config = live_config.as_ref().expect("live mode resolves a config");
+                    match generate_candidate(config, &prompt).await {
+                        Ok(g) => (g.code, g.total_tokens, g.latency_ms, g.cost_usd),
                         Err(reason) => {
                             if is_infra_error(&reason) {
                                 n_infra_errors += 1;
@@ -653,5 +696,84 @@ mod tests {
             resolve_vox_binary(Some(&existing)).expect("resolves"),
             existing
         );
+    }
+
+    /// A repo root whose `mens/runs/<name>` holds a serveable checkpoint.
+    fn repo_with_run(name: &str) -> tempfile::TempDir {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let run = tmp.path().join("mens").join("runs").join(name);
+        std::fs::create_dir_all(&run).expect("run dir");
+        for f in [
+            "candle_qlora_adapter.safetensors",
+            "tokenizer.json",
+            "adapter_manifest.json",
+        ] {
+            std::fs::write(run.join(f), b"{}").expect("fixture file");
+        }
+        tmp
+    }
+
+    #[tokio::test]
+    async fn resolve_mens_run_routes_to_voxlocal() {
+        let repo = repo_with_run("demo");
+        let registry = with_mens_runs(ModelRegistry::default(), repo.path())
+            .await
+            .expect("registry");
+        let (spec, config) = resolve_eval_model(&registry, "mens/demo").expect("resolves");
+        assert_eq!(spec.id, "mens/demo");
+        assert_eq!(config.provider, "voxlocal");
+        assert_eq!(config.model, "mens/demo");
+    }
+
+    #[test]
+    fn resolve_unknown_mens_id_is_refused() {
+        let err = resolve_eval_model(&ModelRegistry::default(), "mens/zzz").unwrap_err();
+        let msg = err.to_string();
+        assert!(msg.contains("mens/runs"), "names where it looked: {msg}");
+        assert!(
+            msg.contains("cloud provider"),
+            "says it will not go to the cloud: {msg}"
+        );
+    }
+
+    #[tokio::test]
+    async fn generate_candidate_sends_model_and_sampling() {
+        use wiremock::matchers::{body_partial_json, method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let repo = repo_with_run("demo");
+        let registry = with_mens_runs(ModelRegistry::default(), repo.path())
+            .await
+            .expect("registry");
+        let (_spec, mut config) = resolve_eval_model(&registry, "mens/demo").expect("resolves");
+
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/v1/chat/completions"))
+            .and(body_partial_json(serde_json::json!({
+                "model": "mens/demo", "seed": 1234, "temperature": 0.8, "top_p": 0.9, "max_tokens": 64
+            })))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "model": "mens/demo",
+                "choices": [{"message": {"role": "assistant", "content": "```vox\nfn f() to int { return 1 }\n```"}}],
+                "usage": {"prompt_tokens": 3, "completion_tokens": 4}
+            })))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        config.base_url = Some(format!("{}/v1/chat/completions", server.uri()));
+        config.seed = Some(1234);
+        config.temperature = Some(0.8);
+        config.top_p = Some(0.9);
+        config.max_tokens = Some(64);
+        config.telemetry_skip_interaction = true;
+
+        let g = generate_candidate(&config, "write f")
+            .await
+            .expect("generated");
+        assert_eq!(g.code, "fn f() to int { return 1 }");
+        assert_eq!(g.provider_model, "mens/demo");
+        assert_eq!(g.total_tokens, 7);
     }
 }
