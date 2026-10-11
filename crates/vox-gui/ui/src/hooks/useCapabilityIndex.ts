@@ -24,6 +24,7 @@ export function useCapabilityIndex(enabled: boolean): UseCapabilityIndexResult {
   useEffect(() => {
     if (!enabled || mod) return;
     let cancelled = false;
+    setError(null); // a retry starts clean: the earlier failure must not outlive a later success
     loadCapabilityIndex()
       .then((m) => {
         if (!cancelled) setMod(m);
