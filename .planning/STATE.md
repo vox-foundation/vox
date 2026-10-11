@@ -25,7 +25,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-01)
 
 **Core value:** The compiler, orchestrator, and runtime that everything else depends on must keep building and passing CI throughout.
-**Current focus:** Phase 06.3 — Universal Palette (INSERTED)
+**Current focus:** Phase 06.4 — Capability Explorer & Coverage Gate (INSERTED)
 
 ## Current Position
 
@@ -93,6 +93,10 @@ Recent decisions affecting current work:
 None yet.
 
 ### Blockers/Concerns
+
+- [Phase 06.3] Gate coverage is exactly the 14 `destructive`-classified CLI rows; 901 CLI verbs are unclassified (fail open to the form, never to a run). `confirmed` is client-supplied (consent step, not authorization). MCP destructive rows (3) are not gated. 06.4's coverage gate should consider both.
+- [Phase 06.3] D-08a: the capped-facet "show more" hint should become a link to the Capability Explorer once 06.4 builds it.
+- [Phase 06.3] TS explain card has 3 known parity gaps vs Rust `vox explain` (docs origin, coverage reason, ambiguous flag) — needs extra fields in `generate_ts`; the hosted PR CI excludes `vox-gui`, so only nightly runs the `execute.rs` wiring test.
 
 - Phase 7 migration is gated on human approval of the Tier A schema and placement (new domain vs scientia extension; baseline 95).
 - Replay/promotion-eligible campaigns are gated on the Tier C evidence-storage decision (STORE-03).
