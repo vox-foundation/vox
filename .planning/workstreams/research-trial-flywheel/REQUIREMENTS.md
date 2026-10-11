@@ -66,6 +66,22 @@
 - [ ] **AUDIT-03**: Every campaign emits an evidence bundle: config snapshot, trace/span linkage, samples, scores, confidence, promotion decision, and replay command.
 - [ ] **AUDIT-04**: Docs and gates are current: `vox ci data-storage-guard`, telemetry/contract drift checks, docs lint, and `vox ci pre-push --complete` pass.
 
+### Code-Gen Benchmark (design: `docs/src/architecture/vox-mens-continuous-benchmark-provenance-design-2026-10-10.md`)
+
+- [ ] **BENCH-01**: `vox model eval-corpus` resolves the model under test through the registry and `vox_actor_runtime::llm` (including local `mens/*` checkpoints) instead of hardcoding `LlmConfig::openrouter`.
+- [ ] **BENCH-02**: Sampling is seeded and recorded (temperature, top_p, n, k, seed, max_tokens); all n samples are always drawn; `vox mens eval-local` pass@k uses the unbiased estimator.
+- [ ] **BENCH-03**: Reports use the existing `vox-eval` statistics: paired cluster bootstrap over problems for pass@k, exact McNemar + Holm for preregistered pairwise claims, and `min_detectable_difference` printed beside every comparison; CI overlap is never a significance test.
+- [ ] **BENCH-04**: Every run record carries the design doc §5 provenance fields (syntax fingerprint, Cargo version, vox git sha, binary sha256, problem-set/prompt/context hashes, condition, model identity incl. weights/snapshot, sampling, runner, preregistration id); any missing field forces `run_complete = false` and exclusion from comparisons.
+- [ ] **BENCH-05**: The MENS training lane writes an `AdapterCard` with base revision, adapter sha256, `train.jsonl` sha256, corpus hash, and training syntax fingerprint; eval refuses to label a `mens/*` row without one and flags training/eval syntax mismatch.
+- [ ] **BENCH-06**: Each benchmark run is a Phase 7 campaign/run persisted atomically and emits a `vox-crypto`-signed bundle (record, per-sample outcomes, failure classes, generated code) that verifies offline.
+- [ ] **BENCH-13**: eval-corpus can report pass@1 after k compiler-feedback repair turns (k ≤ 3, default 0, design doc §8). Repaired outcomes are recorded alongside the original first attempt and never replace it.
+- [ ] **BENCH-07**: A behavioral syntax fingerprint (BLAKE3 via `vox-crypto` over canonical parse outcomes/AST and diagnostic codes of a fixed probe corpus, excluding crate version, spans, and message text) lives in `vox-grammar-export`, mutation-tested in both directions.
+- [ ] **BENCH-08**: Triggers: release tag, post-merge fingerprint change on `main` (tiny detector dispatches the heavy workflow), MENS promotion, and manual dispatch; never `pull_request`/`merge_group`; reference solutions are validated first and the campaign fails closed with `reference_migration_required`; a fixed anchor subset detects provider model drift.
+- [ ] **BENCH-09**: A `contracts/eval/vox-syntax/` tier keyed to the compiler feature matrix, with negative fixtures, reports its feature coverage percentage.
+- [ ] **BENCH-10**: The MENS-scored held-out split reaches ≥150 problems, every fixture's tests meet a preregistered mutant-kill threshold, and held-out material stays `training_eligible: false` behind the leakage gate.
+- [ ] **BENCH-11**: A parallel-language tier (Vox, Python, TypeScript, Rust) runs in a pinned, network-less verifier with matched context budgets; a rolling fresh tier gated by `added_at`/`--cutoff` is reported separately from the contaminated tier; vendored sources are recorded with license provenance.
+- [ ] **BENCH-12**: Reports label estimands E1–E6, keep conditions C0–C3 as separate columns, include a COI statement, suppress E5 on anchor drift, and validate against a versioned schema; the unbacked "92%" claim in `language-benchmark-2026.md` is retracted.
+
 ## v2 Requirements
 
 Deferred. Tracked but not in the current roadmap.
@@ -126,11 +142,24 @@ Deferred. Tracked but not in the current roadmap.
 | AUDIT-02 | Phase 11 | Pending |
 | AUDIT-03 | Phase 11 | Pending |
 | AUDIT-04 | Phase 11 | Pending |
+| BENCH-01 | Phase 12 | Pending |
+| BENCH-02 | Phase 12 | Pending |
+| BENCH-03 | Phase 12 | Pending |
+| BENCH-04 | Phase 12 | Pending |
+| BENCH-05 | Phase 12 | Pending |
+| BENCH-06 | Phase 12 | Pending |
+| BENCH-13 | Phase 12 | Pending |
+| BENCH-07 | Phase 13 | Pending |
+| BENCH-08 | Phase 13 | Pending |
+| BENCH-09 | Phase 13 | Pending |
+| BENCH-10 | Phase 13 | Pending |
+| BENCH-11 | Phase 13 | Pending |
+| BENCH-12 | Phase 13 | Pending |
 
 **Coverage:**
 
-- v1.1 requirements: 37 total
-- Mapped to phases: 37
+- v1.1 requirements: 50 total
+- Mapped to phases: 50
 - Unmapped: 0 ✓
 
 ---

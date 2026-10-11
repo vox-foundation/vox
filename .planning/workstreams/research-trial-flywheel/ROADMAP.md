@@ -35,6 +35,8 @@ v1.1 turns Vox's existing research pipeline, telemetry, evaluation, model routin
 - [ ] **Phase 9: Verified Knowledge Loop** - Tier C evidence decision, authoritative findings with provenance, acknowledged projections, frozen per-arm manifests, and memory ablations
 - [ ] **Phase 10: Promotion Governance & Replay** - Offline replay, shadow challengers, two-campaign confirmation, dual-control scoped designation, and suspension
 - [ ] **Phase 11: Adversarial Trials & Hardening** - Adversarial/stress trials, mutation-tested gates, evidence bundles, and full gate pass
+- [ ] **Phase 12: Code-Gen Benchmark Plumbing & Provenance** - MENS routable in eval-corpus, seeded unbiased sampling, paired statistics, complete provenance record, training lineage, signed run bundles on the Phase 7 identity
+- [ ] **Phase 13: Triggered Language Benchmark & Cross-Language Tiers** - Behavioral syntax fingerprint, post-merge/tag/promotion triggers (never PR), syntax tier, grown held-out split, parallel-language and fresh tiers, estimand-labelled reports
 
 ## Phase Details
 
@@ -116,9 +118,54 @@ v1.1 turns Vox's existing research pipeline, telemetry, evaluation, model routin
 
 **Plans**: TBD
 
+### Phase 12: Code-Gen Benchmark Plumbing & Provenance
+
+**Goal**: Any model, MENS included, can be scored writing Vox with reproducible sampling, honest intervals, and a provenance record that traces every result to its language version, benchmark content, model weights, and training data.
+**Depends on**: Phase 7 (campaign/run identity, signing, atomic Tier A persistence)
+**Requirements**: BENCH-01, BENCH-02, BENCH-03, BENCH-04, BENCH-05, BENCH-06, BENCH-13
+**Design**: `docs/src/architecture/vox-mens-continuous-benchmark-provenance-design-2026-10-10.md` §§2, 5, 8, 9
+**Success Criteria** (what must be TRUE):
+
+  1. `vox model eval-corpus --model mens/<run>` produces scored samples through the `vox_actor_runtime::llm` facade (no hardcoded OpenRouter config).
+  2. Two runs with the same seed and config produce identical sample sets for deterministic providers; `eval_local` pass@k equals the unbiased estimator.
+  3. Every report carries per-arm bootstrap CIs, exact McNemar + Holm for pairwise claims, and the resolution floor; no CI-overlap significance remains.
+  4. A run missing any required provenance field is persisted with `run_complete = false` and excluded from comparisons (mutation-tested).
+  5. Training writes an `AdapterCard` with the `train.jsonl` sha256 and training syntax fingerprint; eval refuses to label a `mens/*` row without one.
+  6. Each run emits a vox-crypto-signed bundle; a tampered bundle fails verification.
+
+**Plans**: 9 plans
+
+Plans:
+- [ ] 12-01-PLAN.md — Seed through the LLM facade and wire (Wave 1)
+- [ ] 12-02-PLAN.md — eval-corpus registry routing (incl. mens/*), seeded n-sample loop, infra classification (Wave 2)
+- [ ] 12-03-PLAN.md — MENS serve + Candle sampler seed/top_p (metal and CUDA); eval-local unbiased pass@k (Wave 1)
+- [ ] 12-04-PLAN.md — vox-eval typed report, §5 provenance record, single completeness gate, CI/MDD stats (Wave 1)
+- [ ] 12-05-PLAN.md — `vox model eval-compare`: McNemar + Holm, paired bootstrap, resolution floor (Wave 2)
+- [ ] 12-06-PLAN.md — Training lineage AdapterCard writer and eval-side card check (Wave 1)
+- [ ] 12-07-PLAN.md — eval-corpus provenance collectors, typed report, mens label refusal, scoreboard guard (Wave 3)
+- [ ] 12-08-PLAN.md — pass@1 after k compiler-feedback turns (design §8) (Wave 4)
+- [ ] 12-09-PLAN.md — Phase 7 run identity, signed offline-verifiable bundle, atomic persist (Wave 5, blocked on Phase 7)
+
+### Phase 13: Triggered Language Benchmark & Cross-Language Tiers
+
+**Goal**: The benchmark runs itself on every syntax change, release tag, and MENS promotion — never on PRs — and produces estimand-labelled results that can support the claims the design doc permits, including Vox-vs-other-language comparisons on fresh problems.
+**Depends on**: Phase 12
+**Requirements**: BENCH-07, BENCH-08, BENCH-09, BENCH-10, BENCH-11, BENCH-12
+**Gate**: Human decisions on the results store, MENS inference host, and held-out authoring budget (design doc §12) before the first triggered campaign.
+**Success Criteria** (what must be TRUE):
+
+  1. A behavior-preserving parser refactor leaves the syntax fingerprint unchanged and a one-production grammar change flips it (mutation tests both ways); the crate version does not participate.
+  2. A push to `main` that changes the fingerprint dispatches exactly one benchmark campaign; a push that does not, dispatches none; no PR or merge-queue event ever runs it.
+  3. When any reference solution fails under new syntax, the campaign records `reference_migration_required` and calls no model.
+  4. The syntax tier covers a reported percentage of the feature matrix with negative fixtures; the MENS held-out split has ≥150 problems; every fixture meets the preregistered mutant-kill threshold.
+  5. Parallel Python/TypeScript/Rust problems run in a pinned, network-less verifier; fresh and contaminated tiers are reported separately.
+  6. Reports label estimands E1–E6, keep conditions as separate columns, include the COI statement, and suppress E5 when the anchor subset shows model drift; the unbacked claim in `language-benchmark-2026.md` is retracted.
+
+**Plans**: TBD
+
 ## Progress
 
-**Execution Order:** Phases execute in numeric order: 7 → 8 → 9 → 10 → 11
+**Execution Order:** Phases execute in numeric order: 7 → 8 → 9 → 10 → 11. Phases 12–13 depend only on Phase 7 and may run in parallel with 8–11.
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -128,3 +175,5 @@ v1.1 turns Vox's existing research pipeline, telemetry, evaluation, model routin
 | 9. Verified Knowledge Loop | v1.1 | 0/TBD | Not started | - |
 | 10. Promotion Governance & Replay | v1.1 | 0/TBD | Not started | - |
 | 11. Adversarial Trials & Hardening | v1.1 | 0/TBD | Not started | - |
+| 12. Code-Gen Benchmark Plumbing & Provenance | v1.1 | 0/9 | Planned | - |
+| 13. Triggered Language Benchmark & Cross-Language Tiers | v1.1 | 0/TBD | Not started | - |
