@@ -62,6 +62,14 @@ pub struct EvalCorpusArgs {
     pub temperature: f32,
     #[arg(long, default_value_t = 4096)]
     pub max_tokens: u64,
+    /// Nucleus sampling mass; 1.0 disables truncation. Always sent so the recorded value is
+    /// the requested value.
+    #[arg(long, default_value_t = 1.0)]
+    pub top_p: f32,
+    /// Base sampling seed; each sample's seed is derived from (seed, fixture id, sample
+    /// index) and recorded.
+    #[arg(long, default_value_t = 0)]
+    pub seed: u64,
     /// Score pre-generated `<fixture-id>.vox` solutions from this directory instead of generating.
     #[arg(long)]
     pub from_dir: Option<PathBuf>,
@@ -140,16 +148,93 @@ pub fn config_digest(
         .collect()
 }
 
-/// Provider-side failures that must NOT be scored as model failures.
+/// How a generation error must be accounted for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GenErrorKind {
+    /// Provider-side failure; never scored as a model failure.
+    Infra,
+    /// The server is not serving what was asked for; the whole run is invalid.
+    FatalConfig,
+    /// The model produced no usable output; scored as a miss.
+    Model,
+}
+
+/// Classify a facade error string. The facade prefixes rate limits and context overflow
+/// (`RATE_LIMITED: ` / `CONTEXT_LENGTH_EXCEEDED: `); other provider failures arrive as
+/// `LLM API returned error (<code>): ...` or `HTTP request failed: ...`.
 #[must_use]
-pub fn is_infra_error(msg: &str) -> bool {
+pub fn classify_generation_error(msg: &str) -> GenErrorKind {
+    use vox_actor_runtime::llm::{CONTEXT_EXCEEDED_PREFIX, RATE_LIMITED_PREFIX};
+    // `vox mens serve` answers 409 "Loaded model is X, not Y" when asked for another model.
+    if msg.contains("Loaded model is") {
+        return GenErrorKind::FatalConfig;
+    }
+    if msg.starts_with(RATE_LIMITED_PREFIX) || msg.starts_with(CONTEXT_EXCEEDED_PREFIX) {
+        return GenErrorKind::Infra;
+    }
     let m = msg.to_ascii_lowercase();
-    m.contains("rate limited")
-        || m.contains("429")
-        || m.contains("context length")
-        || m.contains("502")
-        || m.contains("503")
-        || m.contains("timeout")
+    const INFRA_MARKERS: &[&str] = &[
+        "rate limited",
+        "429",
+        "context length",
+        "http error:",
+        "http request failed:",
+        "provider status 500",
+        "provider status 502",
+        "provider status 503",
+        "provider status 504",
+        "returned error (500)",
+        "returned error (502)",
+        "returned error (503)",
+        "returned error (504)",
+        "timeout",
+        "timed out",
+        "activity cancelled",
+    ];
+    if INFRA_MARKERS.iter().any(|k| m.contains(k)) {
+        GenErrorKind::Infra
+    } else {
+        GenErrorKind::Model
+    }
+}
+
+/// Per-sample seed from `(base, fixture id, sample index)`: BLAKE3 over unambiguous framing
+/// (fixed-width base, length-prefixed id, fixed-width index), masked to 31 bits so providers
+/// that parse seeds as i32/u32/JS numbers accept it.
+// vox:defactored-from vox-ml-cli 2026-10-11
+#[must_use]
+pub fn sample_seed(base: u64, problem_id: &str, sample_index: usize) -> u64 {
+    let mut buf = Vec::with_capacity(32 + problem_id.len());
+    buf.extend_from_slice(&base.to_le_bytes());
+    buf.extend_from_slice(&(problem_id.len() as u64).to_le_bytes());
+    buf.extend_from_slice(problem_id.as_bytes());
+    buf.extend_from_slice(&(sample_index as u64).to_le_bytes());
+    let digest = vox_crypto::facades::secure_hash(&buf);
+    let mut head = [0u8; 8];
+    head.copy_from_slice(&digest[..8]);
+    u64::from_le_bytes(head) & 0x7fff_ffff
+}
+
+/// Reject sampling settings that cannot produce a meaningful score, before any request.
+pub fn validate_sampling(args: &EvalCorpusArgs) -> Result<()> {
+    anyhow::ensure!(args.n >= 1, "--n must be at least 1");
+    anyhow::ensure!(
+        (1..=args.n).contains(&args.k),
+        "--k ({}) must satisfy 1 <= k <= --n ({}) — pass@k needs at least k samples",
+        args.k,
+        args.n
+    );
+    anyhow::ensure!(
+        args.top_p.is_finite() && args.top_p > 0.0 && args.top_p <= 1.0,
+        "--top-p ({}) must be in (0, 1]",
+        args.top_p
+    );
+    anyhow::ensure!(
+        args.temperature.is_finite() && args.temperature >= 0.0,
+        "--temperature ({}) must be a finite, non-negative number",
+        args.temperature
+    );
+    Ok(())
 }
 
 /// Pull Vox source from a completion, unwrapping a fenced block when present.
@@ -356,12 +441,7 @@ pub fn scoreboard_row_from_corpus(
 }
 
 pub async fn run(args: EvalCorpusArgs) -> Result<()> {
-    anyhow::ensure!(
-        args.k <= args.n,
-        "--k ({}) must not exceed --n ({}) — pass@k needs at least k samples",
-        args.k,
-        args.n
-    );
+    validate_sampling(&args)?;
     if args.temperature == 0.0 && args.n > 1 {
         eprintln!(
             "{} temperature=0.0 with n={} draws near-identical samples; pass@k will \
@@ -410,6 +490,18 @@ pub async fn run(args: EvalCorpusArgs) -> Result<()> {
         let (_spec, mut config) = resolve_eval_model(&registry, &args.model)?;
         config.max_tokens = Some(args.max_tokens);
         config.temperature = Some(args.temperature);
+        config.top_p = Some(args.top_p);
+        if config.provider == "voxlocal"
+            && std::env::var("VOX_LOCAL_ENDPOINT").map_or(true, |v| v.trim().is_empty())
+        {
+            eprintln!(
+                "{} VOX_LOCAL_ENDPOINT is unset: voxlocal defaults to 127.0.0.1:11434 (Ollama), \
+                 but `vox mens serve` listens on 11435. Export \
+                 VOX_LOCAL_ENDPOINT=http://127.0.0.1:11435 or this run scores whatever answers \
+                 on 11434.",
+                "warning:".yellow()
+            );
+        }
         Some(config)
     } else {
         None
@@ -437,7 +529,7 @@ pub async fn run(args: EvalCorpusArgs) -> Result<()> {
         let n_attempts = if measured { args.n } else { 1 };
         let mut attempts = Vec::with_capacity(n_attempts);
 
-        for _ in 0..n_attempts {
+        for i in 0..n_attempts {
             if let Some(cap) = args.max_spend_usd {
                 if cumulative_spend >= cap {
                     run_complete = false;
@@ -464,14 +556,21 @@ pub async fn run(args: EvalCorpusArgs) -> Result<()> {
                 },
                 None => {
                     let prompt = build_prompt(&ctx, &fixture.signature, &fixture.prompt);
-                    let config = live_config.as_ref().expect("live mode resolves a config");
-                    match generate_candidate(config, &prompt).await {
+                    let mut config = live_config.clone().expect("live mode resolves a config");
+                    config.seed = Some(sample_seed(args.seed, &fixture.id, i));
+                    match generate_candidate(&config, &prompt).await {
                         Ok(g) => (g.code, g.total_tokens, g.latency_ms, g.cost_usd),
                         Err(reason) => {
-                            if is_infra_error(&reason) {
-                                n_infra_errors += 1;
-                                tracing::warn!(model = %args.model, fixture = %fixture.id, error = %reason, "infra error, not counted as a model failure");
-                                continue;
+                            match classify_generation_error(&reason) {
+                                GenErrorKind::FatalConfig => anyhow::bail!(
+                                    "{reason} — the server is serving a different model than requested"
+                                ),
+                                GenErrorKind::Infra => {
+                                    n_infra_errors += 1;
+                                    tracing::warn!(model = %args.model, fixture = %fixture.id, error = %reason, "infra error, not counted as a model failure");
+                                    continue;
+                                }
+                                GenErrorKind::Model => {}
                             }
                             tracing::warn!(model = %args.model, fixture = %fixture.id, error = %reason, "generation failed");
                             attempts.push(AttemptOutcome {
@@ -632,10 +731,83 @@ mod tests {
     }
 
     #[test]
-    fn provider_errors_are_infra_not_model_failures() {
-        assert!(is_infra_error("rate limited: 429 too many requests"));
-        assert!(is_infra_error("context length exceeded"));
-        assert!(!is_infra_error("model returned malformed code"));
+    fn infra_classification_uses_the_facade_prefixes() {
+        use vox_actor_runtime::llm::{CONTEXT_EXCEEDED_PREFIX, RATE_LIMITED_PREFIX};
+        for msg in [
+            format!("{RATE_LIMITED_PREFIX}rate limit exceeded"),
+            format!("{CONTEXT_EXCEEDED_PREFIX}LLM API returned error (400): too long"),
+            "http error: connection refused".to_string(),
+            "provider status 503: busy".to_string(),
+            "provider status 500: x".to_string(),
+            "LLM API returned error (503): overloaded".to_string(),
+            "HTTP request failed: connection reset".to_string(),
+            "activity cancelled".to_string(),
+        ] {
+            assert_eq!(
+                classify_generation_error(&msg),
+                GenErrorKind::Infra,
+                "{msg}"
+            );
+        }
+        assert_eq!(
+            classify_generation_error("model returned malformed code"),
+            GenErrorKind::Model
+        );
+        assert_eq!(
+            classify_generation_error("LLM API returned error (400): bad request"),
+            GenErrorKind::Model
+        );
+    }
+
+    #[test]
+    fn infra_409_model_mismatch_is_fatal() {
+        assert_eq!(
+            classify_generation_error(
+                "provider status 409: {\"text\":\"Loaded model is a, not b\"}"
+            ),
+            GenErrorKind::FatalConfig
+        );
+        assert_eq!(
+            classify_generation_error(
+                "LLM API returned error (409): {\"text\":\"Loaded model is a, not b\"}"
+            ),
+            GenErrorKind::FatalConfig
+        );
+    }
+
+    #[test]
+    fn sample_seed_matches_eval_local_and_is_unambiguous() {
+        let s = sample_seed(7, "001", 0);
+        // Pinned by 12-03: vox-ml-cli's eval-local returns the same value.
+        assert_eq!(s, 780_188_561);
+        assert_eq!(s, sample_seed(7, "001", 0));
+        assert!(s < 1 << 31);
+        assert_ne!(s, sample_seed(8, "001", 0));
+        assert_ne!(s, sample_seed(7, "002", 0));
+        assert_ne!(s, sample_seed(7, "001", 1));
+        assert_ne!(sample_seed(1, "1", 23), sample_seed(1, "12", 3));
+    }
+
+    fn args_for_validation() -> EvalCorpusArgs {
+        EvalCorpusArgs::parse_from(["eval-corpus", "--model", "m"])
+    }
+
+    #[test]
+    fn sample_args_are_validated() {
+        assert!(validate_sampling(&args_for_validation()).is_ok());
+        let bad: [(&str, fn(&mut EvalCorpusArgs)); 6] = [
+            ("n = 0", |a| a.n = 0),
+            ("k = 0", |a| a.k = 0),
+            ("k > n", |a| a.k = a.n + 1),
+            ("top_p = 0", |a| a.top_p = 0.0),
+            ("top_p = 1.5", |a| a.top_p = 1.5),
+            ("temperature NaN", |a| a.temperature = f32::NAN),
+        ];
+        for (name, mutate) in bad {
+            let mut a = args_for_validation();
+            mutate(&mut a);
+            assert!(validate_sampling(&a).is_err(), "{name} must be rejected");
+        }
     }
 
     #[test]
