@@ -13,6 +13,8 @@ export interface ToastItem {
   groupKey?: string;
   /** When > 1, this entry represents multiple coalesced toasts. */
   count?: number;
+  /** A button in the toast; must not navigate. */
+  action?: { label: string; onClick: () => void };
 }
 
 // Status tokens (--color-status-*): ok=pass, warn=warn, error=fail; info stays sky.
@@ -54,6 +56,15 @@ export function Toasts({ items, onClose }: ToastsProps) {
               </div>
               {t.body && <div className="mt-0.5 text-[11px] text-text-muted">{t.body}</div>}
               {t.cmd && <div className="mt-1 font-mono text-[11px] text-text-muted">▸ {t.cmd}</div>}
+              {t.action && (
+                <button
+                  type="button"
+                  onClick={t.action.onClick}
+                  className="mt-1.5 rounded-sm border border-border-subtle px-2 py-0.5 text-[11px] text-text-muted hover:text-text-primary"
+                >
+                  {t.action.label}
+                </button>
+              )}
             </div>
             <button
               type="button"

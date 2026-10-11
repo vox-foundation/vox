@@ -16,6 +16,8 @@ import { useDocViewer } from './hooks/useDocViewer';
 import { TaskDiffDialog } from './components/surfaces/Chat/TaskDiffDialog';
 import { DocViewerDrawer } from './components/layout/DocViewerDrawer';
 import { ExplainDrawer } from './components/layout/ExplainDrawer';
+import { RunOutputDialog } from './components/layout/RunOutputDialog';
+import { confirmationRequiredId, toastForRun } from './lib/capabilityRun';
 import { useCapabilityIndex } from './hooks/useCapabilityIndex';
 import { getLoadedCapabilityIndex } from './lib/capabilityIndexLoader';
 import { InspectorDrawer } from './debugger/InspectorDrawer';
@@ -56,7 +58,7 @@ import { buildChatTurn } from './lib/buildChatTurn';
 import { contextRefsFromPayload } from './lib/loquelaContext';
 import { overallWorst, worstCount } from './components/surfaces/Policies/policyTree';
 import type { PolicyRow, PolicyStatus, BranchInfo, RunStatus } from './components/surfaces/Policies/types';
-import { voxTransport, listenAgentEvents, chatTurn as sendChatTurnRaw, type AgentEventFrame } from './transport';
+import { voxTransport, listenAgentEvents, chatTurn as sendChatTurnRaw, type AgentEventFrame, type ExecuteOutput } from './transport';
 import { useQuery } from '@tanstack/react-query';
 import { railRoutingFromSummary } from './lib/routingSummary';
 import { useAttentionInbox } from './hooks/useAttentionInbox';
@@ -1041,6 +1043,31 @@ export default function App() {
     () => (explainRowId ? (capIdx.rows.find((r) => r.id === explainRowId) ?? null) : null),
     [explainRowId, capIdx.rows],
   );
+  // D-01/D-04: palette direct run -> toast + full-output dialog. D-03: a destructive refusal parks the run.
+  const [runOutput, setRunOutput] = useState<{ title: string; out: ExecuteOutput } | null>(null);
+  const [, setPendingConfirm] = useState<{ path: string[]; id: string } | null>(null);
+  const runCli = useCallback(
+    async (path: string[], confirmed?: boolean) => {
+      const title = `vox ${path.join(' ')}`;
+      try {
+        const out = await voxTransport.executeCommand(path, { __argv: [] }, { confirmed });
+        if (!out) {
+          pushToast({ tone: 'warn', title: `${title} unavailable`, body: 'No response from the backend.', cause: 'backend-error' });
+          return;
+        }
+        pushToast(toastForRun(path, out, () => setRunOutput({ title, out })));
+      } catch (err) {
+        const id = confirmationRequiredId(err);
+        if (id) {
+          setPendingConfirm({ path, id });
+          return;
+        }
+        pushToast({ tone: 'warn', title: `${title} failed`, body: sanitizeErrorForToast(err), cause: 'backend-error' });
+      }
+    },
+    [pushToast],
+  );
+
   const catalogPaths = useMemo(() => new Set(data.skills.map((e) => e.path.join(' '))), [data.skills]);
   const closeExplain = useCallback(() => setExplainRowId(null), []);
 
@@ -2056,8 +2083,10 @@ export default function App() {
         }}
         onOpenDoc={(path) => openDocTab(path)}
         onExplain={setExplainRowId}
+        onRunCli={(path) => { void runCli(path); }}
         agents={data.agents}
         skills={installedSkillEntries}
+        catalog={data.skills}
         gamifyEnabled={gamifySettings.enabled}
       />
 
@@ -2087,6 +2116,7 @@ export default function App() {
         }}
         pushToast={pushToast}
       />
+      <RunOutputDialog run={runOutput} onClose={() => setRunOutput(null)} />
       <TaskDiffDialog open={diffOpen} loading={diffLoading} text={diffText} onClose={() => setDiffOpen(false)} />
       <InspectorDrawer open={isInspectorOpen} onClose={() => setIsInspectorOpen(false)} />
       <ResearchEngineDrawer

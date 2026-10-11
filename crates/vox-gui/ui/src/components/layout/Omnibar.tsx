@@ -23,6 +23,7 @@ import {
 } from '../../lib/omnibarFacets';
 import { recordGamifyGuiEvent } from '../../lib/gamifyGuiEvents';
 import { unwrapMcpEnvelope } from '../../lib/mcpToolResult';
+import { decideCliActivation, type CliActivation } from '../../lib/capabilityRun';
 
 const SETTINGS_SEED_KEY = 'vox_settings_seed';
 
@@ -50,6 +51,13 @@ const KIND_ICON: Partial<Record<RowKind, keyof typeof Icon>> = {
   policy: 'shield',
   agent: 'users',
   action: 'command',
+};
+
+/** D-01: the trailing hint on a cli row, from the same decision Enter uses. */
+const CLI_HINT: Record<CliActivation['kind'], string> = {
+  run: '↵ runs',
+  form: '↵ opens form',
+  explain: '↵ explains',
 };
 
 /** D-08a: shown under a capped Commands / Tools facet; the Explorer link arrives in phase 06.4. */
@@ -111,12 +119,17 @@ interface OmnibarProps {
   onSendToChat: (query: string) => void;
   onOpenDoc: (path: string) => void;
   onSubmitTask: () => void;
-  /** Open the Catalog surface with this CLI path selected (D-01: never executes). */
+  /** Open the Catalog surface with this CLI path selected (never executes). */
   onOpenCatalogForm?: (path: string[]) => void;
   /** Explain an index row (MCP tool, crate, skill) in the drawer. */
   onExplain?: (rowId: string) => void;
+  /** D-01: run a read-only CLI leaf directly (see decideCliActivation). */
+  onRunCli: (path: string[]) => void;
   agents: Agent[];
+  /** Installed skills (not the CLI catalog). */
   skills: CommandCatalogEntry[];
+  /** The live CLI command catalog; decides run / form / explain for cli rows. */
+  catalog: CommandCatalogEntry[];
   gamifyEnabled?: boolean;
 }
 
@@ -150,8 +163,10 @@ export function Omnibar({
   onSubmitTask,
   onOpenCatalogForm,
   onExplain,
+  onRunCli,
   agents,
   skills,
+  catalog,
   gamifyEnabled = false,
 }: OmnibarProps) {
   const [q, setQ] = useState('');
@@ -217,10 +232,19 @@ export function Omnibar({
   );
 
   // Capability index (D-06): loaded lazily on the first open; cli rows feed Commands (D-05).
-  const { entries: rankEntries, domains, loading: indexLoading, error: indexError } = useCapabilityIndex(open);
+  const { rows: indexRows, entries: rankEntries, domains, loading: indexLoading, error: indexError } = useCapabilityIndex(open);
   const indexHits = useMemo(
     () => rankCapabilities(rankEntries, effectiveQ, { kinds: kindsForMode(prefixMode), recent: recentCapabilities(), limit: 200 }),
     [rankEntries, effectiveQ, prefixMode],
+  );
+
+  // D-01: what Enter does on a cli row. A row missing from the index counts as unclassified (form).
+  const catalogByPath = useMemo(() => new Map(catalog.map((e) => [e.path.join(' '), e])), [catalog]);
+  const indexById = useMemo(() => new Map(indexRows.map((r) => [r.id, r])), [indexRows]);
+  const cliDecision = useCallback(
+    (rowId: string, path: string[]): CliActivation =>
+      decideCliActivation({ sideEffect: indexById.get(rowId)?.sideEffect ?? null }, catalogByPath.get(path.join(' '))),
+    [indexById, catalogByPath],
   );
 
   const installedSkillNames = useMemo(() => new Set(skills.map((s) => s.path[s.path.length - 1])), [skills]);
@@ -305,9 +329,13 @@ export function Omnibar({
         case 'doc':
           onOpenDoc(row.activate.path);
           break;
-        case 'cli':
-          onOpenCatalogForm?.(row.activate.path);
+        case 'cli': {
+          const d = cliDecision(row.activate.rowId, row.activate.path);
+          if (d.kind === 'run') onRunCli(row.activate.path);
+          else if (d.kind === 'form') onOpenCatalogForm?.(row.activate.path);
+          else onExplain?.(row.activate.rowId);
           break;
+        }
         case 'explain':
           onExplain?.(row.activate.rowId);
           break;
@@ -346,7 +374,7 @@ export function Omnibar({
       }
       onClose();
     },
-    [onNavigate, onRunCommand, onOpenDoc, onOpenCatalogForm, onExplain, onSubmitTask, onClose, gamifyEnabled],
+    [onNavigate, onRunCommand, onOpenDoc, onOpenCatalogForm, onExplain, onRunCli, cliDecision, onSubmitTask, onClose, gamifyEnabled],
   );
 
   const expandGraphNeighbors = useCallback((row: OmnibarRow) => {
@@ -541,6 +569,11 @@ export function Omnibar({
                           </div>
                         </div>
                         <span className="font-mono text-[9px] uppercase tracking-widest text-text-muted shrink-0 ml-2">
+                          {row.activate.type === 'cli' ? (
+                            <span className="mr-2 normal-case tracking-normal">
+                              {CLI_HINT[cliDecision(row.activate.rowId, row.activate.path).kind]}
+                            </span>
+                          ) : null}
                           {row.provenance}
                         </span>
                       </button>
