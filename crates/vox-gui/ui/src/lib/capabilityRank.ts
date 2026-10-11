@@ -82,3 +82,15 @@ export function rankCapabilities(entries: RankEntry[], rawQuery: string, opts: R
   hits.sort((x, y) => x.tier - y.tier || y.score - x.score || (x.row.id < y.row.id ? -1 : x.row.id > y.row.id ? 1 : 0));
   return hits.slice(0, limit);
 }
+
+// RED stub (06.3-05): replaced by the real implementation in the GREEN commit.
+export function jaroWinkler(_a: string, _b: string): number {
+  return 0;
+}
+export function kindsForMode(_mode: 'default' | 'commands' | 'agents' | 'skills' | 'crates'): CapabilityIndexEntry['kind'][] {
+  return [];
+}
+export function noteRecentCapability(_id: string): void {}
+export function recentCapabilities(): readonly string[] {
+  return [];
+}

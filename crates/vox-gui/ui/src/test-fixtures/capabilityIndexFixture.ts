@@ -5,7 +5,7 @@
  */
 import type { CapabilityIndexEntry } from '../generated/capabilityIndex.generated';
 
-function row(partial: Partial<CapabilityIndexEntry> & Pick<CapabilityIndexEntry, 'id' | 'kind' | 'title'>): CapabilityIndexEntry {
+export function row(partial: Partial<CapabilityIndexEntry> & Pick<CapabilityIndexEntry, 'id' | 'kind' | 'title'>): CapabilityIndexEntry {
   return {
     summary: null,
     domain: null,
@@ -42,6 +42,8 @@ export const CAPABILITY_FIXTURE: CapabilityIndexEntry[] = [
   row({ id: 'surface.approvals', kind: 'surface', title: 'Approvals', domain: 'mesh', viewKey: 'approvals', navLabel: 'Approvals' }),
   row({ id: 'surface.mesh', kind: 'surface', title: 'Mesh', domain: 'mesh', viewKey: 'mesh', navLabel: 'Mesh' }),
   row({ id: 'crate.vox-actor-runtime', kind: 'crate', title: 'vox-actor-runtime', crate: 'vox-actor-runtime', layer: 3 }),
+  row({ id: 'crate.vox-orchestrator', kind: 'crate', title: 'vox-orchestrator', crate: 'vox-orchestrator', layer: 3 }),
+  row({ id: 'crate.vox-ast', kind: 'crate', title: 'vox-ast', crate: 'vox-ast', layer: 0 }),
   row({ id: 'skill.algorithmic-art', kind: 'skill', title: 'algorithmic-art', summary: 'Generative art with p5.js' }),
   row({ id: 'doc.docs/src/architecture/where-things-live.md', kind: 'doc', title: 'Where Things Live', docs: 'docs/src/architecture/where-things-live.md' }),
 ];
