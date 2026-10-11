@@ -293,15 +293,15 @@ describe('buildOmnibarFacets', () => {
 
   it('docs_default_mode: only title-exact/prefix docs show without a help-like query', () => {
     const docHit = (tier: RankHit['tier']) => hit('doc.docs/src/architecture/where-things-live.md', tier, 0.5);
-    const docsFor = (partial: Partial<OmnibarSources>) => facetOf(buildOmnibarFacets(sources({ query: 'where', domains: DOMAINS, ...partial })), 'docs').rows;
+    // a lone doc becomes Best match, so count doc rows across every facet
     const bestOrDocs = (partial: Partial<OmnibarSources>) => allRows(buildOmnibarFacets(sources({ query: 'where', domains: DOMAINS, ...partial }))).filter((r) => r.kind === 'doc');
     expect(bestOrDocs({ indexHits: [docHit(1)] })).toHaveLength(1);
     expect(bestOrDocs({ indexHits: [docHit(2)] })).toHaveLength(0);
     expect(bestOrDocs({ federated: [docEntry('a.md', 'Alpha', 80)] })).toHaveLength(1);
     expect(bestOrDocs({ federated: [docEntry('a.md', 'Alpha', 50)] })).toHaveLength(0);
     // help-like and skills mode keep substring matches
-    expect(docsFor({ query: 'help where', federated: [docEntry('a.md', 'Alpha', 50)] })).toHaveLength(1);
-    expect(docsFor({ prefixMode: 'skills', indexHits: [docHit(2)] })).toHaveLength(1);
+    expect(bestOrDocs({ query: 'help where', federated: [docEntry('a.md', 'Alpha', 50)] })).toHaveLength(1);
+    expect(bestOrDocs({ prefixMode: 'skills', indexHits: [docHit(2)] })).toHaveLength(1);
   });
 
   it('chips: index rows carry interface chips and a domain label', () => {

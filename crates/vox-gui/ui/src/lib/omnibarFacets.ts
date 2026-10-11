@@ -12,6 +12,7 @@ import type { SearchableHit } from './searchableRegistry';
 import type { CapabilityIndexEntry } from '../generated/capabilityIndex.generated';
 import type { RankHit } from './capabilityRank';
 import type { PalettePrefixMode } from '../components/layout/paletteSources';
+import { LEXICON } from './lexicon';
 
 export const FACET_CAP = 6;
 
@@ -40,8 +41,18 @@ export function queryForFederatedSearch(query: string): string {
   return trimmed;
 }
 
-export type FacetKey = 'surfaces' | 'commands' | 'onScreen' | 'graph' | 'docs';
+export type FacetKey = 'best' | 'surfaces' | 'commands' | 'tools' | 'onScreen' | 'graph' | 'docs';
 export type Provenance = 'manifest' | 'corpus' | 'runtime' | 'graph' | 'docs';
+/** Row kind: the capability-index kinds plus the non-index sources (drives the icon). */
+export type RowKind =
+  | CapabilityIndexEntry['kind']
+  | 'setting'
+  | 'policy'
+  | 'agent'
+  | 'action'
+  | 'graph'
+  | 'onscreen'
+  | 'quick';
 
 export interface GraphNeighbor {
   id: string;
@@ -63,8 +74,12 @@ export interface OmnibarSources {
   manifest: ContentManifestEntry[];
   runtimeHits: SearchableHit[];
   graph: OmnibarGraphResult;
-  /** Ranked capability-index hits (cli rows feed Commands). */
+  /** Ranked capability-index hits (every kind; D-05). */
   indexHits?: RankHit[];
+  /** Index domain id -> label, for the domain chip. */
+  domains?: { id: string; label: string }[];
+  /** Installed skill names: an index skill row is a gap-fill only when its name is absent here. */
+  installedSkillNames?: ReadonlySet<string>;
 }
 
 export type InterfaceChip = 'CLI' | 'GUI' | 'MCP';
@@ -83,6 +98,8 @@ export type OmnibarActivation =
   | { type: 'command'; command: string }
   /** Open the Catalog form for an index CLI row (nothing is executed). */
   | { type: 'cli'; rowId: string; path: string[] }
+  /** Explain an index row (MCP tool, crate, skill) in the drawer. */
+  | { type: 'explain'; rowId: string }
   | { type: 'doc'; path: string }
   | { type: 'graph'; node: GraphNeighbor }
   // finding #5: carry CommandPalette's agents/skills/settings/policies arms so
@@ -100,7 +117,10 @@ export interface OmnibarRow {
   detail: string;
   provenance: Provenance;
   activate: OmnibarActivation;
-  chips?: { interfaces: InterfaceChip[] };
+  kind?: RowKind;
+  chips?: { interfaces: InterfaceChip[]; domain?: string; chord?: string };
+  /** Present on ranked rows: what Best match is picked from. */
+  rank?: { tier: number; score: number };
 }
 
 export interface OmnibarFacet {
@@ -108,24 +128,46 @@ export interface OmnibarFacet {
   label: string;
   provenanceHint: string;
   rows: OmnibarRow[];
+  /** Uncapped row count (rows.length when nothing was cut). */
+  total: number;
   error: string | null;
 }
 
 const FACET_LABELS: Record<FacetKey, string> = {
+  best: 'Best match',
   surfaces: 'Surfaces',
   commands: 'Commands',
+  tools: 'Tools & crates',
   onScreen: 'On Screen',
   graph: 'Graph',
   docs: 'Docs',
 };
 
 const FACET_PROVENANCE_HINT: Record<FacetKey, string> = {
-  surfaces: 'manifest',
-  commands: 'corpus',
+  best: 'ranked',
+  surfaces: 'capability index',
+  commands: 'index + corpus',
+  tools: 'capability index',
   onScreen: 'runtime + manifest',
   graph: 'vox-graph',
   docs: 'docs',
 };
+
+/** Facets Best match is chosen from, in tie-break order. */
+const RANKED_ORDER: FacetKey[] = ['surfaces', 'commands', 'tools', 'docs'];
+
+/** Doc key and the path handed to onOpenDoc: the text after the last `docs/src/` (read_doc_markdown resolves under it). */
+export function docKey(path: string): string {
+  const p = path.replace(/\\/g, '/');
+  const i = p.lastIndexOf('docs/src/');
+  return i < 0 ? p : p.slice(i + 'docs/src/'.length);
+}
+
+/** Federated scorer value (100 exact / 80 prefix / 50 substring) -> palette rank. */
+function fedRank(score: number | undefined): OmnibarRow['rank'] {
+  if (!score) return undefined;
+  return { tier: score >= 100 ? 0 : score >= 80 ? 1 : 2, score: score / 100 };
+}
 
 function matches(query: string, ...fields: string[]): boolean {
   const q = query.trim().toLowerCase();
@@ -133,13 +175,44 @@ function matches(query: string, ...fields: string[]): boolean {
   return fields.some((f) => f.toLowerCase().includes(q));
 }
 
-export function buildOmnibarFacets(src: OmnibarSources): OmnibarFacet[] {
-  const cap = <T>(rows: T[]) => rows.slice(0, FACET_CAP);
+export function buildOmnibarFacets(input: OmnibarSources): OmnibarFacet[] {
+  // D-10: `#` shows crates only, so every other source is silenced.
+  const src: OmnibarSources =
+    input.prefixMode === 'crates'
+      ? { ...input, federated: [], backendHits: [], manifest: [], runtimeHits: [], graph: { rows: [], error: null } }
+      : input;
+  const domainLabel = (id: string | null) => (id ? src.domains?.find((d) => d.id === id)?.label : undefined);
+  const indexChips = (row: CapabilityIndexEntry): NonNullable<OmnibarRow['chips']> => {
+    const domain = domainLabel(row.domain);
+    return domain ? { interfaces: interfaceChips(row), domain } : { interfaces: interfaceChips(row) };
+  };
+  const indexHits = src.indexHits ?? [];
+  const rankOf = (h: RankHit) => ({ tier: h.tier, score: h.score });
+  const includeAllDocs = shouldIncludeDocsInOmnibar(src.query, { prefixMode: src.prefixMode });
 
-  // SURFACES — federated surface entries + manifest labels (manifest provenance).
+  // SURFACES — index surface rows replace the federated/manifest ones (D-05); the others only
+  // add viewKeys the index lacks.
   const surfaceRows: OmnibarRow[] = [];
+  const surfaceKeys = new Set<string>();
+  for (const h of indexHits) {
+    const r = h.row;
+    if (r.kind !== 'surface' || !r.viewKey || surfaceKeys.has(r.viewKey)) continue;
+    surfaceKeys.add(r.viewKey);
+    surfaceRows.push({
+      id: `index:${r.id}`,
+      facet: 'surfaces',
+      label: LEXICON[r.viewKey]?.en ?? r.navLabel ?? r.title,
+      detail: r.summary ?? '',
+      provenance: 'manifest',
+      activate: { type: 'navigate', viewKey: r.viewKey },
+      kind: 'surface',
+      chips: indexChips(r),
+      rank: rankOf(h),
+    });
+  }
   for (const e of src.federated) {
-    if (e.kind !== 'surface' || e.payload.type !== 'surface') continue;
+    if (e.kind !== 'surface' || e.payload.type !== 'surface' || surfaceKeys.has(e.payload.viewKey)) continue;
+    surfaceKeys.add(e.payload.viewKey);
     surfaceRows.push({
       id: e.id,
       facet: 'surfaces',
@@ -147,13 +220,13 @@ export function buildOmnibarFacets(src: OmnibarSources): OmnibarFacet[] {
       detail: e.detail,
       provenance: 'manifest',
       activate: { type: 'navigate', viewKey: e.payload.viewKey },
+      kind: 'surface',
+      rank: fedRank(e.score),
     });
   }
   for (const m of src.manifest) {
-    if (!matches(src.query, m.label, ...m.headings)) continue;
-    if (surfaceRows.some((r) => r.activate.type === 'navigate' && r.activate.viewKey === m.viewKey)) {
-      continue;
-    }
+    if (!matches(src.query, m.label, ...m.headings) || surfaceKeys.has(m.viewKey)) continue;
+    surfaceKeys.add(m.viewKey);
     surfaceRows.push({
       id: `manifest-surface:${m.viewKey}`,
       facet: 'surfaces',
@@ -161,14 +234,35 @@ export function buildOmnibarFacets(src: OmnibarSources): OmnibarFacet[] {
       detail: m.route,
       provenance: 'manifest',
       activate: { type: 'navigate', viewKey: m.viewKey },
+      kind: 'surface',
     });
   }
 
-  // COMMANDS — backend command hits + federated command/action + the carried-in
-  // settings/policies/skills arms (finding #5: consolidate, never silently lose).
+  // COMMANDS — index cli rows, backend command hits the index lacks, and the settings /
+  // policies / installed skills / index-only skills (finding #5: never silently lose them).
   const commandRows: OmnibarRow[] = [];
+  const cliPaths = new Set<string>();
+  for (const h of indexHits) {
+    const r = h.row;
+    if (r.kind !== 'cli' || !r.cli) continue;
+    const path = r.cli.split(' ').slice(1);
+    cliPaths.add(path.join(' '));
+    commandRows.push({
+      id: `index:${r.id}`,
+      facet: 'commands',
+      label: r.cli,
+      detail: r.summary ?? r.title,
+      provenance: 'corpus',
+      activate: { type: 'cli', rowId: r.id, path },
+      kind: 'cli',
+      chips: indexChips(r),
+      rank: rankOf(h),
+    });
+  }
   for (const h of src.backendHits) {
     if (h.kind !== 'command') continue;
+    const p = (h.path ?? '').replace(/^vox\s+/, '');
+    if (cliPaths.has(p)) continue;
     commandRows.push({
       id: `cmd:${h.path}`,
       facet: 'commands',
@@ -179,65 +273,52 @@ export function buildOmnibarFacets(src: OmnibarSources): OmnibarFacet[] {
     });
   }
   for (const e of src.federated) {
+    const base = { id: e.id, facet: 'commands' as const, label: e.label, detail: e.detail, provenance: 'corpus' as const, rank: fedRank(e.score) };
     if (e.kind === 'command' && e.payload.type === 'command') {
-      commandRows.push({
-        id: e.id,
-        facet: 'commands',
-        label: e.label,
-        detail: e.detail,
-        provenance: 'corpus',
-        activate: { type: 'command', command: e.payload.command },
-      });
+      commandRows.push({ ...base, activate: { type: 'command', command: e.payload.command } });
     } else if (e.kind === 'action' && e.payload.type === 'action') {
-      commandRows.push({
-        id: e.id,
-        facet: 'commands',
-        label: e.label,
-        detail: e.detail,
-        provenance: 'corpus',
-        activate: { type: 'command', command: e.payload.actionId },
-      });
+      commandRows.push({ ...base, kind: 'action', activate: { type: 'command', command: e.payload.actionId } });
     } else if (e.kind === 'setting' && e.payload.type === 'setting') {
-      commandRows.push({
-        id: e.id,
-        facet: 'commands',
-        label: e.label,
-        detail: e.detail,
-        provenance: 'corpus',
-        activate: { type: 'setting', section: e.payload.section, settingId: e.payload.settingId },
-      });
+      commandRows.push({ ...base, kind: 'setting', activate: { type: 'setting', section: e.payload.section, settingId: e.payload.settingId } });
     } else if (e.kind === 'policy' && e.payload.type === 'policy') {
-      commandRows.push({
-        id: e.id,
-        facet: 'commands',
-        label: e.label,
-        detail: e.detail,
-        provenance: 'corpus',
-        activate: { type: 'policy', policyId: e.payload.policyId },
-      });
+      commandRows.push({ ...base, kind: 'policy', activate: { type: 'policy', policyId: e.payload.policyId } });
     } else if (e.kind === 'skill' && e.payload.type === 'skill') {
-      commandRows.push({
-        id: e.id,
-        facet: 'commands',
-        label: e.label,
-        detail: e.detail,
-        provenance: 'corpus',
-        activate: { type: 'skill', skillId: e.payload.skillId },
-      });
+      commandRows.push({ ...base, kind: 'skill', activate: { type: 'skill', skillId: e.payload.skillId } });
     }
   }
-
-  // Capability-index CLI rows (D-05: these replace the federated command rows).
-  for (const h of src.indexHits ?? []) {
-    if (h.row.kind !== 'cli' || !h.row.cli) continue;
+  for (const h of indexHits) {
+    const r = h.row;
+    const name = r.id.replace(/^skill\./, '');
+    if (r.kind !== 'skill' || src.installedSkillNames?.has(name)) continue;
     commandRows.push({
-      id: `index:${h.row.id}`,
+      id: `index:${r.id}`,
       facet: 'commands',
-      label: h.row.cli,
-      detail: h.row.summary ?? h.row.title,
+      label: r.title,
+      detail: r.summary ?? '',
       provenance: 'corpus',
-      activate: { type: 'cli', rowId: h.row.id, path: h.row.cli.split(' ').slice(1) },
-      chips: { interfaces: interfaceChips(h.row) },
+      activate: { type: 'explain', rowId: r.id },
+      kind: 'skill',
+      chips: indexChips(r),
+      rank: rankOf(h),
+    });
+  }
+
+  // TOOLS & CRATES (D-08a) — MCP tools and crates, always from the index.
+  const toolRows: OmnibarRow[] = [];
+  for (const h of indexHits) {
+    const r = h.row;
+    if (r.kind !== 'mcp_tool' && r.kind !== 'crate') continue;
+    const label = (r.kind === 'mcp_tool' ? r.mcp : r.crate) ?? r.title;
+    toolRows.push({
+      id: `index:${r.id}`,
+      facet: 'tools',
+      label,
+      detail: r.summary ?? (r.title === label ? '' : r.title),
+      provenance: 'corpus',
+      activate: { type: 'explain', rowId: r.id },
+      kind: r.kind,
+      chips: indexChips(r),
+      rank: rankOf(h),
     });
   }
 
@@ -251,6 +332,7 @@ export function buildOmnibarFacets(src: OmnibarSources): OmnibarFacet[] {
       detail: r.detail ?? '',
       provenance: 'runtime',
       activate: { type: 'navigate', viewKey: r.viewKey, anchorId: r.anchorId },
+      kind: 'onscreen',
     });
   }
   for (const m of src.manifest) {
@@ -263,6 +345,7 @@ export function buildOmnibarFacets(src: OmnibarSources): OmnibarFacet[] {
       detail: m.label,
       provenance: 'manifest',
       activate: { type: 'navigate', viewKey: m.viewKey },
+      kind: 'onscreen',
     });
   }
 
@@ -276,39 +359,87 @@ export function buildOmnibarFacets(src: OmnibarSources): OmnibarFacet[] {
         detail: 'relates to',
         provenance: 'graph' as const,
         activate: { type: 'graph' as const, node: n },
+        kind: 'graph' as const,
       }));
 
-  // DOCS — federated doc entries (help-only queries).
+  // DOCS — federated doc entries first; index docs only fill the gaps (D-05). Without a
+  // help-like query only title-exact/prefix matches show.
   const docRows: OmnibarRow[] = [];
-  if (shouldIncludeDocsInOmnibar(src.query, { prefixMode: src.prefixMode })) {
-    for (const e of src.federated) {
-      if (e.kind !== 'doc' || e.payload.type !== 'doc') continue;
-      docRows.push({
-        id: e.id,
-        facet: 'docs',
-        label: e.label,
-        detail: e.detail,
-        provenance: 'docs',
-        activate: { type: 'doc', path: e.payload.path },
-      });
-    }
+  const docKeys = new Set<string>();
+  for (const e of src.federated) {
+    if (e.kind !== 'doc' || e.payload.type !== 'doc') continue;
+    if (!includeAllDocs && (e.score ?? 0) < 80) continue;
+    docKeys.add(docKey(e.payload.path));
+    docRows.push({
+      id: e.id,
+      facet: 'docs',
+      label: e.label,
+      detail: e.detail,
+      provenance: 'docs',
+      activate: { type: 'doc', path: e.payload.path },
+      kind: 'doc',
+      rank: fedRank(e.score),
+    });
+  }
+  for (const h of indexHits) {
+    const r = h.row;
+    if (r.kind !== 'doc') continue;
+    if (!includeAllDocs && h.tier > 1) continue;
+    const key = docKey(r.docs ?? r.id.replace(/^doc\./, ''));
+    if (docKeys.has(key)) continue;
+    docKeys.add(key);
+    docRows.push({
+      id: `index:${r.id}`,
+      facet: 'docs',
+      label: r.title,
+      detail: r.summary ?? '',
+      provenance: 'docs',
+      activate: { type: 'doc', path: key },
+      kind: 'doc',
+      chips: indexChips(r),
+      rank: rankOf(h),
+    });
   }
 
+  // BEST MATCH (D-08) — the single best ranked row across facets, moved out of its facet.
+  const lists: Record<string, OmnibarRow[]> = { surfaces: surfaceRows, commands: commandRows, tools: toolRows, docs: docRows };
+  type Pick = { row: OmnibarRow; list: OmnibarRow[]; pos: number };
+  const bestRows: OmnibarRow[] = [];
+  let pick: Pick | undefined;
+  // Ties on (tier, score to 2 dp) resolve by facet order, then rank order: strict < keeps the first.
+  const beats = (x: OmnibarRow, y: OmnibarRow) =>
+    (x.rank!.tier - y.rank!.tier || Math.round(y.rank!.score * 100) - Math.round(x.rank!.score * 100)) < 0;
+  for (const key of RANKED_ORDER) {
+    lists[key].forEach((row, pos) => {
+      if (row.rank && (!pick || beats(row, pick.row))) pick = { row, list: lists[key], pos };
+    });
+  }
+  const chosen = pick as Pick | undefined;
+  if (chosen) {
+    chosen.list.splice(chosen.pos, 1);
+    bestRows.push({ ...chosen.row, facet: 'best' });
+  }
+
+  const make = (key: FacetKey, rows: OmnibarRow[], error: string | null = null): OmnibarFacet => ({
+    key,
+    label: FACET_LABELS[key],
+    provenanceHint: FACET_PROVENANCE_HINT[key],
+    rows: rows.slice(0, FACET_CAP),
+    total: rows.length,
+    error,
+  });
   return [
-    { key: 'surfaces', label: FACET_LABELS.surfaces, provenanceHint: FACET_PROVENANCE_HINT.surfaces, rows: cap(surfaceRows), error: null },
-    { key: 'commands', label: FACET_LABELS.commands, provenanceHint: FACET_PROVENANCE_HINT.commands, rows: cap(commandRows), error: null },
-    { key: 'onScreen', label: FACET_LABELS.onScreen, provenanceHint: FACET_PROVENANCE_HINT.onScreen, rows: cap(onScreenRows), error: null },
-    { key: 'graph', label: FACET_LABELS.graph, provenanceHint: FACET_PROVENANCE_HINT.graph, rows: cap(graphRows), error: src.graph.error },
-    { key: 'docs', label: FACET_LABELS.docs, provenanceHint: FACET_PROVENANCE_HINT.docs, rows: cap(docRows), error: null },
+    make('best', bestRows),
+    make('surfaces', surfaceRows),
+    make('commands', commandRows),
+    make('tools', toolRows),
+    make('onScreen', onScreenRows),
+    make('graph', graphRows, src.graph.error),
+    make('docs', docRows),
   ];
 }
 
-/** Flattened, facet-ordered rows (Surfaces → Commands → On-Screen → Graph → Docs). */
+/** Flattened, facet-ordered rows (Best match → Surfaces → Commands → Tools & crates → On-Screen → Graph → Docs). */
 export function omnibarRowsInOrder(facets: OmnibarFacet[]): OmnibarRow[] {
   return facets.flatMap((f) => f.rows);
-}
-
-/** The top hit Enter activates: first row in facet order. */
-export function omnibarTopHit(facets: OmnibarFacet[]): OmnibarRow | null {
-  return omnibarRowsInOrder(facets)[0] ?? null;
 }
