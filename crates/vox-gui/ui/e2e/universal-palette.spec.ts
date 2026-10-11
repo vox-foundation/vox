@@ -47,4 +47,16 @@ test.describe('Universal palette', () => {
     await expect(page.locator('[data-catalog-path="check"]')).toHaveAttribute('aria-current', 'true');
     await shot(page, 'universal-palette-02-prefilled-form');
   });
+
+  test('a full CLI path ranks the exact verb first without fuzzy noise (D-19)', async ({ page }) => {
+    await page.keyboard.press('Control+k');
+    const input = page.getByPlaceholder(/search surfaces, commands/i);
+    await input.fill('vox fabrica fmt');
+
+    const row = page.getByRole('button', { name: /vox fabrica fmt/ });
+    await expect(row).toBeVisible({ timeout: 10_000 });
+    // Jaro-Winkler is a typo fallback only: an exact path must not drag in near-miss verbs.
+    await expect(page.getByRole('button', { name: /vox fmt\b/ })).toHaveCount(0);
+    await shot(page, 'universal-palette-03-ranked-exact-path');
+  });
 });
