@@ -406,4 +406,46 @@ topics:
         assert_eq!(facet_card_lines(&f), ["domain: x"]);
         assert!(facet_card_lines(&Facets::default()).is_empty());
     }
+
+    #[test]
+    fn real_taxonomy_loads_and_meets_curation_bounds() {
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../",
+            "contracts/documentation/kb-taxonomy.v1.yaml"
+        );
+        let t = Taxonomy::from_yaml_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+        assert!(
+            (8..=12).contains(&t.domains.len()),
+            "{} domains",
+            t.domains.len()
+        );
+        assert!(
+            (40..=60).contains(&t.topics.len()),
+            "{} topics",
+            t.topics.len()
+        );
+        for c in t.domains.iter().chain(&t.topics) {
+            assert!(
+                c.scope_note
+                    .as_deref()
+                    .is_some_and(|n| !n.trim().is_empty()),
+                "{}",
+                c.pref_label
+            );
+        }
+        assert!(t.topics.iter().any(|c| !c.deprecated_aliases.is_empty()));
+        assert!(matches!(
+            t.resolve_topic("vox-kb-facets"),
+            LabelMatch::Alt(_)
+        ));
+        assert!(matches!(
+            t.resolve_topic("vox-ludus"),
+            LabelMatch::Deprecated(_)
+        ));
+        assert!(
+            t.expand_query("vox-kb-facets taxonomy")
+                .contains("\"topic knowledge-base\"")
+        );
+    }
 }
