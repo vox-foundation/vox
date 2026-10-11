@@ -537,6 +537,14 @@ fn card_from_manifest(
         provider: manifest.provider.clone(),
         git_sha: manifest.git_sha.clone(),
         created: manifest.created_at.clone(),
+        // Recorded deviation (12-06): the pod trains on a Hugging Face dataset whose bytes
+        // are not observable host-side, so these cannot be computed honestly here. Empty
+        // lineage fails `validate_lineage`, so eval refuses to label cloud-trained rows.
+        adapter_sha256: String::new(),
+        train_data_sha256: String::new(),
+        training_manifest_digest: String::new(),
+        training_syntax_fingerprint: String::new(),
+        syntax_fingerprint_kind: String::new(),
     };
     card.validate()?;
     // write_sidecar expects a file path and writes adapter_card.json next to it.

@@ -529,6 +529,9 @@ pub async fn run_train(
     } else {
         deployment_target.into()
     };
+    let card_output_dir = output_dir.clone();
+    let card_model = effective_model.clone();
+    let card_preset = effective_preset.clone();
     let train_res = train::run_train(
         backend.into(),
         effective_model,
@@ -611,7 +614,100 @@ pub async fn run_train(
         }
     }
 
+    if train_res.is_ok() {
+        use owo_colors::OwoColorize;
+        let repo_root = workspace_root
+            .clone()
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+        let meta = LocalCardMeta {
+            base_model: card_model,
+            preset: card_preset,
+            rank: rank.unwrap_or(16) as u32,
+            alpha: alpha.unwrap_or(32.0),
+            seed,
+            corpus_hash: workspace_root
+                .as_deref()
+                .map(vox_corpus::corpus::preflight::compute_corpus_fingerprint)
+                .unwrap_or_default(),
+            git_sha: vox_git::read_only(&repo_root, &["rev-parse", "--short", "HEAD"])
+                .ok()
+                .unwrap_or_default()
+                .trim()
+                .to_string(),
+        };
+        // A card failure never fails a successful training run; it only leaves the run
+        // unlabelable by eval.
+        match write_local_adapter_card(&card_output_dir, workspace_root.as_deref(), &meta) {
+            Ok(path) => eprintln!("  {} Wrote adapter card {}", "✓".green(), path.display()),
+            Err(e) => eprintln!(
+                "  {} Could not write adapter card: {e:#} -- eval will refuse to label this run",
+                "⚠️".yellow()
+            ),
+        }
+    }
+
     train_res
+}
+
+/// Host-side facts the card needs that the run directory does not carry.
+#[derive(Debug, Clone)]
+struct LocalCardMeta {
+    base_model: Option<String>,
+    preset: Option<String>,
+    rank: u32,
+    alpha: f32,
+    seed: u64,
+    corpus_hash: String,
+    git_sha: String,
+}
+
+/// Build, validate and write `adapter_card.json` next to a locally trained adapter.
+///
+/// Validates BEFORE writing: an untraceable run (e.g. unpinned base model) leaves no card.
+fn write_local_adapter_card(
+    output_dir: &Path,
+    workspace_root: Option<&Path>,
+    meta: &LocalCardMeta,
+) -> anyhow::Result<PathBuf> {
+    use vox_populi::mens::tensor::adapter_card::{AdapterCard, read_training_lineage};
+
+    let lineage = read_training_lineage(output_dir, workspace_root)?;
+    let base_hf_id = lineage
+        .base_model
+        .clone()
+        .or_else(|| meta.base_model.clone())
+        .unwrap_or_default();
+    let base_revision = base_hf_id
+        .rsplit_once('@')
+        .map(|(_, rev)| rev.to_string())
+        .unwrap_or_default();
+    let preset = meta.preset.clone().unwrap_or_default();
+    let (fingerprint, kind) = vox_compiler::llm_prompt::grammar_fingerprint();
+    let card = AdapterCard {
+        base_hf_id,
+        base_revision,
+        base_rung: meta.preset.clone().unwrap_or_else(|| "local".to_string()),
+        quantization: "qlora".to_string(),
+        lora_rank: meta.rank,
+        lora_alpha: meta.alpha,
+        seed: meta.seed,
+        corpus_hash: meta.corpus_hash.clone(),
+        preset_version: preset,
+        metrics: serde_json::Value::Null,
+        cost_usd: 0.0,
+        provider: "local".to_string(),
+        git_sha: meta.git_sha.clone(),
+        created: chrono::Utc::now().to_rfc3339(),
+        adapter_sha256: lineage.adapter_sha256,
+        train_data_sha256: lineage.train_data_sha256,
+        training_manifest_digest: lineage.training_manifest_digest,
+        training_syntax_fingerprint: fingerprint,
+        syntax_fingerprint_kind: kind.to_string(),
+    };
+    card.validate()?;
+    card.validate_lineage()?;
+    card.write_sidecar(&lineage.adapter_path)?;
+    Ok(lineage.adapter_path.with_file_name("adapter_card.json"))
 }
 
 /// Resolve the local spoke base for `--domain <name> --cloud local`: returns
@@ -992,5 +1088,70 @@ mod local_spoke_base_wiring_tests {
         let (model, _preset) =
             resolve_local_spoke_base(Some(&root()), "rust", Some("org/Manual"), None).unwrap();
         assert_eq!(model.as_deref(), Some("org/Manual"));
+    }
+}
+
+#[cfg(test)]
+mod local_card_tests {
+    use super::{LocalCardMeta, write_local_adapter_card};
+    use vox_crypto::facades::{hex_encode, interop_sha256};
+
+    fn meta() -> LocalCardMeta {
+        LocalCardMeta {
+            base_model: None,
+            preset: Some("qwen3_16g".into()),
+            rank: 16,
+            alpha: 32.0,
+            seed: 42,
+            corpus_hash: "abc123def456".into(),
+            git_sha: "deadbee".into(),
+        }
+    }
+
+    /// Run dir with adapter, train.jsonl and a manifest pointing at it by absolute path.
+    fn fixture(base_model: &str) -> (tempfile::TempDir, std::path::PathBuf, std::path::PathBuf) {
+        let d = tempfile::tempdir().unwrap();
+        let adapter = d.path().join("candle_qlora_adapter.safetensors");
+        let train = d.path().join("train.jsonl");
+        std::fs::write(&adapter, b"adapter-bytes\r\n\xff").unwrap();
+        std::fs::write(&train, b"{\"a\":1}\r\n{\"a\":2}\n").unwrap();
+        let manifest = serde_json::json!({
+            "train_file": train.display().to_string(),
+            "base_model": base_model,
+        });
+        std::fs::write(
+            d.path().join("training_manifest.json"),
+            manifest.to_string(),
+        )
+        .unwrap();
+        (d, adapter, train)
+    }
+
+    #[test]
+    fn local_card_hashes_the_consumed_train_file() {
+        let (d, adapter, train) = fixture("Qwen/Qwen3-8B@abc123");
+        let path = write_local_adapter_card(d.path(), None, &meta()).unwrap();
+        assert_eq!(path, d.path().join("adapter_card.json"));
+        let card = vox_populi::mens::tensor::adapter_card::AdapterCard::read_sidecar(&adapter)
+            .unwrap()
+            .unwrap();
+        let sha = |p: &std::path::Path| hex_encode(&interop_sha256(&std::fs::read(p).unwrap()));
+        assert_eq!(card.train_data_sha256, sha(&train));
+        assert_eq!(card.adapter_sha256, sha(&adapter));
+        assert_eq!(card.base_hf_id, "Qwen/Qwen3-8B@abc123");
+        assert_eq!(card.base_revision, "abc123");
+        card.validate().unwrap();
+        card.validate_lineage().unwrap();
+        let (fp, kind) = vox_compiler::llm_prompt::grammar_fingerprint();
+        assert_eq!(card.training_syntax_fingerprint, fp);
+        assert_eq!(card.syntax_fingerprint_kind, kind);
+        assert_eq!(kind, "ebnf-sha256");
+    }
+
+    #[test]
+    fn local_card_refuses_unpinned_base() {
+        let (d, _adapter, _train) = fixture("Qwen/Qwen3-8B");
+        assert!(write_local_adapter_card(d.path(), None, &meta()).is_err());
+        assert!(!d.path().join("adapter_card.json").exists());
     }
 }
