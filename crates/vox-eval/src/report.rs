@@ -552,4 +552,94 @@ mod tests {
         let rate = forge(|v| v["n_infra_errors"] = 50.into());
         assert!(!rate.recheck_complete());
     }
+
+    #[test]
+    fn empty_problem_set_has_no_stats() {
+        assert!(arm_stats(&[], 100, 1).is_none());
+        let r = complete_then(|i| i.outcomes.clear());
+        assert!(r.pass_at_k.is_none() && r.pass_at_1.is_none());
+        assert!(
+            r.incomplete_reasons
+                .iter()
+                .any(|x| x == "no scored problems")
+        );
+    }
+
+    #[test]
+    fn single_problem_has_degenerate_ci_and_floor_025() {
+        let a = arm_stats(&[0.4], 100, 1).unwrap();
+        assert_eq!((a.point, a.ci_low, a.ci_high), (0.4, 0.4, 0.4));
+        assert_eq!((a.n_problems, a.min_detectable_difference), (1, 0.25));
+        let r = complete_then(|i| i.outcomes = vec![fixture("a", 5, 2)]);
+        let a = r.pass_at_k.unwrap();
+        assert_eq!(a.n_problems, 1);
+        assert_eq!(a.ci_low, a.ci_high);
+        assert_eq!(a.min_detectable_difference, 0.25);
+    }
+
+    #[test]
+    fn short_fixtures_are_unscored_not_panicking() {
+        let r = complete_then(|i| {
+            i.k = 3;
+            i.outcomes = vec![fixture("a", 2, 2), fixture("b", 5, 3), fixture("z", 0, 0)];
+        });
+        assert_eq!(r.unscored_fixture_ids, ["a", "z"]);
+        assert_eq!(r.pass_at_k.unwrap().n_problems, 1);
+        assert_eq!(r.fixtures.len(), 3, "all fixtures stay recorded");
+    }
+
+    #[test]
+    fn classify_failure_precedence() {
+        let f = |c, t, ch, to, p, a| VerifyFacts {
+            compiled: c,
+            tests_passed: t,
+            cheated: ch,
+            timed_out: to,
+            parse_ok: p,
+            assertion_failed: a,
+        };
+        use FailureClass::*;
+        // cheated beats everything, timeout beats pass.
+        assert_eq!(
+            classify_failure(&f(true, true, true, true, true, true)),
+            Cheated
+        );
+        assert_eq!(
+            classify_failure(&f(true, true, false, true, true, false)),
+            Timeout
+        );
+        assert_eq!(
+            classify_failure(&f(true, true, false, false, true, false)),
+            Pass
+        );
+        assert_eq!(
+            classify_failure(&f(false, false, false, false, false, false)),
+            ParseError
+        );
+        assert_eq!(
+            classify_failure(&f(false, false, false, false, true, false)),
+            CheckError
+        );
+        assert_eq!(
+            classify_failure(&f(true, false, false, false, true, true)),
+            WrongAnswer
+        );
+        assert_eq!(
+            classify_failure(&f(true, false, false, false, true, false)),
+            RuntimeError
+        );
+    }
+
+    #[test]
+    fn bootstrap_is_seed_deterministic() {
+        let v: Vec<f64> = (0..40).map(|i| f64::from((i * 7) % 11) / 10.0).collect();
+        let (a, b) = (
+            arm_stats(&v, 500, 1).unwrap(),
+            arm_stats(&v, 500, 1).unwrap(),
+        );
+        assert_eq!(a, b);
+        let c = arm_stats(&v, 500, 99).unwrap();
+        assert_ne!((a.ci_low, a.ci_high), (c.ci_low, c.ci_high));
+        assert_eq!(c.analysis_seed, 99);
+    }
 }
