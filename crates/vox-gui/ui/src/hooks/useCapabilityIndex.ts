@@ -1,9 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { CapabilityIndexEntry } from '../generated/capabilityIndex.generated';
 import { getLoadedCapabilityIndex, loadCapabilityIndex, type CapabilityIndexModule } from '../lib/capabilityIndexLoader';
+import { toRankEntries, type RankEntry } from '../lib/capabilityRank';
+import { LEXICON } from '../lib/lexicon';
 
 export interface UseCapabilityIndexResult {
   rows: CapabilityIndexEntry[];
+  /** Rank entries (aliases + tokens), computed once per load. */
+  entries: RankEntry[];
   domains: { id: string; label: string }[];
   loading: boolean;
   error: string | null;
@@ -32,8 +36,22 @@ export function useCapabilityIndex(enabled: boolean): UseCapabilityIndexResult {
     };
   }, [enabled, mod]);
 
+  const rows = mod?.CAPABILITY_INDEX ?? EMPTY;
+  // Surfaces stay findable by their English/Latin lexicon and nav labels (parity with the
+  // federated surface source the index replaces).
+  const entries = useMemo(
+    () =>
+      toRankEntries(rows, (r) =>
+        r.kind === 'surface' && r.viewKey
+          ? [LEXICON[r.viewKey]?.en, LEXICON[r.viewKey]?.la, r.navLabel].filter((s): s is string => !!s)
+          : [],
+      ),
+    [rows],
+  );
+
   return {
-    rows: mod?.CAPABILITY_INDEX ?? EMPTY,
+    rows,
+    entries,
     domains: mod?.CAPABILITY_DOMAINS ?? NO_DOMAINS,
     loading: enabled && !mod && !error,
     error,

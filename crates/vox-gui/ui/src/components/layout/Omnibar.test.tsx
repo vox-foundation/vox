@@ -66,7 +66,8 @@ vi.mock('../../hooks/useContentManifest', () => ({
 // Never import the generated 784 KB index in unit tests: mock the hook with the shared fixture.
 vi.mock('../../hooks/useCapabilityIndex', async () => {
   const { CAPABILITY_FIXTURE } = await import('../../test-fixtures/capabilityIndexFixture');
-  const value = { rows: CAPABILITY_FIXTURE, domains: [], loading: false, error: null };
+  const { toRankEntries } = await import('../../lib/capabilityRank');
+  const value = { rows: CAPABILITY_FIXTURE, entries: toRankEntries(CAPABILITY_FIXTURE), domains: [], loading: false, error: null };
   return { useCapabilityIndex: () => value };
 });
 

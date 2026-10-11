@@ -9,7 +9,7 @@ import type { FederatedIndexKind } from '../../lib/federatedSearchIndex';
 import { useSearchController } from '../../hooks/useSearchController';
 import { useFederatedSearchIndex } from '../../hooks/useFederatedSearchIndex';
 import { useCapabilityIndex } from '../../hooks/useCapabilityIndex';
-import { rankCapabilities, toRankEntries } from '../../lib/capabilityRank';
+import { kindsForMode, noteRecentCapability, rankCapabilities, recentCapabilities } from '../../lib/capabilityRank';
 import { useContentManifest } from '../../hooks/useContentManifest';
 import { querySearchableRegistry } from '../../lib/searchableRegistry';
 import {
@@ -53,6 +53,7 @@ function federatedKindsForMode(mode: PalettePrefixMode): FederatedIndexKind[] {
     case 'commands':
       return ['action'];
     case 'agents':
+    case 'crates':
       return [];
     default:
       return ['surface', 'setting', 'policy', 'action', 'doc'];
@@ -199,13 +200,9 @@ export function Omnibar({
   );
 
   // Capability index (D-06): loaded lazily on the first open; cli rows feed Commands (D-05).
-  const { rows: indexRows, loading: indexLoading, error: indexError } = useCapabilityIndex(open);
-  const rankEntries = useMemo(() => toRankEntries(indexRows), [indexRows]);
+  const { entries: rankEntries, loading: indexLoading, error: indexError } = useCapabilityIndex(open);
   const indexHits = useMemo(
-    () =>
-      prefixMode === 'default' || prefixMode === 'commands'
-        ? rankCapabilities(rankEntries, effectiveQ, { kinds: ['cli'] })
-        : [],
+    () => rankCapabilities(rankEntries, effectiveQ, { kinds: kindsForMode(prefixMode), recent: recentCapabilities(), limit: 200 }),
     [rankEntries, effectiveQ, prefixMode],
   );
 
@@ -287,6 +284,7 @@ export function Omnibar({
           onOpenDoc(row.activate.path);
           break;
         case 'cli':
+          noteRecentCapability(row.activate.rowId);
           onOpenCatalogForm?.(row.activate.path);
           break;
         case 'graph':
