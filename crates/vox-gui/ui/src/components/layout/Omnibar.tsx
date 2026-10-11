@@ -9,7 +9,7 @@ import type { FederatedIndexKind } from '../../lib/federatedSearchIndex';
 import { useSearchController } from '../../hooks/useSearchController';
 import { useFederatedSearchIndex } from '../../hooks/useFederatedSearchIndex';
 import { useCapabilityIndex } from '../../hooks/useCapabilityIndex';
-import { kindsForMode, noteRecentCapability, rankCapabilities, recentCapabilities } from '../../lib/capabilityRank';
+import { kindsForMode, noteRecentCapability, rankCapabilities, recentCapabilities, toRankEntries } from '../../lib/capabilityRank';
 import { useContentManifest } from '../../hooks/useContentManifest';
 import { querySearchableRegistry } from '../../lib/searchableRegistry';
 import {
@@ -69,7 +69,13 @@ const NARROW_HINT = 'Keep typing to narrow, or use > (commands) / # (crates)';
  * D-05: surfaces and commands come from the capability index, so they are not federated kinds
  * any more; the federated lane keeps settings, policies, docs and installed skills.
  */
-function federatedKindsForMode(mode: PalettePrefixMode): FederatedIndexKind[] {
+function federatedKindsForMode(mode: PalettePrefixMode, indexDown = false): FederatedIndexKind[] {
+  // WR-06: with the index chunk missing, built-in surfaces come back through the federated lane.
+  const base = federatedKindsForModeBase(mode);
+  return indexDown && (mode === 'default' || mode === 'commands') ? [...base, 'surface'] : base;
+}
+
+function federatedKindsForModeBase(mode: PalettePrefixMode): FederatedIndexKind[] {
   switch (mode) {
     case 'skills':
       return ['doc', 'skill'];
@@ -227,7 +233,15 @@ export function Omnibar({
     [skills],
   );
   const { search: searchFederated } = useFederatedSearchIndex(skillSources);
-  const fedKinds = useMemo(() => federatedKindsForMode(prefixMode), [prefixMode]);
+  const {
+    rows: indexRows,
+    entries: loadedEntries,
+    domains,
+    loading: indexLoading,
+    error: indexError,
+    retry: retryIndex,
+  } = useCapabilityIndex(open);
+  const fedKinds = useMemo(() => federatedKindsForMode(prefixMode, !!indexError), [prefixMode, indexError]);
   const federated = useMemo(
     () => {
       const q = queryForFederatedSearch(effectiveQ);
@@ -237,9 +251,48 @@ export function Omnibar({
   );
 
   // Capability index (D-06): loaded lazily on the first open; cli rows feed Commands (D-05).
-  const { rows: indexRows, entries: rankEntries, domains, loading: indexLoading, error: indexError } = useCapabilityIndex(open);
+  // WR-06: if the chunk failed to load, the live CLI catalog stands in for the cli rows (the form is
+  // always safe: unclassified rows never run directly) and surfaces come from the federated lane.
+  const rankEntries = useMemo(
+    () =>
+      indexError && loadedEntries.length === 0
+        ? toRankEntries(
+            catalog.map((e) => ({
+              id: `cli.${e.path.join('.')}`,
+              kind: 'cli' as const,
+              title: e.path.join(' '),
+              summary: e.about,
+              domain: null,
+              cli: `vox ${e.path.join(' ')}`,
+              mcp: null,
+              viewKey: null,
+              crate: null,
+              layer: null,
+              docs: null,
+              coverage: null,
+              equivalents: [],
+              refs: [],
+              tier: e.tier,
+              status: null,
+              sideEffect: null,
+              lane: null,
+              catalogForm: true,
+              navLabel: null,
+              source: null,
+            })),
+          )
+        : loadedEntries,
+    [indexError, loadedEntries, catalog],
+  );
+  // WR-07: no global cap, so each facet's "N of M" counts every match and no kind is starved by
+  // another's higher-ranked rows. The pool is ~1.5k rows; facets cap what they render.
   const indexHits = useMemo(
-    () => rankCapabilities(rankEntries, effectiveQ, { kinds: kindsForMode(prefixMode), recent: recentCapabilities(), limit: 200 }),
+    () =>
+      rankCapabilities(rankEntries, effectiveQ, {
+        kinds: kindsForMode(prefixMode),
+        recent: recentCapabilities(),
+        limit: Number.POSITIVE_INFINITY,
+      }),
     [rankEntries, effectiveQ, prefixMode],
   );
 
@@ -311,7 +364,8 @@ export function Omnibar({
     // SUBMIT_TASK_ROW is a default quick action shown only on the empty-query
     // landing state — like a real command palette's default suggestions, it
     // steps aside the moment the user starts searching for something else.
-    const withSubmitTask = effectiveQ.trim() ? agentRows : [...agentRows, SUBMIT_TASK_ROW];
+    // WR-11: only in the default mode — a bare `#` / `>` / `/` / `@` has an empty query too.
+    const withSubmitTask = effectiveQ.trim() || prefixMode !== 'default' ? agentRows : [...agentRows, SUBMIT_TASK_ROW];
     if (withSubmitTask.length === 0) return base;
     return base.map((f) =>
       f.key === 'commands'
@@ -445,6 +499,8 @@ export function Omnibar({
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
+      // WR-03: the Enter / arrow that drives an IME composition belongs to the IME (keyCode 229 on WebKit).
+      if (e.isComposing || e.keyCode === 229) return;
       const list = rowsRef.current;
       let idx = idxRef.current;
       if (e.key === 'Escape') {
@@ -477,6 +533,36 @@ export function Omnibar({
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose, onSendToChat, activateRow, expandGraphNeighbors, q]);
 
+  // WR-04: aria-modal needs a real trap. Tab wraps inside the dialog; focus that lands outside
+  // (programmatic, or a click that slipped past the overlay) is pulled back to the first control.
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const focusables = () =>
+    Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('input, button:not([disabled])') ?? []);
+  useEffect(() => {
+    if (!open) return;
+    const onFocusIn = (e: FocusEvent) => {
+      if (dialogRef.current && e.target instanceof Node && !dialogRef.current.contains(e.target)) {
+        focusables()[0]?.focus();
+      }
+    };
+    document.addEventListener('focusin', onFocusIn);
+    return () => document.removeEventListener('focusin', onFocusIn);
+  }, [open]);
+  const onDialogKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== 'Tab') return;
+    const items = focusables();
+    if (items.length === 0) return;
+    const first = items[0];
+    const last = items[items.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  };
+
   if (!open) return null;
 
   let rowCursor = 0;
@@ -497,9 +583,11 @@ export function Omnibar({
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label="Command palette"
+        onKeyDown={onDialogKeyDown}
         className="w-[680px] max-w-[92vw] rounded-2xl border border-border-subtle bg-bg-base/90 shadow-[0_40px_120px_-30px_rgba(0,0,0,0.9)] backdrop-blur-2xl"
         onClick={(e) => e.stopPropagation()}
       >
@@ -550,6 +638,11 @@ export function Omnibar({
                       <button
                         key={row.id}
                         onClick={() => activateRow(row)}
+                        onFocus={() => {
+                          // WR-03: Tab onto a row makes it the Enter target.
+                          idxRef.current = idx;
+                          setSelectedRowIdx(idx);
+                        }}
                         aria-current={selected ? 'true' : undefined}
                         className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition ${
                           selected ? 'bg-brass/8 border border-brass/20' : 'hover:bg-overlay-subtle'
@@ -604,8 +697,15 @@ export function Omnibar({
           })}
 
           {indexError && (
-            <div className="px-3 py-2 text-[11px] text-text-muted italic">
-              Capability index unavailable — {indexError}
+            <div className="flex items-center gap-2 px-3 py-2 text-[11px] text-text-muted italic">
+              <span>Capability index unavailable — {indexError}. Showing built-in surfaces and commands only.</span>
+              <button
+                type="button"
+                onClick={retryIndex}
+                className="rounded-sm border border-border-subtle px-1.5 py-px not-italic text-text-secondary hover:bg-overlay-subtle"
+              >
+                Retry
+              </button>
             </div>
           )}
 

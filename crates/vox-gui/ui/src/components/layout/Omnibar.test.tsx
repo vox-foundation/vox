@@ -1,11 +1,17 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import React from 'react';
 import { clearSearchableRegistry, registerSearchable } from '../../lib/searchableRegistry';
 
 const invokeMcpTool = vi.fn();
-const indexState = vi.hoisted(() => ({ loading: false }));
+const indexState = vi.hoisted(() => ({
+  loading: false,
+  error: null as string | null,
+  retry: vi.fn(),
+  /** Extra rows appended to the shared fixture (WR-07 needs a broad match set). */
+  extraRows: [] as unknown[],
+}));
 vi.mock('../../transport', () => ({
   voxTransport: {
     voxDocsIndex: vi.fn().mockResolvedValue([]),
@@ -68,13 +74,24 @@ vi.mock('../../hooks/useContentManifest', () => ({
 vi.mock('../../hooks/useCapabilityIndex', async () => {
   const { CAPABILITY_FIXTURE } = await import('../../test-fixtures/capabilityIndexFixture');
   const { toRankEntries } = await import('../../lib/capabilityRank');
-  const value = {
-    rows: CAPABILITY_FIXTURE,
-    entries: toRankEntries(CAPABILITY_FIXTURE),
-    domains: [{ id: 'compiler', label: 'Compiler' }],
-    error: null,
+  // Stable identity per (extraRows, error) so the hook mock behaves like the memoized real one.
+  let cached: { key: unknown; value: { rows: unknown[]; entries: unknown[] } } | null = null;
+  const build = () => {
+    const key = [indexState.extraRows, indexState.error];
+    if (cached && cached.key[0] === key[0] && cached.key[1] === key[1]) return cached.value;
+    const rows = indexState.error ? [] : [...CAPABILITY_FIXTURE, ...(indexState.extraRows as typeof CAPABILITY_FIXTURE)];
+    cached = { key, value: { rows, entries: toRankEntries(rows) } } as never;
+    return cached!.value;
   };
-  return { useCapabilityIndex: () => ({ ...value, loading: indexState.loading }) };
+  return {
+    useCapabilityIndex: () => ({
+      ...build(),
+      domains: [{ id: 'compiler', label: 'Compiler' }],
+      loading: indexState.loading,
+      error: indexState.error,
+      retry: indexState.retry,
+    }),
+  };
 });
 
 import { Omnibar } from './Omnibar';
@@ -121,6 +138,9 @@ describe('Omnibar', () => {
   beforeEach(() => {
     clearSearchableRegistry();
     indexState.loading = false;
+    indexState.error = null;
+    indexState.extraRows = [];
+    indexState.retry.mockReset();
     invokeMcpTool.mockReset();
     // master-spec discover shape: { result: { results: [...] } } (NOT `neighbors`).
     invokeMcpTool.mockResolvedValue({ result: { results: [] } });
@@ -347,6 +367,109 @@ describe('Omnibar', () => {
       fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: 'sidebar' } });
       fireEvent.click((await screen.findByText('Toggle sidebar width')).closest('button') as HTMLElement);
       expect(onRunAction).toHaveBeenCalledWith('toggle-sidebar');
+    });
+  });
+
+  describe('review fixes (06.3 REVIEW)', () => {
+    const search = () => screen.getByLabelText('Search Vox');
+
+    it('WR-03: Enter activates the row that has keyboard focus, not row 0', async () => {
+      const onExplain = vi.fn();
+      renderOmnibar({ onExplain });
+      fireEvent.change(search(), { target: { value: 'capability' } });
+      await screen.findByText('Best match');
+      const other = screen.getByText('vox_capability_features').closest('button') as HTMLElement;
+      act(() => other.focus());
+      fireEvent.keyDown(other, { key: 'Enter' });
+      expect(onExplain).toHaveBeenCalledTimes(1);
+      expect(onExplain).toHaveBeenCalledWith('mcp.vox_capability_features');
+    });
+
+    it('WR-03: Enter that commits an IME composition does not activate a row or close', async () => {
+      const onNavigate = vi.fn();
+      const onClose = vi.fn();
+      renderOmnibar({ onNavigate, onClose });
+      fireEvent.change(search(), { target: { value: 'approvals' } });
+      await screen.findByText('Best match');
+      fireEvent.keyDown(window, { key: 'Enter', isComposing: true });
+      fireEvent.keyDown(window, { key: 'Enter', keyCode: 229 });
+      expect(onNavigate).not.toHaveBeenCalled();
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('WR-04: Tab and Shift+Tab wrap inside the dialog (focus trap)', async () => {
+      renderOmnibar();
+      fireEvent.change(search(), { target: { value: 'capability' } });
+      await screen.findByText('Best match');
+      const dialog = screen.getByRole('dialog', { name: 'Command palette' });
+      const items = [...dialog.querySelectorAll<HTMLElement>('input, button')];
+      const last = items[items.length - 1];
+      act(() => last.focus());
+      fireEvent.keyDown(last, { key: 'Tab' });
+      expect(document.activeElement).toBe(search());
+      fireEvent.keyDown(search(), { key: 'Tab', shiftKey: true });
+      expect(document.activeElement).toBe(last);
+    });
+
+    it('WR-04: focus that escapes the dialog is pulled back in', async () => {
+      renderOmnibar();
+      const outside = document.createElement('button');
+      document.body.appendChild(outside);
+      act(() => outside.focus());
+      expect(document.activeElement).not.toBe(outside);
+      outside.remove();
+    });
+
+    it.each(['#', '>', '/', '@'])('WR-11: a bare "%s" does not offer or trigger "Submit new task…"', async (prefix) => {
+      const onSubmitTask = vi.fn();
+      renderOmnibar({ onSubmitTask });
+      fireEvent.change(search(), { target: { value: prefix } });
+      expect(screen.queryByText('Submit new task…')).toBeNull();
+      fireEvent.keyDown(window, { key: 'Enter' });
+      expect(onSubmitTask).not.toHaveBeenCalled();
+    });
+
+    it('WR-11: the empty landing state still offers "Submit new task…"', () => {
+      renderOmnibar();
+      expect(screen.getByText('Submit new task…')).toBeTruthy();
+    });
+
+    it('WR-07: the "N of M" total counts every match, not the first 200', async () => {
+      const { row } = await import('../../test-fixtures/capabilityIndexFixture');
+      indexState.extraRows = Array.from({ length: 300 }, (_, i) =>
+        row({ id: `cli.zzzq${i}`, kind: 'cli', title: `Zzzq ${i}`, cli: `vox zzzq${i}`, catalogForm: true }),
+      );
+      renderOmnibar();
+      fireEvent.change(search(), { target: { value: 'zzzq' } });
+      // one row is promoted to Best match, so Commands holds the other 299
+      expect(await screen.findByText('6 of 299')).toBeTruthy();
+    });
+
+    describe('WR-06: degraded when the index chunk fails to load', () => {
+      beforeEach(() => {
+        indexState.error = 'capability index failed to load';
+      });
+
+      it('keeps surface and command rows and says what is missing, with a Retry', async () => {
+        const onNavigate = vi.fn();
+        renderOmnibar({ onNavigate, catalog: [cat(['check'])] });
+        fireEvent.change(search(), { target: { value: 'approvals' } });
+        await screen.findByText('Approvals');
+        fireEvent.keyDown(window, { key: 'Enter' });
+        expect(onNavigate).toHaveBeenCalledWith('approvals', undefined);
+        expect(screen.getByText(/built-in surfaces and commands only/i)).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+        expect(indexState.retry).toHaveBeenCalledTimes(1);
+      });
+
+      it('command rows come from the live catalog and open the form', async () => {
+        const onOpenCatalogForm = vi.fn();
+        renderOmnibar({ onOpenCatalogForm, catalog: [cat(['check'])] });
+        fireEvent.change(search(), { target: { value: 'vox check' } });
+        await screen.findByText('vox check');
+        fireEvent.keyDown(window, { key: 'Enter' });
+        expect(onOpenCatalogForm).toHaveBeenCalledWith(['check']);
+      });
     });
   });
 

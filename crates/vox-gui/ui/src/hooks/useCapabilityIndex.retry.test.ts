@@ -38,4 +38,14 @@ describe('useCapabilityIndex retry (WR-05)', () => {
     await act(async () => resolve(mod));
     await waitFor(() => expect(result.current.loading).toBe(false));
   });
+
+  it('retry() re-attempts a failed load without closing the palette (WR-06 Retry)', async () => {
+    load.mockReset().mockRejectedValueOnce(new Error('x')).mockResolvedValueOnce(mod);
+    const { result } = renderHook(() => useCapabilityIndex(true));
+    await waitFor(() => expect(result.current.error).not.toBeNull());
+    act(() => result.current.retry());
+    await waitFor(() => expect(result.current.rows.length).toBe(CAPABILITY_FIXTURE.length));
+    expect(result.current.error).toBeNull();
+    expect(load).toHaveBeenCalledTimes(2);
+  });
 });

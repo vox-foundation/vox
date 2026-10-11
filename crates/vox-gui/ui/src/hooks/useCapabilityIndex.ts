@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { CapabilityIndexEntry } from '../generated/capabilityIndex.generated';
 import { getLoadedCapabilityIndex, loadCapabilityIndex, type CapabilityIndexModule } from '../lib/capabilityIndexLoader';
 import { toRankEntries, type RankEntry } from '../lib/capabilityRank';
@@ -11,6 +11,8 @@ export interface UseCapabilityIndexResult {
   domains: { id: string; label: string }[];
   loading: boolean;
   error: string | null;
+  /** Re-attempt a failed load (the palette's Retry). */
+  retry: () => void;
 }
 
 const EMPTY: CapabilityIndexEntry[] = [];
@@ -20,6 +22,7 @@ const NO_DOMAINS: { id: string; label: string }[] = [];
 export function useCapabilityIndex(enabled: boolean): UseCapabilityIndexResult {
   const [mod, setMod] = useState<CapabilityIndexModule | null>(getLoadedCapabilityIndex);
   const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (!enabled || mod) return;
@@ -35,7 +38,8 @@ export function useCapabilityIndex(enabled: boolean): UseCapabilityIndexResult {
     return () => {
       cancelled = true;
     };
-  }, [enabled, mod]);
+  }, [enabled, mod, attempt]);
+  const retry = useCallback(() => setAttempt((n) => n + 1), []);
 
   const rows = mod?.CAPABILITY_INDEX ?? EMPTY;
   // Surfaces stay findable by their English/Latin lexicon and nav labels (parity with the
@@ -56,5 +60,6 @@ export function useCapabilityIndex(enabled: boolean): UseCapabilityIndexResult {
     domains: mod?.CAPABILITY_DOMAINS ?? NO_DOMAINS,
     loading: enabled && !mod && !error,
     error,
+    retry,
   };
 }
