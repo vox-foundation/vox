@@ -541,7 +541,9 @@ export function Omnibar({
   useEffect(() => {
     if (!open) return;
     const onFocusIn = (e: FocusEvent) => {
-      if (dialogRef.current && e.target instanceof Node && !dialogRef.current.contains(e.target)) {
+      const t = e.target;
+      // Another dialog (a Radix focus scope) that took focus legitimately owns it: do not fight it.
+      if (dialogRef.current && t instanceof Element && !dialogRef.current.contains(t) && !t.closest('[role="dialog"]')) {
         focusables()[0]?.focus();
       }
     };

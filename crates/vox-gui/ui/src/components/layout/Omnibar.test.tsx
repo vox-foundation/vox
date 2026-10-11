@@ -420,6 +420,18 @@ describe('Omnibar', () => {
       outside.remove();
     });
 
+    it('WR-04: focus inside another dialog is left alone (no focus tug-of-war)', () => {
+      renderOmnibar();
+      const other = document.createElement('div');
+      other.setAttribute('role', 'dialog');
+      const btn = document.createElement('button');
+      other.appendChild(btn);
+      document.body.appendChild(other);
+      act(() => btn.focus());
+      expect(document.activeElement).toBe(btn);
+      other.remove();
+    });
+
     it.each(['#', '>', '/', '@'])('WR-11: a bare "%s" does not offer or trigger "Submit new task…"', async (prefix) => {
       const onSubmitTask = vi.fn();
       renderOmnibar({ onSubmitTask });

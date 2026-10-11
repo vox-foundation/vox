@@ -133,6 +133,21 @@ test.describe('Universal palette', () => {
     await expect(row('algorithmic-art')).toBeVisible({ timeout: 10_000 });
   });
 
+  test('Tab never leaves the palette (focus trap, WR-04)', async ({ page }) => {
+    await page.keyboard.press('Control+k');
+    const palette = page.getByRole('dialog', { name: 'Command palette' });
+    await palette.getByPlaceholder(/search surfaces, commands/i).fill('vox');
+    await expect(palette.getByRole('button').first()).toBeVisible({ timeout: 10_000 });
+    const count = await palette.getByRole('button').count();
+    for (let i = 0; i < count + 3; i++) {
+      await page.keyboard.press('Tab');
+      expect(
+        await page.evaluate(() => !!document.activeElement?.closest('[role="dialog"][aria-label="Command palette"]')),
+      ).toBe(true);
+    }
+    await shot(page, 'universal-palette-12-focus-trap');
+  });
+
   test('MCP tool opens the explain card (D-07)', async ({ page }) => {
     await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
     const openCard = async () => {
@@ -222,6 +237,7 @@ test.describe('run from the palette (D-01, D-03, D-04)', () => {
 
     const stack = page.getByTestId('toast-stack');
     await expect(stack).toContainText('vox features — exit 0', { timeout: 10_000 });
+    await expect(stack).toContainText('vox features — running…'); // WR-09: progress is visible
     await expect(stack).toContainText('features: parser, codegen');
     await shot(page, 'universal-palette-07-run-toast');
 
