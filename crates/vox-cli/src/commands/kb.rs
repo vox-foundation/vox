@@ -10,6 +10,7 @@ use serde_json::{Value, json};
 use super::daemon_tool::{daemon_client, tool_call};
 
 pub mod eval;
+pub(crate) mod facet_backlog;
 pub(crate) mod gate;
 
 /// Knowledge-base operations (`eval`, `status`, `reindex`).
