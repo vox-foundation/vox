@@ -1,11 +1,19 @@
 //! Documentation linter for `docs/src/`. Checks frontmatter, code fences,
 //! training rationale, and embedded Vox doctests.
+//!
+//! Facet backlog tools (KB Phase 4, D-04): `--seed-facet-backlog --epoch-note <why>` writes
+//! `contracts/documentation/kb-facet-backlog.v1.yaml` from live violations (re-seeding is
+//! USER-AUTHORIZED-ONLY); `--tighten-facet-backlog` only removes rows and rule ids.
 
 pub mod anchors;
 pub mod doctest;
+mod facet_backlog;
 mod facets;
 mod lint;
 pub mod types;
+
+pub use facet_backlog::facet_backlog_gate_failures;
+pub use vox_kb_facets::BACKLOG_REL as FACET_BACKLOG_REL;
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -231,6 +239,28 @@ pub fn lint_in(root: &Path, args: &[String]) -> i32 {
     if !docs_src.exists() {
         eprintln!("Error: docs/src/ not found under {}.", root.display());
         return 1;
+    }
+
+    // Backlog ratchet tools. Handled before `FacetCtx::load`: seeding must work with no backlog.
+    let tool = |r: Result<String, String>| match r {
+        Ok(msg) => {
+            println!("{msg}");
+            0
+        }
+        Err(msg) => {
+            eprintln!("{msg}");
+            1
+        }
+    };
+    if args.contains(&"--seed-facet-backlog".to_string()) {
+        let note = args
+            .windows(2)
+            .find(|w| w[0] == "--epoch-note")
+            .map_or("", |w| w[1].as_str());
+        return tool(facet_backlog::seed(root, note));
+    }
+    if args.contains(&"--tighten-facet-backlog".to_string()) {
+        return tool(facet_backlog::tighten(root));
     }
 
     if corpus_mode {
