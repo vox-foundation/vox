@@ -17,22 +17,12 @@ use vox_bounded_fs::read_utf8_path_capped;
 static VOX_DOC_LINK_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"\[[^\]]+\]\(([^)]+\.vox)\)").expect("vox doc link regex"));
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Default)]
 #[serde(default)]
 struct Frontmatter {
     last_updated: Option<String>,
     title: Option<String>,
     status: Option<String>,
-}
-
-impl Default for Frontmatter {
-    fn default() -> Self {
-        Self {
-            last_updated: None,
-            title: None,
-            status: None,
-        }
-    }
 }
 
 /// Configuration for documentation extraction.
