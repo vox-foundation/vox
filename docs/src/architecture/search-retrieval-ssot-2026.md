@@ -103,6 +103,13 @@ The Library is also served as `kb://doc/<path>` and `kb://chunk/<hash>` MCP reso
 
 **Dashboard:** use `POST /v1/tools/call` (`voxTransport.callTool`). No client-side BM25/vector index unless there is an explicit offline product requirement.
 
+### Taxonomy synonyms and facet cards (KB Phase 4)
+
+- The Library card chunk carries `topic: <prefLabel>` and `domain: <prefLabel>` lines, read through `vox_kb_facets::parse_facets`, and skips page-one summary marker lines (chunker `kb_ids-sections-v2+card-facets+est4b+md512`).
+- `vox_kb_search` loads `contracts/documentation/kb-taxonomy.v1.yaml` from the repository root. A query containing an altLabel or deprecated alias gains a quoted facet phrase (`"topic <prefLabel>"`), which matches only facet-tagged cards; a query with no such label reaches Tantivy unchanged. The vocabulary can change without a re-index.
+- The eval retriever does not expand: the frozen eval snapshot has no facet-tagged docs, so expansion could not change its results.
+- When the taxonomy file cannot be loaded the search still answers and the response carries `taxonomy_warning`.
+
 ## Trust tiers and the findings inbox
 
 KB Phase 3 gives every stored and injected retrieval line a trust tier, routes model- and web-derived text into a review inbox instead of the corpus, and sanitizes text at ingest and again at injection. It also retired the legacy VoxKB surface (the LIKE-search store, the keyword router, the model-output signal adapters and the 12 legacy CRUD tools).

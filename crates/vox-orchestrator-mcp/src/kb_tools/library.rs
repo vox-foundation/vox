@@ -14,7 +14,8 @@ use serde_json::json;
 use vox_db::kb_text::SanitizedText;
 use vox_db::{KB_LIBRARY_CORPUS, LibraryChunkRow, VoxDb};
 use vox_search::library::{
-    IndexDeps, IndexReport, LibraryHit, index_library, lexical, search, status,
+    IndexDeps, IndexReport, LibraryHit, Taxonomy, index_library, lexical, load_taxonomy,
+    search_with_taxonomy, status,
 };
 
 use crate::params::ToolResult;
@@ -102,14 +103,27 @@ fn hit_json(h: &LibraryHit) -> serde_json::Value {
     })
 }
 
-/// Search the Library index in `dir`.
-async fn search_in(db: &VoxDb, dir: &Path, query: &str, limit: usize) -> String {
-    match search(db, dir, query, limit).await {
-        Ok(hits) => ok_clean(json!({
-            "lexical_backend": lexical::LEXICAL_BACKEND,
-            "hits": hits.iter().map(hit_json).collect::<Vec<_>>(),
-        }))
-        .to_json(),
+/// Search the Library index in `dir`. `taxonomy_warning` is set when synonyms could not be applied.
+async fn search_in(
+    db: &VoxDb,
+    dir: &Path,
+    query: &str,
+    limit: usize,
+    taxonomy: Result<&Taxonomy, &anyhow::Error>,
+) -> String {
+    match search_with_taxonomy(db, dir, query, limit, taxonomy.ok()).await {
+        Ok(hits) => {
+            let mut payload = json!({
+                "lexical_backend": lexical::LEXICAL_BACKEND,
+                "hits": hits.iter().map(hit_json).collect::<Vec<_>>(),
+            });
+            if let Err(e) = taxonomy {
+                payload["taxonomy_warning"] = json!(format!(
+                    "kb taxonomy unavailable ({e:#}); altLabel synonyms not applied"
+                ));
+            }
+            ok_clean(payload).to_json()
+        }
         Err(e) => err_json(format!("library search failed: {e}"), REM_KB_REINDEX),
     }
 }
@@ -130,7 +144,17 @@ pub async fn kb_search(state: &ServerState, params: KbSearchParams) -> String {
             REM_KB_REINDEX,
         );
     };
-    search_in(&db, &dir, query, clamp_limit(params.limit)).await
+    // Availability over synonyms: a missing or broken taxonomy degrades to a plain search, and
+    // `search_in` reports it in `taxonomy_warning`.
+    let taxonomy = load_taxonomy(&state.repository.root);
+    search_in(
+        &db,
+        &dir,
+        query,
+        clamp_limit(params.limit),
+        taxonomy.as_ref(),
+    )
+    .await
 }
 
 fn hasher(bytes: &[u8]) -> String {
@@ -582,12 +606,33 @@ mod tests {
             .await
     }
 
+    /// Like [`indexed_state_with`], with the committed taxonomy written into the temp repo.
+    async fn indexed_state_with_taxonomy(guide_md: &str) -> (TempDir, ServerState) {
+        indexed_state_inner(guide_md, true).await
+    }
+
     async fn indexed_state_with(guide_md: &str) -> (TempDir, ServerState) {
+        indexed_state_inner(guide_md, false).await
+    }
+
+    async fn indexed_state_inner(guide_md: &str, taxonomy: bool) -> (TempDir, ServerState) {
         let tmp = tempfile::tempdir().unwrap();
         let repo = tmp.path().join("repo");
         tokio::fs::create_dir_all(repo.join("docs/src"))
             .await
             .unwrap();
+        if taxonomy {
+            let rel = repo.join("contracts/documentation/kb-taxonomy.v1.yaml");
+            tokio::fs::create_dir_all(rel.parent().unwrap())
+                .await
+                .unwrap();
+            tokio::fs::write(
+                rel,
+                include_str!("../../../../contracts/documentation/kb-taxonomy.v1.yaml"),
+            )
+            .await
+            .unwrap();
+        }
         tokio::fs::write(repo.join("docs/src/guide.md"), guide_md)
             .await
             .unwrap();
@@ -682,6 +727,51 @@ mod tests {
         assert_eq!(first["uri"], format!("kb://chunk/{hash}"));
         assert_eq!(first["doc_uri"], "kb://doc/docs/src/guide.md");
         assert_eq!(v["data"]["lexical_backend"], lexical::LEXICAL_BACKEND);
+    }
+
+    /// TAX-01 through the MCP tool: an altLabel from the committed taxonomy finds the doc tagged
+    /// with its prefLabel, though the doc body never says the altLabel.
+    #[tokio::test]
+    #[serial]
+    async fn kb_search_taxonomy_altlabel_finds_tagged_doc() {
+        let alt = "vox-kb-facets";
+        let tax = load_taxonomy(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")).unwrap();
+        let pref = tax
+            .topics
+            .iter()
+            .find(|c| c.alt_labels.iter().any(|l| l == alt))
+            .expect("taxonomy lists vox-kb-facets")
+            .pref_label
+            .clone();
+        let md = format!("---\ntitle: Guide\ntopic: {pref}\n---\n# Guide\n\nPlain intro text.\n");
+        let (_tmp, state) = indexed_state_with_taxonomy(&md).await;
+        let v = tool(&state, "vox_kb_search", json!({"query": alt})).await;
+        assert_eq!(v["success"], true, "{v}");
+        assert!(
+            v["data"]["hits"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|h| h["doc_path"] == "docs/src/guide.md"),
+            "{v}"
+        );
+        assert!(v["data"].get("taxonomy_warning").is_none(), "{v}");
+    }
+
+    /// No taxonomy file in the repo: the search still answers, and says synonyms were skipped.
+    #[tokio::test]
+    #[serial]
+    async fn kb_search_without_taxonomy_warns_but_answers() {
+        let (_tmp, state) = indexed_state().await;
+        let v = tool(&state, "vox_kb_search", json!({"query": "turbofrobnicate"})).await;
+        assert_eq!(v["success"], true, "{v}");
+        assert!(!v["data"]["hits"].as_array().unwrap().is_empty(), "{v}");
+        assert!(
+            v["data"]["taxonomy_warning"]
+                .as_str()
+                .is_some_and(|w| w.contains("kb taxonomy unavailable")),
+            "{v}"
+        );
     }
 
     #[tokio::test]
