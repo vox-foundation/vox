@@ -128,6 +128,14 @@ fn parse_frontmatter(content: &str, path: &Path) -> (Frontmatter, bool, u8) {
     if !vox_kb_facets::effective_training_eligible(&facets) {
         return (Frontmatter::default(), false, 0);
     }
+    // No frontmatter at all: keep the pre-TAX conservative opt-out so a stray
+    // `training_eligible: false` in a fence-less file (a crate README) still excludes it.
+    if vox_kb_facets::frontmatter_yaml(content).is_none()
+        && (content.contains("training_eligible: false")
+            || content.contains("training_eligible:false"))
+    {
+        return (Frontmatter::default(), false, 0);
+    }
 
     let fm: Frontmatter = match vox_kb_facets::frontmatter_yaml(content) {
         Some(y) => serde_yaml::from_str(y).unwrap_or_default(),

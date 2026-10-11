@@ -130,14 +130,22 @@ pub struct Facets {
     pub training_eligible: Option<bool>,
 }
 
-/// Parse facets from a whole document. No frontmatter, an unterminated block or an empty block
-/// is `Facets::default()` (grandfathered, D-05); an invalid facet value is an `Err` naming it.
+/// Parse facets from a whole document. No `---` fence at all or an empty block is
+/// `Facets::default()` (grandfathered, D-05). A fence that is opened but not recognised
+/// (unterminated, indented, preceded by a blank line) or holds an invalid facet value is an
+/// `Err`: callers must treat it as "not eligible", never as "no facets" (CR-01).
 pub fn parse_facets(doc_text: &str) -> Result<Facets, String> {
     match frontmatter_yaml(doc_text) {
         Some(y) if !y.trim().is_empty() => {
             serde_yaml::from_str::<Facets>(y).map_err(|e| e.to_string())
         }
-        _ => Ok(Facets::default()),
+        Some(_) => Ok(Facets::default()),
+        None if frontmatter::fence_intended(doc_text) => Err(
+            "frontmatter fence `---` is opened but the block is unterminated, indented or \
+             preceded by a blank line"
+                .into(),
+        ),
+        None => Ok(Facets::default()),
     }
 }
 
@@ -231,13 +239,47 @@ mod tests {
             parse_facets("# no frontmatter\n").unwrap(),
             Facets::default()
         );
-        assert_eq!(
-            parse_facets("---\ntopic: x\n# unterminated\n").unwrap(),
-            Facets::default()
-        );
         assert_eq!(parse_facets("---\n---\n# T\n").unwrap(), Facets::default());
         assert_eq!(
             parse_facets("---\n  \n---\n# T\n").unwrap(),
+            Facets::default()
+        );
+    }
+
+    /// CR-01: every shape that opens a `---` fence but cannot be split is an error, never
+    /// "no facets"; a recognised-but-shifted shape (BOM, CR-only) must still read its facets.
+    #[test]
+    fn parse_facets_unrecognised_fence_shapes_fail_closed() {
+        for fm in ["training_eligible: false", "origin: web-promoted"] {
+            let blocked =
+                |t: String| parse_facets(&t).map_or(true, |f| !effective_training_eligible(&f));
+            let shapes = [
+                format!("\u{feff}---\n{fm}\n---\n# T\n"),
+                format!("---\r{fm}\r---\r# T\r"),
+                format!("\u{feff}---\r\n{fm}\r\n---\r\n# T\r\n"),
+                format!("\n---\n{fm}\n---\n# T\n"),
+                format!("  ---\n{fm}\n---\n# T\n"),
+                format!("---\n{fm}\n# T\n"),
+                format!("---\r{fm}\r# T\r"),
+                format!("\u{feff}\n---\n{fm}\n# T\n"),
+            ];
+            for (i, t) in shapes.into_iter().enumerate() {
+                assert!(blocked(t), "shape {i} with `{fm}` stayed eligible");
+            }
+        }
+        // the shifted-but-valid shapes parse rather than error
+        assert!(parse_facets("\u{feff}---\ntopic: x\n---\n").is_ok());
+        assert_eq!(
+            parse_facets("---\rtopic: x\r---\r")
+                .unwrap()
+                .topic
+                .as_deref(),
+            Some("x")
+        );
+        // a doc with no fence at all is still "no facets"
+        assert_eq!(parse_facets("# T\n\nbody\n").unwrap(), Facets::default());
+        assert_eq!(
+            parse_facets("\n\n# T\n---\nx\n").unwrap(),
             Facets::default()
         );
     }

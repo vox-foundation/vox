@@ -3,45 +3,70 @@
 use std::ops::Range;
 
 /// `(start, end, line)` for each line of `text[from..]`: `start`/`end` are byte offsets into
-/// `text` (`end` includes the terminator); `line` has its `\n` / `\r\n` terminator removed
-/// (the same lines `str::lines` yields).
+/// `text` (`end` includes the terminator); `line` has its `\n`, `\r\n` or lone `\r` terminator
+/// removed. A lone `\r` ends a line so a CR-only (classic Mac) doc still splits.
 pub(crate) fn line_spans(text: &str, from: usize) -> impl Iterator<Item = (usize, usize, &str)> {
     let mut off = from;
-    text[from..].split_inclusive('\n').map(move |raw| {
+    std::iter::from_fn(move || {
+        let rest = &text[off..];
+        if rest.is_empty() {
+            return None;
+        }
+        let (len, term) = match rest.find(['\n', '\r']) {
+            None => (rest.len(), 0),
+            Some(i) if rest[i..].starts_with("\r\n") => (i, 2),
+            Some(i) => (i, 1),
+        };
         let start = off;
-        off += raw.len();
-        let l = raw.strip_suffix('\n').unwrap_or(raw);
-        (start, off, l.strip_suffix('\r').unwrap_or(l))
+        off += len + term;
+        Some((start, off, &rest[..len]))
     })
 }
 
-/// Byte range of the leading `---` frontmatter block, from offset 0 through the end of the
-/// closing `---` line (terminator included). `None` when the text does not start with `---` or
-/// the block is never closed (an unterminated block is body, not frontmatter).
-// vox:defactored-from vox-search 2026-10-10
-#[must_use]
-pub fn frontmatter_range(text: &str) -> Option<Range<usize>> {
-    let mut lines = line_spans(text, 0);
-    let (_, _, first) = lines.next()?;
-    if first.trim_end() != "---" {
-        return None;
+/// Byte length of a leading UTF-8 BOM (`0` when absent).
+fn bom_len(text: &str) -> usize {
+    if text.starts_with('\u{feff}') {
+        '\u{feff}'.len_utf8()
+    } else {
+        0
     }
-    lines
-        .find(|(_, _, l)| l.trim_end() == "---")
-        .map(|(_, end, _)| 0..end)
 }
 
-/// The YAML between the opening and closing fence lines (fences excluded), if the block is closed.
-#[must_use]
-pub fn frontmatter_yaml(text: &str) -> Option<&str> {
-    let mut lines = line_spans(text, 0);
+/// `(open fence end, close fence start, close fence end)` of the leading closed `---` block.
+/// The opening fence must be the first line, after an optional UTF-8 BOM.
+fn fence_offsets(text: &str) -> Option<(usize, usize, usize)> {
+    let mut lines = line_spans(text, bom_len(text));
     let (_, open_end, first) = lines.next()?;
     if first.trim_end() != "---" {
         return None;
     }
     lines
         .find(|(_, _, l)| l.trim_end() == "---")
-        .map(|(close_start, _, _)| &text[open_end..close_start])
+        .map(|(close_start, close_end, _)| (open_end, close_start, close_end))
+}
+
+/// Byte range of the leading `---` frontmatter block, from offset 0 through the end of the
+/// closing `---` line (terminator included). `None` when the text does not start with `---`
+/// (after an optional BOM) or the block is never closed.
+// vox:defactored-from vox-search 2026-10-10
+#[must_use]
+pub fn frontmatter_range(text: &str) -> Option<Range<usize>> {
+    fence_offsets(text).map(|(_, _, end)| 0..end)
+}
+
+/// The YAML between the opening and closing fence lines (fences excluded), if the block is closed.
+#[must_use]
+pub fn frontmatter_yaml(text: &str) -> Option<&str> {
+    fence_offsets(text).map(|(open_end, close_start, _)| &text[open_end..close_start])
+}
+
+/// True when the first non-blank line (BOM, blank lines and indentation tolerated) is a bare
+/// `---` fence: the author meant to write frontmatter, whether or not the splitter recognises it.
+pub(crate) fn fence_intended(text: &str) -> bool {
+    line_spans(text, bom_len(text))
+        .map(|(_, _, l)| l.trim())
+        .find(|l| !l.is_empty())
+        .is_some_and(|l| l == "---")
 }
 
 #[cfg(test)]
@@ -71,6 +96,32 @@ mod tests {
         let t = "---\ntitle: \"a --- b\"\n---\nbody\n";
         assert_eq!(frontmatter_yaml(t), Some("title: \"a --- b\"\n"));
         assert_eq!(&t[frontmatter_range(t).unwrap().end..], "body\n");
+    }
+
+    #[test]
+    fn frontmatter_tolerates_a_bom_and_cr_only_line_endings() {
+        let bom = "\u{feff}---\ntitle: A\n---\nbody\n";
+        assert_eq!(frontmatter_yaml(bom), Some("title: A\n"));
+        assert_eq!(&bom[frontmatter_range(bom).unwrap().end..], "body\n");
+        let cr = "---\rtitle: A\r---\rbody\r";
+        assert_eq!(frontmatter_yaml(cr), Some("title: A\r"));
+        assert_eq!(&cr[frontmatter_range(cr).unwrap().end..], "body\r");
+    }
+
+    #[test]
+    fn fence_intended_sees_through_bom_blanks_and_indent() {
+        for t in [
+            "---\nx",
+            "\u{feff}---\nx",
+            "\n\n---\nx",
+            "  ---  \nx",
+            "---\rx",
+        ] {
+            assert!(fence_intended(t), "{t:?}");
+        }
+        for t in ["", "# T\n---\n", "----\nx", "--- x\n"] {
+            assert!(!fence_intended(t), "{t:?}");
+        }
     }
 
     #[test]

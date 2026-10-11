@@ -59,6 +59,53 @@ fn facet_parse_error_excludes_doc() {
     assert!(extract(&doc("title: T\norigin: web-promotd")).is_empty());
 }
 
+/// CR-01: a `---` fence the splitter does not recognise must never default to eligible, and the
+/// `training_eligible: false` opt-out must survive in every frontmatter shape.
+#[test]
+fn unrecognised_or_shifted_frontmatter_never_trains_an_opted_out_page() {
+    for fm in [
+        "title: T\ntraining_eligible: false",
+        "title: T\norigin: web-promoted",
+        "title: T\nauthorship: llm-generated",
+    ] {
+        let shapes = [
+            ("bom", format!("\u{feff}---\n{fm}\n---\n{BODY}")),
+            ("bom+crlf", format!("\u{feff}---\r\n{fm}\r\n---\r\n{BODY}")),
+            ("leading blank", format!("\n---\n{fm}\n---\n{BODY}")),
+            ("leading space", format!("  ---\n{fm}\n---\n{BODY}")),
+            ("unterminated", format!("---\n{fm}\n{BODY}")),
+            (
+                "cr only",
+                format!("---\r{fm}\r---\r{BODY}").replace('\n', "\r"),
+            ),
+            (
+                "cr only unterminated",
+                format!("---\r{fm}\r{BODY}").replace('\n', "\r"),
+            ),
+        ];
+        for (name, doc) in shapes {
+            assert!(extract(&doc).is_empty(), "{name} with `{fm}` still trains");
+        }
+    }
+}
+
+#[test]
+fn bom_and_cr_only_frontmatter_without_opt_out_still_trains() {
+    assert!(!extract(&format!("\u{feff}---\ntitle: T\n---\n{BODY}")).is_empty());
+    // CR-only bodies yield no pairs (the section scanner reads `\n` lines); eligibility is what
+    // matters here.
+    let cr = format!("---\rtitle: T\r---\r{BODY}").replace('\n', "\r");
+    assert!(parse_frontmatter(&cr, Path::new("page.md")).1);
+}
+
+#[test]
+fn fenceless_file_keeps_the_legacy_substring_opt_out() {
+    let body_only = BODY.to_string();
+    assert!(!extract(&body_only).is_empty());
+    assert!(extract(&format!("{body_only}\ntraining_eligible: false\n")).is_empty());
+    assert!(extract(&format!("{body_only}\ntraining_eligible:false\n")).is_empty());
+}
+
 #[test]
 fn deprecated_status_still_short_circuits() {
     assert!(extract(&doc("title: T\nstatus: deprecated")).is_empty());

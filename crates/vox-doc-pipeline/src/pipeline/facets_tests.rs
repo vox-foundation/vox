@@ -50,6 +50,43 @@ fn facet_issues_invalid_value_is_parse_error_only() {
     );
 }
 
+/// CR-01: a doc that opens a `---` fence the splitter cannot read is a hard error, not "no facets",
+/// even when the backlog excuses every `facet-missing-*` rule for it.
+#[test]
+fn unparseable_frontmatter_is_a_hard_parse_error() {
+    for (name, doc) in [
+        ("leading blank", "\n---\ntitle: T\n---\n# T\n"),
+        ("leading space", " ---\ntitle: T\n---\n# T\n"),
+        (
+            "unterminated",
+            "---\ntitle: T\ntraining_eligible: false\n# T\n",
+        ),
+        ("bom blank", "\u{feff}\n---\ntitle: T\n---\n# T\n"),
+    ] {
+        assert_eq!(ids(doc), ["facet-parse-error"], "{name}");
+        let ctx = ctx_with(
+            "\n  - path: docs/src/a.md\n    rules: [facet-missing-authorship, facet-missing-domain, facet-missing-summary, facet-missing-topic]",
+        );
+        let errs = run_lint(&ctx, "docs/src/a.md", doc);
+        assert!(
+            errs.iter().any(
+                |e| matches!(&e.kind, LintKind::Facet(i) if i.rule_id() == "facet-parse-error" && i.is_hard())
+            ),
+            "{name}: backlogged doc must still fail hard"
+        );
+    }
+    // a BOM before a real fence is fine
+    assert_eq!(
+        ids("\u{feff}---\ntitle: T\n---\n# T\n"),
+        [
+            "facet-missing-topic",
+            "facet-missing-domain",
+            "facet-missing-summary",
+            "facet-missing-authorship"
+        ]
+    );
+}
+
 const FIXTURE_TAXONOMY: &str = "x-vox-version: 1
 schema_version: 1
 domains:
