@@ -5,8 +5,8 @@ use std::path::Path;
 use vox_kb_facets::{
     Authorship, BACKLOG_REL, Backlog, Facets, LabelMatch, MAX_PAGE_QUOTE_WORDS, MAX_QUOTE_WORDS,
     Origin, SUMMARY_MAX_WORDS, SUMMARY_MIN_WORDS, SummaryStatus, TAXONOMY_REL, Taxonomy,
-    forced_training_ineligible, inspect_summary, is_blake3_content_hash, is_iso_date, parse_facets,
-    quote_word_counts,
+    forced_training_ineligible, inspect_summary, is_blake3_content_hash, is_iso_date,
+    is_valid_attestation, parse_facets, quote_word_counts,
 };
 
 use super::lint::suggest;
@@ -31,6 +31,7 @@ pub(crate) const BACKLOGGABLE_RULE_IDS: &[&str] = &[
     "facet-source-field",
     "facet-quote-over-cap",
     "facet-invalid-date",
+    "facet-invalid-attestation",
 ];
 
 fn hint(h: &Option<String>) -> String {
@@ -59,6 +60,7 @@ impl FacetIssue {
             Self::SourceField { .. } => "facet-source-field",
             Self::QuoteOverCap { .. } => "facet-quote-over-cap",
             Self::InvalidDate { .. } => "facet-invalid-date",
+            Self::InvalidAttestation { .. } => "facet-invalid-attestation",
             Self::BacklogStale { .. } => "facet-backlog-stale",
         }
     }
@@ -115,6 +117,9 @@ impl FacetIssue {
             Self::InvalidDate { field, value } => {
                 format!("{field} {value:?} is not a real YYYY-MM-DD date")
             }
+            Self::InvalidAttestation { value } => format!(
+                "human_attested_by {value:?} is not a human attestation (blank, a placeholder or an AI name)"
+            ),
             Self::BacklogStale { rule } => format!(
                 "backlog excuses {rule} but the doc no longer violates it; run --tighten-facet-backlog"
             ),
@@ -150,6 +155,9 @@ impl FacetIssue {
             }
             Self::QuoteOverCap { .. } => "shorten or paraphrase the quote",
             Self::InvalidDate { .. } => "use YYYY-MM-DD",
+            Self::InvalidAttestation { .. } => {
+                "name the human reviewer in human_attested_by, or remove the key"
+            }
             Self::BacklogStale { .. } => "run --tighten-facet-backlog to drop the stale excuse",
         }
     }
@@ -305,6 +313,13 @@ fn provenance_issues(doc_text: &str, f: &Facets, out: &mut Vec<(usize, FacetIssu
     ) && nonblank(&f.authorship_model).is_none()
     {
         out.push((1, FacetIssue::MissingAuthorshipModel));
+    }
+    if let Some(v) = f
+        .human_attested_by
+        .as_deref()
+        .filter(|v| !is_valid_attestation(v))
+    {
+        out.push((1, FacetIssue::InvalidAttestation { value: v.into() }));
     }
     if f.training_eligible == Some(true) && forced_training_ineligible(f) {
         out.push((1, FacetIssue::TrainingEligibleContradiction));

@@ -134,6 +134,10 @@ pub enum FacetIssue {
         field: &'static str,
         value: String,
     },
+    /// `human_attested_by` is blank, a placeholder or an AI name (WR-02).
+    InvalidAttestation {
+        value: String,
+    },
     /// The backlog lists a rule the doc no longer violates (warning).
     BacklogStale {
         rule: String,

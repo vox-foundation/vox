@@ -149,8 +149,43 @@ pub fn parse_facets(doc_text: &str) -> Result<Facets, String> {
     }
 }
 
+/// Values that are never a human attestation: YAML placeholders and AI / agent names (WR-02).
+const NOT_A_HUMAN: &[&str] = &[
+    "true",
+    "false",
+    "yes",
+    "no",
+    "none",
+    "null",
+    "nil",
+    "n/a",
+    "na",
+    "tbd",
+    "todo",
+    "unknown",
+    "ai",
+    "llm",
+    "bot",
+    "agent",
+    "assistant",
+    "model",
+    "claude",
+    "chatgpt",
+    "gpt",
+    "gemini",
+    "copilot",
+];
+
+/// True when `human_attested_by` names a person: non-blank and not a placeholder or AI name
+/// (case-insensitive, whole value).
+#[must_use]
+pub fn is_valid_attestation(s: &str) -> bool {
+    let t = s.trim().to_ascii_lowercase();
+    !t.is_empty() && !NOT_A_HUMAN.contains(&t.as_str())
+}
+
 /// True when the page is forced training-ineligible: web-promoted or LLM-authored content with
-/// no (non-blank) `human_attested_by`.
+/// no valid `human_attested_by` ([`is_valid_attestation`]).
 #[must_use]
 pub fn forced_training_ineligible(f: &Facets) -> bool {
     let risky = f.origin == Some(Origin::WebPromoted)
@@ -161,7 +196,7 @@ pub fn forced_training_ineligible(f: &Facets) -> bool {
     let attested = f
         .human_attested_by
         .as_deref()
-        .is_some_and(|s| !s.trim().is_empty());
+        .is_some_and(is_valid_attestation);
     risky && !attested
 }
 
@@ -231,6 +266,28 @@ mod tests {
         assert!(!eff(
             "authorship: llm-generated\nhuman_attested_by: \"   \""
         ));
+    }
+
+    /// WR-02: a placeholder or AI name is not a human attestation.
+    #[test]
+    fn effective_training_placeholder_attestation_counts_as_absent() {
+        for v in [
+            "false", "no", "None", "NULL", "n/a", "N/A", "na", "TBD", "todo", "unknown", "Claude",
+            "  llm ", "true", "yes",
+        ] {
+            let fm = format!("authorship: llm-assisted\nhuman_attested_by: {v}");
+            assert!(!eff(&fm), "{v:?} attested an LLM page");
+            let fm = format!("origin: web-promoted\nhuman_attested_by: {v}");
+            assert!(!eff(&fm), "{v:?} attested a promoted page");
+        }
+        assert!(eff(
+            "authorship: llm-assisted\nhuman_attested_by: Alice Smith"
+        ));
+        assert!(
+            is_valid_attestation("Dr. None"),
+            "only the whole value is a sentinel"
+        );
+        assert!(!is_valid_attestation(""));
     }
 
     #[test]

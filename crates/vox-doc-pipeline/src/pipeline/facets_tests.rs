@@ -303,6 +303,26 @@ fn invalid_review_date_is_reported() {
     assert!(fx_ids(&page("review_by: 2026-12-31", 40, "")).is_empty());
 }
 
+/// WR-02: `human_attested_by` must name a person.
+#[test]
+fn invalid_attestation_is_a_hard_lint_error() {
+    for v in [
+        "false", "none", "n/a", "TODO", "tbd", "claude", "\"\"", "\"  \"", "yes",
+    ] {
+        assert_eq!(
+            fx_ids(&page(&format!("human_attested_by: {v}"), 40, "")),
+            ["facet-invalid-attestation"],
+            "{v}"
+        );
+    }
+    assert!(fx_msgs(&page("human_attested_by: none", 40, ""))[0].contains("none"));
+    assert!(fx_ids(&page("human_attested_by: Alice Smith", 40, "")).is_empty());
+    assert!(
+        fx_ids(&page("", 40, "")).is_empty(),
+        "absent key is not an error"
+    );
+}
+
 #[test]
 fn rule_ids_are_stable() {
     let all = [
@@ -354,6 +374,9 @@ fn rule_ids_are_stable() {
             field: "review_by",
             value: String::new(),
         },
+        FacetIssue::InvalidAttestation {
+            value: String::new(),
+        },
         FacetIssue::BacklogStale {
             rule: String::new(),
         },
@@ -366,7 +389,7 @@ fn rule_ids_are_stable() {
     );
     ids.sort_unstable();
     ids.dedup();
-    assert_eq!(ids.len(), 19);
+    assert_eq!(ids.len(), 20);
     let meta = ["facet-contract-unreadable", "facet-backlog-stale"];
     let mut expect: Vec<&str> = ids.iter().copied().filter(|i| !meta.contains(i)).collect();
     let mut got = BACKLOGGABLE_RULE_IDS.to_vec();

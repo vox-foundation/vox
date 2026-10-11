@@ -42,6 +42,15 @@ fn llm_authorship_without_attestation_yields_no_pairs() {
     }
 }
 
+/// WR-02: a placeholder or AI name in `human_attested_by` does not lift the forced exclusion.
+#[test]
+fn placeholder_attestation_does_not_clear_the_forced_exclusion() {
+    for v in ["false", "none", "n/a", "todo", "claude"] {
+        let fm = format!("title: T\norigin: web-promoted\nhuman_attested_by: {v}");
+        assert!(extract(&doc(&fm)).is_empty(), "{v}");
+    }
+}
+
 #[test]
 fn human_authorship_and_absent_flag_yield_pairs() {
     assert!(!extract(&doc("title: T\nauthorship: human")).is_empty());
