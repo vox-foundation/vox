@@ -148,9 +148,29 @@ impl CapabilityIndex {
     /// subcommand (`--json plugin remove`) cannot hide it; a false positive fails closed.
     #[must_use]
     pub fn confirmation_required(&self, argv: &[String]) -> Option<&IndexRow> {
-        let _ = argv;
-        None
+        // ponytail: linear scan over ~1.5k rows, filtered to destructive first; build an index if hot.
+        let tokens: Vec<&str> = argv
+            .iter()
+            .map(String::as_str)
+            .filter(|t| !t.starts_with('-'))
+            .collect();
+        self.rows.iter().find(|r| {
+            r.kind == RowKind::Cli
+                && r.side_effect_class.as_deref() == Some("destructive")
+                && r.cli
+                    .as_ref()
+                    .is_some_and(|c| is_ordered_subsequence(&c.path, &tokens))
+        })
     }
+}
+
+/// True when every segment of `path` appears as a whole token, in order (gaps allowed).
+fn is_ordered_subsequence(path: &[String], tokens: &[&str]) -> bool {
+    if path.is_empty() {
+        return false;
+    }
+    let mut rest = tokens.iter();
+    path.iter().all(|seg| rest.any(|t| *t == seg))
 }
 
 /// The index embedded at compile time, parsed once.
