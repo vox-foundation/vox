@@ -11,69 +11,21 @@ pub struct ExecuteOutput {
     pub stderr: String,
 }
 
+/// Run a `vox` CLI command through the bundled sidecar.
+///
+/// D-03 confirmation gate: an invocation whose effective argv walks to a destructive index row is
+/// refused with `vox_cli::command_catalog::CONFIRMATION_REQUIRED_PREFIX` + row id unless the
+/// caller passes `confirmed: true`. `confirmed` is optional, so existing callers that omit it keep
+/// working for every non-destructive op. All argv and gate logic lives in `vox-cli`.
 #[tauri::command]
 pub async fn execute_command(
     app: tauri::AppHandle,
     path: Vec<String>,
     args: Value,
+    confirmed: Option<bool>,
 ) -> Result<ExecuteOutput, String> {
-    let mut shell_args = path;
-
-    if let Some(argv) = args.get("__argv").and_then(Value::as_array) {
-        for token in argv.iter().filter_map(Value::as_str) {
-            if !token.trim().is_empty() {
-                shell_args.push(token.to_string());
-            }
-        }
-    } else if let Value::Object(map) = args {
-        for (k, v) in map {
-            if k == "__argv" {
-                continue;
-            }
-            if k == "__positionals" {
-                if let Value::Array(values) = v {
-                    for value in values {
-                        if let Some(s) = value.as_str() {
-                            shell_args.push(s.to_string());
-                        } else if !value.is_null() {
-                            shell_args.push(value.to_string());
-                        }
-                    }
-                }
-                continue;
-            }
-            if k == "__flags" {
-                if let Value::Array(flags) = v {
-                    for flag in flags.iter().filter_map(Value::as_str) {
-                        shell_args.push(format!("--{flag}"));
-                    }
-                }
-                continue;
-            }
-            shell_args.push(format!("--{}", k.replace('_', "-")));
-            match v {
-                Value::Null => {}
-                Value::String(s) if s.is_empty() => {}
-                Value::String(s) => shell_args.push(s),
-                Value::Bool(true) => {}
-                Value::Bool(false) => {
-                    let _ = shell_args.pop();
-                }
-                Value::Array(items) => {
-                    let _ = shell_args.pop();
-                    for item in items {
-                        shell_args.push(format!("--{}", k.replace('_', "-")));
-                        if let Some(s) = item.as_str() {
-                            shell_args.push(s.to_string());
-                        } else if !item.is_null() {
-                            shell_args.push(item.to_string());
-                        }
-                    }
-                }
-                other => shell_args.push(other.to_string()),
-            }
-        }
-    }
+    let shell_args = vox_cli::command_catalog::form_argv(path, &args);
+    vox_cli::command_catalog::gate_execution(&shell_args, confirmed)?;
 
     let output = app
         .shell()
@@ -89,4 +41,20 @@ pub async fn execute_command(
         stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
         stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use vox_cli::command_catalog::{CONFIRMATION_REQUIRED_PREFIX, form_argv, gate_execution};
+
+    /// The wiring `execute_command` performs before the sidecar spawn: a destructive subcommand
+    /// smuggled through `__argv` is refused unless `confirmed: true`.
+    #[test]
+    fn destructive_argv_is_gated_before_spawn() {
+        let args = serde_json::json!({"__argv": ["remove", "demo"]});
+        let argv = form_argv(vec!["plugin".to_string()], &args);
+        let err = gate_execution(&argv, None).expect_err("must refuse without confirmation");
+        assert!(err.starts_with(CONFIRMATION_REQUIRED_PREFIX), "{err}");
+        assert!(gate_execution(&argv, Some(true)).is_ok());
+    }
 }
