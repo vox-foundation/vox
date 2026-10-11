@@ -425,15 +425,75 @@ pub const CONFIRMATION_REQUIRED_PREFIX: &str = "confirmation_required: ";
 /// (flags / `__positionals` / `__flags`), then raw `__argv` tokens (D-16: both reach the CLI).
 #[must_use]
 pub fn form_argv(path: Vec<String>, args: &serde_json::Value) -> Vec<String> {
-    let _ = args;
-    path
+    use serde_json::Value;
+    let mut out = path;
+    if let Value::Object(map) = args {
+        for (k, v) in map {
+            match k.as_str() {
+                "__argv" => continue,
+                "__positionals" => {
+                    if let Value::Array(values) = v {
+                        for value in values {
+                            if let Some(s) = value.as_str() {
+                                out.push(s.to_string());
+                            } else if !value.is_null() {
+                                out.push(value.to_string());
+                            }
+                        }
+                    }
+                    continue;
+                }
+                "__flags" => {
+                    if let Value::Array(flags) = v {
+                        out.extend(
+                            flags
+                                .iter()
+                                .filter_map(Value::as_str)
+                                .map(|f| format!("--{f}")),
+                        );
+                    }
+                    continue;
+                }
+                _ => {}
+            }
+            let flag = format!("--{}", k.replace('_', "-"));
+            match v {
+                Value::Null | Value::Bool(true) => out.push(flag),
+                Value::String(s) if s.is_empty() => out.push(flag),
+                Value::String(s) => out.extend([flag, s.clone()]),
+                Value::Bool(false) => {}
+                Value::Array(items) => {
+                    for item in items {
+                        out.push(flag.clone());
+                        if let Some(s) = item.as_str() {
+                            out.push(s.to_string());
+                        } else if !item.is_null() {
+                            out.push(item.to_string());
+                        }
+                    }
+                }
+                other => out.extend([flag, other.to_string()]),
+            }
+        }
+    }
+    // D-16: raw `__argv` tokens are appended AFTER the structured args, never instead of them.
+    if let Some(argv) = args.get("__argv").and_then(Value::as_array) {
+        out.extend(
+            argv.iter()
+                .filter_map(Value::as_str)
+                .filter(|t| !t.trim().is_empty())
+                .map(str::to_string),
+        );
+    }
+    out
 }
 
 /// Id of the destructive index row the effective `argv` walks to, if any (D-15).
 #[must_use]
 pub fn destructive_cli_id(argv: &[String]) -> Option<String> {
-    let _ = argv;
-    None
+    vox_capability_registry::bundled_index()
+        .confirmation_required(argv)
+        .map(|r| r.id.clone())
 }
 
 /// D-03 consent gate: refuse a destructive invocation unless `confirmed == Some(true)`.
@@ -441,7 +501,11 @@ pub fn destructive_cli_id(argv: &[String]) -> Option<String> {
 /// # Errors
 /// `confirmation_required: <row id>` when the argv is destructive and not confirmed.
 pub fn gate_execution(argv: &[String], confirmed: Option<bool>) -> Result<(), String> {
-    let _ = (argv, confirmed);
+    if confirmed != Some(true)
+        && let Some(id) = destructive_cli_id(argv)
+    {
+        return Err(format!("{CONFIRMATION_REQUIRED_PREFIX}{id}"));
+    }
     Ok(())
 }
 
