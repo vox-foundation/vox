@@ -854,4 +854,26 @@ mod tests {
     fn gate_allows_non_destructive() {
         assert_eq!(gate_execution(&sv(&["features"]), None), Ok(()));
     }
+
+    /// CR-01: clap resolves aliases to the canonical command, so the gate must too.
+    #[test]
+    fn gate_refuses_alias_spellings_of_destructive_rows() {
+        for (spelling, row) in [
+            (
+                &["models", "preferences", "reset"][..],
+                "cli.model.preferences.reset",
+            ),
+            (
+                &["orchestrator", "snapshot", "restore"][..],
+                "cli.dei.snapshot.restore",
+            ),
+        ] {
+            assert_eq!(
+                gate_execution(&sv(spelling), None),
+                Err(format!("{CONFIRMATION_REQUIRED_PREFIX}{row}")),
+                "alias spelling {spelling:?} must be gated",
+            );
+            assert_eq!(gate_execution(&sv(spelling), Some(true)), Ok(()));
+        }
+    }
 }
