@@ -187,6 +187,51 @@ async fn chat_once_serializes_tools() {
     assert_eq!(out.content, "ok");
 }
 
+#[tokio::test]
+async fn chat_once_sends_seed_when_set() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(body_partial_json(serde_json::json!({"seed": 1234})))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "choices": [{"message": {"content": "ok"}}],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1}
+        })))
+        .mount(&server)
+        .await;
+    let r = req(format!("{}/chat/completions", server.uri()));
+    let params = ChatParams {
+        seed: Some(1234),
+        ..Default::default()
+    };
+    let out = chat_once(&r, &[], &params)
+        .await
+        .expect("seed request must match + succeed");
+    assert_eq!(out.content, "ok");
+}
+
+#[tokio::test]
+async fn chat_once_omits_seed_when_none() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "choices": [{"message": {"content": "ok"}}],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1}
+        })))
+        .mount(&server)
+        .await;
+    let r = req(format!("{}/chat/completions", server.uri()));
+    chat_once(&r, &[], &ChatParams::default())
+        .await
+        .expect("ok");
+    let reqs = server.received_requests().await.expect("recording on");
+    assert_eq!(reqs.len(), 1);
+    let body: serde_json::Value = serde_json::from_slice(&reqs[0].body).expect("json body");
+    assert!(
+        body.get("seed").is_none(),
+        "None seed must not be serialized"
+    );
+}
+
 /// Task 1.3b: a full assistant-tool_calls + tool-result turn must reach the wire with
 /// `function.arguments` re-serialized as a JSON **string** (the inverse of
 /// `EgressToolCall::arguments`'s eagerly-parsed `Value`), and the tool-result message's
