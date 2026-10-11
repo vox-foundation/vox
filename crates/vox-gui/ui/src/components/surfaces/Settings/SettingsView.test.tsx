@@ -251,6 +251,19 @@ describe('SettingsView', () => {
     expect(btn.textContent).toBe('Mod+K');
   });
 
+  it('keybinds: a bare modifier keydown does not end capture; the chord completes on the real key', async () => {
+    const user = userEvent.setup();
+    render(<SettingsView pushToast={vi.fn()} />, { wrapper });
+    await user.click(screen.getByRole('button', { name: /keybinds/i }));
+    const btn = await screen.findByTestId('keybind-btn-toggle-sidebar');
+    await user.click(btn);
+    fireEvent.keyDown(window, { key: 'Control', ctrlKey: true, cancelable: true });
+    fireEvent.keyDown(window, { key: 'Shift', ctrlKey: true, shiftKey: true, cancelable: true });
+    expect(btn.textContent).toBe('press keys…');
+    fireEvent.keyDown(window, { key: 'y', ctrlKey: true, shiftKey: true, cancelable: true });
+    await waitFor(() => expect(btn.textContent).toBe('Mod+Shift+Y'));
+  });
+
   it('keybinds: a change made elsewhere in the store shows in Settings (D-17)', async () => {
     const user = userEvent.setup();
     const { setBindings } = await import('../../../lib/keybindStore');
