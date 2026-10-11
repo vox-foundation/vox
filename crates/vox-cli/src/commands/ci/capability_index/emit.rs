@@ -223,6 +223,10 @@ fn ts_kind(kind: RowKind) -> &'static str {
     }
 }
 
+/// Rows per emitted `ROWS_<n>` chunk: one 1544-row array literal trips TS2590 ("union type too
+/// complex"); the limit sits between 800 and 1544 rows, and 200 leaves margin for the wider rows.
+const TS_CHUNK_ROWS: usize = 200;
+
 /// Deterministic TypeScript projection of the index for the GUI build (trimmed fields).
 pub(crate) fn generate_ts(index: &CapabilityIndex) -> String {
     let mut out = String::from(
@@ -240,7 +244,16 @@ pub(crate) fn generate_ts(index: &CapabilityIndex) -> String {
          crate: string | null;\n  \
          layer: number | null;\n  \
          docs: string | null;\n  \
-         coverage: string | null;\n}\n\
+         coverage: string | null;\n  \
+         equivalents: string[];\n  \
+         refs: string[];\n  \
+         tier: string | null;\n  \
+         status: string | null;\n  \
+         sideEffect: string | null;\n  \
+         lane: string | null;\n  \
+         catalogForm: boolean;\n  \
+         navLabel: string | null;\n  \
+         source: string | null;\n}\n\
          export const CAPABILITY_DOMAINS: { id: string; label: string }[] = [\n",
     );
     for d in &index.domains {
@@ -261,32 +274,56 @@ pub(crate) fn generate_ts(index: &CapabilityIndex) -> String {
         )),
         None => out.push_str("null;\n"),
     }
-    out.push_str("export const CAPABILITY_INDEX: CapabilityIndexEntry[] = [\n");
-    for r in &index.rows {
-        let summary: Option<String> = r.summary.as_ref().map(|s| s.chars().take(120).collect());
-        let layer = r
-            .owner
-            .as_ref()
-            .and_then(|o| o.layer)
-            .map_or_else(|| "null".to_string(), |l| l.to_string());
-        out.push_str(&format!(
-            "  {{ id: {}, kind: '{}', title: {}, summary: {}, domain: {}, cli: {}, mcp: {}, viewKey: {}, crate: {}, layer: {}, docs: {}, coverage: {} }},\n",
-            ts_str(&r.id),
-            ts_kind(r.kind),
-            ts_str(&r.title),
-            ts_opt(summary.as_deref()),
-            ts_opt(r.domain.as_deref()),
-            ts_opt(r.cli.as_ref().map(|c| c.invocation.as_str())),
-            ts_opt(r.mcp.as_ref().map(|m| m.name.as_str())),
-            ts_opt(r.gui.as_ref().and_then(|g| g.view_key.as_deref())),
-            ts_opt(r.owner.as_ref().map(|o| o.crate_name.as_str())),
-            layer,
-            ts_opt(r.docs.first().map(|d| d.path.as_str())),
-            ts_opt(r.coverage.as_ref().and_then(|c| c.kind.as_deref())),
-        ));
+    for (n, chunk) in index.rows.chunks(TS_CHUNK_ROWS).enumerate() {
+        out.push_str(&format!("const ROWS_{n}: CapabilityIndexEntry[] = [\n"));
+        for r in chunk {
+            out.push_str(&ts_row(r));
+        }
+        out.push_str("];\n");
     }
-    out.push_str("];\n");
+    let spread: Vec<String> = (0..index.rows.chunks(TS_CHUNK_ROWS).count())
+        .map(|n| format!("...ROWS_{n}"))
+        .collect();
+    out.push_str(&format!(
+        "export const CAPABILITY_INDEX: CapabilityIndexEntry[] = [{}];\n",
+        spread.join(", ")
+    ));
     out
+}
+
+/// One row literal. Every string goes through `ts_str`; nothing raw is interpolated.
+fn ts_row(r: &IndexRow) -> String {
+    let summary: Option<String> = r.summary.as_ref().map(|s| s.chars().take(120).collect());
+    let layer = r
+        .owner
+        .as_ref()
+        .and_then(|o| o.layer)
+        .map_or_else(|| "null".to_string(), |l| l.to_string());
+    let ids = |v: &[String]| v.iter().map(|s| ts_str(s)).collect::<Vec<_>>().join(", ");
+    format!(
+        "  {{ id: {}, kind: '{}', title: {}, summary: {}, domain: {}, cli: {}, mcp: {}, viewKey: {}, crate: {}, layer: {}, docs: {}, coverage: {}, equivalents: [{}], refs: [{}], tier: {}, status: {}, sideEffect: {}, lane: {}, catalogForm: {}, navLabel: {}, source: {} }},\n",
+        ts_str(&r.id),
+        ts_kind(r.kind),
+        ts_str(&r.title),
+        ts_opt(summary.as_deref()),
+        ts_opt(r.domain.as_deref()),
+        ts_opt(r.cli.as_ref().map(|c| c.invocation.as_str())),
+        ts_opt(r.mcp.as_ref().map(|m| m.name.as_str())),
+        ts_opt(r.gui.as_ref().and_then(|g| g.view_key.as_deref())),
+        ts_opt(r.owner.as_ref().map(|o| o.crate_name.as_str())),
+        layer,
+        ts_opt(r.docs.first().map(|d| d.path.as_str())),
+        ts_opt(r.coverage.as_ref().and_then(|c| c.kind.as_deref())),
+        ids(&r.equivalents),
+        ids(&r.refs),
+        ts_opt(r.tier.as_deref()),
+        ts_opt(r.status.as_deref()),
+        ts_opt(r.side_effect_class.as_deref()),
+        ts_opt(r.product_lane.as_deref()),
+        r.gui.as_ref().is_some_and(|g| g.catalog_form),
+        ts_opt(r.gui.as_ref().and_then(|g| g.nav_label.as_deref())),
+        ts_opt(r.source_path.as_deref()),
+    )
 }
 
 #[cfg(test)]
