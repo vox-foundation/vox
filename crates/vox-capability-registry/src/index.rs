@@ -146,8 +146,20 @@ impl CapabilityIndex {
     /// D-03/D-15: the first destructive CLI row whose `cli.path` is an ordered subsequence of the
     /// non-flag tokens of `argv`, or `None`. Flags are dropped so a global flag before the
     /// subcommand (`--json plugin remove`) cannot hide it; a false positive fails closed.
+    /// Canonical spellings only; see [`Self::confirmation_required_with`] for clap aliases.
     #[must_use]
     pub fn confirmation_required(&self, argv: &[String]) -> Option<&IndexRow> {
+        self.confirmation_required_with(argv, &CliAliases::new())
+    }
+
+    /// CR-01: like [`Self::confirmation_required`], but a path segment also matches any alias clap
+    /// accepts for the command at that canonical prefix (`models` for `model`).
+    #[must_use]
+    pub fn confirmation_required_with(
+        &self,
+        argv: &[String],
+        aliases: &CliAliases,
+    ) -> Option<&IndexRow> {
         // ponytail: linear scan over ~1.5k rows, filtered to destructive first; build an index if hot.
         let tokens: Vec<&str> = argv
             .iter()
@@ -159,18 +171,25 @@ impl CapabilityIndex {
                 && r.side_effect_class.as_deref() == Some("destructive")
                 && r.cli
                     .as_ref()
-                    .is_some_and(|c| is_ordered_subsequence(&c.path, &tokens))
+                    .is_some_and(|c| is_ordered_subsequence(&c.path, &tokens, aliases))
         })
     }
 }
 
-/// True when every segment of `path` appears as a whole token, in order (gaps allowed).
-fn is_ordered_subsequence(path: &[String], tokens: &[&str]) -> bool {
+/// Canonical command path -> alternate spellings (clap aliases) of that path's LAST segment.
+pub type CliAliases = std::collections::HashMap<Vec<String>, Vec<String>>;
+
+/// True when every segment of `path` (or one of its aliases) appears as a whole token, in order
+/// (gaps allowed).
+fn is_ordered_subsequence(path: &[String], tokens: &[&str], aliases: &CliAliases) -> bool {
     if path.is_empty() {
         return false;
     }
     let mut rest = tokens.iter();
-    path.iter().all(|seg| rest.any(|t| *t == seg))
+    (0..path.len()).all(|i| {
+        let alts = aliases.get(&path[..=i]);
+        rest.any(|t| *t == path[i] || alts.is_some_and(|a| a.iter().any(|x| x == t)))
+    })
 }
 
 /// The index embedded at compile time, parsed once.
@@ -282,6 +301,27 @@ mod tests {
     fn confirmation_required_order_matters() {
         let idx = gate_index();
         assert_eq!(gated_id(&idx, &["remove", "plugin"]), None);
+    }
+
+    #[test]
+    fn confirmation_required_with_matches_aliases_per_segment() {
+        let idx = gate_index();
+        let mut aliases = CliAliases::new();
+        aliases.insert(argv(&["plugin"]), argv(&["plug"]));
+        aliases.insert(argv(&["plugin", "remove"]), argv(&["rm"]));
+        let hit = |t: &[&str]| {
+            idx.confirmation_required_with(&argv(t), &aliases)
+                .map(|r| r.id.clone())
+        };
+        assert_eq!(
+            hit(&["plug", "rm", "x"]).as_deref(),
+            Some("cli.plugin.remove")
+        );
+        assert_eq!(hit(&["plugin", "rm"]).as_deref(), Some("cli.plugin.remove"));
+        // an alias is only valid at its own prefix
+        assert_eq!(hit(&["rm", "plug"]), None);
+        // without the table the alias is invisible
+        assert_eq!(gated_id(&idx, &["plug", "rm", "x"]), None);
     }
 
     #[test]
