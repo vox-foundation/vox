@@ -16,7 +16,7 @@
     {
       "number": "3",
       "name": "Provenance, Trust Tiers and Leak Closure",
-      "status": "in_progress"
+      "status": "complete"
     },
     {
       "number": "4",
@@ -66,8 +66,8 @@
   ],
   "next": {
     "command": "/gsd:progress --next",
-    "label": "Advance to the next step",
-    "reason": "Phase 03 of 12 · 17% · executing"
+    "label": "Advance to the next step (plan phase 4)",
+    "reason": "Phase 4 of 12 — needs a plan"
   },
-  "updated_at": "2026-10-09T21:29:41.806Z"
+  "updated_at": "2026-10-11T04:02:52.029Z"
 }
