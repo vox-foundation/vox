@@ -584,6 +584,22 @@ pub fn gate_execution(argv: &[String], confirmed: Option<bool>) -> Result<(), St
     Ok(())
 }
 
+/// The single pre-spawn step of `execute_command` (WR-02): assemble the argv and apply the D-03
+/// consent gate. The GUI sidecar spawn takes its argv only from here, so it cannot be reached with
+/// an ungated invocation; `execute.rs` has a source tripwire that it keeps calling this.
+///
+/// # Errors
+/// `confirmation_required: <row id>` when the argv is destructive and not confirmed.
+pub fn prepare_execution(
+    path: Vec<String>,
+    args: &serde_json::Value,
+    confirmed: Option<bool>,
+) -> Result<Vec<String>, String> {
+    let argv = form_argv(path, args);
+    gate_execution(&argv, confirmed)?;
+    Ok(argv)
+}
+
 /// Run `f` on a worker thread with a large (32 MiB) stack and return its result.
 ///
 /// `build_catalog()` and `VoxCliRoot::command()` trigger clap's *recursive* build
@@ -1042,5 +1058,57 @@ mod tests {
                 }
             }
         }
+    }
+
+    /// WR-02: the argv the sidecar receives only ever comes out of `prepare_execution`.
+    #[test]
+    fn prepare_execution_refuses_ungated_destructive_argv() {
+        let smuggled = serde_json::json!({"__argv": ["remove", "demo"]});
+        let err = prepare_execution(sv(&["plugin"]), &smuggled, None).expect_err("gated");
+        assert_eq!(err, "confirmation_required: cli.plugin.remove");
+        assert_eq!(
+            prepare_execution(sv(&["plugin"]), &smuggled, Some(true)),
+            Ok(sv(&["plugin", "remove", "demo"]))
+        );
+        let alias = serde_json::json!({"__argv": ["preferences", "reset"]});
+        assert!(prepare_execution(sv(&["models"]), &alias, Some(false)).is_err());
+    }
+
+    #[test]
+    fn prepare_execution_passes_non_destructive_argv_through() {
+        let a = serde_json::json!({"__argv": ["--json"]});
+        assert_eq!(
+            prepare_execution(sv(&["features"]), &a, None),
+            Ok(sv(&["features", "--json"]))
+        );
+    }
+
+    /// Tripwire (WR-02): a unit test of the gate stays green with the call site deleted, so assert
+    /// the call site itself. Lives here, not in `vox-gui`, because hosted CI does not run
+    /// `vox-gui` tests. `execute_command` must take its argv from `prepare_execution`, must not
+    /// assemble one itself, and the call must precede the sidecar spawn.
+    #[test]
+    fn gui_execute_command_takes_its_argv_from_prepare_execution() {
+        let src = include_str!("../../vox-gui/src/commands/execute.rs");
+        let start = src
+            .find("pub async fn execute_command")
+            .expect("execute_command");
+        let body = &src[start..src.find("#[cfg(test)]").expect("test module")];
+        let prepare = body
+            .find("let shell_args = vox_cli::command_catalog::prepare_execution(path, &args, confirmed)?;")
+            .expect("execute_command must bind its argv from prepare_execution(path, &args, confirmed)?");
+        let spawn = body.find(".sidecar(").expect("sidecar spawn");
+        assert!(
+            prepare < spawn,
+            "the gate must run before the sidecar spawn"
+        );
+        assert!(
+            body.contains(".args(shell_args)"),
+            "the spawn must use the gated argv"
+        );
+        assert!(
+            !body.contains("form_argv("),
+            "execute_command must not assemble argv itself"
+        );
     }
 }

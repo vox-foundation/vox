@@ -17,6 +17,10 @@ pub struct ExecuteOutput {
 /// refused with `vox_cli::command_catalog::CONFIRMATION_REQUIRED_PREFIX` + row id unless the
 /// caller passes `confirmed: true`. `confirmed` is optional, so existing callers that omit it keep
 /// working for every non-destructive op. All argv and gate logic lives in `vox-cli`.
+///
+/// Output is buffered whole (`.output()`), with no cap or timeout: a long or chatty verb returns
+/// only when it exits. The UI bounds what it renders (`RunOutputDialog`) and guards against
+/// concurrent duplicate runs; streaming/capping here is a separate backend change.
 #[tauri::command]
 pub async fn execute_command(
     app: tauri::AppHandle,
@@ -24,8 +28,8 @@ pub async fn execute_command(
     args: Value,
     confirmed: Option<bool>,
 ) -> Result<ExecuteOutput, String> {
-    let shell_args = vox_cli::command_catalog::form_argv(path, &args);
-    vox_cli::command_catalog::gate_execution(&shell_args, confirmed)?;
+    // The only way to an argv: assembly and the D-03 gate are one vox-cli call (WR-02).
+    let shell_args = vox_cli::command_catalog::prepare_execution(path, &args, confirmed)?;
 
     let output = app
         .shell()
@@ -45,16 +49,15 @@ pub async fn execute_command(
 
 #[cfg(test)]
 mod tests {
-    use vox_cli::command_catalog::{CONFIRMATION_REQUIRED_PREFIX, form_argv, gate_execution};
+    use vox_cli::command_catalog::{CONFIRMATION_REQUIRED_PREFIX, prepare_execution};
 
-    /// The wiring `execute_command` performs before the sidecar spawn: a destructive subcommand
-    /// smuggled through `__argv` is refused unless `confirmed: true`.
+    /// Behaviour of the step `execute_command` performs before the sidecar spawn.
     #[test]
     fn destructive_argv_is_gated_before_spawn() {
         let args = serde_json::json!({"__argv": ["remove", "demo"]});
-        let argv = form_argv(vec!["plugin".to_string()], &args);
-        let err = gate_execution(&argv, None).expect_err("must refuse without confirmation");
+        let err = prepare_execution(vec!["plugin".to_string()], &args, None)
+            .expect_err("must refuse without confirmation");
         assert!(err.starts_with(CONFIRMATION_REQUIRED_PREFIX), "{err}");
-        assert!(gate_execution(&argv, Some(true)).is_ok());
+        assert!(prepare_execution(vec!["plugin".to_string()], &args, Some(true)).is_ok());
     }
 }
