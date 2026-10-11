@@ -39,11 +39,21 @@ v1.2 replaces four unrelated controls (inverted Risk popover, Check replies, App
 **Success Criteria** (what must be TRUE):
 
   1. A force-push / history rewrite, an allowlist/policy grant, a `vox_deploy`/external publish, and a secrets write each park for human approval under `accept_all` and under the most permissive trust score, classified from the action (tool + args), not task-description wording; the floor function's signature takes no oversight level.
-  2. `vox_deploy` has `always_requires_approval: true` in both `permission-modes.v1.yaml` and `permission_modes.rs`, and the YAML↔Rust parity test fails if either side drifts.
+  2. `vox_deploy` has `always_requires_approval: true` in both `permission-modes.v2.yaml` (bumped from v1 per P12-D6) and `permission_modes.rs`, and the YAML↔Rust parity test fails if either side drifts.
   3. An agent submitting a task with `risk:"high"`, calling `vox_preference_set` on `socrates_gate_enforce` / `attention_*` / `oversight.*`, or holding high trust cannot reduce configured grounding/Socrates enforcement — hints combine by `max`, the forbidden keys are refused with an error, and `trust_relax_gates` no longer bypasses Socrates unconditionally.
   4. Mutation proof recorded for every guard above: removing the guard call (verified absent by `grep -c`) makes its call-site test fail, and restoring it makes the test pass.
 
-**Plans**: TBD
+**Plans**: 8 plans
+
+Plans:
+- [ ] 12-01-PLAN.md — Action-only floor classifier (`oversight::floor`) + dispatch hook (`floor_gate`); tracer `vox_config_set` parks under accept_all
+- [ ] 12-02-PLAN.md — Strictest-wins risk resolution; trust relax waives only hint-added Socrates/grounding
+- [ ] 12-03-PLAN.md — `vox_preference_set` refuses oversight-affecting keys
+- [ ] 12-04-PLAN.md — Background-task floor lift + call-site floor tests (all categories, allowlist/trust, autonomous origin, registry-or-reserved)
+- [ ] 12-05-PLAN.md — permission-modes v2 contract: `vox_deploy` always-ask, floor_categories, parity, reference updates
+- [ ] 12-07-PLAN.md — In-process agent dispatchers (chat loop, autonomous dispatcher) cannot approve floored parks (OQ4) (wave 3)
+- [ ] 12-08-PLAN.md — MCP entry points (stdio `vox mcp`, HTTP gateway) agent-origin by construction + caller source scan; raw-socket residual → FLOOR-04b / Phase 14 (wave 4)
+- [ ] 12-06-PLAN.md — Mutation proofs for every guard (M1–M34) + phase gate + VALIDATION update (wave 5)
 
 ### Phase 13: Oversight Contract & Resolver
 
@@ -64,13 +74,14 @@ v1.2 replaces four unrelated controls (inverted Risk popover, Check replies, App
 
 **Goal**: The active level lives in the daemon, per session, and only an authenticated human-facing RPC can lower it.
 **Depends on**: Phase 13
-**Requirements**: STATE-01, FLOOR-04
+**Requirements**: STATE-01, FLOOR-04, FLOOR-04b
 **Success Criteria** (what must be TRUE):
 
   1. Setting a level for a session survives daemon restart; a new session starts from the user's saved default; missing or corrupt state rehydrates to at least Standard — all stored in existing `user_preferences` with no schema change.
   2. `orch.oversight_set` lowers a level only over the authenticated transport; it is absent from the MCP tool catalog, and an MCP/agent attempt to lower is refused while raising is accepted.
   3. The GUI reads effective policy via `orch.oversight_get` from the daemon, not from the GUI-process `snapshot()`.
   4. Mutation proof: removing the authentication check or the escalate-only guard on the set path makes its call-site test fail.
+  5. Only the authenticated human channel can approve/modify a floored park: a raw daemon-socket or token-holding process (including a shell route such as `vox_run_shell` → socket/gateway) that omits `agent_origin` or calls `orch.resolve_approval` is refused, while the GUI inbox still approves. This closes Phase 12 residual T-12-25 and is mutation-proven at its call site.
 
 **Plans**: TBD
 
@@ -78,13 +89,14 @@ v1.2 replaces four unrelated controls (inverted Risk popover, Check replies, App
 
 **Goal**: The session's oversight level governs background tasks, and blocked reviews become visible to the user.
 **Depends on**: Phase 14 (can run in parallel with Phase 16)
-**Requirements**: BG-01, BG-02, STATE-02
+**Requirements**: BG-01, BG-02, BG-02b, STATE-02
 **Success Criteria** (what must be TRUE):
 
   1. A background task submitted at Relaxed vs Strict gets the approval tier, grounding, and Socrates enforcement listed for that level by the resolver, with `effective = max(floor, level, trust)`.
   2. A Review-tier blocked background task appears in `vox_pending_approvals` / the approval inbox instead of only in `hitl_approvals`.
   3. Raising the level while a task is queued or running applies at its next gate (`max(stamped, current)`); lowering it leaves already-enqueued tasks at their stamped level and affects only new tasks.
   4. Chat-spawned tasks inherit the turn's level as an escalate-only hint.
+  5. A floor-lifted Review is not satisfiable by self-attestation: agent-set `checks_passed` entries cannot complete it; only a human resolution of its inbox entry does. This closes Phase 12 residual T-12-23 and is mutation-proven at its call site.
 
 **Plans**: TBD
 

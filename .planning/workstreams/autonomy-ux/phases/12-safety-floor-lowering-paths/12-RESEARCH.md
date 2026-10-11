@@ -315,10 +315,15 @@ if OVERSIGHT_PREF_PREFIXES.iter().any(|p| key.starts_with(p)) {
 ## Open Questions
 
 1. **`vox_config_set`: park (policy grant) or refuse safety fields?** Recommendation: floor the whole tool (PolicyGrant) — any config field can affect oversight indirectly, and humans have the GUI.
+   - **Resolved:** CONTEXT P12-D7 floors every `vox_config_set` call (PolicyGrant; SecretsWrite when a key is secrets-shaped). Implemented in 12-01.
 2. **Does "history rewrite" include local `vox_undo`/`vox_snapshot_restore`/`git rebase`/`reset --hard`?** Recommendation: no — floor only published-history rewrites (force push, ref delete, filter-repo); local rewrites are recoverable via jj oplog and stay level-governed (consistent with D3 "shell and delete are level-governed").
+   - **Resolved, against the recommendation:** CONTEXT P12-D1 floors `vox_snapshot_restore`, `vox_undo` and `vox_workspace_merge`, plus history-rewrite shell arguments. Implemented in 12-01, with the human-caller impact confirmed at the 12-01 Task 1 checkpoint.
 3. Which scientia/news tools actually reach external services vs local DB rows? Confirm per handler before adding to `EXTERNAL_PUBLISH_TOOLS`.
+   - **Resolved:** 12-01's "Floor tables" section lists the ExternalEffect tools and the deliberately-not-floored ones, with a reason for each.
 4. **Self-approval via `vox_resolve_approval`.** Full fix is FLOOR-04 (Phase 14). Interim: should Phase 12 floor or refuse `vox_resolve_approval` from the chat agent loop / autonomous dispatcher origins? Recommendation: yes — refuse when the call originates from `McpToolDispatcher` or the chat agent loop (both are in-process origins vox controls), leave GUI/HTTP to Phase 14.
+   - **Resolved (revision 1):** 12-07 refuses approve/modify of a floored park from both in-process dispatchers, with the origin set by construction. Revision 3 (plan 12-08) extends the refusal to the stdio `vox mcp` server (params `agent_origin` flag honoured by the daemon) and the HTTP gateway (wrapped dispatch). The residual narrows to a raw daemon-socket / token-holding process, accepted threat T-12-25 → FLOOR-04b / Phase 14 success criterion 5.
 5. Background floored tasks: `Review` (reaches inbox in Phase 15/BG-02) or `Blocked` (current external behavior)? Recommendation: `Blocked` until BG-02 lands, then `Review`.
+   - **Resolved:** CONTEXT locks Review for task-level floored actions (Blocked rejects instead of waiting). Implemented in 12-04. The residual, Review cleared by self-attestation until the BG-02 inbox exists, is T-12-23 → BG-02b / Phase 15 success criterion 5.
 
 ## Environment Availability
 

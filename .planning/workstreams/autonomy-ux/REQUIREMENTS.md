@@ -24,6 +24,7 @@ Research: `research/SUMMARY.md` (+ AUDIT, STACK, FEATURES, ARCHITECTURE, PITFALL
 - [ ] **FLOOR-02**: Deploy/external-publish (including `vox_deploy`, auto-approved under accept-all today at `permission_modes.rs:87-92`) and secrets writes require human approval at every level, classified by action type rather than task-description keywords.
 - [ ] **FLOOR-03**: No agent-supplied input can lower the effective oversight: task hints, `risk` on submitted tasks (`socrates.rs` `hint.unwrap_or`), `vox_preference_set`, and trust-based gate relaxation can only raise strictness.
 - [ ] **FLOOR-04**: Only an authenticated daemon RPC (not an MCP tool) can lower a session's oversight level.
+- [ ] **FLOOR-04b**: Only the authenticated human channel can approve or modify a floored park. A raw daemon-socket or token-holding process, including an agent reaching the socket or gateway through a shell route such as `vox_run_shell`, cannot resolve a floored park as if human (closes Phase 12 residual T-12-25; vox's own agent entry points are already refused by 12-07/12-08). Known gap for Phase 14 to pin: 12-08's `entry_point_callers_are_classified` source scan only matches literal `TOOL_CALL` / `"orch.tool_call"` in Rust, so frontend `invoke_mcp_tool` callers and generic method forwarders are not enumerated.
 - [ ] **FLOOR-05**: Every floor and lowering-path guard has a call-site test proven by mutation (guard removed ⇒ test fails).
 
 ### Contract & resolver (OVR)
@@ -45,6 +46,7 @@ Research: `research/SUMMARY.md` (+ AUDIT, STACK, FEATURES, ARCHITECTURE, PITFALL
 
 - [ ] **BG-01**: Background tasks resolve approval tier, grounding, and Socrates enforcement from the session's effective policy.
 - [ ] **BG-02**: Review-tier blocked background tasks reach the user's approval inbox (today only dangerous-tool parks surface).
+- [ ] **BG-02b**: A floor-lifted Review is not satisfiable by self-attestation: an agent-set `checks_passed` entry (e.g. `human_review_approved`) cannot complete a background task whose Review tier came from the safety floor. Only a human resolution of its inbox entry can (closes Phase 12 residual T-12-23).
 
 ### Sync chat (CHAT)
 
@@ -97,6 +99,7 @@ Research: `research/SUMMARY.md` (+ AUDIT, STACK, FEATURES, ARCHITECTURE, PITFALL
 | FLOOR-02 | Phase 12 | Pending |
 | FLOOR-03 | Phase 12 | Pending |
 | FLOOR-04 | Phase 14 | Pending |
+| FLOOR-04b | Phase 14 | Pending |
 | FLOOR-05 | Phase 12 | Pending |
 | OVR-01 | Phase 13 | Pending |
 | OVR-02 | Phase 13 | Pending |
@@ -109,6 +112,7 @@ Research: `research/SUMMARY.md` (+ AUDIT, STACK, FEATURES, ARCHITECTURE, PITFALL
 | STATE-03 | Phase 18 | Pending |
 | BG-01 | Phase 15 | Pending |
 | BG-02 | Phase 15 | Pending |
+| BG-02b | Phase 15 | Pending |
 | CHAT-01 | Phase 16 | Pending |
 | CHAT-02 | Phase 16 | Pending |
 | CHAT-03 | Phase 16 | Pending |
@@ -127,4 +131,4 @@ Research: `research/SUMMARY.md` (+ AUDIT, STACK, FEATURES, ARCHITECTURE, PITFALL
 | VERIF-01 | Phase 19 | Pending |
 | VERIF-02 | Phase 19 | Pending |
 
-Coverage: 33/33 v1.2 requirements mapped, no duplicates.
+Coverage: 35/35 v1.2 requirements mapped, no duplicates (FLOOR-04b and BG-02b added 2026-10-11 to own Phase 12 residuals T-12-25 and T-12-23).
