@@ -130,4 +130,36 @@ test.describe('Universal palette', () => {
     await input.fill('algorithmic-art');
     await expect(row('algorithmic-art')).toBeVisible({ timeout: 10_000 });
   });
+
+  test('MCP tool opens the explain card (D-07)', async ({ page }) => {
+    await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+    const openCard = async () => {
+      await page.keyboard.press('Control+k');
+      const input = page.getByPlaceholder(/search surfaces, commands/i);
+      await expect(input).toBeVisible();
+      await input.fill('vox_check');
+      // Best match = the exact MCP name; Enter opens the card instead of doing nothing.
+      await expect(page.getByRole('dialog', { name: 'Command palette' }).getByText('Best match', { exact: true })).toBeVisible({ timeout: 10_000 });
+      await page.keyboard.press('Enter');
+      const card = page.getByRole('dialog').filter({ hasText: 'Equivalents' });
+      await expect(card).toBeVisible({ timeout: 10_000 });
+      return card;
+    };
+
+    const card = await openCard();
+    await expect(card.getByText('vox check', { exact: true })).toBeVisible();
+    await shot(page, 'universal-palette-06-explain-card');
+
+    await card.getByRole('button', { name: 'Copy MCP name' }).click();
+    await expect(page.getByTestId('toast-stack').getByText('Copied')).toBeVisible();
+    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe('vox_check');
+
+    await page.keyboard.press('Escape');
+    await expect(card).toHaveCount(0);
+
+    const again = await openCard();
+    await again.getByRole('button', { name: 'Open form' }).click();
+    await expect.poll(async () => page.evaluate(() => window.location.hash)).toContain('view=catalog');
+    await expect(page.getByRole('heading', { name: 'vox check' })).toBeVisible({ timeout: 10_000 });
+  });
 });
