@@ -1,0 +1,96 @@
+{
+  "phase": "25",
+  "phase_name": "Graph Data Floor",
+  "timestamp": "2026-10-11T16:20:00Z",
+  "areas_completed": ["Edge-kind honesty", "Empty-query LOD"],
+  "areas_remaining": ["Stale-cache policy", "Vox kind set"],
+  "decisions": {
+    "Edge-kind honesty": [
+      {
+        "question": "What kind do the ~49k existing Rust/TS extract edges get?",
+        "answer": "1a: infer `calls` for all of them (they are already call-like).",
+        "options_presented": ["Infer calls for all", "calls only for resolved fn/method callees, else mentions", "You decide"]
+      },
+      {
+        "question": "How far does this phase go on imports / implements / tests / crate_dep?",
+        "answer": "2b: ship `crate_dep` + `contains` now; add imports/implements/tests only if the existing visitors already carry the signal; otherwise leave empty until a later extractor bump.",
+        "options_presented": ["Infer all this phase", "crate_dep + contains now, others only if signal exists", "You decide"]
+      },
+      {
+        "question": "What happens to dangling/unresolved edges in atlas payloads?",
+        "answer": "3c (you decide) -> recommended applied: keep them as `mentions` with `confidence: dangling` so search-to-focus can still show a miss.",
+        "options_presented": ["Keep as mentions + dangling", "Drop from atlas payloads", "You decide (recommended keep)"]
+      },
+      {
+        "question": "Are crate->file->symbol `contains` edges stored or derived?",
+        "answer": "4b: derive at query time from `id.split(\"::\")`; no extra stored edges in graph.json.",
+        "options_presented": ["Write into graph.json at rebuild", "Derive at query time", "Persist crate membership only, derive the rest", "You decide"]
+      }
+    ],
+    "Empty-query LOD": [
+      {
+        "question": "With no focus/search, what does vox_search_atlas return?",
+        "answer": "1a: crate level only: every crate node + crate_dep edges.",
+        "options_presented": ["Crate-level only", "Top-N crates by fan-in + file children", "Error, focus required", "You decide"]
+      },
+      {
+        "question": "How does the caller choose crate vs file vs symbol?",
+        "answer": "2a: explicit `level: crate | file | symbol` parameter.",
+        "options_presented": ["Explicit level", "Implicit from focus shape", "You decide"]
+      },
+      {
+        "question": "At level=crate with a focused crate, what else comes back?",
+        "answer": "3c (you decide) -> recommended applied: that crate + 1-hop crate_dep neighbors only; files come back only at level=file.",
+        "options_presented": ["Crate + 1-hop crate_dep", "Crate + its file children", "You decide (recommended first)"]
+      },
+      {
+        "question": "Default corpus/ref when omitted?",
+        "answer": "4a: default corpus `repo-code-graph` plus the identity of whatever that cache was built at.",
+        "options_presented": ["Default corpus + cache identity", "Require corpus_id, default ref to HEAD", "You decide"]
+      }
+    ]
+  },
+  "pending_questions": {
+    "Stale-cache policy": [
+      {
+        "question": "Extractor version mismatch (cache v4, atlas expects v5)?",
+        "options_presented": ["a. Refuse with error, no subgraph (recommended)", "b. Serve old graph with stale_reasons: [extractor_version]", "c. Auto-rebuild then serve", "d. You decide"]
+      },
+      {
+        "question": "Identity SHA != selected ref HEAD?",
+        "options_presented": ["a. Serve with identity + stale flag (recommended)", "b. Refuse until rebuild", "c. Auto-rebuild on first query", "d. You decide"]
+      },
+      {
+        "question": "Who rebuilds when refuse/stale needs a new graph?",
+        "options_presented": ["a. Operator/caller via existing rebuild (vox graph refresh / Search Index Rebuild); atlas never rebuilds (recommended)", "b. vox_search_atlas takes rebuild: true under the existing lock", "c. You decide"]
+      },
+      {
+        "question": "Worktree source_dir (DATA-05)?",
+        "options_presented": ["a. source_dir accepted on rebuild only; query reads default cache unless a worktree corpus exists (recommended)", "b. Query may point at a worktree path and fails if never built", "c. You decide"]
+      }
+    ],
+    "Vox kind set": [
+      {
+        "question": "Which .vox declaration kinds are first-class node kinds?",
+        "options_presented": ["Every bare-keyword declaration (component, table, query, mutation, server, tool, resource, form, index, workflow, activity, actor, state_machine, routes, module, type, fn)", "Short list from the success picture (component, table, workflow, actor, fn)", "You decide"],
+        "not_yet_asked_in_detail": true
+      }
+    ]
+  },
+  "deferred_ideas": [],
+  "canonical_refs": [
+    ".planning/workstreams/code-atlas/CONTEXT.md",
+    ".planning/workstreams/code-atlas/REQUIREMENTS.md",
+    ".planning/workstreams/code-atlas/ROADMAP.md",
+    ".planning/workstreams/code-atlas/research/SUMMARY.md",
+    ".planning/workstreams/code-atlas/research/ARCHITECTURE.md",
+    ".planning/workstreams/code-atlas/research/PITFALLS.md",
+    "crates/vox-graph-reader/src/ast.rs",
+    "crates/vox-graph-reader/src/rebuild.rs",
+    "crates/vox-graph-reader/src/rebuild_resolve.rs",
+    "crates/vox-graph-reader/src/lens.rs",
+    "crates/vox-graph-reader/src/crate_model.rs",
+    "crates/vox-orchestrator-mcp/src/graph_tools.rs",
+    "AGENTS.md (Grammar Unification section: authoritative list of Vox bare keywords)"
+  ]
+}
