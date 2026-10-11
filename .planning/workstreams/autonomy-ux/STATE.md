@@ -2,13 +2,13 @@
 gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Unified Autonomy Control
-status: planning
-last_updated: "2026-10-08T19:00:00.000Z"
-last_activity: 2026-10-08
+status: ready_to_execute
+last_updated: "2026-10-11T16:20:00.000Z"
+last_activity: 2026-10-11
 progress:
   total_phases: 8
   completed_phases: 0
-  total_plans: 0
+  total_plans: 8
   completed_plans: 0
   percent: 0
 ---
@@ -24,9 +24,9 @@ See: `.planning/PROJECT.md`; workstream roadmap `ROADMAP.md`; requirements `REQU
 ## Current Position
 
 Phase: 12 of 12–19 (Safety Floor & Lowering Paths)
-Plan: —
-Status: Awaiting roadmap approval
-Last activity: 2026-10-08 — Roadmap created (8 phases, 12–19)
+Plan: 8 planned (12-01..12-08), none executed
+Status: Phase 12 planned and checker-revised; ready for /gsd-execute-phase 12 --ws autonomy-ux
+Last activity: 2026-10-11 — Phase 12 plans committed (ae4b938ec); handoff written
 
 ## Progress
 
@@ -42,11 +42,11 @@ Last activity: 2026-10-08 — Roadmap created (8 phases, 12–19)
 
 ### Blockers / Gates
 
-- Phase 12 needs phase research (floor classification sources; `vox_preference_set` exposure to chat agents).
+- Phase 12 execution has two blocking decision checkpoints (12-01 human-click parking, 12-05 contract rename); see HANDOFF.md §6.
 - Phase 18 first task: resolve ownership of uncommitted Loquela/Chat/Popover/Tooltip edits (D7).
 - Runs in parallel with v1.1 workstream `research-trial-flywheel` (phases 7–11); do not touch its files.
 
 ## Session Continuity
 
-**Stopped At:** Roadmap drafted, awaiting approval
-**Resume File:** None
+**Stopped At:** Phase 12 planning complete; execution not started
+**Resume File:** .planning/workstreams/autonomy-ux/HANDOFF.md
