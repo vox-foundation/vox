@@ -3,9 +3,7 @@ title: "Crate Classification Audit (2026-05-08)"
 description: "DEPRECATED tombstone — historical pre-reorg snapshot only. Do not use for contraction or architecture decisions; see where-things-live.md and layers.toml."
 category: "Architecture SSOTs"
 status: "deprecated"
-superseded_by:
-  - "2026-05-08-workspace-reorg-outcome.md"
-  - "2026-05-08-crate-org-followup-design.md"
+superseded_by: "2026-05-08-workspace-reorg-outcome.md"  # also 2026-05-08-crate-org-followup-design.md
 training_eligible: false
 training_rationale: "Tombstoned 2026-06-10 — many DEAD labels are stale; excluded from agent training corpora."
 ---

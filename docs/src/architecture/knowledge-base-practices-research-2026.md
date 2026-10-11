@@ -3,7 +3,8 @@ title: "Knowledge Base Practices for Agent Context (2026)"
 description: "Evidence-graded practices, technique verdicts, pitfall-to-test matrix and locked decisions for the Vox curated knowledge base that feeds model context."
 category: "Architecture SSOTs"
 status: "research"
-supersedes: kb-systems-sota-research-2026.md
+supersedes:
+  - kb-systems-sota-research-2026.md
 training_eligible: false
 training_rationale: "LLM-synthesized research. Under this page's own rule, it is ineligible for MENS until a human attests it."
 ---

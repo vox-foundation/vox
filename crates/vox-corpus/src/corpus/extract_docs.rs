@@ -20,7 +20,6 @@ static VOX_DOC_LINK_RE: LazyLock<Regex> =
 #[derive(Deserialize, Debug)]
 #[serde(default)]
 struct Frontmatter {
-    training_eligible: bool,
     last_updated: Option<String>,
     title: Option<String>,
     status: Option<String>,
@@ -29,7 +28,6 @@ struct Frontmatter {
 impl Default for Frontmatter {
     fn default() -> Self {
         Self {
-            training_eligible: true,
             last_updated: None,
             title: None,
             status: None,
@@ -121,35 +119,26 @@ fn parse_frontmatter(content: &str, path: &Path) -> (Frontmatter, bool, u8) {
         return (Frontmatter::default(), false, 0);
     }
 
-    if !content.starts_with("---") {
-        // Fallback for files without frontmatter
-        let eligible = !(content.contains("training_eligible: false")
-            || content.contains("training_eligible:false"));
-        let fallback = Frontmatter {
+    // Fail closed (TAX-06): a typo such as `origin: web-promotd` must not make a page eligible.
+    let facets = match vox_kb_facets::parse_facets(content) {
+        Ok(f) => f,
+        Err(_) => return (Frontmatter::default(), false, 0),
+    };
+    // One shared rule with the facet lint (D-06); flag absent stays eligible (D-05).
+    if !vox_kb_facets::effective_training_eligible(&facets) {
+        return (Frontmatter::default(), false, 0);
+    }
+
+    let fm: Frontmatter = match vox_kb_facets::frontmatter_yaml(content) {
+        Some(y) => serde_yaml::from_str(y).unwrap_or_default(),
+        None => Frontmatter {
             title: path
                 .file_stem()
                 .and_then(|s| s.to_str())
                 .map(|s| s.replace(['-', '_'], " ")),
             ..Frontmatter::default()
-        };
-        return (fallback, eligible, 0);
-    }
-
-    let parts: Vec<&str> = content.splitn(3, "---").collect();
-    if parts.len() < 3 {
-        let eligible = !(content.contains("training_eligible: false")
-            || content.contains("training_eligible:false"));
-        return (Frontmatter::default(), eligible, 0);
-    }
-
-    let yaml_str = parts[1];
-
-    // Extract using serde_yaml, fallback to true if malformed
-    let fm: Frontmatter = serde_yaml::from_str(yaml_str).unwrap_or_default();
-
-    if !fm.training_eligible {
-        return (fm, false, 0);
-    }
+        },
+    };
 
     let mut penalty = 0;
     if let Some(ref date_str) = fm.last_updated
@@ -825,3 +814,7 @@ Check out this code:
         );
     }
 }
+
+#[cfg(test)]
+#[path = "extract_docs_facet_tests.rs"]
+mod facet_tests;
