@@ -47,27 +47,36 @@ fn render(index: &CapabilityIndex) -> Result<String> {
     Ok(text)
 }
 
-/// Read the committed owner-ratchet baseline; a missing file is an error (never silently empty).
-fn load_baseline(repo_root: &Path) -> Result<ratchet::OwnerRatchet> {
-    let path = repo_root.join(ratchet::BASELINE_REL);
+/// Read a committed ratchet baseline; a missing file is an error (never silently empty).
+fn load_baseline(
+    repo_root: &Path,
+    spec: &ratchet::RatchetSpec,
+) -> Result<ratchet::RatchetBaseline> {
+    let path = repo_root.join(spec.baseline_rel);
     if !path.is_file() {
         return Err(anyhow!(
             "missing {}; run `vox ci capability-index --tighten` once",
-            ratchet::BASELINE_REL
+            spec.baseline_rel
         ));
     }
     serde_json::from_str(&read_utf8_path_capped(&path)?)
-        .with_context(|| format!("parse {}", ratchet::BASELINE_REL))
+        .with_context(|| format!("parse {}", spec.baseline_rel))
 }
 
-/// Generate (`write`) or verify the committed capability index. Never writes the owner-ratchet
-/// baseline, even with `write`: only `tighten_baseline` does.
+/// Generate (`write`) or verify the committed capability index. Never writes a ratchet
+/// baseline (owner or side-effect), even with `write`: only `tighten_baseline` does.
 pub fn run(repo_root: &Path, write: bool) -> Result<()> {
     let loaded = inputs::load(repo_root)?;
     let index = join::build_index(&loaded)?;
-    // Before any artifact write/verify, so a new ownerless command reports the ratchet error
-    // rather than a generic "stale".
-    ratchet::check(&ratchet::unresolved_ids(&index), &load_baseline(repo_root)?)?;
+    // Before any artifact write/verify, so a new ownerless or unclassified command reports the
+    // ratchet error rather than a generic "stale".
+    for spec in [&ratchet::OWNER, &ratchet::SIDE_EFFECT] {
+        ratchet::check(
+            &ratchet::unresolved_ids(&index, spec),
+            &load_baseline(repo_root, spec)?,
+            spec,
+        )?;
+    }
     validate_against_schema(
         repo_root,
         &serde_json::to_value(&index).context("capability index to JSON value")?,
@@ -113,24 +122,31 @@ fn sync_llms_regions(repo_root: &Path, index: &CapabilityIndex, write: bool) -> 
     Ok(())
 }
 
-/// `--tighten`: shrink the unresolved-owner baseline (removal-only; bootstraps a missing file).
+/// `--tighten`: shrink both ratchet baselines (removal-only; each bootstraps if missing).
 pub fn tighten_baseline(repo_root: &Path) -> Result<()> {
     let loaded = inputs::load(repo_root)?;
     let index = join::build_index(&loaded)?;
-    let path = repo_root.join(ratchet::BASELINE_REL);
-    let current = if path.is_file() {
-        Some(load_baseline(repo_root)?)
-    } else {
-        None
-    };
-    let next = ratchet::tighten(&ratchet::unresolved_ids(&index), current.as_ref())?;
-    write_or_verify_text(
-        &path,
-        &next.render()?,
-        true,
-        "run `vox ci capability-index --tighten`",
-    )
-    .map_err(|e| anyhow!("{e:#}"))
+    for spec in [&ratchet::OWNER, &ratchet::SIDE_EFFECT] {
+        let path = repo_root.join(spec.baseline_rel);
+        let current = if path.is_file() {
+            Some(load_baseline(repo_root, spec)?)
+        } else {
+            None
+        };
+        let next = ratchet::tighten(
+            &ratchet::unresolved_ids(&index, spec),
+            current.as_ref(),
+            spec,
+        )?;
+        write_or_verify_text(
+            &path,
+            &next.render()?,
+            true,
+            "run `vox ci capability-index --tighten`",
+        )
+        .map_err(|e| anyhow!("{e:#}"))?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]
