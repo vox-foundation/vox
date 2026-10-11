@@ -50,12 +50,12 @@ Research basis: `.planning/workstreams/kb/research/SUMMARY.md` and `docs/src/arc
 ### Taxonomy & Schema (TAX)
 
 - [ ] **TAX-01**: A controlled vocabulary (`contracts/documentation/kb-taxonomy.v1.yaml`, SKOS-lite: prefLabel, altLabel, broader, related, scopeNote, deprecated aliases) defines allowed `topic`/`domain` values; altLabels feed lexical search as synonyms
-- [ ] **TAX-02**: A schemars-derived facet schema (topic, domain, kb_tier, trust_tier, scope, review_by, verified_at, sources[], authorship, origin, supersedes/superseded_by, sensitivity) is shared by the doc lint, the indexer and the GUI
-- [ ] **TAX-03**: Every doc has a delimited page-one summary block (40–120 words); the lint enforces it
+- [x] **TAX-02**: A schemars-derived facet schema (topic, domain, kb_tier, trust_tier, scope, review_by, verified_at, sources[], authorship, origin, supersedes/superseded_by, sensitivity) is shared by the doc lint, the indexer and the GUI
+- [x] **TAX-03**: Every doc has a delimited page-one summary block (40–120 words); the lint enforces it
 - [ ] **TAX-04**: The facet lint blocks on new and changed files, while existing docs are tracked by a shrinking backlog allowlist (ratchet) rather than failing all at once
-- [ ] **TAX-05**: `authorship` (human | llm-assisted | llm-generated, plus model) exists and is linted before any LLM rewrite lands
-- [ ] **TAX-06**: Pages with `origin: web-promoted` or LLM authorship are forced to `training_eligible: false` unless a `human_attested_by` field is set; the MENS corpus builder honors this and strips page-one summary blocks
-- [ ] **TAX-07**: `sources[]` entries on promoted pages must carry url, date and hash; verbatim quote length is capped by lint
+- [x] **TAX-05**: `authorship` (human | llm-assisted | llm-generated, plus model) exists and is linted before any LLM rewrite lands
+- [x] **TAX-06**: Pages with `origin: web-promoted` or LLM authorship are forced to `training_eligible: false` unless a `human_attested_by` field is set; the MENS corpus builder honors this and strips page-one summary blocks
+- [x] **TAX-07**: `sources[]` entries on promoted pages must carry url, date and hash; verbatim quote length is capped by lint
 
 ### Embeddings & Ranking (EMB)
 
@@ -173,12 +173,12 @@ Research basis: `.planning/workstreams/kb/research/SUMMARY.md` and `docs/src/arc
 | TRUST-05 | Phase 3 | Complete |
 | TRUST-06 | Phase 3 | Complete |
 | TAX-01 | Phase 4 | Pending |
-| TAX-02 | Phase 4 | Pending |
-| TAX-03 | Phase 4 | Pending |
+| TAX-02 | Phase 4 | Complete |
+| TAX-03 | Phase 4 | Complete |
 | TAX-04 | Phase 4 | Pending |
-| TAX-05 | Phase 4 | Pending |
-| TAX-06 | Phase 4 | Pending |
-| TAX-07 | Phase 4 | Pending |
+| TAX-05 | Phase 4 | Complete |
+| TAX-06 | Phase 4 | Complete |
+| TAX-07 | Phase 4 | Complete |
 | EMB-01 | Phase 5 | Pending |
 | EMB-02 | Phase 5 | Pending |
 | EMB-03 | Phase 5 | Pending |

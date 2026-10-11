@@ -3,18 +3,18 @@ gsd_state_version: "1.0"
 milestone: v1.1
 milestone_name: Vox Knowledge Base — corpus to context
 current_phase: 04
-current_phase_name: taxonomy-contract-and-facet-lint
+current_phase_name: Taxonomy Contract and Facet Lint
 status: executing
-stopped_at: Phase 4 context gathered
-last_updated: "2026-10-11T06:48:31.043Z"
+stopped_at: Completed 04-01-PLAN.md
+last_updated: "2026-10-11T07:04:46.766Z"
 last_activity: 2026-10-10
-last_activity_desc: Phase 03 complete, transitioned to Phase 4
-state_head: b4b2c4e85f1d9fdaad5c7a652d4a069f85d30c38
+last_activity_desc: Phase 04 execution started
+state_head: 1beb82005e2b8bae11baa09378a43e587801c56e
 progress:
   total_phases: 12
   completed_phases: 3
   total_plans: 48
-  completed_plans: 40
+  completed_plans: 41
   percent: 25
 ---
 
@@ -25,14 +25,14 @@ progress:
 See: .planning/PROJECT.md (shared project context) and .planning/workstreams/kb/REQUIREMENTS.md (this workstream's scope)
 
 **Core value:** Agents using any model get the right curated knowledge at the right time — measurably, visibly, and without letting unreviewed or model-generated text masquerade as trusted fact.
-**Current focus:** Phase 03 — Provenance, Trust Tiers and Leak Closure
+**Current focus:** Phase 04 — Taxonomy Contract and Facet Lint
 
 ## Current Position
 
-Phase: 04 (taxonomy-contract-and-facet-lint) — READY TO EXECUTE
-Plan: Not started
+Phase: 04 (Taxonomy Contract and Facet Lint) — EXECUTING
+Plan: 2 of 8
 Status: Ready to execute
-Last activity: 2026-10-10 — Phase 03 complete, transitioned to Phase 4
+Last activity: 2026-10-10 — Phase 04 execution started
 
 Progress: [███░░░░░░░] 25%
 
@@ -88,6 +88,7 @@ Progress: [███░░░░░░░] 25%
 | Phase 03 P14 | 2h | 2 tasks | 5 files |
 | Phase 03 P15 | 1h | 2 tasks | 5 files |
 | Phase 03 P16 | 1.5h | 3 tasks | 9 files |
+| Phase 04 P01 | 45min | 3 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -127,6 +128,7 @@ Progress: [███░░░░░░░] 25%
 - [Phase 03]: 03-14: all numbered research Source fields built via sanitized_source (SanitizedText) on quick, deep and failed-run paths
 - [Phase 03]: 03-15: agent-written knowledge nodes are agent_fact/agent_concept (Untrusted); memory leg unchanged per D-07a; legacy fact/concept rows re-typed once in baseline-96 gate (graphify: ids excluded)
 - [Phase 03]: 03-16 D-08: Library docs are Trusted only when tracked at HEAD and unmodified (git ls-tree minus diff via GitExec, fail-closed); per-doc tier re-evaluated every reindex; put_kb_index_state no longer re-stamps rows
+- [Phase 04]: 04-01: Facets fields all optional (missing = lint error, not parse error); unknown frontmatter keys ignored; strip_summary_blocks fails closed on unterminated marker
 
 ### Pending Todos
 
@@ -141,8 +143,8 @@ Progress: [███░░░░░░░] 25%
 
 ## Session Continuity
 
-**Last session:** 2026-10-11T06:01:31.948Z
+**Last session:** 2026-10-11T07:04:46.734Z
 
-**Stopped At:** Phase 4 context gathered
-**Resume File:** .planning/workstreams/kb/phases/04-taxonomy-contract-and-facet-lint/04-CONTEXT.md
+**Stopped At:** Completed 04-01-PLAN.md
+**Resume File:** None
 **Next:** `/gsd-plan-phase 1` (no research-phase needed)
