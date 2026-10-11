@@ -93,6 +93,15 @@ mod hash_fast_hex_tests {
     }
 }
 
+/// SHA-256, only for external formats that fix the algorithm (e.g. Trusty URIs).
+/// Vox-owned hashing uses [`secure_hash`] or [`compliance_hash`].
+pub fn interop_sha256(data: &[u8]) -> [u8; 32] {
+    let result = <sha2::Sha256 as sha2::Digest>::digest(data);
+    let mut out = [0u8; 32];
+    out.copy_from_slice(&result);
+    out
+}
+
 /// Compliance / standardized hash (SHA-3 256)
 pub fn compliance_hash(data: &[u8]) -> [u8; 32] {
     let mut hasher = Sha3_256::new();
@@ -693,6 +702,15 @@ mod semcov_wave41_tests {
             got.as_ref(),
             expected.as_slice(),
             "SHA3-256 empty known vector mismatch"
+        );
+    }
+
+    #[test]
+    fn interop_sha256_known_vector() {
+        // Catches: interop hash wired to SHA3 or BLAKE3 — FIPS 180-2 SHA-256("abc")
+        assert_eq!(
+            hex::encode(interop_sha256(b"abc")),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
         );
     }
 

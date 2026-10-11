@@ -8,7 +8,7 @@ use vox_orchestrator::research_gate::{GateResult, PreregGate, check_campaign_pre
 /// A campaign with no prereg and no signature must be refused.
 #[test]
 fn refused_when_no_prereg_provided() {
-    let result = check_campaign_prereg(None, None);
+    let result = check_campaign_prereg(None, None, &[]);
     assert!(
         matches!(result, GateResult::Refused { .. }),
         "check_campaign_prereg(None, None) must return Refused"
@@ -63,7 +63,7 @@ fn refused_when_no_signature_provided() {
         analysis_tree_commit: None,
     };
 
-    let result = check_campaign_prereg(Some(&prereg), None);
+    let result = check_campaign_prereg(Some(&prereg), None, &[]);
     assert!(
         matches!(result, GateResult::Refused { .. }),
         "missing signature must be refused"
@@ -79,7 +79,7 @@ fn refused_when_no_signature_provided() {
 /// `PreregGate` is directly re-exported and usable.
 #[test]
 fn prerereg_gate_type_is_reachable() {
-    let gate = PreregGate::new();
+    let gate = PreregGate::default();
     let result = gate.check_campaign(None, None);
     assert!(
         matches!(result, GateResult::Refused { .. }),

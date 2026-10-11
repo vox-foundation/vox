@@ -44,6 +44,8 @@ pub enum VerifyError {
     BadKeyBytes(String),
     #[error("signature verification failed")]
     InvalidSignature,
+    #[error("preregistration has no canonical form: {0}")]
+    NonCanonical(String),
 }
 
 /// Sign `prereg` in place, returning the hex-encoded signature.
@@ -64,10 +66,10 @@ pub fn sign_prereg(
     prereg.signing_key = hex::encode(verifying_key_to_bytes(&vk));
 
     // Compute Trusty URI now that all fields are set
-    prereg.id = compute_trusty_uri(prereg);
+    prereg.id = compute_trusty_uri(prereg).map_err(|e| SignError::Serialization(e.to_string()))?;
 
     // Sign the canonical JSON bytes
-    let canonical = canonical_json(prereg);
+    let canonical = canonical_json(prereg).map_err(|e| SignError::Serialization(e.to_string()))?;
     let sig_bytes = sign(signing_key, canonical.as_bytes());
     Ok(Signature(hex::encode(sig_bytes)))
 }
@@ -97,7 +99,7 @@ pub fn verify_prereg(prereg: &PreregistrationV1, signature_hex: &str) -> Result<
     let vk = verifying_key_from_bytes(&pk_arr).map_err(VerifyError::BadKeyBytes)?;
 
     // Verify over canonical JSON
-    let canonical = canonical_json(prereg);
+    let canonical = canonical_json(prereg).map_err(|e| VerifyError::NonCanonical(e.to_string()))?;
     if verify(&vk, canonical.as_bytes(), &sig_arr) {
         Ok(())
     } else {
