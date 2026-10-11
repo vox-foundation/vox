@@ -1,46 +1,62 @@
-//! `vox model shadow` — L2.5 shadow evaluation for provisional models.
+//! `vox model shadow` — L2.5 shadow evaluation for provisional models: a real graded
+//! `vox model bench` run on one model, after which routing confidence follows the Wilson
+//! verdict on the recorded cases (`models::bench_evidence`) instead of a hand-set promotion.
 
 use clap::Args;
 use owo_colors::OwoColorize;
-use vox_orchestrator::models::ModelRegistry;
-use vox_orchestrator::models::autonomic::{ModelConfidence, PromotionEvidence, record_promotion};
+
+use super::bench::{BenchArgs, execute};
 
 #[derive(Args, Debug)]
 pub struct ShadowArgs {
-    /// Model id to shadow-evaluate.
+    /// Model id to shadow-evaluate (catalog id or `provider:model`, as for `vox model bench`).
     pub model_id: String,
-    /// Optional task category hint (defaults to General).
-    #[arg(long, default_value = "General")]
-    pub task: String,
+    /// Suites to run (default: all).
+    #[arg(long, value_delimiter = ',')]
+    pub suites: Vec<String>,
+    /// Hard spend cap in USD for this evaluation.
+    #[arg(long, default_value_t = 0.25)]
+    pub max_usd: f64,
+}
+
+impl ShadowArgs {
+    fn bench_args(&self) -> BenchArgs {
+        BenchArgs {
+            models: vec![self.model_id.clone()],
+            provisional: 0,
+            latest: 0,
+            suites: self.suites.clone(),
+            repeats: 1,
+            max_usd: self.max_usd,
+            concurrency: 1,
+            dry_run: false,
+            no_write: false,
+            report: None,
+            timeout_ms: 120_000,
+        }
+    }
 }
 
 pub async fn run(args: ShadowArgs) -> anyhow::Result<()> {
-    let registry = ModelRegistry::from_cache();
-    if registry.get(&args.model_id).is_none() {
-        anyhow::bail!("model {} not found in local catalog cache", args.model_id);
-    }
-
     println!(
-        "{} Shadow-evaluating {} (task={})",
+        "{} Shadow-evaluating {} with a graded bench (cap ${:.2})",
         " INFO ".on_blue().white().bold(),
         args.model_id.cyan(),
-        args.task
+        args.max_usd
     );
-
-    // Operational scaffold: promote Provisional → Shadowed with telemetry for council gates.
-    record_promotion(
-        &args.model_id,
-        ModelConfidence::Provisional,
-        ModelConfidence::Shadowed,
-        PromotionEvidence::ShadowEval,
-    );
-
-    println!(
-        "  {} confidence promotion recorded ({} → {})",
-        "✓".green(),
-        ModelConfidence::Provisional.as_str(),
-        ModelConfidence::Shadowed.as_str()
-    );
+    let report = execute(args.bench_args()).await?;
+    let verdict = report["confidence"]
+        .as_array()
+        .and_then(|a| a.first())
+        .map(|c| {
+            format!(
+                "{} -> {}",
+                c["from"].as_str().unwrap_or("?"),
+                c["to"].as_str().unwrap_or("?")
+            )
+        })
+        .unwrap_or_else(|| "unchanged".to_string());
+    println!("  {} routing confidence: {verdict}", "✓".green());
     Ok(())
 }
 
@@ -49,11 +65,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn shadow_args_default_task() {
+    fn shadow_runs_a_persisted_single_model_bench_under_its_cap() {
         let args = ShadowArgs {
             model_id: "test/model".into(),
-            task: "General".into(),
+            suites: vec!["reasoning".into()],
+            max_usd: 0.1,
         };
-        assert_eq!(args.task, "General");
+        let b = args.bench_args();
+        assert_eq!(b.models, vec!["test/model".to_string()]);
+        assert_eq!(b.suites, vec!["reasoning".to_string()]);
+        assert!(!b.no_write, "shadow evidence must reach routing");
+        assert!(!b.dry_run);
+        assert_eq!(b.max_usd, 0.1);
     }
 }

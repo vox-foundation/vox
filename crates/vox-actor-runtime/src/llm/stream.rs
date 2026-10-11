@@ -69,6 +69,45 @@ pub async fn llm_stream(
     Ok(Box::pin(mapped))
 }
 
+/// One streamed completion measured end to end (time to first token, tokens/sec, the served
+/// model id behind an alias, provider-reported cost). Benchmarks use this; like
+/// [`llm_stream`] it records no telemetry, so the caller owns persistence of the sample.
+pub async fn llm_stream_measured(
+    messages: Vec<ChatMessage>,
+    config: LlmConfig,
+) -> Result<vox_llm_egress::MeasuredCompletion, String> {
+    let input = vox_config::resolve_egress::EgressResolveInput {
+        provider: config.provider.clone(),
+        model: config.model.clone(),
+        base_url_override: config.base_url.clone(),
+        timeout_ms: config.timeout_ms,
+        api_key_override: config.api_key.clone(),
+    };
+    let ereq = vox_config::resolve_egress::resolve_egress(&input)?;
+    let wire_msgs: Vec<vox_llm_egress::ChatMessage> = messages
+        .iter()
+        .map(|m| vox_llm_egress::ChatMessage {
+            role: m.role.clone(),
+            content: m.content.clone(),
+            tool_calls: m.tool_calls.clone(),
+            tool_call_id: m.tool_call_id.clone(),
+            name: m.name.clone(),
+            content_parts: m.content_parts.clone(),
+        })
+        .collect();
+    let params = vox_llm_egress::ChatParams {
+        temperature: config.temperature,
+        top_p: config.top_p,
+        max_tokens: config.max_tokens,
+        response_format: config.response_format.as_ref(),
+        tools: None,
+        tool_choice: None,
+    };
+    vox_llm_egress::stream_measured_once(&ereq, &wire_msgs, &params)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 type LlmStreamActivityFuture = Pin<
     Box<
         dyn Future<

@@ -10,9 +10,11 @@ use std::time::Duration;
 use futures::Stream;
 use serde::{Deserialize, Serialize};
 
+mod measured;
 pub mod throttle;
 mod wire;
 
+pub use measured::{MeasuredCompletion, stream_measured_once};
 pub use throttle::{Permit, acquire_permit, on_rate_limited, on_success, retry_after_from_headers};
 pub use wire::{chat_once, embed_once, stream_once};
 

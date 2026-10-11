@@ -198,6 +198,34 @@ impl LlmConfig {
         }
     }
 
+    /// A provider reached with its own endpoint and key (`groq`, `anthropic`, `gemini`,
+    /// `voxlocal`, `custom`, ...). `model` stays the catalog id so telemetry and the
+    /// scoreboard key on it; the egress resolver supplies the URL, the Clavis key, and the
+    /// vendor-native model id.
+    pub fn direct(provider: impl Into<String>, model: impl Into<String>) -> Self {
+        Self {
+            provider: provider.into(),
+            model: model.into(),
+            cost_per_1k: None,
+            base_url: None,
+            api_key: None,
+            temperature: None,
+            top_p: None,
+            max_tokens: None,
+            response_format: None,
+            tools: None,
+            tool_choice: None,
+            timeout_ms: None,
+            telemetry_session_id: None,
+            telemetry_user_id: None,
+            telemetry_task_category: None,
+            telemetry_strength_tag: None,
+            telemetry_trace_id: None,
+            telemetry_attempt_number: None,
+            telemetry_skip_interaction: false,
+        }
+    }
+
     /// Resolve from a model registry alias.
     ///
     /// `registry` maps alias names (e.g. `"fast"`, `"smart"`) to

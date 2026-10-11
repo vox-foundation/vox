@@ -131,7 +131,7 @@ pub fn decide(
             rejection_reasons.push(format!("{} rejected: privacy mode excludes cloud", m.id));
             continue;
         }
-        let conf = confidence_state_for_model(&m);
+        let conf = confidence_state_for_model(&m, registry);
         if !is_routing_eligible(conf) {
             rejection_reasons.push(format!(
                 "{} gated: confidence_state={}",
@@ -166,7 +166,7 @@ pub fn decide(
                 if !crate::route_policy::privacy_allows_model_for_mode(&m, privacy_local_only) {
                     continue;
                 }
-                let conf = confidence_state_for_model(&m);
+                let conf = confidence_state_for_model(&m, registry);
                 if conf == super::autonomic::ModelConfidence::Deprecated {
                     continue;
                 }
@@ -286,7 +286,7 @@ pub fn decide(
         alternatives,
         rejection_reasons,
         pricing_confidence: selected.model_spec.pricing_source.clone(),
-        discovery_state: confidence_state_for_model(&selected.model_spec),
+        discovery_state: confidence_state_for_model(&selected.model_spec, registry),
         outcome: selected,
     })
 }
@@ -305,15 +305,28 @@ fn scope_allows(provider_type: ProviderType, scope: CandidateScope) -> bool {
     }
 }
 
-fn confidence_state_for_model(m: &ModelSpec) -> super::autonomic::ModelConfidence {
+fn confidence_state_for_model(
+    m: &ModelSpec,
+    registry: &ModelRegistry,
+) -> super::autonomic::ModelConfidence {
     let pins = vox_config::load_model_pins_config().unwrap_or_default();
     if pins.retired_ids.iter().any(|id| id == &m.id) {
         return super::autonomic::ModelConfidence::Deprecated;
     }
-    // Pricing-source heuristic (the `scoreboard: None` answer). The scoreboard-
-    // aware path that promotes discovered models on real evidence lives in
-    // `discovery_pipeline::resolve_eligibility`.
-    super::discovery_pipeline::resolve_eligibility(m, None, 0.0)
+    super::discovery_pipeline::resolve_eligibility_from_evidence(
+        m,
+        registry.get_score(&m.id),
+        registry.bench_evidence(&m.id),
+    )
+}
+
+impl ModelRegistry {
+    /// The routing confidence `decide()` gates on for `m` (retired → deprecated, then
+    /// benchmark, external index, scoreboard, and pricing evidence).
+    #[must_use]
+    pub fn routing_confidence(&self, m: &ModelSpec) -> super::autonomic::ModelConfidence {
+        confidence_state_for_model(m, self)
+    }
 }
 
 fn exploration_enabled() -> bool {
@@ -1202,13 +1215,15 @@ mod tests {
             .expect("at least one model");
         model.id = "test-model-not-retired".to_string();
         model.pricing_source = super::super::spec::PricingSource::Unknown;
+        model.provider_type = super::super::ProviderType::OpenRouter;
+        model.capabilities.intelligence_index = None;
         assert_eq!(
-            confidence_state_for_model(&model),
+            confidence_state_for_model(&model, &registry),
             super::super::autonomic::ModelConfidence::Provisional
         );
         model.pricing_source = super::super::spec::PricingSource::Telemetry;
         assert_eq!(
-            confidence_state_for_model(&model),
+            confidence_state_for_model(&model, &registry),
             super::super::autonomic::ModelConfidence::Confirmed
         );
     }
@@ -1564,7 +1579,10 @@ mod tests {
         registry.register(key_gate_spec("ollama-local-test", ProviderType::Ollama));
         let req =
             ModelSelectionRequest::from_intent(SelectionIntent::for_task(TaskCategory::CodeGen));
+        // No vendor key and no OpenRouter key either, so the Anthropic model has no wire.
+        crate::models::key_guard::set_test_key_availability(Some(vec![]));
         let d = decide(&req, &registry).expect("local (keyless-OK) candidate remains");
+        crate::models::key_guard::set_test_key_availability(None);
         assert_eq!(d.selected_model, "ollama-local-test");
         assert!(
             d.rejection_reasons

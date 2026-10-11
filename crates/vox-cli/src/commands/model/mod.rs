@@ -2,6 +2,7 @@
 
 use clap::{Parser, Subcommand};
 
+pub mod bench;
 pub mod cas;
 pub mod classify;
 pub mod costs;
@@ -47,6 +48,9 @@ pub enum ModelCmd {
     Preferences(preferences::PreferencesArgs),
     /// Explain model selection for a given task description.
     Explain(explain::ExplainArgs),
+    /// Graded live benchmark (intelligence, responsiveness, efficiency, reliability) under a hard
+    /// `--max-usd` cap; results feed routing confidence and measured quality.
+    Bench(Box<bench::BenchArgs>),
     /// Run a small built-in benchmark to measure intelligence/tokens/latency and write back.
     Eval(eval::EvalArgs),
     /// Score a model or external harness against the held-out HumanEval-Vox corpus.
@@ -57,7 +61,7 @@ pub enum ModelCmd {
     Pricing(pricing::PricingArgs),
     /// L2 — Build/inspect the classifier prompt for a model id (autonomic system).
     Classify(classify::ClassifyArgs),
-    /// L2.5 — Shadow-eval a provisional model (telemetry + promotion scaffold).
+    /// L2.5 — Shadow-eval a provisional model with a graded bench; confidence follows the verdict.
     Shadow(shadow::ShadowArgs),
     /// L3 — Render the quarterly model-council report (autonomic system).
     CouncilReport(council_report::CouncilReportArgs),
@@ -73,6 +77,7 @@ pub async fn run(cmd: ModelCmd) -> anyhow::Result<()> {
         ModelCmd::Show(args) => show::run(args).await,
         ModelCmd::Preferences(args) => preferences::run(args).await,
         ModelCmd::Explain(args) => explain::run(args).await,
+        ModelCmd::Bench(args) => bench::run(*args).await,
         ModelCmd::Eval(args) => eval::run(args).await,
         ModelCmd::EvalCorpus(args) => eval_corpus::run(*args).await,
         ModelCmd::Costs(args) => costs::run(args).await,

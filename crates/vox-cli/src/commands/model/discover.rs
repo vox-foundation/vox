@@ -13,6 +13,61 @@ pub struct DiscoverArgs {
     /// eval only when an OpenRouter key is configured (otherwise prints + exits).
     #[arg(long)]
     pub eval_shadowed: bool,
+    /// After refresh, bench what changed: new `-latest` alias targets first, then new models
+    /// (`models::adaptation`). Results feed routing, so a better newcomer is adopted.
+    #[arg(long)]
+    pub bench_new: bool,
+    /// Most models to bench with `--bench-new`.
+    #[arg(long, default_value_t = 5)]
+    pub bench_limit: usize,
+    /// Spend cap in USD for `--bench-new`.
+    #[arg(long, default_value_t = 1.0)]
+    pub max_usd: f64,
+}
+
+async fn bench_new_models(
+    before: &[vox_orchestrator::models::ModelSpec],
+    limit: usize,
+    max_usd: f64,
+) -> anyhow::Result<()> {
+    use vox_orchestrator::models::ModelRegistry;
+    use vox_orchestrator::models::adaptation::{bench_queue, catalog_delta};
+    let mut registry = ModelRegistry::from_cache();
+    if let Some(db) =
+        vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::CliWorkspace, true)
+            .await
+    {
+        registry.inject_evidence_from_db(&db).await;
+    }
+    let delta = catalog_delta(before, &registry.list_models());
+    let reachable = |m: &vox_orchestrator::models::ModelSpec| {
+        vox_orchestrator::models::key_guard::inference_wire_for(&m.provider_type).is_some()
+    };
+    let queue = bench_queue(&delta, &registry, &reachable, limit);
+    println!(
+        "\n{} {} new model(s), {} new -latest target(s); benching {}",
+        " ADAPT ".on_blue().white().bold(),
+        delta.new_models.len(),
+        delta.new_alias_targets.len(),
+        queue.len()
+    );
+    if queue.is_empty() {
+        return Ok(());
+    }
+    crate::commands::model::bench::run(crate::commands::model::bench::BenchArgs {
+        models: queue,
+        provisional: 0,
+        latest: 0,
+        suites: Vec::new(),
+        repeats: 1,
+        max_usd,
+        concurrency: 4,
+        dry_run: false,
+        no_write: false,
+        report: None,
+        timeout_ms: 120_000,
+    })
+    .await
 }
 
 /// Render the shadow-eval backlog plan: the pending ids + the exact command to
@@ -38,6 +93,7 @@ pub async fn run(args: DiscoverArgs) -> anyhow::Result<()> {
         " INFO ".on_blue().white().bold()
     );
 
+    let before = vox_orchestrator::models::ModelRegistry::from_cache().list_models();
     let report = run_unified_catalog_refresh(args.force).await?;
 
     println!(
@@ -99,6 +155,10 @@ pub async fn run(args: DiscoverArgs) -> anyhow::Result<()> {
                 );
             }
         }
+    }
+
+    if args.bench_new {
+        bench_new_models(&before, args.bench_limit, args.max_usd).await?;
     }
 
     Ok(())

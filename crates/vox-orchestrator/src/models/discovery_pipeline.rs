@@ -69,6 +69,41 @@ pub fn resolve_eligibility(
     state
 }
 
+/// Routing confidence from every piece of evidence the registry holds, strongest first:
+///
+/// 1. a graded benchmark verdict (`vox models bench`, Wilson interval on the pass rate) —
+///    confirms *or* holds back a model regardless of where its price came from;
+/// 2. an independent public benchmark (Artificial Analysis intelligence index) or a
+///    user-installed local provider — both are assessed without Vox having to spend;
+/// 3. scoreboard call evidence, walked through the autonomic promotion chain;
+/// 4. the pricing-source heuristic.
+///
+/// The scoreboard's `quality_score` is deliberately not used: it is not graded.
+pub fn resolve_eligibility_from_evidence(
+    m: &ModelSpec,
+    score: Option<&super::registry::ModelScore>,
+    bench: Option<&super::bench_evidence::BenchEvidence>,
+) -> ModelConfidence {
+    if let Some(verdict) = bench.and_then(super::bench_evidence::BenchEvidence::verdict) {
+        return verdict;
+    }
+    let mut state = base_confidence_from_pricing(m);
+    if m.capabilities.intelligence_index.is_some_and(|i| i > 0.0)
+        || crate::route_policy::is_local_http_provider(&m.provider_type)
+    {
+        state = ModelConfidence::Confirmed;
+    }
+    let Some(s) = score else {
+        return state;
+    };
+    let successful = s.success_count.clamp(0, i64::from(u32::MAX)) as u32;
+    let p50 = s.p50_latency_ms.unwrap_or(0).max(0) as f64;
+    while let Some(next) = should_promote(state, successful, p50, 0.0, 0.0) {
+        state = next;
+    }
+    state
+}
+
 /// The discovery backlog: ids of models that are discovered-but-unconfirmed and
 /// have no scoreboard row yet — i.e. they owe an evaluation. A pure derivation
 /// over the already-persisted catalog snapshot + the set of model ids that
@@ -180,6 +215,70 @@ mod tests {
             resolve_eligibility(&m, Some(&row), 10_000.0),
             ModelConfidence::Shadowed,
             "without successful calls the model must stay Shadowed (not routing-eligible)"
+        );
+    }
+
+    #[test]
+    fn benchmark_verdict_outranks_price_provenance_both_ways() {
+        use crate::models::bench_evidence::evidence;
+        let discovered = spec("acme/new", PricingSource::OpenRouter);
+        assert_eq!(
+            resolve_eligibility_from_evidence(&discovered, None, Some(&evidence(20, 18, 0.9))),
+            ModelConfidence::Confirmed,
+            "a discovered model that passes the bench becomes routable"
+        );
+        let mut indexed = spec("acme/indexed", PricingSource::Telemetry);
+        indexed.capabilities.intelligence_index = Some(50.0);
+        assert_eq!(
+            resolve_eligibility_from_evidence(&indexed, None, Some(&evidence(30, 0, 0.0))),
+            ModelConfidence::Shadowed,
+            "a model that fails the bench is held back even with telemetry pricing and an index"
+        );
+    }
+
+    #[test]
+    fn external_index_and_local_providers_are_routable_without_spend() {
+        let mut indexed = spec("acme/indexed", PricingSource::OpenRouter);
+        assert_eq!(
+            resolve_eligibility_from_evidence(&indexed, None, None),
+            ModelConfidence::Shadowed
+        );
+        indexed.capabilities.intelligence_index = Some(41.0);
+        assert_eq!(
+            resolve_eligibility_from_evidence(&indexed, None, None),
+            ModelConfidence::Confirmed
+        );
+        let mut local = spec("qwen3:8b", PricingSource::Bootstrap);
+        local.provider_type = ProviderType::Ollama;
+        assert_eq!(
+            resolve_eligibility_from_evidence(&local, None, None),
+            ModelConfidence::Confirmed
+        );
+    }
+
+    #[test]
+    fn scoreboard_calls_promote_without_reading_ungraded_quality() {
+        let m = spec("acme/used", PricingSource::OpenRouter);
+        let used = crate::models::ModelScore {
+            n_calls: 40,
+            success_count: 40,
+            success_rate: 1.0,
+            quality_score: 0.0,
+            ..Default::default()
+        };
+        assert_eq!(
+            resolve_eligibility_from_evidence(&m, Some(&used), None),
+            ModelConfidence::Confirmed
+        );
+        let barely = crate::models::ModelScore {
+            n_calls: 3,
+            success_count: 3,
+            quality_score: 1.0,
+            ..Default::default()
+        };
+        assert_eq!(
+            resolve_eligibility_from_evidence(&m, Some(&barely), None),
+            ModelConfidence::Shadowed
         );
     }
 

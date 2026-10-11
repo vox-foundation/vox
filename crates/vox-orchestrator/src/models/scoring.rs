@@ -77,7 +77,14 @@ pub fn scoreboard_feedback_boost(
         return 0.0;
     }
     let success = s.success_rate.clamp(0.0, 1.0);
-    let quality = s.quality_score.clamp(0.0, 1.0);
+    // `ModelScore::quality_score` is not graded (it defaults to 1.0 per call), so only a
+    // measured benchmark score counts here; otherwise this term is neutral.
+    let quality = match m.capabilities.quality_prior.as_ref().map(|p| &p.source) {
+        Some(super::spec::QualitySource::Measured { score, .. }) => {
+            f64::from(*score).clamp(0.0, 1.0)
+        }
+        _ => 0.5,
+    };
     let lat = s
         .p50_latency_ms
         .map(|ms| {
@@ -505,9 +512,17 @@ pub fn auto_score_parts(
         } else {
             ZERO_COST_BASE_BONUS
         }
-    } else if m.is_free && complexity < COMPLEXITY_HIGH_CUTOFF {
-        // Any other zero-cost provider (e.g. local Ollama models) earns the
-        // same small base bonus PopuliMesh gets for being free — the mesh-only
+    } else if m.is_free
+        && complexity < COMPLEXITY_HIGH_CUTOFF
+        && matches!(
+            m.provider_type,
+            crate::models::ProviderType::Ollama | crate::models::ProviderType::VoxLocal
+        )
+    {
+        // Other local zero-cost providers (Ollama, VoxLocal) earn the same small
+        // base bonus PopuliMesh gets for being free. Hosted free endpoints do not:
+        // they already max the efficiency axis, and the bonus on top outranked
+        // measurably better paid models costing fractions of a cent. The mesh-only
         // tiers above (0.8 prefer_mesh / 0.25 the mesh flagship) stay
         // PopuliMesh-specific, since those reflect an explicit mesh-preference
         // policy or a specific first-party model, not "any free model".
@@ -827,6 +842,20 @@ mod tests {
              free non-flagship PopuliMesh model at low complexity \
              (ollama={ollama_score}, mesh={mesh_score})"
         );
+    }
+
+    /// The zero-cost bonus is a nudge for local inference. A hosted free endpoint already
+    /// maxes the efficiency axis; the bonus on top let it outrank measurably better paid
+    /// models costing fractions of a cent (live bench 2026-10-08).
+    #[test]
+    fn hosted_free_model_gets_no_zero_cost_bonus() {
+        let local = make_spec(ProviderType::Ollama, 0.0, true);
+        let hosted = make_spec(ProviderType::OpenRouter, 0.0, true);
+        let parts = |m: &ModelSpec| {
+            auto_score_parts(m, 5, false, None, CostPreference::Economy, None, None)
+        };
+        assert!(parts(&local).free_bonus > 0.0);
+        assert_eq!(parts(&hosted).free_bonus, 0.0);
     }
 
     /// Critical regression guard for the LiteLLM "free always wins" trap

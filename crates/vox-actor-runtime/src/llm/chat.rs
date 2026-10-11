@@ -327,12 +327,10 @@ async fn record_telemetry_outcome(
                     context_utilization_pct: None,
                     success,
                     cost_usd,
-                    // WARNING (Task M2): this is not a quality signal. It is a restatement
-                    // of `success`, and the only other writer of
-                    // `model_scoreboard.quality_score` is `COALESCE(AVG(llm_feedback.rating)
-                    // / 5.0, 1.0)` over a table with zero rows, i.e. a constant 1.0. Do not
-                    // rank, render, or reward on it until M2 gives it a definition.
-                    quality_score: Some(if success { 1.0 } else { 0.0 }),
+                    // A completed HTTP call says nothing about answer quality; quality comes
+                    // only from graded benchmark cases (`model_benchmark_results`) or user
+                    // feedback, never from `success`.
+                    quality_score: None,
                     ttft_ms,
                     tpot_ms,
                 };

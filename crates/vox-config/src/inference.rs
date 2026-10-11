@@ -161,6 +161,146 @@ pub fn openai_embeddings_url() -> String {
     format!("{}/embeddings", openai_compatible_base_url())
 }
 
+/// Groq chat completions endpoint (OpenAI-compatible).
+pub const GROQ_CHAT_COMPLETIONS_URL: &str = "https://api.groq.com/openai/v1/chat/completions";
+/// Cerebras chat completions endpoint (OpenAI-compatible).
+pub const CEREBRAS_CHAT_COMPLETIONS_URL: &str = "https://api.cerebras.ai/v1/chat/completions";
+/// Mistral chat completions endpoint (OpenAI-compatible).
+pub const MISTRAL_CHAT_COMPLETIONS_URL: &str = "https://api.mistral.ai/v1/chat/completions";
+/// DeepSeek chat completions endpoint (OpenAI-compatible).
+pub const DEEPSEEK_CHAT_COMPLETIONS_URL: &str = "https://api.deepseek.com/chat/completions";
+/// SambaNova chat completions endpoint (OpenAI-compatible).
+pub const SAMBANOVA_CHAT_COMPLETIONS_URL: &str = "https://api.sambanova.ai/v1/chat/completions";
+/// Anthropic's OpenAI-compatible chat completions endpoint (Bearer auth).
+pub const ANTHROPIC_OPENAI_COMPAT_CHAT_COMPLETIONS_URL: &str =
+    "https://api.anthropic.com/v1/chat/completions";
+/// Google AI Studio's OpenAI-compatible chat completions endpoint (Bearer auth).
+pub const GEMINI_OPENAI_COMPAT_CHAT_COMPLETIONS_URL: &str =
+    "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+
+/// Egress provider strings that reach a vendor directly with that vendor's own key.
+pub const DIRECT_CLOUD_PROVIDERS: &[&str] = &[
+    "groq",
+    "cerebras",
+    "mistral",
+    "deepseek",
+    "sambanova",
+    "anthropic",
+    "gemini",
+];
+
+fn secret_url_or(id: vox_secrets::SecretId, default: &str) -> String {
+    vox_secrets::resolve_secret(id)
+        .expose()
+        .map(str::trim)
+        .filter(|v| !v.is_empty() && v.contains("://"))
+        .map(|v| v.trim_end_matches('/').to_string())
+        .unwrap_or_else(|| default.to_string())
+}
+
+/// Chat completions URL for a direct (non-OpenRouter) cloud provider, honoring the
+/// per-provider `VOX_*_CHAT_COMPLETIONS_URL` overrides. `None` for anything else.
+#[must_use]
+pub fn direct_chat_completions_url(provider: &str) -> Option<String> {
+    use vox_secrets::SecretId;
+    Some(match provider {
+        "groq" => secret_url_or(
+            SecretId::VoxGroqChatCompletionsUrl,
+            GROQ_CHAT_COMPLETIONS_URL,
+        ),
+        "cerebras" => secret_url_or(
+            SecretId::VoxCerebrasChatCompletionsUrl,
+            CEREBRAS_CHAT_COMPLETIONS_URL,
+        ),
+        "mistral" => secret_url_or(
+            SecretId::VoxMistralChatCompletionsUrl,
+            MISTRAL_CHAT_COMPLETIONS_URL,
+        ),
+        "deepseek" => secret_url_or(
+            SecretId::VoxDeepseekChatCompletionsUrl,
+            DEEPSEEK_CHAT_COMPLETIONS_URL,
+        ),
+        "sambanova" => secret_url_or(
+            SecretId::VoxSambanovaChatCompletionsUrl,
+            SAMBANOVA_CHAT_COMPLETIONS_URL,
+        ),
+        "anthropic" => secret_url_or(
+            SecretId::VoxAnthropicChatCompletionsUrl,
+            ANTHROPIC_OPENAI_COMPAT_CHAT_COMPLETIONS_URL,
+        ),
+        "gemini" => GEMINI_OPENAI_COMPAT_CHAT_COMPLETIONS_URL.to_string(),
+        _ => return None,
+    })
+}
+
+/// Translate a catalog id (OpenRouter-style `vendor/model`) into the id the vendor's own
+/// API expects. Groq/Cerebras/SambaNova ids legitimately contain `/`, so they pass through.
+#[must_use]
+pub fn native_model_id(provider: &str, catalog_id: &str) -> String {
+    match provider {
+        "gemini" => catalog_id
+            .strip_prefix("google/")
+            .unwrap_or(catalog_id)
+            .to_string(),
+        // OpenRouter spells Anthropic versions with dots (`claude-opus-4.7`); the
+        // Anthropic API uses dashes (`claude-opus-4-7`).
+        "anthropic" => catalog_id
+            .strip_prefix("anthropic/")
+            .unwrap_or(catalog_id)
+            .replace('.', "-"),
+        "deepseek" => catalog_id
+            .strip_prefix("deepseek/")
+            .unwrap_or(catalog_id)
+            .to_string(),
+        "mistral" => catalog_id
+            .strip_prefix("mistralai/")
+            .or_else(|| catalog_id.strip_prefix("mistral/"))
+            .unwrap_or(catalog_id)
+            .to_string(),
+        _ => catalog_id.to_string(),
+    }
+}
+
+#[cfg(test)]
+mod direct_provider_tests {
+    use super::*;
+
+    #[test]
+    fn every_direct_provider_has_an_https_endpoint() {
+        for p in DIRECT_CLOUD_PROVIDERS {
+            let url = direct_chat_completions_url(p).expect("direct provider url");
+            assert!(url.starts_with("https://"), "{p}: {url}");
+            assert!(url.ends_with("/chat/completions"), "{p}: {url}");
+        }
+        assert!(direct_chat_completions_url("openrouter").is_none());
+        assert!(direct_chat_completions_url("ollama").is_none());
+    }
+
+    #[test]
+    fn native_ids_strip_openrouter_vendor_prefixes() {
+        assert_eq!(
+            native_model_id("gemini", "google/gemini-3.1-pro"),
+            "gemini-3.1-pro"
+        );
+        assert_eq!(
+            native_model_id("anthropic", "anthropic/claude-opus-4.7"),
+            "claude-opus-4-7"
+        );
+        assert_eq!(
+            native_model_id("deepseek", "deepseek/deepseek-chat"),
+            "deepseek-chat"
+        );
+        assert_eq!(
+            native_model_id("mistral", "mistralai/mistral-large"),
+            "mistral-large"
+        );
+        assert_eq!(
+            native_model_id("groq", "meta-llama/llama-4-scout-17b-16e-instruct"),
+            "meta-llama/llama-4-scout-17b-16e-instruct"
+        );
+    }
+}
+
 /// Default VoxLocal (`vox mens serve`) base URL — same port as Ollama for co-location.
 pub const VOX_LOCAL_ENDPOINT_DEFAULT: &str = "http://127.0.0.1:11434";
 
@@ -487,17 +627,18 @@ pub fn ollama_tuning_num_ctx() -> Option<i32> {
 }
 
 /// Strict model pin shared by chat and research: `VOX_MODEL_FORCE`, read from the
-/// environment first, then `~/.vox/config.toml`. `None` when unset or blank.
+/// environment first, then `~/.vox/config.toml`. `None` when unset, blank or `auto`
+/// (so `VOX_MODEL_FORCE=auto` in the environment lifts a config-file pin for one process).
 #[must_use]
 pub fn forced_model() -> Option<String> {
     forced_model_from(&crate::env_parse::resolve_config_str("VOX_MODEL_FORCE", ""))
 }
 
-/// Pure half of [`forced_model`]: trims, and treats blank as unset.
+/// Pure half of [`forced_model`]: trims, and treats blank or `auto` as unset.
 #[must_use]
 pub fn forced_model_from(raw: &str) -> Option<String> {
     let v = raw.trim();
-    (!v.is_empty()).then(|| v.to_string())
+    (!v.is_empty() && !v.eq_ignore_ascii_case("auto")).then(|| v.to_string())
 }
 
 /// A role a model can be pinned for independently (Task 13). Each role reads
@@ -597,6 +738,7 @@ mod tests {
         );
         assert_eq!(super::forced_model_from("   "), None);
         assert_eq!(super::forced_model_from(""), None);
+        assert_eq!(super::forced_model_from(" Auto "), None);
     }
 
     /// Task 13: pure pin precedence — the role value wins, else the fallback;

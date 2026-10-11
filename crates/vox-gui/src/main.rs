@@ -266,6 +266,7 @@ async fn main() {
             commands::models::set_active_model,
             commands::models::get_auto_model_recommendation,
             commands::models::get_routing_summary_live,
+            commands::models::get_model_leaderboard,
             commands::models::set_routing_priority,
             commands::models::get_routing_intentions,
             commands::models::nudge_routing_intention,

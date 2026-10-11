@@ -92,19 +92,27 @@ pub fn newest_per_family<'a>(
     newest
 }
 
-/// True when a newer dated member of the same family is in `newest`. Undated
-/// specs (bootstrap, local MENS) are never superseded.
+/// True when a newer dated member of the same family is in `newest`. An undated hosted
+/// spec (a bootstrap entry the live catalog no longer lists) yields to a dated member with
+/// a higher version; undated local specs (Ollama, MENS) are never superseded.
 #[must_use]
 pub fn is_superseded(m: &ModelSpec, newest: &HashMap<String, (u64, Vec<u32>)>) -> bool {
+    use crate::models::ProviderType;
     if m.capabilities.is_alias_target {
         return false;
     }
-    let Some(at) = m.capabilities.released_at else {
+    let Some(best) = newest.get(&family_key(&m.id)) else {
         return false;
     };
-    newest
-        .get(&family_key(&m.id))
-        .is_some_and(|best| *best > (at, version_tuple(&m.id)))
+    match m.capabilities.released_at {
+        Some(at) => *best > (at, version_tuple(&m.id)),
+        None => {
+            !matches!(
+                m.provider_type,
+                ProviderType::Ollama | ProviderType::PopuliMesh | ProviderType::VoxLocal
+            ) && best.1 > version_tuple(&m.id)
+        }
+    }
 }
 
 /// Family key for joining a model to its family's benchmark: a direct-provider id has no `org/`
@@ -273,15 +281,18 @@ mod tests {
     }
 
     #[test]
-    fn undated_specs_are_never_superseded_and_never_supersede() {
-        let undated_old_name = dated("anthropic/claude-opus-4.8", None);
-        let dated_new = dated("anthropic/claude-opus-5.5", Some(1_760_000_000));
-        let newest = newest_per_family([&undated_old_name, &dated_new]);
-        assert!(
-            !is_superseded(&undated_old_name, &newest),
-            "no date, no verdict"
-        );
-        assert!(newest_per_family([&undated_old_name]).is_empty());
+    fn an_undated_hosted_spec_yields_to_a_newer_version_but_never_supersedes() {
+        let bootstrap_old = dated("anthropic/claude-3-7-sonnet", None);
+        let dated_new = dated("anthropic/claude-sonnet-5.5", Some(1_760_000_000));
+        let newest = newest_per_family([&bootstrap_old, &dated_new]);
+        assert!(is_superseded(&bootstrap_old, &newest), "3.7 < 5.5");
+        let bootstrap_newer = dated("anthropic/claude-sonnet-6", None);
+        assert!(!is_superseded(&bootstrap_newer, &newest), "6 > 5.5");
+        assert!(newest_per_family([&bootstrap_old]).is_empty());
+
+        let mut local = dated("anthropic/claude-3-7-sonnet", None);
+        local.provider_type = ProviderType::Ollama;
+        assert!(!is_superseded(&local, &newest), "local copies stay");
     }
 
     #[test]

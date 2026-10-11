@@ -784,6 +784,51 @@ export function getAutoModelRecommendation(): Promise<AutoModelRecommendation> {
   return safeInvoke<AutoModelRecommendation>('get_auto_model_recommendation');
 }
 
+/** One cell of the mode × category routing table (`vox_orchestrator::models::leaderboard`). */
+export interface ModeRoute {
+  mode: string;
+  category: string;
+  model_id: string | null;
+  only_candidate: boolean;
+  candidates: number;
+  quality: number | null;
+  /** `measured` (graded bench) · `benchmark` (public index) · `inherited` · `estimate` · `none`. */
+  quality_source: string;
+  bench_cases: number;
+}
+
+export interface BenchRow {
+  model_id: string;
+  served_as: string | null;
+  cases: number;
+  passed: number;
+  mean_score: number;
+  error_rate: number;
+  p50_ttft_ms: number | null;
+  p95_latency_ms: number | null;
+  tokens_per_sec: number | null;
+  cost_per_solve_usd: number | null;
+  tokens_per_solve: number | null;
+  confidence: string;
+  last_run_ms: number;
+}
+
+export interface ModelLeaderboard {
+  routes: ModeRoute[];
+  bench: BenchRow[];
+  window_days: number;
+}
+
+export function getModelLeaderboard(): Promise<ModelLeaderboard> {
+  return safeInvoke<ModelLeaderboard>('get_model_leaderboard');
+}
+
+/** What auto-route would pick right now: the backend `decide()` preview (same selector,
+ *  scoreboard and benchmark evidence the daemon routes a chat turn with). */
+export function getAutoRoutePreview(): Promise<RoutingSummary> {
+  return safeInvoke<RoutingSummary>('get_routing_summary_live');
+}
+
 export const PTY_OUTPUT_EVENT = 'vox://pty-output';
 export const PTY_EXIT_EVENT = 'vox://pty-exit';
 

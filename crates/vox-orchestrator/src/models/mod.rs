@@ -1,12 +1,15 @@
+pub mod adaptation;
 pub mod admission;
 pub mod auto_select;
 pub mod autonomic;
+pub mod bench_evidence;
 pub mod cost_tier;
 pub mod discovery_pipeline;
 pub mod family;
 pub mod generated;
 pub mod health;
 pub mod key_guard;
+pub mod leaderboard;
 #[cfg(feature = "populi-transport")]
 pub mod mesh_directory;
 pub mod mode_select;

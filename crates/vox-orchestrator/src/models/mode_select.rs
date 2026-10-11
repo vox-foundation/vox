@@ -48,12 +48,30 @@ impl ModelRegistry {
         mut filter: impl FnMut(&ModelSpec) -> Option<crate::models::ranking::Exclusion>,
     ) -> Option<ModeSelection> {
         use crate::models::ranking::Exclusion;
+        // The mode's (cost, responsiveness, intelligence) dial weights the score; without it
+        // every non-Genius mode ranked on the same global weights.
+        let (cost, responsiveness, intelligence) = clutch.resolve().axes;
+        let _axes = crate::models::scoring::AxesOverrideGuard::set(
+            crate::models::select::SelectionAxes {
+                cost,
+                responsiveness,
+                intelligence,
+            }
+            .to_routing_priority(false),
+        );
+        let failed_bench = |m: &ModelSpec| {
+            self.bench_evidence(&m.id)
+                .and_then(crate::models::bench_evidence::BenchEvidence::verdict)
+                == Some(crate::models::autonomic::ModelConfidence::Shadowed)
+        };
         let exclude_elite = excludes_elite(clutch);
         let preferred = self.rank_task_with_filter(task, preference, |m| {
             if exclude_elite && m.capabilities.tier == ModelTier::Elite {
                 Some(Exclusion::FlagshipExcludedByMode)
             } else if !key_ok(&m.provider_type) {
                 Some(Exclusion::NoProviderKey)
+            } else if failed_bench(m) {
+                Some(Exclusion::FailedBenchmark)
             } else {
                 filter(m)
             }
@@ -71,6 +89,8 @@ impl ModelRegistry {
         let fallback = self.rank_task_with_filter(task, preference, |m| {
             if !key_ok(&m.provider_type) {
                 Some(Exclusion::NoProviderKey)
+            } else if failed_bench(m) {
+                Some(Exclusion::FailedBenchmark)
             } else {
                 filter(m)
             }

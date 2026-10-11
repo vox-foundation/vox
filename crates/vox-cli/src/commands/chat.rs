@@ -19,7 +19,10 @@ use vox_actor_runtime::llm::{LlmChatMessage, LlmConfig, llm_chat};
 pub struct ChatArgs {
     /// The message to send.
     pub message: String,
-    /// OpenRouter model id to use (default: `openrouter/auto`, provider-side routing).
+    /// Model id to use (default: `openrouter/auto`, provider-side routing). `auto` routes
+    /// through Vox's own selector (`decide()` over every keyed provider, with scoreboard and
+    /// benchmark evidence) — the same pick Axis makes; `auto-local` picks the best local
+    /// model for this hardware.
     #[arg(long, default_value = vox_config::bootstrap_inference::OPENROUTER_AUTO)]
     pub model: String,
     /// Optional system prompt prepended before the user message.
@@ -48,7 +51,13 @@ pub async fn run(args: ChatArgs) -> Result<()> {
         ..Default::default()
     });
 
-    let mut config = resolve_chat_config(&args.model);
+    let mut config = if args.model == "auto" {
+        let (config, model_id, reason) = route_auto().await?;
+        eprintln!("auto-route: {model_id} ({reason})");
+        config
+    } else {
+        resolve_chat_config(&args.model)
+    };
     config.telemetry_task_category = Some("cli-chat".to_string());
 
     let is_local = config.provider == "voxlocal";
@@ -84,6 +93,36 @@ pub async fn run(args: ChatArgs) -> Result<()> {
     Ok(())
 }
 
+/// Vox's canonical selection for a chat turn: the cached catalog plus every persisted
+/// routing signal, through `decide()`.
+async fn route_auto() -> Result<(LlmConfig, String, String)> {
+    use vox_orchestrator::models::{
+        ModelRegistry, ModelSelectionRequest, SelectionIntent, decide, llm_config_for_spec,
+    };
+    use vox_orchestrator::types::TaskCategory;
+
+    let mut registry = ModelRegistry::from_cache();
+    vox_orchestrator::catalog::sync_installed_ollama(
+        &mut registry,
+        vox_config::local_ollama_populi_base_url(),
+    )
+    .await;
+    if let Some(db) =
+        vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::CliWorkspace, true)
+            .await
+    {
+        registry.inject_evidence_from_db(&db).await;
+    }
+    let request = ModelSelectionRequest::from_intent(SelectionIntent::for_task(TaskCategory::Chat));
+    let decision = decide(&request, &registry).context(
+        "vox chat --model auto: no routable model (no provider key resolves, or no candidate is \
+         confirmed — run `vox models bench` or set a provider key)",
+    )?;
+    let reason = decision.outcome.reason.to_string();
+    let config = llm_config_for_spec(&decision.outcome.model_spec, TaskCategory::Chat);
+    Ok((config, decision.selected_model, reason))
+}
+
 fn is_connection_error(err: &str) -> bool {
     let lower = err.to_ascii_lowercase();
     // HTTP status errors indicate the server IS running and replied; do not treat as connection failures.
@@ -111,14 +150,14 @@ fn is_connection_error(err: &str) -> bool {
 }
 
 pub(crate) fn resolve_chat_config(model: &str) -> LlmConfig {
-    if model == "auto"
+    if model == "auto-local"
         || model.starts_with("vox-mens-")
         || model.starts_with("mens/")
         || model.starts_with("voxlocal")
         || model.starts_with("populi_local")
         || model == "qwen/qwen-3-8b"
     {
-        let effective_model = if model == "auto" {
+        let effective_model = if model == "auto-local" {
             // Discrete-GPU VRAM comes from the nvml-probe plugin, if installed.
             vox_orchestrator_mcp::server_state::vram_probe::register_nvml_vram_probe();
             let is_apple_silicon = vox_orchestrator::models::auto_select::is_host_apple_silicon();
@@ -220,7 +259,7 @@ mod tests {
 
     #[test]
     fn chat_routing_auto_and_mens() {
-        let auto_cfg = resolve_chat_config("auto");
+        let auto_cfg = resolve_chat_config("auto-local");
         assert_eq!(auto_cfg.provider, "voxlocal");
         assert!(auto_cfg.base_url.unwrap().contains("11434"));
         assert!(!auto_cfg.model.is_empty());

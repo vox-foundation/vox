@@ -155,6 +155,9 @@ pub enum QualitySource {
     Inherited { index: f32, from: String },
     /// No benchmark: the context-length and paid/free proxy.
     Estimate,
+    /// Vox's own graded benchmark (`vox models bench`): `score` is the mean graded score over
+    /// `cases`, blended with `prior` (the external value it was shrunk toward).
+    Measured { score: f32, cases: u32, prior: f32 },
 }
 
 /// Specification for an LLM model in the registry.

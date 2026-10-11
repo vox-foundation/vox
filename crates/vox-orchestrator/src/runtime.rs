@@ -63,6 +63,37 @@ fn stream_route_for_model_backend<'a>(
 /// whether any *clutch* policy applied, so callers get category/source risk
 /// policy even for a task with no clutch override at all — `AgentTask::resolved_risk()`
 /// only ever sees the explicit hint and must not be used for this instead.
+/// Why a background turn got its model, as shown on its `SelectedModelRecord` (ModelBadge):
+/// the clutch mode, how many candidates it beat, and where its quality rating came from.
+fn background_selection_reason(
+    clutch: crate::mode::ClutchProfile,
+    sel: &crate::models::mode_select::ModeSelection,
+) -> String {
+    let quality = match sel
+        .spec
+        .capabilities
+        .quality_prior
+        .as_ref()
+        .map(|p| &p.source)
+    {
+        Some(crate::models::spec::QualitySource::Measured { cases, .. }) => {
+            format!("benchmarked on {cases} cases")
+        }
+        Some(crate::models::spec::QualitySource::Benchmark { .. }) => "public index".to_string(),
+        Some(crate::models::spec::QualitySource::Inherited { from, .. }) => {
+            format!("index inherited from {from}")
+        }
+        _ => "estimated quality".to_string(),
+    };
+    let mode = format!("{clutch:?}").to_ascii_lowercase();
+    let n = sel.ranking.ranked.len();
+    if sel.only_candidate {
+        format!("{mode} mode: only candidate outside the mode's tiers ({quality})")
+    } else {
+        format!("{mode} mode: best of {n} ({quality})")
+    }
+}
+
 fn resolve_task_cost_policy(
     task: &crate::types::AgentTask,
     overrides: &crate::config::TaskPolicyOverrides,
@@ -752,8 +783,13 @@ impl TaskProcessor for AiTaskProcessor {
             if sel.only_candidate {
                 tracing::info!(model = %sel.spec.id, ?clutch, "mode fallback: only candidate outside the mode's preferred tiers");
             }
-            sel.spec
+            let reason = background_selection_reason(clutch, &sel);
+            (sel.spec, reason)
         });
+        let (routed, routed_reason) = match routed {
+            Some((spec, reason)) => (Some(spec), Some(reason)),
+            None => (None, None),
+        };
         // Code-review fix: `routed == None` (no eligible model in the registry,
         // e.g. no local model registered under local_only privacy) used to fall
         // straight through to `StreamRoute::Cascade` below regardless of
@@ -868,8 +904,8 @@ impl TaskProcessor for AiTaskProcessor {
             .is_some_and(|s| !s.is_empty())
         {
             "override".to_string()
-        } else if routed.is_some() {
-            "scored".to_string()
+        } else if let Some(reason) = routed_reason {
+            reason
         } else {
             "fallback".to_string()
         };
@@ -1688,6 +1724,33 @@ pub fn spawn_agent_fleet_if_enabled_with_dispatcher(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn background_reason_names_mode_rank_and_quality_provenance() {
+        use crate::models::spec::{QualityPrior, QualitySource};
+        let mut spec = crate::models::ModelRegistry::new()
+            .list_models()
+            .into_iter()
+            .next()
+            .expect("bootstrap model");
+        spec.capabilities.quality_prior = Some(QualityPrior {
+            value: 0.7,
+            source: QualitySource::Measured {
+                score: 0.8,
+                cases: 24,
+                prior: 0.6,
+            },
+        });
+        let sel = crate::models::mode_select::ModeSelection {
+            spec,
+            only_candidate: false,
+            ranking: crate::models::ranking::Ranking::default(),
+        };
+        assert_eq!(
+            background_selection_reason(crate::mode::ClutchProfile::Balanced, &sel),
+            "balanced mode: best of 0 (benchmarked on 24 cases)"
+        );
+    }
 
     #[test]
     fn short_id_from_standard_uuid() {

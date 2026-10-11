@@ -41,6 +41,8 @@ pub enum Exclusion {
     ProviderBudgetExhausted,
     /// A newer member of its family is a candidate.
     Superseded { by: String },
+    /// Its graded `vox models bench` pass rate is confidently below the floor.
+    FailedBenchmark,
 }
 
 /// A candidate and the parts of its routing score.
@@ -65,6 +67,11 @@ impl Ranking {
     }
 }
 
+/// How much higher (0–1 quality prior) the mode's pick must be when strength tags are ignored
+/// before the tags stop gating. Tags are catalog heuristics, so a gap this wide is stronger
+/// evidence than a missing tag. Vision tags always gate: a text-only model cannot stand in.
+const STRENGTH_OVERRIDE_MARGIN: f64 = 0.15;
+
 impl ModelRegistry {
     /// The ranking behind [`Self::best_for_with_filter`], with the same two passes: penalties
     /// are respected unless that leaves nothing.
@@ -78,29 +85,48 @@ impl ModelRegistry {
         task: Option<&AgentTask>,
     ) -> Ranking {
         let strength = task_category_strength(task_type);
-        let first = self.rank_pass(
-            task_type,
-            strength,
-            complexity,
-            preference,
-            allow_free_in_performance_mode,
-            &mut filter,
-            true,
-            task,
-        );
-        if !first.ranked.is_empty() {
-            return first;
+        let mut ranking = |enforce_strength: bool| {
+            let first = self.rank_pass(
+                task_type,
+                strength,
+                complexity,
+                preference,
+                allow_free_in_performance_mode,
+                &mut filter,
+                true,
+                task,
+                enforce_strength,
+            );
+            if !first.ranked.is_empty() {
+                return first;
+            }
+            self.rank_pass(
+                task_type,
+                strength,
+                complexity,
+                preference,
+                allow_free_in_performance_mode,
+                &mut filter,
+                false,
+                task,
+                enforce_strength,
+            )
+        };
+        let gated = ranking(true);
+        if matches!(strength, StrengthTag::Vision | StrengthTag::Visus) {
+            return gated;
         }
-        self.rank_pass(
-            task_type,
-            strength,
-            complexity,
-            preference,
-            allow_free_in_performance_mode,
-            &mut filter,
-            false,
-            task,
-        )
+        let open = ranking(false);
+        let quality = |r: &Ranking| {
+            r.chosen()
+                .and_then(|m| m.capabilities.quality_prior.as_ref())
+                .map(|p| p.value)
+        };
+        match (quality(&gated), quality(&open)) {
+            (Some(g), Some(o)) if o >= g + STRENGTH_OVERRIDE_MARGIN => open,
+            (None, Some(_)) if gated.ranked.is_empty() => open,
+            _ => gated,
+        }
     }
 
     /// [`Self::rank_with_filter`] for a task, with [`Self::best_for_task_with_filter`]'s
@@ -133,6 +159,7 @@ impl ModelRegistry {
         filter: &mut dyn FnMut(&ModelSpec) -> Option<Exclusion>,
         respect_penalties: bool,
         task: Option<&AgentTask>,
+        enforce_strength: bool,
     ) -> Ranking {
         let safety_cap = vox_config::load_model_routing_config()
             .safety
@@ -141,6 +168,9 @@ impl ModelRegistry {
         let scoreboard = self.scoreboard_snapshot();
         let mut excluded: Vec<(String, Exclusion)> = Vec::new();
         let mut candidates: Vec<&ModelSpec> = Vec::new();
+        // Eligible but for a strength tag: they still supersede older family members, so a
+        // stale tagged entry cannot outlive its untagged successor.
+        let mut untagged_successors: Vec<&ModelSpec> = Vec::new();
         for m in self.models_iter() {
             let why = if respect_penalties && self.is_penalized(&m.id, task_type) {
                 Some(Exclusion::Penalized)
@@ -157,23 +187,33 @@ impl ModelRegistry {
                 Some(Exclusion::RoutePolicy)
             } else if !crate::route_policy::privacy_allows_model_for_mode(m, privacy_local_only) {
                 Some(Exclusion::PrivacyLocalOnly)
-            } else if !Self::matches_strength(m, strength) {
+            } else if enforce_strength && !Self::matches_strength(m, strength) {
                 Some(Exclusion::StrengthMismatch)
             } else {
                 filter(m)
             };
             match why {
+                Some(Exclusion::StrengthMismatch)
+                    if !matches!(strength, StrengthTag::Vision | StrengthTag::Visus)
+                        && filter(m).is_none() =>
+                {
+                    untagged_successors.push(m);
+                    excluded.push((m.id.clone(), Exclusion::StrengthMismatch));
+                }
                 Some(e) => excluded.push((m.id.clone(), e)),
                 None => candidates.push(m),
             }
         }
-        let newest = super::family::newest_per_family(candidates.iter().copied());
+        let newest = super::family::newest_per_family(
+            candidates.iter().chain(untagged_successors.iter()).copied(),
+        );
         let mut ranked: Vec<RankedModel> = Vec::new();
         for m in &candidates {
             if super::family::is_superseded(m, &newest) {
                 let key = super::family::family_key(&m.id);
                 let by = candidates
                     .iter()
+                    .chain(untagged_successors.iter())
                     .find(|c| {
                         super::family::family_key(&c.id) == key
                             && c.capabilities
@@ -396,6 +436,66 @@ mod tests {
         let mut all: Vec<String> = reg.list_models().into_iter().map(|m| m.id).collect();
         all.sort();
         assert_eq!(seen, all);
+    }
+
+    fn indexed(id: &str, tag: StrengthTag, index: f32) -> ModelSpec {
+        let mut s = spec(id, ProviderType::OpenRouter, 0.01, false, vec![tag]);
+        s.capabilities.intelligence_index = Some(index);
+        s
+    }
+
+    fn pick(reg: &ModelRegistry, cat: TaskCategory) -> Option<String> {
+        reg.rank_with_filter(cat, 5, CostPreference::Performance, false, |_| None, None)
+            .chosen()
+            .map(|m| m.id.clone())
+    }
+
+    #[test]
+    fn a_much_smarter_untagged_model_beats_a_weak_tagged_one() {
+        let mut reg = ModelRegistry::default();
+        reg.register(indexed("acme/weak-planner", StrengthTag::Planning, 15.0));
+        reg.register(indexed("other/strong", StrengthTag::Codegen, 70.0));
+        assert_eq!(
+            pick(&reg, TaskCategory::Planning).as_deref(),
+            Some("other/strong")
+        );
+    }
+
+    #[test]
+    fn a_close_untagged_model_does_not_beat_a_tagged_one() {
+        let mut reg = ModelRegistry::default();
+        reg.register(indexed("acme/planner", StrengthTag::Planning, 60.0));
+        reg.register(indexed("other/coder", StrengthTag::Codegen, 62.0));
+        assert_eq!(
+            pick(&reg, TaskCategory::Planning).as_deref(),
+            Some("acme/planner")
+        );
+    }
+
+    #[test]
+    fn a_tagged_model_yields_to_its_untagged_successor() {
+        let mut reg = ModelRegistry::default();
+        let mut old = indexed("acme/widget-4.8", StrengthTag::Planning, 60.0);
+        old.capabilities.released_at = Some(1_700_000_000);
+        let mut new = indexed("acme/widget-5.5", StrengthTag::Codegen, 62.0);
+        new.capabilities.released_at = Some(1_760_000_000);
+        reg.register(old);
+        reg.register(new);
+        assert_eq!(
+            pick(&reg, TaskCategory::Planning).as_deref(),
+            Some("acme/widget-5.5")
+        );
+    }
+
+    #[test]
+    fn vision_tags_gate_whatever_the_quality_gap() {
+        let mut reg = ModelRegistry::default();
+        reg.register(indexed("acme/eyes", StrengthTag::Visus, 15.0));
+        reg.register(indexed("other/blind", StrengthTag::Codegen, 70.0));
+        assert_eq!(
+            pick(&reg, TaskCategory::Visus).as_deref(),
+            Some("acme/eyes")
+        );
     }
 
     #[test]

@@ -375,6 +375,36 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn an_unreachable_ollama_leaves_no_ollama_model_to_route_to() {
+        let entry = |id: &str, provider_type| ModelSpec {
+            id: id.into(),
+            canonical_slug: id.into(),
+            provider: "test".into(),
+            provider_type,
+            max_tokens: 4096,
+            cost_per_1k: 0.0,
+            cost_per_1k_input: 0.0,
+            cost_per_1k_output: 0.0,
+            is_free: true,
+            observed_cost_per_1k: None,
+            strengths: vec![StrengthTag::Generalist],
+            capabilities: ModelCapabilities::default(),
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: crate::models::spec::PricingSource::Bootstrap,
+            supported_parameters: vec![],
+        };
+        let mut reg = crate::models::ModelRegistry::default();
+        reg.register(entry("qwen/qwen-3.6-27b", ProviderType::Ollama));
+        reg.register(entry("acme/hosted-1", ProviderType::OpenRouter));
+        let installed = sync_installed_ollama(&mut reg, "http://127.0.0.1:9".into()).await;
+        assert_eq!(installed, 0);
+        assert!(reg.get("qwen/qwen-3.6-27b").is_none());
+        assert!(reg.get("acme/hosted-1").is_some());
+    }
+
+    #[tokio::test]
     async fn test_huggingface_catalog_known_models_modern() {
         let cat = HuggingFaceCatalog::new();
         let specs = cat.refresh().await.expect("refresh should succeed");
@@ -759,6 +789,28 @@ impl ModelCatalog for OllamaCatalog {
         }
         Ok(specs)
     }
+}
+
+/// Merge the live Ollama listing at `base_url` into `registry`: installed models are
+/// registered, and Ollama entries that are not installed are dropped (all of them when
+/// Ollama is unreachable; see [`crate::models::ModelRegistry::reconcile_ollama`]).
+/// Re-derives the routing reference. Returns the number of installed models.
+pub async fn sync_installed_ollama(
+    registry: &mut crate::models::ModelRegistry,
+    base_url: String,
+) -> usize {
+    let ollama = OllamaCatalog::new(base_url).refresh().await.ok();
+    let installed: Option<Vec<String>> = ollama
+        .as_ref()
+        .map(|models| models.iter().map(|m| m.id.clone()).collect());
+    registry.reconcile_ollama(installed.as_deref());
+    let models = ollama.unwrap_or_default();
+    let count = models.len();
+    for m in models {
+        registry.register(m);
+    }
+    registry.apply_routing_reference();
+    count
 }
 
 /// A catalog for Hugging Face Inference Providers.

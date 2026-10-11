@@ -7,7 +7,7 @@ use crate::config::CostPreference;
 use crate::types::{AgentTask, TaskCategory};
 
 use super::health::MODEL_CATALOG_LAST_REFRESH_KEY;
-use super::key_guard::provider_secret_is_available;
+
 use super::spec::{
     ModelCapabilities, ModelConfig, ModelSpec, PricingSource, ProviderType, task_category_strength,
 };
@@ -142,6 +142,8 @@ pub struct ModelRegistry {
     penalty_map: HashMap<(String, TaskCategory), SystemTime>,
     /// Catalog-derived scales (`models::reference`); re-derived by [`Self::apply_routing_reference`].
     reference: super::reference::RoutingReference,
+    /// Graded `vox models bench` evidence (keyed by model_id); stamped into quality priors.
+    bench: HashMap<String, super::bench_evidence::BenchEvidence>,
 }
 
 impl ModelRegistry {
@@ -161,6 +163,49 @@ impl ModelRegistry {
 
     pub fn inject_scoreboard(&mut self, scores: HashMap<String, ModelScore>) {
         self.scoreboard = scores;
+    }
+
+    /// Replace the benchmark evidence and restamp every quality prior from it.
+    pub fn inject_benchmark_evidence(
+        &mut self,
+        evidence: HashMap<String, super::bench_evidence::BenchEvidence>,
+    ) {
+        self.bench = evidence;
+        self.apply_routing_reference();
+    }
+
+    /// Inject every persisted routing signal — scoreboard (+ observed p50), arm stats,
+    /// observed pricing, and benchmark evidence — then restamp priors. Each source is
+    /// best-effort: a failing query leaves that signal at its prior state. The one builder
+    /// every surface (daemon, GUI, CLI `--model auto`) uses so they route identically.
+    pub async fn inject_evidence_from_db(&mut self, db: &vox_db::VoxDb) {
+        if let Ok(rows) = db.get_model_scoreboard(7).await {
+            self.inject_scoreboard_latency(&rows);
+            self.inject_scoreboard(
+                rows.into_iter()
+                    .map(|row| (row.model_id.clone(), ModelScore::from(row)))
+                    .collect(),
+            );
+        }
+        if let Ok(arms) = db.list_model_arm_stats(7).await {
+            self.inject_arm_stats(arms);
+        }
+        if let Ok(pricing) = db.get_pricing_catalog().await {
+            self.inject_pricing_catalog(pricing);
+        }
+        match super::bench_evidence::load(db, super::bench_evidence::BENCH_EVIDENCE_WINDOW_DAYS)
+            .await
+        {
+            Ok(ev) => self.inject_benchmark_evidence(ev),
+            Err(_) => {
+                self.apply_routing_reference();
+            }
+        }
+    }
+
+    #[must_use]
+    pub fn bench_evidence(&self, model_id: &str) -> Option<&super::bench_evidence::BenchEvidence> {
+        self.bench.get(model_id)
     }
 
     pub fn inject_arm_stats(&mut self, stats: HashMap<String, (u32, u32)>) {
@@ -369,7 +414,7 @@ impl ModelRegistry {
     /// Credential gate used by the canonical selector: true iff the provider's
     /// primary key is resolvable right now (local providers always pass).
     pub(crate) fn key_is_present_for(m: &ModelSpec) -> bool {
-        provider_secret_is_available(&m.provider_type)
+        super::key_guard::inference_wire_for(&m.provider_type).is_some()
     }
 
     fn min_refresh_interval() -> Duration {
@@ -532,6 +577,7 @@ impl ModelRegistry {
                         agent_overrides: HashMap::new(),
                         premium_alias: HashMap::new(),
                         scoreboard: HashMap::new(),
+                        bench: HashMap::new(),
                         arm_stats: HashMap::new(),
                         penalty_map: HashMap::new(),
                         reference: super::reference::RoutingReference::FALLBACK,
@@ -596,6 +642,7 @@ impl ModelRegistry {
             agent_overrides: HashMap::new(),
             premium_alias: HashMap::new(),
             scoreboard: HashMap::new(),
+            bench: HashMap::new(),
             arm_stats: HashMap::new(),
             penalty_map: HashMap::new(),
             reference: super::reference::RoutingReference::FALLBACK,
@@ -652,6 +699,7 @@ impl ModelRegistry {
             agent_overrides: HashMap::new(),
             premium_alias: HashMap::new(),
             scoreboard: HashMap::new(),
+            bench: HashMap::new(),
             arm_stats: HashMap::new(),
             penalty_map: HashMap::new(),
             reference: super::reference::RoutingReference::FALLBACK,
@@ -804,6 +852,17 @@ impl ModelRegistry {
         self.models.insert(spec.id.clone(), spec);
     }
 
+    /// Make a live Ollama listing authoritative for Ollama entries: drop every Ollama model
+    /// not in `installed` (bootstrap suggestions the user never pulled would otherwise win
+    /// free routing and fail at dispatch). `None` means Ollama was unreachable, so no Ollama
+    /// entry can serve. Call [`Self::apply_routing_reference`] afterwards.
+    pub fn reconcile_ollama(&mut self, installed: Option<&[String]>) {
+        self.models.retain(|id, m| {
+            m.provider_type != ProviderType::Ollama
+                || installed.is_some_and(|names| names.iter().any(|n| n == id))
+        });
+    }
+
     /// The routing reference this registry scores against.
     #[must_use]
     pub fn routing_reference(&self) -> super::reference::RoutingReference {
@@ -832,7 +891,17 @@ impl ModelRegistry {
                     .filter(|(_, from)| *from != spec.id)
                     .map(|(index, from)| (*index, from.as_str()))
             };
-            let prior = reference.quality_prior(spec, inherited);
+            let mut prior = reference.quality_prior(spec, inherited);
+            if let Some(ev) = self.bench.get(&spec.id).filter(|ev| ev.cases > 0) {
+                prior = super::spec::QualityPrior {
+                    value: ev.blended_quality(prior.value),
+                    source: super::spec::QualitySource::Measured {
+                        score: ev.mean_score as f32,
+                        cases: ev.cases.min(i64::from(u32::MAX)) as u32,
+                        prior: prior.value as f32,
+                    },
+                };
+            }
             spec.capabilities.quality_prior = Some(prior);
             let priced = matches!(
                 spec.pricing_source,
@@ -1226,94 +1295,55 @@ pub fn llm_config_for_spec(
     spec: &ModelSpec,
     task_type: TaskCategory,
 ) -> vox_actor_runtime::llm::LlmConfig {
-    {
-        let mut cfg = match spec.provider_type {
-            ProviderType::OpenRouter => {
-                vox_actor_runtime::llm::LlmConfig::openrouter(spec.id.clone())
-            }
-            ProviderType::Ollama => vox_actor_runtime::llm::LlmConfig {
-                provider: "ollama".to_string(),
-                model: spec.id.clone(),
-                cost_per_1k: None,
-                base_url: vox_secrets::resolve_secret(vox_secrets::SecretId::OllamaUrl)
-                    .expose()
-                    .filter(|s: &&str| !s.trim().is_empty())
-                    .map(|u: &str| format!("{}/v1/chat/completions", u.trim_end_matches('/'))),
-                api_key: None,
-                temperature: None,
-                top_p: None,
-                max_tokens: None,
-                response_format: None,
-                tools: None,
-                tool_choice: None,
-                timeout_ms: None,
-                telemetry_session_id: None,
-                telemetry_user_id: None,
-                telemetry_task_category: Some(task_type.to_string()),
-                telemetry_strength_tag: Some(task_category_strength(task_type).to_string()),
-                telemetry_trace_id: None,
-                telemetry_attempt_number: None,
-                telemetry_skip_interaction: false,
-            },
-            ProviderType::GoogleDirect => vox_actor_runtime::llm::LlmConfig {
-                provider: "openrouter".to_string(),
-                model: spec.id.clone(),
-                cost_per_1k: None,
-                base_url: Some(vox_config::openrouter_chat_completions_url()),
-                api_key: None,
-                temperature: None,
-                top_p: None,
-                max_tokens: None,
-                response_format: None,
-                tools: None,
-                tool_choice: None,
-                timeout_ms: None,
-                telemetry_session_id: None,
-                telemetry_user_id: None,
-                telemetry_task_category: Some(task_type.to_string()),
-                telemetry_strength_tag: Some(task_category_strength(task_type).to_string()),
-                telemetry_trace_id: None,
-                telemetry_attempt_number: None,
-                telemetry_skip_interaction: false,
-            },
-            ProviderType::HuggingFaceRouter => {
-                let mut cfg =
-                    vox_actor_runtime::llm::LlmConfig::huggingface_router(spec.id.clone());
-                cfg.telemetry_task_category = Some(task_type.to_string());
-                cfg.telemetry_strength_tag = Some(task_category_strength(task_type).to_string());
-                cfg
-            }
-            ProviderType::VoxLocal => {
-                // VoxLocal (7863) is not reachable via vox_actor_runtime LlmConfig;
-                // route through OpenRouter as an unreachable fallback so the task
-                // doesn't silently drop. MCP path (infer_via_provider_adapter) handles
-                // VoxLocal directly and doesn't go through this registry→LlmConfig path.
-                let mut cfg = vox_actor_runtime::llm::LlmConfig::openrouter(spec.id.clone());
-                cfg.telemetry_task_category = Some(task_type.to_string());
-                cfg.telemetry_strength_tag = Some(task_category_strength(task_type).to_string());
-                cfg
-            }
-            ProviderType::Custom(_)
-            | ProviderType::PopuliMesh
-            | ProviderType::Anthropic
-            | ProviderType::Mistral
-            | ProviderType::DeepSeek
-            | ProviderType::SambaNova
-            | ProviderType::Groq
-            | ProviderType::Cerebras => {
-                let mut cfg = vox_actor_runtime::llm::LlmConfig::openrouter(spec.id.clone());
-                cfg.telemetry_task_category = Some(task_type.to_string());
-                cfg.telemetry_strength_tag = Some(task_category_strength(task_type).to_string());
-                cfg
-            }
-        };
-        cfg.max_tokens = Some(spec.max_tokens);
-        // Propagate catalog cost so chat.rs can estimate spend without a DB lookup.
-        if spec.cost_per_1k > 0.0 {
-            cfg.cost_per_1k = Some(spec.cost_per_1k);
+    use super::key_guard::{InferenceWire, inference_wire_for};
+    use vox_actor_runtime::llm::LlmConfig;
+
+    let wire = inference_wire_for(&spec.provider_type);
+    let mut cfg = match &spec.provider_type {
+        // No vendor key, but OpenRouter serves this catalog slug.
+        _ if wire == Some(InferenceWire::OpenRouterFallback) => {
+            LlmConfig::openrouter(spec.id.clone())
         }
-        cfg
+        ProviderType::OpenRouter => LlmConfig::openrouter(spec.id.clone()),
+        ProviderType::Ollama => {
+            let mut cfg = LlmConfig::direct("ollama", spec.id.clone());
+            cfg.base_url = vox_secrets::resolve_secret(vox_secrets::SecretId::OllamaUrl)
+                .expose()
+                .filter(|s: &&str| !s.trim().is_empty())
+                .map(|u: &str| format!("{}/v1/chat/completions", u.trim_end_matches('/')));
+            cfg
+        }
+        ProviderType::HuggingFaceRouter => LlmConfig::huggingface_router(spec.id.clone()),
+        // `vox mens serve` exposes an OpenAI-compatible `/v1/chat/completions`.
+        ProviderType::VoxLocal => LlmConfig::direct("voxlocal", spec.id.clone()),
+        ProviderType::Custom(base) => {
+            let mut cfg = LlmConfig::direct("custom", spec.id.clone());
+            let trimmed = base.trim().trim_end_matches('/');
+            cfg.base_url = Some(if trimmed.ends_with("/chat/completions") {
+                trimmed.to_string()
+            } else {
+                format!("{trimmed}/v1/chat/completions")
+            });
+            cfg
+        }
+        ProviderType::GoogleDirect => LlmConfig::direct("gemini", spec.id.clone()),
+        ProviderType::Anthropic => LlmConfig::direct("anthropic", spec.id.clone()),
+        ProviderType::Groq => LlmConfig::direct("groq", spec.id.clone()),
+        ProviderType::Cerebras => LlmConfig::direct("cerebras", spec.id.clone()),
+        ProviderType::Mistral => LlmConfig::direct("mistral", spec.id.clone()),
+        ProviderType::DeepSeek => LlmConfig::direct("deepseek", spec.id.clone()),
+        ProviderType::SambaNova => LlmConfig::direct("sambanova", spec.id.clone()),
+        // Mesh dispatch happens upstream (StreamRoute); this facade cannot reach a peer.
+        ProviderType::PopuliMesh => LlmConfig::openrouter(spec.id.clone()),
+    };
+    cfg.telemetry_task_category = Some(task_type.to_string());
+    cfg.telemetry_strength_tag = Some(task_category_strength(task_type).to_string());
+    cfg.max_tokens = Some(spec.max_tokens);
+    // Propagate catalog cost so chat.rs can estimate spend without a DB lookup.
+    if spec.cost_per_1k > 0.0 {
+        cfg.cost_per_1k = Some(spec.cost_per_1k);
     }
+    cfg
 }
 
 #[cfg(all(test, feature = "runtime"))]
@@ -1362,16 +1392,73 @@ mod tests {
         assert_eq!(cfg.cost_per_1k, Some(0.01));
     }
 
+    use crate::models::key_guard::set_test_key_availability;
+
     #[test]
-    fn google_direct_spec_routes_through_openrouter_base_url() {
+    fn google_direct_with_gemini_key_uses_the_gemini_wire() {
+        set_test_key_availability(Some(vec![ProviderType::GoogleDirect]));
         let s = spec("google/gemini-2.0-flash", ProviderType::GoogleDirect);
         let cfg = llm_config_for_spec(&s, TaskCategory::CodeGen);
-        assert_eq!(cfg.provider, "openrouter");
+        set_test_key_availability(None);
+        assert_eq!(cfg.provider, "gemini");
+        // Catalog id is kept for telemetry; the egress resolver translates it.
         assert_eq!(cfg.model, "google/gemini-2.0-flash");
+        assert_eq!(cfg.base_url, None, "resolver supplies the Gemini endpoint");
+    }
+
+    #[test]
+    fn google_direct_without_gemini_key_falls_back_to_openrouter() {
+        set_test_key_availability(Some(vec![ProviderType::OpenRouter]));
+        let s = spec("google/gemini-2.0-flash", ProviderType::GoogleDirect);
+        let cfg = llm_config_for_spec(&s, TaskCategory::CodeGen);
+        set_test_key_availability(None);
+        assert_eq!(cfg.provider, "openrouter");
         assert_eq!(
             cfg.base_url,
             Some(vox_config::openrouter_chat_completions_url())
         );
+    }
+
+    #[test]
+    fn every_direct_vendor_uses_its_own_provider_string_when_keyed() {
+        let cases = [
+            (ProviderType::Anthropic, "anthropic"),
+            (ProviderType::Groq, "groq"),
+            (ProviderType::Cerebras, "cerebras"),
+            (ProviderType::Mistral, "mistral"),
+            (ProviderType::DeepSeek, "deepseek"),
+            (ProviderType::SambaNova, "sambanova"),
+        ];
+        for (pt, expected) in cases {
+            set_test_key_availability(Some(vec![pt.clone()]));
+            let cfg = llm_config_for_spec(&spec("vendor/m", pt.clone()), TaskCategory::Chat);
+            set_test_key_availability(None);
+            assert_eq!(cfg.provider, expected, "{pt:?}");
+            assert!(
+                vox_config::inference::DIRECT_CLOUD_PROVIDERS.contains(&cfg.provider.as_str()),
+                "{expected} must be a resolver-known direct provider"
+            );
+        }
+    }
+
+    #[test]
+    fn groq_without_its_key_is_not_selectable() {
+        set_test_key_availability(Some(vec![ProviderType::OpenRouter]));
+        let present = ModelRegistry::key_is_present_for(&spec("llama-3.3-70b", ProviderType::Groq));
+        set_test_key_availability(None);
+        assert!(
+            !present,
+            "Groq ids are not OpenRouter slugs; must not route via OR"
+        );
+    }
+
+    #[test]
+    fn vox_local_uses_the_local_openai_compatible_wire() {
+        let cfg = llm_config_for_spec(
+            &spec("vox-mens-8b-v0.6", ProviderType::VoxLocal),
+            TaskCategory::CodeGen,
+        );
+        assert_eq!(cfg.provider, "voxlocal");
     }
 
     #[test]
@@ -1437,5 +1524,27 @@ mod tests {
         assert_eq!(ids.len(), 2);
         assert!(ids.contains(&"test/model-1"));
         assert!(ids.contains(&"test/model-2"));
+    }
+
+    #[test]
+    fn the_ollama_listing_decides_which_ollama_models_exist() {
+        let mut reg = ModelRegistry::default();
+        reg.register(spec("qwen/qwen-3.6-27b", ProviderType::Ollama));
+        reg.register(spec("qwen3:8b", ProviderType::Ollama));
+        reg.register(spec("acme/hosted-1", ProviderType::OpenRouter));
+        reg.reconcile_ollama(Some(&["qwen3:8b".to_string()]));
+        assert!(reg.get("qwen/qwen-3.6-27b").is_none(), "not installed");
+        assert!(reg.get("qwen3:8b").is_some());
+        assert!(
+            reg.get("acme/hosted-1").is_some(),
+            "other providers untouched"
+        );
+
+        reg.reconcile_ollama(None);
+        assert!(
+            reg.get("qwen3:8b").is_none(),
+            "unreachable Ollama serves nothing"
+        );
+        assert!(reg.get("acme/hosted-1").is_some());
     }
 }

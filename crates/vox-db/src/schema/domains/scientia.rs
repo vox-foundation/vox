@@ -151,6 +151,33 @@ CREATE TABLE IF NOT EXISTS model_scoreboard (
 CREATE INDEX IF NOT EXISTS idx_model_scoreboard_task 
     ON model_scoreboard(task_category, strength_tag, success_rate);
 
+-- One graded case from `vox models bench`: the only writer of measured model quality.
+-- `model_id` is the catalog id routed on; `resolved_model_id` is what the provider says
+-- actually answered (differs for `-latest` / `openrouter/auto` style aliases).
+CREATE TABLE IF NOT EXISTS model_benchmark_results (
+    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id             TEXT    NOT NULL,
+    model_id           TEXT    NOT NULL,
+    resolved_model_id  TEXT,
+    provider           TEXT    NOT NULL,
+    suite              TEXT    NOT NULL,   -- codegen | reasoning | json | tool_call | needle | vox_gen
+    task_category      TEXT    NOT NULL,
+    case_id            TEXT    NOT NULL,
+    passed             INTEGER NOT NULL,
+    score              REAL    NOT NULL,   -- 0..1 graded score
+    ttft_ms            INTEGER,
+    latency_ms         INTEGER,
+    input_tokens       INTEGER,
+    output_tokens      INTEGER,
+    tokens_per_sec     REAL,
+    cost_usd           REAL,
+    error_class        TEXT,               -- NULL on a completed call
+    recorded_at_ms     INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_model_benchmark_results_model
+    ON model_benchmark_results(model_id, recorded_at_ms);
+
 -- Observed pricing SSOT updated from llm_interactions
 CREATE TABLE IF NOT EXISTS model_pricing_catalog (
     model_id                   TEXT    NOT NULL,

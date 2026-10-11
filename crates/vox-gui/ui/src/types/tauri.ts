@@ -275,7 +275,7 @@ export interface GraphifyStatusDto {
 
 export interface RouteQuality {
   value: number;
-  source: 'benchmark' | 'inherited' | 'estimate' | 'unknown';
+  source: 'benchmark' | 'inherited' | 'estimate' | 'measured' | 'unknown';
   index: number | null;
   inherited_from: string | null;
 }

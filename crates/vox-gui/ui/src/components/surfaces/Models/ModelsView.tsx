@@ -5,6 +5,7 @@ import { Glass } from '../../ui/Glass';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 import { BackendAvailability, type ProviderStatus } from './BackendAvailability';
+import { ModelLeaderboardPanel } from './ModelLeaderboard';
 
 interface ModelCard {
   id: string;
@@ -141,6 +142,7 @@ export function ModelsView({ pushToast, gamifyEnabled = false }: ModelsViewProps
         </Glass>
       )}
       <BackendAvailability statuses={providerStatuses} />
+      <ModelLeaderboardPanel />
       {loading && models.length === 0 ? (
         <Glass className="p-8 text-center text-text-muted text-sm">Loading model catalog…</Glass>
       ) : (

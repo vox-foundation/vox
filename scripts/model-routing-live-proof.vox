@@ -1,0 +1,308 @@
+// Live proof that model routing measures, ranks and adapts with real spend.
+//
+//   vox run scripts/model-routing-live-proof.vox
+//
+// Legs (each PASS / FAIL / SKIP; any FAIL exits 1):
+//   1. discover   refresh the catalog, bench what changed (new models, moved `-latest` aliases)
+//   2. openrouter bench every current `-latest` alias target plus one raw alias id, assert
+//                 measured intelligence/responsiveness/efficiency, alias resolution, and that
+//                 the per-mode routing table ranks on the new evidence
+//   3. direct     bench each direct vendor wire that has a key (skipped when none resolves)
+//   4. local      bench an Ollama model; `auto-local` must fail closed on a dead endpoint
+//   5. auto chat  `vox chat --model auto` routes through the same selector and answers
+// Total spend is capped at total_cap_usd across every leg.
+import fs
+import process
+
+type RunOut {
+    exit: int,
+    stdout: str,
+    stderr: str,
+}
+
+fn vox_binary_path() to str {
+    if fs.exists("./target/debug/vox") {
+        return "./target/debug/vox"
+    }
+    if fs.exists("./target/debug/vox.exe") {
+        return "./target/debug/vox.exe"
+    }
+    return "vox"
+}
+
+// Every leg shares one isolated store: a running daemon holds the user DB's lock, and the
+// proof must show results persisted by one leg being routed on by the next.
+fn proof_data_dir() to str {
+    return "target/model-bench/data"
+}
+
+fn run(bin: str, args: list[str], env_pairs: list[str]) to RunOut {
+    let pairs = env_pairs.push("VOX_DATA_DIR=" + proof_data_dir())
+    let res = std.process.run_capture_ex(bin, args, ".", pairs)
+    if res.is_err() {
+        return { exit: -1, stdout: "", stderr: "spawn failed: " + res.unwrap_err() }
+    }
+    let out = res.unwrap()
+    print(out.stdout)
+    return { exit: out.exit, stdout: out.stdout, stderr: out.stderr }
+}
+
+fn field_str(v: Json, key: str) to str {
+    return v.get(key).and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("")
+}
+
+fn field_float(v: Json, key: str) to float {
+    return v.get(key).and_then(fn(x: Json) to Option[float] { x.as_float() }).unwrap_or(-1.0)
+}
+
+fn field_int(v: Json, key: str) to int {
+    return v.get(key).and_then(fn(x: Json) to Option[int] { x.as_int() }).unwrap_or(-1)
+}
+
+fn field_list(v: Json, key: str) to list[Json] {
+    return v.get(key).and_then(fn(x: Json) to Option[list[Json]] { x.as_array() }).unwrap_or([])
+}
+
+fn read_report(path: str) to Option[Json] {
+    let text = fs.read_to_string(path)
+    if text.is_err() {
+        return None
+    }
+    let parsed = json.parse(text.unwrap())
+    if parsed.is_err() {
+        return None
+    }
+    return Some(parsed.unwrap())
+}
+
+fn verdict(kind: str, leg: str, detail: str) {
+    print("[" + kind + "] " + leg + ": " + detail)
+}
+
+// Assertions shared by every bench report. Returns failure messages (empty = pass).
+fn check_report(report: Json, cap: float, min_models: int) to list[str] {
+    let mut fails: list[str] = []
+    let spent = field_float(report, "spent_usd")
+    if spent > cap {
+        fails = fails.push("spent $" + str(spent) + " over the $" + str(cap) + " cap")
+    }
+    if report.get("aborted").and_then(fn(x: Json) to Option[bool] { x.as_bool() }).unwrap_or(false) {
+        fails = fails.push("run aborted at the spend cap")
+    }
+    if not report.get("persisted").and_then(fn(x: Json) to Option[bool] { x.as_bool() }).unwrap_or(false) {
+        fails = fails.push("results were not saved to the store, so routing cannot learn from them")
+    }
+    let summaries = field_list(report, "summaries")
+    let mut graded = 0
+    let mut timed = 0
+    for s in summaries {
+        let cases = field_int(s, "cases")
+        let err = field_float(s, "error_rate")
+        if cases > 0 and err < 1.0 {
+            graded = graded + 1
+        }
+        if field_int(s, "p50_ttft_ms") > 0 {
+            timed = timed + 1
+        }
+        print("  " + field_str(s, "model_id") + "  served=" + field_str(s, "served_model") + "  pass=" + str(field_float(s, "pass_rate")) + "  score=" + str(field_float(s, "mean_score")) + "  ttft_p50=" + str(field_int(s, "p50_ttft_ms")) + "ms  p95=" + str(field_int(s, "p95_latency_ms")) + "ms  tok/s=" + str(field_float(s, "mean_tokens_per_sec")) + "  $=" + str(field_float(s, "total_cost_usd")) + "  err=" + str(err))
+    }
+    if graded < min_models {
+        fails = fails.push(str(graded) + " models produced graded answers, need " + str(min_models))
+    }
+    if graded > 0 and timed is 0 {
+        fails = fails.push("no model reported a time to first token")
+    }
+    return fails
+}
+
+fn present_keys(bin: str) to list[str] {
+    let res = std.process.run_capture_ex(bin, ["secrets", "doctor"], ".", [])
+    let mut keys: list[str] = []
+    if res.is_err() {
+        return keys
+    }
+    for line in res.unwrap().stdout.split("\n") {
+        let t = line.trim()
+        if t.contains(": Present") {
+            keys = keys.push(t.split(":").get(0).unwrap().replace("- ", "").trim())
+        }
+    }
+    return keys
+}
+
+fn main() {
+    let bin = vox_binary_path()
+    let total_cap_usd = 10.0
+    let discover_usd = 1.5
+    let openrouter_usd = 5.0
+    let direct_usd = 2.0
+    let local_usd = 0.01
+    let out_dir = "target/model-bench"
+    let _ = fs.mkdir(out_dir)
+    let _ = fs.mkdir(proof_data_dir())
+    let mut failures = 0
+    let mut total_spent = 0.0
+    print("model-routing live proof · binary " + bin + " · cap $" + str(total_cap_usd))
+
+    let keys = present_keys(bin)
+    print("keys present: " + keys.join(", "))
+    if not keys.contains("OpenRouterApiKey") {
+        verdict("FAIL", "keys", "OpenRouterApiKey does not resolve; run `vox secrets doctor`")
+        process.exit(1)
+    }
+
+    // 1. discover → bench the delta
+    let disc = run(bin, ["model", "discover", "--force", "--bench-new", "--bench-limit", "3",
+        "--max-usd", str(discover_usd)], [])
+    if disc.exit isnt 0 {
+        failures = failures + 1
+        verdict("FAIL", "discover", disc.stderr)
+    } else if disc.stdout.contains("; benching 0") {
+        verdict("PASS", "discover", "catalog refreshed; nothing new since the last refresh")
+    } else {
+        verdict("PASS", "discover", "catalog refreshed; new models and moved -latest aliases benched")
+    }
+    total_spent = total_spent + discover_usd
+
+    // 2. OpenRouter: every current -latest target, plus a raw alias id to prove alias resolution
+    let alias_id = "~google/gemini-flash-latest"
+    let or_json = out_dir + "/openrouter.json"
+    let or_run = run(bin, ["model", "bench", "--latest", "10", "--model", "openrouter:" + alias_id,
+        "--max-usd", str(openrouter_usd), "--report", or_json], [])
+    let or_report = read_report(or_json)
+    if or_run.exit isnt 0 or or_report is null {
+        failures = failures + 1
+        verdict("FAIL", "openrouter", "bench failed: " + or_run.stderr)
+    } else {
+        let report = or_report.unwrap()
+        total_spent = total_spent + field_float(report, "spent_usd")
+        let mut fails = check_report(report, openrouter_usd, 8)
+        let mut alias_served = ""
+        for s in field_list(report, "summaries") {
+            if field_str(s, "model_id") is alias_id {
+                alias_served = field_str(s, "served_model")
+            }
+        }
+        if alias_served is "" or alias_served is alias_id {
+            fails = fails.push("alias " + alias_id + " did not report the model it resolved to")
+        } else {
+            print("  alias " + alias_id + " → served by " + alias_served)
+        }
+        let routes = field_list(report, "routes")
+        let mut measured = 0
+        let mut balanced_holes = 0
+        for r in routes {
+            let model = r.get("model_id").and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("")
+            if field_str(r, "quality_source") is "measured" {
+                measured = measured + 1
+            }
+            if field_str(r, "mode") is "balanced" and model is "" {
+                balanced_holes = balanced_holes + 1
+            }
+            print("  route " + field_str(r, "mode") + "/" + field_str(r, "category") + " → " + model + " (" + field_str(r, "quality_source") + ")")
+        }
+        if routes.len() is 0 {
+            fails = fails.push("report has no routing table")
+        }
+        if measured is 0 {
+            fails = fails.push("no mode routes on measured bench quality")
+        }
+        if balanced_holes > 0 {
+            fails = fails.push(str(balanced_holes) + " balanced-mode categories route nowhere")
+        }
+        for c in field_list(report, "confidence") {
+            print("  confidence " + field_str(c, "model_id") + ": " + field_str(c, "from") + " → " + field_str(c, "to"))
+        }
+        if fails.len() is 0 {
+            verdict("PASS", "openrouter", str(field_list(report, "summaries").len()) + " models benched for $" + str(field_float(report, "spent_usd")) + "; " + str(measured) + " routes on measured quality")
+        } else {
+            failures = failures + 1
+            verdict("FAIL", "openrouter", fails.join("; "))
+        }
+    }
+
+    // 3. direct vendor wires, for whichever keys resolve
+    let wires = [
+        ["GroqApiKey", "groq:llama-3.3-70b-versatile"],
+        ["CerebrasApiKey", "cerebras:llama-3.3-70b"],
+        ["MistralApiKey", "mistral:mistral-small-latest"],
+        ["DeepSeekApiKey", "deepseek:deepseek-chat"],
+        ["SambaNovaApiKey", "sambanova:Meta-Llama-3.3-70B-Instruct"],
+        ["AnthropicApiKey", "anthropic:claude-haiku-4-5"],
+        ["GeminiApiKey", "gemini:gemini-2.5-flash"],
+    ]
+    let mut direct: list[str] = []
+    for w in wires {
+        if keys.contains(w.get(0).unwrap()) {
+            direct = direct.push(w.get(1).unwrap())
+        }
+    }
+    if direct.len() is 0 {
+        verdict("SKIP", "direct", "no direct vendor key resolves (Groq, Cerebras, Mistral, DeepSeek, SambaNova, Anthropic, Gemini)")
+    } else {
+        let d_json = out_dir + "/direct.json"
+        let d_run = run(bin, ["model", "bench", "--model", direct.join(","), "--max-usd", str(direct_usd),
+            "--report", d_json], [])
+        let d_report = read_report(d_json)
+        if d_run.exit isnt 0 or d_report is null {
+            failures = failures + 1
+            verdict("FAIL", "direct", "bench failed: " + d_run.stderr)
+        } else {
+            total_spent = total_spent + field_float(d_report.unwrap(), "spent_usd")
+            let fails = check_report(d_report.unwrap(), direct_usd, direct.len())
+            if fails.len() is 0 {
+                verdict("PASS", "direct", direct.join(", "))
+            } else {
+                failures = failures + 1
+                verdict("FAIL", "direct", fails.join("; "))
+            }
+        }
+    }
+
+    // 4. local: Ollama bench, then auto-local must fail closed instead of falling back to cloud
+    let l_json = out_dir + "/local.json"
+    let l_run = run(bin, ["model", "bench", "--model", "ollama:qwen3:8b", "--suites", "reasoning,json,chat,codegen",
+        "--max-usd", str(local_usd), "--timeout-ms", "300000", "--report", l_json], [])
+    let l_report = read_report(l_json)
+    if l_run.exit isnt 0 or l_report is null {
+        failures = failures + 1
+        verdict("FAIL", "local", "ollama bench failed (is `ollama serve` running with qwen3:8b?): " + l_run.stderr)
+    } else {
+        let fails = check_report(l_report.unwrap(), local_usd, 1)
+        if fails.len() is 0 {
+            verdict("PASS", "local", "ollama:qwen3:8b graded at $0")
+        } else {
+            failures = failures + 1
+            verdict("FAIL", "local", fails.join("; "))
+        }
+    }
+    let closed = run(bin, ["chat", "--model", "auto-local", "Reply with ok"], ["VOX_LOCAL_ENDPOINT=http://127.0.0.1:9"])
+    if closed.exit isnt 0 and closed.stderr.contains("Local inference server is not running") {
+        verdict("PASS", "local-fail-closed", "auto-local refused a dead endpoint instead of routing to cloud")
+    } else {
+        failures = failures + 1
+        verdict("FAIL", "local-fail-closed", "auto-local did not fail closed: exit " + str(closed.exit) + ": " + closed.stderr)
+    }
+
+    // 5. auto chat routes through decide() with the evidence gathered above
+    // `auto` lifts any VOX_MODEL_FORCE pin from ~/.vox/config.toml so the selector actually runs.
+    let chat = run(bin, ["chat", "--model", "auto", "Reply with exactly: routed-ok"], ["VOX_MODEL_FORCE=auto"])
+    let route_line = chat.stderr.split("\n").filter(fn(l: str) to bool { l.starts_with("auto-route:") })
+    if chat.exit is 0 and route_line.len() > 0 and chat.stdout.to_lowercase().contains("routed-ok") {
+        verdict("PASS", "auto-chat", route_line.get(0).unwrap())
+    } else {
+        failures = failures + 1
+        verdict("FAIL", "auto-chat", "exit " + str(chat.exit) + ": " + chat.stderr)
+    }
+
+    print("total bench spend ≤ $" + str(total_spent) + " (cap $" + str(total_cap_usd) + ")")
+    if total_spent > total_cap_usd {
+        failures = failures + 1
+        verdict("FAIL", "budget", "spend exceeded the cap")
+    }
+    if failures > 0 {
+        print(str(failures) + " leg(s) failed")
+        process.exit(1)
+    }
+    print("all legs passed")
+}

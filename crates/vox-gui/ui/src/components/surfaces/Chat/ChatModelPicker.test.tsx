@@ -69,12 +69,34 @@ describe('ChatModelPicker', () => {
     const onApplied = vi.fn();
     render(<ChatModelPicker activeModel="anthropic/claude-opus-4.7" onApplied={onApplied} />);
     await user.click(screen.getByRole('button', { name: /model: anthropic/i }));
-    const autoOption = await screen.findByRole('option', { name: /Auto \(Recommended: quant_q6_k\)/i });
+    const autoOption = await screen.findByRole('option', { name: /Auto \(local: quant_q6_k\)/i });
     expect(autoOption).toBeInTheDocument();
     expect(autoOption.getAttribute('title')).toContain('Detected VRAM: 27.0 GB — High-fidelity 6-bit quantized 27B');
     expect(screen.getByText('27.0 GB')).toBeInTheDocument();
     await user.click(autoOption);
     expect(onApplied).toHaveBeenCalledWith(null);
+  });
+
+  it('names the model auto-route will actually pick (decide() preview), not the VRAM guess', async () => {
+    invoke.mockImplementation(async (cmd: string) => {
+      if (cmd === 'get_routing_summary_live') {
+        return {
+          decision_preview: { selected_model: 'anthropic/claude-opus-4.7', discovery_state: 'confirmed' },
+          reason: 'scored',
+        };
+      }
+      if (cmd === 'get_auto_model_recommendation') {
+        return { selected_model_id: 'qwen3:8b', detected_vram_gb: 16, tier_reason: '8B fits' };
+      }
+      if (cmd === 'list_model_cards') return [];
+      if (cmd === 'inference_provider_status') return [];
+      return null;
+    });
+    const user = userEvent.setup();
+    render(<ChatModelPicker activeModel="openai/gpt-5.2-mini" onApplied={vi.fn()} />);
+    await user.click(screen.getByRole('button', { name: /model: openai/i }));
+    const autoOption = await screen.findByRole('option', { name: /Auto \(routes to: claude-opus-4\.7\)/i });
+    expect(autoOption.getAttribute('title')).toContain('Auto-route picks anthropic/claude-opus-4.7 — scored');
   });
 
   it('opens the listbox upward (bottom-full) so it clears the bottom-docked composer', async () => {

@@ -253,7 +253,7 @@ mod tests {
 }
 
 #[derive(Serialize)]
-struct OpenAiChatRequest<'a> {
+pub(crate) struct OpenAiChatRequest<'a> {
     model: &'a str,
     messages: Vec<WireMessage<'a>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -271,7 +271,7 @@ struct OpenAiChatRequest<'a> {
     stream: bool,
 }
 
-fn build_request<'a>(
+pub(crate) fn build_request<'a>(
     req: &'a EgressRequest,
     params: &'a ChatParams<'a>,
     messages: &'a [ChatMessage],

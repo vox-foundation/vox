@@ -293,6 +293,8 @@ pub enum PromotionEvidence {
     FailureThreshold,
     /// Listed in `model-pins.v1.yaml` `retired_ids:` — explicit council retirement.
     CouncilRetirement,
+    /// A graded `vox model bench` run moved the Wilson verdict (`bench_evidence::BenchEvidence::verdict`).
+    BenchmarkVerdict,
 }
 
 impl PromotionEvidence {
@@ -304,6 +306,7 @@ impl PromotionEvidence {
             Self::ShadowEval => "shadow_eval",
             Self::FailureThreshold => "failure_threshold",
             Self::CouncilRetirement => "council_retirement",
+            Self::BenchmarkVerdict => "benchmark_verdict",
         }
     }
 }

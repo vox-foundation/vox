@@ -85,22 +85,6 @@ fn live_runs_enabled() -> bool {
     )
 }
 
-fn confidence_state_for_model(m: &vox_orchestrator::models::ModelSpec) -> &'static str {
-    let pins = vox_config::load_model_pins_config().unwrap_or_default();
-    if pins.retired_ids.iter().any(|id| id == &m.id) {
-        return "deprecated";
-    }
-    match m.pricing_source {
-        vox_orchestrator::models::spec::PricingSource::Telemetry
-        | vox_orchestrator::models::spec::PricingSource::UserConfig => "confirmed",
-        vox_orchestrator::models::spec::PricingSource::Unknown => "provisional",
-        vox_orchestrator::models::spec::PricingSource::LiteLLM
-        | vox_orchestrator::models::spec::PricingSource::OpenRouter
-        | vox_orchestrator::models::spec::PricingSource::AnthropicDirect
-        | vox_orchestrator::models::spec::PricingSource::Bootstrap => "shadowed",
-    }
-}
-
 fn fixture_mesh_nodes() -> Value {
     json!({
         "source": "fixture",
@@ -448,18 +432,22 @@ pub async fn get_models_catalog(
         Ok(guard) => guard.list_models(),
         Err(e) => return err("lock", &e.to_string()),
     };
-    let arm_stats = match poison_rw_read(models.read(), "arm stats for catalog") {
-        Ok(guard) => guard.arm_stats_snapshot().clone(),
+    let (arm_stats, confidence_state) = match poison_rw_read(models.read(), "arm stats for catalog")
+    {
+        Ok(guard) => (
+            guard.arm_stats_snapshot().clone(),
+            snapshot
+                .iter()
+                .map(|m| (m.id.clone(), guard.routing_confidence(m).as_str()))
+                .collect::<std::collections::HashMap<_, _>>(),
+        ),
         Err(e) => return err("lock", &e.to_string()),
     };
     ok(json!({
         "source": "registry",
         "model_count": snapshot.len(),
         "models": snapshot,
-        "confidence_state": snapshot
-            .iter()
-            .map(|m| (m.id.clone(), confidence_state_for_model(m)))
-            .collect::<std::collections::HashMap<_, _>>(),
+        "confidence_state": confidence_state,
         "arm_stats": arm_stats,
     }))
 }

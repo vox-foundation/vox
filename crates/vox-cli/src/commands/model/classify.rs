@@ -26,9 +26,58 @@ pub struct ClassifyArgs {
     /// `model-pins.v1.yaml::classifier.primary`).
     #[arg(long)]
     pub classifier: Option<String>,
+
+    /// Classify from measurement instead: run a graded `vox model bench` on the model and
+    /// derive tier and strengths from its suite scores.
+    #[arg(long)]
+    pub measure: bool,
+
+    /// Spend cap for `--measure`.
+    #[arg(long, default_value_t = 0.25)]
+    pub max_usd: f64,
+}
+
+async fn run_measured(args: &ClassifyArgs) -> Result<()> {
+    let report = super::bench::execute(super::bench::BenchArgs {
+        models: vec![args.model_id.clone()],
+        provisional: 0,
+        latest: 0,
+        suites: Vec::new(),
+        repeats: 1,
+        max_usd: args.max_usd,
+        concurrency: 1,
+        dry_run: false,
+        no_write: false,
+        report: None,
+        timeout_ms: 120_000,
+    })
+    .await?;
+    let summary: super::bench::ModelSummary = report["summaries"]
+        .as_array()
+        .and_then(|a| a.first())
+        .cloned()
+        .map(serde_json::from_value)
+        .transpose()?
+        .context("bench produced no summary for this model")?;
+    let registry = ModelRegistry::from_cache();
+    let catalog_tier = registry
+        .get(&args.model_id)
+        .map_or(vox_orchestrator::models::ModelTier::Unknown, |s| {
+            s.capabilities.tier
+        });
+    let judgement = super::bench::classify_from_summary(&summary, catalog_tier);
+    println!(
+        "tier: {:?}  strengths: {:?}  confidence: {:.2}",
+        judgement.tier, judgement.strengths, judgement.confidence
+    );
+    record_classification(&args.model_id, "vox-model-bench", &judgement);
+    Ok(())
 }
 
 pub async fn run(args: ClassifyArgs) -> Result<()> {
+    if args.measure {
+        return run_measured(&args).await;
+    }
     let registry = ModelRegistry::from_cache();
     let pins = vox_config::load_model_pins_config().unwrap_or_default();
     let classifier_id = args

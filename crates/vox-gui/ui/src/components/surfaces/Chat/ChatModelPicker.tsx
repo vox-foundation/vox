@@ -1,7 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
-import { getAutoModelRecommendation, type AutoModelRecommendation } from '../../../transport';
+import {
+  getAutoModelRecommendation,
+  getAutoRoutePreview,
+  type AutoModelRecommendation,
+} from '../../../transport';
+import type { RoutingSummary } from '../../../types/tauri';
 import {
   filterPickerModels,
   isLocalProviderName,
@@ -36,6 +41,7 @@ export function ChatModelPicker({
   const [models, setModels] = useState<PickerModel[]>([]);
   const [statuses, setStatuses] = useState<ProviderStatus[]>([]);
   const [recommendation, setRecommendation] = useState<AutoModelRecommendation | null>(null);
+  const [routePreview, setRoutePreview] = useState<RoutingSummary | null>(null);
   const [query, setQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -50,6 +56,15 @@ export function ChatModelPicker({
       })
       .catch(() => {
         // Recommendation is best-effort
+      });
+    getAutoRoutePreview()
+      .then(preview => {
+        if (mounted && preview) {
+          setRoutePreview(preview);
+        }
+      })
+      .catch(() => {
+        // Preview is best-effort; the label falls back to the local recommendation.
       });
     return () => {
       mounted = false;
@@ -120,6 +135,26 @@ export function ChatModelPicker({
     [models, statuses, query],
   );
 
+  // The Auto label names what auto-route will actually pick (the backend decide() preview);
+  // the hardware-sized local recommendation is shown only when no preview is available.
+  const routedTo = routePreview?.decision_preview?.selected_model ?? null;
+  const autoLabel = routedTo
+    ? `Auto (routes to: ${shortModelId(routedTo)})`
+    : recommendation
+      ? `Auto (local: ${shortModelId(recommendation.selected_model_id)})`
+      : 'auto-route (clear override)';
+  const autoTitle =
+    [
+      routedTo
+        ? `Auto-route picks ${routedTo}${routePreview?.reason ? ` — ${routePreview.reason}` : ''}`
+        : null,
+      recommendation
+        ? `Detected VRAM: ${recommendation.detected_vram_gb.toFixed(1)} GB — ${recommendation.tier_reason}`
+        : null,
+    ]
+      .filter(Boolean)
+      .join('\n') || undefined;
+
   const apply = (id: string | null) => {
     onApplied?.(id);
     setOpen(false);
@@ -154,24 +189,12 @@ export function ChatModelPicker({
               type="button"
               role="option"
               aria-selected={activeModel == null}
-              aria-label={
-                recommendation
-                  ? `Auto (Recommended: ${shortModelId(recommendation.selected_model_id)}) auto-route`
-                  : 'auto-route (clear override)'
-              }
-              title={
-                recommendation
-                  ? `Detected VRAM: ${recommendation.detected_vram_gb.toFixed(1)} GB — ${recommendation.tier_reason}`
-                  : undefined
-              }
+              aria-label={`${autoLabel} auto-route`}
+              title={autoTitle}
               onClick={() => apply(null)}
               className="flex w-full items-center justify-between truncate rounded-sm px-2 py-1 text-left font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle"
             >
-              <span className="truncate">
-                {recommendation
-                  ? `Auto (Recommended: ${shortModelId(recommendation.selected_model_id)})`
-                  : 'auto-route (clear override)'}
-              </span>
+              <span className="truncate">{autoLabel}</span>
               {recommendation && (
                 <span
                   title={`${recommendation.detected_vram_gb.toFixed(1)} GB detected VRAM`}

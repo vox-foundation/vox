@@ -134,6 +134,21 @@ impl crate::orchestrator::Orchestrator {
             }
         }
 
+        match crate::models::bench_evidence::load(
+            &db,
+            crate::models::bench_evidence::BENCH_EVIDENCE_WINDOW_DAYS,
+        )
+        .await
+        {
+            Ok(ev) => {
+                let mut registry = self.models.write().unwrap();
+                registry.inject_benchmark_evidence(ev);
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "Failed to refresh model benchmark evidence from database");
+            }
+        }
+
         match db.list_model_arm_stats(7).await {
             Ok(arms) => {
                 let mut registry = self.models.write().unwrap();

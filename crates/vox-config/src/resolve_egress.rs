@@ -67,12 +67,34 @@ fn resolve_api_key(provider: &str) -> String {
         "hf_router" | "huggingface" | "hf_endpoint" => {
             crate::inference::huggingface_hub_token().unwrap_or_default()
         }
-        _ => String::new(),
+        other => direct_provider_secret(other)
+            .and_then(|id| {
+                vox_secrets::resolve_secret(id)
+                    .expose()
+                    .map(|s| s.trim().to_string())
+            })
+            .unwrap_or_default(),
     }
 }
 
+/// Clavis id holding the key for a direct cloud provider (beyond the cached three above).
+fn direct_provider_secret(provider: &str) -> Option<vox_secrets::SecretId> {
+    use vox_secrets::SecretId;
+    Some(match provider {
+        "groq" => SecretId::GroqApiKey,
+        "cerebras" => SecretId::CerebrasApiKey,
+        "mistral" => SecretId::MistralApiKey,
+        "deepseek" => SecretId::DeepSeekApiKey,
+        "sambanova" => SecretId::SambaNovaApiKey,
+        "gemini" => SecretId::GeminiApiKey,
+        "custom" => SecretId::CustomOpenaiApiKey,
+        _ => return None,
+    })
+}
+
 fn chat_requires_nonempty_api_key(provider: &str) -> bool {
-    matches!(provider, "openrouter" | "openai" | "anthropic")
+    matches!(provider, "openrouter" | "openai")
+        || crate::inference::DIRECT_CLOUD_PROVIDERS.contains(&provider)
 }
 
 /// OpenRouter attribution / routing headers, mirroring `wire.rs::openrouter_extra_headers`.
@@ -166,6 +188,10 @@ pub fn resolve_egress(input: &EgressResolveInput) -> Result<EgressRequest, Strin
                 "openrouter" => crate::inference::openrouter_chat_completions_url(),
                 "openai" => crate::inference::openai_chat_completions_url(),
                 "hf_router" | "huggingface" => crate::inference::hf_router_chat_completions_url(),
+                p if crate::inference::DIRECT_CLOUD_PROVIDERS.contains(&p) => {
+                    crate::inference::direct_chat_completions_url(p)
+                        .unwrap_or_else(crate::inference::openrouter_chat_completions_url)
+                }
                 "ollama" => format!(
                     "{}/v1/chat/completions",
                     crate::inference::local_ollama_populi_base_url().trim_end_matches('/')
@@ -180,7 +206,7 @@ pub fn resolve_egress(input: &EgressResolveInput) -> Result<EgressRequest, Strin
     Ok(EgressRequest {
         base_url,
         api_key,
-        model: input.model.clone(),
+        model: crate::inference::native_model_id(&input.provider, &input.model),
         headers: extra_headers(&input.provider, &input.model),
         throttle_key: input.provider.clone(),
         max_concurrent: resolve_max_concurrent(&input.provider).max(1),
@@ -269,6 +295,50 @@ mod tests {
             std::env::remove_var("OPENROUTER_BASE_URL");
         }
         crate::snapshot::bump(&["OPENROUTER_BASE_URL"]);
+    }
+
+    #[test]
+    fn direct_providers_never_fall_through_to_openrouter_url() {
+        // A vendor key must never be sent to OpenRouter: every direct provider resolves to
+        // its own endpoint (asserted with an explicit key so the env is irrelevant).
+        for p in crate::inference::DIRECT_CLOUD_PROVIDERS {
+            let input = EgressResolveInput {
+                provider: (*p).into(),
+                model: "m".into(),
+                base_url_override: None,
+                timeout_ms: None,
+                api_key_override: Some("k".into()),
+            };
+            let req = resolve_egress(&input).expect("resolve");
+            assert!(
+                !req.base_url.contains("openrouter"),
+                "{p} -> {}",
+                req.base_url
+            );
+            assert_eq!(req.throttle_key, *p);
+            assert!(
+                req.headers.is_empty(),
+                "{p} must not carry OpenRouter headers"
+            );
+        }
+        let anthropic = resolve_egress(&EgressResolveInput {
+            provider: "anthropic".into(),
+            model: "anthropic/claude-opus-4.7".into(),
+            base_url_override: None,
+            timeout_ms: None,
+            api_key_override: Some("k".into()),
+        })
+        .expect("resolve");
+        assert_eq!(anthropic.model, "claude-opus-4-7");
+    }
+
+    #[test]
+    fn direct_providers_require_a_key() {
+        for p in crate::inference::DIRECT_CLOUD_PROVIDERS {
+            assert!(chat_requires_nonempty_api_key(p), "{p}");
+        }
+        assert!(!chat_requires_nonempty_api_key("ollama"));
+        assert!(!chat_requires_nonempty_api_key("voxlocal"));
     }
 
     #[test]

@@ -17,10 +17,11 @@ pub use chat::{
 };
 pub use embed::llm_embed;
 pub use run_trace::run_trace_scope;
-pub use stream::{llm_stream, llm_stream_activity};
+pub use stream::{llm_stream, llm_stream_activity, llm_stream_measured};
 pub use types::{
     LlmChatMessage, LlmConfig, LlmResponse, LlmToolDef, ModelMetric, ModelRegistryEntry,
 };
+pub use vox_llm_egress::MeasuredCompletion;
 pub use vox_llm_egress::{LlmContentPart, LlmImageUrl};
 pub use vox_telemetry::{
     FixtureModelIntentResolvedEvent, OrchSubagentDispatchEvent, SubagentDispatchTelemetryPayload,

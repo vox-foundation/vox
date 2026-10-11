@@ -297,7 +297,7 @@ impl crate::VoxDb {
         let context_utilization_pct = outcome.context_utilization_pct;
         let success = outcome.success;
         let cost_usd = outcome.cost_usd;
-        let quality_score = outcome.quality_score.unwrap_or(1.0);
+        let quality_score = outcome.quality_score;
         let ttft_ms = outcome.ttft_ms;
         let tpot_ms = outcome.tpot_ms;
 
@@ -348,15 +348,19 @@ impl crate::VoxDb {
                 // Note: p50/p99 approximations require separate compute batches.
                 // We do a simple exponential moving average for quality/cost here for now,
                 // or just increment the counters and let batch jobs recalculate p50.
+                // An ungraded turn (`quality_score` NULL) leaves the stored quality untouched.
                 conn.execute(
                     "INSERT INTO model_scoreboard
-                        (model_id, task_category, strength_tag, window_days, n_calls, success_rate, cost_per_success_usd, quality_score, updated_at_ms)
-                     VALUES (?1, ?2, ?3, ?4, 1, ?5, ?6, ?7, ?8)
+                        (model_id, task_category, strength_tag, window_days, n_calls, success_rate, success_count, cumulative_cost_usd, cost_per_success_usd, quality_score, updated_at_ms)
+                     VALUES (?1, ?2, ?3, ?4, 1, ?5, CAST(?5 AS INTEGER), ?6, ?6, COALESCE(?7, 1.0), ?8)
                      ON CONFLICT(model_id, task_category, strength_tag, window_days) DO UPDATE SET
                         n_calls = n_calls + 1,
                         success_rate = ((success_rate * n_calls) + ?5) / (n_calls + 1),
+                        success_count = success_count + CAST(?5 AS INTEGER),
+                        cumulative_cost_usd = cumulative_cost_usd + ?6,
                         cost_per_success_usd = ((cost_per_success_usd * (success_rate * n_calls)) + ?6) / MAX(1.0, (success_rate * n_calls) + ?5),
-                        quality_score = ((quality_score * n_calls) + ?7) / (n_calls + 1),
+                        quality_score = CASE WHEN ?7 IS NULL THEN quality_score
+                                             ELSE ((quality_score * n_calls) + ?7) / (n_calls + 1) END,
                         updated_at_ms = ?8",
                     params![
                         model_id.as_str(),

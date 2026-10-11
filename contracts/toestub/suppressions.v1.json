@@ -224,6 +224,30 @@
       "path_glob": "**/vox-cli/src/commands/harness/mod.rs",
       "reason": "pub async fn run() is the pre-existing `vox harness` dispatcher (a thin match onto eval::run etc.); this change only turned a broken [`eval`] intra-doc link in the module doc into a code span (rustdoc -D warnings). Surfaced only because tdd-guard re-scans the whole touched file, not the diff.",
       "owner": "robot"
+    },
+    {
+      "rule_id_prefix": "skeleton/untested-pub-api",
+      "path_glob": "**/vox-cli/src/commands/model/mod.rs",
+      "reason": "pub async fn run() is the pre-existing `vox model` dispatcher (a thin match onto each subcommand's run); the model-routing change only adds the Bench arm, whose handler is tested in bench/. Surfaced only because tdd-guard re-scans the whole touched file, not the diff.",
+      "owner": "robot"
+    },
+    {
+      "rule_id_prefix": "skeleton/untested-pub-api",
+      "path_glob": "**/vox-cli/src/commands/model/classify.rs",
+      "reason": "pub async fn run() is the pre-existing `vox model classify` entry point; the model-routing change only adds a private --measured path (run_measured) that delegates to the bench module, which carries the tests. Surfaced only because tdd-guard re-scans the whole touched file, not the diff.",
+      "owner": "robot"
+    },
+    {
+      "rule_id_prefix": "skeleton/untested-pub-api",
+      "path_glob": "**/vox-db/src/codex_legacy.rs",
+      "reason": "verify_legacy_store is pre-existing; the model-routing change only appends model_benchmark_results to LEGACY_EXPORT_TABLES. Surfaced only because tdd-guard re-scans the whole touched file, not the diff.",
+      "owner": "robot"
+    },
+    {
+      "rule_id_prefix": "skeleton/untested-pub-api",
+      "path_glob": "**/vox-orchestrator/src/orchestrator/core/telemetry.rs",
+      "reason": "record_telemetry is pre-existing; the model-routing change only adds a bench-evidence load (bench_evidence::load, tested in its own module) to the periodic registry refresh. Surfaced only because tdd-guard re-scans the whole touched file, not the diff.",
+      "owner": "robot"
     }
   ]
 }

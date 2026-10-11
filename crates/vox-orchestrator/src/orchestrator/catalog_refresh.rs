@@ -298,9 +298,7 @@ fn unix_now() -> u64 {
 async fn register_supplemental_catalogs(
     registry: &mut crate::models::ModelRegistry,
 ) -> (usize, usize, usize, usize) {
-    use crate::catalog::{
-        HuggingFaceCatalog, MensCatalog, ModelCatalog, OllamaCatalog, PopuliMeshCatalog,
-    };
+    use crate::catalog::{HuggingFaceCatalog, MensCatalog, ModelCatalog, PopuliMeshCatalog};
 
     // Probe NVML once per refresh cycle (Task 2.6) and cache the result for
     // this pass's scoring — never per scoring call. NVML is blocking FFI, so
@@ -317,14 +315,9 @@ async fn register_supplemental_catalogs(
         );
     }
 
-    let mut ollama_count = 0usize;
-    let ollama_url = vox_config::local_ollama_populi_base_url();
-    if let Ok(models) = OllamaCatalog::new(ollama_url).refresh().await {
-        ollama_count = models.len();
-        for m in models {
-            registry.register(m);
-        }
-    }
+    let ollama_count =
+        crate::catalog::sync_installed_ollama(registry, vox_config::local_ollama_populi_base_url())
+            .await;
 
     let mut hf_count = 0usize;
     if let Ok(models) = HuggingFaceCatalog::new().refresh().await {

@@ -146,28 +146,17 @@ fn registry_from_cache() -> ModelRegistry {
 /// fail to list models just because telemetry is unavailable.
 pub(crate) async fn registry_with_scoreboard() -> ModelRegistry {
     let mut reg = registry_from_cache();
+    vox_orchestrator::catalog::sync_installed_ollama(
+        &mut reg,
+        vox_config::local_ollama_populi_base_url(),
+    )
+    .await;
     let Some(db) =
         vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Runtime, true).await
     else {
         return reg;
     };
-    if let Ok(rows) = db.get_model_scoreboard(7).await {
-        reg.inject_scoreboard_latency(&rows);
-        reg.inject_scoreboard(
-            rows.into_iter()
-                .map(|row| {
-                    (
-                        row.model_id.clone(),
-                        vox_orchestrator::models::ModelScore::from(row),
-                    )
-                })
-                .collect(),
-        );
-    }
-    if let Ok(pricing) = db.get_pricing_catalog().await {
-        reg.inject_pricing_catalog(pricing);
-    }
-    reg.apply_routing_reference();
+    reg.inject_evidence_from_db(&db).await;
     reg
 }
 
@@ -328,11 +317,12 @@ fn routing_provenance(
 }
 
 pub async fn get_routing_summary(daemon: &PersistentDaemon) -> Result<RoutingSummaryDto, String> {
-    let reg = registry_from_cache();
+    // Same registry evidence and task as a sync chat turn, so the preview is the real pick.
+    let reg = registry_with_scoreboard().await;
     let cfg = vox_config::load_model_routing_config();
     let active = get_active_model().await.ok().flatten();
     let decision = decide(
-        &ModelSelectionRequest::from_intent(SelectionIntent::for_task(TaskCategory::CodeGen)),
+        &ModelSelectionRequest::from_intent(SelectionIntent::for_task(TaskCategory::Chat)),
         &reg,
     );
     let (family, resolved_from, reason) = match &decision {
@@ -489,6 +479,93 @@ pub async fn suggest_model_for_task(task: String) -> Result<String, String> {
     reg.best_for(task_category, 5, CostPreference::Performance)
         .map(|m| m.id)
         .ok_or_else(|| "no suitable model".to_string())
+}
+
+/// One model's graded `vox model bench` results over the leaderboard window.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct BenchRowDto {
+    pub model_id: String,
+    pub served_as: Option<String>,
+    pub cases: i64,
+    pub passed: i64,
+    pub mean_score: f64,
+    pub error_rate: f64,
+    pub p50_ttft_ms: Option<i64>,
+    pub p95_latency_ms: Option<i64>,
+    pub tokens_per_sec: Option<f64>,
+    pub cost_per_solve_usd: Option<f64>,
+    pub tokens_per_solve: Option<f64>,
+    pub confidence: String,
+    pub last_run_ms: i64,
+}
+
+/// Axis leaderboard: what each mode routes per benchmarked category, and the bench table behind it.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct LeaderboardDto {
+    pub routes: Vec<vox_orchestrator::models::leaderboard::ModeRoute>,
+    pub bench: Vec<BenchRowDto>,
+    pub window_days: i64,
+}
+
+fn bench_row_dto(r: &vox_db::ModelBenchmarkSummaryRow, confidence: &str) -> BenchRowDto {
+    BenchRowDto {
+        model_id: r.model_id.clone(),
+        served_as: r.resolved_model_id.clone().filter(|s| *s != r.model_id),
+        cases: r.cases,
+        passed: r.passed,
+        mean_score: r.mean_score,
+        error_rate: if r.cases > 0 {
+            r.errors as f64 / r.cases as f64
+        } else {
+            0.0
+        },
+        p50_ttft_ms: r.p50_ttft_ms,
+        p95_latency_ms: r.p95_latency_ms,
+        tokens_per_sec: r.mean_tokens_per_sec,
+        cost_per_solve_usd: r.cost_per_solve_usd(),
+        tokens_per_solve: r.tokens_per_solve(),
+        confidence: confidence.to_string(),
+        last_run_ms: r.last_recorded_at_ms,
+    }
+}
+
+/// Per-mode routing table plus graded bench results (Models surface leaderboard).
+#[tauri::command]
+pub async fn get_model_leaderboard() -> Result<LeaderboardDto, String> {
+    use vox_orchestrator::models::bench_evidence::BENCH_EVIDENCE_WINDOW_DAYS;
+    use vox_orchestrator::models::leaderboard::{BENCH_CATEGORIES, MODES, mode_routing_table};
+    let reg = registry_with_scoreboard().await;
+    let routes = mode_routing_table(&reg, &MODES, &BENCH_CATEGORIES, 5);
+    let since_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0)
+        - BENCH_EVIDENCE_WINDOW_DAYS * 86_400_000;
+    let mut bench = Vec::new();
+    if let Some(db) =
+        vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Runtime, true).await
+    {
+        let rows = db
+            .model_benchmark_summary(since_ms)
+            .await
+            .map_err(|e| e.to_string())?;
+        for r in &rows {
+            let confidence = reg
+                .get(&r.model_id)
+                .map_or("unregistered", |m| reg.routing_confidence(&m).as_str());
+            bench.push(bench_row_dto(r, confidence));
+        }
+        bench.sort_by(|a, b| {
+            b.mean_score
+                .total_cmp(&a.mean_score)
+                .then_with(|| a.model_id.cmp(&b.model_id))
+        });
+    }
+    Ok(LeaderboardDto {
+        routes,
+        bench,
+        window_days: BENCH_EVIDENCE_WINDOW_DAYS,
+    })
 }
 
 /// Live routing summary (registry + env; avoids heavy orchestrator bootstrap in Tauri).
@@ -718,6 +795,30 @@ pub async fn nudge_routing_intention(axis: String, direction: String) -> Result<
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn bench_row_reports_rates_and_hides_identical_served_id() {
+        let row = vox_db::ModelBenchmarkSummaryRow {
+            model_id: "acme/x".into(),
+            resolved_model_id: Some("acme/x".into()),
+            cases: 10,
+            passed: 8,
+            mean_score: 0.85,
+            errors: 1,
+            p50_ttft_ms: Some(300),
+            p50_latency_ms: Some(900),
+            p95_latency_ms: Some(2000),
+            mean_tokens_per_sec: Some(55.0),
+            total_cost_usd: 0.04,
+            total_output_tokens: 4000,
+            last_recorded_at_ms: 7,
+        };
+        let dto = bench_row_dto(&row, "confirmed");
+        assert_eq!(dto.served_as, None);
+        assert!((dto.error_rate - 0.1).abs() < 1e-9);
+        assert!((dto.cost_per_solve_usd.unwrap() - 0.005).abs() < 1e-9);
+        assert_eq!(dto.confidence, "confirmed");
+    }
 
     #[test]
     fn active_model_fallback_returns_in_process_override_when_set() {

@@ -107,6 +107,12 @@ fn quality_dto(m: &vox_orchestrator::models::ModelSpec, value: f64) -> QualityDt
             index: None,
             inherited_from: None,
         },
+        Some(QualitySource::Measured { .. }) => QualityDto {
+            value,
+            source: "measured",
+            index: None,
+            inherited_from: None,
+        },
         None => QualityDto {
             value,
             source: "unknown",
