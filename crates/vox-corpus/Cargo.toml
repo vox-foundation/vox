@@ -19,6 +19,7 @@ vox-compiler.workspace = true
 anyhow = { workspace = true }
 vox-repository.workspace = true
 vox-bounded-fs = { workspace = true }
+vox-kb-facets = { workspace = true }
 vox-mcp-registry.workspace = true
 vox-eval.workspace = true
 chrono = { workspace = true }

@@ -2439,6 +2439,27 @@
       "reason": "polyglot sandbox parses Vox snippets with vox_compiler::lexer/parser (polyglot_sandbox.rs); added bcc057f09. L4 -> L2, downward.",
       "date": "2026-09-22",
       "authorized_by": "user (explicit chat approval, 2026-09-22)"
+    },
+    {
+      "from": "vox-doc-pipeline",
+      "to": "vox-kb-facets",
+      "reason": "Facet lint reads vox_kb_facets::Facets, the taxonomy loader, the summary/provenance validators and the facet backlog types (KB Phase 4, D-09). L3 -> L0, downward.",
+      "date": "2026-10-10",
+      "authorized_by": "user (explicit chat approval, 2026-10-10)"
+    },
+    {
+      "from": "vox-search",
+      "to": "vox-kb-facets",
+      "reason": "Library indexer reads Facets for the card facet lines and the shared frontmatter splitter; search applies Taxonomy altLabel query expansion (KB Phase 4, D-09). L3 -> L0, downward.",
+      "date": "2026-10-10",
+      "authorized_by": "user (explicit chat approval, 2026-10-10)"
+    },
+    {
+      "from": "vox-corpus",
+      "to": "vox-kb-facets",
+      "reason": "MENS doc extractor calls parse_facets, effective_training_eligible and strip_summary_blocks (KB Phase 4, D-09). L3 -> L0, downward.",
+      "date": "2026-10-10",
+      "authorized_by": "user (explicit chat approval, 2026-10-10)"
     }
   ]
 }

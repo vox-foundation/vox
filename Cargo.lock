@@ -17378,6 +17378,7 @@ dependencies = [
  "vox-compiler",
  "vox-db",
  "vox-eval",
+ "vox-kb-facets",
  "vox-mcp-registry",
  "vox-repository",
  "workspace-hack",
@@ -17488,6 +17489,7 @@ dependencies = [
  "serde_json",
  "vox-bounded-fs",
  "vox-compiler",
+ "vox-kb-facets",
  "workspace-hack",
 ]
 
@@ -19195,6 +19197,7 @@ dependencies = [
  "vox-crypto",
  "vox-db",
  "vox-http-client",
+ "vox-kb-facets",
  "vox-secrets",
  "walkdir",
  "wiremock",

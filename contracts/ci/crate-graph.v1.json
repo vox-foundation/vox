@@ -275,6 +275,7 @@
       "vox-compiler",
       "vox-db",
       "vox-eval",
+      "vox-kb-facets",
       "vox-mcp-registry",
       "vox-repository",
       "workspace-hack"
@@ -310,6 +311,7 @@
     "vox-doc-pipeline": [
       "vox-bounded-fs",
       "vox-compiler",
+      "vox-kb-facets",
       "workspace-hack"
     ],
     "vox-drift-check": [
@@ -429,6 +431,9 @@
       "workspace-hack"
     ],
     "vox-jsonschema-util": [
+      "workspace-hack"
+    ],
+    "vox-kb-facets": [
       "workspace-hack"
     ],
     "vox-langtool": [
@@ -848,8 +853,10 @@
       "vox-actor-runtime",
       "vox-bounded-fs",
       "vox-config",
+      "vox-crypto",
       "vox-db",
       "vox-http-client",
+      "vox-kb-facets",
       "vox-secrets",
       "workspace-hack"
     ],

@@ -25,6 +25,7 @@ urlencoding = { workspace = true }
 vox-db = { workspace = true, features = ["local"] }
 vox-actor-runtime = { workspace = true }
 vox-bounded-fs = { workspace = true }
+vox-kb-facets = { workspace = true }
 vox-secrets = { workspace = true }
 vox-config = { workspace = true }
 tokio = { workspace = true }
