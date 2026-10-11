@@ -3657,7 +3657,7 @@
       "status": "active",
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -3755,7 +3755,7 @@
       "status": "active",
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -4635,7 +4635,7 @@
       "status": "active",
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -5450,7 +5450,7 @@
       "status": "active",
       "domain": "secrets",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "none",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -5735,7 +5735,7 @@
       "status": "active",
       "domain": "deploy",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "none",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -5783,7 +5783,7 @@
       "status": "active",
       "domain": "deploy",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -5974,7 +5974,7 @@
       "status": "active",
       "domain": "platform",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -8808,7 +8808,7 @@
       "status": "active",
       "domain": "ci",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -8954,7 +8954,7 @@
       "status": "active",
       "domain": "ci",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -9148,7 +9148,7 @@
       "status": "active",
       "domain": "ci",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -10737,7 +10737,7 @@
       "status": "active",
       "domain": "ci",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -12659,7 +12659,7 @@
       "status": "active",
       "domain": "ci",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -13428,7 +13428,7 @@
       "status": "active",
       "domain": "ci",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -14627,7 +14627,7 @@
       "status": "active",
       "domain": "data",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -14675,7 +14675,7 @@
       "status": "active",
       "domain": "platform",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "none",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -14769,7 +14769,7 @@
       "status": "active",
       "domain": "platform",
       "product_lane": "app",
-      "side_effect_class": null,
+      "side_effect_class": "none",
       "tier": "recommended",
       "cli": {
         "path": [
@@ -14910,7 +14910,7 @@
       "status": "active",
       "domain": "platform",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -14960,7 +14960,7 @@
       "status": "active",
       "domain": "platform",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -15632,7 +15632,7 @@
       "status": "active",
       "domain": "data",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -18850,7 +18850,7 @@
       "status": "active",
       "domain": "data",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -18994,7 +18994,7 @@
       "status": "active",
       "domain": "data",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -19621,7 +19621,7 @@
       "status": "active",
       "domain": "platform",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -19764,7 +19764,7 @@
       "status": "active",
       "domain": "platform",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": "recommended",
       "cli": {
         "path": [
@@ -23645,7 +23645,7 @@
       "status": "active",
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -23745,7 +23745,7 @@
       "status": "active",
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -24643,7 +24643,7 @@
       "status": "active",
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -32406,7 +32406,7 @@
       "status": "active",
       "domain": "vcs",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -33578,7 +33578,7 @@
       "status": "active",
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -33674,7 +33674,7 @@
       "status": "active",
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -35684,7 +35684,7 @@
       "status": "active",
       "domain": "ml",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "none",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -36119,7 +36119,7 @@
       "status": "active",
       "domain": "ml",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -36167,7 +36167,7 @@
       "status": "active",
       "domain": "ml",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -36556,7 +36556,7 @@
       "status": "active",
       "domain": "ml",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -36749,7 +36749,7 @@
       "status": "active",
       "domain": "ml",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -38055,7 +38055,7 @@
       "status": "active",
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "none",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -38199,7 +38199,7 @@
       "status": "active",
       "domain": "skills",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -38247,7 +38247,7 @@
       "status": "active",
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -38347,7 +38347,7 @@
       "status": "active",
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -38687,7 +38687,7 @@
       "status": "active",
       "domain": "deploy",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -38736,7 +38736,7 @@
       "status": "active",
       "domain": "deploy",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -38880,7 +38880,7 @@
       "status": "active",
       "domain": "deploy",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -38976,7 +38976,7 @@
       "status": "active",
       "domain": "deploy",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -39215,7 +39215,7 @@
       "status": "active",
       "domain": "ci",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -39263,7 +39263,7 @@
       "status": "active",
       "domain": "ci",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -39311,7 +39311,7 @@
       "status": "active",
       "domain": "ci",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -40764,7 +40764,7 @@
       "status": "active",
       "domain": "vcs",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -40863,7 +40863,7 @@
       "status": "active",
       "domain": "vcs",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -41206,7 +41206,7 @@
       "status": "active",
       "domain": "research",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -41496,7 +41496,7 @@
       "status": "active",
       "domain": "research",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -41546,7 +41546,7 @@
       "status": "active",
       "domain": "research",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -41594,7 +41594,7 @@
       "status": "active",
       "domain": "research",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -45735,7 +45735,7 @@
       "status": "active",
       "domain": "secrets",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -45975,7 +45975,7 @@
       "status": "active",
       "domain": "secrets",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -47186,7 +47186,7 @@
       "status": "active",
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -47615,7 +47615,7 @@
       "status": "active",
       "domain": "platform",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -47664,7 +47664,7 @@
       "status": "active",
       "domain": "platform",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -47808,7 +47808,7 @@
       "status": "active",
       "domain": "platform",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -48334,7 +48334,7 @@
       "status": "active",
       "domain": "runtime",
       "product_lane": "workflow",
-      "side_effect_class": null,
+      "side_effect_class": "none",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -52009,7 +52009,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -56957,7 +56957,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "none",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -57045,7 +57045,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -57135,7 +57135,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -58101,7 +58101,7 @@
       "status": null,
       "domain": "vcs",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -58324,7 +58324,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -58412,7 +58412,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {

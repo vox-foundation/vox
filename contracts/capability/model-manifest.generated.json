@@ -742,6 +742,7 @@
       "implicit": false,
       "title": "Config Get",
       "description_model": "Get the current runtime orchestrator and toolchain configuration (wire aliases: vox_get_config).",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -1800,6 +1801,7 @@
       "implicit": false,
       "title": "Plan Status",
       "description_model": "Plan session status via vox-orchestrator-d (ai.plan.status) for a session_id.",
+      "side_effect_class": "none",
       "curated": true
     },
     {
@@ -1816,6 +1818,7 @@
       "implicit": false,
       "title": "Plugin Info",
       "description_model": "Show manifest details for one installed or catalog Vox plugin.",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -1835,6 +1838,7 @@
       "implicit": false,
       "title": "Plugin List",
       "description_model": "List installed Vox plugins with id, version, and discovered skill count.",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -2054,6 +2058,7 @@
       "implicit": false,
       "title": "Repo Query History",
       "description_model": "Read recent Git history per cataloged local repository, optionally filtered by path or substring.",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -2106,6 +2111,7 @@
       "implicit": false,
       "title": "Research Knowledgebase Search",
       "description_model": "MCP `vox_research_search` — full-text search over persisted research sessions, reports, and verified claims with confidence filtering.",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -2122,6 +2128,7 @@
       "implicit": false,
       "title": "Research Session Status",
       "description_model": "MCP `vox_research_status` — read stage / progress for an async research session created by `vox_research_start`.",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -3926,6 +3933,7 @@
       "implicit": false,
       "title": "Ars Share List",
       "description_model": "CLI operation `vox ars share list`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -3950,6 +3958,7 @@
       "implicit": false,
       "title": "Ars Share Search",
       "description_model": "CLI operation `vox ars share search`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -4165,6 +4174,7 @@
       "implicit": false,
       "title": "Ars Snippet Search",
       "description_model": "CLI operation `vox ars snippet search`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -4350,6 +4360,7 @@
       "implicit": false,
       "title": "Auth Whoami",
       "description_model": "CLI operation `vox auth whoami`",
+      "side_effect_class": "none",
       "curated": true
     },
     {
@@ -4403,6 +4414,7 @@
       "implicit": false,
       "title": "Bundle List",
       "description_model": "CLI operation `vox bundle list`",
+      "side_effect_class": "none",
       "curated": true
     },
     {
@@ -4414,6 +4426,7 @@
       "implicit": false,
       "title": "Bundle Verify",
       "description_model": "CLI operation `vox bundle verify`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -4467,6 +4480,7 @@
       "implicit": false,
       "title": "Catalog List",
       "description_model": "CLI operation `vox catalog list`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5118,6 +5132,7 @@
       "implicit": false,
       "title": "Ci Doc-inventory Verify",
       "description_model": "CLI operation `vox ci doc-inventory verify`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5153,6 +5168,7 @@
       "implicit": false,
       "title": "Ci Docs-reality-audit Verify",
       "description_model": "CLI operation `vox ci docs-reality-audit verify`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5199,6 +5215,7 @@
       "implicit": false,
       "title": "Ci Eval-matrix Verify",
       "description_model": "CLI operation `vox ci eval-matrix verify`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5567,6 +5584,7 @@
       "implicit": false,
       "title": "Ci Mens-scorecard Verify",
       "description_model": "CLI operation `vox ci mens-scorecard verify`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6015,6 +6033,7 @@
       "implicit": false,
       "title": "Ci Scaling-audit Verify",
       "description_model": "CLI operation `vox ci scaling-audit verify`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6191,6 +6210,7 @@
       "implicit": false,
       "title": "Ci Status",
       "description_model": "CLI operation `vox ci status`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -6465,6 +6485,7 @@
       "implicit": false,
       "title": "Codex Verify",
       "description_model": "CLI operation `vox codex verify`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -6475,6 +6496,7 @@
       "implicit": false,
       "title": "Commands",
       "description_model": "CLI operation `vox commands`",
+      "side_effect_class": "none",
       "curated": true
     },
     {
@@ -6495,6 +6517,7 @@
       "implicit": false,
       "title": "Completions",
       "description_model": "CLI operation `vox completions`",
+      "side_effect_class": "none",
       "curated": true
     },
     {
@@ -6526,6 +6549,7 @@
       "implicit": false,
       "title": "Config Get",
       "description_model": "Get the current runtime orchestrator and toolchain configuration (wire aliases: vox_get_config).",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6537,6 +6561,7 @@
       "implicit": false,
       "title": "Config List",
       "description_model": "CLI operation `vox config list`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6689,6 +6714,7 @@
       "implicit": false,
       "title": "Db Explain",
       "description_model": "CLI operation `vox db explain`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -7428,6 +7454,7 @@
       "implicit": false,
       "title": "Db Status",
       "description_model": "CLI operation `vox db status`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -7461,6 +7488,7 @@
       "implicit": false,
       "title": "Db Verify",
       "description_model": "CLI operation `vox db verify`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -7608,6 +7636,7 @@
       "implicit": false,
       "title": "Diag Doctor",
       "description_model": "CLI operation `vox diag doctor`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -7639,6 +7668,7 @@
       "implicit": false,
       "title": "Doctor",
       "description_model": "CLI operation `vox doctor`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -8646,6 +8676,7 @@
       "implicit": false,
       "title": "Ext Ars Share List",
       "description_model": "CLI operation `vox ext ars share list`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -8672,6 +8703,7 @@
       "implicit": false,
       "title": "Ext Ars Share Search",
       "description_model": "CLI operation `vox ext ars share search`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -8905,6 +8937,7 @@
       "implicit": false,
       "title": "Ext Ars Snippet Search",
       "description_model": "CLI operation `vox ext ars snippet search`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -10767,6 +10800,7 @@
       "implicit": false,
       "title": "Graph History Search",
       "description_model": "CLI operation `vox graph history search`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -11111,6 +11145,7 @@
       "implicit": false,
       "title": "Harness History",
       "description_model": "CLI operation `vox harness history`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -11133,6 +11168,7 @@
       "implicit": false,
       "title": "Harness Report",
       "description_model": "CLI operation `vox harness report`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -11590,6 +11626,7 @@
       "implicit": false,
       "title": "Model Cas Ls",
       "description_model": "CLI operation `vox model cas ls`",
+      "side_effect_class": "none",
       "curated": true
     },
     {
@@ -11691,6 +11728,7 @@
       "implicit": false,
       "title": "Model Explain",
       "description_model": "Explain model selection for a given task description.",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -11702,6 +11740,7 @@
       "implicit": false,
       "title": "Model List",
       "description_model": "List model ids from the local catalog cache.",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -11797,6 +11836,7 @@
       "implicit": false,
       "title": "Model Pricing Show",
       "description_model": "Show the model pricing catalog with observed vs catalog costs, cache pricing, and pricing source.",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -11841,6 +11881,7 @@
       "implicit": false,
       "title": "Model Show",
       "description_model": "Show JSON for one model from the cache.",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -12139,6 +12180,7 @@
       "implicit": false,
       "title": "Plan Status",
       "description_model": "Plan session status via vox-orchestrator-d (ai.plan.status) for a session_id.",
+      "side_effect_class": "none",
       "curated": true
     },
     {
@@ -12170,6 +12212,7 @@
       "implicit": false,
       "title": "Plugin Doctor",
       "description_model": "CLI operation `vox plugin doctor`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -12181,6 +12224,7 @@
       "implicit": false,
       "title": "Plugin Info",
       "description_model": "Show manifest details for one installed or catalog Vox plugin.",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -12206,6 +12250,7 @@
       "implicit": false,
       "title": "Plugin List",
       "description_model": "List installed Vox plugins with id, version, and discovered skill count.",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -12288,6 +12333,7 @@
       "implicit": false,
       "title": "Pm Cache Status",
       "description_model": "CLI operation `vox pm cache status`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -12299,6 +12345,7 @@
       "implicit": false,
       "title": "Pm Info",
       "description_model": "CLI operation `vox pm info`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -12332,6 +12379,7 @@
       "implicit": false,
       "title": "Pm Search",
       "description_model": "CLI operation `vox pm search`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -12354,6 +12402,7 @@
       "implicit": false,
       "title": "Pm Verify",
       "description_model": "CLI operation `vox pm verify`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -12408,6 +12457,7 @@
       "implicit": false,
       "title": "Policy List",
       "description_model": "CLI operation `vox policy list`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -12419,6 +12469,7 @@
       "implicit": false,
       "title": "Policy Show",
       "description_model": "CLI operation `vox policy show`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -12430,6 +12481,7 @@
       "implicit": false,
       "title": "Policy Status",
       "description_model": "CLI operation `vox policy status`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -12783,6 +12835,7 @@
       "implicit": false,
       "title": "Repo Query",
       "description_model": "CLI operation `vox repo query`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -12807,6 +12860,7 @@
       "implicit": false,
       "title": "Repo Query History",
       "description_model": "Read recent Git history per cataloged local repository, optionally filtered by path or substring.",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -12897,6 +12951,7 @@
       "implicit": false,
       "title": "Research History",
       "description_model": "CLI operation `vox research history`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -12963,6 +13018,7 @@
       "implicit": false,
       "title": "Research Knowledgebase Search",
       "description_model": "MCP `vox_research_search` — full-text search over persisted research sessions, reports, and verified claims with confidence filtering.",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -12974,6 +13030,7 @@
       "implicit": false,
       "title": "Research Show",
       "description_model": "CLI operation `vox research show`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -12985,6 +13042,7 @@
       "implicit": false,
       "title": "Research Session Status",
       "description_model": "MCP `vox_research_status` — read stage / progress for an async research session created by `vox_research_start`.",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -13939,6 +13997,7 @@
       "implicit": false,
       "title": "Secrets Get",
       "description_model": "CLI operation `vox secrets get`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -13994,6 +14053,7 @@
       "implicit": false,
       "title": "Secrets Status",
       "description_model": "CLI operation `vox secrets status`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -14265,6 +14325,7 @@
       "implicit": false,
       "title": "Snippet Search",
       "description_model": "CLI operation `vox snippet search`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -14363,6 +14424,7 @@
       "implicit": false,
       "title": "Telemetry Consent Status",
       "description_model": "CLI operation `vox telemetry consent status`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -14374,6 +14436,7 @@
       "implicit": false,
       "title": "Telemetry Doctor",
       "description_model": "CLI operation `vox telemetry doctor`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -14407,6 +14470,7 @@
       "implicit": false,
       "title": "Telemetry Status",
       "description_model": "CLI operation `vox telemetry status`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -14525,6 +14589,7 @@
       "implicit": false,
       "title": "Workflow Ls",
       "description_model": "CLI operation `vox workflow ls`",
+      "side_effect_class": "none",
       "curated": true
     },
     {

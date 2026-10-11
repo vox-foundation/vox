@@ -1391,7 +1391,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox ars share list`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -1429,7 +1429,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox ars share search`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -1769,7 +1769,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox ars snippet search`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -2074,7 +2074,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox auth whoami`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: none
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -2179,7 +2179,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox bundle list`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: none
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -2197,7 +2197,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox bundle verify`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -2268,7 +2268,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox catalog list`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -3330,7 +3330,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox ci doc-inventory verify`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -3386,7 +3386,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox ci docs-reality-audit verify`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -3460,7 +3460,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox ci eval-matrix verify`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -4059,7 +4059,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox ci mens-scorecard verify`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -4784,7 +4784,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox ci scaling-audit verify`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -5073,7 +5073,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox ci status`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -5522,7 +5522,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox codex verify`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -5540,7 +5540,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox commands`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: none
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -5574,7 +5574,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox completions`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: none
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -5625,7 +5625,7 @@ curated:
   description_human: 'Get the current runtime orchestrator and toolchain configuration (wire aliases: vox_get_config).'
   description_model: null
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -5643,7 +5643,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox config list`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -5893,7 +5893,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox db explain`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -7099,7 +7099,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox db status`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -7153,7 +7153,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox db verify`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -7390,7 +7390,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox diag doctor`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -7443,7 +7443,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox doctor`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -8984,7 +8984,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox ext ars share list`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -9024,7 +9024,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox ext ars share search`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -9382,7 +9382,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox ext ars snippet search`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -12331,7 +12331,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox graph history search`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -12785,7 +12785,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox harness history`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -12821,7 +12821,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox harness report`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -13555,7 +13555,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox model cas ls`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: none
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -13720,7 +13720,7 @@ curated:
   description_human: null
   description_model: Explain model selection for a given task description.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -13738,7 +13738,7 @@ curated:
   description_human: null
   description_model: List model ids from the local catalog cache.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -13887,7 +13887,7 @@ curated:
   description_human: null
   description_model: Show the model pricing catalog with observed vs catalog costs, cache pricing, and pricing source.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -13960,7 +13960,7 @@ curated:
   description_human: null
   description_model: Show JSON for one model from the cache.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -14446,7 +14446,7 @@ curated:
   description_human: Plan session status via vox-orchestrator-d (ai.plan.status) for a session_id.
   description_model: null
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: none
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -14498,7 +14498,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox plugin doctor`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -14516,7 +14516,7 @@ curated:
   description_human: Show manifest details for one installed or catalog Vox plugin.
   description_model: null
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -14552,7 +14552,7 @@ curated:
   description_human: List installed Vox plugins with id, version, and discovered skill count.
   description_model: null
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -14678,7 +14678,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox pm cache status`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -14697,7 +14697,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox pm info`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -14751,7 +14751,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox pm search`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -14787,7 +14787,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox pm verify`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -14876,7 +14876,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox policy list`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -14894,7 +14894,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox policy show`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -14912,7 +14912,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox policy status`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -15464,7 +15464,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox repo query`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -15501,7 +15501,7 @@ curated:
   description_human: Read recent Git history per cataloged local repository, optionally filtered by path or substring.
   description_model: null
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -15631,7 +15631,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox research history`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -15739,7 +15739,7 @@ curated:
   description_human: MCP `vox_research_search` — full-text search over persisted research sessions, reports, and verified claims with confidence filtering.
   description_model: null
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -15757,7 +15757,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox research show`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -15775,7 +15775,7 @@ curated:
   description_human: MCP `vox_research_status` — read stage / progress for an async research session created by `vox_research_start`.
   description_model: null
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -17330,7 +17330,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox secrets get`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -17420,7 +17420,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox secrets status`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -17865,7 +17865,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox snippet search`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18024,7 +18024,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox telemetry consent status`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18043,7 +18043,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox telemetry doctor`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18097,7 +18097,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox telemetry status`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18279,7 +18279,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox workflow ls`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: none
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -19727,7 +19727,7 @@ curated:
   description_human: null
   description_model: 'Get the current runtime orchestrator and toolchain configuration (wire aliases: vox_get_config).'
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21675,7 +21675,7 @@ curated:
   description_human: null
   description_model: Plan session status via vox-orchestrator-d (ai.plan.status) for a session_id.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: none
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21707,7 +21707,7 @@ curated:
   description_human: null
   description_model: Show manifest details for one installed or catalog Vox plugin.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -21739,7 +21739,7 @@ curated:
   description_human: null
   description_model: List installed Vox plugins with id, version, and discovered skill count.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22129,7 +22129,7 @@ curated:
   description_human: null
   description_model: Read recent Git history per cataloged local repository, optionally filtered by path or substring.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22212,7 +22212,7 @@ curated:
   description_human: null
   description_model: MCP `vox_research_search` — full-text search over persisted research sessions, reports, and verified claims with confidence filtering.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -22244,7 +22244,7 @@ curated:
   description_human: null
   description_model: MCP `vox_research_status` — read stage / progress for an async research session created by `vox_research_start`.
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
