@@ -42,13 +42,22 @@ fn dim(p: &Value, key: &str, default: u16) -> u16 {
         .unwrap_or(default)
 }
 
+/// Fail-closed: over the wire only a human origin exists. Anything else (including
+/// `agent`, any casing) is refused, so a client can never claim to be an approved agent.
 fn refuse_agent_origin(p: &Value) -> anyhow::Result<()> {
     match p.get("origin").and_then(Value::as_str) {
-        Some("agent") => anyhow::bail!(
-            "origin `agent` is refused over the wire; agents drive terminals via the approval-gated term_run tool"
+        None | Some("user") => Ok(()),
+        Some(o) => anyhow::bail!(
+            "origin `{o}` is refused over the wire (only `user`); agents drive terminals via the approval-gated term_run tool"
         ),
-        _ => Ok(()),
     }
+}
+
+fn req_dim(p: &Value, key: &str) -> anyhow::Result<u16> {
+    p.get(key)
+        .and_then(Value::as_u64)
+        .and_then(|n| u16::try_from(n).ok())
+        .ok_or_else(|| anyhow::anyhow!("missing or out-of-range numeric param `{key}`"))
 }
 
 fn event_frame(id: &str, value: Value) -> DispatchResponse {
@@ -102,16 +111,22 @@ impl ExtraDispatch for TermDispatch {
                 }
                 term_method::SUBMIT => {
                     refuse_agent_origin(p)?;
-                    let id = self
-                        .host
-                        .submit(str_param(p, "session_id")?, str_param(p, "line")?)?;
+                    let (sid, line) = (
+                        str_param(p, "session_id")?.to_string(),
+                        str_param(p, "line")?.to_string(),
+                    );
+                    // `!cmd` runs synchronously inside Session::submit; keep it off the
+                    // async workers so one slow command cannot stall the daemon.
+                    let host = Arc::clone(&self.host);
+                    let id =
+                        tokio::task::spawn_blocking(move || host.submit(&sid, &line)).await??;
                     Ok(json!({"block_id": id.0}))
                 }
                 term_method::RESIZE => {
                     self.host.resize(
                         str_param(p, "session_id")?,
-                        dim(p, "cols", 80),
-                        dim(p, "rows", 24),
+                        req_dim(p, "cols")?,
+                        req_dim(p, "rows")?,
                     )?;
                     Ok(json!({}))
                 }
@@ -386,6 +401,45 @@ mod tests {
         assert!(host.list().is_empty());
         let ok = call(addr, term_method::OPEN, json!({}), Some("secret")).await;
         assert!(matches!(ok, DispatchPayload::Result { .. }));
+    }
+
+    #[tokio::test]
+    async fn origin_is_fail_closed_and_resize_needs_dimensions() {
+        let (addr, host) = start(None).await;
+        let sid = result(call(addr, term_method::OPEN, json!({}), None).await)["session_id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        // Any non-"user" label is refused, whatever its casing.
+        for origin in ["Agent", "AGENT", "system", ""] {
+            let p = call(
+                addr,
+                term_method::SUBMIT,
+                json!({"session_id": sid, "line": "!echo no", "origin": origin}),
+                None,
+            )
+            .await;
+            assert!(
+                matches!(p, DispatchPayload::Error { .. }),
+                "origin {origin:?}: {p:?}"
+            );
+        }
+        // Explicit "user" and an absent origin are both fine.
+        let ok = call(
+            addr,
+            term_method::SUBMIT,
+            json!({"session_id": sid, "line": "!echo ok", "origin": "user"}),
+            None,
+        )
+        .await;
+        assert!(matches!(ok, DispatchPayload::Result { .. }), "{ok:?}");
+        // A resize without dimensions must not silently pick defaults.
+        let p = call(addr, term_method::RESIZE, json!({"session_id": sid}), None).await;
+        assert!(
+            matches!(p, DispatchPayload::Error { ref message, .. } if message.contains("cols")),
+            "{p:?}"
+        );
+        host.close(&sid).unwrap();
     }
 
     #[tokio::test]

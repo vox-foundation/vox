@@ -95,6 +95,26 @@ fn route(
     true
 }
 
+/// Forward pushed frames to the local receivers until the session ends or nobody is
+/// listening any more (every `Attachment` receiver dropped). Dropping the senders on
+/// return closes both receivers, which is how a front-end learns the session ended.
+async fn pump(
+    mut rx: mpsc::Receiver<Value>,
+    events: broadcast::Sender<SessionEvent>,
+    output: broadcast::Sender<OutputFrame>,
+) {
+    while let Some(frame) = rx.recv().await {
+        if !route(&frame, &events, &output) {
+            break;
+        }
+        // ponytail: noticed on the next frame, so an idle detached session holds its
+        // stream until output arrives; add a `closed()` select if that ever matters.
+        if events.receiver_count() == 0 && output.receiver_count() == 0 {
+            break;
+        }
+    }
+}
+
 #[async_trait]
 impl SessionHost for DaemonHost {
     async fn open(&self, spec: OpenSpec) -> Result<SessionId> {
@@ -150,13 +170,9 @@ impl SessionHost for DaemonHost {
         let (ev_tx, events) = broadcast::channel(256);
         let (out_tx, output) = broadcast::channel(256);
         tokio::spawn(async move {
-            while let Some(frame) = rx.recv().await {
-                if !route(&frame, &ev_tx, &out_tx) {
-                    break;
-                }
-            }
-            // Dropping the senders closes both receivers: the session ended.
-            drop(stream);
+            pump(rx, ev_tx, out_tx).await;
+            // Detached or ended: stop reading the daemon stream (closes the connection).
+            stream.abort();
         });
         Ok(Attachment {
             blocks,
@@ -209,6 +225,32 @@ impl SessionHost for DaemonHost {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn pump_stops_once_every_receiver_is_dropped() {
+        let (tx, rx) = mpsc::channel(8);
+        let (ev, ev_rx) = broadcast::channel(8);
+        let (out, out_rx) = broadcast::channel(8);
+        let task = tokio::spawn(pump(rx, ev, out));
+
+        tx.send(json!({"type": "agent", "text": "still attached"}))
+            .await
+            .unwrap();
+        tokio::task::yield_now().await;
+        assert!(
+            !task.is_finished(),
+            "must keep running while a receiver exists"
+        );
+
+        drop((ev_rx, out_rx));
+        tx.send(json!({"type": "agent", "text": "nobody listening"}))
+            .await
+            .unwrap();
+        tokio::time::timeout(std::time::Duration::from_secs(2), task)
+            .await
+            .expect("pump must stop after the last receiver is gone")
+            .unwrap();
+    }
 
     #[test]
     fn route_maps_wire_frames_and_stops_on_exit() {
