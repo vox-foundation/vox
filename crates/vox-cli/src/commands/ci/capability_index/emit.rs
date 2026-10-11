@@ -587,6 +587,11 @@ mod tests {
             "id: \"cli.check\"",
             "kind: 'mcp_tool'",
             "mcp: \"vox_check\"",
+            "const ROWS_0: CapabilityIndexEntry[] = [",
+            "equivalents: [",
+            "sideEffect: ",
+            "catalogForm: ",
+            "navLabel: ",
         ] {
             assert!(ts.contains(needle), "missing {needle:?} in:\n{ts}");
         }
@@ -596,6 +601,15 @@ mod tests {
                 "CAPABILITY_COVERAGE_AS_OF: { sha: string; date: string } | null = null;"
             )
         );
+    }
+
+    #[test]
+    fn generate_ts_empty_index() {
+        let mut idx = fixture();
+        idx.rows.clear();
+        let ts = generate_ts(&idx);
+        assert!(ts.contains("export const CAPABILITY_INDEX: CapabilityIndexEntry[] = [];"));
+        assert!(!ts.contains("const ROWS_"));
     }
 
     #[test]
