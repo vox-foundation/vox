@@ -5,16 +5,16 @@ milestone_name: Vox Knowledge Base — corpus to context
 current_phase: 04
 current_phase_name: Taxonomy Contract and Facet Lint
 status: executing
-stopped_at: Completed 04-03-PLAN.md
-last_updated: "2026-10-11T07:20:03.480Z"
+stopped_at: Completed 04-04-PLAN.md
+last_updated: "2026-10-11T07:23:07.348Z"
 last_activity: 2026-10-10
 last_activity_desc: Phase 04 execution started
-state_head: cdde1baa9a1ca8c93dbfb18269fcf7aa38c79b63
+state_head: 407e4aa3c1c3e2b04da20235653e47c2cad29993
 progress:
   total_phases: 12
   completed_phases: 3
   total_plans: 48
-  completed_plans: 43
+  completed_plans: 44
   percent: 25
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (shared project context) and .planning/workstreams/kb/
 ## Current Position
 
 Phase: 04 (Taxonomy Contract and Facet Lint) — EXECUTING
-Plan: 4 of 8
+Plan: 5 of 8
 Status: Ready to execute
 Last activity: 2026-10-10 — Phase 04 execution started
 
@@ -91,6 +91,7 @@ Progress: [███░░░░░░░] 25%
 | Phase 04 P01 | 45min | 3 tasks | 15 files |
 | Phase 04 P02 | 25min | 2 tasks | 3 files |
 | Phase 04 P03 | 35min | 2 tasks | 10 files |
+| Phase 04 P04-04 | 20min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -133,6 +134,7 @@ Progress: [███░░░░░░░] 25%
 - [Phase 04]: 04-01: Facets fields all optional (missing = lint error, not parse error); unknown frontmatter keys ignored; strip_summary_blocks fails closed on unterminated marker
 - [Phase 04]: 04-02: topic and domain prefLabels share one namespace; expand_query matches altLabels/deprecated aliases only and emits only quoted prefLabel phrases
 - [Phase 04]: 04-03: GUI KbFacets TS is rendered from the committed JSON Schema (no vox-cli-ci to vox-kb-facets edge); all props optional, nullable as T | null
+- [Phase 04]: 04-04: MENS extractor fails closed on facet parse error; shared effective_training_eligible replaces substring rule
 
 ### Pending Todos
 
@@ -147,8 +149,8 @@ Progress: [███░░░░░░░] 25%
 
 ## Session Continuity
 
-**Last session:** 2026-10-11T07:20:03.450Z
+**Last session:** 2026-10-11T07:23:07.319Z
 
-**Stopped At:** Completed 04-03-PLAN.md
+**Stopped At:** Completed 04-04-PLAN.md
 **Resume File:** None
 **Next:** `/gsd-plan-phase 1` (no research-phase needed)

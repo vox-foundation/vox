@@ -175,7 +175,7 @@ Plans:
   3. A lexical search for a taxonomy altLabel returns the doc tagged with the corresponding prefLabel, and deprecated aliases resolve to their replacement.
   4. A page with `origin: web-promoted` or LLM `authorship` and no `human_attested_by` is forced to `training_eligible: false`. A fixture shows the MENS corpus builder excludes it and emits no page-one summary-block text from any doc.
 
-**Plans:** 3/8 plans executed
+**Plans:** 4/8 plans executed
 
 Plans:
 **Wave 1**
@@ -186,7 +186,7 @@ Plans:
 
 - [x] 04-02-PLAN.md — SKOS-lite taxonomy loader, label resolution, altLabel query expansion; curated `kb-taxonomy.v1.yaml`
 - [x] 04-03-PLAN.md — Committed facet JSON Schema (golden) and generated GUI TS type, drift-checked in ssot-drift and vitest
-- [ ] 04-04-PLAN.md — MENS builder: typed eligibility, fail-closed facets, summary strip, real-tree oracle
+- [x] 04-04-PLAN.md — MENS builder: typed eligibility, fail-closed facets, summary strip, real-tree oracle
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -354,7 +354,7 @@ Plans:
 | 1. Retrieval Eval Baseline | 12/12 | Complete    | 2026-10-05 |
 | 2. Library Index and KB Tool Surface | 12/12 | Complete    | 2026-10-05 |
 | 3. Provenance, Trust Tiers and Leak Closure | 16/16 | Complete    | 2026-10-10 |
-| 4. Taxonomy Contract and Facet Lint | 3/8 | In Progress|  |
+| 4. Taxonomy Contract and Facet Lint | 4/8 | In Progress|  |
 | 5. Local Embeddings and Ranking Signals | 0/TBD | Not started | - |
 | 6. Library GUI | 0/TBD | Not started | - |
 | 7. Context Injection and Per-Chat Scope | 0/TBD | Not started | - |
