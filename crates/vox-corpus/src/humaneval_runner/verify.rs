@@ -22,6 +22,9 @@ pub struct RunOutcome {
     pub compiled: bool,
     /// `vox run --mode interp` exited 0.
     pub ran_ok: bool,
+    /// The run stage's stderr carried the interpreter's assertion-failure marker. Always
+    /// false for the check stage, which cannot reach a runtime assertion.
+    pub assertion_failed: bool,
     /// First meaningful diagnostic line, or a timeout note.
     pub detail: String,
 }
@@ -33,6 +36,8 @@ pub struct VerifyOutcome {
     pub tests_passed: bool,
     /// The candidate neutralized the scoring oracle.
     pub cheated: bool,
+    /// A test assertion failed at run time (as opposed to a crash or a timeout).
+    pub assertion_failed: bool,
     pub detail: String,
 }
 
@@ -63,6 +68,7 @@ pub fn run_program(
         return Ok(RunOutcome {
             compiled: false,
             ran_ok: false,
+            assertion_failed: false,
             detail: check.detail,
         });
     }
@@ -76,6 +82,7 @@ pub fn run_program(
     Ok(RunOutcome {
         compiled: true,
         ran_ok: run.success,
+        assertion_failed: run.assertion_failed,
         detail: if run.success {
             String::new()
         } else {
@@ -98,6 +105,7 @@ pub fn verify_program(
             compiled: false,
             tests_passed: false,
             cheated: true,
+            assertion_failed: false,
             detail: reason,
         });
     }
@@ -106,6 +114,7 @@ pub fn verify_program(
             compiled: true,
             tests_passed: false,
             cheated: true,
+            assertion_failed: false,
             detail: "candidate neutralized the scoring oracle (canary assert(false) passed)"
                 .to_string(),
         });
@@ -116,13 +125,22 @@ pub fn verify_program(
         compiled: out.compiled,
         tests_passed: out.compiled && out.ran_ok,
         cheated: false,
+        assertion_failed: out.assertion_failed,
         detail: out.detail,
     })
 }
 
 struct Exec {
     success: bool,
+    assertion_failed: bool,
     detail: String,
+}
+
+/// The interpreter's marker for a failed `assert(..)` (`vox-compiler/src/eval/builtins.rs`).
+const ASSERTION_MARKER: &str = "assertion failed: ";
+
+fn has_assertion_marker(stderr: &str) -> bool {
+    stderr.contains(ASSERTION_MARKER)
 }
 
 /// Spawn with stdout/stderr redirected to files (never pipes), killing the
@@ -159,6 +177,7 @@ fn exec(
                 let _ = child.wait();
                 return Ok(Exec {
                     success: false,
+                    assertion_failed: false,
                     detail: format!("timed out after {}s", timeout.as_secs()),
                 });
             }
@@ -167,11 +186,13 @@ fn exec(
     }
     let status = child.wait()?;
     // `vox check` writes diagnostics to stdout; fall back to stderr.
+    let stderr = std::fs::read_to_string(&err_path).unwrap_or_default();
     let detail = first_line(&std::fs::read_to_string(&out_path).unwrap_or_default())
-        .or_else(|| first_line(&std::fs::read_to_string(&err_path).unwrap_or_default()))
+        .or_else(|| first_line(&stderr))
         .unwrap_or_else(|| "failed with no diagnostic output".to_string());
     Ok(Exec {
         success: status.success(),
+        assertion_failed: has_assertion_marker(&stderr),
         detail,
     })
 }
@@ -214,6 +235,28 @@ mod tests {
         let d = std::env::temp_dir().join(format!("vox-verify-{tag}-{}", std::process::id()));
         std::fs::create_dir_all(&d).unwrap();
         d
+    }
+
+    #[test]
+    fn assertion_marker_sets_assertion_failed() {
+        // The stderr scan is a plain substring match on the interpreter's marker.
+        assert!(has_assertion_marker(
+            "assertion failed: nth_prime(1) == 2\n"
+        ));
+        assert!(!has_assertion_marker("error: expected `)`"));
+        assert!(!has_assertion_marker(""));
+        // A canary/ingest rejection returns before any subprocess, so it never claims one.
+        let d = workdir("marker");
+        let rejected = verify_program(
+            std::path::Path::new("/nonexistent/vox"),
+            "let assert = fn(c: bool) to bool { return true }\nfn f() to int { return 0 }",
+            "fn main() to str { return \"ok\" }",
+            &d,
+            Duration::from_secs(1),
+        )
+        .unwrap();
+        assert!(rejected.cheated && !rejected.assertion_failed);
+        std::fs::remove_dir_all(&d).ok();
     }
 
     #[test]

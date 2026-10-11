@@ -24,11 +24,14 @@ use owo_colors::OwoColorize;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use vox_actor_runtime::llm::LlmConfig;
-use vox_corpus::humaneval_runner::conditions::{Condition, build_context, build_prompt};
+use vox_corpus::humaneval_runner::conditions::{
+    Condition, PromptContext, build_context, build_prompt,
+};
 use vox_corpus::humaneval_runner::{
-    Fixture, eligible_after, held_out, load_corpus, verify_program,
+    Fixture, VerifyOutcome, eligible_after, held_out, load_corpus, verify_program,
 };
 use vox_eval::corpus_score::{AttemptOutcome, CorpusScore, FixtureOutcome, score_corpus};
+use vox_eval::report::{FailureClass, SampleRecord, VerifyFacts, classify_failure};
 use vox_orchestrator::catalog::{MensCatalog, ModelCatalog};
 use vox_orchestrator::models::{ModelRegistry, ModelSpec, TaskCategory, llm_config_for_spec};
 
@@ -320,10 +323,13 @@ fn select_fixtures(all: &[Fixture], args: &EvalCorpusArgs) -> Vec<Fixture> {
     } else {
         held_out(all).into_iter().cloned().collect()
     };
-    match &args.cutoff {
+    let mut selected: Vec<Fixture> = match &args.cutoff {
         Some(cutoff) => eligible_after(&base, cutoff).into_iter().cloned().collect(),
         None => base,
-    }
+    };
+    // Fixed iteration order: identical seeds then give identical sample lists.
+    selected.sort_by(|a, b| a.id.cmp(&b.id));
+    selected
 }
 
 /// Register every listable `<repo_root>/mens/runs/*` checkpoint on `base`, so a freshly
@@ -402,6 +408,196 @@ async fn generate_candidate(config: &LlmConfig, prompt: &str) -> Result<Generate
         cost_usd: response.cost_usd,
         provider_model: response.model,
     })
+}
+
+/// Where candidate solutions come from.
+pub enum SampleSource<'a> {
+    /// Generate through the facade with `config` (one request per sample).
+    Live {
+        config: &'a LlmConfig,
+        ctx: &'a PromptContext,
+    },
+    /// Pre-generated solutions keyed by fixture id; one attempt per fixture.
+    FromDir(&'a HashMap<String, String>),
+}
+
+/// How many samples to draw and under which budget.
+#[derive(Debug, Clone, Copy)]
+pub struct SamplePlan {
+    pub n: usize,
+    pub base_seed: u64,
+    pub max_spend_usd: Option<f64>,
+}
+
+/// Everything one sweep produced.
+#[derive(Debug, Clone)]
+pub struct DrawOutcome {
+    pub outcomes: Vec<FixtureOutcome>,
+    pub samples: Vec<SampleRecord>,
+    pub n_infra_errors: usize,
+    pub n_samples_planned: usize,
+    pub spend_cap_hit: bool,
+}
+
+fn missed_attempt() -> AttemptOutcome {
+    AttemptOutcome {
+        compiled: false,
+        tests_passed: false,
+        cheated: false,
+        total_tokens: 0,
+        latency_ms: 0,
+        cost_usd: None,
+    }
+}
+
+/// Draw `plan.n` samples for every fixture (one per fixture for `FromDir`).
+///
+/// Infra errors never enter `attempts`; model failures and missing solutions are
+/// all-false attempts; a served-model mismatch aborts the run. Every sample, including
+/// infra and generation failures, yields one `SampleRecord`, ordered by
+/// `(fixture_id, sample_index)`.
+pub async fn draw_samples(
+    fixtures: &[Fixture],
+    source: SampleSource<'_>,
+    plan: SamplePlan,
+    verify: &mut dyn FnMut(&str, &Fixture) -> Result<VerifyOutcome>,
+) -> Result<DrawOutcome> {
+    let per_fixture = match source {
+        SampleSource::Live { .. } => plan.n,
+        SampleSource::FromDir(_) => 1,
+    };
+    let mut out = DrawOutcome {
+        outcomes: Vec::with_capacity(fixtures.len()),
+        samples: Vec::with_capacity(fixtures.len() * per_fixture),
+        n_infra_errors: 0,
+        n_samples_planned: fixtures.len() * per_fixture,
+        spend_cap_hit: false,
+    };
+    let mut cumulative_spend = 0.0f64;
+
+    'fixtures: for fixture in fixtures {
+        let mut attempts = Vec::with_capacity(per_fixture);
+
+        for i in 0..per_fixture {
+            if let Some(cap) = plan.max_spend_usd {
+                if cumulative_spend >= cap {
+                    out.spend_cap_hit = true;
+                    break 'fixtures;
+                }
+            }
+
+            // Pre-generated solutions are not sampled, so they carry no seed.
+            let seed = match source {
+                SampleSource::Live { .. } => sample_seed(plan.base_seed, &fixture.id, i),
+                SampleSource::FromDir(_) => 0,
+            };
+            let mut record = SampleRecord {
+                fixture_id: fixture.id.clone(),
+                sample_index: i,
+                seed,
+                code: None,
+                failure_class: FailureClass::GenerationError,
+                compiled: false,
+                tests_passed: false,
+                cheated: false,
+                total_tokens: 0,
+                latency_ms: 0,
+                cost_usd: None,
+                provider_model: None,
+            };
+
+            let generated: Option<Generated> = match &source {
+                SampleSource::FromDir(map) => map.get(&fixture.id).map(|src| Generated {
+                    code: extract_vox_code(src),
+                    total_tokens: 0,
+                    latency_ms: 0,
+                    cost_usd: None,
+                    provider_model: String::new(),
+                }),
+                SampleSource::Live { config, ctx } => {
+                    let prompt = build_prompt(ctx, &fixture.signature, &fixture.prompt);
+                    let mut config = (*config).clone();
+                    config.seed = Some(seed);
+                    match generate_candidate(&config, &prompt).await {
+                        Ok(g) => Some(g),
+                        Err(reason) => match classify_generation_error(&reason) {
+                            GenErrorKind::FatalConfig => anyhow::bail!(
+                                "{reason} — the server is serving a different model than requested"
+                            ),
+                            GenErrorKind::Infra => {
+                                out.n_infra_errors += 1;
+                                tracing::warn!(model = %config.model, fixture = %fixture.id, error = %reason, "infra error, not counted as a model failure");
+                                record.failure_class = FailureClass::InfraError;
+                                out.samples.push(record);
+                                continue;
+                            }
+                            GenErrorKind::Model => {
+                                tracing::warn!(model = %config.model, fixture = %fixture.id, error = %reason, "generation failed");
+                                None
+                            }
+                        },
+                    }
+                }
+            };
+
+            // A missing solution or a model that produced nothing is a miss, not a skip:
+            // skipping would shrink the denominator and inflate the rate.
+            let Some(g) = generated else {
+                attempts.push(missed_attempt());
+                out.samples.push(record);
+                continue;
+            };
+
+            if let Some(c) = g.cost_usd {
+                cumulative_spend += c;
+            }
+
+            let outcome = verify(&g.code, fixture)?;
+            let parse_ok = vox_compiler::parser::parse(vox_compiler::lexer::lex(&g.code)).is_ok();
+            record.failure_class = classify_failure(&VerifyFacts {
+                compiled: outcome.compiled,
+                tests_passed: outcome.tests_passed,
+                cheated: outcome.cheated,
+                timed_out: outcome.detail.contains("timed out"),
+                parse_ok,
+                assertion_failed: outcome.assertion_failed,
+            });
+            record.compiled = outcome.compiled;
+            record.tests_passed = outcome.tests_passed;
+            record.cheated = outcome.cheated;
+            record.total_tokens = g.total_tokens;
+            record.latency_ms = g.latency_ms;
+            record.cost_usd = g.cost_usd;
+            record.provider_model = (!g.provider_model.is_empty()).then_some(g.provider_model);
+            record.code = Some(g.code);
+            out.samples.push(record);
+
+            attempts.push(AttemptOutcome {
+                compiled: outcome.compiled,
+                tests_passed: outcome.tests_passed,
+                cheated: outcome.cheated,
+                total_tokens: g.total_tokens,
+                latency_ms: g.latency_ms,
+                cost_usd: g.cost_usd,
+            });
+            // Deliberately NO early break on a pass: the unbiased pass@k
+            // estimator needs (n, c) — every attempt's outcome, not just the
+            // first success.
+        }
+
+        let c = attempts.iter().filter(|a| a.tests_passed).count();
+        out.outcomes.push(FixtureOutcome {
+            fixture_id: fixture.id.clone(),
+            n: attempts.len(),
+            c,
+            attempts,
+        });
+    }
+
+    out.samples.sort_by(|a, b| {
+        (a.fixture_id.as_str(), a.sample_index).cmp(&(b.fixture_id.as_str(), b.sample_index))
+    });
+    Ok(out)
 }
 
 /// Build the scoreboard row recording a corpus run.
@@ -517,102 +713,25 @@ pub async fn run(args: EvalCorpusArgs) -> Result<()> {
         if measured { args.n } else { 1 }
     );
 
-    let mut cumulative_spend = 0.0f64;
-    let mut run_complete = true;
-    let mut n_infra_errors = 0usize;
-    let mut outcomes: Vec<FixtureOutcome> = Vec::with_capacity(fixtures.len());
-
-    'fixtures: for fixture in &fixtures {
+    let plan = SamplePlan {
+        n: args.n,
+        base_seed: args.seed,
+        max_spend_usd: args.max_spend_usd,
+    };
+    let source = match (&solutions, &live_config) {
+        (Some(map), _) => SampleSource::FromDir(map),
+        (None, Some(config)) => SampleSource::Live { config, ctx: &ctx },
+        (None, None) => unreachable!("live mode always resolves a config"),
+    };
+    let mut verify = |candidate: &str, fixture: &Fixture| -> Result<VerifyOutcome> {
         let tests_source = std::fs::read_to_string(&fixture.tests_path)
             .with_context(|| format!("reading {}", fixture.tests_path.display()))?;
-
-        let n_attempts = if measured { args.n } else { 1 };
-        let mut attempts = Vec::with_capacity(n_attempts);
-
-        for i in 0..n_attempts {
-            if let Some(cap) = args.max_spend_usd {
-                if cumulative_spend >= cap {
-                    run_complete = false;
-                    break 'fixtures;
-                }
-            }
-
-            let (candidate, tokens, latency_ms, cost_usd) = match &solutions {
-                Some(map) => match map.get(&fixture.id) {
-                    Some(src) => (extract_vox_code(src), 0u32, 0i64, None),
-                    None => {
-                        // A missing solution is a miss, not a skip: skipping
-                        // would shrink the denominator and inflate the rate.
-                        attempts.push(AttemptOutcome {
-                            compiled: false,
-                            tests_passed: false,
-                            cheated: false,
-                            total_tokens: 0,
-                            latency_ms: 0,
-                            cost_usd: None,
-                        });
-                        continue;
-                    }
-                },
-                None => {
-                    let prompt = build_prompt(&ctx, &fixture.signature, &fixture.prompt);
-                    let mut config = live_config.clone().expect("live mode resolves a config");
-                    config.seed = Some(sample_seed(args.seed, &fixture.id, i));
-                    match generate_candidate(&config, &prompt).await {
-                        Ok(g) => (g.code, g.total_tokens, g.latency_ms, g.cost_usd),
-                        Err(reason) => {
-                            match classify_generation_error(&reason) {
-                                GenErrorKind::FatalConfig => anyhow::bail!(
-                                    "{reason} — the server is serving a different model than requested"
-                                ),
-                                GenErrorKind::Infra => {
-                                    n_infra_errors += 1;
-                                    tracing::warn!(model = %args.model, fixture = %fixture.id, error = %reason, "infra error, not counted as a model failure");
-                                    continue;
-                                }
-                                GenErrorKind::Model => {}
-                            }
-                            tracing::warn!(model = %args.model, fixture = %fixture.id, error = %reason, "generation failed");
-                            attempts.push(AttemptOutcome {
-                                compiled: false,
-                                tests_passed: false,
-                                cheated: false,
-                                total_tokens: 0,
-                                latency_ms: 0,
-                                cost_usd: None,
-                            });
-                            continue;
-                        }
-                    }
-                }
-            };
-
-            if let Some(c) = cost_usd {
-                cumulative_spend += c;
-            }
-
-            let outcome = verify_program(&vox_bin, &candidate, &tests_source, &workdir, timeout)?;
-            attempts.push(AttemptOutcome {
-                compiled: outcome.compiled,
-                tests_passed: outcome.tests_passed,
-                cheated: outcome.cheated,
-                total_tokens: tokens,
-                latency_ms,
-                cost_usd,
-            });
-            // Deliberately NO early break on a pass: the unbiased pass@k
-            // estimator needs (n, c) — every attempt's outcome, not just the
-            // first success.
-        }
-
-        let c = attempts.iter().filter(|a| a.tests_passed).count();
-        outcomes.push(FixtureOutcome {
-            fixture_id: fixture.id.clone(),
-            n: attempts.len(),
-            c,
-            attempts,
-        });
-    }
+        verify_program(&vox_bin, candidate, &tests_source, &workdir, timeout)
+    };
+    let drawn = draw_samples(&fixtures, source, plan, &mut verify).await?;
+    let run_complete = !drawn.spend_cap_hit;
+    let n_infra_errors = drawn.n_infra_errors;
+    let outcomes = drawn.outcomes;
 
     let effective_k = if measured { args.k } else { 1 };
     let score = score_corpus(&outcomes, effective_k.max(1), measured);
@@ -947,5 +1066,228 @@ mod tests {
         assert_eq!(g.code, "fn f() to int { return 1 }");
         assert_eq!(g.provider_model, "mens/demo");
         assert_eq!(g.total_tokens, 7);
+    }
+
+    fn fixture(id: &str, dir: &Path) -> Fixture {
+        let tests_path = dir.join(format!("{id}.vox"));
+        std::fs::write(&tests_path, "fn main() to str { return \"ok\" }").unwrap();
+        Fixture {
+            id: id.to_string(),
+            slug: format!("{id}-x"),
+            training_eligible: false,
+            added_at: "2026-01-01".to_string(),
+            prompt: "return one".to_string(),
+            signature: "fn f() to int".to_string(),
+            tests_path,
+        }
+    }
+
+    fn ctx() -> PromptContext {
+        PromptContext {
+            condition: Condition::C0ZeroShot,
+            context_text: String::new(),
+            context_hash: "h".to_string(),
+        }
+    }
+
+    fn live_config(server_uri: &str) -> LlmConfig {
+        let mut c = LlmConfig::direct("voxlocal", "mens/demo");
+        c.base_url = Some(format!("{server_uri}/v1/chat/completions"));
+        c.telemetry_skip_interaction = true;
+        c
+    }
+
+    fn verdict(compiled: bool, tests_passed: bool) -> VerifyOutcome {
+        VerifyOutcome {
+            compiled,
+            tests_passed,
+            cheated: false,
+            assertion_failed: false,
+            detail: String::new(),
+        }
+    }
+
+    fn ok_body() -> serde_json::Value {
+        serde_json::json!({
+            "model": "mens/demo",
+            "choices": [{"message": {"role": "assistant", "content": "fn f() to int { return 1 }"}}],
+            "usage": {"prompt_tokens": 3, "completion_tokens": 4}
+        })
+    }
+
+    #[tokio::test]
+    async fn sample_loop_draws_exactly_n_without_early_stop() {
+        use wiremock::matchers::method;
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let dir = tempfile::tempdir().unwrap();
+        let fixtures = vec![fixture("001", dir.path()), fixture("002", dir.path())];
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(ok_body()))
+            .expect(6)
+            .mount(&server)
+            .await;
+
+        let cfg = live_config(&server.uri());
+        let ctx = ctx();
+        let plan = SamplePlan {
+            n: 3,
+            base_seed: 7,
+            max_spend_usd: None,
+        };
+        let mut verify = |_: &str, _: &Fixture| Ok(verdict(true, true));
+        let drawn = draw_samples(
+            &fixtures,
+            SampleSource::Live {
+                config: &cfg,
+                ctx: &ctx,
+            },
+            plan,
+            &mut verify,
+        )
+        .await
+        .expect("drawn");
+
+        assert_eq!(drawn.n_samples_planned, 6);
+        assert_eq!(drawn.outcomes.len(), 2);
+        for o in &drawn.outcomes {
+            assert_eq!(
+                o.attempts.len(),
+                3,
+                "all n drawn even though the first passed"
+            );
+            assert_eq!((o.n, o.c), (3, 3));
+        }
+        assert_eq!(drawn.samples.len(), 6);
+        let order: Vec<(String, usize)> = drawn
+            .samples
+            .iter()
+            .map(|s| (s.fixture_id.clone(), s.sample_index))
+            .collect();
+        let mut sorted = order.clone();
+        sorted.sort();
+        assert_eq!(order, sorted);
+        for s in &drawn.samples {
+            assert_eq!(s.seed, sample_seed(7, &s.fixture_id, s.sample_index));
+            assert_eq!(s.failure_class, FailureClass::Pass);
+            assert_eq!(s.provider_model.as_deref(), Some("mens/demo"));
+        }
+    }
+
+    #[tokio::test]
+    async fn sample_loop_keeps_infra_out_of_attempts() {
+        use wiremock::matchers::method;
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let dir = tempfile::tempdir().unwrap();
+        let fixtures = vec![fixture("001", dir.path())];
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(429).set_body_string("slow down"))
+            .mount(&server)
+            .await;
+
+        let cfg = live_config(&server.uri());
+        let ctx = ctx();
+        let plan = SamplePlan {
+            n: 1,
+            base_seed: 0,
+            max_spend_usd: None,
+        };
+        let mut verify = |_: &str, _: &Fixture| -> Result<VerifyOutcome> {
+            panic!("no candidate exists, so nothing is verified")
+        };
+        let drawn = draw_samples(
+            &fixtures,
+            SampleSource::Live {
+                config: &cfg,
+                ctx: &ctx,
+            },
+            plan,
+            &mut verify,
+        )
+        .await
+        .expect("drawn");
+
+        assert_eq!(drawn.n_infra_errors, 1);
+        assert_eq!(drawn.outcomes[0].attempts.len(), 0);
+        assert_eq!(drawn.samples.len(), 1);
+        assert_eq!(drawn.samples[0].failure_class, FailureClass::InfraError);
+        assert!(drawn.samples[0].code.is_none());
+    }
+
+    #[tokio::test]
+    async fn sample_loop_aborts_on_model_mismatch() {
+        use wiremock::matchers::method;
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let dir = tempfile::tempdir().unwrap();
+        let fixtures = vec![fixture("001", dir.path())];
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(
+                ResponseTemplate::new(409)
+                    .set_body_string("{\"text\":\"Loaded model is a, not b\"}"),
+            )
+            .mount(&server)
+            .await;
+
+        let cfg = live_config(&server.uri());
+        let ctx = ctx();
+        let plan = SamplePlan {
+            n: 2,
+            base_seed: 0,
+            max_spend_usd: None,
+        };
+        let mut verify = |_: &str, _: &Fixture| Ok(verdict(true, true));
+        let err = draw_samples(
+            &fixtures,
+            SampleSource::Live {
+                config: &cfg,
+                ctx: &ctx,
+            },
+            plan,
+            &mut verify,
+        )
+        .await
+        .expect_err("a served-model mismatch aborts the run");
+        assert!(err.to_string().contains("different model"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn sample_loop_from_dir_missing_solution_is_a_miss() {
+        let dir = tempfile::tempdir().unwrap();
+        let fixtures = vec![fixture("001", dir.path())];
+        let solutions: HashMap<String, String> = HashMap::new();
+        let plan = SamplePlan {
+            n: 5,
+            base_seed: 0,
+            max_spend_usd: None,
+        };
+        let mut verify = |_: &str, _: &Fixture| -> Result<VerifyOutcome> {
+            panic!("a missing solution is never verified")
+        };
+        let drawn = draw_samples(
+            &fixtures,
+            SampleSource::FromDir(&solutions),
+            plan,
+            &mut verify,
+        )
+        .await
+        .expect("drawn");
+
+        assert_eq!(
+            drawn.n_samples_planned, 1,
+            "from-dir is one attempt per fixture"
+        );
+        let a = &drawn.outcomes[0].attempts;
+        assert_eq!(a.len(), 1);
+        assert!(!a[0].compiled && !a[0].tests_passed && !a[0].cheated);
+        assert_eq!(
+            drawn.samples[0].failure_class,
+            FailureClass::GenerationError
+        );
+        assert!(drawn.samples[0].code.is_none());
     }
 }
