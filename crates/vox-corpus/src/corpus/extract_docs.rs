@@ -168,6 +168,10 @@ pub fn extract_from_md_file(
         return Ok(Vec::new());
     }
 
+    // The page-one summary block is a rewrite target, never training text (TAX-06); strip it
+    // before both lanes.
+    let source = vox_kb_facets::strip_summary_blocks(&source);
+
     let mut pairs = Vec::new();
 
     if config.extract_code_blocks {

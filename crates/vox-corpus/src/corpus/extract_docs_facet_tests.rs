@@ -4,6 +4,8 @@
 use super::*;
 use std::fs;
 
+const SENTINEL: &str = "SENTINELSUMMARYWORD";
+
 const BODY: &str = "# Title\n\n## Concept section\n\nThis paragraph is long enough to clear the minimum section length so the \
 section is emitted as a question and answer pair by the extractor under test.\n\n```vox\nfn add(a: int, b: int) -> int {\n    return a + b\n}\n```\n";
 
@@ -69,4 +71,131 @@ fn staleness_penalty_still_parsed_from_typed_frontmatter() {
     assert!(eligible);
     assert_eq!(fm.title.as_deref(), Some("Old"));
     assert_eq!(penalty, 3);
+}
+
+#[test]
+fn summary_text_never_reaches_any_pair() {
+    let block = format!(
+        "<!-- kb:summary -->\nA {SENTINEL} sentence about the page.\nMore text.\n<!-- /kb:summary -->\n"
+    );
+    let shapes = [
+        // whole-line block after the heading
+        format!(
+            "---\ntitle: T\n---\n# Title\n\n{block}\n## Concept section\n\nThis paragraph is long enough to clear the minimum section length so the section is emitted by the extractor under test.\n\n```vox\nfn a() {{}}\n```\n"
+        ),
+        // inline block
+        format!(
+            "---\ntitle: T\n---\n# Title\n\n<!-- kb:summary -->{SENTINEL} inline<!-- /kb:summary -->\n\n## Concept section\n\nThis paragraph is long enough to clear the minimum section length so the section is emitted by the extractor under test.\n\n```vox\nfn a() {{}}\n```\n"
+        ),
+        // unterminated: everything after the open marker is dropped
+        format!(
+            "---\ntitle: T\n---\n{BODY}\n<!-- kb:summary -->\n{SENTINEL} never closed\n\n## Later\n\nThis paragraph is long enough to clear the minimum section length so the section is emitted by the extractor under test.\n"
+        ),
+    ];
+    for (i, s) in shapes.iter().enumerate() {
+        let pairs = extract(s);
+        assert!(!pairs.is_empty(), "shape {i} should still yield pairs");
+        for p in &pairs {
+            assert!(
+                !p.to_jsonl().contains(SENTINEL),
+                "shape {i} leaked: {}",
+                p.to_jsonl()
+            );
+        }
+    }
+}
+
+/// Verbatim pre-change eligibility rule (HEAD~ `parse_frontmatter`, 04-04 plan base).
+fn legacy_eligible(content: &str) -> bool {
+    if content.contains("status: deprecated")
+        || content.contains("status: \"deprecated\"")
+        || content.contains("status: 'deprecated'")
+    {
+        return false;
+    }
+    let substr = !(content.contains("training_eligible: false")
+        || content.contains("training_eligible:false"));
+    if !content.starts_with("---") {
+        return substr;
+    }
+    let parts: Vec<&str> = content.splitn(3, "---").collect();
+    if parts.len() < 3 {
+        return substr;
+    }
+    #[derive(Deserialize)]
+    #[serde(default)]
+    struct Legacy {
+        training_eligible: bool,
+    }
+    impl Default for Legacy {
+        fn default() -> Self {
+            Self {
+                training_eligible: true,
+            }
+        }
+    }
+    serde_yaml::from_str::<Legacy>(parts[1])
+        .unwrap_or_default()
+        .training_eligible
+}
+
+fn collect_md(dir: &Path, out: &mut Vec<PathBuf>) {
+    for e in fs::read_dir(dir).unwrap().flatten() {
+        let p = e.path();
+        if p.is_dir() {
+            if p.file_name().is_some_and(|n| n == "archive") {
+                continue;
+            }
+            collect_md(&p, out);
+        } else if p.extension().is_some_and(|x| x == "md") {
+            out.push(p);
+        }
+    }
+}
+
+#[test]
+fn real_docs_eligibility_unchanged_for_facetless_docs() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .find(|a| a.join("docs/src").is_dir())
+        .expect("repo root with docs/src")
+        .join("docs/src");
+    let mut files = Vec::new();
+    collect_md(&root, &mut files);
+
+    let (mut examined, mut parse_failures, mut mismatches) = (0, Vec::new(), Vec::new());
+    for p in &files {
+        let Ok(content) = fs::read_to_string(p) else {
+            continue;
+        };
+        let facets = match vox_kb_facets::parse_facets(&content) {
+            Ok(f) => f,
+            Err(e) => {
+                parse_failures.push(format!("{}: {e}", p.display()));
+                continue;
+            }
+        };
+        if facets.authorship.is_some()
+            || facets.origin.is_some()
+            || facets.human_attested_by.is_some()
+        {
+            continue;
+        }
+        examined += 1;
+        let new = parse_frontmatter(&content, p).1;
+        if new != legacy_eligible(&content) {
+            mismatches.push(p.display().to_string());
+        }
+    }
+    assert!(
+        parse_failures.is_empty(),
+        "docs failing the facet parse:\n{}",
+        parse_failures.join("\n")
+    );
+    assert!(
+        mismatches.is_empty(),
+        "eligibility changed for:\n{}",
+        mismatches.join("\n")
+    );
+    assert!(examined > 600, "only {examined} docs examined");
 }
