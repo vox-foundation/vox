@@ -9,6 +9,7 @@ pub mod costs;
 pub mod council_report;
 pub mod discover;
 pub mod eval;
+pub mod eval_compare;
 pub mod eval_corpus;
 pub mod explain;
 pub mod list;
@@ -55,6 +56,8 @@ pub enum ModelCmd {
     Eval(eval::EvalArgs),
     /// Score a model or external harness against the held-out HumanEval-Vox corpus.
     EvalCorpus(Box<eval_corpus::EvalCorpusArgs>),
+    /// Compare eval-corpus reports: McNemar + Holm, paired bootstrap, resolution floor.
+    EvalCompare(Box<eval_compare::EvalCompareArgs>),
     /// Show detailed cost reporting.
     Costs(costs::CostsArgs),
     /// Manage and view observed pricing SSOT.
@@ -80,6 +83,7 @@ pub async fn run(cmd: ModelCmd) -> anyhow::Result<()> {
         ModelCmd::Bench(args) => bench::run(*args).await,
         ModelCmd::Eval(args) => eval::run(args).await,
         ModelCmd::EvalCorpus(args) => eval_corpus::run(*args).await,
+        ModelCmd::EvalCompare(args) => eval_compare::run(*args).await,
         ModelCmd::Costs(args) => costs::run(args).await,
         ModelCmd::Pricing(args) => pricing::run(args).await,
         ModelCmd::Classify(args) => classify::run(args).await,

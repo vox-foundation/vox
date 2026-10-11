@@ -6,6 +6,7 @@ use regex::Regex;
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
+pub mod compare;
 pub mod corpus_score;
 pub mod corpus_stats;
 pub mod mens;
