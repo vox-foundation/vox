@@ -65,8 +65,8 @@ import { railRoutingFromSummary } from './lib/routingSummary';
 import { useAttentionInbox } from './hooks/useAttentionInbox';
 import { useNoticeCenter } from './hooks/useNoticeCenter';
 import { noticeFromToast, noticeFromAgentEvent, type SeverityFrame } from './lib/notices';
-import { useKeybinds } from './hooks/useKeybinds';
-import { parseBindings, DEFAULT_BINDINGS, type Bindings } from './lib/keybinds';
+import { useKeybinds, useKeybindings, useShortcutHelpKey } from './hooks/useKeybinds';
+import { ShortcutSheet } from './components/layout/ShortcutSheet';
 import { type UnlistenFn } from '@tauri-apps/api/event';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { SHELL_PREFERENCE_KEYS } from './lib/shellPersistence';
@@ -394,12 +394,8 @@ export default function App() {
   // Master-sidebar Policies badge: worst-status count for the current branch.
   const [policyBadge, setPolicyBadge] = useState<{ count: number; status: RunStatus } | null>(null);
   const [lastOrchEventAt, setLastOrchEventAt] = useState<number | null>(null);
-  const [bindings, setBindings] = useState<Bindings>(DEFAULT_BINDINGS);
-  useEffect(() => {
-    voxTransport.getGuiPreference('gui.keybinds')
-      .then(json => setBindings(parseBindings(json)))
-      .catch(() => setBindings(DEFAULT_BINDINGS));
-  }, []);
+  const bindings = useKeybindings();
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const orchQuery = useOrchestratorStatus();
   const orchUsesPolling = orchQuery.usesPolling;
   const { totalUsd: openrouterSpendUsd } = useLlmSpend();
@@ -1686,8 +1682,12 @@ export default function App() {
     'toggle-sidebar': () => setSidebarMode(m => m === 'rail' ? 'default' : m === 'default' ? 'wide' : 'rail'),
     'pause-resume-agent': () => togglePauseSelectedRef.current(),
     'toggle-inspector': () => setIsInspectorOpen(p => !p),
+    'show-shortcuts': () => setShortcutsOpen(true),
+    // 'dispatch-intent' has no App handler by design (composer-only, D-17); the
+    // palette action rows (06.3-11) list only ids present in this map.
   }), []);
   useKeybinds(actionHandlers, bindings);
+  useShortcutHelpKey(useCallback(() => setShortcutsOpen(true), []));
 
 
 
@@ -2129,6 +2129,7 @@ export default function App() {
           if (p) void runCli(p.path, true);
         }}
       />
+      <ShortcutSheet open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <TaskDiffDialog open={diffOpen} loading={diffLoading} text={diffText} onClose={() => setDiffOpen(false)} />
       <InspectorDrawer open={isInspectorOpen} onClose={() => setIsInspectorOpen(false)} />
       <ResearchEngineDrawer

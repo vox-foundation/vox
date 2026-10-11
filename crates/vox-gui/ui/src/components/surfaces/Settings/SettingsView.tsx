@@ -19,7 +19,9 @@ import { useVoxMutation } from '../../../hooks/useVoxQuery';
 import { searchSettings } from './settingsIndex';
 import type { HudTilesConfig } from '../../../hooks/useHudTiles';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
-import { ACTION_REGISTRY, DEFAULT_BINDINGS, type Bindings, parseBindings, serializeBindings, chordFromEvent } from '../../../lib/keybinds';
+import { ACTION_REGISTRY, DEFAULT_BINDINGS, chordFromEvent } from '../../../lib/keybinds';
+import { setBindings } from '../../../lib/keybindStore';
+import { useKeybindings } from '../../../hooks/useKeybinds';
 import { useOnboardingGate } from '../Onboarding/useOnboardingGate';
 
 const GUI_PREF_KEYS = ['theme', 'telemetry', 'sign', 'checkpointMins'] as const;
@@ -1070,13 +1072,8 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
   const { lang, setLang } = useLang();
   const [section, setSection] = useState('orchestrator');
   const [filter, setFilter] = useState('');
-  const [keybindings, setKeybindings] = useState<Bindings>(DEFAULT_BINDINGS);
+  const keybindings = useKeybindings();
   const [capturingId, setCapturingId] = useState<string | null>(null);
-  useEffect(() => {
-    voxTransport.getGuiPreference('gui.keybinds')
-      .then(json => setKeybindings(parseBindings(json)))
-      .catch(() => setKeybindings(DEFAULT_BINDINGS));
-  }, []);
   useEffect(() => {
     if (!capturingId) return;
     const onKey = (e: KeyboardEvent) => {
@@ -1084,9 +1081,8 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
       e.stopPropagation();
       const chord = chordFromEvent(e);
       const next = { ...keybindings, [capturingId]: chord };
-      setKeybindings(next);
+      setBindings(next);
       setCapturingId(null);
-      voxTransport.setGuiPreference('gui.keybinds', serializeBindings(next)).catch(() => {});
     };
     window.addEventListener('keydown', onKey, { capture: true });
     return () => window.removeEventListener('keydown', onKey, { capture: true });
@@ -1622,9 +1618,8 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
             <button
               type="button"
               onClick={() => {
-                setKeybindings(DEFAULT_BINDINGS);
+                setBindings(DEFAULT_BINDINGS);
                 setCapturingId(null);
-                voxTransport.setGuiPreference('gui.keybinds', serializeBindings(DEFAULT_BINDINGS)).catch(() => {});
               }}
               className="mt-3 rounded-md border border-border-subtle bg-overlay-subtle px-3 py-1.5 text-[11px] text-text-muted hover:text-text-secondary transition"
             >
