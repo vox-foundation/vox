@@ -30,8 +30,12 @@ use vox_corpus::humaneval_runner::conditions::{
 use vox_corpus::humaneval_runner::{
     Fixture, VerifyOutcome, eligible_after, held_out, load_corpus, verify_program,
 };
-use vox_eval::corpus_score::{AttemptOutcome, CorpusScore, FixtureOutcome, score_corpus};
-use vox_eval::report::{FailureClass, SampleRecord, VerifyFacts, classify_failure};
+use vox_eval::corpus_score::{AttemptOutcome, CorpusScore, FixtureOutcome};
+use vox_eval::provenance::{MensLineage, RunProvenance, SamplingRecord};
+use vox_eval::report::{
+    DEFAULT_BOOTSTRAP_REPS, DEFAULT_MAX_INFRA_RATE, EvalCorpusReport, FailureClass, ReportInputs,
+    SampleRecord, VerifyFacts, classify_failure,
+};
 use vox_orchestrator::catalog::{MensCatalog, ModelCatalog};
 use vox_orchestrator::models::{ModelRegistry, ModelSpec, TaskCategory, llm_config_for_spec};
 
@@ -104,6 +108,11 @@ pub struct EvalCorpusArgs {
     /// Skip the `model_scoreboard` write-back.
     #[arg(long, default_value_t = false)]
     pub no_write_back: bool,
+    /// Where the run executed: `github-hosted`, or a named local host. Defaults to
+    /// `github-hosted` when `GITHUB_ACTIONS=true`; otherwise unset, which leaves the run
+    /// incomplete with `runner` named as missing.
+    #[arg(long)]
+    pub runner: Option<String>,
 }
 
 /// Resolve the `(model_id, harness_id)` pair a leaderboard row is keyed by.
@@ -636,6 +645,208 @@ pub fn scoreboard_row_from_corpus(
     }
 }
 
+/// Identity of the `vox` binary that verified the candidates.
+#[derive(Debug, Clone)]
+pub struct VerifierIdentity {
+    /// Version string as `vox --version` printed it, minus the program name
+    /// (same shape as `crate::VOX_VERSION`).
+    pub version_line: String,
+    /// Git sha parsed from the version string.
+    pub git_sha: Option<String>,
+    /// SHA-256 of the binary's bytes.
+    pub binary_sha256: String,
+}
+
+/// Everything `collect_provenance` needs that the sweep itself does not carry.
+pub struct ProvenanceInputs<'a> {
+    pub args: &'a EvalCorpusArgs,
+    /// Row model id (`model` or `model@checkpoint`).
+    pub row_model_id: String,
+    /// Resolved provider; `None` for `--from-dir` rows (nothing generated them here).
+    pub provider: Option<String>,
+    /// UTC date at run start.
+    pub request_date: String,
+    pub samples: &'a [SampleRecord],
+    pub context_hash: Option<String>,
+    pub problem_set_hash: Option<String>,
+    pub prompt_template_hash: Option<String>,
+    pub corpus_manifest_hash: Option<String>,
+    /// `(fingerprint, kind)` of the syntax surface under test.
+    pub fingerprint: Option<(String, String)>,
+    pub verifier: Option<VerifierIdentity>,
+    pub mens: Option<MensLineage>,
+    pub runner: Option<String>,
+}
+
+/// The `--runner` rule: an explicit label wins; otherwise `github-hosted` under Actions;
+/// otherwise unset (the run is then incomplete with `runner` named missing).
+#[must_use]
+pub fn resolve_runner(flag: Option<&str>, github_actions: Option<&str>) -> Option<String> {
+    match flag.map(str::trim).filter(|s| !s.is_empty()) {
+        Some(r) => Some(r.to_string()),
+        None => (github_actions == Some("true")).then(|| "github-hosted".to_string()),
+    }
+}
+
+/// `<corpus dir name>:held-out|all[:after-<cutoff>]`.
+#[must_use]
+pub fn tier_label(args: &EvalCorpusArgs) -> String {
+    let dir = args
+        .corpus
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("corpus");
+    let scope = if args.include_training_eligible {
+        "all"
+    } else {
+        "held-out"
+    };
+    match &args.cutoff {
+        Some(c) => format!("{dir}:{scope}:after-{c}"),
+        None => format!("{dir}:{scope}"),
+    }
+}
+
+/// Fill the §5 record with everything the harness observed. Fields it could not observe
+/// stay `None`; `EvalCorpusReport::assemble` names them and marks the run incomplete.
+#[must_use]
+pub fn collect_provenance(inp: &ProvenanceInputs<'_>) -> RunProvenance {
+    let a = inp.args;
+    let measured = a.from_dir.is_none();
+    let (n, k) = if measured { (a.n, a.k) } else { (1, 1) };
+    let mut provider_reported_models: Vec<String> = inp
+        .samples
+        .iter()
+        .filter_map(|s| s.provider_model.clone())
+        .collect();
+    provider_reported_models.sort();
+    provider_reported_models.dedup();
+    let v = inp.verifier.as_ref();
+    RunProvenance {
+        syntax_fingerprint: inp.fingerprint.as_ref().map(|f| f.0.clone()),
+        syntax_fingerprint_kind: inp.fingerprint.as_ref().map(|f| f.1.clone()),
+        cargo_version: Some(env!("CARGO_PKG_VERSION").to_string()),
+        vox_git_sha: v.and_then(|v| v.git_sha.clone()),
+        vox_binary_sha256: v.map(|v| v.binary_sha256.clone()),
+        verifier_version: v.map(|v| v.version_line.clone()),
+        verifier_matches_harness: v.map(|v| v.version_line == crate::VOX_VERSION),
+        tier: Some(tier_label(a)),
+        problem_set_hash: inp.problem_set_hash.clone(),
+        corpus_manifest_hash: inp.corpus_manifest_hash.clone(),
+        prompt_template_hash: inp.prompt_template_hash.clone(),
+        condition: Some(a.condition.clone()),
+        context_hash: inp.context_hash.clone(),
+        harness_version: Some(crate::VOX_VERSION.to_string()),
+        model_id: Some(inp.row_model_id.clone()),
+        provider: inp.provider.clone(),
+        request_date: Some(inp.request_date.clone()),
+        provider_reported_models,
+        mens: inp.mens.clone(),
+        sampling: Some(SamplingRecord {
+            temperature: a.temperature,
+            top_p: a.top_p,
+            n,
+            k,
+            seed: if measured { a.seed } else { 0 },
+            max_tokens: a.max_tokens,
+            seed_enforced: inp.provider.as_deref() == Some("voxlocal"),
+        }),
+        runner: inp.runner.clone(),
+        os: Some(std::env::consts::OS.to_string()),
+        arch: Some(std::env::consts::ARCH.to_string()),
+        verifier_timeout_secs: Some(a.timeout_secs),
+        // Supplied by Phase 7 run identity and preregistration (12-09); never filled in here.
+        identity: None,
+        preregistration_id: None,
+    }
+}
+
+/// Report-level facts that are not provenance.
+#[derive(Debug, Clone)]
+pub struct ReportMeta {
+    pub model_id: String,
+    pub harness_id: String,
+    pub config_digest: String,
+    pub cutoff: Option<String>,
+    pub held_out_only: bool,
+    pub measured: bool,
+    /// Effective k (1 for ingested solutions).
+    pub k: usize,
+    /// Bootstrap seed; distinct in role from the sampling seed.
+    pub analysis_seed: u64,
+}
+
+/// Hand the sweep and its provenance to the single completeness gate.
+#[must_use]
+pub fn finalize_report(
+    draw: DrawOutcome,
+    prov: RunProvenance,
+    meta: &ReportMeta,
+) -> EvalCorpusReport {
+    EvalCorpusReport::assemble(ReportInputs {
+        model_id: meta.model_id.clone(),
+        harness_id: meta.harness_id.clone(),
+        config_digest: meta.config_digest.clone(),
+        cutoff: meta.cutoff.clone(),
+        held_out_only: meta.held_out_only,
+        measured: meta.measured,
+        k: meta.k,
+        outcomes: draw.outcomes,
+        samples: draw.samples,
+        n_infra_errors: draw.n_infra_errors,
+        n_samples_planned: draw.n_samples_planned,
+        max_infra_rate: DEFAULT_MAX_INFRA_RATE,
+        spend_cap_hit: draw.spend_cap_hit,
+        provenance: prov,
+        bootstrap_reps: DEFAULT_BOOTSTRAP_REPS,
+        analysis_seed: meta.analysis_seed,
+    })
+}
+
+fn fmt_arm(a: Option<&vox_eval::report::ArmStats>) -> String {
+    a.map_or_else(
+        || "n/a".to_string(),
+        |a| {
+            format!(
+                "{:.1}% [{:.1}, {:.1}]",
+                a.point * 100.0,
+                a.ci_low * 100.0,
+                a.ci_high * 100.0
+            )
+        },
+    )
+}
+
+fn print_summary(report: &EvalCorpusReport) {
+    println!(
+        "pass@1 {} | pass@{} {} | compile {:.1}% | cheated {} | infra-errors {}",
+        fmt_arm(report.pass_at_1.as_ref()),
+        report.score.k,
+        fmt_arm(report.pass_at_k.as_ref()),
+        report.score.compile_rate * 100.0,
+        report.score.n_cheated,
+        report.n_infra_errors,
+    );
+    if let Some(s) = &report.provenance.sampling {
+        // A requested seed is only a guarantee where the harness controls the provider.
+        println!(
+            "seed {} ({})",
+            s.seed,
+            if s.seed_enforced {
+                "enforced"
+            } else {
+                "requested; provider may ignore"
+            }
+        );
+    }
+    if !report.run_complete {
+        println!("{} run incomplete:", "INCOMPLETE".yellow().bold());
+        for r in &report.incomplete_reasons {
+            println!("  - {r}");
+        }
+    }
+}
+
 pub async fn run(args: EvalCorpusArgs) -> Result<()> {
     validate_sampling(&args)?;
     if args.temperature == 0.0 && args.n > 1 {
@@ -648,6 +859,7 @@ pub async fn run(args: EvalCorpusArgs) -> Result<()> {
         );
     }
 
+    let request_date = chrono::Utc::now().format("%Y-%m-%d").to_string();
     let repo_root = std::env::current_dir()?;
     let condition = Condition::parse(&args.condition)?;
     let ctx = build_context(condition, &repo_root)?;
@@ -729,27 +941,38 @@ pub async fn run(args: EvalCorpusArgs) -> Result<()> {
         verify_program(&vox_bin, candidate, &tests_source, &workdir, timeout)
     };
     let drawn = draw_samples(&fixtures, source, plan, &mut verify).await?;
-    let run_complete = !drawn.spend_cap_hit;
-    let n_infra_errors = drawn.n_infra_errors;
-    let outcomes = drawn.outcomes;
 
     let effective_k = if measured { args.k } else { 1 };
-    let score = score_corpus(&outcomes, effective_k.max(1), measured);
-
-    println!(
-        "pass@1 {:.1}% | pass@{} {:.1}% | compile {:.1}% | cheated {} | infra-errors {}{}",
-        score.pass_at_1 * 100.0,
-        score.k,
-        score.pass_at_k * 100.0,
-        score.compile_rate * 100.0,
-        score.n_cheated,
-        n_infra_errors,
-        if run_complete {
-            ""
-        } else {
-            " | INCOMPLETE (spend cap hit)"
-        }
-    );
+    let prov = collect_provenance(&ProvenanceInputs {
+        args: &args,
+        row_model_id: row_model_id.clone(),
+        provider: live_config.as_ref().map(|c| c.provider.clone()),
+        request_date,
+        samples: &drawn.samples,
+        context_hash: Some(ctx.context_hash.clone()),
+        problem_set_hash: None,
+        prompt_template_hash: None,
+        corpus_manifest_hash: None,
+        fingerprint: None,
+        verifier: None,
+        mens: None,
+        runner: resolve_runner(
+            args.runner.as_deref(),
+            std::env::var("GITHUB_ACTIONS").ok().as_deref(),
+        ),
+    });
+    let meta = ReportMeta {
+        model_id: row_model_id.clone(),
+        harness_id: row_harness_id.clone(),
+        config_digest: digest,
+        cutoff: args.cutoff.clone(),
+        held_out_only: !args.include_training_eligible,
+        measured,
+        k: effective_k,
+        analysis_seed: args.seed,
+    };
+    let report = finalize_report(drawn, prov, &meta);
+    print_summary(&report);
 
     if !args.no_write_back {
         match vox_db::VoxDb::connect(
@@ -758,7 +981,7 @@ pub async fn run(args: EvalCorpusArgs) -> Result<()> {
         .await
         {
             Ok(db) => {
-                let row = scoreboard_row_from_corpus(&row_model_id, &row_harness_id, &score);
+                let row = scoreboard_row_from_corpus(&row_model_id, &row_harness_id, &report.score);
                 match db.upsert_model_scoreboard(row).await {
                     Ok(()) => println!("Wrote measured quality to model_scoreboard (vox-codegen)."),
                     Err(e) => tracing::warn!(error = %e, "scoreboard upsert failed"),
@@ -769,20 +992,6 @@ pub async fn run(args: EvalCorpusArgs) -> Result<()> {
     }
 
     if let Some(path) = &args.output {
-        let report = serde_json::json!({
-            "schema_version": 1,
-            "model_id": row_model_id,
-            "harness_id": row_harness_id,
-            "config_digest": digest,
-            "condition": condition.id(),
-            "context_hash": ctx.context_hash,
-            "cutoff": args.cutoff,
-            "held_out_only": !args.include_training_eligible,
-            "run_complete": run_complete,
-            "n_infra_errors": n_infra_errors,
-            "score": score,
-            "fixtures": outcomes,
-        });
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
@@ -1289,5 +1498,161 @@ mod tests {
             FailureClass::GenerationError
         );
         assert!(drawn.samples[0].code.is_none());
+    }
+
+    // ---- provenance collection and the typed report (12-07) ----
+
+    fn passing_draw() -> DrawOutcome {
+        let attempt = AttemptOutcome {
+            compiled: true,
+            tests_passed: true,
+            cheated: false,
+            total_tokens: 7,
+            latency_ms: 5,
+            cost_usd: None,
+        };
+        let outcomes = ["001", "002"]
+            .iter()
+            .map(|id| FixtureOutcome {
+                fixture_id: (*id).to_string(),
+                n: 1,
+                c: 1,
+                attempts: vec![attempt.clone()],
+            })
+            .collect();
+        let samples = ["001", "002"]
+            .iter()
+            .map(|id| SampleRecord {
+                fixture_id: (*id).to_string(),
+                sample_index: 0,
+                seed: 1,
+                code: Some("fn f() to int { return 1 }".to_string()),
+                failure_class: FailureClass::Pass,
+                compiled: true,
+                tests_passed: true,
+                cheated: false,
+                total_tokens: 7,
+                latency_ms: 5,
+                cost_usd: None,
+                provider_model: Some("m".to_string()),
+            })
+            .collect();
+        DrawOutcome {
+            outcomes,
+            samples,
+            n_infra_errors: 0,
+            n_samples_planned: 2,
+            spend_cap_hit: false,
+        }
+    }
+
+    fn meta_for(args: &EvalCorpusArgs) -> ReportMeta {
+        ReportMeta {
+            model_id: args.model.clone(),
+            harness_id: args.harness.clone(),
+            config_digest: "digest".to_string(),
+            cutoff: None,
+            held_out_only: true,
+            measured: true,
+            k: args.k,
+            analysis_seed: args.seed,
+        }
+    }
+
+    fn prov_inputs<'a>(
+        args: &'a EvalCorpusArgs,
+        provider: Option<&str>,
+        samples: &'a [SampleRecord],
+    ) -> ProvenanceInputs<'a> {
+        ProvenanceInputs {
+            args,
+            row_model_id: args.model.clone(),
+            provider: provider.map(str::to_string),
+            request_date: "2026-10-11".to_string(),
+            samples,
+            context_hash: Some("ctx".to_string()),
+            problem_set_hash: None,
+            prompt_template_hash: None,
+            corpus_manifest_hash: None,
+            fingerprint: None,
+            verifier: None,
+            mens: None,
+            runner: None,
+        }
+    }
+
+    #[test]
+    fn finalize_report_names_missing_identity() {
+        let args = EvalCorpusArgs::parse_from(["eval-corpus", "--model", "acme/m"]);
+        let draw = passing_draw();
+        let prov = collect_provenance(&prov_inputs(&args, Some("openrouter"), &draw.samples));
+        let report = finalize_report(draw, prov, &meta_for(&args));
+        assert!(!report.run_complete, "identity is owed by Phase 7");
+        assert_eq!(report.schema_version, 2);
+        for want in [
+            "missing provenance: identity",
+            "missing provenance: preregistration_id",
+        ] {
+            assert!(
+                report.incomplete_reasons.iter().any(|r| r == want),
+                "{want} in {:?}",
+                report.incomplete_reasons
+            );
+        }
+        assert_eq!(report.samples.len(), 2, "every SampleRecord is carried");
+    }
+
+    #[test]
+    fn seed_is_enforced_only_for_voxlocal() {
+        let args = EvalCorpusArgs::parse_from(["eval-corpus", "--model", "acme/m"]);
+        for (provider, want) in [("openrouter", false), ("voxlocal", true)] {
+            let prov = collect_provenance(&prov_inputs(&args, Some(provider), &[]));
+            assert_eq!(prov.sampling.unwrap().seed_enforced, want, "{provider}");
+        }
+        let prov = collect_provenance(&prov_inputs(&args, None, &[]));
+        assert!(
+            !prov.sampling.unwrap().seed_enforced,
+            "no provider, no guarantee"
+        );
+    }
+
+    #[test]
+    fn provider_models_are_sorted_and_deduplicated() {
+        let args = EvalCorpusArgs::parse_from(["eval-corpus", "--model", "acme/m"]);
+        let mut samples = passing_draw().samples;
+        for (s, m) in samples.iter_mut().zip(["z-model", "a-model"]) {
+            s.provider_model = Some(m.to_string());
+        }
+        let mut extra = samples[0].clone();
+        extra.sample_index = 1;
+        samples.push(extra);
+        let mut none = samples[0].clone();
+        none.provider_model = None;
+        samples.push(none);
+        let prov = collect_provenance(&prov_inputs(&args, Some("openrouter"), &samples));
+        assert_eq!(prov.provider_reported_models, vec!["a-model", "z-model"]);
+    }
+
+    #[test]
+    fn report_json_has_no_credentials() {
+        let args = EvalCorpusArgs::parse_from(["eval-corpus", "--model", "acme/m"]);
+        let draw = passing_draw();
+        let prov = collect_provenance(&prov_inputs(&args, Some("openrouter"), &draw.samples));
+        let json = serde_json::to_string(&finalize_report(draw, prov, &meta_for(&args))).unwrap();
+        assert!(!json.contains("api_key"), "{json}");
+    }
+
+    #[test]
+    fn runner_label_rule() {
+        assert_eq!(
+            resolve_runner(Some("mac-studio"), Some("true")).as_deref(),
+            Some("mac-studio")
+        );
+        assert_eq!(
+            resolve_runner(None, Some("true")).as_deref(),
+            Some("github-hosted")
+        );
+        assert_eq!(resolve_runner(None, None), None);
+        assert_eq!(resolve_runner(Some("  "), Some("false")), None);
     }
 }
