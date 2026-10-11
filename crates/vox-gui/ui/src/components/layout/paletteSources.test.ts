@@ -48,6 +48,13 @@ describe('buildPaletteItems', () => {
   it('/ prefix yields skills mode for docs and catalog', () => {
     expect(parsePaletteQuery('/ mesh')).toEqual({ mode: 'skills', query: 'mesh' });
   });
+
+  it('# prefix yields crates mode; bare ? stays reserved and unparsed', () => {
+    expect(parsePaletteQuery('#vox-actor')).toEqual({ mode: 'crates', query: 'vox-actor' });
+    expect(parsePaletteQuery('# L3')).toEqual({ mode: 'crates', query: 'L3' });
+    expect(parsePaletteQuery('#')).toEqual({ mode: 'crates', query: '' });
+    expect(parsePaletteQuery('?')).toEqual({ mode: 'default', query: '?' });
+  });
 });
 
 describe('palette dual-language search', () => {
