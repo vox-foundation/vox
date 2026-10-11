@@ -78,8 +78,26 @@ vi.mock('../../hooks/useCapabilityIndex', async () => {
 });
 
 import { Omnibar } from './Omnibar';
+import { Toasts } from '../ui/Toasts';
+import type { CommandCatalogEntry } from '../../types/catalog';
 
 const noop = () => {};
+
+function cat(path: string[], over: Partial<CommandCatalogEntry> = {}): CommandCatalogEntry {
+  return {
+    path,
+    command: path.join(' '),
+    about: 'x',
+    aliases: [],
+    has_subcommands: false,
+    compiled_in: true,
+    source_group: 'g',
+    feature_gate: null,
+    tier: 'recommended',
+    arguments: [],
+    ...over,
+  };
+}
 
 function renderOmnibar(overrides: Partial<React.ComponentProps<typeof Omnibar>> = {}) {
   return render(
@@ -92,6 +110,8 @@ function renderOmnibar(overrides: Partial<React.ComponentProps<typeof Omnibar>> 
       onOpenDoc={overrides.onOpenDoc ?? vi.fn()}
       agents={[]}
       skills={[]}
+      catalog={[]}
+      onRunCli={vi.fn()}
       {...overrides}
     />,
   );
@@ -188,7 +208,7 @@ describe('Omnibar', () => {
   it('typing "vox check" shows an index-backed Commands row with CLI and MCP chips; Enter opens its Catalog form', async () => {
     const onOpenCatalogForm = vi.fn();
     const onRunCommand = vi.fn();
-    renderOmnibar({ onOpenCatalogForm, onRunCommand });
+    renderOmnibar({ onOpenCatalogForm, onRunCommand, catalog: [cat(['check'])] });
     fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: 'vox check' } });
     const label = await screen.findByText('vox check');
     const rowButton = label.closest('button') as HTMLElement;
@@ -243,4 +263,77 @@ describe('Omnibar', () => {
     expect(status.textContent).toContain('Loading capability index…');
     expect(screen.queryByText(/No matches/)).toBeNull();
   });
+  describe('run from the palette (D-01)', () => {
+    async function type(q: string) {
+      fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: q } });
+      return (await screen.findByText(q)).closest('button') as HTMLElement;
+    }
+
+    it('Enter on a read_only compiled-in leaf runs it and does NOT open the form', async () => {
+      const onRunCli = vi.fn();
+      const onOpenCatalogForm = vi.fn();
+      renderOmnibar({ onRunCli, onOpenCatalogForm, catalog: [cat(['features'])] });
+      const row = await type('vox features');
+      expect(row.textContent).toContain('↵ runs');
+      fireEvent.keyDown(window, { key: 'Enter' });
+      expect(onRunCli).toHaveBeenCalledWith(['features']);
+      expect(onOpenCatalogForm).not.toHaveBeenCalled();
+    });
+
+    it('SAFETY: an unclassified verb opens the form and is never run', async () => {
+      const onRunCli = vi.fn();
+      const onOpenCatalogForm = vi.fn();
+      renderOmnibar({ onRunCli, onOpenCatalogForm, catalog: [cat(['check'])] });
+      const row = await type('vox check');
+      expect(row.textContent).toContain('↵ opens form');
+      fireEvent.keyDown(window, { key: 'Enter' });
+      expect(onOpenCatalogForm).toHaveBeenCalledWith(['check']);
+      expect(onRunCli).not.toHaveBeenCalled();
+    });
+
+    it('SAFETY: a destructive verb opens the form even with no required arguments', async () => {
+      const onRunCli = vi.fn();
+      const onOpenCatalogForm = vi.fn();
+      renderOmnibar({ onRunCli, onOpenCatalogForm, catalog: [cat(['plugin', 'remove'])] });
+      await type('vox plugin remove');
+      fireEvent.keyDown(window, { key: 'Enter' });
+      expect(onOpenCatalogForm).toHaveBeenCalledWith(['plugin', 'remove']);
+      expect(onRunCli).not.toHaveBeenCalled();
+    });
+
+    it('SAFETY: a read_only verb with a required argument opens the form', async () => {
+      const onRunCli = vi.fn();
+      const onOpenCatalogForm = vi.fn();
+      const req = { name: 'q', short: null, long: null, help: null, required: true, takes_value: true, value_kind: 'value' as const };
+      renderOmnibar({ onRunCli, onOpenCatalogForm, catalog: [cat(['features'], { arguments: [req] })] });
+      await type('vox features');
+      fireEvent.keyDown(window, { key: 'Enter' });
+      expect(onOpenCatalogForm).toHaveBeenCalledWith(['features']);
+      expect(onRunCli).not.toHaveBeenCalled();
+    });
+
+    it('a cli row absent from the live catalog explains instead of running', async () => {
+      const onRunCli = vi.fn();
+      const onExplain = vi.fn();
+      renderOmnibar({ onRunCli, onExplain, catalog: [] });
+      const row = await type('vox features');
+      expect(row.textContent).toContain('↵ explains');
+      fireEvent.keyDown(window, { key: 'Enter' });
+      expect(onExplain).toHaveBeenCalledWith('cli.features');
+      expect(onRunCli).not.toHaveBeenCalled();
+    });
+  });
+
+  it('a toast with an action renders its button and clicking it calls onClick', () => {
+    const onClick = vi.fn();
+    render(
+      <Toasts
+        items={[{ id: 't1', tone: 'ok', title: 'vox features — exit 0', cause: 'backend-ok', action: { label: 'View full output', onClick } }]}
+        onClose={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'View full output' }));
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
 });
