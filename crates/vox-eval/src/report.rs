@@ -235,6 +235,11 @@ pub struct EvalCorpusReport {
     pub pass_at_1: Option<ArmStats>,
     /// pass@k with CI; `None` when nothing was scorable.
     pub pass_at_k: Option<ArmStats>,
+    /// Entry `t - 1` is pass@1 after `t` compiler-feedback turns (cumulative, so
+    /// non-decreasing in `t`). Empty without feedback turns. `pass_at_1` stays the
+    /// original attempts only.
+    #[serde(default)]
+    pub pass_at_1_after_feedback: Vec<ArmStats>,
     /// Compiled samples over non-infra samples.
     pub sample_compile_rate: Option<f64>,
     /// Count of samples per failure class.
@@ -342,6 +347,36 @@ impl EvalCorpusReport {
         };
         let (pass_at_1, pass_at_k) = (at(1), at(inp.k));
 
+        // pass@1 after t feedback turns: per scorable fixture, the share of its verified
+        // samples whose trajectory is true at index t.
+        let feedback_turns = inp
+            .provenance
+            .sampling
+            .as_ref()
+            .map_or(0, |s| s.feedback_turns as usize);
+        let pass_at_1_after_feedback: Vec<ArmStats> = (1..=feedback_turns)
+            .filter_map(|t| {
+                let v: Vec<f64> = scorable
+                    .iter()
+                    .filter_map(|f| {
+                        let verified: Vec<&SampleRecord> = inp
+                            .samples
+                            .iter()
+                            .filter(|s| {
+                                s.fixture_id == f.fixture_id && !s.passed_by_turn.is_empty()
+                            })
+                            .collect();
+                        let passed = verified
+                            .iter()
+                            .filter(|s| s.passed_by_turn.get(t) == Some(&true))
+                            .count();
+                        (!verified.is_empty()).then(|| passed as f64 / verified.len() as f64)
+                    })
+                    .collect();
+                arm_stats(&v, inp.bootstrap_reps, inp.analysis_seed)
+            })
+            .collect();
+
         let mut failure_breakdown = BTreeMap::new();
         for s in &inp.samples {
             *failure_breakdown.entry(s.failure_class).or_insert(0) += 1;
@@ -379,6 +414,7 @@ impl EvalCorpusReport {
             score,
             pass_at_1,
             pass_at_k,
+            pass_at_1_after_feedback,
             sample_compile_rate,
             failure_breakdown,
             n_infra_errors: inp.n_infra_errors,
@@ -654,5 +690,71 @@ mod tests {
         let c = arm_stats(&v, 500, 99).unwrap();
         assert_ne!((a.ci_low, a.ci_high), (c.ci_low, c.ci_high));
         assert_eq!(c.analysis_seed, 99);
+    }
+
+    // ---- pass@1 after compiler-feedback turns (12-08) ----
+
+    fn with_trajectories(turns: u32, traj: &[(&str, usize, &[bool])]) -> EvalCorpusReport {
+        complete_then(|i| {
+            i.k = 2;
+            i.outcomes = vec![fixture("a", 2, 0), fixture("b", 2, 1), fixture("z", 1, 0)];
+            i.provenance.sampling.as_mut().unwrap().feedback_turns = turns;
+            i.samples = traj
+                .iter()
+                .map(|(id, idx, t)| SampleRecord {
+                    passed_by_turn: t.to_vec(),
+                    ..sample(id, *idx, FailureClass::CheckError)
+                })
+                .collect();
+        })
+    }
+
+    #[test]
+    fn pass_after_feedback_per_turn() {
+        let r = with_trajectories(
+            1,
+            &[
+                ("a", 0, &[false, true]),
+                ("a", 1, &[false, false]),
+                ("b", 0, &[true, true]),
+                ("b", 1, &[false, true]),
+                // "z" has n = 1 < k = 2: unscored, so excluded from the per-turn stats too.
+                ("z", 0, &[false, true]),
+            ],
+        );
+        assert_eq!(r.pass_at_1_after_feedback.len(), 1);
+        let a = &r.pass_at_1_after_feedback[0];
+        assert!(
+            (a.point - 0.75).abs() < 1e-12,
+            "mean(1/2, 2/2), got {}",
+            a.point
+        );
+        assert_eq!(a.n_problems, 2);
+        assert!(a.ci_low <= a.point && a.point <= a.ci_high);
+        assert_eq!(a.min_detectable_difference, min_detectable_difference(2));
+    }
+
+    #[test]
+    fn pass_after_feedback_is_monotone() {
+        let r = with_trajectories(
+            3,
+            &[
+                ("a", 0, &[false, false, true, true]),
+                ("a", 1, &[false, false, false, false]),
+                ("b", 0, &[false, true, true, true]),
+                ("b", 1, &[false, false, false, true]),
+            ],
+        );
+        let pts: Vec<f64> = r.pass_at_1_after_feedback.iter().map(|a| a.point).collect();
+        assert_eq!(pts.len(), 3);
+        assert!(pts.windows(2).all(|w| w[0] <= w[1]), "{pts:?}");
+        assert_eq!(pts, [0.25, 0.5, 0.75]);
+    }
+
+    #[test]
+    fn no_feedback_turns_no_extra_stats() {
+        let r = with_trajectories(0, &[("a", 0, &[false]), ("b", 0, &[true])]);
+        assert!(r.pass_at_1_after_feedback.is_empty());
+        assert_eq!(r.pass_at_1.as_ref().unwrap().n_problems, 2);
     }
 }

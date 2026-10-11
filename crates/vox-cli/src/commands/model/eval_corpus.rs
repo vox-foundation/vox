@@ -1113,6 +1113,13 @@ fn print_summary(report: &EvalCorpusReport) {
         report.score.n_cheated,
         report.n_infra_errors,
     );
+    for (t, a) in report.pass_at_1_after_feedback.iter().enumerate() {
+        println!(
+            "pass@1 after {} feedback turn(s) {}",
+            t + 1,
+            fmt_arm(Some(a))
+        );
+    }
     if let Some(s) = &report.provenance.sampling {
         // A requested seed is only a guarantee where the harness controls the provider.
         println!(
