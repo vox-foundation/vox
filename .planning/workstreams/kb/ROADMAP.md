@@ -175,7 +175,31 @@ Plans:
   3. A lexical search for a taxonomy altLabel returns the doc tagged with the corresponding prefLabel, and deprecated aliases resolve to their replacement.
   4. A page with `origin: web-promoted` or LLM `authorship` and no `human_attested_by` is forced to `training_eligible: false`. A fixture shows the MENS corpus builder excludes it and emits no page-one summary-block text from any doc.
 
-**Plans**: TBD
+**Plans:** 8 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 04-01-PLAN.md — `vox-kb-facets` L0 crate: Facets, eligibility rule, splitter, summary block, provenance validators; the three D-09 edges + exceptions
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 04-02-PLAN.md — SKOS-lite taxonomy loader, label resolution, altLabel query expansion; curated `kb-taxonomy.v1.yaml`
+- [ ] 04-03-PLAN.md — Committed facet JSON Schema (golden) and generated GUI TS type, drift-checked in ssot-drift and vitest
+- [ ] 04-04-PLAN.md — MENS builder: typed eligibility, fail-closed facets, summary strip, real-tree oracle
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 04-05-PLAN.md — Facet lint in vox-doc-pipeline: FacetCtx, all success-criterion-1 rules, backlog filtering
+- [ ] 04-06-PLAN.md — Indexer facet cards + altLabel/deprecated-alias search, MCP wiring, chunker re-epoch with unchanged metrics
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 04-07-PLAN.md — Backlog seed/tighten flags and the shrink-only gate in the fast pre-push tier
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
+- [ ] 04-08-PLAN.md — Seed the real backlog, register contracts, document the facet rules (governance, AGENTS.md)
 **Research flag**: none (extends `vox-doc-pipeline` lint and the existing ratchet pattern).
 
 ### Phase 5: Local Embeddings and Ranking Signals
