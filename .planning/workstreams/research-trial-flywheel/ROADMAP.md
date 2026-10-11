@@ -133,13 +133,14 @@ v1.1 turns Vox's existing research pipeline, telemetry, evaluation, model routin
   5. Training writes an `AdapterCard` with the `train.jsonl` sha256 and training syntax fingerprint; eval refuses to label a `mens/*` row without one.
   6. Each run emits a vox-crypto-signed bundle; a tampered bundle fails verification.
 
-**Plans**: 9 plans
+**Plans**: 1/9 plans executed
 
 Plans:
+
 - [ ] 12-01-PLAN.md — Seed through the LLM facade and wire (Wave 1)
 - [ ] 12-02-PLAN.md — eval-corpus registry routing (incl. mens/*), seeded n-sample loop, infra classification (Wave 2)
 - [ ] 12-03-PLAN.md — MENS serve + Candle sampler seed/top_p (metal and CUDA); eval-local unbiased pass@k (Wave 1)
-- [ ] 12-04-PLAN.md — vox-eval typed report, §5 provenance record, single completeness gate, CI/MDD stats (Wave 1)
+- [x] 12-04-PLAN.md — vox-eval typed report, §5 provenance record, single completeness gate, CI/MDD stats (Wave 1)
 - [ ] 12-05-PLAN.md — `vox model eval-compare`: McNemar + Holm, paired bootstrap, resolution floor (Wave 2)
 - [ ] 12-06-PLAN.md — Training lineage AdapterCard writer and eval-side card check (Wave 1)
 - [ ] 12-07-PLAN.md — eval-corpus provenance collectors, typed report, mens label refusal, scoreboard guard (Wave 3)
@@ -175,5 +176,5 @@ Plans:
 | 9. Verified Knowledge Loop | v1.1 | 0/TBD | Not started | - |
 | 10. Promotion Governance & Replay | v1.1 | 0/TBD | Not started | - |
 | 11. Adversarial Trials & Hardening | v1.1 | 0/TBD | Not started | - |
-| 12. Code-Gen Benchmark Plumbing & Provenance | v1.1 | 0/9 | Planned | - |
+| 12. Code-Gen Benchmark Plumbing & Provenance | v1.1 | 1/9 | In Progress|  |
 | 13. Triggered Language Benchmark & Cross-Language Tiers | v1.1 | 0/TBD | Not started | - |

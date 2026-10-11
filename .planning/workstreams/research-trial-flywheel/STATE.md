@@ -2,19 +2,20 @@
 gsd_state_version: "1.0"
 milestone: v1.1
 milestone_name: Research Trial Flywheel
-status: Awaiting roadmap approval
-stopped_at: v1.1 requirements and roadmap drafted and reconciled with research; awaiting user approval and schema/Tier C decisions
-last_updated: "2026-10-01T06:55:00.000Z"
-last_activity: 2026-10-01
-last_activity_desc: Milestone v1.1 initialized (requirements, research, roadmap)
-progress:
-  total_phases: 5
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
 current_phase: 7
 current_phase_name: Trial Identity, Contracts & Observational Baseline
+status: Awaiting roadmap approval
+stopped_at: Completed 12-04-PLAN.md
+last_updated: "2026-10-11T13:11:39.814Z"
+last_activity: 2026-10-01
+last_activity_desc: Milestone v1.1 initialized (requirements, research, roadmap)
+state_head: 147a2ea6c3fabe6de1ffe3c1d879111dbac7c1a2
+progress:
+  total_phases: 7
+  completed_phases: 1
+  total_plans: 9
+  completed_plans: 1
+  percent: 11
 ---
 
 # Project State
@@ -33,7 +34,7 @@ Plan: —
 Status: Awaiting roadmap approval; then ready to plan
 Last activity: 2026-10-01 — Milestone v1.1 initialized
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░] 11%
 
 ## Performance Metrics
 
@@ -44,6 +45,11 @@ Progress: [░░░░░░░░░░] 0%
 - Total execution time: 0 hours
 
 *Updated after each plan completion*
+**Per-Plan Metrics:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 12 P04 | 35min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -54,6 +60,7 @@ Recent decisions affecting current work:
 
 - v1.1 governance rulings G1–G25 and R1–R9 confirmed by the user; see the Research Trial Flywheel plan.
 - Research reconciliation added TRIAL-05, TELEM-02, METER-01, and SCORE-04 to Phase 7 because a baseline on the current tree would be untrustworthy (.planning/research/SUMMARY.md).
+- [Phase 7]: 12-04: completeness gate is one private fn (gate_reasons) shared by assemble and recheck_complete; required provenance fields have no serde default
 
 ### Pending Todos
 
@@ -77,6 +84,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-01
-Stopped at: v1.1 roadmap drafted; awaiting approval
+Last session: 2026-10-11T13:11:39.800Z
+Stopped at: Completed 12-04-PLAN.md
 Resume file: None
