@@ -63,6 +63,13 @@ vi.mock('../../hooks/useContentManifest', () => ({
   ],
 }));
 
+// Never import the generated 784 KB index in unit tests: mock the hook with the shared fixture.
+vi.mock('../../hooks/useCapabilityIndex', async () => {
+  const { CAPABILITY_FIXTURE } = await import('../../test-fixtures/capabilityIndexFixture');
+  const value = { rows: CAPABILITY_FIXTURE, domains: [], loading: false, error: null };
+  return { useCapabilityIndex: () => value };
+});
+
 import { Omnibar } from './Omnibar';
 
 const noop = () => {};
@@ -169,5 +176,19 @@ describe('Omnibar', () => {
     fireEvent.keyDown(window, { key: 'ArrowRight', altKey: true });
     await waitFor(() => expect(screen.getByText('approvals')).toBeTruthy());
     expect(screen.getByText('chat')).toBeTruthy(); // original neighbor retained
+  });
+
+  it('typing "vox check" shows an index-backed Commands row with CLI and MCP chips; Enter opens its Catalog form', async () => {
+    const onOpenCatalogForm = vi.fn();
+    const onRunCommand = vi.fn();
+    renderOmnibar({ onOpenCatalogForm, onRunCommand });
+    fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: 'vox check' } });
+    const label = await screen.findByText('vox check');
+    const rowButton = label.closest('button') as HTMLElement;
+    expect(rowButton.textContent).toContain('CLI');
+    expect(rowButton.textContent).toContain('MCP');
+    fireEvent.keyDown(window, { key: 'Enter' });
+    expect(onOpenCatalogForm).toHaveBeenCalledWith(['check']);
+    expect(onRunCommand).not.toHaveBeenCalled();
   });
 });
