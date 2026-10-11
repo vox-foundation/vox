@@ -5,8 +5,17 @@
 //! another.
 
 pub mod frontmatter;
+pub mod provenance;
+pub mod summary;
 
 pub use frontmatter::{frontmatter_range, frontmatter_yaml};
+pub use provenance::{
+    MAX_PAGE_QUOTE_WORDS, MAX_QUOTE_WORDS, is_blake3_content_hash, is_iso_date, quote_word_counts,
+};
+pub use summary::{
+    SUMMARY_CLOSE, SUMMARY_MAX_WORDS, SUMMARY_MIN_WORDS, SUMMARY_OPEN, SummaryStatus,
+    inspect_summary, is_summary_marker_line, strip_summary_blocks,
+};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
