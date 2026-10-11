@@ -10839,7 +10839,7 @@
         "retrieval",
         "graph"
       ],
-      "side_effect_class": "none",
+      "side_effect_class": "writes_files",
       "scope_kind": "repository",
       "reversible": true,
       "requires_repo": true,

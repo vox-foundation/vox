@@ -32552,7 +32552,7 @@
       "status": "active",
       "domain": "vcs",
       "product_lane": "platform",
-      "side_effect_class": "none",
+      "side_effect_class": "writes_files",
       "tier": "advanced",
       "cli": {
         "path": [
