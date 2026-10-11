@@ -644,6 +644,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             max_tokens,
             temperature,
             samples,
+            k,
             seed_base,
             output,
         } => eval_local::run_eval_local(
@@ -653,6 +654,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             max_tokens,
             temperature,
             samples,
+            k,
             seed_base,
             output,
         ),

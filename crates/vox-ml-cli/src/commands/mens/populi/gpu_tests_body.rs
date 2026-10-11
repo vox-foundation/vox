@@ -386,6 +386,7 @@ fn eval_local_missing_model_errors() {
         32,
         0.0,
         1,
+        1,
         1337,
         None,
     );

@@ -26,6 +26,58 @@ use vox_bounded_fs::read_utf8_path_capped;
 #[cfg(test)]
 use super::metrics::ANTI_STUB_MIN_CONSTRUCT_RICHNESS;
 
+/// Unbiased per-problem pass@k (Chen et al. 2021) over one item's drawn
+/// samples: `n` = samples drawn, `c` = samples that passed. Delegates to the
+/// shared estimator so an item with 1 pass in 5 samples scores 0.2 at k = 1,
+/// not the any-sample 1.0 (BENCH-02, D-03).
+fn per_problem_pass_at_k(samples: &[bool], k: usize) -> f64 {
+    let n = samples.len();
+    let c = samples.iter().filter(|&&p| p).count();
+    vox_eval::corpus_score::pass_at_k(n, c, k)
+}
+
+/// Per-sample sampler seed, derived from the run's `seed_base`, the problem id,
+/// and the sample index so every drawn sample is individually reproducible.
+///
+/// Per D-11 internal derivations use BLAKE3 through vox-crypto. The byte
+/// framing is unambiguous (length-prefixed id) and the result is masked to 31
+/// bits so providers that parse seeds as i32/u32/JS numbers accept it.
+fn sample_seed(base: u64, problem_id: &str, sample_index: usize) -> u64 {
+    let mut buf = Vec::with_capacity(32 + problem_id.len());
+    buf.extend_from_slice(&base.to_le_bytes());
+    buf.extend_from_slice(&(problem_id.len() as u64).to_le_bytes());
+    buf.extend_from_slice(problem_id.as_bytes());
+    buf.extend_from_slice(&(sample_index as u64).to_le_bytes());
+    let digest = vox_crypto::facades::secure_hash(&buf);
+    let mut head = [0u8; 8];
+    head.copy_from_slice(&digest[..8]);
+    u64::from_le_bytes(head) & 0x7fff_ffff
+}
+
+/// `n` failed samples (every sample of an item that could not be attempted).
+fn failed_samples(
+    n: usize,
+    seed_base: u64,
+    problem_id: &str,
+    error: &str,
+) -> (Vec<bool>, Vec<serde_json::Value>) {
+    let samples = (0..n)
+        .map(|i| {
+            serde_json::json!({
+                "sample_index": i,
+                "seed": sample_seed(seed_base, problem_id, i),
+                "pass": false,
+                "error": error,
+            })
+        })
+        .collect();
+    (vec![false; n], samples)
+}
+
+/// Runs the benchmark. All `samples` (n) generations are drawn for every item,
+/// each with its own derived seed; `pass_rate_at_1` / `pass_rate_at_k` are the
+/// means of the per-problem unbiased estimators at k = 1 and `k`. The semantic
+/// and anti-stub aggregates are any-sample rates, not pass@k.
 pub fn run_eval_local(
     model: Option<PathBuf>,
     base: Option<PathBuf>,
@@ -33,10 +85,16 @@ pub fn run_eval_local(
     max_tokens: usize,
     temperature: f32,
     samples: usize,
+    k: usize,
     seed_base: u64,
     output: Option<PathBuf>,
 ) -> Result<()> {
     use owo_colors::OwoColorize;
+
+    let n = samples.max(1);
+    if k < 1 || k > n {
+        anyhow::bail!("--k must satisfy 1 <= k <= --samples (got k = {k}, samples = {n})");
+    }
 
     // `--base <dir>` points at a base-model snapshot with no adapter present
     // (the `InferenceEngine::load` base-only path) — the baseline side of a
@@ -138,14 +196,15 @@ pub fn run_eval_local(
     };
 
     let mut results: Vec<serde_json::Value> = Vec::new();
-    let mut passed_k = 0usize;
-    let mut passed_1 = 0usize;
+    // Sums of per-problem unbiased estimates; the report rates are their means.
+    let mut passed_k = 0.0_f64;
+    let mut passed_1 = 0.0_f64;
     let mut semantic_passed_k = 0usize;
     let mut anti_stub_passed_k = 0usize;
     let mut placeholder_event_count = 0usize;
     let mut trivial_placeholder_event_count = 0usize;
     let mut construct_richness_sum = 0.0_f64;
-    let mut category_stats: std::collections::HashMap<String, (usize, usize, usize)> =
+    let mut category_stats: std::collections::HashMap<String, (f64, f64, usize)> =
         std::collections::HashMap::new();
 
     #[cfg(feature = "gpu")]
@@ -168,98 +227,99 @@ pub fn run_eval_local(
         let semantic_expected_contains = w.semantic_expected_contains;
         let manifest_index = w.manifest_index;
 
-        let (pass_at_1, pass_at_k, samples_json): (bool, bool, Vec<serde_json::Value>) = if prompt
-            .is_empty()
+        let (passes, samples_json): (Vec<bool>, Vec<serde_json::Value>) = if prompt.is_empty()
             || !model.exists()
         {
-            (
-                false,
-                false,
-                vec![serde_json::json!({
-                    "sample_index": 0,
-                    "pass": false,
-                    "error": "no prompt or model"
-                })],
-            )
+            failed_samples(n, seed_base, &id, "no prompt or model")
         } else {
             #[cfg(feature = "gpu")]
             {
                 let (_loaded, backend, handle) = &engine;
-                // Greedy decoding is deterministic, so one generation suffices for pass@k.
-                let prompt_json = serde_json::json!({
-                    "prompt": &prompt,
-                    "max_tokens": max_tokens,
-                    "temperature": temperature,
-                })
-                .to_string();
-                match backend
-                    .run_inference(handle, prompt_json.as_str().into())
-                    .into_result()
-                {
-                    Ok(resp) => {
-                        let completion = serde_json::from_str::<serde_json::Value>(resp.as_str())
-                            .ok()
-                            .and_then(|v| {
-                                v.get("generated_text")
-                                    .and_then(|x| x.as_str())
-                                    .map(str::to_string)
-                            })
-                            .unwrap_or_default();
-                        let v = verify_completion(
-                            &completion,
-                            &bench,
-                            &file,
-                            &id,
-                            manifest_index,
-                            &semantic_expected_contains,
-                        );
-                        let sample = serde_json::json!({
-                            "sample_index": 0,
-                            "pass": v.pass,
-                            "pass_compile": v.pass_compile,
-                            "pass_ast": v.pass_ast,
-                            "pass_exec": v.pass_exec,
-                            "semantic_pass": v.semantic_pass,
-                            "anti_stub_pass": v.anti_stub_pass,
-                            "distinct_4_ratio": v.distinct_4_ratio,
-                            "constraint_adherence": v.constraint_adherence,
-                            "symbol_binding_accuracy": v.symbol_binding_accuracy,
-                            "tool_call_json_valid": looks_like_json_tool_call(&completion),
-                            "tool_name_exists": tool_call_names_a_tool(&completion),
-                            "tool_call_salvaged": tool_call_was_salvaged(&completion),
-                            "checks": v.checks,
-                            "completion_preview": completion.chars().take(240).collect::<String>(),
-                        });
-                        (v.pass, v.pass, vec![sample])
+                let mut passes = Vec::with_capacity(n);
+                let mut samples_json = Vec::with_capacity(n);
+                for i in 0..n {
+                    let seed = sample_seed(seed_base, &id, i);
+                    let prompt_json = serde_json::json!({
+                        "prompt": &prompt,
+                        "max_tokens": max_tokens,
+                        "temperature": temperature,
+                        "seed": seed,
+                    })
+                    .to_string();
+                    match backend
+                        .run_inference(handle, prompt_json.as_str().into())
+                        .into_result()
+                    {
+                        Ok(resp) => {
+                            let completion =
+                                serde_json::from_str::<serde_json::Value>(resp.as_str())
+                                    .ok()
+                                    .and_then(|v| {
+                                        v.get("generated_text")
+                                            .and_then(|x| x.as_str())
+                                            .map(str::to_string)
+                                    })
+                                    .unwrap_or_default();
+                            let v = verify_completion(
+                                &completion,
+                                &bench,
+                                &file,
+                                &id,
+                                manifest_index,
+                                &semantic_expected_contains,
+                            );
+                            passes.push(v.pass);
+                            samples_json.push(serde_json::json!({
+                                    "sample_index": i,
+                                    "seed": seed,
+                                    "pass": v.pass,
+                                    "pass_compile": v.pass_compile,
+                                    "pass_ast": v.pass_ast,
+                                    "pass_exec": v.pass_exec,
+                                    "semantic_pass": v.semantic_pass,
+                                    "anti_stub_pass": v.anti_stub_pass,
+                                    "distinct_4_ratio": v.distinct_4_ratio,
+                                    "constraint_adherence": v.constraint_adherence,
+                                    "symbol_binding_accuracy": v.symbol_binding_accuracy,
+                                    "tool_call_json_valid": looks_like_json_tool_call(&completion),
+                                    "tool_name_exists": tool_call_names_a_tool(&completion),
+                                    "tool_call_salvaged": tool_call_was_salvaged(&completion),
+                                    "checks": v.checks,
+                                    "completion_preview": completion.chars().take(240).collect::<String>(),
+                                }));
+                        }
+                        // An inference error is a failed sample, so every item
+                        // still has exactly n samples.
+                        Err(e) => {
+                            passes.push(false);
+                            samples_json.push(serde_json::json!({
+                                "sample_index": i,
+                                "seed": seed,
+                                "pass": false,
+                                "error": format!("run_inference: {e}"),
+                            }));
+                        }
                     }
-                    Err(e) => (
-                        false,
-                        false,
-                        vec![serde_json::json!({
-                            "sample_index": 0,
-                            "pass": false,
-                            "error": format!("run_inference: {e}"),
-                        })],
-                    ),
                 }
+                (passes, samples_json)
             }
             #[cfg(not(feature = "gpu"))]
             {
-                (
-                    false,
-                    false,
-                    vec![serde_json::json!({
-                        "sample_index": 0,
-                        "pass": false,
-                        "error": format!(
-                            "CPU: GPU needed for inference — model {:.1}MB, prompt {} chars",
-                            model_size as f64 / 1_048_576.0,
-                            prompt.len()
-                        )
-                    })],
+                failed_samples(
+                    n,
+                    seed_base,
+                    &id,
+                    &format!(
+                        "CPU: GPU needed for inference — model {:.1}MB, prompt {} chars",
+                        model_size as f64 / 1_048_576.0,
+                        prompt.len()
+                    ),
                 )
             }
         };
+        let c = passes.iter().filter(|&&p| p).count();
+        let pass_at_1 = per_problem_pass_at_k(&passes, 1);
+        let pass_at_k = per_problem_pass_at_k(&passes, k);
 
         let semantic_pass_at_k = samples_json.iter().any(|v| {
             v.get("semantic_pass")
@@ -273,24 +333,24 @@ pub fn run_eval_local(
             "context_files": context_files,
             "category": category,
             "description": description,
+            "n": n,
+            "c": c,
+            "k": k,
             "pass_at_1": pass_at_1,
             "pass_at_k": pass_at_k,
             "semantic_pass_at_k": semantic_pass_at_k,
-            "k": samples.max(1),
             "samples": samples_json,
         });
         results.push(entry);
 
-        let (p1, pk, t) = category_stats.entry(category.clone()).or_insert((0, 0, 0));
+        let (p1, pk, t) = category_stats
+            .entry(category.clone())
+            .or_insert((0.0, 0.0, 0));
         *t += 1;
-        if pass_at_1 {
-            *p1 += 1;
-            passed_1 += 1;
-        }
-        if pass_at_k {
-            *pk += 1;
-            passed_k += 1;
-        }
+        *p1 += pass_at_1;
+        passed_1 += pass_at_1;
+        *pk += pass_at_k;
+        passed_k += pass_at_k;
         if semantic_pass_at_k {
             semantic_passed_k += 1;
         }
@@ -328,14 +388,14 @@ pub fn run_eval_local(
             .fold(0.0_f64, f64::max);
         construct_richness_sum += construct_richness_best;
 
-        let icon = if pass_at_k {
+        let icon = if c > 0 {
             "✓".green().to_string()
         } else {
             "✗".red().to_string()
         };
         eprintln!(
-            "  {} [{:8}] {} — {} (p@1={} p@k={})",
-            icon, category, id, description, pass_at_1, pass_at_k
+            "  {} [{:8}] {} — {} (c={}/{} p@1={:.3} p@k={:.3})",
+            icon, category, id, description, c, n, pass_at_1, pass_at_k
         );
     }
 
@@ -353,12 +413,12 @@ pub fn run_eval_local(
 
     let total = benchmarks.len();
     let pass_rate_at_1 = if total > 0 {
-        passed_1 as f64 / total as f64
+        passed_1 / total as f64
     } else {
         0.0
     };
     let pass_rate_at_k = if total > 0 {
-        passed_k as f64 / total as f64
+        passed_k / total as f64
     } else {
         0.0
     };
@@ -390,18 +450,18 @@ pub fn run_eval_local(
     eprintln!();
     eprintln!("  {}", "─".repeat(54));
     eprintln!(
-        "  Overall: pass@1 {}/{} ({:.0}%) | pass@{} {}/{} ({:.0}%) | semantic {:.0}%",
+        "  Overall: pass@1 {:.2}/{} ({:.0}%) | pass@{} {:.2}/{} ({:.0}%) | semantic {:.0}%",
         passed_1,
         total,
         pass_rate_at_1 * 100.0,
-        samples.max(1),
+        k,
         passed_k,
         total,
         pass_rate_at_k * 100.0,
         semantic_task_success * 100.0
     );
     for (cat, (p1, pk, t)) in &category_stats {
-        eprintln!("    {:12} p@1 {}/{} p@k {}/{}", cat, p1, t, pk, t);
+        eprintln!("    {:12} p@1 {:.2}/{} p@k {:.2}/{}", cat, p1, t, pk, t);
     }
     eprintln!();
 
@@ -411,7 +471,8 @@ pub fn run_eval_local(
         "bench": bench.to_string_lossy(),
         "max_tokens": max_tokens,
         "temperature": temperature,
-        "k": samples.max(1),
+        "n": n,
+        "k": k,
         "seed_base": seed_base,
         "total": total,
         "passed_at_1": passed_1,
@@ -429,8 +490,8 @@ pub fn run_eval_local(
                 "passed_at_1": p1,
                 "passed_at_k": pk,
                 "total": t,
-                "pass_rate_at_1": *p1 as f64 / (*t as f64).max(1.0),
-                "pass_rate_at_k": *pk as f64 / (*t as f64).max(1.0)
+                "pass_rate_at_1": *p1 / (*t as f64).max(1.0),
+                "pass_rate_at_k": *pk / (*t as f64).max(1.0)
             })
         }).collect::<Vec<_>>(),
         "results": results,
@@ -445,7 +506,8 @@ pub fn run_eval_local(
                 &passk_path,
                 serde_json::to_string_pretty(&serde_json::json!({
                     "schema": "vox_mens_benchmark_passatk_v1",
-                    "k": samples.max(1),
+                    "n": n,
+                    "k": k,
                     "seed_base": seed_base,
                     "total": total,
                     "pass_rate_at_1": pass_rate_at_1,
@@ -727,7 +789,7 @@ mod tests {
     fn run_eval_local_requires_exactly_one_of_model_or_base() {
         let bench = PathBuf::from("mens/data/heldout_bench");
 
-        let neither = run_eval_local(None, None, bench.clone(), 8, 0.0, 1, 0, None);
+        let neither = run_eval_local(None, None, bench.clone(), 8, 0.0, 1, 1, 0, None);
         let err = neither.expect_err("neither --model nor --base must be a usage error");
         assert!(
             err.to_string().contains("either --model or --base"),
@@ -741,11 +803,81 @@ mod tests {
             8,
             0.0,
             1,
+            1,
             0,
             None,
         );
         let err = both.expect_err("--model and --base together must be a usage error");
         assert!(err.to_string().contains("mutually exclusive"), "{err}");
+    }
+
+    #[test]
+    fn unbiased_pass_at_1_is_not_any_sample() {
+        // One pass in five draws is 0.2, not the any-sample rate of 1.0.
+        let samples = [true, false, false, false, false];
+        assert!((per_problem_pass_at_k(&samples, 1) - 0.2).abs() < 1e-12);
+    }
+
+    #[test]
+    fn unbiased_pass_at_k_matches_estimator() {
+        // 1 - C(3,3)/C(5,3) = 0.9
+        let samples = [true, true, false, false, false];
+        assert!((per_problem_pass_at_k(&samples, 3) - 0.9).abs() < 1e-12);
+    }
+
+    #[test]
+    fn unbiased_pass_at_k_equals_one_when_n_minus_c_below_k() {
+        let samples = [true, false, false, false, false];
+        assert_eq!(per_problem_pass_at_k(&samples, 5), 1.0);
+    }
+
+    #[test]
+    fn sample_seed_is_deterministic_and_input_sensitive() {
+        let s = sample_seed(7, "001", 0);
+        assert_eq!(s, sample_seed(7, "001", 0));
+        assert!(s < 1 << 31);
+        assert_ne!(s, sample_seed(8, "001", 0));
+        assert_ne!(s, sample_seed(7, "002", 0));
+        assert_ne!(s, sample_seed(7, "001", 1));
+        // Pinned: 12-02's defactored copy asserts the same constant.
+        assert_eq!(s, 780_188_561);
+    }
+
+    #[test]
+    fn rejects_k_zero_and_k_above_samples() {
+        let bench = PathBuf::from("mens/data/heldout_bench");
+        for (samples, k) in [(3, 0), (3, 4), (0, 2)] {
+            let err = run_eval_local(
+                Some(PathBuf::from("/a")),
+                None,
+                bench.clone(),
+                8,
+                0.0,
+                samples,
+                k,
+                0,
+                None,
+            )
+            .expect_err("an out-of-range k must be rejected");
+            assert!(err.to_string().contains("--k must satisfy"), "{err}");
+        }
+        // k == samples passes validation and only then fails on the missing model.
+        let err = run_eval_local(
+            Some(PathBuf::from("/a")),
+            None,
+            bench,
+            8,
+            0.0,
+            3,
+            3,
+            0,
+            None,
+        )
+        .expect_err("model dir does not exist");
+        assert!(
+            err.to_string().contains("Model checkpoint not found"),
+            "{err}"
+        );
     }
 
     fn entry(category: &str, pass_at_k: bool, anti_stub_pass: bool) -> serde_json::Value {

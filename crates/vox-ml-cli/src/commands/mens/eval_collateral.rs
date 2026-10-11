@@ -137,6 +137,7 @@ fn score_bench(bench: &str, adapter: &Path) -> Result<f64> {
         512,
         0.0,
         1,
+        1,
         0,
         Some(out.clone()),
     )

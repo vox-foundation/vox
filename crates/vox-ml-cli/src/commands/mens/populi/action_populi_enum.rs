@@ -608,9 +608,13 @@ pub enum PopuliAction {
         /// Sampling temperature (0.0 = greedy)
         #[arg(long, default_value = "0.0")]
         temperature: f32,
-        /// Number of samples per benchmark item for pass@k (k)
+        /// Samples drawn per benchmark item (n). All n are always drawn; pass@k
+        /// uses the unbiased estimator.
         #[arg(long, default_value = "1")]
         samples: usize,
+        /// k for pass@k; must satisfy 1 <= k <= --samples
+        #[arg(long, default_value = "1")]
+        k: usize,
         /// Base RNG seed for sampled generations (used when temperature > 0)
         #[arg(long, default_value = "1337")]
         seed_base: u64,
