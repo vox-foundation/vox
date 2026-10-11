@@ -5,16 +5,16 @@ milestone_name: Vox Knowledge Base — corpus to context
 current_phase: 04
 current_phase_name: Taxonomy Contract and Facet Lint
 status: executing
-stopped_at: Completed 04-06-PLAN.md
-last_updated: "2026-10-11T07:42:15.267Z"
+stopped_at: Completed 04-07-PLAN.md
+last_updated: "2026-10-11T08:04:51.804Z"
 last_activity: 2026-10-10
 last_activity_desc: Phase 04 execution started
-state_head: 1e31e744e134fae637b9a59c195eb8e62360c7a2
+state_head: c27447fa28e646845cb5833b3b99da2262ca8981
 progress:
   total_phases: 12
   completed_phases: 3
   total_plans: 48
-  completed_plans: 46
+  completed_plans: 47
   percent: 25
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (shared project context) and .planning/workstreams/kb/
 ## Current Position
 
 Phase: 04 (Taxonomy Contract and Facet Lint) — EXECUTING
-Plan: 7 of 8
+Plan: 8 of 8
 Status: Ready to execute
 Last activity: 2026-10-10 — Phase 04 execution started
 
@@ -94,6 +94,7 @@ Progress: [███░░░░░░░] 25%
 | Phase 04 P04-04 | 20min | 2 tasks | 6 files |
 | Phase 04 P05 | ~35min | 2 tasks | 7 files |
 | Phase 04 P06 | 35min | 2 tasks | 7 files |
+| Phase 04 P07 | 25min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -139,6 +140,7 @@ Progress: [███░░░░░░░] 25%
 - [Phase 04]: 04-04: MENS extractor fails closed on facet parse error; shared effective_training_eligible replaces substring rule
 - [Phase 04]: 04-05: facet lint fails closed on a missing/invalid taxonomy or backlog (one facet-contract-unreadable error); backlog excuses exact rule ids per exact path
 - [Phase 04]: 04-06: search delegates to search_with_taxonomy with no taxonomy; the KB benchmark retriever stays unexpanded; MCP reaches Taxonomy via the vox_search library re-export, no new crate edge
+- [Phase 04]: 04-07: backlog additions accepted only with epoch+1 and a changed non-empty epoch_note; seed/tighten return before FacetCtx::load; base read fail-closed
 
 ### Pending Todos
 
@@ -153,8 +155,8 @@ Progress: [███░░░░░░░] 25%
 
 ## Session Continuity
 
-**Last session:** 2026-10-11T07:42:09.557Z
+**Last session:** 2026-10-11T08:04:51.774Z
 
-**Stopped At:** Completed 04-06-PLAN.md
+**Stopped At:** Completed 04-07-PLAN.md
 **Resume File:** None
 **Next:** `/gsd-plan-phase 1` (no research-phase needed)
