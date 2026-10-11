@@ -175,6 +175,7 @@ mod tests {
                 seed: 7,
                 max_tokens: 1024,
                 seed_enforced: false,
+                feedback_turns: 0,
             }),
             runner: s("local"),
             os: s("macos"),

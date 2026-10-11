@@ -113,6 +113,16 @@ pub struct SampleRecord {
     pub cost_usd: Option<f64>,
     /// Model string the provider reported for this sample.
     pub provider_model: Option<String>,
+    /// Cumulative pass flags: index 0 is the original attempt, index t is "passed by repair
+    /// turn t". Empty when the sample never reached the verifier (or predates feedback turns).
+    #[serde(default)]
+    pub passed_by_turn: Vec<bool>,
+    /// Tokens spent on repair turns (not part of `total_tokens`).
+    #[serde(default)]
+    pub repair_tokens: u32,
+    /// Cost of repair turns, when known.
+    #[serde(default)]
+    pub repair_cost_usd: Option<f64>,
 }
 
 /// Mean over problems with a percentile-bootstrap CI and the power floor.
@@ -423,6 +433,9 @@ mod tests {
             latency_ms: 5,
             cost_usd: None,
             provider_model: None,
+            passed_by_turn: Vec::new(),
+            repair_tokens: 0,
+            repair_cost_usd: None,
         }
     }
 

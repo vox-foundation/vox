@@ -110,6 +110,10 @@ pub struct EvalCorpusArgs {
     /// Skip the `model_scoreboard` write-back.
     #[arg(long, default_value_t = false)]
     pub no_write_back: bool,
+    /// Compiler-feedback repair turns per failed sample (0-3). pass@1/pass@k always use the
+    /// original attempt; repaired rates are reported per turn.
+    #[arg(long, default_value_t = 0)]
+    pub feedback_turns: u32,
     /// Where the run executed: `github-hosted`, or a named local host. Defaults to
     /// `github-hosted` when `GITHUB_ACTIONS=true`; otherwise unset, which leaves the run
     /// incomplete with `runner` named as missing.
@@ -146,6 +150,7 @@ pub struct ConfigKnobs<'a> {
     pub max_tokens: u64,
     pub seed: u64,
     pub problem_set_hash: &'a str,
+    pub feedback_turns: u32,
 }
 
 /// BLAKE3 row identity (16 hex chars) over every knob that can change a score.
@@ -155,7 +160,7 @@ pub struct ConfigKnobs<'a> {
 #[must_use]
 pub fn config_digest(c: &ConfigKnobs<'_>) -> String {
     let joined = format!(
-        "{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
+        "{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
         c.model_id,
         c.harness,
         c.n,
@@ -166,7 +171,8 @@ pub fn config_digest(c: &ConfigKnobs<'_>) -> String {
         c.top_p,
         c.max_tokens,
         c.seed,
-        c.problem_set_hash
+        c.problem_set_hash,
+        c.feedback_turns
     );
     hex_encode(&secure_hash(joined.as_bytes())[..8])
 }
@@ -404,7 +410,30 @@ pub fn validate_sampling(args: &EvalCorpusArgs) -> Result<()> {
         "--temperature ({}) must be a finite, non-negative number",
         args.temperature
     );
+    anyhow::ensure!(
+        args.feedback_turns <= MAX_FEEDBACK_TURNS,
+        "--feedback-turns ({}) must be at most {MAX_FEEDBACK_TURNS}",
+        args.feedback_turns
+    );
     Ok(())
+}
+
+/// Upper bound on `--feedback-turns`: each turn multiplies requests (design section 8 asks for 1 and 3).
+pub const MAX_FEEDBACK_TURNS: u32 = 3;
+
+/// Follow-up user message that hands the verifier's one-line diagnostic back to the model.
+#[must_use]
+pub fn feedback_prompt(detail: &str) -> String {
+    format!(
+        "The Vox verifier rejected that solution:\n{detail}\n\nReply with ONLY the corrected Vox source for the same function."
+    )
+}
+
+/// Seed of repair turn `turn` (1-based) for one sample: the ordinary `sample_seed` over a
+/// per-turn problem id, so turns and samples never share a seed.
+#[must_use]
+pub fn repair_seed(base: u64, fixture_id: &str, turn: u32, sample_index: usize) -> u64 {
+    sample_seed(base, &format!("{fixture_id}#turn{turn}"), sample_index)
 }
 
 /// Pull Vox source from a completion, unwrapping a fenced block when present.
@@ -533,6 +562,8 @@ pub fn resolve_eval_model(registry: &ModelRegistry, raw: &str) -> Result<(ModelS
 #[derive(Debug, Clone)]
 pub struct Generated {
     pub code: String,
+    /// The completion exactly as the model wrote it (sent back verbatim in repair turns).
+    pub raw: String,
     pub total_tokens: u32,
     pub latency_ms: i64,
     pub cost_usd: Option<f64>,
@@ -546,17 +577,27 @@ pub struct Generated {
 /// overridden here. All LLM traffic goes through `vox_actor_runtime::llm` per the
 /// workspace's model-agnostic boundary — never a vendor SDK or hostname.
 async fn generate_candidate(config: &LlmConfig, prompt: &str) -> Result<Generated, String> {
+    generate_chat(config, vec![chat_message("user", prompt)]).await
+}
+
+fn chat_message(role: &str, content: &str) -> vox_actor_runtime::llm::LlmChatMessage {
+    vox_actor_runtime::llm::LlmChatMessage {
+        role: role.to_string(),
+        content: content.to_string(),
+        ..Default::default()
+    }
+}
+
+/// The one LLM call path for first attempts and repair turns alike.
+async fn generate_chat(
+    config: &LlmConfig,
+    messages: Vec<vox_actor_runtime::llm::LlmChatMessage>,
+) -> Result<Generated, String> {
     use vox_actor_runtime::ActivityOptions;
-    use vox_actor_runtime::llm::{LlmChatMessage, llm_chat};
+    use vox_actor_runtime::llm::llm_chat;
 
     let mut config = config.clone();
     config.telemetry_task_category = Some("eval-corpus".to_string());
-
-    let messages = vec![LlmChatMessage {
-        role: "user".to_string(),
-        content: prompt.to_string(),
-        ..Default::default()
-    }];
 
     let started = std::time::Instant::now();
     let outcome = llm_chat(&ActivityOptions::new(), messages, config).await;
@@ -570,6 +611,7 @@ async fn generate_candidate(config: &LlmConfig, prompt: &str) -> Result<Generate
 
     Ok(Generated {
         code: extract_vox_code(&response.content),
+        raw: response.content.clone(),
         total_tokens: response.prompt_tokens + response.completion_tokens,
         latency_ms,
         cost_usd: response.cost_usd,
@@ -594,6 +636,8 @@ pub struct SamplePlan {
     pub n: usize,
     pub base_seed: u64,
     pub max_spend_usd: Option<f64>,
+    /// Repair turns per failed live sample (0 = none).
+    pub feedback_turns: u32,
 }
 
 /// Everything one sweep produced.
@@ -615,6 +659,29 @@ fn missed_attempt() -> AttemptOutcome {
         latency_ms: 0,
         cost_usd: None,
     }
+}
+
+fn classify_outcome(code: &str, outcome: &VerifyOutcome) -> FailureClass {
+    let parse_ok = vox_compiler::parser::parse(vox_compiler::lexer::lex(code)).is_ok();
+    classify_failure(&VerifyFacts {
+        compiled: outcome.compiled,
+        tests_passed: outcome.tests_passed,
+        cheated: outcome.cheated,
+        timed_out: outcome.detail.contains("timed out"),
+        parse_ok,
+        assertion_failed: outcome.assertion_failed,
+    })
+}
+
+/// Failure classes whose diagnostic can guide a repair (not cheats, timeouts or infra).
+fn is_repairable(class: FailureClass) -> bool {
+    matches!(
+        class,
+        FailureClass::ParseError
+            | FailureClass::CheckError
+            | FailureClass::RuntimeError
+            | FailureClass::WrongAnswer
+    )
 }
 
 /// Draw `plan.n` samples for every fixture (one per fixture for `FromDir`).
@@ -671,18 +738,27 @@ pub async fn draw_samples(
                 latency_ms: 0,
                 cost_usd: None,
                 provider_model: None,
+                passed_by_turn: Vec::new(),
+                repair_tokens: 0,
+                repair_cost_usd: None,
             };
 
+            let prompt = match &source {
+                SampleSource::Live { ctx, .. } => {
+                    build_prompt(ctx, &fixture.signature, &fixture.prompt)
+                }
+                SampleSource::FromDir(_) => String::new(),
+            };
             let generated: Option<Generated> = match &source {
                 SampleSource::FromDir(map) => map.get(&fixture.id).map(|src| Generated {
                     code: extract_vox_code(src),
+                    raw: String::new(),
                     total_tokens: 0,
                     latency_ms: 0,
                     cost_usd: None,
                     provider_model: String::new(),
                 }),
                 SampleSource::Live { config, ctx } => {
-                    let prompt = build_prompt(ctx, &fixture.signature, &fixture.prompt);
                     let mut config = (*config).clone();
                     config.seed = Some(seed);
                     match generate_candidate(&config, &prompt).await {
@@ -720,15 +796,7 @@ pub async fn draw_samples(
             }
 
             let outcome = verify(&g.code, fixture)?;
-            let parse_ok = vox_compiler::parser::parse(vox_compiler::lexer::lex(&g.code)).is_ok();
-            record.failure_class = classify_failure(&VerifyFacts {
-                compiled: outcome.compiled,
-                tests_passed: outcome.tests_passed,
-                cheated: outcome.cheated,
-                timed_out: outcome.detail.contains("timed out"),
-                parse_ok,
-                assertion_failed: outcome.assertion_failed,
-            });
+            record.failure_class = classify_outcome(&g.code, &outcome);
             record.compiled = outcome.compiled;
             record.tests_passed = outcome.tests_passed;
             record.cheated = outcome.cheated;
@@ -737,6 +805,65 @@ pub async fn draw_samples(
             record.cost_usd = g.cost_usd;
             record.provider_model = (!g.provider_model.is_empty()).then_some(g.provider_model);
             record.code = Some(g.code);
+
+            // Compiler-feedback repair turns. They only fill `passed_by_turn` and the repair_*
+            // fields: the AttemptOutcome pushed below is always the original attempt, so
+            // pass@1 and pass@k can never be inflated by a repair.
+            let mut trajectory = vec![record.failure_class == FailureClass::Pass];
+            if let SampleSource::Live { config, .. } = &source {
+                if is_repairable(record.failure_class) {
+                    let (mut prev_raw, mut prev_detail) = (g.raw.clone(), outcome.detail.clone());
+                    for turn in 1..=plan.feedback_turns {
+                        if plan
+                            .max_spend_usd
+                            .is_some_and(|cap| cumulative_spend >= cap)
+                        {
+                            out.spend_cap_hit = true;
+                            break;
+                        }
+                        let messages = vec![
+                            chat_message("user", &prompt),
+                            chat_message("assistant", &prev_raw),
+                            chat_message("user", &feedback_prompt(&prev_detail)),
+                        ];
+                        let mut repair_cfg = (*config).clone();
+                        repair_cfg.seed = Some(repair_seed(plan.base_seed, &fixture.id, turn, i));
+                        let r = match generate_chat(&repair_cfg, messages).await {
+                            Ok(r) => r,
+                            Err(reason) => match classify_generation_error(&reason) {
+                                GenErrorKind::FatalConfig => anyhow::bail!(
+                                    "{reason} — the server is serving a different model than requested"
+                                ),
+                                GenErrorKind::Infra => {
+                                    out.n_infra_errors += 1;
+                                    tracing::warn!(fixture = %fixture.id, turn, error = %reason, "infra error in repair turn");
+                                    break;
+                                }
+                                GenErrorKind::Model => {
+                                    tracing::warn!(fixture = %fixture.id, turn, error = %reason, "repair generation failed");
+                                    break;
+                                }
+                            },
+                        };
+                        record.repair_tokens += r.total_tokens;
+                        if let Some(c) = r.cost_usd {
+                            cumulative_spend += c;
+                            *record.repair_cost_usd.get_or_insert(0.0) += c;
+                        }
+                        let repaired = verify(&r.code, fixture)?;
+                        let class = classify_outcome(&r.code, &repaired);
+                        trajectory.push(class == FailureClass::Pass);
+                        if !is_repairable(class) {
+                            break; // passed, cheated or timed out: this sample is done
+                        }
+                        (prev_raw, prev_detail) = (r.raw, repaired.detail);
+                    }
+                }
+            }
+            // Carry the last value forward: cumulative after a pass, flat after a stop.
+            let last = trajectory.last().copied().unwrap_or(false);
+            trajectory.resize(plan.feedback_turns as usize + 1, last);
+            record.passed_by_turn = trajectory;
             out.samples.push(record);
 
             attempts.push(AttemptOutcome {
@@ -908,6 +1035,7 @@ pub fn collect_provenance(inp: &ProvenanceInputs<'_>) -> RunProvenance {
             seed: if measured { a.seed } else { 0 },
             max_tokens: a.max_tokens,
             seed_enforced: inp.provider.as_deref() == Some("voxlocal"),
+            feedback_turns: if measured { a.feedback_turns } else { 0 },
         }),
         runner: inp.runner.clone(),
         os: Some(std::env::consts::OS.to_string()),
@@ -1033,6 +1161,12 @@ pub async fn run(args: EvalCorpusArgs) -> Result<()> {
     let (row_model_id, row_harness_id) =
         mens_row_identity(&args.model, &args.harness, args.checkpoint.as_deref());
     let psh = problem_set_hash(&fixtures)?;
+    // Pre-generated solutions cannot be re-prompted.
+    let feedback_turns = if args.from_dir.is_some() {
+        0
+    } else {
+        args.feedback_turns
+    };
     let context_hash = context_hash_blake3(condition.id(), &ctx.context_text);
     let digest = config_digest(&ConfigKnobs {
         model_id: &row_model_id,
@@ -1046,6 +1180,7 @@ pub async fn run(args: EvalCorpusArgs) -> Result<()> {
         max_tokens: args.max_tokens,
         seed: args.seed,
         problem_set_hash: &psh,
+        feedback_turns,
     });
 
     let vox_bin = resolve_vox_binary(args.vox_bin.as_deref())?;
@@ -1128,6 +1263,7 @@ pub async fn run(args: EvalCorpusArgs) -> Result<()> {
         n: args.n,
         base_seed: args.seed,
         max_spend_usd: args.max_spend_usd,
+        feedback_turns,
     };
     let source = match (&solutions, &live_config) {
         (Some(map), _) => SampleSource::FromDir(map),
@@ -1252,6 +1388,7 @@ mod tests {
             max_tokens: 4096,
             seed: 7,
             problem_set_hash: "psh",
+            feedback_turns: 0,
         }
     }
 
@@ -1261,7 +1398,7 @@ mod tests {
         let a = config_digest(&base);
         assert_eq!(a, config_digest(&knobs()), "stable");
         assert_eq!(a.len(), 16);
-        let variants: [(&str, ConfigKnobs<'static>); 11] = [
+        let variants: [(&str, ConfigKnobs<'static>); 12] = [
             (
                 "model_id",
                 ConfigKnobs {
@@ -1318,6 +1455,13 @@ mod tests {
                 "problem_set_hash",
                 ConfigKnobs {
                     problem_set_hash: "other",
+                    ..knobs()
+                },
+            ),
+            (
+                "feedback_turns",
+                ConfigKnobs {
+                    feedback_turns: 2,
                     ..knobs()
                 },
             ),
@@ -1736,6 +1880,7 @@ mod tests {
             n: 3,
             base_seed: 7,
             max_spend_usd: None,
+            feedback_turns: 0,
         };
         let mut verify = |_: &str, _: &Fixture| Ok(verdict(true, true));
         let drawn = draw_samples(
@@ -1795,6 +1940,7 @@ mod tests {
             n: 1,
             base_seed: 0,
             max_spend_usd: None,
+            feedback_turns: 0,
         };
         let mut verify = |_: &str, _: &Fixture| -> Result<VerifyOutcome> {
             panic!("no candidate exists, so nothing is verified")
@@ -1840,6 +1986,7 @@ mod tests {
             n: 2,
             base_seed: 0,
             max_spend_usd: None,
+            feedback_turns: 0,
         };
         let mut verify = |_: &str, _: &Fixture| Ok(verdict(true, true));
         let err = draw_samples(
@@ -1865,6 +2012,7 @@ mod tests {
             n: 5,
             base_seed: 0,
             max_spend_usd: None,
+            feedback_turns: 0,
         };
         let mut verify = |_: &str, _: &Fixture| -> Result<VerifyOutcome> {
             panic!("a missing solution is never verified")
@@ -1890,6 +2038,167 @@ mod tests {
             FailureClass::GenerationError
         );
         assert!(drawn.samples[0].code.is_none());
+    }
+
+    // ---- compiler-feedback repair turns (12-08) ----
+
+    fn chat_body(content: &str) -> serde_json::Value {
+        serde_json::json!({
+            "model": "mens/demo",
+            "choices": [{"message": {"role": "assistant", "content": content}}],
+            "usage": {"prompt_tokens": 3, "completion_tokens": 4}
+        })
+    }
+
+    /// One fixture, n = 1. The first request answers a candidate the verifier rejects; any
+    /// request carrying the feedback text answers one it accepts.
+    async fn feedback_run(
+        feedback_turns: u32,
+        first_expect: u64,
+        repair_expect: u64,
+    ) -> (DrawOutcome, wiremock::MockServer) {
+        use wiremock::matchers::{body_string_contains, method};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let dir = tempfile::tempdir().unwrap();
+        let fixtures = vec![fixture("001", dir.path())];
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(body_string_contains("The Vox verifier rejected"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(chat_body("fn good() to int { return 1 }")),
+            )
+            .with_priority(1)
+            .expect(repair_expect)
+            .mount(&server)
+            .await;
+        Mock::given(method("POST"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(chat_body("fn bad() to int { return 0 }")),
+            )
+            .with_priority(5)
+            .expect(first_expect)
+            .mount(&server)
+            .await;
+
+        let cfg = live_config(&server.uri());
+        let ctx = ctx();
+        let plan = SamplePlan {
+            n: 1,
+            base_seed: 7,
+            max_spend_usd: None,
+            feedback_turns,
+        };
+        let mut verify = |code: &str, _: &Fixture| -> Result<VerifyOutcome> {
+            Ok(if code.contains("good") {
+                verdict(true, true)
+            } else {
+                VerifyOutcome {
+                    detail: "type error: bad".to_string(),
+                    ..verdict(false, false)
+                }
+            })
+        };
+        let drawn = draw_samples(
+            &fixtures,
+            SampleSource::Live {
+                config: &cfg,
+                ctx: &ctx,
+            },
+            plan,
+            &mut verify,
+        )
+        .await
+        .expect("drawn");
+        (drawn, server)
+    }
+
+    #[tokio::test]
+    async fn feedback_repairs_a_failing_sample() {
+        let (drawn, server) = feedback_run(1, 1, 1).await;
+        let s = &drawn.samples[0];
+        assert_eq!(s.passed_by_turn, vec![false, true]);
+        assert_eq!(
+            s.repair_tokens, 7,
+            "repair tokens are recorded apart from the attempt's"
+        );
+
+        let reqs = server.received_requests().await.unwrap();
+        assert_eq!(reqs.len(), 2);
+        let body: serde_json::Value = serde_json::from_slice(&reqs[1].body).unwrap();
+        let roles: Vec<&str> = body["messages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|m| m["role"].as_str().unwrap())
+            .collect();
+        assert_eq!(roles, ["user", "assistant", "user"]);
+        assert_eq!(
+            body["messages"][1]["content"],
+            "fn bad() to int { return 0 }"
+        );
+        assert!(
+            body["messages"][2]["content"]
+                .as_str()
+                .unwrap()
+                .contains("type error: bad"),
+            "the verifier's diagnostic is sent back"
+        );
+        assert_eq!(body["seed"], repair_seed(7, "001", 1, 0));
+    }
+
+    /// T-12-08-03: a repaired sample must not leak into pass@1 / pass@k inputs.
+    #[tokio::test]
+    async fn feedback_never_replaces_the_original_attempt() {
+        let (drawn, _server) = feedback_run(1, 1, 1).await;
+        assert_eq!(drawn.samples[0].passed_by_turn, vec![false, true]);
+        let o = &drawn.outcomes[0];
+        assert_eq!((o.n, o.c), (1, 0), "the fixture still counts as failed");
+        assert!(!o.attempts[0].tests_passed && !o.attempts[0].compiled);
+        let s = &drawn.samples[0];
+        assert!(!s.tests_passed && !s.compiled);
+        assert_eq!(s.failure_class, FailureClass::CheckError);
+        assert!(s.code.as_deref().unwrap().contains("bad"));
+    }
+
+    #[tokio::test]
+    async fn feedback_zero_turns_sends_no_repairs() {
+        let (drawn, _server) = feedback_run(0, 1, 0).await;
+        assert_eq!(drawn.samples[0].passed_by_turn, vec![false]);
+        assert_eq!(drawn.samples[0].repair_tokens, 0);
+    }
+
+    #[tokio::test]
+    async fn feedback_stops_after_first_pass() {
+        let (drawn, _server) = feedback_run(3, 1, 1).await;
+        assert_eq!(
+            drawn.samples[0].passed_by_turn,
+            vec![false, true, true, true]
+        );
+    }
+
+    #[test]
+    fn repair_seed_is_per_turn_and_deterministic() {
+        let a = repair_seed(7, "001", 1, 0);
+        assert_eq!(a, repair_seed(7, "001", 1, 0));
+        assert_eq!(a, sample_seed(7, "001#turn1", 0));
+        assert_ne!(a, repair_seed(7, "001", 2, 0));
+        assert_ne!(a, repair_seed(7, "001", 1, 1));
+        assert_ne!(
+            a,
+            sample_seed(7, "001", 0),
+            "never the first attempt's seed"
+        );
+    }
+
+    #[test]
+    fn sample_args_reject_more_than_three_feedback_turns() {
+        let mut a = args_for_validation();
+        a.feedback_turns = 3;
+        assert!(validate_sampling(&a).is_ok());
+        a.feedback_turns = 4;
+        assert!(validate_sampling(&a).is_err());
     }
 
     // ---- provenance collection and the typed report (12-07) ----
@@ -1927,6 +2236,9 @@ mod tests {
                 latency_ms: 5,
                 cost_usd: None,
                 provider_model: Some("m".to_string()),
+                passed_by_turn: vec![true],
+                repair_tokens: 0,
+                repair_cost_usd: None,
             })
             .collect();
         DrawOutcome {

@@ -43,6 +43,10 @@ pub struct SamplingRecord {
     pub max_tokens: u64,
     /// Whether the provider is known to honor `seed`.
     pub seed_enforced: bool,
+    /// Compiler-feedback repair turns per failed sample (0 = none). Reports written before
+    /// this field existed had no feedback turns, so 0 is the true value, not a guess.
+    #[serde(default)]
+    pub feedback_turns: u32,
 }
 
 /// Model-MENS group: lineage of a `mens/*` adapter (filled by 12-07 from the AdapterCard).
@@ -264,6 +268,7 @@ pub(crate) fn test_complete_external() -> RunProvenance {
             seed: 7,
             max_tokens: 1024,
             seed_enforced: false,
+            feedback_turns: 0,
         }),
         runner: s("local"),
         os: s("macos"),
