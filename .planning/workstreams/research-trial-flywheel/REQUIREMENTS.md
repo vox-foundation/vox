@@ -72,7 +72,7 @@
 - [x] **BENCH-02**: Sampling is seeded and recorded (temperature, top_p, n, k, seed, max_tokens); all n samples are always drawn; `vox mens eval-local` pass@k uses the unbiased estimator.
 - [ ] **BENCH-03**: Reports use the existing `vox-eval` statistics: paired cluster bootstrap over problems for pass@k, exact McNemar + Holm for preregistered pairwise claims, and `min_detectable_difference` printed beside every comparison; CI overlap is never a significance test.
 - [ ] **BENCH-04**: Every run record carries the design doc §5 provenance fields (syntax fingerprint, Cargo version, vox git sha, binary sha256, problem-set/prompt/context hashes, condition, model identity incl. weights/snapshot, sampling, runner, preregistration id); any missing field forces `run_complete = false` and exclusion from comparisons.
-- [ ] **BENCH-05**: The MENS training lane writes an `AdapterCard` with base revision, adapter sha256, `train.jsonl` sha256, corpus hash, and training syntax fingerprint; eval refuses to label a `mens/*` row without one and flags training/eval syntax mismatch.
+- [x] **BENCH-05**: The MENS training lane writes an `AdapterCard` with base revision, adapter sha256, `train.jsonl` sha256, corpus hash, and training syntax fingerprint; eval refuses to label a `mens/*` row without one and flags training/eval syntax mismatch.
 - [ ] **BENCH-06**: Each benchmark run is a Phase 7 campaign/run persisted atomically and emits a `vox-crypto`-signed bundle (record, per-sample outcomes, failure classes, generated code) that verifies offline.
 - [ ] **BENCH-13**: eval-corpus can report pass@1 after k compiler-feedback repair turns (k ≤ 3, default 0, design doc §8). Repaired outcomes are recorded alongside the original first attempt and never replace it.
 - [ ] **BENCH-07**: A behavioral syntax fingerprint (BLAKE3 via `vox-crypto` over canonical parse outcomes/AST and diagnostic codes of a fixed probe corpus, excluding crate version, spans, and message text) lives in `vox-grammar-export`, mutation-tested in both directions.
@@ -146,7 +146,7 @@ Deferred. Tracked but not in the current roadmap.
 | BENCH-02 | Phase 12 | Complete |
 | BENCH-03 | Phase 12 | Pending (12-04 partial) |
 | BENCH-04 | Phase 12 | Pending (12-04 partial) |
-| BENCH-05 | Phase 12 | Pending |
+| BENCH-05 | Phase 12 | Complete |
 | BENCH-06 | Phase 12 | Pending |
 | BENCH-13 | Phase 12 | Pending |
 | BENCH-07 | Phase 13 | Pending |
