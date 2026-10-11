@@ -14,7 +14,8 @@ export type ToastCause =
   | 'backend-error'   // an async Tauri command / mutation failed
   | 'validation'      // user input rejected before any effect
   | 'clipboard'       // copied to clipboard (real OS effect)
-  | 'external';       // opened an external app/url
+  | 'external'        // opened an external app/url
+  | 'backend-pending'; // a backend call is still running (progress, not a result)
 // NOTE: deliberately NO cause for navigation or a routine, already-visible synchronous
 // action — those must NOT toast. A toast with no honest cause is a compile error.
 

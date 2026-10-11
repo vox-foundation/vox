@@ -8,6 +8,8 @@ import {
   decideCliActivation,
   isReadOnlyClass,
   toastForRun,
+  runCliVerb,
+  boundOutput,
 } from './capabilityRun';
 
 function entry(over: Partial<CommandCatalogEntry> = {}): CommandCatalogEntry {
@@ -127,5 +129,74 @@ describe('toastForRun (D-04)', () => {
   });
   it('says "no output" when both streams are empty', () => {
     expect(toastForRun(['x'], { exit_code: 0, stdout: '', stderr: '' }, () => {}).body).toBe('no output');
+  });
+});
+
+describe('runCliVerb (WR-09: progress and in-flight guard)', () => {
+  function deps(execute: (p: string[], c?: boolean) => Promise<{ exit_code: number; stdout: string; stderr: string } | null>) {
+    return {
+      execute,
+      push: vi.fn(),
+      showOutput: vi.fn(),
+      parkConfirm: vi.fn(),
+      describeError: (e: unknown) => String(e),
+      inFlight: new Set<string>(),
+    };
+  }
+
+  it('shows a running toast at once, then the result toast', async () => {
+    let finish!: (v: { exit_code: number; stdout: string; stderr: string }) => void;
+    const d = deps(() => new Promise((r) => { finish = r; }));
+    const p = runCliVerb(['db', 'verify'], undefined, d);
+    expect(d.push).toHaveBeenCalledTimes(1);
+    expect(d.push.mock.calls[0][0]).toMatchObject({ tone: 'info', cause: 'backend-pending', title: 'vox db verify — running…' });
+    finish({ exit_code: 0, stdout: 'ok', stderr: '' });
+    await p;
+    expect(d.push).toHaveBeenCalledTimes(2);
+    expect(d.push.mock.calls[1][0]).toMatchObject({ title: 'vox db verify — exit 0' });
+    expect(d.inFlight.size).toBe(0);
+  });
+
+  it('a second run of the same verb while one is in flight does not execute again', async () => {
+    let finish!: (v: { exit_code: number; stdout: string; stderr: string }) => void;
+    const done = { exit_code: 0, stdout: '', stderr: '' };
+    const execute = vi
+      .fn<() => Promise<typeof done>>()
+      .mockImplementationOnce(() => new Promise((r) => { finish = r; }))
+      .mockResolvedValue(done);
+    const d = deps(execute);
+    const first = runCliVerb(['db', 'verify'], undefined, d);
+    await runCliVerb(['db', 'verify'], undefined, d);
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(d.push.mock.calls.at(-1)![0]).toMatchObject({ title: 'vox db verify is already running' });
+    finish({ exit_code: 0, stdout: '', stderr: '' });
+    await first;
+    await runCliVerb(['db', 'verify'], undefined, { ...d, execute });
+    expect(execute).toHaveBeenCalledTimes(2); // free again once the first finished
+  });
+
+  it('different verbs run concurrently; a failure frees the slot', async () => {
+    const d = deps(() => Promise.reject(new Error('boom')));
+    await runCliVerb(['a'], undefined, d);
+    expect(d.inFlight.size).toBe(0);
+    expect(d.push.mock.calls.at(-1)![0]).toMatchObject({ tone: 'warn', title: 'vox a failed', cause: 'backend-error' });
+  });
+
+  it('a destructive refusal parks the confirmation instead of toasting a failure', async () => {
+    const d = deps(() => Promise.reject(new Error('confirmation_required: cli.plugin.remove')));
+    await runCliVerb(['plugin', 'remove'], undefined, d);
+    expect(d.parkConfirm).toHaveBeenCalledWith(['plugin', 'remove'], 'cli.plugin.remove');
+    expect(d.push.mock.calls.every(([t]) => !/failed/.test(t.title))).toBe(true);
+  });
+});
+
+describe('boundOutput (WR-09: bounded display)', () => {
+  it('returns short text untouched', () => {
+    expect(boundOutput('abc', 10)).toEqual({ text: 'abc', truncated: false, total: 3 });
+  });
+  it('cuts long text and reports the real length', () => {
+    const r = boundOutput('x'.repeat(50), 10);
+    expect(r.text).toHaveLength(10);
+    expect(r).toMatchObject({ truncated: true, total: 50 });
   });
 });

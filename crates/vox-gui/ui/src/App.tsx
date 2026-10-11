@@ -18,7 +18,7 @@ import { DocViewerDrawer } from './components/layout/DocViewerDrawer';
 import { ExplainDrawer } from './components/layout/ExplainDrawer';
 import { RunOutputDialog } from './components/layout/RunOutputDialog';
 import { ConfirmRunDialog } from './components/layout/ConfirmRunDialog';
-import { confirmationRequiredId, toastForRun } from './lib/capabilityRun';
+import { runCliVerb } from './lib/capabilityRun';
 import { useCapabilityIndex } from './hooks/useCapabilityIndex';
 import { getLoadedCapabilityIndex } from './lib/capabilityIndexLoader';
 import { InspectorDrawer } from './debugger/InspectorDrawer';
@@ -1044,25 +1044,18 @@ export default function App() {
   // D-01/D-04: palette direct run -> toast + full-output dialog. D-03: a destructive refusal parks the run.
   const [runOutput, setRunOutput] = useState<{ title: string; out: ExecuteOutput } | null>(null);
   const [pendingConfirm, setPendingConfirm] = useState<{ path: string[]; id: string } | null>(null);
+  // WR-09: one run per verb at a time, with a running toast; see runCliVerb.
+  const cliInFlight = useRef(new Set<string>());
   const runCli = useCallback(
-    async (path: string[], confirmed?: boolean) => {
-      const title = `vox ${path.join(' ')}`;
-      try {
-        const out = await voxTransport.executeCommand(path, { __argv: [] }, { confirmed });
-        if (!out) {
-          pushToast({ tone: 'warn', title: `${title} unavailable`, body: 'No response from the backend.', cause: 'backend-error' });
-          return;
-        }
-        pushToast(toastForRun(path, out, () => setRunOutput({ title, out })));
-      } catch (err) {
-        const id = confirmationRequiredId(err);
-        if (id) {
-          setPendingConfirm({ path, id });
-          return;
-        }
-        pushToast({ tone: 'warn', title: `${title} failed`, body: sanitizeErrorForToast(err), cause: 'backend-error' });
-      }
-    },
+    (path: string[], confirmed?: boolean) =>
+      runCliVerb(path, confirmed, {
+        execute: (p, c) => voxTransport.executeCommand(p, { __argv: [] }, { confirmed: c }),
+        push: pushToast,
+        showOutput: (title, out) => setRunOutput({ title, out }),
+        parkConfirm: (p, id) => setPendingConfirm({ path: p, id }),
+        describeError: sanitizeErrorForToast,
+        inFlight: cliInFlight.current,
+      }),
     [pushToast],
   );
 
