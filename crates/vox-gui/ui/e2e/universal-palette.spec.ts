@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { installTauriMock } from './lib/tauriMock';
 import { addMockInitScript } from './lib/tauriMockShared';
 import { addInvokeOverrides } from './lib/invokeOverrides';
+import { ACTION_REGISTRY } from '../src/lib/keybinds';
 
 /**
  * Universal palette (phase 06.3): capability-index rows in the Cmd/Ctrl+K palette.
@@ -263,5 +264,48 @@ test.describe('run from the palette (D-01, D-03, D-04)', () => {
     expect(calls[0].confirmed).toBeUndefined();
     expect(calls[1].confirmed).toBe(true);
     expect(calls[1].args.__positionals).toEqual(['demo']);
+  });
+});
+
+test.describe('shortcuts (D-11, D-12, D-17)', () => {
+  test.beforeEach(async ({ page }) => {
+    await addMockInitScript(page, installTauriMock, 'dashboard');
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/');
+    await page.waitForSelector('nav', { timeout: 20_000 });
+    await page.evaluate(() => (document as any).fonts?.ready);
+  });
+
+  test('? opens the generated sheet; ? in a field types', async ({ page }) => {
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await page.keyboard.press('?');
+    const sheet = page.getByRole('dialog', { name: 'Keyboard shortcuts' });
+    await expect(sheet).toBeVisible();
+    for (const a of ACTION_REGISTRY) await expect(sheet.getByText(a.label)).toBeVisible();
+    await shot(page, 'universal-palette-10-shortcut-sheet');
+
+    await page.keyboard.press('Escape');
+    await expect(sheet).toBeHidden();
+    await page.keyboard.press('Control+k');
+    const input = page.getByPlaceholder(/search surfaces, commands/i);
+    await expect(input).toBeVisible();
+    await input.pressSequentially('?');
+    await expect(input).toHaveValue('?');
+    await expect(page.getByRole('dialog', { name: 'Keyboard shortcuts' })).toHaveCount(0);
+  });
+
+  test('a rebind in Settings shows in the sheet without restart', async ({ page }) => {
+    await page.goto('/#view=settings');
+    await page.getByRole('button', { name: /keybinds/i }).click();
+    const btn = page.getByTestId('keybind-btn-toggle-sidebar');
+    await btn.click();
+    await page.keyboard.press('Control+Shift+Y');
+    await expect(btn).toHaveText('Mod+Shift+Y');
+
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await page.keyboard.press('?');
+    const sheet = page.getByRole('dialog', { name: 'Keyboard shortcuts' });
+    await expect(sheet).toBeVisible();
+    await expect(sheet.getByTestId('shortcut-row-toggle-sidebar')).toContainText(/⌘⇧Y|Ctrl\+Shift\+Y/);
   });
 });
