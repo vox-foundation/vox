@@ -31,6 +31,8 @@ export type Toast = {
    * count) instead of adding a new entry. Defaults to `title` when omitted.
    */
   groupKey?: string;
+  /** A button in the toast (e.g. "View full output"). It must not navigate. */
+  action?: { label: string; onClick: () => void };
 };
 
 /** Mirrors `ChatSessionDto` from `commands/chat.rs`. */
