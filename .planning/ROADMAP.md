@@ -100,39 +100,44 @@ Plans:
   3. `?` opens a generated shortcut sheet; every keybind appears as a palette action.
   4. A Playwright spec with mock IPC covers palette search + run, with review-bundle screenshots.
 
-**Plans:** 10 plans
+**Plans:** 12 plans
 
 Plans:
 **Wave 1**
 
-- [ ] 06.3-01-PLAN.md — Tracer: chunked typed TS index (D-14) → lazy loader (D-06) → index CLI row with chips → prefilled Catalog form (D-01); mutation proof 3 (wave 1)
+- [ ] 06.3-01-PLAN.md — Tracer in 3 tasks: chunked typed TS index (D-14) → lazy loader (D-06) → index CLI row with chips → prefilled Catalog form (D-01), verified end to end (wave 1)
 - [ ] 06.3-02-PLAN.md — Backend destructive-op gate in registry + vox-cli (D-03, D-15), `__argv` args fix (D-16), `confirmed` IPC param; mutation proofs 1-2 (wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 06.3-03-PLAN.md — side_effect_class enum + side-effect ratchet + destructive-verb classification from handlers (D-02, D-03) (wave 2)
-- [ ] 06.3-04-PLAN.md — Full ranker: tiers, JW typo fallback, tie-breaks, perf (D-19) + `#` crate prefix (D-10) (wave 2)
+- [ ] 06.3-03-PLAN.md — Slice hardening: chunk row-count test + mutation proof 3 (D-14), lazy-import guard + build-split check (D-06) (wave 2)
+- [ ] 06.3-04-PLAN.md — side_effect_class enum + side-effect ratchet + destructive-verb classification from handlers (D-02, D-03) (wave 2)
+- [ ] 06.3-05-PLAN.md — Full ranker: tiers, JW typo fallback, tie-breaks, perf (D-19) + `#` crate prefix (D-10) (wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 06.3-05-PLAN.md — Read-only classification of 59 default-build verbs from handlers (D-02, D-18) (wave 3)
-- [ ] 06.3-06-PLAN.md — Find UX: index-sourced facets, Best match, Tools & crates, chips, a11y, omnisearch contract, D-20 spec update (wave 3)
+- [ ] 06.3-06-PLAN.md — Read-only classification of default-build verbs from handlers, null when unverifiable (D-02, D-18) (wave 3)
+- [ ] 06.3-07-PLAN.md — Find UX: index-sourced facets, Best match, Tools & crates, chips, a11y, omnisearch contract, D-20 spec update (wave 3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 06.3-07-PLAN.md — Explain card drawer mirroring `vox explain` (D-07) (wave 4)
+- [ ] 06.3-08-PLAN.md — Explain card drawer mirroring `vox explain` (D-07) (wave 4)
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 06.3-08-PLAN.md — Run path: direct run of safe verbs + toast/full output (D-01, D-04), confirm dialog (D-03), typed Catalog form args (D-16) (wave 5)
+- [ ] 06.3-09-PLAN.md — Run path: direct run of safe verbs + toast/full output (D-01, D-04), confirm dialog (D-03), typed Catalog form args (D-16) (wave 5)
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
-- [ ] 06.3-09-PLAN.md — `?` shortcut sheet, keybind action rows, shared keybind store (D-11..D-13, D-17) (wave 6)
+- [ ] 06.3-10-PLAN.md — Shared keybind store + `?` / Mod+/ shortcut sheet (D-11, D-12, D-17) (wave 6)
 
 **Wave 7** *(blocked on Wave 6 completion)*
 
-- [ ] 06.3-10-PLAN.md — gui-navigation.md docs + whole-phase gate and evidence index (wave 7)
+- [ ] 06.3-11-PLAN.md — Keybind actions as palette rows with live chords (D-13, D-17) (wave 7)
+
+**Wave 8** *(blocked on Wave 7 completion)*
+
+- [ ] 06.3-12-PLAN.md — gui-navigation.md docs + whole-phase gate and evidence index (wave 8)
 
 ### Phase 06.4: Capability Explorer & Coverage Gate (INSERTED)
 
