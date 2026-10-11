@@ -10,7 +10,9 @@ use crate::kb_ids;
 /// boundaries or hashes. Names the identity walk (`kb_ids` sections + root-keyed card), the
 /// permanent model-independent sizer (`est4b` = `ceil(bytes / 4)`, the same estimator as Phase 1's
 /// answer-in-budget) and the oversize budget (`md512`: `MarkdownSplitter`, 256..512, no overlap).
-pub const CHUNKER_VERSION: &str = "kb_ids-sections-v2+card+est4b+md512";
+/// `card-facets`: the card carries `topic:`/`domain:` prefLabel lines and skips page-one summary
+/// marker lines (KB Phase 4).
+pub const CHUNKER_VERSION: &str = "kb_ids-sections-v2+card-facets+est4b+md512";
 
 /// A heading section above this many estimated tokens is split by `text-splitter`.
 pub const SECTION_TOKEN_BUDGET: usize = 512;
@@ -120,6 +122,10 @@ fn first_paragraph(intro: &str) -> String {
     let mut in_fence = false;
     let mut para: Vec<&str> = Vec::new();
     for line in intro.lines() {
+        // Marker lines are neither paragraph text nor a terminator; the summary is the lede.
+        if vox_kb_facets::is_summary_marker_line(line) {
+            continue;
+        }
         if kb_ids::is_fence_line(line) {
             in_fence = !in_fence;
         } else if in_fence || kb_ids::parse_heading(line).is_some() || line.trim().is_empty() {
@@ -144,8 +150,14 @@ fn first_paragraph(intro: &str) -> String {
 }
 
 /// The doc's summary card body: title, `description`, first intro paragraph, then
-/// `category:` / `status:` facets when present. Never any raw YAML.
-fn card_body(title: &str, fm: &serde_json::Value, intro: &str) -> String {
+/// `category:` / `status:` and the taxonomy `topic:` / `domain:` facet lines when present. Never
+/// any raw YAML.
+fn card_body(
+    title: &str,
+    fm: &serde_json::Value,
+    intro: &str,
+    facets: &vox_kb_facets::Facets,
+) -> String {
     let field = |k: &str| {
         fm.get(k)
             .and_then(|v| v.as_str())
@@ -160,6 +172,7 @@ fn card_body(title: &str, fm: &serde_json::Value, intro: &str) -> String {
     }
     parts.extend(field("category").map(|c| format!("category: {c}")));
     parts.extend(field("status").map(|c| format!("status: {c}")));
+    parts.extend(vox_kb_facets::facet_card_lines(facets));
     parts.join("\n")
 }
 
@@ -175,6 +188,8 @@ pub fn chunk_document(
     let text = vox_bounded_fs::normalize_text(text.to_string());
     let title = kb_ids::doc_title(rel_path, &text);
     let fm = frontmatter_value(&text);
+    // A doc with bad facets just gets no facet lines; the facet lint reports it.
+    let facets = vox_kb_facets::parse_facets(&text).unwrap_or_default();
     let sections = kb_ids::doc_sections(rel_path, &text);
     let mut seen: std::collections::BTreeMap<(String, String), usize> = Default::default();
     let mut slugs: std::collections::BTreeMap<String, usize> = Default::default();
@@ -212,7 +227,7 @@ pub fn chunk_document(
         ChunkKind::Card,
         &title,
         None,
-        &card_body(&title, &fm, &text[intro_start..intro_end]),
+        &card_body(&title, &fm, &text[intro_start..intro_end], &facets),
     );
 
     for sec in &sections {
@@ -332,10 +347,13 @@ mod tests {
             serde_json::json!({"description": " Does X. ", "category": "Guides", "status": ""});
         let intro = "# T\n\n```\nfenced\n```\nReal first\nparagraph.\n\nSecond.\n";
         assert_eq!(
-            card_body("T", &fm, intro),
+            card_body("T", &fm, intro, &Default::default()),
             "T\nDoes X.\nReal first\nparagraph.\ncategory: Guides"
         );
-        assert_eq!(card_body("T", &serde_json::json!({}), ""), "T");
+        assert_eq!(
+            card_body("T", &serde_json::json!({}), "", &Default::default()),
+            "T"
+        );
         let long = "é".repeat(CARD_PARAGRAPH_MAX_BYTES);
         assert!(first_paragraph(&long).len() <= CARD_PARAGRAPH_MAX_BYTES);
     }

@@ -16,6 +16,8 @@ use vox_db::{KB_LIBRARY_CORPUS, KbIndexState, LibraryChunkInput, LibraryDocUpser
 
 use lexical::{LEXICAL_BACKEND, LibraryLexicalIndex};
 
+pub use vox_kb_facets::Taxonomy;
+
 /// Inputs the indexer cannot derive itself.
 pub struct IndexDeps<'a> {
     /// Hex digest of the given bytes (production: `vox_crypto::hex_encode(&secure_hash(b))`).
@@ -283,6 +285,16 @@ pub struct LibraryHit {
     pub score: f32,
 }
 
+/// Load the committed KB taxonomy (`contracts/documentation/kb-taxonomy.v1.yaml`) from `repo_root`.
+pub fn load_taxonomy(repo_root: &Path) -> Result<Taxonomy> {
+    let path = repo_root.join(vox_kb_facets::TAXONOMY_REL);
+    let text = vox_bounded_fs::read_utf8_path_capped(&path)
+        .with_context(|| format!("read {}", path.display()))?;
+    Taxonomy::from_yaml_str(&text)
+        .map_err(|e| anyhow::anyhow!("{e}"))
+        .with_context(|| format!("parse {}", path.display()))
+}
+
 /// BM25 search over the library index; hits are hydrated from the DB in Tantivy order.
 pub async fn search(
     db: &VoxDb,
@@ -290,6 +302,21 @@ pub async fn search(
     query: &str,
     limit: usize,
 ) -> Result<Vec<LibraryHit>> {
+    search_with_taxonomy(db, lexical_dir, query, limit, None).await
+}
+
+/// [`search`] with query-time synonym expansion: an altLabel or deprecated alias in `query`
+/// appends a quoted facet phrase that matches only cards tagged with the concept's prefLabel.
+/// `None` passes the query to Tantivy untouched.
+pub async fn search_with_taxonomy(
+    db: &VoxDb,
+    lexical_dir: &Path,
+    query: &str,
+    limit: usize,
+    taxonomy: Option<&Taxonomy>,
+) -> Result<Vec<LibraryHit>> {
+    let expanded = taxonomy.map(|t| t.expand_query(query));
+    let query = expanded.as_deref().unwrap_or(query);
     let ranked = LibraryLexicalIndex::open(lexical_dir)?.search(query, limit)?;
     let hashes: Vec<String> = ranked.iter().map(|(h, _)| h.clone()).collect();
     let rows = db.library_chunks_by_hashes(&hashes).await?;

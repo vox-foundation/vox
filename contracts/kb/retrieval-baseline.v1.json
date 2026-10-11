@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "epoch": 2,
-  "epoch_note": "kb-02 Library index (library-tantivy-v1, kb_ids-sections-v2+card+est4b+md512): retriever and chunker switched from bm25-inmem-v1/md-h1h2-4096-v1; 2 dev chunk qrels deepened (q046 and x041: Omni-Search Audit '2. Current Search Architecture Map' -> its '2.1 Full Stack Layers' child, the parent chunk being heading-only); Library title/heading boosts retuned 2.0/1.5 -> 0.25/0.25 on the dev split; doc dev/all nDCG@10 0.459945->0.548914; chunk dev/all nDCG@10 0.273916->0.332600",
+  "epoch": 3,
+  "epoch_note": "kb-04 card facets (kb_ids-sections-v2+card-facets+est4b+md512): card chunks gain topic/domain prefLabel lines and skip page-one summary marker lines; no frozen-snapshot doc carries either, so every metric is unchanged",
   "retriever": "library-tantivy-v1",
-  "chunker": "kb_ids-sections-v2+card+est4b+md512",
+  "chunker": "kb_ids-sections-v2+card-facets+est4b+md512",
   "token_estimator": "bytes/4",
   "budget_tokens": 1500,
   "tolerance": 0.01,

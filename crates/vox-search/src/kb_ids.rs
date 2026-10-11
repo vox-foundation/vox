@@ -77,14 +77,7 @@ fn line_spans(text: &str, from: usize) -> impl Iterator<Item = (usize, usize, &s
 /// the block is never closed (an unterminated block is body, not frontmatter).
 #[must_use]
 pub fn frontmatter_range(text: &str) -> Option<Range<usize>> {
-    let mut lines = line_spans(text, 0);
-    let (_, _, first) = lines.next()?;
-    if first.trim_end() != "---" {
-        return None;
-    }
-    lines
-        .find(|(_, _, l)| l.trim_end() == "---")
-        .map(|(_, end, _)| 0..end)
+    vox_kb_facets::frontmatter_range(text)
 }
 
 /// Start of the body: just past the frontmatter block, else 0.
