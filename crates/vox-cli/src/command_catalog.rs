@@ -416,6 +416,35 @@ fn sanitize_about(about: &str) -> String {
     about.replace('\n', " ").trim().to_string()
 }
 
+/// Prefix of the refusal `gate_execution` returns for a destructive invocation without consent
+/// (D-03). The TS mirror lives in `crates/vox-gui/ui/src/lib/capabilityRun.ts`; plan 06.3-09 adds
+/// a parity test that reads this literal.
+pub const CONFIRMATION_REQUIRED_PREFIX: &str = "confirmation_required: ";
+
+/// The GUI Catalog form -> CLI argv contract: `path`, then the structured `args` object
+/// (flags / `__positionals` / `__flags`), then raw `__argv` tokens (D-16: both reach the CLI).
+#[must_use]
+pub fn form_argv(path: Vec<String>, args: &serde_json::Value) -> Vec<String> {
+    let _ = args;
+    path
+}
+
+/// Id of the destructive index row the effective `argv` walks to, if any (D-15).
+#[must_use]
+pub fn destructive_cli_id(argv: &[String]) -> Option<String> {
+    let _ = argv;
+    None
+}
+
+/// D-03 consent gate: refuse a destructive invocation unless `confirmed == Some(true)`.
+///
+/// # Errors
+/// `confirmation_required: <row id>` when the argv is destructive and not confirmed.
+pub fn gate_execution(argv: &[String], confirmed: Option<bool>) -> Result<(), String> {
+    let _ = (argv, confirmed);
+    Ok(())
+}
+
 /// Run `f` on a worker thread with a large (32 MiB) stack and return its result.
 ///
 /// `build_catalog()` and `VoxCliRoot::command()` trigger clap's *recursive* build
@@ -674,5 +703,91 @@ mod tests {
             .find(|a| a.name == "recommended")
             .expect("`commands` has a `recommended` argument");
         assert_eq!(recommended.value_kind, ArgValueKind::Flag);
+    }
+
+    fn sv(tokens: &[&str]) -> Vec<String> {
+        tokens.iter().map(|t| (*t).to_string()).collect()
+    }
+
+    #[test]
+    fn form_argv_argv_only() {
+        let a = serde_json::json!({"__argv": ["--json", "x"]});
+        assert_eq!(form_argv(sv(&["check"]), &a), sv(&["check", "--json", "x"]));
+    }
+
+    #[test]
+    fn form_argv_structured_only() {
+        let a = serde_json::json!({"limit": "5", "verbose": true});
+        assert_eq!(
+            form_argv(sv(&["scientia", "claims"]), &a),
+            sv(&["scientia", "claims", "--limit", "5", "--verbose"])
+        );
+    }
+
+    /// D-16 regression: structured values used to be dropped whenever `__argv` was present.
+    #[test]
+    fn form_argv_both() {
+        let a = serde_json::json!({"path": "src", "__argv": ["--json"]});
+        assert_eq!(
+            form_argv(sv(&["check"]), &a),
+            sv(&["check", "--path", "src", "--json"])
+        );
+    }
+
+    #[test]
+    fn form_argv_positionals_and_flags() {
+        let p = serde_json::json!({"__positionals": ["a", 2]});
+        assert_eq!(form_argv(sv(&["x"]), &p), sv(&["x", "a", "2"]));
+        let f = serde_json::json!({"__flags": ["force"]});
+        assert_eq!(form_argv(sv(&["x"]), &f), sv(&["x", "--force"]));
+        let b = serde_json::json!({"__argv": ["", "  ", "y"]});
+        assert_eq!(form_argv(sv(&["x"]), &b), sv(&["x", "y"]));
+    }
+
+    #[test]
+    fn form_argv_bool_false_and_array() {
+        let f = serde_json::json!({"dry_run": false});
+        assert_eq!(form_argv(sv(&["x"]), &f), sv(&["x"]));
+        let t = serde_json::json!({"tag": ["a", "b"]});
+        assert_eq!(
+            form_argv(sv(&["x"]), &t),
+            sv(&["x", "--tag", "a", "--tag", "b"])
+        );
+        let n = serde_json::json!({"only": null});
+        assert_eq!(form_argv(sv(&["x"]), &n), sv(&["x", "--only"]));
+        let e = serde_json::json!({"only": ""});
+        assert_eq!(form_argv(sv(&["x"]), &e), sv(&["x", "--only"]));
+    }
+
+    #[test]
+    fn destructive_cli_id_via_argv() {
+        let a = serde_json::json!({"__argv": ["remove", "x"]});
+        let argv = form_argv(sv(&["plugin"]), &a);
+        assert_eq!(
+            destructive_cli_id(&argv).as_deref(),
+            Some("cli.plugin.remove")
+        );
+        assert_eq!(destructive_cli_id(&sv(&["features"])), None);
+    }
+
+    #[test]
+    fn gate_refuses_destructive_without_confirmation() {
+        let argv = sv(&["plugin", "remove", "x"]);
+        let want = Err("confirmation_required: cli.plugin.remove".to_string());
+        assert_eq!(gate_execution(&argv, None), want);
+        assert_eq!(gate_execution(&argv, Some(false)), want);
+    }
+
+    #[test]
+    fn gate_allows_destructive_with_confirmed_true() {
+        assert_eq!(
+            gate_execution(&sv(&["plugin", "remove", "x"]), Some(true)),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn gate_allows_non_destructive() {
+        assert_eq!(gate_execution(&sv(&["features"]), None), Ok(()));
     }
 }
