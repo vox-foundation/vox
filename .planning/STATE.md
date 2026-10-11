@@ -5,16 +5,16 @@ milestone_name: Research Trial Flywheel
 current_phase: "06.3"
 current_phase_name: Universal Palette (INSERTED)
 status: executing
-stopped_at: Completed 06.3-06-PLAN.md
-last_updated: "2026-10-11T05:47:19.204Z"
+stopped_at: Completed 06.3-07-PLAN.md
+last_updated: "2026-10-11T05:57:08.577Z"
 last_activity: 2026-10-10
 last_activity_desc: Phase 06.3 execution started
-state_head: 2dff8d64aa098b74003ce59bd282332556b473fd
+state_head: ad66004d955d5464038eb80d9ff0e254eaae4512
 progress:
   total_phases: 11
   completed_phases: 2
   total_plans: 20
-  completed_plans: 14
+  completed_plans: 15
   percent: 18
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-01)
 ## Current Position
 
 Phase: 06.3 (Universal Palette (INSERTED)) — EXECUTING
-Plan: 7 of 12
+Plan: 8 of 12
 Status: Ready to execute
 Last activity: 2026-10-10 — Phase 06.3 execution started
 
@@ -62,6 +62,7 @@ Progress: [██░░░░░░░░] 18%
 | Phase 06.3 P04 | 45min | 2 tasks | 9 files |
 | Phase 06.3 P05 | 35min | 2 tasks | 10 files |
 | Phase 06.3 P06 | 40min | 3 tasks | 6 files |
+| Phase 06.3 P07 | 55min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -81,6 +82,7 @@ Recent decisions affecting current work:
 - [Phase 06.2]: code review WR-01..07 fixed (Related ranking, skills from committed catalog.toml, claim errors fail with page path, invisible-char stripping, input bounds on original input, domain vocabulary validation, skill/doc rows in features)
 - [Phase 06.2]: 06.2-05: coverage refresh is two-step (vox graph rebuild --corpus vox-gui-surface, then vox ci capability-index --refresh-coverage --write); the drift path only reads the committed snapshot
 - [Phase 06.3]: 06.3-04: one RatchetSpec serves owner and side-effect ratchets; side_effect_class enum in catalog schema; 9 destructive CLI verbs classified from handlers
+- [Phase 06.3]: 06.3-07: Best match moved not copied; facet total counted after splice; # mode silences all non-index sources in buildOmnibarFacets
 
 ### Pending Todos
 
@@ -106,6 +108,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-11T05:47:19.184Z
-Stopped at: Completed 06.3-06-PLAN.md
+Last session: 2026-10-11T05:57:08.555Z
+Stopped at: Completed 06.3-07-PLAN.md
 Resume file: None
