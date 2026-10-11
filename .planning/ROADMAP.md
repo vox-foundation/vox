@@ -100,7 +100,7 @@ Plans:
   3. `?` opens a generated shortcut sheet; every keybind appears as a palette action.
   4. A Playwright spec with mock IPC covers palette search + run, with review-bundle screenshots.
 
-**Plans:** 8/12 plans executed
+**Plans:** 9/12 plans executed
 
 Plans:
 **Wave 1**
@@ -125,7 +125,7 @@ Plans:
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 06.3-09-PLAN.md — Run path: direct run of safe verbs + toast/full output (D-01, D-04), confirm dialog (D-03), typed Catalog form args (D-16) (wave 5)
+- [x] 06.3-09-PLAN.md — Run path: direct run of safe verbs + toast/full output (D-01, D-04), confirm dialog (D-03), typed Catalog form args (D-16) (wave 5)
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
@@ -284,7 +284,7 @@ Plans:
 | 1–6 | v1.0 | 23/23 | Complete | 2026-10-01 |
 | 06.1 Hosted CI gate and fast local loop (INSERTED) | v1.0 | plan-doc | In progress | - |
 | 06.2 Capability Index SSOT (INSERTED) | v1.1 | 8/8 | Complete    | 2026-10-09 |
-| 06.3 Universal Palette (INSERTED) | v1.1 | 8/12 | In Progress|  |
+| 06.3 Universal Palette (INSERTED) | v1.1 | 9/12 | In Progress|  |
 | 06.4 Capability Explorer & Coverage Gate (INSERTED) | v1.1 | 0/TBD | Not started | - |
 | 06.5 Architecture Atlas (INSERTED) | v1.1 | 0/TBD | Not started | - |
 | 06.6 Time-to-Find Journeys (INSERTED) | v1.1 | 0/TBD | Not started | - |
