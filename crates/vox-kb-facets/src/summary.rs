@@ -1,6 +1,6 @@
 //! Page-one summary block (D-08): `<!-- kb:summary -->` ... `<!-- /kb:summary -->`.
 
-use crate::frontmatter::{frontmatter_range, line_spans};
+use crate::frontmatter::{FenceTracker, frontmatter_range, line_spans};
 
 /// Opening marker; canonical form is on its own line so the block renders as a lede paragraph.
 pub const SUMMARY_OPEN: &str = "<!-- kb:summary -->";
@@ -28,24 +28,18 @@ pub fn is_summary_marker_line(line: &str) -> bool {
     t == SUMMARY_OPEN || t == SUMMARY_CLOSE
 }
 
-fn is_fence(line: &str) -> bool {
-    line.starts_with("```") || line.starts_with("~~~")
-}
-
 /// Locate and measure the summary block. Markers inside fenced code are ignored.
 #[must_use]
 pub fn inspect_summary(doc_text: &str) -> SummaryStatus {
     let body = frontmatter_range(doc_text).map_or(0, |r| r.end);
     // (1-based line no, trimmed line) for body lines outside fences; fence lines are dropped.
     let mut lines: Vec<(usize, &str)> = Vec::new();
-    let mut in_fence = false;
+    let mut fences = FenceTracker::default();
     for (i, (start, _, l)) in line_spans(doc_text, 0).enumerate() {
         if start < body {
             continue;
         }
-        if is_fence(l) {
-            in_fence = !in_fence;
-        } else if !in_fence {
+        if !fences.step(l) {
             lines.push((i + 1, l));
         }
     }
@@ -97,6 +91,22 @@ pub fn strip_summary_blocks(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// WR-05: a marker inside a longer or different-char fence is still inside code.
+    #[test]
+    fn markers_inside_nested_or_mixed_fences_are_ignored() {
+        let nested =
+            "# T\n\n````md\n```\n<!-- kb:summary -->\nx\n<!-- /kb:summary -->\n```\n````\n";
+        assert_eq!(inspect_summary(nested), SummaryStatus::Missing);
+        let mixed = "# T\n\n```text\n~~~\n<!-- kb:summary -->\nx\n<!-- /kb:summary -->\n```\n";
+        assert_eq!(inspect_summary(mixed), SummaryStatus::Missing);
+        // a real block after a properly closed longer fence is found
+        let after = "# T\n\n<!-- kb:summary -->\nx\n<!-- /kb:summary -->\n\n````\n```\n````\n";
+        assert!(matches!(
+            inspect_summary(after),
+            SummaryStatus::Present { .. }
+        ));
+    }
 
     fn words(n: usize) -> String {
         vec!["w"; n].join(" ")

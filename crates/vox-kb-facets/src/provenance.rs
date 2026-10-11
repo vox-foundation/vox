@@ -3,7 +3,7 @@
 
 use crate::{
     Source,
-    frontmatter::{frontmatter_range, line_spans},
+    frontmatter::{FenceTracker, frontmatter_range, line_spans},
 };
 
 /// Maximum words in one verbatim quote. Discretion choice: unit is whitespace-split words; a
@@ -57,11 +57,9 @@ pub fn quote_word_counts(doc_text: &str, sources: &[Source]) -> Vec<usize> {
     let body = frontmatter_range(doc_text).map_or(0, |r| r.end);
     let mut counts = Vec::new();
     let mut run: Option<usize> = None;
-    let mut in_fence = false;
+    let mut fences = FenceTracker::default();
     for (_, _, l) in line_spans(doc_text, body) {
-        if l.starts_with("```") || l.starts_with("~~~") {
-            in_fence = !in_fence;
-        }
+        let in_fence = fences.step(l);
         let t = l.trim_start();
         if !in_fence && t.starts_with('>') {
             let text = t.trim_start_matches(|c: char| c == '>' || c.is_whitespace());
@@ -84,6 +82,15 @@ pub fn quote_word_counts(doc_text: &str, sources: &[Source]) -> Vec<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// WR-05: a blockquote inside a longer or different-char fence is code, not a quote.
+    #[test]
+    fn quotes_inside_nested_or_mixed_fences_are_not_counted() {
+        let nested = "# T\n\n````md\n```\n> one two three\n```\n````\n\n> real quote here\n";
+        assert_eq!(quote_word_counts(nested, &[]), [3]);
+        let mixed = "# T\n\n```text\n~~~\n> one two three\n```\n";
+        assert!(quote_word_counts(mixed, &[]).is_empty());
+    }
 
     #[test]
     fn is_blake3_content_hash_encoded_form() {

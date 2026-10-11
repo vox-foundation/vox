@@ -69,9 +69,66 @@ pub(crate) fn fence_intended(text: &str) -> bool {
         .is_some_and(|l| l == "---")
 }
 
+/// Fenced-code tracker (CommonMark): a fence opens with 3+ backticks or tildes at column 0 and
+/// closes only on a line of the same character, at least as long, with nothing after it.
+/// Indented fences are a known limitation (see the phase deferred-items).
+#[derive(Default)]
+pub(crate) struct FenceTracker {
+    open: Option<(char, usize)>,
+}
+
+impl FenceTracker {
+    /// Feed the next line; true when it is a fence line or lies inside a fence.
+    pub(crate) fn step(&mut self, line: &str) -> bool {
+        let run = |c: char| line.chars().take_while(|&x| x == c).count();
+        if let Some((c, n)) = self.open {
+            let m = run(c);
+            if m >= n && line[m * c.len_utf8()..].trim().is_empty() {
+                self.open = None;
+            }
+            return true;
+        }
+        for c in ['`', '~'] {
+            let n = run(c);
+            // a backtick fence's info string cannot hold a backtick (that is inline code)
+            if n >= 3 && !(c == '`' && line[n..].contains('`')) {
+                self.open = Some((c, n));
+                return true;
+            }
+        }
+        false
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fence_tracker_follows_commonmark_open_and_close_rules() {
+        let run = |lines: &[&str]| {
+            let mut f = FenceTracker::default();
+            lines.iter().map(|l| f.step(l)).collect::<Vec<_>>()
+        };
+        // a shorter or different-char fence inside does not close
+        assert_eq!(
+            run(&["````", "```", "~~~", "x", "````", "y"]),
+            [true, true, true, true, true, false]
+        );
+        assert_eq!(
+            run(&["```", "~~~", "x", "```", "y"]),
+            [true, true, true, true, false]
+        );
+        // an info string on the would-be closer keeps the fence open
+        assert_eq!(
+            run(&["```", "```rust", "x", "```", "y"]),
+            [true, true, true, true, false]
+        );
+        // a longer closer closes; inline code is not a fence
+        assert_eq!(run(&["```", "x", "`````", "y"]), [true, true, true, false]);
+        assert_eq!(run(&["```inline``` text", "y"]), [false, false]);
+        assert_eq!(run(&["~~~ js", "x", "~~~", "y"]), [true, true, true, false]);
+    }
 
     #[test]
     fn frontmatter_range_covers_the_closed_block_only() {
