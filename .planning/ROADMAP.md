@@ -100,13 +100,13 @@ Plans:
   3. `?` opens a generated shortcut sheet; every keybind appears as a palette action.
   4. A Playwright spec with mock IPC covers palette search + run, with review-bundle screenshots.
 
-**Plans:** 1/12 plans executed
+**Plans:** 2/12 plans executed
 
 Plans:
 **Wave 1**
 
 - [x] 06.3-01-PLAN.md — Tracer in 3 tasks: chunked typed TS index (D-14) → lazy loader (D-06) → index CLI row with chips → prefilled Catalog form (D-01), verified end to end (wave 1)
-- [ ] 06.3-02-PLAN.md — Backend destructive-op gate in registry + vox-cli (D-03, D-15), `__argv` args fix (D-16), `confirmed` IPC param; mutation proofs 1-2 (wave 1)
+- [x] 06.3-02-PLAN.md — Backend destructive-op gate in registry + vox-cli (D-03, D-15), `__argv` args fix (D-16), `confirmed` IPC param; mutation proofs 1-2 (wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -284,7 +284,7 @@ Plans:
 | 1–6 | v1.0 | 23/23 | Complete | 2026-10-01 |
 | 06.1 Hosted CI gate and fast local loop (INSERTED) | v1.0 | plan-doc | In progress | - |
 | 06.2 Capability Index SSOT (INSERTED) | v1.1 | 8/8 | Complete    | 2026-10-09 |
-| 06.3 Universal Palette (INSERTED) | v1.1 | 1/12 | In Progress|  |
+| 06.3 Universal Palette (INSERTED) | v1.1 | 2/12 | In Progress|  |
 | 06.4 Capability Explorer & Coverage Gate (INSERTED) | v1.1 | 0/TBD | Not started | - |
 | 06.5 Architecture Atlas (INSERTED) | v1.1 | 0/TBD | Not started | - |
 | 06.6 Time-to-Find Journeys (INSERTED) | v1.1 | 0/TBD | Not started | - |
