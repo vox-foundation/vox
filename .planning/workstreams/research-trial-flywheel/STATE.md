@@ -5,17 +5,17 @@ milestone_name: Research Trial Flywheel
 current_phase: 7
 current_phase_name: Trial Identity, Contracts & Observational Baseline
 status: Awaiting roadmap approval
-stopped_at: Completed 12-04-PLAN.md
-last_updated: "2026-10-11T13:11:39.814Z"
+stopped_at: Completed 12-03-PLAN.md
+last_updated: "2026-10-11T13:35:44.048Z"
 last_activity: 2026-10-01
 last_activity_desc: Milestone v1.1 initialized (requirements, research, roadmap)
-state_head: 147a2ea6c3fabe6de1ffe3c1d879111dbac7c1a2
+state_head: c3c75fc699ce39d827eaacb74edf8205dfed9740
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 9
-  completed_plans: 1
-  percent: 11
+  completed_plans: 2
+  percent: 14
 ---
 
 # Project State
@@ -34,7 +34,7 @@ Plan: —
 Status: Awaiting roadmap approval; then ready to plan
 Last activity: 2026-10-01 — Milestone v1.1 initialized
 
-Progress: [█░░░░░░░░░] 11%
+Progress: [█░░░░░░░░░] 14%
 
 ## Performance Metrics
 
@@ -50,6 +50,7 @@ Progress: [█░░░░░░░░░] 11%
 | Plan | Duration | Tasks | Files |
 |------|----------|-------|-------|
 | Phase 12 P04 | 35min | 3 tasks | 3 files |
+| Phase 12 P03 | ~45min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -61,6 +62,7 @@ Recent decisions affecting current work:
 - v1.1 governance rulings G1–G25 and R1–R9 confirmed by the user; see the Research Trial Flywheel plan.
 - Research reconciliation added TRIAL-05, TELEM-02, METER-01, and SCORE-04 to Phase 7 because a baseline on the current tree would be untrustworthy (.planning/research/SUMMARY.md).
 - [Phase 7]: 12-04: completeness gate is one private fn (gate_reasons) shared by assemble and recheck_complete; required provenance fields have no serde default
+- [Phase 7]: 12-03: CUDA Candle plugin gets the same seed/top_p/tie-break change as metal (no D-12 deviation); sample_seed(7,"001",0) pinned to 780188561
 
 ### Pending Todos
 
@@ -84,6 +86,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-11T13:11:39.800Z
-Stopped at: Completed 12-04-PLAN.md
+Last session: 2026-10-11T13:35:44.025Z
+Stopped at: Completed 12-03-PLAN.md
 Resume file: None
