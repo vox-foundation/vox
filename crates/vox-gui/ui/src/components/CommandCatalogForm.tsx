@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { CommandCatalog, CommandCatalogEntry, CommandCatalogArgument } from '../types/catalog';
 import { voxTransport } from '../transport';
 import { sanitizeErrorForToast } from '../lib/backendGuard';
@@ -40,7 +40,12 @@ export function CommandCatalogForm({
     const [argsInput, setArgsInput] = useState('');
     const [argValues, setArgValues] = useState<Record<string, string | boolean>>({});
     // D-03: a destructive refusal parks the exact args here until the user confirms.
-    const [pendingConfirm, setPendingConfirm] = useState<{ id: string; args: Record<string, unknown> } | null>(null);
+    // It remembers the path it was created for, so Confirm can never retarget a different command.
+    const [pendingConfirm, setPendingConfirm] = useState<{ id: string; path: string[]; args: Record<string, unknown> } | null>(null);
+    // WR-08: every selection / run bumps the token; a result for an older token is dropped. `running`
+    // blocks a second Run while one is pending (a side-effecting verb must not execute twice).
+    const runToken = useRef(0);
+    const [running, setRunning] = useState(false);
     const [output, setOutput] = useState<{ success?: boolean; data?: ExecuteOutput; error?: string } | null>(null);
 
     const commandList = catalog?.entries || [];
@@ -61,6 +66,8 @@ export function CommandCatalogForm({
         setArgValues(seeded);
         setOutput(null);
         setPendingConfirm(null);
+        runToken.current += 1; // results of a run started for another selection are stale now
+        setRunning(false);
     };
 
     // Select the palette-chosen command (selecting only fills the form; Run stays explicit).
@@ -99,16 +106,22 @@ export function CommandCatalogForm({
     // Straight to the gated `execute_command` (never the ungated MCP route). `confirmed` is
     // true only on the retry the user approved in ConfirmRunDialog.
     const run = async (path: string[], args: Record<string, unknown>, confirmed?: boolean) => {
+        if (running) return;
+        const token = ++runToken.current;
+        setRunning(true);
         try {
             const res = await voxTransport.executeCommand(path, args, { confirmed });
-            setOutput({ success: true, data: res });
+            if (token === runToken.current) setOutput({ success: true, data: res });
         } catch (err) {
+            if (token !== runToken.current) return;
             const id = confirmationRequiredId(err);
             if (id) {
-                setPendingConfirm({ id, args });
+                setPendingConfirm({ id, path, args });
                 return;
             }
             setOutput({ error: sanitizeErrorForToast(err) });
+        } finally {
+            if (token === runToken.current) setRunning(false);
         }
     };
 
@@ -244,9 +257,11 @@ export function CommandCatalogForm({
 
                         <button 
                             onClick={handleExecute}
-                            className="bg-primary text-void font-bold px-4 py-2 rounded-sm uppercase tracking-widest hover:bg-cyan/80 transition-colors"
+                            disabled={running}
+                            aria-busy={running}
+                            className="bg-primary text-void font-bold px-4 py-2 rounded-sm uppercase tracking-widest hover:bg-cyan/80 transition-colors disabled:opacity-60 disabled:cursor-wait"
                         >
-                            Run
+                            {running ? 'Running…' : 'Run'}
                         </button>
 
                         {output && (
@@ -283,14 +298,14 @@ export function CommandCatalogForm({
                 )}
             </div>
             <ConfirmRunDialog
-                open={pendingConfirm !== null && currentCommand !== undefined}
-                commandText={`vox ${selectedPath ?? ''}`}
+                open={pendingConfirm !== null}
+                commandText={`vox ${pendingConfirm?.path.join(' ') ?? ''}`}
                 rowId={pendingConfirm?.id ?? ''}
                 onCancel={() => setPendingConfirm(null)}
                 onConfirm={() => {
                     const p = pendingConfirm;
                     setPendingConfirm(null);
-                    if (p && currentCommand) void run(currentCommand.path, p.args, true);
+                    if (p) void run(p.path, p.args, true);
                 }}
             />
         </div>
