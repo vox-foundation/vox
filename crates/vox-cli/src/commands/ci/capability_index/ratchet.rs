@@ -30,7 +30,7 @@ fn side_effect_ids(index: &CapabilityIndex) -> BTreeSet<String> {
     index
         .rows
         .iter()
-        .filter(|r| r.kind == RowKind::Cli && r.side_effect_class.is_some() && r.title.is_empty())
+        .filter(|r| r.kind == RowKind::Cli && r.side_effect_class.is_none())
         .map(|r| r.id.clone())
         .collect()
 }
