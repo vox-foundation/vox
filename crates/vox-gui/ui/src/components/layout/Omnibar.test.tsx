@@ -5,6 +5,7 @@ import React from 'react';
 import { clearSearchableRegistry, registerSearchable } from '../../lib/searchableRegistry';
 
 const invokeMcpTool = vi.fn();
+const indexState = vi.hoisted(() => ({ loading: false }));
 vi.mock('../../transport', () => ({
   voxTransport: {
     voxDocsIndex: vi.fn().mockResolvedValue([]),
@@ -67,8 +68,13 @@ vi.mock('../../hooks/useContentManifest', () => ({
 vi.mock('../../hooks/useCapabilityIndex', async () => {
   const { CAPABILITY_FIXTURE } = await import('../../test-fixtures/capabilityIndexFixture');
   const { toRankEntries } = await import('../../lib/capabilityRank');
-  const value = { rows: CAPABILITY_FIXTURE, entries: toRankEntries(CAPABILITY_FIXTURE), domains: [], loading: false, error: null };
-  return { useCapabilityIndex: () => value };
+  const value = {
+    rows: CAPABILITY_FIXTURE,
+    entries: toRankEntries(CAPABILITY_FIXTURE),
+    domains: [{ id: 'compiler', label: 'Compiler' }],
+    error: null,
+  };
+  return { useCapabilityIndex: () => ({ ...value, loading: indexState.loading }) };
 });
 
 import { Omnibar } from './Omnibar';
@@ -94,20 +100,20 @@ function renderOmnibar(overrides: Partial<React.ComponentProps<typeof Omnibar>> 
 describe('Omnibar', () => {
   beforeEach(() => {
     clearSearchableRegistry();
+    indexState.loading = false;
     invokeMcpTool.mockReset();
     // master-spec discover shape: { result: { results: [...] } } (NOT `neighbors`).
     invokeMcpTool.mockResolvedValue({ result: { results: [] } });
   });
 
-  it('renders SURFACES and ON-SCREEN facets from federated + manifest', async () => {
-    // Reconciled to real behavior: the federated mock filters by query, and the
-    // manifest heading "3 pending approvals" contains "approvals". Querying
-    // "approvals" surfaces the federated "Approvals" row AND the manifest
-    // on-screen copy. (The plan's draft used "pending", which the federated mock
-    // would not match against the "Approvals" label.)
+  it('renders the index surface row (Best match) and the ON-SCREEN facet from the manifest', async () => {
+    // D-05: the Approvals surface row comes from the capability index, not the federated source
+    // (the federated mock still offers one; it must not render a second row). The manifest
+    // heading "3 pending approvals" still feeds On Screen.
     renderOmnibar();
     fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: 'approvals' } });
-    await waitFor(() => expect(screen.getByText('Approvals')).toBeTruthy());
+    await waitFor(() => expect(screen.getAllByText('Approvals')).toHaveLength(1));
+    expect(screen.getByText('Best match')).toBeTruthy();
     expect(screen.getByText('3 pending approvals')).toBeTruthy();
     expect(screen.getByText(/On Screen/i)).toBeTruthy();
   });
@@ -116,7 +122,7 @@ describe('Omnibar', () => {
     const onNavigate = vi.fn();
     renderOmnibar({ onNavigate });
     fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: 'approvals' } });
-    await waitFor(() => expect(screen.getByText('Approvals')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('Best match')).toBeTruthy());
     fireEvent.keyDown(window, { key: 'Enter' });
     expect(onNavigate).toHaveBeenCalledWith('approvals', undefined);
   });
@@ -191,5 +197,50 @@ describe('Omnibar', () => {
     fireEvent.keyDown(window, { key: 'Enter' });
     expect(onOpenCatalogForm).toHaveBeenCalledWith(['check']);
     expect(onRunCommand).not.toHaveBeenCalled();
+  });
+
+  it('typing "capability" shows Best match plus a Tools & crates facet with MCP and CLI chips; Enter explains the best row', async () => {
+    const onExplain = vi.fn();
+    renderOmnibar({ onExplain });
+    fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: 'capability' } });
+    await screen.findByText('Best match');
+    expect(screen.getByText('Tools & crates')).toBeTruthy();
+    const best = screen.getByText('vox_capability_explain').closest('button') as HTMLElement;
+    const other = screen.getByText('vox_capability_features').closest('button') as HTMLElement;
+    expect(best.previousElementSibling?.textContent).toContain('Best match');
+    expect(other.textContent).toContain('MCP');
+    expect(other.textContent).toContain('CLI');
+    fireEvent.keyDown(window, { key: 'Enter' });
+    expect(onExplain).toHaveBeenCalledWith('mcp.vox_capability_explain');
+  });
+
+  it('# mode shows only crate rows', async () => {
+    renderOmnibar();
+    fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: '#vox-actor' } });
+    await screen.findByText('vox-actor-runtime');
+    expect(screen.queryByText('Surfaces')).toBeNull();
+    expect(screen.queryByText('Commands')).toBeNull();
+    expect(screen.queryByText('Tools & crates')).toBeNull(); // the lone crate is the Best match
+  });
+
+  it('is an accessible dialog and marks the keyboard-selected row with aria-current', async () => {
+    renderOmnibar();
+    expect(screen.getByRole('dialog', { name: 'Command palette' }).getAttribute('aria-modal')).toBe('true');
+    fireEvent.change(screen.getByLabelText('Search Vox'), { target: { value: 'approvals' } });
+    await screen.findByText('Best match');
+    fireEvent.keyDown(window, { key: 'ArrowDown' });
+    const rows = screen.getAllByRole('button').filter((b) => b.getAttribute('aria-current') === 'true');
+    expect(rows).toHaveLength(1);
+    expect(rows[0].textContent).toContain('Approvals');
+  });
+
+  it('announces loading in a polite status region and suppresses "No matches" meanwhile', async () => {
+    indexState.loading = true;
+    renderOmnibar();
+    fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: 'zzzz-nothing' } });
+    const status = await screen.findByRole('status');
+    expect(status.getAttribute('aria-live')).toBe('polite');
+    expect(status.textContent).toContain('Loading capability index…');
+    expect(screen.queryByText(/No matches/)).toBeNull();
   });
 });
