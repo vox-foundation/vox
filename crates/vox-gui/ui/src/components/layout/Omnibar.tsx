@@ -8,6 +8,8 @@ import { parsePaletteQuery, type PalettePrefixMode } from './paletteSources';
 import type { FederatedIndexKind } from '../../lib/federatedSearchIndex';
 import { useSearchController } from '../../hooks/useSearchController';
 import { useFederatedSearchIndex } from '../../hooks/useFederatedSearchIndex';
+import { useCapabilityIndex } from '../../hooks/useCapabilityIndex';
+import { rankCapabilities, toRankEntries } from '../../lib/capabilityRank';
 import { useContentManifest } from '../../hooks/useContentManifest';
 import { querySearchableRegistry } from '../../lib/searchableRegistry';
 import {
@@ -49,11 +51,11 @@ function federatedKindsForMode(mode: PalettePrefixMode): FederatedIndexKind[] {
     case 'skills':
       return ['doc', 'skill'];
     case 'commands':
-      return ['command', 'action'];
+      return ['action'];
     case 'agents':
       return [];
     default:
-      return ['surface', 'setting', 'policy', 'command', 'action', 'doc'];
+      return ['surface', 'setting', 'policy', 'action', 'doc'];
   }
 }
 
@@ -94,6 +96,8 @@ interface OmnibarProps {
   onSendToChat: (query: string) => void;
   onOpenDoc: (path: string) => void;
   onSubmitTask: () => void;
+  /** Open the Catalog surface with this CLI path selected (D-01: never executes). */
+  onOpenCatalogForm?: (path: string[]) => void;
   agents: Agent[];
   skills: CommandCatalogEntry[];
   gamifyEnabled?: boolean;
@@ -127,6 +131,7 @@ export function Omnibar({
   onSendToChat,
   onOpenDoc,
   onSubmitTask,
+  onOpenCatalogForm,
   agents,
   skills,
   gamifyEnabled = false,
@@ -193,6 +198,17 @@ export function Omnibar({
     [searchFederated, effectiveQ, fedKinds],
   );
 
+  // Capability index (D-06): loaded lazily on the first open; cli rows feed Commands (D-05).
+  const { rows: indexRows, loading: indexLoading, error: indexError } = useCapabilityIndex(open);
+  const rankEntries = useMemo(() => toRankEntries(indexRows), [indexRows]);
+  const indexHits = useMemo(
+    () =>
+      prefixMode === 'default' || prefixMode === 'commands'
+        ? rankCapabilities(rankEntries, effectiveQ, { kinds: ['cli'] })
+        : [],
+    [rankEntries, effectiveQ, prefixMode],
+  );
+
   const manifest = useContentManifest();
   const runtimeHits = useMemo(
     () => (effectiveQ.trim() ? querySearchableRegistry(effectiveQ) : []),
@@ -240,6 +256,7 @@ export function Omnibar({
       manifest,
       runtimeHits,
       graph,
+      indexHits,
     });
     // Carry agents into the COMMANDS facet (finding #5) without re-capping below
     // FACET_CAP would drop real commands — agents lead, then existing commands.
@@ -253,7 +270,7 @@ export function Omnibar({
         ? { ...f, rows: [...withSubmitTask, ...f.rows] }
         : f,
     );
-  }, [effectiveQ, prefixMode, federated, backendHits, manifest, runtimeHits, graph, agentRows]);
+  }, [effectiveQ, prefixMode, federated, backendHits, manifest, runtimeHits, graph, agentRows, indexHits]);
   const rows = useMemo(() => omnibarRowsInOrder(facets), [facets]);
 
   const activateRow = useCallback(
@@ -268,6 +285,9 @@ export function Omnibar({
           break;
         case 'doc':
           onOpenDoc(row.activate.path);
+          break;
+        case 'cli':
+          onOpenCatalogForm?.(row.activate.path);
           break;
         case 'graph':
           if (row.activate.node.viewKey) onNavigate(row.activate.node.viewKey);
@@ -304,7 +324,7 @@ export function Omnibar({
       }
       onClose();
     },
-    [onNavigate, onRunCommand, onOpenDoc, onSubmitTask, onClose, gamifyEnabled],
+    [onNavigate, onRunCommand, onOpenDoc, onOpenCatalogForm, onSubmitTask, onClose, gamifyEnabled],
   );
 
   const expandGraphNeighbors = useCallback((row: OmnibarRow) => {
@@ -439,7 +459,17 @@ export function Omnibar({
                         }`}
                       >
                         <div className="flex flex-col min-w-0">
-                          <span className="text-[13px] text-text-secondary truncate max-w-[460px]">{row.label}</span>
+                          <span className="flex items-center gap-1.5">
+                            <span className="text-[13px] text-text-secondary truncate max-w-[360px]">{row.label}</span>
+                            {row.chips?.interfaces.map((chip) => (
+                              <span
+                                key={chip}
+                                className="shrink-0 rounded-sm border border-border-subtle bg-overlay-subtle px-1 py-px font-mono text-[9px] tracking-widest text-text-muted"
+                              >
+                                {chip}
+                              </span>
+                            ))}
+                          </span>
                           {row.detail ? (
                             <span className="text-[11px] text-text-muted truncate max-w-[460px]">{row.detail}</span>
                           ) : null}
@@ -455,7 +485,18 @@ export function Omnibar({
             );
           })}
 
-          {q.length > 0 && rows.length === 0 && !facets.some((f) => f.error) && (
+          {q.trim().length > 0 && indexLoading && (
+            <div aria-live="polite" className="px-3 py-2 text-[11px] text-text-muted italic">
+              Loading capability index…
+            </div>
+          )}
+          {indexError && (
+            <div className="px-3 py-2 text-[11px] text-text-muted italic">
+              Capability index unavailable — {indexError}
+            </div>
+          )}
+
+          {q.length > 0 && rows.length === 0 && !indexLoading && !facets.some((f) => f.error) && (
             <div className="px-3 py-6 text-center text-[12px] text-text-muted">
               No matches for "{q}" — press ⇧⏎ to ask chat
             </div>

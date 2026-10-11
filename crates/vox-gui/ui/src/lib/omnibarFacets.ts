@@ -9,6 +9,8 @@ import type { FederatedIndexEntry } from './federatedSearchIndex';
 import type { UnifiedHit } from '../components/surfaces/Search/searchHelpers';
 import type { ContentManifestEntry } from '../hooks/useContentManifest';
 import type { SearchableHit } from './searchableRegistry';
+import type { CapabilityIndexEntry } from '../generated/capabilityIndex.generated';
+import type { RankHit } from './capabilityRank';
 
 export const FACET_CAP = 6;
 
@@ -60,11 +62,26 @@ export interface OmnibarSources {
   manifest: ContentManifestEntry[];
   runtimeHits: SearchableHit[];
   graph: OmnibarGraphResult;
+  /** Ranked capability-index hits (cli rows feed Commands). */
+  indexHits?: RankHit[];
+}
+
+export type InterfaceChip = 'CLI' | 'GUI' | 'MCP';
+
+/** D-09: every interface a capability row is reachable through. */
+export function interfaceChips(row: CapabilityIndexEntry): InterfaceChip[] {
+  const chips: InterfaceChip[] = [];
+  if (row.cli || row.equivalents.some((e) => e.startsWith('cli.'))) chips.push('CLI');
+  if (row.viewKey || row.catalogForm) chips.push('GUI');
+  if (row.mcp || row.equivalents.some((e) => e.startsWith('mcp.'))) chips.push('MCP');
+  return chips;
 }
 
 export type OmnibarActivation =
   | { type: 'navigate'; viewKey: string; anchorId?: string }
   | { type: 'command'; command: string }
+  /** Open the Catalog form for an index CLI row (nothing is executed). */
+  | { type: 'cli'; rowId: string; path: string[] }
   | { type: 'doc'; path: string }
   | { type: 'graph'; node: GraphNeighbor }
   // finding #5: carry CommandPalette's agents/skills/settings/policies arms so
@@ -82,6 +99,7 @@ export interface OmnibarRow {
   detail: string;
   provenance: Provenance;
   activate: OmnibarActivation;
+  chips?: { interfaces: InterfaceChip[] };
 }
 
 export interface OmnibarFacet {
@@ -206,6 +224,20 @@ export function buildOmnibarFacets(src: OmnibarSources): OmnibarFacet[] {
         activate: { type: 'skill', skillId: e.payload.skillId },
       });
     }
+  }
+
+  // Capability-index CLI rows (D-05: these replace the federated command rows).
+  for (const h of src.indexHits ?? []) {
+    if (h.row.kind !== 'cli' || !h.row.cli) continue;
+    commandRows.push({
+      id: `index:${h.row.id}`,
+      facet: 'commands',
+      label: h.row.cli,
+      detail: h.row.summary ?? h.row.title,
+      provenance: 'corpus',
+      activate: { type: 'cli', rowId: h.row.id, path: h.row.cli.split(' ').slice(1) },
+      chips: { interfaces: interfaceChips(h.row) },
+    });
   }
 
   // ON SCREEN — runtime registry hits + manifest copy/headings.
