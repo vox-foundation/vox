@@ -66,6 +66,7 @@ import { useAttentionInbox } from './hooks/useAttentionInbox';
 import { useNoticeCenter } from './hooks/useNoticeCenter';
 import { noticeFromToast, noticeFromAgentEvent, type SeverityFrame } from './lib/notices';
 import { useKeybinds, useKeybindings, useShortcutHelpKey } from './hooks/useKeybinds';
+import { isMacPlatform, paletteActionRows } from './lib/keybinds';
 import { ShortcutSheet } from './components/layout/ShortcutSheet';
 import { type UnlistenFn } from '@tauri-apps/api/event';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -1687,6 +1688,12 @@ export default function App() {
     // palette action rows (06.3-11) list only ids present in this map.
   }), []);
   useKeybinds(actionHandlers, bindings);
+  // D-13/D-17: palette rows come from the live store (`bindings`), so a rebind shows without restart.
+  // dispatch-intent is excluded: it submits the composer and has no App handler (still in the sheet).
+  const paletteActions = useMemo(
+    () => paletteActionRows(bindings, new Set(Object.keys(actionHandlers)), isMacPlatform()),
+    [bindings, actionHandlers],
+  );
   useShortcutHelpKey(useCallback(() => setShortcutsOpen(true), []));
 
 
@@ -2046,6 +2053,8 @@ export default function App() {
 
       <Omnibar
         open={isCommandOpen}
+        actions={paletteActions}
+        onRunAction={(id) => actionHandlers[id as keyof typeof actionHandlers]?.()}
         onClose={() => setIsCommandOpen(false)}
         onNavigate={(vk, anchorId) => {
           navigateTo(vk);

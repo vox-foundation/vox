@@ -304,6 +304,7 @@ export function Omnibar({
       indexHits,
       domains,
       installedSkillNames,
+      actions,
     });
     // Carry agents into the COMMANDS facet (finding #5) without re-capping below
     // FACET_CAP would drop real commands — agents lead, then existing commands.
@@ -317,7 +318,7 @@ export function Omnibar({
         ? { ...f, rows: [...withSubmitTask, ...f.rows], total: f.total + withSubmitTask.length }
         : f,
     );
-  }, [effectiveQ, prefixMode, federated, backendHits, manifest, runtimeHits, graph, agentRows, indexHits, domains, installedSkillNames]);
+  }, [effectiveQ, prefixMode, federated, backendHits, manifest, runtimeHits, graph, agentRows, indexHits, domains, installedSkillNames, actions]);
   const rows = useMemo(() => omnibarRowsInOrder(facets), [facets]);
 
   const activateRow = useCallback(
@@ -376,10 +377,15 @@ export function Omnibar({
         case 'submit-task':
           onSubmitTask();
           break;
+        case 'action':
+          // Close first so an overlay action (sheet, inspector) is not dismissed by the close.
+          onClose();
+          onRunAction?.(row.activate.actionId);
+          return;
       }
       onClose();
     },
-    [onNavigate, onRunCommand, onOpenDoc, onOpenCatalogForm, onExplain, onRunCli, cliDecision, onSubmitTask, onClose, gamifyEnabled],
+    [onNavigate, onRunCommand, onOpenDoc, onOpenCatalogForm, onExplain, onRunCli, cliDecision, onSubmitTask, onRunAction, onClose, gamifyEnabled],
   );
 
   const expandGraphNeighbors = useCallback((row: OmnibarRow) => {
@@ -562,6 +568,11 @@ export function Omnibar({
                                   {chip}
                                 </span>
                               ))}
+                              {row.chips?.chord ? (
+                                <kbd className="shrink-0 rounded-sm border border-border-subtle bg-overlay-subtle px-1 py-px font-mono text-[10px] text-text-muted">
+                                  {row.chips.chord}
+                                </kbd>
+                              ) : null}
                               {row.chips?.domain ? (
                                 <span className="shrink-0 rounded-sm border border-brass/20 px-1 py-px text-[9px] text-text-muted">
                                   {row.chips.domain}

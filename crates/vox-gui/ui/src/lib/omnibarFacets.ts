@@ -246,6 +246,35 @@ export function buildOmnibarFacets(input: OmnibarSources): OmnibarFacet[] {
   // policies / installed skills / index-only skills (finding #5: never silently lose them).
   const commandRows: OmnibarRow[] = [];
   const cliPaths = new Set<string>();
+  // Keybind actions (D-13): shortcut rows lead the facet. Tier = shared match tier; the sort is
+  // stable, so ties keep ACTION_REGISTRY order (equal chords stay separate rows).
+  // Default and `>` modes only; the `#` (D-10), `/` and `@` lanes are silent.
+  const qa = src.query.trim().toLowerCase();
+  if (qa && (!src.prefixMode || src.prefixMode === 'default' || src.prefixMode === 'commands')) {
+    const tierOf = (a: { id: string; label: string; chord: string }) => {
+      const fields = [a.label, a.id, a.chord].map((f) => f.toLowerCase());
+      if (fields.some((f) => f === qa)) return 0;
+      if (fields.some((f) => f.startsWith(qa))) return 1;
+      return fields.some((f) => f.includes(qa)) ? 2 : -1;
+    };
+    (src.actions ?? [])
+      .map((a) => ({ a, tier: tierOf(a) }))
+      .filter((x) => x.tier >= 0)
+      .sort((x, y) => x.tier - y.tier)
+      .forEach(({ a, tier }) =>
+        commandRows.push({
+          id: `action:key.${a.id}`,
+          facet: 'commands',
+          label: a.label,
+          detail: 'Keyboard shortcut',
+          provenance: 'corpus',
+          activate: { type: 'action', actionId: a.id },
+          kind: 'action',
+          chips: { interfaces: ['GUI'], chord: a.chord },
+          rank: { tier, score: 1 },
+        }),
+      );
+  }
   for (const h of indexHits) {
     const r = h.row;
     if (r.kind !== 'cli' || !r.cli) continue;
