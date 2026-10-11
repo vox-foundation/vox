@@ -868,6 +868,18 @@ fn check_output_mode(output_mode: Option<&str>) -> Result<()> {
     }
 }
 
+/// Logit indices best-first, truncated to `top_k` (0 = all). Ties rank by
+/// ascending token index, a total order, so the ranking (and therefore a seeded
+/// draw) never depends on sort-algorithm internals.
+fn ranked_logits(logits: &[f32], top_k: usize) -> Vec<(usize, f32)> {
+    let mut ranked: Vec<(usize, f32)> = logits.iter().copied().enumerate().collect();
+    ranked.sort_unstable_by(|a, b| b.1.total_cmp(&a.1).then(a.0.cmp(&b.0)));
+    if top_k > 0 {
+        ranked.truncate(top_k);
+    }
+    ranked
+}
+
 /// The sampler's rng: `StdRng::seed_from_u64(seed)` when the request carries a
 /// seed (reproducible draws, BENCH-02 / D-12), entropy-seeded otherwise.
 fn generation_rng(seed: Option<u64>) -> rand::rngs::StdRng {
@@ -903,11 +915,7 @@ fn sample_next_token(
         return argmax(logits);
     }
 
-    let mut ranked: Vec<(usize, f32)> = logits.iter().copied().enumerate().collect();
-    ranked.sort_unstable_by(|a, b| b.1.total_cmp(&a.1));
-    if top_k > 0 {
-        ranked.truncate(top_k);
-    }
+    let mut ranked = ranked_logits(logits, top_k);
 
     // Softmax over the kept logits, shifted by the max for numerical stability.
     let max = ranked[0].1;
@@ -921,6 +929,26 @@ fn sample_next_token(
     }
     for p in &mut probs {
         *p /= sum;
+    }
+
+    // Nucleus: keep the shortest best-first prefix whose mass reaches `top_p`
+    // (always at least one token), then renormalize. A non-finite or
+    // non-positive `top_p` means "no filter", never "keep nothing".
+    if top_p.is_finite() && top_p > 0.0 && top_p < 1.0 {
+        let mut cum = 0.0;
+        let keep = probs
+            .iter()
+            .position(|p| {
+                cum += p;
+                cum >= top_p
+            })
+            .map_or(probs.len(), |i| i + 1);
+        ranked.truncate(keep);
+        probs.truncate(keep);
+        let kept: f64 = probs.iter().sum();
+        for p in &mut probs {
+            *p /= kept;
+        }
     }
 
     let mut draw = rng.r#gen::<f64>();
@@ -1088,6 +1116,7 @@ mod tests {
     use super::assemble_prompt;
     use super::check_output_mode;
     use super::generation_rng;
+    use super::ranked_logits;
     use super::resolve_adapter_manifest_path;
     use super::sample_next_token;
     use super::weight_sources;
@@ -1461,6 +1490,56 @@ mod tests {
                 "must not invent a stop token from {absent}"
             );
         }
+    }
+
+    #[test]
+    fn top_p_tiny_keeps_only_the_argmax() {
+        let mut rng = generation_rng(Some(1));
+        let logits = [0.5f32, 2.0, 1.5, 1.0];
+        for _ in 0..200 {
+            assert_eq!(sample_next_token(&logits, 1.0, 0, 1e-6, &mut rng), 1);
+        }
+    }
+
+    #[test]
+    fn top_p_keeps_the_smallest_prefix_reaching_the_mass() {
+        // probs 0.5 / 0.3 / 0.2: top_p 0.7 needs 0.5 + 0.3, so index 2 is never drawn.
+        let logits = [0.5f32.ln(), 0.3f32.ln(), 0.2f32.ln()];
+        let mut rng = generation_rng(Some(2));
+        let mut seen = [false; 3];
+        for _ in 0..400 {
+            seen[sample_next_token(&logits, 1.0, 0, 0.7, &mut rng) as usize] = true;
+        }
+        assert_eq!(seen, [true, true, false]);
+    }
+
+    #[test]
+    fn top_p_one_matches_unfiltered() {
+        let logits: Vec<f32> = (0..32).map(|i| (i % 7) as f32 * 0.2).collect();
+        let draw = |top_p: f64| -> Vec<u32> {
+            let mut rng = generation_rng(Some(5));
+            (0..64)
+                .map(|_| sample_next_token(&logits, 1.0, 0, top_p, &mut rng))
+                .collect()
+        };
+        let unfiltered = draw(1.0);
+        // Non-finite and non-positive masses are treated as 1.0, never as "keep nothing".
+        for top_p in [f64::NAN, f64::INFINITY, 0.0, -1.0, 1.5] {
+            assert_eq!(draw(top_p), unfiltered, "top_p {top_p}");
+        }
+    }
+
+    #[test]
+    fn equal_logits_rank_by_token_index() {
+        let ranked = ranked_logits(&[2.0, 5.0, 5.0, 1.0, 5.0], 0);
+        let order: Vec<usize> = ranked.iter().map(|r| r.0).collect();
+        assert_eq!(order, [1, 2, 4, 0, 3]);
+        let logits = [2.0f32, 5.0, 5.0, 1.0];
+        let mut rng = generation_rng(Some(3));
+        assert_eq!(sample_next_token(&logits, 1.0, 1, 1.0, &mut rng), 1);
+        assert_eq!(sample_next_token(&logits, 0.0, 0, 1.0, &mut rng), 1);
+        let kept: Vec<usize> = ranked_logits(&logits, 2).iter().map(|r| r.0).collect();
+        assert_eq!(kept, [1, 2]);
     }
 
     #[test]

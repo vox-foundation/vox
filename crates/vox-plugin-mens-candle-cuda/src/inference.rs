@@ -420,6 +420,10 @@ impl InferenceEngine {
     ///   - `"max_tokens"`: integer (default 256)
     ///   - `"temperature"`: float (default 1.0; `<= 0` forces greedy)
     ///   - `"top_k"`: integer (default 0 = full vocabulary; `1` forces greedy)
+    ///   - `"top_p"`: float nucleus mass (default absent = 1.0, no filtering)
+    ///   - `"seed"`: integer; sampling draws from `StdRng::seed_from_u64(seed)`
+    ///     so equal seeds over equal logits give equal tokens (default absent =
+    ///     entropy-seeded)
     ///   - `"output_mode"`: optional structured-output label — see
     ///     `check_output_mode` for what this plugin does and does not enforce.
     pub fn generate_from_json(&mut self, prompt_json: &str) -> Result<String> {
@@ -434,6 +438,12 @@ impl InferenceEngine {
             temperature: f64,
             #[serde(default)]
             top_k: usize,
+            /// Nucleus mass; absent or `>= 1.0` leaves sampling unfiltered.
+            #[serde(default)]
+            top_p: Option<f64>,
+            /// Sampler seed; absent keeps entropy-seeded sampling.
+            #[serde(default)]
+            seed: Option<u64>,
             #[serde(default)]
             output_mode: Option<String>,
         }
@@ -451,7 +461,14 @@ impl InferenceEngine {
 
         let prompt = assemble_prompt(req.system.as_deref(), &req.prompt);
 
-        let generated = self.generate(&prompt, req.max_tokens, req.temperature, req.top_k)?;
+        let generated = self.generate(
+            &prompt,
+            req.max_tokens,
+            req.temperature,
+            req.top_k,
+            req.top_p,
+            req.seed,
+        )?;
 
         let out = serde_json::json!({
             "generated_text": generated,
@@ -467,6 +484,8 @@ impl InferenceEngine {
         max_tokens: usize,
         temperature: f64,
         top_k: usize,
+        top_p: Option<f64>,
+        seed: Option<u64>,
     ) -> Result<String> {
         let mut tokens = self
             .tokenizer
@@ -476,7 +495,7 @@ impl InferenceEngine {
             .to_vec();
 
         let mut generated = String::new();
-        let mut rng = rand::thread_rng();
+        let mut rng = generation_rng(seed);
 
         // Decoding without KV cache — re-runs the full context each step.
         // KV-cache autoregressive generation requires forward_with_cache which is
@@ -493,7 +512,8 @@ impl InferenceEngine {
             let logits = logits.narrow(0, seq.saturating_sub(1), 1)?.squeeze(0)?;
 
             let slice = logits.to_vec1::<f32>()?;
-            let next_token = sample_next_token(&slice, temperature, top_k, &mut rng);
+            let next_token =
+                sample_next_token(&slice, temperature, top_k, top_p.unwrap_or(1.0), &mut rng);
 
             // EOS tokens for Qwen family: 151645 (<|im_end|>), 151643 (<|endoftext|>)
             if next_token == 151645 || next_token == 151643 {
@@ -655,6 +675,28 @@ fn check_output_mode(output_mode: Option<&str>) -> Result<()> {
     }
 }
 
+/// Logit indices best-first, truncated to `top_k` (0 = all). Ties rank by
+/// ascending token index, a total order, so the ranking (and therefore a seeded
+/// draw) never depends on sort-algorithm internals.
+fn ranked_logits(logits: &[f32], top_k: usize) -> Vec<(usize, f32)> {
+    let mut ranked: Vec<(usize, f32)> = logits.iter().copied().enumerate().collect();
+    ranked.sort_unstable_by(|a, b| b.1.total_cmp(&a.1).then(a.0.cmp(&b.0)));
+    if top_k > 0 {
+        ranked.truncate(top_k);
+    }
+    ranked
+}
+
+/// The sampler's rng: `StdRng::seed_from_u64(seed)` when the request carries a
+/// seed (reproducible draws, BENCH-02 / D-12), entropy-seeded otherwise.
+fn generation_rng(seed: Option<u64>) -> rand::rngs::StdRng {
+    use rand::SeedableRng;
+    match seed {
+        Some(s) => rand::rngs::StdRng::seed_from_u64(s),
+        None => rand::rngs::StdRng::from_entropy(),
+    }
+}
+
 /// Pick the next token: greedy unless both a positive temperature and a top-k
 /// wider than one ask for sampling.
 ///
@@ -665,6 +707,7 @@ fn sample_next_token(
     logits: &[f32],
     temperature: f64,
     top_k: usize,
+    top_p: f64,
     rng: &mut impl rand::Rng,
 ) -> u32 {
     let argmax = |v: &[f32]| -> u32 {
@@ -679,11 +722,7 @@ fn sample_next_token(
         return argmax(logits);
     }
 
-    let mut ranked: Vec<(usize, f32)> = logits.iter().copied().enumerate().collect();
-    ranked.sort_unstable_by(|a, b| b.1.total_cmp(&a.1));
-    if top_k > 0 {
-        ranked.truncate(top_k);
-    }
+    let mut ranked = ranked_logits(logits, top_k);
 
     // Softmax over the kept logits, shifted by the max for numerical stability.
     let max = ranked[0].1;
@@ -697,6 +736,26 @@ fn sample_next_token(
     }
     for p in &mut probs {
         *p /= sum;
+    }
+
+    // Nucleus: keep the shortest best-first prefix whose mass reaches `top_p`
+    // (always at least one token), then renormalize. A non-finite or
+    // non-positive `top_p` means "no filter", never "keep nothing".
+    if top_p.is_finite() && top_p > 0.0 && top_p < 1.0 {
+        let mut cum = 0.0;
+        let keep = probs
+            .iter()
+            .position(|p| {
+                cum += p;
+                cum >= top_p
+            })
+            .map_or(probs.len(), |i| i + 1);
+        ranked.truncate(keep);
+        probs.truncate(keep);
+        let kept: f64 = probs.iter().sum();
+        for p in &mut probs {
+            *p /= kept;
+        }
     }
 
     let mut draw = rng.r#gen::<f64>();
@@ -743,8 +802,8 @@ pub fn run(model_dir: &str, prompt_json: &str) -> Result<String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        assemble_prompt, check_output_mode, compute_dtype_for_device,
-        resolve_adapter_manifest_path, sample_next_token, weight_sources,
+        assemble_prompt, check_output_mode, compute_dtype_for_device, generation_rng,
+        ranked_logits, resolve_adapter_manifest_path, sample_next_token, weight_sources,
     };
     use vox_plugin_mens_candle_core::weight_resolution::adapter_deltas_must_be_folded;
 
@@ -1023,11 +1082,74 @@ mod tests {
     }
 
     #[test]
+    fn top_p_tiny_keeps_only_the_argmax() {
+        let mut rng = generation_rng(Some(1));
+        let logits = [0.5f32, 2.0, 1.5, 1.0];
+        for _ in 0..200 {
+            assert_eq!(sample_next_token(&logits, 1.0, 0, 1e-6, &mut rng), 1);
+        }
+    }
+
+    #[test]
+    fn top_p_keeps_the_smallest_prefix_reaching_the_mass() {
+        // probs 0.5 / 0.3 / 0.2: top_p 0.7 needs 0.5 + 0.3, so index 2 is never drawn.
+        let logits = [0.5f32.ln(), 0.3f32.ln(), 0.2f32.ln()];
+        let mut rng = generation_rng(Some(2));
+        let mut seen = [false; 3];
+        for _ in 0..400 {
+            seen[sample_next_token(&logits, 1.0, 0, 0.7, &mut rng) as usize] = true;
+        }
+        assert_eq!(seen, [true, true, false]);
+    }
+
+    #[test]
+    fn top_p_one_matches_unfiltered() {
+        let logits: Vec<f32> = (0..32).map(|i| (i % 7) as f32 * 0.2).collect();
+        let draw = |top_p: f64| -> Vec<u32> {
+            let mut rng = generation_rng(Some(5));
+            (0..64)
+                .map(|_| sample_next_token(&logits, 1.0, 0, top_p, &mut rng))
+                .collect()
+        };
+        let unfiltered = draw(1.0);
+        // Non-finite and non-positive masses are treated as 1.0, never as "keep nothing".
+        for top_p in [f64::NAN, f64::INFINITY, 0.0, -1.0, 1.5] {
+            assert_eq!(draw(top_p), unfiltered, "top_p {top_p}");
+        }
+    }
+
+    #[test]
+    fn equal_logits_rank_by_token_index() {
+        let ranked = ranked_logits(&[2.0, 5.0, 5.0, 1.0, 5.0], 0);
+        let order: Vec<usize> = ranked.iter().map(|r| r.0).collect();
+        assert_eq!(order, [1, 2, 4, 0, 3]);
+        let logits = [2.0f32, 5.0, 5.0, 1.0];
+        let mut rng = generation_rng(Some(3));
+        assert_eq!(sample_next_token(&logits, 1.0, 1, 1.0, &mut rng), 1);
+        assert_eq!(sample_next_token(&logits, 0.0, 0, 1.0, &mut rng), 1);
+        let kept: Vec<usize> = ranked_logits(&logits, 2).iter().map(|r| r.0).collect();
+        assert_eq!(kept, [1, 2]);
+    }
+
+    #[test]
+    fn seeded_generation_rng_is_reproducible() {
+        let logits: Vec<f32> = (0..32).map(|i| (i % 5) as f32 * 0.1).collect();
+        let draw = |seed: u64| -> Vec<u32> {
+            let mut rng = generation_rng(Some(seed));
+            (0..64)
+                .map(|_| sample_next_token(&logits, 1.0, 0, 1.0, &mut rng))
+                .collect()
+        };
+        assert_eq!(draw(42), draw(42), "equal seeds must give equal tokens");
+        assert_ne!(draw(42), draw(43), "different seeds must differ");
+    }
+
+    #[test]
     fn top_k_of_one_and_zero_temperature_stay_greedy() {
         let mut rng = rand::thread_rng();
         let logits = [0.1f32, 9.0, 0.2, 0.3];
-        assert_eq!(sample_next_token(&logits, 1.0, 1, &mut rng), 1);
-        assert_eq!(sample_next_token(&logits, 0.0, 40, &mut rng), 1);
+        assert_eq!(sample_next_token(&logits, 1.0, 1, 1.0, &mut rng), 1);
+        assert_eq!(sample_next_token(&logits, 0.0, 40, 1.0, &mut rng), 1);
     }
 
     #[test]
@@ -1036,7 +1158,7 @@ mod tests {
         // Index 3 is the runner-up; index 0 and 2 must never be drawn at k=2.
         let logits = [0.0f32, 5.0, 0.0, 4.9];
         for _ in 0..200 {
-            let t = sample_next_token(&logits, 1.0, 2, &mut rng);
+            let t = sample_next_token(&logits, 1.0, 2, 1.0, &mut rng);
             assert!(t == 1 || t == 3, "top_k=2 drew outside the top 2: {t}");
         }
     }
