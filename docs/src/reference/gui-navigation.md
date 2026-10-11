@@ -111,15 +111,23 @@ Three entry points share one federated index (`useFederatedSearchIndex` + backen
 
 | Entry | Location | Behavior |
 |-------|----------|----------|
-| ⌘/Ctrl+K | `CommandPalette` | Primary omni palette; prefix modes `>` commands, `@` agents, `/` docs/skills |
+| ⌘/Ctrl+K | `Omnibar` | Primary omni palette, fed by the capability index. Prefix modes: `>` commands, `@` agents, `/` docs and skills, `#` crates (`#L3` lists the layer-3 crates). The top row is the **Best match**. MCP tools and crates appear under **Tools & crates**. |
 | TopHud trigger | “Search or jump…” chip | Opens the same palette (slim and full HUD modes) |
 | Sidebar filter | Collapsible filter field | Narrows top-level nav and matching child tabs client-side |
 
-Palette sections rank surfaces, settings, docs, policies, commands, actions, skills, and backend corpora.
+Palette sections rank surfaces, settings, docs, policies, commands, actions, skills, and backend corpora. Each section shows a few rows with an "N of M" count when more match; keep typing, or use `>` (commands) or `#` (crates), to narrow. Each row carries a kind icon and chips for the interfaces it is reachable through (CLI, GUI, MCP), its domain, and its keybind chord when it has one.
+
+### Selecting a result
+
+- Surfaces navigate to the surface.
+- A CLI verb runs directly only when it is classified read-only and needs no arguments. A toast shows the exit status, and **View full output** opens the complete stdout and stderr. Every other verb opens its Catalog form prefilled, with an explicit **Run** button.
+- Destructive commands ask for confirmation, and the backend refuses to run them without it.
+- MCP tools, crates, and skills that are not installed open an explain card with the same groups as `vox explain`.
+- Each CLI row shows what Enter will do (runs, or opens the form).
 
 ### Search scopes (OmniSearch vs Search surface)
 
-The **⌘/Ctrl+K palette** and the **Search** surface share `searchController.ts` scope chips, but not every chip maps to a `vox-search` backend corpus. SSOT for index kinds: `contracts/gui/omnisearch-index.v1.yaml`.
+The **⌘/Ctrl+K palette** and the **Search** surface share `searchController.ts` scope chips, but not every chip maps to a `vox-search` backend corpus. Surface and command rows come from `contracts/capabilities/capability-index.v1.json` through the generated `capabilityIndex.generated.ts` module, which the palette loads on first open. SSOT for index kinds and the source of each kind: `contracts/gui/omnisearch-index.v1.yaml`.
 
 | User scope | Where results come from (v1) | Backend (`vox_search_query` / `search.rs`) |
 |------------|------------------------------|---------------------------------------------|
@@ -140,10 +148,13 @@ The Search surface **Settings** chip merges `SETTINGS_INDEX` client-side via `fi
 | Key | Action |
 |-----|--------|
 | ⌘/Ctrl+K | Quick search palette (OmniSearch) |
+| `?` (outside text fields) or ⌘/Ctrl+/ (`Mod+/`) | Keyboard shortcut sheet, generated from the keybind registry with your current rebinds |
 | ⌘/Ctrl+B | Cycle sidebar width (rail → default → wide) |
 | ⌘/Ctrl+Shift+H | Cycle HUD (full → slim → hidden) |
 | ⌘/Ctrl+\\ | Split panel horizontally (dockview; focus must be in `DockShell`) |
 | ⌘/Ctrl+W | Close focused dockview panel (when more than one panel exists) |
+
+Every keybind is also a ⌘K action, labelled with its current chord; selecting it runs the action.
 
 Dockview split/close is implemented in `DockShell` (`dockShellKeybindingForEvent`).
 
