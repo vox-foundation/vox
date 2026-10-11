@@ -4578,6 +4578,7 @@
       "implicit": false,
       "title": "Ci Artifact-prune",
       "description_model": "CLI operation `vox ci artifact-prune`",
+      "side_effect_class": "destructive",
       "curated": true
     },
     {
@@ -5480,6 +5481,7 @@
       "implicit": false,
       "title": "Ci Kill-stuck-tests",
       "description_model": "CLI operation `vox ci kill-stuck-tests`",
+      "side_effect_class": "spawns_process",
       "curated": true
     },
     {
@@ -6881,6 +6883,7 @@
       "implicit": false,
       "title": "Db Prune-apply",
       "description_model": "CLI operation `vox db prune-apply`",
+      "side_effect_class": "destructive",
       "curated": true
     },
     {
@@ -7068,6 +7071,7 @@
       "implicit": false,
       "title": "Db Publication-media-delete",
       "description_model": "CLI operation `vox db publication-media-delete`",
+      "side_effect_class": "destructive",
       "curated": true
     },
     {
@@ -11253,6 +11257,7 @@
       "implicit": false,
       "title": "Logout",
       "description_model": "CLI operation `vox logout`",
+      "side_effect_class": "destructive",
       "curated": true
     },
     {

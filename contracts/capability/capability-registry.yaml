@@ -2427,7 +2427,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox ci artifact-prune`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: destructive
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -3893,7 +3893,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox ci kill-stuck-tests`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: spawns_process
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -6163,7 +6163,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox db prune-apply`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: destructive
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -6469,7 +6469,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox db publication-media-delete`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: destructive
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -12946,7 +12946,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox logout`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: destructive
   scope_kind: null
   reversible: null
   requires_repo: null

@@ -121,7 +121,7 @@ Palette sections rank surfaces, settings, docs, policies, commands, actions, ski
 
 - Surfaces navigate to the surface.
 - A CLI verb runs directly only when it is classified read-only and needs no arguments. A toast shows the exit status, and **View full output** opens the complete stdout and stderr. Every other verb opens its Catalog form prefilled, with an explicit **Run** button.
-- Destructive commands ask for confirmation, and the backend refuses to run them without it.
+- Commands the capability index classifies as `destructive` ask for confirmation, and the backend refuses to run them without it, including under their clap aliases (for example `vox models preferences reset`). This covers only CLI rows classified `destructive`: a command with no `side_effect_class` is not gated by the backend, and from the palette it opens its form instead of running directly. The still-unclassified commands are listed in `contracts/capabilities/side-effect-ratchet.v1.json`, which can only shrink. MCP tools are not covered by this gate.
 - MCP tools, crates, and skills that are not installed open an explain card with the same groups as `vox explain`.
 - Each CLI row shows what Enter will do (runs, or opens the form).
 

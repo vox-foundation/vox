@@ -1111,4 +1111,32 @@ mod tests {
             "execute_command must not assemble argv itself"
         );
     }
+
+    /// WR-01: destructive verbs found unclassified in review are now gated from the index.
+    #[test]
+    fn handler_verified_destructive_verbs_are_gated() {
+        for (argv, row) in [
+            (&["db", "prune-apply"][..], "cli.db.prune-apply"),
+            (
+                &["db", "publication-media-delete", "p", "a"][..],
+                "cli.db.publication-media-delete",
+            ),
+            (
+                &["ci", "artifact-prune", "--apply"][..],
+                "cli.ci.artifact-prune",
+            ),
+            (&["logout"][..], "cli.logout"),
+        ] {
+            assert_eq!(
+                gate_execution(&sv(argv), None),
+                Err(format!("{CONFIRMATION_REQUIRED_PREFIX}{row}")),
+                "{argv:?}"
+            );
+        }
+        // Ends processes and deletes nothing (rubric: spawns_process), so it is not gated.
+        assert_eq!(
+            gate_execution(&sv(&["ci", "kill-stuck-tests"]), None),
+            Ok(())
+        );
+    }
 }

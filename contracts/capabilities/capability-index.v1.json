@@ -6405,7 +6405,7 @@
       "status": "active",
       "domain": "ci",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "destructive",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -10301,7 +10301,7 @@
       "status": "active",
       "domain": "ci",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "spawns_process",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -16352,7 +16352,7 @@
       "status": "active",
       "domain": "data",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "destructive",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -17168,7 +17168,7 @@
       "status": "active",
       "domain": "data",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "destructive",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -34005,7 +34005,7 @@
       "status": "active",
       "domain": "secrets",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "destructive",
       "tier": "advanced",
       "cli": {
         "path": [
