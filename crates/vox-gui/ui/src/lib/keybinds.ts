@@ -35,3 +35,9 @@ export function parseBindings(json: string | null): Bindings {
   if (!json) return { ...DEFAULT_BINDINGS };
   try { return { ...DEFAULT_BINDINGS, ...JSON.parse(json) }; } catch { return { ...DEFAULT_BINDINGS }; }
 }
+// RED stubs (replaced in the GREEN commit)
+export function formatChord(chord: string, _isMac: boolean): string { return chord; }
+export function isMacPlatform(): boolean { return false; }
+export function isEditableTarget(_t: EventTarget | null): boolean { return false; }
+export function isShortcutHelpKey(e: Pick<KeyboardEvent, 'key'>): boolean { return e.key === '?'; }
+export function paletteActionRows(_b: Bindings, _ids: ReadonlySet<string>, _isMac: boolean): { id: ActionId; label: string; chord: string }[] { return []; }

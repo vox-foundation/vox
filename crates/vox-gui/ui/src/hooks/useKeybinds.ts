@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { chordFromEvent, matchAction, type ActionId, type Bindings } from '../lib/keybinds';
+import { chordFromEvent, matchAction, DEFAULT_BINDINGS, type ActionId, type Bindings } from '../lib/keybinds';
 export function useKeybinds(handlers: Partial<Record<ActionId, () => void>>, bindings: Bindings) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -11,3 +11,6 @@ export function useKeybinds(handlers: Partial<Record<ActionId, () => void>>, bin
     return () => window.removeEventListener('keydown', onKey);
   }, [handlers, bindings]);
 }
+// RED stubs
+export function useKeybindings(): Bindings { return DEFAULT_BINDINGS; }
+export function useShortcutHelpKey(_onOpen: () => void): void {}
