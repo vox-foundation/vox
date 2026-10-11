@@ -188,6 +188,23 @@ pub fn compare(
         return Err("no eligible arm besides the baseline".to_string());
     }
 
+    let mut runs = std::collections::BTreeMap::new();
+    for a in &included {
+        let id = a
+            .report
+            .provenance
+            .identity
+            .as_ref()
+            .map(|i| i.run_id.as_str());
+        if let Some(prev) = id.and_then(|id| runs.insert(id, a.label.as_str())) {
+            return Err(format!(
+                "same run supplied twice: {prev:?} and {:?} share run_id {:?}",
+                a.label,
+                id.unwrap_or_default()
+            ));
+        }
+    }
+
     let hash_of = |a: &ArmInput| {
         a.report
             .provenance
@@ -396,5 +413,123 @@ mod tests {
                 .all(|s| s.pass_at_1.is_some() && s.pass_at_k.is_some())
         );
         assert_eq!((c.k, c.problem_set_hash.as_str()), (K, "ps-hash"));
+    }
+
+    #[test]
+    fn compare_excludes_forged_complete_reports() {
+        let mut forged = report("run-f", "zero-shot", fixtures(40, 40));
+        forged.provenance.identity = None;
+        forged.run_complete = true; // hand-edited flag
+        assert!(!forged.recheck_complete());
+        let base = arm("A", report("run-a", "zero-shot", fixtures(40, 10)));
+        let good = arm("B", report("run-b", "zero-shot", fixtures(40, 30)));
+        let c = compare(&[base, good, arm("F", forged.clone())], "A", &opts()).unwrap();
+        assert_eq!(c.excluded.len(), 1);
+        assert_eq!(c.excluded[0].label, "F");
+        assert!(c.excluded[0].reasons[0].contains("contradicts"));
+        assert_eq!(c.claims.len(), 1, "forged arm makes no claim");
+
+        let good = arm("B", report("run-b", "zero-shot", fixtures(40, 30)));
+        let err = compare(&[arm("F", forged), good], "F", &opts()).unwrap_err();
+        assert!(err.contains("not an eligible run"), "{err}");
+    }
+
+    #[test]
+    fn compare_refuses_mismatched_problem_sets_and_k() {
+        let a = arm("A", report("run-a", "zero-shot", fixtures(40, 10)));
+        let mut other = report("run-b", "zero-shot", fixtures(40, 30));
+        other.provenance.problem_set_hash = Some("other-hash".into());
+        let err = compare(&[a.clone(), arm("B", other)], "A", &opts()).unwrap_err();
+        assert!(
+            err.contains("different problem sets")
+                && err.contains("\"A\"")
+                && err.contains("\"B\"")
+        );
+
+        let mut other = report("run-c", "zero-shot", fixtures(40, 30));
+        other.score.k = K + 1;
+        let err = compare(&[a, arm("C", other)], "A", &opts()).unwrap_err();
+        assert!(err.contains("different k"), "{err}");
+    }
+
+    #[test]
+    fn compare_refuses_duplicate_run() {
+        let a = arm("A", report("run-x", "zero-shot", fixtures(40, 10)));
+        let b = arm("B", report("run-x", "zero-shot", fixtures(40, 30)));
+        let err = compare(&[a, b], "A", &opts()).unwrap_err();
+        assert!(err.contains("same run supplied twice"), "{err}");
+    }
+
+    #[test]
+    fn compare_empty_and_single_fixture_edges() {
+        let a = arm("A", report("run-a", "zero-shot", fixtures(40, 10)));
+        let b = arm("B", report("run-b", "zero-shot", fixtures(40, 30)));
+        assert!(compare(&[a.clone(), b.clone()], "Z", &opts()).is_err());
+        assert!(
+            compare(std::slice::from_ref(&a), "A", &opts())
+                .unwrap_err()
+                .contains("no eligible arm")
+        );
+        assert!(compare(&[], "A", &opts()).is_err());
+
+        let disjoint = report("run-d", "zero-shot", vec![fx("zz", true)]);
+        let err = compare(&[a.clone(), arm("D", disjoint)], "A", &opts()).unwrap_err();
+        assert!(err.contains("no fixtures scored by both"), "{err}");
+
+        let one_a = arm("A", report("run-a", "zero-shot", vec![fx("f00", false)]));
+        let one_b = arm("B", report("run-b", "zero-shot", vec![fx("f00", true)]));
+        let c = compare(&[one_a, one_b], "A", &opts()).unwrap();
+        assert_eq!(c.claims[0].n_aligned, 1);
+        assert_eq!(c.claims[0].min_detectable_difference, 0.25);
+        // 1.0 is far above the floor; p = 1.0 so Holm keeps the null.
+        assert_eq!(c.claims[0].verdict, Verdict::NotSignificant);
+    }
+
+    #[test]
+    fn compare_floor_boundary_is_inclusive() {
+        // n_aligned = 200 -> floor 0.10. The arm passes 20 first attempts, the
+        // baseline none: difference is exactly the floor and is resolved.
+        let base = arm("A", report("run-a", "zero-shot", fixtures(200, 0)));
+        let at = arm("B", report("run-b", "zero-shot", fixtures(200, 20)));
+        let c = compare(&[base.clone(), at], "A", &opts()).unwrap();
+        let r = &c.claims[0];
+        assert_eq!(r.min_detectable_difference, 0.10);
+        assert_eq!(r.first_attempt_difference, 0.10);
+        assert_eq!(r.verdict, Verdict::Significant);
+
+        // The same difference arrived at as 120/200 - 100/200 (0.0999..98 in
+        // f64 subtraction) is still at the floor, not below it.
+        let base2 = arm("A", report("run-a", "zero-shot", fixtures(200, 100)));
+        let at2 = arm("B", report("run-b", "zero-shot", fixtures(200, 120)));
+        let c = compare(&[base2, at2], "A", &opts()).unwrap();
+        assert_eq!(c.claims[0].verdict, Verdict::Significant);
+
+        let below = arm("B", report("run-c", "zero-shot", fixtures(200, 10)));
+        let c = compare(&[base, below], "A", &opts()).unwrap();
+        assert_eq!(c.claims[0].first_attempt_difference, 0.05);
+        assert_eq!(c.claims[0].verdict, Verdict::Unresolved);
+    }
+
+    #[test]
+    fn compare_claim_order_is_input_order() {
+        let a = arm("A", report("run-a", "zero-shot", fixtures(40, 10)));
+        let c_arm = arm("C", report("run-c", "zero-shot", fixtures(40, 30)));
+        let b_arm = arm("B", report("run-b", "zero-shot", fixtures(40, 30)));
+        let c = compare(&[a, c_arm, b_arm], "A", &opts()).unwrap();
+        let order: Vec<_> = c.claims.iter().map(|r| r.arm.as_str()).collect();
+        assert_eq!(order, ["C", "B"]);
+        assert_eq!(c.claims[0].mcnemar_p, c.claims[1].mcnemar_p);
+        assert!(c.claims.iter().all(|r| r.holm_rejected));
+    }
+
+    #[test]
+    fn compare_keeps_conditions_separate() {
+        let a = arm("A", report("run-a", "C0", fixtures(40, 10)));
+        let b = arm("B", report("run-b", "C1", fixtures(40, 30)));
+        let c = compare(&[a, b], "A", &opts()).unwrap();
+        assert_eq!(c.claims[0].condition_baseline.as_deref(), Some("C0"));
+        assert_eq!(c.claims[0].condition_arm.as_deref(), Some("C1"));
+        let conds: Vec<_> = c.included.iter().map(|s| s.condition.as_deref()).collect();
+        assert_eq!(conds, [Some("C0"), Some("C1")]);
     }
 }
