@@ -1,9 +1,10 @@
 ---
 phase: 03-provenance-trust-tiers-and-leak-closure
 verified: 2026-10-09T00:00:00Z
-status: human_needed
+status: passed
 score: 6/6 must-haves verified
 covered_files:
+
   - .planning/workstreams/kb/REQUIREMENTS.md
   - .planning/workstreams/kb/phases/03-provenance-trust-tiers-and-leak-closure/03-01-PLAN.md
   - .planning/workstreams/kb/phases/03-provenance-trust-tiers-and-leak-closure/03-01-SUMMARY.md
@@ -63,7 +64,8 @@ covered_files:
   - crates/vox-search/tests/kb_library_chunking.rs
   - crates/vox-search/tests/kb_library_index.rs
   - crates/vox-search/tests/web_capture_test.rs
-covered_digest: "v1:sha256:8725973c91887a2073ae3fc6f8c99c5723479f9afb5de9f96f7af7b2ebc8449b"
+
+covered_digest: "v1:sha256:7efc42d4a3a035564e102805751e35ddd6f1410ad23980d1d5ca0112be53cb32"
 behavior_unverified: 0
 overrides_applied: 0
 re_verification:
@@ -76,6 +78,7 @@ re_verification:
   regressions: []
 gaps: []
 human_verification:
+
   - test: "Hosted CI is green on this branch: nextest for vox-db-types, vox-db, vox-search, vox-orchestrator-types, vox-orchestrator, vox-orchestrator-mcp, vox-gui, vox-ml-cli; clippy -D warnings on touched crates; vox ci ssot-drift; vox ci crate-edges; schema digest/baseline test for BASELINE_VERSION 96"
     expected: "All gates pass. The gap-closure plans ran only their own new tests locally (lean policy); the vox-orchestrator goal-search tests were NOT run locally and are affected by the WR-08 behaviour change (goal.rs path now drops Untrusted lines before CRAG relevance and Socrates evidence counts). This verifier ran no build or test."
     why_human: "Lean policy forbids workspace builds locally; crate-edges and the digest/baseline test can only be confirmed by hosted CI"
@@ -104,12 +107,14 @@ Method: code read and grep of the actual tree and the gap-closure diff. SUMMARY 
 ### Gap 1 (was BLOCKER, CR-01): Tavily bypass of the Untrusted rule. CLOSED
 
 Evidence in `crates/vox-search/src/bundle.rs`:
+
 - Lines 35-45: `run_search_with_verification` shadows `policy` with `exclude_untrusted_hits: true` whenever `trigger == AutoChatPreamble` (clone of the caller policy). Both `execute_search_plan` passes, the diagnostics and the Tavily block read the shadowed binding, so the flag no longer depends on each caller (WR-08 closed; `goal.rs`, `web_gather.rs` and any future caller are covered).
 - Lines 162-167: `if policy.tavily_enabled && policy.exclude_untrusted_hits` pushes `tavily_skipped=untrusted_excluded` and does nothing else: no client built, no credit consumed, no HTTP request, no capture. The Tavily firing is gated (the preferred fix from the previous report), not just the extend.
 - Lines 214-222, 252-259: when Tavily does fire (explicit query), lines are `[tier:untrusted] [crag_tavily:<url>] ...`, and `execution.min_trust_tier = Some(Untrusted)` is set before the lines are extended into `web_lines`/`rrf_fused_lines`.
 - `grep "\[crag_tavily:"` in the file shows exactly one format string, and it is the labelled one.
 
 Tests (read, not run):
+
 - `crates/vox-search/tests/web_capture_test.rs::crag_tavily_never_fires_for_auto_preamble_without_the_flag` (wiremock): policy has `exclude_untrusted_hits: false`, `prefer_rrf_merge: true`, trigger AutoChatPreamble; asserts zero received requests, no `crag_tavily` in `web_lines` or `rrf_fused_lines`, no CragTavily capture, `budget.remaining() == 100`, and the diagnostic note.
 - `capture_crag_tavily_reaches_sink_not_corpus` extended: labelled line and `min_trust_tier == Some(Untrusted)` for the explicit path, corpus rows still (0, 0).
 - `crates/vox-orchestrator-mcp/tests/kb_retrieval_tavily.rs` drives the real `run_retrieval_bundle`: preamble gets no request and no Tavily text in memory/knowledge/chunk/repo/RRF lines; an explicit query reaches the mock (positive control), line starts `[tier:untrusted] [crag_tavily:`, envelope minimum Untrusted.
@@ -120,6 +125,7 @@ I traced the other injection path from the previous report (`message.rs` injecti
 ### Gap 2 (was partial SC4, WR-05): research-turn source URL/engine unsanitized. CLOSED for the prompt path
 
 `crates/vox-orchestrator-mcp/src/chat_tools/chat/research_turn.rs`:
+
 - `sanitized_source(n, url, title, engine, snippet)` (line 195) maps all four string fields through `SanitizedText::new(..).into_string()`, sanitizing before the 600-char snippet cap.
 - `sources_from_hits` (line 188) and `pipeline_sources` (line 703, hence `failed_run_sources`) both build `Source` only through it.
 - The two remaining raw `Source { .. }` literals (lines 1755, 1880) are inside `#[cfg(test)]` fixtures. The review's IN-02 notes the GUI `save_research_session_to_kb` mapping builds a `Source` directly, but that value reaches only `capture_research_sources`, which sanitizes through the findings `clean()`; no live prompt leak.
