@@ -308,4 +308,36 @@ test.describe('shortcuts (D-11, D-12, D-17)', () => {
     await expect(sheet).toBeVisible();
     await expect(sheet.getByTestId('shortcut-row-toggle-sidebar')).toContainText(/⌘⇧Y|Ctrl\+Shift\+Y/);
   });
+
+  test('keybind actions are palette rows that run (D-13)', async ({ page }) => {
+    await page.keyboard.press('Control+k');
+    const palette = page.getByRole('dialog', { name: 'Command palette' });
+    const input = page.getByPlaceholder(/search surfaces, commands/i);
+    await input.fill('inspector');
+    const row = palette.getByRole('button', { name: /Toggle pipeline inspector drawer/ });
+    await expect(row).toBeVisible();
+    await expect(row).toContainText(/⌘⇧D|Ctrl\+Shift\+D/);
+    await shot(page, 'universal-palette-11-action-row');
+
+    // An exact label match is the Best match, so Enter runs it; the palette closes first.
+    await input.fill('Toggle pipeline inspector drawer');
+    await page.keyboard.press('Enter');
+    await expect(page.getByTestId('inspector-drawer')).toBeVisible();
+    await expect(palette).toHaveCount(0);
+  });
+
+  test('a rebind shows in the palette action row without restart (D-17)', async ({ page }) => {
+    await page.goto('/#view=settings');
+    await page.getByRole('button', { name: /keybinds/i }).click();
+    const btn = page.getByTestId('keybind-btn-toggle-sidebar');
+    await btn.click();
+    await page.keyboard.press('Control+Shift+Y');
+    await expect(btn).toHaveText('Mod+Shift+Y');
+
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await page.keyboard.press('Control+k');
+    const palette = page.getByRole('dialog', { name: 'Command palette' });
+    await page.getByPlaceholder(/search surfaces, commands/i).fill('sidebar');
+    await expect(palette.getByRole('button', { name: /Toggle sidebar width/ })).toContainText(/⌘⇧Y|Ctrl\+Shift\+Y/);
+  });
 });
