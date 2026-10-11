@@ -43,9 +43,11 @@ describe('keybindStore (D-17)', () => {
     expect(getBindings()).toEqual(DEFAULT_BINDINGS);
   });
 
-  it('setBindings notifies synchronously and persists', () => {
+  it('setBindings notifies synchronously and persists once the store has loaded', async () => {
     const fn = vi.fn();
     subscribeBindings(fn);
+    await flush(); // initial load (null -> defaults)
+    fn.mockClear();
     const next = { ...DEFAULT_BINDINGS, 'toggle-sidebar': 'Mod+Shift+Y' };
     setBindings(next);
     expect(fn).toHaveBeenCalled();
@@ -58,7 +60,7 @@ describe('keybindStore (D-17)', () => {
     const next = { ...DEFAULT_BINDINGS, 'toggle-sidebar': 'Mod+Shift+Y' };
     setBindings(next);
     await flush();
-    expect(getBindings()).toBe(next);
+    expect(getBindings()).toEqual(next);
   });
 
   it('a late load does not clobber a rebind made before it resolved', async () => {
@@ -69,6 +71,32 @@ describe('keybindStore (D-17)', () => {
     setBindings(next);
     resolve(null);
     await flush();
-    expect(getBindings()).toBe(next);
+    expect(getBindings()).toEqual(next);
+  });
+
+  it('WR-10: a rebind before the load resolves is merged over the saved bindings, not over defaults', async () => {
+    getPref.mockResolvedValue(JSON.stringify({ 'open-palette': 'Mod+P' }));
+    subscribeBindings(() => {});
+    setBindings({ ...DEFAULT_BINDINGS, 'toggle-sidebar': 'Mod+Shift+Y' }); // load not resolved yet
+    expect(setPref).not.toHaveBeenCalled(); // nothing persisted over an unloaded store
+    await flush();
+    expect(getBindings()['open-palette']).toBe('Mod+P'); // the user's saved binding survives
+    expect(getBindings()['toggle-sidebar']).toBe('Mod+Shift+Y');
+    expect(JSON.parse(setPref.mock.calls[0][1])).toMatchObject({ 'open-palette': 'Mod+P', 'toggle-sidebar': 'Mod+Shift+Y' });
+  });
+
+  it('WR-10: a failed initial load never persists defaults, and the next subscriber retries', async () => {
+    getPref.mockRejectedValueOnce(new Error('backend not ready')).mockResolvedValue(JSON.stringify({ 'open-palette': 'Mod+P' }));
+    subscribeBindings(() => {});
+    await flush();
+    setBindings({ ...DEFAULT_BINDINGS, 'toggle-sidebar': 'Mod+Shift+Y' }); // retries the load itself
+    expect(setPref).not.toHaveBeenCalled();
+    await flush();
+    expect(getPref).toHaveBeenCalledTimes(2);
+    expect(getBindings()['open-palette']).toBe('Mod+P');
+    expect(JSON.parse(setPref.mock.calls[0][1])['open-palette']).toBe('Mod+P');
+    subscribeBindings(() => {});
+    await flush();
+    expect(getPref).toHaveBeenCalledTimes(2); // loaded: no further reads
   });
 });
