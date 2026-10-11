@@ -131,6 +131,9 @@ interface OmnibarProps {
   /** The live CLI command catalog; decides run / form / explain for cli rows. */
   catalog: CommandCatalogEntry[];
   gamifyEnabled?: boolean;
+  /** Handler-backed keybind actions with live chords (D-13). */
+  actions?: { id: string; label: string; chord: string }[];
+  onRunAction?: (id: string) => void;
 }
 
 /** Always-offered quick action — not derived from any search source, so it
@@ -168,6 +171,8 @@ export function Omnibar({
   skills,
   catalog,
   gamifyEnabled = false,
+  actions,
+  onRunAction,
 }: OmnibarProps) {
   const [q, setQ] = useState('');
   const [selectedRowIdx, setSelectedRowIdx] = useState(-1);

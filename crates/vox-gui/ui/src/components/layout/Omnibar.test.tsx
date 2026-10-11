@@ -324,6 +324,32 @@ describe('Omnibar', () => {
     });
   });
 
+  describe('keybind action rows (D-13)', () => {
+    const actions = [{ id: 'toggle-sidebar', label: 'Toggle sidebar width', chord: '⌘B' }];
+
+    it('shows the live chord in a <kbd>; Enter closes the palette first, then runs the action', async () => {
+      const onClose = vi.fn();
+      const onRunAction = vi.fn();
+      renderOmnibar({ actions, onRunAction, onClose });
+      fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: 'Toggle sidebar width' } });
+      const chord = await screen.findByText('⌘B');
+      expect(chord.tagName).toBe('KBD');
+      fireEvent.keyDown(window, { key: 'Enter' });
+      expect(onRunAction).toHaveBeenCalledTimes(1);
+      expect(onRunAction).toHaveBeenCalledWith('toggle-sidebar');
+      expect(onClose).toHaveBeenCalled();
+      expect(onClose.mock.invocationCallOrder[0]).toBeLessThan(onRunAction.mock.invocationCallOrder[0]);
+    });
+
+    it('clicking the row runs the action too', async () => {
+      const onRunAction = vi.fn();
+      renderOmnibar({ actions, onRunAction });
+      fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: 'sidebar' } });
+      fireEvent.click((await screen.findByText('Toggle sidebar width')).closest('button') as HTMLElement);
+      expect(onRunAction).toHaveBeenCalledWith('toggle-sidebar');
+    });
+  });
+
   it('a toast with an action renders its button and clicking it calls onClick', () => {
     const onClick = vi.fn();
     render(

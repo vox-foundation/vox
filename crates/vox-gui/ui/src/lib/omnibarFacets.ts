@@ -80,6 +80,8 @@ export interface OmnibarSources {
   domains?: { id: string; label: string }[];
   /** Installed skill names: an index skill row is a gap-fill only when its name is absent here. */
   installedSkillNames?: ReadonlySet<string>;
+  /** Handler-backed keybind actions with their live chord (D-13); rows `action:key.<id>`. */
+  actions?: { id: string; label: string; chord: string }[];
 }
 
 export type InterfaceChip = 'CLI' | 'GUI' | 'MCP';
@@ -108,7 +110,9 @@ export type OmnibarActivation =
   | { type: 'skill'; skillId: string }
   | { type: 'setting'; section: string; settingId: string }
   | { type: 'policy'; policyId: string }
-  | { type: 'submit-task' };
+  | { type: 'submit-task' }
+  /** Run an App keybind handler (D-13). */
+  | { type: 'action'; actionId: string };
 
 export interface OmnibarRow {
   id: string;

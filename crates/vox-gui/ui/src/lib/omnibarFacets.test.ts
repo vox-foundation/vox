@@ -338,3 +338,69 @@ describe('buildOmnibarFacets', () => {
     expect(allRows(facets)).toHaveLength(2);
   });
 });
+
+describe('keybind action rows (D-13)', () => {
+  const ACTIONS = [
+    { id: 'toggle-sidebar', label: 'Toggle sidebar width', chord: '⌘B' },
+    { id: 'toggle-inspector', label: 'Toggle pipeline inspector drawer', chord: '⌘⇧D' },
+    { id: 'show-shortcuts', label: 'Show keyboard shortcuts', chord: '⌘/' },
+  ];
+
+  it('a matching action is one Commands row with its chord chip and the action activation', () => {
+    const facets = buildOmnibarFacets(sources({ query: 'sidebar', actions: ACTIONS }));
+    const rows = allRows(facets).filter((r) => r.id.startsWith('action:key.'));
+    expect(rows.map((r) => r.id)).toEqual(['action:key.toggle-sidebar']);
+    const r = rows[0];
+    expect(r.kind).toBe('action');
+    expect(r.detail).toBe('Keyboard shortcut');
+    expect(r.chips?.chord).toBe('⌘B');
+    expect(r.activate).toEqual({ type: 'action', actionId: 'toggle-sidebar' });
+    expect(facetOf(facets, 'commands').rows.concat(facetOf(facets, 'best').rows)).toContain(r);
+  });
+
+  it('the chord text finds the action too', () => {
+    const facets = buildOmnibarFacets(sources({ query: '⌘B', actions: ACTIONS }));
+    expect(allRows(facets).map((r) => r.id)).toContain('action:key.toggle-sidebar');
+  });
+
+  it('an empty query yields no action rows', () => {
+    const facets = buildOmnibarFacets(sources({ query: '', actions: ACTIONS }));
+    expect(allRows(facets).filter((r) => r.id.startsWith('action:key.'))).toEqual([]);
+  });
+
+  it('two actions sharing a chord are two rows, in registry order, each with that chord', () => {
+    const shared = [
+      { id: 'open-palette', label: 'Open command palette', chord: '⌘K' },
+      { id: 'toggle-sidebar', label: 'Toggle sidebar width', chord: '⌘K' },
+    ];
+    const rows = allRows(buildOmnibarFacets(sources({ query: '⌘K', actions: shared })));
+    expect(rows.map((r) => r.id)).toEqual(['action:key.open-palette', 'action:key.toggle-sidebar']);
+    expect(rows.map((r) => r.chips?.chord)).toEqual(['⌘K', '⌘K']);
+  });
+
+  it('an exact label match is the Best match', () => {
+    const facets = buildOmnibarFacets(sources({ query: 'Toggle sidebar width', actions: ACTIONS }));
+    expect(facetOf(facets, 'best').rows.map((r) => r.id)).toEqual(['action:key.toggle-sidebar']);
+  });
+
+  it('ranks by tier then registry order: starts-with before contains', () => {
+    const facets = buildOmnibarFacets(sources({ query: 'toggle', actions: ACTIONS }));
+    const ids = allRows(facets).map((r) => r.id);
+    expect(ids).toEqual(['action:key.toggle-sidebar', 'action:key.toggle-inspector']);
+    const tiered = [
+      { id: 'a', label: 'My sidebar toggle', chord: '⌘1' },
+      { id: 'b', label: 'Sidebar toggle', chord: '⌘2' },
+    ];
+    const t = allRows(buildOmnibarFacets(sources({ query: 'sidebar', actions: tiered }))).map((r) => r.id);
+    expect(t).toEqual(['action:key.b', 'action:key.a']);
+  });
+
+  it('is included in > (commands) mode and excluded from # (crates) mode', () => {
+    const has = (prefixMode: OmnibarSources['prefixMode']) =>
+      allRows(buildOmnibarFacets(sources({ query: 'sidebar', actions: ACTIONS, prefixMode }))).some((r) =>
+        r.id.startsWith('action:key.'),
+      );
+    expect(has('commands')).toBe(true);
+    expect(has('crates')).toBe(false);
+  });
+});
