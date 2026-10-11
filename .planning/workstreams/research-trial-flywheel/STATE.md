@@ -5,16 +5,16 @@ milestone_name: Research Trial Flywheel
 current_phase: 7
 current_phase_name: Trial Identity, Contracts & Observational Baseline
 status: Awaiting roadmap approval
-stopped_at: Completed 12-02-PLAN.md
-last_updated: "2026-10-11T14:53:21.579Z"
+stopped_at: Completed 12-05-PLAN.md
+last_updated: "2026-10-11T15:15:59.375Z"
 last_activity: 2026-10-01
 last_activity_desc: Milestone v1.1 initialized (requirements, research, roadmap)
-state_head: 1bec70013ce0728753d55d363eb3258a2f742217
+state_head: 5bcccc21283302725ee9a1de40f3aad4dad0e69d
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 9
-  completed_plans: 4
+  completed_plans: 5
   percent: 14
 ---
 
@@ -53,6 +53,7 @@ Progress: [█░░░░░░░░░] 14%
 | Phase 12 P03 | ~45min | 3 tasks | 10 files |
 | Phase 12 P01 | 25min | 2 tasks | 16 files |
 | Phase 12 P02 | ~2h (13 min host exec stall) | 3 tasks | 2 files |
+| Phase 12 P05 | ~100min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -67,6 +68,7 @@ Recent decisions affecting current work:
 - [Phase 7]: 12-03: CUDA Candle plugin gets the same seed/top_p/tie-break change as metal (no D-12 deviation); sample_seed(7,"001",0) pinned to 780188561
 - [Phase 7]: 12-01: LlmConfig.seed needs no serde attribute; absent key deserializes to None
 - [Phase 7]: 12-02: unknown mens/* id is a hard error; no silent cloud fallback for local checkpoints
+- [Phase 7]: 12-05: eval-compare floor check uses exact-integer first-attempt difference (one division) so a difference equal to the floor is resolved, not one ulp under
 
 ### Pending Todos
 
@@ -90,6 +92,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-11T14:53:21.549Z
-Stopped at: Completed 12-02-PLAN.md
+Last session: 2026-10-11T15:15:59.362Z
+Stopped at: Completed 12-05-PLAN.md
 Resume file: None
