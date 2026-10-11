@@ -203,9 +203,19 @@ impl Taxonomy {
     /// Append one quoted facet phrase per concept whose altLabel or deprecated alias occurs in
     /// the query as a whole token. The phrase targets the card line written by
     /// [`facet_card_lines`], so only facet-tagged cards gain score. Only validated prefLabels are
-    /// emitted; user text is never rewritten. An odd number of `"` returns the query unchanged.
+    /// emitted; user text is never rewritten. An odd number of unescaped `"` returns the query unchanged.
     pub fn expand_query(&self, query: &str) -> String {
-        if query.matches('"').count() % 2 == 1 {
+        // Only unescaped quotes delimit a phrase.
+        let (mut real, mut esc) = (0usize, false);
+        for c in query.chars() {
+            match (esc, c) {
+                (true, _) => esc = false,
+                (false, '\\') => esc = true,
+                (false, '"') => real += 1,
+                _ => {}
+            }
+        }
+        if real % 2 == 1 {
             return query.to_string();
         }
         let q = query.to_lowercase();
@@ -329,6 +339,17 @@ topics:
         assert_eq!(fx().expand_query("zebra"), "zebra");
         let odd = "vox-orchestrator \"open";
         assert_eq!(fx().expand_query(odd), odd);
+    }
+
+    /// WR-04: an escaped `\"` is not a phrase delimiter.
+    #[test]
+    fn expand_query_odd_quote_guard_ignores_escaped_quotes() {
+        // one real (unescaped) quote: odd, unchanged, even though the raw `"` count is two
+        let odd = "\\\"vox-orchestrator \"";
+        assert_eq!(fx().expand_query(odd), odd);
+        // zero real quotes (raw count one): even, so the expansion still applies
+        let q = "vox-orchestrator \\\"x";
+        assert_eq!(fx().expand_query(q), format!("{q} \"topic orchestration\""));
     }
 
     #[test]
