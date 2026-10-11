@@ -4,17 +4,17 @@ milestone: v1.1
 milestone_name: Vox Knowledge Base — corpus to context
 current_phase: 04
 current_phase_name: Taxonomy Contract and Facet Lint
-status: executing
-stopped_at: Completed 04-07-PLAN.md
-last_updated: "2026-10-11T08:04:51.804Z"
+status: verifying
+stopped_at: Completed 04-08-PLAN.md
+last_updated: "2026-10-11T08:08:02.230Z"
 last_activity: 2026-10-10
 last_activity_desc: Phase 04 execution started
-state_head: c27447fa28e646845cb5833b3b99da2262ca8981
+state_head: 0d95bd324173d8fed05281944659d5bf784041f0
 progress:
   total_phases: 12
   completed_phases: 3
   total_plans: 48
-  completed_plans: 47
+  completed_plans: 48
   percent: 25
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (shared project context) and .planning/workstreams/kb/
 
 Phase: 04 (Taxonomy Contract and Facet Lint) — EXECUTING
 Plan: 8 of 8
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-10-10 — Phase 04 execution started
 
 Progress: [███░░░░░░░] 25%
@@ -95,6 +95,7 @@ Progress: [███░░░░░░░] 25%
 | Phase 04 P05 | ~35min | 2 tasks | 7 files |
 | Phase 04 P06 | 35min | 2 tasks | 7 files |
 | Phase 04 P07 | 25min | 2 tasks | 6 files |
+| Phase 04 P08 | 20min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -141,6 +142,7 @@ Progress: [███░░░░░░░] 25%
 - [Phase 04]: 04-05: facet lint fails closed on a missing/invalid taxonomy or backlog (one facet-contract-unreadable error); backlog excuses exact rule ids per exact path
 - [Phase 04]: 04-06: search delegates to search_with_taxonomy with no taxonomy; the KB benchmark retriever stays unexpanded; MCP reaches Taxonomy via the vox_search library re-export, no new crate edge
 - [Phase 04]: 04-07: backlog additions accepted only with epoch+1 and a changed non-empty epoch_note; seed/tighten return before FacetCtx::load; base read fail-closed
+- [Phase 04]: 04-08: backlog seeded once (667 docs, 2668 rule ids, epoch 1); summary-block examples in docs must use column-0 fences
 
 ### Pending Todos
 
@@ -155,8 +157,8 @@ Progress: [███░░░░░░░] 25%
 
 ## Session Continuity
 
-**Last session:** 2026-10-11T08:04:51.774Z
+**Last session:** 2026-10-11T08:08:02.199Z
 
-**Stopped At:** Completed 04-07-PLAN.md
+**Stopped At:** Completed 04-08-PLAN.md
 **Resume File:** None
 **Next:** `/gsd-plan-phase 1` (no research-phase needed)
