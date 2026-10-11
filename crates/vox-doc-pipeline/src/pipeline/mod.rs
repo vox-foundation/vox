@@ -695,6 +695,25 @@ mod tests {
     }
 
     #[test]
+    fn stale_backlog_entry_warns_but_exits_zero() {
+        let root = fixture_root();
+        write_readme_sync_fixture(&root, "Same text.", "Same text.");
+        write_facet_contracts(
+            &root,
+            "\n  - path: docs/src/good.md\n    rules: [facet-missing-topic]",
+        );
+        let words = vec!["word"; 40].join(" ");
+        std::fs::write(
+            root.join("docs/src/good.md"),
+            format!(
+                "---\n{BASE_FM}\ntopic: search-retrieval\ndomain: knowledge\nauthorship: human\n---\n# Doc\n\n<!-- kb:summary -->\n{words}\n<!-- /kb:summary -->\n"
+            ),
+        )
+        .unwrap();
+        assert_eq!(lint_in(&root, &["--paths=good.md".to_string()]), 0);
+    }
+
+    #[test]
     fn empty_backlog_holds_every_doc() {
         let root = fixture_root();
         write_readme_sync_fixture(&root, "Same text.", "Same text.");

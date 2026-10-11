@@ -89,8 +89,51 @@ pub enum FacetIssue {
     },
     MissingTopic,
     MissingDomain,
-    MissingAuthorship,
+    UnknownTopic {
+        value: String,
+        hint: Option<String>,
+    },
+    UnknownDomain {
+        value: String,
+        hint: Option<String>,
+    },
+    /// A retired alias was written as a facet value.
+    DeprecatedLabel {
+        field: &'static str,
+        value: String,
+        replaced_by: String,
+    },
+    DomainMismatch {
+        topic: String,
+        domain: String,
+        expected: String,
+    },
     MissingSummary,
+    SummaryPlacement {
+        reason: String,
+    },
+    SummaryWordCount {
+        words: usize,
+    },
+    MissingAuthorship,
+    MissingAuthorshipModel,
+    /// `training_eligible: true` on a page the shared rule forces ineligible.
+    TrainingEligibleContradiction,
+    MissingSources,
+    SourceField {
+        index: usize,
+        field: &'static str,
+        problem: String,
+    },
+    QuoteOverCap {
+        words: usize,
+        cap: usize,
+        scope: &'static str,
+    },
+    InvalidDate {
+        field: &'static str,
+        value: String,
+    },
     /// The backlog lists a rule the doc no longer violates (warning).
     BacklogStale {
         rule: String,
