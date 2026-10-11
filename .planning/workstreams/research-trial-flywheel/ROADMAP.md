@@ -133,7 +133,7 @@ v1.1 turns Vox's existing research pipeline, telemetry, evaluation, model routin
   5. Training writes an `AdapterCard` with the `train.jsonl` sha256 and training syntax fingerprint; eval refuses to label a `mens/*` row without one.
   6. Each run emits a vox-crypto-signed bundle; a tampered bundle fails verification.
 
-**Plans**: 7/9 plans executed
+**Plans**: 8/9 plans executed
 
 Plans:
 
@@ -144,7 +144,7 @@ Plans:
 - [x] 12-05-PLAN.md — `vox model eval-compare`: McNemar + Holm, paired bootstrap, resolution floor (Wave 2)
 - [x] 12-06-PLAN.md — Training lineage AdapterCard writer and eval-side card check (Wave 1)
 - [x] 12-07-PLAN.md — eval-corpus provenance collectors, typed report, mens label refusal, scoreboard guard (Wave 3)
-- [ ] 12-08-PLAN.md — pass@1 after k compiler-feedback turns (design §8) (Wave 4)
+- [x] 12-08-PLAN.md — pass@1 after k compiler-feedback turns (design §8) (Wave 4)
 - [ ] 12-09-PLAN.md — Phase 7 run identity, signed offline-verifiable bundle, atomic persist (Wave 5, blocked on Phase 7)
 
 ### Phase 13: Triggered Language Benchmark & Cross-Language Tiers
@@ -176,5 +176,5 @@ Plans:
 | 9. Verified Knowledge Loop | v1.1 | 0/TBD | Not started | - |
 | 10. Promotion Governance & Replay | v1.1 | 0/TBD | Not started | - |
 | 11. Adversarial Trials & Hardening | v1.1 | 0/TBD | Not started | - |
-| 12. Code-Gen Benchmark Plumbing & Provenance | v1.1 | 7/9 | In Progress|  |
+| 12. Code-Gen Benchmark Plumbing & Provenance | v1.1 | 8/9 | In Progress|  |
 | 13. Triggered Language Benchmark & Cross-Language Tiers | v1.1 | 0/TBD | Not started | - |

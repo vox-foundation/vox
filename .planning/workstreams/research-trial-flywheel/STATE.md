@@ -5,16 +5,16 @@ milestone_name: Research Trial Flywheel
 current_phase: 7
 current_phase_name: Trial Identity, Contracts & Observational Baseline
 status: Awaiting roadmap approval
-stopped_at: Completed 12-07-PLAN.md
-last_updated: "2026-10-11T15:57:09.139Z"
+stopped_at: Completed 12-08-PLAN.md
+last_updated: "2026-10-11T16:08:18.443Z"
 last_activity: 2026-10-01
 last_activity_desc: Milestone v1.1 initialized (requirements, research, roadmap)
-state_head: 15a70e49ae2279795ab8e5653256859386b1df50
+state_head: 42c743f80fb5ba6524ab3c4918f64a9fbaa12759
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 9
-  completed_plans: 7
+  completed_plans: 8
   percent: 14
 ---
 
@@ -56,6 +56,7 @@ Progress: [█░░░░░░░░░] 14%
 | Phase 12 P05 | ~100min | 3 tasks | 10 files |
 | Phase 12 P06 | ~50min | 2 tasks | 4 files |
 | Phase 12 P07 | ~1h | 3 tasks | 2 files |
+| Phase 12 P08 | ~1h | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -71,6 +72,7 @@ Recent decisions affecting current work:
 - [Phase 7]: 12-01: LlmConfig.seed needs no serde attribute; absent key deserializes to None
 - [Phase 7]: 12-02: unknown mens/* id is a hard error; no silent cloud fallback for local checkpoints
 - [Phase 7]: 12-05: eval-compare floor check uses exact-integer first-attempt difference (one division) so a difference equal to the floor is resolved, not one ulp under
+- [Phase 7]: 12-08: repair turns reuse the single llm_chat path; repaired outcomes live in passed_by_turn and never replace the original AttemptOutcome (mutation-proved)
 
 ### Pending Todos
 
@@ -94,6 +96,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-11T15:57:09.124Z
-Stopped at: Completed 12-07-PLAN.md
+Last session: 2026-10-11T16:08:18.429Z
+Stopped at: Completed 12-08-PLAN.md
 Resume file: None
