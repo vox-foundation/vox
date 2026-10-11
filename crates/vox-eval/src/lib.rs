@@ -9,6 +9,8 @@ use std::sync::OnceLock;
 pub mod corpus_score;
 pub mod corpus_stats;
 pub mod mens;
+pub mod provenance;
+pub mod report;
 
 /// Aggregated scores from a single eval run (format, safety, quality proxy, parse validity, coverage).
 pub struct EvalMetrics {
