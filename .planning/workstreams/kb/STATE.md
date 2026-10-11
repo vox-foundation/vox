@@ -5,16 +5,16 @@ milestone_name: Vox Knowledge Base — corpus to context
 current_phase: 04
 current_phase_name: Taxonomy Contract and Facet Lint
 status: executing
-stopped_at: Completed 04-02-PLAN.md
-last_updated: "2026-10-11T07:08:46.328Z"
+stopped_at: Completed 04-03-PLAN.md
+last_updated: "2026-10-11T07:20:03.480Z"
 last_activity: 2026-10-10
 last_activity_desc: Phase 04 execution started
-state_head: 25d4519f6c3557153d954be64b1cf5090b4c6eb7
+state_head: cdde1baa9a1ca8c93dbfb18269fcf7aa38c79b63
 progress:
   total_phases: 12
   completed_phases: 3
   total_plans: 48
-  completed_plans: 42
+  completed_plans: 43
   percent: 25
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (shared project context) and .planning/workstreams/kb/
 ## Current Position
 
 Phase: 04 (Taxonomy Contract and Facet Lint) — EXECUTING
-Plan: 3 of 8
+Plan: 4 of 8
 Status: Ready to execute
 Last activity: 2026-10-10 — Phase 04 execution started
 
@@ -90,6 +90,7 @@ Progress: [███░░░░░░░] 25%
 | Phase 03 P16 | 1.5h | 3 tasks | 9 files |
 | Phase 04 P01 | 45min | 3 tasks | 15 files |
 | Phase 04 P02 | 25min | 2 tasks | 3 files |
+| Phase 04 P03 | 35min | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -131,6 +132,7 @@ Progress: [███░░░░░░░] 25%
 - [Phase 03]: 03-16 D-08: Library docs are Trusted only when tracked at HEAD and unmodified (git ls-tree minus diff via GitExec, fail-closed); per-doc tier re-evaluated every reindex; put_kb_index_state no longer re-stamps rows
 - [Phase 04]: 04-01: Facets fields all optional (missing = lint error, not parse error); unknown frontmatter keys ignored; strip_summary_blocks fails closed on unterminated marker
 - [Phase 04]: 04-02: topic and domain prefLabels share one namespace; expand_query matches altLabels/deprecated aliases only and emits only quoted prefLabel phrases
+- [Phase 04]: 04-03: GUI KbFacets TS is rendered from the committed JSON Schema (no vox-cli-ci to vox-kb-facets edge); all props optional, nullable as T | null
 
 ### Pending Todos
 
@@ -145,8 +147,8 @@ Progress: [███░░░░░░░] 25%
 
 ## Session Continuity
 
-**Last session:** 2026-10-11T07:08:46.298Z
+**Last session:** 2026-10-11T07:20:03.450Z
 
-**Stopped At:** Completed 04-02-PLAN.md
+**Stopped At:** Completed 04-03-PLAN.md
 **Resume File:** None
 **Next:** `/gsd-plan-phase 1` (no research-phase needed)
