@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import type { CommandCatalog, CommandCatalogEntry, CommandCatalogArgument } from '../types/catalog';
 import { voxTransport } from '../transport';
 import { sanitizeErrorForToast } from '../lib/backendGuard';
+import { confirmationRequiredId } from '../lib/capabilityRun';
+import { ConfirmRunDialog } from './layout/ConfirmRunDialog';
 
 export interface ExecuteOutput {
     exit_code: number;
@@ -37,6 +39,8 @@ export function CommandCatalogForm({
     const [selectedPath, setSelectedPath] = useState<string | null>(null);
     const [argsInput, setArgsInput] = useState('');
     const [argValues, setArgValues] = useState<Record<string, string | boolean>>({});
+    // D-03: a destructive refusal parks the exact args here until the user confirms.
+    const [pendingConfirm, setPendingConfirm] = useState<{ id: string; args: Record<string, unknown> } | null>(null);
     const [output, setOutput] = useState<{ success?: boolean; data?: ExecuteOutput; error?: string } | null>(null);
 
     const commandList = catalog?.entries || [];
@@ -56,6 +60,7 @@ export function CommandCatalogForm({
         }
         setArgValues(seeded);
         setOutput(null);
+        setPendingConfirm(null);
     };
 
     // Select the palette-chosen command (selecting only fills the form; Run stays explicit).
@@ -68,28 +73,49 @@ export function CommandCatalogForm({
         // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on nonce on purpose
     }, [nonce]);
 
-    const handleExecute = async () => {
-        if (!selectedPath) return;
-        try {
-            const parsedArgs = argsInput.trim().split(/\s+/).filter(Boolean);
-            const argsObj: Record<string, string | boolean> = {};
-            
-            // Map structured argValues
-            for (const [key, val] of Object.entries(argValues)) {
-                if (typeof val === 'boolean') {
-                    if (val) argsObj[key] = true;
-                } else if (val) {
-                    argsObj[key] = String(val);
-                }
+    /**
+     * D-16: positional arguments (neither long nor short) go out as `__positionals` in declaration
+     * order; options keep their long name; `__argv` carries the raw extra arguments.
+     */
+    const buildArgs = (cmd: CommandCatalogEntry): Record<string, unknown> => {
+        const argsObj: Record<string, unknown> = {};
+        const positionals: string[] = [];
+        for (const arg of cmd.arguments ?? []) {
+            const fieldKey = arg.long || arg.name;
+            const val = argValues[fieldKey];
+            if (!arg.long && !arg.short) {
+                if (typeof val === 'string' && val) positionals.push(val);
+            } else if (typeof val === 'boolean') {
+                if (val) argsObj[fieldKey] = true;
+            } else if (val) {
+                argsObj[fieldKey] = val;
             }
-            const res = await voxTransport.callTool(selectedPath.replace(/ /g, '_'), {
-                ...argsObj,
-                __argv: parsedArgs,
-            });
+        }
+        if (positionals.length) argsObj.__positionals = positionals;
+        argsObj.__argv = argsInput.trim().split(/\s+/).filter(Boolean);
+        return argsObj;
+    };
+
+    // Straight to the gated `execute_command` (never the ungated MCP route). `confirmed` is
+    // true only on the retry the user approved in ConfirmRunDialog.
+    const run = async (path: string[], args: Record<string, unknown>, confirmed?: boolean) => {
+        try {
+            const res = await voxTransport.executeCommand(path, args, { confirmed });
             setOutput({ success: true, data: res });
         } catch (err) {
+            const id = confirmationRequiredId(err);
+            if (id) {
+                setPendingConfirm({ id, args });
+                return;
+            }
             setOutput({ error: sanitizeErrorForToast(err) });
         }
+    };
+
+    const handleExecute = () => {
+        const cmd = commandList.find((c: CommandCatalogEntry) => c.path.join(' ') === selectedPath);
+        if (!cmd) return;
+        void run(cmd.path, buildArgs(cmd));
     };
 
     const currentCommand = commandList.find((c: CommandCatalogEntry) => c.path.join(' ') === selectedPath);
@@ -220,7 +246,7 @@ export function CommandCatalogForm({
                             onClick={handleExecute}
                             className="bg-primary text-void font-bold px-4 py-2 rounded-sm uppercase tracking-widest hover:bg-cyan/80 transition-colors"
                         >
-                            Execute
+                            Run
                         </button>
 
                         {output && (
@@ -256,6 +282,17 @@ export function CommandCatalogForm({
                     </div>
                 )}
             </div>
+            <ConfirmRunDialog
+                open={pendingConfirm !== null && currentCommand !== undefined}
+                commandText={`vox ${selectedPath ?? ''}`}
+                rowId={pendingConfirm?.id ?? ''}
+                onCancel={() => setPendingConfirm(null)}
+                onConfirm={() => {
+                    const p = pendingConfirm;
+                    setPendingConfirm(null);
+                    if (p && currentCommand) void run(currentCommand.path, p.args, true);
+                }}
+            />
         </div>
     );
 }

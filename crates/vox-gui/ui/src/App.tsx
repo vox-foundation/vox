@@ -17,6 +17,7 @@ import { TaskDiffDialog } from './components/surfaces/Chat/TaskDiffDialog';
 import { DocViewerDrawer } from './components/layout/DocViewerDrawer';
 import { ExplainDrawer } from './components/layout/ExplainDrawer';
 import { RunOutputDialog } from './components/layout/RunOutputDialog';
+import { ConfirmRunDialog } from './components/layout/ConfirmRunDialog';
 import { confirmationRequiredId, toastForRun } from './lib/capabilityRun';
 import { useCapabilityIndex } from './hooks/useCapabilityIndex';
 import { getLoadedCapabilityIndex } from './lib/capabilityIndexLoader';
@@ -1045,7 +1046,7 @@ export default function App() {
   );
   // D-01/D-04: palette direct run -> toast + full-output dialog. D-03: a destructive refusal parks the run.
   const [runOutput, setRunOutput] = useState<{ title: string; out: ExecuteOutput } | null>(null);
-  const [, setPendingConfirm] = useState<{ path: string[]; id: string } | null>(null);
+  const [pendingConfirm, setPendingConfirm] = useState<{ path: string[]; id: string } | null>(null);
   const runCli = useCallback(
     async (path: string[], confirmed?: boolean) => {
       const title = `vox ${path.join(' ')}`;
@@ -2117,6 +2118,17 @@ export default function App() {
         pushToast={pushToast}
       />
       <RunOutputDialog run={runOutput} onClose={() => setRunOutput(null)} />
+      <ConfirmRunDialog
+        open={pendingConfirm !== null}
+        commandText={`vox ${pendingConfirm?.path.join(' ') ?? ''}`}
+        rowId={pendingConfirm?.id ?? ''}
+        onCancel={() => setPendingConfirm(null)}
+        onConfirm={() => {
+          const p = pendingConfirm;
+          setPendingConfirm(null);
+          if (p) void runCli(p.path, true);
+        }}
+      />
       <TaskDiffDialog open={diffOpen} loading={diffLoading} text={diffText} onClose={() => setDiffOpen(false)} />
       <InspectorDrawer open={isInspectorOpen} onClose={() => setIsInspectorOpen(false)} />
       <ResearchEngineDrawer
