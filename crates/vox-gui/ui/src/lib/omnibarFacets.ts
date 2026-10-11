@@ -11,13 +11,14 @@ import type { ContentManifestEntry } from '../hooks/useContentManifest';
 import type { SearchableHit } from './searchableRegistry';
 import type { CapabilityIndexEntry } from '../generated/capabilityIndex.generated';
 import type { RankHit } from './capabilityRank';
+import type { PalettePrefixMode } from '../components/layout/paletteSources';
 
 export const FACET_CAP = 6;
 
 /** Help docs appear in Omnibar only when the query looks help-oriented. */
 export function shouldIncludeDocsInOmnibar(
   query: string,
-  options?: { prefixMode?: 'default' | 'commands' | 'agents' | 'skills' },
+  options?: { prefixMode?: PalettePrefixMode },
 ): boolean {
   if (options?.prefixMode === 'skills') return true;
   const q = query.trim().toLowerCase();
@@ -56,7 +57,7 @@ export interface OmnibarGraphResult {
 export interface OmnibarSources {
   query: string;
   /** Palette prefix mode (`/` opens docs+skills lane). */
-  prefixMode?: 'default' | 'commands' | 'agents' | 'skills';
+  prefixMode?: PalettePrefixMode;
   federated: FederatedIndexEntry[];
   backendHits: UnifiedHit[];
   manifest: ContentManifestEntry[];

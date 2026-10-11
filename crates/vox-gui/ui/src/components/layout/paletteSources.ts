@@ -29,7 +29,7 @@ export interface PaletteSources {
 
 const MAX_PER_KIND = 5;
 
-export type PalettePrefixMode = 'default' | 'commands' | 'agents' | 'skills';
+export type PalettePrefixMode = 'default' | 'commands' | 'agents' | 'skills' | 'crates';
 
 /** Strip palette prefix (`>`, `@`, `/`) and return routing mode + effective query. */
 export function parsePaletteQuery(raw: string): { mode: PalettePrefixMode; query: string } {
