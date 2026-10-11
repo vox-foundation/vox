@@ -128,6 +128,14 @@ fn parse_frontmatter(content: &str, path: &Path) -> (Frontmatter, bool, u8) {
     if !vox_kb_facets::effective_training_eligible(&facets) {
         return (Frontmatter::default(), false, 0);
     }
+    // Fail closed (WR-03): a misspelled eligibility key (`training_eligble: false`) is ignored
+    // by the typed parse, so the author's intent must not default to "eligible".
+    if vox_kb_facets::facet_key_near_misses(content)
+        .iter()
+        .any(vox_kb_facets::KeyNearMiss::guards_eligibility)
+    {
+        return (Frontmatter::default(), false, 0);
+    }
     // No frontmatter at all: keep the pre-TAX conservative opt-out so a stray
     // `training_eligible: false` in a fence-less file (a crate README) still excludes it.
     if vox_kb_facets::frontmatter_yaml(content).is_none()

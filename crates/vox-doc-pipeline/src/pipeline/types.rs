@@ -134,6 +134,11 @@ pub enum FacetIssue {
         field: &'static str,
         value: String,
     },
+    /// A frontmatter key that looks like a misspelled facet key (WR-03).
+    UnknownFacetKey {
+        key: String,
+        did_you_mean: &'static str,
+    },
     /// `human_attested_by` is blank, a placeholder or an AI name (WR-02).
     InvalidAttestation {
         value: String,

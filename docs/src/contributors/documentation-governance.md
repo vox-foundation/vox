@@ -150,6 +150,7 @@ Optional facets: `kb_tier`, `trust_tier`, `scope`, `review_by`, `verified_at`, `
 | `facet-missing-sources`, `facet-source-field` | give every source a url, date and blake3 hash |
 | `facet-quote-over-cap` | shorten or paraphrase the quote |
 | `facet-invalid-date` | use `YYYY-MM-DD` |
+| `facet-unknown-key` | rename the misspelled frontmatter key (for example `training_eligble`) to the facet the message names |
 | `facet-invalid-attestation` | name the human reviewer in `human_attested_by` (not a placeholder such as `false`, `none`, `todo` or an AI name), or remove the key |
 | `facet-parse-error` | fix the facet value named in the message |
 | `facet-backlog-stale` (warning) | run `--tighten-facet-backlog` |

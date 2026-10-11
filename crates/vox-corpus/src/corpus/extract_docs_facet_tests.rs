@@ -51,6 +51,21 @@ fn placeholder_attestation_does_not_clear_the_forced_exclusion() {
     }
 }
 
+/// WR-03: a typo of an eligibility key excludes the page; a typo of another facet key does not.
+#[test]
+fn near_miss_of_an_eligibility_key_excludes_the_page() {
+    for fm in [
+        "title: T\ntraining_eligble: false",
+        "title: T\nTraining-Eligible: false",
+        "title: T\norigon: web-promoted",
+        "title: T\nauthorshp: llm-generated",
+        "title: T\nhuman-attested-by: alice\norigin: web-promoted",
+    ] {
+        assert!(extract(&doc(fm)).is_empty(), "{fm}");
+    }
+    assert!(!extract(&doc("title: T\ntopc: x")).is_empty());
+}
+
 #[test]
 fn human_authorship_and_absent_flag_yield_pairs() {
     assert!(!extract(&doc("title: T\nauthorship: human")).is_empty());

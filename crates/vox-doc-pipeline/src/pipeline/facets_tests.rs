@@ -303,6 +303,27 @@ fn invalid_review_date_is_reported() {
     assert!(fx_ids(&page("review_by: 2026-12-31", 40, "")).is_empty());
 }
 
+/// WR-03: a misspelled facet key is a hard error, not a silent no-op.
+#[test]
+fn near_miss_facet_key_is_a_hard_lint_error() {
+    for k in [
+        "training_eligble",
+        "human-attested-by",
+        "Origin",
+        "authorship_model_",
+    ] {
+        let ids = fx_ids(&page(&format!("{k}: false"), 40, ""));
+        assert_eq!(ids, ["facet-unknown-key"], "{k}");
+    }
+    let m = fx_msgs(&page("training_eligble: false", 40, ""));
+    assert!(
+        m[0].contains("training_eligble") && m[0].contains("training_eligible"),
+        "{m:?}"
+    );
+    // unrelated extra keys stay allowed
+    assert!(fx_ids(&page("schema_type: x\ncategory: C\nsort_order: 2", 40, "")).is_empty());
+}
+
 /// WR-02: `human_attested_by` must name a person.
 #[test]
 fn invalid_attestation_is_a_hard_lint_error() {
@@ -377,6 +398,10 @@ fn rule_ids_are_stable() {
         FacetIssue::InvalidAttestation {
             value: String::new(),
         },
+        FacetIssue::UnknownFacetKey {
+            key: String::new(),
+            did_you_mean: "topic",
+        },
         FacetIssue::BacklogStale {
             rule: String::new(),
         },
@@ -389,7 +414,7 @@ fn rule_ids_are_stable() {
     );
     ids.sort_unstable();
     ids.dedup();
-    assert_eq!(ids.len(), 20);
+    assert_eq!(ids.len(), 21);
     let meta = ["facet-contract-unreadable", "facet-backlog-stale"];
     let mut expect: Vec<&str> = ids.iter().copied().filter(|i| !meta.contains(i)).collect();
     let mut got = BACKLOGGABLE_RULE_IDS.to_vec();

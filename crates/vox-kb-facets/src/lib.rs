@@ -6,6 +6,7 @@
 
 pub mod backlog;
 pub mod frontmatter;
+pub mod keys;
 pub mod provenance;
 pub mod summary;
 pub mod taxonomy;
@@ -14,6 +15,7 @@ pub use backlog::{BACKLOG_REL, Backlog, BacklogRow};
 pub use taxonomy::{Concept, LabelMatch, TAXONOMY_REL, Taxonomy, facet_card_lines};
 
 pub use frontmatter::{frontmatter_range, frontmatter_yaml};
+pub use keys::{ELIGIBILITY_KEYS, FACET_KEYS, KeyNearMiss, facet_key_near_misses};
 pub use provenance::{
     MAX_PAGE_QUOTE_WORDS, MAX_QUOTE_WORDS, is_blake3_content_hash, is_iso_date, quote_word_counts,
 };
@@ -95,6 +97,8 @@ pub struct Source {
 /// Typed KB facets read from page frontmatter. Unknown frontmatter keys are ignored.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(default)]
+// Near-misses of a facet key are reported by `facet_key_near_misses` (WR-03); the doc comment
+// above is the generated schema description, so the note lives here.
 pub struct Facets {
     /// Taxonomy topic id.
     pub topic: Option<String>,
@@ -407,5 +411,9 @@ mod tests {
         ];
         want.sort_unstable();
         assert_eq!(keys, want);
+        // the near-miss key list must track the struct
+        let mut known = FACET_KEYS.to_vec();
+        known.sort_unstable();
+        assert_eq!(known, want);
     }
 }

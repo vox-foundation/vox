@@ -5,8 +5,8 @@ use std::path::Path;
 use vox_kb_facets::{
     Authorship, BACKLOG_REL, Backlog, Facets, LabelMatch, MAX_PAGE_QUOTE_WORDS, MAX_QUOTE_WORDS,
     Origin, SUMMARY_MAX_WORDS, SUMMARY_MIN_WORDS, SummaryStatus, TAXONOMY_REL, Taxonomy,
-    forced_training_ineligible, inspect_summary, is_blake3_content_hash, is_iso_date,
-    is_valid_attestation, parse_facets, quote_word_counts,
+    facet_key_near_misses, forced_training_ineligible, inspect_summary, is_blake3_content_hash,
+    is_iso_date, is_valid_attestation, parse_facets, quote_word_counts,
 };
 
 use super::lint::suggest;
@@ -32,6 +32,7 @@ pub(crate) const BACKLOGGABLE_RULE_IDS: &[&str] = &[
     "facet-quote-over-cap",
     "facet-invalid-date",
     "facet-invalid-attestation",
+    "facet-unknown-key",
 ];
 
 fn hint(h: &Option<String>) -> String {
@@ -61,6 +62,7 @@ impl FacetIssue {
             Self::QuoteOverCap { .. } => "facet-quote-over-cap",
             Self::InvalidDate { .. } => "facet-invalid-date",
             Self::InvalidAttestation { .. } => "facet-invalid-attestation",
+            Self::UnknownFacetKey { .. } => "facet-unknown-key",
             Self::BacklogStale { .. } => "facet-backlog-stale",
         }
     }
@@ -120,6 +122,9 @@ impl FacetIssue {
             Self::InvalidAttestation { value } => format!(
                 "human_attested_by {value:?} is not a human attestation (blank, a placeholder or an AI name)"
             ),
+            Self::UnknownFacetKey { key, did_you_mean } => format!(
+                "frontmatter key {key:?} looks like a misspelled facet key; did you mean `{did_you_mean}`?"
+            ),
             Self::BacklogStale { rule } => format!(
                 "backlog excuses {rule} but the doc no longer violates it; run --tighten-facet-backlog"
             ),
@@ -155,6 +160,7 @@ impl FacetIssue {
             }
             Self::QuoteOverCap { .. } => "shorten or paraphrase the quote",
             Self::InvalidDate { .. } => "use YYYY-MM-DD",
+            Self::UnknownFacetKey { .. } => "rename the key to the facet it was meant to be",
             Self::InvalidAttestation { .. } => {
                 "name the human reviewer in human_attested_by, or remove the key"
             }
@@ -399,6 +405,15 @@ pub(crate) fn facet_issues(doc_text: &str, tax: &Taxonomy) -> Vec<(usize, FacetI
         Err(msg) => return vec![(1, FacetIssue::ParseError { msg })],
     };
     let mut out = Vec::new();
+    out.extend(facet_key_near_misses(doc_text).into_iter().map(|m| {
+        (
+            1,
+            FacetIssue::UnknownFacetKey {
+                key: m.key,
+                did_you_mean: m.suggestion,
+            },
+        )
+    }));
     label_issues(&f, tax, &mut out);
     out.extend(summary_issue(doc_text));
     provenance_issues(doc_text, &f, &mut out);
