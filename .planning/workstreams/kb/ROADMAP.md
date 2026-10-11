@@ -175,7 +175,7 @@ Plans:
   3. A lexical search for a taxonomy altLabel returns the doc tagged with the corresponding prefLabel, and deprecated aliases resolve to their replacement.
   4. A page with `origin: web-promoted` or LLM `authorship` and no `human_attested_by` is forced to `training_eligible: false`. A fixture shows the MENS corpus builder excludes it and emits no page-one summary-block text from any doc.
 
-**Plans:** 5/8 plans executed
+**Plans:** 6/8 plans executed
 
 Plans:
 **Wave 1**
@@ -191,7 +191,7 @@ Plans:
 **Wave 3** *(blocked on Wave 2 completion)*
 
 - [x] 04-05-PLAN.md — Facet lint in vox-doc-pipeline: FacetCtx, all success-criterion-1 rules, backlog filtering
-- [ ] 04-06-PLAN.md — Indexer facet cards + altLabel/deprecated-alias search, MCP wiring, chunker re-epoch with unchanged metrics
+- [x] 04-06-PLAN.md — Indexer facet cards + altLabel/deprecated-alias search, MCP wiring, chunker re-epoch with unchanged metrics
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
@@ -354,7 +354,7 @@ Plans:
 | 1. Retrieval Eval Baseline | 12/12 | Complete    | 2026-10-05 |
 | 2. Library Index and KB Tool Surface | 12/12 | Complete    | 2026-10-05 |
 | 3. Provenance, Trust Tiers and Leak Closure | 16/16 | Complete    | 2026-10-10 |
-| 4. Taxonomy Contract and Facet Lint | 5/8 | In Progress|  |
+| 4. Taxonomy Contract and Facet Lint | 6/8 | In Progress|  |
 | 5. Local Embeddings and Ranking Signals | 0/TBD | Not started | - |
 | 6. Library GUI | 0/TBD | Not started | - |
 | 7. Context Injection and Per-Chat Scope | 0/TBD | Not started | - |
