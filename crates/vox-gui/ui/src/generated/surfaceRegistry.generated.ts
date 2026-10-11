@@ -68,6 +68,7 @@ export const SURFACE_REGISTRY: SurfaceRegistryEntry[] = [
   { viewKey: null, cliGroup: 'gui', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'harness', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'init', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
+  { viewKey: null, cliGroup: 'kb', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'live', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'llm', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'lock', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },

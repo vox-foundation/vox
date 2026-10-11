@@ -40,6 +40,7 @@
     "gui",
     "harness",
     "init",
+    "kb",
     "live",
     "llm",
     "lock",
@@ -90,7 +91,9 @@
     "visus",
     "workflow"
   ],
-  "surface_count": 112,
-  "unclassified_backfilled": [],
+  "surface_count": 113,
+  "unclassified_backfilled": [
+    "kb"
+  ],
   "wiring_violations": []
 }
