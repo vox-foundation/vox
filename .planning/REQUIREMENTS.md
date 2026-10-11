@@ -74,7 +74,7 @@
 - [x] **DISC-04**: `llms.txt` / `vox-docs.json` capability sections are generated from the index (including MCP tool reference and GUI navigation), not hand-kept.
 - [x] **DISC-05**: GUI user can find any index entry from the ⌘K Omnibar — CLI verbs, MCP tools, skills, surfaces, crates, docs, settings, and keybinds — with the index as the palette's single source.
 - [x] **DISC-06**: GUI user can run a found CLI verb or action directly from the palette (opening a prefilled Catalog form when arguments are required).
-- [ ] **DISC-07**: GUI user can press `?` to open a shortcut sheet generated from `lib/keybinds.ts`, and every keybind is also a palette action.
+- [x] **DISC-07**: GUI user can press `?` to open a shortcut sheet generated from `lib/keybinds.ts`, and every keybind is also a palette action.
 - [ ] **DISC-08**: GUI user can browse a Capability Explorer grouped by domain (compiler, orchestrator, mesh, ML, research, secrets, …) showing each capability's status: dedicated surface / generic form / CLI-only / orphan backend.
 - [ ] **DISC-09**: The surface classifier credits Catalog generic forms as a `generic_form` tier, so coverage reflects what is actually reachable.
 - [ ] **DISC-10**: CI fails when a CLI group or capability has no GUI representation (dedicated or generic) and no exemption with owner + reason.
@@ -156,7 +156,7 @@ Deferred. Tracked but not in the current roadmap.
 | DISC-04 | Phase 06.2 | Complete |
 | DISC-05 | Phase 06.3 | Complete |
 | DISC-06 | Phase 06.3 | Complete |
-| DISC-07 | Phase 06.3 | Pending |
+| DISC-07 | Phase 06.3 | Complete |
 | DISC-08 | Phase 06.4 | Pending |
 | DISC-09 | Phase 06.4 | Pending |
 | DISC-10 | Phase 06.4 | Pending |
