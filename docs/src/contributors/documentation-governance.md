@@ -162,7 +162,7 @@ Docs that predate the contract are listed, with the rule ids they still violate,
 cargo run -p vox-doc-pipeline -- --tighten-facet-backlog
 ```
 
-The backlog only shrinks. Adding a row or rule id is **USER-AUTHORIZED-ONLY**: it needs a re-seed (`--seed-facet-backlog --epoch-note "<why>"`), which bumps the epoch, and the fast-tier gate rejects any growth that lacks one. Never hand-edit the file.
+The backlog only shrinks. Adding a row or rule id is **USER-AUTHORIZED-ONLY**: it needs a re-seed (`--seed-facet-backlog --epoch-note "<why>"`), which bumps the epoch, and the fast-tier gate rejects any growth that lacks one. Even a re-seed cannot list a doc that does not exist at the base ref: a new or renamed doc is never excused. Never hand-edit the file.
 
 ## Documentation Reality Audit
 

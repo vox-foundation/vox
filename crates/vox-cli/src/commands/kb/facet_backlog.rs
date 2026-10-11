@@ -3,6 +3,7 @@
 //! tier, hence in the hosted-CI `linux` job. Decisions live in
 //! `vox_doc_pipeline::pipeline::facet_backlog_gate_failures`; this only gathers the two texts.
 
+use std::collections::BTreeSet;
 use std::path::Path;
 
 use anyhow::{Result, bail};
@@ -26,6 +27,22 @@ pub(crate) fn file_at(
         .map_err(|e| format!("cannot read {rel} at {base}: {e}"))
 }
 
+/// Every path under `docs/src` in the base tree. A git failure is an error (fail closed): an
+/// empty set would make the re-epoch check reject every row, never admit one.
+pub(crate) fn docs_at(
+    git: impl Fn(&[&str]) -> Result<String, GitReadError>,
+    base: &str,
+) -> Result<BTreeSet<String>, String> {
+    git(&["ls-tree", "-r", "--name-only", "-z", base, "--", "docs/src"])
+        .map(|s| {
+            s.split('\0')
+                .filter(|p| !p.is_empty())
+                .map(str::to_owned)
+                .collect()
+        })
+        .map_err(|e| format!("cannot list docs/src at {base}: {e}"))
+}
+
 pub(crate) fn run_facet_backlog_gate(root: &Path, base: &str) -> Result<()> {
     super::gate::resolve_base(root, base)?;
     let base_text = file_at(|a| read_only(root, a), base, FACET_BACKLOG_REL)
@@ -36,7 +53,10 @@ pub(crate) fn run_facet_backlog_gate(root: &Path, base: &str) -> Result<()> {
     } else {
         None
     };
-    let failures = facet_backlog_gate_failures(base_text.as_deref(), head_text.as_deref());
+    let base_docs = docs_at(|a| read_only(root, a), base)
+        .map_err(|e| anyhow::anyhow!("[facet-backlog] {e}"))?;
+    let failures =
+        facet_backlog_gate_failures(base_text.as_deref(), head_text.as_deref(), &base_docs);
     if failures.is_empty() {
         println!("facet backlog gate: OK");
         return Ok(());
@@ -79,6 +99,21 @@ mod tests {
         let err = file_at(fake_git(Some("p"), None), "b", "p").unwrap_err();
         assert!(err.contains("simulated"), "{err}");
         assert!(file_at(fake_git(None, None), "b", "p").is_err());
+    }
+
+    #[test]
+    fn docs_at_splits_nul_and_fails_closed() {
+        let ok = docs_at(
+            fake_git(Some("docs/src/a.md\0docs/src/b c.md\0"), None),
+            "b",
+        )
+        .unwrap();
+        assert_eq!(
+            ok.into_iter().collect::<Vec<_>>(),
+            ["docs/src/a.md", "docs/src/b c.md"]
+        );
+        let err = docs_at(fake_git(None, None), "b").unwrap_err();
+        assert!(err.contains("simulated"), "{err}");
     }
 
     fn git(dir: &Path, args: &[&str]) {
@@ -131,7 +166,12 @@ mod tests {
         run("HEAD").unwrap();
         assert!(run("refs/heads/definitely-missing").is_err());
 
-        // seed lands on a second commit; the gate compares against the first (absent: bootstrap)
+        // seed lands on a second commit (with the docs it lists); the gate compares against the
+        // first (absent: bootstrap)
+        std::fs::create_dir_all(root.join("docs/src")).unwrap();
+        for d in ["a.md", "b.md"] {
+            std::fs::write(root.join("docs/src").join(d), "# d\n").unwrap();
+        }
         put(
             root,
             &y(1, "seed", &[("docs/src/a.md", "facet-missing-topic")]),
@@ -158,6 +198,7 @@ mod tests {
         let failures = facet_backlog_gate_failures(
             Some(&y(1, "seed", &[("docs/src/a.md", "facet-missing-topic")])),
             Some(&std::fs::read_to_string(root.join(FACET_BACKLOG_REL)).unwrap()),
+            &docs_at(|a| read_only(root, a), "HEAD").unwrap(),
         );
         assert!(failures[0].contains("docs/src/b.md"), "{failures:?}");
 
@@ -174,6 +215,21 @@ mod tests {
             ),
         );
         run("HEAD").unwrap();
+
+        // WR-01: a re-epoch that lists a doc absent from the base tree is rejected
+        put(
+            root,
+            &y(
+                2,
+                "reseed after import",
+                &[
+                    ("docs/src/a.md", "facet-missing-topic"),
+                    ("docs/src/mine.md", "facet-missing-topic"),
+                ],
+            ),
+        );
+        let err = run("HEAD").unwrap_err().to_string();
+        assert!(err.contains("1 failure"), "{err}");
 
         // deleting the file after it existed at base fails
         std::fs::remove_file(root.join(FACET_BACKLOG_REL)).unwrap();

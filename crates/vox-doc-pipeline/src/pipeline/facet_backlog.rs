@@ -125,10 +125,12 @@ pub(crate) fn tighten(repo_root: &Path) -> Result<String, String> {
 }
 
 /// Gate failures for the head backlog text against the base-ref text (`None` = file absent).
+/// `base_docs` is every `docs/src` path in the base tree; a re-epoch may only list those.
 #[must_use]
 pub fn facet_backlog_gate_failures(
     base_text: Option<&str>,
     head_text: Option<&str>,
+    base_docs: &BTreeSet<String>,
 ) -> Vec<String> {
     let parse = |which: &str, t: &str| {
         Backlog::from_yaml_str(t)
@@ -146,7 +148,7 @@ pub fn facet_backlog_gate_failures(
         None if base.is_some() => return vec!["[facet-backlog] backlog deleted".into()],
         None => return Vec::new(),
     };
-    Backlog::tighten_only_violations(base.as_ref(), &head)
+    Backlog::tighten_only_violations(base.as_ref(), &head, base_docs)
 }
 
 #[cfg(test)]
@@ -267,13 +269,22 @@ mod tests {
         };
         let one = "\n  - path: docs/src/a.md\n    rules: [facet-missing-topic]";
         let two = "\n  - path: docs/src/a.md\n    rules: [facet-missing-topic]\n  - path: docs/src/b.md\n    rules: [facet-missing-topic]";
-        let g = facet_backlog_gate_failures;
+        let tree: BTreeSet<String> = ["docs/src/a.md", "docs/src/b.md"]
+            .iter()
+            .map(|s| (*s).to_string())
+            .collect();
+        let g = |b: Option<&str>, h: Option<&str>| facet_backlog_gate_failures(b, h, &tree);
         assert!(g(None, None).is_empty(), "pre-seed passes");
         assert!(g(None, Some(&y(1, "s", two))).is_empty(), "bootstrap");
         assert!(g(Some(&y(1, "s", one)), Some(&y(1, "s", one))).is_empty());
         assert!(g(Some(&y(1, "s", two)), Some(&y(1, "s", one))).is_empty());
         assert_eq!(g(Some(&y(1, "s", one)), Some(&y(1, "s", two))).len(), 1);
         assert!(g(Some(&y(1, "s", one)), Some(&y(2, "reseed", two))).is_empty());
+        // WR-01: the re-seed may not list a path that is absent from the base tree
+        let own = "\n  - path: docs/src/a.md\n    rules: [facet-missing-topic]\n  - path: docs/src/mine.md\n    rules: [facet-missing-topic]";
+        let f = g(Some(&y(1, "s", one)), Some(&y(2, "reseed", own)));
+        assert_eq!(f.len(), 1, "{f:?}");
+        assert!(f[0].contains("docs/src/mine.md"), "{f:?}");
         assert_eq!(
             g(Some(&y(1, "s", one)), None),
             ["[facet-backlog] backlog deleted"]

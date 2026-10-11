@@ -151,9 +151,15 @@ impl Backlog {
     }
 
     /// Gate the head backlog against the base one: without a re-epoch it may only shrink.
-    /// `base == None` is bootstrap (no backlog at the base ref yet).
+    /// `base == None` is bootstrap (no backlog at the base ref yet). `base_docs` is every doc
+    /// path that exists in the base tree: a re-epoch may re-seed over those, but never list a
+    /// doc that did not exist there (D-03: a new doc is never excused, WR-01).
     #[must_use]
-    pub fn tighten_only_violations(base: Option<&Backlog>, head: &Backlog) -> Vec<String> {
+    pub fn tighten_only_violations(
+        base: Option<&Backlog>,
+        head: &Backlog,
+        base_docs: &BTreeSet<String>,
+    ) -> Vec<String> {
         let Some(base) = base else {
             return Vec::new();
         };
@@ -164,16 +170,24 @@ impl Backlog {
             )];
         }
         if head.epoch > base.epoch {
-            return if head.epoch_note.trim().is_empty()
-                || head.epoch_note.trim() == base.epoch_note.trim()
+            if head.epoch_note.trim().is_empty() || head.epoch_note.trim() == base.epoch_note.trim()
             {
-                vec![format!(
+                return vec![format!(
                     "[facet-backlog] epoch {} -> {} needs a new, non-empty epoch_note",
                     base.epoch, head.epoch
-                )]
-            } else {
-                Vec::new()
-            };
+                )];
+            }
+            return head
+                .docs
+                .iter()
+                .filter(|row| !base_docs.contains(&row.path))
+                .map(|row| {
+                    format!(
+                        "[facet-backlog] {}: re-seed lists a doc that does not exist at the base ref (a new or renamed doc is never excused)",
+                        row.path
+                    )
+                })
+                .collect();
         }
         head.docs
             .iter()
@@ -305,8 +319,12 @@ mod tests {
     #[test]
     fn gate_rejects_same_epoch_addition() {
         let base = bl(1, "seed", &[("docs/src/a.md", &["r1"])]);
-        let v = |h: &Backlog| Backlog::tighten_only_violations(Some(&base), h);
-        assert!(Backlog::tighten_only_violations(None, &base).is_empty());
+        let tree: BTreeSet<String> = ["docs/src/a.md", "docs/src/b.md"]
+            .iter()
+            .map(|s| (*s).to_string())
+            .collect();
+        let v = |h: &Backlog| Backlog::tighten_only_violations(Some(&base), h, &tree);
+        assert!(Backlog::tighten_only_violations(None, &base, &BTreeSet::new()).is_empty());
         assert!(v(&base).is_empty());
         assert!(v(&bl(1, "seed", &[])).is_empty());
         let new_row = v(&bl(
@@ -328,5 +346,30 @@ mod tests {
         assert!(v(&bl(2, "re-seed after import", &big)).is_empty());
         assert_eq!(v(&bl(2, "seed", &big)).len(), 1, "unchanged note");
         assert_eq!(v(&bl(2, "  ", &big)).len(), 1, "blank note");
+    }
+
+    /// WR-01: a re-epoch re-seeds over existing docs but cannot excuse a doc that is new.
+    #[test]
+    fn re_epoch_rejects_rows_for_docs_absent_from_the_base_tree() {
+        let base = bl(1, "seed", &[("docs/src/a.md", &["r1"])]);
+        let tree: BTreeSet<String> = std::iter::once("docs/src/a.md".to_string()).collect();
+        let v = |h: &Backlog| Backlog::tighten_only_violations(Some(&base), h, &tree);
+        // legitimate re-seed: existing doc gains a rule at a new epoch
+        assert!(v(&bl(2, "reseed", &[("docs/src/a.md", &["r1", "r2"])])).is_empty());
+        // seed-your-own-new-doc: a brand-new path at a re-epoch is rejected and named
+        let own = v(&bl(
+            2,
+            "reseed",
+            &[("docs/src/a.md", &["r1"]), ("docs/src/new.md", &["r1"])],
+        ));
+        assert_eq!(own.len(), 1, "{own:?}");
+        assert!(own[0].contains("docs/src/new.md"), "{own:?}");
+        // an empty base tree (listing failed to find docs) fails closed on every row
+        let none = Backlog::tighten_only_violations(
+            Some(&base),
+            &bl(2, "reseed", &[("docs/src/a.md", &["r1"])]),
+            &BTreeSet::new(),
+        );
+        assert_eq!(none.len(), 1);
     }
 }
