@@ -291,6 +291,22 @@ fn gate_reasons(
 }
 
 impl EvalCorpusReport {
+    /// Re-derive completeness from stored provenance and counts; never trusts
+    /// the stored `run_complete` alone (a hand-edited flag proves nothing).
+    #[must_use]
+    pub fn recheck_complete(&self) -> bool {
+        self.run_complete
+            && gate_reasons(
+                &self.provenance,
+                self.spend_cap_hit,
+                self.n_samples_planned,
+                rate(self.n_infra_errors, self.n_samples_planned),
+                self.max_infra_rate,
+                self.pass_at_k.is_some(),
+            )
+            .is_empty()
+    }
+
     /// Build the report and decide `run_complete`.
     #[must_use]
     pub fn assemble(mut inp: ReportInputs) -> Self {
@@ -467,5 +483,73 @@ mod tests {
         let json = serde_json::to_value(&r).unwrap();
         let back: EvalCorpusReport = serde_json::from_value(json.clone()).unwrap();
         assert_eq!(serde_json::to_value(&back).unwrap(), json);
+    }
+
+    fn complete_then(f: impl FnOnce(&mut ReportInputs)) -> EvalCorpusReport {
+        let mut i = inputs();
+        f(&mut i);
+        EvalCorpusReport::assemble(i)
+    }
+
+    #[test]
+    fn gate_rejects_each_cause() {
+        let cases: Vec<(&str, EvalCorpusReport)> = vec![
+            ("spend cap hit", complete_then(|i| i.spend_cap_hit = true)),
+            (
+                "no samples planned",
+                complete_then(|i| i.n_samples_planned = 0),
+            ),
+            ("infra error rate", complete_then(|i| i.n_infra_errors = 6)),
+            (
+                "missing provenance: tier",
+                complete_then(|i| i.provenance.tier = None),
+            ),
+            (
+                "verifier binary does not match harness",
+                complete_then(|i| i.provenance.verifier_matches_harness = Some(false)),
+            ),
+            ("no scored problems", complete_then(|i| i.outcomes.clear())),
+        ];
+        for (reason, r) in cases {
+            assert!(!r.run_complete, "{reason}");
+            assert!(
+                r.incomplete_reasons.iter().any(|x| x.contains(reason)),
+                "{reason} not in {:?}",
+                r.incomplete_reasons
+            );
+        }
+    }
+
+    #[test]
+    fn infra_ceiling_boundary_is_inclusive() {
+        let at = complete_then(|i| i.n_infra_errors = 5); // 5/100 == 0.05 ceiling
+        assert!(at.run_complete, "{:?}", at.incomplete_reasons);
+        assert!(at.recheck_complete());
+        let over = complete_then(|i| i.n_infra_errors = 6);
+        assert!(!over.run_complete);
+        assert!(!over.recheck_complete());
+    }
+
+    #[test]
+    fn recheck_rejects_a_forged_complete_flag() {
+        let r = EvalCorpusReport::assemble(inputs());
+        assert!(r.recheck_complete());
+
+        let forge = |edit: fn(&mut serde_json::Value)| {
+            let mut v = serde_json::to_value(&r).unwrap();
+            edit(&mut v);
+            v["run_complete"] = true.into();
+            serde_json::from_value::<EvalCorpusReport>(v).unwrap()
+        };
+        let no_identity = forge(|v| v["provenance"]["identity"] = serde_json::Value::Null);
+        assert!(no_identity.run_complete && !no_identity.recheck_complete());
+        let capped = forge(|v| v["spend_cap_hit"] = true.into());
+        assert!(!capped.recheck_complete());
+        let mismatch = forge(|v| v["provenance"]["verifier_matches_harness"] = false.into());
+        assert!(!mismatch.recheck_complete());
+        let unscored = forge(|v| v["pass_at_k"] = serde_json::Value::Null);
+        assert!(!unscored.recheck_complete());
+        let rate = forge(|v| v["n_infra_errors"] = 50.into());
+        assert!(!rate.recheck_complete());
     }
 }
