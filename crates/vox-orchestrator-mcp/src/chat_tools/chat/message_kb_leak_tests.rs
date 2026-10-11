@@ -68,9 +68,11 @@ fn reply_body(content: &str) -> serde_json::Value {
 }
 
 /// Run one plain chat turn for `prompt` against `db` with OpenRouter pointed at wiremock.
-/// Returns the turn's JSON response and every request body the model server received.
+/// Returns the turn's JSON response, every request body the model server received, and the
+/// `kb_findings` row count taken after DB attach (and the attach-time legacy migration) settled
+/// but before the turn ran, so a caller can tell migrated rows from rows the turn wrote.
 #[allow(unsafe_code)]
-async fn run_turn(db: Arc<VoxDb>, prompt: &str) -> (serde_json::Value, Vec<String>) {
+async fn run_turn(db: Arc<VoxDb>, prompt: &str) -> (serde_json::Value, Vec<String>, i64) {
     let server = MockServer::start().await;
     Mock::given(method("POST"))
         .respond_with(ResponseTemplate::new(200).set_body_json(reply_body(REPLY)))
@@ -87,7 +89,22 @@ async fn run_turn(db: Arc<VoxDb>, prompt: &str) -> (serde_json::Value, Vec<Strin
     }
     vox_config::snapshot::bump(&["OPENROUTER_BASE_URL"]);
 
-    let state = ServerState::new_test().await.with_db_initialized(db).await;
+    let state = ServerState::new_test()
+        .await
+        .with_db_initialized(db.clone())
+        .await;
+    // `with_db_initialized` spawns the RET-03 legacy-row migration into `kb_findings` and does not
+    // await it. Run it here to completion (idempotent per legacy id, so the spawned copy is a
+    // no-op or loses the dedupe race): every seeded legacy row is then present before the
+    // baseline is read, and the turn below cannot be blamed for it.
+    crate::kb_tools::findings::migrate_legacy_kb_entries(&db, &state.repository.root)
+        .await
+        .expect("legacy kb migration");
+    let findings_before_turn = db
+        .kb_findings_counts()
+        .await
+        .expect("finding counts before the turn")
+        .total;
     {
         let handle = state.orchestrator.models_handle();
         handle
@@ -133,6 +150,7 @@ async fn run_turn(db: Arc<VoxDb>, prompt: &str) -> (serde_json::Value, Vec<Strin
     (
         serde_json::from_str(&response).expect("chat_message returns JSON"),
         bodies,
+        findings_before_turn,
     )
 }
 
@@ -145,7 +163,8 @@ async fn kb_leak_chat_turn_writes_no_kb_entry_or_finding() {
     let before = db.legacy_kb_counts().await.expect("counts before");
     assert_eq!(before.kb_entries, 2, "seed is in place");
 
-    let (response, bodies) = run_turn(db.clone(), "tell me about gadgets").await;
+    let (response, bodies, findings_before_turn) =
+        run_turn(db.clone(), "tell me about gadgets").await;
 
     assert_eq!(
         response["success"], true,
@@ -157,10 +176,27 @@ async fn kb_leak_chat_turn_writes_no_kb_entry_or_finding() {
         after.kb_entries, before.kb_entries,
         "a chat turn must not write a legacy kb_entries row"
     );
+    // The attach-time RET-03 migration copies the 2 seeded legacy rows into the inbox. That is
+    // expected; it must not make this guard vacuous (baseline is the migrated rows) nor be
+    // mistaken for a turn write.
     assert_eq!(
-        db.kb_findings_counts().await.expect("finding counts").total,
-        0,
-        "a chat turn must not write a finding"
+        findings_before_turn, 2,
+        "the seeded legacy rows are migrated before the turn, so the baseline is meaningful"
+    );
+    let counts = db.kb_findings_counts().await.expect("finding counts");
+    assert_eq!(
+        counts.total, findings_before_turn,
+        "a chat turn must not write a finding (baseline taken after the attach migration)"
+    );
+    assert_eq!(
+        counts
+            .by_origin
+            .get("legacy_kb_entry")
+            .copied()
+            .unwrap_or(0),
+        counts.total,
+        "every finding present must be a migrated legacy row, none from the turn: {:?}",
+        counts.by_origin
     );
 }
 
@@ -185,7 +221,7 @@ fn assert_no_legacy_kb_in_prompt(bodies: &[String]) {
 #[allow(clippy::await_holding_lock)]
 async fn kb_leak_keyword_prompt_carries_no_legacy_kb_text() {
     let _env_guard = CHAT_MESSAGE_ENV_LOCK.lock().expect("env lock");
-    let (response, bodies) = run_turn(
+    let (response, bodies, _) = run_turn(
         seeded_db("tell me about widgets").await,
         "tell me about widgets",
     )
@@ -202,7 +238,7 @@ async fn kb_leak_keyword_prompt_carries_no_legacy_kb_text() {
 #[allow(clippy::await_holding_lock)]
 async fn kb_leak_at_mention_injects_nothing() {
     let _env_guard = CHAT_MESSAGE_ENV_LOCK.lock().expect("env lock");
-    let (response, bodies) = run_turn(
+    let (response, bodies, _) = run_turn(
         seeded_db("summarise @mykb please").await,
         "summarise @mykb please",
     )
