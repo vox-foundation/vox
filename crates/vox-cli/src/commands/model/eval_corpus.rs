@@ -39,6 +39,7 @@ use vox_eval::report::{
 };
 use vox_orchestrator::catalog::{MensCatalog, ModelCatalog};
 use vox_orchestrator::models::{ModelRegistry, ModelSpec, TaskCategory, llm_config_for_spec};
+use vox_populi::mens::tensor::adapter_card::check_for_eval;
 
 use super::bench::resolve_target;
 
@@ -257,6 +258,54 @@ fn verifier_identity(vox_bin: &Path) -> Result<VerifierIdentity> {
         git_sha: parsed.map(|(_, sha)| sha),
         binary_sha256: hex_encode(&interop_sha256(&bytes)),
     })
+}
+
+/// Lineage of a `mens/<run>` checkpoint from its training card, or the reasons the label
+/// is refused. Non-`mens/` ids need no lineage: `(None, [])`.
+///
+/// Wraps `adapter_card::check_for_eval`: a missing or invalid card, or an adapter whose
+/// SHA-256 differs from the card, yields `None`, so the completeness gate marks the run
+/// incomplete through the ordinary missing-field path. Syntax drift is reported, not hidden.
+#[must_use]
+pub fn mens_lineage(
+    repo_root: &Path,
+    model_id: &str,
+    fingerprint: &str,
+    kind: &str,
+) -> (Option<MensLineage>, Vec<String>) {
+    let Some(run) = model_id.strip_prefix("mens/") else {
+        return (None, Vec::new());
+    };
+    let run_dir = repo_root.join("mens").join("runs").join(run);
+    let check = check_for_eval(&run_dir, fingerprint, kind);
+    if !check.problems.is_empty() {
+        return (None, check.problems);
+    }
+    let Some(card) = check.card else {
+        return (None, vec!["no adapter card".to_string()]);
+    };
+    let base = if card.base_hf_id.contains('@') {
+        card.base_hf_id.clone()
+    } else {
+        format!("{}@{}", card.base_hf_id, card.base_revision)
+    };
+    let lineage = MensLineage {
+        base_hf_id_at_revision: Some(base),
+        adapter_sha256: Some(card.adapter_sha256),
+        training_manifest_digest: Some(card.training_manifest_digest),
+        train_data_sha256: Some(card.train_data_sha256),
+        training_syntax_fingerprint: Some(card.training_syntax_fingerprint),
+        training_syntax_fingerprint_kind: Some(card.syntax_fingerprint_kind),
+        syntax_drift: check.syntax_drift,
+    };
+    (Some(lineage), Vec::new())
+}
+
+/// Only a complete, generated run may reach the `model_scoreboard` routing reads; an
+/// incomplete or ingested (`--from-dir`) run never does.
+#[must_use]
+pub fn should_write_back(run_complete: bool, measured: bool, no_write_back: bool) -> bool {
+    run_complete && measured && !no_write_back
 }
 
 /// The manifest's own hand-maintained `corpus.corpus_hash`; informational only.
@@ -1020,6 +1069,21 @@ pub async fn run(args: EvalCorpusArgs) -> Result<()> {
             None
         }
     };
+    let (fingerprint, fingerprint_kind) = vox_compiler::llm_prompt::grammar_fingerprint();
+    let (mens, mens_problems) =
+        mens_lineage(&repo_root, &args.model, &fingerprint, fingerprint_kind);
+    if !mens_problems.is_empty() {
+        eprintln!("{}", "mens label refused:".red().bold());
+        for p in &mens_problems {
+            eprintln!("  - {p}");
+        }
+    }
+    if mens.as_ref().and_then(|m| m.syntax_drift) == Some(true) {
+        eprintln!(
+            "{} the adapter was trained against a different syntax than this harness evaluates",
+            "syntax drift:".yellow().bold()
+        );
+    }
     let timeout = std::time::Duration::from_secs(args.timeout_secs);
     let workdir = std::env::temp_dir().join(format!("vox-eval-corpus-{}", std::process::id()));
 
@@ -1088,12 +1152,9 @@ pub async fn run(args: EvalCorpusArgs) -> Result<()> {
         problem_set_hash: Some(psh),
         prompt_template_hash: Some(prompt_template_hash()),
         corpus_manifest_hash: corpus_manifest_hash(&args.corpus),
-        fingerprint: {
-            let (fp, kind) = vox_compiler::llm_prompt::grammar_fingerprint();
-            Some((fp, kind.to_string()))
-        },
+        fingerprint: Some((fingerprint, fingerprint_kind.to_string())),
         verifier,
-        mens: None,
+        mens,
         runner: resolve_runner(
             args.runner.as_deref(),
             std::env::var("GITHUB_ACTIONS").ok().as_deref(),
@@ -1112,7 +1173,7 @@ pub async fn run(args: EvalCorpusArgs) -> Result<()> {
     let report = finalize_report(drawn, prov, &meta);
     print_summary(&report);
 
-    if !args.no_write_back {
+    if should_write_back(report.run_complete, measured, args.no_write_back) {
         match vox_db::VoxDb::connect(
             vox_db::DbConfig::resolve_canonical().map_err(anyhow::Error::msg)?,
         )
@@ -1127,6 +1188,15 @@ pub async fn run(args: EvalCorpusArgs) -> Result<()> {
             }
             Err(e) => tracing::warn!(error = %e, "DB unavailable; skipping write-back"),
         }
+    } else if !args.no_write_back {
+        println!(
+            "model_scoreboard not updated: {}",
+            if report.run_complete {
+                "ingested run (--from-dir)"
+            } else {
+                "run incomplete"
+            }
+        );
     }
 
     if let Some(path) = &args.output {
@@ -1976,5 +2046,84 @@ mod tests {
         );
         assert_eq!(resolve_runner(None, None), None);
         assert_eq!(resolve_runner(Some("  "), Some("false")), None);
+    }
+
+    // ---- mens card check and write-back guard (12-07) ----
+
+    /// `<tmp>/mens/runs/demo` holding an adapter, optionally with a valid lineage card.
+    fn mens_repo(with_card: bool) -> tempfile::TempDir {
+        use vox_populi::mens::tensor::adapter_card::{AdapterCard, sha256_file_hex};
+        let tmp = tempfile::tempdir().unwrap();
+        let run = tmp.path().join("mens/runs/demo");
+        std::fs::create_dir_all(&run).unwrap();
+        let adapter = run.join("candle_qlora_adapter.safetensors");
+        std::fs::write(&adapter, b"adapter bytes").unwrap();
+        if with_card {
+            let mut card = AdapterCard::for_test("qwen3_16g", "qlora");
+            card.adapter_sha256 = sha256_file_hex(&adapter).unwrap();
+            card.train_data_sha256 = hex_encode(&interop_sha256(b"train data"));
+            card.training_manifest_digest = hex_encode(&secure_hash(b"manifest"));
+            card.training_syntax_fingerprint = "fp1".to_string();
+            card.syntax_fingerprint_kind = "ebnf-sha256".to_string();
+            card.write_sidecar(&adapter).unwrap();
+        }
+        tmp
+    }
+
+    #[test]
+    fn card_missing_refuses_mens_label() {
+        let repo = mens_repo(false);
+        let (lineage, problems) = mens_lineage(repo.path(), "mens/demo", "fp1", "ebnf-sha256");
+        assert!(lineage.is_none());
+        assert!(
+            problems.iter().any(|p| p.contains("adapter_card.json")),
+            "names the missing card: {problems:?}"
+        );
+    }
+
+    #[test]
+    fn card_valid_fills_lineage_and_drift() {
+        let repo = mens_repo(true);
+        let (lineage, problems) = mens_lineage(repo.path(), "mens/demo", "fp1", "ebnf-sha256");
+        assert!(problems.is_empty(), "{problems:?}");
+        let l = lineage.expect("valid card gives lineage");
+        assert!(
+            l.base_hf_id_at_revision
+                .as_deref()
+                .unwrap()
+                .ends_with("@abc123")
+        );
+        assert_eq!(
+            l.adapter_sha256.as_deref(),
+            Some(hex_encode(&interop_sha256(b"adapter bytes")).as_str())
+        );
+        assert_eq!(l.syntax_drift, Some(false));
+        assert_eq!(l.training_syntax_fingerprint.as_deref(), Some("fp1"));
+        let (drifted, _) = mens_lineage(repo.path(), "mens/demo", "fp2", "ebnf-sha256");
+        assert_eq!(drifted.unwrap().syntax_drift, Some(true));
+    }
+
+    #[test]
+    fn card_not_required_for_external_models() {
+        let repo = mens_repo(false);
+        let (lineage, problems) = mens_lineage(repo.path(), "acme/model", "fp1", "ebnf-sha256");
+        assert!(lineage.is_none() && problems.is_empty());
+    }
+
+    #[test]
+    fn write_back_requires_complete_measured_runs() {
+        assert!(should_write_back(true, true, false));
+        assert!(
+            !should_write_back(false, true, false),
+            "incomplete never steers routing"
+        );
+        assert!(
+            !should_write_back(true, false, false),
+            "ingested rows never steer routing"
+        );
+        assert!(
+            !should_write_back(true, true, true),
+            "--no-write-back is honored"
+        );
     }
 }
