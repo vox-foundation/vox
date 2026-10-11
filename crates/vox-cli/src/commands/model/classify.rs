@@ -52,13 +52,7 @@ async fn run_measured(args: &ClassifyArgs) -> Result<()> {
         timeout_ms: 120_000,
     })
     .await?;
-    let summary: super::bench::ModelSummary = report["summaries"]
-        .as_array()
-        .and_then(|a| a.first())
-        .cloned()
-        .map(serde_json::from_value)
-        .transpose()?
-        .context("bench produced no summary for this model")?;
+    let summary = first_summary(&report)?;
     let registry = ModelRegistry::from_cache();
     let catalog_tier = registry
         .get(&args.model_id)
@@ -72,6 +66,16 @@ async fn run_measured(args: &ClassifyArgs) -> Result<()> {
     );
     record_classification(&args.model_id, "vox-model-bench", &judgement);
     Ok(())
+}
+
+fn first_summary(report: &serde_json::Value) -> Result<super::bench::ModelSummary> {
+    report["summaries"]
+        .as_array()
+        .and_then(|a| a.first())
+        .cloned()
+        .map(serde_json::from_value)
+        .transpose()?
+        .context("bench produced no summary for this model")
 }
 
 pub async fn run(args: ClassifyArgs) -> Result<()> {
@@ -139,4 +143,45 @@ pub async fn run(args: ClassifyArgs) -> Result<()> {
     };
     record_classification(&args.model_id, &classifier_id, &placeholder);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::bench::ModelSummary;
+    use super::first_summary;
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn measured_classify_reads_the_first_summary_of_a_bench_report() {
+        let s = ModelSummary {
+            model_id: "acme/x-3".into(),
+            served_model: None,
+            cases: 22,
+            passed: 20,
+            pass_rate: 20.0 / 22.0,
+            pass_ci95: Some((0.72, 0.97)),
+            mean_score: 0.93,
+            by_suite: BTreeMap::from([("reasoning".to_string(), 0.9)]),
+            error_rate: 0.0,
+            p50_ttft_ms: Some(300),
+            p50_latency_ms: Some(900),
+            p95_latency_ms: Some(2000),
+            mean_tokens_per_sec: Some(60.0),
+            total_cost_usd: 0.02,
+            cost_per_solve_usd: Some(0.001),
+            tokens_per_solve: Some(250.0),
+            score_stddev: None,
+            effective_context: None,
+        };
+        let report = serde_json::json!({ "summaries": [s] });
+        let got = first_summary(&report).expect("summary");
+        assert_eq!(
+            (got.model_id.as_str(), got.cases, got.passed),
+            ("acme/x-3", 22, 20)
+        );
+        assert_eq!(got.by_suite.get("reasoning"), Some(&0.9));
+
+        let empty = first_summary(&serde_json::json!({ "summaries": [] })).unwrap_err();
+        assert!(empty.to_string().contains("no summary"), "{empty}");
+    }
 }

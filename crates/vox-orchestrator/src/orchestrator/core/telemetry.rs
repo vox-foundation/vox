@@ -179,3 +179,63 @@ impl crate::orchestrator::Orchestrator {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::config::OrchestratorConfig;
+    use crate::models::autonomic::ModelConfidence;
+    use crate::orchestrator::Orchestrator;
+
+    fn case(i: usize, passed: bool) -> vox_db::NewModelBenchmarkResult {
+        vox_db::NewModelBenchmarkResult {
+            run_id: "run-1".into(),
+            model_id: "acme/measured-1".into(),
+            resolved_model_id: None,
+            provider: "openrouter".into(),
+            suite: "reasoning".into(),
+            task_category: "Reasoning".into(),
+            case_id: format!("c-{i}"),
+            passed,
+            score: if passed { 1.0 } else { 0.0 },
+            ttft_ms: Some(100),
+            latency_ms: Some(400),
+            input_tokens: Some(100),
+            output_tokens: Some(50),
+            tokens_per_sec: Some(40.0),
+            cost_usd: Some(0.0001),
+            error_class: None,
+            recorded_at_ms: vox_db::now_unix_ms() as i64,
+        }
+    }
+
+    #[tokio::test]
+    async fn the_daemon_refresh_feeds_persisted_bench_results_into_routing() {
+        let db = std::sync::Arc::new(
+            vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
+                .await
+                .expect("memory db"),
+        );
+        for i in 0..10 {
+            db.record_model_benchmark_result(&case(i, true))
+                .await
+                .expect("record bench case");
+        }
+        let orch = Orchestrator::new(OrchestratorConfig::for_testing()).with_db(db);
+        assert!(
+            orch.models
+                .read()
+                .unwrap()
+                .bench_evidence("acme/measured-1")
+                .is_none()
+        );
+
+        orch.refresh_model_scoreboard().await;
+
+        let registry = orch.models.read().unwrap();
+        let ev = registry
+            .bench_evidence("acme/measured-1")
+            .expect("refresh should load the persisted bench evidence");
+        assert_eq!((ev.cases, ev.passed), (10, 10));
+        assert_eq!(ev.verdict(), Some(ModelConfidence::Confirmed));
+    }
+}
