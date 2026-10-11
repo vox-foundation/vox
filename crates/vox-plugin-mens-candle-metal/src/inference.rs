@@ -591,6 +591,10 @@ impl InferenceEngine {
     ///   - `"max_tokens"`: integer (default 256)
     ///   - `"temperature"`: float (default 1.0; `<= 0` forces greedy)
     ///   - `"top_k"`: integer (default 0 = full vocabulary; `1` forces greedy)
+    ///   - `"top_p"`: float nucleus mass (default absent = 1.0, no filtering)
+    ///   - `"seed"`: integer; sampling draws from `StdRng::seed_from_u64(seed)`
+    ///     so equal seeds over equal logits give equal tokens (default absent =
+    ///     entropy-seeded)
     ///   - `"output_mode"`: optional structured-output label — see
     ///     `check_output_mode` for what this plugin does and does not enforce.
     pub fn generate_from_json(&mut self, prompt_json: &str) -> Result<String> {
@@ -605,6 +609,12 @@ impl InferenceEngine {
             temperature: f64,
             #[serde(default)]
             top_k: usize,
+            /// Nucleus mass; absent or `>= 1.0` leaves sampling unfiltered.
+            #[serde(default)]
+            top_p: Option<f64>,
+            /// Sampler seed; absent keeps entropy-seeded sampling.
+            #[serde(default)]
+            seed: Option<u64>,
             #[serde(default)]
             output_mode: Option<String>,
         }
@@ -622,7 +632,14 @@ impl InferenceEngine {
 
         let prompt = assemble_prompt(req.system.as_deref(), &req.prompt);
 
-        let generated = self.generate(&prompt, req.max_tokens, req.temperature, req.top_k)?;
+        let generated = self.generate(
+            &prompt,
+            req.max_tokens,
+            req.temperature,
+            req.top_k,
+            req.top_p,
+            req.seed,
+        )?;
 
         let out = serde_json::json!({
             "generated_text": generated,
@@ -638,6 +655,8 @@ impl InferenceEngine {
         max_tokens: usize,
         temperature: f64,
         top_k: usize,
+        top_p: Option<f64>,
+        seed: Option<u64>,
     ) -> Result<String> {
         let prompt_tokens = self
             .tokenizer
@@ -652,7 +671,7 @@ impl InferenceEngine {
         }
 
         let mut generated = String::new();
-        let mut rng = rand::thread_rng();
+        let mut rng = generation_rng(seed);
 
         // KV-cached decoding: the prompt is forwarded ONCE (the prefill, at
         // position 0), and each step after that forwards only the single token
@@ -681,7 +700,8 @@ impl InferenceEngine {
             let logits = logits.narrow(0, seq.saturating_sub(1), 1)?.squeeze(0)?;
 
             let slice = logits.to_vec1::<f32>()?;
-            let next_token = sample_next_token(&slice, temperature, top_k, &mut rng);
+            let next_token =
+                sample_next_token(&slice, temperature, top_k, top_p.unwrap_or(1.0), &mut rng);
 
             // Stop tokens come from the model's own config.json (see
             // `eos_token_ids`). This used to break on a hardcoded 151643, which
@@ -848,6 +868,16 @@ fn check_output_mode(output_mode: Option<&str>) -> Result<()> {
     }
 }
 
+/// The sampler's rng: `StdRng::seed_from_u64(seed)` when the request carries a
+/// seed (reproducible draws, BENCH-02 / D-12), entropy-seeded otherwise.
+fn generation_rng(seed: Option<u64>) -> rand::rngs::StdRng {
+    use rand::SeedableRng;
+    match seed {
+        Some(s) => rand::rngs::StdRng::seed_from_u64(s),
+        None => rand::rngs::StdRng::from_entropy(),
+    }
+}
+
 /// Pick the next token: greedy unless both a positive temperature and a top-k
 /// wider than one ask for sampling.
 ///
@@ -858,6 +888,7 @@ fn sample_next_token(
     logits: &[f32],
     temperature: f64,
     top_k: usize,
+    top_p: f64,
     rng: &mut impl rand::Rng,
 ) -> u32 {
     let argmax = |v: &[f32]| -> u32 {
@@ -978,7 +1009,14 @@ mod live_metal_tests {
         let mut engine = load_demo_engine();
         let t0 = std::time::Instant::now();
         let out = engine
-            .generate("Write a Vox function that adds two ints.", TOKENS, 0.0, 0)
+            .generate(
+                "Write a Vox function that adds two ints.",
+                TOKENS,
+                0.0,
+                0,
+                None,
+                None,
+            )
             .unwrap();
         let rate = TOKENS as f64 / t0.elapsed().as_secs_f64();
         eprintln!("measured rate: {rate:.4} tok/s over {:?}", t0.elapsed());
@@ -1028,7 +1066,14 @@ mod live_metal_tests {
             .expect("a base-only directory must load without an adapter");
 
         let out = engine
-            .generate("Write a Vox function that adds two ints.", 64, 0.0, 0)
+            .generate(
+                "Write a Vox function that adds two ints.",
+                64,
+                0.0,
+                0,
+                None,
+                None,
+            )
             .expect("base-only engine must run real inference");
         eprintln!("base-only generation: {out:?}");
         assert!(
@@ -1042,6 +1087,7 @@ mod live_metal_tests {
 mod tests {
     use super::assemble_prompt;
     use super::check_output_mode;
+    use super::generation_rng;
     use super::resolve_adapter_manifest_path;
     use super::sample_next_token;
     use super::weight_sources;
@@ -1418,11 +1464,24 @@ mod tests {
     }
 
     #[test]
+    fn seeded_generation_rng_is_reproducible() {
+        let logits: Vec<f32> = (0..32).map(|i| (i % 5) as f32 * 0.1).collect();
+        let draw = |seed: u64| -> Vec<u32> {
+            let mut rng = generation_rng(Some(seed));
+            (0..64)
+                .map(|_| sample_next_token(&logits, 1.0, 0, 1.0, &mut rng))
+                .collect()
+        };
+        assert_eq!(draw(42), draw(42), "equal seeds must give equal tokens");
+        assert_ne!(draw(42), draw(43), "different seeds must differ");
+    }
+
+    #[test]
     fn top_k_of_one_and_zero_temperature_stay_greedy() {
         let mut rng = rand::thread_rng();
         let logits = [0.1f32, 9.0, 0.2, 0.3];
-        assert_eq!(sample_next_token(&logits, 1.0, 1, &mut rng), 1);
-        assert_eq!(sample_next_token(&logits, 0.0, 40, &mut rng), 1);
+        assert_eq!(sample_next_token(&logits, 1.0, 1, 1.0, &mut rng), 1);
+        assert_eq!(sample_next_token(&logits, 0.0, 40, 1.0, &mut rng), 1);
     }
 
     #[test]
@@ -1431,7 +1490,7 @@ mod tests {
         // Index 3 is the runner-up; index 0 and 2 must never be drawn at k=2.
         let logits = [0.0f32, 5.0, 0.0, 4.9];
         for _ in 0..200 {
-            let t = sample_next_token(&logits, 1.0, 2, &mut rng);
+            let t = sample_next_token(&logits, 1.0, 2, 1.0, &mut rng);
             assert!(t == 1 || t == 3, "top_k=2 drew outside the top 2: {t}");
         }
     }

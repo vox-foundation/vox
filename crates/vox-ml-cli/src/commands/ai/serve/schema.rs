@@ -11,6 +11,14 @@ pub struct GenerateRequest {
     pub max_tokens: usize,
     #[serde(default = "default_temperature")]
     pub temperature: f32,
+    /// Sampling seed. Present: the plugin's sampler is `StdRng::seed_from_u64(seed)`,
+    /// so the same seed over the same logits reproduces the same tokens (BENCH-02,
+    /// D-12). Absent: entropy-seeded, as before.
+    #[serde(default)]
+    pub seed: Option<u64>,
+    /// Nucleus mass. Absent or `1.0` leaves sampling unfiltered.
+    #[serde(default)]
+    pub top_p: Option<f32>,
     #[serde(default)]
     pub model: Option<String>,
     /// P015: Optional output mode for constrained decoding (strict_json, jsonl_records, tool_args_json).
@@ -117,6 +125,12 @@ pub struct ChatCompletionRequest {
     pub max_tokens: Option<usize>,
     #[serde(default)]
     pub temperature: Option<f32>,
+    /// See `GenerateRequest::seed`.
+    #[serde(default)]
+    pub seed: Option<u64>,
+    /// See `GenerateRequest::top_p`.
+    #[serde(default)]
+    pub top_p: Option<f32>,
     /// OpenAI tool-definition objects (`{"type":"function","function":{"name",
     /// "description","parameters"}}`), or the flatter `{"name","description"}`
     /// shape — both are accepted by the name/description lookups this route
@@ -174,7 +188,17 @@ pub struct ChatCompletionToolCallFunction {
 
 #[cfg(all(test, feature = "execution-api"))]
 mod tests {
-    use super::GenerateRequest;
+    use super::{ChatCompletionRequest, GenerateRequest};
+
+    #[test]
+    fn chat_completion_request_accepts_seed_and_top_p() {
+        let req: ChatCompletionRequest =
+            serde_json::from_str(r#"{"messages": [], "seed": 9, "top_p": 0.5}"#).unwrap();
+        assert_eq!(req.seed, Some(9));
+        assert_eq!(req.top_p, Some(0.5));
+        let bare: ChatCompletionRequest = serde_json::from_str(r#"{"messages": []}"#).unwrap();
+        assert_eq!((bare.seed, bare.top_p), (None, None));
+    }
 
     /// (c) Backward compat: a `GenerateRequest` JSON body with no
     /// `system_prompt` key at all — the shape every caller sent before this

@@ -19,6 +19,8 @@ pub struct InferenceRequest {
     pub prompt: String,
     pub max_tokens: usize,
     pub temperature: f32,
+    pub seed: Option<u64>,
+    pub top_p: Option<f32>,
     pub top_k: usize,
     pub output_mode: Option<String>,
     /// Per-request system prompt override (see `GenerateRequest::system_prompt`
@@ -139,6 +141,8 @@ fn inference_payload(default_system_prompt: &str, req: &InferenceRequest) -> Str
         "max_tokens": req.max_tokens,
         "temperature": req.temperature,
         "top_k": req.top_k,
+        "seed": req.seed,
+        "top_p": req.top_p,
         "output_mode": req.output_mode,
     })
     .to_string()
@@ -155,6 +159,8 @@ mod tests {
             prompt: "hi".into(),
             max_tokens: 8,
             temperature: 0.0,
+            seed: None,
+            top_p: None,
             top_k: 40,
             output_mode: Some("strict_json".into()),
             system_prompt: None,
@@ -173,6 +179,29 @@ mod tests {
         );
     }
 
+    #[test]
+    fn the_payload_carries_seed_and_top_p() {
+        let (tx, _rx) = tokio::sync::oneshot::channel();
+        let mut req = InferenceRequest {
+            prompt: "hi".into(),
+            max_tokens: 8,
+            temperature: 0.0,
+            seed: Some(9),
+            top_p: Some(0.5),
+            top_k: 40,
+            output_mode: None,
+            system_prompt: None,
+            reply: tx,
+        };
+        let v: serde_json::Value = serde_json::from_str(&inference_payload("S", &req)).unwrap();
+        assert_eq!(v["seed"], 9);
+        assert_eq!(v["top_p"], 0.5);
+        req.seed = None;
+        req.top_p = None;
+        let v: serde_json::Value = serde_json::from_str(&inference_payload("S", &req)).unwrap();
+        assert!(v["seed"].is_null() && v["top_p"].is_null());
+    }
+
     /// (a) A non-empty per-request `system_prompt` REPLACES the server's
     /// startup default entirely — the default text must not appear anywhere
     /// in the payload sent to the worker.
@@ -183,6 +212,8 @@ mod tests {
             prompt: "hi".into(),
             max_tokens: 8,
             temperature: 0.0,
+            seed: None,
+            top_p: None,
             top_k: 40,
             output_mode: None,
             system_prompt: Some("CALLER OVERRIDE".into()),
@@ -211,6 +242,8 @@ mod tests {
             prompt: "hi".into(),
             max_tokens: 8,
             temperature: 0.0,
+            seed: None,
+            top_p: None,
             top_k: 40,
             output_mode: None,
             system_prompt: None,
@@ -231,6 +264,8 @@ mod tests {
             prompt: "hi".into(),
             max_tokens: 8,
             temperature: 0.0,
+            seed: None,
+            top_p: None,
             top_k: 40,
             output_mode: None,
             system_prompt: Some(String::new()),

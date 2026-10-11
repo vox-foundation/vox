@@ -134,6 +134,8 @@ pub async fn do_generate(
             prompt,
             max_tokens: req.max_tokens,
             temperature: req.temperature,
+            seed: req.seed,
+            top_p: req.top_p,
             top_k: 40,
             output_mode: output_mode.map(String::from),
             system_prompt: req.system_prompt.clone(),
@@ -296,6 +298,8 @@ pub async fn do_chat_completions(
         prompt,
         max_tokens: req.max_tokens.unwrap_or(256),
         temperature: req.temperature.unwrap_or(0.7),
+        seed: req.seed,
+        top_p: req.top_p,
         model: req.model.clone(),
         output_mode: has_tools.then(|| "tool_args_json".to_string()),
         max_retries: 3,
@@ -543,6 +547,8 @@ mod chat_completions_tests {
             model: None,
             max_tokens: None,
             temperature: None,
+            seed: None,
+            top_p: None,
             tools: Some(vec![serde_json::json!({
                 "type": "function",
                 "function": {"name": "get_weather", "description": "looks up the weather"}
@@ -577,6 +583,8 @@ mod chat_completions_tests {
             model: None,
             max_tokens: None,
             temperature: None,
+            seed: None,
+            top_p: None,
             tools: Some(vec![serde_json::json!({
                 "type": "function",
                 "function": {"name": "get_weather"}
@@ -603,6 +611,8 @@ mod chat_completions_tests {
             model: None,
             max_tokens: None,
             temperature: None,
+            seed: None,
+            top_p: None,
             tools: None,
         };
         let (status, Json(resp)) = do_chat_completions(State(state), Json(req)).await;
