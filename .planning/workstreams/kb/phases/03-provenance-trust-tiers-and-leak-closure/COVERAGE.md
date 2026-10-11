@@ -1,1 +1,1 @@
-No external API integration: Phase 3 integrates no new external API or SDK; it reroutes output of already-integrated web providers (SearXNG, DDG, Tavily) into the local kb_findings inbox, reuses the existing Crossref retraction lookup in crates/vox-search/src/trust.rs through a new fail-closed verdict, and removes legacy MCP tools from the in-repo operations catalog.
+No external API integration: Phase 3 adds no new API or SDK; it only reroutes output of already-integrated web providers (SearXNG, DDG, Tavily) into the findings inbox.
