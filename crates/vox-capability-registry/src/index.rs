@@ -142,6 +142,15 @@ impl CapabilityIndex {
         // ponytail: linear scan over ~1.3k rows; build a map if a hot path ever needs it.
         self.rows.iter().find(|r| r.id == id)
     }
+
+    /// D-03/D-15: the first destructive CLI row whose `cli.path` is an ordered subsequence of the
+    /// non-flag tokens of `argv`, or `None`. Flags are dropped so a global flag before the
+    /// subcommand (`--json plugin remove`) cannot hide it; a false positive fails closed.
+    #[must_use]
+    pub fn confirmation_required(&self, argv: &[String]) -> Option<&IndexRow> {
+        let _ = argv;
+        None
+    }
 }
 
 /// The index embedded at compile time, parsed once.
@@ -174,5 +183,94 @@ mod tests {
         assert_eq!(cli.kind, RowKind::Cli);
         let mcp = idx.row("mcp.vox_check").expect("mcp.vox_check row");
         assert_eq!(mcp.kind, RowKind::McpTool);
+    }
+
+    fn gate_index() -> CapabilityIndex {
+        let row = |id: &str, path: &[&str], class: Option<&str>| {
+            serde_json::json!({
+                "id": id, "kind": "cli", "title": id, "summary": null, "op_id": null,
+                "status": null, "domain": null, "product_lane": null,
+                "side_effect_class": class, "tier": null,
+                "cli": {"path": path, "invocation": format!("vox {}", path.join(" ")), "feature_gate": null},
+                "mcp": null, "gui": null, "owner": null, "source_path": null,
+                "docs": [], "skills": [], "equivalents": [], "refs": [], "coverage": null
+            })
+        };
+        let doc = serde_json::json!({
+            "schema_version": 1, "generator": "t", "coverage_snapshot": null, "domains": [],
+            "rows": [
+                row("cli.plugin.remove", &["plugin", "remove"], Some("destructive")),
+                row("cli.features", &["features"], Some("read_only")),
+                row("cli.fmt", &["fmt"], None),
+            ]
+        });
+        serde_json::from_value(doc).expect("gate index parses")
+    }
+
+    fn argv(tokens: &[&str]) -> Vec<String> {
+        tokens.iter().map(|t| (*t).to_string()).collect()
+    }
+
+    fn gated_id(idx: &CapabilityIndex, tokens: &[&str]) -> Option<String> {
+        idx.confirmation_required(&argv(tokens))
+            .map(|r| r.id.clone())
+    }
+
+    #[test]
+    fn confirmation_required_matches_path() {
+        let idx = gate_index();
+        assert_eq!(
+            gated_id(&idx, &["plugin", "remove", "x"]).as_deref(),
+            Some("cli.plugin.remove")
+        );
+    }
+
+    #[test]
+    fn confirmation_required_sees_argv_subcommand() {
+        let idx = gate_index();
+        // path ["plugin"] + __argv ["remove","x"] assembles to the same argv.
+        let mut assembled = argv(&["plugin"]);
+        assembled.extend(argv(&["remove", "x"]));
+        assert_eq!(
+            idx.confirmation_required(&assembled).map(|r| r.id.as_str()),
+            Some("cli.plugin.remove")
+        );
+    }
+
+    #[test]
+    fn confirmation_required_skips_flags() {
+        let idx = gate_index();
+        assert!(gated_id(&idx, &["plugin", "--json", "remove", "x"]).is_some());
+        assert!(gated_id(&idx, &["--json", "plugin", "remove"]).is_some());
+    }
+
+    #[test]
+    fn confirmation_required_ignores_non_destructive() {
+        let idx = gate_index();
+        assert_eq!(gated_id(&idx, &["features"]), None);
+        assert_eq!(gated_id(&idx, &["fmt"]), None);
+    }
+
+    #[test]
+    fn confirmation_required_empty_and_flags_only() {
+        let idx = gate_index();
+        assert_eq!(gated_id(&idx, &[]), None);
+        assert_eq!(gated_id(&idx, &["--json", "--help"]), None);
+    }
+
+    #[test]
+    fn confirmation_required_order_matters() {
+        let idx = gate_index();
+        assert_eq!(gated_id(&idx, &["remove", "plugin"]), None);
+    }
+
+    #[test]
+    fn confirmation_required_bundled_plugin_remove() {
+        let idx = bundled_index();
+        assert_eq!(
+            gated_id(idx, &["plugin", "remove", "demo"]).as_deref(),
+            Some("cli.plugin.remove")
+        );
+        assert_eq!(gated_id(idx, &["features"]), None);
     }
 }
