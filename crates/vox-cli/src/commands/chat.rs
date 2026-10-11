@@ -190,6 +190,7 @@ pub(crate) fn resolve_chat_config(model: &str) -> LlmConfig {
             telemetry_trace_id: None,
             telemetry_attempt_number: None,
             telemetry_skip_interaction: true,
+            seed: None,
         }
     } else if model.starts_with("ollama")
         || (model.contains("qwen3") && !model.contains('/'))

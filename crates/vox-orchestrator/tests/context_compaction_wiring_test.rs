@@ -175,6 +175,7 @@ async fn over_limit_conversation_compacts_and_archives_losslessly_before_llm_cal
         telemetry_trace_id: None,
         telemetry_attempt_number: None,
         telemetry_skip_interaction: true,
+        seed: None,
     };
     let opts = vox_actor_runtime::ActivityOptions::new();
     let outcome = vox_actor_runtime::llm::llm_chat(&opts, messages, llm_config).await;

@@ -37,6 +37,7 @@ pub fn embedding_config_from_env() -> Option<LlmConfig> {
             telemetry_trace_id: None,
             telemetry_attempt_number: None,
             telemetry_skip_interaction: false,
+            seed: None,
         });
     }
     let openai_key = vox_secrets::resolve_secret(vox_secrets::SecretId::OpenaiApiKey)
@@ -64,6 +65,7 @@ pub fn embedding_config_from_env() -> Option<LlmConfig> {
             telemetry_trace_id: None,
             telemetry_attempt_number: None,
             telemetry_skip_interaction: false,
+            seed: None,
         });
     }
     let openrouter_key = vox_secrets::resolve_secret(vox_secrets::SecretId::OpenRouterApiKey)
@@ -91,7 +93,21 @@ pub fn embedding_config_from_env() -> Option<LlmConfig> {
             telemetry_trace_id: None,
             telemetry_attempt_number: None,
             telemetry_skip_interaction: false,
+            seed: None,
         });
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Embedding requests never ask for a sampling seed, whichever provider is configured.
+    #[test]
+    fn embedding_config_never_carries_a_seed() {
+        if let Some(cfg) = embedding_config_from_env() {
+            assert!(cfg.seed.is_none());
+        }
+    }
 }

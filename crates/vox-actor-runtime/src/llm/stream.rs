@@ -53,6 +53,7 @@ pub async fn llm_stream(
     let params = vox_llm_egress::ChatParams {
         temperature: config.temperature,
         top_p: config.top_p,
+        seed: config.seed,
         max_tokens: config.max_tokens,
         response_format: config.response_format.as_ref(),
         tools: wire_tools.as_deref(),
@@ -98,6 +99,7 @@ pub async fn llm_stream_measured(
     let params = vox_llm_egress::ChatParams {
         temperature: config.temperature,
         top_p: config.top_p,
+        seed: config.seed,
         max_tokens: config.max_tokens,
         response_format: config.response_format.as_ref(),
         tools: None,
@@ -210,6 +212,7 @@ mod tests {
             telemetry_trace_id: None,
             telemetry_attempt_number: None,
             telemetry_skip_interaction: true,
+            seed: None,
         }
     }
 

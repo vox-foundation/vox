@@ -44,6 +44,7 @@ impl LlmEmbedder {
             telemetry_trace_id: None,
             telemetry_attempt_number: Some(1),
             telemetry_skip_interaction: false,
+            seed: None,
         }
     }
 }

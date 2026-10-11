@@ -346,6 +346,7 @@ pub fn cascade_with_optional_manual(
             telemetry_trace_id: None,
             telemetry_attempt_number: None,
             telemetry_skip_interaction: false,
+            seed: None,
         };
         apply_stage_defaults(stage, &mut manual);
         candidates.push(manual);

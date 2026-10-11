@@ -119,6 +119,7 @@ pub(crate) fn model_spec_to_llm_config(spec: &ModelSpec) -> Option<LlmConfig> {
                 telemetry_trace_id: None,
                 telemetry_attempt_number: None,
                 telemetry_skip_interaction: true,
+                seed: None,
             })
         }
         ProviderType::VoxLocal => {
@@ -147,6 +148,7 @@ pub(crate) fn model_spec_to_llm_config(spec: &ModelSpec) -> Option<LlmConfig> {
                 telemetry_trace_id: None,
                 telemetry_attempt_number: None,
                 telemetry_skip_interaction: true,
+                seed: None,
             })
         }
         ProviderType::HuggingFaceRouter
@@ -1285,6 +1287,7 @@ pub async fn eval_gate_agent_loop_terminates_check() -> Result<(), String> {
         telemetry_trace_id: None,
         telemetry_attempt_number: None,
         telemetry_skip_interaction: true,
+        seed: None,
     };
 
     let max_iterations = 3;
@@ -1385,6 +1388,7 @@ mod tests {
             telemetry_trace_id: None,
             telemetry_attempt_number: None,
             telemetry_skip_interaction: true,
+            seed: None,
         }
     }
 

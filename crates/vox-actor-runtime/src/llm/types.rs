@@ -65,6 +65,9 @@ pub struct LlmConfig {
     pub temperature: Option<f32>,
     /// Sampling top_p when supported by the endpoint.
     pub top_p: Option<f32>,
+    /// Sampling seed requested from the provider. Providers that do not support seeds ignore it,
+    /// so a recorded seed is a request, not a reproducibility guarantee.
+    pub seed: Option<u64>,
     /// Maximum tokens to generate when supported.
     pub max_tokens: Option<u64>,
     /// Optional JSON Schema / response-format object for structured output.
@@ -117,6 +120,7 @@ impl LlmConfig {
             telemetry_trace_id: None,
             telemetry_attempt_number: None,
             telemetry_skip_interaction: false,
+            seed: None,
         }
     }
 
@@ -143,6 +147,7 @@ impl LlmConfig {
             telemetry_trace_id: None,
             telemetry_attempt_number: None,
             telemetry_skip_interaction: false,
+            seed: None,
         }
     }
 
@@ -171,6 +176,7 @@ impl LlmConfig {
             telemetry_trace_id: None,
             telemetry_attempt_number: None,
             telemetry_skip_interaction: false,
+            seed: None,
         }
     }
 
@@ -195,6 +201,7 @@ impl LlmConfig {
             telemetry_trace_id: None,
             telemetry_attempt_number: None,
             telemetry_skip_interaction: false,
+            seed: None,
         }
     }
 
@@ -223,6 +230,7 @@ impl LlmConfig {
             telemetry_trace_id: None,
             telemetry_attempt_number: None,
             telemetry_skip_interaction: false,
+            seed: None,
         }
     }
 
@@ -289,6 +297,7 @@ impl LlmConfig {
             telemetry_trace_id: None,
             telemetry_attempt_number: None,
             telemetry_skip_interaction: false,
+            seed: None,
         })
     }
 }

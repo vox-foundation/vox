@@ -157,6 +157,7 @@ pub async fn llm_chat(
             let params = vox_llm_egress::ChatParams {
                 temperature: config.temperature,
                 top_p: config.top_p,
+                seed: config.seed,
                 max_tokens: config.max_tokens,
                 response_format: config.response_format.as_ref(),
                 tools: wire_tools.as_deref(),
@@ -595,6 +596,7 @@ mod infer_with_retry_latency_tests {
             telemetry_trace_id: None,
             telemetry_attempt_number: None,
             telemetry_skip_interaction: true,
+            seed: None,
         }
     }
 
@@ -630,5 +632,37 @@ mod infer_with_retry_latency_tests {
             "infer_with_retry must surface the real elapsed time, got {}ms",
             response.latency_ms
         );
+    }
+
+    #[tokio::test]
+    async fn llm_chat_forwards_seed_to_the_wire() {
+        use wiremock::matchers::body_partial_json;
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(body_partial_json(serde_json::json!({"seed": 77})))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "model": "test-model",
+                "choices": [{"message": {"role": "assistant", "content": "hi"}}],
+                "usage": {"prompt_tokens": 3, "completion_tokens": 1}
+            })))
+            .mount(&server)
+            .await;
+
+        let mut cfg = mock_config(format!("{}/chat/completions", server.uri()));
+        cfg.seed = Some(77);
+        cfg.telemetry_skip_interaction = true;
+        match llm_chat(&ActivityOptions::new(), vec![], cfg).await {
+            ActivityResult::Ok(Ok(_)) => {}
+            other => panic!("seeded request must match the mock and succeed, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn llm_config_without_seed_key_still_deserializes() {
+        let mut v = serde_json::to_value(mock_config("http://x".into())).expect("serialize");
+        v.as_object_mut().expect("object").remove("seed");
+        let cfg: LlmConfig = serde_json::from_value(v).expect("deserialize without seed");
+        assert!(cfg.seed.is_none());
     }
 }
