@@ -78,7 +78,7 @@
 - [ ] **DISC-08**: GUI user can browse a Capability Explorer grouped by domain (compiler, orchestrator, mesh, ML, research, secrets, …) showing each capability's status: dedicated surface / generic form / CLI-only / orphan backend.
 - [ ] **DISC-09**: The surface classifier credits Catalog generic forms as a `generic_form` tier, so coverage reflects what is actually reachable.
 - [ ] **DISC-10**: CI fails when a CLI group or capability has no GUI representation (dedicated or generic) and no exemption with owner + reason.
-- [ ] **DISC-11**: Every `vox graph coverage` OrphanBackend / DeadEnd node is dispositioned (surfaced, deleted, or exempted with reason); the undispositioned count is 0 and ratcheted in CI.
+- [ ] **DISC-11**: Every `vox graph coverage` OrphanBackend / DeadEnd node of a backend kind (surface-kind entry points excluded with a recorded reason) is dispositioned by being surfaced or deleted — no exemption path; the undispositioned count is 0 and ratcheted in CI. (Amended 2026-10-11, 06.4 D-06.)
 - [ ] **DISC-12**: GUI user can navigate an Architecture Atlas of layers L0–L5 and their crates from `layers.toml`, with dependency edges.
 - [ ] **DISC-13**: GUI user can select a crate to see its blast radius / community (from `vox graph crate-map`), the capabilities it backs, and links to source and docs.
 - [ ] **DISC-14**: Atlas and Explorer cross-link: from a capability to its crate/layer and back.
