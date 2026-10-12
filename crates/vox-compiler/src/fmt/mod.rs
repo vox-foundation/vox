@@ -133,6 +133,62 @@ mod tests {
         );
     }
 
+    /// The printer does not keep comments; formatting must refuse rather than delete
+    /// them (`vox fmt` once stripped golden frontmatter and `// EXPECT:` markers).
+    #[test]
+    fn formatter_refuses_to_drop_comments() {
+        let src = "// keep me\nfn f() to int {\n    return 1\n}\n";
+        let err = try_format(src).expect_err("dropping a comment must be refused");
+        assert!(err[0].message.contains("layout"), "{:?}", err[0].message);
+        assert_eq!(format(src), src, "editor format must leave the buffer unchanged");
+    }
+
+    /// A construct the printer cannot print must not vanish: `vox fmt` once deleted a
+    /// whole `query` declaration from `examples/golden/db_native_ir.vox`.
+    #[test]
+    fn formatter_refuses_to_drop_declarations() {
+        let src = "query q() to int {\n    return 1\n}\n";
+        assert!(try_format(src).is_err(), "dropping a declaration must be refused");
+        assert_eq!(format(src), src);
+    }
+
+    /// Every infix operator must survive a round trip: the printer once emitted `??`
+    /// for any operator it lacked (e.g. `>` in `assert(x > 1.0)`), so `vox fmt` failed.
+    #[test]
+    fn every_binop_round_trips() {
+        let src = "fn ops(a: int, b: int, p: bool, q: bool) to bool {
+    let lt = a < b
+    let gt = a > b
+    let le = a <= b
+    let ge = a >= b
+    let m = a % b
+    let s = a + b - a * b / b
+    let both = p and q
+    let either = p or q
+    return lt is gt
+}\n";
+        let out = try_format(src).expect("every operator must print and re-parse");
+        for op in [" < ", " > ", " <= ", " >= ", " % ", " and ", " or ", " is "] {
+            assert!(out.contains(op), "lost `{}` in:\n{out}", op.trim());
+        }
+        assert!(!out.contains("??"), "printer emitted a placeholder operator:\n{out}");
+        assert_idempotent(src);
+    }
+
+    /// `->` match arms are deprecated syntax; the printer must emit `=>`.
+    #[test]
+    fn match_arms_print_fat_arrow() {
+        let src = "fn f(n: int) to int {
+    return match n {
+        0 => 1
+        _ => 2
+    }
+}\n";
+        let out = try_format(src).expect("match must round-trip");
+        assert!(out.contains("0 => 1"), "{out}");
+        assert!(!out.contains(" -> "), "printed deprecated `->` arm:\n{out}");
+    }
+
     #[test]
     fn idempotent_import() {
         assert_idempotent("import react.use_state\n");
