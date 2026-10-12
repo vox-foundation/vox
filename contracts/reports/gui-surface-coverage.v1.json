@@ -2766,6 +2766,10 @@
       "feature_gate": null
     },
     {
+      "path": "kb",
+      "feature_gate": null
+    },
+    {
       "path": "kb eval",
       "feature_gate": null
     },
@@ -4821,6 +4825,7 @@
     "init",
     "inline.edit",
     "journey.canonical.steps",
+    "kb",
     "kb.cite",
     "kb.eval",
     "kb.get",
