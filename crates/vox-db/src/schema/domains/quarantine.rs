@@ -728,7 +728,7 @@ CREATE TABLE IF NOT EXISTS toestub_file_cache (
 /// the deprecation-marked readers in `store/ops_memory/kb_legacy.rs` still touch them.
 pub const SCHEMA_LEGACY_VOXKB: &str = "
 -- Table: knowledge_bases
--- Status: RETIRED (KB Phase 3 leak closure; rows migrated into kb_findings by 03-08)
+-- Status: RETIRED (KB Phase 3 leak closure; rows migrated to kb_findings by 03-08)
 -- Evidence: literal_string
 -- Referencing files: crates/vox-db/src/store/ops_memory/kb_legacy.rs (read-only legacy readers)
 -- Origin: crates/vox-db/src/schema/domains/knowledge.rs
@@ -742,7 +742,7 @@ CREATE TABLE IF NOT EXISTS knowledge_bases (
 );
 
 -- Table: kb_entries
--- Status: RETIRED (KB Phase 3 leak closure; rows migrated into kb_findings by 03-08)
+-- Status: RETIRED (KB Phase 3 leak closure; rows migrated to kb_findings by 03-08)
 -- Evidence: literal_string
 -- Referencing files: crates/vox-db/src/store/ops_memory/kb_legacy.rs (read-only legacy readers)
 -- Origin: crates/vox-db/src/schema/domains/knowledge.rs
@@ -762,7 +762,7 @@ CREATE TABLE IF NOT EXISTS kb_entries (
 );
 
 -- Table: kb_routing_rules
--- Status: RETIRED (KB Phase 3 leak closure; rows migrated into kb_findings by 03-08)
+-- Status: RETIRED (KB Phase 3 leak closure; rows migrated to kb_findings by 03-08)
 -- Evidence: literal_string
 -- Referencing files: crates/vox-db/src/store/ops_memory/kb_legacy.rs (read-only legacy readers)
 -- Origin: crates/vox-db/src/schema/domains/knowledge.rs
