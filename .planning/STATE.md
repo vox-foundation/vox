@@ -5,11 +5,11 @@ milestone_name: Research Trial Flywheel
 current_phase: "06.4"
 current_phase_name: Capability Explorer & Coverage Gate
 status: planning
-stopped_at: Phase 06.4 context gathered
-last_updated: "2026-10-12T06:43:11.720Z"
+stopped_at: Phase 06.4 UI-SPEC approved
+last_updated: "2026-10-12T07:15:22.255Z"
 last_activity: 2026-10-10
 last_activity_desc: Phase 06.3 complete, transitioned to Phase 06.4
-state_head: dcf1a75c5d2d161440f78c30392348d2199e4262
+state_head: 834c121857902843fabe3b0a8dbdc9426a49a7f1
 progress:
   total_phases: 11
   completed_phases: 3
@@ -116,6 +116,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-12T06:43:11.679Z
-Stopped at: Phase 06.4 context gathered
-Resume file: .planning/phases/06.4-capability-explorer-coverage-gate-inserted/06.4-CONTEXT.md
+Last session: 2026-10-12T07:15:22.180Z
+Stopped at: Phase 06.4 UI-SPEC approved
+Resume file: .planning/phases/06.4-capability-explorer-coverage-gate-inserted/06.4-UI-SPEC.md
