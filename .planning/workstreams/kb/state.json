@@ -21,7 +21,7 @@
     {
       "number": "4",
       "name": "Taxonomy Contract and Facet Lint",
-      "status": "in_progress"
+      "status": "complete"
     },
     {
       "number": "5",
@@ -66,8 +66,8 @@
   ],
   "next": {
     "command": "/gsd:progress --next",
-    "label": "Advance to the next step (verify)",
-    "reason": "Phase 04 of 12 · 25% · ready to verify"
+    "label": "Advance to the next step (plan phase 5)",
+    "reason": "Phase 5 of 12 — needs a plan"
   },
-  "updated_at": "2026-10-11T08:08:00.011Z"
+  "updated_at": "2026-10-12T16:02:36.537Z"
 }

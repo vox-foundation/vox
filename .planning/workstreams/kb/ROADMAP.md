@@ -16,7 +16,7 @@ Workstream `kb` turns Vox's 669 curated, non-archive markdown docs (~2.4M tokens
 - [x] **Phase 1: Retrieval Eval Baseline** - Deterministic ID-based retrieval eval, BEIR golden set, canary exclusion, ratcheted baseline in PR CI (DOC-01 already complete) (completed 2026-10-05)
 - [x] **Phase 2: Library Index and KB Tool Surface** - Content-hash incremental indexer with heading-path chunks, `docs/src/library/`, one `vox_kb_*` MCP contract and `kb://` resources (completed 2026-10-05)
 - [x] **Phase 3: Provenance, Trust Tiers and Leak Closure** - Required trust tier on every row, `kb_findings` inbox, sanitizer, the R1/R2 leaks closed, legacy VoxKB retired into `vox-search` (completed 2026-10-10)
-- [ ] **Phase 4: Taxonomy Contract and Facet Lint** - SKOS-lite vocabulary, shared schemars facet schema, page-one summary, authorship and training-eligibility rules under a ratcheting lint
+- [x] **Phase 4: Taxonomy Contract and Facet Lint** - SKOS-lite vocabulary, shared schemars facet schema, page-one summary, authorship and training-eligibility rules under a ratcheting lint (completed 2026-10-12)
 - [ ] **Phase 5: Local Embeddings and Ranking Signals** - Candle `gte-modernbert-base` embedder and reranker, contextual prefix, model-keyed vectors, trust/status-aware ranking
 - [ ] **Phase 6: Library GUI** - Browse, search and read the KB with facets and a provenance header (absorbs Memory and DocReader)
 - [ ] **Phase 7: Context Injection and Per-Chat Scope** - Relevance-gated, per-model-ceiling preamble with spotlighting, citations, a `kb_context` event, egress checks, per-chat scope and nightly generation evals
@@ -175,7 +175,7 @@ Plans:
   3. A lexical search for a taxonomy altLabel returns the doc tagged with the corresponding prefLabel, and deprecated aliases resolve to their replacement.
   4. A page with `origin: web-promoted` or LLM `authorship` and no `human_attested_by` is forced to `training_eligible: false`. A fixture shows the MENS corpus builder excludes it and emits no page-one summary-block text from any doc.
 
-**Plans:** 8/8 plans executed
+**Plans:** 8/8 plans complete
 
 Plans:
 **Wave 1**
@@ -354,7 +354,7 @@ Plans:
 | 1. Retrieval Eval Baseline | 12/12 | Complete    | 2026-10-05 |
 | 2. Library Index and KB Tool Surface | 12/12 | Complete    | 2026-10-05 |
 | 3. Provenance, Trust Tiers and Leak Closure | 16/16 | Complete    | 2026-10-10 |
-| 4. Taxonomy Contract and Facet Lint | 8/8 | In Progress|  |
+| 4. Taxonomy Contract and Facet Lint | 8/8 | Complete    | 2026-10-12 |
 | 5. Local Embeddings and Ranking Signals | 0/TBD | Not started | - |
 | 6. Library GUI | 0/TBD | Not started | - |
 | 7. Context Injection and Per-Chat Scope | 0/TBD | Not started | - |

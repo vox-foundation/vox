@@ -1,9 +1,10 @@
 ---
 phase: 04-taxonomy-contract-and-facet-lint
 verified: 2026-10-11T08:30:00Z
-status: human_needed
+status: passed
 score: 4/4 must-haves verified
 covered_files:
+
   - .planning/workstreams/kb/REQUIREMENTS.md
   - .planning/workstreams/kb/phases/04-taxonomy-contract-and-facet-lint/04-01-PLAN.md
   - .planning/workstreams/kb/phases/04-taxonomy-contract-and-facet-lint/04-01-SUMMARY.md
@@ -41,11 +42,13 @@ covered_files:
   - crates/vox-kb-facets/tests/facet_schema_golden.rs
   - crates/vox-search/src/library/chunk.rs
   - crates/vox-search/src/library/mod.rs
-covered_digest: "v1:sha256:946d95a2ffdcc00034d0187d9896e3fc7cf1e9ccf6add5e1e22043c9a91ddfc9"
+
+covered_digest: "v1:sha256:36e37bab7fdbab934134e610b458464cc190029d999e4625b70b3f10c24bf65a"
 behavior_unverified: 0
 overrides_applied: 0
 gaps: []
 human_verification:
+
   - test: "Hosted CI on the phase PR: the `linux` job (fast tier incl. facet backlog tighten-only gate, ssot-drift incl. kb_facets_ts, clippy on affected crates), `tests` shards, and `ui`"
     expected: "All green. The local verification below ran only targeted tests; the facet backlog gate was exercised by unit tests plus a real-git test but not against a real base ref."
     why_human: "Hosted CI is the project gate; lean policy forbids workspace-wide local builds/tests."
@@ -153,7 +156,19 @@ See frontmatter `human_verification`: (1) hosted CI green on the phase PR, (2) G
 
 No gaps. All four ROADMAP success criteria and all seven TAX requirements are backed by code, wiring and passing targeted tests; CR-01 fail-closed behavior and the WR-01 re-epoch gate hold in the current code. Remaining items are confirmation steps that need hosted CI, the GUI toolchain, and one scoping decision.
 
+### Post-verification changes (2026-10-11/12)
+
+Code-review fixes were verified in the original run. After it, only CI-driven fixes landed:
+clippy `derivable_impls` in `vox-corpus` `extract_docs.rs`; the `vox-db` legacy-export guard test
+moved out of the deprecated `codex_legacy` module into `local_tests.rs`; three SQL comments in
+`vox-db` `schema/domains/quarantine.rs` reworded; a `kb` parent entry added to
+`contracts/operations/catalog.v1.yaml` (+ regenerated registries, baseline fixture, reports);
+a gitleaks exact-SHA allowlist; facets added to `docs/src/architecture/terminal-session-host-design-2026.md`;
+a merge of `origin/main` (including a re-scoped answer-overlap scorer in `vox-cli-research`).
+No behavior of the Phase 4 contract changed. Hosted CI is green on the final head.
+
 ---
 
 _Verified: 2026-10-11_
 _Verifier: Claude (gsd-verifier)_
+
