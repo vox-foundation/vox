@@ -215,6 +215,27 @@ pub struct DispatchResponse {
     pub payload: DispatchPayload,
 }
 
+/// Method ids for daemon-hosted terminal sessions (`vox-terminal-core::LocalHost`).
+/// Design: `docs/src/architecture/terminal-session-host-design-2026.md`.
+pub mod term_method {
+    /// Params: `{cols?, rows?}` → `{session_id}`.
+    pub const OPEN: &str = "term.open";
+    /// Params: `{}` → `[{session_id, blocks}]`.
+    pub const LIST: &str = "term.list";
+    /// Params: `{session_id}` → a push stream: one `snapshot` frame (blocks, base64
+    /// replay bytes, `seq`) then `output` / `block_*` / `agent` frames until the
+    /// session ends (`exit`) or the receiver lags (`lagged`; re-attach).
+    pub const ATTACH: &str = "term.attach";
+    /// Params: `{session_id, bytes_b64, origin?}` → `{}` (raw keystrokes to the PTY).
+    pub const INPUT: &str = "term.input";
+    /// Params: `{session_id, line, origin?}` → `{block_id}` (classified like typed input).
+    pub const SUBMIT: &str = "term.submit";
+    /// Params: `{session_id, cols, rows}` → `{}`.
+    pub const RESIZE: &str = "term.resize";
+    /// Params: `{session_id}` → `{}`.
+    pub const CLOSE: &str = "term.close";
+}
+
 /// Payload variants for streaming and final Dei responses.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]

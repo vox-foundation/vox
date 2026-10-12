@@ -2459,6 +2459,13 @@
       "reason": "polyglot sandbox parses Vox snippets with vox_compiler::lexer/parser (polyglot_sandbox.rs); added bcc057f09. L4 -> L2, downward.",
       "date": "2026-09-22",
       "authorized_by": "user (explicit chat approval, 2026-09-22)"
+    },
+    {
+      "from": "vox-orchestrator-d",
+      "to": "vox-terminal-core",
+      "reason": "TermDispatch serves the term.* daemon methods (daemon-hosted terminal sessions, design: docs/src/architecture/terminal-session-host-design-2026.md task H4) over vox-terminal-core::LocalHost; L5 -> L3, downward. Lives in the daemon crate so vox-terminal-core needs no vox-foundation edge.",
+      "date": "2026-10-09",
+      "authorized_by": "user (explicit chat approval, 2026-10-08: \"then start approved edge\")"
     }
   ]
 }
