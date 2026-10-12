@@ -8654,6 +8654,17 @@ operations:
 - surface: vox-cli
   path:
   - kb
+  status: active
+  latin_ns: null
+  product_lane: ai
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
+  handler_rust: commands::kb
+- surface: vox-cli
+  path:
+  - kb
   - eval
   status: active
   latin_ns: null
