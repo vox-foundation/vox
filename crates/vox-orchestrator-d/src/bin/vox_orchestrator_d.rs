@@ -12,6 +12,9 @@ use vox_orchestrator::{
     clarification_db_inbox_poll, mesh_federation_poll, orch_daemon,
 };
 
+#[path = "../term_dispatch.rs"]
+mod term_dispatch;
+
 /// Well-known file the daemon writes its auth token to at startup (T0.2), read
 /// back by [`vox_orchestrator::orch_daemon::OrchDaemonClient::new`] to
 /// auto-resolve a token for callers that don't already know one.
@@ -375,9 +378,22 @@ async fn async_main() -> anyhow::Result<()> {
     // Serve orch.tool_call / orch.resolve_approval / orch.list_pending_approvals
     // against this same ServerState so the GUI runs tools + resolves HITL
     // approvals through the one shared orchestrator (B5 path-c, B3 cross-process).
-    let extra: Option<Arc<dyn orch_daemon::ExtraDispatch>> = Some(Arc::new(
+    let mut extras: Vec<Arc<dyn orch_daemon::ExtraDispatch>> = vec![Arc::new(
         vox_orchestrator_mcp::daemon_extra::McpExtraDispatch::new(state.clone()),
-    ));
+    )];
+    // `term.*` runs commands as the daemon user: loopback/stdio only, even with an
+    // explicit token, until remote attach has its own design (terminal-session-host §7).
+    if orch_daemon::is_stdio_transport(&bind_raw)
+        || orch_daemon::is_loopback_bind_addr(&orch_daemon::normalize_tcp_bind_addr(&bind_raw))
+    {
+        extras.push(Arc::new(term_dispatch::TermDispatch::new(Arc::new(
+            vox_terminal_core::LocalHost::default(),
+        ))));
+    } else {
+        tracing::warn!("term.* terminal sessions disabled on a non-loopback bind");
+    }
+    let extra: Option<Arc<dyn orch_daemon::ExtraDispatch>> =
+        Some(Arc::new(orch_daemon::ChainDispatch(extras)));
 
     if let Err(e) = vox_orchestrator_mcp::http_gateway::spawn_http_gateway_if_enabled(state) {
         tracing::error!(error = %e, "Failed to spawn HTTP gateway");
