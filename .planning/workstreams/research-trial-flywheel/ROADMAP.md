@@ -57,12 +57,12 @@ v1.1 turns Vox's existing research pipeline, telemetry, evaluation, model routin
   7. Run results carry tokens, cost, latency, TTFT, and tool-call counts; a hallucinated no-evidence answer is not scored as an abstention.
   8. A baseline campaign records every BASE-01 metric with no policy change.
 
-**Plans:** 1/12 plans executed in 7 waves
+**Plans:** 2/12 plans executed in 7 waves
 
 Plans:
 
 - [ ] 07-01-PLAN.md — vox_crypto::canonical generic canonicalizer + orchestrator Trusty-URI rewire (byte-identical); user writes the 3 crate-edge exceptions (Wave 1)
-- [ ] 07-02-PLAN.md — Clavis SecretIds for the trial signing key (vault-only) and signer allowlist; contracts regenerated (Wave 1)
+- [x] 07-02-PLAN.md — Clavis SecretIds for the trial signing key (vault-only) and signer allowlist; contracts regenerated (Wave 1)
 - [ ] 07-03-PLAN.md — research pipeline trial seam: run label, result-cache bypass, judge failure Missing, content bridge off in trials, verdict-cache hits (Wave 1)
 - [x] 07-04-PLAN.md — STORE-01 Tier A contract + checkpoint:decision (grain, model_benchmark_results option) (Wave 1)
 - [ ] 07-05-PLAN.md — vox-research-trial-core: CampaignPreregV1, allowlist-first typestate gate, lifecycle, RunIdentity (Wave 2)
@@ -187,7 +187,7 @@ Plans:
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 1–6 | v1.0 | 23/23 | Complete | 2026-10-01 |
-| 7. Trial Identity, Contracts & Observational Baseline | v1.1 | 1/12 | In Progress|  |
+| 7. Trial Identity, Contracts & Observational Baseline | v1.1 | 2/12 | In Progress|  |
 | 8. Race Harness & Multidimensional Scorecards | v1.1 | 0/TBD | Not started | - |
 | 9. Verified Knowledge Loop | v1.1 | 0/TBD | Not started | - |
 | 10. Promotion Governance & Replay | v1.1 | 0/TBD | Not started | - |
