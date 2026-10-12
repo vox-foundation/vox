@@ -55,6 +55,7 @@ Use **`vox_config::env_parse`** for numeric defaults and operator tuning (e.g. H
 | `VOX_API_KEY`, `VOX_BEARER_TOKEN` | Runtime ingress auth | Optional hardening | `vox-actor-runtime` auth gate |
 | `VOX_MCP_HTTP_BEARER_TOKEN`, `VOX_MCP_HTTP_READ_BEARER_TOKEN` | MCP HTTP gateway auth | Optional hardening | `vox-mcp` HTTP gateway auth surfaces |
 | `V0_API_KEY`, `VOX_OPENCLAW_TOKEN` | Auxiliary tooling | Optional | island generation / OpenClaw |
+| `VOX_RESEARCH_TRIAL_SIGNING_KEY_HEX`, `VOX_RESEARCH_TRIAL_SIGNER_ALLOWLIST` | Research-trial campaign and benchmark-bundle signing (one trust root, D-07): Ed25519 private key (hex) and CSV of hex Ed25519 public keys trusted to sign | Optional (required only to sign or run a campaign) | `vox-cli-research` trial runner (`vox research eval --sign/--campaign`) and Phase 12 eval bundles via `vox_cli_research::trial_core`, resolved through `SecretId::VoxResearchTrialSigningKeyHex` / `VoxResearchTrialSignerAllowlist`; the signing key is vault-only in strict mode; an unset allowlist trusts no signer |
 | `*_TUNING_TEMPERATURE`, `*_TUNING_TOP_P` | LLM inference overrides (Gemini, Ollama, OpenAI, Anthropic, Together) | Optional | Resolution precedence: Request > Env > Tool Default |
 
 ## Managed Secret Env Names
