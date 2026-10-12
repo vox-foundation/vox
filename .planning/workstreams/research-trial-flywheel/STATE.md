@@ -6,15 +6,15 @@ current_phase: 7
 current_phase_name: Trial Identity, Contracts & Observational Baseline
 status: Awaiting roadmap approval
 stopped_at: Completed 12-08-PLAN.md
-last_updated: "2026-10-11T16:08:18.443Z"
+last_updated: "2026-10-12T15:55:18.335Z"
 last_activity: 2026-10-01
 last_activity_desc: Milestone v1.1 initialized (requirements, research, roadmap)
-state_head: 42c743f80fb5ba6524ab3c4918f64a9fbaa12759
+state_head: 6cc8eb5e2f27e4a0e351ca0a8d8ddd2c3ea1b645
 progress:
   total_phases: 7
   completed_phases: 1
-  total_plans: 9
-  completed_plans: 8
+  total_plans: 21
+  completed_plans: 9
   percent: 14
 ---
 
@@ -73,6 +73,7 @@ Recent decisions affecting current work:
 - [Phase 7]: 12-02: unknown mens/* id is a hard error; no silent cloud fallback for local checkpoints
 - [Phase 7]: 12-05: eval-compare floor check uses exact-integer first-attempt difference (one division) so a difference equal to the floor is resolved, not one ulp under
 - [Phase 7]: 12-08: repair turns reuse the single llm_chat path; repaired outcomes live in passed_by_turn and never replace the original AttemptOutcome (mutation-proved)
+- [Phase 7]: 07-04: STORE-01 approved by user 2026-10-12: item-batch grain, model_benchmark_results option A
 
 ### Pending Todos
 
