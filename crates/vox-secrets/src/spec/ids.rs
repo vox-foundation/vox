@@ -97,6 +97,12 @@ pub enum SecretId {
     VoxOsfApiToken,
     VoxArxivAccessToken,
     VoxNanopubSigningKeyHex,
+    /// Research-trial campaign / benchmark-bundle signing key (Ed25519 private
+    /// key hex). Distinct from the nanopub key (D-11); vault-only in strict mode.
+    VoxResearchTrialSigningKeyHex,
+    /// CSV of hex Ed25519 public keys trusted to sign research trials; unset
+    /// trusts nobody.
+    VoxResearchTrialSignerAllowlist,
     /// Per-user RSA nanopublication signing key, base64-encoded PKCS#8 private
     /// key (account/profile-scoped, persistable, non-shareable).
     VoxUserRsaNanopubPrivateKeyB64,
@@ -683,6 +689,20 @@ impl SecretId {
                 taxonomy_class: TaxonomyClass::ScholarlyPublication,
                 lifecycle: LifecycleMeta::MANUAL,
             },
+            // Research-trial private signing key: vault-only in strict mode, never
+            // from the environment or compat fallbacks (D-07, D-11); not shareable.
+            SecretId::VoxResearchTrialSigningKeyHex => SecretMetadata {
+                class: SecretClass::Integration,
+                material_kind: SecretMaterialKind::ApiKey,
+                persistable_account_secret: true,
+                shareable: false,
+                device_local_only: false,
+                allow_env_in_strict: false,
+                allow_compat_sources_in_strict: false,
+                rotation_policy: RotationPolicy::Manual,
+                taxonomy_class: TaxonomyClass::ScholarlyPublication,
+                lifecycle: LifecycleMeta::MANUAL,
+            },
             SecretId::WebhookSigningSecret
             | SecretId::VoxOpenReviewAccessToken
             | SecretId::VoxOpenReviewPassword
@@ -749,5 +769,35 @@ mod tests {
         );
         let spec = id.spec();
         assert_eq!(spec.id as u32, id as u32);
+    }
+
+    #[test]
+    fn research_trial_signing_key_is_vault_only_in_strict() {
+        let id = SecretId::VoxResearchTrialSigningKeyHex;
+        let meta = id.metadata();
+        assert!(!meta.allow_env_in_strict);
+        assert!(!meta.allow_compat_sources_in_strict);
+        assert!(!meta.shareable);
+        assert_eq!(
+            id.spec().canonical_env,
+            "VOX_RESEARCH_TRIAL_SIGNING_KEY_HEX"
+        );
+    }
+
+    #[test]
+    fn research_trial_signer_allowlist_is_optional_csv() {
+        let spec = SecretId::VoxResearchTrialSignerAllowlist.spec();
+        assert_eq!(spec.canonical_env, "VOX_RESEARCH_TRIAL_SIGNER_ALLOWLIST");
+        assert_eq!(spec.policy, crate::policy::SecretPolicy::optional_skip());
+    }
+
+    #[test]
+    fn research_trial_ids_resolve_to_specs() {
+        for id in [
+            SecretId::VoxResearchTrialSigningKeyHex,
+            SecretId::VoxResearchTrialSignerAllowlist,
+        ] {
+            assert_eq!(id.spec().id as u32, id as u32);
+        }
     }
 }
