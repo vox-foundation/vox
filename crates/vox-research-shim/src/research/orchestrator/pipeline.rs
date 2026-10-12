@@ -80,6 +80,7 @@ async fn run_research_metered(
     let persist_enabled = true;
 
     if let Some(db) = db
+        && result_cache_enabled(config)
         && let Some(mut cached) = research_cache_short_circuit(&query, db, config).await
     {
         cached.research_metadata.served_from_cache = true;
@@ -128,11 +129,7 @@ async fn run_research_metered(
     } else {
         0
     };
-    super::super::metering::set_run_session(if session_id > 0 {
-        format!("research_session:{session_id}")
-    } else {
-        session_key
-    });
+    super::super::metering::set_run_session(run_session_label(config, session_id, session_key));
 
     let report_progress = |msg: String, pct: Option<f32>| {
         if let Some(ref cb) = config.progress_callback {
@@ -1131,6 +1128,7 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
 
     if persist_enabled
         && session_id > 0
+        && result_cache_enabled(config)
         && let Some(db) = db
     {
         research_cache_store(&query, &result, db, config).await;
@@ -1200,6 +1198,20 @@ fn weighted_supported_claim_score(verdicts: &[super::super::verifier::ClaimVerdi
 fn dedupe_hits_by_url(hits: &mut Vec<ResearchHit>) {
     let mut seen = std::collections::HashSet::new();
     hits.retain(|hit| seen.insert(hit.url.clone()));
+}
+
+/// LLM telemetry session for the run: the trial run id when set, else today's rule.
+fn run_session_label(config: &ResearchConfig, session_id: i64, session_key: String) -> String {
+    match &config.trial_run_label {
+        Some(label) => label.clone(),
+        None if session_id > 0 => format!("research_session:{session_id}"),
+        None => session_key,
+    }
+}
+
+/// Whether the result cache is read and written for this run.
+fn result_cache_enabled(config: &ResearchConfig) -> bool {
+    !config.bypass_result_cache
 }
 
 fn emit_research_event(config: &ResearchConfig, db: Option<&Codex>, event: ResearchEvent) {
@@ -1728,5 +1740,44 @@ mod tests {
         );
         assert_eq!(weighted_stable, 1.0);
         assert_eq!(weighted_flaky, 0.34);
+    }
+
+    fn trial_config(label: &str) -> ResearchConfig {
+        ResearchConfig {
+            trial_run_label: Some(label.to_string()),
+            ..Default::default()
+        }
+    }
+
+    #[tokio::test]
+    async fn trial_label_reaches_llm_telemetry_session() {
+        use super::super::super::metering;
+        let cfg = trial_config("run-abc");
+        let tagged = metering::scope(async {
+            metering::set_run_session(run_session_label(&cfg, 42, "key".into()));
+            let mut candidates = vec![vox_actor_runtime::llm::LlmConfig::ollama("m")];
+            metering::tag_candidates(&mut candidates);
+            candidates
+        })
+        .await;
+        assert_eq!(tagged[0].telemetry_session_id.as_deref(), Some("run-abc"));
+    }
+
+    #[test]
+    fn session_label_unchanged_without_trial() {
+        let cfg = ResearchConfig::default();
+        assert_eq!(
+            run_session_label(&cfg, 42, "key".into()),
+            "research_session:42"
+        );
+        assert_eq!(run_session_label(&cfg, 0, "k".into()), "k");
+    }
+
+    #[test]
+    fn bypass_disables_result_cache() {
+        let mut cfg = ResearchConfig::default();
+        assert!(result_cache_enabled(&cfg));
+        cfg.bypass_result_cache = true;
+        assert!(!result_cache_enabled(&cfg));
     }
 }

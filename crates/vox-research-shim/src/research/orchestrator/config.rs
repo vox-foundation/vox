@@ -97,6 +97,10 @@ pub struct ResearchConfig {
     pub model_pick_inference: Option<super::super::model_select::InferenceConfig>,
     /// Tunable retrieval search policy (provider toggles, timeouts, weights).
     pub search_policy: vox_search::policy::SearchPolicy,
+    /// Skip the result-cache read and write for this run; set by the trial runner so replicates are real runs.
+    pub bypass_result_cache: bool,
+    /// Trial run id. When set it labels every LLM call of the run and disables the content-bearing metrics bridge (D-12).
+    pub trial_run_label: Option<String>,
 }
 
 impl std::fmt::Debug for ResearchConfig {
@@ -192,6 +196,8 @@ impl Default for ResearchConfig {
             search_policy_feedback: None,
             model_pick_inference: None,
             search_policy: vox_search::policy::SearchPolicy::from_env(),
+            bypass_result_cache: false,
+            trial_run_label: None,
         }
     }
 }
