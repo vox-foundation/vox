@@ -10,6 +10,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use super::anchors::{extract_marked_block, readme_anchor};
+use super::facets::FacetCtx;
 use super::types::{LintError, LintKind};
 
 // These must match the `sections` array in contracts/documentation/docs-sidebar-section-order.v1.json.
@@ -25,6 +26,7 @@ pub(crate) const VALID_CATEGORIES: &[&str] = &[
     "API Reference — Crates",
     "Examples",
     "Concepts",
+    "Library",
     "Architecture Decisions (ADRs)",
     "Architecture SSOTs",
     "Contributors",
@@ -128,6 +130,7 @@ pub(crate) fn collect_lint_errors_target_with_root(
     target: &Path,
     errors: &mut Vec<LintError>,
     repo_root: &Path,
+    facet_ctx: Option<&FacetCtx>,
 ) {
     use rayon::prelude::*;
 
@@ -139,7 +142,7 @@ pub(crate) fn collect_lint_errors_target_with_root(
 
     let collected: Vec<LintError> = md_files
         .par_iter()
-        .flat_map_iter(|path| lint_one_file(path, repo_root))
+        .flat_map_iter(|path| lint_one_file(path, repo_root, facet_ctx))
         .collect();
     errors.extend(collected);
 }
@@ -179,10 +182,13 @@ fn gather_md_files(target: &Path, out: &mut Vec<PathBuf>) {
 
 /// Lint a single file (frontmatter + fences + doctests) into a fresh error vector.
 /// Returning an owned `Vec` keeps each unit of work independent for `rayon`.
-fn lint_one_file(path: &Path, repo_root: &Path) -> Vec<LintError> {
+fn lint_one_file(path: &Path, repo_root: &Path, facet_ctx: Option<&FacetCtx>) -> Vec<LintError> {
     let mut errors = Vec::new();
     let content = vox_bounded_fs::read_utf8_path_capped(path).unwrap_or_default();
     lint_file(path, &content, repo_root, &mut errors);
+    if let Some(ctx) = facet_ctx {
+        super::facets::lint_facets(path, &content, repo_root, ctx, &mut errors);
+    }
     crate::pipeline::doctest::check_doctests(path, &content, &mut errors);
     errors
 }
@@ -853,7 +859,7 @@ mod tests {
             f.write_all(body.as_bytes()).unwrap();
         }
         let mut errors = Vec::new();
-        collect_lint_errors_target_with_root(&dir, &mut errors, Path::new("."));
+        collect_lint_errors_target_with_root(&dir, &mut errors, Path::new("."), None);
         assert!(
             errors
                 .iter()
@@ -1073,6 +1079,45 @@ mod tests {
         assert!(
             unknown.is_empty(),
             "documentation-governance.md advertises categories the lint rejects: {unknown:?}"
+        );
+    }
+
+    /// `VALID_CATEGORIES` (minus `archive`) and the sidebar JSON `sections` are
+    /// two hand-kept copies of one vocabulary; drift makes Starlight append the
+    /// page's section at the end, collapsed, or the lint reject a sidebar label.
+    #[test]
+    fn valid_categories_match_sidebar_sections() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .expect("repo root")
+            .join("contracts/documentation/docs-sidebar-section-order.v1.json");
+        let raw = std::fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+        let json: serde_json::Value = serde_json::from_str(&raw).expect("sidebar JSON parses");
+        let sections: Vec<&str> = json["sections"]
+            .as_array()
+            .expect("`sections` array")
+            .iter()
+            .map(|v| v.as_str().expect("section label is a string"))
+            .collect();
+        let categories: Vec<&str> = VALID_CATEGORIES
+            .iter()
+            .copied()
+            .filter(|c| *c != "archive")
+            .collect();
+        let missing_from_sidebar: Vec<&&str> = categories
+            .iter()
+            .filter(|c| !sections.contains(c))
+            .collect();
+        let missing_from_lint: Vec<&&str> = sections
+            .iter()
+            .filter(|s| !categories.contains(s))
+            .collect();
+        assert_eq!(
+            sections, categories,
+            "VALID_CATEGORIES and sidebar sections drifted (same labels, same order). \
+             In lint but not sidebar: {missing_from_sidebar:?}; in sidebar but not lint: {missing_from_lint:?}"
         );
     }
 }

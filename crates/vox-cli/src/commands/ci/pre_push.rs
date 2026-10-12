@@ -520,6 +520,16 @@ fn build_steps(root: &Path, opts: &PrePushOpts) -> Result<Vec<OwnedStep>> {
             scope: None,
             run: Box::new(step_canonical_map_verify),
         },
+        OwnedStep {
+            label: "vox kb eval --gate".into(),
+            scope: None,
+            run: Box::new(step_kb_eval_gate),
+        },
+        OwnedStep {
+            label: "vox-doc-pipeline facet backlog (tighten-only vs base)".into(),
+            scope: None,
+            run: Box::new(step_facet_backlog_gate),
+        },
     ];
 
     if run_complete_static(opts) {
@@ -854,16 +864,18 @@ fn nextest_cargo_status(root: &Path, args: &[&str]) -> Result<()> {
     Ok(())
 }
 
-/// Returns a `Command` that invokes the current `vox` binary.
-///
-/// On Windows, `cargo run -p vox-cli` would try to relink `vox.exe`, which
-/// fails with "Access is denied" (os error 5) because the currently running
-/// process holds a lock on the executable. We avoid this by resolving
-/// `current_exe()` and invoking it directly — the binary is already fresh
-/// (we just ran it). On non-Windows platforms we keep using `cargo run` so
-/// that sub-commands always run against the latest source.
+/// Diff base for pre-push checks: `override_ref` when set, else `origin/main`.
+fn base_ref_or_default(override_ref: Option<String>) -> String {
+    override_ref.unwrap_or_else(|| "origin/main".into())
+}
+
+/// Single reader of the diff-base override, shared by the diff step and the kb eval gate.
+fn prepush_base_ref() -> String {
+    base_ref_or_default(std::env::var("VOX_PREPUSH_BASE").ok())
+}
+
 fn git_diff_name_only_for_prepush(root: &Path) -> Result<String> {
-    let primary = std::env::var("VOX_PREPUSH_BASE").unwrap_or_else(|_| "origin/main".into());
+    let primary = prepush_base_ref();
     let attempt = |base: &str| -> Result<String> {
         let out = // vox-arch-check: allow git-exec
         Command::new("git")
@@ -1098,6 +1110,14 @@ fn step_retired_symbol_check(root: &Path) -> Result<()> {
 
 fn step_canonical_map_verify(root: &Path) -> Result<()> {
     vox_cli_ci::canonical_docs::run(root)
+}
+
+fn step_kb_eval_gate(root: &Path) -> Result<()> {
+    crate::commands::kb::gate::run_gate(root, &prepush_base_ref())
+}
+
+fn step_facet_backlog_gate(root: &Path) -> Result<()> {
+    crate::commands::kb::facet_backlog::run_facet_backlog_gate(root, &prepush_base_ref())
 }
 
 fn step_doc_inventory(root: &Path) -> Result<()> {
@@ -1561,6 +1581,12 @@ fn changed_dirs_under_crates(root: &Path) -> Result<Vec<PathBuf>> {
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn prepush_base_ref_defaults_to_origin_main() {
+        assert_eq!(base_ref_or_default(None), "origin/main");
+        assert_eq!(base_ref_or_default(Some("HEAD~3".into())), "HEAD~3");
+    }
 
     #[test]
     fn heartbeat_does_not_pad_fast_steps() {

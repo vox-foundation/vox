@@ -181,6 +181,8 @@ mod questioning_telemetry;
 mod research;
 pub mod research_doc_io;
 pub mod research_pipeline;
+/// KB-text sanitizer and provenance newtypes. Lives in `vox-db-types`.
+pub use vox_db_types::kb_text;
 /// Hybrid retrieval helpers (vector / full-text fusion) for RAG-style pipelines.
 /// Moved to `vox-db-types`; re-exported here for back-compat.
 pub use vox_db_types::retrieval;
@@ -258,6 +260,7 @@ pub use retrieval::{
     SearchCorpus, SearchDiagnostics, SearchIntent, SearchPlan, SearchRefinementAction,
     fuse_hybrid_results, heuristic_search_plan,
 };
+pub use schema::domains::quarantine::SCHEMA_LEGACY_VOXKB as LEGACY_VOXKB_DDL;
 pub use schema_digest::{SchemaDigest, digest_to_json, format_llm_context, generate_schema_digest};
 pub use socrates_telemetry::{
     SocratesSurfaceAggregate, SocratesSurfaceTelemetry, hallucination_risk_proxy,
@@ -271,22 +274,24 @@ pub use store::{
     ExternalStatusSnapshotRow, ExternalSubmissionAttemptParams, ExternalSubmissionAttemptRow,
     ExternalSubmissionJobRow, ExternalSubmissionJobUpsertParams, GamifyLudusKpiRollup,
     GamifyPolicySnapshotListRow, GrpoStepRow, HarnessFixProposalRow, HarnessIssueDecisionRow,
-    HarnessIssueRow, HopperInboxRow, KnowledgeHealthInfo, KnowledgeNodeRecord,
-    KnowledgeNodeSummary, LearnedPatternEntry, LlmSpendSummary, LocalTrainRow, LogExecutionParams,
-    LogInteractionParams, MemoryEntry, NewFixProposal, NewHarnessIssue, NewSkillCandidate,
-    PackageSearchResult, PlanNodeRow, PlanSessionRow, PlanVersionRow, PublicationAttemptRow,
-    PublicationExternalLinkRow, PublicationExternalLinkUpsertParams,
-    PublicationExternalRevisionRow, PublicationExternalRevisionUpsertParams,
-    PublicationManifestParams, PublicationManifestRow, PublicationMediaAssetParams,
-    PublicationMediaAssetRow, PublicationStatusEventRow, PublishArtifactParams,
-    QuestionEventParams, QuestionEventRow, QuestionOptionOutcomeParams, QuestionOptionOutcomeRow,
-    QuestionOptionParams, QuestionOptionRow, QuestionRow, QuestionSessionCreateParams,
-    QuestionSessionRow, QuestionStopEventParams, QuestionStopEventRow, RegisterAgentParams,
-    RegressionRow, SaveMemoryParams, SaveSnippetParams, ScheduledEntry, ScholarlySubmissionRow,
-    SessionEventRow, SessionRow, SkillCandidateRow, SkillExecutionParams, SkillExecutionRow,
-    SkillManifestEntry, SkillReliabilityReport, SnippetEntry, StoreError, ThroughputProfileRow,
-    TrainingPair, TrustRollupEntry, UpsertAccountSecretCiphertextParams, UserEntry, WarningRow,
-    WorkflowExecutionRow,
+    HarnessIssueRow, HopperInboxRow, KB_CHUNK_SOURCE_TYPE, KB_LIBRARY_CORPUS, KbFindingCounts,
+    KbFindingRow, KbIndexState, KnowledgeHealthInfo, KnowledgeNodeRecord, KnowledgeNodeSummary,
+    LearnedPatternEntry, LegacyKbCounts, LegacyKbEntry, LibraryChunkDiff, LibraryChunkInput,
+    LibraryChunkPos, LibraryChunkRow, LibraryDocRow, LibraryDocUpsert, LlmSpendSummary,
+    LocalTrainRow, LogExecutionParams, LogInteractionParams, MemoryEntry, NewFixProposal,
+    NewHarnessIssue, NewKbFinding, NewSkillCandidate, PackageSearchResult, PlanNodeRow,
+    PlanSessionRow, PlanVersionRow, PublicationAttemptRow, PublicationExternalLinkRow,
+    PublicationExternalLinkUpsertParams, PublicationExternalRevisionRow,
+    PublicationExternalRevisionUpsertParams, PublicationManifestParams, PublicationManifestRow,
+    PublicationMediaAssetParams, PublicationMediaAssetRow, PublicationStatusEventRow,
+    PublishArtifactParams, QuestionEventParams, QuestionEventRow, QuestionOptionOutcomeParams,
+    QuestionOptionOutcomeRow, QuestionOptionParams, QuestionOptionRow, QuestionRow,
+    QuestionSessionCreateParams, QuestionSessionRow, QuestionStopEventParams, QuestionStopEventRow,
+    RegisterAgentParams, RegressionRow, SaveMemoryParams, SaveSnippetParams, ScheduledEntry,
+    ScholarlySubmissionRow, SessionEventRow, SessionRow, SkillCandidateRow, SkillExecutionParams,
+    SkillExecutionRow, SkillManifestEntry, SkillReliabilityReport, SnippetEntry, StoreError,
+    ThroughputProfileRow, TrainingPair, TrustRollupEntry, UpsertAccountSecretCiphertextParams,
+    UserEntry, WarningRow, WorkflowExecutionRow,
 };
 pub use sync_invocables::InvocableSyncEngine;
 pub use syntax_k_telemetry::SyntaxKEventMeta;
@@ -305,51 +310,15 @@ pub use vox_db_types::{
     ResearchDefectClass, ResearchMisguidanceRecord, ResearchSearchResult, ResearchSessionRecord,
     ResearchSessionSummary,
 };
+pub use vox_orchestrator_types::trust::{
+    ContextTrustTier, FindingTier, tier_for_curated, tier_for_knowledge_node_type,
+};
 #[cfg(feature = "host-integration")]
 pub use workspace_journey_store::{
     WorkspaceJourneyStoreMode, connect_workspace_journey_optional,
     connect_workspace_journey_optional_at, workspace_journey_diagnostics_json,
     workspace_journey_store_mode_from_env,
 };
-
-/// Row returned by KB queries from VoxDb.
-#[derive(Debug, Clone)]
-pub struct KbRow {
-    pub id: String,
-    pub name: String,
-    pub description: String,
-    pub created_at_ms: i64,
-    pub updated_at_ms: i64,
-    pub entry_count: i64,
-}
-
-/// Row returned by KB entry queries from VoxDb.
-#[derive(Debug, Clone)]
-pub struct KbEntryRow {
-    pub id: String,
-    pub kb_id: String,
-    pub content: String,
-    pub source_signal: String,
-    pub source_ref: Option<String>,
-    pub routing_confidence: f64,
-    pub tags: String,
-    pub created_at_ms: i64,
-    pub last_accessed_at_ms: Option<i64>,
-    pub access_count: i64,
-    pub accepted: i64,
-    pub mens_queued: i64,
-}
-
-/// Row returned by KB routing rule queries from VoxDb.
-#[derive(Debug, Clone)]
-pub struct KbRuleRow {
-    pub id: String,
-    pub kb_id: String,
-    pub rule_type: String,
-    pub pattern: String,
-    pub priority: i64,
-    pub created_at_ms: i64,
-}
 
 /// Public product name for the unified database facade (**Codex** over Arca/Turso).
 ///

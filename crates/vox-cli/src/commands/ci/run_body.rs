@@ -103,8 +103,14 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::ConfigRegistryParity { update_baseline } => {
             vox_cli_ci::config_registry_parity::run(update_baseline)
         }
-        CiCmd::ConfigGuiCodegen { check, fields } => {
-            if fields {
+        CiCmd::ConfigGuiCodegen {
+            check,
+            fields,
+            kb_facets,
+        } => {
+            if kb_facets {
+                vox_cli_ci::kb_facets_ts::run(&root, check)
+            } else if fields {
                 vox_cli_ci::config_gui_codegen::run_fields(check)
             } else {
                 vox_cli_ci::config_gui_codegen::run(check)

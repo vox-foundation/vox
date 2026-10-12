@@ -466,6 +466,14 @@ surfaces:
   parent_surface: null
   notes: null
 - view_key: null
+  cli_group: kb
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  parent_surface: null
+  notes: CLI-only until the Library GUI (kb workstream Phase 6)
+- view_key: null
   cli_group: live
   representation_tier: none
   nav_label: null

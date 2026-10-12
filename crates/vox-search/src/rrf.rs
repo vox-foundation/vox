@@ -2,9 +2,16 @@
 
 use std::collections::HashMap;
 
+/// Drop a leading `[tier:<tier>] ` label so the same hit keys identically labelled or not.
+fn strip_tier_label(t: &str) -> &str {
+    t.strip_prefix("[tier:")
+        .and_then(|rest| rest.split_once("] "))
+        .map_or(t, |(_, rest)| rest.trim_start())
+}
+
 /// Stable deduplication key for a formatted retrieval line (see `execution` formatters).
 pub(crate) fn rrf_dedup_key(line: &str) -> String {
-    let t = line.trim_start();
+    let t = strip_tier_label(line.trim_start());
     if let Some(rest) = t.strip_prefix("[chunk:") {
         let id = rest
             .split(|c: char| c.is_whitespace() || c == ']')
@@ -19,10 +26,6 @@ pub(crate) fn rrf_dedup_key(line: &str) -> String {
     if let Some(rest) = t.strip_prefix("[node:") {
         let id = rest.split(']').next().unwrap_or("");
         return format!("node:{id}");
-    }
-    if let Some(rest) = t.strip_prefix("[tantivy:") {
-        let id = rest.split_whitespace().next().unwrap_or("");
-        return format!("tantivy:{id}");
     }
     if let Some(rest) = t.strip_prefix("[qdrant:") {
         let id = rest.split_whitespace().next().unwrap_or("");
@@ -86,5 +89,17 @@ mod tests {
             "repo:crates/foo"
         );
         assert_eq!(rrf_dedup_key("[node:abc] label"), "node:abc");
+    }
+
+    #[test]
+    fn dedup_key_ignores_the_tier_label() {
+        assert_eq!(
+            rrf_dedup_key("[tier:trusted] [chunk:7 title:t] x"),
+            "chunk:7"
+        );
+        assert_eq!(
+            rrf_dedup_key("[tier:untrusted] [node:abc] label"),
+            "node:abc"
+        );
     }
 }

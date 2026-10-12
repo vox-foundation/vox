@@ -8653,6 +8653,53 @@ operations:
   handler_rust: commands::init
 - surface: vox-cli
   path:
+  - kb
+  status: active
+  latin_ns: null
+  product_lane: ai
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
+  handler_rust: commands::kb
+- surface: vox-cli
+  path:
+  - kb
+  - eval
+  status: active
+  latin_ns: null
+  product_lane: ai
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::kb
+- surface: vox-cli
+  path:
+  - kb
+  - reindex
+  status: active
+  latin_ns: null
+  product_lane: ai
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - kb
+  - status
+  status: active
+  latin_ns: null
+  product_lane: ai
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
   - live
   status: active
   latin_ns: null

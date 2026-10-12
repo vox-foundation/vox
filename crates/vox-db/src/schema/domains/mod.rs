@@ -16,7 +16,8 @@ pub mod knowledge;
 pub mod mens_intelligence;
 pub mod packages;
 pub mod publish_cloud;
-#[cfg(feature = "quarantine")]
+// Always compiled so `SCHEMA_LEGACY_VOXKB` can back `vox_db::LEGACY_VOXKB_DDL` on default
+// builds; only `manifest::baseline_sql` gates what reaches the schema (feature `quarantine`).
 pub mod quarantine;
 pub mod scientia;
 pub mod secrets_cloudless;

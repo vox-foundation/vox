@@ -84,15 +84,8 @@ pub enum ContextCaptureMode {
     Imported,
 }
 
-/// Trust tier used by context conflict and injection policy.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ContextTrustTier {
-    Untrusted,
-    Advisory,
-    Trusted,
-    SystemVerified,
-}
+/// Trust tier used by context conflict and injection policy (single definition in the L0 crate).
+pub use vox_orchestrator_types::trust::ContextTrustTier;
 
 /// Freshness class for context payloads.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

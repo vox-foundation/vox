@@ -135,6 +135,7 @@ fn socrates_context_from_retrieval_preserves_verification_and_quality_signals() 
         sqlite_fts5_reported: None,
         sqlite_foreign_keys_on: None,
         rrf_fused_hit_count: 0,
+        min_trust_tier: None,
     };
     let ctx = submission::socrates_context_from_retrieval(&retrieval);
     assert_eq!(ctx.source_diversity, 3);

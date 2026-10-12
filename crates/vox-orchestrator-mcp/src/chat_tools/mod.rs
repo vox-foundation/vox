@@ -409,6 +409,7 @@ mod routing_tests {
             sqlite_fts5_reported: None,
             sqlite_foreign_keys_on: None,
             rrf_fused_hit_count: 0,
+            min_trust_tier: None,
         };
         let v = socrates_tool_meta(&p, 0.48, false, 0, 0, 0, Some(&retrieval));
         let refinement = v.get("search_refinement").expect("search_refinement field");

@@ -316,3 +316,115 @@ async fn tool_call_with_no_daemon_reachable_surfaces_a_clear_error() {
         std::env::remove_var("VOX_ORCHESTRATOR_DAEMON_SOCKET");
     }
 }
+
+/// KB tools and `kb://` resources through the real daemon path an external host uses:
+/// stdio proxy -> `orch.tool_call` -> `vox_kb_*` handlers -> the daemon's own VoxDb.
+#[tokio::test]
+#[serial_test::serial]
+async fn kb_resources_and_tools_via_daemon() {
+    use vox_orchestrator_mcp::kb_resources::read_kb_resource;
+
+    let home = IsolatedHomeEnv::new();
+    let token = "kb-routing-token";
+    home.write_token(token);
+
+    // A temp corpus indexed into the daemon's DB, into the dir the tools resolve.
+    let tmp = tempfile::tempdir().unwrap();
+    let repo = tmp.path().join("repo");
+    std::fs::create_dir_all(repo.join("docs/src")).unwrap();
+    std::fs::write(
+        repo.join("docs/src/guide.md"),
+        "# Guide\n\nIntro text.\n\n## Install\nrun turbofrobnicate to install\n",
+    )
+    .unwrap();
+    // SAFETY: serialized via `#[serial_test::serial]`.
+    #[allow(unsafe_code)]
+    unsafe {
+        std::env::set_var("VOX_SEARCH_TANTIVY_ROOT", tmp.path().join("idx"));
+    }
+    vox_config::snapshot::bump(&["VOX_SEARCH_TANTIVY_ROOT"]);
+    let db = Arc::new(vox_db::VoxDb::open_memory().await.unwrap());
+    let hasher = |b: &[u8]| vox_crypto::hex_encode(&vox_crypto::secure_hash(b));
+    let deps = vox_search::library::IndexDeps {
+        hasher: &hasher,
+        corpus_commit: None,
+        trust_tier: vox_db::ContextTrustTier::Trusted,
+        is_committed_clean: &|_: &str| true,
+    };
+    let lex_dir = vox_search::library::lexical::default_index_dir().expect("index dir");
+    vox_search::library::index_library(&db, &repo, &lex_dir, &deps)
+        .await
+        .unwrap();
+
+    let state = ServerState::new_full(load_config())
+        .with_db_initialized(db)
+        .await;
+    let orch = state.orchestrator.clone();
+    let extra: Arc<dyn ExtraDispatch> = Arc::new(McpExtraDispatch::new(state.clone()));
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap().to_string();
+    let server = tokio::spawn(orch_daemon::serve_listener_with_extra(
+        listener,
+        addr.clone(),
+        "ut-repo".to_string(),
+        orch,
+        Some(extra),
+        Some(Arc::from(token)),
+    ));
+    wait_ready(&addr, Some(token)).await;
+    // SAFETY: serialized via `#[serial_test::serial]`.
+    #[allow(unsafe_code)]
+    unsafe {
+        std::env::set_var("VOX_ORCHESTRATOR_DAEMON_SOCKET", &addr);
+    }
+    let ensure = OrchestratorDaemonEnsure::default();
+    let call = |name: &'static str, args: serde_json::Value| {
+        let ensure = &ensure;
+        async move {
+            let out = call_tool_via_daemon(ensure, name, args).await.unwrap();
+            serde_json::from_str::<serde_json::Value>(&out).unwrap()
+        }
+    };
+
+    let status = call("vox_kb_status", serde_json::json!({})).await;
+    assert_eq!(status["success"], true, "{status}");
+    assert_eq!(status["data"]["indexed"], true, "{status}");
+
+    let found = call(
+        "vox_kb_search",
+        serde_json::json!({"query": "turbofrobnicate"}),
+    )
+    .await;
+    assert_eq!(found["success"], true, "{found}");
+    let hit = &found["data"]["hits"][0];
+    assert_eq!(hit["heading_path"], "Guide \u{203a} Install", "{found}");
+    let hash = hit["chunk_hash"].as_str().unwrap().to_string();
+
+    let (mime, body) = read_kb_resource(&ensure, &format!("kb://chunk/{hash}"))
+        .await
+        .unwrap();
+    assert_eq!(mime, "text/markdown");
+    assert!(body.contains("turbofrobnicate"), "{body}");
+
+    let (_, doc) = read_kb_resource(&ensure, "kb://doc/docs/src/guide.md")
+        .await
+        .unwrap();
+    assert!(
+        doc.contains("## Install") && doc.contains("turbofrobnicate"),
+        "{doc}"
+    );
+
+    let missing = read_kb_resource(&ensure, "kb://doc/docs/src/nope.md")
+        .await
+        .unwrap_err();
+    assert!(missing.contains("not indexed"), "{missing}");
+
+    // SAFETY: serialized via `#[serial_test::serial]`.
+    #[allow(unsafe_code)]
+    unsafe {
+        std::env::remove_var("VOX_ORCHESTRATOR_DAEMON_SOCKET");
+        std::env::remove_var("VOX_SEARCH_TANTIVY_ROOT");
+    }
+    vox_config::snapshot::bump(&["VOX_SEARCH_TANTIVY_ROOT"]);
+    server.abort();
+}

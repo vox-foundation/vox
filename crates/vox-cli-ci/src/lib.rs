@@ -81,6 +81,7 @@ pub mod gui_version_sync;
 pub mod gui_visual_review;
 pub mod harness_trust_guard;
 pub mod install_hooks;
+pub mod kb_facets_ts;
 pub mod kill_stuck_tests;
 pub mod line_endings;
 pub mod model_routing_check;

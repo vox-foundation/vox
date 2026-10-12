@@ -689,8 +689,8 @@ export function ResearchView({
                       const count = await invoke<number>('save_research_session_to_kb', { sessionId: detail.session.id });
                       pushToast?.({
                         tone: 'ok',
-                        title: 'Saved to Knowledge Base',
-                        body: `${count} source(s) saved to knowledge base.`,
+                        title: 'Filed for review',
+                        body: `${count} source(s) filed for review; not yet searchable.`,
                         cause: 'backend-ok',
                       });
                     } catch (err) {
@@ -855,11 +855,11 @@ export function ResearchView({
             sessionId={detail.session.id}
             isOpen={isPublishModalOpen}
             onClose={() => setIsPublishModalOpen(false)}
-            onPublished={(path) => {
+            onPublished={(path, status) => {
               pushToast?.({
                 tone: 'ok',
-                title: 'Published Architecture SSOT',
-                body: `Published ${path}`,
+                title: status === 'duplicate' ? 'Already pending review' : 'Filed for review',
+                body: `Proposed ${path} is pending review and not yet searchable.`,
                 cause: 'backend-ok',
               });
             }}

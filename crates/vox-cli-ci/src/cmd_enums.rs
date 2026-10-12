@@ -198,6 +198,9 @@ pub enum CiCmd {
         /// Also generate/check the Rust FIELDS catalog (generated_fields.rs).
         #[arg(long)]
         fields: bool,
+        /// Generate/check the GUI KB facet type (crates/vox-gui/ui/src/generated/kbFacets.generated.ts) from contracts/documentation/kb-facets.v1.schema.json.
+        #[arg(long)]
+        kb_facets: bool,
     },
     /// Run documentation + Codex + command-compliance + contracts-index guards in one shot.
     #[command(name = "ssot-drift")]

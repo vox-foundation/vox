@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "has_compile_times": true,
-  "crates_without_compile_times": 0,
+  "crates_without_compile_times": 1,
   "crates": [
     {
       "crate": "vox-actor-runtime",
@@ -190,7 +190,7 @@
       "compile_s": 0.3,
       "dependents": 73,
       "blast_s": 613.0,
-      "fan_in": 13
+      "fan_in": 14
     },
     {
       "crate": "vox-db",
@@ -345,6 +345,13 @@
       "dependents": 55,
       "blast_s": 593.0,
       "fan_in": 9
+    },
+    {
+      "crate": "vox-kb-facets",
+      "compile_s": 0.0,
+      "dependents": 53,
+      "blast_s": 586.0,
+      "fan_in": 3
     },
     {
       "crate": "vox-langtool",
@@ -902,9 +909,9 @@
     {
       "crate": "workspace-hack",
       "compile_s": 0.6,
-      "dependents": 118,
+      "dependents": 119,
       "blast_s": 653.0,
-      "fan_in": 115
+      "fan_in": 116
     }
   ],
   "measured_on": "x86_64-pc-windows-msvc (cargo check)"

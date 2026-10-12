@@ -49,7 +49,15 @@ CREATE TABLE IF NOT EXISTS search_documents (
     title TEXT NOT NULL DEFAULT '',
     mime_type TEXT NOT NULL DEFAULT '',
     content_hash TEXT NOT NULL DEFAULT '',
-    ingested_at TEXT NOT NULL DEFAULT (datetime('now'))
+    ingested_at TEXT NOT NULL DEFAULT (datetime('now')),
+    corpus TEXT NOT NULL DEFAULT '',
+    rel_path TEXT,
+    frontmatter_json TEXT,
+    indexed_commit TEXT,
+    index_error TEXT,
+    -- Baseline 96 (KB Phase 3): fail-closed default, so a raw-SQL row with no tier is untrusted.
+    -- No index on it here: a v95 database lacks the column when this text runs.
+    trust_tier TEXT NOT NULL DEFAULT 'untrusted'
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_search_documents_uri ON search_documents(source_uri);
@@ -62,7 +70,33 @@ CREATE TABLE IF NOT EXISTS search_document_chunks (
     body_text TEXT NOT NULL,
     embedding_ref TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    chunk_hash TEXT,
+    chunk_kind TEXT NOT NULL DEFAULT 'section',
+    heading_path TEXT NOT NULL DEFAULT '',
+    anchor TEXT,
+    token_estimate INTEGER,
     UNIQUE(document_id, chunk_index)
+);
+
+-- KB Library index manifest (baseline 95). One row per corpus. Indexes on the baseline-95
+-- columns of search_documents/search_document_chunks are created in store/open.rs AFTER the
+-- guarded ALTERs (a v94 database lacks those columns when this text runs).
+CREATE TABLE IF NOT EXISTS kb_index_state (
+    corpus TEXT PRIMARY KEY,
+    corpus_root TEXT NOT NULL,
+    corpus_commit TEXT,
+    indexed_at TEXT NOT NULL,
+    doc_count INTEGER NOT NULL,
+    chunk_count INTEGER NOT NULL,
+    card_count INTEGER NOT NULL,
+    chunker_version TEXT NOT NULL,
+    lexical_backend TEXT NOT NULL,
+    trust_tier TEXT NOT NULL,
+    embed_model_id TEXT,
+    embed_revision TEXT,
+    embed_dim INTEGER,
+    errors_json TEXT NOT NULL DEFAULT '[]',
+    duration_ms INTEGER NOT NULL
 );
 
 -- search_indexing_jobs: quarantined (DEAD, Task 4) — see domains/quarantine.rs.
@@ -75,45 +109,31 @@ CREATE INDEX IF NOT EXISTS idx_embeddings_source ON embeddings(source_type, sour
 CREATE INDEX IF NOT EXISTS idx_embeddings_source_created ON embeddings(source_type, created_at);
 CREATE INDEX IF NOT EXISTS idx_search_chunks_doc ON search_document_chunks(document_id);
 
--- Knowledge Base tables (VoxKB) ---------------------------------------------------
-CREATE TABLE IF NOT EXISTS knowledge_bases (
+-- KB findings inbox (baseline 96, KB Phase 3). Every captured finding lands `pending`; the
+-- trust_tier default is the fail-closed guard for raw SQL (Turso rejects CHECK and triggers, so
+-- validity is enforced by the Rust types in store/ops_memory/kb_findings.rs).
+CREATE TABLE IF NOT EXISTS kb_findings (
     id TEXT PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE,
-    description TEXT NOT NULL DEFAULT '',
-    created_at_ms INTEGER NOT NULL,
-    updated_at_ms INTEGER NOT NULL,
-    entry_count INTEGER NOT NULL DEFAULT 0
-);
-
-CREATE TABLE IF NOT EXISTS kb_entries (
-    id TEXT PRIMARY KEY,
-    kb_id TEXT NOT NULL REFERENCES knowledge_bases(id) ON DELETE CASCADE,
-    content TEXT NOT NULL,
-    source_signal TEXT NOT NULL,
-    source_ref TEXT,
-    routing_confidence REAL NOT NULL DEFAULT 1.0,
-    tags TEXT NOT NULL DEFAULT '[]',
-    created_at_ms INTEGER NOT NULL,
-    last_accessed_at_ms INTEGER,
-    access_count INTEGER NOT NULL DEFAULT 0,
-    accepted INTEGER NOT NULL DEFAULT 1,
-    mens_queued INTEGER NOT NULL DEFAULT 0
-);
-
-CREATE TABLE IF NOT EXISTS kb_routing_rules (
-    id TEXT PRIMARY KEY,
-    kb_id TEXT NOT NULL REFERENCES knowledge_bases(id) ON DELETE CASCADE,
-    rule_type TEXT NOT NULL,
-    pattern TEXT NOT NULL,
-    priority INTEGER NOT NULL DEFAULT 0,
+    dedupe_key TEXT NOT NULL UNIQUE,
+    status TEXT NOT NULL DEFAULT 'pending',
+    trust_tier TEXT NOT NULL DEFAULT 'untrusted',
+    origin TEXT NOT NULL,
+    title TEXT NOT NULL DEFAULT '',
+    summary TEXT NOT NULL,
+    quotes_json TEXT NOT NULL DEFAULT '[]',
+    source_url TEXT,
+    fetched_at_ms INTEGER NOT NULL,
+    content_hash TEXT NOT NULL,
+    snapshot_relpath TEXT,
+    provenance_json TEXT NOT NULL DEFAULT '{}',
+    review_note TEXT,
+    reviewed_by TEXT,
+    reviewed_at_ms INTEGER,
+    mens_queued INTEGER NOT NULL DEFAULT 0,
     created_at_ms INTEGER NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_kb_entries_kb_id ON kb_entries(kb_id);
-CREATE INDEX IF NOT EXISTS idx_kb_entries_source_signal ON kb_entries(source_signal);
-CREATE INDEX IF NOT EXISTS idx_kb_entries_accepted ON kb_entries(accepted);
-CREATE INDEX IF NOT EXISTS idx_kb_entries_mens_queued ON kb_entries(mens_queued, accepted);
-CREATE INDEX IF NOT EXISTS idx_kb_routing_rules_kb_id ON kb_routing_rules(kb_id);
+CREATE INDEX IF NOT EXISTS idx_kb_findings_status ON kb_findings(status, created_at_ms);
 
 -- Web Cache ----------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS web_cache (

@@ -5,10 +5,12 @@ use std::time::Instant;
 
 use serde::Serialize;
 use serde_json::{Value, json};
+use vox_db::kb_text::{FindingOrigin, SanitizedText};
 use vox_search::memory_hybrid::HybridSearchHit;
 use vox_search::web_dispatcher::{ProviderStatus, WebSearchDispatcher};
 
 use super::research_intent::{ResearchIntent, ResearchMode};
+use crate::kb_tools::findings::{CaptureInput, capture_finding};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct StageRecord {
@@ -177,19 +179,30 @@ pub fn sources_from_hits(hits: &[HybridSearchHit], max: usize) -> Vec<Source> {
         .filter(|h| seen.insert(h.path.clone()))
         .take(max)
         .enumerate()
-        .map(|(i, h)| Source {
-            n: i + 1,
-            url: h.path.clone(),
-            title: h.title.clone(),
-            engine: h
+        .map(|(i, h)| {
+            let engine = h
                 .provenance
                 .iter()
                 .find_map(|p| p.strip_prefix("engine:"))
-                .unwrap_or("unknown")
-                .to_string(),
-            snippet: h.content_snippet.chars().take(600).collect(),
+                .unwrap_or("unknown");
+            sanitized_source(i + 1, &h.path, &h.title, engine, &h.content_snippet)
         })
         .collect()
+}
+
+/// The only way to build a numbered `Source` (TRUST-05, WR-05): every field passes
+/// `SanitizedText` before it can reach the prompt block, the GUI trace or findings capture.
+fn sanitized_source(n: usize, url: &str, title: &str, engine: &str, snippet: &str) -> Source {
+    let clean = |s: &str| SanitizedText::new(s).into_string();
+    Source {
+        n,
+        url: clean(url),
+        title: clean(title),
+        engine: clean(engine),
+        // Sanitize first, cap second: the cap must not cut a construct in half and leave
+        // its tail behind.
+        snippet: clean(snippet).chars().take(600).collect(),
+    }
 }
 
 /// Flattens embedded newlines to spaces so a hostile page title/url/engine/snippet
@@ -444,10 +457,19 @@ fn quick_retrieval_stage(
 /// Quick research: one retrieval wave on the Deep-lane deadline, numbered sources.
 /// Returns the context block to inject into the chat prompt.
 pub async fn run_quick(state: &crate::ServerState, trace: &mut ResearchTrace) -> String {
-    let mut policy = {
+    let policy = {
         let cfg = state.orchestrator.config_handle();
         vox_orchestrator::sync_lock::rw_read(&*cfg).effective_search_policy()
     };
+    run_quick_with_policy(state, trace, policy).await
+}
+
+/// [`run_quick`] with an explicit search policy (tests point it at a stub SearXNG).
+pub async fn run_quick_with_policy(
+    state: &crate::ServerState,
+    trace: &mut ResearchTrace,
+    mut policy: vox_search::policy::SearchPolicy,
+) -> String {
     // Spec §4.3: quick research keeps top N=8 (Task 8c) — the dispatcher's
     // scrape-driven default (max(searxng_max_results, searxng_max_urls_to_scrape),
     // typically 5) truncated the pool before it ever reached `sources_from_hits`
@@ -482,98 +504,91 @@ pub async fn run_quick(state: &crate::ServerState, trace: &mut ResearchTrace) ->
         format!("{} web sources kept", trace.sources.len()),
         json!({ "sources": trace.sources }),
     ));
-    if !trace.sources.is_empty() {
-        let count = persist_research_findings_to_knowledgebase(
-            state.db.as_deref(),
+    if let (Some(db), false) = (state.db.as_deref(), trace.sources.is_empty()) {
+        let count = capture_research_sources(
+            db,
+            &state.repository.root,
             &original,
             &trace.sources,
-            None,
+            FindingOrigin::ResearchQuick,
         )
         .await;
         if count > 0 {
-            trace.push(StageRecord::new(
-                "knowledge_base",
-                "ok",
-                None,
-                format!("persisted {count} sources to VoxDb knowledge base"),
-                json!({ "persisted_sources": count, "query": original }),
-            ));
+            trace.push(inbox_stage(count, &original));
         }
     }
     quick_context_block(&report, &trace.sources)
 }
 
-/// Persist research findings and sources into the VoxDb knowledge graph.
-pub async fn persist_research_findings_to_knowledgebase(
-    db: Option<&vox_db::VoxDb>,
+fn inbox_stage(count: usize, query: &str) -> StageRecord {
+    StageRecord::new(
+        "inbox",
+        "ok",
+        None,
+        format!("filed {count} pending findings for review"),
+        json!({ "pending_findings": count, "query": query }),
+    )
+}
+
+/// File each research source as a pending `Untrusted` finding (never a corpus or graph row).
+/// Returns how many new findings were filed; dedupe hits and capture errors are not counted.
+pub async fn capture_research_sources(
+    db: &vox_db::VoxDb,
+    repo_root: &std::path::Path,
     query: &str,
     sources: &[Source],
-    summary: Option<&str>,
+    origin: FindingOrigin,
 ) -> usize {
-    let Some(db) = db else {
-        return 0;
-    };
-    if sources.is_empty() {
-        return 0;
-    }
-    let query_hash = vox_crypto::hash_fast_hex(query.as_bytes());
-    let query_node_id = format!("research_query:{query_hash}");
-
-    let summary_text = summary.unwrap_or("Aggregated web research findings");
-    let meta = json!({
-        "query": query,
-        "source_count": sources.len(),
-    })
-    .to_string();
-
-    let _ = db
-        .upsert_knowledge_node(
-            &query_node_id,
-            query,
-            summary_text,
-            Some("research_synthesis"),
-            Some(&meta),
-            None,
-        )
-        .await;
-
-    let mut persisted = 0;
-    for (idx, source) in sources.iter().take(5).enumerate() {
-        let src_hash = vox_crypto::hash_fast_hex(source.url.as_bytes());
-        let src_node_id = format!("research_src:{src_hash}");
-        let src_meta = json!({
-            "url": source.url,
-            "engine": source.engine,
-            "query": query,
-            "rank": idx + 1,
-        })
-        .to_string();
-
-        let label = if source.title.is_empty() {
-            &source.url
-        } else {
-            &source.title
+    let mut filed = 0;
+    for (idx, s) in sources.iter().enumerate() {
+        let input = CaptureInput {
+            origin,
+            title: s.title.clone(),
+            text: s.snippet.clone(),
+            full_text: None,
+            source_url: Some(s.url.clone()),
+            dedupe_scope: None,
+            provenance: json!({ "query": query, "engine": s.engine, "rank": idx + 1 }),
         };
-
-        if db
-            .upsert_knowledge_node(
-                &src_node_id,
-                label,
-                &source.snippet,
-                Some("web_research_source"),
-                Some(&src_meta),
-                None,
-            )
-            .await
-            .is_ok()
-        {
-            let _ = db
-                .create_knowledge_edge(&query_node_id, &src_node_id, "cites_source", 1.0, None)
-                .await;
-            persisted += 1;
+        match capture_finding(db, repo_root, input).await {
+            Ok(o) if o.finding_id.is_some() => filed += 1,
+            Ok(_) => {}
+            Err(e) => tracing::warn!(url = %s.url, error = %e, "research source capture failed"),
         }
     }
-    persisted
+    filed
+}
+
+/// File an LLM research synthesis as ONE pending `Untrusted` finding (D-06 taint rule: model
+/// output derived from untrusted pages never re-enters the KB at a higher tier, and carries
+/// no confidence value). The source URLs ride in provenance. Returns the new finding id.
+pub async fn capture_research_synthesis(
+    db: &vox_db::VoxDb,
+    repo_root: &std::path::Path,
+    query: &str,
+    sources: &[Source],
+    synthesis: &str,
+    origin: FindingOrigin,
+) -> Option<String> {
+    let input = CaptureInput {
+        origin,
+        title: format!("Research synthesis: {query}"),
+        text: synthesis.to_string(),
+        full_text: Some(synthesis.to_string()),
+        source_url: None,
+        dedupe_scope: Some(query.to_string()),
+        provenance: json!({
+            "query": query,
+            "source_urls": sources.iter().map(|s| s.url.as_str()).collect::<Vec<_>>(),
+        }),
+    };
+    match capture_finding(db, repo_root, input).await {
+        Ok(o) => o.finding_id,
+        Err(e) => {
+            tracing::warn!(error = %e, "research synthesis capture failed");
+            None
+        }
+    }
 }
 
 /// Deep research: the Scientia pipeline inline on the Deep lane (spec §4.4).
@@ -599,6 +614,7 @@ pub async fn run_deep(
                 v.push((msg, pct, t.elapsed().as_millis() as u64));
             }
         })),
+        finding_capture: crate::kb_tools::findings::web_capture_for_state(state),
         ..ResearchConfig::default()
     };
     let rq = ResearchQuery {
@@ -617,7 +633,8 @@ pub async fn run_deep(
         state.db.clone(),
         state.orchestrator_config.memory.log_dir.clone(),
         state.orchestrator_config.memory.memory_md_path.clone(),
-    );
+    )
+    .with_web_capture(config.finding_capture.clone());
     // Record each research role's requested vs resolved model (Task 13).
     let (outcome, model_uses) = vox_actor_runtime::llm::cascade::record_research_model_uses(
         run_research_with_context(rq, Some(&ctx), state.db.as_deref(), &config),
@@ -643,25 +660,19 @@ pub async fn run_deep(
                 trace.push(s);
             }
             trace.sources = pipeline_sources(&r.sources);
-            if !trace.sources.is_empty() {
-                let count = persist_research_findings_to_knowledgebase(
-                    state.db.as_deref(),
+            if let Some(db) = state.db.as_deref()
+                && capture_research_synthesis(
+                    db,
+                    &state.repository.root,
                     &trace.intent.query,
                     &trace.sources,
-                    Some(&r.answer),
+                    &r.answer,
+                    FindingOrigin::ResearchDeep,
                 )
-                .await;
-                if count > 0 {
-                    trace.push(StageRecord::new(
-                        "knowledge_base",
-                        "ok",
-                        None,
-                        format!(
-                            "persisted deep synthesis and {count} sources to VoxDb knowledge base"
-                        ),
-                        json!({ "persisted_sources": count, "query": trace.intent.query }),
-                    ));
-                }
+                .await
+                .is_some()
+            {
+                trace.push(inbox_stage(1, &trace.intent.query));
             }
             // Headline: the synthesis model that answered, with the id it was
             // requested as (a pin or alias) when the stage was recorded.
@@ -689,13 +700,7 @@ pub async fn run_deep(
 fn pipeline_sources(hits: &[vox_research_shim::research::types::ResearchHit]) -> Vec<Source> {
     hits.iter()
         .enumerate()
-        .map(|(i, h)| Source {
-            n: i + 1,
-            url: h.url.clone(),
-            title: h.title.clone(),
-            engine: "pipeline".into(),
-            snippet: h.snippet.chars().take(600).collect(),
-        })
+        .map(|(i, h)| sanitized_source(i + 1, &h.url, &h.title, "pipeline", &h.snippet))
         .collect()
 }
 
@@ -1417,6 +1422,97 @@ mod tests {
         assert!(s[0].snippet.chars().count() <= 600);
     }
 
+    const REDTEAM: &str = include_str!("../../../../../contracts/kb/redteam/cases.v1.jsonl");
+
+    fn redteam_cases() -> Vec<(String, String, Vec<String>)> {
+        REDTEAM
+            .lines()
+            .filter(|l| !l.trim().is_empty())
+            .map(|l| {
+                let v: Value = serde_json::from_str(l).expect("red-team line");
+                let s = |k: &str| v[k].as_str().expect("str").to_string();
+                let bad = v["must_not_contain"]
+                    .as_array()
+                    .expect("array")
+                    .iter()
+                    .map(|x| x.as_str().expect("str").to_string())
+                    .collect();
+                (s("id"), s("input"), bad)
+            })
+            .collect()
+    }
+
+    /// WR-05: url and engine (not just title and snippet) are sanitized before the prompt block.
+    #[test]
+    fn redteam_source_url_and_engine_are_sanitized_at_the_prompt_block() {
+        let mut checked = 0;
+        for (id, input, bad) in redteam_cases() {
+            let hit = HybridSearchHit {
+                path: format!("https://ok.example/p/{input}"),
+                title: "t".into(),
+                content_snippet: "s".into(),
+                score: 0.5,
+                provenance: vec![format!("engine:{input}")],
+                potential_contradiction: false,
+            };
+            let s = sources_from_hits(&[hit], 8);
+            assert_eq!(s.len(), 1, "case {id}");
+            let block = sources_context_block(&s);
+            for b in &bad {
+                for (what, field) in [
+                    ("url", &s[0].url),
+                    ("engine", &s[0].engine),
+                    ("block", &block),
+                ] {
+                    assert!(
+                        !field.contains(b.as_str()),
+                        "case {id}: {b:?} survived in {what}: {field:?}"
+                    );
+                }
+            }
+            checked += 1;
+        }
+        assert!(checked >= 10, "red-team set shrank to {checked}");
+    }
+
+    /// WR-05: the deep and failed-run path (`pipeline_sources`) sanitizes every field too.
+    #[test]
+    fn redteam_pipeline_sources_are_sanitized() {
+        use vox_research_shim::research::types::ResearchHit;
+        let mut checked = 0;
+        for (id, input, bad) in redteam_cases() {
+            let h = ResearchHit {
+                url: format!("https://ok.example/p/{input}"),
+                title: input.clone(),
+                snippet: input.repeat(400),
+                score: 1.0,
+                http_status: 0,
+                trust_score: 1.0,
+                raw_content: String::new(),
+            };
+            let s = pipeline_sources(&[h]);
+            assert_eq!(s.len(), 1, "case {id}");
+            assert!(s[0].snippet.chars().count() <= 600, "case {id}");
+            let block = sources_context_block(&s);
+            for b in &bad {
+                for (what, field) in [
+                    ("title", &s[0].title),
+                    ("url", &s[0].url),
+                    ("snippet", &s[0].snippet),
+                    ("engine", &s[0].engine),
+                    ("block", &block),
+                ] {
+                    assert!(
+                        !field.contains(b.as_str()),
+                        "case {id}: {b:?} survived in {what}: {field:?}"
+                    );
+                }
+            }
+            checked += 1;
+        }
+        assert!(checked >= 10, "red-team set shrank to {checked}");
+    }
+
     #[test]
     fn context_block_numbers_sources_and_demands_citations() {
         let s = sources_from_hits(&[hit("https://a.example/1", "searxng")], 8);
@@ -1596,5 +1692,210 @@ mod tests {
             serde_json::json!({}),
         ));
         assert_eq!(t.to_event()["status"], "failed");
+    }
+
+    // ---- inbox: research turns file pending findings and nothing else (TRUST-02/03/04) ----
+
+    use std::path::PathBuf;
+    use std::sync::Arc;
+    use vox_db::VoxDb;
+    use vox_db::kb_text::FindingStatus;
+    use vox_orchestrator::{
+        AffinityGroupRegistry, Orchestrator, OrchestratorConfig, SessionConfig, SessionManager,
+    };
+    use vox_repository::{RepoCapabilities, RepositoryContext};
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    async fn inbox_state(root: PathBuf, db: Arc<VoxDb>) -> crate::ServerState {
+        let cfg = OrchestratorConfig::for_testing();
+        let orch_cfg = cfg.clone();
+        let session_manager = SessionManager::new(SessionConfig {
+            persist: false,
+            sessions_dir: std::env::temp_dir().join("vox-mcp-inbox-test-sessions"),
+            ..SessionConfig::default()
+        })
+        .expect("session manager");
+        let repository = RepositoryContext {
+            root,
+            git_root: None,
+            repository_id: "inbox-test".into(),
+            origin_url: None,
+            capabilities: RepoCapabilities {
+                vox_project: false,
+                cargo_workspace: false,
+                cargo_package: false,
+                node_workspace: false,
+                python_project: false,
+                go_module: false,
+                git: false,
+            },
+            has_vox_agents_dir: false,
+            vox_toml: None,
+        };
+        crate::ServerState::hermetic_stub(
+            cfg,
+            repository,
+            Arc::new(Orchestrator::with_groups(
+                orch_cfg,
+                AffinityGroupRegistry::new(vec![]),
+            )),
+            Arc::new(tokio::sync::Mutex::new(session_manager)),
+            vox_skills::new_registry_arc(),
+        )
+        .with_db_initialized(db)
+        .await
+    }
+
+    fn snapshot_count(root: &std::path::Path) -> usize {
+        std::fs::read_dir(root.join(".vox/cache/kb-findings"))
+            .map(|d| d.count())
+            .unwrap_or(0)
+    }
+
+    fn two_sources() -> Vec<Source> {
+        (1..=2)
+            .map(|n| Source {
+                n,
+                url: format!("https://example.test/p{n}"),
+                title: format!("Page {n}"),
+                engine: "test".into(),
+                snippet: format!("Snippet number {n}."),
+            })
+            .collect()
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn inbox_quick_turn_writes_only_findings() {
+        let mock = MockServer::start().await;
+        let results: Vec<_> = (1..=2)
+            .map(|n| {
+                serde_json::json!({
+                    "url": format!("{}/page{n}", mock.uri()),
+                    "title": format!("Gemini page {n}"),
+                    "content": format!("Gemini 3.8 Flash release notes {n}."),
+                    "engine": "test",
+                })
+            })
+            .collect();
+        Mock::given(method("GET"))
+            .and(path("/search"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({ "results": results })),
+            )
+            .mount(&mock)
+            .await;
+        let tmp = tempfile::tempdir().unwrap();
+        let db = Arc::new(VoxDb::open_memory().await.unwrap());
+        let state = inbox_state(tmp.path().to_path_buf(), db.clone()).await;
+        let policy = vox_search::policy::SearchPolicy {
+            searxng_url: Some(mock.uri()),
+            enable_wikipedia: false,
+            enable_openalex: false,
+            enable_arxiv: false,
+            tavily_enabled: false,
+            duckduckgo_fallback_enabled: false,
+            deep_timeout_ms: 10_000,
+            fast_timeout_ms: 10_000,
+            ..Default::default()
+        };
+        let mut trace = ResearchTrace::new(classify_research_intent(
+            "/research gemini 3.8 flash release",
+            None,
+            None,
+        ));
+        run_quick_with_policy(&state, &mut trace, policy).await;
+
+        assert_eq!(
+            trace.sources.len(),
+            2,
+            "stub SearXNG should yield 2 sources"
+        );
+        // No corpus, graph or chunk rows.
+        assert_eq!(db.search_corpus_row_counts().await.unwrap(), (0, 0));
+        assert!(
+            db.list_knowledge_nodes(None, 0, 1000)
+                .await
+                .unwrap()
+                .is_empty()
+        );
+        // Two pending Untrusted findings with provenance and snapshots.
+        let rows = db.kb_findings_list(None, 100).await.unwrap();
+        assert_eq!(rows.len(), 2);
+        for r in &rows {
+            assert_eq!(r.status, FindingStatus::Pending);
+            assert_eq!(r.trust_tier, vox_db::ContextTrustTier::Untrusted);
+            assert_eq!(r.origin, FindingOrigin::ResearchQuick);
+            assert!(r.source_url.is_some() && r.fetched_at_ms > 0 && !r.content_hash.is_empty());
+            assert!(r.provenance["query"].is_string());
+        }
+        assert_eq!(snapshot_count(tmp.path()), 2);
+        let inbox = trace
+            .stages
+            .iter()
+            .find(|s| s.stage == "inbox")
+            .expect("inbox stage");
+        assert_eq!(inbox.detail["pending_findings"], 2);
+        assert!(trace.stages.iter().all(|s| s.stage != "knowledge_base"));
+    }
+
+    #[tokio::test]
+    async fn inbox_synthesis_is_one_untrusted_finding_with_source_urls() {
+        let tmp = tempfile::tempdir().unwrap();
+        let db = VoxDb::open_memory().await.unwrap();
+        let sources = two_sources();
+        let id = capture_research_synthesis(
+            &db,
+            tmp.path(),
+            "what is x",
+            &sources,
+            "X is a thing [1]. It has parts [2].",
+            FindingOrigin::ResearchDeep,
+        )
+        .await;
+        assert!(id.is_some());
+        let rows = db.kb_findings_list(None, 100).await.unwrap();
+        assert_eq!(rows.len(), 1);
+        let r = &rows[0];
+        assert_eq!(r.trust_tier, vox_db::ContextTrustTier::Untrusted);
+        assert_eq!(r.status, FindingStatus::Pending);
+        assert_eq!(r.origin, FindingOrigin::ResearchDeep);
+        assert!(r.summary.starts_with("X is a thing"));
+        assert_eq!(
+            r.provenance["source_urls"],
+            serde_json::json!(["https://example.test/p1", "https://example.test/p2"])
+        );
+        assert!(r.provenance.get("confidence").is_none());
+        assert_eq!(db.search_corpus_row_counts().await.unwrap(), (0, 0));
+        assert!(
+            db.list_knowledge_nodes(None, 0, 1000)
+                .await
+                .unwrap()
+                .is_empty()
+        );
+    }
+
+    #[tokio::test]
+    async fn inbox_capture_sources_dedupes_and_skips_empty_snippets() {
+        let tmp = tempfile::tempdir().unwrap();
+        let db = VoxDb::open_memory().await.unwrap();
+        let mut sources = two_sources();
+        sources.push(Source {
+            n: 3,
+            url: "https://example.test/empty".into(),
+            title: "Empty".into(),
+            engine: "test".into(),
+            snippet: String::new(),
+        });
+        let o = FindingOrigin::GuiSaveResearchSession;
+        assert_eq!(
+            capture_research_sources(&db, tmp.path(), "q", &sources, o).await,
+            2
+        );
+        assert_eq!(
+            capture_research_sources(&db, tmp.path(), "q", &sources, o).await,
+            0
+        );
+        assert_eq!(db.kb_findings_list(None, 100).await.unwrap().len(), 2);
     }
 }

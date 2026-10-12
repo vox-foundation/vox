@@ -187,6 +187,8 @@ pub const LEGACY_EXPORT_TABLES: &[&str] = &[
     "hitl_approvals",
     "hopper_inbox",
     "kb_entries",
+    "kb_findings",
+    "kb_index_state",
     "kb_routing_rules",
     "knowledge_bases",
     "knowledge_edges",

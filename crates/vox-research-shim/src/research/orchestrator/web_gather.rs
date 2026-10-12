@@ -54,12 +54,6 @@ fn research_hits_from_search_execution(execution: SearchExecution) -> Vec<Resear
     );
     append_local_lines(&mut out, "chunk", "vox://chunk", execution.chunk_lines);
     append_local_lines(&mut out, "repo", "repo://", execution.repo_lines);
-    append_local_lines(
-        &mut out,
-        "tantivy",
-        "repo://tantivy",
-        execution.tantivy_doc_lines,
-    );
     append_local_lines(&mut out, "qdrant", "vox://qdrant", execution.qdrant_lines);
     append_local_lines(&mut out, "rrf", "vox://rrf", execution.rrf_fused_lines);
     append_local_lines(
@@ -193,6 +187,50 @@ fn avg_score(hits: &[ResearchHit]) -> f64 {
         return 0.0;
     }
     hits.iter().map(|h| h.score).sum::<f64>() / hits.len() as f64
+}
+
+/// Session bookkeeping for gathered hits, plus the hand-off of their text to the findings
+/// inbox. Gathered page text is attacker-controlled: it is never ingested into the searchable
+/// corpus, graph or snippets here. With no `finding_capture` sink nothing is persisted.
+async fn file_gathered_hits(
+    db: Option<&Codex>,
+    session_id: i64,
+    query_text: &str,
+    hits: &[ResearchHit],
+    config: &super::config::ResearchConfig,
+) {
+    if let Some(db) = db
+        && session_id > 0
+    {
+        for hit in hits {
+            let _ = db
+                .create_research_source(session_id, &hit.url, Some(&hit.title))
+                .await;
+        }
+    }
+    let Some(sink) = &config.finding_capture else {
+        return;
+    };
+    if hits.is_empty() {
+        return;
+    }
+    sink.capture(
+        hits.iter()
+            .map(|h| vox_search::capture::CapturedWebHit {
+                url: h.url.clone(),
+                title: h.title.clone(),
+                snippet: h.snippet.clone(),
+                full_text: Some(if h.raw_content.trim().is_empty() {
+                    h.snippet.clone()
+                } else {
+                    h.raw_content.clone()
+                }),
+                engine: "research_gather".to_string(),
+                query: query_text.to_string(),
+                origin: vox_db::kb_text::FindingOrigin::ResearchGather,
+            })
+            .collect(),
+    );
 }
 
 pub(super) async fn gather_web_hits_for_plan(
@@ -338,57 +376,7 @@ pub(super) async fn gather_web_hits_for_plan(
         rounds_done += 1;
     }
 
-    if let Some(db) = db
-        && session_id > 0
-    {
-        let captured_at = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_millis().min(i64::MAX as u128) as i64)
-            .unwrap_or(0)
-            .to_string();
-
-        for hit in &all_hits {
-            let _ = db
-                .create_research_source(session_id, &hit.url, Some(&hit.title))
-                .await;
-
-            let body = if !hit.raw_content.trim().is_empty() {
-                hit.raw_content.clone()
-            } else {
-                hit.snippet.clone()
-            };
-
-            let packet = vox_db::ExternalResearchPacket {
-                topic: query.query.clone(),
-                vendor: "web".to_string(),
-                area: None,
-                source_url: hit.url.clone(),
-                source_type: "web".to_string(),
-                title: hit.title.clone(),
-                captured_at: captured_at.clone(),
-                summary: hit.snippet.clone(),
-                raw_excerpt: hit.snippet.clone(),
-                claims: vec![],
-                tags: vec![],
-                confidence: hit.score,
-                content_hash: String::new(),
-                metadata: serde_json::json!({
-                    "http_status": hit.http_status,
-                    "trust_score": hit.trust_score,
-                    "session_id": session_id,
-                }),
-            };
-
-            let mut req = vox_db::ResearchIngestRequest {
-                packet,
-                body,
-                kb_id: Some(format!("session/{session_id}")),
-                embeddings: vec![],
-            };
-
-            let _ = db.ingest_research_document_async(&mut req).await;
-        }
-    }
+    file_gathered_hits(db, session_id, &query.query, &all_hits, config).await;
 
     let dropped_source_count = total_sources_attempted.saturating_sub(all_hits.len());
     (
@@ -474,6 +462,81 @@ pub(super) async fn gather_local_hits_for_plan(
 
 #[cfg(test)]
 mod tests {
+
+    use super::file_gathered_hits;
+    use crate::research::types::ResearchHit;
+
+    /// `create_research_source` session bookkeeping leaves empty-content `research_source`
+    /// nodes (label + URL only); gathered page text must never reach the graph.
+    async fn assert_only_bookkeeping_nodes(db: &vox_db::VoxDb) {
+        for n in db.list_knowledge_nodes(None, 0, 100).await.unwrap() {
+            assert_eq!(n.node_type.as_deref(), Some("research_source"), "{n:?}");
+            assert!(n.content.is_empty(), "{n:?}");
+        }
+    }
+
+    // ---- finding_capture: gathered web text reaches only the injected sink ----
+
+    #[derive(Default)]
+    struct Recorder(std::sync::Mutex<Vec<vox_search::capture::CapturedWebHit>>);
+    impl vox_search::capture::WebFindingCapture for Recorder {
+        fn capture(&self, hits: Vec<vox_search::capture::CapturedWebHit>) {
+            self.0.lock().unwrap().extend(hits);
+        }
+    }
+
+    fn gathered(url: &str, snippet: &str, raw: &str) -> ResearchHit {
+        ResearchHit {
+            url: url.into(),
+            title: format!("t {url}"),
+            snippet: snippet.into(),
+            score: 0.5,
+            http_status: 200,
+            trust_score: 1.0,
+            raw_content: raw.into(),
+        }
+    }
+
+    #[tokio::test]
+    async fn finding_capture_sink_receives_gathered_hits_and_corpus_stays_empty() {
+        let db = vox_db::VoxDb::open_memory().await.unwrap();
+        let session_id = db.create_research_session("k", "q").await.unwrap();
+        assert!(session_id > 0);
+        let rec = std::sync::Arc::new(Recorder::default());
+        let config = super::super::config::ResearchConfig {
+            finding_capture: Some(rec.clone()),
+            ..Default::default()
+        };
+        let hits = vec![
+            gathered("https://a.test/1", "snip one", "FULL BODY ONE"),
+            gathered("https://a.test/2", "snip two", ""),
+        ];
+        file_gathered_hits(Some(&db), session_id, "the query", &hits, &config).await;
+
+        let got = rec.0.lock().unwrap().clone();
+        assert_eq!(got.len(), 2);
+        assert!(
+            got.iter()
+                .all(|h| h.origin == vox_db::kb_text::FindingOrigin::ResearchGather)
+        );
+        assert_eq!(got[0].full_text.as_deref(), Some("FULL BODY ONE"));
+        assert_eq!(got[1].full_text.as_deref(), Some("snip two"));
+        assert_eq!(got[0].query, "the query");
+        assert_eq!(db.search_corpus_row_counts().await.unwrap(), (0, 0));
+        assert_only_bookkeeping_nodes(&db).await;
+    }
+
+    #[tokio::test]
+    async fn finding_capture_none_captures_nothing_and_writes_no_corpus_rows() {
+        let db = vox_db::VoxDb::open_memory().await.unwrap();
+        let session_id = db.create_research_session("k", "q").await.unwrap();
+        let config = super::super::config::ResearchConfig::default();
+        assert!(config.finding_capture.is_none());
+        let hits = vec![gathered("https://a.test/1", "snip", "BODY")];
+        file_gathered_hits(Some(&db), session_id, "q", &hits, &config).await;
+        assert_eq!(db.search_corpus_row_counts().await.unwrap(), (0, 0));
+        assert_only_bookkeeping_nodes(&db).await;
+    }
     use super::{gather_local_hits_for_plan, host_matches_site_scope};
     use crate::research::types::{ResearchPlan, ResearchQuery, ResearchScope};
     use vox_search::{SearchPolicy, SearchRuntimeContext};

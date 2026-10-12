@@ -1,8 +1,8 @@
 #![cfg(feature = "dei")]
+use super::daemon_tool::{daemon_client, tool_call};
 use anyhow::Result;
 use owo_colors::OwoColorize;
 use serde::Deserialize;
-use vox_cli_core::daemon_ipc::orchestrator_daemon_ensure::OrchestratorDaemonEnsure;
 use vox_foundation::protocol::orch_daemon_method;
 use vox_orchestrator::{FileAffinity, OrchestratorConfig, TaskPriority};
 
@@ -39,55 +39,6 @@ struct DaemonAgentSummary {
     owned_files: usize,
     dynamic: bool,
     weighted_load: f64,
-}
-
-/// T2.3: `vox dei` subcommands route through the shared `vox-orchestrator-d`
-/// TCP daemon (spawning it if absent) instead of building a private,
-/// throwaway in-process `Orchestrator` per invocation — see
-/// `crates/vox-cli-core/src/daemon_ipc/orchestrator_daemon_ensure.rs`. This
-/// closes the split-brain gap T2.1 fixed for the GUI: a `vox dei doubt`/`vox
-/// dei submit` run from a terminal is now visible to the GUI's Approvals/DEI
-/// views (and vice versa), rather than mutating a state the daemon never
-/// sees.
-async fn daemon_client() -> Result<vox_orchestrator::orch_daemon::OrchDaemonClient> {
-    let ensure = OrchestratorDaemonEnsure::default();
-    ensure
-        .client()
-        .await
-        .map_err(|e| anyhow::anyhow!("could not reach or spawn vox-orchestrator-d: {e}"))
-}
-
-/// Call an MCP tool through the daemon's `orch.tool_call` RPC and unwrap the
-/// `ToolResult<T>` envelope (`{"success": bool, "data": .., "error": ..}`)
-/// into a plain `Result`. Mirrors `vox-orchestrator-mcp::daemon_route::call_tool_via_daemon`
-/// (T2.2's stdio-MCP pattern) but returns the already-parsed `data` payload
-/// since every `dei.rs` call site wants the inner value, not the raw envelope.
-async fn tool_call(
-    client: &vox_orchestrator::orch_daemon::OrchDaemonClient,
-    name: &str,
-    args: serde_json::Value,
-) -> Result<serde_json::Value> {
-    let envelope = client
-        .call(
-            orch_daemon_method::TOOL_CALL,
-            serde_json::json!({ "name": name, "args": args }),
-        )
-        .await?;
-    match envelope.get("success").and_then(|s| s.as_bool()) {
-        Some(true) => Ok(envelope
-            .get("data")
-            .cloned()
-            .unwrap_or(serde_json::Value::Null)),
-        Some(false) => {
-            let msg = envelope
-                .get("error")
-                .and_then(|e| e.as_str())
-                .unwrap_or("tool call failed");
-            anyhow::bail!("{msg}")
-        }
-        // Tools that don't use the ToolResult envelope (rare) — pass through raw.
-        None => Ok(envelope),
-    }
 }
 
 /// `vox orchestrator status` — show all agents, queues, and file assignments.
@@ -1168,4 +1119,26 @@ async fn overrule(task_id: u64, reason: String) -> Result<()> {
         task_id
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::DaemonOrchestratorStatus;
+
+    /// The CLI's read-side mirror must keep accepting the daemon's outgoing status JSON.
+    #[test]
+    fn daemon_status_json_deserializes() {
+        let raw = serde_json::json!({
+            "enabled": true, "agent_count": 1, "total_queued": 2, "total_in_progress": 0,
+            "total_completed": 3, "locked_files": 0, "total_weighted_load": 0.5,
+            "predicted_load": 0.25, "reserved_agents": 1, "dynamic_agents": 0,
+            "agents": [{
+                "id": 7, "name": "a", "queued": 2, "urgent_count": 0, "normal_count": 2,
+                "background_count": 0, "in_progress": false, "completed": 3, "paused": false,
+                "owned_files": 0, "dynamic": false, "weighted_load": 0.5,
+            }],
+        });
+        let s: DaemonOrchestratorStatus = serde_json::from_value(raw).unwrap();
+        assert!(s.enabled && s.agents.len() == 1 && s.agents[0].id == 7);
+    }
 }

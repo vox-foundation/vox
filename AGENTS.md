@@ -88,11 +88,16 @@ Minimum required keys (full template and the canonical `category` / `status` voc
 title: "Page title"
 description: "One specific sentence about what this page covers."
 category: "Architecture SSOTs"   # one of the canonical category values in the governance doc
+topic: "doc-governance"          # taxonomy prefLabel (contracts/documentation/kb-taxonomy.v1.yaml)
+domain: "documentation"          # taxonomy prefLabel
+authorship: "llm-assisted"       # human | llm-assisted | llm-generated (+ authorship_model for LLM)
 ---
 ```
 
 Rules for any agent writing docs:
 - **Write the frontmatter as part of creating the file** — never author the body first and leave the block to a later pass. A new `.md` without frontmatter is an incomplete file.
+- New docs also need `topic` / `domain` prefLabels, `authorship` (plus `authorship_model` when LLM-written) and a 40-120 word `<!-- kb:summary -->` block directly under the H1 (SSOT: the governance section "KB facets (taxonomy contract)"). Never write `authorship`, `origin` or `human_attested_by` you cannot vouch for, and never set `human_attested_by` as an agent.
+- The facet backlog (`contracts/documentation/kb-facet-backlog.v1.yaml`) only shrinks. Adding backlog entries is **USER-AUTHORIZED-ONLY** (same discipline as crate-edges `exceptions`): never re-seed it to admit a doc you wrote, and do not backfill facets into existing docs in bulk.
 - Do **not** hand-add `last_updated` — the pipeline derives it from Git history.
 - Pick the `category` from the governance vocabulary; add `status` when the shipped-vs-aspirational distinction matters to readers.
 - Verify before pushing with the scoped lint: `cargo run -p vox-doc-pipeline -- --lint-only --paths <your-file>.md` (or just let the fast pre-push hook's scoped doc-lint catch it).
@@ -586,6 +591,7 @@ Do **NOT** use the following retired symbols, crates, or env vars. Using them wi
 |---|---|
 | `vox-dei` (old large orchestrator crate) | `vox-orchestrator` |
 | `vox-ars` (crate) | `vox-openclaw-runtime` |
+| KbStore, KbRouter, legacy vox_kb_* CRUD tools | `vox_kb_search` / `vox_kb_get` / `vox_kb_cite` (Library index) and the `kb_findings` inbox for anything model- or web-derived (retired KB Phase 3, D-02; no aliases) |
 | `vox-ludus` | `vox-gamify` |
 | `vox-lexer`, `vox-parser`, `vox-hir`, `vox-typeck` | `vox-compiler` (monolith) |
 | `@component fn Name()` | `component Name() {}` |

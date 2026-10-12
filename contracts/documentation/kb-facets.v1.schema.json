@@ -1,0 +1,261 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "KbFacets",
+  "description": "Typed KB facets read from page frontmatter. Unknown frontmatter keys are ignored.",
+  "type": "object",
+  "properties": {
+    "topic": {
+      "description": "Taxonomy topic id.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "domain": {
+      "description": "Taxonomy domain id.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "kb_tier": {
+      "description": "Collection the page belongs to.",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/KbTier"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "trust_tier": {
+      "description": "Trust level of the page.",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/TrustTier"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "scope": {
+      "description": "Vox-internal or external subject matter.",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Scope"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "review_by": {
+      "description": "Date (`YYYY-MM-DD`) by which the page must be re-reviewed.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "verified_at": {
+      "description": "Date (`YYYY-MM-DD`) the content was last verified.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "sources": {
+      "description": "Provenance for web-derived content.",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Source"
+      },
+      "default": []
+    },
+    "authorship": {
+      "description": "Who wrote the page.",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Authorship"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "authorship_model": {
+      "description": "Free-string model name when authorship involves an LLM.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "origin": {
+      "description": "How the page entered the KB.",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Origin"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "human_attested_by": {
+      "description": "Person who reviewed and attests LLM or web-promoted content.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "supersedes": {
+      "description": "Page paths this page replaces.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "superseded_by": {
+      "description": "Page path that replaces this page.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "sensitivity": {
+      "description": "Egress sensitivity.",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Sensitivity"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "training_eligible": {
+      "description": "Explicit MENS training opt-out or opt-in; defaults to true.",
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "default": null
+    }
+  },
+  "definitions": {
+    "KbTier": {
+      "description": "Which collection the page belongs to: Vox docs or the general library.",
+      "type": "string",
+      "enum": [
+        "vox",
+        "library"
+      ]
+    },
+    "TrustTier": {
+      "description": "Trust level of the page; same wire strings as `ContextTrustTier`.",
+      "type": "string",
+      "enum": [
+        "untrusted",
+        "advisory",
+        "trusted",
+        "system_verified"
+      ]
+    },
+    "Scope": {
+      "description": "Whether the page is about Vox internals or external subject matter.",
+      "type": "string",
+      "enum": [
+        "vox-internal",
+        "external"
+      ]
+    },
+    "Source": {
+      "description": "One entry of `sources[]`; every field is optional so a gap is a lint error, not a parse error.",
+      "type": "object",
+      "properties": {
+        "url": {
+          "description": "Source URL (`source_url` of the promoted finding).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "date": {
+          "description": "UTC fetch date, `YYYY-MM-DD`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "hash": {
+          "description": "Content hash, `blake3:` plus 64 lowercase hex characters.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "title": {
+          "description": "Human-readable source title.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "quote": {
+          "description": "Verbatim quote taken from the source (capped by the lint).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    },
+    "Authorship": {
+      "description": "Who wrote the page.",
+      "type": "string",
+      "enum": [
+        "human",
+        "llm-assisted",
+        "llm-generated"
+      ]
+    },
+    "Origin": {
+      "description": "How the page entered the KB.",
+      "type": "string",
+      "enum": [
+        "authored",
+        "web-promoted"
+      ]
+    },
+    "Sensitivity": {
+      "description": "Egress sensitivity; `private` pages must not leave the machine.",
+      "type": "string",
+      "enum": [
+        "public",
+        "private"
+      ]
+    }
+  },
+  "$id": "https://voxlang.org/schemas/kb-facets.v1.schema.json",
+  "x-vox-version": 1
+}

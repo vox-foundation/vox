@@ -369,6 +369,10 @@ harness/history
 harness/publish
 harness/report
 init
+kb
+kb/eval
+kb/reindex
+kb/status
 llm
 llm/prompt
 lock

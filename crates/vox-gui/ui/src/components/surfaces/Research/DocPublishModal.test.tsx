@@ -24,9 +24,9 @@ Findings from session 42.
 };
 
 const mockPublishResult = {
-  file_path: '/path/to/docs/src/architecture/session-42-research-2026.md',
-  relative_path: 'docs/src/architecture/session-42-research-2026.md',
-  indexed: true,
+  finding_id: 'finding-1',
+  proposed_path: 'docs/src/architecture/session-42-research-2026.md',
+  status: 'pending',
 };
 
 const invokeMock = vi.fn();
@@ -155,7 +155,7 @@ describe('DocPublishModal', () => {
     expect(textarea.value).toContain('title: "Research Session #42 Architecture SSOT (2026)"');
   });
 
-  it('publishes doc and calls onPublished callback with relative path', async () => {
+  it('files the draft for review and calls onPublished with the proposed path and status', async () => {
     const onPublished = vi.fn();
     const onClose = vi.fn();
 
@@ -181,7 +181,7 @@ describe('DocPublishModal', () => {
         slug: 'session-42-research',
         content: mockDraft.markdown_content,
       });
-      expect(onPublished).toHaveBeenCalledWith('docs/src/architecture/session-42-research-2026.md');
+      expect(onPublished).toHaveBeenCalledWith('docs/src/architecture/session-42-research-2026.md', 'pending');
       expect(onClose).toHaveBeenCalled();
     });
   });

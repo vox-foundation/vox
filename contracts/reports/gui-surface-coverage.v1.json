@@ -2766,6 +2766,22 @@
       "feature_gate": null
     },
     {
+      "path": "kb",
+      "feature_gate": null
+    },
+    {
+      "path": "kb eval",
+      "feature_gate": null
+    },
+    {
+      "path": "kb reindex",
+      "feature_gate": null
+    },
+    {
+      "path": "kb status",
+      "feature_gate": null
+    },
+    {
       "path": "live",
       "feature_gate": "live"
     },
@@ -4809,18 +4825,13 @@
     "init",
     "inline.edit",
     "journey.canonical.steps",
-    "kb.add_entry",
-    "kb.add_rule",
-    "kb.clip",
-    "kb.create",
-    "kb.delete",
-    "kb.delete_entry",
-    "kb.get_feed",
-    "kb.list",
-    "kb.list_entries",
-    "kb.list_rules",
-    "kb.query",
-    "kb.review_entry",
+    "kb",
+    "kb.cite",
+    "kb.eval",
+    "kb.get",
+    "kb.reindex",
+    "kb.search",
+    "kb.status",
     "knowledge.query",
     "language.surface",
     "learn.pattern",
@@ -5497,7 +5508,6 @@
     "resume_orchestrator_agent",
     "rotate_signing_key",
     "run_autofill",
-    "save_research_doc",
     "save_research_engine_config",
     "save_research_session_to_kb",
     "scan_training_corpus",

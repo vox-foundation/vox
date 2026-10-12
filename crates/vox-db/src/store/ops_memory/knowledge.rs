@@ -198,7 +198,36 @@ impl crate::VoxDb {
             .await
     }
 
-    /// Full-text LIKE search over `knowledge_nodes` (label + content).
+    /// Trust tier of each knowledge node id (TRUST-01, D-06): by `node_type` through
+    /// `tier_for_knowledge_node_type`; an id with no row maps to `Untrusted`.
+    pub async fn trust_tiers_for_knowledge_nodes(
+        &self,
+        ids: &[String],
+    ) -> Result<
+        std::collections::HashMap<String, vox_orchestrator_types::trust::ContextTrustTier>,
+        StoreError,
+    > {
+        use vox_orchestrator_types::trust::{ContextTrustTier, tier_for_knowledge_node_type};
+        let mut out = std::collections::HashMap::with_capacity(ids.len());
+        for id in ids {
+            let mut rows = self
+                .conn
+                .query(
+                    "SELECT node_type FROM knowledge_nodes WHERE id = ?1",
+                    params![id.as_str()],
+                )
+                .await?;
+            let tier = match rows.next().await? {
+                Some(r) => tier_for_knowledge_node_type(r.get::<Option<String>>(0)?.as_deref()),
+                None => ContextTrustTier::Untrusted,
+            };
+            out.insert(id.clone(), tier);
+        }
+        Ok(out)
+    }
+
+    /// Full-text LIKE search over `knowledge_nodes` (label + content). `research_cache` nodes
+    /// (the research shim's cache, not knowledge) are never returned.
     ///
     /// Returns `(id, label, snippet)` — snippet is the first 200 chars of `content`.
     /// Called from `vox-db/src/lib.rs` `VoxDb::search_memories`.
@@ -248,7 +277,8 @@ impl crate::VoxDb {
             .query(
                 "SELECT id, label, COALESCE(SUBSTR(content, 1, 200), '')
                  FROM knowledge_nodes
-                 WHERE label LIKE ?1 OR content LIKE ?1
+                 WHERE (label LIKE ?1 OR content LIKE ?1)
+                   AND COALESCE(node_type, '') != 'research_cache'
                  ORDER BY created_at DESC LIMIT ?2",
                 params![pat, limit],
             )
@@ -268,6 +298,7 @@ impl crate::VoxDb {
                  FROM knowledge_nodes_fts f
                  JOIN knowledge_nodes k ON k.rowid = f.rowid
                  WHERE knowledge_nodes_fts MATCH ?1
+                   AND COALESCE(k.node_type, '') != 'research_cache'
                  ORDER BY k.created_at DESC LIMIT ?2",
                 params![match_query, limit],
             )
@@ -501,6 +532,35 @@ async fn find_reachable_knowledge_nodes_fallback(
 #[cfg(test)]
 mod tests {
     use crate::VoxDb;
+
+    #[tokio::test]
+    async fn knowledge_search_skips_research_cache_and_tiers_follow_node_type() {
+        use vox_orchestrator_types::trust::ContextTrustTier::{Advisory, Untrusted};
+        let db = VoxDb::in_memory().await.expect("in_memory db");
+        for (id, ty) in [
+            ("k-fact", "fact"),
+            ("k-cache", "research_cache"),
+            ("k-web", "web"),
+        ] {
+            db.upsert_knowledge_node(id, id, "quillfeather body", Some(ty), None, None)
+                .await
+                .unwrap();
+        }
+        let hits = db.query_knowledge_nodes("quillfeather", 10).await.unwrap();
+        let mut ids: Vec<&str> = hits.iter().map(|(i, _, _)| i.as_str()).collect();
+        ids.sort_unstable();
+        assert_eq!(
+            ids,
+            vec!["k-fact", "k-web"],
+            "research_cache must not be searchable"
+        );
+        let all = ["k-fact", "k-web", "k-cache", "missing"].map(String::from);
+        let t = db.trust_tiers_for_knowledge_nodes(&all).await.unwrap();
+        assert_eq!(t["k-fact"], Advisory);
+        assert_eq!(t["k-web"], Untrusted);
+        assert_eq!(t["k-cache"], Untrusted);
+        assert_eq!(t["missing"], Untrusted);
+    }
 
     #[tokio::test]
     async fn test_knowledge_node_lifecycle_and_ops() {

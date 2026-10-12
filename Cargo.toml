@@ -98,6 +98,7 @@ vox-corpus                = { path = "crates/vox-corpus" }
 vox-db                    = { path = "crates/vox-db" }
 vox-sql                   = { path = "crates/vox-sql" }
 vox-db-types              = { path = "crates/vox-db-types" }
+vox-kb-facets             = { path = "crates/vox-kb-facets" }
 vox-eval                  = { path = "crates/vox-eval" }
 
 vox-forge                 = { path = "crates/vox-forge" }
@@ -318,6 +319,7 @@ ctor               = "1"
 # hermetic `VOX_HOME` temp directories (ctor 1.x dropped its own `#[dtor]`).
 dtor               = "0.3"
 tantivy            = { version = "0.22", default-features = false }
+text-splitter       = { version = "0.33", default-features = false, features = ["markdown"] }
 scraper            = "0.20"
 html2text          = "0.12"
 # Optional NVIDIA management library bindings (runtime `nvml.dll` / `libnvidia-ml.so`).

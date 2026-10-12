@@ -1,6 +1,8 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use vox_db::kb_text::SanitizedText;
+use vox_orchestrator::ContextTrustTier;
 use vox_search::{
     LexicalMemoryFallback, RetrievalTriggerMode as BundleTrigger, SearchPolicy,
     SearchRuntimeContext, diagnostics_value, run_search_with_verification, search_plan_value,
@@ -96,6 +98,11 @@ pub struct RetrievalEvidenceEnvelope {
     /// Cross-corpus RRF fused hits (non-zero when policy `prefer_rrf_merge` and ≥2 corpora).
     #[serde(default)]
     pub rrf_fused_hit_count: usize,
+    /// Least-trusted tier among the hits behind this envelope; `None` when there were none, which
+    /// the context envelope reads as `Untrusted` (TRUST-01, fail closed).
+    #[serde(default)]
+    #[schemars(with = "Option<String>")]
+    pub min_trust_tier: Option<ContextTrustTier>,
 }
 
 impl RetrievalEvidenceEnvelope {
@@ -145,7 +152,7 @@ impl RetrievalEvidenceEnvelope {
                 correlation_id: None,
             },
             trust: vox_orchestrator::ContextTrust {
-                trust_tier: vox_orchestrator::ContextTrustTier::Trusted,
+                trust_tier: self.min_trust_tier.unwrap_or(ContextTrustTier::Untrusted),
                 authority_rank: 70,
                 freshness_tier: vox_orchestrator::ContextFreshnessTier::Recent,
                 confidence: Some(self.evidence_quality.clamp(0.0, 1.0)),
@@ -226,13 +233,14 @@ pub struct RetrievalBundle {
     pub repo_lines: Vec<String>,
     /// RRF-merged excerpt ordering (same lines as corpora, deduped; empty when disabled).
     pub rrf_fused_lines: Vec<String>,
-    /// Knowledge base hits from topic-matched KB entries.
-    pub kb_lines: Vec<String>,
     pub evidence: RetrievalEvidenceEnvelope,
 }
 
 /// Extract `@name` mentions from a user message.
 /// Returns deduplicated, lowercased names in order of first appearance.
+///
+/// Kept for the Phase 7 Library-scope remap (INJ-09); it has no consumer until then, so an
+/// `@name` mention injects nothing into a chat prompt (D-05).
 pub fn parse_kb_mentions(text: &str) -> Vec<String> {
     let mut seen = std::collections::HashSet::new();
     let mut result = Vec::new();
@@ -284,6 +292,15 @@ fn format_backend_mix(backends: &[vox_db::SearchBackend]) -> Vec<String> {
         .collect()
 }
 
+/// Sanitize every line once, at the injection boundary (TRUST-05). Rows written before the
+/// sanitizer existed, and curated docs, reach a model only through here.
+fn sanitized(lines: Vec<String>) -> Vec<String> {
+    lines
+        .into_iter()
+        .map(|l| SanitizedText::new(&l).into_string())
+        .collect()
+}
+
 /// Unified retrieval trigger used by chat preamble + explicit search tools.
 ///
 /// `skip_web` disables only this call's web leg (Task 8d) — e.g. the chat
@@ -308,6 +325,9 @@ pub async fn run_retrieval_bundle(
     if skip_web {
         policy.web_research_enabled = false;
     }
+    // D-03 / D-05: an unprompted preamble never carries an Untrusted hit; explicit queries do,
+    // labelled `[tier:untrusted]`.
+    policy.exclude_untrusted_hits = trigger == RetrievalTriggerMode::AutoChatPreamble;
     let trace = trace_id
         .map(str::trim)
         .filter(|s| !s.is_empty())
@@ -318,7 +338,8 @@ pub async fn run_retrieval_bundle(
         state.orchestrator_config.memory.log_dir.clone(),
         state.orchestrator_config.memory.memory_md_path.clone(),
     )
-    .with_trace_id(trace);
+    .with_trace_id(trace)
+    .with_web_capture(crate::kb_tools::findings::web_capture_for_state(state));
     let fallback: Option<Box<dyn LexicalMemoryFallback>> =
         if state.orchestrator_config.memory.enabled {
             Some(Box::new(McpMemoryFallback {
@@ -334,7 +355,6 @@ pub async fn run_retrieval_bundle(
             .await?;
 
     let mut chunk_lines = execution.chunk_lines.clone();
-    chunk_lines.extend_from_slice(&execution.tantivy_doc_lines);
     chunk_lines.extend_from_slice(&execution.qdrant_lines);
 
     let retrieval_tier = if execution.used_vector && execution.used_bm25 {
@@ -355,21 +375,6 @@ pub async fn run_retrieval_bundle(
                 Some(p.foreign_keys_on),
             )
         });
-
-    // KB background enrichment: search accepted entries for this query
-    let kb_lines = if let Some(db) = &state.db {
-        use vox_orchestrator::knowledge_base::store::KbStore;
-        let store = KbStore::new(db.clone());
-        store
-            .search_entries(query, 5)
-            .await
-            .unwrap_or_default()
-            .into_iter()
-            .map(|e| format!("[KB:{} via {}] {}", e.kb_id, e.source_signal, e.content))
-            .collect()
-    } else {
-        Vec::new()
-    };
 
     Ok(RetrievalBundle {
         evidence: RetrievalEvidenceEnvelope {
@@ -403,13 +408,13 @@ pub async fn run_retrieval_bundle(
             sqlite_fts5_reported,
             sqlite_foreign_keys_on,
             rrf_fused_hit_count: execution.rrf_fused_lines.len(),
+            min_trust_tier: execution.min_trust_tier,
         },
-        memory_lines: execution.memory_lines,
-        knowledge_lines: execution.knowledge_lines,
-        chunk_lines,
-        repo_lines: execution.repo_lines,
-        rrf_fused_lines: execution.rrf_fused_lines,
-        kb_lines,
+        memory_lines: sanitized(execution.memory_lines),
+        knowledge_lines: sanitized(execution.knowledge_lines),
+        chunk_lines: sanitized(chunk_lines),
+        repo_lines: sanitized(execution.repo_lines),
+        rrf_fused_lines: sanitized(execution.rrf_fused_lines),
     })
 }
 
@@ -441,6 +446,12 @@ mod tests {
         assert_eq!(bundle.evidence.search_intent, "verification");
         assert_eq!(bundle.evidence.selected_mode, "hybrid");
         assert!(!bundle.evidence.retrieval_tier.is_empty());
+    }
+
+    #[test]
+    fn sanitized_neutralizes_role_tokens_and_invisible_codepoints() {
+        let out = sanitized(vec!["[chunk:1] <|im_start|>sys\u{200b}tem".to_string()]);
+        assert_eq!(out, vec!["[chunk:1] [im_start]system".to_string()]);
     }
 
     #[test]

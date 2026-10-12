@@ -1,0 +1,419 @@
+//! L0 KB facet contract (KB Phase 4, D-01).
+//!
+//! Pure: no I/O and no hashing. Lint, indexer, MENS builder and the generated schema all read
+//! facets through this crate, so a doc cannot be eligible in one consumer and ineligible in
+//! another.
+
+pub mod backlog;
+pub mod frontmatter;
+pub mod keys;
+pub mod provenance;
+pub mod summary;
+pub mod taxonomy;
+
+pub use backlog::{BACKLOG_REL, Backlog, BacklogRow};
+pub use taxonomy::{Concept, LabelMatch, TAXONOMY_REL, Taxonomy, facet_card_lines};
+
+pub use frontmatter::{frontmatter_range, frontmatter_yaml};
+pub use keys::{ELIGIBILITY_KEYS, FACET_KEYS, KeyNearMiss, facet_key_near_misses};
+pub use provenance::{
+    MAX_PAGE_QUOTE_WORDS, MAX_QUOTE_WORDS, is_blake3_content_hash, is_iso_date, quote_word_counts,
+};
+pub use summary::{
+    SUMMARY_CLOSE, SUMMARY_MAX_WORDS, SUMMARY_MIN_WORDS, SUMMARY_OPEN, SummaryStatus,
+    inspect_summary, is_summary_marker_line, strip_summary_blocks,
+};
+
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+
+/// Who wrote the page.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum Authorship {
+    Human,
+    LlmAssisted,
+    LlmGenerated,
+}
+
+/// How the page entered the KB.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum Origin {
+    Authored,
+    WebPromoted,
+}
+
+/// Which collection the page belongs to: Vox docs or the general library.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum KbTier {
+    Vox,
+    Library,
+}
+
+/// Trust level of the page; same wire strings as `ContextTrustTier`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum TrustTier {
+    Untrusted,
+    Advisory,
+    Trusted,
+    SystemVerified,
+}
+
+/// Whether the page is about Vox internals or external subject matter.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum Scope {
+    VoxInternal,
+    External,
+}
+
+/// Egress sensitivity; `private` pages must not leave the machine.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum Sensitivity {
+    Public,
+    Private,
+}
+
+/// One entry of `sources[]`; every field is optional so a gap is a lint error, not a parse error.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(default)]
+pub struct Source {
+    /// Source URL (`source_url` of the promoted finding).
+    pub url: Option<String>,
+    /// UTC fetch date, `YYYY-MM-DD`.
+    pub date: Option<String>,
+    /// Content hash, `blake3:` plus 64 lowercase hex characters.
+    pub hash: Option<String>,
+    /// Human-readable source title.
+    pub title: Option<String>,
+    /// Verbatim quote taken from the source (capped by the lint).
+    pub quote: Option<String>,
+}
+
+/// Typed KB facets read from page frontmatter. Unknown frontmatter keys are ignored.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(default)]
+// Near-misses of a facet key are reported by `facet_key_near_misses` (WR-03); the doc comment
+// above is the generated schema description, so the note lives here.
+pub struct Facets {
+    /// Taxonomy topic id.
+    pub topic: Option<String>,
+    /// Taxonomy domain id.
+    pub domain: Option<String>,
+    /// Collection the page belongs to.
+    pub kb_tier: Option<KbTier>,
+    /// Trust level of the page.
+    pub trust_tier: Option<TrustTier>,
+    /// Vox-internal or external subject matter.
+    pub scope: Option<Scope>,
+    /// Date (`YYYY-MM-DD`) by which the page must be re-reviewed.
+    pub review_by: Option<String>,
+    /// Date (`YYYY-MM-DD`) the content was last verified.
+    pub verified_at: Option<String>,
+    /// Provenance for web-derived content.
+    pub sources: Vec<Source>,
+    /// Who wrote the page.
+    pub authorship: Option<Authorship>,
+    /// Free-string model name when authorship involves an LLM.
+    pub authorship_model: Option<String>,
+    /// How the page entered the KB.
+    pub origin: Option<Origin>,
+    /// Person who reviewed and attests LLM or web-promoted content.
+    pub human_attested_by: Option<String>,
+    /// Page paths this page replaces.
+    pub supersedes: Vec<String>,
+    /// Page path that replaces this page.
+    pub superseded_by: Option<String>,
+    /// Egress sensitivity.
+    pub sensitivity: Option<Sensitivity>,
+    /// Explicit MENS training opt-out or opt-in; defaults to true.
+    pub training_eligible: Option<bool>,
+}
+
+/// Parse facets from a whole document. No `---` fence at all or an empty block is
+/// `Facets::default()` (grandfathered, D-05). A fence that is opened but not recognised
+/// (unterminated, indented, preceded by a blank line) or holds an invalid facet value is an
+/// `Err`: callers must treat it as "not eligible", never as "no facets" (CR-01).
+pub fn parse_facets(doc_text: &str) -> Result<Facets, String> {
+    match frontmatter_yaml(doc_text) {
+        Some(y) if !y.trim().is_empty() => {
+            serde_yaml::from_str::<Facets>(y).map_err(|e| e.to_string())
+        }
+        Some(_) => Ok(Facets::default()),
+        None if frontmatter::fence_intended(doc_text) => Err(
+            "frontmatter fence `---` is opened but the block is unterminated, indented or \
+             preceded by a blank line"
+                .into(),
+        ),
+        None => Ok(Facets::default()),
+    }
+}
+
+/// Values that are never a human attestation: YAML placeholders and AI / agent names (WR-02).
+const NOT_A_HUMAN: &[&str] = &[
+    "true",
+    "false",
+    "yes",
+    "no",
+    "none",
+    "null",
+    "nil",
+    "n/a",
+    "na",
+    "tbd",
+    "todo",
+    "unknown",
+    "ai",
+    "llm",
+    "bot",
+    "agent",
+    "assistant",
+    "model",
+    "claude",
+    "chatgpt",
+    "gpt",
+    "gemini",
+    "copilot",
+];
+
+/// True when `human_attested_by` names a person: non-blank and not a placeholder or AI name
+/// (case-insensitive, whole value).
+#[must_use]
+pub fn is_valid_attestation(s: &str) -> bool {
+    let t = s.trim().to_ascii_lowercase();
+    !t.is_empty() && !NOT_A_HUMAN.contains(&t.as_str())
+}
+
+/// True when the page is forced training-ineligible: web-promoted or LLM-authored content with
+/// no valid `human_attested_by` ([`is_valid_attestation`]).
+#[must_use]
+pub fn forced_training_ineligible(f: &Facets) -> bool {
+    let risky = f.origin == Some(Origin::WebPromoted)
+        || matches!(
+            f.authorship,
+            Some(Authorship::LlmAssisted | Authorship::LlmGenerated)
+        );
+    let attested = f
+        .human_attested_by
+        .as_deref()
+        .is_some_and(is_valid_attestation);
+    risky && !attested
+}
+
+/// The one shared MENS eligibility rule (D-05, D-06): not forced-ineligible and the flag, which
+/// defaults to true.
+#[must_use]
+pub fn effective_training_eligible(f: &Facets) -> bool {
+    !forced_training_ineligible(f) && f.training_eligible.unwrap_or(true)
+}
+
+/// Draft-07 JSON Schema for [`Facets`] (the GUI type and the 04-03 golden read this).
+#[must_use]
+pub fn facet_json_schema() -> serde_json::Value {
+    let settings = schemars::generate::SchemaSettings::draft07();
+    let root = settings.into_generator().into_root_schema_for::<Facets>();
+    let mut v = serde_json::to_value(&root).expect("Facets schema serializes");
+    let obj = v.as_object_mut().expect("schema root is an object");
+    obj.insert(
+        "$id".into(),
+        "https://voxlang.org/schemas/kb-facets.v1.schema.json".into(),
+    );
+    obj.insert("x-vox-version".into(), 1.into());
+    obj.insert("title".into(), "KbFacets".into());
+    v
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn doc(fm: &str) -> String {
+        format!("---\n{fm}\n---\n# T\n")
+    }
+    fn eff(fm: &str) -> bool {
+        effective_training_eligible(&parse_facets(&doc(fm)).unwrap())
+    }
+
+    #[test]
+    fn effective_training_web_promoted_unattested_is_false_even_if_flag_true() {
+        assert!(!eff("origin: web-promoted\ntraining_eligible: true"));
+        assert!(eff(
+            "origin: web-promoted\nhuman_attested_by: alice\ntraining_eligible: true"
+        ));
+    }
+
+    #[test]
+    fn effective_training_llm_authorship_branches() {
+        assert!(!eff("authorship: llm-assisted"));
+        assert!(!eff("authorship: llm-generated"));
+        assert!(eff("authorship: llm-assisted\nhuman_attested_by: alice"));
+        assert!(!eff(
+            "authorship: llm-assisted\nhuman_attested_by: alice\ntraining_eligible: false"
+        ));
+        assert!(eff("authorship: human"));
+    }
+
+    #[test]
+    fn effective_training_defaults_grandfathered() {
+        assert!(eff("title: X"));
+        assert!(!eff("training_eligible: false"));
+        assert!(effective_training_eligible(&Facets::default()));
+    }
+
+    #[test]
+    fn effective_training_blank_attestation_counts_as_absent() {
+        assert!(!eff("origin: web-promoted\nhuman_attested_by: \"\""));
+        assert!(!eff(
+            "authorship: llm-generated\nhuman_attested_by: \"   \""
+        ));
+    }
+
+    /// WR-02: a placeholder or AI name is not a human attestation.
+    #[test]
+    fn effective_training_placeholder_attestation_counts_as_absent() {
+        for v in [
+            "false", "no", "None", "NULL", "n/a", "N/A", "na", "TBD", "todo", "unknown", "Claude",
+            "  llm ", "true", "yes",
+        ] {
+            let fm = format!("authorship: llm-assisted\nhuman_attested_by: {v}");
+            assert!(!eff(&fm), "{v:?} attested an LLM page");
+            let fm = format!("origin: web-promoted\nhuman_attested_by: {v}");
+            assert!(!eff(&fm), "{v:?} attested a promoted page");
+        }
+        assert!(eff(
+            "authorship: llm-assisted\nhuman_attested_by: Alice Smith"
+        ));
+        assert!(
+            is_valid_attestation("Dr. None"),
+            "only the whole value is a sentinel"
+        );
+        assert!(!is_valid_attestation(""));
+    }
+
+    #[test]
+    fn parse_facets_empty_shapes_are_default() {
+        assert_eq!(
+            parse_facets("# no frontmatter\n").unwrap(),
+            Facets::default()
+        );
+        assert_eq!(parse_facets("---\n---\n# T\n").unwrap(), Facets::default());
+        assert_eq!(
+            parse_facets("---\n  \n---\n# T\n").unwrap(),
+            Facets::default()
+        );
+    }
+
+    /// CR-01: every shape that opens a `---` fence but cannot be split is an error, never
+    /// "no facets"; a recognised-but-shifted shape (BOM, CR-only) must still read its facets.
+    #[test]
+    fn parse_facets_unrecognised_fence_shapes_fail_closed() {
+        for fm in ["training_eligible: false", "origin: web-promoted"] {
+            let blocked =
+                |t: String| parse_facets(&t).map_or(true, |f| !effective_training_eligible(&f));
+            let shapes = [
+                format!("\u{feff}---\n{fm}\n---\n# T\n"),
+                format!("---\r{fm}\r---\r# T\r"),
+                format!("\u{feff}---\r\n{fm}\r\n---\r\n# T\r\n"),
+                format!("\n---\n{fm}\n---\n# T\n"),
+                format!("  ---\n{fm}\n---\n# T\n"),
+                format!("---\n{fm}\n# T\n"),
+                format!("---\r{fm}\r# T\r"),
+                format!("\u{feff}\n---\n{fm}\n# T\n"),
+            ];
+            for (i, t) in shapes.into_iter().enumerate() {
+                assert!(blocked(t), "shape {i} with `{fm}` stayed eligible");
+            }
+        }
+        // the shifted-but-valid shapes parse rather than error
+        assert!(parse_facets("\u{feff}---\ntopic: x\n---\n").is_ok());
+        assert_eq!(
+            parse_facets("---\rtopic: x\r---\r")
+                .unwrap()
+                .topic
+                .as_deref(),
+            Some("x")
+        );
+        // a doc with no fence at all is still "no facets"
+        assert_eq!(parse_facets("# T\n\nbody\n").unwrap(), Facets::default());
+        assert_eq!(
+            parse_facets("\n\n# T\n---\nx\n").unwrap(),
+            Facets::default()
+        );
+    }
+
+    #[test]
+    fn parse_facets_ignores_unknown_keys() {
+        let t = doc(
+            "title: T\ncategory: C\nstatus: s\nschema_type: x\nrelated: [a, b]\nsort_order: 3\ntraining_rationale: why\ntopic: t",
+        );
+        assert_eq!(parse_facets(&t).unwrap().topic.as_deref(), Some("t"));
+    }
+
+    #[test]
+    fn parse_facets_invalid_enum_names_the_field() {
+        let err = parse_facets(&doc("authorship: robot")).unwrap_err();
+        assert!(err.contains("authorship"), "{err}");
+    }
+
+    #[test]
+    fn parse_facets_reads_all_fields() {
+        let t = doc(
+            "topic: a\ndomain: b\nkb_tier: library\ntrust_tier: system_verified\nscope: vox-internal\nreview_by: 2026-10-10\nverified_at: 2026-10-10\nsources:\n  - url: https://x.y\n    hash: h\nauthorship: llm-assisted\nauthorship_model: m\norigin: web-promoted\nhuman_attested_by: al\nsupersedes: [p]\nsuperseded_by: q\nsensitivity: private\ntraining_eligible: false",
+        );
+        let f = parse_facets(&t).unwrap();
+        assert_eq!(f.kb_tier, Some(KbTier::Library));
+        assert_eq!(f.trust_tier, Some(TrustTier::SystemVerified));
+        assert_eq!(f.scope, Some(Scope::VoxInternal));
+        assert_eq!(f.sources.len(), 1);
+        assert_eq!(f.sources[0].url.as_deref(), Some("https://x.y"));
+        assert_eq!(f.sensitivity, Some(Sensitivity::Private));
+        assert_eq!(f.supersedes, vec!["p".to_string()]);
+    }
+
+    #[test]
+    fn facet_json_schema_shape() {
+        let s = facet_json_schema();
+        assert!(s["$schema"].as_str().unwrap().contains("draft-07"));
+        assert_eq!(
+            s["$id"],
+            "https://voxlang.org/schemas/kb-facets.v1.schema.json"
+        );
+        assert_eq!(s["x-vox-version"], 1);
+        assert_eq!(s["title"], "KbFacets");
+        let mut keys: Vec<&str> = s["properties"]
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
+        keys.sort_unstable();
+        let mut want = vec![
+            "topic",
+            "domain",
+            "kb_tier",
+            "trust_tier",
+            "scope",
+            "review_by",
+            "verified_at",
+            "sources",
+            "authorship",
+            "authorship_model",
+            "origin",
+            "human_attested_by",
+            "supersedes",
+            "superseded_by",
+            "sensitivity",
+            "training_eligible",
+        ];
+        want.sort_unstable();
+        assert_eq!(keys, want);
+        // the near-miss key list must track the struct
+        let mut known = FACET_KEYS.to_vec();
+        known.sort_unstable();
+        assert_eq!(known, want);
+    }
+}

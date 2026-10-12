@@ -3,11 +3,21 @@ title: "Terminal Session Host (daemon-attached, CLI/GUI seamless switching)"
 description: "Design for hosting vox-terminal-core sessions in vox-orchestrator-d so the vox-term TUI and the Axis GUI attach to the same live session, with an in-process fallback for headless builds."
 category: "Architecture SSOTs"
 status: "roadmap"
-training_eligible: true
+topic: "terminal-ui"
+domain: "gui"
+authorship: "llm-assisted"
+authorship_model: "Claude Sonnet 5.5"
+# LLM-assisted and no human_attested_by yet, so the facet rules force this page out of MENS training.
+# Add `human_attested_by: <reviewer>` after review to opt it back in (set this to true again then).
+training_eligible: false
 training_rationale: "Architecture design with verified current-state audit and protocol contract."
 ---
 
 # Terminal Session Host (2026-10-08)
+
+<!-- kb:summary -->
+This page designs a session host that lets the vox-term TUI and the Axis desktop GUI attach to one live terminal session, so a session opened in either front-end can be continued in the other with the same blocks, scrollback and running process. The vox-terminal-core engine and its session state live inside the vox-orchestrator-d daemon, renderers only display them, and an in-process fallback keeps headless builds working. It records why Warp is a clean-room reference rather than a fork, the protocol contract, and the implementation tasks.
+<!-- /kb:summary -->
 
 ## Decision context
 

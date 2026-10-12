@@ -915,28 +915,6 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
     // PHASE_0a_STUB: training pair persistence not yet wired to vox_db.
     // Phase 1 re-enables after vox_db gains store_training_pair.
 
-    // ── (j) Persistence ──────────────────────────────────────────────────────
-    if persist_enabled
-        && query.persist_to_docs
-        && confidence_signal.score as f64 >= config.persist_min_confidence
-        && answer.len() >= 200
-    {
-        use std::path::Path;
-        if let Some(root_str) =
-            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxWorkspaceRoot).expose()
-        {
-            let root = Path::new(root_str);
-            let slug = super::super::persistence::slug_from_query(&query.query);
-            let _ = super::super::persistence::write_research_doc(
-                root,
-                &slug,
-                &query.query,
-                &answer,
-                resolved_llm.synthesis_model.as_str(),
-            );
-        }
-    }
-
     // PHASE_0a_STUB: memory write not yet wired (save_memory API shape confirmed but
     // session management methods missing from vox_db).
     // Phase 1 re-enables after vox_db gains create_research_session etc.

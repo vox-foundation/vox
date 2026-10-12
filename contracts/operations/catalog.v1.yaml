@@ -20551,6 +20551,59 @@ operations:
     catalog_group: null
     ref_cli_required: false
     reachability_required: null
+- id: kb
+  title: KB
+  description: Knowledge-base commands (`vox kb`); umbrella for the deterministic retrieval eval and its ratchet gate.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - kb
+    status: active
+    latin_ns: null
+    handler_rust: commands::kb
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
+- id: kb.eval
+  title: KB Eval
+  description: CLI operation `vox kb eval` — deterministic retrieval eval (Recall/MRR/nDCG on doc and chunk ids, answer-in-budget) and the retrieval ratchet gate
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - kb
+    - eval
+    status: active
+    latin_ns: null
+    handler_rust: commands::kb
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
 - id: resolve.conflict
   title: Resolve Conflict
   description: Resolve a file conflict.
@@ -26414,246 +26467,136 @@ operations:
     http_read_role_eligible: false
     tier: core
   cli: null
-- id: kb.create
-  title: Create Knowledge Base
-  description: Create a new knowledge base.
+- id: kb.search
+  title: Search Knowledge Library
+  description: Search the curated KB Library (Vox docs plus docs/src/library) by BM25 over heading chunks; returns ranked hits with chunk_hash, heading_path, anchor, snippet and kb:// URIs.
   description_human: null
   product_lane: ai
-  intent_tags: []
-  side_effect_class: writes_files
-  scope_kind: session
-  reversible: false
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
-  mcp:
-    name: vox_kb_create
-    http_read_role_eligible: false
-    tier: core
-  cli: null
-- id: kb.list
-  title: List Knowledge Bases
-  description: List all available knowledge bases.
-  description_human: null
-  product_lane: ai
-  intent_tags: []
+  intent_tags:
+  - retrieval
+  - knowledge
   side_effect_class: null
-  scope_kind: session
-  reversible: false
-  requires_repo: null
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
   preferred_for_models: null
   human_takeover_friendly: null
   mens_planner_visible: null
   canonical_name: null
   latin_aliases: null
   mcp:
-    name: vox_kb_list
+    name: vox_kb_search
     http_read_role_eligible: true
     tier: core
   cli: null
-- id: kb.delete
-  title: Delete Knowledge Base
-  description: Delete a knowledge base by ID.
+- id: kb.get
+  title: Get Knowledge Library Document
+  description: Fetch one indexed KB Library document by docs/src rel_path (frontmatter, chunk list, reconstructed markdown) or one chunk by 64-hex chunk_hash; reads only the index, never the file system.
   description_human: null
   product_lane: ai
-  intent_tags: []
-  side_effect_class: writes_files
-  scope_kind: session
-  reversible: false
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
-  mcp:
-    name: vox_kb_delete
-    http_read_role_eligible: false
-    tier: core
-  cli: null
-- id: kb.add_entry
-  title: Add Knowledge Entry
-  description: Add a knowledge entry to a knowledge base.
-  description_human: null
-  product_lane: ai
-  intent_tags: []
-  side_effect_class: writes_files
-  scope_kind: session
-  reversible: false
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
-  mcp:
-    name: vox_kb_add_entry
-    http_read_role_eligible: false
-    tier: core
-  cli: null
-- id: kb.delete_entry
-  title: Delete Knowledge Entry
-  description: Delete a knowledge entry by ID.
-  description_human: null
-  product_lane: ai
-  intent_tags: []
-  side_effect_class: writes_files
-  scope_kind: session
-  reversible: false
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
-  mcp:
-    name: vox_kb_delete_entry
-    http_read_role_eligible: false
-    tier: core
-  cli: null
-- id: kb.list_entries
-  title: List Knowledge Entries
-  description: List all knowledge entries in a knowledge base.
-  description_human: null
-  product_lane: ai
-  intent_tags: []
+  intent_tags:
+  - retrieval
+  - knowledge
   side_effect_class: null
-  scope_kind: session
-  reversible: false
-  requires_repo: null
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
   preferred_for_models: null
   human_takeover_friendly: null
   mens_planner_visible: null
   canonical_name: null
   latin_aliases: null
   mcp:
-    name: vox_kb_list_entries
+    name: vox_kb_get
     http_read_role_eligible: true
     tier: core
   cli: null
-- id: kb.review_entry
-  title: Review Knowledge Entry
-  description: Accept or reject a knowledge entry.
+- id: kb.cite
+  title: Cite Knowledge Library Chunk
+  description: Build a citation (heading path, doc link with anchor, kb:// URI, indexed commit) for an indexed KB Library chunk by chunk_hash.
   description_human: null
   product_lane: ai
-  intent_tags: []
-  side_effect_class: writes_files
-  scope_kind: session
-  reversible: false
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
-  mcp:
-    name: vox_kb_review_entry
-    http_read_role_eligible: false
-    tier: core
-  cli: null
-- id: kb.get_feed
-  title: Get Knowledge Feed
-  description: Get the feed of knowledge entries.
-  description_human: null
-  product_lane: ai
-  intent_tags: []
+  intent_tags:
+  - retrieval
+  - knowledge
   side_effect_class: null
-  scope_kind: session
-  reversible: false
-  requires_repo: null
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
   preferred_for_models: null
   human_takeover_friendly: null
   mens_planner_visible: null
   canonical_name: null
   latin_aliases: null
   mcp:
-    name: vox_kb_get_feed
+    name: vox_kb_cite
     http_read_role_eligible: true
     tier: core
   cli: null
-- id: kb.add_rule
-  title: Add Knowledge Rule
-  description: Add an ingestion filter rule.
+- id: kb.status
+  title: Knowledge Library Status
+  description: Report KB Library index state, covering corpus root and commit, doc/chunk/card counts, chunker version, lexical backend, embed model, trust tier, per-file errors and index consistency.
   description_human: null
   product_lane: ai
-  intent_tags: []
-  side_effect_class: writes_files
-  scope_kind: session
-  reversible: false
-  requires_repo: null
+  intent_tags:
+  - retrieval
+  - knowledge
+  side_effect_class: null
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
   preferred_for_models: null
   human_takeover_friendly: null
   mens_planner_visible: null
   canonical_name: null
   latin_aliases: null
   mcp:
-    name: vox_kb_add_rule
+    name: vox_kb_status
     http_read_role_eligible: false
     tier: core
-  cli: null
-- id: kb.list_rules
-  title: List Knowledge Rules
-  description: List ingestion filter rules.
+  cli:
+    path:
+    - kb
+    - status
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
+- id: kb.reindex
+  title: Reindex Knowledge Library
+  description: Rebuild the KB Library index from the repository docs/src tree (takes no path arguments; single-flight); returns the index report.
   description_human: null
   product_lane: ai
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: session
-  reversible: false
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
-  mcp:
-    name: vox_kb_list_rules
-    http_read_role_eligible: true
-    tier: core
-  cli: null
-- id: kb.query
-  title: Query Knowledge Base
-  description: Query knowledge bases with semantic search.
-  description_human: null
-  product_lane: ai
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: session
-  reversible: false
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
-  mcp:
-    name: vox_kb_query
-    http_read_role_eligible: true
-    tier: core
-  cli: null
-- id: kb.clip
-  title: Clip Knowledge Fact
-  description: Clip code/notes into knowledge bases.
-  description_human: null
-  product_lane: ai
-  intent_tags: []
+  intent_tags:
+  - retrieval
+  - knowledge
   side_effect_class: writes_files
-  scope_kind: session
-  reversible: false
-  requires_repo: null
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
   preferred_for_models: null
   human_takeover_friendly: null
   mens_planner_visible: null
   canonical_name: null
   latin_aliases: null
   mcp:
-    name: vox_kb_clip
+    name: vox_kb_reindex
     http_read_role_eligible: false
     tier: core
-  cli: null
+  cli:
+    path:
+    - kb
+    - reindex
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
 - id: gui
   title: Gui
   description: CLI operation `vox gui` — launch Axis or drive a dedicated debug Axis

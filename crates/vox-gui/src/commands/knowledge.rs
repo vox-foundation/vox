@@ -4,6 +4,8 @@
 
 use tauri::State;
 use vox_db::KnowledgeNodeRecord;
+use vox_db::kb_text::FindingOrigin;
+use vox_orchestrator_mcp::kb_tools::findings::{FindingFiled, file_gui_finding};
 
 use crate::commands::gui_db_pool::{GuiDbPool, map_db_err};
 
@@ -83,7 +85,7 @@ pub async fn ingest_text(
     title: String,
     content: String,
     source_url: Option<String>,
-) -> Result<String, String> {
+) -> Result<FindingFiled, String> {
     let db = pool.handle()?;
     if content.trim().is_empty() {
         return Err("Content cannot be empty".to_string());
@@ -93,27 +95,22 @@ pub async fn ingest_text(
     } else {
         title.trim().to_string()
     };
-    let content_hash = vox_crypto::hash_fast_hex(content.as_bytes());
-    let node_id = format!("doc:{content_hash}");
-    let meta = serde_json::json!({
+    let provenance = serde_json::json!({
         "title": label,
         "source_url": source_url,
         "ingest_type": "text",
-    })
-    .to_string();
-
-    db.upsert_knowledge_node(
-        &node_id,
+    });
+    // Pasted text is Untrusted: it waits in the findings inbox, never in knowledge_nodes.
+    file_gui_finding(
+        db.as_ref(),
+        &crate::commands::research::research_repo_root(),
+        FindingOrigin::GuiIngestText,
         &label,
         &content,
-        Some("document"),
-        Some(&meta),
-        None,
+        source_url.as_deref().filter(|u| !u.trim().is_empty()),
+        provenance,
     )
     .await
-    .map_err(map_db_err)?;
-
-    Ok(node_id)
 }
 
 fn get_robots_url(target_url: &str) -> Option<(String, String)> {
@@ -167,7 +164,7 @@ async fn check_robots_allowed(client: &reqwest::Client, target_url: &str) -> boo
 }
 
 #[tauri::command]
-pub async fn ingest_url(pool: State<'_, GuiDbPool>, url: String) -> Result<String, String> {
+pub async fn ingest_url(pool: State<'_, GuiDbPool>, url: String) -> Result<FindingFiled, String> {
     let db = pool.handle()?;
     let clean_url = url.trim();
     if clean_url.is_empty() {
@@ -196,34 +193,28 @@ pub async fn ingest_url(pool: State<'_, GuiDbPool>, url: String) -> Result<Strin
         .await
         .map_err(|e| format!("Failed to scrape URL {clean_url}: {e}"))?;
 
-    let url_hash = vox_crypto::hash_fast_hex(clean_url.as_bytes());
-    let node_id = format!("web:{url_hash}");
-    let meta = serde_json::json!({
-        "url": doc.url,
+    let provenance = serde_json::json!({
         "title": doc.title,
         "text_density": doc.text_density,
         "ingest_type": "url",
-    })
-    .to_string();
-
+    });
     let label = if doc.title.trim().is_empty() {
         clean_url
     } else {
         doc.title.trim()
     };
 
-    db.upsert_knowledge_node(
-        &node_id,
+    // Scraped pages are Untrusted: they wait in the findings inbox, never in knowledge_nodes.
+    file_gui_finding(
+        db.as_ref(),
+        &crate::commands::research::research_repo_root(),
+        FindingOrigin::GuiIngestUrl,
         label,
         &doc.markdown,
-        Some("web_scrape"),
-        Some(&meta),
-        None,
+        Some(clean_url),
+        provenance,
     )
     .await
-    .map_err(map_db_err)?;
-
-    Ok(node_id)
 }
 
 #[derive(serde::Deserialize)]
@@ -285,13 +276,26 @@ pub async fn save_research_session_to_kb(
         )
         .collect();
 
-    let saved = vox_orchestrator_mcp::chat_tools::chat::research_turn::persist_research_findings_to_knowledgebase(
-        Some(db.as_ref()),
-        &session.query_text,
-        &sources,
-        Some(artifact.report_markdown.as_str()),
-    )
-    .await;
+    use vox_orchestrator_mcp::chat_tools::chat::research_turn as rt;
+    // Findings go to the pending inbox (never knowledge nodes); the toast copy changes in 03-11.
+    let origin = vox_db::kb_text::FindingOrigin::GuiSaveResearchSession;
+    let root = crate::commands::research::research_repo_root();
+    let mut saved =
+        rt::capture_research_sources(&db, &root, &session.query_text, &sources, origin).await;
+    if !artifact.report_markdown.trim().is_empty()
+        && rt::capture_research_synthesis(
+            &db,
+            &root,
+            &session.query_text,
+            &sources,
+            &artifact.report_markdown,
+            origin,
+        )
+        .await
+        .is_some()
+    {
+        saved += 1;
+    }
 
     Ok(saved)
 }
