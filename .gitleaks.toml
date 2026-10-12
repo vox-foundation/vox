@@ -41,3 +41,14 @@ paths = [
   # redactor actually masks tokens. These are not real credentials.
   '''/vox-db/src/redact\.rs$''',
 ]
+# Exact public model-revision commit SHAs quoted in the frozen KB eval corpus
+# (contracts/kb/eval/corpus.jsonl line 219, a doc table). Any bare 40-hex string trips
+# the `sourcegraph-access-token` rule; these two are git commit SHAs of public Hugging
+# Face repos (Alibaba-NLP/gte-modernbert-base embedder and the gte-reranker-modernbert
+# reranker), not credentials. Pinned by exact value so any other 40-hex string, in this
+# file or elsewhere, is still flagged. The corpus is a frozen snapshot, so editing it to
+# dodge the scanner would change the eval baseline; update these if the revisions move.
+regexes = [
+  '''e7f32e3c00f91d699e8c43b53106206bcc72bb22''',
+  '''f7481e6055501a30fb19d090657df9ec1f79ab2c''',
+]
