@@ -11008,6 +11008,16 @@
       "curated": true
     },
     {
+      "capability_id": "cli.kb",
+      "cli_path": [
+        "kb"
+      ],
+      "implicit": false,
+      "title": "KB",
+      "description_model": "Knowledge-base commands (`vox kb`); umbrella for the deterministic retrieval eval and its ratchet gate.",
+      "curated": true
+    },
+    {
       "capability_id": "cli.kb.eval",
       "cli_path": [
         "kb",
