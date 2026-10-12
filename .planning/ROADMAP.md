@@ -151,7 +151,48 @@ Plans:
   3. A CI check fails on a capability with no representation and no owner+reason exemption.
   4. The undispositioned OrphanBackend/DeadEnd count is 0 and ratcheted.
 
-**Plans**: TBD
+**Plans:** 13 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 06.4-01-PLAN.md — Tracer 1/2: shared `in_gui_build` predicate (D-19) → derived `generic_form` tier (D-02) → `CAPABILITY_GROUPS` in the lazy TS (D-28) (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 06.4-02-PLAN.md — Tracer 2/2: minimal Explorer surface + badges replacing Settings → Coverage (D-08, D-03), Playwright screenshot 01 (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 06.4-03-PLAN.md — Registry: `mcp_namespace`, Gamify/Voice re-key (D-20), YAML cleanup + violation check (D-18), no hand-set generic_form (D-23), mutation M7 (wave 3)
+- [ ] 06.4-04-PLAN.md — Graph ingest repair: registry-backed tool nodes, no env-key false positive (D-22), mutation M10 (wave 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 06.4-05-PLAN.md — Coverage gate + exemptions contract (D-13, D-14, D-24), seed ledger behind a human-verify checkpoint (D-15, D-29) (wave 4, not autonomous)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
+- [ ] 06.4-06-PLAN.md — Exemption shrink-only ratchet + dedicated floor (D-16, D-25), `--tighten`/`--today`, mutations M1-M5 (wave 5)
+- [ ] 06.4-07-PLAN.md — Explorer pure model (tree, leaves, filters, counts, ARIA indices) + useVirtualList rangeExtractor (D-09, D-28) (wave 5)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
+- [ ] 06.4-08-PLAN.md — Orphan disposition: surface kind excluded (D-04, D-26), snapshot refresh, zero ratchet (D-07, D-21), MCP-only warning (D-17, D-27), mutation M6 (wave 6)
+- [ ] 06.4-09-PLAN.md — Explorer display: domain rail, filters, all states, virtualized treegrid, exemption strip (D-09, D-14) (wave 6)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+
+- [ ] 06.4-10-PLAN.md — Explain-card parity fields docOrigin/coverageReason/coverageAmbiguous (D-11), mutation M9 (wave 7)
+- [ ] 06.4-11-PLAN.md — Explorer row actions (D-10a) + treegrid keyboard model, read-only guard (wave 7)
+
+**Wave 8** *(blocked on Wave 7 completion)*
+
+- [ ] 06.4-12-PLAN.md — Palette "Browse all N in the Explorer" link (D-12) + full Playwright stepper (19 shots, axe, keyboard), mutation M8 (wave 8)
+
+**Wave 9** *(blocked on Wave 8 completion)*
+
+- [ ] 06.4-13-PLAN.md — Reference docs + whole-phase gate, final graph check, evidence index, VALIDATION sign-off (wave 9)
 
 ### Phase 06.5: Architecture Atlas (INSERTED)
 
