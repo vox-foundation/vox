@@ -50,6 +50,13 @@ fn host_mismatch_warning(map_host: Option<&str>, ceiling_host: Option<&str>) -> 
     }
 }
 
+/// Whether an OVER verdict may fail the gate. A map and ceilings measured under
+/// different host/mode provenance measure different things, so the comparison is
+/// reported but not enforced; unknown provenance keeps the gate enforcing.
+fn verdict_is_enforceable(map_host: Option<&str>, ceiling_host: Option<&str>) -> bool {
+    host_mismatch_warning(map_host, ceiling_host).is_none()
+}
+
 #[derive(Debug, Deserialize)]
 pub struct KeystoneBudget {
     #[serde(rename = "crate")]
@@ -127,12 +134,12 @@ pub fn run_crate_budget(root: &Path, exit_zero: bool) -> Result<()> {
 
     // Surface a provenance mismatch BEFORE the verdicts, so an OVER line is
     // never read as a regression when it is really a host/mode difference.
-    if let Some(w) = host_mismatch_warning(
-        summary.get("measured_on").and_then(|v| v.as_str()),
-        budget.measured_on.as_deref(),
-    ) {
+    let map_host = summary.get("measured_on").and_then(|v| v.as_str());
+    let ceiling_host = budget.measured_on.as_deref();
+    if let Some(w) = host_mismatch_warning(map_host, ceiling_host) {
         eprintln!("WARN: {w}");
     }
+    let enforce = verdict_is_enforceable(map_host, ceiling_host);
 
     let blast_map = blast_map_from_summary(&summary);
 
@@ -167,6 +174,13 @@ pub fn run_crate_budget(root: &Path, exit_zero: bool) -> Result<()> {
     }
     if exit_zero {
         eprintln!("(advisory — exiting 0 due to --exit-zero)");
+        return Ok(());
+    }
+    if !enforce {
+        eprintln!(
+            "(not enforced — the map and the ceilings were measured under different \
+             provenance; re-measure on the ceilings' host to re-arm the gate)"
+        );
         return Ok(());
     }
     anyhow::bail!(
@@ -259,6 +273,18 @@ mod tests {
         assert!(host_mismatch_warning(None, Some(same)).is_none());
         assert!(host_mismatch_warning(Some(same), None).is_none());
         assert!(host_mismatch_warning(None, None).is_none());
+    }
+
+    #[test]
+    fn verdict_is_enforced_only_when_provenance_matches_or_is_unknown() {
+        let linux = "x86_64-unknown-linux-gnu (cargo build)";
+        let windows_check = "x86_64-pc-windows-msvc (cargo check)";
+        // Different host or mode: an OVER is that difference, not a regression.
+        assert!(!verdict_is_enforceable(Some(windows_check), Some(linux)));
+        // Matching or unknown provenance keeps the gate's teeth.
+        assert!(verdict_is_enforceable(Some(linux), Some(linux)));
+        assert!(verdict_is_enforceable(None, Some(linux)));
+        assert!(verdict_is_enforceable(Some(linux), None));
     }
 
     #[test]

@@ -193,7 +193,7 @@ Banned-list enforcement (currently markdown in [`docs/agents/git-concurrency-pol
 
 ### Layer 4 — Dashboard surface
 
-Today the dashboard ([`crates/vox-dashboard/`](../../../crates/vox-dashboard/)) has no VCS surface at all (verified 2026-05-08; see inventory in this doc's research pass). Add:
+Today the dashboard (`crates/vox-dashboard/`) has no VCS surface at all (verified 2026-05-08; see inventory in this doc's research pass). Add:
 
 - **Workspace branch board.** One row per agent workspace: branch name, base-distance (ahead/behind main), uncommitted hunk count, last `vox_snapshot` time, conflict count.
 - **Oplog viewer.** Read-only render of `vox_oplog` per workspace, with a confirm-then-execute "undo to op N" affordance (scopes to a single `WorkingTreeWrite` reissue).

@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Link checker self-test fixture</title>
+  </head>
+  <body>
+    <!-- CI (docs-quality.yml) requires lychee to report both broken links below. -->
+    <p><a href="/reference/cli/">Valid route</a></p>
+    <p><a href="/this-route-does-not-exist/">Dead route</a></p>
+    <p><a href="/reference/cli/#no-such-anchor-p20">Dead anchor</a></p>
+  </body>
+</html>

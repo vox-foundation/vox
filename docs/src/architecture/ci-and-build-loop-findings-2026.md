@@ -75,3 +75,53 @@ kernel-time anomaly.
 - Hosted CI is slow because nothing ever writes a warm cache and each shard compiles everything. It is red because of
   one unpushed lockfile line plus a backlog of real failures that the quarantine and the all-features matrix expose.
 - The laptop is not a CI dependency today; the habit of committing to `main` without CI is what made it feel like one.
+
+## Measured gains (2026-10-03, after phase 06.1 tasks 1.1–1.9, 2.1–2.3, 3.1, 3.4)
+
+### Local loop (this laptop, measured)
+
+| Measure | Before | After | Change |
+|---|---|---|---|
+| `git push` (pre-push hook), same 66-commit landing push | 4,001 s (67 min; 36 min of it building `vox-drift-check`) | 14 s hook, 17 s total | about 280x faster |
+| `git commit` with hooks | `cargo run` of `vox-cli` or `toestub` whenever a matching file was staged (minutes cold) | under 1 s (three commits timed) | no build at all |
+| `cargo run` time in the broker log, 2026-09-22 to 10-03 | 34.9 h over 1,298 runs; 49 runs averaged about 43 min each (hooks and pre-push) | hooks issue no cargo command | that whole class is gone |
+| All broker-logged cargo time over the same 11.5 days | 74.6 h (run 34.9, test 22.2, clippy 9.6, check 4.8, build 3.1) | — | about 47% of it was the `cargo run` class above |
+| Installing the hook tools during first-time setup | — | 20–24 s for `vox`, `toestub` and `vox-drift-check` together (debug install reusing the dev build) | one time |
+| Concurrent rustc ceiling | 6 broker slots x `jobs = 24` = 144 on 18 cores | load-gated: another build starts only while the load average is below the core count; `jobs` follows the machine | no fixed oversubscription |
+
+Not yet measured: the kernel-time share after the owner applies the macOS Developer Tools exemption (task 1.8).
+
+### Hosted CI (measured on PR #596, run 37175489714, cold dependency cache)
+
+| Measure | Before (measured) | After (measured) | Notes |
+|---|---|---|---|
+| Full-workspace PR, test execution per shard | 6–7 min (hash shards; nested-cargo tests included) | 1.7–2.3 min (crate shards; nested-cargo tests moved to nightly) | 4,558 / 3,677 / ~4,100 tests per shard |
+| Full-workspace PR, compile per shard | 17–19 min (every shard compiled every test binary) | 17–22 min | Unchanged: every test crate pulls in most of the workspace and all third-party deps, and this run's dependency cache was cold (Cargo.lock changed) |
+| Full-workspace PR, worst shard wall time | 22–30 min; 10 of 24 recent shards hit the 30-min cap | 19.3–24.4 min; none at the cap | |
+| Full-workspace PR, runner minutes | about 89 | about 82 (linux 15.8 + shards 22.7 + 19.3 + 24.4) | |
+| Build-once (one archive job) | — | cancelled at the 30-min cap | Rejected: one job cannot hold the whole first-party compile; replaced by crate shards |
+| Small affected PR | 3 shards each compiling the set | 1–3 crate groups, each compiling only its own crates | |
+| PR that changes only generated `contracts/reports/` | full-workspace run | no clippy or tests | task 2.3 |
+| Nightly test executions | the suite ran twice | once | task 3.4 |
+
+### Warm cache (measured 2026-10-04)
+
+Per-shard compile was dominated by building the same dependency graph cold, so `cache-seed.yml` writes a
+main-scope `workspace` cache. Its first run (37182816937, dispatched on `main`) took **25.5 min** from cold
+(build step 23 min 54 s, cache save 32 s) and wrote the cache. The next PR with a `Cargo.lock` change (#599, run
+37195946939) restored it through the restore-key (`full match: false`, because the lockfile changed) and ran:
+
+| Job | Cold (#596, run 37175489714) | Warm (#599, run 37195946939) |
+|---|---|---|
+| Test shards, job wall time | 22.7 / 19.3 / 24.4 min | 9.2 / 10.7 / 12.4 min |
+| Test step of a shard | 17 min 57 s (shard 2) | 7 min 47 s / 9 min 10 s / 10 min 44 s |
+| `linux` job | 15.8 min | 14.7 min (`Build vox CLI and fast-tier tools` 8 min 17 s → 5 min 51 s; clippy 5 min 12 s → 6 min 30 s) |
+
+So warming the cache roughly **halves** the test shards (worst 24.4 → 12.4 min), not the "few minutes" the
+projection assumed: the first-party crates still recompile after a lockfile change, and a restore-key hit is a
+partial one. The `linux` job barely moved because it builds a different set (the CLI and clippy). Caveats: the
+two runs are different changes (both touch `Cargo.lock`, so both plan the full workspace), and this is one
+sample each; the 6-hourly `cache-seed` run keeps the cache fresh, so an exact-key hit on a no-lockfile PR
+should be faster still. Re-measure on the next two ordinary PRs before treating these numbers as stable.
+
+

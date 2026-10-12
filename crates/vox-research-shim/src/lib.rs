@@ -8,6 +8,11 @@
 // Suppress until those features are enabled by consuming crates.
 #![allow(dead_code, unused_variables)]
 
+/// Whether this build makes live LLM calls (the `runtime` feature). Without it every
+/// research LLM stage fails with "research runtime feature is disabled", so callers
+/// (e.g. live-model tests in downstream crates) can skip instead of failing.
+pub const LLM_RUNTIME_ENABLED: bool = cfg!(feature = "runtime");
+
 pub mod agent_frontmatter;
 pub mod research;
 pub mod route_telemetry;
@@ -28,5 +33,27 @@ pub mod research_policy {
     #[must_use]
     pub const fn training_pair_min_confidence() -> f64 {
         ConfidencePolicy::DEFAULT_MIN_TRAINING_PAIR_CONFIDENCE
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::research_policy::*;
+
+    #[test]
+    fn llm_runtime_flag_tracks_the_runtime_feature() {
+        assert_eq!(super::LLM_RUNTIME_ENABLED, cfg!(feature = "runtime"));
+    }
+
+    #[test]
+    fn research_policy_thresholds_mirror_confidence_policy() {
+        assert_eq!(
+            persist_min_confidence(),
+            ConfidencePolicy::DEFAULT_MIN_PERSIST_CONFIDENCE
+        );
+        assert_eq!(
+            training_pair_min_confidence(),
+            ConfidencePolicy::DEFAULT_MIN_TRAINING_PAIR_CONFIDENCE
+        );
     }
 }

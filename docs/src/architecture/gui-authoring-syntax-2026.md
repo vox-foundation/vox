@@ -26,7 +26,7 @@ Vox is an **output language for large language models**. Every syntactic family 
 | HTML tag names | `<row>`, `<panel>` | Phase 6 partial |
 | ARIA / a11y attribute strings | `aria-label="…"` | Phase 6 partial |
 
-A single `text` element in [`speak.vox:28`](../../../crates/vox-dashboard/app/src/surfaces/speak.vox) carries six independent Tailwind tokens jammed into one opaque string. Removing only the angle brackets would not address any of this.
+A single `text` element in `speak.vox:28` carries six independent Tailwind tokens jammed into one opaque string. Removing only the angle brackets would not address any of this.
 
 VUV addresses the surface as a whole: **one syntax (function calls), one type system (Vox tokens), one validator (the compiler). No string-typed sub-languages.**
 
@@ -73,7 +73,7 @@ button(on_click: submit, disabled: is_submitting) { text("Send") }
 
 ## Before / after
 
-Source: [`crates/vox-dashboard/app/src/tabs/speak.vox`](../../../crates/vox-dashboard/app/src/surfaces/speak.vox), `ChatMessage`.
+Source: `crates/vox-dashboard/app/src/tabs/speak.vox`, `ChatMessage`.
 
 **Today (JSX + Tailwind strings):**
 
@@ -184,7 +184,7 @@ The "contrast / occlusion impossible" promises were audited (2026-06-12) and fou
 | **`@layer(tier:)`** on components (not just fns) | parser lookahead → HIR → `data-vox-layer` on root; reserved-tier guard over components | `vox/layer/reserved-tier` |
 | **Cross-platform** — guarantees follow the view tree, not the target | mobile (`--target mobile`) runs the web_ir validators as a blocking analysis pass | (same codes) |
 
-The single canonical z-ladder is `ZTier::z_value()` (tier × 100). Every forbidden case has a fixture under [`examples/forbidden/`](../../../examples/forbidden/) asserting the exact code fires ([`forbidden_corpus_test.rs`](../../../crates/vox-compiler/tests/forbidden_corpus_test.rs)).
+The single canonical z-ladder is `ZTier::z_value()` (tier × 100). Every forbidden case has a fixture under [`examples/forbidden/`](../../../examples/forbidden/) asserting the exact code fires ([`forbidden_corpus_test.rs`](../../../crates/vox-compiler/tests/it/forbidden_corpus_test.rs)).
 
 Still backlog: portal emission (modal/toast still emit inline `position:fixed`), `@tokens` `on:`-pair contrast (the block-form check still compares light-vs-dark; the registry + palette paths are correct), and RN primitive/style parity.
 

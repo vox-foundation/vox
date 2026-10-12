@@ -4,6 +4,8 @@ expression: output
 ---
 use serde::{Serialize, Deserialize};
 use vox_db::Codex;
+/// Set by the app shell at startup; lib fns reach the database through it.
+pub static VOX_APP_DB: std::sync::OnceLock<std::sync::Arc<Codex>> = std::sync::OnceLock::new();
 
 pub fn as_string<T: serde::Serialize>(v: &T) -> String {
     let val = serde_json::to_value(v).expect("vox codegen: serde_json::to_value failed");

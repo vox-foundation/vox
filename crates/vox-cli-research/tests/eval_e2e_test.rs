@@ -9,6 +9,22 @@ use vox_search::context::SearchRuntimeContext;
 #[tokio::test]
 #[ignore = "owner:research sunset:never live LLM research pipeline; requires network and an API key; run with --features runtime -- --ignored"]
 async fn test_eval_executes_real_research_pipeline_not_web_lines() {
+    // Exercises a real model; skipped where it cannot run: a build without the research
+    // `runtime` feature makes no LLM calls at all (e.g. `cargo test -p vox-cli-research`
+    // alone), and hosted CI runners have no local LLM listening.
+    if !vox_research_shim::LLM_RUNTIME_ENABLED {
+        eprintln!("skipped: vox-research-shim built without the `runtime` feature");
+        return;
+    }
+    if std::net::TcpStream::connect_timeout(
+        &std::net::SocketAddr::from(([127, 0, 0, 1], 11434)),
+        std::time::Duration::from_millis(300),
+    )
+    .is_err()
+    {
+        eprintln!("skipped: no local LLM on 127.0.0.1:11434");
+        return;
+    }
     let current_dir = std::env::current_dir().expect("cwd");
     let ctx = SearchRuntimeContext::new(
         current_dir.clone(),

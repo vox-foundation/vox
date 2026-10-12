@@ -1,0 +1,23 @@
+---
+// Landing page for the retired research archive (P20-D8): public/_redirects
+// sends /archive/* here. noindex, and `pagefind: false` keeps it out of search.
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+
+const archiveTree = 'https://github.com/vox-foundation/vox/tree/main/docs/src/archive';
+---
+<StarlightPage
+	frontmatter={{
+		title: 'Retired page',
+		pagefind: false,
+		head: [{ tag: 'meta', attrs: { name: 'robots', content: 'noindex' } }],
+	}}
+>
+	<p>
+		The page you asked for was part of the retired research archive. The archive is kept in the
+		repository's history but is no longer published on this site.
+	</p>
+	<ul>
+		<li><a href="/">Go to the documentation home page</a></li>
+		<li><a href={archiveTree}>Browse the archive in the repository</a></li>
+	</ul>
+</StarlightPage>

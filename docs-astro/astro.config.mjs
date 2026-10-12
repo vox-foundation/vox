@@ -1,19 +1,50 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import sitemap from '@astrojs/sitemap';
+import { fileURLToPath } from 'node:url';
 import starlightLlmsTxt from 'starlight-llms-txt';
 import { voxGrammar } from './src/plugins/vox-grammar.mjs';
 import { getSidebar } from './src/utils/sidebar.mjs';
+import { internalsDocIds, listDocPages, noindexRoutes } from './src/utils/page-index.mjs';
 import { remarkVoxInclude } from './src/plugins/remark-vox-include.mjs';
+import { docLinksGate, remarkDocLinks } from './src/plugins/remark-doc-links.mjs';
+
+const docPages = listDocPages(fileURLToPath(new URL('../docs/src', import.meta.url)));
+// Pages whose status sets robots noindex (src/utils/page-status.mjs) stay out
+// of the sitemap, as does the /retired/ notice page (a custom route).
+const noindex = noindexRoutes(docPages);
+// Internals (research/roadmap) pages stay out of every generated llms*.txt.
+// starlight-llms-txt 0.10.0 only honours `exclude` in llms-small.txt; the
+// full and custom-set routes get it from patches/starlight-llms-txt@0.10.0.patch.
+const internals = internalsDocIds(docPages);
 
 export default defineConfig({
   site: 'https://voxlang.org/',
   // Process {{#include path:anchor}} directives in code blocks (mdBook SSOT pattern).
   // Build fails loudly for any unresolved path/anchor — preventing silent blank code blocks.
+  // Then repo-relative links become site routes (or GitHub URLs); a dead link fails the build.
   markdown: {
-    remarkPlugins: [remarkVoxInclude],
+    remarkPlugins: [
+      remarkVoxInclude,
+      [
+        remarkDocLinks,
+        {
+          repoRoot: fileURLToPath(new URL('..', import.meta.url)),
+          repoUrl: 'https://github.com/vox-foundation/vox',
+        },
+      ],
+    ],
   },
   integrations: [
+    docLinksGate(),
+    // Registered here, Starlight skips adding its own unfiltered sitemap.
+    sitemap({
+      filter: (page) => {
+        const path = new URL(page).pathname;
+        return !noindex.has(path) && path !== '/retired/';
+      },
+    }),
     starlight({
       title: 'Vox: The AI-Native Programming Language',
       description: 'Pre-1.0 documentation for Vox, an AI-native full-stack programming language that compiles .vox to Rust and TypeScript.',
@@ -22,7 +53,8 @@ export default defineConfig({
         { icon: 'github', label: 'GitHub', href: 'https://github.com/vox-foundation/vox' }
       ],
       editLink: {
-        baseUrl: 'https://github.com/vox-foundation/vox/edit/main/docs/src/',
+        // Repo root; src/routeData.ts rewrites each page's edit URL to its true repo file.
+        baseUrl: 'https://github.com/vox-foundation/vox/edit/main/',
       },
       // Sidebar is generated from each page's frontmatter (category /
       // sort_order / title) by src/utils/sidebar.mjs; section order comes
@@ -39,10 +71,10 @@ export default defineConfig({
         starlightLlmsTxt({
           projectName: 'Vox',
           description: 'Vox is a pre-1.0 (0.6.0) AI-native full-stack language that compiles a .vox file to a database schema, type-safe server, and browser UI. Build from source; see https://voxlang.org/reference/stability/ for maturity. Current syntax uses bare table / query / mutation / server / tool — not @endpoint.',
-          llmsFullTxt: true,
+          exclude: internals,
         }),
       ],
-      lastUpdated: true,
+      lastUpdated: false,
       pagefind: true,
     }),
   ],

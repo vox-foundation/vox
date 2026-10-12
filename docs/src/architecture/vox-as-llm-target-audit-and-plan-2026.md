@@ -57,12 +57,12 @@ This is not an aspiration list. Every row below names code or contracts on the v
 
 | Feature | Why it matters for LLMs | Evidence |
 |---|---|---|
-| **Effect rows enforced** (`@uses(net)`, `@pure`) | An LLM that marks a function `@pure` cannot sneak in `http.*` / `time.*` / `random.*` — compiler rejects at typeck. | [vox-compiler/src/typeck/effect_check.rs](crates/vox-compiler/src/typeck/effect_check.rs) — `check_effect_compliance()` with bottom-up inference for unannotated functions; effect propagation enforces caller ⊇ callee on annotated boundaries. Stdlib methods classified by name (`http.*` → `Net`, `db.*` → `Db`, etc.). Effect enum at [vox-ast/src/decl/effect.rs](../../../crates/vox-ast/src/decl/effect.rs) — `Net`, `Db`, `Fs`, `Env`, `Clock`, `Random`, `Spawn`, `GpuCompute`, `Mutate`, `Mcp(String)`, `Nothing`. |
-| **ID newtypes at boundary** | The most common LLM error in API code is stringly-typed IDs leaking between services. Vox refuses bare `str` at `@endpoint`/`@activity`/`@actor` parameter positions. | [vox-code-audit/src/detectors/id_at_boundary.rs](crates/vox-code-audit/src/detectors/id_at_boundary.rs) — diagnostic ID `catalog::TYPES_ID_REQUIRED_AT_BOUNDARY`. ID newtypes defined in [vox-db-types/src/ids.rs](crates/vox-db-types/src/ids.rs) via a newtype macro. |
-| **Anonymous error rejection** | `Result[T, str]` on public boundaries is flagged. Forces named ADTs that LLMs can exhaustively pattern-match against. | [vox-code-audit/src/detectors/anonymous_error.rs:24](crates/vox-code-audit/src/detectors/anonymous_error.rs:24) — regex catches `fn ... -> Result[T, str]` returns at info severity; rule `catalog::TYPES_ANONYMOUS_ERROR_TYPE`. |
-| **Workflow determinism check** (P1-T5) | `time.now()` / `random.*()` / `uuid()` inside a `workflow { }` body is a compile error, not a runtime trap. Killed before an LLM can ship non-replayable workflow code. | [vox-compiler/src/typeck/ast_decl_lints.rs](crates/vox-compiler/src/typeck/ast_decl_lints.rs) — comment marker `P1-T5: Workflow determinism check — forbid time.now and random.* in workflow bodies`. |
-| **Pattern exhaustiveness** | LLMs miss ADT cases routinely. The typecker reports `missing_cases: Vec<String>` in the JSON diagnostic so the repair loop can name what's missing. | [vox-compiler/src/typeck/diagnostics.rs:96](crates/vox-compiler/src/typeck/diagnostics.rs:96) — `VoxCompilerDiagnosticPayload.missing_cases`. |
-| **@pure transitive purity** | `@pure fn` cannot call `http`, `net`, `fs`, `db`, `random`, `time`, `log`, or `async/await`; rejected at parse/typeck. | [`AGENTS.md` §Vox Language Enforcement Rules](AGENTS.md) — codified policy; [vox-code-audit/src/detectors/pure_fn_impure.rs](crates/vox-code-audit/src/detectors/pure_fn_impure.rs) — detector. |
+| **Effect rows enforced** (`@uses(net)`, `@pure`) | An LLM that marks a function `@pure` cannot sneak in `http.*` / `time.*` / `random.*` — compiler rejects at typeck. | [vox-compiler/src/typeck/effect_check.rs](../../../crates/vox-compiler/src/typeck/effect_check.rs) — `check_effect_compliance()` with bottom-up inference for unannotated functions; effect propagation enforces caller ⊇ callee on annotated boundaries. Stdlib methods classified by name (`http.*` → `Net`, `db.*` → `Db`, etc.). Effect enum at [vox-ast/src/decl/effect.rs](../../../crates/vox-ast/src/decl/effect.rs) — `Net`, `Db`, `Fs`, `Env`, `Clock`, `Random`, `Spawn`, `GpuCompute`, `Mutate`, `Mcp(String)`, `Nothing`. |
+| **ID newtypes at boundary** | The most common LLM error in API code is stringly-typed IDs leaking between services. Vox refuses bare `str` at `@endpoint`/`@activity`/`@actor` parameter positions. | [vox-code-audit/src/detectors/id_at_boundary.rs](../../../crates/vox-code-audit/src/detectors/id_at_boundary.rs) — diagnostic ID `catalog::TYPES_ID_REQUIRED_AT_BOUNDARY`. ID newtypes defined in [vox-db-types/src/ids.rs](../../../crates/vox-db-types/src/ids.rs) via a newtype macro. |
+| **Anonymous error rejection** | `Result[T, str]` on public boundaries is flagged. Forces named ADTs that LLMs can exhaustively pattern-match against. | [vox-code-audit/src/detectors/anonymous_error.rs:24](../../../crates/vox-code-audit/src/detectors/anonymous_error.rs:24) — regex catches `fn ... -> Result[T, str]` returns at info severity; rule `catalog::TYPES_ANONYMOUS_ERROR_TYPE`. |
+| **Workflow determinism check** (P1-T5) | `time.now()` / `random.*()` / `uuid()` inside a `workflow { }` body is a compile error, not a runtime trap. Killed before an LLM can ship non-replayable workflow code. | [vox-compiler/src/typeck/ast_decl_lints.rs](../../../crates/vox-compiler/src/typeck/ast_decl_lints.rs) — comment marker `P1-T5: Workflow determinism check — forbid time.now and random.* in workflow bodies`. |
+| **Pattern exhaustiveness** | LLMs miss ADT cases routinely. The typecker reports `missing_cases: Vec<String>` in the JSON diagnostic so the repair loop can name what's missing. | [vox-compiler/src/typeck/diagnostics.rs:96](../../../crates/vox-compiler/src/typeck/diagnostics.rs:96) — `VoxCompilerDiagnosticPayload.missing_cases`. |
+| **@pure transitive purity** | `@pure fn` cannot call `http`, `net`, `fs`, `db`, `random`, `time`, `log`, or `async/await`; rejected at parse/typeck. | [`AGENTS.md` §Vox Language Enforcement Rules](../../../AGENTS.md) — codified policy; [vox-code-audit/src/detectors/pure_fn_impure.rs](../../../crates/vox-code-audit/src/detectors/pure_fn_impure.rs) — detector. |
 
 **Coverage assessment.** This is the most mature pillar. The intent — *make wrong programs structurally impossible* — is enforced, not just specced.
 
@@ -70,11 +70,11 @@ This is not an aspiration list. Every row below names code or contracts on the v
 
 | Feature | Evidence |
 |---|---|
-| **Structured JSON diagnostics** with `error_code`, `severity`, `span`, `expected_type`, `found_type`, `correction_hints: Vec<String>`, `suggested_fixes: Vec<SuggestedFix>`, `missing_cases`, `ast_node_kind` | [vox-compiler/src/typeck/diagnostics.rs:76](crates/vox-compiler/src/typeck/diagnostics.rs:76)-109. Serde-serializable. Consumed by `vox repair`. |
+| **Structured JSON diagnostics** with `error_code`, `severity`, `span`, `expected_type`, `found_type`, `correction_hints: Vec<String>`, `suggested_fixes: Vec<SuggestedFix>`, `missing_cases`, `ast_node_kind` | [vox-compiler/src/typeck/diagnostics.rs:76](../../../crates/vox-compiler/src/typeck/diagnostics.rs:76)-109. Serde-serializable. Consumed by `vox repair`. |
 | **Stable diagnostic IDs** with deprecation aliases | Phase-1 plan landed in [vox-language-rules-phase1-ssot-collapse-2026.md](vox-language-rules-phase1-ssot-collapse-2026.md) — `#[vox_diagnostic]` proc-macro + diagnostic catalog scaffolding. |
-| **`vox check --format json`** for agents | [vox-cli/src/commands/repair.rs:57](crates/vox-cli/src/commands/repair.rs:57)-79 — consumes this format. |
-| **Golden snapshot tests for diagnostics** | [vox-compiler/tests/diagnostic_snapshots.rs](crates/vox-compiler/tests/diagnostic_snapshots.rs) — `insta::assert_json_snapshot!` per diagnostic class. |
-| **Doctest pipeline strict** | [vox-doc-pipeline/src/pipeline/doctest.rs:6](crates/vox-doc-pipeline/src/pipeline/doctest.rs:6)-66. Every ` ```vox ` block in docs goes through `vox_compiler::pipeline::check_file()` at line 50; LintError raised on any diagnostic. `// vox:skip` opt-out at line 32. |
+| **`vox check --format json`** for agents | [vox-cli/src/commands/repair.rs:57](../../../crates/vox-cli/src/commands/repair.rs:57)-79 — consumes this format. |
+| **Golden snapshot tests for diagnostics** | [vox-compiler/tests/diagnostic_snapshots.rs](../../../crates/vox-compiler/tests/diagnostic_snapshots.rs) — `insta::assert_json_snapshot!` per diagnostic class. |
+| **Doctest pipeline strict** | [vox-doc-pipeline/src/pipeline/doctest.rs:6](../../../crates/vox-doc-pipeline/src/pipeline/doctest.rs:6)-66. Every ` ```vox ` block in docs goes through `vox_compiler::pipeline::check_file()` at line 50; LintError raised on any diagnostic. `// vox:skip` opt-out at line 32. |
 
 **Coverage assessment.** Diagnostic shape is LLM-ready. **2026-05-25 update (session-15 + session-16):**
 - `excerpt: Option<DiagnosticExcerpt>` — ±3 source lines around each diagnostic span, inline in the `--for-llm` JSON output (commit `fe2b05a051`). Closes the "LLM agent doesn't have the file open" gap.
@@ -93,10 +93,10 @@ This is not an aspiration list. Every row below names code or contracts on the v
 
 | Feature | Evidence |
 |---|---|
-| **`vox repair` MVP** (3-attempt loop) | [vox-cli/src/commands/repair.rs](crates/vox-cli/src/commands/repair.rs). Loop: `vox check --format json` → parse `DiagnosticPayload` → LLM call (OpenRouter, temp 0.1, system prompt "expert Vox language repair agent") → extract code block → `fs::write()` → re-check. Max 3 attempts. **session-17:** loop now also feeds `LintFindingPayload` (with `minimal_repro` snippets) for policy violations when `stub-check` feature is on. |
-| **`vox stub-check`** | [vox-cli/src/commands/diagnostics/stub_check/](crates/vox-cli/src/commands/diagnostics/stub_check/) — catches `todo!()`, `unimplemented!()`, `panic!("not implemented")`, hollow returns, AI placeholder patterns. TOML suppressions supported. |
-| **52 vox-code-audit detectors** including LLM-specific: | `id_at_boundary`, `anonymous_error`, `stub`, `hollow_fn`, `empty_body`, `ai_laziness`, `pure_fn_impure`, `workflow_nondeterministic`, `unresolved_ast`, `unresolved_ref` — listed in [vox-code-audit/src/detectors/mod.rs](crates/vox-code-audit/src/detectors/mod.rs). 18/52 now carry `minimal_repro` snippets. |
-| **Test-first enforcement** (pre-commit) | [`AGENTS.md` §Test-First Policy](AGENTS.md). `tdd-guard` lefthook hook rejects commits introducing `pub fn` without an adjacent `#[test]` or `@test`. Reason given: tests are MENS training reward signal (planned `r_test` = 30% of GRPO reward). |
+| **`vox repair` MVP** (3-attempt loop) | [vox-cli/src/commands/repair.rs](../../../crates/vox-cli/src/commands/repair.rs). Loop: `vox check --format json` → parse `DiagnosticPayload` → LLM call (OpenRouter, temp 0.1, system prompt "expert Vox language repair agent") → extract code block → `fs::write()` → re-check. Max 3 attempts. **session-17:** loop now also feeds `LintFindingPayload` (with `minimal_repro` snippets) for policy violations when `stub-check` feature is on. |
+| **`vox stub-check`** | [vox-cli/src/commands/diagnostics/stub_check/](../../../crates/vox-cli/src/commands/diagnostics/stub_check/) — catches `todo!()`, `unimplemented!()`, `panic!("not implemented")`, hollow returns, AI placeholder patterns. TOML suppressions supported. |
+| **52 vox-code-audit detectors** including LLM-specific: | `id_at_boundary`, `anonymous_error`, `stub`, `hollow_fn`, `empty_body`, `ai_laziness`, `pure_fn_impure`, `workflow_nondeterministic`, `unresolved_ast`, `unresolved_ref` — listed in [vox-code-audit/src/detectors/mod.rs](../../../crates/vox-code-audit/src/detectors/mod.rs). 18/52 now carry `minimal_repro` snippets. |
+| **Test-first enforcement** (pre-commit) | [`AGENTS.md` §Test-First Policy](../../../AGENTS.md). `tdd-guard` lefthook hook rejects commits introducing `pub fn` without an adjacent `#[test]` or `@test`. Reason given: tests are MENS training reward signal (planned `r_test` = 30% of GRPO reward). |
 
 **Coverage assessment.** The closed-loop scaffold exists for **single files**. What's missing is project scope, a measurement methodology, and the back-edge from repair outcomes into the corpus aggregator.
 
@@ -104,12 +104,12 @@ This is not an aspiration list. Every row below names code or contracts on the v
 
 | Feature | Evidence |
 |---|---|
-| **Discovery surface** | [`docs/src/.well-known/llms.txt`](docs/src/.well-known/llms.txt), [`docs/agents/`](docs/agents/) inventory (5 JSON files: `vox-language-surface.v1.json`, `ai-ide-feature-matrix-2026.json`, `doc-inventory.json`, `script-registry.json`, `baseline-script-metrics.json`), layered policy via [`AGENTS.md`](AGENTS.md) + tool overlays ([CLAUDE.md](CLAUDE.md), GEMINI.md). |
-| **MCP server** with 50+ tool modules / 100+ tools | [vox-orchestrator-mcp/src/lib.rs](crates/vox-orchestrator-mcp/src/lib.rs) — code validation, VCS (with banned-command denylist + `vox.vcs.exec` telemetry), planning loop, introspection, browser, shell, memory, RAG, task management, ACI envelope, agentos telemetry. |
-| **Plan mode** with iterative refinement | [vox-orchestrator-mcp/src/chat_tools/plan_loop.rs](crates/vox-orchestrator-mcp/src/chat_tools/plan_loop.rs) — rounds, loop_status, stop_reason; expansion-first refinement ("add work, do not paraphrase away detail"); task dependency validation. |
-| **Telemetry of agent activity** — rich | [vox-telemetry/src/types.rs](crates/vox-telemetry/src/types.rs) — `METRIC_TYPE_PLAN_MODE_DECISION` (D2), `METRIC_TYPE_MODEL_TIER_ROUTE` (D1), `METRIC_TYPE_SUBAGENT_DISPATCH` (D4), `METRIC_TYPE_CIRCUIT_BREAKER_TRIP` (D6, doom-loop), `METRIC_TYPE_AGENTOS_GUARDRAIL_DENY` (S1), `METRIC_TYPE_DRIFT_ALERT` (D10). |
-| **VoxScript-first glue** | [`AGENTS.md` §VoxScript-First Glue Code](AGENTS.md). All project automation as `.vox` files runnable via `vox run`; banned `.ps1`/`.sh`/`.py` glue. Single command shape; type-checked; observable via `vox.script.*`. |
-| **ACI v1 envelope** schema | [`contracts/aci/agent-computer-interface.v1.yaml`](contracts/aci/agent-computer-interface.v1.yaml) + JSON schema. Mutation classification (`read_only` / `local_mutation` / `external_side_effect` / `unknown`). Implementation at [vox-orchestrator-mcp/src/aci/envelope.rs](crates/vox-orchestrator-mcp/src/aci/envelope.rs). **On by default since v0.6** — `agentos_aci_envelope_enabled: true` (CR-L5, 2026-05-25). |
+| **Discovery surface** | [`docs/src/.well-known/llms.txt`](../.well-known/llms.txt), [`docs/agents/`](../../agents/) inventory (5 JSON files: `vox-language-surface.v1.json`, `ai-ide-feature-matrix-2026.json`, `doc-inventory.json`, `script-registry.json`, `baseline-script-metrics.json`), layered policy via [`AGENTS.md`](../../../AGENTS.md) + tool overlays ([CLAUDE.md](../../../CLAUDE.md), GEMINI.md). |
+| **MCP server** with 50+ tool modules / 100+ tools | [vox-orchestrator-mcp/src/lib.rs](../../../crates/vox-orchestrator-mcp/src/lib.rs) — code validation, VCS (with banned-command denylist + `vox.vcs.exec` telemetry), planning loop, introspection, browser, shell, memory, RAG, task management, ACI envelope, agentos telemetry. |
+| **Plan mode** with iterative refinement | [vox-orchestrator-mcp/src/chat_tools/plan_loop.rs](../../../crates/vox-orchestrator-mcp/src/chat_tools/plan_loop.rs) — rounds, loop_status, stop_reason; expansion-first refinement ("add work, do not paraphrase away detail"); task dependency validation. |
+| **Telemetry of agent activity** — rich | [vox-telemetry/src/types.rs](../../../crates/vox-telemetry/src/types.rs) — `METRIC_TYPE_PLAN_MODE_DECISION` (D2), `METRIC_TYPE_MODEL_TIER_ROUTE` (D1), `METRIC_TYPE_SUBAGENT_DISPATCH` (D4), `METRIC_TYPE_CIRCUIT_BREAKER_TRIP` (D6, doom-loop), `METRIC_TYPE_AGENTOS_GUARDRAIL_DENY` (S1), `METRIC_TYPE_DRIFT_ALERT` (D10). |
+| **VoxScript-first glue** | [`AGENTS.md` §VoxScript-First Glue Code](../../../AGENTS.md). All project automation as `.vox` files runnable via `vox run`; banned `.ps1`/`.sh`/`.py` glue. Single command shape; type-checked; observable via `vox.script.*`. |
+| **ACI v1 envelope** schema | [`contracts/aci/agent-computer-interface.v1.yaml`](../../../contracts/aci/agent-computer-interface.v1.yaml) + JSON schema. Mutation classification (`read_only` / `local_mutation` / `external_side_effect` / `unknown`). Implementation at [vox-orchestrator-mcp/src/aci/envelope.rs](../../../crates/vox-orchestrator-mcp/src/aci/envelope.rs). **On by default since v0.6** — `agentos_aci_envelope_enabled: true` (CR-L5, 2026-05-25). |
 
 **Coverage assessment.** Discovery, MCP dispatch, planning, telemetry, and ACI envelope (v0.6+) are real. One gap remains: there is no end-to-end deploy-and-health flow exposed via CLI (see §3.4 / CR-L7).
 
@@ -230,7 +230,7 @@ $ grep -r "repair.*pass.*rate" docs/src/  # nothing
 
 ### §3.2 🔴 Blocker — No corpus-feedback closed loop
 
-**Symptom.** The plumbing exists ([vox-corpus/src/lib.rs](crates/vox-corpus/src/lib.rs) lists `arca_replay`, `ast_mutator`, `flywheel`, `tool_workflow_corpus`, etc.) and `reward_hook: Option<String>` stubs sit in `training_config.rs` — but:
+**Symptom.** The plumbing exists ([vox-corpus/src/lib.rs](../../../crates/vox-corpus/src/lib.rs) lists `arca_replay`, `ast_mutator`, `flywheel`, `tool_workflow_corpus`, etc.) and `reward_hook: Option<String>` stubs sit in `training_config.rs` — but:
 
 - No GRPO trainer is wired.
 - `r_test` (30% of intended reward) is not measured.
@@ -259,7 +259,7 @@ $ grep -r "repair.*pass.*rate" docs/src/  # nothing
 
 ### §3.4 🟠 Major — Deploy/health CLI gap
 
-**Symptom.** From the generated [docs/src/reference/cli-command-surface.generated.md](docs/src/reference/cli-command-surface.generated.md):
+**Symptom.** From the generated [docs/src/reference/cli-command-surface.generated.md](../reference/cli-command-surface.generated.md):
 
 - ✓ `vox init` (scaffold)
 - ✓ `vox build`, `vox compile`, `vox run`
@@ -275,11 +275,11 @@ $ grep -r "repair.*pass.*rate" docs/src/  # nothing
 
 ### §3.5 🟠 Major — Retirement guards incomplete
 
-**Symptom.** [`AGENTS.md` §Retired Surfaces (LLM Guard)](AGENTS.md) lists 11 retired/deprecated patterns. Only some are compile-time forbidden:
+**Symptom.** [`AGENTS.md` §Retired Surfaces (LLM Guard)](../../../AGENTS.md) lists 11 retired/deprecated patterns. Only some are compile-time forbidden:
 
 | Retired pattern | Compile-time forbid? | Evidence |
 |---|---|---|
-| `vox-dei` | ✓ CLI check (`vox ci no-dei-import`) | Active per [docs/src/reference/cli-command-surface.generated.md](docs/src/reference/cli-command-surface.generated.md) |
+| `vox-dei` | ✓ CLI check (`vox ci no-dei-import`) | Active per [docs/src/reference/cli-command-surface.generated.md](../reference/cli-command-surface.generated.md) |
 | `vox-ars` | ✗ No detector | Grep returns no `ars` retirement lint |
 | `@component fn Name()` (use `component Name() {}`) | ✗ No detector | Not enforced at parse time |
 | `@server fn`, `@query fn`, `@mutation fn` | ✗ No detector | Should suggest `@endpoint(kind: ...)` |
@@ -294,7 +294,7 @@ $ grep -r "repair.*pass.*rate" docs/src/  # nothing
 
 A second dimension: **stale enforcement documentation can mislead agents** even when enforcement is live. As of **2026-06-10**, ADR-041 closed the earlier drift: the `check_adr028_reserved_keywords` gate and error code **`E028` are retired**; `workflow`, `activity`, `@durable`, and `@scheduled` are stable public grammar backed by the durable runtime (see [`AGENTS.md` §Grammar Unification](../../../AGENTS.md) and [`durability-runtime-audit-2026.md`](durability-runtime-audit-2026.md)). The paragraph below described **pre-ADR-041** state and is kept for audit history only.
 
-~~But [vox-compiler/src/pipeline.rs:21](crates/vox-compiler/src/pipeline.rs:21) — the `check_adr028_reserved_keywords` function — still rejects `workflow`, `activity`, `@scheduled`, `@durable` with error code `E028`…~~
+~~But [vox-compiler/src/pipeline.rs:21](../../../crates/vox-compiler/src/pipeline.rs:21) — the `check_adr028_reserved_keywords` function — still rejects `workflow`, `activity`, `@scheduled`, `@durable` with error code `E028`…~~
 
 **Fix scope (updated).** Adopt CR-L6: one detector per row of `AGENTS.md §Retired Surfaces` with a docs link to the canonical replacement, plus `vox ci retirement-audit` to catch doc/code drift without relying on a resurrected E028 gate.
 
@@ -330,9 +330,9 @@ A second dimension: **stale enforcement documentation can mislead agents** even 
 **Symptom.** Multiple SSOTs reference "Codegen SSOT unification 2026" reducing 4 IRs → 2 and 3 emit stacks → 1 ([memory entry "Codegen SSOT unification 2026"]). Reality:
 
 - TS codegen lives at [vox-codegen-ts/src/](../../../crates/vox-codegen-ts/src/lib.rs) (40+ files).
-- Rust codegen lives at [vox-codegen/src/codegen_rust/emit/](crates/vox-codegen/src/codegen_rust/emit/) (21 files).
+- Rust codegen lives at [vox-codegen/src/codegen_rust/emit/](../../../crates/vox-codegen/src/codegen_rust/emit/) (21 files).
 - Web IR exists; [`webir-hir-split-brain-inventory-2026.md`](webir-hir-split-brain-inventory-2026.md) and [ADR-036](../adr/036-webir-hir-unification-compare-both.md) acknowledge ongoing split-brain.
-- `CoreIrVersion::v2` is a single naming hook ([vox-compiler/src/hir/core_ir.rs:23](crates/vox-compiler/src/hir/core_ir.rs:23)) but does not actually unify the emit paths.
+- `CoreIrVersion::v2` is a single naming hook ([vox-compiler/src/hir/core_ir.rs:23](../../../crates/vox-compiler/src/hir/core_ir.rs:23)) but does not actually unify the emit paths.
 
 **Why it matters for V1 (indirectly).** Different backends validating separately means semantic divergence is possible — an LLM could write source that the TS backend accepts and the Rust backend rejects. Empirically rare today, but the structural risk is real.
 
@@ -462,7 +462,7 @@ These are written for adoption into [`v1-release-criteria.md`](v1-release-criter
 
 **How to measure.** `vox audit repair-corpus` subcommand drives the loop on each fixture, records outcome, emits report.
 
-**Pegs to.** Extension of [vox-cli/src/commands/repair.rs](crates/vox-cli/src/commands/repair.rs) — needs project-scope orchestration and a defined budget per file (currently 3 attempts; project scope should be configurable).
+**Pegs to.** Extension of [vox-cli/src/commands/repair.rs](../../../crates/vox-cli/src/commands/repair.rs) — needs project-scope orchestration and a defined budget per file (currently 3 attempts; project scope should be configurable).
 
 ---
 
@@ -472,7 +472,7 @@ These are written for adoption into [`v1-release-criteria.md`](v1-release-criter
 
 **How to measure.** `vox audit plan-fidelity` runs each plan through the orchestrator's plan-mode, records terminal state, emits report.
 
-**Pegs to.** Extension of [vox-orchestrator-mcp/src/chat_tools/plan_loop.rs](crates/vox-orchestrator-mcp/src/chat_tools/plan_loop.rs). Plan fixtures co-located with the existing orchestrator integration tests.
+**Pegs to.** Extension of [vox-orchestrator-mcp/src/chat_tools/plan_loop.rs](../../../crates/vox-orchestrator-mcp/src/chat_tools/plan_loop.rs). Plan fixtures co-located with the existing orchestrator integration tests.
 
 ---
 
@@ -488,9 +488,9 @@ These are written for adoption into [`v1-release-criteria.md`](v1-release-criter
 
 ### CR-L6 — Retirement guard parity with `AGENTS.md`
 
-**Statement.** Every row in [`AGENTS.md` §Retired Surfaces](AGENTS.md) has either (a) a parse-time / typeck detector or (b) a `vox-arch-check` rule. CI fails if a row is added without enforcement, or if enforcement is removed without the row being deleted.
+**Statement.** Every row in [`AGENTS.md` §Retired Surfaces](../../../AGENTS.md) has either (a) a parse-time / typeck detector or (b) a `vox-arch-check` rule. CI fails if a row is added without enforcement, or if enforcement is removed without the row being deleted.
 
-**How to measure.** Reverse-index: a generator reads `AGENTS.md` §Retired Surfaces, emits a contract file (`contracts/retirement/retired-surfaces.v1.yaml`), and `vox ci retirement-audit` asserts every row has a wired detector. Existing scaffolding: [vox-arch-check](crates/vox-arch-check/).
+**How to measure.** Reverse-index: a generator reads `AGENTS.md` §Retired Surfaces, emits a contract file (`contracts/retirement/retired-surfaces.v1.yaml`), and `vox ci retirement-audit` asserts every row has a wired detector. Existing scaffolding: [vox-arch-check](../../../crates/vox-arch-check/).
 
 **Pegs to.** [vox-language-rules-phase2-lint-extension-2026.md](vox-language-rules-phase2-lint-extension-2026.md) detector framework. Each retired pattern becomes one new detector in the same file class as `id_at_boundary.rs`.
 
@@ -502,7 +502,7 @@ These are written for adoption into [`v1-release-criteria.md`](v1-release-criter
 
 **How to measure.** Integration test pass/fail; telemetry events present; `cli-command-surface.generated.md` lists all three.
 
-**Pegs to.** [phase1-build-targets-spec-2026.md](phase1-build-targets-spec-2026.md) for `vox new --kind` and `vox emit client`. Deploy CLI is a new task; spec it in a child plan referencing [vox-deploy-codegen](crates/vox-deploy-codegen/) crate.
+**Pegs to.** [phase1-build-targets-spec-2026.md](phase1-build-targets-spec-2026.md) for `vox new --kind` and `vox emit client`. Deploy CLI is a new task; spec it in a child plan referencing [vox-deploy-codegen](../../../crates/vox-deploy-codegen/) crate.
 
 ---
 
@@ -518,7 +518,7 @@ This artifact informs the MENS training-corpus curator. No GRPO trainer is requi
 
 **How to measure.** Artifact existence + age check. CI fails if artifact is older than 90 days.
 
-**Pegs to.** [vox-language-rules-phase4-runtime-monitors-2026.md](vox-language-rules-phase4-runtime-monitors-2026.md) Task 7 (telemetry export). [vox-corpus/src/flywheel.rs](crates/vox-corpus/src/flywheel.rs) receives the output.
+**Pegs to.** [vox-language-rules-phase4-runtime-monitors-2026.md](vox-language-rules-phase4-runtime-monitors-2026.md) Task 7 (telemetry export). [vox-corpus/src/flywheel.rs](../../../crates/vox-corpus/src/flywheel.rs) receives the output.
 
 ---
 
@@ -533,8 +533,8 @@ CR-L items are pegged to existing plans rather than creating new tracks. Sequenc
 | 3 | CR-L8 (corpus-feedback observability) | [vox-language-rules-phase4-runtime-monitors-2026.md](vox-language-rules-phase4-runtime-monitors-2026.md) Task 7 | ~4 weeks (telemetry pipeline + report generator) | Compound leverage on every other CR-L; ship before measuring CR-L1/L2/L3. |
 | 4 | CR-L1 (HumanEval-Vox) | [vox-language-rules-phase2-lint-extension-2026.md](vox-language-rules-phase2-lint-extension-2026.md) Task 5 (`@example` decorator) | ~6 weeks (200 fixtures + eval harness) | Once `@example` is a doctest+corpus entry, the benchmark assembles mechanically. |
 | 5 | CR-L2 (on-distribution rate) | Reuses CR-L8 telemetry channel + CR-L1 fixtures | ~2 weeks (additional run mode in eval harness) | Cheap given L1 and L8 are landed. |
-| 6 | CR-L3 (project-scope repair) | Extend [vox-cli/src/commands/repair.rs](crates/vox-cli/src/commands/repair.rs) | ~8 weeks (multi-file orchestration + corpus + measurement) | Largest single-CR lift; depends on L8 for outcome telemetry. |
-| 7 | CR-L4 (plan-mode fidelity) | Extend [vox-orchestrator-mcp/src/chat_tools/plan_loop.rs](crates/vox-orchestrator-mcp/src/chat_tools/plan_loop.rs) | ~6 weeks (fixtures + harness) | Can run in parallel with L3. |
+| 6 | CR-L3 (project-scope repair) | Extend [vox-cli/src/commands/repair.rs](../../../crates/vox-cli/src/commands/repair.rs) | ~8 weeks (multi-file orchestration + corpus + measurement) | Largest single-CR lift; depends on L8 for outcome telemetry. |
+| 7 | CR-L4 (plan-mode fidelity) | Extend [vox-orchestrator-mcp/src/chat_tools/plan_loop.rs](../../../crates/vox-orchestrator-mcp/src/chat_tools/plan_loop.rs) | ~6 weeks (fixtures + harness) | Can run in parallel with L3. |
 | 8 | CR-L7 (deploy/doctor CLI) | New child plan referencing [phase1-build-targets-spec-2026.md](phase1-build-targets-spec-2026.md) | ~10 weeks (full deploy story + health-check) | Biggest scope; defer last because it touches infra contracts. |
 
 **Aggregate.** ~30 weeks of focused work if serialized, ~14 weeks with two-track parallelism. v1.0 by end-2026 requires the parallel track from June onward. This is achievable; it is not free.
@@ -563,14 +563,14 @@ CR-L items are pegged to existing plans rather than creating new tracks. Sequenc
 
 If you are reading this doc for the first time and want to verify the claims:
 
-- **Compiler stages**: [`crates/vox-compiler/src/`](crates/vox-compiler/src/) (~38k LOC, 5 stages, 65 integration tests)
-- **Diagnostic shape**: [`crates/vox-compiler/src/typeck/diagnostics.rs:96`](crates/vox-compiler/src/typeck/diagnostics.rs:96)
-- **Effect enforcement**: [`crates/vox-compiler/src/typeck/effect_check.rs`](crates/vox-compiler/src/typeck/effect_check.rs)
-- **ADR-028 (workflow/activity still reserved)**: [`crates/vox-compiler/src/pipeline.rs:21`](crates/vox-compiler/src/pipeline.rs:21), [`crates/vox-compiler/tests/tombstone_test.rs`](crates/vox-compiler/tests/tombstone_test.rs)
-- **47 detectors**: [`crates/vox-code-audit/src/detectors/`](crates/vox-code-audit/src/detectors/)
-- **Repair MVP**: [`crates/vox-cli/src/commands/repair.rs`](crates/vox-cli/src/commands/repair.rs)
-- **MCP server tools**: [`crates/vox-orchestrator-mcp/src/lib.rs`](crates/vox-orchestrator-mcp/src/lib.rs)
-- **Telemetry types**: [`crates/vox-telemetry/src/types.rs`](crates/vox-telemetry/src/types.rs)
+- **Compiler stages**: [`crates/vox-compiler/src/`](../../../crates/vox-compiler/src/) (~38k LOC, 5 stages, 65 integration tests)
+- **Diagnostic shape**: [`crates/vox-compiler/src/typeck/diagnostics.rs:96`](../../../crates/vox-compiler/src/typeck/diagnostics.rs:96)
+- **Effect enforcement**: [`crates/vox-compiler/src/typeck/effect_check.rs`](../../../crates/vox-compiler/src/typeck/effect_check.rs)
+- **ADR-028 (workflow/activity still reserved)**: [`crates/vox-compiler/src/pipeline.rs:21`](../../../crates/vox-compiler/src/pipeline.rs:21), [`crates/vox-compiler/tests/tombstone_test.rs`](../../../crates/vox-compiler/tests/tombstone_test.rs)
+- **47 detectors**: [`crates/vox-code-audit/src/detectors/`](../../../crates/vox-code-audit/src/detectors/)
+- **Repair MVP**: [`crates/vox-cli/src/commands/repair.rs`](../../../crates/vox-cli/src/commands/repair.rs)
+- **MCP server tools**: [`crates/vox-orchestrator-mcp/src/lib.rs`](../../../crates/vox-orchestrator-mcp/src/lib.rs)
+- **Telemetry types**: [`crates/vox-telemetry/src/types.rs`](../../../crates/vox-telemetry/src/types.rs)
 - **Phase plans this doc pegs to**:
   - [`vox-language-rules-phase2-lint-extension-2026.md`](vox-language-rules-phase2-lint-extension-2026.md) — CR-L1, CR-L6 detector framework
   - [`vox-language-rules-phase4-runtime-monitors-2026.md`](vox-language-rules-phase4-runtime-monitors-2026.md) — CR-L8 telemetry export (Task 7)

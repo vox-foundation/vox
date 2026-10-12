@@ -232,6 +232,7 @@ async fn handle(conn: Connection, peer: EndpointId, exec: Arc<dyn JobExecutor>) 
         write_response(&mut send, &JobResponse::Failed(e.to_string())).await?;
         // `Connection::close` may drop stream data not yet delivered to the
         // peer's application. Wait briefly for the FIN (or give up) first.
+        // drift-allow(timeout-literal,duplicate-numeric-literal): local wait/poll bound, not an HTTP request timeout; a shared constant needs a vox-config edge
         let _ = timeout(Duration::from_millis(200), send.stopped()).await;
         conn.close(REFUSED_PROTO.into(), b"proto mismatch");
         let _ = timeout(FINAL_CLOSE_TIMEOUT, conn.closed()).await;

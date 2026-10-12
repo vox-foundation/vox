@@ -3,10 +3,10 @@
 
 use serde::Serialize;
 use vox_orchestrator::mode::ClutchProfile;
-use vox_orchestrator::models::TaskCategory;
 use vox_orchestrator::models::health::{RoutingHealth, check_routing_health};
 use vox_orchestrator::models::ranking::{Exclusion, Ranking};
 use vox_orchestrator::models::spec::QualitySource;
+use vox_orchestrator::models::{RoutingTask, TaskCategory};
 
 /// Candidates shown, best first.
 pub const MAX_CANDIDATES: usize = 10;
@@ -220,7 +220,9 @@ pub fn explain(
         force_free_pool: resolved.force_free_pool,
         ..Default::default()
     };
-    match registry.best_for_task_under_gate(&probe, resolved.cost_preference, clutch, &gate) {
+    let routing_probe = RoutingTask::from(&probe);
+    match registry.best_for_task_under_gate(&routing_probe, resolved.cost_preference, clutch, &gate)
+    {
         Some(sel) => explanation_dto(
             clutch,
             task_category,
@@ -231,8 +233,10 @@ pub fn explain(
         ),
         None => {
             // Dispatch would choose nothing (no key, or every model gated): show why, but name no choice.
-            let ranking = registry
-                .rank_task_with_filter(&probe, resolved.cost_preference, |m| gate.exclusion(m));
+            let ranking =
+                registry.rank_task_with_filter(&routing_probe, resolved.cost_preference, |m| {
+                    gate.exclusion(m)
+                });
             let mut dto = explanation_dto(
                 clutch,
                 task_category,

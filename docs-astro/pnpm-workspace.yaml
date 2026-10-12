@@ -6,6 +6,13 @@
 # `pnpm build`. Verified failing the same way on a clean clone of main.
 # Same shape as crates/vox-gui/ui's and apps/experimental/visualizer's
 # pnpm-workspace.yaml, for the same reason.
+#
+# workerd (wrangler's local Workers runtime) is denied: its postinstall only
+# fetches the runtime binary, which `wrangler pages deploy` never starts, and
+# deploy-cloudflare runs with the Cloudflare token in the environment.
 allowBuilds:
   esbuild: true
   sharp: true
+  workerd: false
+patchedDependencies:
+  starlight-llms-txt@0.10.0: patches/starlight-llms-txt@0.10.0.patch

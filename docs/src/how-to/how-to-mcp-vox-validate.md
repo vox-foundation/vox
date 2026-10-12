@@ -12,8 +12,8 @@ The Vox orchestrator exposes three MCP tools that let an AI coding assistant val
 
 | Tool | Input | Returns |
 |---|---|---|
-| [`vox_validate_source`](#vox_validate_source) | `{ source: string, virtual_path?: string }` | LSP-style diagnostics with stable codes + structured autofix suggestions. **Pure text-in/text-out — no filesystem read.** |
-| [`vox_validate_file`](#vox_validate_file) | `{ path: string }` | Same diagnostic shape; reads the file from disk. |
+| [`vox_validate_source`](#when-to-use-which-tool) | `{ source: string, virtual_path?: string }` | LSP-style diagnostics with stable codes + structured autofix suggestions. **Pure text-in/text-out — no filesystem read.** |
+| [`vox_validate_file`](#when-to-use-which-tool) | `{ path: string }` | Same diagnostic shape; reads the file from disk. |
 | `vox_compiler::ast_inspect` | `{ path: string }` | The parsed AST as a JSON tree. |
 
 The first one is the iteration-loop primitive: an assistant proposes Vox source, calls `vox_validate_source`, receives structured diagnostics with `code` and `fixes` fields, applies a fix, re-validates — without writing intermediate files.

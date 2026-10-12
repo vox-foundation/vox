@@ -1203,6 +1203,10 @@
     ],
     [
       "vox-orchestrator",
+      "vox-orchestrator-models"
+    ],
+    [
+      "vox-orchestrator",
       "vox-orchestrator-types"
     ],
     [
@@ -1456,6 +1460,22 @@
     [
       "vox-orchestrator-mcp",
       "vox-telemetry"
+    ],
+    [
+      "vox-orchestrator-models",
+      "vox-bounded-fs"
+    ],
+    [
+      "vox-orchestrator-models",
+      "vox-config"
+    ],
+    [
+      "vox-orchestrator-models",
+      "vox-db"
+    ],
+    [
+      "vox-orchestrator-models",
+      "vox-secrets"
     ],
     [
       "vox-orchestrator-queue",

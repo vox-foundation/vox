@@ -3,7 +3,7 @@ name: GUI Cross-Platform Build (Win/macOS/Ubuntu)
 on:
   # Not on pull_request/merge_group: the full Win/macOS/Ubuntu matrix
   # (gui-cross-build 90m) exceeds the fast-lane (PR/merge_group) 30-min cap
-  # (workflow_policy_guard). Runs nightly instead, mirroring mobile-e2e-ios's
+  # (workflow_policy_guard). Runs nightly instead, like the (since retired) iOS lane's
   # move off push/PR (per-PR compile signal for vox-gui is still covered by
   # ci.yml's own Linux build).
   schedule:
@@ -35,9 +35,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          linux='{"os":"ubuntu-latest","target":"x86_64-unknown-linux-gnu","sidecar_src":"target/x86_64-unknown-linux-gnu/release/vox","sidecar_dst":"target/release/vox-x86_64-unknown-linux-gnu"}'
-          win='{"os":"windows-latest","target":"x86_64-pc-windows-msvc","sidecar_src":"target/x86_64-pc-windows-msvc/release/vox.exe","sidecar_dst":"target/release/vox-x86_64-pc-windows-msvc.exe"}'
-          mac='{"os":"macos-latest","target":"aarch64-apple-darwin","sidecar_src":"target/aarch64-apple-darwin/release/vox","sidecar_dst":"target/release/vox-aarch64-apple-darwin"}'
+          linux='{"os":"ubuntu-latest","target":"x86_64-unknown-linux-gnu"}'
+          win='{"os":"windows-latest","target":"x86_64-pc-windows-msvc"}'
+          mac='{"os":"macos-latest","target":"aarch64-apple-darwin"}'
           echo "include=[$linux,$win,$mac]" >> "$GITHUB_OUTPUT"
 
   gui-cross-build:
@@ -51,8 +51,15 @@ jobs:
     timeout-minutes: 90
     env:
       RUSTC_WRAPPER: sccache
-      SCCACHE_GHA_ENABLED: "true"
+      # Same policy as cross-platform-check.yml: the GHA backend writes one
+      # unbounded Actions-cache entry per object, so only main (schedule) writes
+      # it; bump SCCACHE_GHA_VERSION to orphan the old object set.
+      # SCCACHE_CACHE_SIZE bounds the local disk cache (cache-key-lint).
+      SCCACHE_GHA_ENABLED: ${{ github.ref == 'refs/heads/main' && 'true' || 'false' }}
+      SCCACHE_GHA_VERSION: v2
+      SCCACHE_CACHE_SIZE: 5G
       CARGO_INCREMENTAL: "0"
+      VOX_GUI_SKIP_SIDECAR_AUTOBUILD: "1"
 
     steps:
       - uses: actions/checkout@v7
@@ -94,31 +101,89 @@ jobs:
       # the macOS did_finish_launching delegate as a non-unwinding panic: the app
       # aborts before a window appears, and Windows never sees it because it loads
       # icon.ico instead.
+      # This lane compiles and tests vox-gui; it never runs a sidecar. build.rs only
+      # checks the externalBin files exist, and with them missing it silently built
+      # them in release from inside the first vox-gui compile, while this job then
+      # built vox-cli in release again: three full builds per leg, past the 90-min
+      # cap on every leg since 2026-10-05. Placeholders + autobuild off.
+      - name: Stage Tauri external sidecar placeholders
+        uses: ./.github/actions/stage-tauri-sidecars
+        with:
+          target: ${{ matrix.target }}
+          placeholder: "true"
+
       - name: Tauri prerequisites (icon bit depth, sidecar paths)
         run: cargo test -p vox-gui --test gui_tauri_prereqs
 
-      - name: Build vox CLI sidecar (release)
-        run: cargo build -p vox-cli --release --target ${{ matrix.target }}
-
-      - name: Stage Tauri external sidecar (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force target/release | Out-Null
-          Copy-Item ${{ matrix.sidecar_src }} ${{ matrix.sidecar_dst }} -Force
-
-      - name: Stage Tauri external sidecar (Unix)
-        if: runner.os != 'Windows'
-        run: |
-          mkdir -p target/release
-          cp ${{ matrix.sidecar_src }} ${{ matrix.sidecar_dst }}
-
+      # The `gui-*` aliases link vox-gui with link.exe on Windows: lld-link cannot
+      # reconcile ucrt.lib and libucrt.lib for it (.cargo/config.toml). They only
+      # set a Windows-target linker, so macOS/Linux legs build the same as before.
       - name: vox-gui tests
-        run: cargo test -p vox-gui --locked
+        run: cargo gui-test --locked
 
       - name: Build vox-gui (Tauri)
-        run: cargo build -p vox-gui
+        run: cargo gui-build
 
       - name: sccache stats
         if: always()
         run: sccache --show-stats
+
+  # Moved from nightly.yml (2026-10-06, hosted-ci plan Task 0.4): at 93-124 min
+  # it set nightly's wall time; this workflow is already the scheduled GUI
+  # build lane.
+  #
+  # Portable Windows lane: proves the Tauri shell compiles and the binary starts
+  # (headless `--print-action-manifest-json`). Catches manifest/sidecar/icon drift
+  # that Linux CI excludes when `vox-gui` is omitted from nextest/clippy.
+  gui-windows-build-smoke:
+    name: GUI Windows build smoke
+    runs-on: windows-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install Rust toolchain
+        uses: ./.github/actions/setup-rust
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: crates/vox-gui/ui/pnpm-lock.yaml
+
+      # No separate Swatinem/rust-cache step: setup-rust above already caches
+      # on OS + toolchain + Cargo.lock -- no separate cache step needed here.
+      - name: GUI frontend build (pnpm)
+        run: |
+          cd crates/vox-gui/ui
+          pnpm install --prefer-offline
+          pnpm run build
+
+      # The headless smoke below never runs a sidecar, so placeholders suffice. This
+      # used to build release vox and stage only it, leaving vox-ml-cli for build.rs
+      # to nest-build inside `cargo gui-build`.
+      - name: Stage Tauri external sidecar placeholders
+        uses: ./.github/actions/stage-tauri-sidecars
+        with:
+          target: x86_64-pc-windows-msvc
+          placeholder: "true"
+
+      - name: Tauri prerequisite tests
+        run: cargo test -p vox-gui --test gui_tauri_prereqs
+
+      # `cargo gui-build` links with link.exe: lld-link cannot reconcile ucrt.lib and
+      # libucrt.lib for vox-gui (.cargo/config.toml, [target.x86_64-pc-windows-msvc]).
+      - name: Build vox-gui (Tauri)
+        run: cargo gui-build
+
+      - name: Headless binary smoke (action manifest)
+        shell: pwsh
+        run: |
+          $out = & target/debug/vox-gui.exe --print-action-manifest-json
+          if (-not $out) { throw 'empty action manifest' }
+          if ($out -notmatch '"actions"') { throw 'action manifest JSON missing actions key' }

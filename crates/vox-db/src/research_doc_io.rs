@@ -112,6 +112,7 @@ impl FileLock {
                         && let Ok(elapsed) = meta
                             .modified()
                             .and_then(|m| m.elapsed().map_err(io::Error::other))
+                        // drift-allow(timeout-literal,duplicate-numeric-literal): local wait/poll bound, not an HTTP request timeout; a shared constant needs a vox-config edge
                         && elapsed > Duration::from_secs(60)
                     {
                         let _ = fs::remove_file(&lock_path);
@@ -160,6 +161,7 @@ mod tests {
     fn test_file_lock_in_file() {
         let dir = tempfile::tempdir().unwrap();
         let target = dir.path().join("doc.md");
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
         let lock = FileLock::acquire(&target, Duration::from_millis(500)).unwrap();
         let lock_path = lock.lock_path().to_path_buf();
         assert!(lock_path.exists());

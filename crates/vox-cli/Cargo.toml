@@ -43,9 +43,8 @@ fuzzy-search = ["dep:nucleo"]
 # command delegates to the vox-ml-cli binary as a subprocess (see
 # Commands::Oratio in src/lib.rs), so it doesn't link the Candle Whisper stack
 # (vox-speech's `stt-candle`) into vox-cli directly. Reserved for a future
-# in-process wire-up — see the `#[ignore]`d
-# feature_sets_include_populi_oratio_lane test (sunset 2026-08-01) for that
-# tracked decision; don't add real deps here without revisiting it.
+# in-process wire-up. Being empty, it has no `FEATURE_SETS` CI lane; add one
+# when real deps land here.
 oratio = []
 # Native MCP server runtime previously in vox-mcp binary
 mcp-server = [

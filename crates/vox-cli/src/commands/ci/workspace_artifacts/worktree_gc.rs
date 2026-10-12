@@ -237,10 +237,20 @@ fn build_process_haystacks() -> Vec<String> {
     hay
 }
 
-/// True when any build process references a path under `wt`.
-fn worktree_active(wt: &Path, haystacks: &[String]) -> bool {
+/// True when any build process references a path under `wt` and not merely under a
+/// worktree nested inside it. Every `.claude/worktrees/*` path contains the main
+/// checkout's path, so a bare substring test marked main busy whenever any worktree
+/// built, and main's target (the largest) was never reclaimed.
+fn worktree_active(wt: &Path, all: &[PathBuf], haystacks: &[String]) -> bool {
     let needle = norm(&wt.to_string_lossy());
-    haystacks.iter().any(|h| h.contains(&needle))
+    let nested: Vec<String> = all
+        .iter()
+        .map(|p| norm(&p.to_string_lossy()))
+        .filter(|p| *p != needle && p.starts_with(&needle))
+        .collect();
+    haystacks
+        .iter()
+        .any(|h| h.contains(&needle) && !nested.iter().any(|n| h.contains(n.as_str())))
 }
 
 /// Newest mtime of any non-`target`/non-`.git` file in the worktree — the real
@@ -377,7 +387,8 @@ pub fn plan(
         // *shows*, not what a bare in-tree invocation can delete.
         let wt_canon = std::fs::canonicalize(&wt.path).unwrap_or_else(|_| wt.path.clone());
         let is_current = wt_canon == root_canon;
-        let active = worktree_active(&wt.path, &haystacks);
+        let all_paths: Vec<PathBuf> = worktrees.iter().map(|w| w.path.clone()).collect();
+        let active = worktree_active(&wt.path, &all_paths, &haystacks);
         let dirty = worktree_dirty_source(&wt.path);
         let touched = worktree_last_touched(&wt.path);
         let age = age_days(touched);
@@ -518,6 +529,7 @@ pub fn execute(
     let items = plan(root, wt_policy, stale_policy, opts)?;
     // Fresh snapshot to catch a build that started after planning.
     let haystacks = build_process_haystacks();
+    let all_paths: Vec<PathBuf> = list_worktrees(root)?.into_iter().map(|w| w.path).collect();
 
     let mut reclaimed = 0u64;
     let mut counts: std::collections::BTreeMap<String, u32> = std::collections::BTreeMap::new();
@@ -526,7 +538,7 @@ pub fn execute(
         if item.action != "delete" {
             continue;
         }
-        if worktree_active(&item.worktree, &haystacks) {
+        if worktree_active(&item.worktree, &all_paths, &haystacks) {
             eprintln!(
                 "[skip] became active since planning: {}",
                 item.worktree.display()
@@ -547,6 +559,22 @@ pub fn execute(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_build_in_a_nested_worktree_does_not_make_main_active() {
+        let main = PathBuf::from("/repo");
+        let nested = PathBuf::from("/repo/.claude/worktrees/a");
+        let all = vec![main.clone(), nested.clone()];
+        let hay = vec!["/repo/.claude/worktrees/a/target/debug/deps".to_string()];
+        assert!(
+            !worktree_active(&main, &all, &hay),
+            "main must not inherit a nested build"
+        );
+        assert!(worktree_active(&nested, &all, &hay));
+        let hay_main = vec!["/repo/crates/vox-cli".to_string()];
+        assert!(worktree_active(&main, &all, &hay_main));
+        assert!(!worktree_active(&nested, &all, &hay_main));
+    }
 
     #[test]
     fn parse_worktrees_marks_first_as_main_and_reads_locked() {

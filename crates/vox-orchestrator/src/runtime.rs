@@ -746,7 +746,12 @@ impl TaskProcessor for AiTaskProcessor {
                 unknown_price_blocked: exploration_spent >= exploration_limit,
                 allowed_providers: (!allowed_providers.is_empty()).then_some(allowed_providers),
             };
-            registry.best_for_task_under_gate(&task, cost_pref, clutch, &gate)
+            registry.best_for_task_under_gate(
+                &crate::models::RoutingTask::from(&task),
+                cost_pref,
+                clutch,
+                &gate,
+            )
         }
         .map(|sel| {
             if sel.only_candidate {

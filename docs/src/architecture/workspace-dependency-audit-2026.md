@@ -23,7 +23,7 @@ Rolling closure from the **workspace dependency audit v2** plan:
 
 ## Intentional duplicates / deferred
 
-- **Candle / QLoRA / zip**: multiple `zip` majors remain via Candle vs other consumers; upgrade needs GPU CI and **ADR 034**.
+- **Candle / peft / qlora**: unified at Candle 0.10.2, peft-rs 1.0.3, qlora-rs 1.0.5 (pinned by `crates/vox-cli/tests/ml_dependency_health.rs`); compile-validated by the hosted `ml-cuda-health` nightly job per **[ADR 034](../adr/034-candle-qlora-stack-upgrades.md)** (no physical-GPU runtime coverage). Multiple `zip` majors may still remain via Candle vs other consumers.
 - **Rand 0.8 vs 0.9**: workspace uses **`rand09`** alias where Oratio STT needs 0.9 APIs; broader unification waits on Wasmtime/Tantivy upstreams.
 - **`syn` 1.x**: remains via `abi_stable_derive` (plugin ABI risk).
 - **tiktoken-rs**: **not** replaced by heuristics — `cl100k_base` is used for accurate budgeting (`vox-orchestrator`).

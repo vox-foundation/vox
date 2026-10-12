@@ -236,6 +236,7 @@ mod tests {
         let mock = MockServer::start().await;
         Mock::given(method("POST"))
             .and(path("/research"))
+            // drift-allow(bearer-header-inline): parses/matches/redacts a header, or a test fixture; not building one
             .and(header("authorization", "Bearer tvly-test"))
             .respond_with(ResponseTemplate::new(201).set_body_json(serde_json::json!({
                 "request_id": "r-1", "created_at": "2026-09-23T00:00:00Z",

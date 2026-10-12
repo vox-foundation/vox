@@ -1,13 +1,12 @@
 {
   "schema_version": 1,
-  "measured_on": "x86_64-pc-windows-msvc (cargo check)",
   "has_compile_times": true,
-  "crates_without_compile_times": 2,
+  "crates_without_compile_times": 1,
   "crates": [
     {
       "crate": "vox-actor-runtime",
       "compile_s": 5.3,
-      "dependents": 51,
+      "dependents": 52,
       "blast_s": 586.0,
       "fan_in": 13
     },
@@ -21,7 +20,7 @@
     {
       "crate": "vox-ast",
       "compile_s": 8.5,
-      "dependents": 52,
+      "dependents": 53,
       "blast_s": 595.0,
       "fan_in": 3
     },
@@ -36,8 +35,8 @@
       "crate": "vox-bounded-fs",
       "compile_s": 0.2,
       "dependents": 74,
-      "blast_s": 615.0,
-      "fan_in": 24
+      "blast_s": 614.0,
+      "fan_in": 25
     },
     {
       "crate": "vox-build-meta",
@@ -126,21 +125,21 @@
     {
       "crate": "vox-codegen",
       "compile_s": 10.9,
-      "dependents": 51,
+      "dependents": 52,
       "blast_s": 586.0,
       "fan_in": 9
     },
     {
       "crate": "vox-codegen-ts",
       "compile_s": 4.5,
-      "dependents": 51,
+      "dependents": 52,
       "blast_s": 586.0,
       "fan_in": 2
     },
     {
       "crate": "vox-compiler",
       "compile_s": 25.4,
-      "dependents": 51,
+      "dependents": 52,
       "blast_s": 586.0,
       "fan_in": 24
     },
@@ -148,41 +147,41 @@
       "crate": "vox-config",
       "compile_s": 3.2,
       "dependents": 69,
-      "blast_s": 611.0,
+      "blast_s": 610.0,
       "fan_in": 45
     },
     {
       "crate": "vox-config-derive",
       "compile_s": 1.6,
       "dependents": 69,
-      "blast_s": 611.0,
+      "blast_s": 610.0,
       "fan_in": 1
     },
     {
       "crate": "vox-constrained-gen",
       "compile_s": 0.5,
-      "dependents": 52,
+      "dependents": 53,
       "blast_s": 587.0,
       "fan_in": 3
     },
     {
       "crate": "vox-container",
       "compile_s": 0.4,
-      "dependents": 53,
+      "dependents": 54,
       "blast_s": 587.0,
       "fan_in": 4
     },
     {
       "crate": "vox-container-types",
       "compile_s": 0.8,
-      "dependents": 55,
+      "dependents": 56,
       "blast_s": 588.0,
       "fan_in": 3
     },
     {
       "crate": "vox-corpus",
       "compile_s": 8.6,
-      "dependents": 51,
+      "dependents": 52,
       "blast_s": 586.0,
       "fan_in": 6
     },
@@ -190,27 +189,27 @@
       "crate": "vox-crypto",
       "compile_s": 0.3,
       "dependents": 73,
-      "blast_s": 614.0,
+      "blast_s": 613.0,
       "fan_in": 13
     },
     {
       "crate": "vox-db",
       "compile_s": 43.5,
-      "dependents": 51,
+      "dependents": 52,
       "blast_s": 586.0,
-      "fan_in": 27
+      "fan_in": 28
     },
     {
       "crate": "vox-db-types",
       "compile_s": 8.7,
-      "dependents": 52,
+      "dependents": 53,
       "blast_s": 595.0,
       "fan_in": 2
     },
     {
       "crate": "vox-deploy-codegen",
       "compile_s": 0.7,
-      "dependents": 52,
+      "dependents": 53,
       "blast_s": 587.0,
       "fan_in": 5
     },
@@ -252,7 +251,7 @@
     {
       "crate": "vox-eval",
       "compile_s": 0.4,
-      "dependents": 52,
+      "dependents": 53,
       "blast_s": 587.0,
       "fan_in": 7
     },
@@ -266,7 +265,7 @@
     {
       "crate": "vox-foundation",
       "compile_s": 0.7,
-      "dependents": 52,
+      "dependents": 53,
       "blast_s": 587.0,
       "fan_in": 14
     },
@@ -281,13 +280,13 @@
       "crate": "vox-git",
       "compile_s": 1.1,
       "dependents": 70,
-      "blast_s": 612.0,
+      "blast_s": 611.0,
       "fan_in": 8
     },
     {
       "crate": "vox-grammar-export",
       "compile_s": 0.8,
-      "dependents": 53,
+      "dependents": 54,
       "blast_s": 588.0,
       "fan_in": 5
     },
@@ -308,21 +307,21 @@
     {
       "crate": "vox-hf-layout",
       "compile_s": 0.5,
-      "dependents": 52,
+      "dependents": 53,
       "blast_s": 587.0,
       "fan_in": 4
     },
     {
       "crate": "vox-http-client",
       "compile_s": 0.7,
-      "dependents": 73,
+      "dependents": 74,
       "blast_s": 620.0,
       "fan_in": 24
     },
     {
       "crate": "vox-identity",
       "compile_s": 0.4,
-      "dependents": 52,
+      "dependents": 53,
       "blast_s": 587.0,
       "fan_in": 4
     },
@@ -336,14 +335,14 @@
     {
       "crate": "vox-journal",
       "compile_s": 0.9,
-      "dependents": 53,
+      "dependents": 54,
       "blast_s": 588.0,
       "fan_in": 3
     },
     {
       "crate": "vox-jsonschema-util",
       "compile_s": 0.4,
-      "dependents": 54,
+      "dependents": 55,
       "blast_s": 593.0,
       "fan_in": 9
     },
@@ -357,7 +356,7 @@
     {
       "crate": "vox-language-surface",
       "compile_s": 0.1,
-      "dependents": 54,
+      "dependents": 55,
       "blast_s": 588.0,
       "fan_in": 2
     },
@@ -365,13 +364,13 @@
       "crate": "vox-llm-config",
       "compile_s": 0.2,
       "dependents": 70,
-      "blast_s": 611.0,
+      "blast_s": 610.0,
       "fan_in": 1
     },
     {
       "crate": "vox-llm-egress",
       "compile_s": 0.9,
-      "dependents": 69,
+      "dependents": 70,
       "blast_s": 611.0,
       "fan_in": 5
     },
@@ -385,7 +384,7 @@
     {
       "crate": "vox-mcp-registry",
       "compile_s": 1.5,
-      "dependents": 53,
+      "dependents": 54,
       "blast_s": 589.0,
       "fan_in": 5
     },
@@ -399,7 +398,7 @@
     {
       "crate": "vox-mesh-transport",
       "compile_s": 0.0,
-      "dependents": 52,
+      "dependents": 53,
       "blast_s": 586.0,
       "fan_in": 1
     },
@@ -427,14 +426,14 @@
     {
       "crate": "vox-openai",
       "compile_s": 0.5,
-      "dependents": 70,
+      "dependents": 71,
       "blast_s": 611.0,
       "fan_in": 4
     },
     {
       "crate": "vox-openclaw-runtime",
       "compile_s": 5.4,
-      "dependents": 51,
+      "dependents": 52,
       "blast_s": 586.0,
       "fan_in": 3
     },
@@ -467,9 +466,16 @@
       "fan_in": 5
     },
     {
+      "crate": "vox-orchestrator-models",
+      "compile_s": 0.0,
+      "dependents": 17,
+      "blast_s": 373.0,
+      "fan_in": 1
+    },
+    {
       "crate": "vox-orchestrator-queue",
       "compile_s": 2.7,
-      "dependents": 51,
+      "dependents": 52,
       "blast_s": 586.0,
       "fan_in": 2
     },
@@ -483,28 +489,28 @@
     {
       "crate": "vox-orchestrator-types",
       "compile_s": 3.6,
-      "dependents": 53,
+      "dependents": 54,
       "blast_s": 595.0,
       "fan_in": 8
     },
     {
       "crate": "vox-package",
       "compile_s": 1.9,
-      "dependents": 51,
+      "dependents": 52,
       "blast_s": 586.0,
       "fan_in": 6
     },
     {
       "crate": "vox-package-types",
       "compile_s": 1.8,
-      "dependents": 53,
+      "dependents": 54,
       "blast_s": 589.0,
       "fan_in": 3
     },
     {
       "crate": "vox-plugin-api",
       "compile_s": 3.3,
-      "dependents": 60,
+      "dependents": 61,
       "blast_s": 592.0,
       "fan_in": 16
     },
@@ -525,7 +531,7 @@
     {
       "crate": "vox-plugin-host",
       "compile_s": 1.8,
-      "dependents": 52,
+      "dependents": 53,
       "blast_s": 588.0,
       "fan_in": 8
     },
@@ -609,7 +615,7 @@
     {
       "crate": "vox-plugin-types",
       "compile_s": 0.9,
-      "dependents": 63,
+      "dependents": 64,
       "blast_s": 594.0,
       "fan_in": 8
     },
@@ -623,14 +629,14 @@
     {
       "crate": "vox-populi",
       "compile_s": 26.9,
-      "dependents": 51,
+      "dependents": 52,
       "blast_s": 586.0,
       "fan_in": 6
     },
     {
       "crate": "vox-populi-types",
       "compile_s": 0.8,
-      "dependents": 52,
+      "dependents": 53,
       "blast_s": 587.0,
       "fan_in": 1
     },
@@ -651,7 +657,7 @@
     {
       "crate": "vox-quantize",
       "compile_s": 0.6,
-      "dependents": 52,
+      "dependents": 53,
       "blast_s": 587.0,
       "fan_in": 1
     },
@@ -672,7 +678,7 @@
     {
       "crate": "vox-repository",
       "compile_s": 2.7,
-      "dependents": 55,
+      "dependents": 56,
       "blast_s": 592.0,
       "fan_in": 20
     },
@@ -707,7 +713,7 @@
     {
       "crate": "vox-runtime",
       "compile_s": 1.0,
-      "dependents": 54,
+      "dependents": 55,
       "blast_s": 589.0,
       "fan_in": 3
     },
@@ -750,13 +756,13 @@
       "crate": "vox-secrets",
       "compile_s": 1.8,
       "dependents": 71,
-      "blast_s": 613.0,
-      "fan_in": 35
+      "blast_s": 612.0,
+      "fan_in": 36
     },
     {
       "crate": "vox-shell-stdlib-types",
       "compile_s": 0.3,
-      "dependents": 52,
+      "dependents": 53,
       "blast_s": 587.0,
       "fan_in": 2
     },
@@ -777,14 +783,14 @@
     {
       "crate": "vox-skill-runtime",
       "compile_s": 0.4,
-      "dependents": 54,
+      "dependents": 55,
       "blast_s": 587.0,
       "fan_in": 4
     },
     {
       "crate": "vox-skills",
       "compile_s": 1.6,
-      "dependents": 51,
+      "dependents": 52,
       "blast_s": 586.0,
       "fan_in": 6
     },
@@ -798,14 +804,14 @@
     {
       "crate": "vox-sql",
       "compile_s": 9.8,
-      "dependents": 51,
+      "dependents": 52,
       "blast_s": 586.0,
       "fan_in": 3
     },
     {
       "crate": "vox-tauri-codegen",
       "compile_s": 0.8,
-      "dependents": 51,
+      "dependents": 52,
       "blast_s": 586.0,
       "fan_in": 2
     },
@@ -820,7 +826,7 @@
       "crate": "vox-telemetry",
       "compile_s": 2.3,
       "dependents": 71,
-      "blast_s": 613.0,
+      "blast_s": 612.0,
       "fan_in": 14
     },
     {
@@ -833,7 +839,7 @@
     {
       "crate": "vox-tensor",
       "compile_s": 0.7,
-      "dependents": 51,
+      "dependents": 52,
       "blast_s": 586.0,
       "fan_in": 4
     },
@@ -854,7 +860,7 @@
     {
       "crate": "vox-test-harness",
       "compile_s": 0.0,
-      "dependents": 51,
+      "dependents": 52,
       "blast_s": 586.0,
       "fan_in": 5
     },
@@ -882,7 +888,7 @@
     {
       "crate": "vox-workflow-runtime",
       "compile_s": 0.0,
-      "dependents": 51,
+      "dependents": 52,
       "blast_s": 586.0,
       "fan_in": 2
     },
@@ -896,9 +902,10 @@
     {
       "crate": "workspace-hack",
       "compile_s": 0.6,
-      "dependents": 117,
+      "dependents": 118,
       "blast_s": 653.0,
       "fan_in": 115
     }
-  ]
+  ],
+  "measured_on": "x86_64-pc-windows-msvc (cargo check)"
 }

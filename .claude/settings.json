@@ -6,6 +6,10 @@
           {
             "type": "command",
             "command": "vox ci status --changed-only 2>/dev/null || true"
+          },
+          {
+            "type": "command",
+            "command": "(vox ci artifact-prune --include-worktrees --apply >/dev/null 2>&1 &) ; true"
           }
         ]
       }

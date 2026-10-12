@@ -77,20 +77,20 @@ Companion specs (already exist; this doc cross-references them rather than resta
 
 ### 1.2 Dashboard mesh-control surface (today)
 
-**What ships.** [`vox-dashboard`](../../../crates/vox-dashboard/) is Phase-1: an Axum server hosting a React 19 SPA compiled from Vox view-language. Transport is WebSocket (`/v1/ws`) for events + HTTP `POST /v1/tools/call` for commands ([`transport.ts`](../../../crates/vox-dashboard/src/transport.ts)). Bearer token injects via meta tag. Localhost auto-binds with `allow_unauthenticated = true`.
+**What ships.** `vox-dashboard` is Phase-1: an Axum server hosting a React 19 SPA compiled from Vox view-language. Transport is WebSocket (`/v1/ws`) for events + HTTP `POST /v1/tools/call` for commands (`transport.ts`). Bearer token injects via meta tag. Localhost auto-binds with `allow_unauthenticated = true`.
 
 **What's stub-only.** Mesh routes return fixture JSON acks. The audit table:
 
 | Surface | Route / file | Status |
 |---|---|---|
-| List nodes | `GET /api/v2/mesh/nodes` ([api/mesh.rs:82](../../../crates/vox-dashboard/src/api/mesh.rs)) | **Fixture stub.** Comment: "Phase 2 replaces this stub with a live read from the orchestrator mesh registry." |
+| List nodes | `GET /api/v2/mesh/nodes` (`api/mesh.rs:82`) | **Fixture stub.** Comment: "Phase 2 replaces this stub with a live read from the orchestrator mesh registry." |
 | Add a node | — | **Missing.** No provisioning route. |
 | Remove a node | — | **Missing.** |
 | Configure node role | — | **Missing.** |
-| Dispatch a job | [`generated/TaskDispatch.tsx:3`](../../../crates/vox-dashboard/app/src/generated/TaskDispatch.tsx) | **UI-only stub** (toggles local state). |
-| View job status / logs | `GET /api/v2/runs[/{id}]` ([api/runs.rs](../../../crates/vox-dashboard/src/api/runs.rs)) | **Fixture stub.** |
-| Kill / pause / replay | `POST /api/v2/mesh/nodes/{id}/{kill,pause,replay}` ([api/mesh.rs:165](../../../crates/vox-dashboard/src/api/mesh.rs)) | **Acks; no orchestrator wiring.** |
-| Topology view | [`generated/NetworkTab.tsx`](../../../crates/vox-dashboard/app/src/generated/NetworkTab.tsx) | **Empty placeholder.** |
+| Dispatch a job | `generated/TaskDispatch.tsx:3` | **UI-only stub** (toggles local state). |
+| View job status / logs | `GET /api/v2/runs[/{id}]` (`api/runs.rs`) | **Fixture stub.** |
+| Kill / pause / replay | `POST /api/v2/mesh/nodes/{id}/{kill,pause,replay}` (`api/mesh.rs:165`) | **Acks; no orchestrator wiring.** |
+| Topology view | `generated/NetworkTab.tsx` | **Empty placeholder.** |
 | Models surface | `GET /api/v2/models/usage_24h` | **Fixture stub.** |
 
 **FFScript is unrelated.** The FFScript mutation API (see [ffscript-mutation-api-spec-2026.md](ffscript-mutation-api-spec-2026.md), [-panel-schema-spec](ffscript-panel-schema-spec-2026.md), [-linter-design](ffscript-linter-design-2026.md)) is a document-mutation API for FableForge — not dashboard panels. Vox dashboard panels are authored in Vox view-language that lowers to TSX. Don't conflate them.

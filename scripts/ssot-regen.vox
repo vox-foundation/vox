@@ -34,8 +34,13 @@ fn main() {
     let i = regen(["--quiet", "ci", "gui-surface-coverage", "--write"], "ci gui-surface-coverage --write")
     let j = regen(["--quiet", "ci", "gui-surface-registry", "--write"], "ci gui-surface-registry --write")
     let k = regen(["--quiet", "ci", "affected-crates", "--regen", "--out", "contracts/ci/crate-graph.v1.json"], "ci affected-crates --regen")
-    let l = regen(["--quiet", "ci", "config-gui-codegen", "--kb-facets"], "ci config-gui-codegen --kb-facets")
-    if not (a and b and c and d and e and f and g and h and i and j and k and l) {
+    // After the crate graph: the build map's derived fields come from it (keeps committed compile_s).
+    let l = regen(["--quiet", "ci", "crate-build-map-parity", "--write"], "ci crate-build-map-parity --write")
+    // Descriptive test counts: drifted on nearly every PR that added a test, then failed
+    // nightly's snapshot gate. (Not safety-inventory: that baseline is a review signal.)
+    let m = regen(["--quiet", "ci", "test-inventory", "--output", "contracts/reports/test-inventory.v1.json"], "ci test-inventory --output")
+    let n = regen(["--quiet", "ci", "config-gui-codegen", "--kb-facets"], "ci config-gui-codegen --kb-facets")
+    if not (a and b and c and d and e and f and g and h and i and j and k and l and m and n) {
         print("Some regenerators failed; `vox ci ssot-drift` will name what is still stale.")
         process.exit(1)
     }

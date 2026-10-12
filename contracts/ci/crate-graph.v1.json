@@ -451,7 +451,6 @@
       "workspace-hack"
     ],
     "vox-llm-egress": [
-      "vox-config",
       "vox-http-client",
       "vox-openai",
       "workspace-hack"
@@ -528,6 +527,7 @@
       "vox-mcp-registry",
       "vox-mesh-policy",
       "vox-mesh-types",
+      "vox-orchestrator-models",
       "vox-orchestrator-queue",
       "vox-orchestrator-types",
       "vox-package",
@@ -607,6 +607,12 @@
       "vox-skills",
       "vox-telemetry",
       "workspace-hack"
+    ],
+    "vox-orchestrator-models": [
+      "vox-bounded-fs",
+      "vox-config",
+      "vox-db",
+      "vox-secrets"
     ],
     "vox-orchestrator-queue": [
       "vox-config",

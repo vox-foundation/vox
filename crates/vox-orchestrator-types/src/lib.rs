@@ -7,10 +7,12 @@
 
 pub mod agent_types;
 pub mod merge_outcome;
+pub mod routing_values;
 pub mod socrates_policy;
 pub mod trust;
 pub mod vcs_capability;
 
+pub use routing_values::{CostPreference, RoutingProfile};
 pub use vcs_capability::{
     BranchCreate, BranchName, BranchNameError, RemoteId, WorkingTreeWrite, WorkspaceId,
 };

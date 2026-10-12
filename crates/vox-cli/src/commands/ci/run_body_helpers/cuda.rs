@@ -3,6 +3,19 @@ use std::process::Command;
 
 use crate::commands::ci::{cargo_bin, nvcc_available, repo_root};
 
+fn cuda_feature_command_specs() -> [[&'static str; 5]; 2] {
+    [
+        ["check", "-p", "vox-plugin-speech", "--features", "cuda"],
+        [
+            "check",
+            "-p",
+            "vox-ml-cli",
+            "--features",
+            "gpu,mens-candle-cuda",
+        ],
+    ]
+}
+
 pub(crate) fn run_cuda_features() -> Result<()> {
     if std::env::var("SKIP_CUDA_FEATURE_CHECK").unwrap_or_default() == "1" {
         println!("CUDA feature checks skipped (SKIP_CUDA_FEATURE_CHECK=1)");
@@ -17,28 +30,37 @@ pub(crate) fn run_cuda_features() -> Result<()> {
     }
     let root = repo_root();
     let cargo = cargo_bin();
-    let st1 = Command::new(&cargo)
-        .current_dir(&root)
-        .args(["check", "-p", "vox-speech", "--features", "cuda"])
-        .status()?;
-    if !st1.success() {
-        return Err(anyhow!("cargo check -p vox-speech --features cuda failed"));
+    for spec in cuda_feature_command_specs() {
+        let status = Command::new(&cargo)
+            .current_dir(&root)
+            .args(spec)
+            .status()?;
+        if !status.success() {
+            return Err(anyhow!("cargo {} failed", spec.join(" ")));
+        }
     }
-    let st2 = Command::new(&cargo)
-        .current_dir(&root)
-        .args([
-            "check",
-            "-p",
-            "vox-cli",
-            "--features",
-            "gpu,mens-candle-cuda",
-        ])
-        .status()?;
-    if !st2.success() {
-        return Err(anyhow!(
-            "cargo check -p vox-cli --features gpu,mens-candle-cuda failed"
-        ));
-    }
-    println!("CUDA feature checks OK");
+    println!("CUDA feature checks OK (vox-plugin-speech, vox-ml-cli)");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::cuda_feature_command_specs;
+
+    #[test]
+    fn cuda_feature_command_specs_target_current_owners() {
+        assert_eq!(
+            cuda_feature_command_specs(),
+            [
+                ["check", "-p", "vox-plugin-speech", "--features", "cuda",],
+                [
+                    "check",
+                    "-p",
+                    "vox-ml-cli",
+                    "--features",
+                    "gpu,mens-candle-cuda",
+                ],
+            ]
+        );
+    }
 }

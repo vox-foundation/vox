@@ -12,6 +12,7 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn non_loopback_requests_are_refused_and_loopback_is_allowed() {
     let client = vox_http_client::client_builder()
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
         .timeout(std::time::Duration::from_secs(10))
         .build()
         .expect("client");

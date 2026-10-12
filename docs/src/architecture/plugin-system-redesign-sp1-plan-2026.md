@@ -1905,7 +1905,7 @@ CI guards (`vox ci plugin-catalog-parity`, `vox ci generate-plugin-catalog-docs 
 
 Create `docs/src/reference/distribution-bundles.md`:
 
-```markdown
+````markdown
 ---
 title: "Distribution Bundles"
 description: "What Vox bundles are, how to pick one, and how to roll your own."
@@ -1944,7 +1944,7 @@ Bundles are reproducible from the catalog: the same Vox version + same catalog S
 External users add a bundle entry in their own catalog overlay (mechanism deferred to a follow-up sub-project) or assemble plugins manually with `vox plugin install <id>` after starting from `vox-base`.
 
 For the first-party bundle list, see the auto-generated [distribution-bundles.generated.md](distribution-bundles.generated.md).
-```
+````
 
 - [ ] **Step 4: Verify mdBook still parses (no dead links to in-tree files)**
 

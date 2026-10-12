@@ -51,6 +51,7 @@ async fn real_dispatcher_holds_the_lock_and_parks_a_contender() {
         .await;
 
     // Poll ~500 ms (bounded) and assert B is still in hopper().inbox() and was never assigned
+    // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
     let poll_end = tokio::time::Instant::now() + Duration::from_millis(500);
     while tokio::time::Instant::now() < poll_end {
         let assigned = hopper.assigned().await;

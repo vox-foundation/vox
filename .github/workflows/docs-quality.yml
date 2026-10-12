@@ -10,6 +10,26 @@ on:
       - 'contracts/**'
       - 'crates/vox-doc-pipeline/**'
       - 'crates/vox-cli/src/commands/ci/**'
+      - 'docs-astro/**'
+      - '.git-blame-ignore-revs'
+      - '.lycheeignore'
+      - '.github/workflows/docs-quality.yml'
+      # 20-09: repo Markdown mounted at /repo/<route>/ (contracts/documentation/site-mounted-repo-docs.v1.json)
+      - 'CHANGELOG.md'
+      - 'CLAUDE.md'
+      - 'GEMINI.md'
+      - 'LANGUAGE_DESIGN_PRIORITIES.md'
+      - '.github/copilot-instructions.md'
+      - 'apps/editor/vox-vscode/README.md'
+      - 'crates/**/README.md'
+      - 'examples/PARSE_STATUS.md'
+      - 'examples/STYLE.md'
+      - 'examples/compile-suite/README.md'
+      - 'scripts/README.md'
+      - 'scripts/coverage-graph/README.md'
+      - 'scripts/show/README.md'
+      - 'tree-sitter-vox/GRAMMAR_SSOT.md'
+      - 'tree-sitter-vox/README.md'
   push:
     branches: [main]
     paths:
@@ -20,6 +40,26 @@ on:
       - 'contracts/**'
       - 'crates/vox-doc-pipeline/**'
       - 'crates/vox-cli/src/commands/ci/**'
+      - 'docs-astro/**'
+      - '.git-blame-ignore-revs'
+      - '.lycheeignore'
+      - '.github/workflows/docs-quality.yml'
+      # 20-09: repo Markdown mounted at /repo/<route>/ (contracts/documentation/site-mounted-repo-docs.v1.json)
+      - 'CHANGELOG.md'
+      - 'CLAUDE.md'
+      - 'GEMINI.md'
+      - 'LANGUAGE_DESIGN_PRIORITIES.md'
+      - '.github/copilot-instructions.md'
+      - 'apps/editor/vox-vscode/README.md'
+      - 'crates/**/README.md'
+      - 'examples/PARSE_STATUS.md'
+      - 'examples/STYLE.md'
+      - 'examples/compile-suite/README.md'
+      - 'scripts/README.md'
+      - 'scripts/coverage-graph/README.md'
+      - 'scripts/show/README.md'
+      - 'tree-sitter-vox/GRAMMAR_SSOT.md'
+      - 'tree-sitter-vox/README.md'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -37,7 +77,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      # Full history: page "Last updated" dates come from git log (git-dates.mjs).
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Install Rust toolchain
         uses: ./.github/actions/setup-rust
@@ -79,6 +122,58 @@ jobs:
         id: starlight_build
         working-directory: docs-astro
         run: pnpm build
+
+      # Prove the offline link check can fail before trusting a green run: the
+      # fixture holds one dead route and one dead anchor. Exit 2 = link failures;
+      # 1 = runtime/input error, which does not count as detecting them.
+      # Both lychee steps run in docs-astro/ so the repo-root .lycheeignore (scoped
+      # to the nightly external check; e.g. `crates/.*` matches
+      # /contributors/publishing-crates/) cannot mask internal site links.
+      - name: Link checker self-test (fixture must fail)
+        id: lychee_selftest
+        uses: lycheeverse/lychee-action@v2
+        with:
+          lycheeVersion: v0.24.2
+          workingDirectory: docs-astro
+          fail: false
+          jobSummary: false
+          output: lychee/selftest.md
+          args: --offline --no-progress --root-dir ${{ github.workspace }}/docs-astro/dist --include-fragments --index-files index.html tests/fixtures/broken-link/index.html
+
+      - name: Assert link checker detects broken links
+        working-directory: docs-astro
+        shell: bash
+        env:
+          SELFTEST_EXIT: ${{ steps.lychee_selftest.outputs.exit_code }}
+        run: |
+          set -euo pipefail
+          if [ "${SELFTEST_EXIT}" != "2" ] \
+            || ! grep -qF 'this-route-does-not-exist' lychee/selftest.md \
+            || ! grep -qF 'no-such-anchor-p20' lychee/selftest.md; then
+            echo "::error::link checker cannot detect broken links (lychee exit ${SELFTEST_EXIT}; expected 2 with both fixture URLs reported)"
+            cat lychee/selftest.md || true
+            exit 1
+          fi
+
+      # Hard gate: any broken internal link or anchor on the built site fails the
+      # job. Offline only; external links stay on the nightly link_checker.yml.
+      - name: Internal link check (built site)
+        uses: lycheeverse/lychee-action@v2
+        with:
+          lycheeVersion: v0.24.2
+          workingDirectory: docs-astro
+          fail: true
+          output: lychee/site.md
+          args: --offline --no-progress --root-dir ${{ github.workspace }}/docs-astro/dist --include-fragments --index-files index.html 'dist/**/*.html'
+
+      - name: Docs unit tests
+        working-directory: docs-astro
+        run: node --test "tests/unit/*.test.mjs"
+
+      # Pure-fs Playwright specs over dist/; no browser install needed.
+      - name: Build-output checks
+        working-directory: docs-astro
+        run: npx playwright test tests/build-output/ --reporter=line
 
       # Hard gate: graduated from continue-on-error after baseline stabilised.
       # Covers docs-astro, apps/vox-mental-tracker, apps/experimental/visualizer, vox-codegen TS tests.

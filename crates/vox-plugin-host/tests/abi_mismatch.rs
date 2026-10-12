@@ -3,7 +3,7 @@
 
 use std::path::PathBuf;
 use std::process::Command;
-use vox_plugin_host::{Loader, errors::LoadError};
+use vox_plugin_host::{Loader, VOX_PLUGIN_ABI_VERSION, errors::LoadError};
 
 fn workspace_root() -> PathBuf {
     let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -107,7 +107,7 @@ fn rejects_mismatched_abi() {
     match result {
         Err(LoadError::AbiMismatch(e)) => {
             assert_eq!(e.plugin_abi, 999_999);
-            assert_eq!(e.host_abi, 12);
+            assert_eq!(e.host_abi, VOX_PLUGIN_ABI_VERSION);
         }
         Ok(_) => panic!("expected AbiMismatch, got Ok"),
         Err(other) => panic!("expected AbiMismatch, got {other:?}"),

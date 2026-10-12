@@ -345,6 +345,9 @@ pub struct ResearchMetadata {
     /// stage as "K verified of M extracted".
     #[serde(default)]
     pub claims_verified_count: usize,
+    /// LLM tokens, cost, latency, and call counts for this run; empty when served from cache.
+    #[serde(default)]
+    pub usage: super::metering::RunUsage,
 }
 
 /// Final research result.

@@ -493,6 +493,8 @@ mod tests {
                         let _: Vec<u8> =
                             protocol::read_frame(&mut recv, 1024 * 1024).await.unwrap();
                         tx.send(request).unwrap();
+                        // drift-allow(timeout-literal,duplicate-numeric-literal): local wait/poll bound, not an HTTP request timeout; a shared constant needs a vox-config edge
+                        // drift-allow(timeout-literal,duplicate-numeric-literal): local wait/poll bound, not an HTTP request timeout; a shared constant needs a vox-config edge
                         tokio::time::sleep(Duration::from_secs(5)).await;
                     } else {
                         tx.send(request).unwrap();
@@ -522,6 +524,8 @@ mod tests {
             &peer,
             b"pub fn main() {}",
             job_id,
+            // drift-allow(timeout-literal,duplicate-numeric-literal): local wait/poll bound, not an HTTP request timeout; a shared constant needs a vox-config edge
+            // drift-allow(timeout-literal,duplicate-numeric-literal): local wait/poll bound, not an HTTP request timeout; a shared constant needs a vox-config edge
             Duration::from_millis(100),
         )
         .await

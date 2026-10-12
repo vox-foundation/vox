@@ -99,6 +99,7 @@ fn run_golden(bin: &str, path: &Path, timeout: Duration) -> GoldenRun {
                     let _ = reader.join();
                     return GoldenRun::TimedOut;
                 }
+                // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
                 std::thread::sleep(Duration::from_millis(25));
             }
             Err(e) => {

@@ -98,6 +98,7 @@ pub fn persist_browser_frame_png(
         return Err("frame path escaped cache jail".into());
     }
     if matches!(mode, FramePersistMode::Snapshot) {
+        // drift-allow(timeout-literal,duplicate-numeric-literal): local wait/poll bound, not an HTTP request timeout; a shared constant needs a vox-config edge
         let _ = prune_browser_frames(cache_root, &dest, std::time::Duration::from_secs(3600));
     }
     Ok(dest)

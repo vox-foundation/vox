@@ -3,10 +3,10 @@
   "type": "ADR",
   "confidence": "high",
   "manifest_override": true,
-  "title": "ADR 034 — Candle / QLoRA stack upgrades (deferred batch)",
-  "summary": "Defer Candle/peft/qlora version unification to dedicated upgrade train with GPU CI.",
+  "title": "ADR 034 — Candle / QLoRA stack upgrades",
+  "summary": "Accepted 2026-10-01: Candle/peft/qlora verified unified; fail-closed hosted CUDA-toolchain compile passed (https://github.com/vox-foundation/vox/actions/runs/36821415478 at bc3214504f981e31817da3d9b4dbeae1b6cb0892). Compile-only evidence, no physical-GPU runtime claim.",
   "scope": ["Candle", "QLoRA", "peft", "MENS training", "GPU CI", "dependency management"],
   "cross_refs": ["../architecture/workspace-dependency-audit-2026.md"],
-  "locked": false,
+  "locked": true,
   "precedence": null
 }

@@ -2,13 +2,16 @@
 title: "Documentation Reality Audit Program"
 description: "Sustaining doc/code/contract reality checks: taxonomy, machine-readable backlog, scoring, and CI entry points."
 category: "Contributors"
-status: "current"
+status: "roadmap"
 sort_order: 11
 training_eligible: true
+training_rationale: "Describes the documentation reality audit taxonomy, scoring and CI entry points that phase 21 of the docs-freshness workstream reactivates."
 schema_type: "TechArticle"
 ---
 
 # Documentation Reality Audit Program
+
+> **Dormant (2026-10-08).** This program is not running. Phase 21 of the docs-freshness workstream (Measure & Prune) reactivates it with machine-generated findings; until then treat this page as a roadmap, not a description of current CI.
 
 This program tracks **aspiration vs fulfillment** and **documentation vs code** truth using a single machine-readable backlog. It complements (does not replace) `vox ci` guards such as `command-compliance`, `retired-symbol-check`, and `ssot-drift`.
 

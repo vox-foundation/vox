@@ -1,0 +1,84 @@
+{
+  "x-vox-version": 1,
+  "generated_by": "scripts/docs/tutorial-verify.vox",
+  "verified_at_commit": "b10e20dfdab2ae5b43e59352c94336416c43934f",
+  "tutorials": [
+    {
+      "path": "docs/src/tutorials/tut-actor-basics.md",
+      "blob_sha": "9cb0d66305069400ecd1741606ed9f666ea24bba",
+      "checks": {
+        "commands_in_registry": "pass",
+        "snippets_compile": "pass",
+        "install_versions_match": "pass",
+        "links_resolve": "pass"
+      },
+      "notes": []
+    },
+    {
+      "path": "docs/src/tutorials/tut-first-app.md",
+      "blob_sha": "5d9140bce0c65fea94feb21384da5dd6310338e2",
+      "checks": {
+        "commands_in_registry": "pass",
+        "snippets_compile": "pass",
+        "install_versions_match": "pass",
+        "links_resolve": "pass"
+      },
+      "notes": []
+    },
+    {
+      "path": "docs/src/tutorials/tut-first-vox-app-checkpoints.md",
+      "blob_sha": "c480747fc8102656a7ada071ba1f35549fd35b8d",
+      "checks": {
+        "commands_in_registry": "pass",
+        "snippets_compile": "pass",
+        "install_versions_match": "pass",
+        "links_resolve": "pass"
+      },
+      "notes": []
+    },
+    {
+      "path": "docs/src/tutorials/tut-getting-started.md",
+      "blob_sha": "b1d790fc9b359289d3ef71c9bd37a3755e3a39aa",
+      "checks": {
+        "commands_in_registry": "pass",
+        "snippets_compile": "pass",
+        "install_versions_match": "pass",
+        "links_resolve": "pass"
+      },
+      "notes": []
+    },
+    {
+      "path": "docs/src/tutorials/tut-ui-integration.md",
+      "blob_sha": "58488d683819a55a972dbf5077975a93b0a52bf6",
+      "checks": {
+        "commands_in_registry": "pass",
+        "snippets_compile": "pass",
+        "install_versions_match": "pass",
+        "links_resolve": "pass"
+      },
+      "notes": []
+    },
+    {
+      "path": "docs/src/tutorials/tut-workflow-durability.md",
+      "blob_sha": "14fda8a6d63a07c9e5ca1cbefb045efd2bf1f9a4",
+      "checks": {
+        "commands_in_registry": "pass",
+        "snippets_compile": "pass",
+        "install_versions_match": "pass",
+        "links_resolve": "pass"
+      },
+      "notes": []
+    },
+    {
+      "path": "docs/src/tutorials/use-a-react-component-from-vox.md",
+      "blob_sha": "644900f8071524a98e8ddd887580017fd6aff189",
+      "checks": {
+        "commands_in_registry": "pass",
+        "snippets_compile": "pass",
+        "install_versions_match": "pass",
+        "links_resolve": "pass"
+      },
+      "notes": []
+    }
+  ]
+}

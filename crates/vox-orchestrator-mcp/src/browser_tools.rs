@@ -962,7 +962,7 @@ pub async fn browser_extract(state: &ServerState, p: BrowserExtractParams) -> St
     // Task 8f: `user` above mixes `p.instruction` (the caller's real intent)
     // with `summary` (fetched, untrusted page text) — capability inference
     // must run over the instruction alone, or a page mentioning "json"/
-    // "latest news"/etc. could force a spurious capability requirement.
+    // "latest news" and similar could force a spurious capability requirement.
     match call_llm(
         state,
         sys,

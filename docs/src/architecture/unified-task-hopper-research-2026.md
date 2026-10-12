@@ -107,7 +107,7 @@ priority-learning loop.
 
 ### 1.5 Dashboard is a stub
 
-[`crates/vox-dashboard/src/`](../../../crates/vox-dashboard/) ships
+`crates/vox-dashboard/src/` ships
 `/api/v2/runs` and `/api/v2/mesh` returning fixture data. The
 [dashboard migration research doc](dashboard-migration-research-2026.md) explicitly notes
 the missing operator's harness — no command palette, no status bar, no persistent run timeline,
@@ -775,7 +775,7 @@ work *is* queued.
 - [`crates/vox-orchestrator/src/workspace.rs`](../../../crates/vox-orchestrator/src/workspace.rs) — `AgentWorkspace`
 - [`crates/vox-orchestrator/src/events.rs`](../../../crates/vox-orchestrator/src/events.rs) — `AgentEvent` variants
 - [`crates/vox-orchestrator-types/`](../../../crates/vox-orchestrator-types/) — `AgentTask`, `TaskPriority`, capability tokens
-- [`crates/vox-dashboard/`](../../../crates/vox-dashboard/) — Phase 2/3 surface
+- `crates/vox-dashboard/` — Phase 2/3 surface
 - [`crates/vox-orchestrator-mcp/`](../../../crates/vox-orchestrator-mcp/) — MCP tool layer
 
 ## Appendix C — Related Architecture Docs

@@ -69,6 +69,7 @@ fn research_metadata_planner_degraded_round_trips_json() {
         served_from_cache: false,
         claims_extracted_count: 0,
         claims_verified_count: 0,
+        usage: Default::default(),
     };
     let json = serde_json::to_value(&meta).expect("serializes");
     assert_eq!(json["planner_degraded"], true);

@@ -987,6 +987,7 @@ mod tests {
                 served_from_cache: false,
                 claims_extracted_count: 3,
                 claims_verified_count: 1,
+                usage: Default::default(),
             },
         };
 
@@ -1069,6 +1070,7 @@ mod tests {
                 served_from_cache: false,
                 claims_extracted_count: 0,
                 claims_verified_count: 0,
+                usage: Default::default(),
             },
         };
 
@@ -1342,6 +1344,7 @@ mod tests {
                 served_from_cache: false,
                 claims_extracted_count: 0,
                 claims_verified_count: 0,
+                usage: Default::default(),
             },
         };
 

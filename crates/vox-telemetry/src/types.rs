@@ -243,20 +243,22 @@ pub fn validate_research_metric_row(
             "research_metrics: metric_type {metric_type:?} contains disallowed characters"
         )));
     }
-    if let Some(m) = metadata_json {
-        if m.len() > RESEARCH_METRICS_METADATA_JSON_MAX_BYTES {
-            return Err(TelemetryError::Validation(format!(
-                "research_metrics: metadata_json exceeds {} bytes",
-                RESEARCH_METRICS_METADATA_JSON_MAX_BYTES
-            )));
-        }
-        if metric_type == METRIC_TYPE_MODEL_ROUTE_EVENT
-            && (!m.contains("\"trace_id\"") || !m.contains("\"route_policy_profile\""))
-        {
-            return Err(TelemetryError::Validation(
-                "research_metrics: model_route_event metadata_json must include trace_id and route_policy_profile".into(),
-            ));
-        }
+    if let Some(m) = metadata_json
+        && m.len() > RESEARCH_METRICS_METADATA_JSON_MAX_BYTES
+    {
+        return Err(TelemetryError::Validation(format!(
+            "research_metrics: metadata_json exceeds {} bytes",
+            RESEARCH_METRICS_METADATA_JSON_MAX_BYTES
+        )));
+    }
+    crate::research_trial::validate_research_trial_row(session_id, metric_type, metadata_json)?;
+    if let Some(m) = metadata_json
+        && metric_type == METRIC_TYPE_MODEL_ROUTE_EVENT
+        && (!m.contains("\"trace_id\"") || !m.contains("\"route_policy_profile\""))
+    {
+        return Err(TelemetryError::Validation(
+            "research_metrics: model_route_event metadata_json must include trace_id and route_policy_profile".into(),
+        ));
     }
     Ok(())
 }
@@ -1182,6 +1184,100 @@ mod tests {
     #[test]
     fn accepts_colon_in_metric_type() {
         assert!(validate_research_metric_row("sess", "mcp:foo_bar", None).is_ok());
+    }
+
+    #[test]
+    fn research_trial_metadata_rejects_content_key() {
+        let err = validate_research_metric_row(
+            "run-1",
+            "research_trial.run",
+            Some(r#"{"run_id":"r1","query":"what is rust"}"#),
+        );
+        assert!(err.is_err(), "content-bearing key must be rejected");
+    }
+
+    #[test]
+    fn research_trial_metadata_rejects_unknown_key() {
+        let err = validate_research_metric_row(
+            "run-1",
+            "research_trial.run",
+            Some(r#"{"run_id":"r1","favourite_colour":"blue"}"#),
+        );
+        assert!(err.is_err(), "keys outside the allowlist must be rejected");
+    }
+
+    #[test]
+    fn research_trial_prefix_variants_cannot_skip_the_allowlist() {
+        for metric_type in [
+            "RESEARCH_TRIAL.run",
+            "Research_Trial.run",
+            "research_trial:run",
+            // `-` is a legal metric_type character, so it must not split the stem either.
+            "research-trial.run",
+            "Research-Trial:run",
+        ] {
+            assert!(
+                validate_research_metric_row("run-1", metric_type, Some(r#"{"query":"x"}"#))
+                    .is_err(),
+                "{metric_type} must not bypass trial validation"
+            );
+        }
+    }
+
+    #[test]
+    fn research_trial_session_id_is_structural() {
+        assert!(
+            validate_research_metric_row(
+                "user asked about tax fraud",
+                "research_trial.run",
+                Some(r#"{"status":"ok"}"#)
+            )
+            .is_err()
+        );
+        assert!(
+            validate_research_metric_row("42", "research_trial.run", Some(r#"{"status":"ok"}"#))
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn research_trial_oversize_metadata_fails_the_size_check_first() {
+        let huge = format!(r#"{{"status":"{}"}}"#, "a".repeat(300 * 1024));
+        let err = validate_research_metric_row("run-1", "research_trial.run", Some(&huge))
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("exceeds"), "{err}");
+    }
+
+    #[test]
+    fn research_trial_rejects_unknown_metric_type() {
+        assert!(
+            validate_research_metric_row("run-1", "research_trial.gossip", Some("{}")).is_err()
+        );
+    }
+
+    #[test]
+    fn research_trial_metadata_rejects_nested_or_long_values() {
+        let nested = validate_research_metric_row(
+            "run-1",
+            "research_trial.run",
+            Some(r#"{"run_id":{"inner":"x"}}"#),
+        );
+        assert!(nested.is_err());
+        let long = format!(r#"{{"run_id":"{}"}}"#, "a".repeat(200));
+        assert!(validate_research_metric_row("run-1", "research_trial.run", Some(&long)).is_err());
+    }
+
+    #[test]
+    fn research_trial_metadata_accepts_structural_row() {
+        let ok = validate_research_metric_row(
+            "run-1",
+            "research_trial.run",
+            Some(
+                r#"{"campaign_id":"c1","run_id":"r1","arm_id":"a1","status":"completed","duration_ms":1200,"tokens_in":10,"cost_usd_micros":42,"served_from_cache":false}"#,
+            ),
+        );
+        assert!(ok.is_ok(), "{ok:?}");
     }
 
     #[test]

@@ -45,3 +45,7 @@
 # imply the hand file and the Starlight-generated /llms.txt are the same.
 
 /reference/stability.html             /reference/stability/             301
+
+# P20-D8: docs/src/archive/ is no longer published; every archive URL lands
+# on one noindex notice page (src/pages/retired.astro).
+/archive/* /retired/ 301

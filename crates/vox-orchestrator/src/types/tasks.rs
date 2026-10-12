@@ -1119,15 +1119,27 @@ impl AgentTask {
     }
 
     /// Predict the number of tokens this task will consume based on its complexity and category.
+    /// One formula: it lives on [`crate::models::RoutingTask`], which routing reads.
     pub fn estimated_token_count(&self) -> u64 {
-        let base = match self.task_category {
-            TaskCategory::CodeGen => 2000,
-            TaskCategory::Research => 4000,
-            TaskCategory::Visus => 8000,
-            _ => 1000,
-        };
-        let complexity_mult = f64::from(self.estimated_complexity).powi(2) / 25.0; // 5 is 1.0, 10 is 4.0
-        (base as f64 * complexity_mult).round() as u64
+        crate::models::RoutingTask::from(self).estimated_token_count()
+    }
+}
+
+impl From<&AgentTask> for crate::models::RoutingTask {
+    fn from(task: &AgentTask) -> Self {
+        Self {
+            category: task.task_category,
+            complexity: task.estimated_complexity,
+            research_hints: task.research_hints.clone(),
+            tool_hints: task.tool_hints.clone(),
+            max_cost_usd: task.budget.as_ref().and_then(|b| b.max_cost_usd),
+        }
+    }
+}
+
+impl From<AgentTask> for crate::models::RoutingTask {
+    fn from(task: AgentTask) -> Self {
+        Self::from(&task)
     }
 }
 

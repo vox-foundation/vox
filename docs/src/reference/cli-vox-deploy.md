@@ -186,8 +186,8 @@ lane described in
 
 ## See also
 
-- [`vox new` / `vox init`](cli.md#init) — scaffold a project with a deploy block.
-- [`vox doctor --project`](cli.md#doctor) — verify the project compiles clean
+- [`vox new` / `vox init`](cli.md#vox-init) — scaffold a project with a deploy block.
+- [`vox doctor --project`](cli.md#vox-doctor) — verify the project compiles clean
   before deploying.
 - [`docs/src/reference/deployment-compose.md`](deployment-compose.md) — deeper
   dive on the compose target.

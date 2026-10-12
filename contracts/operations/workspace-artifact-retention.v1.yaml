@@ -21,10 +21,14 @@ mens:
 
 # Per-worktree `target/` dirs (`vox ci artifact-prune --include-worktrees`).
 # Each git worktree keeps its own multi-GB target (see .cargo/config.toml). The
-# GC never deletes a target with an active build, a lock, or uncommitted source.
+# GC never deletes a target with an active build or a lock, and never source.
+# 1 day, dirty worktrees included (2026-10-06): agent worktrees reach 20-80 GB of
+# target within a day and most carry uncommitted source, so 7 days + protect_dirty
+# reclaimed nothing while ~640 GB of targets filled the disk to 99%. A target is
+# only a build cache; losing it costs a rebuild, never work.
 worktree_targets:
-  max_age_days: 7
-  protect_dirty: true
+  max_age_days: 1
+  protect_dirty: false
 
 # Whole stale worktrees (`vox ci artifact-prune --remove-stale-worktrees`).
 # Only removed when clean, unlocked, not current, not building, and stale.

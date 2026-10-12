@@ -97,6 +97,7 @@ turso = { workspace = true }
 # the KB Library lexical index (`vox_search::library`); it is also a vox-search default.
 vox-search = { workspace = true }
 vox-orchestrator-types.workspace = true
+vox-orchestrator-models.workspace = true
 vox-orchestrator-queue.workspace = true
 vox-config.workspace = true
 vox-repository.workspace = true

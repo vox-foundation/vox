@@ -139,13 +139,19 @@ impl BrowserEngine {
         if let Some((page, dropped)) = guard.remove_page(page_id) {
             let _ = page.close().await;
             if let Some(inner) = dropped {
-                inner._handler_task.abort();
                 // Attach: drop disconnects the websocket only (no child, no Browser.close).
                 if inner.disconnect_only {
+                    inner._handler_task.abort();
                     drop(inner.browser);
                     debug!(target: "vox_plugin_browser", "attach host disconnected (no sessions)");
                 } else {
-                    drop(inner.browser);
+                    // Graceful Browser.close, with the handler still running to see the reply:
+                    // dropping the child kills Chromium before it flushes the profile, so a
+                    // named profile would lose its cookies.
+                    let mut browser = inner.browser;
+                    let _ = browser.close().await;
+                    let _ = browser.wait().await;
+                    inner._handler_task.abort();
                     debug!(target: "vox_plugin_browser", "browser host shut down (no sessions)");
                 }
             }

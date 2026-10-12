@@ -35,15 +35,30 @@ fn normalize_lf(s: &str) -> String {
     s.replace("\r\n", "\n").replace('\r', "\n")
 }
 
+/// A registry/embed mismatch is an error unless the caller said its binary may be stale
+/// (`VOX_SKIP_FRESHNESS_CHECK`, set by the pre-push hook: the installed `vox` is usually a few
+/// commits behind the tree, and hosted CI, which builds `vox` fresh, is the authoritative gate).
+pub(crate) fn embed_mismatch_is_fatal(embed_matches_disk: bool, skip_freshness: bool) -> bool {
+    !embed_matches_disk && !skip_freshness
+}
+
 /// Fail when the registry on disk disagrees with the `include_str!` embed (stale `vox` binary).
 pub(crate) fn check_command_registry_embed_matches_disk(repo_root: &Path) -> Result<()> {
     let p = repo_root.join(super::registry::REGISTRY_REL);
     let disk = read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;
-    if normalize_lf(&disk) != normalize_lf(EMBEDDED_COMMAND_REGISTRY_YAML) {
+    let matches = normalize_lf(&disk) == normalize_lf(EMBEDDED_COMMAND_REGISTRY_YAML);
+    let skip = std::env::var_os(crate::freshness::SKIP_ENV).is_some();
+    if embed_mismatch_is_fatal(matches, skip) {
         return Err(anyhow!(
             "{} does not match the vox-cli embedded registry — rebuild with `cargo build -p vox-cli` so `include_str!` picks up edits",
             p.display()
         ));
+    }
+    if !matches {
+        eprintln!(
+            "warning: {} differs from this binary's embedded registry; skipped (VOX_SKIP_FRESHNESS_CHECK). Hosted CI re-checks it.",
+            p.display()
+        );
     }
     Ok(())
 }
@@ -227,6 +242,26 @@ pub(crate) fn check_env_vars_doc_tokens_registered(
         ));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod embed_check_tests {
+    #[test]
+    fn a_stale_embed_fails_unless_the_freshness_check_is_skipped() {
+        assert!(
+            !super::embed_mismatch_is_fatal(true, false),
+            "matching embed never fails"
+        );
+        assert!(!super::embed_mismatch_is_fatal(true, true));
+        assert!(
+            super::embed_mismatch_is_fatal(false, false),
+            "stale binary, strict mode: fail"
+        );
+        assert!(
+            !super::embed_mismatch_is_fatal(false, true),
+            "stale binary with VOX_SKIP_FRESHNESS_CHECK: warn only (the pre-push hook's advisory mode)"
+        );
+    }
 }
 
 #[cfg(test)]
