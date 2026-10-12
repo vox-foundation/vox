@@ -600,14 +600,3 @@ fn json_to_sql_value(v: &serde_json::Value) -> Result<SqlValue, StoreError> {
         ),
     })
 }
-
-#[cfg(test)]
-mod tests {
-    use super::LEGACY_EXPORT_TABLES;
-
-    #[test]
-    fn legacy_export_tables_stay_sorted_and_include_the_findings_inbox() {
-        assert!(LEGACY_EXPORT_TABLES.windows(2).all(|w| w[0] < w[1]));
-        assert!(LEGACY_EXPORT_TABLES.contains(&"kb_findings"));
-    }
-}

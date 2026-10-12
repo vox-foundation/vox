@@ -461,6 +461,17 @@ async fn history_entries_round_trip() {
 #[cfg(feature = "legacy-import")]
 mod legacy_tests {
     use super::*;
+
+    /// The legacy export list stays sorted and carries the KB findings inbox. Lives here, not in
+    /// `codex_legacy`, because that module is `#[deprecated]` and libtest's generated per-test
+    /// const would trip `-D deprecated` from inside it.
+    #[test]
+    fn legacy_export_tables_stay_sorted_and_include_the_findings_inbox() {
+        use crate::legacy::codex::LEGACY_EXPORT_TABLES;
+        assert!(LEGACY_EXPORT_TABLES.windows(2).all(|w| w[0] < w[1]));
+        assert!(LEGACY_EXPORT_TABLES.contains(&"kb_findings"));
+    }
+
     use crate::codex_schema::missing_codex_reactivity_tables;
     use crate::legacy::codex::{
         LEGACY_EXPORT_SKIP_TABLES, LEGACY_EXPORT_TABLES, export_legacy_jsonl, import_legacy_jsonl,
