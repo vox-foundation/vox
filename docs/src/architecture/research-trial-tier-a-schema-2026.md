@@ -245,7 +245,7 @@ offline verifiers must reproduce this exact form; moving to JCS later would be a
 Filled in by plan 07-04 Task 3 after the human gate. Plans 07-06, 07-07 and 07-09, and the
 12-09 amendment, check the lines below.
 
-- Decision status: pending
-- Run grain: pending
-- model_benchmark_results: pending
-- Approved by: pending
+- Decision status: approved
+- Run grain: item-batch
+- model_benchmark_results: option-a
+- Approved by: user, 2026-10-12 (chat answer "approve-recommended" to the 07-04-T2 STORE-01 question; recorded by the orchestrator session)
