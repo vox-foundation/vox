@@ -44,6 +44,8 @@ pub struct RunUsage {
     pub llm_latency_ms: u64,
     pub tool_calls: u32,
     pub ttft: Ttft,
+    /// Claim verdicts served from the verdict cache instead of a fresh verifier call.
+    pub verdict_cache_hits: u32,
 }
 
 impl RunUsage {
@@ -107,6 +109,15 @@ pub fn meter_response(response: &LlmResponse) {
 /// Records a call whose cascade failed into the current scope.
 pub fn meter_failure() {
     let _ = RUN_STATE.try_with(|state| state.borrow_mut().usage.record_failure());
+}
+
+/// Records `n` claim verdicts served from the verdict cache into the current scope.
+pub fn record_verdict_cache_hits(n: usize) {
+    let n = u32::try_from(n).unwrap_or(u32::MAX);
+    let _ = RUN_STATE.try_with(|state| {
+        let usage = &mut state.borrow_mut().usage;
+        usage.verdict_cache_hits = usage.verdict_cache_hits.saturating_add(n);
+    });
 }
 
 /// Names the run's session for LLM telemetry attribution.
@@ -238,5 +249,25 @@ mod tests {
             serde_json::to_value(Ttft::NotApplicable).expect("ser"),
             serde_json::json!({"kind": "not_applicable"})
         );
+    }
+
+    #[tokio::test]
+    async fn verdict_cache_hits_are_counted_in_scope() {
+        record_verdict_cache_hits(7);
+        let inside = scope(async {
+            record_verdict_cache_hits(3);
+            snapshot()
+        })
+        .await;
+        assert_eq!(inside.verdict_cache_hits, 3);
+        assert_eq!(snapshot().verdict_cache_hits, 0);
+    }
+
+    #[test]
+    fn verdict_cache_hits_default_to_zero() {
+        let old = r#"{"llm_calls":2,"failed_llm_calls":0,"prompt_tokens":1,"completion_tokens":1,"cache_read_tokens":0,"cost_usd":0.0,"calls_with_unknown_cost":0,"llm_latency_ms":1,"tool_calls":0,"ttft":{"kind":"not_applicable"}}"#;
+        let usage: RunUsage = serde_json::from_str(old).expect("de");
+        assert_eq!(usage.llm_calls, 2);
+        assert_eq!(usage.verdict_cache_hits, 0);
     }
 }

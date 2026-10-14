@@ -24,6 +24,22 @@ pub(crate) fn flush_exit_command_list(cmds: &mut Vec<(String, Vec<String>)>) {
     }
 }
 
+/// `["KEY=value", ...]` from a `process.run_ex` / `run_capture_ex` env argument, matching
+/// `vox_actor_runtime::builtins::vox_process_run_capture_ex` in compiled scripts.
+fn apply_env_pairs(cmd: &mut std::process::Command, env: Option<VoxValue>) {
+    let Some(VoxValue::List(pairs)) = env else {
+        return;
+    };
+    for pair in pairs.iter() {
+        if let VoxValue::Str(pair) = pair
+            && let Some((k, v)) = pair.split_once('=')
+            && !k.is_empty()
+        {
+            cmd.env(k, v);
+        }
+    }
+}
+
 fn voxvalue_as_table_str(v: &VoxValue) -> Option<Vec<Vec<String>>> {
     let VoxValue::List(rows) = v else {
         return None;
@@ -1765,7 +1781,7 @@ pub fn call_builtin_method(
                                     ),
                                     (
                                         "code".to_string(),
-                                        VoxValue::Int(out.status.code().unwrap_or(0) as i64),
+                                        VoxValue::Int(out.status.code().unwrap_or(-1) as i64),
                                     ),
                                 ];
                                 // Wrap in Option(Some(...)) to match the
@@ -1804,19 +1820,17 @@ pub fn call_builtin_method(
                             Some(VoxValue::Str(s)) => s,
                             _ => return Some(VoxValue::Null),
                         };
-                        let _env_list = it.next();
-
                         // run_ex returns Result[int] (exit code) on BOTH the
                         // std.process and bare-process surfaces (unified 2026-06).
                         // Callers needing stdout/stderr use run_capture_ex, which
                         // returns the full {exit, stdout, stderr} record.
-                        let res = match std::process::Command::new(&*cmd_name)
-                            .args(cmd_args.iter().map(|s| s.as_ref()))
-                            .current_dir(&*cwd)
-                            .status()
-                        {
+                        let mut cmd = std::process::Command::new(&*cmd_name);
+                        cmd.args(cmd_args.iter().map(|s| s.as_ref()))
+                            .current_dir(&*cwd);
+                        apply_env_pairs(&mut cmd, it.next());
+                        let res = match cmd.status() {
                             Ok(status) => {
-                                Ok(Box::new(VoxValue::Int(status.code().unwrap_or(0) as i64)))
+                                Ok(Box::new(VoxValue::Int(status.code().unwrap_or(-1) as i64)))
                             }
                             Err(e) => Err(e.to_string()),
                         };
@@ -2023,13 +2037,14 @@ pub fn call_builtin_method(
                         if with_cwd && let Some(VoxValue::Str(cwd)) = it.next() {
                             cmd.current_dir(&*cwd);
                         }
-                        // env list (arg 4) intentionally ignored here, matching
-                        // the run_ex interpreter behavior.
+                        if with_cwd {
+                            apply_env_pairs(&mut cmd, it.next());
+                        }
                         let res = match cmd.output() {
                             Ok(out) => Ok(Box::new(VoxValue::object(vec![
                                 (
                                     "exit".to_string(),
-                                    VoxValue::Int(out.status.code().unwrap_or(0) as i64),
+                                    VoxValue::Int(out.status.code().unwrap_or(-1) as i64),
                                 ),
                                 (
                                     "stdout".to_string(),

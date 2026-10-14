@@ -724,3 +724,55 @@ fn hash_fast_matches_vox_crypto() {
         "{v:?} != {expected}"
     );
 }
+
+/// `process.run_capture_ex` / `run_ex` env pairs must reach the child, as they do in
+/// compiled scripts. The interpreter used to drop them silently, so a script's isolation
+/// (`VOX_DATA_DIR=...`) and endpoint overrides never applied under `vox run`.
+#[cfg(unix)]
+#[test]
+fn run_capture_ex_passes_env_pairs_to_the_child() {
+    let source = r#"
+fn main() to bool {
+    let out = std.process.run_capture_ex("/usr/bin/env", [], ".", ["VOX_EVAL_PAIR_PROBE=yes"]).unwrap()
+    return out.stdout.contains("VOX_EVAL_PAIR_PROBE=yes")
+}
+"#;
+    assert_eq!(run_probe(source).expect("probe runs"), VoxValue::Bool(true));
+}
+
+#[cfg(unix)]
+#[test]
+fn run_ex_passes_env_pairs_to_the_child() {
+    let source = r#"
+fn main() to int {
+    return std.process.run_ex("/bin/sh", ["-c", "test \"$VOX_EVAL_PAIR_PROBE\" = yes"], ".", ["VOX_EVAL_PAIR_PROBE=yes"]).unwrap()
+}
+"#;
+    assert_eq!(run_probe(source).expect("probe runs"), VoxValue::Int(0));
+}
+
+#[cfg(unix)]
+#[test]
+fn run_ex_reports_a_signal_killed_child_as_failure() {
+    let source = r#"
+fn main() to int {
+    return std.process.run_ex("/bin/sh", ["-c", "kill -9 $$"], ".", []).unwrap()
+}
+"#;
+    assert_ne!(run_probe(source).expect("probe runs"), VoxValue::Int(0));
+}
+
+#[cfg(unix)]
+#[test]
+fn run_capture_ex_reports_a_signal_killed_child_as_failure() {
+    let source = r#"
+fn main() to bool {
+    let out = std.process.run_capture_ex("/bin/sh", ["-c", "kill -9 $$"], ".", []).unwrap()
+    return out.exit is 0
+}
+"#;
+    assert_eq!(
+        run_probe(source).expect("probe runs"),
+        VoxValue::Bool(false)
+    );
+}

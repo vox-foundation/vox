@@ -14,7 +14,7 @@ use super::{
 /// tests resolve chat models under `CHAT_MESSAGE_ENV_LOCK` — two separate
 /// mutexes let a pin set here leak into a resolution there. Sharing one lock
 /// serializes every writer against every reader.
-use crate::chat_tools::chat::agent_loop::CHAT_MESSAGE_ENV_LOCK as INFERENCE_PROFILE_TEST_LOCK;
+pub(crate) use crate::chat_tools::chat::agent_loop::CHAT_MESSAGE_ENV_LOCK as INFERENCE_PROFILE_TEST_LOCK;
 
 /// RAII guard that sets an env var and restores the prior value on drop
 /// (mirrors the vox-orchestrator select.rs test idiom). Callers must hold

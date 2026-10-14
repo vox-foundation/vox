@@ -22,7 +22,7 @@ pub struct KbAddEntryParams {
     pub kb_id: String,
     /// The content to store. Should be a self-contained atomic fact (~100-300 tokens).
     pub content: String,
-    /// Signal source: "chat", "research", "code_activity", "web", "explicit", "scientia".
+    /// Signal source: "chat", "research", "code_activity", "web", "explicit", "scientia", "documentation".
     #[serde(default = "default_explicit")]
     pub source_signal: String,
     /// Optional source reference (URL, file path, session ID).

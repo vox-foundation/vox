@@ -652,6 +652,7 @@ mod tests {
             let handle = orch.models_handle();
             let mut registry: std::sync::RwLockWriteGuard<'_, ModelRegistry> =
                 vox_orchestrator::sync_lock::rw_write(&*handle);
+            registry.clear();
             registry.register(spec);
         }
 
@@ -839,6 +840,7 @@ mod tests {
             let handle = orch.models_handle();
             let mut registry: std::sync::RwLockWriteGuard<'_, ModelRegistry> =
                 vox_orchestrator::sync_lock::rw_write(&*handle);
+            registry.clear();
             registry.register(mk("chat-lane-flagship", ModelTier::Elite, 0.0005));
             registry.register(mk("chat-lane-workhorse", ModelTier::Pro, 0.02));
         }

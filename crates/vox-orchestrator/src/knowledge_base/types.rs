@@ -42,6 +42,7 @@ pub enum KbEntrySource {
     Web,
     Explicit,
     Scientia,
+    Documentation,
 }
 
 impl KbEntrySource {
@@ -53,6 +54,7 @@ impl KbEntrySource {
             KbEntrySource::Web => "web",
             KbEntrySource::Explicit => "explicit",
             KbEntrySource::Scientia => "scientia",
+            KbEntrySource::Documentation => "documentation",
         }
     }
 }
@@ -98,6 +100,7 @@ mod tests {
         assert_eq!(KbEntrySource::Web.as_str(), "web");
         assert_eq!(KbEntrySource::Explicit.as_str(), "explicit");
         assert_eq!(KbEntrySource::Scientia.as_str(), "scientia");
+        assert_eq!(KbEntrySource::Documentation.as_str(), "documentation");
     }
 
     #[test]

@@ -17377,10 +17377,17 @@ name = "vox-doc-pipeline"
 version = "0.6.0"
 dependencies = [
  "anyhow",
+ "chrono",
+ "pulldown-cmark",
  "rayon",
+ "regex",
+ "serde",
  "serde_json",
+ "serde_yaml_ng",
+ "sha2 0.11.0",
  "vox-bounded-fs",
  "vox-compiler",
+ "walkdir",
  "workspace-hack",
 ]
 
@@ -17616,6 +17623,7 @@ dependencies = [
  "ignore",
  "libc",
  "portable-pty",
+ "reqwest 0.12.28",
  "rmp-serde",
  "serde",
  "serde_bytes",

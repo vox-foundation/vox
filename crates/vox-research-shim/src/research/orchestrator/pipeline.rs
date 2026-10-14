@@ -508,6 +508,7 @@ async fn run_research_metered(
         };
         // Cache hits are genuinely verified too (just cheaply, from a prior run).
         claims_verified_count = cached_verdicts.len() + fresh_verified_count;
+        super::super::metering::record_verdict_cache_hits(cached_verdicts.len());
 
         if let Some(db) = db
             && session_id > 0
@@ -890,7 +891,7 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
     };
 
     // ── (i) Evaluate final quality via judge ──────────────────────────────────
-    let (quality_score, judge_error) = match judge_quality(JudgeParams {
+    let judged = judge_quality(JudgeParams {
         query: &query.query,
         answer: &answer,
         citations: &citations,
@@ -900,14 +901,11 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
         temperature: config.judge_temperature,
         max_tokens: config.judge_max_tokens,
     })
-    .await
-    {
-        Ok(s) => (s, None),
-        Err(e) => {
-            tracing::warn!(error = %e, "research judge failed");
-            (config.fallback_quality_score, Some(e))
-        }
-    };
+    .await;
+    if let Err(e) = &judged {
+        tracing::warn!(error = %e, "research judge failed");
+    }
+    let (quality_score, judge_error) = judge_outcome(config, judged);
 
     let self_verification_enabled = matches!(routing_tier, RoutingTier::DeepResearch);
 
@@ -1214,11 +1212,26 @@ fn result_cache_enabled(config: &ResearchConfig) -> bool {
     !config.bypass_result_cache
 }
 
+/// A judge failure is Missing: quality 0 plus the error, never the configured fallback score.
+fn judge_outcome(_config: &ResearchConfig, result: Result<i32, String>) -> (i32, Option<String>) {
+    match result {
+        Ok(score) => (score, None),
+        Err(e) => (0, Some(e)),
+    }
+}
+
+/// The content-bearing event bridge writes query/claim JSON into `research_metrics`; trial runs must not (D-12).
+pub fn content_metrics_bridge_enabled(config: &ResearchConfig) -> bool {
+    config.trial_run_label.is_none()
+}
+
 fn emit_research_event(config: &ResearchConfig, db: Option<&Codex>, event: ResearchEvent) {
     if let Some(emitter) = config.event_emitter.as_ref() {
         emitter.emit(event.clone());
     }
-    if let Some(db) = db {
+    if let Some(db) = db
+        && content_metrics_bridge_enabled(config)
+    {
         crate::research::spawn_persist_research_event_for_metrics(db.clone(), event);
     }
 }
@@ -1779,5 +1792,98 @@ mod tests {
         assert!(result_cache_enabled(&cfg));
         cfg.bypass_result_cache = true;
         assert!(!result_cache_enabled(&cfg));
+    }
+
+    #[test]
+    fn judge_error_is_missing() {
+        let cfg = ResearchConfig {
+            fallback_quality_score: 40,
+            ..Default::default()
+        };
+        assert_eq!(
+            judge_outcome(&cfg, Err("boom".into())),
+            (0, Some("boom".into()))
+        );
+        assert_eq!(judge_outcome(&cfg, Ok(73)), (73, None));
+    }
+
+    const CANARY: &str = "canary-claim-text-7f3a";
+
+    fn candidate_event(session: i64) -> ResearchEvent {
+        ResearchEvent::FindingCandidateProposed {
+            finding_id: "f-1".into(),
+            claim_ids: vec![1],
+            worthiness_score: 0.9,
+            session_id: session.to_string(),
+            finding_candidate: Some(serde_json::json!({ "claim": CANARY })),
+        }
+    }
+
+    fn started_event(session: i64) -> ResearchEvent {
+        ResearchEvent::TelemetryObservation {
+            provider: "unit".into(),
+            metric_type: "research_started".into(),
+            value: 1.0,
+            session_id: session.to_string(),
+            recorded_at_ms: 1,
+        }
+    }
+
+    /// Polls up to 2 s until `metric` has at least one row for `session`.
+    async fn wait_for_metric(db: &Codex, session: i64, metric: &str) -> Vec<Option<String>> {
+        let deadline = Instant::now() + std::time::Duration::from_secs(2);
+        loop {
+            let rows = db
+                .list_research_metrics_by_session(&session.to_string(), Some(metric), 10)
+                .await
+                .expect("list");
+            if !rows.is_empty() || Instant::now() >= deadline {
+                return rows.into_iter().map(|r| r.3).collect();
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+        }
+    }
+
+    async fn memory_db_with_session() -> (Codex, i64) {
+        let db = vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
+            .await
+            .expect("memory db");
+        let sid = db
+            .create_research_session("bridge:test", "q")
+            .await
+            .expect("session");
+        (db, sid)
+    }
+
+    #[tokio::test]
+    async fn trial_run_skips_content_metrics_bridge() {
+        let (db, sid) = memory_db_with_session().await;
+        let trial = trial_config("run-abc");
+        assert!(!content_metrics_bridge_enabled(&trial));
+        emit_research_event(&trial, Some(&db), candidate_event(sid));
+        // Sentinel through the non-trial path proves the bridge task ran before we assert absence.
+        emit_research_event(&ResearchConfig::default(), Some(&db), started_event(sid));
+        assert_eq!(wait_for_metric(&db, sid, "research_started").await.len(), 1);
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        let rows = db
+            .list_research_metrics_by_session(
+                &sid.to_string(),
+                Some("scientia.finding_candidate_proposed"),
+                10,
+            )
+            .await
+            .expect("list");
+        assert!(rows.is_empty(), "trial run leaked content row: {rows:?}");
+    }
+
+    #[tokio::test]
+    async fn non_trial_run_keeps_metrics_bridge() {
+        let (db, sid) = memory_db_with_session().await;
+        let cfg = ResearchConfig::default();
+        assert!(content_metrics_bridge_enabled(&cfg));
+        emit_research_event(&cfg, Some(&db), candidate_event(sid));
+        let rows = wait_for_metric(&db, sid, "scientia.finding_candidate_proposed").await;
+        assert_eq!(rows.len(), 1);
+        assert!(rows[0].as_deref().is_some_and(|m| m.contains(CANARY)));
     }
 }

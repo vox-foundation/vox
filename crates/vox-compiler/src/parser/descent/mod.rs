@@ -59,7 +59,7 @@ pub fn parse_script(tokens: Vec<Spanned>) -> Result<Module, Vec<ParseError>> {
 /// Like [`parse_with_kind`], but also surfaces Warning-severity `ParseError`
 /// diagnostics accumulated during a *successful* parse (e.g. the tolerant `;`
 /// at statement boundaries, the `->` return-type deprecation warning, and the
-/// `==`/`!=` as `is`/`is not` alias warnings).
+/// `==`/`!=` as `is`/`isnt` alias warnings).
 ///
 /// `parse`/`parse_with_kind` intentionally keep their original
 /// `Result<Module, Vec<ParseError>>` signature — dozens of call sites across

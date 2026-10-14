@@ -11497,6 +11497,17 @@
       "curated": true
     },
     {
+      "capability_id": "cli.model.bench",
+      "cli_path": [
+        "model",
+        "bench"
+      ],
+      "implicit": false,
+      "title": "Model Bench",
+      "description_model": "CLI operation `vox model bench`",
+      "curated": true
+    },
+    {
       "capability_id": "cli.model.cas",
       "cli_path": [
         "model",
@@ -11596,6 +11607,17 @@
       "implicit": false,
       "title": "Model Eval",
       "description_model": "CLI operation `vox model eval`",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.model.eval-compare",
+      "cli_path": [
+        "model",
+        "eval-compare"
+      ],
+      "implicit": false,
+      "title": "Model Eval-compare",
+      "description_model": "CLI operation `vox model eval-compare`",
       "curated": true
     },
     {

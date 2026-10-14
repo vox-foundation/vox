@@ -47,7 +47,9 @@ pub struct ResearchConfig {
     pub judge_temperature: f32,
     /// Max tokens for the judge response.
     pub judge_max_tokens: u32,
-    /// Quality score returned when no LLM judge is available (keep below the persistence gates).
+    /// Legacy fallback score. Judge failures no longer use it: they are recorded as quality 0
+    /// plus `judge_error` so scoring treats them as Missing (SCORE-04, D-13). Kept because a
+    /// stages.rs test reads it.
     pub fallback_quality_score: i32,
     /// Max chars for the synthesis LLM context (hits + verdict text).
     pub synthesis_context_max_chars: usize,
