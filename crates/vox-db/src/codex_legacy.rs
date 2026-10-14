@@ -317,6 +317,7 @@ pub const LEGACY_EXPORT_TABLES: &[&str] = &[
     "workflow_activity_attempt_log",
     "workflow_activity_log",
     "workflow_executions",
+    "workflow_patch_log",
     "workflow_reliability",
     "workflow_run_log",
     "workflow_signal_log",
