@@ -64,7 +64,6 @@ Repository CI guard checks extracted from `vox-cli` (`vox ci *` implementation w
 | [`vox-scaling-policy`](./vox-scaling-policy.generated.md) | Normal |
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
 | [`vox-telemetry`](./vox-telemetry.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

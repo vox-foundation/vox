@@ -65,7 +65,6 @@ can hand-edit until the upstream HIR exposes switch metadata).
 |---|---|
 | [`vox-codegen`](./vox-codegen.generated.md) | Normal |
 | [`vox-compiler`](./vox-compiler.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 | [`vox-codegen`](./vox-codegen.generated.md) | Development |
 | [`vox-compiler`](./vox-compiler.generated.md) | Development |
 

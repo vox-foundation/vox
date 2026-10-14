@@ -26,7 +26,7 @@ Generate and verify docs/agents/doc-inventory.json (schema v3) without Python.
 
 ## Crate Overview
 
-Generate and verify [`doc-inventory.json`](../../docs/agents/doc-inventory.json) (schema v3).
+Generate and verify [`doc-inventory.json`](../../../docs/agents/doc-inventory.json) (schema v3).
 
 Replaces the retired Python inventory scripts; verify via `vox ci doc-inventory verify`.
 
@@ -37,5 +37,4 @@ Replaces the retired Python inventory scripts; verify via `vox ci doc-inventory 
 |---|---|
 | [`vox-bounded-fs`](./vox-bounded-fs.generated.md) | Normal |
 | [`vox-repository`](./vox-repository.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 

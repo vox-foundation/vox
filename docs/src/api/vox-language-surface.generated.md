@@ -38,12 +38,6 @@ depend on it without forming a cycle — `vox-compiler` depends on
 Keep lexer-derived lists aligned with `vox_compiler::lexer::token::Token`.
 
 
-## Workspace Dependencies
-
-| Dependency | Kind |
-|---|---|
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
-
 ## Public API Surface
 
 ### Constants

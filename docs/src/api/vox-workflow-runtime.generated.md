@@ -67,7 +67,6 @@ This crate is the MVP engine behind `vox mens workflow run` when `vox-cli` is bu
 | [`vox-mesh-transport`](./vox-mesh-transport.generated.md) | Normal |
 | [`vox-populi`](./vox-populi.generated.md) | Normal |
 | [`vox-runtime`](./vox-runtime.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 | [`vox-compiler`](./vox-compiler.generated.md) | Development |
 
 ## Public API Surface

@@ -46,12 +46,6 @@ vox-skills::SandboxedSkillRunner
 ```
 
 
-## Workspace Dependencies
-
-| Dependency | Kind |
-|---|---|
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
-
 ## Public API Surface
 
 ### Modules

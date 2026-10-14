@@ -31,12 +31,6 @@ OpenAI-compatible **non-streaming** chat completion JSON shapes (`/v1/chat/compl
 Streaming (`text/event-stream`) line assembly lives in `vox-openai-sse`.
 
 
-## Workspace Dependencies
-
-| Dependency | Kind |
-|---|---|
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
-
 ## Public API Surface
 
 ### Modules

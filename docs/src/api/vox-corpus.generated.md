@@ -50,7 +50,6 @@ Used by `vox-ml-cli` and downstream training pipelines.
 | [`vox-kb-facets`](./vox-kb-facets.generated.md) | Normal |
 | [`vox-mcp-registry`](./vox-mcp-registry.generated.md) | Normal |
 | [`vox-repository`](./vox-repository.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

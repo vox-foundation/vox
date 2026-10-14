@@ -46,7 +46,6 @@ Submodules:
 |---|---|
 | [`vox-config`](./vox-config.generated.md) | Normal |
 | [`vox-container-types`](./vox-container-types.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

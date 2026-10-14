@@ -26,7 +26,7 @@ Pure-data L0 leaf for vox-db: row types, IDs, schema descriptors.
 
 ## Crate Overview
 
-# vox-db-types — Pure data types for [`vox-db`](../vox_db/index.html)
+# vox-db-types — Pure data types for `vox-db`
 
 Lightweight crate holding parameter and row structs used by the `vox-db` facade.
 Consumers that only need types (not connection-bearing operations) can depend on

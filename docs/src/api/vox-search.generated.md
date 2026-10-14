@@ -56,7 +56,6 @@ Shared local-first retrieval execution for MCP, orchestrator, CLI, and A2A bridg
 | [`vox-http-client`](./vox-http-client.generated.md) | Normal |
 | [`vox-kb-facets`](./vox-kb-facets.generated.md) | Normal |
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 | [`vox-crypto`](./vox-crypto.generated.md) | Development |
 
 ## Public API Surface

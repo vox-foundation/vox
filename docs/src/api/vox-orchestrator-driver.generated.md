@@ -62,7 +62,6 @@ through the daemon instead, as `dei.rs`/`visus/mod.rs`/`live.rs`/
 |---|---|
 | [`vox-orchestrator`](./vox-orchestrator.generated.md) | Normal |
 | [`vox-repository`](./vox-repository.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

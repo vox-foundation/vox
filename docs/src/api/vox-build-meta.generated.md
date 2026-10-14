@@ -43,12 +43,6 @@ This crate has no runtime dependencies — it must only be used as a
 `[build-dependencies]` entry.
 
 
-## Workspace Dependencies
-
-| Dependency | Kind |
-|---|---|
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
-
 ## Public API Surface
 
 ### Functions

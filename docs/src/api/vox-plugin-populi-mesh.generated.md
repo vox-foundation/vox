@@ -52,5 +52,4 @@ the MeshDriver trait rather than calling vox-populi::transport directly.
 | [`vox-populi`](./vox-populi.generated.md) | Normal |
 | [`vox-repository`](./vox-repository.generated.md) | Normal |
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 

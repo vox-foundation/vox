@@ -40,7 +40,6 @@ HardwareProbe interface via `VoxPlugin::as_hardware_probe()`.
 |---|---|
 | [`vox-plugin-api`](./vox-plugin-api.generated.md) | Normal |
 | [`vox-plugin-sdk`](./vox-plugin-sdk.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

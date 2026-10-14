@@ -48,7 +48,6 @@ introspection, and migration helpers for brownfield database interop.
 | [`vox-ast`](./vox-ast.generated.md) | Normal |
 | [`vox-db`](./vox-db.generated.md) | Normal |
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

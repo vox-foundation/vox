@@ -79,7 +79,6 @@ The **`mens`** module holds Burn/Candle QLoRA training (`--features mens …`).
 | [`vox-repository`](./vox-repository.generated.md) | Normal |
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
 | [`vox-tensor`](./vox-tensor.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

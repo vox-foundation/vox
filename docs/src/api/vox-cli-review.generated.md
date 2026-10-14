@@ -44,7 +44,6 @@ vox-cli depends on it optionally behind its own `coderabbit` feature.
 | [`vox-graph-reader`](./vox-graph-reader.generated.md) | Normal |
 | [`vox-http-client`](./vox-http-client.generated.md) | Normal |
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

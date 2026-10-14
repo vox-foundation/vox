@@ -45,7 +45,6 @@ Standalone TypeScript codegen crate (sources also embedded in `vox-codegen` via 
 | [`vox-deploy-codegen`](./vox-deploy-codegen.generated.md) | Normal |
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
 | [`vox-sql`](./vox-sql.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 | [`vox-codegen`](./vox-codegen.generated.md) | Development |
 | [`vox-compiler`](./vox-compiler.generated.md) | Development |
 

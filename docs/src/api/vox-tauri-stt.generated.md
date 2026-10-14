@@ -45,12 +45,6 @@ target (`vox build --target=mobile`) via `@vox/runtime-rn`. See `README.md`.
 | `default` | — |
 | `tauri-plugin` | dep:tauri |
 
-## Workspace Dependencies
-
-| Dependency | Kind |
-|---|---|
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
-
 ## Public API Surface
 
 ### Modules

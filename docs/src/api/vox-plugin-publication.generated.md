@@ -48,7 +48,6 @@ deps (`feed-rs`, `fnv`, platform HTTP clients). Users opt in via:
 | [`vox-publisher`](./vox-publisher.generated.md) | Normal |
 | [`vox-scientia`](./vox-scientia.generated.md) | Normal |
 | [`vox-search`](./vox-search.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

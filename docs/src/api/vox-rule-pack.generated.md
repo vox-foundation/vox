@@ -32,12 +32,6 @@ Declarative rule-pack loader. Loads YAML rule definitions used by
 See `docs/src/architecture/2026-05-09-detector-rule-ssot-design.md`.
 
 
-## Workspace Dependencies
-
-| Dependency | Kind |
-|---|---|
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
-
 ## Public API Surface
 
 ### Modules

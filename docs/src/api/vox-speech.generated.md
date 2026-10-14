@@ -54,7 +54,6 @@ STT runs through **Sherpa-ONNX** in-process (`stt-sherpa`) or **Candle Whisper**
 | [`vox-http-client`](./vox-http-client.generated.md) | Normal |
 | [`vox-populi`](./vox-populi.generated.md) | Normal |
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

@@ -47,7 +47,6 @@ Shared validation helpers used by the LSP binary and MCP / orchestrator quality 
 | [`vox-foundation`](./vox-foundation.generated.md) | Normal |
 | [`vox-gamify`](./vox-gamify.generated.md) | Normal |
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

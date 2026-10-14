@@ -35,7 +35,6 @@ Shared Vox project scaffolding for **`vox init`** and MCP **`vox_project_init`**
 |---|---|
 | [`vox-package-types`](./vox-package-types.generated.md) | Normal |
 | [`vox-repository`](./vox-repository.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

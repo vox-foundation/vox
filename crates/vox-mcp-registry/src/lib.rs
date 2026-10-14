@@ -17,7 +17,7 @@ pub use profile::{
 };
 pub use subsystem::{Subsystem, subsystem_closure};
 
-/// One MCP tool row: identity, bell-curve [`product_lane`](McpToolRegistryEntry::product_lane),
+/// One MCP tool row: identity, bell-curve `product_lane`,
 /// and capability-profile exposure metadata.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct McpToolRegistryEntry {

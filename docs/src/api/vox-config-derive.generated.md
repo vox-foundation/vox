@@ -37,7 +37,6 @@ compile error directing it to `vox-secrets`.
 
 | Dependency | Kind |
 |---|---|
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 | [`vox-config`](./vox-config.generated.md) | Development |
 
 ## Public API Surface

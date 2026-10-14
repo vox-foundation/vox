@@ -45,7 +45,6 @@ and diverging implementations across Rust, TypeScript, Vox source files, and the
 | [`vox-code-audit`](./vox-code-audit.generated.md) | Normal |
 | [`vox-compiler`](./vox-compiler.generated.md) | Normal |
 | [`vox-config`](./vox-config.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

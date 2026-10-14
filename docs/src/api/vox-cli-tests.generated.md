@@ -27,7 +27,7 @@ End-to-end CLI integration tests for `vox build` and friends — runs the CLI as
 ## Crate Overview
 
 Shared helpers for the CLI integration test harness (Phase 0.3 of
-[mobile-rn-expo-implementation-spec-2026.md](../../docs/src/architecture/mobile-rn-expo-implementation-spec-2026.md) §1).
+[mobile-rn-expo-implementation-spec-2026.md](../../../docs/src/architecture/mobile-rn-expo-implementation-spec-2026.md) §1).
 
 The harness runs `cargo run -p vox-cli -- build <fixture>.vox -o <tempdir>` as a subprocess
 and asserts the emitted output is real, not stubbed. Each fixture sits in
@@ -54,7 +54,6 @@ out per-step when the toolchain isn't available.
 
 | Dependency | Kind |
 |---|---|
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 | [`vox-cli`](./vox-cli.generated.md) | Development |
 | [`vox-codegen`](./vox-codegen.generated.md) | Development |
 | [`vox-compiler`](./vox-compiler.generated.md) | Development |

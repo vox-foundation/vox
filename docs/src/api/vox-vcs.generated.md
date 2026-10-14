@@ -55,7 +55,6 @@ all types remain available.
 | Dependency | Kind |
 |---|---|
 | [`vox-config`](./vox-config.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

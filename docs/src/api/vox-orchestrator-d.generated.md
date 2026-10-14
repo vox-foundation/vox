@@ -45,7 +45,6 @@ and runs [`daemon_steps::DAEMON_STEPS`] through [`boot_plan::run_boot_plan`].
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
 | [`vox-skills`](./vox-skills.generated.md) | Normal |
 | [`vox-terminal-core`](./vox-terminal-core.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

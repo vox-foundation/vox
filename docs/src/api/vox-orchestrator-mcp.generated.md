@@ -96,7 +96,6 @@ Extracted from `vox-orchestrator/src/mcp_tools/` in 2026-05-08 reorg Phase 4.
 | [`vox-skills`](./vox-skills.generated.md) | Normal |
 | [`vox-speech`](./vox-speech.generated.md) | Normal |
 | [`vox-telemetry`](./vox-telemetry.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 | [`vox-orchestrator`](./vox-orchestrator.generated.md) | Development |
 | [`vox-plugin-api`](./vox-plugin-api.generated.md) | Development |
 

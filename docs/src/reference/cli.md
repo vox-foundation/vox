@@ -504,7 +504,7 @@ Formats a **`.vox`** file using [`vox_compiler::fmt::try_format`](../../../crate
 
 **Grouped Latin path:** `vox diag doctor …` — identical behavior; `diag` is the **registry `latin_ns`** bucket for diagnostics (see [Nomenclature migration map](../archive/research-2026-q1/nomenclature-migration-map.md#latin_ns-command-registry-group-labels)). Prefer `vox doctor` in new prose; use `vox diag doctor` when teaching the Latin lane.
 
-Development environment checks (Rust/Cargo, Node/pnpm, Git, optional Docker/Podman, `Vox.toml`, Codex workspace registration, API keys, etc.). With **`VOX_WEB_TS_OUT`** set to your **`vox build`** TypeScript output directory, doctor also verifies **`@v0`** components use **named** exports for TanStack **`routes {`** (see [`env-vars.md`](env-vars.md#web--vite--tanstack-codegen)).
+Development environment checks (Rust/Cargo, Node/pnpm, Git, optional Docker/Podman, `Vox.toml`, Codex workspace registration, API keys, etc.). With **`VOX_WEB_TS_OUT`** set to your **`vox build`** TypeScript output directory, doctor also verifies **`@v0`** components use **named** exports for TanStack **`routes {`** (see [`env-vars.md`](env-vars.md)).
 
 **Cross-compile preflight:** **`--compile-target <TRIPLE>`** runs rustup-target / Android SDK / Xcode probes aligned with **`vox compile --triple`** (e.g. `aarch64-linux-android`, `aarch64-apple-ios-sim`).
 
@@ -537,7 +537,7 @@ Discovery/data-prep operator commands: `vox db publication-discovery-scan`, `vox
 
 ### `vox telemetry`
 
-**Optional operator upload path** — not default-on, not product telemetry. Local JSON spool under `.vox/telemetry-upload-queue` (or `VOX_TELEMETRY_SPOOL_DIR`), explicit **`vox telemetry upload`**, secrets via Clavis (`VOX_TELEMETRY_UPLOAD_URL`, `VOX_TELEMETRY_UPLOAD_TOKEN`). Subcommands: **`vox telemetry status`**, **`vox telemetry export`**, **`vox telemetry enqueue --json <file>`**, **`vox telemetry upload`** (`--dry-run` supported). See [ADR 023](../adr/023-optional-telemetry-remote-upload.md), [telemetry remote sink spec](../archive/research-2026-q1/telemetry-remote-sink-spec.md), [env-vars](env-vars.md#optional-telemetry-upload-vox-telemetry).
+**Optional operator upload path** — not default-on, not product telemetry. Local JSON spool under `.vox/telemetry-upload-queue` (or `VOX_TELEMETRY_SPOOL_DIR`), explicit **`vox telemetry upload`**, secrets via Clavis (`VOX_TELEMETRY_UPLOAD_URL`, `VOX_TELEMETRY_UPLOAD_TOKEN`). Subcommands: **`vox telemetry status`**, **`vox telemetry export`**, **`vox telemetry enqueue --json <file>`**, **`vox telemetry upload`** (`--dry-run` supported). See [ADR 023](../adr/023-optional-telemetry-remote-upload.md), [telemetry remote sink spec](../archive/research-2026-q1/telemetry-remote-sink-spec.md), [env-vars](env-vars.md).
 
 ### `vox scientia`
 

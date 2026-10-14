@@ -60,7 +60,6 @@ GitBridge (this crate)
 | Dependency | Kind |
 |---|---|
 | [`vox-bounded-fs`](./vox-bounded-fs.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

@@ -46,7 +46,6 @@ Install with: `vox plugin install runtime-container`
 | [`vox-container-types`](./vox-container-types.generated.md) | Normal |
 | [`vox-plugin-api`](./vox-plugin-api.generated.md) | Normal |
 | [`vox-skill-runtime`](./vox-skill-runtime.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

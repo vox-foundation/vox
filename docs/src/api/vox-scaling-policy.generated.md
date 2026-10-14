@@ -26,7 +26,7 @@ Bounded-resource scaling policy types from the Vox project.
 
 ## Crate Overview
 
-Scaling policy loaded from the repo SSOT [`contracts/scaling/policy.yaml`](../../contracts/scaling/policy.yaml).
+Scaling policy loaded from the repo SSOT [`contracts/scaling/policy.yaml`](../../../contracts/scaling/policy.yaml).
 
 Use [`ScalingPolicy::embedded`] for stable defaults without I/O. For local overrides in tests,
 use [`ScalingPolicy::from_yaml_str`].
@@ -37,7 +37,6 @@ use [`ScalingPolicy::from_yaml_str`].
 | Dependency | Kind |
 |---|---|
 | [`vox-mesh-types`](./vox-mesh-types.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

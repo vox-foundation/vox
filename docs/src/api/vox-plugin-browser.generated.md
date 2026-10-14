@@ -40,5 +40,4 @@ for transitional consumers that haven't yet migrated to the plugin host.
 |---|---|
 | [`vox-config`](./vox-config.generated.md) | Normal |
 | [`vox-plugin-api`](./vox-plugin-api.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 

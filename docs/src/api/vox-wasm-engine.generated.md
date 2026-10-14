@@ -41,12 +41,6 @@ One engine builder, one preopen mapper, one exit-code handler — no duplication
 of Wasmtime boilerplate across call sites.
 
 
-## Workspace Dependencies
-
-| Dependency | Kind |
-|---|---|
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
-
 ## Public API Surface
 
 ### Structs

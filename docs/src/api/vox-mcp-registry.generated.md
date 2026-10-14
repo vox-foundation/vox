@@ -31,19 +31,13 @@ MCP tool registry built from `contracts/mcp/tool-registry.canonical.yaml`.
 Consume [`TOOL_REGISTRY`] instead of duplicating name/description tables.
 
 
-## Workspace Dependencies
-
-| Dependency | Kind |
-|---|---|
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
-
 ## Public API Surface
 
 ### Structs
 
 | Struct | Description |
 |---|---|
-| `McpToolRegistryEntry` | One MCP tool row: identity, bell-curve [`product_lane`](McpToolRegistryEntry::product_lane), and capability-profile exposure metadata. |
+| `McpToolRegistryEntry` | One MCP tool row: identity, bell-curve `product_lane`, and capability-profile exposure metadata. |
 
 ### Functions
 

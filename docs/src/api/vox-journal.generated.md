@@ -53,5 +53,4 @@ every Android + iOS architecture.
 | Dependency | Kind |
 |---|---|
 | [`vox-runtime`](./vox-runtime.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 

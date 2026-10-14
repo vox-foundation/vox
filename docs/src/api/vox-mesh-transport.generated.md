@@ -50,7 +50,6 @@ gets a sandbox by default.
 | Dependency | Kind |
 |---|---|
 | [`vox-mesh-types`](./vox-mesh-types.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 | [`vox-mesh-types`](./vox-mesh-types.generated.md) | Development |
 
 ## Public API Surface

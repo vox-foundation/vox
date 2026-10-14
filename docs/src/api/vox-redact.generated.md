@@ -34,12 +34,6 @@ Redaction is conservative: unknown patterns are left as-is. Only patterns with
 high precision (low false-positive rate) are elided.
 
 
-## Workspace Dependencies
-
-| Dependency | Kind |
-|---|---|
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
-
 ## Public API Surface
 
 ### Functions

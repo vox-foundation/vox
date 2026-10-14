@@ -42,7 +42,6 @@ attempt to resolve or dlopen its dylib.
 | [`vox-plugin-types`](./vox-plugin-types.generated.md) | Normal |
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
 | [`vox-telemetry`](./vox-telemetry.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 | [`vox-config`](./vox-config.generated.md) | Development |
 
 ## Public API Surface

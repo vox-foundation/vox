@@ -38,7 +38,6 @@ never installs, executes, or publishes.
 | [`vox-mcp-registry`](./vox-mcp-registry.generated.md) | Normal |
 | [`vox-plugin-types`](./vox-plugin-types.generated.md) | Normal |
 | [`vox-similarity`](./vox-similarity.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

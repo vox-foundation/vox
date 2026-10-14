@@ -80,7 +80,6 @@ code moved verbatim.
 | [`vox-db`](./vox-db.generated.md) | Normal |
 | [`vox-hf-layout`](./vox-hf-layout.generated.md) | Normal |
 | [`vox-tensor`](./vox-tensor.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

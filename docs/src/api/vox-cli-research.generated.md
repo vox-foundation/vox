@@ -53,7 +53,6 @@ Research commands (run/eval/infra/mesh-intake) extracted from vox-cli.
 | [`vox-research-shim`](./vox-research-shim.generated.md) | Normal |
 | [`vox-search`](./vox-search.generated.md) | Normal |
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

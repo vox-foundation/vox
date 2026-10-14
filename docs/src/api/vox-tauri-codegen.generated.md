@@ -43,7 +43,6 @@ Tauri / Android / iOS packaging map (see `docs/src/adr/036-webir-hir-unification
 | Dependency | Kind |
 |---|---|
 | [`vox-compiler`](./vox-compiler.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

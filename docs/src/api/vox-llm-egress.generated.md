@@ -39,7 +39,6 @@ callers need to record telemetry themselves.
 |---|---|
 | [`vox-http-client`](./vox-http-client.generated.md) | Normal |
 | [`vox-openai`](./vox-openai.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

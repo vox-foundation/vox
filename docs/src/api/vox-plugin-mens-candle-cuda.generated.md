@@ -61,7 +61,6 @@ See: docs/src/architecture/plugin-system-redesign-2026.md
 | [`vox-plugin-mens-candle-core`](./vox-plugin-mens-candle-core.generated.md) | Normal |
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
 | [`vox-tensor`](./vox-tensor.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

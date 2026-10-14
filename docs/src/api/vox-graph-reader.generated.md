@@ -46,12 +46,6 @@ a `forward` index (source→target = caller→callee, `Direction::Out`), and a `
 | `default` | tree-sitter-grammars |
 | `tree-sitter-grammars` | dep:tree-sitter, dep:tree-sitter-rust, dep:tree-sitter-typescript, dep:tree-sitter-python |
 
-## Workspace Dependencies
-
-| Dependency | Kind |
-|---|---|
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
-
 ## Public API Surface
 
 ### Modules

@@ -43,7 +43,6 @@ is a graph artifact, not a real dependency of this crate's own compilation.)
 | [`vox-bounded-fs`](./vox-bounded-fs.generated.md) | Normal |
 | [`vox-config`](./vox-config.generated.md) | Normal |
 | [`vox-jsonschema-util`](./vox-jsonschema-util.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

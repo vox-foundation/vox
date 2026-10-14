@@ -58,7 +58,6 @@ module; blanket Rustdoc on every `pub use` alias would add noise without semanti
 | [`vox-shell-stdlib-types`](./vox-shell-stdlib-types.generated.md) | Normal |
 | [`vox-skills`](./vox-skills.generated.md) | Normal |
 | [`vox-telemetry`](./vox-telemetry.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 | [`vox-crypto`](./vox-crypto.generated.md) | Development |
 
 ## Public API Surface

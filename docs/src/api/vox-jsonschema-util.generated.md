@@ -31,12 +31,6 @@ Compile [`serde_json::Value`] JSON Schemas with [`jsonschema`] and validate inst
 File I/O stays with callers (e.g. `vox_bounded_fs`); this crate only centralizes compile/validate.
 
 
-## Workspace Dependencies
-
-| Dependency | Kind |
-|---|---|
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
-
 ## Public API Surface
 
 ### Modules

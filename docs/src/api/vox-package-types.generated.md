@@ -31,12 +31,6 @@ types, package_kind enum, resolver request/response types. No async,
 no DB, no compiler dependency.
 
 
-## Workspace Dependencies
-
-| Dependency | Kind |
-|---|---|
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
-
 ## Public API Surface
 
 ### Modules

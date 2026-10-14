@@ -49,7 +49,6 @@ Shared library for CLI primitives.
 | [`vox-orchestrator-driver`](./vox-orchestrator-driver.generated.md) | Normal |
 | [`vox-repository`](./vox-repository.generated.md) | Normal |
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 | [`vox-bounded-fs`](./vox-bounded-fs.generated.md) | Development |
 | [`vox-jsonschema-util`](./vox-jsonschema-util.generated.md) | Development |
 

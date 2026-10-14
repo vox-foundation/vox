@@ -39,7 +39,6 @@ See `docs/superpowers/specs/2026-05-28-effort-audit-core-design.md`.
 | [`vox-config`](./vox-config.generated.md) | Normal |
 | [`vox-git`](./vox-git.generated.md) | Normal |
 | [`vox-telemetry`](./vox-telemetry.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

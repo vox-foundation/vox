@@ -30,12 +30,6 @@ Pure near-duplicate similarity core: simhash + minhash signatures, an LSH
 band index, clustering, and one-vs-many overlap. No filesystem, DB, or network.
 
 
-## Workspace Dependencies
-
-| Dependency | Kind |
-|---|---|
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
-
 ## Public API Surface
 
 ### Modules

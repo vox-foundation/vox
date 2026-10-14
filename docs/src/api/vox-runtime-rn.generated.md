@@ -64,7 +64,6 @@ Until those land, the JS-side `@vox/runtime-rn` throws an explicit
 |---|---|
 | [`vox-journal`](./vox-journal.generated.md) | Normal |
 | [`vox-runtime`](./vox-runtime.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

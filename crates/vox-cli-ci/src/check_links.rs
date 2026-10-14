@@ -174,10 +174,13 @@ pub fn run(repo_root: &Path, target: Option<&Path>) -> Result<()> {
             for cap in link_re.captures_iter(line) {
                 let target_full = &cap[1];
 
-                // Skip external links and local anchors
+                // Skip external links, local anchors, and intra-doc Rust symbol references
                 if target_full.starts_with("http")
                     || target_full.starts_with("#")
                     || target_full.starts_with("mailto:")
+                    || target_full.starts_with("file:")
+                    || target_full.starts_with("javascript:")
+                    || target_full.contains("::")
                 {
                     continue;
                 }
@@ -363,5 +366,24 @@ fn collect_docs_root_guides(docs_dir: &Path, out: &mut Vec<std::path::PathBuf>) 
         if entry.file_type().is_file() && entry.path().extension().is_some_and(|ext| ext == "md") {
             out.push(entry.path().to_path_buf());
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_strip_source_line_suffix() {
+        assert_eq!(strip_source_line_suffix("foo.rs:12"), "foo.rs");
+        assert_eq!(strip_source_line_suffix("foo.rs:12-24"), "foo.rs");
+        assert_eq!(strip_source_line_suffix("some_text"), "some_text");
+    }
+
+    #[test]
+    fn test_run_nonexistent_target_skips() {
+        let temp = tempfile::tempdir().unwrap();
+        let missing = temp.path().join("does_not_exist");
+        assert!(run(temp.path(), Some(&missing)).is_ok());
     }
 }

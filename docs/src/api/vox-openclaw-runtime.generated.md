@@ -46,7 +46,6 @@ import from `vox_openclaw_runtime::*`.
 | [`vox-http-client`](./vox-http-client.generated.md) | Normal |
 | [`vox-plugin-host`](./vox-plugin-host.generated.md) | Normal |
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

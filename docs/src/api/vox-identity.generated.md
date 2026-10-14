@@ -34,7 +34,6 @@ Vox identity: per-user keypair, signing challenges, trust ledger.
 | Dependency | Kind |
 |---|---|
 | [`vox-crypto`](./vox-crypto.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

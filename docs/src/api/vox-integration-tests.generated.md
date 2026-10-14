@@ -42,7 +42,6 @@ independently, which is exactly the risk the negative-control test exists to cat
 
 | Dependency | Kind |
 |---|---|
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 | [`vox-actor-runtime`](./vox-actor-runtime.generated.md) | Development |
 | [`vox-bounded-fs`](./vox-bounded-fs.generated.md) | Development |
 | [`vox-cli`](./vox-cli.generated.md) | Development |

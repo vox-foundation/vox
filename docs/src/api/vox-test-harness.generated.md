@@ -48,7 +48,6 @@ use vox_test_harness::pipeline::{parse_str_unwrap, typecheck_str};
 | [`vox-compiler`](./vox-compiler.generated.md) | Normal |
 | [`vox-config`](./vox-config.generated.md) | Normal |
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

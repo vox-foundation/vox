@@ -26,16 +26,10 @@ Transport-independent capability registry (YAML SSOT) + Mens chat tool descripto
 
 ## Crate Overview
 
-Capability registry: transport-independent SSOT in [`contracts/capability/capability-registry.yaml`](../../contracts/capability/capability-registry.yaml).
+Capability registry: transport-independent SSOT in [`contracts/capability/capability-registry.yaml`](../../../contracts/capability/capability-registry.yaml).
 
 - Mens chat uses [`default_registry`] (curated MCP rows).
 - `vox ci command-compliance` validates cross-registry consistency.
 - [`crate::manifest::build_model_manifest`] emits planner / external-model JSON.
 
-
-## Workspace Dependencies
-
-| Dependency | Kind |
-|---|---|
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 

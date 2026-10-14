@@ -51,7 +51,6 @@ Submodules carry detailed docs; the crate root re-exports stable types for embed
 | [`vox-package`](./vox-package.generated.md) | Normal |
 | [`vox-plugin-host`](./vox-plugin-host.generated.md) | Normal |
 | [`vox-skill-runtime`](./vox-skill-runtime.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 | [`vox-db`](./vox-db.generated.md) | Development |
 
 ## Public API Surface

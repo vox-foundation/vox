@@ -39,7 +39,6 @@ Used by:
 | Dependency | Kind |
 |---|---|
 | [`vox-actor-runtime`](./vox-actor-runtime.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

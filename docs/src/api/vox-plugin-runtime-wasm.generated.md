@@ -54,7 +54,6 @@ Install: `vox plugin install runtime-wasm`
 | [`vox-plugin-api`](./vox-plugin-api.generated.md) | Normal |
 | [`vox-skill-runtime`](./vox-skill-runtime.generated.md) | Normal |
 | [`vox-wasm-engine`](./vox-wasm-engine.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

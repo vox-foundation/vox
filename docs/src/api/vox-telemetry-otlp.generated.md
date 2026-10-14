@@ -43,7 +43,6 @@ OTLP egress for vox-telemetry. The pure core (project/redact/otlp_json) always c
 | Dependency | Kind |
 |---|---|
 | [`vox-telemetry`](./vox-telemetry.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

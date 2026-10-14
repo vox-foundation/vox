@@ -46,12 +46,6 @@ cargo run -p vox-wire-format-validator -- --update
 Commit the resulting change to `src/expected_hash.rs`.
 
 
-## Workspace Dependencies
-
-| Dependency | Kind |
-|---|---|
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
-
 ## Public API Surface
 
 ### Modules

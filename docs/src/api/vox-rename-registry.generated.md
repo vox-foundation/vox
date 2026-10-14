@@ -32,12 +32,6 @@ Extracted from `vox-compiler` so tooling (arch-check, vox-cli migrate) can
 use it without pulling in the full compiler crate. Zero workspace deps.
 
 
-## Workspace Dependencies
-
-| Dependency | Kind |
-|---|---|
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
-
 ## Public API Surface
 
 ### Modules

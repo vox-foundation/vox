@@ -86,7 +86,6 @@ Vox ML, AI, and Telemetry command-line interface.
 | [`vox-speech`](./vox-speech.generated.md) | Normal |
 | [`vox-tensor`](./vox-tensor.generated.md) | Normal |
 | [`vox-workflow-runtime`](./vox-workflow-runtime.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

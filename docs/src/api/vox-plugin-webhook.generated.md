@@ -54,5 +54,4 @@ D-14: the listener is fail closed and inert until the host starts it.
 | [`vox-config`](./vox-config.generated.md) | Normal |
 | [`vox-http-client`](./vox-http-client.generated.md) | Normal |
 | [`vox-plugin-api`](./vox-plugin-api.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 

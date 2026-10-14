@@ -49,7 +49,6 @@ All features work fully offline with deterministic fallbacks.
 | [`vox-mesh-types`](./vox-mesh-types.generated.md) | Normal |
 | [`vox-openai`](./vox-openai.generated.md) | Normal |
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

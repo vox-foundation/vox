@@ -37,7 +37,6 @@ DB-free CLI for writing in the Vox language: check, fmt, run, build.
 | [`vox-codegen`](./vox-codegen.generated.md) | Normal |
 | [`vox-compiler`](./vox-compiler.generated.md) | Normal |
 | [`vox-lsp`](./vox-lsp.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 | [`vox-config`](./vox-config.generated.md) | Development |
 
 ## Public API Surface

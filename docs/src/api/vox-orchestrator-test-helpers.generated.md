@@ -37,7 +37,6 @@ This crate is `kind = "test-only"` per `layers.toml` — production code must no
 |---|---|
 | [`vox-orchestrator`](./vox-orchestrator.generated.md) | Normal |
 | [`vox-orchestrator-types`](./vox-orchestrator-types.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

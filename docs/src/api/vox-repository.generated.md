@@ -43,7 +43,6 @@ Discover the logical repository root (Git work tree or fallback), compute a stab
 |---|---|
 | [`vox-bounded-fs`](./vox-bounded-fs.generated.md) | Normal |
 | [`vox-config`](./vox-config.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

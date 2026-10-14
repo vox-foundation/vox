@@ -32,9 +32,3 @@ Run from repo root after schema edits:
 `cargo run -p vox-scientia-jsonschema-codegen`
 
 
-## Workspace Dependencies
-
-| Dependency | Kind |
-|---|---|
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
-

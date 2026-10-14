@@ -260,7 +260,13 @@ pub fn run(repo_root: &Path, write: bool) -> Result<()> {
         if !surface.crate_docs.is_empty() {
             doc.push_str("## Crate Overview\n\n");
             for line in &surface.crate_docs {
-                doc.push_str(line);
+                // Adjust relative links written from the perspective of crates/<crate>/ (../../ or ../../../)
+                // so that in docs/src/api/ they reach the repo root (../../../).
+                let adjusted = line
+                    .replace("(../../../", "___REPO_ROOT___")
+                    .replace("(../../", "(../../../")
+                    .replace("___REPO_ROOT___", "(../../../");
+                doc.push_str(&adjusted);
                 doc.push('\n');
             }
             doc.push_str("\n\n");
@@ -292,7 +298,7 @@ pub fn run(repo_root: &Path, write: bool) -> Result<()> {
         let ws_deps: Vec<_> = pkg
             .dependencies
             .iter()
-            .filter(|d| d.path.is_some())
+            .filter(|d| d.path.is_some() && d.name != "workspace-hack")
             .collect();
         if !ws_deps.is_empty() {
             doc.push_str("## Workspace Dependencies\n\n");
@@ -431,4 +437,38 @@ pub fn run(repo_root: &Path, write: bool) -> Result<()> {
 
     println!("crate-api-sync OK ({} crates)", packages.len());
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_normalize_lf() {
+        assert_eq!(normalize_lf("a\r\nb\r"), "a\nb\n");
+    }
+
+    #[test]
+    fn test_escape_table_cell() {
+        assert_eq!(escape_table_cell("a | b\n c"), "a \\| b  c");
+    }
+
+    #[test]
+    fn test_parse_lib_rs_empty() {
+        let surface = parse_lib_rs("");
+        assert!(surface.crate_docs.is_empty());
+        assert!(surface.modules.is_empty());
+        assert!(surface.structs.is_empty());
+    }
+
+    #[test]
+    fn test_run_in_valid_repo() {
+        let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap();
+        // Verify mode (write=false) should succeed on clean repo
+        assert!(run(repo_root, false).is_ok());
+    }
 }

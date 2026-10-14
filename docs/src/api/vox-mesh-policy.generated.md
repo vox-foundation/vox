@@ -38,7 +38,6 @@ owns the pretty-print round-trip.
 | Dependency | Kind |
 |---|---|
 | [`vox-mesh-types`](./vox-mesh-types.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

@@ -29,12 +29,6 @@ Pure-Rust crypto primitives (chacha20poly1305 AEAD, ed25519, x25519); sole crypt
 Cryptographic primitives and thin facades (hashing, signing, age/x25519).
 
 
-## Workspace Dependencies
-
-| Dependency | Kind |
-|---|---|
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
-
 ## Public API Surface
 
 ### Modules

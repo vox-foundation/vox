@@ -40,7 +40,6 @@ See `docs/superpowers/specs/2026-05-30-effort-route-design.md`.
 | [`vox-effort-audit`](./vox-effort-audit.generated.md) | Normal |
 | [`vox-git`](./vox-git.generated.md) | Normal |
 | [`vox-telemetry`](./vox-telemetry.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

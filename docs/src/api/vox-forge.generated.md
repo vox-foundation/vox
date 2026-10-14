@@ -61,7 +61,6 @@ All internal Vox code uses `ChangeRequest` instead of "PR" or "MR".
 | Dependency | Kind |
 |---|---|
 | [`vox-http-client`](./vox-http-client.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

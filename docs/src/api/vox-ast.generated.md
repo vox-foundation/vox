@@ -50,12 +50,6 @@ Diagnostics and LSP use these directly; they are not grapheme- or line-aware.
 See `docs/src/reference/lexicon.md` for naming aligned with the grammar.
 
 
-## Workspace Dependencies
-
-| Dependency | Kind |
-|---|---|
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
-
 ## Public API Surface
 
 ### Modules

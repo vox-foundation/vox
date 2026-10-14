@@ -60,7 +60,6 @@ Syndication / scientia publishing surfaces (Reddit, YouTube, scholarly external 
 | [`vox-research-events`](./vox-research-events.generated.md) | Normal |
 | [`vox-scientia`](./vox-scientia.generated.md) | Normal |
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 | [`vox-research-events`](./vox-research-events.generated.md) | Development |
 
 ## Public API Surface

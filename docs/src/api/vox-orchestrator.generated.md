@@ -117,7 +117,6 @@ Mens live in mdBook [`mens-training-ssot.md`](../../../docs/src/architecture/men
 | [`vox-speech`](./vox-speech.generated.md) | Normal |
 | [`vox-telemetry`](./vox-telemetry.generated.md) | Normal |
 | [`vox-vcs`](./vox-vcs.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 | [`vox-actor-runtime`](./vox-actor-runtime.generated.md) | Development |
 | [`vox-test-harness`](./vox-test-harness.generated.md) | Development |
 

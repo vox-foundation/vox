@@ -59,7 +59,6 @@ never reimplements the agent loop.
 | [`vox-journal`](./vox-journal.generated.md) | Normal |
 | [`vox-orchestrator`](./vox-orchestrator.generated.md) | Normal |
 | [`vox-redact`](./vox-redact.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

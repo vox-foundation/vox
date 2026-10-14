@@ -49,5 +49,4 @@ extracted from vox-speech (Unit 4 of the vox-populi extraction follow-up plan).
 | [`vox-plugin-api`](./vox-plugin-api.generated.md) | Normal |
 | [`vox-plugin-sdk`](./vox-plugin-sdk.generated.md) | Normal |
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 

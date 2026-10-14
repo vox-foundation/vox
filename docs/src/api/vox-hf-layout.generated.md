@@ -35,7 +35,6 @@ SSOT for `vox-populi` MENS tensor code and `vox-plugin-mens-candle-cuda`.
 | Dependency | Kind |
 |---|---|
 | [`vox-bounded-fs`](./vox-bounded-fs.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

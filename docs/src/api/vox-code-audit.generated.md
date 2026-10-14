@@ -52,7 +52,6 @@ own file where non-obvious heuristics exist.
 | [`vox-scaling-policy`](./vox-scaling-policy.generated.md) | Normal |
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
 | [`vox-telemetry`](./vox-telemetry.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

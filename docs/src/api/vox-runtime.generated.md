@@ -65,7 +65,6 @@ types declared here once the underlying runtimes adopt them.
 | Dependency | Kind |
 |---|---|
 | [`vox-config`](./vox-config.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

@@ -61,7 +61,6 @@ Native Tauri GUI for Vox
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
 | [`vox-speech`](./vox-speech.generated.md) | Normal |
 | [`vox-terminal-core`](./vox-terminal-core.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 | [`vox-orchestrator`](./vox-orchestrator.generated.md) | Development |
 | [`vox-build-meta`](./vox-build-meta.generated.md) | Build |
 

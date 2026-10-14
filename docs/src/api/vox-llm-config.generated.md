@@ -41,12 +41,6 @@ persistence + config class) — never secret *values* (those resolve via Clavis 
 the typed env-resolving accessors live in `vox-config`).
 
 
-## Workspace Dependencies
-
-| Dependency | Kind |
-|---|---|
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
-
 ## Public API Surface
 
 ### Structs

@@ -132,7 +132,6 @@ For the end-user CLI surface and subcommand map, see the `vox` binary crate root
 | [`vox-telemetry-otlp`](./vox-telemetry-otlp.generated.md) | Normal |
 | [`vox-term`](./vox-term.generated.md) | Normal |
 | [`vox-workflow-runtime`](./vox-workflow-runtime.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 | [`vox-db`](./vox-db.generated.md) | Development |
 | [`vox-orchestrator`](./vox-orchestrator.generated.md) | Development |
 | [`vox-sql`](./vox-sql.generated.md) | Development |

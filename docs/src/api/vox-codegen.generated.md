@@ -51,7 +51,6 @@ analysis-stage iteration.
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
 | [`vox-sql`](./vox-sql.generated.md) | Normal |
 | [`vox-tauri-codegen`](./vox-tauri-codegen.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 | [`vox-workflow-runtime`](./vox-workflow-runtime.generated.md) | Development |
 
 ## Public API Surface

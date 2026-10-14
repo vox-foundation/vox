@@ -37,12 +37,6 @@ process execution — safe to depend on from any layer.
 - [`exec_grammar`] — pure shell AST parser + risk classifier
 
 
-## Workspace Dependencies
-
-| Dependency | Kind |
-|---|---|
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
-
 ## Public API Surface
 
 ### Modules

@@ -58,7 +58,6 @@ path — consumers need only update their import root.
 | [`vox-scientia`](./vox-scientia.generated.md) | Normal |
 | [`vox-search`](./vox-search.generated.md) | Normal |
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 | [`vox-scientia`](./vox-scientia.generated.md) | Development |
 
 ## Public API Surface

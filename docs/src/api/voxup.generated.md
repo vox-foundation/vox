@@ -42,7 +42,6 @@ commands):
 | Dependency | Kind |
 |---|---|
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 | [`vox-plugin-catalog`](./vox-plugin-catalog.generated.md) | Development |
 
 ## Public API Surface

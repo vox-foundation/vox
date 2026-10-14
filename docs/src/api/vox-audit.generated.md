@@ -70,7 +70,6 @@ per-subcommand `gate` / `corpus` / `block_ga` / `cost_metered` fields.
 | [`vox-package`](./vox-package.generated.md) | Normal |
 | [`vox-project-scaffold`](./vox-project-scaffold.generated.md) | Normal |
 | [`vox-telemetry`](./vox-telemetry.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

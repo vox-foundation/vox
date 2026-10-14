@@ -44,7 +44,6 @@ publisher, Populi, and other crates. Prefer it over per-crate copies of `bounded
 | Dependency | Kind |
 |---|---|
 | [`vox-scaling-policy`](./vox-scaling-policy.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

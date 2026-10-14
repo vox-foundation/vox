@@ -48,7 +48,6 @@ Precedence: CLI args > env > config file > defaults.
 | [`vox-llm-egress`](./vox-llm-egress.generated.md) | Normal |
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
 | [`vox-telemetry`](./vox-telemetry.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

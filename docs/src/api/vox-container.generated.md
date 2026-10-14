@@ -45,7 +45,6 @@ Deployment artifact codegen (Dockerfile, Compose, K8s, etc.) is in `vox-deploy-c
 | Dependency | Kind |
 |---|---|
 | [`vox-container-types`](./vox-container-types.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

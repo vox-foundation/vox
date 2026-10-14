@@ -31,12 +31,6 @@ Lightweight **evaluation metrics** for model outputs and Vox code samples (held-
 Functions are deterministic heuristics—not a replacement for human eval or full static analysis.
 
 
-## Workspace Dependencies
-
-| Dependency | Kind |
-|---|---|
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
-
 ## Public API Surface
 
 ### Modules

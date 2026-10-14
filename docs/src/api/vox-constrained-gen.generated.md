@@ -45,7 +45,6 @@ XGrammar-2/llguidance PDA backends achieve <40µs/token with native recursion su
 | Dependency | Kind |
 |---|---|
 | [`vox-grammar-export`](./vox-grammar-export.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

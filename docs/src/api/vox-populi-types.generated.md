@@ -42,7 +42,7 @@ they only need the data types.
 
 ## See also
 
-* [ADR-042](../../docs/src/architecture/adr-042-vox-populi-types.md)
+* [ADR-042](../../../docs/src/architecture/adr-042-vox-populi-types.md)
 
 
 ## Workspace Dependencies
@@ -51,7 +51,6 @@ they only need the data types.
 |---|---|
 | [`vox-mesh-types`](./vox-mesh-types.generated.md) | Normal |
 | [`vox-repository`](./vox-repository.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

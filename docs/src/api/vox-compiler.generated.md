@@ -58,7 +58,6 @@ or extend CI to scan `target/` / app output dirs; see `contracts/operations/comp
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
 | [`vox-shell-stdlib-types`](./vox-shell-stdlib-types.generated.md) | Normal |
 | [`vox-telemetry`](./vox-telemetry.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 | [`vox-codegen`](./vox-codegen.generated.md) | Development |
 | [`vox-codegen-ts`](./vox-codegen-ts.generated.md) | Development |
 | [`vox-jsonschema-util`](./vox-jsonschema-util.generated.md) | Development |

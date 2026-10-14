@@ -43,7 +43,6 @@ Secret resolution + redaction (env, vault, infisical, vox-vault backends).
 |---|---|
 | [`vox-bounded-fs`](./vox-bounded-fs.generated.md) | Normal |
 | [`vox-crypto`](./vox-crypto.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

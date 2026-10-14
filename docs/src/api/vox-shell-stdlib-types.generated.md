@@ -33,12 +33,6 @@ need the same file-record shape. This L0 crate holds the canonical definition
 so neither side has to duplicate it or create a cycle.
 
 
-## Workspace Dependencies
-
-| Dependency | Kind |
-|---|---|
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
-
 ## Public API Surface
 
 ### Modules

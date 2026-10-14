@@ -56,7 +56,6 @@ not planned in this crate.
 | [`vox-research-events`](./vox-research-events.generated.md) | Normal |
 | [`vox-search`](./vox-search.generated.md) | Normal |
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

@@ -56,7 +56,6 @@ assert_eq!(manifest.plugin.id, "test-plugin");
 | Dependency | Kind |
 |---|---|
 | [`vox-plugin-types`](./vox-plugin-types.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

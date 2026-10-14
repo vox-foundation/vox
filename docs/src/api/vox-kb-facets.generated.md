@@ -33,12 +33,6 @@ facets through this crate, so a doc cannot be eligible in one consumer and ineli
 another.
 
 
-## Workspace Dependencies
-
-| Dependency | Kind |
-|---|---|
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
-
 ## Public API Surface
 
 ### Modules

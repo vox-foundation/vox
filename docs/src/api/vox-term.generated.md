@@ -35,7 +35,6 @@ Re-exported so integration tests (`tests/`) can access modules.
 | Dependency | Kind |
 |---|---|
 | [`vox-terminal-core`](./vox-terminal-core.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

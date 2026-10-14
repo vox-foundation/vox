@@ -38,12 +38,6 @@ Shared [`reqwest::Client`] / [`reqwest::ClientBuilder`] presets for Vox outbound
 | `default` | — |
 | `middleware` | dep:async-trait, dep:http, dep:reqwest-middleware, dep:reqwest-retry, dep:tracing |
 
-## Workspace Dependencies
-
-| Dependency | Kind |
-|---|---|
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
-
 ## Public API Surface
 
 ### Modules

@@ -34,7 +34,6 @@ Grammar export schema + manifest types (TextMate, tree-sitter, EBNF targets).
 | Dependency | Kind |
 |---|---|
 | [`vox-language-surface`](./vox-language-surface.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 

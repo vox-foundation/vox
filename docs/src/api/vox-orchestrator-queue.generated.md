@@ -41,7 +41,6 @@ layer model.
 | [`vox-crypto`](./vox-crypto.generated.md) | Normal |
 | [`vox-db`](./vox-db.generated.md) | Normal |
 | [`vox-orchestrator-types`](./vox-orchestrator-types.generated.md) | Normal |
-| [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface
 
