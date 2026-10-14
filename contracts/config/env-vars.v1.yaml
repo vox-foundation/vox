@@ -1196,7 +1196,7 @@ variables:
     required: false
     introduced_in: "0.6.0"
     default: "0"
-    description: "1 or true (case-insensitive, trimmed; yes is not accepted; empty = off) advertises workspace-federated @tool functions in MCP tools/list (they are always dispatchable by name). Served only under the dev capability profile."
+    description: "1 or true (case-insensitive, trimmed; yes is not accepted; empty = off) advertises workspace-federated tool functions in MCP tools/list (they are always dispatchable by name). Served only under the dev capability profile."
   - name: "VOX_MCP_TOOL_ARG_SCHEMA_VALIDATE"
     owner_crate: "vox-ml-cli"
     kind: "string"

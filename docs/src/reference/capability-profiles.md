@@ -80,7 +80,7 @@ outside the profile are dropped with a warning. Read-token narrowing
 (`http_read_role_eligible`, `VOX_MCP_HTTP_READ_ROLE_ALLOWED_TOOLS`) applies on top, unchanged.
 Every browser tool, `vox_skill_use`, and `vox_search_structural` is denied to the read role.
 
-Workspace `@tool`s and skill macro tools are not in the static registry, so they are served only
+Workspace `tool`s and skill macro tools are not in the static registry, so they are served only
 under `dev`.
 
 ## Errors

@@ -306,7 +306,7 @@ Machine-derived from [`contracts/config/env-vars.v1.yaml`](../../../contracts/co
 | `VOX_MCP_TEST_INFER_STUB_BODY` | `vox-orchestrator` | string | No | 0.3.0 | TODO |
 | `VOX_MCP_TIERS` | `vox-orchestrator` | string | No | 0.3.0 | DEPRECATED (2026-10-08): alias for VOX_MCP_WORKSPACE_TOOLS. Values workspace or all advertise workspace-federated MCP tools (other values, including dev and advanced, do not); a warning is logged whenever it is set. Ignored when VOX_MCP_WORKSPACE_TOOLS is set. |
 | `VOX_MCP_TOOL_ARG_SCHEMA_VALIDATE` | `vox-ml-cli` | string | No | 0.3.0 | TODO |
-| `VOX_MCP_WORKSPACE_TOOLS` | `vox-orchestrator-mcp` | bool | No | 0.6.0 | 1 or true (case-insensitive, trimmed; yes is not accepted; empty = off) advertises workspace-federated @tool functions in MCP tools/list (they are always dispatchable by name). Served only under the dev capability profile. |
+| `VOX_MCP_WORKSPACE_TOOLS` | `vox-orchestrator-mcp` | bool | No | 0.6.0 | 1 or true (case-insensitive, trimmed; yes is not accepted; empty = off) advertises workspace-federated tool functions in MCP tools/list (they are always dispatchable by name). Served only under the dev capability profile. |
 | `VOX_MENS_ACT_F32` | `vox-plugin-mens-candle-cuda` | bool | No | 0.6.0 | MENS QLoRA: force F32 activations/embeddings (escape hatch when BF16 matmul paths fail). |
 | `VOX_MENS_BACKGROUND` | `vox-cli` | bool | No | 0.5.0 | MENS training / eval CLI: run GPU work in background mode. |
 | `VOX_MENS_DEVICE` | `vox-cli` | string | No | 0.6.0 | MENS pipeline training device override (e.g. cuda, metal) for mens CLI workflows. |
