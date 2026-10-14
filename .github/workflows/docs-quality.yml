@@ -192,7 +192,7 @@ jobs:
         run: npx playwright test tests/reader-layout.spec.ts --reporter=line
 
       - name: Upload reader layout review bundle
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: reader-layout-review-bundle
