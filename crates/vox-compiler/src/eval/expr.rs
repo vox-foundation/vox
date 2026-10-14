@@ -433,7 +433,7 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     }
                     "workflow_wait_signal" => {
                         let key = match eval_args.first() {
-                            Some(VoxValue::Str(s)) => s.clone(),
+                            Some(VoxValue::Str(s)) => s.to_string(),
                             other => {
                                 return Err(EvalError::Panic(format!(
                                     "workflow_wait_signal expects str key, got {other:?}"

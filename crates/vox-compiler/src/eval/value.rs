@@ -189,7 +189,7 @@ impl VoxValue {
                 .ok_or_else(|| JournalDecodeError {
                     message: format!("unrepresentable number: {n}"),
                 }),
-            J::String(s) => Ok(VoxValue::Str(s.clone())),
+            J::String(s) => Ok(VoxValue::Str(s.as_str().into())),
             J::Array(items) => Ok(VoxValue::list(
                 items
                     .iter()
@@ -353,7 +353,7 @@ mod journal_json_tests {
         let v = VoxValue::Result(Ok(Box::new(VoxValue::Str("tx_5".into()))));
         match roundtrip(v) {
             VoxValue::Result(Ok(inner)) => {
-                assert!(matches!(*inner, VoxValue::Str(ref s) if s == "tx_5"))
+                assert!(matches!(*inner, VoxValue::Str(ref s) if s.as_ref() == "tx_5"))
             }
             other => panic!("expected Result(Ok(Str)), got {other:?}"),
         }
@@ -364,7 +364,7 @@ mod journal_json_tests {
         let v = VoxValue::Result(Err(Box::new(VoxValue::Str("declined".into()))));
         match roundtrip(v) {
             VoxValue::Result(Err(inner)) => {
-                assert!(matches!(*inner, VoxValue::Str(ref s) if s == "declined"))
+                assert!(matches!(*inner, VoxValue::Str(ref s) if s.as_ref() == "declined"))
             }
             other => panic!("expected Result(Err(Str)), got {other:?}"),
         }

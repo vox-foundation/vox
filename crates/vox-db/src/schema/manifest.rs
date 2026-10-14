@@ -165,14 +165,6 @@ pub const SCHEMA_FRAGMENTS: &[SchemaFragment] = &[
         name: "history_entries",
         sql: domains::history::SCHEMA_HISTORY,
     },
-    SchemaFragment {
-        name: "model_bench",
-        sql: domains::model_bench::SCHEMA_MODEL_BENCH,
-    },
-    SchemaFragment {
-        name: "kb",
-        sql: domains::kb::SCHEMA_KB,
-    },
 ];
 
 /// Hex encoded Keccak-256 digest of [`baseline_sql`].

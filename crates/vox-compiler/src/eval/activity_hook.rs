@@ -749,7 +749,7 @@ workflow wf(amount: int) to int {
         match some {
             VoxValue::Object(fields) => {
                 assert!(fields.iter().any(|(k, v)| k == "activity_id"
-                    && matches!(v, VoxValue::Str(s) if s == "explicit-1")));
+                    && matches!(v, VoxValue::Str(s) if s.as_ref() == "explicit-1")));
             }
             other => panic!("expected object options, got {other:?}"),
         }

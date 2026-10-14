@@ -82,7 +82,7 @@ impl Printer {
                 for arm in arms {
                     self.write_indent();
                     self.print_pattern(&arm.pattern);
-                    self.out.push_str(" -> ");
+                    self.out.push_str(" => ");
                     self.print_expr(&arm.body);
                     self.out.push('\n');
                 }
@@ -94,15 +94,24 @@ impl Printer {
         }
     }
 
+    /// Exhaustive on purpose: a new `BinOp` must get a spelling here, not a placeholder
+    /// that `vox fmt` would write out and then fail to re-parse.
     fn print_binop(&mut self, op: BinOp) {
         self.out.push_str(match op {
             BinOp::Add => "+",
             BinOp::Sub => "-",
             BinOp::Mul => "*",
             BinOp::Div => "/",
+            BinOp::Mod => "%",
+            BinOp::Lt => "<",
+            BinOp::Gt => ">",
+            BinOp::Lte => "<=",
+            BinOp::Gte => ">=",
+            BinOp::And => "and",
+            BinOp::Or => "or",
             BinOp::Is => "is",
             BinOp::Isnt => "isnt",
-            _ => "??",
+            BinOp::Pipe => "|>",
         });
     }
 
@@ -128,7 +137,30 @@ impl Printer {
         match p {
             Pattern::Ident { name, .. } => self.out.push_str(name),
             Pattern::Wildcard { .. } => self.out.push('_'),
-            _ => self.out.push_str("pat"),
+            Pattern::Tuple { elements, .. } => {
+                self.out.push('(');
+                for (i, el) in elements.iter().enumerate() {
+                    if i > 0 {
+                        self.out.push_str(", ");
+                    }
+                    self.print_pattern(el);
+                }
+                self.out.push(')');
+            }
+            Pattern::Constructor { name, fields, .. } => {
+                self.out.push_str(name);
+                if !fields.is_empty() {
+                    self.out.push('(');
+                    for (i, f) in fields.iter().enumerate() {
+                        if i > 0 {
+                            self.out.push_str(", ");
+                        }
+                        self.print_pattern(f);
+                    }
+                    self.out.push(')');
+                }
+            }
+            Pattern::Literal { value, .. } => self.print_expr(value),
         }
     }
 }
