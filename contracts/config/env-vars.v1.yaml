@@ -4116,6 +4116,12 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
+  - name: "VOX_WORKFLOW_RUN_ID"
+    owner_crate: "vox-codegen"
+    kind: "string"
+    required: false
+    introduced_in: "0.6.0"
+    description: "durable run id for generated workflow binaries"
   - name: "VOX_WORKSPACE_JOURNEY_FALLBACK_CANONICAL"
     owner_crate: "vox-cli"
     kind: "string"

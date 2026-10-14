@@ -8,10 +8,25 @@ schema_type: "TechArticle"
 ---
 # Explanation: Durable Execution
 
-Understand the current durability boundary in Vox. Today, durable execution is a workflow feature of the interpreted runtime used by `vox mens workflow ...`, not a blanket guarantee for every compiled Vox program.
+> [!NOTE]
+> **What is true as of Phase 6.** The interpreted runner executes activity
+> bodies and journals their real return values. Resume replays completed
+> `activity_id`s. `workflow_wait` parks the run with a persisted `wake_at_ms`
+> (not an in-process sleep). `workflow_wait_signal` parks until a signal
+> arrives. `with { }` and `workflow.version` are implemented. Generated
+> workflows (`vox build`) use the same `VoxDbTracker` engine as
+> `vox mens workflow run`. Interp is **Stable** for the body-first subset
+> (`if` / `match` / `for` / `while` / `?`). Nested workflow calls and mesh /
+> `PopuliActivity` remain unsupported (loud error, not a silent drop). See
+> [True workflow durability](../architecture/true-workflow-durability-design-2026.md).
+
+Understand the current durability boundary in Vox. Durable execution is a workflow feature of one engine — the interpreted runner used by `vox mens workflow ...` and by generated wrappers (`vox build`) — not a blanket guarantee for every compiled Vox program.
 
 > [!NOTE]
-> **Interpreted Durability vs Compiled Async**: The durable path today specifically relies on the interpreted `vox mens workflow` runner to track execution steps in the journal. Workflows compiled to Rust under standard operation (`vox build`) currently execute as standard `async fn` constructs without the automatic state machine generation built in.
+> **One engine, two entry points.** `vox mens workflow run` and generated
+> Rust wrappers both call `interpret_workflow_durable` with a SQL
+> `VoxDbTracker`. Generated code is not a second linearizer and is not an
+> in-memory tracker.
 
 ## 1. The Journal System
 
@@ -33,9 +48,13 @@ If the interpreted runtime crashes mid-workflow, recovery currently works like t
 1. Restart the workflow runner with the same workflow, durable `run_id`, and stable activity ids.
 2. Read durable workflow tracking data from Codex / `VoxDb`.
 3. Load stored results for activities that were already recorded as completed for that run.
-4. Continue with the remaining steps.
+4. For completed steps, replay the journalled activity return value so the
+   workflow body continues without re-running that activity.
 
-This is narrower than a full workflow virtual machine. Generated Rust workflows do **not** yet replay arbitrary local variables, control-flow decisions, or stack state as a durable state machine.
+This is replay-from-the-top, not a process/VM checkpoint. Local variables are
+not snapshotted; they are recomputed as the body re-executes and completed
+activities return their stored results. Nested workflow calls and mesh /
+`PopuliActivity` are rejected with a loud error.
 
 ## 3. Exactly-Once Semantics
 
@@ -97,11 +116,10 @@ This keeps Vox from accidentally using one word for several different guarantees
 
 ## 8. Current Scope
 
-- **Supported durable path today:** interpreted workflows run through `vox mens workflow ...`
-- **Supported today:** stored step-result replay for linear interpreted workflows, deterministic `if` branch decision recording for literal-expression conditions, durable `workflow_wait(<duration>)` timer replay, durable `workflow_wait_signal(\"key\")` signal gating, cancellation-state enforcement for cancelled runs, and retry/backoff for interpreted `mesh_*` activity execution
-- **Partially implemented:** workflow syntax, generated Rust lowering, and broader orchestration semantics
-- **Not yet true:** durable execution for arbitrary compiled Vox programs or generated Rust workflow state machines
-- **Deferred on purpose:** generated-workflow parity, arbitrary-process replay, and general branching/loop replay until Vox has a formal replay model and ADR for those features
+- **Supported durable path today:** interpreted workflows through `vox mens workflow ...` and generated wrappers (`vox build`) that call the same runner
+- **Supported today:** real activity-body execution, journalled return values, `if` / `match` / `for` / `while` / `?`, durable `workflow_wait` (park + `wake_at_ms`) and `workflow_wait_signal` (park until signal), `with { }` / `workflow.version`, crash-resume via `VoxDbTracker`
+- **Out of subset (loud error):** nested workflow calls; mesh / `PopuliActivity`
+- **Not offered:** process/VM checkpointing, exactly-once for arbitrary I/O, durable execution for every compiled Vox `async fn`
 
 ---
 

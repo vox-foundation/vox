@@ -38,6 +38,7 @@ use std::sync::OnceLock;
 //     Digest re-updated, still 96 (no BASELINE_VERSION bump needed): the legacy VoxKB DDL
 //     (knowledge_bases, kb_entries, kb_routing_rules) moved into domains::quarantine behind
 //     the `quarantine` feature (03-12). Existing databases keep the tables and their rows.
+//     Also includes workflow durability tables (workflow_run_log.args_json, wake_at_ms/parked_reason, workflow_patch_log).
 pub const BASELINE_VERSION: i64 = 96;
 
 /// One ordered SQL slice (domain-scoped DDL); empty bodies are skipped in [`baseline_sql`].
@@ -163,6 +164,14 @@ pub const SCHEMA_FRAGMENTS: &[SchemaFragment] = &[
     SchemaFragment {
         name: "history_entries",
         sql: domains::history::SCHEMA_HISTORY,
+    },
+    SchemaFragment {
+        name: "model_bench",
+        sql: domains::model_bench::SCHEMA_MODEL_BENCH,
+    },
+    SchemaFragment {
+        name: "kb",
+        sql: domains::kb::SCHEMA_KB,
     },
 ];
 

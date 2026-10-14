@@ -71,3 +71,11 @@ tables:
     kind: ms_days
     days: 180
     time_column: detected_at_ms
+  # workflow.version() patch decisions (true-workflow-durability Task 5.2).
+  # Keyed by (workflow_name, change_id), not run_id — a decision must outlive
+  # any single run so every future run of that workflow replays the same
+  # choice. Deleting a row would let a later run re-decide a patch a prior
+  # run already committed to, which is a correctness hazard, not just data
+  # loss — never auto-prune.
+  workflow_patch_log:
+    kind: keep_forever

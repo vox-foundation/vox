@@ -9,6 +9,12 @@ training_rationale: "Audit establishing that all Vox durability/scheduling featu
 
 # Durability & Scheduling Runtime Audit (2026)
 
+> [!NOTE]
+> **Superseded (2026-09-06).** This audit describes the tree as of 2026-05-01 and
+> states there is no journal. There is one, and ADR-019 froze it. Local activity
+> bodies are still stubs. Current design:
+> [True workflow durability](true-workflow-durability-design-2026.md).
+
 **Conducted:** 2026-05-01  
 **Scope:** `@scheduled`, `@durable`, `DurabilityKind`, `actor`/`workflow`/`activity` keywords, `vox-orchestrator`
 

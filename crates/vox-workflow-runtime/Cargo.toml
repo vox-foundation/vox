@@ -46,6 +46,7 @@ workspace-hack = { version = "0.6", path = "../workspace-hack" }
 [dev-dependencies]
 vox-compiler = { workspace = true }
 jsonschema = { workspace = true, default-features = false, features = ["resolve-file"] }
+tempfile = { workspace = true }
 
 [lints]
 workspace = true

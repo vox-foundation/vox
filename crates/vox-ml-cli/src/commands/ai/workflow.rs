@@ -218,12 +218,17 @@ pub async fn run_workflow(
             )
         })?;
 
-    if let Err(e) = serde_json::from_str::<Vec<serde_json::Value>>(args_json) {
-        anyhow::bail!(
+    let parsed_args: Vec<serde_json::Value> = serde_json::from_str(args_json).map_err(|e| {
+        anyhow::anyhow!(
             "Invalid --args JSON (must be array, e.g. [\"a\",42]): {}",
             e
-        );
-    }
+        )
+    })?;
+    // The non-workflow-runtime build path below forwards `args_json` (the raw
+    // string) to the generated binary via `VOX_WORKFLOW_ARGS` instead of the
+    // parsed `Vec<Value>`, since that path re-parses it out-of-process.
+    #[cfg(not(feature = "workflow-runtime"))]
+    let _ = &parsed_args;
 
     #[cfg(feature = "workflow-runtime")]
     {
@@ -262,6 +267,7 @@ pub async fn run_workflow(
         let journal = vox_workflow_runtime::interpret_workflow_durable(
             &result.hir,
             workflow_name,
+            parsed_args,
             &mut tracker,
         )
         .await?;

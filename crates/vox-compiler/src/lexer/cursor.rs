@@ -249,6 +249,12 @@ mod tests {
     }
 
     #[test]
+    fn test_integer_literal_allows_digit_separators() {
+        let tokens = lex_tokens("3_600_000");
+        assert_eq!(tokens, vec![Token::IntLit(3_600_000), Token::Eof]);
+    }
+
+    #[test]
     fn test_identifiers() {
         let tokens = lex_tokens("foo bar_baz MyType Result");
         assert_eq!(

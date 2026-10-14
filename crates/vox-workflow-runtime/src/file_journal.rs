@@ -335,7 +335,7 @@ impl WorkflowTracker for FileJournalTracker {
         workflow_name: &str,
         change_id: &str,
         version: u32,
-    ) -> impl std::future::Future<Output = Result<()>> + Send {
+    ) -> impl std::future::Future<Output = Result<u32>> + Send {
         let entry = JournalEntry::WorkflowPatch {
             v: JOURNAL_SCHEMA_VERSION,
             workflow_name: workflow_name.to_string(),
@@ -348,7 +348,11 @@ impl WorkflowTracker for FileJournalTracker {
         {
             m.insert((workflow_name.to_string(), change_id.to_string()), version);
         }
-        async move { write }
+        // `&mut self` makes this tracker single-writer within a process (no
+        // concurrent callers can race here the way `VoxDbTracker` callers
+        // can), so there is no canonical-vs-local split to reconcile: the
+        // version just written is always the version to report back.
+        async move { write.map(|()| version) }
     }
 }
 

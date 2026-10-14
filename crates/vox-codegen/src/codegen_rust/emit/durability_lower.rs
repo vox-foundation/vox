@@ -61,22 +61,79 @@ pub(super) fn workflow_rust_return_type(ret: Option<&HirType>) -> String {
     }
 }
 
+/// Resolve + connect the durable `VoxDb` for generated workflow wrappers.
+/// Same resolution as `main_boot::emit_durable_boot_prelude`: always
+/// `DbConfig::resolve_canonical()` (honors `VOX_DB_*`, else the user-global
+/// file). Isolation is the caller's job — the ADR-021 gate already sets
+/// `VOX_DB_PATH`.
+fn emit_vox_db_connect_snippet() -> &'static str {
+    "    let __vox_db_cfg = ::vox_db::DbConfig::resolve_canonical()\n\
+     \x20       .map_err(|e| format!(\"vox durable workflow: resolve VoxDb config (VOX_DB_URL+TOKEN, or VOX_DB_PATH): {e}\"))?;\n\
+     \x20   let __vox_db = ::std::sync::Arc::new(\n\
+     \x20       ::vox_db::VoxDb::connect(__vox_db_cfg)\n\
+     \x20           .await\n\
+     \x20           .map_err(|e| format!(\"vox durable workflow: connect VoxDb: {e}\"))?,\n\
+     \x20   );\n"
+}
+
 fn emit_workflow_body(func: &HirFn) -> String {
     let name = &func.name;
     let hash = func.generated_hash.as_deref().unwrap_or("UNSTAMPED");
     let mut out = String::new();
-    out.push_str("    // P2-T7: workflow body lowered to interpret_workflow_durable\n");
+    out.push_str(
+        "    // Task 6.1: workflow body lowered to interpret_workflow_durable via the SQL tracker\n",
+    );
     out.push_str(&format!(
         "    let __vox_fn_hash: &'static str = \"{hash}\";\n"
     ));
     out.push_str("    let _ = __vox_fn_hash;\n");
     out.push_str("    let __vox_hir = ::vox_workflow_runtime::workflow::current_hir_module();\n");
-    out.push_str(
-        "    let mut __vox_tracker = ::vox_workflow_runtime::workflow::tracker::DefaultTracker;\n",
-    );
+    // ADR-021: generated workflows persist through the same SQL tracker
+    // (feature `sql`) that `vox mens workflow run` uses, not an in-memory
+    // no-op tracker. `VOX_WORKFLOW_RUN_ID` lets a caller resume/inspect a
+    // specific run; unset falls back to a fresh id per invocation.
     out.push_str(&format!(
-        "    let __vox_journal = ::vox_workflow_runtime::workflow::interpret_workflow_durable(__vox_hir, \"{name}\", &mut __vox_tracker).await.map_err(|e| e.to_string())?;\n"
+        "    let __vox_run_id: String = ::std::env::var(\"VOX_WORKFLOW_RUN_ID\").unwrap_or_else(|_| format!(\"{name}-run-{{}}-{{}}\", ::std::process::id(), ::std::time::SystemTime::now().duration_since(::std::time::UNIX_EPOCH).unwrap_or_default().as_nanos()));\n"
     ));
+    out.push_str(emit_vox_db_connect_snippet());
+    out.push_str(
+        "    let mut __vox_tracker = ::vox_workflow_runtime::VoxDbTracker::new(__vox_db, __vox_run_id);\n",
+    );
+    // G27 / Task 1.4: forward the workflow's actual call arguments (already
+    // bound as Rust locals by the emitted function header) as journal-JSON,
+    // so `interpret_workflow_durable` can persist `args_json` on the run row.
+    out.push_str("    let __vox_args: ::std::vec::Vec<::serde_json::Value> = ::std::vec![");
+    for param in &func.params {
+        out.push_str(&format!(
+            "::serde_json::to_value(&{p}).unwrap_or(::serde_json::Value::Null), ",
+            p = param.name
+        ));
+    }
+    out.push_str("];\n");
+    out.push_str(&format!(
+        "    let __vox_journal = ::vox_workflow_runtime::workflow::interpret_workflow_durable(__vox_hir, \"{name}\", __vox_args, &mut __vox_tracker).await.map_err(|e| e.to_string())?;\n"
+    ));
+    // ADR-021: `VOX_RUN_WORKFLOW=<this workflow>` debug dispatch calls this
+    // generated wrapper and expects the journal JSON on stdout (see
+    // `tests/adr021_parity.rs`). Match the value, not mere presence — an
+    // inherited env from another workflow must not print or kill the host.
+    out.push_str(&format!(
+        "    let __vox_debug_dispatch = ::std::env::var(\"VOX_RUN_WORKFLOW\").ok().as_deref().map(::str::trim) == Some({name:?});\n\
+         \x20   if __vox_debug_dispatch {{\n\
+         \x20       println!(\"{{}}\", ::serde_json::to_string(&__vox_journal).map_err(|e| e.to_string())?);\n\
+         \x20   }}\n"
+    ));
+    out.push_str(
+        "    let __vox_completed = __vox_journal.iter().rev().any(|__e| {\n\
+         \x20       __e.get(\"event\").and_then(::serde_json::Value::as_str) == Some(\"WorkflowCompleted\")\n\
+         \x20   });\n\
+         \x20   if !__vox_completed {\n\
+         \x20       if __vox_debug_dispatch {\n\
+         \x20           ::std::process::exit(0);\n\
+         \x20       }\n\
+         \x20       return Err(\"vox durable workflow: run parked (no WorkflowCompleted); resume with the same VOX_WORKFLOW_RUN_ID\".to_string());\n\
+         \x20   }\n",
+    );
     match &func.return_type {
         Some(ret) => out.push_str(&format!(
             "    Ok(::vox_workflow_runtime::workflow::extract_terminal_return::<{ty}>(&__vox_journal).map_err(|e| e.to_string())?)\n",
@@ -179,7 +236,7 @@ fn emit_activity_body(
         for stmt in &func.body {
             body.push_str(&emit_stmt(
                 stmt,
-                3,
+                2,
                 false,
                 false,
                 false,
@@ -190,14 +247,20 @@ fn emit_activity_body(
             ));
         }
     });
+    // Task 6.1: activities are invoked by the workflow interpreter via
+    // `HostRequest::Begin` / `HostDecision::Execute`|`Replay` — the
+    // interpreter itself owns record/replay through the workflow's
+    // `WorkflowTracker` (`VoxDbTracker` in the generated path). Wrapping the
+    // activity body in `journal::execute` here was dead weight: this
+    // generated fn is not on the interpreter's call path, so its own
+    // recording was unreachable and carried a second, conflicting id
+    // scheme. Emit the plain async body instead.
     let mut out = String::new();
-    out.push_str("    // P2-T7: activity body lowered to journal::execute\n");
     out.push_str(&format!(
-        "    ::vox_workflow_runtime::journal::execute(\"{activity_id}\", async move {{\n\
-         \x20       async fn {inner_name}({param_decls}) -> {inner_ret} {{\n{body}\
-         \x20       }}\n\
-         \x20       {inner_name}({call_args}).await\n\
-         \x20   }}).await.map_err(|e| e.to_string())\n",
+        "    // Task 6.1: activity body (activity_id \"{activity_id}\"; recorded by the workflow's WorkflowTracker, not here)\n\
+         \x20   async fn {inner_name}({param_decls}) -> {inner_ret} {{\n{body}\
+         \x20   }}\n\
+         \x20   {inner_name}({call_args}).await.map_err(|e| e.to_string())\n",
     ));
     out
 }

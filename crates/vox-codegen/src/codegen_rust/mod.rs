@@ -335,6 +335,32 @@ mod tests {
     }
 
     #[test]
+    fn app_emit_cargo_toml_enables_workflow_runtime_sql() {
+        let toml = emit_cargo_toml("demo_pkg", &empty_module());
+        assert!(
+            toml.contains("vox-workflow-runtime")
+                && toml.contains("features = [\"sql\"]")
+                && toml.contains("vox-db"),
+            "generated app Cargo.toml must enable workflow sql + vox-db:\n{toml}"
+        );
+    }
+
+    #[test]
+    fn tauri_cargo_toml_enables_workflow_runtime_sql() {
+        let out = generate(&empty_module(), "demo_pkg", RustAppShell::TauriApp).expect("generate");
+        let toml = out
+            .files
+            .get("src-tauri/Cargo.toml")
+            .expect("src-tauri/Cargo.toml");
+        assert!(
+            toml.contains("vox-workflow-runtime")
+                && toml.contains("features = [\"sql\"]")
+                && toml.contains("vox-db"),
+            "generated Tauri Cargo.toml must enable workflow sql + vox-db:\n{toml}"
+        );
+    }
+
+    #[test]
     fn app_emit_cargo_toml_includes_rust_import_lines() {
         let sp = Span::new(0, 0);
         let mut module = empty_module();

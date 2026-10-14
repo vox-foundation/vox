@@ -2730,7 +2730,7 @@ EOF
 
 ### Task 5.1: Call-site side table, not a wider `HirExpr::Call` tuple
 
-`HirExpr::Call` is `(Box<HirExpr>, Vec<HirArg>, bool, Span)`. Do **not** add `call_ordinal` to that tuple (G21). Stamp ordinals on a `HashMap<Span, u32>` (or a `HirFn` side table) at hook-install time. Identity becomes `(enclosing_fn, ordinal, iteration_index)`. Explicit `with { activity_id }` always wins; a duplicate explicit id in one run is an error. Completed-run resume **refuses**. Code-upgrade tests must use an in-flight (parked or crashed) `run_id`.
+`HirExpr::Call` is `(Box<HirExpr>, Vec<HirArg>, bool, Span)`. Do **not** add `call_ordinal` to that tuple (G21). Stamp ordinals on a `HashMap<Span, u32>` (or a `HirFn` side table) at hook-install time. Identity becomes `(enclosing_fn, callee, per-callee-ordinal, iteration_index)`. Explicit `with { activity_id }` always wins; a duplicate explicit id in one invocation is an error. Completed-run resume **refuses**. Code-upgrade tests must use an in-flight (parked or crashed) `run_id`.
 
 **Files:**
 - Modify: `crates/vox-compiler/src/eval/activity_hook.rs` (or a new `crates/vox-compiler/src/eval/call_ordinals.rs`)
@@ -2739,7 +2739,7 @@ EOF
 
 **Interfaces:**
 - Consumes: `HirModule` at `WorkflowHost::spawn`.
-- Produces: `pub fn stamp_call_ordinals(hir: &HirModule) -> HashMap<Span, u32>` walking each function body; `derive_activity_id(workflow, name, ordinal, iteration)`.
+- Produces: `pub fn stamp_call_ordinals(hir: &HirModule) -> HashMap<Span, u32>` walking each function body; `derive_activity_id(workflow, enclosing_fn, callee, ordinal, iteration)`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -2865,11 +2865,11 @@ Expected: FAIL — per-name counters still shift when `fresh` is inserted, and d
 
 - [ ] **Step 3: Implement side-table ids**
 
-Walk each `HirFn` body, assign `ordinal += 1` at every `HirExpr::Call` / `WorkflowVersion` / wait builtin. Key by `Span`. The hook looks up `callee_span` (pass it through `HostCall::Begin` as `span: Span` if needed — adding a field to `HostCall` is fine; adding a field to `HirExpr::Call` is not).
+Walk each `HirFn` body and assign a **per-callee** ordinal (`0, 1, 2, …` for that name inside the function) at every `HirExpr::Call` / `WorkflowVersion` / wait builtin. Key by `Span`. The hook looks up `callee_span` (pass it through `HostCall::Begin` as `span: Span` if needed — adding a field to `HostCall` is fine; adding a field to `HirExpr::Call` is not).
 
-`derive_activity_id` becomes BLAKE3 of `workflow \0 enclosing_fn \0 ordinal \0 iteration`. Track loop iteration on the interpreter (increment on `for`/`while` header, include in Begin).
+`derive_activity_id` becomes BLAKE3 of `workflow \0 enclosing_fn \0 call_key \0 ordinal \0 iteration`. `call_key` is the lexical identifier at the call site. An empty iteration stack means "not in a loop" and must not be coerced to `[0]`. Track loop iteration on the interpreter (increment on `for`/`while` header, include in Begin).
 
-On `Begin`, if `options.activity_id` is set, use it; if that string was already used in this run, `bail!`.
+On `Begin`, if `options.activity_id` is set, use it; if that string was already used in **this invocation**, `bail!`. A completed persisted id on resume must replay, not error.
 
 Completed-run policy in `interpret_workflow_durable`: if `tracker.run_status() == "completed"`, `anyhow::bail!("run already completed")`.
 

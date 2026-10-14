@@ -1,5 +1,6 @@
 pub use vox_eval::*;
 
+pub mod activity_hook;
 pub mod builtins;
 pub mod caps;
 pub mod db;
@@ -131,6 +132,8 @@ pub enum EvalError {
     /// SIGINT/SIGTERM requested via [`request_signal_exit`]. `run_interp`
     /// flushes exit commands on the interpreter thread, then exits 130.
     Interrupted,
+    /// A durable workflow step could not proceed. The run is parked, not failed.
+    WorkflowParked(String),
 }
 
 /// Default closure-application depth. Incremented only in `apply_closure`
@@ -202,6 +205,20 @@ pub struct Interpreter {
     pub max_eval_depth: usize,
     /// In-process filesystem budget. Both limits are unset for local developer runs.
     pub fs_quota: FsQuota,
+    pub activity_names: std::collections::HashSet<String>,
+    pub workflow_names: std::collections::HashSet<String>,
+    pub activity_hook: Option<crate::eval::activity_hook::ActivityHook>,
+    /// Durable call-site ordinals installed from the loaded HIR.
+    pub call_ordinals: std::collections::HashMap<crate::ast::span::Span, u32>,
+    /// Lexical call keys paired with [`Self::call_ordinals`].
+    pub call_keys: std::collections::HashMap<crate::ast::span::Span, String>,
+    /// Names of functions currently executing, used for durable call identity.
+    pub(crate) enclosing_fn_stack: Vec<String>,
+    /// Call-site path from the workflow down to the current call.
+    pub(crate) call_path: Vec<crate::eval::activity_hook::DurableCallFrame>,
+    pub(crate) iteration_stack: Vec<u32>,
+    /// Stack of `with { }` option objects; the innermost is attached to Begin.
+    pub with_options: Vec<crate::eval::value::VoxValue>,
 }
 
 impl Interpreter {
@@ -417,6 +434,15 @@ impl Interpreter {
             eval_depth: 0,
             max_eval_depth: MAX_EVAL_DEPTH,
             fs_quota: FsQuota::default(),
+            activity_names: std::collections::HashSet::new(),
+            workflow_names: std::collections::HashSet::new(),
+            activity_hook: None,
+            call_ordinals: std::collections::HashMap::new(),
+            call_keys: std::collections::HashMap::new(),
+            enclosing_fn_stack: Vec::new(),
+            call_path: Vec::new(),
+            iteration_stack: Vec::new(),
+            with_options: Vec::new(),
         }
     }
 
@@ -685,6 +711,7 @@ impl Interpreter {
         let val = self
             .scope
             .get(name)
+            .or_else(|| self.module_scope.get(name))
             .cloned()
             .ok_or_else(|| EvalError::UndefinedVariable(name.to_string()))?;
         if let VoxValue::Fn {
@@ -732,15 +759,20 @@ impl Interpreter {
             // failed call cannot leak scope state into a later reuse of the
             // interpreter (e.g. the `@test` runner).
             let result: Result<VoxValue, EvalError> = (|| {
+                self.enclosing_fn_stack.push(fn_name.clone());
                 let mut res = VoxValue::Null;
-                for s in body.iter() {
-                    res = stmt::eval_stmt(self, s)?;
-                    if let VoxValue::_Return(r) = res {
-                        res = *r;
-                        break;
+                let body_result = (|| {
+                    for s in body.iter() {
+                        res = stmt::eval_stmt(self, s)?;
+                        if let VoxValue::_Return(r) = res {
+                            res = *r;
+                            break;
+                        }
                     }
-                }
-                Ok(res)
+                    Ok(res)
+                })();
+                self.enclosing_fn_stack.pop();
+                body_result
             })();
 
             self.scope = old_scope;

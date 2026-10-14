@@ -69,6 +69,50 @@ impl crate::VoxDb {
         Ok(!row.is_empty())
     }
 
+    /// Return true if the activity id has any row in the specified workflow run.
+    pub async fn is_workflow_activity_recorded(
+        &self,
+        run_id: &str,
+        workflow_name: &str,
+        activity_id: &str,
+    ) -> Result<bool, StoreError> {
+        let row = self
+            .query_all(
+                "SELECT 1 FROM workflow_activity_log
+                 WHERE run_id = ?1 AND workflow_name = ?2 AND activity_id = ?3
+                 LIMIT 1",
+                (
+                    run_id.to_string(),
+                    workflow_name.to_string(),
+                    activity_id.to_string(),
+                ),
+            )
+            .await?;
+        Ok(!row.is_empty())
+    }
+
+    /// Return activity ids recorded for one named activity in a workflow run.
+    pub async fn workflow_activity_ids(
+        &self,
+        run_id: &str,
+        activity_name: &str,
+    ) -> Result<Vec<String>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT DISTINCT activity_id FROM workflow_activity_log
+                 WHERE run_id = ?1 AND activity_name = ?2
+                 ORDER BY recorded_at_ms, activity_id",
+                (run_id.to_string(), activity_name.to_string()),
+            )
+            .await?;
+        let mut ids = Vec::new();
+        while let Some(row) = rows.next().await? {
+            ids.push(row.get(0).map_err(|e| StoreError::Db(e.to_string()))?);
+        }
+        Ok(ids)
+    }
+
     /// Load the stored result payload for a completed activity in the specified workflow run.
     pub async fn load_workflow_activity_result(
         &self,
@@ -133,6 +177,265 @@ impl crate::VoxDb {
                 Ok::<(), StoreError>(())
             })
             .await
+    }
+
+    /// Persist the call arguments (journal-JSON) for a workflow run (G27).
+    ///
+    /// The row must already exist (i.e. call after
+    /// [`VoxDb::record_workflow_run_started`]) since this is an `UPDATE`, not
+    /// an upsert — arguments are only ever set once, at run start.
+    pub async fn workflow_run_set_args_json(
+        &self,
+        run_id: &str,
+        args_json: &Value,
+    ) -> Result<(), StoreError> {
+        let now = workflow_now_ms();
+        let run_id = run_id.to_string();
+        let args_json = serde_json::to_string(args_json)
+            .map_err(|e| StoreError::Serialization(e.to_string()))?;
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "UPDATE workflow_run_log SET args_json = ?2, updated_at_ms = ?3
+                     WHERE run_id = ?1 AND args_json IS NULL",
+                    (run_id, args_json, now),
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
+    /// Load the previously persisted call arguments (journal-JSON) for a workflow run.
+    pub async fn workflow_run_args_json(&self, run_id: &str) -> Result<Option<Value>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT args_json FROM workflow_run_log WHERE run_id = ?1",
+                (run_id.to_string(),),
+            )
+            .await?;
+        let Some(row) = rows.next().await? else {
+            return Ok(None);
+        };
+        let args_json: Option<String> = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+        match args_json {
+            Some(json) => {
+                let value = serde_json::from_str(&json)
+                    .map_err(|e| StoreError::Serialization(e.to_string()))?;
+                Ok(Some(value))
+            }
+            None => Ok(None),
+        }
+    }
+
+    /// Return the current status for a workflow run.
+    pub async fn workflow_run_status(&self, run_id: &str) -> Result<String, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT status FROM workflow_run_log WHERE run_id = ?1",
+                (run_id.to_string(),),
+            )
+            .await?;
+        let Some(row) = rows.next().await? else {
+            return Err(StoreError::Db(format!(
+                "workflow run `{run_id}` does not exist"
+            )));
+        };
+        row.get(0).map_err(|e| StoreError::Db(e.to_string()))
+    }
+
+    /// Return the current status for a workflow run, or `None` for a new run id.
+    pub async fn workflow_run_status_optional(
+        &self,
+        run_id: &str,
+    ) -> Result<Option<String>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT status FROM workflow_run_log WHERE run_id = ?1",
+                (run_id.to_string(),),
+            )
+            .await?;
+        rows.next()
+            .await?
+            .map(|row| row.get(0).map_err(|e| StoreError::Db(e.to_string())))
+            .transpose()
+    }
+
+    /// Return the current lease owner for a workflow run.
+    pub async fn workflow_run_lease_owner(
+        &self,
+        run_id: &str,
+    ) -> Result<Option<String>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT lease_owner FROM workflow_run_log WHERE run_id = ?1",
+                (run_id.to_string(),),
+            )
+            .await?;
+        let Some(row) = rows.next().await? else {
+            return Err(StoreError::Db(format!(
+                "workflow run `{run_id}` does not exist"
+            )));
+        };
+        row.get(0).map_err(|e| StoreError::Db(e.to_string()))
+    }
+
+    /// Return the persisted timer deadline for a workflow run, if any.
+    pub async fn workflow_run_wake_at_ms(&self, run_id: &str) -> Result<Option<i64>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT wake_at_ms FROM workflow_run_log WHERE run_id = ?1",
+                (run_id.to_string(),),
+            )
+            .await?;
+        let Some(row) = rows.next().await? else {
+            return Ok(None);
+        };
+        row.get(0).map_err(|e| StoreError::Db(e.to_string()))
+    }
+
+    /// Set a workflow timer deadline directly for deterministic integration tests.
+    pub async fn workflow_run_backdate_wake_at_ms(
+        &self,
+        run_id: &str,
+        wake_at_ms: i64,
+    ) -> Result<(), StoreError> {
+        self.conn
+            .execute(
+                "UPDATE workflow_run_log SET wake_at_ms = ?2 WHERE run_id = ?1",
+                (run_id.to_string(), wake_at_ms),
+            )
+            .await?;
+        Ok(())
+    }
+
+    /// Expire the run lease and any in-flight activity attempt leases.
+    ///
+    /// Used by crash-window tests so a resumed runner can steal the row.
+    /// Both writes run in one transaction so a crash cannot leave activity
+    /// leases live after the run lease is gone.
+    pub async fn expire_workflow_run_lease(&self, run_id: &str) -> Result<(), StoreError> {
+        let run_id = run_id.to_string();
+        self.transaction(async {
+            self.conn
+                .execute(
+                    "UPDATE workflow_run_log \
+                     SET lease_until_ms = 0, lease_owner = NULL \
+                     WHERE run_id = ?1",
+                    (run_id.clone(),),
+                )
+                .await?;
+            self.conn
+                .execute(
+                    "UPDATE workflow_activity_attempt_log \
+                     SET lease_until_ms = 0 \
+                     WHERE run_id = ?1 AND status = 'started'",
+                    (run_id,),
+                )
+                .await?;
+            Ok(())
+        })
+        .await
+    }
+
+    /// Park a workflow on a timer and release its run lease.
+    pub async fn park_workflow_run_timer(
+        &self,
+        run_id: &str,
+        wake_at_ms: i64,
+    ) -> Result<(), StoreError> {
+        let now = workflow_now_ms();
+        self.conn
+            .execute(
+                "UPDATE workflow_run_log
+                 SET status = 'parked',
+                     wake_at_ms = ?2,
+                     parked_reason = 'timer',
+                     lease_owner = NULL,
+                     lease_until_ms = NULL,
+                     updated_at_ms = ?3
+                 WHERE run_id = ?1",
+                (run_id.to_string(), wake_at_ms, now),
+            )
+            .await?;
+        Ok(())
+    }
+
+    /// Consume a due timer marker after the waker has made its run runnable.
+    pub async fn consume_ready_workflow_timer(
+        &self,
+        run_id: &str,
+        now_ms: i64,
+    ) -> Result<bool, StoreError> {
+        self.conn
+            .execute(
+                "UPDATE workflow_run_log
+                 SET wake_at_ms = NULL, parked_reason = NULL, updated_at_ms = ?2
+                 WHERE run_id = ?1
+                   AND status = 'running'
+                   AND parked_reason = 'timer'
+                   AND wake_at_ms <= ?2",
+                (run_id.to_string(), now_ms),
+            )
+            .await?;
+        let mut rows = self.conn.query("SELECT changes()", ()).await?;
+        let Some(row) = rows.next().await? else {
+            return Ok(false);
+        };
+        let changes: i64 = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+        Ok(changes > 0)
+    }
+
+    /// List timer-parked workflow runs whose wake deadline has passed.
+    pub async fn due_workflow_timer_run_ids(&self, now_ms: i64) -> Result<Vec<String>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT run_id FROM workflow_run_log
+                 WHERE status = 'parked'
+                   AND parked_reason = 'timer'
+                   AND wake_at_ms <= ?1
+                 ORDER BY run_id",
+                (now_ms,),
+            )
+            .await?;
+        let mut run_ids = Vec::new();
+        while let Some(row) = rows.next().await? {
+            run_ids.push(row.get(0).map_err(|e| StoreError::Db(e.to_string()))?);
+        }
+        Ok(run_ids)
+    }
+
+    /// Make one due timer-parked workflow run runnable without claiming its lease.
+    pub async fn wake_workflow_timer_run(
+        &self,
+        run_id: &str,
+        now_ms: i64,
+    ) -> Result<bool, StoreError> {
+        self.conn
+            .execute(
+                "UPDATE workflow_run_log
+                 SET status = 'running', updated_at_ms = ?2
+                 WHERE run_id = ?1
+                   AND status = 'parked'
+                   AND parked_reason = 'timer'
+                   AND wake_at_ms <= ?2",
+                (run_id.to_string(), now_ms),
+            )
+            .await?;
+        let mut rows = self.conn.query("SELECT changes()", ()).await?;
+        let Some(row) = rows.next().await? else {
+            return Ok(false);
+        };
+        let changes: i64 = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+        Ok(changes > 0)
     }
 
     /// Attach orchestration planning context to a workflow run when available.
@@ -245,14 +548,14 @@ impl crate::VoxDb {
         &self,
         run_id: &str,
         signal_key: &str,
-        payload: Option<&Value>,
+        payload_json: &str,
     ) -> Result<(), StoreError> {
         let now = workflow_now_ms();
         let run_id = run_id.to_string();
         let signal_key = signal_key.to_string();
-        let payload_json = payload
-            .map(serde_json::to_string)
-            .transpose()
+        let payload: Value = serde_json::from_str(payload_json)
+            .map_err(|e| StoreError::Serialization(e.to_string()))?;
+        let payload_json = serde_json::to_string(&payload)
             .map_err(|e| StoreError::Serialization(e.to_string()))?;
         let breaker = self.breaker.clone();
         let conn = self.conn.clone();
@@ -406,12 +709,12 @@ impl crate::VoxDb {
         Ok(Some((attempt_no, status, worker_owner, lease_until_ms)))
     }
 
-    /// Consume one pending signal instance for this run/key.
-    pub async fn consume_workflow_signal(
+    /// Consume one pending signal payload, or atomically park the run when none exists.
+    pub async fn consume_or_park_workflow_signal(
         &self,
         run_id: &str,
         signal_key: &str,
-    ) -> Result<bool, StoreError> {
+    ) -> Result<Option<Value>, StoreError> {
         let now = workflow_now_ms();
         let run_id = run_id.to_string();
         let signal_key = signal_key.to_string();
@@ -419,31 +722,70 @@ impl crate::VoxDb {
         let conn = self.conn.clone();
         breaker
             .call(|| async move {
-                let mut rows = conn
-                    .query(
-                        "SELECT id FROM workflow_signal_log
-                         WHERE run_id = ?1 AND signal_key = ?2 AND consumed_at_ms IS NULL
-                         ORDER BY recorded_at_ms ASC, id ASC
-                         LIMIT 1",
-                        (run_id.clone(), signal_key.clone()),
+                // `BEGIN IMMEDIATE` closes the arrival race: a signal cannot be inserted
+                // between observing no row and parking/releasing this run's lease.
+                conn.execute("BEGIN IMMEDIATE", ()).await?;
+                let result: Result<Option<Value>, StoreError> = async {
+                    let mut rows = conn
+                        .query(
+                            "SELECT id, payload_json FROM workflow_signal_log
+                             WHERE run_id = ?1 AND signal_key = ?2 AND consumed_at_ms IS NULL
+                             ORDER BY recorded_at_ms ASC, id ASC
+                             LIMIT 1",
+                            (run_id.clone(), signal_key.clone()),
+                        )
+                        .await?;
+                    let pending = match rows.next().await? {
+                        Some(row) => {
+                            let id: i64 = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+                            let payload_json: Option<String> =
+                                row.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
+                            Some((id, payload_json))
+                        }
+                        None => None,
+                    };
+                    drop(rows);
+
+                    let Some((id, payload_json)) = pending else {
+                        conn.execute(
+                            "UPDATE workflow_run_log
+                             SET status = 'parked',
+                                 parked_reason = 'signal',
+                                 lease_owner = NULL,
+                                 lease_until_ms = NULL,
+                                 updated_at_ms = ?2
+                             WHERE run_id = ?1",
+                            (run_id.clone(), now),
+                        )
+                        .await?;
+                        return Ok(None);
+                    };
+                    conn.execute(
+                        "UPDATE workflow_signal_log SET consumed_at_ms = ?2
+                         WHERE id = ?1 AND consumed_at_ms IS NULL",
+                        (id, now),
                     )
                     .await?;
-                let Some(row) = rows.next().await? else {
-                    return Ok::<bool, StoreError>(false);
-                };
-                let id: i64 = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
-                conn.execute(
-                    "UPDATE workflow_signal_log SET consumed_at_ms = ?2
-                     WHERE id = ?1 AND consumed_at_ms IS NULL",
-                    (id, now),
-                )
-                .await?;
-                let mut ch = conn.query("SELECT changes()", ()).await?;
-                let Some(ch_row) = ch.next().await? else {
-                    return Ok::<bool, StoreError>(false);
-                };
-                let changes: i64 = ch_row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
-                Ok::<bool, StoreError>(changes > 0)
+                    let payload = payload_json
+                        .as_deref()
+                        .map(serde_json::from_str)
+                        .transpose()
+                        .map_err(|e| StoreError::Serialization(e.to_string()))?
+                        .unwrap_or(Value::Null);
+                    Ok(Some(payload))
+                }
+                .await;
+
+                match result {
+                    Ok(decision) => {
+                        conn.execute("COMMIT", ()).await?;
+                        Ok(decision)
+                    }
+                    Err(err) => {
+                        let _ = conn.execute("ROLLBACK", ()).await;
+                        Err(err)
+                    }
+                }
             })
             .await
     }
@@ -552,6 +894,97 @@ impl crate::VoxDb {
                 )
                 .await?;
                 Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
+    /// Load the previously recorded version for a `workflow.version()` patch
+    /// marker, keyed by `(workflow_name, change_id)` — not `run_id`: every
+    /// run of `workflow_name` that reaches `change_id` must see the same
+    /// decision.
+    pub async fn load_workflow_patch(
+        &self,
+        workflow_name: &str,
+        change_id: &str,
+    ) -> Result<Option<u32>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT version FROM workflow_patch_log WHERE workflow_name = ?1 AND change_id = ?2",
+                (workflow_name.to_string(), change_id.to_string()),
+            )
+            .await?;
+        let Some(row) = rows.next().await? else {
+            return Ok(None);
+        };
+        let version: i64 = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+        let version = u32::try_from(version).map_err(|e| StoreError::Db(e.to_string()))?;
+        Ok(Some(version))
+    }
+
+    /// Persist the chosen version for a `workflow.version()` patch marker and
+    /// return the **canonical stored version** — not necessarily the `version`
+    /// this call passed in.
+    ///
+    /// `INSERT OR IGNORE` on the `(workflow_name, change_id)` primary key means
+    /// the first run to decide a patch wins. But "first" is a race between
+    /// concurrent callers: two first-encounters of the same `change_id` with
+    /// different locally-computed maxima can both reach this function before
+    /// either has committed. Whichever `INSERT` lands first wins the row;
+    /// the loser's `INSERT OR IGNORE` is silently dropped by SQLite. If the
+    /// loser simply returned its own `version` unchanged, it would go on to
+    /// execute a patch decision the durable log never actually recorded —
+    /// exactly the split-brain this function exists to prevent.
+    ///
+    /// The `SELECT` read-back below closes that gap without an explicit
+    /// transaction: `(workflow_name, change_id)` is a primary key, so once
+    /// *any* caller's `INSERT` commits (SQLite auto-commits a bare
+    /// statement), that row's `version` is immutable — no later statement on
+    /// this table ever updates or deletes it. `GuardedConnection` (see its
+    /// docs) also serializes every `execute`/`query` on this shared
+    /// connection, so our own `INSERT OR IGNORE` is guaranteed to have fully
+    /// committed, one way or the other, before our `SELECT` runs. That
+    /// makes the read-back safe to perform as a second, independent
+    /// statement: whether we won the race (canonical == our `version`) or
+    /// lost it (canonical == the concurrent winner's), the `SELECT` always
+    /// observes the one true row. Every caller — winner and every loser —
+    /// must act on this return value, never on the `version` argument it
+    /// passed in.
+    pub async fn record_workflow_patch(
+        &self,
+        workflow_name: &str,
+        change_id: &str,
+        version: u32,
+    ) -> Result<u32, StoreError> {
+        let now = workflow_now_ms();
+        let workflow_name = workflow_name.to_string();
+        let change_id = change_id.to_string();
+        let version = i64::from(version);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT OR IGNORE INTO workflow_patch_log (workflow_name, change_id, version, recorded_at_ms)
+                     VALUES (?1, ?2, ?3, ?4)",
+                    (workflow_name.clone(), change_id.clone(), version, now),
+                )
+                .await?;
+                let mut rows = conn
+                    .query(
+                        "SELECT version FROM workflow_patch_log WHERE workflow_name = ?1 AND change_id = ?2",
+                        (workflow_name, change_id),
+                    )
+                    .await?;
+                let Some(row) = rows.next().await? else {
+                    return Err(StoreError::Db(
+                        "workflow_patch_log: INSERT OR IGNORE left no canonical row for \
+                         (workflow_name, change_id)"
+                            .into(),
+                    ));
+                };
+                let stored: i64 = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+                u32::try_from(stored).map_err(|e| StoreError::Db(e.to_string()))
             })
             .await
     }
@@ -699,5 +1132,258 @@ impl crate::VoxDb {
                 Ok::<(), StoreError>(())
             })
             .await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{DbConfig, VoxDb};
+    use serde_json::json;
+
+    #[tokio::test]
+    async fn workflow_activity_ids_filters_by_run_and_name() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+        db.record_workflow_activity_started("run-1", "wf", "old", "old-1")
+            .await
+            .expect("record old");
+        db.record_workflow_activity_started("run-1", "wf", "fresh", "fresh-1")
+            .await
+            .expect("record fresh");
+
+        assert_eq!(
+            db.workflow_activity_ids("run-1", "old").await.expect("ids"),
+            vec!["old-1"]
+        );
+    }
+
+    #[tokio::test]
+    async fn workflow_run_wake_at_ms_reads_persisted_deadline() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+        assert_eq!(
+            db.workflow_run_wake_at_ms("missing")
+                .await
+                .expect("missing run"),
+            None
+        );
+        db.record_workflow_run_started("timer-read", "wf", 0)
+            .await
+            .expect("start");
+        db.park_workflow_run_timer("timer-read", 1_700_000_000_000)
+            .await
+            .expect("park");
+        assert_eq!(
+            db.workflow_run_wake_at_ms("timer-read")
+                .await
+                .expect("read"),
+            Some(1_700_000_000_000)
+        );
+    }
+
+    #[tokio::test]
+    async fn workflow_run_status_optional_distinguishes_new_and_existing_runs() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+        assert_eq!(
+            db.workflow_run_status_optional("new")
+                .await
+                .expect("status"),
+            None
+        );
+        db.record_workflow_run_started("existing", "wf", 0)
+            .await
+            .expect("start");
+        assert_eq!(
+            db.workflow_run_status_optional("existing")
+                .await
+                .expect("status")
+                .as_deref(),
+            Some("running")
+        );
+    }
+
+    #[tokio::test]
+    async fn consume_or_park_signal_handles_both_atomic_outcomes() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+
+        db.record_workflow_run_started("missing", "gated", 0)
+            .await
+            .expect("start missing run");
+        let missing = db
+            .consume_or_park_workflow_signal("missing", "go")
+            .await
+            .expect("park missing run");
+        assert_eq!(missing, None);
+        assert_eq!(
+            db.workflow_run_status("missing").await.expect("status"),
+            "parked"
+        );
+
+        db.record_workflow_run_started("present", "gated", 0)
+            .await
+            .expect("start present run");
+        db.record_workflow_signal("present", "go", r#"{"approved":true}"#)
+            .await
+            .expect("record signal");
+        let present = db
+            .consume_or_park_workflow_signal("present", "go")
+            .await
+            .expect("consume signal");
+        assert_eq!(present, Some(json!({"approved": true})));
+    }
+
+    #[tokio::test]
+    async fn expire_workflow_run_lease_clears_owner() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+        db.record_workflow_run_started("expire-1", "wf", 1)
+            .await
+            .expect("start");
+        let claimed = db
+            .try_claim_workflow_run_lease("expire-1", "owner-a", 60_000)
+            .await
+            .expect("claim");
+        assert!(claimed);
+        assert_eq!(
+            db.workflow_run_lease_owner("expire-1")
+                .await
+                .expect("owner"),
+            Some("owner-a".to_string())
+        );
+
+        db.record_workflow_activity_attempt_started(
+            "expire-1", "wf", "act-1", 1, "owner-a", 60_000,
+        )
+        .await
+        .expect("start attempt");
+        let mut attempt_rows = db
+            .conn
+            .query(
+                "SELECT lease_until_ms FROM workflow_activity_attempt_log \
+                 WHERE run_id = ?1 AND activity_id = ?2 AND status = 'started'",
+                ("expire-1".to_string(), "act-1".to_string()),
+            )
+            .await
+            .expect("query attempt lease");
+        let attempt_lease: i64 = attempt_rows
+            .next()
+            .await
+            .expect("row")
+            .expect("started attempt")
+            .get(0)
+            .expect("lease_until_ms");
+        assert!(attempt_lease > 0, "seeded attempt must hold a live lease");
+
+        db.expire_workflow_run_lease("expire-1")
+            .await
+            .expect("expire");
+        assert_eq!(
+            db.workflow_run_lease_owner("expire-1")
+                .await
+                .expect("owner after expire"),
+            None
+        );
+        let mut expired_rows = db
+            .conn
+            .query(
+                "SELECT lease_until_ms FROM workflow_activity_attempt_log \
+                 WHERE run_id = ?1 AND activity_id = ?2 AND status = 'started'",
+                ("expire-1".to_string(), "act-1".to_string()),
+            )
+            .await
+            .expect("query expired attempt lease");
+        let expired_lease: i64 = expired_rows
+            .next()
+            .await
+            .expect("row")
+            .expect("started attempt after expire")
+            .get(0)
+            .expect("lease_until_ms");
+        assert_eq!(
+            expired_lease, 0,
+            "started activity leases expire with the run"
+        );
+    }
+
+    #[tokio::test]
+    async fn workflow_patch_round_trips_by_workflow_and_change_id() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+
+        assert_eq!(
+            db.load_workflow_patch("wf", "split-step")
+                .await
+                .expect("load miss"),
+            None
+        );
+
+        let first = db
+            .record_workflow_patch("wf", "split-step", 2)
+            .await
+            .expect("record");
+        assert_eq!(first, 2, "first writer's version is the canonical one");
+        assert_eq!(
+            db.load_workflow_patch("wf", "split-step")
+                .await
+                .expect("load hit"),
+            Some(2)
+        );
+
+        // A second decision for the same (workflow_name, change_id) is ignored:
+        // the first-recorded version wins so every run replays the same choice.
+        // The *loser* must be told the canonical version via the return value,
+        // not left to act on the `5` it passed in.
+        let second = db
+            .record_workflow_patch("wf", "split-step", 5)
+            .await
+            .expect("record again");
+        assert_eq!(
+            second, 2,
+            "the losing writer must observe the canonical (first-writer) version"
+        );
+        assert_eq!(
+            db.load_workflow_patch("wf", "split-step")
+                .await
+                .expect("load after second record"),
+            Some(2)
+        );
+
+        // A different change_id under the same workflow is independent.
+        assert_eq!(
+            db.load_workflow_patch("wf", "other-change")
+                .await
+                .expect("load other"),
+            None
+        );
+    }
+
+    /// Task 5.2 fix: two concurrent first-encounters of the same `change_id`
+    /// with *different* locally-computed maxima must not split-brain. One
+    /// `INSERT OR IGNORE` wins; the loser must be told the winner's version
+    /// through the return value, not act on the value it passed in.
+    #[tokio::test]
+    async fn record_workflow_patch_concurrent_writers_agree_on_canonical_version() {
+        let db = std::sync::Arc::new(VoxDb::connect(DbConfig::Memory).await.expect("db"));
+        let db_a = db.clone();
+        let db_b = db.clone();
+
+        let (a, b) = tokio::join!(
+            db_a.record_workflow_patch("wf", "race-change", 3),
+            db_b.record_workflow_patch("wf", "race-change", 9),
+        );
+        let a = a.expect("writer A");
+        let b = b.expect("writer B");
+
+        assert_eq!(
+            a, b,
+            "both concurrent writers must observe the same canonical version"
+        );
+        assert!(
+            a == 3 || a == 9,
+            "canonical version must be one writer's actual value: got {a}"
+        );
+        assert_eq!(
+            db.load_workflow_patch("wf", "race-change")
+                .await
+                .expect("load"),
+            Some(a),
+            "the stored row must match what both callers observed"
+        );
     }
 }

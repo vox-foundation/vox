@@ -3,8 +3,12 @@
 //! Persists every activity start/complete to the `workflow_activity_log` table,
 //! enabling crash-safe resume: if a workflow is interrupted mid-execution, the
 //! next `interpret_workflow_durable` call will skip already-completed steps.
+//! `workflow.version()` patch decisions persist separately to
+//! `workflow_patch_log`, keyed by `(workflow_name, change_id)` rather than
+//! `run_id`, so every run of a workflow replays the same patch decision
+//! (Task 5.2).
 
-use crate::WorkflowTracker;
+use crate::{SignalDecision, WorkflowTracker};
 use anyhow::Result;
 use std::future::Future;
 use std::sync::Arc;
@@ -65,6 +69,15 @@ impl VoxDbTracker {
             plan_version.max(1),
         ));
         self
+    }
+
+    /// Force the current run's lease to become stealable by a resumed test runner.
+    #[cfg(any(test, feature = "test-support"))]
+    pub async fn expire_lease_for_test(&self) -> anyhow::Result<()> {
+        self.db
+            .expire_workflow_run_lease(&self.run_id)
+            .await
+            .map_err(|e| anyhow::anyhow!("DB error: {e}"))
     }
 }
 
@@ -134,6 +147,22 @@ impl WorkflowTracker for VoxDbTracker {
         }
     }
 
+    fn is_activity_recorded(
+        &self,
+        workflow_name: &str,
+        activity_id: &str,
+    ) -> impl Future<Output = Result<bool>> + Send {
+        let db = self.db.clone();
+        let run_id = self.run_id.clone();
+        let workflow_name = workflow_name.to_string();
+        let activity_id = activity_id.to_string();
+        async move {
+            db.is_workflow_activity_recorded(&run_id, &workflow_name, &activity_id)
+                .await
+                .map_err(|e| anyhow::anyhow!("DB error: {}", e))
+        }
+    }
+
     fn on_activity_started(
         &mut self,
         workflow_name: &str,
@@ -169,19 +198,6 @@ impl WorkflowTracker for VoxDbTracker {
                     run_id,
                     activity_id
                 );
-            }
-            if let Some(signal_key) = activity_name.strip_prefix("__durable_signal_wait:") {
-                let consumed = db
-                    .consume_workflow_signal(&run_id, signal_key)
-                    .await
-                    .map_err(|e| anyhow::anyhow!("DB error: {}", e))?;
-                if !consumed {
-                    anyhow::bail!(
-                        "workflow run `{}` is waiting for signal `{}`",
-                        run_id,
-                        signal_key
-                    );
-                }
             }
             db.record_workflow_activity_started(
                 &run_id,
@@ -375,6 +391,122 @@ impl WorkflowTracker for VoxDbTracker {
                 .await
                 .map_err(|e| anyhow::anyhow!("DB error: {}", e))?;
             Ok(())
+        }
+    }
+
+    fn persist_run_args(
+        &mut self,
+        args_json: &serde_json::Value,
+    ) -> impl Future<Output = Result<()>> + Send {
+        let db = self.db.clone();
+        let run_id = self.run_id.clone();
+        let args_json = args_json.clone();
+        async move {
+            db.workflow_run_set_args_json(&run_id, &args_json)
+                .await
+                .map_err(|e| anyhow::anyhow!("DB error: {}", e))?;
+            Ok(())
+        }
+    }
+
+    fn load_run_args(&self) -> impl Future<Output = Result<Option<serde_json::Value>>> + Send {
+        let db = self.db.clone();
+        let run_id = self.run_id.clone();
+        async move {
+            let args = db
+                .workflow_run_args_json(&run_id)
+                .await
+                .map_err(|e| anyhow::anyhow!("DB error: {}", e))?;
+            Ok(args)
+        }
+    }
+
+    fn run_status(&self) -> impl Future<Output = Result<Option<String>>> + Send {
+        let db = self.db.clone();
+        let run_id = self.run_id.clone();
+        async move {
+            db.workflow_run_status_optional(&run_id)
+                .await
+                .map_err(|e| anyhow::anyhow!("DB error: {}", e))
+        }
+    }
+
+    fn consume_ready_timer(&mut self, now_ms: i64) -> impl Future<Output = Result<bool>> + Send {
+        let db = self.db.clone();
+        let run_id = self.run_id.clone();
+        async move {
+            db.consume_ready_workflow_timer(&run_id, now_ms)
+                .await
+                .map_err(|e| anyhow::anyhow!("DB error: {}", e))
+        }
+    }
+
+    fn persisted_wake_at_ms(&self) -> impl Future<Output = Result<Option<i64>>> + Send {
+        let db = self.db.clone();
+        let run_id = self.run_id.clone();
+        async move {
+            db.workflow_run_wake_at_ms(&run_id)
+                .await
+                .map_err(|e| anyhow::anyhow!("DB error: {}", e))
+        }
+    }
+
+    fn park_timer(&mut self, wake_at_ms: i64) -> impl Future<Output = Result<()>> + Send {
+        let db = self.db.clone();
+        let run_id = self.run_id.clone();
+        async move {
+            db.park_workflow_run_timer(&run_id, wake_at_ms)
+                .await
+                .map_err(|e| anyhow::anyhow!("DB error: {}", e))
+        }
+    }
+
+    fn consume_or_park_signal(
+        &mut self,
+        key: &str,
+    ) -> impl Future<Output = Result<SignalDecision>> + Send {
+        let db = self.db.clone();
+        let run_id = self.run_id.clone();
+        let key = key.to_string();
+        async move {
+            db.consume_or_park_workflow_signal(&run_id, &key)
+                .await
+                .map(|payload| match payload {
+                    Some(payload) => SignalDecision::Consumed(payload),
+                    None => SignalDecision::Parked,
+                })
+                .map_err(|e| anyhow::anyhow!("DB error: {}", e))
+        }
+    }
+
+    fn load_workflow_patch(
+        &self,
+        workflow_name: &str,
+        change_id: &str,
+    ) -> impl Future<Output = Result<Option<u32>>> + Send {
+        let db = self.db.clone();
+        let workflow_name = workflow_name.to_string();
+        let change_id = change_id.to_string();
+        async move {
+            db.load_workflow_patch(&workflow_name, &change_id)
+                .await
+                .map_err(|e| anyhow::anyhow!("DB error: {}", e))
+        }
+    }
+
+    fn record_workflow_patch(
+        &mut self,
+        workflow_name: &str,
+        change_id: &str,
+        version: u32,
+    ) -> impl Future<Output = Result<u32>> + Send {
+        let db = self.db.clone();
+        let workflow_name = workflow_name.to_string();
+        let change_id = change_id.to_string();
+        async move {
+            db.record_workflow_patch(&workflow_name, &change_id, version)
+                .await
+                .map_err(|e| anyhow::anyhow!("DB error: {}", e))
         }
     }
 }

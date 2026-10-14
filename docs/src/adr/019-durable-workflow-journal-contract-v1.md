@@ -33,7 +33,11 @@ That made two failure modes too easy:
 4. **Define run identity contract:** durable replay is keyed by `(run_id, workflow_name, activity_id)` in `workflow_activity_log`.
 5. **Define current durable subset:** interpreted workflow replay with stable run/step identity and a constrained deterministic control-flow subset.
 6. **Define explicit non-goals for v1:**
-   - no unrestricted branch/loop decision replay (`match`, unbounded loops, non-deterministic conditions)
+   - no unrestricted branch/loop decision replay in the **generated-Rust** subset
+     (`match`, unbounded loops). Interpreted-runtime `if` / `match` / `for` /
+     `while` are in scope under the existing determinism lint (no `time.now` /
+     `random` / `uuid` in workflow bodies). See
+     [true-workflow-durability-design-2026.md](../architecture/true-workflow-durability-design-2026.md).
    - no generated Rust workflow parity contract yet
    - no blanket exactly-once guarantee for arbitrary external side effects
 

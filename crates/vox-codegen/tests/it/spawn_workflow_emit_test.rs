@@ -1,4 +1,5 @@
-/// Task 8D: Spawn + WorkflowVersion Rust emission (replaces compile_error! stubs).
+/// Task 8D: Spawn Rust emission. `WorkflowVersion` emission (Task 6.1 update:
+/// inert no-op, not a `compile_error!` stub — see `workflow_version_emits_inert_noop_not_compile_error`).
 use vox_codegen::codegen_rust::emit::emit_expr;
 use vox_compiler::ast::span::Span;
 use vox_compiler::hir::{HirExpr, HirWorkflowVersion};
@@ -27,7 +28,15 @@ fn spawn_emits_tokio_spawn() {
 }
 
 #[test]
-fn workflow_version_emits_coded_error() {
+fn workflow_version_emits_inert_noop_not_compile_error() {
+    // Task 6.1 (ADR-021): generated `workflow` fns proxy their entire body to
+    // `interpret_workflow_durable` (`emit_workflow_body` never runs
+    // `emit_stmt`/`emit_expr` over the workflow's own statements), so the
+    // *real* `workflow.version(...)` gate is the interpreter's
+    // `WorkflowPatch` handling, not Rust codegen for this expression. This
+    // arm is unreachable on the workflow path; asserting the old
+    // `compile_error!` here would misrepresent already-backed (Task 1.2–1.4)
+    // runtime support as unimplemented.
     let expr = HirExpr::WorkflowVersion(HirWorkflowVersion {
         change_id: "add-discount-field".to_string(),
         min: 1,
@@ -36,15 +45,13 @@ fn workflow_version_emits_coded_error() {
     });
     let result = emit_expr(&expr);
     assert!(
-        result.contains("compile_error!"),
-        "WorkflowVersion must emit compile_error! (no Rust runtime backing yet), got: {result}"
+        !result.contains("compile_error!"),
+        "WorkflowVersion is backed by the interpreter (ADR-021); it must not \
+         hard-fail the build here, got: {result}"
     );
-    assert!(
-        result.contains("add-discount-field"),
-        "compile_error! message must include change_id, got: {result}"
-    );
-    assert!(
-        result.contains("vox/parity/unimplemented"),
-        "compile_error! must include diagnostic code, got: {result}"
+    assert_eq!(
+        result.trim(),
+        "()",
+        "WorkflowVersion should emit an inert unit expression, got: {result}"
     );
 }

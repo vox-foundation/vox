@@ -65,6 +65,8 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     | "ceil"
                     | "round"
                     | "sqrt"
+                    | "workflow_wait"
+                    | "workflow_wait_signal"
             ) {
                 // Return a placeholder function for builtins
                 Ok(VoxValue::Fn {
@@ -270,12 +272,6 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 (HirBinOp::Gte, VoxValue::Decimal(a), VoxValue::Decimal(b)) => {
                     Ok(VoxValue::Bool(a >= b))
                 }
-                // Mixed Int + Float (or any other type pair the arms above
-                // didn't catch) used to silently return Null — a health
-                // foot-gun (audit doc §10.4 health-corrections section). An
-                // explicit `to_float()` conversion is required if the user
-                // wants mixed-arithmetic semantics; the error message names
-                // both operand types so the diagnostic is actionable.
                 // Mixed Int/Float — the typechecker promotes these to Float
                 // (checker/expr_ops.rs), so the interpreter must compute them in
                 // f64 rather than erroring.
@@ -404,7 +400,7 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 is_traced: false,
             })
         }
-        HirExpr::Call(callee, args, _, _) => {
+        HirExpr::Call(callee, args, _, span) => {
             let mut eval_args = Vec::new();
             for a in args {
                 eval_args.push(eval_expr(interp, &a.value)?);
@@ -422,56 +418,122 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 }
             }
             let c = eval_expr(interp, callee)?;
-            match c {
-                VoxValue::Fn {
-                    ref name,
-                    is_versioned,
-                    ..
-                } => {
-                    // Named calls share `apply_closure` so the depth bound
-                    // (rev 3: increment only around closure application, not
-                    // every `eval_expr`) covers recursive `fn` as well as lambdas.
-                    let fn_name = name.clone();
-                    let val = apply_closure(interp, &c, eval_args)?;
-                    if is_versioned {
-                        if !interp.caps.allows_versioned_snapshot() {
-                            return Err(EvalError::CapabilityDenied {
-                                ns: "repo".into(),
-                                method: "snapshot".into(),
-                            });
-                        }
-                        interp.repo.snapshot(Some(&format!("@versioned {fn_name}")));
+            if let HirExpr::Ident(name, _) = callee.as_ref() {
+                match name.as_str() {
+                    "workflow_wait" => {
+                        let deadline = match eval_args.first() {
+                            Some(VoxValue::Int(n)) => *n,
+                            other => {
+                                return Err(EvalError::Panic(format!(
+                                    "workflow_wait expects int ms, got {other:?}"
+                                )));
+                            }
+                        };
+                        return super::activity_hook::dispatch_wait(interp, deadline);
                     }
-                    Ok(val)
+                    "workflow_wait_signal" => {
+                        let key = match eval_args.first() {
+                            Some(VoxValue::Str(s)) => s.clone(),
+                            other => {
+                                return Err(EvalError::Panic(format!(
+                                    "workflow_wait_signal expects str key, got {other:?}"
+                                )));
+                            }
+                        };
+                        return super::activity_hook::dispatch_wait_signal(interp, key);
+                    }
+                    _ => {}
                 }
-                VoxValue::Constructor(name) => match name.as_str() {
-                    // Built-in Option/Result constructors lower directly to
-                    // VoxValue::Option / ::Result so downstream method dispatch
-                    // (`.is_ok()`, `.unwrap()`, `.is_none()`) and pattern
-                    // matching on Result/Option both work.
-                    "Some" if eval_args.len() == 1 => Ok(VoxValue::Option(Some(Box::new(
-                        eval_args.into_iter().next().unwrap(),
-                    )))),
-                    "None" if eval_args.is_empty() => Ok(VoxValue::Option(None)),
-                    "Ok" if eval_args.len() == 1 => Ok(VoxValue::Result(Ok(Box::new(
-                        eval_args.into_iter().next().unwrap(),
-                    )))),
-                    "Err" | "Error" if eval_args.len() == 1 => {
-                        // Box the actual error value so typed errors `Error(MyAdt)`
-                        // survive at runtime; `Error("string")` boxes to Str.
-                        let err_val = eval_args.into_iter().next().unwrap();
-                        Ok(VoxValue::Result(Err(Box::new(err_val))))
-                    }
-                    _ => Ok(VoxValue::Tagged {
-                        name,
-                        fields: eval_args,
-                    }),
-                },
-                other => Err(EvalError::TypeError {
-                    expected: "function",
-                    found: super::builtins::vox_value_type_name(&other).into(),
-                }),
             }
+            let call_key = match callee.as_ref() {
+                HirExpr::Ident(name, _) => name.clone(),
+                _ => "<dynamic>".to_string(),
+            };
+            let ordinal = interp.call_ordinals.get(span).copied().unwrap_or(0);
+            let enclosing_fn = interp
+                .enclosing_fn_stack
+                .last()
+                .cloned()
+                .unwrap_or_default();
+            interp
+                .call_path
+                .push(super::activity_hook::DurableCallFrame {
+                    enclosing_fn,
+                    call_key,
+                    ordinal,
+                });
+            let result = (|| -> Result<VoxValue, EvalError> {
+                if let VoxValue::Fn {
+                    name: ref fn_name, ..
+                } = c
+                    && interp.activity_names.contains(fn_name)
+                {
+                    return super::activity_hook::dispatch_activity(
+                        interp, fn_name, eval_args, *span,
+                    );
+                }
+                if let VoxValue::Fn {
+                    name: ref fn_name, ..
+                } = c
+                    && interp.workflow_names.contains(fn_name)
+                {
+                    return Err(EvalError::Panic(
+                        "nested workflow calls are not supported".into(),
+                    ));
+                }
+                match c {
+                    VoxValue::Fn {
+                        ref name,
+                        is_versioned,
+                        ..
+                    } => {
+                        let fn_name = name.clone();
+                        interp.enclosing_fn_stack.push(fn_name.clone());
+                        let val_res = apply_closure(interp, &c, eval_args);
+                        interp.enclosing_fn_stack.pop();
+                        let val = val_res?;
+                        if is_versioned {
+                            if !interp.caps.allows_versioned_snapshot() {
+                                return Err(EvalError::CapabilityDenied {
+                                    ns: "repo".into(),
+                                    method: "snapshot".into(),
+                                });
+                            }
+                            interp.repo.snapshot(Some(&format!("@versioned {fn_name}")));
+                        }
+                        Ok(val)
+                    }
+                    VoxValue::Constructor(name) => match name.as_str() {
+                        // Built-in Option/Result constructors lower directly to
+                        // VoxValue::Option / ::Result so downstream method dispatch
+                        // (`.is_ok()`, `.unwrap()`, `.is_none()`) and pattern
+                        // matching on Result/Option both work.
+                        "Some" if eval_args.len() == 1 => Ok(VoxValue::Option(Some(Box::new(
+                            eval_args.into_iter().next().unwrap(),
+                        )))),
+                        "None" if eval_args.is_empty() => Ok(VoxValue::Option(None)),
+                        "Ok" if eval_args.len() == 1 => Ok(VoxValue::Result(Ok(Box::new(
+                            eval_args.into_iter().next().unwrap(),
+                        )))),
+                        "Err" | "Error" if eval_args.len() == 1 => {
+                            // Box the actual error value so typed errors `Error(MyAdt)`
+                            // survive at runtime; `Error("string")` boxes to Str.
+                            let err_val = eval_args.into_iter().next().unwrap();
+                            Ok(VoxValue::Result(Err(Box::new(err_val))))
+                        }
+                        _ => Ok(VoxValue::Tagged {
+                            name,
+                            fields: eval_args,
+                        }),
+                    },
+                    other => Err(EvalError::TypeError {
+                        expected: "function",
+                        found: super::builtins::vox_value_type_name(&other).into(),
+                    }),
+                }
+            })();
+            interp.call_path.pop();
+            result
         }
         HirExpr::MethodCall(obj, method, args, opt_plan, _) => {
             // DB query-plan execution. `db.Table.op(...)` lowers to a MethodCall
@@ -799,7 +861,10 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 if let Some(idx_name) = index {
                     interp.scope.set(idx_name.clone(), VoxValue::Int(i as i64));
                 }
-                let val = eval_expr(interp, body)?;
+                interp.iteration_stack.push(i as u32);
+                let val = eval_expr(interp, body);
+                interp.iteration_stack.pop();
+                let val = val?;
                 match val {
                     // Propagate early-exit signals out of the for loop.
                     VoxValue::_Return(_)
@@ -960,23 +1025,15 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 cell.code, cell.message
             )))
         }
-        HirExpr::With(..) => {
-            let cell =
-                unsupported_diagnostic(Feature::Expr(ExprFeature::With), Target::Interpreter);
-            Err(EvalError::AssertionFailed(format!(
-                "{}: {}",
-                cell.code, cell.message
-            )))
+        HirExpr::With(inner, opts, _) => {
+            let opts_val = eval_expr(interp, opts)?;
+            interp.with_options.push(opts_val);
+            let result = eval_expr(interp, inner);
+            interp.with_options.pop();
+            result
         }
-        HirExpr::WorkflowVersion(..) => {
-            let cell = unsupported_diagnostic(
-                Feature::Expr(ExprFeature::WorkflowVersion),
-                Target::Interpreter,
-            );
-            Err(EvalError::AssertionFailed(format!(
-                "{}: {}",
-                cell.code, cell.message
-            )))
+        HirExpr::WorkflowVersion(v) => {
+            super::activity_hook::dispatch_patch(interp, &v.change_id, v.min, v.max)
         }
     }
 }

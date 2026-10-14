@@ -10,10 +10,21 @@ schema_type: "HowTo"
 ---
 # Tutorial: Workflow Durability
 
-Learn how to build resilient, long-running processes using Vox workflows. This tutorial explains the durability story Vox supports today: interpreted workflow step replay, stable activity ids, and idempotent activities.
+> [!NOTE]
+> **What is true as of Phase 6.** Activity bodies run and journal real
+> results. `workflow_wait` parks with a persisted wake time;
+> `workflow_wait_signal` parks until the signal arrives. `with { }` and
+> `workflow.version` work. `vox build` generated wrappers use the same
+> `VoxDbTracker` engine as `vox mens workflow run`. Interp is Stable for
+> the body-first subset. Nested workflows and mesh / `PopuliActivity` are
+> unsupported (loud error). See
+> [True workflow durability](../architecture/true-workflow-durability-design-2026.md).
 
-> [!WARNING]
-> Interpreted workflow runtime durability and generated-Rust workflow durability are different things. The durable replay and recovery story shown here uses the interpreted path (`vox mens workflow ...`, provided by `vox-ml-cli`), not compiled native async functions.
+Learn how to build resilient, long-running processes using Vox workflows. This tutorial explains the durability story Vox supports today: interpreted workflow replay, stable activity ids, and idempotent activities.
+
+> [!NOTE]
+> `vox mens workflow ...` and generated Rust wrappers share one engine.
+> Nested workflow calls and mesh / `PopuliActivity` remain out of subset.
 
 ## 1. The Challenge of Long-Running Tasks
 
@@ -21,40 +32,12 @@ Traditional async functions lose their state if the server restarts or a network
 
 ## 2. Defining a Workflow
 
-Use the bare `activity` and `workflow` keywords to describe long-running orchestration.
+Use the bare `activity` and `workflow` keywords to describe long-running orchestration. 
+
+Use the bare `activity` and `workflow` keywords to describe long-running orchestration. 
 
 ```vox
-activity charge_card(amount: int) to Result[str] {
-    if amount > 1000 {
-        return Error("amount too large")
-    }
-    return Ok("tx_" + str(amount))
-}
-
-activity send_receipt(tx: str) to Result[str] {
-    return Ok("emailed:" + tx)
-}
-
-workflow checkout(amount: int) to Result[str] {
-    let tx = charge_card(amount)?
-    let receipt = send_receipt(tx)?
-    return Ok(receipt)
-}
-```
-
-*Source: examples/golden/durable_workflow_real.vox*
-
-You can also specify execution options using a `with` block:
-
-```vox
-activity process_payment(amount: int) to Result[str] {
-    return Ok("paid")
-}
-
-workflow checkout_with_options(amount: int) to Result[str] {
-    let res = process_payment(amount) with { retries: 3, timeout: "30s", initial_backoff: "1s" }
-    return res
-}
+{{#include ../../../examples/golden/getting_started.vox:logic}}
 ```
 
 The `with` block provides execution options for the activity:

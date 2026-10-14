@@ -37,6 +37,14 @@ Interpreted workflows currently define the durable replay contract (`journal_ver
 - durable timer wait replay (`workflow_wait(...)`)
 - retry/backoff semantics for interpreted `mesh_*` execution equivalents where supported
 
+**Amended 2026-09-06.** Interpreted-runtime control flow (`if` / `match` /
+`for` / `while` over journalled values) is in scope for the body-first
+engine. Generated-Rust *emission* may stay linear until the Phase 6 compile
+gate in `docs/superpowers/plans/2026-09-06-true-workflow-durability.md` lands.
+The compatibility gate remains: emit → compile/run the generated workflow fn
+against the same tracker/`run_id` as the interpreter; do not call
+`interpret_workflow_durable` twice and call that parity.
+
 ## Explicit non-goals for initial parity
 
 - arbitrary compiled-program checkpointing
