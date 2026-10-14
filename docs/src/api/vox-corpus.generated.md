@@ -47,6 +47,7 @@ Used by `vox-ml-cli` and downstream training pipelines.
 | [`vox-compiler`](./vox-compiler.generated.md) | Normal |
 | [`vox-db`](./vox-db.generated.md) | Normal |
 | [`vox-eval`](./vox-eval.generated.md) | Normal |
+| [`vox-kb-facets`](./vox-kb-facets.generated.md) | Normal |
 | [`vox-mcp-registry`](./vox-mcp-registry.generated.md) | Normal |
 | [`vox-repository`](./vox-repository.generated.md) | Normal |
 | [`workspace-hack`](./workspace-hack.generated.md) | Normal |

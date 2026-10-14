@@ -45,6 +45,7 @@ Extracted from `vox-orchestrator/src/mcp_tools/` in 2026-05-08 reorg Phase 4.
 | `populi-transport` | vox-orchestrator/populi-transport, vox-populi/transport |
 | `toestub-gate` | vox-orchestrator/toestub-gate |
 | `token-counting` | vox-orchestrator/token-counting |
+| `web-scrape` | vox-search/web-scrape |
 
 ## Workspace Dependencies
 
@@ -114,6 +115,7 @@ Extracted from `vox-orchestrator/src/mcp_tools/` in 2026-05-08 reorg Phase 4.
 | `hitl_rehydrate` | T1.4: restore visibility for open approvals/feedback from the durable op-log on `ServerState` boot (MCP stdio + `vox-orchestrator-d`). |
 | `params` | — |
 | `pending_approvals` | — |
+| `profiles` | — |
 | `server_state` | — |
 | `skill_promotion` | — |
 | `approval_allowlist` | T0.3: persisted per-repo "always allow this tool" allowlist (tier 3 of the dangerous-tool gate's precedence order). |
@@ -123,6 +125,7 @@ Extracted from `vox-orchestrator/src/mcp_tools/` in 2026-05-08 reorg Phase 4.
 | `benchmark_tools` | Benchmark telemetry query tools (`research_metrics`). |
 | `browser_tools` | Chromium CDP browser automation (`vox_browser_*`). |
 | `caller_role` | Trusted caller role for browser control-lock authorization. |
+| `capability_tools` | `vox_capability_explain` / `vox_capability_features`: answers from the embedded capability index. |
 | `chat_hop` | — |
 | `chat_model_resolve` | Shared LLM model resolution for chat tools. |
 | `chat_socrates_meta` | Socrates grounding + telemetry helpers for chat tools. |
@@ -138,7 +141,8 @@ Extracted from `vox-orchestrator/src/mcp_tools/` in 2026-05-08 reorg Phase 4.
 | `git_tools` | Thin `git` CLI wrappers scoped to the discovered git root. |
 | `grammar_tools` | Grammar export tools |
 | `graph_tools` | Graphify corpus freshness and lexical search (`vox_graphify_status`, `vox_graphify_search`). |
-| `gui_registry_tools` | GUI registry + validation tools (`vox_gui_components`, `vox_gui_tokens`, `vox_gui_rules`, `vox_validate_vuv`). |
+| `gui_ops` | GUI registry + validation tools (`vox_gui_components`, `vox_gui_tokens`, `vox_gui_rules`, `vox_validate_vuv`). |
+| `gui_registry_tools` | — |
 | `history_tools` | `vox_search_history`: first-parent repo history for agents (same facade as `vox graph history`). |
 | `input_schemas` | — |
 | `introspection_tools` | Introspection tools for language visualization (AST, surface, pipeline). |
@@ -189,6 +193,7 @@ Extracted from `vox-orchestrator/src/mcp_tools/` in 2026-05-08 reorg Phase 4.
 | `plugin_tools` | — |
 | `trace_tools` | — |
 | `dei_tools` | — |
+| `kb_resources` | — |
 | `kb_tools` | — |
 | `mcp_context` | — |
 | `mcp_client` | — |

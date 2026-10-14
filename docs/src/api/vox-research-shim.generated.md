@@ -80,3 +80,9 @@ path — consumers need only update their import root.
 | `persist_min_confidence` | — |
 | `training_pair_min_confidence` | — |
 
+### Constants
+
+| Constant | Description |
+|---|---|
+| `LLM_RUNTIME_ENABLED` | Whether this build makes live LLM calls (the `runtime` feature). Without it every research LLM stage fails with "research runtime feature is disabled", so callers (e.g. live-model tests in downstream crates) can skip instead of failing. |
+

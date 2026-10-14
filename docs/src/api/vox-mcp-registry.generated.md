@@ -1,6 +1,6 @@
 ---
 title: "vox-mcp-registry API Reference (generated)"
-description: "Compile-time MCP tool name/description registry from contracts YAML (SSOT)"
+description: "Compile-time MCP tool registry and capability profiles (PROFILES, ActiveProfile, authorize_tool) from contracts YAML (SSOT)."
 category: "API Reference — Crates"
 status: current
 ---
@@ -22,7 +22,7 @@ status: current
 
 **Crate:** `vox-mcp-registry` · **Version:** `0.6.0` · **Target:** Library (`lib.rs`)
 
-Compile-time MCP tool name/description registry from contracts YAML (SSOT)
+Compile-time MCP tool registry and capability profiles (PROFILES, ActiveProfile, authorize_tool) from contracts YAML (SSOT).
 
 ## Crate Overview
 
@@ -43,7 +43,13 @@ Consume [`TOOL_REGISTRY`] instead of duplicating name/description tables.
 
 | Struct | Description |
 |---|---|
-| `McpToolRegistryEntry` | One MCP tool row (name, description, bell-curve [`product_lane`](McpToolRegistryEntry::product_lane)). |
+| `McpToolRegistryEntry` | One MCP tool row: identity, bell-curve [`product_lane`](McpToolRegistryEntry::product_lane), and capability-profile exposure metadata. |
+
+### Functions
+
+| Function | Description |
+|---|---|
+| `registry_entry` | Row for an exact canonical tool name; wire aliases are not resolved here. |
 
 ### Constants
 

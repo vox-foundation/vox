@@ -35,6 +35,12 @@ Research commands (run/eval/infra/mesh-intake) extracted from vox-cli.
 - the research eval harness ([`eval`]).
 
 
+## Features
+
+| Feature | Default / Enables |
+|---|---|
+| `runtime` | vox-research-shim/runtime |
+
 ## Workspace Dependencies
 
 | Dependency | Kind |

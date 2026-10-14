@@ -122,6 +122,7 @@ Repository CI guard checks extracted from `vox-cli` (`vox ci *` implementation w
 | `deploy_status` | — |
 | `detect_rules_bench` | — |
 | `dev_loop_audit` | — |
+| `dev_loop_guard` | — |
 | `docs_deprecated_command_guard` | — |
 | `docs_reality_audit` | — |
 | `doctest_md` | — |
@@ -134,6 +135,7 @@ Repository CI guard checks extracted from `vox-cli` (`vox ci *` implementation w
 | `gui_visual_review` | — |
 | `harness_trust_guard` | — |
 | `install_hooks` | — |
+| `kb_facets_ts` | — |
 | `kill_stuck_tests` | — |
 | `line_endings` | — |
 | `model_routing_check` | — |
@@ -152,6 +154,7 @@ Repository CI guard checks extracted from `vox-cli` (`vox ci *` implementation w
 | `plugin_skill_parity` | — |
 | `plugin_surface` | — |
 | `pm_provenance` | — |
+| `pre_push_refs` | — |
 | `profile_parity` | — |
 | `release_draft_guard` | — |
 | `required_context_guard` | — |

@@ -133,7 +133,7 @@
           "type": "array",
           "items": { "type": "string" }
         },
-        "side_effect_class": { "type": ["string", "null"], "enum": ["destructive", "none", "read_only", "spawns_process", "writes_files", null] },
+        "side_effect_class": { "type": ["string", "null"], "enum": ["destructive", "none", "read_only", "spawns_process", "writes_files", "network", "remote_mutation", null] },
         "scope_kind": { "type": ["string", "null"] },
         "reversible": { "type": ["boolean", "null"] },
         "requires_repo": { "type": ["boolean", "null"] },

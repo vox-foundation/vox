@@ -35,6 +35,7 @@ Documentation linter: scans `docs/src/` for frontmatter, code fence, and doctest
 |---|---|
 | [`vox-bounded-fs`](./vox-bounded-fs.generated.md) | Normal |
 | [`vox-compiler`](./vox-compiler.generated.md) | Normal |
+| [`vox-kb-facets`](./vox-kb-facets.generated.md) | Normal |
 | [`workspace-hack`](./workspace-hack.generated.md) | Normal |
 
 ## Public API Surface

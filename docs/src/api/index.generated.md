@@ -22,7 +22,7 @@ status: current
 
 **Intended readers:** Platform engineers, crate contributors, and developers integrating with Vox internal and external crates.
 
-**Total Workspace Crates:** 127
+**Total Workspace Crates:** 129
 
 | Crate | Version | Description |
 |---|---|---|
@@ -75,12 +75,13 @@ status: current
 | [`vox-integration-tests`](./vox-integration-tests.generated.md) | `0.6.0` | Cross-crate integration test harness (test-only L5). |
 | [`vox-journal`](./vox-journal.generated.md) | `0.6.0` | Generic append-only JSON Lines file journal for Vox. Crash-safe via per-record sync_data; replays on open. Used as the durable substrate by vox-workflow-runtime, vox-actor-runtime, and the mobile-shipped vox-runtime-rn (via uniffi). |
 | [`vox-jsonschema-util`](./vox-jsonschema-util.generated.md) | `0.6.0` | Shared JSON Schema compile + validate helpers for CLI, contracts, and tooling. |
+| [`vox-kb-facets`](./vox-kb-facets.generated.md) | `0.6.0` | L0 KB facet contract: facet types, eligibility rule, summary block, provenance validators, taxonomy and backlog (KB Phase 4). |
 | [`vox-langtool`](./vox-langtool.generated.md) | `0.6.0` | DB-free CLI for writing in the Vox language: check, fmt, run, build. |
 | [`vox-language-surface`](./vox-language-surface.generated.md) | `0.6.0` | Single source of truth for Vox keyword/decorator/builtin surface strings. Has no logic dependencies (only the workspace-hack unifier), so vox-compiler and vox-grammar-export can share one SSOT without a cyclic dependency. |
 | [`vox-llm-config`](./vox-llm-config.generated.md) | `0.6.0` | SSOT for LLM/AI setting keys: the declarative LlmConfigKey registry (env name + display metadata + secret classification). vox-secrets, vox-config, and vox-gui are views over it. Pure-data, zero workspace deps (layer 0). |
 | [`vox-llm-egress`](./vox-llm-egress.generated.md) | `0.6.0` | Sanctioned low-layer LLM provider egress: chat_once/stream_once/embed_once + per-provider AIMD throttle. Pure wire — no config/secret resolution (callers pass a resolved EgressRequest). The single path all OpenAI-compatible inference egress goes through. |
 | [`vox-lsp`](./vox-lsp.generated.md) | `0.6.0` | Vox Language Server Protocol implementation (stdio JSON-RPC). |
-| [`vox-mcp-registry`](./vox-mcp-registry.generated.md) | `0.6.0` | Compile-time MCP tool name/description registry from contracts YAML (SSOT) |
+| [`vox-mcp-registry`](./vox-mcp-registry.generated.md) | `0.6.0` | Compile-time MCP tool registry and capability profiles (PROFILES, ActiveProfile, authorize_tool) from contracts YAML (SSOT). |
 | [`vox-mesh-policy`](./vox-mesh-policy.generated.md) | `0.6.0` | Parses and pretty-prints donations.vox mesh policy files; defines WorkerDonationPolicy. |
 | [`vox-mesh-transport`](./vox-mesh-transport.generated.md) | `0.6.0` | iroh QUIC mesh transport: persisted mesh identity, EndpointId trust allowlist, and the job wire protocol. |
 | [`vox-mesh-types`](./vox-mesh-types.generated.md) | `0.6.0` | Shared types for the Vox federated GPU mesh: worker registration, dispatch, and capability negotiation. |
@@ -92,6 +93,7 @@ status: current
 | [`vox-orchestrator-d`](./vox-orchestrator-d.generated.md) | `0.6.0` | Vox orchestrator daemon binary. Extracted from vox-orchestrator in 2026-05-08 reorg Phase 4. |
 | [`vox-orchestrator-driver`](./vox-orchestrator-driver.generated.md) | `0.6.0` | Thin L3 driver for embedding vox-orchestrator in CLI and MCP hosts. |
 | [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | `0.6.0` | MCP (Model Context Protocol) tool layer for vox-orchestrator. Extracted in 2026-05-08 reorg Phase 4. |
+| [`vox-orchestrator-models`](./vox-orchestrator-models.generated.md) | `0.6.0` | Model selection, calibration, usage accounting, and provider catalogs for vox-orchestrator. |
 | [`vox-orchestrator-queue`](./vox-orchestrator-queue.generated.md) | `0.6.0` | Locks, oplog, and affinity tracking for vox-orchestrator. Extracted in 2026-05-08 reorg Phase 5. |
 | [`vox-orchestrator-test-helpers`](./vox-orchestrator-test-helpers.generated.md) | `0.6.0` | Test fixtures and mocks for vox-orchestrator. Not for production code. |
 | [`vox-orchestrator-types`](./vox-orchestrator-types.generated.md) | `0.6.0` | Pure-data L0 leaf for vox-orchestrator: agent/task IDs, file affinity, switch actions, provider catalogs. |

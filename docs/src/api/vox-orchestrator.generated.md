@@ -102,6 +102,7 @@ Mens live in mdBook [`mens-training-ssot.md`](../../../docs/src/architecture/men
 | [`vox-mesh-policy`](./vox-mesh-policy.generated.md) | Normal |
 | [`vox-mesh-transport`](./vox-mesh-transport.generated.md) | Normal |
 | [`vox-mesh-types`](./vox-mesh-types.generated.md) | Normal |
+| [`vox-orchestrator-models`](./vox-orchestrator-models.generated.md) | Normal |
 | [`vox-orchestrator-queue`](./vox-orchestrator-queue.generated.md) | Normal |
 | [`vox-orchestrator-types`](./vox-orchestrator-types.generated.md) | Normal |
 | [`vox-package`](./vox-package.generated.md) | Normal |
@@ -145,7 +146,6 @@ Mens live in mdBook [`mens-training-ssot.md`](../../../docs/src/architecture/men
 | `budget_gate` | Orchestrator-policy token/cost budget gate (D7). |
 | `bulletin` | Shared bulletin board for cross-agent notices. |
 | `cache_predictor` | Prefix-cache hit predictor (D7). |
-| `calibration` | Calibration loop: Welford drift detection + Thompson bandit (D10). |
 | `capability_probe` | Host capability probing and merge with `OrchestratorConfig::default_agent_capabilities`. |
 | `catalog` | Dynamic model catalogs. |
 | `catalog_classifier` | — |
@@ -178,7 +178,6 @@ Mens live in mdBook [`mens-training-ssot.md`](../../../docs/src/architecture/men
 | `risk_matrix` | Four-dimension risk scorer and HITL escalation matrix (D5 + D9). |
 | `subagent_dispatch` | Sub-agent dispatch router: spawn vs. inline decision (D4). |
 | `tier_cascade` | Three-tier model cascade for autonomous model-routing (D1). |
-| `knowledge_base` | — |
 | `entropy_scorer` | Entropy-based hallucination detection. |
 | `heartbeat` | Agent liveness heartbeats and staleness policy. |
 | `judge_model` | Cross-model consensus and judge logic. |
@@ -222,8 +221,6 @@ Mens live in mdBook [`mens-training-ssot.md`](../../../docs/src/architecture/men
 | `tool_receipt` | Cryptographic receipts for tool execution grounding. |
 | `topology` | — |
 | `types` | Core identifiers, tasks, messages, and shared value types. |
-| `usage` | Aggregated LLM usage, quotas, and cost accounting. |
-| `usage_policy` | Provider daily quota policy (dynamic + defaults). |
 | `workspace` | Per-agent workspace views and pending change tracking. |
 | `validation` | TOESTUB-based output validation gate integration. |
 | `victory` | Aggregate multi-tier verification signals. |

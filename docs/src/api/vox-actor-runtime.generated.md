@@ -37,7 +37,7 @@ module; blanket Rustdoc on every `pub use` alias would add noise without semanti
 
 | Feature | Default / Enables |
 |---|---|
-| `database` | dep:vox-db |
+| `database` | dep:vox-db, vox-db/host-integration |
 | `default` | — |
 
 ## Workspace Dependencies

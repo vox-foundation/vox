@@ -80,7 +80,6 @@ This crate is the MVP engine behind `vox mens workflow run` when `vox-cli` is bu
 | `durable_promise` | `DurablePromise<T>` — the single awaitable primitive for distributed durable work (P1-T1). |
 | `duration_literal` | Shared parser for `@scheduled` / `workflow_wait` duration literals (ADR-041 M-3, M-7). |
 | `file_journal` | Append-only file-backed [`workflow::WorkflowTracker`] suitable for mobile + lightweight desktop. |
-| `journal` | Activity-body journal wrapper used by codegen-emitted code (Task 1.3). |
 | `scheduled` | Persistent `@scheduled` runner (Phase 4.2; requires the `sql` cargo feature). |
 | `workflow` | — |
 

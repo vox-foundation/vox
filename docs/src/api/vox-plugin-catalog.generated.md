@@ -61,4 +61,5 @@ See `docs/src/architecture/plugin-system-redesign-2026.md`.
 | `all_components` | All optional first-party components (companion binaries such as the GUI) declared in `catalog.toml`. Components are not cdylib plugins; they are standalone executables installed on demand and never built for CLI-only users. |
 | `all_skill_bundles` | All bundled interop skills declared in `catalog.toml` (`[[skill-bundle]]`). |
 | `bundle_resolved` | Resolve a bundle id to its full plugin set, walking the `extends` chain and deduplicating by plugin id. Order: parent plugins first, then child additions. First-occurrence wins for duplicates. |
+| `bundle_profiles` | Default capability profile ids declared directly on bundle `id` (not inherited). |
 

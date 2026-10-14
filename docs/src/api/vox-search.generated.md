@@ -32,14 +32,14 @@ Shared local-first retrieval execution for MCP, orchestrator, CLI, and A2A bridg
 - [`context::SearchRuntimeContext`] — repo root, optional VoxDb handle, memory paths.
 - [`execution::execute_search_plan`] — memory hybrid + knowledge + chunks + repo inventory.
 - [`bundle::run_search_with_verification`] — automatic verification pass.
-- Optional **Tantivy** (`tantivy-lexical`) and **Qdrant** (`qdrant-vector`) backends.
+- Optional **Tantivy** (`tantivy-lexical`, the KB Library index in `library`) and **Qdrant** (`qdrant-vector`) backends.
 
 
 ## Features
 
 | Feature | Default / Enables |
 |---|---|
-| `default` | qdrant-vector, tavily |
+| `default` | qdrant-vector, tavily, tantivy-lexical |
 | `qdrant-vector` | — |
 | `tantivy-lexical` | dep:tantivy |
 | `tavily` | — |
@@ -54,8 +54,10 @@ Shared local-first retrieval execution for MCP, orchestrator, CLI, and A2A bridg
 | [`vox-config`](./vox-config.generated.md) | Normal |
 | [`vox-db`](./vox-db.generated.md) | Normal |
 | [`vox-http-client`](./vox-http-client.generated.md) | Normal |
+| [`vox-kb-facets`](./vox-kb-facets.generated.md) | Normal |
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
 | [`workspace-hack`](./workspace-hack.generated.md) | Normal |
+| [`vox-crypto`](./vox-crypto.generated.md) | Development |
 
 ## Public API Surface
 
@@ -66,6 +68,7 @@ Shared local-first retrieval execution for MCP, orchestrator, CLI, and A2A bridg
 | `a2a_contract` | — |
 | `arxiv` | — |
 | `bundle` | — |
+| `capture` | — |
 | `context` | — |
 | `corroboration` | — |
 | `crag` | — |
@@ -76,6 +79,8 @@ Shared local-first retrieval execution for MCP, orchestrator, CLI, and A2A bridg
 | `evaluation` | — |
 | `execution` | — |
 | `ingest` | — |
+| `kb_eval` | — |
+| `kb_ids` | — |
 | `llm_query_expansion` | — |
 | `memory_hybrid` | — |
 | `mens_research_subagent` | — |
@@ -100,7 +105,7 @@ Shared local-first retrieval execution for MCP, orchestrator, CLI, and A2A bridg
 | `unified` | — |
 | `web_dispatcher` | — |
 | `wikipedia` | — |
-| `lexical_tantivy` | — |
+| `library` | — |
 | `tavily` | — |
 | `vector_qdrant` | — |
 

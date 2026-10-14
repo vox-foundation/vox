@@ -40,7 +40,9 @@ here instead of pulling in the full orchestrator.
 |---|---|
 | `agent_types` | — |
 | `merge_outcome` | — |
+| `routing_values` | — |
 | `socrates_policy` | — |
+| `trust` | — |
 | `vcs_capability` | — |
 
 ### Structs

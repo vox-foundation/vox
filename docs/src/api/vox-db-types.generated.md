@@ -48,6 +48,7 @@ resolves the same as `vox_db_types::SaveSnippetParams`.
 | `eval_params` | Parameters for [`crate::EvalRunParams`] (RLHF / dogfood eval-run recording). |
 | `store_types` | Request parameters, row shapes, and MENS observation/training types (formerly `vox_db::store::types::*`). |
 | `research` | SCIENTIA / research-session row DTOs. |
+| `kb_text` | KB-text sanitizer and provenance newtypes (TRUST-05). |
 | `ids` | Typed string-ID newtypes for DB row fields (UUIDs, hashes, human-readable IDs). |
 | `retrieval` | Hybrid retrieval planning types and rank-fusion helpers (vector + keyword search). Shared contracts used by MCP, the orchestrator, and VoxDb-backed retrieval surfaces. |
 

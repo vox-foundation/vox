@@ -71,6 +71,8 @@ never reimplements the agent loop.
 | `block` | — |
 | `commands` | — |
 | `corpus` | — |
+| `daemon_host` | — |
+| `host` | — |
 | `input` | — |
 | `osc633` | — |
 | `pty` | — |

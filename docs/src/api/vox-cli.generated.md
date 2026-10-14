@@ -48,7 +48,7 @@ For the end-user CLI surface and subcommand map, see the `vox` binary crate root
 | `extras-ludus` | vox-gamify, dep:vox-code-audit |
 | `fuzzy-search` | dep:nucleo |
 | `gui` | — |
-| `heavy-retrieval` | vox-search/tantivy-lexical, vox-search/web-scrape |
+| `heavy-retrieval` | vox-search/tantivy-lexical, vox-search/web-scrape, vox-orchestrator-mcp/web-scrape |
 | `keyring-store` | dep:keyring |
 | `live` | — |
 | `ludus-hud` | extras-ludus |
