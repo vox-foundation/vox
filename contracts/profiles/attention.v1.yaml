@@ -1,3 +1,4 @@
+schema_version: 1
 id: attention
 description: "Attention budget history and reset, budget status, and trust overrides."
 # D1: this profile stays DB-free. vox_attention_summary and vox_cost_history require [db]

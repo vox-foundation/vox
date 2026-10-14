@@ -128,6 +128,9 @@ fn main() {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct ProfileFile {
+    #[allow(dead_code)]
+    #[serde(default)]
+    schema_version: Option<u32>,
     id: String,
     description: String,
     #[serde(default)]

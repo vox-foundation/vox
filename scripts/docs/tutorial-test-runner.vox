@@ -211,7 +211,8 @@ fn main() {
 
     if target_tutorial.len() > 0 {
         for s in all_specs {
-            if s.slug is target_tutorial or s.path.contains(target_tutorial) {
+            let spec_path = s.path
+            if s.slug is target_tutorial or spec_path.contains(target_tutorial) {
                 specs_to_run = specs_to_run.push(s)
             }
         }

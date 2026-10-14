@@ -10,37 +10,40 @@
   - Bug-level detail and handoffs live in docs/src/architecture/suite-status-audit-2026-09-21.md.
 -->
 <div align="center">
-  <img src="docs/src/assets/vox_hero_banner.jpeg" alt="Vox - The human voice acting as the great nerve of intelligence" width="100%" />
+  <img src="docs/src/assets/vox_hero_banner.jpeg" alt="Vox — The human voice acting as the great nerve of intelligence" width="100%" />
 
-  <br><br>
-
-  <p><strong>Vox is an experimental, AI-native programming language and development suite: a full-stack compiler and script interpreter, a unified CLI, a multi-agent orchestrator, a desktop operator console, a curated knowledge base, and a native Rust ML training lane — built together in one repository.</strong></p>
-
-  <p>Led by Bertrand Reyna-Brainerd · stewarded by the Vox Foundation (in formation) · Apache-2.0 · <strong>research prototype (pre-1.0)</strong></p>
+  <h1>Vox</h1>
 
   <p>
-    <a href="https://voxlang.org">voxlang.org</a> ·
-    <a href="https://voxlang.org/tutorials/tut-getting-started/">Getting Started</a> ·
-    <a href="https://voxlang.org/reference/ref-syntax/">Syntax Reference</a> ·
+    <strong>An experimental, AI-native programming language and development suite</strong><br />
+    Full-stack compiler &amp; script interpreter · unified CLI · multi-agent orchestrator · desktop operator console · curated knowledge base · native Rust ML training lane
+  </p>
+
+  <p>
+    <sub>Led by <strong>Bertrand Reyna-Brainerd</strong> · Stewarded by the <strong>Vox Foundation</strong> (in formation) · Apache-2.0 · <strong>Pre-1.0 Research Prototype</strong></sub>
+  </p>
+
+  <p>
+    <a href="https://voxlang.org"><strong>voxlang.org</strong></a> &nbsp;·&nbsp;
+    <a href="https://voxlang.org/tutorials/tut-getting-started/">Getting Started</a> &nbsp;·&nbsp;
+    <a href="https://voxlang.org/reference/ref-syntax/">Syntax Reference</a> &nbsp;·&nbsp;
     <a href="https://voxlang.org/reference/stability/">Stability Matrix</a>
+  </p>
+
+  <p>
+    <img src="https://img.shields.io/badge/status-research%20prototype-red?style=flat-square" alt="Status: research prototype" />&nbsp;
+    <a href="https://github.com/vox-foundation/vox/commits/main"><img src="https://img.shields.io/github/last-commit/vox-foundation/vox?style=flat-square&label=updated" alt="Last Updated" /></a>&nbsp;
+    <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-green?style=flat-square" alt="License" /></a>
   </p>
 </div>
 
-<p align="center">
-  <img src="https://img.shields.io/badge/status-research%20prototype-red?style=flat-square" alt="Status: research prototype"/>
-  <a href="https://github.com/vox-foundation/vox/commits/main"><img src="https://img.shields.io/github/last-commit/vox-foundation/vox?style=flat-square&label=updated" alt="Last Updated"/></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-green?style=flat-square" alt="License"/></a>
-</p>
-
 > [!WARNING]
-> **Last reviewed: 2026-10-13.** Vox is an active pre-1.0 research project (`0.6.0` workspace), not hardened production software. Core paths — the parser and type checker (`vox check`), the sandboxed script interpreter (`vox run`), the SQLite/Turso data layer (`vox-db`), the curated knowledge-base index (`vox kb`), and the repository's CI/architecture guards — work and are tested daily. Full-stack app codegen (`vox build`), durable workflow replay, the Tauri operator GUI (`vox-gui`), deep research (`vox research`), and local QLoRA model training (`vox mens`) are active prototypes with known rough edges documented in the [Status](#status) tables below. There are no binary releases yet; build from source and treat the repository as an open engineering lab notebook.
+> **Last reviewed: 2026-10-14.** Vox is an active pre-1.0 research project (`0.6.0` workspace), not hardened production software. Core paths — the parser and type checker (`vox check`), the sandboxed script interpreter (`vox run`), the SQLite/Turso data layer (`vox-db`), the curated knowledge-base index (`vox kb`), and the repository's CI/architecture guards — work and are tested daily. Full-stack app codegen (`vox build`), durable workflow replay, the Tauri operator GUI (`vox-gui`), deep research (`vox research`), and local QLoRA model training (`vox mens`) are active prototypes with known rough edges documented in the [Status](#status) tables below. There are no binary releases yet; build from source and treat the repository as an open engineering lab notebook.
 
-<div align="center">
-  <blockquote>
-    <p><em>"Is it a fact — or have I dreamt it — that, by means of electricity, the world of matter has become a great nerve, vibrating thousands of miles in a breathless point of time? Rather, the round globe is a vast head, a brain, instinct with intelligence!"</em></p>
-    <p>— Nathaniel Hawthorne, <em>The House of the Seven Gables</em> (1851)</p>
-  </blockquote>
-</div>
+<p align="center">
+  <em>"Is it a fact — or have I dreamt it — that, by means of electricity, the world of matter has become a great nerve, vibrating thousands of miles in a breathless point of time? Rather, the round globe is a vast head, a brain, instinct with intelligence!"</em><br />
+  <sub>— Nathaniel Hawthorne, <em>The House of the Seven Gables</em> (1851)</sub>
+</p>
 
 ---
 
@@ -71,12 +74,11 @@ When you build a web application in mainstream languages, you usually write the 
 Mainstream languages predate large language models (LLMs) by decades. They tolerate implicit state — `null` pointers, undeclared exceptions, and schemas restated three or four times across the stack. Experienced developers keep those layers in sync by habit, but for both beginning programmers and statistical AI code generators, every boundary is a place where field names drift, types mismatch, or error handling gets skipped. A million-token context window doesn't help when most of it is glue code.
 
 <div align="center">
-
-![A diagram illustrating the complexity of traditional web development fragmentation.](docs/src/assets/old_internet_knot_abstract.png)
-
+  <img src="docs/src/assets/old_internet_knot_abstract.png" alt="Schema Fragmentation in Traditional Web Stacks — 4-layer technical schematic" width="760" />
   <p>
-    <strong>Fragmentation in Traditional Web Development</strong><br />
-    Traditional development requires restating data models and logic across frontend, API, backend, and database layers. This duplication creates maintenance overhead and increases the risk of integration drift.
+    <strong>Schema Fragmentation Across Traditional Web Stacks</strong><br />
+    <em>Restating one domain model across SQL migrations, backend structs, JSON wire schemas, and frontend state introduces field drift, type mismatches, and glue-code overhead at every boundary.</em><br />
+    <sub>Diagram: Google Imagen 3 (<code>imagen-3.0-generate-002</code> / <code>gemini-3.1-flash-image</code>) · Signed 2026-10-14 · Bertrand Reyna-Brainerd &amp; Vox Foundation</sub>
   </p>
 </div>
 
@@ -286,6 +288,7 @@ Longer-horizon targets: [v1.0 release criteria](docs/src/architecture/v1-release
 
 Newest first.
 
+- **2026-10-14**: Replaced the abstract spaghetti diagram (`docs/src/assets/old_internet_knot_abstract.png`) with a transparent RGBA 4-layer technical schematic signed with XMP/tEXt provenance (`Google Imagen 3 · imagen-3.0-generate-002 / gemini-3.1-flash-image`), added `schema_version: 1` across `contracts/profiles/*.v1.yaml` (`CR-A2` 100%), made the `vox-doc-pipeline` drift baseline resilient to line-number shifts, and cleared the `stdlib-coverage` false positive in `tutorial-test-runner.vox`.
 - **2026-10-13**: Fixed the browser playground `/v1/eval` sandbox (`vox run --interp` now registers `tool`/`resource`/`@example` declarations, handles declaration-only modules without `fn main()`, and passes `--caps deterministic`), updated Coolify deployment triggers in `.github/workflows/deploy-hetzner.yml` and `vox ci coolify-eval` to `POST /api/v1/deploy` (with `405` fallback to `GET`), and cleared the `vox-arch-check` `raw-git-exec` violation in `facet_backlog.rs`.
 - **2026-10-13**: Completed `v1.5` Wave 0 unified branch convergence (`Phase 05`): merged the parallel `kb`, `discoverability`, `docs-freshness`, `capability-profiles`, `true-workflow-durability`, `warp-fork-axis-gui`, and `fmt-safety` streams into one tree at `VoxDb` schema baseline `96` and regenerated all CLI, MCP, and capability contracts.
 - **2026-10-12**: Merged `feat/true-workflow-durability` (host-bridge workflow execution, run-stable per-function activity call ordinals, SQL-persisted `workflow.version` patches, `workflow_signal_log` signal parking, `workflow_run_log` timer parking, and generated `VoxDbTracker` / `__vox_run_workflow`) and `wip/fmt-safety-2026-10-12` (comment preservation and `layout_only` token-equivalence guard in `vox fmt`).

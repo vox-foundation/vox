@@ -1,3 +1,4 @@
+schema_version: 1
 id: research-publish
 description: "Scientia/news publish, approve, submission, and external-job controls. Operator-only; opt in explicitly (usually composed as research,research-publish)."
 requires: [research]

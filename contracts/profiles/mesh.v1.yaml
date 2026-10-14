@@ -1,3 +1,4 @@
+schema_version: 1
 id: mesh
 description: "Populi mesh nodes, dispatch and queue stats, local Populi status, and A2A messaging."
 # vox_a2a_tasks requires agent_fleet (orchestrator task DAG). That root is outside
