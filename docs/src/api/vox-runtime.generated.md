@@ -57,7 +57,7 @@ implementation spec (Phase 2).
 [`mobile_rn_expo_implementation_spec_2026`][spec] §11 UDL hangs off the
 types declared here once the underlying runtimes adopt them.
 
-[spec]: ../../docs/src/architecture/mobile-rn-expo-implementation-spec-2026.md
+[spec]: ../architecture/mobile-rn-expo-implementation-spec-2026.md
 
 
 ## Workspace Dependencies

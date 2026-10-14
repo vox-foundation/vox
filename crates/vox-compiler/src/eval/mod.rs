@@ -780,22 +780,31 @@ impl Interpreter {
             // Restore the prior scope on BOTH success and the `?` error path so a
             // failed call cannot leak scope state into a later reuse of the
             // interpreter (e.g. the `@test` runner).
-            let result: Result<VoxValue, EvalError> = (|| {
+            let result: Result<VoxValue, EvalError> = {
                 self.enclosing_fn_stack.push(fn_name.clone());
                 let mut res = VoxValue::Null;
-                let body_result = (|| {
-                    for s in body.iter() {
-                        res = stmt::eval_stmt(self, s)?;
-                        if let VoxValue::_Return(r) = res {
-                            res = *r;
+                let mut err = None;
+                for s in body.iter() {
+                    match stmt::eval_stmt(self, s) {
+                        Ok(v) => {
+                            res = v;
+                            if let VoxValue::_Return(r) = res {
+                                res = *r;
+                                break;
+                            }
+                        }
+                        Err(e) => {
+                            err = Some(e);
                             break;
                         }
                     }
-                    Ok(res)
-                })();
+                }
                 self.enclosing_fn_stack.pop();
-                body_result
-            })();
+                match err {
+                    Some(e) => Err(e),
+                    None => Ok(res),
+                }
+            };
 
             self.scope = old_scope;
             let res = result?;
