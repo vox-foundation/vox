@@ -122,6 +122,20 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::CrateApiSync { write } => vox_cli_ci::crate_api_docs::run(&root, write),
         CiCmd::GuiSurfaceCoverage { write } => super::gui_surface_coverage::run(&root, write),
         CiCmd::GuiSurfaceRegistry { write } => super::gui_surface_registry::run(&root, write),
+        CiCmd::CapabilityIndex {
+            write,
+            tighten,
+            refresh_coverage,
+        } => {
+            if refresh_coverage {
+                super::capability_index::refresh_coverage_snapshot(&root)?;
+            }
+            if tighten {
+                super::capability_index::tighten_baseline(&root)
+            } else {
+                super::capability_index::run(&root, write)
+            }
+        }
         CiCmd::GuiHonesty => vox_cli_ci::gui_honesty::run(&root),
         CiCmd::HarnessTrustGuard => {
             // Check 1 (args.get("user_approval")) lives in the always-on

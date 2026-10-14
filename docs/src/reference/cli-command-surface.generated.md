@@ -21,7 +21,7 @@ category: "Language Reference"
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml) (itself projected from [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml)).
 
-**schema_version:** `1` · **vox-cli operations:** 997
+**schema_version:** `1` · **vox-cli operations:** 998
 
 | Path | Status | Feature gate | Latin ns | Product lane | Catalog group |
 |------|--------|--------------|----------|--------------|----------------|
@@ -166,14 +166,13 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci build-timings` | active | — | — | platform | — |
 | `vox ci cache-key-lint` | active | — | ci | platform | — |
 | `vox ci canonical-map-verify` | active | — | ci | platform | — |
+| `vox ci capability-index` | active | — | ci | platform | — |
 | `vox ci capability-snapshot` | active | — | ci | platform | — |
 | `vox ci capability-sync` | active | — | — | platform | — |
 | `vox ci check-codex-ssot` | active | — | — | platform | — |
 | `vox ci check-docs-ssot` | active | — | — | platform | — |
-| `vox ci check-frozen` | active | — | ci | platform | — |
 | `vox ci check-links` | active | — | — | platform | — |
 | `vox ci check-summary-drift` | active | — | — | platform | — |
-| `vox ci collateral-damage-gate` | active | — | ci | platform | — |
 | `vox ci command-compliance` | active | — | — | platform | — |
 | `vox ci command-sync` | active | — | — | platform | — |
 | `vox ci commit-lint` | active | — | ci | platform | — |
@@ -184,7 +183,6 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci config-gui-codegen` | active | — | ci | platform | — |
 | `vox ci config-hygiene` | active | — | — | platform | — |
 | `vox ci config-registry-parity` | active | — | — | platform | — |
-| `vox ci constrained-gen-smoke` | active | — | ci | platform | — |
 | `vox ci contracts-index` | active | — | — | platform | — |
 | `vox ci coolify-eval` | active | — | — | platform | — |
 | `vox ci coolify-eval discover` | active | — | — | platform | — |
@@ -225,7 +223,6 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci grammar-drift` | active | — | — | platform | — |
 | `vox ci grammar-export-check` | active | — | ci | platform | — |
 | `vox ci grammar-ssot-parity` | active | — | ci | platform | — |
-| `vox ci grpo-reward-baseline` | active | — | ci | platform | — |
 | `vox ci gui-catalog-parity` | active | — | ci | platform | — |
 | `vox ci gui-honesty` | active | — | ci | platform | — |
 | `vox ci gui-smoke` | active | — | — | platform | — |
@@ -243,7 +240,6 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci line-endings` | active | — | — | platform | — |
 | `vox ci manifest` | active | — | — | platform | — |
 | `vox ci mcp-vox-surface-parity` | active | — | ci | platform | — |
-| `vox ci mens-corpus-health` | active | — | ci | platform | — |
 | `vox ci mens-scorecard` | active | — | — | platform | — |
 | `vox ci mens-scorecard burn-rnd` | active | — | — | platform | — |
 | `vox ci mens-scorecard decide` | active | — | — | platform | — |
@@ -277,7 +273,6 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci pre-push` | active | — | — | platform | — |
 | `vox ci profile-parity` | active | — | ci | platform | — |
 | `vox ci query-all-guard` | active | — | — | platform | — |
-| `vox ci queue` | active | — | ci | platform | — |
 | `vox ci release-build` | active | — | — | platform | — |
 | `vox ci release-draft-guard` | active | — | ci | platform | — |
 | `vox ci repo-guards` | active | — | — | platform | — |
@@ -285,10 +280,6 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci retired-symbol-check` | active | — | ci | platform | — |
 | `vox ci retirement-audit` | active | — | — | platform | — |
 | `vox ci row-serde-lint` | active | — | ci | platform | — |
-| `vox ci runner-policy-check` | active | — | ci | platform | — |
-| `vox ci runner-preflight` | active | — | ci | platform | — |
-| `vox ci runner-scale` | active | — | ci | platform | — |
-| `vox ci runner-status` | active | — | ci | platform | — |
 | `vox ci runtime-regress` | active | — | — | platform | — |
 | `vox ci rust-ecosystem-policy` | active | — | — | platform | — |
 | `vox ci safety-inventory` | active | — | — | platform | — |
@@ -310,6 +301,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci sql-surface-guard` | active | — | — | platform | — |
 | `vox ci ssot-audit` | active | — | ci | platform | — |
 | `vox ci ssot-drift` | active | — | — | platform | — |
+| `vox ci status` | active | — | — | platform | — |
 | `vox ci string-id-lint` | active | — | ci | platform | — |
 | `vox ci sync-ignore-files` | active | — | ci | platform | — |
 | `vox ci test-inventory` | active | — | — | platform | — |
@@ -446,6 +438,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox emit` | active | — | — | app | — |
 | `vox emit client` | active | — | — | app | — |
 | `vox emit openapi` | active | — | — | app | — |
+| `vox explain` | active | — | — | platform | — |
 | `vox ext` | active | — | — | interop | — |
 | `vox ext ars` | active | — | — | interop | — |
 | `vox ext ars ludus` | active | extras-ludus | — | interop | — |
@@ -635,6 +628,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox fabrica run` | active | — | fabrica | app | — |
 | `vox fabrica script` | active | script-execution | fabrica | app | — |
 | `vox fabrica test` | active | — | fabrica | app | — |
+| `vox features` | active | — | — | platform | — |
 | `vox fmt` | active | — | fabrica | app | — |
 | `vox gamify` | active | extras-ludus | ars | ai | — |
 | `vox gamify arena-join` | active | extras-ludus | ars | ai | — |
@@ -693,6 +687,12 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox graph crate-map` | active | — | pm | platform | — |
 | `vox graph gc` | active | — | pm | platform | — |
 | `vox graph history` | active | — | pm | platform | — |
+| `vox graph history brief` | active | — | — | platform | — |
+| `vox graph history focus` | active | — | — | platform | — |
+| `vox graph history forgotten` | active | — | — | platform | — |
+| `vox graph history log` | active | — | — | platform | — |
+| `vox graph history search` | active | — | — | platform | — |
+| `vox graph history timeline` | active | — | — | platform | — |
 | `vox graph index` | active | — | pm | platform | — |
 | `vox graph ingest` | active | — | pm | platform | — |
 | `vox graph query` | active | — | pm | platform | — |
@@ -758,7 +758,6 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox migrate names` | active | — | pm | platform | — |
 | `vox migrate web` | active | — | pm | platform | — |
 | `vox model` | active | — | — | ai | — |
-| `vox model bench` | active | — | — | ai | — |
 | `vox model cas` | active | — | — | ai | — |
 | `vox model cas ls` | active | — | — | ai | — |
 | `vox model cas pull` | active | — | — | ai | — |
@@ -768,7 +767,6 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox model council-report` | active | — | — | ai | — |
 | `vox model discover` | active | — | — | ai | — |
 | `vox model eval` | active | — | — | ai | — |
-| `vox model eval-compare` | active | — | — | ai | — |
 | `vox model eval-corpus` | active | — | — | ai | — |
 | `vox model explain` | active | — | — | ai | — |
 | `vox model list` | active | — | — | ai | — |
@@ -874,8 +872,11 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox research` | active | — | — | ai | — |
 | `vox research down` | active | — | — | ai | — |
 | `vox research eval` | active | — | — | ai | — |
+| `vox research flag` | active | — | — | platform | — |
 | `vox research history` | active | — | — | ai | — |
 | `vox research preview` | active | — | — | ai | — |
+| `vox research probe` | active | — | — | platform | — |
+| `vox research publish` | active | — | — | platform | — |
 | `vox research result` | active | — | — | ai | — |
 | `vox research run` | active | — | — | ai | — |
 | `vox research search` | active | — | — | ai | — |

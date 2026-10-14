@@ -496,6 +496,12 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_search_compare" => parse_obj(
             r#"{"type":"object","properties":{"corpus_a":{"type":"string","description":"First corpus id to compare"},"corpus_b":{"type":"string","description":"Second corpus id to compare"}},"required":["corpus_a","corpus_b"],"additionalProperties":false}"#,
         ),
+        "vox_capability_explain" => parse_obj(
+            r#"{"type":"object","properties":{"query":{"type":"string","minLength":1,"maxLength":256,"description":"capability id, CLI path, MCP tool, GUI view key, crate or skill"}},"required":["query"],"additionalProperties":false}"#,
+        ),
+        "vox_capability_features" => parse_obj(
+            r#"{"type":"object","properties":{"domain":{"type":"string","minLength":1,"maxLength":64,"description":"domain id (omit to list every domain with counts)"}},"additionalProperties":false}"#,
+        ),
         "vox_search_history" => parse_obj(
             r#"{"type":"object","properties":{"query":{"type":"string","enum":["log","focus","forgotten","search","timeline","brief"],"description":"View: log (a file's changes through rename/split/merge lineage), focus (churn per area), forgotten (dormant high-fan-in areas), search (commit text, paths, symbols), timeline (top areas per bucket), brief (one line)"},"path":{"type":"string","description":"log: repo-relative file path"},"text":{"type":"string","description":"search: terms"},"since_days":{"type":"integer","minimum":1,"description":"focus (default 30) / timeline (default 90)"},"min_age_days":{"type":"integer","minimum":0,"description":"forgotten: default 60"},"bucket_days":{"type":"integer","minimum":1,"description":"timeline: default 7"},"by":{"type":"string","enum":["crate","dir"],"description":"Area grouping (default crate)"},"include_mechanical":{"type":"boolean","description":"Include fmt/generated/import-only changes (default false)"},"limit":{"type":"integer","minimum":1,"description":"Max rows (default 20)"}},"required":["query"],"additionalProperties":false}"#,
         ),

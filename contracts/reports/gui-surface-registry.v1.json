@@ -30,8 +30,10 @@
     "doctor",
     "drift-check",
     "emit",
+    "explain",
     "ext",
     "fabrica",
+    "features",
     "fmt",
     "gamify",
     "generate",
@@ -40,7 +42,6 @@
     "gui",
     "harness",
     "init",
-    "kb",
     "live",
     "llm",
     "lock",
@@ -91,7 +92,7 @@
     "visus",
     "workflow"
   ],
-  "surface_count": 113,
+  "surface_count": 114,
   "unclassified_backfilled": [],
   "wiring_violations": []
 }

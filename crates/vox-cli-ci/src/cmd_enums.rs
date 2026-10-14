@@ -112,6 +112,19 @@ pub enum CiCmd {
         #[arg(long)]
         write: bool,
     },
+    /// Generate or verify the capability index (`contracts/capabilities/capability-index.v1.json`).
+    #[command(name = "capability-index")]
+    CapabilityIndex {
+        /// Write/update the index. Without this flag, verify only (also run by `ssot-drift`).
+        #[arg(long)]
+        write: bool,
+        /// Shrink the unresolved-owner baseline (removal-only).
+        #[arg(long, conflicts_with = "write")]
+        tighten: bool,
+        /// Re-snapshot graph coverage from the built vox-gui-surface corpus (D-07).
+        #[arg(long, conflicts_with = "tighten")]
+        refresh_coverage: bool,
+    },
     /// Gate: GUI honesty — typed toasts + no placeholder/dead elements in surfaces.
     #[command(name = "gui-honesty")]
     GuiHonesty,

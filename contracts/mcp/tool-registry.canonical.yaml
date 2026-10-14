@@ -363,6 +363,16 @@ tools:
   product_lane: ai
   http_read_role_eligible: false
   tier: core
+- name: vox_capability_explain
+  description: Explain a Vox capability (what it is, its owning crate and layer, CLI/GUI/MCP equivalents and docs link), answered from contracts/capabilities/capability-index.v1.json.
+  product_lane: platform
+  http_read_role_eligible: false
+  tier: core
+- name: vox_capability_features
+  description: List Vox capabilities by domain with layer, CLI/GUI/MCP equivalents and docs path, answered from contracts/capabilities/capability-index.v1.json.
+  product_lane: platform
+  http_read_role_eligible: false
+  tier: core
 - name: vox_capability_model_manifest
   description: Return the live Vox capability model manifest JSON (MCP tools, CLI paths, runtime builtin maps) merged from contracts/capability and registries at the workspace root.
   product_lane: platform

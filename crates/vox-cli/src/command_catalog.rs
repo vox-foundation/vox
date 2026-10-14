@@ -396,7 +396,7 @@ fn collect_aliases(cmd: &Command) -> Vec<String> {
     aliases
 }
 
-fn tier_for_path(path: &[String], feature_gated: bool) -> CatalogTier {
+pub(crate) fn tier_for_path(path: &[String], feature_gated: bool) -> CatalogTier {
     if feature_gated {
         return CatalogTier::FeatureGated;
     }
@@ -414,6 +414,190 @@ fn tier_for_path(path: &[String], feature_gated: bool) -> CatalogTier {
 
 fn sanitize_about(about: &str) -> String {
     about.replace('\n', " ").trim().to_string()
+}
+
+/// Prefix of the refusal `gate_execution` returns for a destructive invocation without consent
+/// (D-03). The TS mirror lives in `crates/vox-gui/ui/src/lib/capabilityRun.ts`; plan 06.3-09 adds
+/// a parity test that reads this literal.
+pub const CONFIRMATION_REQUIRED_PREFIX: &str = "confirmation_required: ";
+
+/// The GUI Catalog form -> CLI argv contract: `path`, then the structured `args` object
+/// (flags / `__positionals` / `__flags`), then raw `__argv` tokens (D-16: both reach the CLI).
+#[must_use]
+pub fn form_argv(path: Vec<String>, args: &serde_json::Value) -> Vec<String> {
+    use serde_json::Value;
+    let mut out = path;
+    if let Value::Object(map) = args {
+        for (k, v) in map {
+            match k.as_str() {
+                "__argv" => continue,
+                "__positionals" => {
+                    if let Value::Array(values) = v {
+                        for value in values {
+                            if let Some(s) = value.as_str() {
+                                out.push(s.to_string());
+                            } else if !value.is_null() {
+                                out.push(value.to_string());
+                            }
+                        }
+                    }
+                    continue;
+                }
+                "__flags" => {
+                    if let Value::Array(flags) = v {
+                        out.extend(
+                            flags
+                                .iter()
+                                .filter_map(Value::as_str)
+                                .map(|f| format!("--{f}")),
+                        );
+                    }
+                    continue;
+                }
+                _ => {}
+            }
+            let flag = format!("--{}", k.replace('_', "-"));
+            match v {
+                Value::Null | Value::Bool(true) => out.push(flag),
+                Value::String(s) if s.is_empty() => out.push(flag),
+                Value::String(s) => out.extend([flag, s.clone()]),
+                Value::Bool(false) => {}
+                Value::Array(items) => {
+                    for item in items {
+                        out.push(flag.clone());
+                        if let Some(s) = item.as_str() {
+                            out.push(s.to_string());
+                        } else if !item.is_null() {
+                            out.push(item.to_string());
+                        }
+                    }
+                }
+                other => out.extend([flag, other.to_string()]),
+            }
+        }
+    }
+    // D-16: raw `__argv` tokens are appended AFTER the structured args, never instead of them.
+    if let Some(argv) = args.get("__argv").and_then(Value::as_array) {
+        out.extend(
+            argv.iter()
+                .filter_map(Value::as_str)
+                .filter(|t| !t.trim().is_empty())
+                .map(str::to_string),
+        );
+    }
+    out
+}
+
+/// Id returned by the gate when the alias table could not be built: fail closed.
+pub const UNRESOLVED_ALIAS_ID: &str = "cli.unresolved";
+
+/// Aliases hidden behind a `#[cfg(feature = ...)]` variant are invisible to the compiled clap
+/// tree, but the sidecar binary may include them (e.g. `dei` -> `orchestrator`). Hand-listed;
+/// `gated_variant_aliases_in_source_are_all_known` fails when an alias in `lib.rs` / `ext.rs` is
+/// in neither the compiled tree nor this list. Entries are (canonical path, alias).
+const GATED_ALIAS_SUPPLEMENT: &[(&[&str], &str)] = &[
+    (&["recensio"], "rec"),
+    (&["gamify"], "ludus"),
+    (&["gui"], "axis"),
+    (&["bundle-app"], "bapp"),
+    (&["dei"], "orchestrator"),
+    (&["openclaw"], "oc"),
+    (&["ext", "openclaw"], "oc"),
+];
+
+/// CR-01: every clap alias in the command tree, keyed by the canonical path of the command it
+/// names, plus [`GATED_ALIAS_SUPPLEMENT`]. Built once, on a big-stack thread (clap's recursive
+/// build of this tree overflows a default async-worker stack). `None` means it could not be built.
+fn cli_aliases() -> Option<&'static vox_capability_registry::CliAliases> {
+    static TABLE: std::sync::OnceLock<Option<vox_capability_registry::CliAliases>> =
+        std::sync::OnceLock::new();
+    TABLE
+        .get_or_init(|| {
+            std::thread::Builder::new()
+                .stack_size(32 * 1024 * 1024)
+                .spawn(build_alias_table)
+                .ok()?
+                .join()
+                .ok()
+        })
+        .as_ref()
+}
+
+fn build_alias_table() -> vox_capability_registry::CliAliases {
+    let mut table = vox_capability_registry::CliAliases::new();
+    let root = crate::VoxCliRoot::command();
+    let mut stack: Vec<(&Command, Vec<String>)> = root
+        .get_subcommands()
+        .map(|sub| (sub, vec![sub.get_name().to_string()]))
+        .collect();
+    while let Some((cmd, path)) = stack.pop() {
+        let aliases: Vec<String> = cmd.get_all_aliases().map(str::to_string).collect();
+        if !aliases.is_empty() {
+            table.insert(path.clone(), aliases);
+        }
+        for sub in cmd.get_subcommands() {
+            let mut child = path.clone();
+            child.push(sub.get_name().to_string());
+            stack.push((sub, child));
+        }
+    }
+    for (path, alias) in GATED_ALIAS_SUPPLEMENT {
+        let entry = table
+            .entry(path.iter().map(|s| (*s).to_string()).collect())
+            .or_default();
+        if !entry.iter().any(|a| a == alias) {
+            entry.push((*alias).to_string());
+        }
+    }
+    table
+}
+
+/// Id of the destructive index row the effective `argv` walks to, if any (D-15). Clap aliases
+/// resolve to their canonical path (CR-01); if the alias table is unavailable the gate fails closed.
+#[must_use]
+pub fn destructive_cli_id(argv: &[String]) -> Option<String> {
+    destructive_cli_id_with(argv, cli_aliases())
+}
+
+fn destructive_cli_id_with(
+    argv: &[String],
+    aliases: Option<&vox_capability_registry::CliAliases>,
+) -> Option<String> {
+    let Some(aliases) = aliases else {
+        return Some(UNRESOLVED_ALIAS_ID.to_string());
+    };
+    vox_capability_registry::bundled_index()
+        .confirmation_required_with(argv, aliases)
+        .map(|r| r.id.clone())
+}
+
+/// D-03 consent gate: refuse a destructive invocation unless `confirmed == Some(true)`.
+///
+/// # Errors
+/// `confirmation_required: <row id>` when the argv is destructive and not confirmed.
+pub fn gate_execution(argv: &[String], confirmed: Option<bool>) -> Result<(), String> {
+    if confirmed != Some(true)
+        && let Some(id) = destructive_cli_id(argv)
+    {
+        return Err(format!("{CONFIRMATION_REQUIRED_PREFIX}{id}"));
+    }
+    Ok(())
+}
+
+/// The single pre-spawn step of `execute_command` (WR-02): assemble the argv and apply the D-03
+/// consent gate. The GUI sidecar spawn takes its argv only from here, so it cannot be reached with
+/// an ungated invocation; `execute.rs` has a source tripwire that it keeps calling this.
+///
+/// # Errors
+/// `confirmation_required: <row id>` when the argv is destructive and not confirmed.
+pub fn prepare_execution(
+    path: Vec<String>,
+    args: &serde_json::Value,
+    confirmed: Option<bool>,
+) -> Result<Vec<String>, String> {
+    let argv = form_argv(path, args);
+    gate_execution(&argv, confirmed)?;
+    Ok(argv)
 }
 
 /// Run `f` on a worker thread with a large (32 MiB) stack and return its result.
@@ -674,5 +858,285 @@ mod tests {
             .find(|a| a.name == "recommended")
             .expect("`commands` has a `recommended` argument");
         assert_eq!(recommended.value_kind, ArgValueKind::Flag);
+    }
+
+    fn sv(tokens: &[&str]) -> Vec<String> {
+        tokens.iter().map(|t| (*t).to_string()).collect()
+    }
+
+    #[test]
+    fn form_argv_argv_only() {
+        let a = serde_json::json!({"__argv": ["--json", "x"]});
+        assert_eq!(form_argv(sv(&["check"]), &a), sv(&["check", "--json", "x"]));
+    }
+
+    #[test]
+    fn form_argv_structured_only() {
+        let a = serde_json::json!({"limit": "5", "verbose": true});
+        assert_eq!(
+            form_argv(sv(&["scientia", "claims"]), &a),
+            sv(&["scientia", "claims", "--limit", "5", "--verbose"])
+        );
+    }
+
+    /// D-16 regression: structured values used to be dropped whenever `__argv` was present.
+    #[test]
+    fn form_argv_both() {
+        let a = serde_json::json!({"path": "src", "__argv": ["--json"]});
+        assert_eq!(
+            form_argv(sv(&["check"]), &a),
+            sv(&["check", "--path", "src", "--json"])
+        );
+    }
+
+    #[test]
+    fn form_argv_positionals_and_flags() {
+        let p = serde_json::json!({"__positionals": ["a", 2]});
+        assert_eq!(form_argv(sv(&["x"]), &p), sv(&["x", "a", "2"]));
+        let f = serde_json::json!({"__flags": ["force"]});
+        assert_eq!(form_argv(sv(&["x"]), &f), sv(&["x", "--force"]));
+        let b = serde_json::json!({"__argv": ["", "  ", "y"]});
+        assert_eq!(form_argv(sv(&["x"]), &b), sv(&["x", "y"]));
+    }
+
+    #[test]
+    fn form_argv_bool_false_and_array() {
+        let f = serde_json::json!({"dry_run": false});
+        assert_eq!(form_argv(sv(&["x"]), &f), sv(&["x"]));
+        let t = serde_json::json!({"tag": ["a", "b"]});
+        assert_eq!(
+            form_argv(sv(&["x"]), &t),
+            sv(&["x", "--tag", "a", "--tag", "b"])
+        );
+        let n = serde_json::json!({"only": null});
+        assert_eq!(form_argv(sv(&["x"]), &n), sv(&["x", "--only"]));
+        let e = serde_json::json!({"only": ""});
+        assert_eq!(form_argv(sv(&["x"]), &e), sv(&["x", "--only"]));
+    }
+
+    #[test]
+    fn destructive_cli_id_via_argv() {
+        let a = serde_json::json!({"__argv": ["remove", "x"]});
+        let argv = form_argv(sv(&["plugin"]), &a);
+        assert_eq!(
+            destructive_cli_id(&argv).as_deref(),
+            Some("cli.plugin.remove")
+        );
+        assert_eq!(destructive_cli_id(&sv(&["features"])), None);
+    }
+
+    #[test]
+    fn gate_refuses_destructive_without_confirmation() {
+        let argv = sv(&["plugin", "remove", "x"]);
+        let want = Err("confirmation_required: cli.plugin.remove".to_string());
+        assert_eq!(gate_execution(&argv, None), want);
+        assert_eq!(gate_execution(&argv, Some(false)), want);
+    }
+
+    #[test]
+    fn gate_allows_destructive_with_confirmed_true() {
+        assert_eq!(
+            gate_execution(&sv(&["plugin", "remove", "x"]), Some(true)),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn gate_allows_non_destructive() {
+        assert_eq!(gate_execution(&sv(&["features"]), None), Ok(()));
+    }
+
+    /// CR-01: clap resolves aliases to the canonical command, so the gate must too.
+    #[test]
+    fn gate_refuses_alias_spellings_of_destructive_rows() {
+        for (spelling, row) in [
+            (
+                &["models", "preferences", "reset"][..],
+                "cli.model.preferences.reset",
+            ),
+            (
+                &["orchestrator", "snapshot", "restore"][..],
+                "cli.dei.snapshot.restore",
+            ),
+        ] {
+            assert_eq!(
+                gate_execution(&sv(spelling), None),
+                Err(format!("{CONFIRMATION_REQUIRED_PREFIX}{row}")),
+                "alias spelling {spelling:?} must be gated",
+            );
+            assert_eq!(gate_execution(&sv(spelling), Some(true)), Ok(()));
+        }
+    }
+
+    /// Every spelling (canonical or alias) of each segment of `path`, as full argv vectors.
+    fn spellings(path: &[String], table: &vox_capability_registry::CliAliases) -> Vec<Vec<String>> {
+        let mut out: Vec<Vec<String>> = vec![vec![]];
+        for i in 0..path.len() {
+            let mut names = vec![path[i].clone()];
+            names.extend(table.get(&path[..=i]).cloned().unwrap_or_default());
+            out = out
+                .iter()
+                .flat_map(|p| {
+                    names.iter().map(|n| {
+                        let mut q = p.clone();
+                        q.push(n.clone());
+                        q
+                    })
+                })
+                .collect();
+        }
+        out
+    }
+
+    /// CR-01: every alias spelling of every destructive CLI row is gated.
+    #[test]
+    fn every_alias_spelling_of_every_destructive_row_is_gated() {
+        let table = cli_aliases().expect("alias table builds");
+        let mut checked_alias_spellings = 0;
+        for row in vox_capability_registry::bundled_index()
+            .rows
+            .iter()
+            .filter(|r| r.side_effect_class.as_deref() == Some("destructive"))
+        {
+            let Some(cli) = &row.cli else { continue };
+            for argv in spellings(&cli.path, table) {
+                // Any destructive row may win when rows overlap (`ars skill` vs `ext ars skill`).
+                let refusal = gate_execution(&argv, None).expect_err("must refuse unconfirmed");
+                assert!(
+                    refusal.starts_with(CONFIRMATION_REQUIRED_PREFIX),
+                    "{argv:?} must be gated as {}: {refusal}",
+                    row.id
+                );
+                if argv != cli.path {
+                    checked_alias_spellings += 1;
+                }
+            }
+        }
+        assert!(
+            checked_alias_spellings >= 2,
+            "model + dei alias spellings are exercised"
+        );
+    }
+
+    #[test]
+    fn alias_table_covers_known_aliases() {
+        let table = cli_aliases().expect("alias table builds");
+        assert!(table[&sv(&["model"])].contains(&"models".to_string()));
+        assert!(table[&sv(&["graph"])].contains(&"graphify".to_string()));
+        assert!(table[&sv(&["graph"])].contains(&"search".to_string()));
+        assert!(table[&sv(&["dei"])].contains(&"orchestrator".to_string()));
+    }
+
+    #[test]
+    fn gate_fails_closed_when_alias_table_is_unavailable() {
+        assert_eq!(
+            destructive_cli_id_with(&sv(&["features"]), None).as_deref(),
+            Some(UNRESOLVED_ALIAS_ID)
+        );
+    }
+
+    /// A new `alias = "x"` in the top-level command enums must reach the gate's table, including
+    /// feature-gated variants the compiled tree cannot see (hence the supplement).
+    #[test]
+    fn gated_variant_aliases_in_source_are_all_known() {
+        let table = cli_aliases().expect("alias table builds");
+        let known: std::collections::HashSet<&str> =
+            table.values().flatten().map(String::as_str).collect();
+        for (file, text) in [
+            ("lib.rs", include_str!("lib.rs")),
+            ("commands/ext.rs", include_str!("commands/ext.rs")),
+        ] {
+            for line in text.lines().filter(|l| l.contains("#[command(")) {
+                let mut rest = line;
+                while let Some(at) = rest.find("alias = \"") {
+                    rest = &rest[at + "alias = \"".len()..];
+                    let alias = &rest[..rest.find('"').expect("closing quote")];
+                    assert!(
+                        known.contains(alias),
+                        "{file}: alias {alias:?} is not in the gate's alias table; add it to GATED_ALIAS_SUPPLEMENT"
+                    );
+                }
+            }
+        }
+    }
+
+    /// WR-02: the argv the sidecar receives only ever comes out of `prepare_execution`.
+    #[test]
+    fn prepare_execution_refuses_ungated_destructive_argv() {
+        let smuggled = serde_json::json!({"__argv": ["remove", "demo"]});
+        let err = prepare_execution(sv(&["plugin"]), &smuggled, None).expect_err("gated");
+        assert_eq!(err, "confirmation_required: cli.plugin.remove");
+        assert_eq!(
+            prepare_execution(sv(&["plugin"]), &smuggled, Some(true)),
+            Ok(sv(&["plugin", "remove", "demo"]))
+        );
+        let alias = serde_json::json!({"__argv": ["preferences", "reset"]});
+        assert!(prepare_execution(sv(&["models"]), &alias, Some(false)).is_err());
+    }
+
+    #[test]
+    fn prepare_execution_passes_non_destructive_argv_through() {
+        let a = serde_json::json!({"__argv": ["--json"]});
+        assert_eq!(
+            prepare_execution(sv(&["features"]), &a, None),
+            Ok(sv(&["features", "--json"]))
+        );
+    }
+
+    /// Tripwire (WR-02): a unit test of the gate stays green with the call site deleted, so assert
+    /// the call site itself. Lives here, not in `vox-gui`, because hosted CI does not run
+    /// `vox-gui` tests. `execute_command` must take its argv from `prepare_execution`, must not
+    /// assemble one itself, and the call must precede the sidecar spawn.
+    #[test]
+    fn gui_execute_command_takes_its_argv_from_prepare_execution() {
+        let src = include_str!("../../vox-gui/src/commands/execute.rs");
+        let start = src
+            .find("pub async fn execute_command")
+            .expect("execute_command");
+        let body = &src[start..src.find("#[cfg(test)]").expect("test module")];
+        let prepare = body
+            .find("let shell_args = vox_cli::command_catalog::prepare_execution(path, &args, confirmed)?;")
+            .expect("execute_command must bind its argv from prepare_execution(path, &args, confirmed)?");
+        let spawn = body.find(".sidecar(").expect("sidecar spawn");
+        assert!(
+            prepare < spawn,
+            "the gate must run before the sidecar spawn"
+        );
+        assert!(
+            body.contains(".args(shell_args)"),
+            "the spawn must use the gated argv"
+        );
+        assert!(
+            !body.contains("form_argv("),
+            "execute_command must not assemble argv itself"
+        );
+    }
+
+    /// WR-01: destructive verbs found unclassified in review are now gated from the index.
+    #[test]
+    fn handler_verified_destructive_verbs_are_gated() {
+        for (argv, row) in [
+            (&["db", "prune-apply"][..], "cli.db.prune-apply"),
+            (
+                &["db", "publication-media-delete", "p", "a"][..],
+                "cli.db.publication-media-delete",
+            ),
+            (
+                &["ci", "artifact-prune", "--apply"][..],
+                "cli.ci.artifact-prune",
+            ),
+            (&["logout"][..], "cli.logout"),
+        ] {
+            assert_eq!(
+                gate_execution(&sv(argv), None),
+                Err(format!("{CONFIRMATION_REQUIRED_PREFIX}{row}")),
+                "{argv:?}"
+            );
+        }
+        // Ends processes and deletes nothing (rubric: spawns_process), so it is not gated.
+        assert_eq!(
+            gate_execution(&sv(&["ci", "kill-stuck-tests"]), None),
+            Ok(())
+        );
     }
 }

@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { CommandCatalog, CommandCatalogEntry, CommandCatalogArgument } from '../types/catalog';
 import { voxTransport } from '../transport';
 import { sanitizeErrorForToast } from '../lib/backendGuard';
+import { confirmationRequiredId } from '../lib/capabilityRun';
+import { ConfirmRunDialog } from './layout/ConfirmRunDialog';
 
 export interface ExecuteOutput {
     exit_code: number;
@@ -24,10 +26,26 @@ export function argControl(arg: CommandCatalogArgument): ArgControl {
     return 'text';
 }
 
-export function CommandCatalogForm({ catalog }: { catalog: CommandCatalog }) {
+export function CommandCatalogForm({
+    catalog,
+    initialPath,
+    nonce,
+}: {
+    catalog: CommandCatalog;
+    /** Palette handoff: command path to select; re-applied whenever `nonce` changes. */
+    initialPath?: string[];
+    nonce?: number;
+}) {
     const [selectedPath, setSelectedPath] = useState<string | null>(null);
     const [argsInput, setArgsInput] = useState('');
     const [argValues, setArgValues] = useState<Record<string, string | boolean>>({});
+    // D-03: a destructive refusal parks the exact args here until the user confirms.
+    // It remembers the path it was created for, so Confirm can never retarget a different command.
+    const [pendingConfirm, setPendingConfirm] = useState<{ id: string; path: string[]; args: Record<string, unknown> } | null>(null);
+    // WR-08: every selection / run bumps the token; a result for an older token is dropped. `running`
+    // blocks a second Run while one is pending (a side-effecting verb must not execute twice).
+    const runToken = useRef(0);
+    const [running, setRunning] = useState(false);
     const [output, setOutput] = useState<{ success?: boolean; data?: ExecuteOutput; error?: string } | null>(null);
 
     const commandList = catalog?.entries || [];
@@ -47,30 +65,70 @@ export function CommandCatalogForm({ catalog }: { catalog: CommandCatalog }) {
         }
         setArgValues(seeded);
         setOutput(null);
+        setPendingConfirm(null);
+        runToken.current += 1; // results of a run started for another selection are stale now
+        setRunning(false);
     };
 
-    const handleExecute = async () => {
-        if (!selectedPath) return;
-        try {
-            const parsedArgs = argsInput.trim().split(/\s+/).filter(Boolean);
-            const argsObj: Record<string, string | boolean> = {};
-            
-            // Map structured argValues
-            for (const [key, val] of Object.entries(argValues)) {
-                if (typeof val === 'boolean') {
-                    if (val) argsObj[key] = true;
-                } else if (val) {
-                    argsObj[key] = String(val);
-                }
+    // Select the palette-chosen command (selecting only fills the form; Run stays explicit).
+    useEffect(() => {
+        if (!initialPath || nonce === undefined) return;
+        handleCommandSelect(initialPath);
+        document
+            .querySelector(`[data-catalog-path="${CSS.escape(initialPath.join(' '))}"]`)
+            ?.scrollIntoView?.({ block: 'center' });
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on nonce on purpose
+    }, [nonce]);
+
+    /**
+     * D-16: positional arguments (neither long nor short) go out as `__positionals` in declaration
+     * order; options keep their long name; `__argv` carries the raw extra arguments.
+     */
+    const buildArgs = (cmd: CommandCatalogEntry): Record<string, unknown> => {
+        const argsObj: Record<string, unknown> = {};
+        const positionals: string[] = [];
+        for (const arg of cmd.arguments ?? []) {
+            const fieldKey = arg.long || arg.name;
+            const val = argValues[fieldKey];
+            if (!arg.long && !arg.short) {
+                if (typeof val === 'string' && val) positionals.push(val);
+            } else if (typeof val === 'boolean') {
+                if (val) argsObj[fieldKey] = true;
+            } else if (val) {
+                argsObj[fieldKey] = val;
             }
-            const res = await voxTransport.callTool(selectedPath.replace(/ /g, '_'), {
-                ...argsObj,
-                __argv: parsedArgs,
-            });
-            setOutput({ success: true, data: res });
-        } catch (err) {
-            setOutput({ error: sanitizeErrorForToast(err) });
         }
+        if (positionals.length) argsObj.__positionals = positionals;
+        argsObj.__argv = argsInput.trim().split(/\s+/).filter(Boolean);
+        return argsObj;
+    };
+
+    // Straight to the gated `execute_command` (never the ungated MCP route). `confirmed` is
+    // true only on the retry the user approved in ConfirmRunDialog.
+    const run = async (path: string[], args: Record<string, unknown>, confirmed?: boolean) => {
+        if (running) return;
+        const token = ++runToken.current;
+        setRunning(true);
+        try {
+            const res = await voxTransport.executeCommand(path, args, { confirmed });
+            if (token === runToken.current) setOutput({ success: true, data: res });
+        } catch (err) {
+            if (token !== runToken.current) return;
+            const id = confirmationRequiredId(err);
+            if (id) {
+                setPendingConfirm({ id, path, args });
+                return;
+            }
+            setOutput({ error: sanitizeErrorForToast(err) });
+        } finally {
+            if (token === runToken.current) setRunning(false);
+        }
+    };
+
+    const handleExecute = () => {
+        const cmd = commandList.find((c: CommandCatalogEntry) => c.path.join(' ') === selectedPath);
+        if (!cmd) return;
+        void run(cmd.path, buildArgs(cmd));
     };
 
     const currentCommand = commandList.find((c: CommandCatalogEntry) => c.path.join(' ') === selectedPath);
@@ -86,6 +144,8 @@ export function CommandCatalogForm({ catalog }: { catalog: CommandCatalog }) {
                         return (
                             <li 
                                 key={p}
+                                data-catalog-path={p}
+                                aria-current={isSelected ? 'true' : undefined}
                                 onClick={() => handleCommandSelect(cmd.path)}
                                 className={`cursor-pointer p-2 mb-1 text-sm font-mono transition-colors border-l-2 ${
                                     isSelected ? 'bg-cyan/10 border-cyan text-cyan' : 'border-transparent text-steel hover:bg-overlay-subtle'
@@ -197,9 +257,11 @@ export function CommandCatalogForm({ catalog }: { catalog: CommandCatalog }) {
 
                         <button 
                             onClick={handleExecute}
-                            className="bg-primary text-void font-bold px-4 py-2 rounded-sm uppercase tracking-widest hover:bg-cyan/80 transition-colors"
+                            disabled={running}
+                            aria-busy={running}
+                            className="bg-primary text-void font-bold px-4 py-2 rounded-sm uppercase tracking-widest hover:bg-cyan/80 transition-colors disabled:opacity-60 disabled:cursor-wait"
                         >
-                            Execute
+                            {running ? 'Running…' : 'Run'}
                         </button>
 
                         {output && (
@@ -235,6 +297,17 @@ export function CommandCatalogForm({ catalog }: { catalog: CommandCatalog }) {
                     </div>
                 )}
             </div>
+            <ConfirmRunDialog
+                open={pendingConfirm !== null}
+                commandText={`vox ${pendingConfirm?.path.join(' ') ?? ''}`}
+                rowId={pendingConfirm?.id ?? ''}
+                onCancel={() => setPendingConfirm(null)}
+                onConfirm={() => {
+                    const p = pendingConfirm;
+                    setPendingConfirm(null);
+                    if (p) void run(p.path, p.args, true);
+                }}
+            />
         </div>
     );
 }

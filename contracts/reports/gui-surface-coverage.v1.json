@@ -566,6 +566,10 @@
       "feature_gate": null
     },
     {
+      "path": "ci capability-index",
+      "feature_gate": null
+    },
+    {
       "path": "ci capability-snapshot",
       "feature_gate": null
     },
@@ -1650,6 +1654,10 @@
       "feature_gate": null
     },
     {
+      "path": "explain",
+      "feature_gate": null
+    },
+    {
       "path": "ext",
       "feature_gate": null
     },
@@ -2403,6 +2411,10 @@
     },
     {
       "path": "fabrica test",
+      "feature_gate": null
+    },
+    {
+      "path": "features",
       "feature_gate": null
     },
     {
@@ -4196,6 +4208,8 @@
     "bundle.list",
     "bundle.verify",
     "cancel.task",
+    "capability.explain",
+    "capability.features",
     "capability.model.manifest",
     "catalog",
     "catalog.add",
@@ -4228,6 +4242,7 @@
     "ci.build-timings",
     "ci.cache-key-lint",
     "ci.canonical-map-verify",
+    "ci.capability-index",
     "ci.capability-snapshot",
     "ci.capability-sync",
     "ci.check-codex-ssot",

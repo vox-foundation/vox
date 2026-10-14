@@ -17,6 +17,7 @@ export const collections = {
 				schema_type: z.string().optional(),
 				last_updated: z.string().optional(),
 				mounted_from: z.string().optional(),
+				capabilities: z.array(z.string()).optional(),
 			})
 		}),
 	}),

@@ -8,21 +8,22 @@ import { parsePaletteQuery, type PalettePrefixMode } from './paletteSources';
 import type { FederatedIndexKind } from '../../lib/federatedSearchIndex';
 import { useSearchController } from '../../hooks/useSearchController';
 import { useFederatedSearchIndex } from '../../hooks/useFederatedSearchIndex';
+import { useCapabilityIndex } from '../../hooks/useCapabilityIndex';
+import { kindsForMode, noteRecentCapability, rankCapabilities, recentCapabilities, toRankEntries } from '../../lib/capabilityRank';
 import { useContentManifest } from '../../hooks/useContentManifest';
 import { querySearchableRegistry } from '../../lib/searchableRegistry';
 import {
   buildOmnibarFacets,
   omnibarRowsInOrder,
   queryForFederatedSearch,
-  type FacetKey,
   type GraphNeighbor,
   type OmnibarGraphResult,
   type OmnibarRow,
+  type RowKind,
 } from '../../lib/omnibarFacets';
 import { recordGamifyGuiEvent } from '../../lib/gamifyGuiEvents';
 import { unwrapMcpEnvelope } from '../../lib/mcpToolResult';
-
-const FACET_ORDER: FacetKey[] = ['surfaces', 'commands', 'onScreen', 'graph', 'docs'];
+import { decideCliActivation, type CliActivation } from '../../lib/capabilityRun';
 
 const SETTINGS_SEED_KEY = 'vox_settings_seed';
 
@@ -38,22 +39,52 @@ const GRAPH_DISCOVER_TOOL = 'vox_search_structural';
 /** VG-1-owned neighbor-expansion MCP tool (umbrella spec §3.1: { corpus, node_ids, max_depth }). */
 const GRAPH_NEIGHBORS_TOOL = 'vox_search_neighbors';
 
+/** Row kind -> icon (aria-hidden; the label carries the meaning). */
+const KIND_ICON: Partial<Record<RowKind, keyof typeof Icon>> = {
+  cli: 'terminal',
+  mcp_tool: 'puzzle',
+  crate: 'cpu',
+  skill: 'spark',
+  doc: 'book',
+  surface: 'dashboard',
+  setting: 'settings',
+  policy: 'shield',
+  agent: 'users',
+  action: 'command',
+};
+
+/** D-01: the trailing hint on a cli row, from the same decision Enter uses. */
+const CLI_HINT: Record<CliActivation['kind'], string> = {
+  run: '↵ runs',
+  form: '↵ opens form',
+  explain: '↵ explains',
+};
+
+/** D-08a: shown under a capped Commands / Tools facet; the Explorer link arrives in phase 06.4. */
+const NARROW_HINT = 'Keep typing to narrow, or use > (commands) / # (crates)';
+
 /**
- * finding #4: preserve CommandPalette's prefix-mode → kind restriction. Moved in
- * verbatim from CommandPalette.tsx (it was a private helper, not exported). Maps
- * `>`=commands/actions, `@`=agents (no federated kinds), `/`=docs+skills so the
- * federated lane actually narrows; dropping it would make prefix modes decorative.
+ * finding #4: preserve CommandPalette's prefix-mode → kind restriction. Maps
+ * `/`=docs+skills, `@`/`#`/`>`= no federated kinds, so the federated lane actually narrows.
+ * D-05: surfaces and commands come from the capability index, so they are not federated kinds
+ * any more; the federated lane keeps settings, policies, docs and installed skills.
  */
-function federatedKindsForMode(mode: PalettePrefixMode): FederatedIndexKind[] {
+function federatedKindsForMode(mode: PalettePrefixMode, indexDown = false): FederatedIndexKind[] {
+  // WR-06: with the index chunk missing, built-in surfaces come back through the federated lane.
+  const base = federatedKindsForModeBase(mode);
+  return indexDown && (mode === 'default' || mode === 'commands') ? [...base, 'surface'] : base;
+}
+
+function federatedKindsForModeBase(mode: PalettePrefixMode): FederatedIndexKind[] {
   switch (mode) {
     case 'skills':
       return ['doc', 'skill'];
     case 'commands':
-      return ['command', 'action'];
     case 'agents':
+    case 'crates':
       return [];
     default:
-      return ['surface', 'setting', 'policy', 'command', 'action', 'doc'];
+      return ['setting', 'policy', 'doc', 'skill'];
   }
 }
 
@@ -94,9 +125,21 @@ interface OmnibarProps {
   onSendToChat: (query: string) => void;
   onOpenDoc: (path: string) => void;
   onSubmitTask: () => void;
+  /** Open the Catalog surface with this CLI path selected (never executes). */
+  onOpenCatalogForm?: (path: string[]) => void;
+  /** Explain an index row (MCP tool, crate, skill) in the drawer. */
+  onExplain?: (rowId: string) => void;
+  /** D-01: run a read-only CLI leaf directly (see decideCliActivation). */
+  onRunCli: (path: string[]) => void;
   agents: Agent[];
+  /** Installed skills (not the CLI catalog). */
   skills: CommandCatalogEntry[];
+  /** The live CLI command catalog; decides run / form / explain for cli rows. */
+  catalog: CommandCatalogEntry[];
   gamifyEnabled?: boolean;
+  /** Handler-backed keybind actions with live chords (D-13). */
+  actions?: { id: string; label: string; chord: string }[];
+  onRunAction?: (id: string) => void;
 }
 
 /** Always-offered quick action — not derived from any search source, so it
@@ -127,9 +170,15 @@ export function Omnibar({
   onSendToChat,
   onOpenDoc,
   onSubmitTask,
+  onOpenCatalogForm,
+  onExplain,
+  onRunCli,
   agents,
   skills,
+  catalog,
   gamifyEnabled = false,
+  actions,
+  onRunAction,
 }: OmnibarProps) {
   const [q, setQ] = useState('');
   const [selectedRowIdx, setSelectedRowIdx] = useState(-1);
@@ -184,7 +233,15 @@ export function Omnibar({
     [skills],
   );
   const { search: searchFederated } = useFederatedSearchIndex(skillSources);
-  const fedKinds = useMemo(() => federatedKindsForMode(prefixMode), [prefixMode]);
+  const {
+    rows: indexRows,
+    entries: loadedEntries,
+    domains,
+    loading: indexLoading,
+    error: indexError,
+    retry: retryIndex,
+  } = useCapabilityIndex(open);
+  const fedKinds = useMemo(() => federatedKindsForMode(prefixMode, !!indexError), [prefixMode, indexError]);
   const federated = useMemo(
     () => {
       const q = queryForFederatedSearch(effectiveQ);
@@ -192,6 +249,63 @@ export function Omnibar({
     },
     [searchFederated, effectiveQ, fedKinds],
   );
+
+  // Capability index (D-06): loaded lazily on the first open; cli rows feed Commands (D-05).
+  // WR-06: if the chunk failed to load, the live CLI catalog stands in for the cli rows (the form is
+  // always safe: unclassified rows never run directly) and surfaces come from the federated lane.
+  const rankEntries = useMemo(
+    () =>
+      indexError && loadedEntries.length === 0
+        ? toRankEntries(
+            catalog.map((e) => ({
+              id: `cli.${e.path.join('.')}`,
+              kind: 'cli' as const,
+              title: e.path.join(' '),
+              summary: e.about,
+              domain: null,
+              cli: `vox ${e.path.join(' ')}`,
+              mcp: null,
+              viewKey: null,
+              crate: null,
+              layer: null,
+              docs: null,
+              coverage: null,
+              equivalents: [],
+              refs: [],
+              tier: e.tier,
+              status: null,
+              sideEffect: null,
+              lane: null,
+              catalogForm: true,
+              navLabel: null,
+              source: null,
+            })),
+          )
+        : loadedEntries,
+    [indexError, loadedEntries, catalog],
+  );
+  // WR-07: no global cap, so each facet's "N of M" counts every match and no kind is starved by
+  // another's higher-ranked rows. The pool is ~1.5k rows; facets cap what they render.
+  const indexHits = useMemo(
+    () =>
+      rankCapabilities(rankEntries, effectiveQ, {
+        kinds: kindsForMode(prefixMode),
+        recent: recentCapabilities(),
+        limit: Number.POSITIVE_INFINITY,
+      }),
+    [rankEntries, effectiveQ, prefixMode],
+  );
+
+  // D-01: what Enter does on a cli row. A row missing from the index counts as unclassified (form).
+  const catalogByPath = useMemo(() => new Map(catalog.map((e) => [e.path.join(' '), e])), [catalog]);
+  const indexById = useMemo(() => new Map(indexRows.map((r) => [r.id, r])), [indexRows]);
+  const cliDecision = useCallback(
+    (rowId: string, path: string[]): CliActivation =>
+      decideCliActivation({ sideEffect: indexById.get(rowId)?.sideEffect ?? null }, catalogByPath.get(path.join(' '))),
+    [indexById, catalogByPath],
+  );
+
+  const installedSkillNames = useMemo(() => new Set(skills.map((s) => s.path[s.path.length - 1])), [skills]);
 
   const manifest = useContentManifest();
   const runtimeHits = useMemo(
@@ -240,25 +354,31 @@ export function Omnibar({
       manifest,
       runtimeHits,
       graph,
+      indexHits,
+      domains,
+      installedSkillNames,
+      actions,
     });
     // Carry agents into the COMMANDS facet (finding #5) without re-capping below
     // FACET_CAP would drop real commands — agents lead, then existing commands.
     // SUBMIT_TASK_ROW is a default quick action shown only on the empty-query
     // landing state — like a real command palette's default suggestions, it
     // steps aside the moment the user starts searching for something else.
-    const withSubmitTask = effectiveQ.trim() ? agentRows : [...agentRows, SUBMIT_TASK_ROW];
+    // WR-11: only in the default mode — a bare `#` / `>` / `/` / `@` has an empty query too.
+    const withSubmitTask = effectiveQ.trim() || prefixMode !== 'default' ? agentRows : [...agentRows, SUBMIT_TASK_ROW];
     if (withSubmitTask.length === 0) return base;
     return base.map((f) =>
       f.key === 'commands'
-        ? { ...f, rows: [...withSubmitTask, ...f.rows] }
+        ? { ...f, rows: [...withSubmitTask, ...f.rows], total: f.total + withSubmitTask.length }
         : f,
     );
-  }, [effectiveQ, prefixMode, federated, backendHits, manifest, runtimeHits, graph, agentRows]);
+  }, [effectiveQ, prefixMode, federated, backendHits, manifest, runtimeHits, graph, agentRows, indexHits, domains, installedSkillNames, actions]);
   const rows = useMemo(() => omnibarRowsInOrder(facets), [facets]);
 
   const activateRow = useCallback(
     (row: OmnibarRow) => {
       recordGamifyGuiEvent('palette_navigation', { facet: row.facet }, { enabled: gamifyEnabled });
+      if (row.id.startsWith('index:')) noteRecentCapability(row.id.slice('index:'.length));
       switch (row.activate.type) {
         case 'navigate':
           onNavigate(row.activate.viewKey, row.activate.anchorId);
@@ -268,6 +388,16 @@ export function Omnibar({
           break;
         case 'doc':
           onOpenDoc(row.activate.path);
+          break;
+        case 'cli': {
+          const d = cliDecision(row.activate.rowId, row.activate.path);
+          if (d.kind === 'run') onRunCli(row.activate.path);
+          else if (d.kind === 'form') onOpenCatalogForm?.(row.activate.path);
+          else onExplain?.(row.activate.rowId);
+          break;
+        }
+        case 'explain':
+          onExplain?.(row.activate.rowId);
           break;
         case 'graph':
           if (row.activate.node.viewKey) onNavigate(row.activate.node.viewKey);
@@ -301,10 +431,15 @@ export function Omnibar({
         case 'submit-task':
           onSubmitTask();
           break;
+        case 'action':
+          // Close first so an overlay action (sheet, inspector) is not dismissed by the close.
+          onClose();
+          onRunAction?.(row.activate.actionId);
+          return;
       }
       onClose();
     },
-    [onNavigate, onRunCommand, onOpenDoc, onSubmitTask, onClose, gamifyEnabled],
+    [onNavigate, onRunCommand, onOpenDoc, onOpenCatalogForm, onExplain, onRunCli, cliDecision, onSubmitTask, onRunAction, onClose, gamifyEnabled],
   );
 
   const expandGraphNeighbors = useCallback((row: OmnibarRow) => {
@@ -333,6 +468,19 @@ export function Omnibar({
       });
   }, []);
 
+  // a11y: remember what had focus when the palette opened (captured during render, before the
+  // autofocused input steals it) and give it back on close.
+  const returnFocus = useRef<HTMLElement | null>(null);
+  const wasOpen = useRef(false);
+  if (open && !wasOpen.current) returnFocus.current = document.activeElement as HTMLElement | null;
+  wasOpen.current = open;
+  useEffect(() => {
+    if (open) return;
+    const el = returnFocus.current;
+    returnFocus.current = null;
+    if (el?.isConnected) el.focus();
+  }, [open]);
+
   const rowsRef = useRef(rows);
   const idxRef = useRef(selectedRowIdx);
   rowsRef.current = rows;
@@ -351,6 +499,8 @@ export function Omnibar({
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
+      // WR-03: the Enter / arrow that drives an IME composition belongs to the IME (keyCode 229 on WebKit).
+      if (e.isComposing || e.keyCode === 229) return;
       const list = rowsRef.current;
       let idx = idxRef.current;
       if (e.key === 'Escape') {
@@ -383,9 +533,51 @@ export function Omnibar({
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose, onSendToChat, activateRow, expandGraphNeighbors, q]);
 
+  // WR-04: aria-modal needs a real trap. Tab wraps inside the dialog; focus that lands outside
+  // (programmatic, or a click that slipped past the overlay) is pulled back to the first control.
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const focusables = () =>
+    Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('input, button:not([disabled])') ?? []);
+  useEffect(() => {
+    if (!open) return;
+    const onFocusIn = (e: FocusEvent) => {
+      const t = e.target;
+      // Another dialog (a Radix focus scope) that took focus legitimately owns it: do not fight it.
+      if (dialogRef.current && t instanceof Element && !dialogRef.current.contains(t) && !t.closest('[role="dialog"]')) {
+        focusables()[0]?.focus();
+      }
+    };
+    document.addEventListener('focusin', onFocusIn);
+    return () => document.removeEventListener('focusin', onFocusIn);
+  }, [open]);
+  const onDialogKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== 'Tab') return;
+    const items = focusables();
+    if (items.length === 0) return;
+    const first = items[0];
+    const last = items[items.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  };
+
   if (!open) return null;
 
   let rowCursor = 0;
+
+  const loadingLine = q.trim().length > 0 && indexLoading;
+  const noMatches = q.length > 0 && rows.length === 0 && !indexLoading && !facets.some((f) => f.error);
+  const statusText = loadingLine
+    ? 'Loading capability index…'
+    : noMatches
+      ? `No matches for "${q}" — press ⇧⏎ to ask chat`
+      : rows.length > 0
+        ? `${rows.length} result${rows.length === 1 ? '' : 's'}`
+        : '';
 
   return (
     <div
@@ -393,13 +585,19 @@ export function Omnibar({
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Command palette"
+        onKeyDown={onDialogKeyDown}
         className="w-[680px] max-w-[92vw] rounded-2xl border border-border-subtle bg-bg-base/90 shadow-[0_40px_120px_-30px_rgba(0,0,0,0.9)] backdrop-blur-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 border-b border-border-subtle px-4 py-3">
-          <Icon.search className="size-4 text-brass" />
+          <Icon.search className="size-4 text-brass" aria-hidden="true" />
           <input
             autoFocus
+            aria-label="Search Vox"
             value={q}
             onChange={(e) => {
               const v = e.target.value;
@@ -413,13 +611,20 @@ export function Omnibar({
         </div>
 
         <div className="max-h-[480px] overflow-auto p-2 custom-scrollbar">
-          {FACET_ORDER.map((key) => {
-            const facet = facets.find((f) => f.key === key)!;
+          {facets.map((facet) => {
             if (facet.rows.length === 0 && !facet.error) return null;
+            const capped = facet.total > facet.rows.length;
             return (
-              <React.Fragment key={key}>
+              <React.Fragment key={facet.key}>
                 <div className="flex items-center justify-between px-3 py-2 mt-2 text-[10px] uppercase tracking-widest text-text-muted border-b border-border-subtle">
-                  <span>{facet.label}</span>
+                  <span className="flex items-center gap-2">
+                    <span>{facet.label}</span>
+                    {capped ? (
+                      <span className="normal-case tracking-normal">
+                        {facet.rows.length} of {facet.total}
+                      </span>
+                    ) : null}
+                  </span>
                   <ProvenanceBadge hint={facet.provenanceHint} />
                 </div>
                 {facet.error ? (
@@ -430,36 +635,95 @@ export function Omnibar({
                   facet.rows.map((row) => {
                     const idx = rowCursor++;
                     const selected = idx === selectedRowIdx;
+                    const KindIcon = Icon[(row.kind && KIND_ICON[row.kind]) || 'search'];
                     return (
                       <button
                         key={row.id}
                         onClick={() => activateRow(row)}
+                        onFocus={() => {
+                          // WR-03: Tab onto a row makes it the Enter target.
+                          idxRef.current = idx;
+                          setSelectedRowIdx(idx);
+                        }}
+                        aria-current={selected ? 'true' : undefined}
                         className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition ${
                           selected ? 'bg-brass/8 border border-brass/20' : 'hover:bg-overlay-subtle'
                         }`}
                       >
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-[13px] text-text-secondary truncate max-w-[460px]">{row.label}</span>
-                          {row.detail ? (
-                            <span className="text-[11px] text-text-muted truncate max-w-[460px]">{row.detail}</span>
-                          ) : null}
+                        <div className="flex min-w-0 items-center gap-2.5">
+                          <KindIcon className="size-3.5 shrink-0 text-text-muted" aria-hidden="true" />
+                          <div className="flex flex-col min-w-0">
+                            <span className="flex items-center gap-1.5">
+                              <span className="text-[13px] text-text-secondary truncate max-w-[360px]">{row.label}</span>
+                              {row.chips?.interfaces.map((chip) => (
+                                <span
+                                  key={chip}
+                                  className="shrink-0 rounded-sm border border-border-subtle bg-overlay-subtle px-1 py-px font-mono text-[9px] tracking-widest text-text-muted"
+                                >
+                                  {chip}
+                                </span>
+                              ))}
+                              {row.chips?.chord ? (
+                                <kbd className="shrink-0 rounded-sm border border-border-subtle bg-overlay-subtle px-1 py-px font-mono text-[10px] text-text-muted">
+                                  {row.chips.chord}
+                                </kbd>
+                              ) : null}
+                              {row.chips?.domain ? (
+                                <span className="shrink-0 rounded-sm border border-brass/20 px-1 py-px text-[9px] text-text-muted">
+                                  {row.chips.domain}
+                                </span>
+                              ) : null}
+                            </span>
+                            {row.detail ? (
+                              <span className="text-[11px] text-text-muted truncate max-w-[460px]">{row.detail}</span>
+                            ) : null}
+                          </div>
                         </div>
                         <span className="font-mono text-[9px] uppercase tracking-widest text-text-muted shrink-0 ml-2">
+                          {row.activate.type === 'cli' ? (
+                            <span className="mr-2 normal-case tracking-normal">
+                              {CLI_HINT[cliDecision(row.activate.rowId, row.activate.path).kind]}
+                            </span>
+                          ) : null}
                           {row.provenance}
                         </span>
                       </button>
                     );
                   })
                 )}
+                {capped && (facet.key === 'commands' || facet.key === 'tools') ? (
+                  <div className="px-3 py-1 text-[11px] text-text-muted italic">{NARROW_HINT}</div>
+                ) : null}
               </React.Fragment>
             );
           })}
 
-          {q.length > 0 && rows.length === 0 && !facets.some((f) => f.error) && (
-            <div className="px-3 py-6 text-center text-[12px] text-text-muted">
-              No matches for "{q}" — press ⇧⏎ to ask chat
+          {indexError && (
+            <div className="flex items-center gap-2 px-3 py-2 text-[11px] text-text-muted italic">
+              <span>Capability index unavailable — {indexError}. Showing built-in surfaces and commands only.</span>
+              <button
+                type="button"
+                onClick={retryIndex}
+                className="rounded-sm border border-border-subtle px-1.5 py-px not-italic text-text-secondary hover:bg-overlay-subtle"
+              >
+                Retry
+              </button>
             </div>
           )}
+
+          <div
+            role="status"
+            aria-live="polite"
+            className={
+              loadingLine
+                ? 'px-3 py-2 text-[11px] text-text-muted italic'
+                : noMatches
+                  ? 'px-3 py-6 text-center text-[12px] text-text-muted'
+                  : 'sr-only'
+            }
+          >
+            {statusText}
+          </div>
         </div>
       </div>
     </div>

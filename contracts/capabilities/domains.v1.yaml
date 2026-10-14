@@ -1,0 +1,245 @@
+# Capability-index domain vocabulary and match tables (hand-maintained SSOT, D-09).
+#
+# Read by `vox ci capability-index` (crates/vox-cli/src/commands/ci/capability_index/). Every
+# domain id used anywhere below must appear in `domains`; every `owner` / `crates` key must be a
+# crate in docs/src/architecture/layers.toml [crates]. Unknown values fail generation.
+#
+# Domain rule order for a cli/mcp row:
+#   1. catalog `domain` override (contracts/operations/catalog.v1.yaml)
+#   2. cli row: cli_groups[<top-level cli path>].domain; mcp row: mcp_prefixes[<first token after
+#      `vox_`>] (an mcp row of a paired op falls back to its cli group)
+#   3. crates[<owner crate>], skipped for the surface/handler crates vox-cli, vox-cli-ci,
+#      vox-orchestrator-mcp and vox-gui (they hold everything, so they say nothing about a domain)
+#   4. `platform`
+#
+# Single-arm groups (architect, bundle-app, commands, completions, component, doctor, login, logout,
+# memory, script, stop, train) are handled by arms in cli_dispatch/mod.rs and cli_dispatch/lanes.rs,
+# so their owner is vox-cli.
+#
+# `cli_groups[*].owner` is the owning crate for a group whose dispatch arm provably calls into that
+# crate (checked against crates/vox-cli/src/cli_dispatch/). A group with no `owner` and no
+# same-named crate or commands/ module stays unresolved and is counted by the owner ratchet
+# (contracts/capabilities/owner-ratchet.v1.json).
+schema_version: 1
+
+domains:
+  - id: compiler
+    label: "Compiler"
+  - id: orchestrator
+    label: "Orchestrator & agents"
+  - id: mesh
+    label: "Mesh / Populi"
+  - id: ml
+    label: "ML / Mens"
+  - id: research
+    label: "Research / Scientia"
+  - id: secrets
+    label: "Secrets"
+  - id: gui
+    label: "GUI"
+  - id: data
+    label: "Data & DB"
+  - id: ci
+    label: "CI & governance"
+  - id: skills
+    label: "Plugins & skills"
+  - id: vcs
+    label: "VCS & repo"
+  - id: runtime
+    label: "Runtime & scripts"
+  - id: speech
+    label: "Speech"
+  - id: gamify
+    label: "Gamification"
+  - id: deploy
+    label: "Build & deploy"
+  - id: docs
+    label: "Docs"
+  - id: platform
+    label: "Platform (other)"
+
+cli_groups:
+  add: { domain: deploy }
+  architect: { domain: ci, owner: vox-cli }
+  # `vox ars` is the Latin lane for snippet/share/skill/openclaw/ludus; run_ars_cmd in
+  # cli_dispatch/lanes.rs calls commands::extras::* inside vox-cli.
+  ars: { domain: skills, owner: vox-cli }
+  audit: { domain: ci }
+  auth: { domain: secrets }
+  build: { domain: compiler }
+  bundle: { domain: deploy }
+  bundle-app: { domain: deploy, owner: vox-cli }
+  catalog: { domain: platform }
+  chat: { domain: orchestrator }
+  check: { domain: compiler }
+  ci: { domain: ci }
+  codex: { domain: data }
+  commands: { domain: platform, owner: vox-cli }
+  compile: { domain: compiler }
+  completions: { domain: platform, owner: vox-cli }
+  component: { domain: compiler, owner: vox-cli }
+  config: { domain: platform }
+  container: { domain: deploy }
+  db: { domain: data }
+  dei: { domain: orchestrator }
+  deploy: { domain: deploy }
+  dev: { domain: runtime }
+  # run_diag_cmd in cli_dispatch/lanes.rs (doctor, architect, stub-check) lives in vox-cli.
+  diag: { domain: platform, owner: vox-cli }
+  dispatch: { domain: orchestrator }
+  doctor: { domain: platform, owner: vox-cli }
+  drift-check: { domain: ci }
+  emit: { domain: compiler }
+  ext: { domain: skills }
+  # run_fabrica_cmd in cli_dispatch/lanes.rs (build/check/test/fmt lane) lives in vox-cli.
+  fabrica: { domain: compiler, owner: vox-cli }
+  fmt: { domain: compiler }
+  gamify: { domain: gamify }
+  generate: { domain: compiler }
+  # `vox graph` dispatches to crate::commands::graphify (cli_dispatch/mod.rs).
+  graph: { domain: vcs, owner: vox-cli }
+  grammar: { domain: compiler }
+  gui: { domain: gui }
+  harness: { domain: orchestrator }
+  init: { domain: compiler }
+  live: { domain: runtime }
+  llm: { domain: orchestrator }
+  lock: { domain: deploy }
+  login: { domain: secrets, owner: vox-cli }
+  logout: { domain: secrets, owner: vox-cli }
+  lsp: { domain: compiler }
+  mcp: { domain: orchestrator }
+  memory: { domain: orchestrator, owner: vox-cli }
+  # main.rs delegates every `vox mens ...` invocation to the vox-ml-cli binary.
+  mens: { domain: ml, owner: vox-ml-cli }
+  migrate: { domain: compiler }
+  model: { domain: ml }
+  new: { domain: compiler }
+  openclaw: { domain: skills }
+  plan: { domain: orchestrator }
+  play: { domain: runtime }
+  plugin: { domain: skills }
+  pm: { domain: deploy }
+  policy: { domain: ci }
+  populi: { domain: mesh }
+  # run_review_subcommand takes vox_cli_review::ReviewCli.
+  recensio: { domain: ci, owner: vox-cli-review }
+  remove: { domain: deploy }
+  repair: { domain: platform }
+  repl: { domain: runtime }
+  repo: { domain: vcs }
+  research: { domain: research }
+  review: { domain: ci }
+  rollback: { domain: orchestrator }
+  run: { domain: runtime }
+  scientia: { domain: research }
+  script: { domain: runtime, owner: vox-cli }
+  secrets: { domain: secrets }
+  share: { domain: skills }
+  # `vox shell` dispatches to crate::commands::runtime::shell.
+  shell: { domain: runtime, owner: vox-cli }
+  # `vox skill` dispatches to crate::commands::extras::skill_cmd.
+  skill: { domain: skills, owner: vox-cli }
+  snapshot: { domain: data }
+  snippet: { domain: skills }
+  speech: { domain: speech }
+  stop: { domain: orchestrator, owner: vox-cli }
+  stub-check: { domain: ci }
+  sync: { domain: deploy }
+  telemetry: { domain: platform }
+  term: { domain: runtime }
+  test: { domain: compiler }
+  # `vox train` is a deprecated stub arm in cli_dispatch/mod.rs (points at `vox mens train`).
+  train: { domain: ml, owner: vox-cli }
+  update: { domain: deploy }
+  upgrade: { domain: deploy }
+  visus: { domain: gui }
+  workflow: { domain: runtime }
+
+# MCP tool-name first token (after `vox_`) -> domain, for every token with 2 or more tools.
+mcp_prefixes:
+  a2a: orchestrator
+  agent: orchestrator
+  agy: orchestrator
+  ask: orchestrator
+  attention: orchestrator
+  behavior: orchestrator
+  benchmark: orchestrator
+  browser: skills
+  change: vcs
+  chat: orchestrator
+  check: compiler
+  config: platform
+  db: data
+  exec: runtime
+  gamify: gamify
+  git: vcs
+  gui: gui
+  handoff: orchestrator
+  kb: research
+  memory: orchestrator
+  mesh: mesh
+  news: research
+  openclaw: skills
+  oratio: speech
+  orchestrator: orchestrator
+  pending: orchestrator
+  plan: orchestrator
+  plugin: skills
+  preference: orchestrator
+  questioning: orchestrator
+  repo: vcs
+  research: research
+  scientia: research
+  search: research
+  session: orchestrator
+  skill: skills
+  snapshot: data
+  test: compiler
+  validate: compiler
+  visus: gui
+  workspace: vcs
+
+# Domain crates whose purpose is unambiguous. Never consulted when the owner is a surface crate.
+crates:
+  vox-actor-runtime: runtime
+  vox-arch-check: ci
+  vox-ast: compiler
+  vox-audit: ci
+  vox-code-audit: ci
+  vox-codegen: compiler
+  vox-codegen-ts: compiler
+  vox-compiler: compiler
+  vox-container: deploy
+  vox-db: data
+  vox-db-types: data
+  vox-deploy-codegen: deploy
+  vox-doc-pipeline: docs
+  vox-drift-check: ci
+  vox-gamify: gamify
+  vox-git: vcs
+  vox-lsp: compiler
+  vox-mesh-policy: mesh
+  vox-mesh-transport: mesh
+  vox-mesh-types: mesh
+  vox-ml-cli: ml
+  vox-orchestrator: orchestrator
+  vox-orchestrator-driver: orchestrator
+  vox-orchestrator-models: orchestrator
+  vox-orchestrator-queue: orchestrator
+  vox-orchestrator-types: orchestrator
+  vox-package: deploy
+  vox-plugin-host: skills
+  vox-populi: mesh
+  vox-quantize: ml
+  vox-scientia: research
+  vox-search: research
+  vox-secrets: secrets
+  vox-skill-runtime: skills
+  vox-skills: skills
+  vox-speech: speech
+  vox-sql: data
+  vox-tensor: ml
+  vox-vcs: vcs
+  vox-wasm-engine: runtime
+  vox-workflow-runtime: runtime

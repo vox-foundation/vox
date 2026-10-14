@@ -15,6 +15,12 @@ import { useActiveView } from './hooks/useActiveView';
 import { useDocViewer } from './hooks/useDocViewer';
 import { TaskDiffDialog } from './components/surfaces/Chat/TaskDiffDialog';
 import { DocViewerDrawer } from './components/layout/DocViewerDrawer';
+import { ExplainDrawer } from './components/layout/ExplainDrawer';
+import { RunOutputDialog } from './components/layout/RunOutputDialog';
+import { ConfirmRunDialog } from './components/layout/ConfirmRunDialog';
+import { runCliVerb } from './lib/capabilityRun';
+import { useCapabilityIndex } from './hooks/useCapabilityIndex';
+import { getLoadedCapabilityIndex } from './lib/capabilityIndexLoader';
 import { InspectorDrawer } from './debugger/InspectorDrawer';
 import { ResearchEngineDrawer } from './components/surfaces/Research/ResearchEngineDrawer';
 import { Omnibar } from './components/layout/Omnibar';
@@ -53,14 +59,15 @@ import { buildChatTurn } from './lib/buildChatTurn';
 import { contextRefsFromPayload } from './lib/loquelaContext';
 import { overallWorst, worstCount } from './components/surfaces/Policies/policyTree';
 import type { PolicyRow, PolicyStatus, BranchInfo, RunStatus } from './components/surfaces/Policies/types';
-import { voxTransport, listenAgentEvents, chatTurn as sendChatTurnRaw, type AgentEventFrame } from './transport';
+import { voxTransport, listenAgentEvents, chatTurn as sendChatTurnRaw, type AgentEventFrame, type ExecuteOutput } from './transport';
 import { useQuery } from '@tanstack/react-query';
 import { railRoutingFromSummary } from './lib/routingSummary';
 import { useAttentionInbox } from './hooks/useAttentionInbox';
 import { useNoticeCenter } from './hooks/useNoticeCenter';
 import { noticeFromToast, noticeFromAgentEvent, type SeverityFrame } from './lib/notices';
-import { useKeybinds } from './hooks/useKeybinds';
-import { parseBindings, DEFAULT_BINDINGS, type Bindings } from './lib/keybinds';
+import { useKeybinds, useKeybindings, useShortcutHelpKey } from './hooks/useKeybinds';
+import { isMacPlatform, paletteActionRows } from './lib/keybinds';
+import { ShortcutSheet } from './components/layout/ShortcutSheet';
 import { type UnlistenFn } from '@tauri-apps/api/event';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { SHELL_PREFERENCE_KEYS } from './lib/shellPersistence';
@@ -388,12 +395,8 @@ export default function App() {
   // Master-sidebar Policies badge: worst-status count for the current branch.
   const [policyBadge, setPolicyBadge] = useState<{ count: number; status: RunStatus } | null>(null);
   const [lastOrchEventAt, setLastOrchEventAt] = useState<number | null>(null);
-  const [bindings, setBindings] = useState<Bindings>(DEFAULT_BINDINGS);
-  useEffect(() => {
-    voxTransport.getGuiPreference('gui.keybinds')
-      .then(json => setBindings(parseBindings(json)))
-      .catch(() => setBindings(DEFAULT_BINDINGS));
-  }, []);
+  const bindings = useKeybindings();
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const orchQuery = useOrchestratorStatus();
   const orchUsesPolling = orchQuery.usesPolling;
   const { totalUsd: openrouterSpendUsd } = useLlmSpend();
@@ -1028,6 +1031,37 @@ export default function App() {
 
   const [focusedFeedbackId, setFocusedFeedbackId] = useState<string | null>(null);
 
+  // Palette → Catalog: select a CLI command and show its form (D-01: never executes).
+  const [catalogPrefill, setCatalogPrefill] = useState<{ path: string[]; nonce: number } | null>(null);
+
+  // Palette → explain card (D-07) for rows with no direct GUI action (MCP tool, crate, skill).
+  const [explainRowId, setExplainRowId] = useState<string | null>(null);
+  const capIdx = useCapabilityIndex(explainRowId !== null);
+  const explainRow = useMemo(
+    () => (explainRowId ? (capIdx.rows.find((r) => r.id === explainRowId) ?? null) : null),
+    [explainRowId, capIdx.rows],
+  );
+  // D-01/D-04: palette direct run -> toast + full-output dialog. D-03: a destructive refusal parks the run.
+  const [runOutput, setRunOutput] = useState<{ title: string; out: ExecuteOutput } | null>(null);
+  const [pendingConfirm, setPendingConfirm] = useState<{ path: string[]; id: string } | null>(null);
+  // WR-09: one run per verb at a time, with a running toast; see runCliVerb.
+  const cliInFlight = useRef(new Set<string>());
+  const runCli = useCallback(
+    (path: string[], confirmed?: boolean) =>
+      runCliVerb(path, confirmed, {
+        execute: (p, c) => voxTransport.executeCommand(p, { __argv: [] }, { confirmed: c }),
+        push: pushToast,
+        showOutput: (title, out) => setRunOutput({ title, out }),
+        parkConfirm: (p, id) => setPendingConfirm({ path: p, id }),
+        describeError: sanitizeErrorForToast,
+        inFlight: cliInFlight.current,
+      }),
+    [pushToast],
+  );
+
+  const catalogPaths = useMemo(() => new Set(data.skills.map((e) => e.path.join(' '))), [data.skills]);
+  const closeExplain = useCallback(() => setExplainRowId(null), []);
+
   const onOpenFeedbackContext = useCallback((feedbackId: string) => {
     navigateTo('chat');
     setFocusedFeedbackId(feedbackId);
@@ -1656,8 +1690,18 @@ export default function App() {
     'toggle-sidebar': () => setSidebarMode(m => m === 'rail' ? 'default' : m === 'default' ? 'wide' : 'rail'),
     'pause-resume-agent': () => togglePauseSelectedRef.current(),
     'toggle-inspector': () => setIsInspectorOpen(p => !p),
+    'show-shortcuts': () => setShortcutsOpen(true),
+    // 'dispatch-intent' has no App handler by design (composer-only, D-17); the
+    // palette action rows (06.3-11) list only ids present in this map.
   }), []);
   useKeybinds(actionHandlers, bindings);
+  // D-13/D-17: palette rows come from the live store (`bindings`), so a rebind shows without restart.
+  // dispatch-intent is excluded: it submits the composer and has no App handler (still in the sheet).
+  const paletteActions = useMemo(
+    () => paletteActionRows(bindings, new Set(Object.keys(actionHandlers)), isMacPlatform()),
+    [bindings, actionHandlers],
+  );
+  useShortcutHelpKey(useCallback(() => setShortcutsOpen(true), []));
 
 
 
@@ -1850,6 +1894,7 @@ export default function App() {
     selectedAgentId,
     setSelectedAgentId,
     skills: data.skills,
+    catalogPrefill,
     onAttachContext: attachContext,
     onNavigate: navigateTo,
     onOpenChat: () => navigateTo('chat'),
@@ -2015,6 +2060,8 @@ export default function App() {
 
       <Omnibar
         open={isCommandOpen}
+        actions={paletteActions}
+        onRunAction={(id) => actionHandlers[id as keyof typeof actionHandlers]?.()}
         onClose={() => setIsCommandOpen(false)}
         onNavigate={(vk, anchorId) => {
           navigateTo(vk);
@@ -2043,13 +2090,20 @@ export default function App() {
           });
         }}
         onSubmitTask={() => handleSubmitTaskAction(navigateTo, focusComposer)}
+        onOpenCatalogForm={(path) => {
+          setCatalogPrefill((p) => ({ path, nonce: (p?.nonce ?? 0) + 1 }));
+          navigateTo('catalog');
+        }}
         onSendToChat={(query) => {
           navigateTo('chat');
           handleLoquelaSubmit({ description: query, session_id: activeSessionId, execution_mode: 'chat' });
         }}
         onOpenDoc={(path) => openDocTab(path)}
+        onExplain={setExplainRowId}
+        onRunCli={(path) => { void runCli(path); }}
         agents={data.agents}
         skills={installedSkillEntries}
+        catalog={data.skills}
         gamifyEnabled={gamifySettings.enabled}
       />
 
@@ -2061,6 +2115,37 @@ export default function App() {
       />
 
       <DocViewerDrawer doc={activeDoc} onClose={closeDocViewer} />
+      <ExplainDrawer
+        row={explainRow}
+        rows={capIdx.rows}
+        domains={capIdx.domains}
+        catalogPaths={catalogPaths}
+        coverageAsOf={getLoadedCapabilityIndex()?.CAPABILITY_COVERAGE_AS_OF ?? null}
+        onClose={closeExplain}
+        onOpenForm={(path) => {
+          setCatalogPrefill((p) => ({ path, nonce: (p?.nonce ?? 0) + 1 }));
+          navigateTo('catalog');
+          closeExplain();
+        }}
+        onOpenDoc={(path) => {
+          openDocTab(path);
+          closeExplain();
+        }}
+        pushToast={pushToast}
+      />
+      <RunOutputDialog run={runOutput} onClose={() => setRunOutput(null)} />
+      <ConfirmRunDialog
+        open={pendingConfirm !== null}
+        commandText={`vox ${pendingConfirm?.path.join(' ') ?? ''}`}
+        rowId={pendingConfirm?.id ?? ''}
+        onCancel={() => setPendingConfirm(null)}
+        onConfirm={() => {
+          const p = pendingConfirm;
+          setPendingConfirm(null);
+          if (p) void runCli(p.path, true);
+        }}
+      />
+      <ShortcutSheet open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <TaskDiffDialog open={diffOpen} loading={diffLoading} text={diffText} onClose={() => setDiffOpen(false)} />
       <InspectorDrawer open={isInspectorOpen} onClose={() => setIsInspectorOpen(false)} />
       <ResearchEngineDrawer

@@ -40,6 +40,7 @@ dispatch automatically — no rebuild of the core required.
 - **Global (before subcommand):** **`--color auto|always|never`** (see `NO_COLOR`), **`--json`** (sets `VOX_CLI_GLOBAL_JSON` for subcommands that support machine JSON), **`--verbose` / `-v`** (if `RUST_LOG` is unset, tracing uses `debug`), **`--quiet` / `-q`** (`VOX_CLI_QUIET`).
 - **Completions:** **`vox completions bash`** | **`zsh`** | **`fish`** | **`powershell`** | **`elvish`** — print to stdout and install per your shell (e.g. bash: `vox completions bash > /path/to/bash_completion.d/vox`).
 - **Dynamic command catalog:** **`vox commands`** — clap-derived list from the actual compiled binary; add `--recommended` for first-time essentials or `--format json --include-nested` for tooling.
+- **Discover capabilities:** **`vox explain <thing>`** prints what a capability is, its owning crate and layer, CLI/MCP/GUI equivalents and docs link (accepts a capability id, CLI path, MCP tool name, GUI view key, crate or skill; near misses give a numbered shortlist). **`vox features [--domain <d>]`** lists every domain with counts, or one domain's capabilities. Both answer from the embedded capability index; add the global `--json` for the raw index rows (the MCP tools `vox_capability_explain` / `vox_capability_features` return the same rows).
 - **Secrets namespace:** **`vox secrets`** (deprecated alias **`vox clavis`**) centralizes token health checks and credential compatibility storage.
 - **Latin aliases (same behavior as flat commands):** **`vox fabrica`** (`fab`) — build/check/test/run/dev/**`bundle` (web app)** /fmt/script; top-level **`vox bundle`** is **plugin** bundles (`list` / `build` / `apply`), not the web-app bundler. **`vox diag`** — doctor, architect, stub-check; **`vox ars`** — snippet, share, skill, openclaw, ludus; **`vox recensio`** (`rec`, feature **`coderabbit`**) — same as **`vox review`**.
 
@@ -236,6 +237,7 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | Subcommand | Role |
 |------------|------|
 | `manifest` | `cargo metadata --locked` |
+| `capability-index [--write] [--tighten] [--refresh-coverage]` | Generate or verify [`contracts/capabilities/capability-index.v1.json`](../../../contracts/capabilities/capability-index.v1.json): one row per CLI and MCP projection of the operations catalog (committed inputs only; never builds the code graph). Check mode also runs inside **`ssot-drift`** and fails when a cli/mcp row has no resolvable owner and is not in [`contracts/capabilities/owner-ratchet.v1.json`](../../../contracts/capabilities/owner-ratchet.v1.json) (owner ratchet, D-05). It also fails when a cli row has no `side_effect_class` and is not in [`contracts/capabilities/side-effect-ratchet.v1.json`](../../../contracts/capabilities/side-effect-ratchet.v1.json) (side-effect ratchet, D-02; classify the op in `contracts/operations/catalog.v1.yaml` from its handler). `--tighten` shrinks both baselines (removal-only); `--write` never touches them. `--refresh-coverage` re-snapshots graph coverage into [`contracts/reports/graph-coverage.v1.json`](../../../contracts/reports/graph-coverage.v1.json) from the already-built `vox-gui-surface` corpus; it does not build the graph, so run `vox graph rebuild --corpus vox-gui-surface` first, then `vox ci capability-index --refresh-coverage --write`. Check mode and `ssot-drift` read only the committed snapshot. |
 | `check-docs-ssot` / `check-codex-ssot` | Required doc / Codex files + inventory / OpenAPI checks |
 | `check-summary-drift` | Runs `cargo run -p vox-doc-pipeline -- --check`; fails if `SUMMARY.md` is out of sync with `docs/src` |
 | `build-docs` | Regenerates `SUMMARY.md`, runs `mdbook build docs`, then `mdbook-sitemap-generator` (optional `MDBOOK_SITEMAP_DOMAIN`) |
@@ -976,6 +978,8 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `stub-check` | `stub-check` | `commands::stub_check` |
 | `ci` | default | `commands::ci` |
 | `commands` | default | `command_catalog` |
+| `explain` | default | `commands::capability_cmds` |
+| `features` | default | `commands::capability_cmds` |
 | `mens` | `mens-base` or `gpu` | `commands::mens` |
 | `populi` | `populi` | `commands::populi_cli` |
 | `oratio` | `oratio` | `commands::oratio_cmd` |

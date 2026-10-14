@@ -25,7 +25,38 @@
 - [ADR 021: Generated Workflow Durability Parity](https://voxlang.org/adr/021-generated-workflow-durability-parity/): Durable workflow journal and replay parity
 - [ADR 025: Multi-Agent Lock Coherence](https://voxlang.org/adr/025-multi-agent-lock-coherence/): Lease propagation and concurrency semantics
 
+<!-- BEGIN GENERATED capability-index: vox ci capability-index --write -->
+## Capabilities (generated from the capability index)
+- Compiler: 30 CLI commands, 9 MCP tools, 0 GUI surfaces
+- Orchestrator & agents: 28 CLI commands, 65 MCP tools, 2 GUI surfaces
+- Mesh / Populi: 6 CLI commands, 3 MCP tools, 2 GUI surfaces
+- ML / Mens: 51 CLI commands, 0 MCP tools, 2 GUI surfaces
+- Research / Scientia: 78 CLI commands, 62 MCP tools, 2 GUI surfaces
+- Secrets: 20 CLI commands, 0 MCP tools, 0 GUI surfaces
+- GUI: 15 CLI commands, 5 MCP tools, 17 GUI surfaces
+- Data & DB: 89 CLI commands, 18 MCP tools, 0 GUI surfaces
+- CI & governance: 215 CLI commands, 0 MCP tools, 0 GUI surfaces
+- Plugins & skills: 317 CLI commands, 58 MCP tools, 2 GUI surfaces
+- VCS & repo: 28 CLI commands, 19 MCP tools, 1 GUI surfaces
+- Runtime & scripts: 14 CLI commands, 2 MCP tools, 0 GUI surfaces
+- Speech: 1 CLI commands, 3 MCP tools, 1 GUI surfaces
+- Gamification: 50 CLI commands, 10 MCP tools, 1 GUI surfaces
+- Build & deploy: 27 CLI commands, 0 MCP tools, 0 GUI surfaces
+- Docs: 0 CLI commands, 0 MCP tools, 0 GUI surfaces
+- Platform (other): 29 CLI commands, 88 MCP tools, 2 GUI surfaces
+
+- [MCP tool reference](https://voxlang.org/reference/mcp-tool-registry-contract/): every MCP tool, its schema and contract
+- [GUI navigation](https://voxlang.org/reference/gui-navigation/): desktop app surfaces and how to reach them
+- [CLI reference](https://voxlang.org/reference/cli/): all `vox` subcommands
+- [Capability index JSON](https://github.com/vox-foundation/vox/blob/main/contracts/capabilities/capability-index.v1.json): the machine-readable index this section is generated from
+
+Query it: `vox explain <thing>`, `vox features --domain <d>`, MCP `vox_capability_explain` / `vox_capability_features`.
+<!-- END GENERATED capability-index -->
+
 ## Contributor & Learning Guides
 - [Contributor Hub](https://voxlang.org/contributors/contributor-hub/): Contributor entry point and documentation guide
 - [Lesson 1 — Ownership in Practice](https://voxlang.org/learning/rust-via-vox/lesson-01-ownership-pattern-drill/): Ownership pattern drill for Vox and Rust
 - [Clinical Export](https://voxlang.org/how-to/clinical-export-from-vox-apps/): Application-owned export and validation
+- [Documentation Governance](https://voxlang.org/contributors/documentation-governance/): Doc authority map
+- [Agent Instruction Architecture](https://voxlang.org/contributors/agent-instruction-architecture/): How AI agents should navigate this repo
+- [How-to: wire AI assistants to vox_validate_source MCP](https://voxlang.org/how-to/how-to-mcp-vox-validate/): Configure Claude Desktop / Cursor to validate AI-generated Vox source against the real compiler with structured autofix suggestions; documents the diagnostic shape (`code` + `fixes`), the iterate-against-the-compiler loop, and the most useful diagnostic-code namespaces.

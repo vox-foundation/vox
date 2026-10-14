@@ -42,7 +42,10 @@ fn universal_reward_command_path(cli: &Cli) -> Option<&'static str> {
         | Cli::Fmt { .. }
         | Cli::Fabrica { .. } => None,
         // Meta / introspection: rewarding these is noise.
-        Cli::Completions { .. } | Cli::Commands { .. } => None,
+        Cli::Completions { .. }
+        | Cli::Commands { .. }
+        | Cli::Explain { .. }
+        | Cli::Features { .. } => None,
         // Named paths for common surfaces (richer telemetry); the long tail and
         // feature-gated commands fall through to a generic path.
         Cli::Scientia { .. } => Some("scientia"),
@@ -230,6 +233,28 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
                     }
                 }
             }
+        }
+        Cli::Explain { query } => {
+            let index = vox_capability_registry::bundled_index();
+            println!(
+                "{}",
+                crate::commands::capability_cmds::explain_output(
+                    index,
+                    &query.join(" "),
+                    global.json
+                )?
+            );
+        }
+        Cli::Features { domain } => {
+            let index = vox_capability_registry::bundled_index();
+            println!(
+                "{}",
+                crate::commands::capability_cmds::features_output(
+                    index,
+                    domain.as_deref(),
+                    global.json
+                )?
+            );
         }
         Cli::Fabrica { cmd } => {
             run_fabrica_cmd(cmd).await?;

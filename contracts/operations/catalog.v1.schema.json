@@ -104,6 +104,8 @@
         "title": { "type": "string" },
         "description": { "type": "string" },
         "description_human": { "type": ["string", "null"] },
+        "owner_crate": { "type": ["string", "null"] },
+        "domain": { "type": ["string", "null"] },
         "product_lane": {
           "type": "string",
           "enum": ["app", "workflow", "ai", "interop", "data", "platform"]
@@ -112,7 +114,7 @@
           "type": "array",
           "items": { "type": "string" }
         },
-        "side_effect_class": { "type": ["string", "null"] },
+        "side_effect_class": { "type": ["string", "null"], "enum": ["destructive", "none", "read_only", "spawns_process", "writes_files", null] },
         "scope_kind": { "type": ["string", "null"] },
         "reversible": { "type": ["boolean", "null"] },
         "requires_repo": { "type": ["boolean", "null"] },

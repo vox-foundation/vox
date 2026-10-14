@@ -96,6 +96,7 @@ topic: "doc-governance"           # prefLabel from contracts/documentation/kb-ta
 domain: "documentation"           # prefLabel from the same file
 authorship: "human"               # human | llm-assisted | llm-generated (+ authorship_model for LLM)
 training_eligible: true
+# capabilities: [cli.secrets]   # optional: capability ids this page explains
 ---
 
 # Page title
@@ -120,6 +121,15 @@ To support deterministic drift detection without LLM dependencies (DRIFT-02, DRI
 **Forbidden Keys in Authored Frontmatter:**
 - `last_updated`: derived automatically from Git history. Hand-authoring is a hard lint error (`hand-authored-last-updated`).
 - `last_verified` / `last_verified_commit`: managed exclusively by the Freshness Ledger (`contracts/reports/docs-freshness/ledger.v1.json`). Hand-authoring is a hard lint error (`hand-authored-last-verified`).
+
+### Capability claims
+
+A page may declare which capabilities it explains with an optional `capabilities: [<capability id>, …]` frontmatter key (flow or block list). Ids come from [`contracts/capabilities/capability-index.v1.json`](../../../contracts/capabilities/capability-index.v1.json), for example `cli.secrets.get`, `mcp.vox_check`, `surface.mesh` or `crate.vox-secrets`.
+
+- `vox ci capability-index` validates every claimed id, so an unknown id fails `vox ci ssot-drift` with the page path and the id.
+- A claim adds the page as a doc link on each claimed capability (after its page-level default), and gives the page its own `doc.<path>` row. Pages that claim nothing get no row.
+- The doc lint is a line scanner: it does not parse YAML and does not check `capabilities`. The index generator is the check: a page whose `capabilities:` key it cannot read (for example a bare string instead of a list), or that has no closing `---`, fails `vox ci capability-index` with the page path. Other malformed frontmatter that makes no claim is skipped. `docs/src/archive/` is never read.
+- Regenerate with `vox ci capability-index --write`; never edit the index by hand.
 
 Fast local lint loop:
 

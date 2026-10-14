@@ -534,6 +534,24 @@ class VoxTransport {
     return res;
   }
 
+  /**
+   * Run a CLI verb straight through `execute_command` (never the MCP detour of `callTool`).
+   * D-03 gate: the backend refuses a destructive verb with a string starting with
+   * `CONFIRMATION_REQUIRED_PREFIX` unless `confirmed` is true; pass it only after user consent.
+   * An undefined `confirmed` is dropped by JSON, so Rust sees None.
+   */
+  async executeCommand(
+    path: string[],
+    args: Record<string, unknown>,
+    opts?: { confirmed?: boolean },
+  ): Promise<ExecuteOutput> {
+    return safeInvoke<ExecuteOutput>('execute_command', {
+      path,
+      args: { ...args, __argv: args.__argv ?? [] },
+      confirmed: opts?.confirmed,
+    });
+  }
+
   async getMetadata(path: string[]): Promise<CommandMetadata | null> {
     return safeInvoke('get_command_metadata', { path });
   }

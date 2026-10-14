@@ -1,10 +1,17 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import React from 'react';
 import { clearSearchableRegistry, registerSearchable } from '../../lib/searchableRegistry';
 
 const invokeMcpTool = vi.fn();
+const indexState = vi.hoisted(() => ({
+  loading: false,
+  error: null as string | null,
+  retry: vi.fn(),
+  /** Extra rows appended to the shared fixture (WR-07 needs a broad match set). */
+  extraRows: [] as unknown[],
+}));
 vi.mock('../../transport', () => ({
   voxTransport: {
     voxDocsIndex: vi.fn().mockResolvedValue([]),
@@ -63,9 +70,51 @@ vi.mock('../../hooks/useContentManifest', () => ({
   ],
 }));
 
+// Never import the generated 784 KB index in unit tests: mock the hook with the shared fixture.
+vi.mock('../../hooks/useCapabilityIndex', async () => {
+  const { CAPABILITY_FIXTURE } = await import('../../test-fixtures/capabilityIndexFixture');
+  const { toRankEntries } = await import('../../lib/capabilityRank');
+  // Stable identity per (extraRows, error) so the hook mock behaves like the memoized real one.
+  let cached: { key: unknown; value: { rows: unknown[]; entries: unknown[] } } | null = null;
+  const build = () => {
+    const key = [indexState.extraRows, indexState.error];
+    if (cached && cached.key[0] === key[0] && cached.key[1] === key[1]) return cached.value;
+    const rows = indexState.error ? [] : [...CAPABILITY_FIXTURE, ...(indexState.extraRows as typeof CAPABILITY_FIXTURE)];
+    cached = { key, value: { rows, entries: toRankEntries(rows) } } as never;
+    return cached!.value;
+  };
+  return {
+    useCapabilityIndex: () => ({
+      ...build(),
+      domains: [{ id: 'compiler', label: 'Compiler' }],
+      loading: indexState.loading,
+      error: indexState.error,
+      retry: indexState.retry,
+    }),
+  };
+});
+
 import { Omnibar } from './Omnibar';
+import { Toasts } from '../ui/Toasts';
+import type { CommandCatalogEntry } from '../../types/catalog';
 
 const noop = () => {};
+
+function cat(path: string[], over: Partial<CommandCatalogEntry> = {}): CommandCatalogEntry {
+  return {
+    path,
+    command: path.join(' '),
+    about: 'x',
+    aliases: [],
+    has_subcommands: false,
+    compiled_in: true,
+    source_group: 'g',
+    feature_gate: null,
+    tier: 'recommended',
+    arguments: [],
+    ...over,
+  };
+}
 
 function renderOmnibar(overrides: Partial<React.ComponentProps<typeof Omnibar>> = {}) {
   return render(
@@ -78,6 +127,8 @@ function renderOmnibar(overrides: Partial<React.ComponentProps<typeof Omnibar>> 
       onOpenDoc={overrides.onOpenDoc ?? vi.fn()}
       agents={[]}
       skills={[]}
+      catalog={[]}
+      onRunCli={vi.fn()}
       {...overrides}
     />,
   );
@@ -86,20 +137,23 @@ function renderOmnibar(overrides: Partial<React.ComponentProps<typeof Omnibar>> 
 describe('Omnibar', () => {
   beforeEach(() => {
     clearSearchableRegistry();
+    indexState.loading = false;
+    indexState.error = null;
+    indexState.extraRows = [];
+    indexState.retry.mockReset();
     invokeMcpTool.mockReset();
     // master-spec discover shape: { result: { results: [...] } } (NOT `neighbors`).
     invokeMcpTool.mockResolvedValue({ result: { results: [] } });
   });
 
-  it('renders SURFACES and ON-SCREEN facets from federated + manifest', async () => {
-    // Reconciled to real behavior: the federated mock filters by query, and the
-    // manifest heading "3 pending approvals" contains "approvals". Querying
-    // "approvals" surfaces the federated "Approvals" row AND the manifest
-    // on-screen copy. (The plan's draft used "pending", which the federated mock
-    // would not match against the "Approvals" label.)
+  it('renders the index surface row (Best match) and the ON-SCREEN facet from the manifest', async () => {
+    // D-05: the Approvals surface row comes from the capability index, not the federated source
+    // (the federated mock still offers one; it must not render a second row). The manifest
+    // heading "3 pending approvals" still feeds On Screen.
     renderOmnibar();
     fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: 'approvals' } });
-    await waitFor(() => expect(screen.getByText('Approvals')).toBeTruthy());
+    await waitFor(() => expect(screen.getAllByText('Approvals')).toHaveLength(1));
+    expect(screen.getByText('Best match')).toBeTruthy();
     expect(screen.getByText('3 pending approvals')).toBeTruthy();
     expect(screen.getByText(/On Screen/i)).toBeTruthy();
   });
@@ -108,7 +162,7 @@ describe('Omnibar', () => {
     const onNavigate = vi.fn();
     renderOmnibar({ onNavigate });
     fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: 'approvals' } });
-    await waitFor(() => expect(screen.getByText('Approvals')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('Best match')).toBeTruthy());
     fireEvent.keyDown(window, { key: 'Enter' });
     expect(onNavigate).toHaveBeenCalledWith('approvals', undefined);
   });
@@ -170,4 +224,277 @@ describe('Omnibar', () => {
     await waitFor(() => expect(screen.getByText('approvals')).toBeTruthy());
     expect(screen.getByText('chat')).toBeTruthy(); // original neighbor retained
   });
+
+  it('typing "vox check" shows an index-backed Commands row with CLI and MCP chips; Enter opens its Catalog form', async () => {
+    const onOpenCatalogForm = vi.fn();
+    const onRunCommand = vi.fn();
+    renderOmnibar({ onOpenCatalogForm, onRunCommand, catalog: [cat(['check'])] });
+    fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: 'vox check' } });
+    const label = await screen.findByText('vox check');
+    const rowButton = label.closest('button') as HTMLElement;
+    expect(rowButton.textContent).toContain('CLI');
+    expect(rowButton.textContent).toContain('MCP');
+    fireEvent.keyDown(window, { key: 'Enter' });
+    expect(onOpenCatalogForm).toHaveBeenCalledWith(['check']);
+    expect(onRunCommand).not.toHaveBeenCalled();
+  });
+
+  it('typing "capability" shows Best match plus a Tools & crates facet with MCP and CLI chips; Enter explains the best row', async () => {
+    const onExplain = vi.fn();
+    renderOmnibar({ onExplain });
+    fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: 'capability' } });
+    await screen.findByText('Best match');
+    expect(screen.getByText('Tools & crates')).toBeTruthy();
+    const best = screen.getByText('vox_capability_explain').closest('button') as HTMLElement;
+    const other = screen.getByText('vox_capability_features').closest('button') as HTMLElement;
+    expect(best.previousElementSibling?.textContent).toContain('Best match');
+    expect(other.textContent).toContain('MCP');
+    expect(other.textContent).toContain('CLI');
+    fireEvent.keyDown(window, { key: 'Enter' });
+    expect(onExplain).toHaveBeenCalledWith('mcp.vox_capability_explain');
+  });
+
+  it('# mode shows only crate rows', async () => {
+    renderOmnibar();
+    fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: '#vox-actor' } });
+    await screen.findByText('vox-actor-runtime');
+    expect(screen.queryByText('Surfaces')).toBeNull();
+    expect(screen.queryByText('Commands')).toBeNull();
+    expect(screen.queryByText('Tools & crates')).toBeNull(); // the lone crate is the Best match
+  });
+
+  it('is an accessible dialog and marks the keyboard-selected row with aria-current', async () => {
+    renderOmnibar();
+    expect(screen.getByRole('dialog', { name: 'Command palette' }).getAttribute('aria-modal')).toBe('true');
+    fireEvent.change(screen.getByLabelText('Search Vox'), { target: { value: 'approvals' } });
+    await screen.findByText('Best match');
+    fireEvent.keyDown(window, { key: 'ArrowDown' });
+    const rows = screen.getAllByRole('button').filter((b) => b.getAttribute('aria-current') === 'true');
+    expect(rows).toHaveLength(1);
+    expect(rows[0].textContent).toContain('Approvals');
+  });
+
+  it('announces loading in a polite status region and suppresses "No matches" meanwhile', async () => {
+    indexState.loading = true;
+    renderOmnibar();
+    fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: 'zzzz-nothing' } });
+    const status = await screen.findByRole('status');
+    expect(status.getAttribute('aria-live')).toBe('polite');
+    expect(status.textContent).toContain('Loading capability index…');
+    expect(screen.queryByText(/No matches/)).toBeNull();
+  });
+  describe('run from the palette (D-01)', () => {
+    async function type(q: string) {
+      fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: q } });
+      return (await screen.findByText(q)).closest('button') as HTMLElement;
+    }
+
+    it('Enter on a read_only compiled-in leaf runs it and does NOT open the form', async () => {
+      const onRunCli = vi.fn();
+      const onOpenCatalogForm = vi.fn();
+      renderOmnibar({ onRunCli, onOpenCatalogForm, catalog: [cat(['features'])] });
+      const row = await type('vox features');
+      expect(row.textContent).toContain('↵ runs');
+      fireEvent.keyDown(window, { key: 'Enter' });
+      expect(onRunCli).toHaveBeenCalledWith(['features']);
+      expect(onOpenCatalogForm).not.toHaveBeenCalled();
+    });
+
+    it('SAFETY: an unclassified verb opens the form and is never run', async () => {
+      const onRunCli = vi.fn();
+      const onOpenCatalogForm = vi.fn();
+      renderOmnibar({ onRunCli, onOpenCatalogForm, catalog: [cat(['check'])] });
+      const row = await type('vox check');
+      expect(row.textContent).toContain('↵ opens form');
+      fireEvent.keyDown(window, { key: 'Enter' });
+      expect(onOpenCatalogForm).toHaveBeenCalledWith(['check']);
+      expect(onRunCli).not.toHaveBeenCalled();
+    });
+
+    it('SAFETY: a destructive verb opens the form even with no required arguments', async () => {
+      const onRunCli = vi.fn();
+      const onOpenCatalogForm = vi.fn();
+      renderOmnibar({ onRunCli, onOpenCatalogForm, catalog: [cat(['plugin', 'remove'])] });
+      await type('vox plugin remove');
+      fireEvent.keyDown(window, { key: 'Enter' });
+      expect(onOpenCatalogForm).toHaveBeenCalledWith(['plugin', 'remove']);
+      expect(onRunCli).not.toHaveBeenCalled();
+    });
+
+    it('SAFETY: a read_only verb with a required argument opens the form', async () => {
+      const onRunCli = vi.fn();
+      const onOpenCatalogForm = vi.fn();
+      const req = { name: 'q', short: null, long: null, help: null, required: true, takes_value: true, value_kind: 'value' as const };
+      renderOmnibar({ onRunCli, onOpenCatalogForm, catalog: [cat(['features'], { arguments: [req] })] });
+      await type('vox features');
+      fireEvent.keyDown(window, { key: 'Enter' });
+      expect(onOpenCatalogForm).toHaveBeenCalledWith(['features']);
+      expect(onRunCli).not.toHaveBeenCalled();
+    });
+
+    it('a cli row absent from the live catalog explains instead of running', async () => {
+      const onRunCli = vi.fn();
+      const onExplain = vi.fn();
+      renderOmnibar({ onRunCli, onExplain, catalog: [] });
+      const row = await type('vox features');
+      expect(row.textContent).toContain('↵ explains');
+      fireEvent.keyDown(window, { key: 'Enter' });
+      expect(onExplain).toHaveBeenCalledWith('cli.features');
+      expect(onRunCli).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('keybind action rows (D-13)', () => {
+    const actions = [{ id: 'toggle-sidebar', label: 'Toggle sidebar width', chord: '⌘B' }];
+
+    it('shows the live chord in a <kbd>; Enter closes the palette first, then runs the action', async () => {
+      const onClose = vi.fn();
+      const onRunAction = vi.fn();
+      renderOmnibar({ actions, onRunAction, onClose });
+      fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: 'Toggle sidebar width' } });
+      const chord = await screen.findByText('⌘B');
+      expect(chord.tagName).toBe('KBD');
+      fireEvent.keyDown(window, { key: 'Enter' });
+      expect(onRunAction).toHaveBeenCalledTimes(1);
+      expect(onRunAction).toHaveBeenCalledWith('toggle-sidebar');
+      expect(onClose).toHaveBeenCalled();
+      expect(onClose.mock.invocationCallOrder[0]).toBeLessThan(onRunAction.mock.invocationCallOrder[0]);
+    });
+
+    it('clicking the row runs the action too', async () => {
+      const onRunAction = vi.fn();
+      renderOmnibar({ actions, onRunAction });
+      fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: 'sidebar' } });
+      fireEvent.click((await screen.findByText('Toggle sidebar width')).closest('button') as HTMLElement);
+      expect(onRunAction).toHaveBeenCalledWith('toggle-sidebar');
+    });
+  });
+
+  describe('review fixes (06.3 REVIEW)', () => {
+    const search = () => screen.getByLabelText('Search Vox');
+
+    it('WR-03: Enter activates the row that has keyboard focus, not row 0', async () => {
+      const onExplain = vi.fn();
+      renderOmnibar({ onExplain });
+      fireEvent.change(search(), { target: { value: 'capability' } });
+      await screen.findByText('Best match');
+      const other = screen.getByText('vox_capability_features').closest('button') as HTMLElement;
+      act(() => other.focus());
+      fireEvent.keyDown(other, { key: 'Enter' });
+      expect(onExplain).toHaveBeenCalledTimes(1);
+      expect(onExplain).toHaveBeenCalledWith('mcp.vox_capability_features');
+    });
+
+    it('WR-03: Enter that commits an IME composition does not activate a row or close', async () => {
+      const onNavigate = vi.fn();
+      const onClose = vi.fn();
+      renderOmnibar({ onNavigate, onClose });
+      fireEvent.change(search(), { target: { value: 'approvals' } });
+      await screen.findByText('Best match');
+      fireEvent.keyDown(window, { key: 'Enter', isComposing: true });
+      fireEvent.keyDown(window, { key: 'Enter', keyCode: 229 });
+      expect(onNavigate).not.toHaveBeenCalled();
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('WR-04: Tab and Shift+Tab wrap inside the dialog (focus trap)', async () => {
+      renderOmnibar();
+      fireEvent.change(search(), { target: { value: 'capability' } });
+      await screen.findByText('Best match');
+      const dialog = screen.getByRole('dialog', { name: 'Command palette' });
+      const items = [...dialog.querySelectorAll<HTMLElement>('input, button')];
+      const last = items[items.length - 1];
+      act(() => last.focus());
+      fireEvent.keyDown(last, { key: 'Tab' });
+      expect(document.activeElement).toBe(search());
+      fireEvent.keyDown(search(), { key: 'Tab', shiftKey: true });
+      expect(document.activeElement).toBe(last);
+    });
+
+    it('WR-04: focus that escapes the dialog is pulled back in', async () => {
+      renderOmnibar();
+      const outside = document.createElement('button');
+      document.body.appendChild(outside);
+      act(() => outside.focus());
+      expect(document.activeElement).not.toBe(outside);
+      outside.remove();
+    });
+
+    it('WR-04: focus inside another dialog is left alone (no focus tug-of-war)', () => {
+      renderOmnibar();
+      const other = document.createElement('div');
+      other.setAttribute('role', 'dialog');
+      const btn = document.createElement('button');
+      other.appendChild(btn);
+      document.body.appendChild(other);
+      act(() => btn.focus());
+      expect(document.activeElement).toBe(btn);
+      other.remove();
+    });
+
+    it.each(['#', '>', '/', '@'])('WR-11: a bare "%s" does not offer or trigger "Submit new task…"', async (prefix) => {
+      const onSubmitTask = vi.fn();
+      renderOmnibar({ onSubmitTask });
+      fireEvent.change(search(), { target: { value: prefix } });
+      expect(screen.queryByText('Submit new task…')).toBeNull();
+      fireEvent.keyDown(window, { key: 'Enter' });
+      expect(onSubmitTask).not.toHaveBeenCalled();
+    });
+
+    it('WR-11: the empty landing state still offers "Submit new task…"', () => {
+      renderOmnibar();
+      expect(screen.getByText('Submit new task…')).toBeTruthy();
+    });
+
+    it('WR-07: the "N of M" total counts every match, not the first 200', async () => {
+      const { row } = await import('../../test-fixtures/capabilityIndexFixture');
+      indexState.extraRows = Array.from({ length: 300 }, (_, i) =>
+        row({ id: `cli.zzzq${i}`, kind: 'cli', title: `Zzzq ${i}`, cli: `vox zzzq${i}`, catalogForm: true }),
+      );
+      renderOmnibar();
+      fireEvent.change(search(), { target: { value: 'zzzq' } });
+      // one row is promoted to Best match, so Commands holds the other 299
+      expect(await screen.findByText('6 of 299')).toBeTruthy();
+    });
+
+    describe('WR-06: degraded when the index chunk fails to load', () => {
+      beforeEach(() => {
+        indexState.error = 'capability index failed to load';
+      });
+
+      it('keeps surface and command rows and says what is missing, with a Retry', async () => {
+        const onNavigate = vi.fn();
+        renderOmnibar({ onNavigate, catalog: [cat(['check'])] });
+        fireEvent.change(search(), { target: { value: 'approvals' } });
+        await screen.findByText('Approvals');
+        fireEvent.keyDown(window, { key: 'Enter' });
+        expect(onNavigate).toHaveBeenCalledWith('approvals', undefined);
+        expect(screen.getByText(/built-in surfaces and commands only/i)).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+        expect(indexState.retry).toHaveBeenCalledTimes(1);
+      });
+
+      it('command rows come from the live catalog and open the form', async () => {
+        const onOpenCatalogForm = vi.fn();
+        renderOmnibar({ onOpenCatalogForm, catalog: [cat(['check'])] });
+        fireEvent.change(search(), { target: { value: 'vox check' } });
+        await screen.findByText('vox check');
+        fireEvent.keyDown(window, { key: 'Enter' });
+        expect(onOpenCatalogForm).toHaveBeenCalledWith(['check']);
+      });
+    });
+  });
+
+  it('a toast with an action renders its button and clicking it calls onClick', () => {
+    const onClick = vi.fn();
+    render(
+      <Toasts
+        items={[{ id: 't1', tone: 'ok', title: 'vox features — exit 0', cause: 'backend-ok', action: { label: 'View full output', onClick } }]}
+        onClose={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'View full output' }));
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
 });

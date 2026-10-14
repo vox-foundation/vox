@@ -46,6 +46,7 @@ export function coalesceToast(curr: ToastItem[], t: Toast, id: string): Coalesce
       body: t.body,
       cmd: t.cmd,
       cause: t.cause,
+      action: t.action, // a coalesced re-run must carry the NEW run's output button
       count: (existing.count ?? 1) + 1,
     };
     return { items: next, touchedId: existing.id };

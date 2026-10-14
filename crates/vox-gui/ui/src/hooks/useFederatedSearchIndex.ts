@@ -6,8 +6,6 @@ import type { DocEntryLike } from '../components/layout/paletteSources';
 import {
   buildFederatedIndex,
   searchFederatedIndex,
-  type ActionManifestRow,
-  type CommandCatalogRow,
   type FederatedIndexEntry,
   type FederatedIndexSources,
   type PolicySourceRow,
@@ -23,13 +21,13 @@ const POLICY_POLL_MS = 60_000;
 
 /**
  * Memoized federated OmniSearch index from registry + settings + policies + docs + skills.
+ * D-05: CLI commands and manifest actions are no longer fetched here; the capability index
+ * supplies them (contracts/gui/omnisearch-index.v1.yaml, per-kind `source`).
  * Policies refresh every 60s per contracts/gui/omnisearch-index.v1.yaml.
  */
 export function useFederatedSearchIndex(skills: FederatedIndexSources['skills'] = []): UseFederatedSearchIndexResult {
   const [docs, setDocs] = useState<DocEntryLike[]>([]);
   const [policies, setPolicies] = useState<PolicySourceRow[]>([]);
-  const [commands, setCommands] = useState<CommandCatalogRow[]>([]);
-  const [actions, setActions] = useState<ActionManifestRow[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -73,39 +71,6 @@ export function useFederatedSearchIndex(skills: FederatedIndexSources['skills'] 
     };
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    Promise.all([voxTransport.getCatalog(), voxTransport.getActionManifest()])
-      .then(([catalog, manifest]) => {
-        if (cancelled) return;
-        setCommands(
-          (catalog.entries ?? []).map(entry => ({
-            command: entry.command,
-            about: entry.about,
-            path: entry.path,
-          })),
-        );
-        setActions(
-          (manifest.actions ?? []).map(entry => ({
-            action_id: entry.id,
-            title: entry.title,
-            description: entry.description,
-          })),
-        );
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setCommands([]);
-          setActions([]);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   const sources = useMemo<FederatedIndexSources>(
     () => ({
       surfaces: SURFACE_REGISTRY,
@@ -113,10 +78,8 @@ export function useFederatedSearchIndex(skills: FederatedIndexSources['skills'] 
       policies,
       docs,
       skills,
-      commands,
-      actions,
     }),
-    [docs, policies, skills, commands, actions],
+    [docs, policies, skills],
   );
 
   const entries = useMemo(() => buildFederatedIndex(sources), [sources]);

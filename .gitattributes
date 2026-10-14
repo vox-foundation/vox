@@ -77,6 +77,11 @@ docs/src/**/*.generated.md                                       linguist-genera
 # Generated GUI-surface SSOT reports (the "regenerate after merge" churn; regen: `vox ci gui-surface-*`):
 contracts/reports/gui-surface-coverage.v1.json                   linguist-generated=true -diff
 contracts/reports/gui-surface-registry.v1.json                   linguist-generated=true -diff
+# Generated capability index (regen: `vox ci capability-index --write`):
+contracts/capabilities/capability-index.v1.json                  linguist-generated=true -diff
+crates/vox-gui/ui/src/generated/capabilityIndex.generated.ts linguist-generated=true -diff
+# Committed graph-coverage snapshot (regen: `vox ci capability-index --refresh-coverage`):
+contracts/reports/graph-coverage.v1.json                         linguist-generated=true -diff
 contracts/reports/gui-visual-review/bundle-cache.v1.json         linguist-generated=true -diff
 contracts/reports/gui-visual-review/bundle-digest.md             linguist-generated=true -diff
 contracts/kb/eval/corpus.jsonl                                  linguist-generated=true -diff

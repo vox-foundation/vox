@@ -4,9 +4,12 @@
 //! - `vox ci command-compliance` validates cross-registry consistency.
 //! - [`crate::manifest::build_model_manifest`] emits planner / external-model JSON.
 
+mod card;
 mod command_registry;
 mod document;
+mod explain;
 mod ids;
+mod index;
 mod loader;
 mod manifest;
 mod openai;
@@ -14,9 +17,22 @@ mod registry;
 mod types;
 mod validate;
 
+#[cfg(test)]
+mod test_fixture;
+
+pub use card::{render_card, render_features, render_resolution};
 pub use command_registry::{COMMAND_REGISTRY_REL, active_vox_cli_paths_from_command_registry_yaml};
 pub use document::{CapabilityRegistryDoc, CuratedCapability, Exemptions, RuntimeBuiltinMap};
+pub use explain::{
+    Candidate, MAX_DOMAIN_CHARS, MAX_QUERY_CHARS, MAX_RESULTS, Resolution, SHORTLIST_LIMIT,
+    domain_counts, domain_counts_json, explain_rows, resolve, rows_in_domain,
+};
 pub use ids::{implicit_cli_capability_id, implicit_mcp_capability_id};
+pub use index::{
+    CapabilityIndex, CliAliases, CliRef, CoverageRef, CoverageSnapshotMeta, DOCS_DOMAIN, DocLink,
+    DomainDef, FALLBACK_DOMAIN, GUI_DOMAIN, GuiRef, IndexRow, McpRef, OwnerRef, REQUIRED_DOMAINS,
+    RowKind, SKILLS_DOMAIN, SURFACE_CRATES, bundled_index,
+};
 pub use loader::{CAPABILITY_REGISTRY_REL, load_document};
 pub use manifest::{ModelCapabilityManifest, build_model_manifest};
 pub use openai::{capability_to_openai_function, mens_chat_parameters};

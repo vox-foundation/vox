@@ -34,6 +34,8 @@ pub mod auth;
 pub mod build;
 /// Packaging tools for bundling Vox web apps (e.g., TanStack/Vite wrapper).
 pub mod bundle;
+/// `vox explain` / `vox features`: answers from the capability index.
+pub mod capability_cmds;
 /// Catalog explicit management commands (`vox catalog`).
 pub mod catalog;
 /// Validation and static checking (`vox check`).

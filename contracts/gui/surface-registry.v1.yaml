@@ -386,6 +386,14 @@ surfaces:
   parent_surface: null
   notes: null
 - view_key: null
+  cli_group: explain
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  parent_surface: null
+  notes: null
+- view_key: null
   cli_group: ext
   representation_tier: none
   nav_label: null
@@ -395,6 +403,14 @@ surfaces:
   notes: null
 - view_key: null
   cli_group: fabrica
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  parent_surface: null
+  notes: null
+- view_key: null
+  cli_group: features
   representation_tier: none
   nav_label: null
   nav_icon: null
