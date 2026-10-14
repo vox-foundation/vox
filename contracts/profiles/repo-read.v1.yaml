@@ -1,0 +1,22 @@
+id: repo-read
+description: "Read-only repository views: git status/diff/log/blame, VCS status, repo catalog/index/queries, snapshots, change log."
+requires: []
+tools:
+  include:
+    - vox_git_status
+    - vox_git_diff
+    - vox_git_log
+    - vox_git_blame
+    - vox_vcs_status
+    - vox_repo_status
+    - vox_repo_catalog_list
+    - vox_repo_index_status
+    - vox_repo_query_file
+    - vox_repo_query_history
+    - vox_repo_query_text
+    - vox_snapshot_list
+    - vox_snapshot_diff
+    - vox_change_log
+  include_lanes: []
+max_exposure: public
+axis_surfaces: [repo]

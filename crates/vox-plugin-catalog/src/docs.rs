@@ -81,14 +81,23 @@ pub fn render_bundles_md() -> String {
          tree.\n\n",
     );
 
-    out.push_str("| bundle | extends | direct plugins | total resolved plugins |\n");
-    out.push_str("|--------|---------|----------------|------------------------|\n");
+    out.push_str(
+        "| bundle | extends | direct plugins | total resolved plugins | default profile |\n",
+    );
+    out.push_str(
+        "|--------|---------|----------------|------------------------|-----------------|\n",
+    );
     for b in all_bundles() {
         let resolved_count = bundle_resolved(&b.id)
             .map(|v| v.len().to_string())
             .unwrap_or_else(|e| format!("ERR: {e}"));
+        let profile = if b.profiles.is_empty() {
+            "—".to_string()
+        } else {
+            format!("`{}`", b.profiles.join(","))
+        };
         out.push_str(&format!(
-            "| `{}` | {} | {} | {} |\n",
+            "| `{}` | {} | {} | {} | {} |\n",
             b.id,
             b.extends
                 .as_deref()
@@ -96,6 +105,7 @@ pub fn render_bundles_md() -> String {
                 .unwrap_or_else(|| "—".to_string()),
             b.plugins.len(),
             resolved_count,
+            profile,
         ));
     }
     out.push('\n');
@@ -198,4 +208,22 @@ fn format_composite_row(p: &crate::schema::PluginCatalogEntry) -> String {
             .unwrap_or_default(),
         p.default_source,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{render_bundles_md, render_catalog_md};
+
+    #[test]
+    fn bundles_md_includes_default_profile_column() {
+        let md = render_bundles_md();
+        assert!(md.contains("default profile"));
+        assert!(md.contains("`orchestrator,knowledge,mesh`"));
+    }
+
+    #[test]
+    fn catalog_md_lists_plugins() {
+        let md = render_catalog_md();
+        assert!(md.contains("payload-kind"));
+    }
 }

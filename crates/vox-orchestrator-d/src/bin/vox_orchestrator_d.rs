@@ -4,13 +4,12 @@
 
 use anyhow::Context as _;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::Arc;
 
-use vox_orchestrator::runtime;
-use vox_orchestrator::{
-    OrchestratorConfig, RemotePopuliSnapshot, a2a, build_repo_scoped_orchestrator,
-    clarification_db_inbox_poll, mesh_federation_poll, orch_daemon,
-};
+use vox_orchestrator::{OrchestratorConfig, orch_daemon};
+use vox_orchestrator_d::boot_plan::{self, DependencyMode};
+use vox_orchestrator_d::daemon_steps::{self, DaemonBootCtx};
+use vox_orchestrator_mcp::profiles::BootReport;
 
 #[path = "../term_dispatch.rs"]
 mod term_dispatch;
@@ -161,6 +160,18 @@ fn wants_help(args: &[String]) -> bool {
     args.iter().any(|a| a == "--help" || a == "-h")
 }
 
+fn all_required_failed_message(profile_id: &str, report: &BootReport) -> String {
+    let failures: Vec<String> = report
+        .failed
+        .iter()
+        .map(|(s, e)| format!("{}: {e}", s.as_str()))
+        .collect();
+    format!(
+        "every subsystem required by profile `{profile_id}` failed to boot ({})",
+        failures.join("; ")
+    )
+}
+
 fn main() -> anyhow::Result<()> {
     if wants_help(&std::env::args().collect::<Vec<_>>()) {
         println!("{HELP_TEXT}");
@@ -179,8 +190,15 @@ fn main() -> anyhow::Result<()> {
     rt.block_on(async_main())
 }
 
+fn resolve_daemon_profile() -> anyhow::Result<vox_orchestrator_mcp::profiles::ActiveProfile> {
+    vox_orchestrator_mcp::profiles::ActiveProfile::from_env()
+        .map_err(|e| anyhow::anyhow!("{e} (VOX_PROFILE)"))
+}
+
 async fn async_main() -> anyhow::Result<()> {
     vox_foundation::tracing::try_init_from_default_env();
+    let active_profile = resolve_daemon_profile()?;
+    tracing::info!(profile = %active_profile.id_string(), "capability profile resolved");
 
     let bind_raw = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOrchestratorDaemonSocket)
         .expose()
@@ -212,168 +230,40 @@ async fn async_main() -> anyhow::Result<()> {
         persist_daemon_token_file(&daemon_token)?;
     }
 
-    let cfg = load_config();
-    let build = build_repo_scoped_orchestrator(cfg, None);
-    let orch_config = build.config.clone();
-    let repository_id = build.repository.repository_id.clone();
-    let orch = Arc::new(build.orchestrator);
-
-    let mut db_holder: Option<Arc<vox_db::VoxDb>> = None;
-    if let Some(db) =
-        vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Runtime, false).await
-    {
-        let db = Arc::new(db);
-        db_holder = Some(db.clone());
-        if let Err(e) = orch.init_db(db).await {
-            tracing::warn!(error = %e, "orchestrator init_db failed; continuing without persisted Codex");
-            db_holder = None;
-        } else {
-            tracing::info!("Codex attached and orchestrator schema synced");
-        }
-    }
-
-    // Apply any GUI-persisted model-emphasis (routing priority) as this daemon's
-    // global scorer default. Per-call SelectionAxes still override it via the
-    // scorer's thread-local. Done before serving so all scoring sees it.
-    if let Some(db) = db_holder.as_ref() {
-        if let Ok(Some(csv)) = db
-            .get_user_preference("local_user", "routing_priority")
-            .await
-        {
-            let csv = csv.trim();
-            if !csv.is_empty() {
-                // Install as a thread-safe process-global rather than mutating
-                // the process environment: under the multi-threaded tokio runtime
-                // other threads may `getenv` concurrently, so `set_var` here would
-                // be UB. The scorer reads this global (falling back to the env
-                // only when it is unset). See `install_base_routing_priority`.
-                match vox_config::AutoRoutingPriority::try_parse_csv(csv) {
-                    Some(axes) => {
-                        vox_orchestrator::models::install_base_routing_priority(Some(axes));
-                        tracing::info!(priority = %csv, "applied persisted routing-priority emphasis");
-                    }
-                    None => tracing::warn!(
-                        priority = %csv,
-                        "routing_priority preference parsed no axes; leaving scorer default unchanged"
-                    ),
-                }
-            }
-        }
-
-        // Apply any persisted ordered selection-policy chain. Installed as a
-        // process global the selection resolver reads; empty / absent leaves the
-        // pre-existing selection cascade unchanged.
-        if let Ok(Some(json)) = db
-            .get_user_preference("local_user", "selection_policy")
-            .await
-        {
-            let json = json.trim();
-            if !json.is_empty() {
-                match vox_orchestrator::models::SelectionPolicy::from_json(json) {
-                    Ok(policy) => {
-                        let n = policy.steps.len();
-                        vox_orchestrator::models::install_active_policy(Some(policy));
-                        tracing::info!(steps = n, "applied persisted selection-policy chain");
-                    }
-                    Err(e) => tracing::warn!(
-                        error = %e,
-                        "selection_policy preference is not valid JSON; ignoring"
-                    ),
-                }
-            }
-        }
-    }
-
-    // HTTP Gateway (and the autonomous tool-dispatch bridge below) require a
-    // ServerState. Built here — before `spawn_agent_fleet_if_enabled_with_dispatcher`
-    // — so the AgentFleet's AiTaskProcessor can be wired with a real
-    // `ToolDispatcher` from the start (T1.5 follow-up: previously the fleet
-    // spawned before any ServerState existed, so there was no dispatcher to
-    // give it and autonomous `@tool` intents could only ever be logged).
-    let session_cfg = vox_orchestrator::SessionConfig {
-        repository_id: Some(repository_id.clone()),
-        sessions_dir: build
-            .repository
-            .root
-            .join(vox_config::mcp_sessions_dir(&repository_id)),
-        ..vox_orchestrator::SessionConfig::default()
-    };
-    let session_manager = vox_orchestrator::SessionManager::new(session_cfg)
-        .context("session manager initialization failed")?;
-
-    // Skills are discovered from plugins below; install_builtins is a no-op and removed.
-    let registry = vox_skills::new_registry_arc();
-
-    // Bridge plugin-host discovered skills into the vox-skills registry.
-    let install_dir = std::env::var("VOX_PLUGINS_DIR")
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|_| {
-            dirs::data_local_dir()
-                .map(|p| p.join("vox").join("plugins"))
-                .unwrap_or_else(|| std::path::PathBuf::from("./vox-plugins"))
-        });
-    {
-        let registry_for_plugins = registry.clone();
-        vox_orchestrator_mcp::plugin_skills_bridge::install_discovered_skills(
-            &registry_for_plugins,
-            &install_dir,
-        )
-        .await;
-    }
-
-    let mut state = vox_orchestrator_mcp::server_state::ServerState::new_for_daemon(
-        orch.clone(),
-        orch_config.clone(),
-        build.repository.clone(),
-        Arc::new(tokio::sync::Mutex::new(session_manager)),
-        registry,
+    let profile = active_profile; // resolved by plan 02 Task 8 (`resolve_daemon_profile`)
+    let mut ctx = DaemonBootCtx::new(
+        load_config(),
+        None,
+        profile.clone(),
+        daemon_steps::plugins_install_dir(std::env::var("VOX_PLUGINS_DIR").ok()),
     );
-    if let Some(db) = db_holder.clone() {
-        state = state.with_db_initialized(db).await;
-    }
-
-    // T1.5 follow-up: wire the AgentFleet's AiTaskProcessor with a real
-    // ToolDispatcher backed by this same ServerState, so an autonomous
-    // agent's own `@tool` intent lines are actually dispatched through the
-    // real MCP approval gate (not just logged as a tracing breadcrumb).
-    runtime::spawn_agent_fleet_if_enabled_with_dispatcher(
-        orch.clone(),
-        Some(
-            vox_orchestrator_mcp::autonomous_tool_dispatch::McpToolDispatcher::new_arc(
-                state.clone(),
-            ),
-        ),
+    let outcome = boot_plan::run_boot_plan(
+        daemon_steps::DAEMON_STEPS,
+        &mut ctx,
+        &profile.subsystems,
+        DependencyMode::for_profile(&profile),
+    )
+    .await?;
+    tracing::info!(
+        profile = %profile.id_string(),
+        booted = ?outcome.report.booted,
+        failed = ?outcome.report.failed,
+        skipped = ?outcome.skipped,
+        "daemon boot plan finished"
     );
-
-    // MCP parity: mesh federation snapshot, remote task pollers, event log, clarification inbox.
-    let populi_remote_snapshot = Arc::new(RwLock::new(RemotePopuliSnapshot::default()));
-    let populi_poll_join = Arc::new(Mutex::new(None));
-    mesh_federation_poll::spawn_populi_federation_poller(
-        &orch_config,
-        repository_id.clone(),
-        db_holder.clone(),
-        orch.clone(),
-        Arc::clone(&populi_remote_snapshot),
-        Arc::clone(&populi_poll_join),
-    );
-    a2a::spawn_populi_remote_result_poller(orch.clone(), Arc::new(Mutex::new(None)));
-    a2a::spawn_populi_remote_worker_poller(orch.clone(), Arc::new(Mutex::new(None)));
-
-    if let Some(db) = db_holder.as_ref() {
-        clarification_db_inbox_poll::spawn_clarification_db_inbox_poller(
-            db.clone(),
-            repository_id.clone(),
-            Arc::new(Mutex::new(None)),
+    if boot_plan::every_required_failed(&boot_plan::profile_roots(&profile), &outcome.report) {
+        anyhow::bail!(
+            "{}",
+            all_required_failed_message(&profile.id_string(), &outcome.report)
         );
     }
-    vox_orchestrator::socrates::spawn_socrates_research_poller(orch.clone());
-
-    // Flywheel automation: Monitor diversity and trigger training
-    let flywheel = vox_orchestrator::services::flywheel::FlywheelMonitor::new(orch.clone());
-    flywheel.spawn().await;
-
-    // Attention calibration: periodically adapt ask-thresholds from logged outcomes.
-    vox_orchestrator::services::attention_calibration::spawn_attention_calibration(orch.clone());
+    let state = ctx
+        .state
+        .take()
+        .context("server_state boot step did not run")?;
+    state.set_boot_report(outcome.report);
+    let orch = ctx.orch.clone();
+    let repository_id = ctx.repository_id.clone();
 
     // Serve orch.tool_call / orch.resolve_approval / orch.list_pending_approvals
     // against this same ServerState so the GUI runs tools + resolves HITL
@@ -396,6 +286,11 @@ async fn async_main() -> anyhow::Result<()> {
         Some(Arc::new(orch_daemon::ChainDispatch(extras)));
 
     if let Err(e) = vox_orchestrator_mcp::http_gateway::spawn_http_gateway_if_enabled(state) {
+        if e.downcast_ref::<vox_orchestrator_mcp::http_gateway::bind_policy::BindPolicyError>()
+            .is_some()
+        {
+            return Err(e.context("MCP HTTP gateway bind policy refused to start"));
+        }
         tracing::error!(error = %e, "Failed to spawn HTTP gateway");
     }
 
@@ -416,6 +311,21 @@ async fn async_main() -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn all_required_failed_message_names_profile_and_failures() {
+        let mut report = vox_orchestrator_mcp::profiles::BootReport::default();
+        report.failed.insert(
+            vox_orchestrator_mcp::profiles::Subsystem::Db,
+            "workspace journey store unavailable".into(),
+        );
+        let msg = all_required_failed_message("knowledge", &report);
+        assert!(msg.contains("profile `knowledge`"), "{msg}");
+        assert!(
+            msg.contains("db: workspace journey store unavailable"),
+            "{msg}"
+        );
+    }
 
     #[test]
     fn wants_help_detects_long_and_short_flags() {
@@ -487,5 +397,16 @@ mod tests {
         assert!(orch_daemon::is_stdio_transport("-"));
         assert!(orch_daemon::is_stdio_transport("stdin"));
         assert!(!orch_daemon::is_stdio_transport("127.0.0.1:9745"));
+    }
+
+    #[test]
+    fn resolve_daemon_profile_matches_env_resolution() {
+        let got = super::resolve_daemon_profile()
+            .map(|p| p.id_string())
+            .map_err(|e| e.to_string());
+        let want = vox_orchestrator_mcp::profiles::ActiveProfile::from_env()
+            .map(|p| p.id_string())
+            .map_err(|e| format!("{e} (VOX_PROFILE)"));
+        assert_eq!(got, want);
     }
 }

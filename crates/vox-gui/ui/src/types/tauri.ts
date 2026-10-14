@@ -301,3 +301,46 @@ export interface RoutingHealth {
   violations: RoutingHealthViolation[];
 }
 
+
+// ── Remote Axis (plan 06) — mirrors crates/vox-gui/src/remote/{backend,manifest,gateway_client,error}.rs ──
+
+export type BackendMode = 'local' | 'remote';
+
+export type SurfaceUnavailableReason = 'not_in_profile' | 'needs_local_machine' | 'not_remote_capable';
+
+export interface SurfaceAvailability {
+  surface: string;
+  available: boolean;
+  reason: SurfaceUnavailableReason | null;
+}
+
+/** `GET /v1/profile` as served by the gateway (00-contracts §Wire shapes). */
+export interface ServerProfile {
+  profiles: string[];
+  max_exposure: 'public' | 'operator' | 'internal';
+  subsystems: { booted: string[]; failed: { id: string; error: string }[] };
+  tools: string[];
+  axis_surfaces: string[];
+  server_version: string;
+}
+
+export interface BackendStatus {
+  mode: BackendMode;
+  url: string | null;
+  profile: ServerProfile | null;
+  surfaces: SurfaceAvailability[];
+}
+
+/** `{"error":{...}}` envelope carried by rejected Axis remote commands. */
+export interface AxisErrorPayload {
+  code: string;
+  message: string;
+  fingerprint?: string;
+  pinned?: string;
+  server?: string;
+  gui?: string;
+  command?: string;
+  module?: string;
+  class?: string;
+  method?: string;
+}

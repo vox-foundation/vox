@@ -129,15 +129,7 @@ async fn run_research_metered(
     } else {
         0
     };
-<<<<<<< HEAD
     super::super::metering::set_run_session(run_session_label(config, session_id, session_key));
-=======
-    super::super::metering::set_run_session(if session_id > 0 {
-        format!("research_session:{session_id}")
-    } else {
-        session_key
-    });
->>>>>>> origin/main
 
     let report_progress = |msg: String, pct: Option<f32>| {
         if let Some(ref cb) = config.progress_callback {

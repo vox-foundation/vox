@@ -24,13 +24,24 @@ status: current
 
 Machine-derived from [`contracts/config/registry.v1.yaml`](../../../contracts/config/registry.v1.yaml).
 
-**Total knobs:** 110
+**Total knobs:** 151
 
 | Key | Environment Variable | Owner Crate | Status | Default | Description |
 |---|---|---|---|---|---|
+| `allow_main_push` | `VOX_ALLOW_MAIN_PUSH` | `vox-cli` | active | — | Emergency override that lets the pre-push hook allow a direct push to main. |
+| `broker_home` | `VOX_BROKER_HOME` | `vox-cli` | active | — | Install root of the cargo build-broker shim (checked by vox doctor); defaults under the user home. |
+| `broker_max_concurrent` | `VOX_BROKER_MAX_CONCURRENT` | `vox-build-queue` | active | — | Optional machine-wide upper bound on simultaneous broker-admitted cargo builds; unset derives from the machine. |
+| `browser_allowed_hosts` | `VOX_BROWSER_ALLOWED_HOSTS` | `vox-plugin-browser` | active | — | Optional comma-separated browser navigation host allowlist (exact hosts or *.example.com wildcards). |
+| `browser_no_sandbox` | `VOX_BROWSER_NO_SANDBOX` | `vox-plugin-browser` | active | `0` | Launch Chromium without its sandbox ("1"/"true"); for containers that cannot run it. |
+| `browser_profiles_dir` | `VOX_BROWSER_PROFILES_DIR` | `vox-config` | active | — | Directory for named Chromium profiles and consents.json; default <data_dir>/browser-profiles. |
+| `build_number` | `VOX_BUILD_NUMBER` | `vox-build-meta` | active | — | Explicit build number stamped by vox-build-meta (release builds from shallow clones); unset derives from git. |
+| `cache_dir` | `VOX_CACHE_DIR` | `vox-config` | active | — | Override for the Vox cache directory; default is the platform cache dir. |
+| `capability_profile` | `VOX_PROFILE` | `vox-mcp-registry` | active | `dev` | Comma-separated capability profile ids scoping MCP/HTTP tools and daemon boot; unset or empty means dev. |
 | `circuit_breaker_contract` | `VOX_CIRCUIT_BREAKER_CONTRACT` | `vox-orchestrator` | active | — | Override path for the circuit-breaker contract YAML (falls back to compiled-in default). |
 | `cost_daily_budget_usd` | `VOX_COST_DAILY_BUDGET_USD` | `vox-scaling-policy` | declared | `25.0` | Daily LLM cost budget in USD. No live consumer yet — wired when vox-scaling-policy gains a consumer. |
 | `cost_monthly_budget_usd` | `VOX_COST_MONTHLY_BUDGET_USD` | `vox-scaling-policy` | declared | `500.0` | Monthly LLM cost budget in USD. No live consumer yet. |
+| `db_path` | `VOX_DB_PATH` | `vox-db` | active | — | Local database file path override for the Vox store. |
+| `embedding_search_candidate_mult` | `VOX_EMBEDDING_SEARCH_CANDIDATE_MULT` | `vox-db` | active | `10` | Multiplier on the result limit for brute-force embedding recall candidates (boosted when FTS5 is absent). |
 | `gamify_economy_path` | `VOX_GAMIFY_ECONOMY_PATH` | `vox-gamify` | active | — | Override path for the gamify economy contract YAML (falls back to compiled-in default). |
 | `gui_drive` | `VOX_GUI_DRIVE` | `vox-gui` | active | `false` | Marks the dedicated Axis Drive process (never attach to the user's window). |
 | `gui_drive_profile` | `VOX_GUI_DRIVE_PROFILE` | `vox-gui` | active | `default` | Isolates ~/.vox/gui-drive/<profile>/store.db for a debug Axis session. |
@@ -38,11 +49,26 @@ Machine-derived from [`contracts/config/registry.v1.yaml`](../../../contracts/co
 | `gui_drive_show` | `VOX_GUI_DRIVE_SHOW` | `vox-gui` | active | `false` | Reveal the dedicated debug Axis (hidden + no Dock icon by default). |
 | `gui_drive_store_root` | `VOX_GUI_DRIVE_STORE_ROOT` | `vox-gui` | active | — | Journey-store root so drive chat_turn cannot write the user transcript. |
 | `gui_drive_token_path` | `VOX_GUI_DRIVE_TOKEN_PATH` | `vox-gui` | active | — | Path to the 0600 bearer file. Never put the token value in the environment. |
+| `gui_skip_sidecar_autobuild` | `VOX_GUI_SKIP_SIDECAR_AUTOBUILD` | `vox-gui` | active | — | vox-gui build.rs does not auto-build missing sidecar binaries when set; it reports them as missing instead. |
 | `llm_request_timeout_ms` | — | `vox-actor-runtime` | active | `30000` | Per-request timeout for unary LLM HTTP calls (chat/embed). Set via LlmConfig.timeout_ms. |
+| `local_endpoint` | `VOX_LOCAL_ENDPOINT` | `vox-config` | active | — | Base URL of the VoxLocal (vox mens serve) inference server; unset probes 127.0.0.1:11434 then :11435. |
+| `mcp_workspace_tools` | `VOX_MCP_WORKSPACE_TOOLS` | `vox-orchestrator-mcp` | active | `0` | Advertise workspace-federated @tool functions in MCP tools/list (dev profile only). Replaces the deprecated VOX_MCP_TIERS opt-in. |
+| `mens_allow_spend` | `VOX_MENS_ALLOW_SPEND` | `vox-ml-cli` | active | — | MENS pipeline is allowed to make paid LLM calls (apply mode) when set to "1"; otherwise it only estimates spend. |
+| `mens_base_only_dir` | `VOX_MENS_BASE_ONLY_DIR` | `vox-plugin-mens-candle-metal` | declared | — | Test-only. Base-model directory (no adapter) for the ignored live-Metal base-only inference test. |
 | `mens_default_model` | `VOX_MENS_DEFAULT_MODEL` | `vox-populi` | active | `Qwen/Qwen2.5-Coder-7B-Instruct` | Default base model id for MENS training/inference. |
+| `mens_demo_run_dir` | `VOX_MENS_DEMO_RUN_DIR` | `vox-plugin-mens-candle-metal` | declared | — | Test-only. MENS run directory for the ignored live-Metal inference gates. |
 | `mens_device` | `VOX_MENS_DEVICE` | `vox-cli` | active | `cuda` | Override training device for full-pipeline.vox (e.g. metal for a Mac run). |
+| `mens_force_train` | `VOX_MENS_FORCE_TRAIN` | `vox-ml-cli` | active | `0` | MENS GPU training proceeds even when the VRAM sizing check says the run will not fit ("1"/"true"). |
+| `mens_no_weight_cache` | `VOX_MENS_NO_WEIGHT_CACHE` | `vox-plugin-mens-candle-metal` | active | — | Candle/Metal QLoRA training does not cache dequantized base weights when set (lower memory, slower steps). |
 | `mens_preset` | `VOX_MENS_PRESET` | `vox-cli` | active | `qwen_4080_16g` | Override training preset for full-pipeline.vox. |
+| `mesh_mailbox_test_admission_pause_ms` | `MAILBOX_TEST_ADMISSION_PAUSE_MS` | `vox-mesh-transport` | declared | — | Test-only (cfg(test)). Pause inside mailbox admission to widen the race window in capacity tests. |
+| `mesh_mailbox_test_capacity_child` | `MAILBOX_TEST_CAPACITY_CHILD` | `vox-mesh-transport` | declared | — | Test-only. Marks a child process in the mailbox capacity multi-process test. |
+| `mesh_mailbox_test_child_index` | `MAILBOX_TEST_CHILD_INDEX` | `vox-mesh-transport` | declared | — | Test-only. Index of a mailbox capacity test child process. |
+| `mesh_mailbox_test_dir` | `MAILBOX_TEST_DIR` | `vox-mesh-transport` | declared | — | Test-only. Shared mailbox directory handed to mailbox capacity test child processes. |
+| `model_force` | `VOX_MODEL_FORCE` | `vox-config` | active | — | Global strict model pin (env first, then ~/.vox/config.toml); a pinned model that is missing or gated errors. |
 | `openrouter_base_url` | `OPENROUTER_BASE_URL` | `vox-gamify` | active | — | Override the OpenRouter API base URL (test/mock server injection point in vox-gamify and vox-orchestrator's OpenRouter clients). Follows OpenRouter's own env-var naming, not the VOX_ prefix convention. |
+| `oratio_domain_mode` | `VOX_ORATIO_DOMAIN_MODE` | `vox-speech` | active | — | Speech-to-text domain post-processing mode (vocabulary correction profile) for Oratio transcription. |
+| `oratio_sherpa_kind` | `VOX_ORATIO_SHERPA_KIND` | `vox-speech` | active | — | Shape of the sherpa-onnx model at VOX_ORATIO_SHERPA_MODEL_DIR ("whisper" selects the Whisper loader). |
 | `orchestrator_agentos_aci_envelope_enabled` | `VOX_ORCHESTRATOR_AGENTOS_ACI_ENVELOPE_ENABLED` | `vox-orchestrator` | active | `true` | Wrap agent completions in the ACI (Agent Completion Interface) envelope format. |
 | `orchestrator_agentos_checkpoint_hints_enabled` | `VOX_ORCHESTRATOR_AGENTOS_CHECKPOINT_HINTS_ENABLED` | `vox-orchestrator` | active | `false` | Emit checkpoint hints that agents may use to save and resume long-running tasks. |
 | `orchestrator_agentos_guardrail_kernel_enabled` | `VOX_ORCHESTRATOR_AGENTOS_GUARDRAIL_KERNEL_ENABLED` | `vox-orchestrator` | active | `false` | Enable the AgentOS guardrail kernel for runtime policy enforcement. |
@@ -133,8 +159,23 @@ Machine-derived from [`contracts/config/registry.v1.yaml`](../../../contracts/co
 | `orchestrator_trust_provisional_threshold` | `VOX_ORCHESTRATOR_TRUST_PROVISIONAL_THRESHOLD` | `vox-orchestrator` | active | `5` | Minimum completed tasks before an agent leaves provisional trust status. |
 | `orchestrator_trust_trusted_threshold` | `VOX_ORCHESTRATOR_TRUST_TRUSTED_THRESHOLD` | `vox-orchestrator` | active | `20` | Completed-task count at which an agent reaches fully-trusted status. |
 | `orchestrator_urgent_rebalance_threshold` | `VOX_ORCHESTRATOR_URGENT_REBALANCE_THRESHOLD` | `vox-orchestrator` | active | `3` | Queue depth at which an immediate (non-cooldown) rebalance is triggered. |
+| `pre_push_refs` | `VOX_PRE_PUSH_REFS` | `vox-cli` | active | — | Set by the lefthook pre-push hook so vox ci pre-push reads git's pushed refs from stdin. |
 | `rag_chunk_chars` | `VOX_RAG_CHUNK_CHARS` | `vox-search` | declared | `4096` | Maximum character count per RAG markdown chunk. |
+| `real_model_dir` | `VOX_REAL_MODEL_DIR` | `vox-populi` | declared | — | Test-only. Quantized Qwen3 checkpoint directory for the ignored candle CPU real-checkpoint test. |
 | `sandbox_cpus` | — | `vox-container-types` | active | `2` | Default CPU quota for sandboxed container runs (RunOpts::sandboxed()). |
 | `sandbox_memory` | — | `vox-container-types` | active | `2g` | Default memory cap for sandboxed container runs. |
 | `sandbox_pids_limit` | — | `vox-container-types` | active | `512` | Default process cap for sandboxed container runs. |
+| `search_arxiv_url` | `VOX_SEARCH_ARXIV_URL` | `vox-search` | active | — | Override base URL for the arXiv research lane API. |
+| `search_candidate_depth` | `VOX_SEARCH_CANDIDATE_DEPTH` | `vox-search` | active | `10` | Number of retrieval candidates per lane before fusion (minimum 1). |
+| `search_deep_timeout_ms` | `VOX_SEARCH_DEEP_TIMEOUT_MS` | `vox-search` | active | `4000` | Per-request timeout for the deep research lane, in milliseconds. |
+| `search_default_lane` | `VOX_SEARCH_DEFAULT_LANE` | `vox-search` | active | `fast` | Default research lane, "fast" or "deep". |
+| `search_enable_arxiv` | `VOX_SEARCH_ENABLE_ARXIV` | `vox-search` | active | `true` | Enable the arXiv research source (1/true/yes). |
+| `search_enable_openalex` | `VOX_SEARCH_ENABLE_OPENALEX` | `vox-search` | active | `true` | Enable the OpenAlex research source (1/true/yes). |
+| `search_enable_wikipedia` | `VOX_SEARCH_ENABLE_WIKIPEDIA` | `vox-search` | active | `true` | Enable the Wikipedia research source (1/true/yes). |
+| `search_fast_timeout_ms` | `VOX_SEARCH_FAST_TIMEOUT_MS` | `vox-search` | active | `1500` | Per-request timeout for the fast research lane, in milliseconds. |
+| `search_openalex_url` | `VOX_SEARCH_OPENALEX_URL` | `vox-search` | active | — | Override base URL for the OpenAlex research lane API. |
+| `search_tavily_url` | `VOX_SEARCH_TAVILY_URL` | `vox-search` | active | — | Override base URL for the Tavily research API. |
+| `search_wikipedia_url` | `VOX_SEARCH_WIKIPEDIA_URL` | `vox-search` | active | — | Override base URL for the Wikipedia research lane API. |
+| `secrets_vault_keyring_service` | `VOX_SECRETS_VAULT_KEYRING_SERVICE` | `vox-secrets` | active | `vox-secrets-vault` | OS keychain service name holding the vault master key; tests override it to avoid the real entry. |
+| `speech_test_force_backend_fail` | `VOX_TEST_FORCE_BACKEND_FAIL` | `vox-speech` | declared | — | Test-only (cfg(test)). Forces ASR backend creation to fail to exercise the fallback path. |
 | `wasm_skill_fuel` | `VOX_WASM_SKILL_FUEL` | `vox-plugin-runtime-wasm` | active | `1000000000` | Fuel budget (instruction count) for WASM skill execution. |

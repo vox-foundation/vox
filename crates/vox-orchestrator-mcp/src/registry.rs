@@ -67,7 +67,23 @@ pub fn tool_registry() -> Vec<rmcp::model::Tool> {
                 "vox_http_read_role_eligible".to_string(),
                 Value::Bool(e.http_read_role_eligible),
             );
-            meta_map.insert("vox_tier".to_string(), Value::String(e.tier.to_string()));
+            meta_map.insert(
+                "vox_exposure".to_string(),
+                Value::String(e.exposure.as_str().to_string()),
+            );
+            meta_map.insert(
+                "vox_side_effect_class".to_string(),
+                Value::String(e.side_effect_class.as_str().to_string()),
+            );
+            meta_map.insert(
+                "vox_requires".to_string(),
+                Value::Array(
+                    e.requires
+                        .iter()
+                        .map(|s| Value::String(s.as_str().to_string()))
+                        .collect(),
+                ),
+            );
             rmcp::model::Tool::new_with_raw(
                 std::borrow::Cow::Owned(n.to_string()),
                 Some(std::borrow::Cow::Owned(e.description.to_string())),
@@ -78,18 +94,36 @@ pub fn tool_registry() -> Vec<rmcp::model::Tool> {
         .collect()
 }
 
+/// [`tool_registry`] filtered to what the host's active profile and boot report authorize.
+pub fn tool_registry_for(state: &crate::server_state::ServerState) -> Vec<rmcp::model::Tool> {
+    tool_registry()
+        .into_iter()
+        .filter(|t| {
+            crate::profiles::guard_tool(state, crate::profiles::CallContext::LOCAL_WRITE, &t.name)
+                .is_ok()
+        })
+        .collect()
+}
+
 /// Static registry plus federated workspace tools from `ServerState`.
 pub fn merged_tool_registry(state: &crate::server_state::ServerState) -> Vec<rmcp::model::Tool> {
-    let mut tool_list = tool_registry();
+    let mut tool_list = tool_registry_for(state);
     let ws = state.workspace_mcp.read();
     for entry in &ws.tools {
-        if tool_list.iter().any(|t| t.name == entry.name) {
+        if tool_list.iter().any(|t| t.name == entry.name)
+            || crate::profiles::guard_tool(
+                state,
+                crate::profiles::CallContext::LOCAL_WRITE,
+                &entry.name,
+            )
+            .is_err()
+        {
             continue;
         }
         let schema = entry.input_schema.as_object().cloned().unwrap_or_default();
         let mut meta_map = serde_json::Map::new();
         meta_map.insert(
-            "vox_tier".to_string(),
+            "vox_source".to_string(),
             Value::String("workspace".to_string()),
         );
         tool_list.push(
@@ -111,10 +145,115 @@ mod merged_registry_tests {
     use vox_orchestrator::OrchestratorConfig;
 
     #[tokio::test]
-    async fn merged_workspace_tools_carry_workspace_tier_meta() {
+    async fn merged_workspace_tools_carry_workspace_source_meta() {
         let state = ServerState::new_full(OrchestratorConfig::default());
         let tools = merged_tool_registry(&state);
         let read_file = tools.iter().find(|t| t.name == "read_file").unwrap();
-        assert_eq!(read_file.meta.as_ref().unwrap().0["vox_tier"], "workspace");
+        let meta = &read_file.meta.as_ref().unwrap().0;
+        assert_eq!(meta["vox_source"], "workspace");
+        assert!(meta.get("vox_tier").is_none());
+    }
+
+    #[test]
+    fn catalog_tools_no_longer_carry_tier_meta() {
+        for t in super::tool_registry() {
+            let meta = &t.meta.as_ref().expect("catalog tools carry meta").0;
+            assert!(meta.get("vox_tier").is_none(), "{}", t.name);
+        }
+    }
+
+    #[test]
+    fn catalog_tools_carry_exposure_metadata() {
+        let tools = super::tool_registry();
+        let git = tools
+            .iter()
+            .find(|t| t.name == "vox_git_status")
+            .expect("vox_git_status advertised");
+        let meta = &git.meta.as_ref().expect("meta").0;
+        assert_eq!(meta["vox_exposure"], "public");
+        assert_eq!(meta["vox_side_effect_class"], "read_only");
+        assert_eq!(meta["vox_requires"], serde_json::json!([]));
+        let models = tools
+            .iter()
+            .find(|t| t.name == "vox_list_models")
+            .expect("vox_list_models advertised");
+        assert_eq!(
+            models.meta.as_ref().expect("meta").0["vox_requires"],
+            serde_json::json!(["model_registry"])
+        );
+    }
+}
+
+#[cfg(test)]
+mod profile_backcompat_tests {
+    use super::*;
+    use crate::ServerState;
+    use std::collections::BTreeSet;
+
+    fn names(tools: Vec<rmcp::model::Tool>) -> Vec<String> {
+        let mut v: Vec<String> = tools.into_iter().map(|t| t.name.to_string()).collect();
+        v.sort();
+        v
+    }
+
+    #[cfg(all(
+        not(feature = "news-publish"),
+        not(feature = "heavy-browser"),
+        not(feature = "gui-visual-review")
+    ))]
+    #[test]
+    fn snapshot_is_todays_default_feature_registry() {
+        let want: Vec<String> =
+            include_str!("../tests/fixtures/dev-advertised-tools.default-features.txt")
+                .lines()
+                .map(str::to_string)
+                .collect();
+        assert_eq!(names(tool_registry()), want);
+    }
+
+    #[cfg(all(
+        not(feature = "news-publish"),
+        not(feature = "heavy-browser"),
+        not(feature = "gui-visual-review")
+    ))]
+    #[tokio::test]
+    async fn dev_profile_advertises_the_snapshot() {
+        let state = ServerState::new_test().await;
+        let want: Vec<String> =
+            include_str!("../tests/fixtures/dev-advertised-tools.default-features.txt")
+                .lines()
+                .map(str::to_string)
+                .collect();
+        assert_eq!(names(tool_registry_for(&state)), want);
+    }
+
+    #[tokio::test]
+    async fn dev_profile_advertises_exactly_the_feature_filtered_registry() {
+        let state = ServerState::new_test().await;
+        let got: BTreeSet<String> = names(tool_registry_for(&state)).into_iter().collect();
+        let want: BTreeSet<String> = names(tool_registry()).into_iter().collect();
+        assert_eq!(got, want);
+    }
+
+    #[tokio::test]
+    async fn named_profile_advertises_only_its_tools_and_no_workspace_tools() {
+        let state = ServerState::new_test()
+            .await
+            .with_profile(crate::profiles::ActiveProfile::resolve(&["models"]).expect("models"));
+        let advertised = names(merged_tool_registry(&state));
+        assert!(advertised.contains(&"vox_list_models".to_string()));
+        assert!(!advertised.contains(&"vox_git_status".to_string()));
+        assert!(!advertised.contains(&"read_file".to_string()));
+        assert!(
+            advertised
+                .iter()
+                .all(|n| state.active_profile.contains_tool(n))
+        );
+    }
+
+    #[tokio::test]
+    async fn dev_profile_keeps_workspace_tools() {
+        let state = ServerState::new_full(vox_orchestrator::OrchestratorConfig::default());
+        assert!(names(merged_tool_registry(&state)).contains(&"read_file".to_string()));
     }
 }

@@ -6117,7 +6117,7 @@
       "status": "active",
       "domain": "compiler",
       "product_lane": "app",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "recommended",
       "cli": {
         "path": [
@@ -15008,7 +15008,7 @@
       "status": "active",
       "domain": "platform",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -18800,7 +18800,7 @@
       "status": "active",
       "domain": "data",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -32600,7 +32600,7 @@
       "status": "active",
       "domain": "vcs",
       "product_lane": "platform",
-      "side_effect_class": "none",
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -32748,7 +32748,7 @@
       "status": "active",
       "domain": "vcs",
       "product_lane": "platform",
-      "side_effect_class": "none",
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -33761,6 +33761,201 @@
       }
     },
     {
+      "id": "cli.kb",
+      "kind": "cli",
+      "title": "KB",
+      "summary": "Knowledge-base commands (`vox kb`); umbrella for the deterministic retrieval eval and its ratchet gate.",
+      "op_id": "kb",
+      "status": "active",
+      "domain": "platform",
+      "product_lane": "ai",
+      "side_effect_class": "read_only",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "kb"
+        ],
+        "invocation": "vox kb",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "none",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-cli",
+        "layer": 5,
+        "rule": "cli_module"
+      },
+      "source_path": "crates/vox-cli/src/commands/kb.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "top-level commands are cli-group nodes; the graph has no per-command coverage"
+      }
+    },
+    {
+      "id": "cli.kb.eval",
+      "kind": "cli",
+      "title": "KB Eval",
+      "summary": "CLI operation `vox kb eval` — deterministic retrieval eval (Recall/MRR/nDCG on doc and chunk ids, answer-in-budget) and the retrieval ratchet gate",
+      "op_id": "kb.eval",
+      "status": "active",
+      "domain": "platform",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "kb",
+          "eval"
+        ],
+        "invocation": "vox kb eval",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "none",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-cli",
+        "layer": 5,
+        "rule": "cli_module"
+      },
+      "source_path": "crates/vox-cli/src/commands/kb.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no cli:<group>:<leaf> node in the vox-gui-surface snapshot"
+      }
+    },
+    {
+      "id": "cli.kb.reindex",
+      "kind": "cli",
+      "title": "Reindex Knowledge Library",
+      "summary": "Rebuild the KB Library index from the repository docs/src tree (takes no path arguments; single-flight); returns the index report.",
+      "op_id": "kb.reindex",
+      "status": "active",
+      "domain": "platform",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "kb",
+          "reindex"
+        ],
+        "invocation": "vox kb reindex",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "none",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-cli",
+        "layer": 5,
+        "rule": "cli_module"
+      },
+      "source_path": "crates/vox-cli/",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [
+        "mcp.vox_kb_reindex"
+      ],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no cli:<group>:<leaf> node in the vox-gui-surface snapshot"
+      }
+    },
+    {
+      "id": "cli.kb.status",
+      "kind": "cli",
+      "title": "Knowledge Library Status",
+      "summary": "Report KB Library index state, covering corpus root and commit, doc/chunk/card counts, chunker version, lexical backend, embed model, trust tier, per-file errors and index consistency.",
+      "op_id": "kb.status",
+      "status": "active",
+      "domain": "platform",
+      "product_lane": "ai",
+      "side_effect_class": "read_only",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "kb",
+          "status"
+        ],
+        "invocation": "vox kb status",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "none",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-cli",
+        "layer": 5,
+        "rule": "cli_module"
+      },
+      "source_path": "crates/vox-cli/",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [
+        "mcp.vox_kb_status"
+      ],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no cli:<group>:<leaf> node in the vox-gui-surface snapshot"
+      }
+    },
+    {
       "id": "cli.live",
       "kind": "cli",
       "title": "Live",
@@ -34193,7 +34388,7 @@
       "status": "active",
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "network",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -35628,6 +35823,54 @@
       }
     },
     {
+      "id": "cli.model.bench",
+      "kind": "cli",
+      "title": "Model Bench",
+      "summary": "CLI operation `vox model bench`",
+      "op_id": "model.bench",
+      "status": "active",
+      "domain": "ml",
+      "product_lane": "ai",
+      "side_effect_class": "network",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "model",
+          "bench"
+        ],
+        "invocation": "vox model bench",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": "models",
+        "nav_label": "Models",
+        "representation_tier": "live_backend",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-cli",
+        "layer": 5,
+        "rule": "cli_module"
+      },
+      "source_path": "crates/vox-cli/",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no cli:<group>:<leaf> node in the vox-gui-surface snapshot"
+      }
+    },
+    {
       "id": "cli.model.cas",
       "kind": "cli",
       "title": "Model Cas",
@@ -36060,6 +36303,54 @@
         "basis": "graph-key",
         "ambiguous": false,
         "reason": null
+      }
+    },
+    {
+      "id": "cli.model.eval-compare",
+      "kind": "cli",
+      "title": "Model Eval-compare",
+      "summary": "CLI operation `vox model eval-compare`",
+      "op_id": "model.eval-compare",
+      "status": "active",
+      "domain": "ml",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "model",
+          "eval-compare"
+        ],
+        "invocation": "vox model eval-compare",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": "models",
+        "nav_label": "Models",
+        "representation_tier": "live_backend",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-cli",
+        "layer": 5,
+        "rule": "cli_module"
+      },
+      "source_path": "crates/vox-cli/",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no cli:<group>:<leaf> node in the vox-gui-surface snapshot"
       }
     },
     {
@@ -37419,7 +37710,7 @@
       "status": "active",
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "remote_mutation",
       "tier": "feature_gated",
       "cli": {
         "path": [
@@ -37760,7 +38051,7 @@
       "status": "active",
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "remote_mutation",
       "tier": "feature_gated",
       "cli": {
         "path": [
@@ -37810,7 +38101,7 @@
       "status": "active",
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "network",
       "tier": "feature_gated",
       "cli": {
         "path": [
@@ -37860,7 +38151,7 @@
       "status": "active",
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "remote_mutation",
       "tier": "feature_gated",
       "cli": {
         "path": [
@@ -37910,7 +38201,7 @@
       "status": "active",
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -38055,7 +38346,7 @@
       "status": "active",
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": "none",
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -40665,7 +40956,7 @@
       "status": "active",
       "domain": "vcs",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -40812,7 +41103,7 @@
       "status": "active",
       "domain": "vcs",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -40914,7 +41205,7 @@
       "status": "active",
       "domain": "vcs",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -41446,7 +41737,7 @@
       "status": "active",
       "domain": "research",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "network",
       "tier": "advanced",
       "cli": {
         "path": [
@@ -46063,6 +46354,53 @@
       }
     },
     {
+      "id": "cli.serve",
+      "kind": "cli",
+      "title": "Serve",
+      "summary": "CLI operation `vox serve`",
+      "op_id": "serve",
+      "status": "active",
+      "domain": "platform",
+      "product_lane": "platform",
+      "side_effect_class": "network",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "serve"
+        ],
+        "invocation": "vox serve",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "none",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-cli",
+        "layer": 5,
+        "rule": "cli_module"
+      },
+      "source_path": "crates/vox-cli/src/commands/serve.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "top-level commands are cli-group nodes; the graph has no per-command coverage"
+      }
+    },
+    {
       "id": "cli.share",
       "kind": "cli",
       "title": "Share",
@@ -46308,7 +46646,7 @@
       "status": "active",
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "spawns_process",
       "tier": "feature_gated",
       "cli": {
         "path": [
@@ -46454,7 +46792,7 @@
       "status": "active",
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "feature_gated",
       "cli": {
         "path": [
@@ -46552,7 +46890,7 @@
       "status": "active",
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "feature_gated",
       "cli": {
         "path": [
@@ -46602,7 +46940,7 @@
       "status": "active",
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": "feature_gated",
       "cli": {
         "path": [
@@ -46652,7 +46990,7 @@
       "status": "active",
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "feature_gated",
       "cli": {
         "path": [
@@ -46750,7 +47088,7 @@
       "status": "active",
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "spawns_process",
       "tier": "feature_gated",
       "cli": {
         "path": [
@@ -46800,7 +47138,7 @@
       "status": "active",
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": "feature_gated",
       "cli": {
         "path": [
@@ -46898,7 +47236,7 @@
       "status": "active",
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": "destructive",
+      "side_effect_class": "writes_files",
       "tier": "feature_gated",
       "cli": {
         "path": [
@@ -48139,7 +48477,7 @@
       "status": "active",
       "domain": "gui",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "spawns_process",
       "tier": "feature_gated",
       "cli": {
         "path": [
@@ -48189,7 +48527,7 @@
       "status": "active",
       "domain": "gui",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "spawns_process",
       "tier": "feature_gated",
       "cli": {
         "path": [
@@ -48430,7 +48768,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "remote_mutation",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -48468,7 +48806,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -48506,7 +48844,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -48544,7 +48882,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "network",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -48582,7 +48920,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "remote_mutation",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -48620,7 +48958,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -48701,7 +49039,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -48739,7 +49077,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "spawns_process",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -48777,7 +49115,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -48817,7 +49155,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "remote_mutation",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -48855,7 +49193,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -48893,7 +49231,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "network",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -48931,7 +49269,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "remote_mutation",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -48969,7 +49307,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -49007,7 +49345,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "remote_mutation",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -49045,7 +49383,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "network",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -49083,7 +49421,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "remote_mutation",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -49121,7 +49459,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "spawns_process",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -49159,7 +49497,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "spawns_process",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -49197,7 +49535,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -49235,7 +49573,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -49273,7 +49611,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "spawns_process",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -49311,7 +49649,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -49349,7 +49687,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -49387,7 +49725,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": "writes_files",
+      "side_effect_class": "spawns_process",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -49425,7 +49763,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -49463,7 +49801,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -49501,7 +49839,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -49544,7 +49882,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -49587,7 +49925,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -49630,7 +49968,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -49668,7 +50006,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -49706,7 +50044,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -49744,7 +50082,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -49782,7 +50120,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -49820,7 +50158,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "remote_mutation",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -49863,7 +50201,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "network",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -49906,7 +50244,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "remote_mutation",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -49949,7 +50287,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "remote_mutation",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -49992,7 +50330,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "remote_mutation",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -50035,7 +50373,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -50078,7 +50416,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -50121,7 +50459,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -50164,7 +50502,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "network",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -50207,7 +50545,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "network",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -50250,7 +50588,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "remote_mutation",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -50293,7 +50631,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "remote_mutation",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -50336,7 +50674,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "network",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -50379,7 +50717,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "network",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -50422,7 +50760,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -50465,7 +50803,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -50508,7 +50846,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "network",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -50551,7 +50889,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "network",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -50594,7 +50932,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -50637,7 +50975,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "remote_mutation",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -50680,7 +51018,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "network",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -50723,7 +51061,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -50766,7 +51104,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -50809,7 +51147,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -50852,7 +51190,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -50895,7 +51233,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -50938,7 +51276,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -50981,7 +51319,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -51024,7 +51362,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -51067,7 +51405,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -51110,7 +51448,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "remote_mutation",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -51153,7 +51491,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -51196,7 +51534,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -51236,7 +51574,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "app",
-      "side_effect_class": null,
+      "side_effect_class": "spawns_process",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -51279,7 +51617,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "app",
-      "side_effect_class": null,
+      "side_effect_class": "none",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -51317,7 +51655,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -51437,7 +51775,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -51475,7 +51813,7 @@
       "status": null,
       "domain": "vcs",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -51513,7 +51851,7 @@
       "status": null,
       "domain": "vcs",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -51551,7 +51889,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -51594,11 +51932,183 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
         "name": "vox_chat_message"
+      },
+      "gui": {
+        "view_key": "chat",
+        "nav_label": "Chat",
+        "representation_tier": "live_backend",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_chat_session_append",
+      "kind": "mcp_tool",
+      "title": "Chat Session Append",
+      "summary": "Append one message to a GUI chat session's display transcript, creating the session on first use.",
+      "op_id": "chat.session.append",
+      "status": null,
+      "domain": "orchestrator",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_chat_session_append"
+      },
+      "gui": {
+        "view_key": "chat",
+        "nav_label": "Chat",
+        "representation_tier": "live_backend",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_chat_session_archive",
+      "kind": "mcp_tool",
+      "title": "Chat Session Archive",
+      "summary": "Archive a GUI chat session, or restore an archived one with archived=false.",
+      "op_id": "chat.session.archive",
+      "status": null,
+      "domain": "orchestrator",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_chat_session_archive"
+      },
+      "gui": {
+        "view_key": "chat",
+        "nav_label": "Chat",
+        "representation_tier": "live_backend",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_chat_session_create",
+      "kind": "mcp_tool",
+      "title": "Chat Session Create",
+      "summary": "Create a GUI chat session (display transcript) tagged with the server repository.",
+      "op_id": "chat.session.create",
+      "status": null,
+      "domain": "orchestrator",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_chat_session_create"
+      },
+      "gui": {
+        "view_key": "chat",
+        "nav_label": "Chat",
+        "representation_tier": "live_backend",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_chat_session_rename",
+      "kind": "mcp_tool",
+      "title": "Chat Session Rename",
+      "summary": "Rename a GUI chat session.",
+      "op_id": "chat.session.rename",
+      "status": null,
+      "domain": "orchestrator",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_chat_session_rename"
       },
       "gui": {
         "view_key": "chat",
@@ -51637,7 +52147,7 @@
       "status": null,
       "domain": "compiler",
       "product_lane": "app",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -51682,7 +52192,7 @@
       "status": null,
       "domain": "compiler",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -51727,7 +52237,7 @@
       "status": null,
       "domain": "compiler",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -51770,7 +52280,7 @@
       "status": null,
       "domain": "compiler",
       "product_lane": "app",
-      "side_effect_class": null,
+      "side_effect_class": "spawns_process",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -51815,7 +52325,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -51855,7 +52365,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -51893,7 +52403,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -51931,7 +52441,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "app",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -51969,7 +52479,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -52054,7 +52564,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -52099,7 +52609,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -52137,7 +52647,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -52175,7 +52685,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -52213,7 +52723,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -52251,7 +52761,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "app",
-      "side_effect_class": null,
+      "side_effect_class": "spawns_process",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -52294,7 +52804,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -52332,7 +52842,7 @@
       "status": null,
       "domain": "data",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -52375,7 +52885,7 @@
       "status": null,
       "domain": "data",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -52418,7 +52928,7 @@
       "status": null,
       "domain": "data",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -52461,7 +52971,7 @@
       "status": null,
       "domain": "data",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "network",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -52504,7 +53014,7 @@
       "status": null,
       "domain": "data",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -52547,7 +53057,7 @@
       "status": null,
       "domain": "data",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -52590,7 +53100,7 @@
       "status": null,
       "domain": "data",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -52633,7 +53143,7 @@
       "status": null,
       "domain": "data",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -52676,7 +53186,7 @@
       "status": null,
       "domain": "data",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -52721,7 +53231,7 @@
       "status": null,
       "domain": "data",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "network",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -52764,7 +53274,7 @@
       "status": null,
       "domain": "data",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -52807,7 +53317,7 @@
       "status": null,
       "domain": "data",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -52850,7 +53360,7 @@
       "status": null,
       "domain": "data",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -52893,7 +53403,7 @@
       "status": null,
       "domain": "data",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -52936,7 +53446,7 @@
       "status": null,
       "domain": "data",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -52979,7 +53489,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "app",
-      "side_effect_class": null,
+      "side_effect_class": "none",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -53017,7 +53527,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -53055,7 +53565,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -53093,7 +53603,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "destructive",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -53131,7 +53641,7 @@
       "status": null,
       "domain": "runtime",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -53169,7 +53679,7 @@
       "status": null,
       "domain": "runtime",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -53207,7 +53717,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "app",
-      "side_effect_class": null,
+      "side_effect_class": "none",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -53245,7 +53755,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -53285,7 +53795,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -53323,7 +53833,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -53361,7 +53871,7 @@
       "status": null,
       "domain": "gamify",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -53404,7 +53914,7 @@
       "status": null,
       "domain": "gamify",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -53447,11 +53957,183 @@
       "status": null,
       "domain": "gamify",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
         "name": "vox_gamify_collegium_join"
+      },
+      "gui": {
+        "view_key": "gamify",
+        "nav_label": "Gamify",
+        "representation_tier": "curated_decorator",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_gamify_companions",
+      "kind": "mcp_tool",
+      "title": "Gamify Companions",
+      "summary": "The canonical user's companions with a server-rendered mood SVG (loopback-only).",
+      "op_id": "gamify.companions",
+      "status": null,
+      "domain": "gamify",
+      "product_lane": "workflow",
+      "side_effect_class": "read_only",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_gamify_companions"
+      },
+      "gui": {
+        "view_key": "gamify",
+        "nav_label": "Gamify",
+        "representation_tier": "curated_decorator",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_gamify_discovery_record",
+      "kind": "mcp_tool",
+      "title": "Gamify Discovery Record",
+      "summary": "Record a Console discovery exposure (seen or used) for the canonical user (loopback-only).",
+      "op_id": "gamify.discovery_record",
+      "status": null,
+      "domain": "gamify",
+      "product_lane": "workflow",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_gamify_discovery_record"
+      },
+      "gui": {
+        "view_key": "gamify",
+        "nav_label": "Gamify",
+        "representation_tier": "curated_decorator",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_gamify_due_actions",
+      "kind": "mcp_tool",
+      "title": "Gamify Due Actions",
+      "summary": "List discovery actions due for resurfacing for the canonical user (loopback-only).",
+      "op_id": "gamify.due_actions",
+      "status": null,
+      "domain": "gamify",
+      "product_lane": "workflow",
+      "side_effect_class": "read_only",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_gamify_due_actions"
+      },
+      "gui": {
+        "view_key": "gamify",
+        "nav_label": "Gamify",
+        "representation_tier": "curated_decorator",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_gamify_leaderboard",
+      "kind": "mcp_tool",
+      "title": "Gamify Leaderboard",
+      "summary": "Top Ludus players by XP for Axis (loopback-only).",
+      "op_id": "gamify.leaderboard",
+      "status": null,
+      "domain": "gamify",
+      "product_lane": "workflow",
+      "side_effect_class": "read_only",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_gamify_leaderboard"
       },
       "gui": {
         "view_key": "gamify",
@@ -53490,7 +54172,7 @@
       "status": null,
       "domain": "gamify",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -53533,7 +54215,7 @@
       "status": null,
       "domain": "gamify",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -53576,11 +54258,54 @@
       "status": null,
       "domain": "gamify",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
         "name": "vox_gamify_notifications_list"
+      },
+      "gui": {
+        "view_key": "gamify",
+        "nav_label": "Gamify",
+        "representation_tier": "curated_decorator",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_gamify_profile",
+      "kind": "mcp_tool",
+      "title": "Gamify Profile",
+      "summary": "Read the canonical user's Ludus profile (regenerating energy) for Axis (loopback-only).",
+      "op_id": "gamify.profile",
+      "status": null,
+      "domain": "gamify",
+      "product_lane": "workflow",
+      "side_effect_class": "read_only",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_gamify_profile"
       },
       "gui": {
         "view_key": "gamify",
@@ -53619,7 +54344,7 @@
       "status": null,
       "domain": "gamify",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -53662,11 +54387,54 @@
       "status": null,
       "domain": "gamify",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
         "name": "vox_gamify_quest_list"
+      },
+      "gui": {
+        "view_key": "gamify",
+        "nav_label": "Gamify",
+        "representation_tier": "curated_decorator",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_gamify_record_event",
+      "kind": "mcp_tool",
+      "title": "Gamify Record Event",
+      "summary": "Route one Axis GUI event through the Ludus reward policy (loopback-only).",
+      "op_id": "gamify.record_event",
+      "status": null,
+      "domain": "gamify",
+      "product_lane": "workflow",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_gamify_record_event"
       },
       "gui": {
         "view_key": "gamify",
@@ -53705,7 +54473,7 @@
       "status": null,
       "domain": "gamify",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -53748,7 +54516,7 @@
       "status": null,
       "domain": "gamify",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -53791,7 +54559,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": "none",
+      "side_effect_class": "network",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -53836,7 +54604,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -53874,7 +54642,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -53912,7 +54680,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "network",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -53955,7 +54723,7 @@
       "status": null,
       "domain": "vcs",
       "product_lane": "app",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -53993,7 +54761,7 @@
       "status": null,
       "domain": "vcs",
       "product_lane": "app",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -54031,7 +54799,7 @@
       "status": null,
       "domain": "vcs",
       "product_lane": "app",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -54069,7 +54837,7 @@
       "status": null,
       "domain": "vcs",
       "product_lane": "app",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -54107,11 +54875,97 @@
       "status": null,
       "domain": "gui",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
         "name": "vox_gui_components"
+      },
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "none",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_gui_preference_get",
+      "kind": "mcp_tool",
+      "title": "GUI Preference Get",
+      "summary": "Read one Axis `gui.*` preference from the local workspace database (loopback-only).",
+      "op_id": "gui.preference.get",
+      "status": null,
+      "domain": "gui",
+      "product_lane": "data",
+      "side_effect_class": "read_only",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_gui_preference_get"
+      },
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "none",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_gui_preference_set",
+      "kind": "mcp_tool",
+      "title": "GUI Preference Set",
+      "summary": "Write one Axis `gui.*` preference to the local workspace database (loopback-only).",
+      "op_id": "gui.preference.set",
+      "status": null,
+      "domain": "gui",
+      "product_lane": "data",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_gui_preference_set"
       },
       "gui": {
         "view_key": null,
@@ -54150,7 +55004,7 @@
       "status": null,
       "domain": "gui",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -54185,6 +55039,82 @@
       }
     },
     {
+      "id": "mcp.vox_gui_run_finish",
+      "kind": "mcp_tool",
+      "title": "Finish GUI run",
+      "summary": "Mark a GUI run completed or failed, joining approval and telemetry totals when a task id is given.",
+      "op_id": "orchestrator.gui_run_finish",
+      "status": null,
+      "domain": "gui",
+      "product_lane": "workflow",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_gui_run_finish"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_gui_run_start",
+      "kind": "mcp_tool",
+      "title": "Start GUI run",
+      "summary": "Record a running GUI-initiated run in the agent_runs journal.",
+      "op_id": "orchestrator.gui_run_start",
+      "status": null,
+      "domain": "gui",
+      "product_lane": "workflow",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_gui_run_start"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
       "id": "mcp.vox_gui_tokens",
       "kind": "mcp_tool",
       "title": "GUI Design Tokens",
@@ -54193,7 +55123,7 @@
       "status": null,
       "domain": "gui",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -54236,7 +55166,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -54274,13 +55204,185 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
         "name": "vox_handoff_lineage"
       },
       "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_harness_corpus_scan",
+      "kind": "mcp_tool",
+      "title": "Harness Corpus Scan",
+      "summary": "Scan the server workspace golden corpus for stale frontmatter and record new harness issues.",
+      "op_id": "harness.corpus_scan",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "data",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_harness_corpus_scan"
+      },
+      "gui": {
+        "view_key": "harness",
+        "nav_label": "Harness",
+        "representation_tier": "live_backend",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_harness_fix_propose",
+      "kind": "mcp_tool",
+      "title": "Harness Fix Propose",
+      "summary": "Ask the LLM facade for a corrected file for a harness issue and store it as a pending fix proposal.",
+      "op_id": "harness.fix_propose",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_harness_fix_propose"
+      },
+      "gui": {
+        "view_key": "harness",
+        "nav_label": "Harness",
+        "representation_tier": "live_backend",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_harness_fix_resolve",
+      "kind": "mcp_tool",
+      "title": "Harness Fix Resolve",
+      "summary": "Approve (write the proposed content verbatim) or reject a pending harness fix proposal.",
+      "op_id": "harness.fix_resolve",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "data",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_harness_fix_resolve"
+      },
+      "gui": {
+        "view_key": "harness",
+        "nav_label": "Harness",
+        "representation_tier": "live_backend",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_harness_issue_decide",
+      "kind": "mcp_tool",
+      "title": "Harness Issue Decide",
+      "summary": "Record a human confirm/dismiss decision for a harness issue.",
+      "op_id": "harness.issue_decide",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "data",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_harness_issue_decide"
+      },
+      "gui": {
+        "view_key": "harness",
+        "nav_label": "Harness",
+        "representation_tier": "live_backend",
+        "catalog_form": false
+      },
       "owner": {
         "crate": "vox-orchestrator-mcp",
         "layer": 3,
@@ -54312,11 +55414,163 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
         "name": "vox_heartbeat"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_hopper_cancel",
+      "kind": "mcp_tool",
+      "title": "Cancel hopper task",
+      "summary": "Cancel a hopper item, removing it from the open queue.",
+      "op_id": "orchestrator.hopper_cancel",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "workflow",
+      "side_effect_class": "destructive",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_hopper_cancel"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_hopper_mark_done",
+      "kind": "mcp_tool",
+      "title": "Mark hopper task done",
+      "summary": "Mark a hopper item completed.",
+      "op_id": "orchestrator.hopper_mark_done",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "workflow",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_hopper_mark_done"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_hopper_reprioritize",
+      "kind": "mcp_tool",
+      "title": "Reprioritize hopper task",
+      "summary": "Override a hopper item's priority (0 background, 1 normal, 2 urgent) with a developer capability.",
+      "op_id": "orchestrator.hopper_reprioritize",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "workflow",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_hopper_reprioritize"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_hopper_submit",
+      "kind": "mcp_tool",
+      "title": "Submit hopper task",
+      "summary": "Submit an intent to the persistent task hopper as a developer-sourced item.",
+      "op_id": "orchestrator.hopper_submit",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "workflow",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_hopper_submit"
       },
       "gui": null,
       "owner": {
@@ -54350,7 +55604,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -54388,7 +55642,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -54418,11 +55672,269 @@
       }
     },
     {
-      "id": "mcp.vox_kb_add_entry",
+      "id": "mcp.vox_kb_cite",
       "kind": "mcp_tool",
-      "title": "Add Knowledge Entry",
-      "summary": "Add a knowledge entry to a knowledge base.",
-      "op_id": "kb.add_entry",
+      "title": "Cite Knowledge Library Chunk",
+      "summary": "Build a citation (heading path, doc link with anchor, kb:// URI, indexed commit) for an indexed KB Library chunk by chunk_hash.",
+      "op_id": "kb.cite",
+      "status": null,
+      "domain": "research",
+      "product_lane": "ai",
+      "side_effect_class": "read_only",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_kb_cite"
+      },
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "none",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_kb_get",
+      "kind": "mcp_tool",
+      "title": "Get Knowledge Library Document",
+      "summary": "Fetch one indexed KB Library document by docs/src rel_path (frontmatter, chunk list, reconstructed markdown) or one chunk by 64-hex chunk_hash; reads only the index, never the file system.",
+      "op_id": "kb.get",
+      "status": null,
+      "domain": "research",
+      "product_lane": "ai",
+      "side_effect_class": "read_only",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_kb_get"
+      },
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "none",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_kb_import_research_session",
+      "kind": "mcp_tool",
+      "title": "KB Import Research Session",
+      "summary": "Persist a research session's citations and report into the knowledge base.",
+      "op_id": "kb.import.research_session",
+      "status": null,
+      "domain": "research",
+      "product_lane": "data",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_kb_import_research_session"
+      },
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "none",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_kb_ingest_text",
+      "kind": "mcp_tool",
+      "title": "KB Ingest Text",
+      "summary": "Ingest pasted text into the knowledge base as a document node keyed by content hash.",
+      "op_id": "kb.ingest.text",
+      "status": null,
+      "domain": "research",
+      "product_lane": "data",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_kb_ingest_text"
+      },
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "none",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_kb_ingest_url",
+      "kind": "mcp_tool",
+      "title": "KB Ingest URL",
+      "summary": "Scrape a web page (honouring robots.txt) and ingest it into the knowledge base.",
+      "op_id": "kb.ingest.url",
+      "status": null,
+      "domain": "research",
+      "product_lane": "data",
+      "side_effect_class": "network",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_kb_ingest_url"
+      },
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "none",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_kb_node_delete",
+      "kind": "mcp_tool",
+      "title": "KB Node Delete",
+      "summary": "Delete one knowledge-base node and its incident edges (Axis Memory surface).",
+      "op_id": "kb.node.delete",
+      "status": null,
+      "domain": "research",
+      "product_lane": "data",
+      "side_effect_class": "destructive",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_kb_node_delete"
+      },
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "none",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_kb_reindex",
+      "kind": "mcp_tool",
+      "title": "Reindex Knowledge Library",
+      "summary": "Rebuild the KB Library index from the repository docs/src tree (takes no path arguments; single-flight); returns the index report.",
+      "op_id": "kb.reindex",
       "status": null,
       "domain": "research",
       "product_lane": "ai",
@@ -54430,9 +55942,59 @@
       "tier": null,
       "cli": null,
       "mcp": {
-        "name": "vox_kb_add_entry"
+        "name": "vox_kb_reindex"
       },
-      "gui": null,
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "none",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [
+        "cli.kb.reindex"
+      ],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_kb_search",
+      "kind": "mcp_tool",
+      "title": "Search Knowledge Library",
+      "summary": "Search the curated KB Library (Vox docs plus docs/src/library) by BM25 over heading chunks; returns ranked hits with chunk_hash, heading_path, anchor, snippet and kb:// URIs.",
+      "op_id": "kb.search",
+      "status": null,
+      "domain": "research",
+      "product_lane": "ai",
+      "side_effect_class": "read_only",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_kb_search"
+      },
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "none",
+        "catalog_form": false
+      },
       "owner": {
         "crate": "vox-orchestrator-mcp",
         "layer": 3,
@@ -54456,21 +56018,26 @@
       }
     },
     {
-      "id": "mcp.vox_kb_add_rule",
+      "id": "mcp.vox_kb_status",
       "kind": "mcp_tool",
-      "title": "Add Knowledge Rule",
-      "summary": "Add an ingestion filter rule.",
-      "op_id": "kb.add_rule",
+      "title": "Knowledge Library Status",
+      "summary": "Report KB Library index state, covering corpus root and commit, doc/chunk/card counts, chunker version, lexical backend, embed model, trust tier, per-file errors and index consistency.",
+      "op_id": "kb.status",
       "status": null,
       "domain": "research",
       "product_lane": "ai",
-      "side_effect_class": "writes_files",
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
-        "name": "vox_kb_add_rule"
+        "name": "vox_kb_status"
       },
-      "gui": null,
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "none",
+        "catalog_form": false
+      },
       "owner": {
         "crate": "vox-orchestrator-mcp",
         "layer": 3,
@@ -54484,387 +56051,9 @@
         }
       ],
       "skills": [],
-      "equivalents": [],
-      "refs": [],
-      "coverage": {
-        "kind": null,
-        "basis": "none",
-        "ambiguous": false,
-        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
-      }
-    },
-    {
-      "id": "mcp.vox_kb_clip",
-      "kind": "mcp_tool",
-      "title": "Clip Knowledge Fact",
-      "summary": "Clip code/notes into knowledge bases.",
-      "op_id": "kb.clip",
-      "status": null,
-      "domain": "research",
-      "product_lane": "ai",
-      "side_effect_class": "writes_files",
-      "tier": null,
-      "cli": null,
-      "mcp": {
-        "name": "vox_kb_clip"
-      },
-      "gui": null,
-      "owner": {
-        "crate": "vox-orchestrator-mcp",
-        "layer": 3,
-        "rule": "mcp_dispatch"
-      },
-      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
-      "docs": [
-        {
-          "path": "docs/src/reference/mcp-tool-registry-contract.md",
-          "origin": "default"
-        }
+      "equivalents": [
+        "cli.kb.status"
       ],
-      "skills": [],
-      "equivalents": [],
-      "refs": [],
-      "coverage": {
-        "kind": null,
-        "basis": "none",
-        "ambiguous": false,
-        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
-      }
-    },
-    {
-      "id": "mcp.vox_kb_create",
-      "kind": "mcp_tool",
-      "title": "Create Knowledge Base",
-      "summary": "Create a new knowledge base.",
-      "op_id": "kb.create",
-      "status": null,
-      "domain": "research",
-      "product_lane": "ai",
-      "side_effect_class": "writes_files",
-      "tier": null,
-      "cli": null,
-      "mcp": {
-        "name": "vox_kb_create"
-      },
-      "gui": null,
-      "owner": {
-        "crate": "vox-orchestrator-mcp",
-        "layer": 3,
-        "rule": "mcp_dispatch"
-      },
-      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
-      "docs": [
-        {
-          "path": "docs/src/reference/mcp-tool-registry-contract.md",
-          "origin": "default"
-        }
-      ],
-      "skills": [],
-      "equivalents": [],
-      "refs": [],
-      "coverage": {
-        "kind": null,
-        "basis": "none",
-        "ambiguous": false,
-        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
-      }
-    },
-    {
-      "id": "mcp.vox_kb_delete",
-      "kind": "mcp_tool",
-      "title": "Delete Knowledge Base",
-      "summary": "Delete a knowledge base by ID.",
-      "op_id": "kb.delete",
-      "status": null,
-      "domain": "research",
-      "product_lane": "ai",
-      "side_effect_class": "writes_files",
-      "tier": null,
-      "cli": null,
-      "mcp": {
-        "name": "vox_kb_delete"
-      },
-      "gui": null,
-      "owner": {
-        "crate": "vox-orchestrator-mcp",
-        "layer": 3,
-        "rule": "mcp_dispatch"
-      },
-      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
-      "docs": [
-        {
-          "path": "docs/src/reference/mcp-tool-registry-contract.md",
-          "origin": "default"
-        }
-      ],
-      "skills": [],
-      "equivalents": [],
-      "refs": [],
-      "coverage": {
-        "kind": null,
-        "basis": "none",
-        "ambiguous": false,
-        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
-      }
-    },
-    {
-      "id": "mcp.vox_kb_delete_entry",
-      "kind": "mcp_tool",
-      "title": "Delete Knowledge Entry",
-      "summary": "Delete a knowledge entry by ID.",
-      "op_id": "kb.delete_entry",
-      "status": null,
-      "domain": "research",
-      "product_lane": "ai",
-      "side_effect_class": "writes_files",
-      "tier": null,
-      "cli": null,
-      "mcp": {
-        "name": "vox_kb_delete_entry"
-      },
-      "gui": null,
-      "owner": {
-        "crate": "vox-orchestrator-mcp",
-        "layer": 3,
-        "rule": "mcp_dispatch"
-      },
-      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
-      "docs": [
-        {
-          "path": "docs/src/reference/mcp-tool-registry-contract.md",
-          "origin": "default"
-        }
-      ],
-      "skills": [],
-      "equivalents": [],
-      "refs": [],
-      "coverage": {
-        "kind": null,
-        "basis": "none",
-        "ambiguous": false,
-        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
-      }
-    },
-    {
-      "id": "mcp.vox_kb_get_feed",
-      "kind": "mcp_tool",
-      "title": "Get Knowledge Feed",
-      "summary": "Get the feed of knowledge entries.",
-      "op_id": "kb.get_feed",
-      "status": null,
-      "domain": "research",
-      "product_lane": "ai",
-      "side_effect_class": null,
-      "tier": null,
-      "cli": null,
-      "mcp": {
-        "name": "vox_kb_get_feed"
-      },
-      "gui": null,
-      "owner": {
-        "crate": "vox-orchestrator-mcp",
-        "layer": 3,
-        "rule": "mcp_dispatch"
-      },
-      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
-      "docs": [
-        {
-          "path": "docs/src/reference/mcp-tool-registry-contract.md",
-          "origin": "default"
-        }
-      ],
-      "skills": [],
-      "equivalents": [],
-      "refs": [],
-      "coverage": {
-        "kind": null,
-        "basis": "none",
-        "ambiguous": false,
-        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
-      }
-    },
-    {
-      "id": "mcp.vox_kb_list",
-      "kind": "mcp_tool",
-      "title": "List Knowledge Bases",
-      "summary": "List all available knowledge bases.",
-      "op_id": "kb.list",
-      "status": null,
-      "domain": "research",
-      "product_lane": "ai",
-      "side_effect_class": null,
-      "tier": null,
-      "cli": null,
-      "mcp": {
-        "name": "vox_kb_list"
-      },
-      "gui": null,
-      "owner": {
-        "crate": "vox-orchestrator-mcp",
-        "layer": 3,
-        "rule": "mcp_dispatch"
-      },
-      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
-      "docs": [
-        {
-          "path": "docs/src/reference/mcp-tool-registry-contract.md",
-          "origin": "default"
-        }
-      ],
-      "skills": [],
-      "equivalents": [],
-      "refs": [],
-      "coverage": {
-        "kind": null,
-        "basis": "none",
-        "ambiguous": false,
-        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
-      }
-    },
-    {
-      "id": "mcp.vox_kb_list_entries",
-      "kind": "mcp_tool",
-      "title": "List Knowledge Entries",
-      "summary": "List all knowledge entries in a knowledge base.",
-      "op_id": "kb.list_entries",
-      "status": null,
-      "domain": "research",
-      "product_lane": "ai",
-      "side_effect_class": null,
-      "tier": null,
-      "cli": null,
-      "mcp": {
-        "name": "vox_kb_list_entries"
-      },
-      "gui": null,
-      "owner": {
-        "crate": "vox-orchestrator-mcp",
-        "layer": 3,
-        "rule": "mcp_dispatch"
-      },
-      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
-      "docs": [
-        {
-          "path": "docs/src/reference/mcp-tool-registry-contract.md",
-          "origin": "default"
-        }
-      ],
-      "skills": [],
-      "equivalents": [],
-      "refs": [],
-      "coverage": {
-        "kind": null,
-        "basis": "none",
-        "ambiguous": false,
-        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
-      }
-    },
-    {
-      "id": "mcp.vox_kb_list_rules",
-      "kind": "mcp_tool",
-      "title": "List Knowledge Rules",
-      "summary": "List ingestion filter rules.",
-      "op_id": "kb.list_rules",
-      "status": null,
-      "domain": "research",
-      "product_lane": "ai",
-      "side_effect_class": null,
-      "tier": null,
-      "cli": null,
-      "mcp": {
-        "name": "vox_kb_list_rules"
-      },
-      "gui": null,
-      "owner": {
-        "crate": "vox-orchestrator-mcp",
-        "layer": 3,
-        "rule": "mcp_dispatch"
-      },
-      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
-      "docs": [
-        {
-          "path": "docs/src/reference/mcp-tool-registry-contract.md",
-          "origin": "default"
-        }
-      ],
-      "skills": [],
-      "equivalents": [],
-      "refs": [],
-      "coverage": {
-        "kind": null,
-        "basis": "none",
-        "ambiguous": false,
-        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
-      }
-    },
-    {
-      "id": "mcp.vox_kb_query",
-      "kind": "mcp_tool",
-      "title": "Query Knowledge Base",
-      "summary": "Query knowledge bases with semantic search.",
-      "op_id": "kb.query",
-      "status": null,
-      "domain": "research",
-      "product_lane": "ai",
-      "side_effect_class": null,
-      "tier": null,
-      "cli": null,
-      "mcp": {
-        "name": "vox_kb_query"
-      },
-      "gui": null,
-      "owner": {
-        "crate": "vox-orchestrator-mcp",
-        "layer": 3,
-        "rule": "mcp_dispatch"
-      },
-      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
-      "docs": [
-        {
-          "path": "docs/src/reference/mcp-tool-registry-contract.md",
-          "origin": "default"
-        }
-      ],
-      "skills": [],
-      "equivalents": [],
-      "refs": [],
-      "coverage": {
-        "kind": null,
-        "basis": "none",
-        "ambiguous": false,
-        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
-      }
-    },
-    {
-      "id": "mcp.vox_kb_review_entry",
-      "kind": "mcp_tool",
-      "title": "Review Knowledge Entry",
-      "summary": "Accept or reject a knowledge entry.",
-      "op_id": "kb.review_entry",
-      "status": null,
-      "domain": "research",
-      "product_lane": "ai",
-      "side_effect_class": "writes_files",
-      "tier": null,
-      "cli": null,
-      "mcp": {
-        "name": "vox_kb_review_entry"
-      },
-      "gui": null,
-      "owner": {
-        "crate": "vox-orchestrator-mcp",
-        "layer": 3,
-        "rule": "mcp_dispatch"
-      },
-      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
-      "docs": [
-        {
-          "path": "docs/src/reference/mcp-tool-registry-contract.md",
-          "origin": "default"
-        }
-      ],
-      "skills": [],
-      "equivalents": [],
       "refs": [],
       "coverage": {
         "kind": null,
@@ -54882,7 +56071,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -54922,7 +56111,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "app",
-      "side_effect_class": null,
+      "side_effect_class": "none",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -54960,7 +56149,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -54998,7 +56187,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "app",
-      "side_effect_class": null,
+      "side_effect_class": "spawns_process",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -55036,7 +56225,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "workflow",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -55079,7 +56268,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -55117,7 +56306,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -55155,7 +56344,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -55200,7 +56389,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -55238,7 +56427,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -55283,7 +56472,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -55328,7 +56517,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -55373,11 +56562,54 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
         "name": "vox_memory_recall_db"
+      },
+      "gui": {
+        "view_key": "memory",
+        "nav_label": "Memory",
+        "representation_tier": "live_backend",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_memory_reindex",
+      "kind": "mcp_tool",
+      "title": "Memory Reindex",
+      "summary": "Two-way sync between the daemon's MEMORY.md store and the memory database.",
+      "op_id": "memory.reindex",
+      "status": null,
+      "domain": "orchestrator",
+      "product_lane": "data",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_memory_reindex"
       },
       "gui": {
         "view_key": "memory",
@@ -55416,7 +56648,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -55459,7 +56691,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "network",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -55506,7 +56738,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -55594,7 +56826,7 @@
       "status": null,
       "domain": "mesh",
       "product_lane": "workflow",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -55637,7 +56869,7 @@
       "status": null,
       "domain": "mesh",
       "product_lane": "workflow",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -55672,6 +56904,49 @@
       }
     },
     {
+      "id": "mcp.vox_models_preference_set",
+      "kind": "mcp_tool",
+      "title": "Models Preference Set",
+      "summary": "Persist one Models/Settings preference (active_model, routing_priority, selection_policy) for the local GUI user; other keys are refused and values are validated.",
+      "op_id": "models.preference.set",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_models_preference_set"
+      },
+      "gui": {
+        "view_key": "models",
+        "nav_label": "Models",
+        "representation_tier": "live_backend",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
       "id": "mcp.vox_my_files",
       "kind": "mcp_tool",
       "title": "My Files",
@@ -55680,7 +56955,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -55720,7 +56995,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -55758,7 +57033,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -55796,7 +57071,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -55834,7 +57109,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -55872,7 +57147,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -55910,7 +57185,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "network",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -55953,7 +57228,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "remote_mutation",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -55996,7 +57271,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "network",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -56039,7 +57314,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -56082,7 +57357,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "network",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -56125,7 +57400,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "remote_mutation",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -56170,7 +57445,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "network",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -56213,7 +57488,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "remote_mutation",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -56258,7 +57533,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "network",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -56303,7 +57578,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "remote_mutation",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -56348,7 +57623,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -56472,7 +57747,7 @@
       "status": null,
       "domain": "speech",
       "product_lane": "ai",
-      "side_effect_class": "spawns_process",
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -56515,7 +57790,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -56553,7 +57828,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -56591,7 +57866,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -56629,7 +57904,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -56669,7 +57944,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -56707,7 +57982,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "workflow",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -56750,7 +58025,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -56788,7 +58063,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "app",
-      "side_effect_class": null,
+      "side_effect_class": "none",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -56826,7 +58101,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -56871,7 +58146,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -56906,6 +58181,82 @@
       }
     },
     {
+      "id": "mcp.vox_plan_node_upsert",
+      "kind": "mcp_tool",
+      "title": "Edit live plan node",
+      "summary": "Edit a not-yet-dispatched plan node's description, or insert a new step (blocked while the plan is unapproved).",
+      "op_id": "orchestrator.plan_node_upsert",
+      "status": null,
+      "domain": "orchestrator",
+      "product_lane": "workflow",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_plan_node_upsert"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_plan_nodes_approve",
+      "kind": "mcp_tool",
+      "title": "Approve plan nodes",
+      "summary": "Approve every blocked_on_approval node in a plan session; returns how many were released.",
+      "op_id": "orchestrator.plan_nodes_approve",
+      "status": null,
+      "domain": "orchestrator",
+      "product_lane": "workflow",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_plan_nodes_approve"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
       "id": "mcp.vox_plan_resume",
       "kind": "mcp_tool",
       "title": "Plan Resume",
@@ -56914,7 +58265,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -56957,7 +58308,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": "none",
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -57002,7 +58353,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -57225,7 +58576,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -57263,7 +58614,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "workflow",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -57306,7 +58657,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -57344,7 +58695,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -57382,7 +58733,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -57458,7 +58809,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -57496,7 +58847,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -57534,7 +58885,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -57572,7 +58923,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -57610,7 +58961,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -57648,7 +58999,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -57688,7 +59039,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -57728,7 +59079,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -57766,7 +59117,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "destructive",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -57804,7 +59155,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -57842,7 +59193,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -57925,7 +59276,7 @@
       "status": null,
       "domain": "vcs",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -57970,7 +59321,7 @@
       "status": null,
       "domain": "vcs",
       "product_lane": "app",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -58013,7 +59364,7 @@
       "status": null,
       "domain": "vcs",
       "product_lane": "app",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -58056,7 +59407,7 @@
       "status": null,
       "domain": "vcs",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -58146,7 +59497,7 @@
       "status": null,
       "domain": "vcs",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -58228,6 +59579,135 @@
       }
     },
     {
+      "id": "mcp.vox_research_engine_config_set",
+      "kind": "mcp_tool",
+      "title": "Research Engine Config Set",
+      "summary": "Persist the research engine provider/lane config to the server's Vox.toml and preferences.",
+      "op_id": "research.engine_config.set",
+      "status": null,
+      "domain": "research",
+      "product_lane": "data",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_research_engine_config_set"
+      },
+      "gui": {
+        "view_key": "research",
+        "nav_label": "Research",
+        "representation_tier": "curated_decorator",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_research_engine_probe",
+      "kind": "mcp_tool",
+      "title": "Research Engine Probe",
+      "summary": "Probe one search provider (or all when provider is omitted) with a test query using server secrets.",
+      "op_id": "research.engine_probe",
+      "status": null,
+      "domain": "research",
+      "product_lane": "data",
+      "side_effect_class": "network",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_research_engine_probe"
+      },
+      "gui": {
+        "view_key": "research",
+        "nav_label": "Research",
+        "representation_tier": "curated_decorator",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_research_flag_misleading",
+      "kind": "mcp_tool",
+      "title": "Research Flag Misleading",
+      "summary": "Record that a research session's answer misled the user (Axis Research surface).",
+      "op_id": "research.flag_misleading",
+      "status": null,
+      "domain": "research",
+      "product_lane": "data",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_research_flag_misleading"
+      },
+      "gui": {
+        "view_key": "research",
+        "nav_label": "Research",
+        "representation_tier": "curated_decorator",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
       "id": "mcp.vox_research_get",
       "kind": "mcp_tool",
       "title": "Research Session Result",
@@ -58236,11 +59716,54 @@
       "status": null,
       "domain": "research",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
         "name": "vox_research_get"
+      },
+      "gui": {
+        "view_key": "research",
+        "nav_label": "Research",
+        "representation_tier": "curated_decorator",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_research_publish_doc",
+      "kind": "mcp_tool",
+      "title": "Research Publish Doc",
+      "summary": "Write a research session's doc draft under docs/src/research on the server and store it as an artifact.",
+      "op_id": "research.publish_doc",
+      "status": null,
+      "domain": "research",
+      "product_lane": "data",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_research_publish_doc"
       },
       "gui": {
         "view_key": "research",
@@ -58279,7 +59802,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "network",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -58369,7 +59892,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "network",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -58500,7 +60023,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -58538,7 +60061,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -58576,7 +60099,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -58614,7 +60137,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -58652,7 +60175,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "app",
-      "side_effect_class": null,
+      "side_effect_class": "spawns_process",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -58698,7 +60221,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "spawns_process",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -58741,11 +60264,54 @@
       "status": null,
       "domain": "research",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "network",
       "tier": null,
       "cli": null,
       "mcp": {
         "name": "vox_scientia_assist_suggestions"
+      },
+      "gui": {
+        "view_key": "scientia",
+        "nav_label": "Findings",
+        "representation_tier": "curated_decorator",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_scientia_discovery_ack",
+      "kind": "mcp_tool",
+      "title": "Scientia Discovery Ack",
+      "summary": "Acknowledge one discovery-inbox row so it leaves the unacknowledged list.",
+      "op_id": "scientia.discovery.ack",
+      "status": null,
+      "domain": "research",
+      "product_lane": "data",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_scientia_discovery_ack"
       },
       "gui": {
         "view_key": "scientia",
@@ -58784,7 +60350,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -58827,11 +60393,97 @@
       "status": null,
       "domain": "research",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
         "name": "vox_scientia_publication_arxiv_handoff_record"
+      },
+      "gui": {
+        "view_key": "scientia",
+        "nav_label": "Findings",
+        "representation_tier": "curated_decorator",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_scientia_publication_autofill",
+      "kind": "mcp_tool",
+      "title": "Scientia Publication Autofill",
+      "summary": "Plan (or apply) metadata autofill for a publication manifest from server workspace provenance.",
+      "op_id": "scientia.publication.autofill",
+      "status": null,
+      "domain": "research",
+      "product_lane": "data",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_scientia_publication_autofill"
+      },
+      "gui": {
+        "view_key": "scientia",
+        "nav_label": "Findings",
+        "representation_tier": "curated_decorator",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_scientia_publication_claim_review",
+      "kind": "mcp_tool",
+      "title": "Scientia Publication Claim Review",
+      "summary": "Record a human review decision for one claim of a publication.",
+      "op_id": "scientia.publication.claim_review",
+      "status": null,
+      "domain": "research",
+      "product_lane": "data",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_scientia_publication_claim_review"
       },
       "gui": {
         "view_key": "scientia",
@@ -58870,7 +60522,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "network",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -58913,7 +60565,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -58956,7 +60608,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -58999,7 +60651,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -59042,7 +60694,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -59085,7 +60737,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -59128,7 +60780,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -59171,7 +60823,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "remote_mutation",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -59214,7 +60866,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -59257,7 +60909,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "destructive",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -59300,7 +60952,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -59343,11 +60995,54 @@
       "status": null,
       "domain": "research",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
         "name": "vox_scientia_publication_media_upsert"
+      },
+      "gui": {
+        "view_key": "scientia",
+        "nav_label": "Findings",
+        "representation_tier": "curated_decorator",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_scientia_publication_nanopublish",
+      "kind": "mcp_tool",
+      "title": "Scientia Publication Nanopublish",
+      "summary": "Build and publish a nanopublication for a human-approved publication claim.",
+      "op_id": "scientia.publication.nanopublish",
+      "status": null,
+      "domain": "research",
+      "product_lane": "data",
+      "side_effect_class": "remote_mutation",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_scientia_publication_nanopublish"
       },
       "gui": {
         "view_key": "scientia",
@@ -59386,7 +61081,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "network",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -59429,7 +61124,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "network",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -59472,7 +61167,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -59515,7 +61210,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -59558,7 +61253,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "remote_mutation",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -59601,7 +61296,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "remote_mutation",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -59644,7 +61339,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -59687,7 +61382,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "remote_mutation",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -59730,7 +61425,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "network",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -59773,7 +61468,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "network",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -59816,7 +61511,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "network",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -59859,7 +61554,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -59902,7 +61597,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -59945,7 +61640,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "remote_mutation",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -59988,7 +61683,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "data",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -60031,7 +61726,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "platform",
-      "side_effect_class": "none",
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -60074,7 +61769,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "platform",
-      "side_effect_class": "none",
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -60117,7 +61812,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "platform",
-      "side_effect_class": "none",
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -60203,7 +61898,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "platform",
-      "side_effect_class": "none",
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -60248,7 +61943,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "platform",
-      "side_effect_class": "none",
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -60379,7 +62074,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "platform",
-      "side_effect_class": "none",
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -60424,7 +62119,7 @@
       "status": null,
       "domain": "research",
       "product_lane": "platform",
-      "side_effect_class": "none",
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -60467,7 +62162,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "platform",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -60510,7 +62205,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -60553,7 +62248,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -60593,7 +62288,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -60633,7 +62328,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -60673,7 +62368,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -60713,7 +62408,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -60753,7 +62448,7 @@
       "status": null,
       "domain": "orchestrator",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -60791,7 +62486,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -60829,7 +62524,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -60867,7 +62562,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -60905,7 +62600,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -60943,7 +62638,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "spawns_process",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -60988,7 +62683,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -61033,7 +62728,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -61078,7 +62773,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -61123,7 +62818,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -61168,7 +62863,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -61211,7 +62906,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "destructive",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -61254,7 +62949,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "spawns_process",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -61299,7 +62994,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -61344,7 +63039,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": "destructive",
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -61389,7 +63084,7 @@
       "status": null,
       "domain": "skills",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -61432,7 +63127,7 @@
       "status": null,
       "domain": "data",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -61475,7 +63170,7 @@
       "status": null,
       "domain": "data",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -61561,7 +63256,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "spawns_process",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -61599,7 +63294,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -61642,7 +63337,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "spawns_process",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -61682,7 +63377,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -61720,7 +63415,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -61760,7 +63455,7 @@
       "status": null,
       "domain": "compiler",
       "product_lane": "app",
-      "side_effect_class": null,
+      "side_effect_class": "spawns_process",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -61805,7 +63500,7 @@
       "status": null,
       "domain": "compiler",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -61848,7 +63543,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "none",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -61886,7 +63581,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -61926,7 +63621,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -61964,7 +63659,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "destructive",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -62002,7 +63697,7 @@
       "status": null,
       "domain": "compiler",
       "product_lane": "app",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -62043,7 +63738,7 @@
       "status": null,
       "domain": "compiler",
       "product_lane": "app",
-      "side_effect_class": null,
+      "side_effect_class": "none",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -62083,7 +63778,7 @@
       "status": null,
       "domain": "compiler",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "none",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -62126,7 +63821,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -62164,7 +63859,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -62202,7 +63897,7 @@
       "status": null,
       "domain": "platform",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "none",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -62242,7 +63937,7 @@
       "status": null,
       "domain": "gui",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "spawns_process",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -62287,7 +63982,7 @@
       "status": null,
       "domain": "gui",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "spawns_process",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -62370,7 +64065,7 @@
       "status": null,
       "domain": "vcs",
       "product_lane": "interop",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -62408,7 +64103,7 @@
       "status": null,
       "domain": "vcs",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "writes_files",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -62446,7 +64141,7 @@
       "status": null,
       "domain": "vcs",
       "product_lane": "app",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -62484,7 +64179,7 @@
       "status": null,
       "domain": "vcs",
       "product_lane": "ai",
-      "side_effect_class": null,
+      "side_effect_class": "read_only",
       "tier": null,
       "cli": null,
       "mcp": {
@@ -62753,6 +64448,10 @@
       "refs": [
         "mcp.vox_chat_history",
         "mcp.vox_chat_message",
+        "mcp.vox_chat_session_append",
+        "mcp.vox_chat_session_archive",
+        "mcp.vox_chat_session_create",
+        "mcp.vox_chat_session_rename",
         "mcp.vox_ghost_text"
       ],
       "coverage": {
@@ -63006,11 +64705,17 @@
         "mcp.vox_gamify_battle_start",
         "mcp.vox_gamify_battle_submit",
         "mcp.vox_gamify_collegium_join",
+        "mcp.vox_gamify_companions",
+        "mcp.vox_gamify_discovery_record",
+        "mcp.vox_gamify_due_actions",
+        "mcp.vox_gamify_leaderboard",
         "mcp.vox_gamify_notification_ack",
         "mcp.vox_gamify_notifications_ack_all",
         "mcp.vox_gamify_notifications_list",
+        "mcp.vox_gamify_profile",
         "mcp.vox_gamify_progress_snapshot",
         "mcp.vox_gamify_quest_list",
+        "mcp.vox_gamify_record_event",
         "mcp.vox_gamify_shop_buy",
         "mcp.vox_gamify_shop_catalog"
       ],
@@ -63054,7 +64759,12 @@
       ],
       "skills": [],
       "equivalents": [],
-      "refs": [],
+      "refs": [
+        "mcp.vox_harness_corpus_scan",
+        "mcp.vox_harness_fix_propose",
+        "mcp.vox_harness_fix_resolve",
+        "mcp.vox_harness_issue_decide"
+      ],
       "coverage": {
         "kind": "orphan_backend",
         "basis": "graph-key",
@@ -63143,6 +64853,7 @@
         "mcp.vox_memory_log",
         "mcp.vox_memory_recall",
         "mcp.vox_memory_recall_db",
+        "mcp.vox_memory_reindex",
         "mcp.vox_memory_save_db",
         "mcp.vox_memory_search",
         "mcp.vox_memory_store",
@@ -63343,6 +65054,7 @@
       "equivalents": [],
       "refs": [
         "cli.model",
+        "cli.model.bench",
         "cli.model.cas",
         "cli.model.cas.ls",
         "cli.model.cas.pull",
@@ -63352,6 +65064,7 @@
         "cli.model.council-report",
         "cli.model.discover",
         "cli.model.eval",
+        "cli.model.eval-compare",
         "cli.model.eval-corpus",
         "cli.model.explain",
         "cli.model.list",
@@ -63366,7 +65079,8 @@
         "cli.model.rollup",
         "cli.model.scoreboard",
         "cli.model.shadow",
-        "cli.model.show"
+        "cli.model.show",
+        "mcp.vox_models_preference_set"
       ],
       "coverage": {
         "kind": "orphan_backend",
@@ -63701,7 +65415,11 @@
         "cli.research.status",
         "cli.research.up",
         "cli.research.watch",
+        "mcp.vox_research_engine_config_set",
+        "mcp.vox_research_engine_probe",
+        "mcp.vox_research_flag_misleading",
         "mcp.vox_research_get",
+        "mcp.vox_research_publish_doc",
         "mcp.vox_research_run",
         "mcp.vox_research_search",
         "mcp.vox_research_start",
@@ -63853,8 +65571,11 @@
         "cli.scientia.retrieval-status",
         "cli.scientia.scout",
         "mcp.vox_scientia_assist_suggestions",
+        "mcp.vox_scientia_discovery_ack",
         "mcp.vox_scientia_publication_approve",
         "mcp.vox_scientia_publication_arxiv_handoff_record",
+        "mcp.vox_scientia_publication_autofill",
+        "mcp.vox_scientia_publication_claim_review",
         "mcp.vox_scientia_publication_decision_explain",
         "mcp.vox_scientia_publication_discovery_explain",
         "mcp.vox_scientia_publication_discovery_refresh_evidence",
@@ -63867,6 +65588,7 @@
         "mcp.vox_scientia_publication_media_delete",
         "mcp.vox_scientia_publication_media_list",
         "mcp.vox_scientia_publication_media_upsert",
+        "mcp.vox_scientia_publication_nanopublish",
         "mcp.vox_scientia_publication_novelty_fetch",
         "mcp.vox_scientia_publication_novelty_happy_path",
         "mcp.vox_scientia_publication_preflight",
@@ -65681,6 +67403,37 @@
       "coverage": null
     },
     {
+      "id": "crate.vox-kb-facets",
+      "kind": "crate",
+      "title": "vox-kb-facets",
+      "summary": "L0 KB facet contract: facet types, eligibility rule, summary block, provenance validators, taxonomy and backlog (KB Phase 4).",
+      "op_id": null,
+      "status": null,
+      "domain": "platform",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": {
+        "crate": "vox-kb-facets",
+        "layer": 0,
+        "rule": "self"
+      },
+      "source_path": "crates/vox-kb-facets/",
+      "docs": [
+        {
+          "path": "docs/src/architecture/where-things-live.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
       "id": "crate.vox-langtool",
       "kind": "crate",
       "title": "vox-langtool",
@@ -65839,7 +67592,7 @@
       "id": "crate.vox-mcp-registry",
       "kind": "crate",
       "title": "vox-mcp-registry",
-      "summary": "Compile-time MCP tool name/description registry from contracts YAML (SSOT)",
+      "summary": "Compile-time MCP tool registry and capability profiles (PROFILES, ActiveProfile, authorize_tool) from contracts YAML (SSOT).",
       "op_id": null,
       "status": null,
       "domain": "platform",

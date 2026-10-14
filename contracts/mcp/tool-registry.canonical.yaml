@@ -7,1674 +7,2872 @@ tools:
   description: Acknowledge a message in an agent's inbox.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: remote_mutation
+  requires: []
 - name: vox_a2a_broadcast
   description: Broadcast an A2A message to all agents.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires: []
 - name: vox_a2a_history
   description: Query the A2A message audit trail.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_a2a_inbox
   description: Read unacknowledged messages in an agent's inbox.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: network
+  requires: []
 - name: vox_a2a_send
   description: Send a targeted A2A message from one agent to another.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: remote_mutation
+  requires: []
 - name: vox_a2a_tasks
   description: Returns the full DAG of current orchestrator tasks.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - agent_fleet
 - name: vox_add_approval_allowlist_entry
   description: Persist a per-repository "always allow this tool" entry so it auto-approves without parking for HITL approval (T0.3).
   product_lane: workflow
   http_read_role_eligible: false
-  tier: core
+  exposure: internal
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_agent_assess
   description: Evaluates remaining work, returns completion estimate.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - agent_fleet
 - name: vox_agent_continue
   description: Triggers auto-continuation for idle agents.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: spawns_process
+  requires:
+  - agent_fleet
 - name: vox_agent_events
   description: Streams event history for agents.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - db
 - name: vox_agent_gateway_call
   description: Invoke an arbitrary agent Gateway method with JSON params.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: internal
+  side_effect_class: remote_mutation
+  requires: []
 - name: vox_agent_handoff
   description: Passes plan/context from one agent to another.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - agent_fleet
 - name: vox_agent_list_remote
   description: List remote agent skills through the native agent runtime adapter.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: internal
+  side_effect_class: network
+  requires: []
 - name: vox_agent_notify
   description: Send a domain-scoped notification over the agent gateway.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: internal
+  side_effect_class: remote_mutation
+  requires: []
 - name: vox_agent_status
   description: Returns current agent state, activity, mood, queue depth.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - agent_fleet
 - name: vox_agent_subscribe
   description: Subscribe the agent gateway session to a domain.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: internal
+  side_effect_class: remote_mutation
+  requires: []
 - name: vox_agent_subscriptions
   description: List active agent gateway subscriptions for the current session.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: internal
+  side_effect_class: network
+  requires: []
 - name: vox_agent_unsubscribe
   description: Unsubscribe the agent gateway session from a domain.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: internal
+  side_effect_class: remote_mutation
+  requires: []
 - name: vox_agy_delegate
   description: Delegate a code-generation or refactoring task to Gemini via the agy CLI. Runs agy -p in an isolated git worktree (jail), auto-accepts all prompts, retries on quota/timeout, and auto-logs to the handoff ledger. Returns the diff for human review.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: internal
+  side_effect_class: spawns_process
+  requires: []
 - name: vox_agy_delegate_batch
   description: Fan out multiple file-disjoint agy delegation tasks with bounded concurrency (≤8 workers). Each worker gets its own worktree and ledger entry. All results returned for review before integration.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: internal
+  side_effect_class: spawns_process
+  requires: []
 - name: vox_agy_doctor
   description: Detect whether the Antigravity `agy` CLI is installed and ready; returns status plus exact install/auth remediation. Call before vox_agy_delegate.
   product_lane: ai
   http_read_role_eligible: true
-  tier: core
+  exposure: internal
+  side_effect_class: read_only
+  requires: []
 - name: vox_agy_ledger_digest
   description: Read the handoff ledger and return historical Gemini failure-category frequencies + entry count — the flywheel input injected as explicit avoid-rules into the next launch statement (Stage 1).
   product_lane: ai
   http_read_role_eligible: true
-  tier: core
+  exposure: internal
+  side_effect_class: read_only
+  requires: []
 - name: vox_agy_pipeline
   description: 'Run one Antigravity delegation end-to-end with deterministic verification: delegate via agy in a worktree jail, capture diff + spend proxy, run the plan-specified gates INSIDE the jail, classify green/partial/failed by effect, write a provisional ledger entry, and return a verdict-ready report for the human merge gate. Use this (not vox_agy_delegate) when you want the result proven, not asserted.'
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: internal
+  side_effect_class: spawns_process
+  requires: []
 - name: vox_agy_review
   description: Record the Claude-side adversarial code review of a delegation as an append-only {id}-review ledger addendum (verdict + §B failure categories + findings + prompt lessons). Closes the review phase before the human merge gate and feeds the flywheel.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: internal
+  side_effect_class: writes_files
+  requires: []
 - name: vox_answer_question
   description: Answer a pending question from another agent.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires: []
 - name: vox_apply_structured_edit
   description: Apply a structured file edit with validation (.vox AST/HIR, .rs shadow cargo check) and bounded LLM repair on failure.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: spawns_process
+  requires:
+  - compiler
 - name: vox_ask_agent
   description: Ask another agent a question.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires: []
 - name: vox_ask_clarification
   description: Raise a clarification question to the user and declare gating task IDs.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: writes_files
+  requires:
+  - clarification
 - name: vox_attention_history
   description: Returns the history of attention shifts.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - attention
 - name: vox_attention_reset
   description: Resets the attention budget for the agent pool.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - attention
 - name: vox_attention_summary
   description: Returns a summary of agent attention allocation and focus shifts over a time window.
   product_lane: ai
   http_read_role_eligible: true
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - db
 - name: vox_behavior_record
   description: Record a user behavior event and receive pattern suggestions.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: writes_files
+  requires:
+  - memory
 - name: vox_behavior_summary
   description: Analyze recent behavior and summarize detected patterns.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: writes_files
+  requires:
+  - memory
 - name: vox_benchmark_list
   description: List recent benchmark_event rows from Codex for this repository (requires VoxDb). Also covers build times and eval scores. Trust/sensitivity SSOT — docs/src/architecture/telemetry-trust-ssot.md.
   product_lane: platform
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - db
 - name: vox_benchmark_record
   description: Record a new benchmark observation (e.g. wall-clock time for a build phase). Trust/sensitivity SSOT — docs/src/architecture/telemetry-trust-ssot.md.
   product_lane: platform
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_broadcast
   description: Broadcast a message to all agents on the board.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires: []
 - name: vox_browser_act
   description: LLM proposes a single JSON action (click/fill/goto/wait/noop); host executes it on the page.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: remote_mutation
+  requires:
+  - browser
+  - llm_facade
 - name: vox_browser_back
   description: Navigate to the previous history entry for page_id.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: network
+  requires:
+  - browser
 - name: vox_browser_click
   description: Click an element by CSS selector or xpath:/… target.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: remote_mutation
+  requires:
+  - browser
 - name: vox_browser_click_ref
   description: Click an element by ref from the latest accessibility snapshot; use snapshot refs, not CSS selectors. Callers must check data.ok and data.needs_human because sensitive refs return data.ok=false.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: remote_mutation
+  requires:
+  - browser
 - name: vox_browser_click_xy
   description: Click at viewport coordinates (x,y) on an existing page_id session.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: remote_mutation
+  requires:
+  - browser
 - name: vox_browser_close
   description: Close a browser tab by page_id and shut down the host when no tabs remain.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - browser
 - name: vox_browser_cookies_export
   description: Export cookies to a file under the browser profiles directory. Returns count and path only — cookie values never appear in the MCP payload.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: internal
+  side_effect_class: writes_files
+  requires:
+  - browser
 - name: vox_browser_cookies_import
   description: Import cookies from a cookies.json file jailed under the browser profiles directory. MCP result has no cookie values.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: internal
+  side_effect_class: writes_files
+  requires:
+  - browser
 - name: vox_browser_extract
   description: Use configured chat model + visible page text to answer an extraction instruction.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: network
+  requires:
+  - browser
+  - llm_facade
 - name: vox_browser_extract_json
   description: Like vox_browser_extract but forces a JSON object matching a JSON Schema description string.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: network
+  requires:
+  - browser
+  - llm_facade
 - name: vox_browser_fill
   description: Focus an input and type text (CSS selector or xpath:/…).
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: remote_mutation
+  requires:
+  - browser
 - name: vox_browser_fill_ref
   description: Fill an element by ref from the latest accessibility snapshot; use snapshot refs, not CSS selectors. Callers must check data.ok and data.needs_human because sensitive refs return data.ok=false.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: remote_mutation
+  requires:
+  - browser
 - name: vox_browser_forward
   description: Navigate to the next history entry for page_id.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: network
+  requires:
+  - browser
 - name: vox_browser_goto
   description: Navigate an existing tab to a URL.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: network
+  requires:
+  - browser
 - name: vox_browser_html
   description: Read HTML for the full document (empty target) or a fragment selector.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - browser
 - name: vox_browser_list_pages
   description: List all currently open browser sessions with page_id, URL, and title.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - browser
 - name: vox_browser_open
   description: Open a Chromium tab at URL via CD (chromiumoxide). Returns page_id for follow-up tools.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: network
+  requires:
+  - browser
 - name: vox_browser_open_ex
   description: Open a Chromium tab with launch mode ephemeral, named, or attach. Named mode requires save_profile or stored cookie consent. Empty VOX_BROWSER_ALLOWED_HOSTS with Named or Attach is an operator risk — set the var in production.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: network
+  requires:
+  - browser
 - name: vox_browser_page_info
   description: Get URL/title and history navigation booleans for page_id.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - browser
 - name: vox_browser_press
   description: Press a key/chord on the active page.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: remote_mutation
+  requires:
+  - browser
 - name: vox_browser_reload
   description: Reload the current page_id.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: network
+  requires:
+  - browser
 - name: vox_browser_screencast_frame
   description: Capture one CDP screencast frame, persist under browser-frames cache, return path and viewport dimensions.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: writes_files
+  requires:
+  - browser
 - name: vox_browser_screenshot
   description: Save a full-page PNG to a path (creates parent dirs).
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - browser
 - name: vox_browser_screenshot_viewport
   description: Capture viewport-only PNG, persist under browser-frames cache, return path and dimensions.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: writes_files
+  requires:
+  - browser
 - name: vox_browser_scroll
   description: Scroll by dx/dy viewport deltas.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - browser
 - name: vox_browser_set_control_lock
   description: Set or clear per-page control owner (human or agent) for shared CDP sessions.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - browser
 - name: vox_browser_set_viewport
   description: Set viewport width/height for deterministic coordinate mapping.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - browser
 - name: vox_browser_snapshot
   description: Capture a compact accessibility snapshot with stable element refs for ref-based actions; use these refs instead of CSS selectors.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - browser
 - name: vox_browser_stop
   description: Stop pending navigation/load for page_id.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - browser
 - name: vox_browser_text
   description: Read inner text for a CSS or xpath target.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - browser
 - name: vox_browser_type
   description: Type text into the focused editable element on page_id.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: remote_mutation
+  requires:
+  - browser
 - name: vox_browser_wait_for
   description: Wait until a selector appears or timeout (seconds).
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - browser
 - name: vox_budget_status
   description: Returns token usage and approximate costs across all agents.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - attention
 - name: vox_build_crate
   description: Run cargo build for a crate or the whole workspace.
   product_lane: app
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: spawns_process
+  requires:
+  - compiler
 - name: vox_builtin_registry
   description: Return detailed signatures and docs for all builtin functions.
   product_lane: app
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: none
+  requires:
+  - compiler
 - name: vox_cancel_task
   description: Cancels an active or queued task.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - agent_fleet
 - name: vox_capability_explain
   description: Explain a Vox capability (what it is, its owning crate and layer, CLI/GUI/MCP equivalents and docs link), answered from contracts/capabilities/capability-index.v1.json.
   product_lane: platform
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_capability_features
   description: List Vox capabilities by domain with layer, CLI/GUI/MCP equivalents and docs path, answered from contracts/capabilities/capability-index.v1.json.
   product_lane: platform
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_capability_model_manifest
   description: Return the live Vox capability model manifest JSON (MCP tools, CLI paths, runtime builtin maps) merged from contracts/capability and registries at the workspace root.
   product_lane: platform
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_change_create
   description: Start tracking a new logical change.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires: []
 - name: vox_change_log
   description: Show the history of a change.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_chat_history
   description: Retrieve the full chat history for the current session.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - db
 - name: vox_chat_message
   description: Send a chat message to the Vox AI. Resolves @mentions, injects editor context, queries LLM, persists history.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: writes_files
+  requires:
+  - llm_facade
+  - db
+- name: vox_chat_session_append
+  description: Append one message to a GUI chat session's display transcript, creating the session on first use.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
+- name: vox_chat_session_archive
+  description: Archive a GUI chat session, or restore an archived one with archived=false.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
+- name: vox_chat_session_create
+  description: Create a GUI chat session (display transcript) tagged with the server repository.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
+- name: vox_chat_session_rename
+  description: Rename a GUI chat session.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_check
   description: CLI operation `vox check`
   product_lane: app
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - compiler
 - name: vox_check_file_owner
   description: Check which agent currently owns a given file path.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_check_mood
   description: Returns the current gamification mood and status of the agent companion.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: writes_files
+  requires: []
 - name: vox_check_workspace
   description: Run cargo check for the entire workspace and return diagnostics.
   product_lane: app
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: spawns_process
+  requires:
+  - compiler
 - name: vox_claim_file
   description: Request ownership of a specific file.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires: []
 - name: vox_code_audit_findings_upsert
   description: Record or update TOESTUB anti-pattern findings from external reviews (GitHub/CodeRabbit).
   product_lane: platform
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: writes_files
+  requires: []
 - name: vox_compaction_status
   description: Get current context token usage and whether compaction is recommended.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_compiler::ast_inspect
   description: 'Parse a .vox file and return its AST as a JSON tree. Argument: path (relative to repo root).'
   product_lane: app
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - compiler
 - name: vox_complete_task
   description: Mark a task as completed, releasing its file locks.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - agent_fleet
 - name: vox_config_get
   description: 'Get the current runtime orchestrator and toolchain configuration (wire aliases: vox_get_config).'
   product_lane: platform
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_config_set
   description: 'Update the orchestrator configuration dynamically (wire alias: vox_set_config).'
   product_lane: platform
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires: []
 - name: vox_conflict_diff
   description: Show the N-way diff of a conflict.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_conflicts
   description: List active file conflicts between agents.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_context_budget
   description: Get the token budget status and summarize recommendation for an agent.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - attention
 - name: vox_cost_history
   description: Get a time-series cost breakdown of operations.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - db
 - name: vox_coverage_report
   description: Get code coverage report for a crate using cargo-llvm-cov.
   product_lane: app
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: spawns_process
+  requires:
+  - compiler
 - name: vox_credentials_status
   description: List every inference provider with a present Clavis credential plus the agy delegation status — the credential-aware model-selection surface. OpenRouter is one of many.
   product_lane: ai
   http_read_role_eligible: true
-  tier: core
+  exposure: internal
+  side_effect_class: read_only
+  requires: []
 - name: vox_db_conversation_edge_insert
   description: Insert conversation_edges between two conversations (V17).
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_db_conversation_version_append
   description: Append conversation_versions for a conversation_id (V17).
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_db_data_flow
   description: Return the data flow map.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - compiler
 - name: vox_db_explain_query
   description: Explain a query or mutation in plain English.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: network
+  requires:
+  - llm_facade
+  - compiler
 - name: vox_db_relationships
   description: Return the entity-relationship graph for the database.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - compiler
 - name: vox_db_research_metric_linked
   description: Upsert research_sessions then append research_metrics with matching session_id text (links structured + legacy telemetry).
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_db_research_session_upsert
   description: Upsert research_sessions by session_key (V17). Empty repository_id defaults to workspace repository_id.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_db_sample_data
   description: Fetch sample data from a given database table.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - db
 - name: vox_db_schema
   description: Return the complete database schema digest as JSON.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - compiler
 - name: vox_db_suggest_query
   description: Suggest the correct Vox query expression for an intent.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: network
+  requires:
+  - llm_facade
+  - compiler
 - name: vox_db_topic_evolution_append
   description: Append topic_evolution_events for a topic_id (V17).
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_db_trust_drift
   description: Compare mean trust observation scores in a recent time window vs the prior equal-length window (optional entity_type/dimension filters).
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - db
 - name: vox_db_trust_propagate
   description: Domain-clique affinity propagation over model trust rollups for a base dimension; optional persist writes *_propagated observations.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_db_trust_rollups
   description: List trust_rollups rows with optional entity_type/dimension/domain filters for multidimensional trust inspection.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - db
 - name: vox_db_trust_summary
   description: Aggregate trust_rollups by dimension, domain, entity_type, or combined keys (mean/min/max score, counts, sample mass).
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - db
 - name: vox_decorator_registry
   description: Return detailed metadata for all @decorators in the Vox language.
   product_lane: app
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: none
+  requires:
+  - compiler
 - name: vox_doubt_task
   description: Mark a task as suspicious, triggering a rigorous ResolutionAgent audit and potentially unlocking doubt-related achievements.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - agent_fleet
 - name: vox_drain_agent
   description: Remove all queued tasks from an agent without retiring it.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: internal
+  side_effect_class: writes_files
+  requires:
+  - agent_fleet
 - name: vox_emergency_stop
   description: Trigger a global emergency stop across the orchestrator, cancelling all active tasks.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: internal
+  side_effect_class: destructive
+  requires:
+  - agent_fleet
 - name: vox_exec_time_query
   description: Query historical execution time for a tool.
   product_lane: ai
   http_read_role_eligible: true
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - db
 - name: vox_exec_time_record
   description: Record an execution duration and outcome.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_export_grammar_ebnf
   description: Export the Vox EBNF grammar.
   product_lane: app
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: none
+  requires:
+  - compiler
 - name: vox_fail_task
   description: Mark a task as failed with a reason string.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - agent_fleet
 - name: vox_feedback_list
   description: List all pending and withheld feedback requests.
   product_lane: ai
   http_read_role_eligible: true
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_file_graph
   description: Get a JSON graph of all files and their owning agents (affinity map).
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_gamify_battle_start
   description: Start a bug battle from a synthetic finding (companion name + rule + message).
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: internal
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_gamify_battle_submit
   description: Submit code for the active bug battle for a companion (success flag).
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: internal
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_gamify_collegium_join
   description: Join a collegium and emit a Ludus collegium_joined policy event.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: internal
+  side_effect_class: writes_files
+  requires:
+  - db
+- name: vox_gamify_companions
+  description: The canonical user's companions with a server-rendered mood SVG (loopback-only).
+  product_lane: workflow
+  http_read_role_eligible: false
+  exposure: internal
+  side_effect_class: read_only
+  requires:
+  - db
+- name: vox_gamify_discovery_record
+  description: Record a Console discovery exposure (seen or used) for the canonical user (loopback-only).
+  product_lane: workflow
+  http_read_role_eligible: false
+  exposure: internal
+  side_effect_class: writes_files
+  requires:
+  - db
+- name: vox_gamify_due_actions
+  description: List discovery actions due for resurfacing for the canonical user (loopback-only).
+  product_lane: workflow
+  http_read_role_eligible: false
+  exposure: internal
+  side_effect_class: read_only
+  requires:
+  - db
+- name: vox_gamify_leaderboard
+  description: Top Ludus players by XP for Axis (loopback-only).
+  product_lane: workflow
+  http_read_role_eligible: false
+  exposure: internal
+  side_effect_class: read_only
+  requires:
+  - db
 - name: vox_gamify_notification_ack
   description: Mark one Ludus notification as read for the canonical user (Codex gamify_notifications), by notification id.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: internal
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_gamify_notifications_ack_all
   description: Mark all unread Ludus notifications as read for the canonical user.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: internal
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_gamify_notifications_list
   description: List unread Ludus (gamification) notifications for the current canonical user from Codex.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: internal
+  side_effect_class: read_only
+  requires:
+  - db
+- name: vox_gamify_profile
+  description: Read the canonical user's Ludus profile (regenerating energy) for Axis (loopback-only).
+  product_lane: workflow
+  http_read_role_eligible: false
+  exposure: internal
+  side_effect_class: read_only
+  requires:
+  - db
 - name: vox_gamify_progress_snapshot
   description: 'Ludus digest: KPI summary, unread notifications, and recent reward-policy snapshots over a rolling day window.'
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: internal
+  side_effect_class: read_only
+  requires:
+  - db
 - name: vox_gamify_quest_list
   description: List Ludus quests for the canonical user (read-only).
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: internal
+  side_effect_class: read_only
+  requires:
+  - db
+- name: vox_gamify_record_event
+  description: Route one Axis GUI event through the Ludus reward policy (loopback-only).
+  product_lane: workflow
+  http_read_role_eligible: false
+  exposure: internal
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_gamify_shop_buy
   description: Buy a shop item by 1-based index; optional idempotency_key dedupes duplicate purchases.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: internal
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_gamify_shop_catalog
   description: Crystal shop catalog with effective prices for the current gamify mode.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: internal
+  side_effect_class: read_only
+  requires: []
 - name: vox_generate_code
   description: Generate validated Vox code from a prompt; optional `output_path` (repo-relative) writes UTF-8 and returns `meta.file_outcomes`; optional `vcs_agent_id` captures a post-write snapshot id in `meta.file_outcomes.post_write_snapshot_id`.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: network
+  requires:
+  - llm_facade
+  - compiler
 - name: vox_get_active_model
   description: Show sticky MCP chat override and resolved ModelSpec (no LLM call).
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - model_registry
 - name: vox_get_context
   description: Retrieve a value from the shared context.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_ghost_text
   description: LLM fill-in-the-middle completion for single-line editor fragments.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: network
+  requires:
+  - llm_facade
 - name: vox_git_blame
   description: Show line-by-line git blame for a file.
   product_lane: app
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_git_diff
   description: Show uncommitted git diff for a file or the whole tree.
   product_lane: app
   http_read_role_eligible: true
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_git_log
   description: 'Show recent git commits (default: last 10).'
   product_lane: app
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_git_status
   description: Get current git working tree status.
   product_lane: app
   http_read_role_eligible: true
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_gui_components
   description: Retrieve the components registered in the primitive component registry.
   product_lane: ai
   http_read_role_eligible: true
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
+- name: vox_gui_preference_get
+  description: Read one Axis `gui.*` preference from the local workspace database (loopback-only).
+  product_lane: data
+  http_read_role_eligible: false
+  exposure: internal
+  side_effect_class: read_only
+  requires:
+  - db
+- name: vox_gui_preference_set
+  description: Write one Axis `gui.*` preference to the local workspace database (loopback-only).
+  product_lane: data
+  http_read_role_eligible: false
+  exposure: internal
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_gui_rules
   description: List the registered GUI design rules (gui-design-rule/*) so a generator can read the constraint set before emitting.
   product_lane: ai
   http_read_role_eligible: true
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
+- name: vox_gui_run_finish
+  description: Mark a GUI run completed or failed, joining approval and telemetry totals when a task id is given.
+  product_lane: workflow
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
+- name: vox_gui_run_start
+  description: Record a running GUI-initiated run in the agent_runs journal.
+  product_lane: workflow
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_gui_tokens
   description: Retrieve design tokens in W3C DTCG format.
   product_lane: ai
   http_read_role_eligible: true
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_handoff_context
   description: Handoff summarized context from one agent to another.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires: []
 - name: vox_handoff_lineage
   description: Returns the historical lineage of agent-to-agent task delegations and context handoffs.
   product_lane: ai
   http_read_role_eligible: true
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - db
+- name: vox_harness_corpus_scan
+  description: Scan the server workspace golden corpus for stale frontmatter and record new harness issues.
+  product_lane: data
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
+- name: vox_harness_fix_propose
+  description: Ask the LLM facade for a corrected file for a harness issue and store it as a pending fix proposal.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
+  - llm_facade
+- name: vox_harness_fix_resolve
+  description: Approve (write the proposed content verbatim) or reject a pending harness fix proposal.
+  product_lane: data
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
+- name: vox_harness_issue_decide
+  description: Record a human confirm/dismiss decision for a harness issue.
+  product_lane: data
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_heartbeat
   description: Send an active heartbeat from a Vox agent session.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: writes_files
+  requires:
+  - agent_fleet
+- name: vox_hopper_cancel
+  description: Cancel a hopper item, removing it from the open queue.
+  product_lane: workflow
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: destructive
+  requires:
+  - db
+- name: vox_hopper_mark_done
+  description: Mark a hopper item completed.
+  product_lane: workflow
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
+- name: vox_hopper_reprioritize
+  description: Override a hopper item's priority (0 background, 1 normal, 2 urgent) with a developer capability.
+  product_lane: workflow
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
+- name: vox_hopper_submit
+  description: Submit an intent to the persistent task hopper as a developer-sourced item.
+  product_lane: workflow
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_inline_edit
   description: AI inline edit on a file range. Editor sends current text; Rust queries LLM and returns replacement.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - llm_facade
 - name: vox_journey_canonical_steps
   description: List ordered canonical developer-journey steps from Codex (SSOT `developer_journey_steps`).
   product_lane: ai
   http_read_role_eligible: true
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - db
 - name: vox_kb_cite
   description: Build a citation (heading path, doc link with anchor, kb:// URI, indexed commit) for an indexed KB Library chunk by chunk_hash.
   product_lane: ai
   http_read_role_eligible: true
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - search_index
 - name: vox_kb_get
   description: Fetch one indexed KB Library document by docs/src rel_path (frontmatter, chunk list, reconstructed markdown) or one chunk by 64-hex chunk_hash; reads only the index, never the file system.
   product_lane: ai
   http_read_role_eligible: true
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - search_index
+- name: vox_kb_import_research_session
+  description: Persist a research session's citations and report into the knowledge base.
+  product_lane: data
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
+- name: vox_kb_ingest_text
+  description: Ingest pasted text into the knowledge base as a document node keyed by content hash.
+  product_lane: data
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
+- name: vox_kb_ingest_url
+  description: Scrape a web page (honouring robots.txt) and ingest it into the knowledge base.
+  product_lane: data
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: network
+  requires:
+  - db
+- name: vox_kb_node_delete
+  description: Delete one knowledge-base node and its incident edges (Axis Memory surface).
+  product_lane: data
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: destructive
+  requires:
+  - db
 - name: vox_kb_reindex
   description: Rebuild the KB Library index from the repository docs/src tree (takes no path arguments; single-flight); returns the index report.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: writes_files
+  requires:
+  - search_index
 - name: vox_kb_search
   description: Search the curated KB Library (Vox docs plus docs/src/library) by BM25 over heading chunks; returns ranked hits with chunk_hash, heading_path, anchor, snippet and kb:// URIs.
   product_lane: ai
   http_read_role_eligible: true
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - search_index
 - name: vox_kb_status
   description: Report KB Library index state, covering corpus root and commit, doc/chunk/card counts, chunker version, lexical backend, embed model, trust tier, per-file errors and index consistency.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - search_index
 - name: vox_knowledge_query
   description: Query the knowledge graph (VoxDB) for related concepts by keyword.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - search_index
 - name: vox_language_surface
   description: Return all primary keywords, decorators, types, and builtins in the Vox language.
   product_lane: app
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: none
+  requires:
+  - compiler
 - name: vox_learn_pattern
   description: Record a learned behavioral pattern with confidence score.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: writes_files
+  requires:
+  - memory
 - name: vox_lint_crate
   description: Run cargo clippy for a crate or whole workspace.
   product_lane: app
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: spawns_process
+  requires:
+  - compiler
 - name: vox_list_approval_allowlist
   description: List MCP tools currently allowlisted for auto-approval in a repository (T0.3).
   product_lane: workflow
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_list_context
   description: List available context keys by prefix.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_list_models
   description: List all models in the orchestrator registry (ids, providers, free/paid).
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - model_registry
 - name: vox_lock_status
   description: Returns a list of all current file locks.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_map_agent_session
   description: 'Map a Vox agent session ID to an existing orchestrator agent (wire aliases: vox_map_opencode_session, vox_map_vscode_session).'
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - agent_fleet
 - name: vox_memory_list_keys
   description: List all section keys from MEMORY.md.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - memory
 - name: vox_memory_log
   description: Append an entry to today's daily memory log.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: writes_files
+  requires:
+  - memory
 - name: vox_memory_recall
   description: Retrieve a fact from long-term memory by key.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - memory
 - name: vox_memory_recall_db
   description: Recall typed memory facts for an agent from VoxDb.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - memory
+- name: vox_memory_reindex
+  description: Two-way sync between the daemon's MEMORY.md store and the memory database.
+  product_lane: data
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
+  - memory
 - name: vox_memory_save_db
   description: Persist a typed memory fact to VoxDb agent_memory table.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: writes_files
+  requires:
+  - memory
 - name: vox_memory_search
   description: Hybrid retrieval over memory logs, VoxDb document chunks, and repo inventory (`vox memory search`; MCP `vox_memory_search`).
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: network
+  requires:
+  - memory
 - name: vox_memory_store
   description: Persist a key-value fact to long-term memory (MEMORY.md).
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: writes_files
+  requires:
+  - memory
 - name: vox_mesh_dispatch
   description: Dispatch a .vox script or bundle to the Vox Populi control plane for remote execution on a mesh worker (requires configured control URL).
   product_lane: workflow
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: spawns_process
+  requires:
+  - mesh
 - name: vox_mesh_nodes
   description: List Vox Populi mesh nodes (control plane preferred, local-registry fallback) with status, GPU, trust tier, advertised models.
   product_lane: workflow
   http_read_role_eligible: true
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - mesh
 - name: vox_mesh_queue_stats
   description: Vox Populi mesh pending-queue stats (control plane preferred, local queue_depth fallback).
   product_lane: workflow
   http_read_role_eligible: true
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - mesh
+- name: vox_models_preference_set
+  description: Persist one Models/Settings preference (active_model, routing_priority, selection_policy) for the local GUI user; other keys are refused and values are validated.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
+  - model_registry
 - name: vox_my_files
   description: Returns all files currently owned by the specified agent.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_news_approval_status
   description: Return distinct approver count and whether dual approval is satisfied for a news_id.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - research
 - name: vox_news_approve
   description: Record a maker-checker approval for a news_id in VoxDb (two distinct approvers required before live syndication).
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - research
 - name: vox_news_draft_research
   description: Writes docs/news/drafts/{id}.md from the embedded research template (dry_run in frontmatter).
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - research
 - name: vox_news_simulate_publish_gate
   description: Parse news markdown and report what would block live publish (dry_run, approvals, armed) without posting.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - research
 - name: vox_news_test_syndicate
   description: Validates a markdown string against the UnifiedNewsItem parser and executes a pure dry_run without posting anything live.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - research
 - name: vox_openclaw_discover
   description: Resolve OpenClaw gateway/catalog endpoints from well-known discovery plus local overrides.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: internal
+  side_effect_class: network
+  requires: []
 - name: vox_openclaw_gateway_call
   description: Invoke an arbitrary OpenClaw Gateway WS method with JSON params.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: internal
+  side_effect_class: remote_mutation
+  requires: []
 - name: vox_openclaw_health
   description: Probe OpenClaw HTTP and WS readiness using the shared discovery configuration.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: internal
+  side_effect_class: network
+  requires: []
 - name: vox_openclaw_import_skill
   description: Import an OpenClaw skill by slug and optionally install it into the local Vox skills registry.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: internal
+  side_effect_class: writes_files
+  requires: []
 - name: vox_openclaw_list_remote
   description: List remote OpenClaw skills through the native OpenClaw runtime adapter.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: internal
+  side_effect_class: network
+  requires: []
 - name: vox_openclaw_notify
   description: Send a domain-scoped notification over the OpenClaw gateway.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: internal
+  side_effect_class: remote_mutation
+  requires: []
 - name: vox_openclaw_search_remote
   description: Search remote OpenClaw skills by keyword query.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: internal
+  side_effect_class: network
+  requires: []
 - name: vox_openclaw_subscribe
   description: Subscribe the OpenClaw gateway session to a domain.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: internal
+  side_effect_class: remote_mutation
+  requires: []
 - name: vox_openclaw_subscriptions
   description: List active OpenClaw gateway subscriptions for the current session.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: internal
+  side_effect_class: network
+  requires: []
 - name: vox_openclaw_unsubscribe
   description: Unsubscribe the OpenClaw gateway session from a domain.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: internal
+  side_effect_class: remote_mutation
+  requires: []
 - name: vox_oplog
   description: Show recent operations with undo support.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_oratio_listen
   description: 'Sessionized Oratio transcription with timeout/profile controls. Arg: path plus optional session fields.'
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: spawns_process
+  requires:
+  - speech
 - name: vox_oratio_status
   description: Oratio / Candle Whisper backend status, decode runtime, and streaming endpoint metadata (JSON; includes stream_ws_url).
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - speech
 - name: vox_oratio_transcribe
   description: 'Thin STT: transcribe one file to text (deterministic refine only). Args: path, optional language_hint, profile, debug_parser_payload.'
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - speech
 - name: vox_orchestrator_persistence_outbox_lifecycle
   description: Return the latest persistence outbox lifecycle health snapshot (queue size, replay successes/failures, and per-op replay failure counts).
   product_lane: platform
   http_read_role_eligible: true
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_orchestrator_persistence_outbox_queue
   description: Inspect queued persistence outbox entries with optional lane filter, limit, and replay payload inclusion.
   product_lane: platform
   http_read_role_eligible: true
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_orchestrator_start
   description: Probe embedded orchestrator + worker readiness. AgentFleet runs in-process when VOX_MCP_AGENT_FLEET is enabled (default); this tool does not spawn a separate process.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_orchestrator_status
   description: 'Get a full snapshot of the orchestrator state: agents, queues, and completed tasks.'
   product_lane: ai
   http_read_role_eligible: true
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_pause_agent
   description: Pause an agent queue (new work is held).
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - agent_fleet
 - name: vox_pending_approvals
   description: List human-in-the-loop tool-call approvals currently awaiting a decision.
   product_lane: workflow
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_pending_questions
   description: List all questions waiting for my answer.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_pipeline_status
   description: Get current compiler pipeline health and status (lexer, parser, typeck, codegen).
   product_lane: app
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: none
+  requires: []
 - name: vox_plan
   description: Generate a Cursor-style structured task plan for a goal. Optionally writes PLAN.md to workspace root.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - llm_facade
+  - db
 - name: vox_plan_list_sessions
   description: List active and recent plan sessions.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - db
+- name: vox_plan_node_upsert
+  description: Edit a not-yet-dispatched plan node's description, or insert a new step (blocked while the plan is unapproved).
+  product_lane: workflow
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
+- name: vox_plan_nodes_approve
+  description: Approve every blocked_on_approval node in a plan session; returns how many were released.
+  product_lane: workflow
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_plan_resume
   description: Resume a suspended or pending plan session.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_plan_status
   description: Plan session status via vox-orchestrator-d (ai.plan.status) for a session_id.
   product_lane: ai
   http_read_role_eligible: true
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - db
 - name: vox_plugin_catalog
   description: List plugins available in the Vox plugin catalog (marketplace index).
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_plugin_info
   description: Show manifest details for one installed or catalog Vox plugin.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_plugin_install
   description: Install a Vox plugin by id from the catalog into the local plugins directory.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires: []
 - name: vox_plugin_list
   description: List installed Vox plugins with id, version, and discovered skill count.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_plugin_remove
   description: Remove an installed Vox plugin from the local plugins directory.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: destructive
+  requires: []
 - name: vox_poll_events
   description: Poll recent orchestrator events for all agents.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: writes_files
+  requires: []
 - name: vox_populi_local_status
   description: Return mens environment variables and the local mens registry file contents (CPU-first node records).
   product_lane: workflow
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - mesh
 - name: vox_preference_get
   description: Get a user preference value by key from VoxDb.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - memory
 - name: vox_preference_list
   description: List all user preferences, optionally filtered by a key prefix.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - memory
 - name: vox_preference_set
   description: Set a user preference key to a value in VoxDb.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - memory
 - name: vox_project_init
   description: Scaffold `Vox.toml`, `src/main.vox`, `.vox_modules/`, or a skill markdown file — parity with `vox init` under the bound repo root (optional `target_subdir`).
   product_lane: platform
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires: []
 - name: vox_propose_skill
   description: Surface a mined recurring operation procedure as a non-blocking "save as skill?" suggestion in the NeedsYou inbox.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: writes_files
+  requires: []
 - name: vox_publish_message
   description: Publish a message to the bulletin board for all agents to receive.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires: []
 - name: vox_questioning_pending
   description: Return open clarification session + unanswered question rows with MC options and belief_state_json for UI (requires VoxDb; same session_id as chat/plan).
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - clarification
 - name: vox_questioning_submit_answer
   description: Store the user's answer to a pending Socrates clarification for an MCP session (requires VoxDb; pairs with socrates.questioning in chat/plan responses).
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - clarification
 - name: vox_questioning_sync_ssot
   description: Dual-write the information-theoretic questioning markdown SSOT into publication_manifests and search (requires VoxDb + workspace file).
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - clarification
 - name: vox_queue_status
   description: Returns the specific queue and tasks for an agent.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - agent_fleet
 - name: vox_rebalance
   description: Rebalances tasks dynamically across agents.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - agent_fleet
 - name: vox_record_cost
   description: Record a cost event from a Vox agent session token usage.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: writes_files
+  requires:
+  - attention
 - name: vox_redo
   description: Redo a previously undone operation.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: destructive
+  requires:
+  - db
 - name: vox_reorder_task
   description: Change the priority of a queued task.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - agent_fleet
 - name: vox_replan
   description: 'Replan via vox-orchestrator-d (ai.plan.replan): session_id + delta_hint; optional write_to_disk and mode.'
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: writes_files
+  requires:
+  - llm_facade
+  - db
 - name: vox_repo_catalog_list
   description: Resolve the explicit `.vox/repositories.yaml` catalog and return local plus remote repository descriptors.
   product_lane: platform
   http_read_role_eligible: true
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_repo_catalog_refresh
   description: Re-resolve the explicit repo catalog and write a snapshot cache for the current workspace repository.
   product_lane: platform
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: writes_files
+  requires: []
 - name: vox_repo_index_refresh
   description: Refresh the on-disk repo index cache for the current workspace.
   product_lane: app
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: writes_files
+  requires: []
 - name: vox_repo_index_status
   description: Return repo index cache status (bounded walk under repo root, `.vox/cache/repos/...`).
   product_lane: app
   http_read_role_eligible: true
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_repo_query_file
   description: Read a path across cataloged local repositories with per-repository path sandboxing.
   product_lane: platform
   http_read_role_eligible: true
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_repo_query_history
   description: Read recent Git history per cataloged local repository, optionally filtered by path or substring.
   product_lane: platform
   http_read_role_eligible: true
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_repo_query_text
   description: Search cataloged local repositories for text or regex matches and group results by repository_id.
   product_lane: platform
   http_read_role_eligible: true
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_repo_status
   description: Discovered repository root, stable repository_id, stack markers, and sorted Cargo workspace member dirs (parity with `vox repo status` JSON).
   product_lane: platform
   http_read_role_eligible: true
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
+- name: vox_research_engine_config_set
+  description: Persist the research engine provider/lane config to the server's Vox.toml and preferences.
+  product_lane: data
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
+- name: vox_research_engine_probe
+  description: Probe one search provider (or all when provider is omitted) with a test query using server secrets.
+  product_lane: data
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: network
+  requires:
+  - db
+- name: vox_research_flag_misleading
+  description: Record that a research session's answer misled the user (Axis Research surface).
+  product_lane: data
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_research_get
   description: MCP `vox_research_get` — fetch the completed research payload (answer + sources) for a session when available.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - research
+- name: vox_research_publish_doc
+  description: Write a research session's doc draft under docs/src/research on the server and store it as an artifact.
+  product_lane: data
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_research_run
   description: CLI `vox research run` and MCP `vox_research_run` — orchestrator `run_research` pipeline (web retrieval via `vox-search`, synthesis, judge when LLM configured).
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: network
+  requires:
+  - research
 - name: vox_research_search
   description: MCP `vox_research_search` — full-text search over persisted research sessions, reports, and verified claims with confidence filtering.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - research
 - name: vox_research_start
   description: MCP `vox_research_start` — creates a persisted research session and runs the same web-retrieval pipeline as `vox_research_run` in the background (returns session_id immediately).
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: network
+  requires:
+  - research
 - name: vox_research_status
   description: MCP `vox_research_status` — read stage / progress for an async research session created by `vox_research_start`.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - research
 - name: vox_resolve_approval
   description: Resolve a pending human-in-the-loop approval (approve / modify / reject) by id.
   product_lane: workflow
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires: []
 - name: vox_resolve_conflict
   description: Resolve a file conflict.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires: []
 - name: vox_resolve_feedback
   description: Resolve a pending clarification or doubt request with a specific action.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires: []
 - name: vox_resume_agent
   description: Resume a previously paused agent queue.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - agent_fleet
 - name: vox_retire_agent
   description: 'Retire an agent: release locks and affinity, unregister heartbeat, return remaining tasks.'
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - agent_fleet
 - name: vox_run_tests
   description: Run cargo test for a specific crate, optionally filtered by test name.
   product_lane: app
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: spawns_process
+  requires:
+  - compiler
 - name: vox_schola_submit
   description: Enqueue a background orchestrator task for Mens training intent; canonical execution remains `vox mens train`.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: spawns_process
+  requires:
+  - agent_fleet
 - name: vox_scientia_assist_suggestions
   description: Bounded Research-routed LLM assist — returns heuristic block plus optional JSON-only checklist/gap suggestions grounded on manifest scientia_evidence; never authoritative for novelty.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: network
+  requires:
+  - research
+- name: vox_scientia_discovery_ack
+  description: Acknowledge one discovery-inbox row so it leaves the unacknowledged list.
+  product_lane: data
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_scientia_publication_approve
   description: Record one digest-bound approval for a scientia publication manifest.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - research
 - name: vox_scientia_publication_arxiv_handoff_record
   description: Append-only operator milestone for arXiv-assist workflow (publication_status_events with status arxiv_handoff:*; does not change manifest state). Stage published requires arxiv_id.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - research
+- name: vox_scientia_publication_autofill
+  description: Plan (or apply) metadata autofill for a publication manifest from server workspace provenance.
+  product_lane: data
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
+- name: vox_scientia_publication_claim_review
+  description: Record a human review decision for one claim of a publication.
+  product_lane: data
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_scientia_publication_decision_explain
   description: CLI `vox scientia publication-decision-explain`; MCP `vox_scientia_publication_decision_explain`.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: network
+  requires:
+  - research
 - name: vox_scientia_publication_discovery_explain
   description: Machine explanation JSON for one publication_id — discovery rank, completion report, evidence completeness, transform preview labels (machine_suggested / requires_human_review).
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - research
 - name: vox_scientia_publication_discovery_refresh_evidence
   description: Merge live Socrates telemetry + JSON sidecars into a stored scientia manifest, refresh scientia_evidence (headings, discovery signals), upsert digest, append discovery_evidence_refreshed status (scientia only).
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: writes_files
+  requires:
+  - research
 - name: vox_scientia_publication_discovery_scan
   description: Deterministic SCIENTIA discovery scan — rank publication_manifests rows by structured scientia_evidence signals (no LLM).
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - research
 - name: vox_scientia_publication_external_jobs_dead_letter
   description: List external_submission_jobs in terminal failed status (not scheduled for retry), newest first.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - research
 - name: vox_scientia_publication_external_jobs_due
   description: List external_submission_jobs rows due for retry (queued, or retryable_failed with elapsed next_retry_at_ms) up to an optional limit.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - research
 - name: vox_scientia_publication_external_jobs_replay
   description: Requeue one dead-letter scholarly job (status failed → queued) by external_submission_jobs.id for the next publication_external_jobs_tick.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - research
 - name: vox_scientia_publication_external_jobs_tick
   description: Process one or more batches of due scholarly submit jobs (preflight dual-approval + digest match, lease row, submit using stored adapter). Optional lock_ttl_ms, lock_owner, iterations, interval_secs, max_runtime_secs, and jitter_secs between ticks.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: remote_mutation
+  requires:
+  - research
 - name: vox_scientia_publication_external_pipeline_metrics
   description: Read-only JSON rollup of scholarly external_submission_jobs (queue snapshot, in-window status view, percentiles, per-adapter terminal/retry ratios), attempts, snapshots, scholarly_submissions (incl. in-window view), and publication_attempts by channel. metrics_schema_version 2. Optional since_hours (default 168).
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - research
 - name: vox_scientia_publication_media_delete
   description: Delete one publication media asset by publication_id + asset_ref.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: destructive
+  requires:
+  - research
 - name: vox_scientia_publication_media_list
   description: List publication media assets for a scientia publication id.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - research
 - name: vox_scientia_publication_media_upsert
   description: Insert/update one publication media asset row for a scientia publication id.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - research
+- name: vox_scientia_publication_nanopublish
+  description: Build and publish a nanopublication for a human-approved publication claim.
+  product_lane: data
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: remote_mutation
+  requires:
+  - db
 - name: vox_scientia_publication_novelty_fetch
   description: CLI `vox scientia publication-novelty-fetch`; MCP `vox_scientia_publication_novelty_fetch`.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: network
+  requires:
+  - research
 - name: vox_scientia_publication_novelty_happy_path
   description: CLI `vox scientia publication-novelty-happy-path`; MCP `vox_scientia_publication_novelty_happy_path`.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: network
+  requires:
+  - research
 - name: vox_scientia_publication_preflight
   description: Run publication_preflight checks on a stored scientia manifest; returns readiness_score and findings JSON (no writes). Optional with_worthiness adds heuristic worthiness rubric output from the repo default YAML.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - research
 - name: vox_scientia_publication_prepare
   description: Create/update a canonical scientia publication manifest and return its content digest. Optional scholarly_metadata (ScientificPublicationMetadata) is merged under metadata_json.scientific_publication.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - research
 - name: vox_scientia_publication_publish
   description: Publish a prepared publication id to selected channels (dry-run by default) and record publication_attempts. Live publish requires digest dual-approval, armed (orchestrator [news].publish_armed and/or VOX_NEWS_PUBLISH_ARMED), and respects orchestrator [news].dry_run merged with tool dry_run. Optional json=true returns a single-line compact JSON tool envelope.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: remote_mutation
+  requires:
+  - research
 - name: vox_scientia_publication_retry_failed
   description: Retry failed channels from the most recent publication attempt, optionally scoped to one channel. Optional json=true returns a single-line compact JSON tool envelope.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: remote_mutation
+  requires:
+  - research
 - name: vox_scientia_publication_route_simulate
   description: Simulate per-channel routing outcomes for a prepared publication id (policy + topic filters + template derivation).
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - research
 - name: vox_scientia_publication_scholarly_pipeline_run
   description: 'Run scholarly pipeline on a stored manifest: preflight, dual-approval gate, optional venue staging export (output_dir + venue), then scholarly submit (unless dry_run). Optional json_compact returns a single-line JSON payload inside the tool result envelope (matches CLI --json).'
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: remote_mutation
+  requires:
+  - research
 - name: vox_scientia_publication_scholarly_remote_status
   description: Poll remote scholarly repository status for the latest stored submission (or a specific external_submission_id) using the adapter recorded in VoxDb.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: network
+  requires:
+  - research
 - name: vox_scientia_publication_scholarly_remote_status_sync_all
   description: Poll remote scholarly status for every scholarly_submissions row on a publication (multi-deposit / multi-adapter); persists snapshots and best-effort continues per row.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: network
+  requires:
+  - research
 - name: vox_scientia_publication_scholarly_remote_status_sync_batch
   description: 'Batch remote status poll: run sync-all logic for up to N publications ranked by recent scholarly_submissions activity (cron-friendly). Optional iterations, interval_secs, max_runtime_secs, and jitter_secs run repeated batches for a supervised worker.'
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: network
+  requires:
+  - research
 - name: vox_scientia_publication_scholarly_staging_export
   description: Load a stored scientia publication manifest from VoxDb and write venue-scoped scholarly staging files (body.md, CITATION.cff, crossref_work.json, optional citations.json; zenodo.json for Zenodo; arxiv_handoff.json plus arxiv_bundle.tar.gz for arxiv-assist) under output_dir, then validate the tree.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - research
 - name: vox_scientia_publication_status
   description: Return manifest state, digest-bound approval count, discovery rank, manifest completion, transform preview stub, destination_readiness inside preflight, and scholarly submission rows.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - research
 - name: vox_scientia_publication_submit_local
   description: Submit an approved scientia publication through the scholarly adapter (optional adapter arg or VOX_SCHOLARLY_ADAPTER; default local_ledger), with external_submission_jobs ledger updates.
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: remote_mutation
+  requires:
+  - research
 - name: vox_scientia_worthiness_evaluate
   description: Evaluate publication-worthiness.contract YAML (repo-relative or default) against WorthinessInputs metrics JSON; returns Publish / AskForEvidence / Abstain decision (no writes).
   product_lane: data
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - research
 - name: vox_search_callees
   description: Functions called by the given symbol(s) — forward call edges, constructor noise filtered (read-only).
   product_lane: platform
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_search_callers
   description: Functions that call the given symbol(s) — reverse call edges, constructor noise filtered (read-only).
   product_lane: platform
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_search_compare
   description: Diff two Vox Search structural-index manifests for node/edge/community delta (read-only).
   product_lane: platform
   http_read_role_eligible: true
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_search_history
   description: First-parent repo history for agents (log through lineage, focus, forgotten, search, timeline, brief). Ingests at most 60 s per call into a cache under the git common dir; results carry complete/behind, and an incomplete result means call again.
   product_lane: platform
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: writes_files
+  requires: []
 - name: vox_search_neighbors
   description: BFS neighbor expansion from seed node IDs (read-only; layered navigation).
   product_lane: platform
   http_read_role_eligible: true
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_search_path
   description: Shortest path between two node IDs in the Vox Search structural index (read-only).
   product_lane: platform
   http_read_role_eligible: true
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_search_rebuild
   description: Rebuild a Vox Search structural index (AST extract + cluster), snapshot the prior graph, and refresh freshness manifest (write).
   product_lane: platform
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: writes_files
+  requires: []
 - name: vox_search_set_ttl
   description: Set the Vox Search corpora staleness TTL in days, writing the shared registry contract that the CLI and CI freshness gate also read (write).
   product_lane: platform
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires: []
 - name: vox_search_status
   description: Report Vox Search structural-index freshness (read-only; `--strict` fails when stale).
   product_lane: platform
   http_read_role_eligible: true
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_search_structural
   description: Lexically search the Vox Search structural index on disk (read-only).
   product_lane: platform
-  http_read_role_eligible: true
-  tier: core
+  http_read_role_eligible: false
+  exposure: public
+  side_effect_class: writes_files
+  requires: []
 - name: vox_secrets_doctor
   description: Returns a JSON snapshot of all managed secret resolution statuses. Agents should use this instead of probing environment variables directly.
   product_lane: platform
   http_read_role_eligible: false
-  tier: core
+  exposure: internal
+  side_effect_class: read_only
+  requires: []
 - name: vox_semantic_fs_discover
   description: Rank workspace paths for an intent via the semantic-fs bridge (read-only inventory search).
   product_lane: ai
   http_read_role_eligible: true
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_session_cleanup
   description: Tick lifecycle and remove archived sessions.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - sessions
 - name: vox_session_compact
   description: Replace a session's history with a summary string.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: writes_files
+  requires:
+  - sessions
 - name: vox_session_create
   description: Create a new persistent session for an agent.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: writes_files
+  requires:
+  - sessions
 - name: vox_session_info
   description: Get detailed info about a specific session.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - sessions
 - name: vox_session_list
   description: List all active sessions with state and token usage.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - sessions
 - name: vox_session_reset
   description: Reset a session's conversation history (keeps metadata).
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - sessions
 - name: vox_set_active_model
   description: Set sticky MCP chat model id for chat / inline / ghost (empty string clears).
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: writes_files
+  requires:
+  - model_registry
 - name: vox_set_agent_budget
   description: Set custom VoxDB-powered budget limits for an agent.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - attention
 - name: vox_set_context
   description: Set a key-value pair in the shared orchestrator context store. Supports TTL.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: writes_files
+  requires: []
 - name: vox_set_model
   description: Set per-agent model override in the orchestrator registry.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - model_registry
 - name: vox_skill_add
   description: Add a skill from a git URL or local path into the user .vox/skills root.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: spawns_process
+  requires: []
 - name: vox_skill_discover
   description: List bare SKILL.md skills found under the standard interop roots, with install status.
   product_lane: interop
   http_read_role_eligible: true
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_skill_info
   description: Get detailed info on a specific skill by ID.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_skill_install
   description: Install a skill from a VoxSkillBundle JSON payload.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires: []
 - name: vox_skill_list
   description: List all installed skills.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_skill_parse
   description: Parse a SKILL.md and preview its manifest before installing.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_skill_remove
   description: Remove a user-installed skill directory (ownership-scoped to .vox/skills).
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: destructive
+  requires: []
 - name: vox_skill_run
   description: Execute a skill script in the sandbox (parity with CLI `vox skill run`).
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: spawns_process
+  requires: []
 - name: vox_skill_search
   description: Search installed skills by keyword.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_skill_uninstall
   description: Uninstall an installed skill by ID.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires: []
 - name: vox_skill_use
   description: Load the full SKILL.md body for an installed skill by id or name (tier-2 disclosure).
   product_lane: interop
-  http_read_role_eligible: true
-  tier: core
+  http_read_role_eligible: false
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_snapshot_diff
   description: Show the file-level diff between two snapshots.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_snapshot_list
   description: List recent file snapshots for an agent.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_snapshot_restore
   description: Restore files to a previous snapshot state.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: destructive
+  requires:
+  - db
 - name: vox_spawn_agent
   description: Spawn a new orchestrator agent queue (optional dynamic/transient agent for auto-retire).
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: spawns_process
+  requires:
+  - agent_fleet
 - name: vox_speech_to_code
   description: 'Orchestrated speech-to-code: transcribe workspace audio (Oratio) or accept prompt text, then vox_generate_code with shared session_id; optional route_mode, emit_trace_path JSONL for MENS.'
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - speech
+  - llm_facade
 - name: vox_submit_task
   description: Submit a new task to the orchestrator. Routes to the best agent by file affinity.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: spawns_process
+  requires:
+  - agent_fleet
 - name: vox_suggest_model
   description: Suggest the best model for a task category string (codegen, review, etc.).
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - model_registry
 - name: vox_task_status
   description: Get the current status of a specific task by ID.
   product_lane: ai
   http_read_role_eligible: true
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - agent_fleet
 - name: vox_test_all
   description: Run cargo test for the entire workspace.
   product_lane: app
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: spawns_process
+  requires:
+  - compiler
 - name: vox_test_decision
   description: Get the Testing Decision Engine's requirement classification (Required/Recommended/Deferred/Skip) for a task by ID.
   product_lane: ai
   http_read_role_eligible: true
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_tool_search
   description: Search the MCP tool registry by keyword and return matching tools (name, description, input schema) for progressive tool disclosure.
   product_lane: ai
   http_read_role_eligible: true
-  tier: core
+  exposure: public
+  side_effect_class: none
+  requires: []
 - name: vox_transfer_file
   description: Transfer ownership of a file to another agent.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires: []
 - name: vox_trust_override
   description: Overrides the trust tier for the agent context.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires: []
 - name: vox_undo
   description: Undo the last operation or a specific operation by ID.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: destructive
+  requires:
+  - db
 - name: vox_validate_file
   description: Validate a .vox file using the full compiler pipeline (lexer → parser → typeck → HIR).
   product_lane: app
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - compiler
 - name: vox_validate_source
   description: Validate Vox source code passed as a string (no filesystem read). Returns LSP-style diagnostics with stable codes and structured autofix suggestions for the iterative AI-assistant repair loop.
   product_lane: app
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: none
+  requires:
+  - compiler
 - name: vox_validate_vuv
   description: Validate Vox/VUV source against the compile-time GUI guarantees (contrast, layer-occlusion, a11y, structural web-IR) without writing files.
   product_lane: ai
   http_read_role_eligible: true
-  tier: core
+  exposure: public
+  side_effect_class: none
+  requires:
+  - compiler
 - name: vox_vcs_status
   description: Get unified VCS status.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_verify_task_claims
   description: Check receipt ids an agent claims against the orchestrator's receipt ledger; returns which are valid, fabricated (no ledger entry) or unverified (tag mismatch). Read-only.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - agent_fleet
 - name: vox_visual_rag_query
   description: 'NOT IMPLEMENTED: multimodal RAG is planned but not wired up; this tool always returns an error. Use vox_search or memory retrieval tools instead.'
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: none
+  requires: []
 - name: vox_visus_audit
   description: Performs an automated GUI visual audit (screenshot, AXTree, overlaps).
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: spawns_process
+  requires:
+  - browser
 - name: vox_visus_baseline
   description: Manages golden visual baselines for regression testing.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: spawns_process
+  requires:
+  - browser
+  - db
 - name: vox_workspace_create
   description: Create an isolated workspace for an agent.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires: []
 - name: vox_workspace_mcp_refresh
   description: Reloads/refreshes the workspace MCP registry and scan config.
   product_lane: interop
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - compiler
 - name: vox_workspace_merge
   description: Merge an agent's workspace changes back to main.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: operator
+  side_effect_class: writes_files
+  requires: []
 - name: vox_workspace_modules
   description: Returns a list of all .vox files in the workspace repository.
   product_lane: app
   http_read_role_eligible: true
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_workspace_status
   description: Show files modified in an agent's workspace.
   product_lane: ai
   http_read_role_eligible: false
-  tier: core
+  exposure: public
+  side_effect_class: read_only
+  requires: []

@@ -124,6 +124,8 @@ pub mod openclaw;
 pub mod play;
 pub mod pm;
 pub mod pm_lifecycle;
+/// `--profile <ids>` resolution shared by `vox mcp` / `vox serve`.
+pub mod profile_arg;
 pub mod repair;
 /// Explicit multi-repo catalog and read-only polyrepo queries (`vox repo`).
 pub mod repo;
@@ -131,6 +133,10 @@ pub mod repo_init;
 pub(crate) mod repo_upgrade;
 #[cfg(feature = "dei")]
 pub mod safety;
+/// Headless daemon + HTTP gateway scoped to a capability profile (`vox serve`).
+pub mod serve;
+/// `vox serve` network flags mapped to MCP HTTP gateway env for the spawned daemon.
+pub mod serve_network;
 /// TOESTUB structural testing guard logic.
 #[cfg(feature = "stub-check")]
 pub mod stub_check;

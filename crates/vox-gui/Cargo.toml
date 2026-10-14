@@ -32,6 +32,9 @@ vox-secrets = { workspace = true }
 vox-oauth-pkce = { workspace = true }
 vox-http-client = { workspace = true }
 reqwest = { workspace = true }
+rustls = { workspace = true }
+tokio-tungstenite = { workspace = true, default-features = false, features = ["connect", "rustls-tls-webpki-roots"] }
+futures-util = { workspace = true }
 vox-scientia = { workspace = true }
 vox-research-shim = { workspace = true }
 vox-publisher = { workspace = true }

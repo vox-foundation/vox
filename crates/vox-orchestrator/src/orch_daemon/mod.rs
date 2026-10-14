@@ -33,6 +33,13 @@ fn ping_caller_role() -> &'static str {
     }
 }
 
+/// Canonical capability-profile id this daemon serves (from `VOX_PROFILE`).
+fn ping_profile() -> String {
+    vox_mcp_registry::ActiveProfile::from_env()
+        .map(|p| p.id_string())
+        .unwrap_or_else(|e| e.to_string())
+}
+
 /// Strip optional `tcp://` prefix and whitespace.
 #[must_use]
 pub fn normalize_tcp_bind_addr(raw: &str) -> String {
@@ -393,6 +400,7 @@ pub async fn dispatch_request(
                 "protocol": "vox.orchestrator_daemon/v1",
                 "version": env!("CARGO_PKG_VERSION"),
                 "caller_role": ping_caller_role(),
+                "profile": ping_profile(),
             }),
         ),
         orch_daemon_method::WORKSPACE_JOURNEY => {
@@ -1390,6 +1398,19 @@ mod isolation_dispatch_tests {
             ),
             "ping must report caller_role so the GUI can refuse a non-human adopt"
         );
+        assert_eq!(
+            value.get("profile").and_then(|v| v.as_str()),
+            Some(super::ping_profile().as_str()),
+            "ping must report the daemon's capability profile for adopt checks"
+        );
+    }
+
+    #[test]
+    fn ping_profile_is_the_canonical_env_profile() {
+        let want = vox_mcp_registry::ActiveProfile::from_env()
+            .map(|p| p.id_string())
+            .unwrap_or_else(|e| e.to_string());
+        assert_eq!(super::ping_profile(), want);
     }
 }
 

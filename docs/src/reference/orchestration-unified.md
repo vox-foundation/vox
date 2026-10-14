@@ -23,6 +23,16 @@ Repo-backed **`vox-mcp`** and **`vox-orchestrator-d`** open the primary [`VoxDb`
 
 **DeI planning on the daemon:** JSON-line DeI methods `ai.plan.new`, `ai.plan.replan`, `ai.plan.status`, and `ai.plan.execute` are handled on the **`vox-orchestrator-d`** stdio surface (`orch_daemon::dei_dispatch`). Persistent plan rows require the same Codex `VoxDb` handle the orchestrator was built with.
 
+## Profile-gated daemon boot
+
+`vox-orchestrator-d` reads `VOX_PROFILE` (unset ⇒ `dev`) and runs its boot step table
+(`crates/vox-orchestrator-d/src/daemon_steps/mod.rs`) through the runner in
+`crates/vox-orchestrator-d/src/boot_plan.rs`. Only steps whose subsystem is in the profile's
+closure run. The resulting boot report is attached to the daemon's MCP `ServerState` and served
+by the `orch.boot_report` JSON-line method. Without a project store, `dev` behaves as before:
+Codex is not attached and dependent loops still start. See
+[capability profiles — boot and degraded mode](capability-profiles.md#boot-and-degraded-mode).
+
 ## Ownership: who writes what
 
 | Concern | Embedded MCP (`vox-mcp`) | `vox-orchestrator-d` (daemon) | VoxDb / Turso |

@@ -10,7 +10,7 @@ mod search;
 
 pub use kb_findings::{KbFindingCounts, KbFindingRow, NewKbFinding};
 pub use kb_legacy::{LegacyKbCounts, LegacyKbEntry};
-pub use knowledge::{KnowledgeHealthInfo, KnowledgeNodeRecord};
+pub use knowledge::{KnowledgeHealthInfo, KnowledgeNodeRecord, SearchCorpusCounts};
 pub use library::{
     KB_CHUNK_SOURCE_TYPE, KB_LIBRARY_CORPUS, KbIndexState, LibraryChunkDiff, LibraryChunkInput,
     LibraryChunkPos, LibraryChunkRow, LibraryDocRow, LibraryDocUpsert,

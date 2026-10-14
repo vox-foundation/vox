@@ -6,12 +6,15 @@
 
 mod status;
 use status::*;
-mod dashboard_api;
+pub(crate) mod dashboard_api;
 mod scientia_feed;
 use scientia_feed::{TopicMessage, spawn_scientia_queue_poller};
+mod profile_info;
 mod rpc_tools;
 mod vcs_feed;
 use rpc_tools::*;
+pub mod bind_policy;
+mod tls;
 mod token;
 mod ws;
 use anyhow::{Context, Result};
@@ -39,6 +42,7 @@ use std::sync::Arc;
 use ws::*;
 
 use crate::params::ToolResult;
+use crate::profiles::{CallContext, CallerRole, ProfileDenial};
 use crate::server_state::{ServerState, tool_json_envelope_is_error};
 use crate::{canonical_tool_name, handle_tool_call, tool_registry};
 pub use vox_mcp_registry::TOOL_REGISTRY;
@@ -106,6 +110,9 @@ pub struct GatewayState {
     health_auth_required: bool,
     require_forwarded_https: bool,
     trust_forwarded_for: bool,
+    /// `VOX_MCP_HTTP_BEHIND_TUNNEL`: a same-host tunnel/proxy makes remote callers arrive from
+    /// 127.0.0.1, so no peer is treated as loopback.
+    behind_tunnel: bool,
     allowed_tools: Arc<HashSet<String>>,
     read_role_eligible_tools: Arc<HashSet<String>>,
     read_role_tools_override: Option<Arc<HashSet<String>>>,
@@ -125,6 +132,36 @@ pub struct GatewayState {
 }
 
 impl GatewayState {
+    pub(crate) fn server_state(&self) -> &ServerState {
+        &self.server_state
+    }
+
+    /// Gateway state for `orch.api_v2_get`: the caller already authenticated on the daemon's
+    /// token-checked TCP RPC, so HTTP auth is off and the peer is loopback. GET-only is
+    /// enforced by `gui_ops::inproc::api_v2_get`, not here.
+    pub(crate) fn for_inproc_loopback(server_state: ServerState) -> Self {
+        let hopper = crate::gui_ops::orchestrator::hopper_for(&server_state);
+        Self {
+            server_state,
+            bearer_token: None,
+            read_bearer_token: None,
+            dashboard_token: None,
+            allow_unauthenticated: true,
+            health_auth_required: false,
+            require_forwarded_https: false,
+            trust_forwarded_for: false,
+            behind_tunnel: false,
+            allowed_tools: Arc::new(HashSet::new()),
+            read_role_eligible_tools: Arc::new(HashSet::new()),
+            read_role_tools_override: None,
+            calls_per_minute: DEFAULT_RATE_LIMIT_PER_MINUTE,
+            rate_limiter: new_identity_rate_limiter(DEFAULT_RATE_LIMIT_PER_MINUTE),
+            public_eval_enabled: false,
+            public_eval_rate_limiter: new_identity_rate_limiter(10),
+            topic_tx: tokio::sync::broadcast::channel(scientia_feed::TOPIC_CHANNEL_CAPACITY).0,
+            hopper,
+        }
+    }
     /// Minimal stub for tests — unauthenticated, no tools, no rate-limiting.
     #[cfg(test)]
     pub(crate) async fn for_test() -> Self {
@@ -143,10 +180,7 @@ impl GatewayState {
         server_state: ServerState,
         allowed_tools: HashSet<String>,
     ) -> Self {
-        let hopper: Arc<dyn vox_orchestrator::hopper::HopperIntake> =
-            Arc::new(vox_orchestrator::hopper::InMemoryHopper::new(Arc::new(
-                server_state.orchestrator.event_bus.clone(),
-            )));
+        let hopper = crate::gui_ops::orchestrator::hopper_for(&server_state);
         Self {
             server_state,
             bearer_token: None,
@@ -156,6 +190,7 @@ impl GatewayState {
             health_auth_required: false,
             require_forwarded_https: false,
             trust_forwarded_for: false,
+            behind_tunnel: false,
             allowed_tools: Arc::new(allowed_tools.clone()),
             read_role_eligible_tools: Arc::new(allowed_tools),
             read_role_tools_override: None,
@@ -166,6 +201,26 @@ impl GatewayState {
             topic_tx: tokio::sync::broadcast::channel(scientia_feed::TOPIC_CHANNEL_CAPACITY).0,
             hopper,
         }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_tokens(mut self, write: Option<&str>, read: Option<&str>) -> Self {
+        self.bearer_token = write.map(str::to_string);
+        self.read_bearer_token = read.map(str::to_string);
+        self.allow_unauthenticated = false;
+        self
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_behind_tunnel(mut self, on: bool) -> Self {
+        self.behind_tunnel = on;
+        self
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_dashboard_token(mut self, token: &str) -> Self {
+        self.dashboard_token = Some(DashboardToken(token.to_string()));
+        self
     }
 }
 
@@ -258,6 +313,7 @@ pub fn build_app(state: GatewayState) -> Router {
         .route("/v1/info", get(http_info))
         .route("/v1/tools", get(http_tools))
         .route("/v1/tools/call", post(http_call_tool))
+        .route("/v1/profile", get(profile_info::http_profile))
         .route("/v1/eval", post(http_eval))
         .route("/v1/ws", get(http_ws))
         .route("/v1/mobile", get(http_mobile_workspace))
@@ -285,16 +341,17 @@ pub fn spawn_http_gateway_if_enabled(
     if !http_gateway_enabled() {
         return Ok(None);
     }
+    spawn_http_gateway(state, resolve_bind_policy_input()).map(Some)
+}
 
-    let bind_host = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMcpHttpHost)
-        .expose()
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| DEFAULT_BIND_HOST.to_string());
-    let bind_port = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMcpHttpPort)
-        .expose()
-        .and_then(|s| s.parse::<u16>().ok())
-        .unwrap_or(DEFAULT_BIND_PORT);
+/// Evaluate the bind policy first; nothing listens unless it passes.
+pub(crate) fn spawn_http_gateway(
+    state: ServerState,
+    bind_input: bind_policy::BindPolicyInput,
+) -> Result<tokio::task::JoinHandle<()>> {
+    let policy = bind_policy::evaluate_bind_policy(bind_input)?;
+    let bind_host = policy.addr.ip().to_string();
+    let bind_port = policy.addr.port();
     #[allow(unused_mut)]
     let mut bearer_token =
         vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMcpHttpBearerToken)
@@ -338,7 +395,7 @@ pub fn spawn_http_gateway_if_enabled(
             .and_then(|s| s.parse::<u32>().ok())
             .filter(|n| *n > 0)
             .unwrap_or(DEFAULT_RATE_LIMIT_PER_MINUTE);
-    let allowed_tools = Arc::new(parse_allowed_tools()?);
+    let allowed_tools = Arc::new(parse_allowed_tools(&state.active_profile)?);
     let read_role_eligible_tools = Arc::new(metadata_read_role_eligible_tools());
     let read_role_tools_override = parse_read_role_allowed_tools_override()?.map(Arc::new);
 
@@ -348,10 +405,7 @@ pub fn spawn_http_gateway_if_enabled(
     // Construct the production task hopper (Hp-T1), sharing the orchestrator's
     // EventBus so admitted/overridden items reach the same dashboard WS
     // subscribers. This is the first non-test caller of `InMemoryHopper` (B3).
-    let hopper: Arc<dyn vox_orchestrator::hopper::HopperIntake> =
-        Arc::new(vox_orchestrator::hopper::InMemoryHopper::new(Arc::new(
-            state.orchestrator.event_bus.clone(),
-        )));
+    let hopper = crate::gui_ops::orchestrator::hopper_for(&state);
 
     let gateway_state = GatewayState {
         server_state: state,
@@ -362,6 +416,7 @@ pub fn spawn_http_gateway_if_enabled(
         health_auth_required,
         require_forwarded_https,
         trust_forwarded_for,
+        behind_tunnel: policy.behind_tunnel,
         allowed_tools: allowed_tools.clone(),
         read_role_eligible_tools,
         read_role_tools_override,
@@ -378,16 +433,8 @@ pub fn spawn_http_gateway_if_enabled(
 
     let app = build_app(gateway_state.clone());
 
-    let addr: SocketAddr = format!("{bind_host}:{bind_port}")
-        .parse()
-        .with_context(|| format!("invalid VOX_MCP_HTTP_HOST/PORT: {bind_host}:{bind_port}"))?;
-    let listener = std::net::TcpListener::bind(addr)
-        .with_context(|| format!("failed to bind MCP HTTP gateway at {addr}"))?;
-    listener
-        .set_nonblocking(true)
-        .context("failed to set nonblocking gateway listener")?;
-    let listener = tokio::net::TcpListener::from_std(listener)
-        .context("failed to convert listener to tokio")?;
+    let listener = std::net::TcpListener::bind(policy.addr)
+        .with_context(|| format!("failed to bind MCP HTTP gateway at {}", policy.addr))?;
 
     let mut info_allowed_tools: Vec<String> = allowed_tools.iter().cloned().collect();
     info_allowed_tools.sort();
@@ -411,20 +458,47 @@ pub fn spawn_http_gateway_if_enabled(
         port = info.bind_port,
         auth_required = info.auth_required,
         tools = %info.allowed_tools.join(","),
+        bind = %policy.summary(),
         "VOX_MCP_HTTP_ENABLED: gateway started"
     );
 
-    let handle = tokio::spawn(async move {
-        if let Err(e) = serve(
-            listener,
-            app.into_make_service_with_connect_info::<SocketAddr>(),
-        )
-        .await
-        {
-            tracing::error!("MCP HTTP gateway exited with error: {e}");
+    serve_gateway(listener, app, &policy.transport)
+}
+
+/// Serve `app` on an already-bound listener, terminating TLS when the policy says so.
+pub(super) fn serve_gateway(
+    listener: std::net::TcpListener,
+    app: Router,
+    transport: &bind_policy::GatewayTransport,
+) -> Result<tokio::task::JoinHandle<()>> {
+    use axum::serve::ListenerExt;
+    listener
+        .set_nonblocking(true)
+        .context("failed to set nonblocking gateway listener")?;
+    let listener = tokio::net::TcpListener::from_std(listener)
+        .context("failed to convert listener to tokio")?;
+    let make_service = app.into_make_service_with_connect_info::<SocketAddr>();
+    let handle = match transport {
+        bind_policy::GatewayTransport::PlainHttp => tokio::spawn(async move {
+            if let Err(e) = serve(listener, make_service).await {
+                tracing::error!("MCP HTTP gateway exited with error: {e}");
+            }
+        }),
+        bind_policy::GatewayTransport::Tls { cert, key } => {
+            let acceptor = tls::load_tls_acceptor(cert, key)?;
+            let tls_listener = tls::TlsListener::spawn(listener, acceptor)
+                .context("failed to start TLS listener")?;
+            // `tap_io` routes ConnectInfo<SocketAddr> through axum's generic Listener impl.
+            let tls_listener = tls_listener
+                .tap_io(|_io: &mut tokio_rustls::server::TlsStream<tokio::net::TcpStream>| {});
+            tokio::spawn(async move {
+                if let Err(e) = serve(tls_listener, make_service).await {
+                    tracing::error!("MCP HTTP gateway (TLS) exited with error: {e}");
+                }
+            })
         }
-    });
-    Ok(Some(handle))
+    };
+    Ok(handle)
 }
 
 pub(super) fn enforce_auth(
@@ -465,9 +539,12 @@ pub(super) fn enforce_rate_limit(
     })
 }
 
-pub(super) fn parse_allowed_tools() -> Result<HashSet<String>> {
+pub(super) fn parse_allowed_tools(
+    profile: &crate::profiles::ActiveProfile,
+) -> Result<HashSet<String>> {
     parse_allowed_tools_from_value(
         vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMcpHttpAllowedTools).expose(),
+        profile,
     )
 }
 
@@ -478,7 +555,8 @@ pub(super) fn parse_read_role_allowed_tools_override() -> Result<Option<HashSet<
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty());
     if let Some(csv) = explicit {
-        parse_allowed_tools_from_value(Some(csv.as_str())).map(Some)
+        parse_allowed_tools_from_value(Some(csv.as_str()), &crate::profiles::ActiveProfile::dev())
+            .map(Some)
     } else {
         Ok(None)
     }
@@ -526,13 +604,45 @@ pub(super) fn resolve_access_role(
     if let Some(dt) = state.dashboard_token.as_ref()
         && constant_time_eq(got.as_bytes(), dt.0.as_bytes())
     {
-        let is_loopback = peer.map(|p| p.ip().is_loopback()).unwrap_or(false);
+        let is_loopback = peer.map(|p| caller_is_loopback(state, p)).unwrap_or(false);
         if is_loopback {
             return Ok(AccessRole::Write);
         }
     }
 
     Err("missing or invalid bearer token".to_string())
+}
+
+/// Peer-derived, never header-derived. Behind a same-host tunnel every remote caller arrives
+/// from 127.0.0.1, so `behind_tunnel` disables loopback trust entirely.
+pub(super) fn caller_is_loopback(state: &GatewayState, peer: &SocketAddr) -> bool {
+    !state.behind_tunnel && bind_policy::is_loopback_ip(peer.ip())
+}
+
+pub(super) fn call_context(
+    state: &GatewayState,
+    peer: &SocketAddr,
+    role: AccessRole,
+) -> CallContext {
+    CallContext {
+        role: match role {
+            AccessRole::Read => CallerRole::Read,
+            AccessRole::Write => CallerRole::Write,
+        },
+        loopback: caller_is_loopback(state, peer),
+    }
+}
+
+/// Advertised set = gateway allowlist for the role, filtered by `guard_tool` for `ctx`.
+/// `/v1/tools`, `/v1/info`, WS `list_tools`, and `/v1/profile` all use this.
+pub(super) fn visible_tools_for(state: &GatewayState, ctx: CallContext) -> HashSet<String> {
+    let role = match ctx.role {
+        CallerRole::Read => AccessRole::Read,
+        CallerRole::Write => AccessRole::Write,
+    };
+    let mut visible = visible_tools_for_role(state, role);
+    visible.retain(|name| crate::profiles::guard_tool(&state.server_state, ctx, name).is_ok());
+    visible
 }
 
 pub(super) fn visible_tools_for_role(state: &GatewayState, role: AccessRole) -> HashSet<String> {
@@ -552,7 +662,12 @@ pub(super) fn visible_tools_for_role(state: &GatewayState, role: AccessRole) -> 
     }
 }
 
-pub(super) fn parse_allowed_tools_from_value(raw: Option<&str>) -> Result<HashSet<String>> {
+/// `VOX_MCP_HTTP_ALLOWED_TOOLS` intersected with the profile. Unset means
+/// `DEFAULT_ALLOWED_TOOLS` under `dev`, and the profile's own tools under a named profile.
+pub(super) fn parse_allowed_tools_from_value(
+    raw: Option<&str>,
+    profile: &crate::profiles::ActiveProfile,
+) -> Result<HashSet<String>> {
     let mut set = HashSet::new();
     if let Some(s) = raw {
         for v in s.split(',') {
@@ -562,22 +677,39 @@ pub(super) fn parse_allowed_tools_from_value(raw: Option<&str>) -> Result<HashSe
             }
         }
     }
+    let explicit = !set.is_empty();
+    let dev = crate::profiles::is_dev(profile);
 
-    if set.is_empty() {
-        for n in DEFAULT_ALLOWED_TOOLS.iter() {
-            set.insert(canonical_tool_name(n).to_string());
+    if !explicit {
+        if dev {
+            for n in DEFAULT_ALLOWED_TOOLS.iter() {
+                set.insert(canonical_tool_name(n).to_string());
+            }
+        } else {
+            for n in profile.tools.iter() {
+                if crate::registry::dispatchable_under_features(n) {
+                    set.insert((*n).to_string());
+                }
+            }
         }
     }
 
-    let mut registry_names: HashSet<&str> = HashSet::new();
-    for e in TOOL_REGISTRY.iter() {
-        registry_names.insert(e.name);
+    let registry_names: HashSet<&str> = TOOL_REGISTRY.iter().map(|e| e.name).collect();
+    for name in set.iter() {
+        if !registry_names.contains(name.as_str()) {
+            anyhow::bail!("unknown tool in VOX_MCP_HTTP_ALLOWED_TOOLS: {name}");
+        }
     }
 
-    for name in set.iter() {
-        let name_str: &str = name;
-        if !registry_names.contains(name_str) {
-            anyhow::bail!("unknown tool in VOX_MCP_HTTP_ALLOWED_TOOLS: {name}");
+    if explicit && !dev {
+        let before = set.len();
+        set.retain(|n| profile.contains_tool(n));
+        if set.len() < before {
+            tracing::warn!(
+                profile = %profile.id_string(),
+                dropped = before - set.len(),
+                "VOX_MCP_HTTP_ALLOWED_TOOLS entries outside the active profile are ignored"
+            );
         }
     }
     Ok(set)
@@ -607,6 +739,36 @@ pub(super) fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
         diff |= ai ^ bi;
     }
     diff == 0
+}
+
+fn resolved_string(id: vox_secrets::SecretId) -> Option<String> {
+    vox_secrets::resolve_secret(id)
+        .expose()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+}
+
+/// Gather bind-policy inputs from Clavis/env. Shared by gateway startup and `vox doctor`.
+// toestub-ignore(skeleton/untested-pub-api) — thin Clavis reads; the policy it feeds is unit-tested in bind_policy.rs and startup refusal in network_policy_tests.rs
+pub fn resolve_bind_policy_input() -> bind_policy::BindPolicyInput {
+    use vox_secrets::SecretId;
+    bind_policy::BindPolicyInput {
+        host: resolved_string(SecretId::VoxMcpHttpHost)
+            .unwrap_or_else(|| DEFAULT_BIND_HOST.to_string()),
+        port: resolved_string(SecretId::VoxMcpHttpPort)
+            .and_then(|s| s.parse::<u16>().ok())
+            .unwrap_or(DEFAULT_BIND_PORT),
+        has_write_token: resolved_string(SecretId::VoxMcpHttpBearerToken).is_some(),
+        has_read_token: resolved_string(SecretId::VoxMcpHttpReadBearerToken).is_some(),
+        tls: tls::tls_material_from_paths(
+            resolved_string(SecretId::VoxMcpHttpTlsCert).map(std::path::PathBuf::from),
+            resolved_string(SecretId::VoxMcpHttpTlsKey).map(std::path::PathBuf::from),
+        ),
+        behind_tunnel: read_bool_env(SecretId::VoxMcpHttpBehindTunnel).unwrap_or(false),
+        allow_unauthenticated: read_bool_env(SecretId::VoxMcpHttpAllowUnauthenticated)
+            .unwrap_or(false),
+    }
 }
 
 pub(super) fn read_bool_env(id: vox_secrets::SecretId) -> Option<bool> {
@@ -1155,4 +1317,122 @@ mod tests {
             "rejected approval must surface as a failed call"
         );
     }
+
+    fn models_profile() -> crate::profiles::ActiveProfile {
+        crate::profiles::ActiveProfile::resolve(&["models"]).expect("models")
+    }
+
+    #[test]
+    fn dev_allowlist_default_is_unchanged() {
+        let got = parse_allowed_tools_from_value(None, &crate::profiles::ActiveProfile::dev())
+            .expect("parse");
+        let want: HashSet<String> = DEFAULT_ALLOWED_TOOLS
+            .iter()
+            .map(|n| canonical_tool_name(n).to_string())
+            .collect();
+        assert_eq!(got, want);
+    }
+
+    #[test]
+    fn named_profile_allowlist_defaults_to_profile_tools() {
+        let p = models_profile();
+        let got = parse_allowed_tools_from_value(None, &p).expect("parse");
+        let want: HashSet<String> = p
+            .tools
+            .iter()
+            .filter(|n| crate::registry::dispatchable_under_features(n))
+            .map(|n| n.to_string())
+            .collect();
+        assert_eq!(got, want);
+    }
+
+    #[test]
+    fn explicit_allowlist_is_intersected_with_profile() {
+        let got = parse_allowed_tools_from_value(
+            Some("vox_list_models,vox_git_status"),
+            &models_profile(),
+        )
+        .expect("parse");
+        assert_eq!(got, ["vox_list_models".to_string()].into_iter().collect());
+    }
+
+    #[test]
+    fn explicit_allowlist_still_rejects_unknown_names() {
+        let err =
+            parse_allowed_tools_from_value(Some("definitely_not_a_real_tool"), &models_profile())
+                .expect_err("unknown");
+        assert!(err.to_string().contains("unknown tool"));
+    }
+
+    #[tokio::test]
+    async fn visible_tools_are_profile_filtered() {
+        let server_state = ServerState::new_test().await.with_profile(models_profile());
+        let allowed: HashSet<String> = ["vox_list_models", "vox_git_status"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        let state = GatewayState::for_test_with_state(server_state, allowed).await;
+        let visible = visible_tools_for(&state, crate::profiles::CallContext::LOCAL_WRITE);
+        assert!(visible.contains("vox_list_models"));
+        assert!(!visible.contains("vox_git_status"));
+    }
+
+    #[tokio::test]
+    async fn dev_visible_tools_keep_non_registry_allowlisted_names() {
+        let allowed: HashSet<String> = ["vox_run_shell", "vox_git_status"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        let state =
+            GatewayState::for_test_with_state(ServerState::new_test().await, allowed.clone()).await;
+        assert_eq!(
+            visible_tools_for(&state, crate::profiles::CallContext::LOCAL_WRITE),
+            allowed
+        );
+    }
+
+    #[tokio::test]
+    async fn http_call_outside_profile_is_404_tool_not_in_profile() {
+        use axum::body::{Body, to_bytes};
+        use axum::http::Request;
+        use tower::ServiceExt;
+        let server_state = ServerState::new_test().await.with_profile(models_profile());
+        let allowed: HashSet<String> = ["vox_git_status".to_string()].into_iter().collect();
+        let app = build_app(GatewayState::for_test_with_state(server_state, allowed).await);
+        let peer: SocketAddr = "127.0.0.1:1234".parse().unwrap();
+        let mut req = Request::builder()
+            .method("POST")
+            .uri("/v1/tools/call")
+            .header("content-type", "application/json")
+            .body(Body::from(
+                serde_json::json!({ "name": "vox_git_status", "args": {} }).to_string(),
+            ))
+            .unwrap();
+        req.extensions_mut().insert(ConnectInfo(peer));
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+        let bytes = to_bytes(resp.into_body(), 64 * 1024).await.unwrap();
+        let v: Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(v["error"]["code"], "tool_not_in_profile");
+    }
+
+    #[tokio::test]
+    async fn ws_call_outside_profile_returns_denial_json() {
+        let server_state = ServerState::new_test().await.with_profile(models_profile());
+        let state = GatewayState::for_test_with_state(server_state, HashSet::new()).await;
+        let msg = WsMessageIn {
+            id: Some("1".to_string()),
+            msg_type: "call_tool".to_string(),
+            name: Some("vox_git_status".to_string()),
+            args: None,
+        };
+        let peer: SocketAddr = "127.0.0.1:1234".parse().unwrap();
+        let out =
+            ws_handle_message(&state, msg, peer, crate::profiles::CallContext::LOCAL_WRITE).await;
+        assert!(!out.success && out.is_error);
+        assert_eq!(out.data["error"]["code"], "tool_not_in_profile");
+    }
 }
+
+#[cfg(test)]
+mod network_policy_tests;

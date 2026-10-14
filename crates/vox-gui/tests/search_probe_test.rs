@@ -4,12 +4,14 @@
 pub mod commands;
 #[path = "../src/config/mod.rs"]
 pub mod config;
+#[path = "../src/remote/mod.rs"]
+pub mod remote;
 
 pub mod vox_gui {
     pub use crate::commands;
 }
 
-use vox_gui::commands::search_probe::{
+use vox_search::probe::{
     probe_all_search_providers, probe_all_search_providers_with_policy, probe_search_provider,
     probe_search_provider_with_policy,
 };
@@ -203,25 +205,6 @@ async fn test_probe_all_search_providers_returns_batch_results() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_get_research_engine_status_payload() {
-    let status = vox_gui::commands::search_probe::get_research_engine_status()
-        .await
-        .unwrap();
-    assert!(
-        status
-            .providers
-            .iter()
-            .any(|p| p.id == "openalex" && p.is_keyless)
-    );
-    assert!(
-        status
-            .free_key_offers
-            .iter()
-            .any(|o| o.provider_id == "tavily" && o.signup_url.contains("tavily.com"))
-    );
-}
-
-#[tokio::test(flavor = "multi_thread")]
 async fn test_probe_openalex_and_arxiv_accepted() {
     let cluster = MockSearchCluster::start().await;
     let res_oa =
@@ -245,47 +228,4 @@ async fn test_probe_openalex_and_arxiv_accepted() {
         probe_ax.error_message
     );
     assert_eq!(probe_ax.http_status, 200);
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn test_save_and_get_research_engine_config_roundtrip() {
-    let current_dir = std::env::current_dir().unwrap_or_default();
-    let original_content = vox_package_types::VoxManifest::discover(&current_dir)
-        .ok()
-        .and_then(|(_, path)| std::fs::read_to_string(&path).ok().map(|c| (path, c)));
-
-    struct VoxTomlCleanup(Option<(std::path::PathBuf, String)>);
-    impl Drop for VoxTomlCleanup {
-        fn drop(&mut self) {
-            if let Some((path, content)) = &self.0 {
-                let _ = std::fs::write(path, content);
-            }
-        }
-    }
-    let _cleanup = VoxTomlCleanup(original_content);
-
-    let cfg = vox_gui::commands::search_probe::ResearchEngineConfigDto {
-        active_lane: Some("deep".into()),
-        fast_timeout_ms: Some(2200),
-        deep_timeout_ms: Some(5500),
-        enabled_providers: Some(vec!["wikipedia".into(), "arxiv".into()]),
-        provider_api_keys: None,
-    };
-    let save_res = vox_gui::commands::search_probe::save_research_engine_config(cfg).await;
-    assert!(save_res.is_ok());
-
-    let status = vox_gui::commands::search_probe::get_research_engine_status()
-        .await
-        .unwrap();
-    assert_eq!(status.active_lane, "deep");
-    assert_eq!(status.fast_timeout_ms, 2200);
-    assert_eq!(status.deep_timeout_ms, 5500);
-    let wiki = status
-        .providers
-        .iter()
-        .find(|p| p.id == "wikipedia")
-        .unwrap();
-    assert!(wiki.is_enabled);
-    let tavily = status.providers.iter().find(|p| p.id == "tavily").unwrap();
-    assert!(!tavily.is_enabled);
 }

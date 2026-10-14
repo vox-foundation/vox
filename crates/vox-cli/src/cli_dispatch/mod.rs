@@ -425,8 +425,11 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
         Cli::Migrate { cmd } => {
             crate::commands::migrate::run(cmd)?;
         }
-        Cli::Mcp => {
-            crate::commands::mcp::run().await?;
+        Cli::Mcp { profile } => {
+            crate::commands::mcp::run(profile).await?;
+        }
+        Cli::Serve { profile, network } => {
+            crate::commands::serve::run(profile.as_deref(), &network).await?;
         }
         Cli::Shell { cmd } => {
             crate::commands::runtime::shell::run(cmd).await?;
@@ -630,7 +633,10 @@ mod tests {
             Some("populi")
         );
         // Long-tail commands fall through to the generic path.
-        assert_eq!(universal_reward_command_path(&Cli::Mcp), Some("command"));
+        assert_eq!(
+            universal_reward_command_path(&Cli::Mcp { profile: None }),
+            Some("command")
+        );
     }
 
     /// When `dei` is off, `vox stop` must fail closed (non-zero exit) with the

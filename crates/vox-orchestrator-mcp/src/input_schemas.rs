@@ -843,7 +843,128 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_scientia_assist_suggestions" => parse_obj(
             r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"use_llm":{"type":"boolean","description":"When false, return heuristic JSON only"}},"required":["publication_id"],"additionalProperties":false}"#,
         ),
-
+        // ── gui_ops: models (plan 07) ──
+        "vox_models_preference_set" => {
+            derived_tool_schema!(crate::gui_ops::models::ModelsPreferenceSetParams)
+        }
+        // ── gui_ops: prefs (plan 07) ──
+        "vox_gui_preference_get" => {
+            derived_tool_schema!(crate::gui_ops::prefs::GuiPreferenceGetParams)
+        }
+        "vox_gui_preference_set" => {
+            derived_tool_schema!(crate::gui_ops::prefs::GuiPreferenceSetParams)
+        }
+        // ── gui_ops: chat (plan 07) ──
+        "vox_chat_session_create" => {
+            derived_tool_schema!(crate::gui_ops::chat::ChatSessionCreateParams)
+        }
+        "vox_chat_session_append" => {
+            derived_tool_schema!(crate::gui_ops::chat::ChatSessionAppendParams)
+        }
+        "vox_chat_session_rename" => {
+            derived_tool_schema!(crate::gui_ops::chat::ChatSessionRenameParams)
+        }
+        "vox_chat_session_archive" => {
+            derived_tool_schema!(crate::gui_ops::chat::ChatSessionArchiveParams)
+        }
+        // ── gui_ops: knowledge (plan 07) ──
+        "vox_kb_node_delete" => {
+            derived_tool_schema!(crate::gui_ops::knowledge::KbNodeDeleteParams)
+        }
+        "vox_kb_ingest_text" => {
+            derived_tool_schema!(crate::gui_ops::knowledge::KbIngestTextParams)
+        }
+        "vox_kb_ingest_url" => {
+            derived_tool_schema!(crate::gui_ops::knowledge::KbIngestUrlParams)
+        }
+        "vox_kb_import_research_session" => {
+            derived_tool_schema!(crate::gui_ops::knowledge::KbImportResearchSessionParams)
+        }
+        "vox_memory_reindex" => {
+            derived_tool_schema!(crate::gui_ops::knowledge::MemoryReindexParams)
+        }
+        // ── gui_ops: research (plan 07) ──
+        "vox_research_flag_misleading" => {
+            derived_tool_schema!(crate::gui_ops::research::ResearchFlagParams)
+        }
+        "vox_research_publish_doc" => {
+            derived_tool_schema!(crate::gui_ops::research::ResearchPublishDocParams)
+        }
+        "vox_research_engine_config_set" => {
+            derived_tool_schema!(crate::gui_ops::research::ResearchEngineConfigSetParams)
+        }
+        "vox_research_engine_probe" => {
+            derived_tool_schema!(crate::gui_ops::research::ResearchEngineProbeParams)
+        }
+        "vox_scientia_publication_claim_review" => {
+            derived_tool_schema!(crate::gui_ops::scientia::ClaimReviewParams)
+        }
+        "vox_scientia_publication_nanopublish" => {
+            derived_tool_schema!(crate::gui_ops::scientia::NanopublishParams)
+        }
+        "vox_scientia_publication_autofill" => {
+            derived_tool_schema!(crate::gui_ops::scientia::AutofillParams)
+        }
+        "vox_scientia_discovery_ack" => {
+            derived_tool_schema!(crate::gui_ops::scientia::DiscoveryAckParams)
+        }
+        // ── gui_ops: orchestrator (plan 07) ──
+        "vox_hopper_submit" => {
+            derived_tool_schema!(crate::gui_ops::orchestrator::HopperSubmitParams)
+        }
+        "vox_hopper_reprioritize" => {
+            derived_tool_schema!(crate::gui_ops::orchestrator::HopperReprioritizeParams)
+        }
+        "vox_hopper_cancel" => {
+            derived_tool_schema!(crate::gui_ops::orchestrator::HopperItemParams)
+        }
+        "vox_hopper_mark_done" => {
+            derived_tool_schema!(crate::gui_ops::orchestrator::HopperItemParams)
+        }
+        "vox_plan_node_upsert" => {
+            derived_tool_schema!(crate::gui_ops::orchestrator::PlanNodeUpsertParams)
+        }
+        "vox_plan_nodes_approve" => {
+            derived_tool_schema!(crate::gui_ops::orchestrator::PlanNodesApproveParams)
+        }
+        "vox_gui_run_start" => {
+            derived_tool_schema!(crate::gui_ops::dto::orchestrator::StartGuiRunInput)
+        }
+        "vox_gui_run_finish" => {
+            derived_tool_schema!(crate::gui_ops::dto::orchestrator::FinishGuiRunInput)
+        }
+        // ── gui_ops: harness (plan 07) ──
+        "vox_harness_corpus_scan" => {
+            derived_tool_schema!(crate::gui_ops::harness::CorpusScanParams)
+        }
+        "vox_harness_fix_propose" => {
+            derived_tool_schema!(crate::gui_ops::harness::FixProposeParams)
+        }
+        "vox_harness_fix_resolve" => {
+            derived_tool_schema!(crate::gui_ops::harness::FixResolveParams)
+        }
+        "vox_harness_issue_decide" => {
+            derived_tool_schema!(crate::gui_ops::harness::IssueDecideParams)
+        }
+        // ── gui_ops: gamify (plan 07) ──
+        "vox_gamify_profile" => {
+            derived_tool_schema!(crate::gui_ops::gamify::GamifyProfileParams)
+        }
+        "vox_gamify_due_actions" => {
+            derived_tool_schema!(crate::gui_ops::gamify::GamifyDueActionsParams)
+        }
+        "vox_gamify_record_event" => {
+            derived_tool_schema!(crate::gui_ops::gamify::GamifyRecordEventParams)
+        }
+        "vox_gamify_leaderboard" => {
+            derived_tool_schema!(crate::gui_ops::gamify::GamifyLeaderboardParams)
+        }
+        "vox_gamify_companions" => {
+            derived_tool_schema!(crate::gui_ops::gamify::GamifyCompanionsParams)
+        }
+        "vox_gamify_discovery_record" => {
+            derived_tool_schema!(crate::gui_ops::gamify::GamifyDiscoveryRecordParams)
+        }
         _ => Map::new(),
     }
 }

@@ -125,6 +125,19 @@ async fn dispatch_tool_call(
     let start_time = std::time::Instant::now();
     let name_canonical = tool_aliases::canonical_tool_name(name);
 
+    if let Err(denial) = crate::profiles::guard_tool(
+        state,
+        crate::profiles::CallContext::LOCAL_WRITE,
+        name_canonical,
+    ) {
+        return Ok(crate::profiles::denial_error_json(
+            name_canonical,
+            &denial,
+            &state.active_profile,
+        )
+        .to_string());
+    }
+
     // Check if the agent ID or session ID is included in meta arguments
     let agent_id = args.get("agent_id").and_then(|v| v.as_str());
     let session_id = args.get("session_id").and_then(|v| v.as_str());
@@ -1923,6 +1936,184 @@ async fn handle_tool_call_inner(
         "vox_code_audit_findings_upsert" => {
             Ok(toestub_tools::toestub_findings_upsert(state, serde_json::from_value(args)?).await)
         }
+        // ── gui_ops: models (plan 07) ──
+        "vox_models_preference_set" => Ok(crate::gui_ops::models::models_preference_set(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        // ── gui_ops: prefs (plan 07) ──
+        "vox_gui_preference_get" => Ok(crate::gui_ops::prefs::gui_preference_get(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_gui_preference_set" => Ok(crate::gui_ops::prefs::gui_preference_set(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        // ── gui_ops: chat (plan 07) ──
+        "vox_chat_session_create" => Ok(crate::gui_ops::chat::chat_session_create(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_chat_session_append" => Ok(crate::gui_ops::chat::chat_session_append(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_chat_session_rename" => Ok(crate::gui_ops::chat::chat_session_rename(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_chat_session_archive" => Ok(crate::gui_ops::chat::chat_session_archive(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        // ── gui_ops: knowledge (plan 07) ──
+        "vox_kb_node_delete" => Ok(crate::gui_ops::knowledge::kb_node_delete(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_kb_ingest_text" => Ok(crate::gui_ops::knowledge::kb_ingest_text(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_kb_ingest_url" => Ok(crate::gui_ops::knowledge::kb_ingest_url(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_kb_import_research_session" => {
+            Ok(crate::gui_ops::knowledge::kb_import_research_session(
+                state,
+                serde_json::from_value(args)?,
+            )
+            .await)
+        }
+        "vox_memory_reindex" => Ok(crate::gui_ops::knowledge::memory_reindex(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        // ── gui_ops: research (plan 07) ──
+        "vox_research_flag_misleading" => Ok(crate::gui_ops::research::flag_misleading(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_research_publish_doc" => {
+            Ok(crate::gui_ops::research::publish_doc(state, serde_json::from_value(args)?).await)
+        }
+        "vox_research_engine_config_set" => Ok(crate::gui_ops::research::engine_config_set(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_research_engine_probe" => {
+            Ok(crate::gui_ops::research::engine_probe(state, serde_json::from_value(args)?).await)
+        }
+        "vox_scientia_publication_claim_review" => {
+            Ok(crate::gui_ops::scientia::claim_review(state, serde_json::from_value(args)?).await)
+        }
+        "vox_scientia_publication_nanopublish" => {
+            Ok(crate::gui_ops::scientia::nanopublish(state, serde_json::from_value(args)?).await)
+        }
+        "vox_scientia_publication_autofill" => {
+            Ok(crate::gui_ops::scientia::autofill(state, serde_json::from_value(args)?).await)
+        }
+        "vox_scientia_discovery_ack" => {
+            Ok(crate::gui_ops::scientia::discovery_ack(state, serde_json::from_value(args)?).await)
+        }
+        // ── gui_ops: orchestrator (plan 07) ──
+        "vox_hopper_submit" => Ok(crate::gui_ops::orchestrator::hopper_submit(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_hopper_reprioritize" => Ok(crate::gui_ops::orchestrator::hopper_reprioritize(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_hopper_cancel" => Ok(crate::gui_ops::orchestrator::hopper_cancel(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_hopper_mark_done" => Ok(crate::gui_ops::orchestrator::hopper_mark_done(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_plan_node_upsert" => Ok(crate::gui_ops::orchestrator::plan_node_upsert(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_plan_nodes_approve" => Ok(crate::gui_ops::orchestrator::plan_nodes_approve(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_gui_run_start" => Ok(crate::gui_ops::orchestrator::gui_run_start(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_gui_run_finish" => Ok(crate::gui_ops::orchestrator::gui_run_finish(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        // ── gui_ops: harness (plan 07) ──
+        "vox_harness_corpus_scan" => {
+            Ok(crate::gui_ops::harness::corpus_scan(state, serde_json::from_value(args)?).await)
+        }
+        "vox_harness_fix_propose" => {
+            Ok(crate::gui_ops::harness::fix_propose(state, serde_json::from_value(args)?).await)
+        }
+        "vox_harness_fix_resolve" => {
+            Ok(crate::gui_ops::harness::fix_resolve(state, serde_json::from_value(args)?).await)
+        }
+        "vox_harness_issue_decide" => {
+            Ok(crate::gui_ops::harness::issue_decide(state, serde_json::from_value(args)?).await)
+        }
+        // ── gui_ops: gamify (plan 07) ──
+        "vox_gamify_profile" => {
+            Ok(crate::gui_ops::gamify::gamify_profile(state, serde_json::from_value(args)?).await)
+        }
+        "vox_gamify_due_actions" => Ok(crate::gui_ops::gamify::gamify_due_actions(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_gamify_record_event" => Ok(crate::gui_ops::gamify::gamify_record_event(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_gamify_leaderboard" => Ok(crate::gui_ops::gamify::gamify_leaderboard(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_gamify_companions" => Ok(crate::gui_ops::gamify::gamify_companions(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_gamify_discovery_record" => Ok(crate::gui_ops::gamify::gamify_discovery_record(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
         _ => {
             // Check skill macro tools
             let skills = state.skill_registry.list(None);
@@ -2366,5 +2557,39 @@ mod receipt_wrap_tests {
         assert!(receipt.is_none());
         let final_len = vox_orchestrator::sync_lock::rw_read(&*handle).len();
         assert_eq!(initial_len, final_len);
+    }
+}
+
+#[cfg(test)]
+mod profile_guard_tests {
+    use super::handle_tool_call;
+    use crate::profiles::ActiveProfile;
+    use crate::server_state::{ServerState, tool_json_envelope_is_error};
+    use serde_json::json;
+
+    #[tokio::test]
+    async fn dispatch_denies_tool_outside_profile() {
+        let state = ServerState::new_test()
+            .await
+            .with_profile(ActiveProfile::resolve(&["models"]).expect("models"));
+        let out = handle_tool_call(&state, "vox_git_status", json!({}))
+            .await
+            .expect("denial is an Ok envelope");
+        let v: serde_json::Value = serde_json::from_str(&out).expect("json");
+        assert_eq!(v["error"]["code"], "tool_not_in_profile");
+        assert!(tool_json_envelope_is_error(&out));
+    }
+
+    #[tokio::test]
+    async fn dev_dispatch_is_not_profile_gated() {
+        let state = ServerState::new_test().await;
+        let out = handle_tool_call(&state, "vox_git_status", json!({})).await;
+        if let Ok(s) = out {
+            let v: serde_json::Value = serde_json::from_str(&s).unwrap_or_default();
+            assert!(
+                !crate::profiles::is_profile_denial_json(&v),
+                "dev must not deny: {s}"
+            );
+        }
     }
 }

@@ -28,9 +28,7 @@ export interface CostRollup {
 
 /**
  * A6: fetch the Scientia cost rollup via the native `scientia_cost_rollup`
- * command, which reads through this app's own already-open DB pool instead
- * of shelling out to a `vox scientia cost` subprocess (which used to contend
- * with this app's own connection for the same DB file lock). Throws on
+ * command, served by the daemon (`GET /api/v2/scientia/cost`). Throws on
  * failure so the caller can surface a toast.
  */
 export async function fetchCostRollup(): Promise<CostRollup> {

@@ -23,10 +23,15 @@ import { ACTION_REGISTRY, DEFAULT_BINDINGS, chordFromEvent } from '../../../lib/
 import { setBindings } from '../../../lib/keybindStore';
 import { useKeybindings } from '../../../hooks/useKeybinds';
 import { useOnboardingGate } from '../Onboarding/useOnboardingGate';
+import { useBackendStatus } from '../../../hooks/useBackendStatus';
+import { SurfaceUnavailable } from '../../layout/SurfaceUnavailable';
+import { ServerConnectionSection } from './ServerConnectionSection';
+import { sectionLockedRemotely } from './settingsBackends';
 
 const GUI_PREF_KEYS = ['theme', 'telemetry', 'sign', 'checkpointMins'] as const;
 
-const SECTIONS = [
+export const SECTIONS = [
+  { id: 'server',       icon: 'link',    label: 'Server' },
   { id: 'orchestrator', icon: 'cpu',     label: 'Orchestrator' },
   { id: 'scaling',      icon: 'cpu',     label: 'Scaling' },
   { id: 'llm',          icon: 'bolt',    label: 'LLM & providers' },
@@ -742,10 +747,42 @@ interface LlmSpendDto {
   perSessionBudgetUsd: number;
 }
 
+/**
+ * Recorded spend vs budget from the connected Vox server (single SSOT aggregate). Best-effort:
+ * stays hidden when the read fails. Shown inside Runtime locally, and on its own remotely, where
+ * Runtime's config editor is locked to this machine but the spend is the server's.
+ */
+function LlmSpendMeter() {
+  const [spend, setSpend] = useState<LlmSpendDto | null>(null);
+  const reload = useCallback(async () => {
+    try {
+      setSpend(await invoke<LlmSpendDto>('get_llm_spend', {}));
+    } catch {
+      setSpend(null);
+    }
+  }, []);
+  useEffect(() => { reload(); }, [reload]);
+  useEffect(() => {
+    // Guarded: listen() rejects outside Tauri (bare browser/tests).
+    const un = listen('vox://llm-config-changed', () => { reload(); }).catch(() => undefined);
+    return () => { un.then((f) => f?.()); };
+  }, [reload]);
+  if (!spend) return null;
+  return (
+    <div className="mt-3 rounded-sm border border-border-subtle bg-black/20 p-3" data-testid="llm-spend">
+      <div className="font-mono text-[10px] uppercase tracking-wide text-text-muted">LLM spend (recorded actuals)</div>
+      <div className="mt-1 flex flex-wrap gap-x-6 gap-y-1 font-mono text-[11px] text-text-secondary">
+        <span>session ${spend.sessionUsd.toFixed(4)} / ${spend.perSessionBudgetUsd.toFixed(2)}</span>
+        <span>today ${spend.dayUsd.toFixed(4)} / ${spend.dailyBudgetUsd.toFixed(2)}</span>
+        <span>total ${spend.totalUsd.toFixed(4)}</span>
+      </div>
+    </div>
+  );
+}
+
 function RuntimeConfigSection({ pushToast }: { pushToast: (t: Toast) => void }) {
   const [fields, setFields] = useState<UserConfigFieldDto[]>([]);
   const [loading, setLoading] = useState(true);
-  const [spend, setSpend] = useState<LlmSpendDto | null>(null);
   // In-flight edits keyed by config key; cleared on reload.
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
@@ -760,12 +797,6 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: Toast) => void }) 
       pushToast({ tone: 'warn', title: 'Could not load runtime config', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setLoading(false);
-    }
-    // Recorded spend vs budget (single SSOT aggregate); best-effort, never blocks config.
-    try {
-      setSpend(await invoke<LlmSpendDto>('get_llm_spend', {}));
-    } catch {
-      /* store may be unavailable on a fresh install — leave spend hidden */
     }
   }, [pushToast]);
 
@@ -858,16 +889,7 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: Toast) => void }) 
       <p className="mt-0.5 text-[11px] text-text-muted">
         Core user config persisted to your Vox user config (effective values: ENV &gt; Vox.toml &gt; global &gt; defaults)
       </p>
-      {spend && (
-        <div className="mt-3 rounded-sm border border-border-subtle bg-black/20 p-3" data-testid="llm-spend">
-          <div className="font-mono text-[10px] uppercase tracking-wide text-text-muted">LLM spend (recorded actuals)</div>
-          <div className="mt-1 flex flex-wrap gap-x-6 gap-y-1 font-mono text-[11px] text-text-secondary">
-            <span>session ${spend.sessionUsd.toFixed(4)} / ${spend.perSessionBudgetUsd.toFixed(2)}</span>
-            <span>today ${spend.dayUsd.toFixed(4)} / ${spend.dailyBudgetUsd.toFixed(2)}</span>
-            <span>total ${spend.totalUsd.toFixed(4)}</span>
-          </div>
-        </div>
-      )}
+      <LlmSpendMeter />
       {loading ? (
         <div className="mt-4 text-[12px] text-text-muted">Loading…</div>
       ) : (
@@ -1071,6 +1093,9 @@ interface SettingsViewProps {
 export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTilesChange }: SettingsViewProps) {
   const { lang, setLang } = useLang();
   const [section, setSection] = useState('orchestrator');
+  const { status: backendStatus } = useBackendStatus();
+  const sectionLocked = sectionLockedRemotely(section, backendStatus.mode);
+  const shownSection = sectionLocked ? '' : section;
   const [filter, setFilter] = useState('');
   const keybindings = useKeybindings();
   const [capturingId, setCapturingId] = useState<string | null>(null);
@@ -1384,7 +1409,10 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
 
       {/* Content */}
       <Glass className="col-span-12 md:col-span-9 p-5">
-        {section === 'orchestrator' && (
+        {sectionLocked && <SurfaceUnavailable viewKey={`settings:${section}`} reason="needs_local_machine" />}
+        {sectionLocked && section === 'runtime' && <LlmSpendMeter />}
+        {shownSection === 'server' && <ServerConnectionSection pushToast={pushToast} />}
+        {shownSection === 'orchestrator' && (
           <>
             <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('set-orchestrator')}</h2>
             <p className="mt-0.5 text-[11px] text-text-muted">Global scheduling, budget, and verification policy</p>
@@ -1434,7 +1462,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
           </>
         )}
 
-        {section === 'scaling' && (
+        {shownSection === 'scaling' && (
           <>
             <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('set-scaling')}</h2>
             <p className="mt-0.5 text-[11px] text-text-muted">Spawn and retire agents automatically based on queue load and local host resources</p>
@@ -1467,7 +1495,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
           </>
         )}
 
-        {section === 'llm' && (
+        {shownSection === 'llm' && (
           <LlmSettingsSection
             pushToast={pushToast}
             onJumpToKeysSecrets={() => {
@@ -1479,7 +1507,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
           />
         )}
 
-        {section === 'routing' && (
+        {shownSection === 'routing' && (
           <>
             <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('set-routing')}</h2>
             <p className="mt-0.5 text-[11px] text-text-muted">Emphasis tunes how the scorer trades off intelligence, efficiency, and responsiveness (persisted to VOX_AUTO_ROUTING_PRIORITY)</p>
@@ -1555,22 +1583,22 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
           </>
         )}
 
-        {section === 'runtime' && <RuntimeConfigSection pushToast={pushToast} />}
-        {section === 'voice' && <SttSettingsSection pushToast={pushToast} />}
+        {shownSection === 'runtime' && <RuntimeConfigSection pushToast={pushToast} />}
+        {shownSection === 'voice' && <SttSettingsSection pushToast={pushToast} />}
 
-        {section === 'mesh' && <MeshPeersSection pushToast={pushToast} />}
+        {shownSection === 'mesh' && <MeshPeersSection pushToast={pushToast} />}
 
-        {section === 'signing' && (
+        {shownSection === 'signing' && (
           <SigningKeysSection vals={vals} update={update} pushToast={pushToast} gamifyEnabled={gamifyEnabled} />
         )}
 
-        {section === 'secrets' && (
+        {shownSection === 'secrets' && (
           <div id="keys-secrets-section" tabIndex={-1}>
             <KeysSecretsSection pushToast={pushToast} gamifyEnabled={gamifyEnabled} />
           </div>
         )}
 
-        {section === 'telemetry' && (
+        {shownSection === 'telemetry' && (
           <>
             <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('set-telemetry')}</h2>
             <p className="mt-0.5 text-[11px] text-text-muted">Where Vox sends spans, metrics, and traces</p>
@@ -1592,9 +1620,9 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
           </>
         )}
 
-        {section === 'onboarding' && <OnboardingSection />}
+        {shownSection === 'onboarding' && <OnboardingSection />}
 
-        {section === 'keybinds' && (
+        {shownSection === 'keybinds' && (
           <>
             <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('set-keybinds')}</h2>
             <p className="mt-0.5 text-[11px] text-text-muted">Click a shortcut to rebind it. Press any key combination to set the new chord.</p>
@@ -1630,7 +1658,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
           </>
         )}
 
-        {section === 'gamify' && (
+        {shownSection === 'gamify' && (
           <div className="space-y-3">
             <label className="flex items-center justify-between rounded-lg border border-border-subtle bg-overlay-subtle p-3 text-sm">
               <span>Gamification enabled</span>
@@ -1650,7 +1678,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
           </div>
         )}
 
-        {section === 'theme' && (
+        {shownSection === 'theme' && (
           <>
             <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('set-theme')}</h2>
             <p className="mt-0.5 text-[11px] text-text-muted">Aesthetic mode for the GUI layer</p>
@@ -1676,7 +1704,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
           </>
         )}
 
-        {section === 'display' && (
+        {shownSection === 'display' && (
           <>
             <Row label="Latin labels" hint="Show nav and section names in Latin">
               <Toggle on={lang === 'la'} onClick={() => setLang(lang === 'la' ? 'en' : 'la')} />

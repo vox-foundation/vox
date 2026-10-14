@@ -64,7 +64,7 @@ alongside the tool registry.
 ```yaml
 id: models
 description: "Model registry, selection/routing explain, leaderboard, chat via selected model."
-requires: [model_registry, llm_facade]   # subsystems to boot (closure computed)
+requires: [db, model_registry, llm_facade]   # subsystems to boot (closure computed); db = scoreboard, bench evidence, chat history
 tools:
   include: [vox_list_models, vox_set_model, vox_get_active_model, vox_set_active_model,
             vox_benchmark_list, vox_chat_*]
@@ -80,12 +80,15 @@ Rules:
 - Profiles compose: `--profile models,knowledge` is the union of tool sets and subsystem closures.
 - `dev` = every op and every subsystem. It is the default for `vox mcp` and for the daemon Axis
   spawns locally, so current behaviour is unchanged.
+- DB use: `models` requires `db` (scoreboard, bench evidence, chat history). `attention` and `skills`
+  are the DB-free profiles; in remote mode Axis keeps its GUI preferences client-side, never in the
+  server DB.
 
 **First-wave profiles:**
 
 | Profile | Tool groups (approx. count today) |
 |---|---|
-| `models` | models (5), routing explain, benchmark, chat |
+| `models` | models (5), routing explain, benchmark, chat (requires `db`) |
 | `knowledge` | `vox_memory_*` (7), `vox_session_*` (6), `vox_kb_*` (12), `vox_search_*` (10), `vox_knowledge_query` |
 | `research` | `vox_research_*`, `vox_scientia_*` **minus publish/approve** |
 | `research-publish` | publish/approve/external jobs (operator; explicit opt-in) |
@@ -232,7 +235,7 @@ Codex" behaviour): the failure is reported in `/v1/profile` and dependent tools 
    the bind policy in turn and confirm their tests fail — `internal` tool over a LAN bind must be
    rejected; non-loopback bind without tokens/TLS must refuse to start.
 3. **Boot tests** under `vox-test-harness`: each first-wave profile boots and asserts the exact
-   booted-subsystem set (e.g. `models` opens no turso connection and starts no Populi pollers).
+   booted-subsystem set (e.g. `attention` opens no turso connection and starts no Populi pollers; `models` opens the DB but no sessions or Populi pollers).
 4. **Axis Playwright** (`crates/vox-gui/ui/e2e/`, `installTauriMock` in remote mode): surface
    gating, "not available on this server" states, connect flow, with screenshots in
    `review-bundle/latest/`.

@@ -11,6 +11,12 @@ info:
     optional narrowing via `VOX_MCP_HTTP_READ_ROLE_ALLOWED_TOOLS`.
     Cloudless hard-cut target is Clavis-managed token resolution, with direct env token reads
     retained only as compatibility inputs in non-strict profiles during cutover.
+
+    Bind policy: loopback (127.0.0.0/8, ::1) by default. Any other bind host, or any bind with
+    `VOX_MCP_HTTP_BEHIND_TUNNEL=1`, requires both bearer tokens and TLS
+    (`VOX_MCP_HTTP_TLS_CERT`/`VOX_MCP_HTTP_TLS_KEY`) or the tunnel attestation; the gateway
+    refuses to start otherwise. Off loopback, `internal` tools are never served, the read token
+    sees `public` read-eligible tools, and the write token sees `public` + `operator`.
   version: 1.0.0
 servers:
   - url: http://127.0.0.1:3921
@@ -143,7 +149,11 @@ paths:
         "401":
           description: Unauthorized
         "403":
-          description: Forwarded HTTPS requirement failed
+          description: "Forwarded HTTPS requirement failed, or `exposure_denied` / `insufficient_role` — body `{\"error\":{\"code\",\"message\"}}`"
+        "404":
+          description: "`tool_not_in_profile`"
+        "503":
+          description: "`subsystem_not_booted` — body carries `error.subsystem`"
         "429":
           description: Rate limit exceeded
   /v1/ws:
@@ -203,6 +213,69 @@ paths:
                     type: object
         "401":
           description: Unauthorized
+        "403":
+          description: Forwarded HTTPS requirement failed
+        "429":
+          description: Rate limit exceeded
+  /v1/profile:
+    get:
+      summary: Active capability profile and the tools served to this caller
+      description: |
+        `tools` is exactly the set `/v1/tools` advertises to the same token from the same peer:
+        gateway allowlist, then profile membership, exposure (internal is loopback-only;
+        operator needs the write token), read-role eligibility, and booted subsystems.
+        Arrays are sorted ascending.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Active profile snapshot
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [profiles, max_exposure, subsystems, tools, axis_surfaces, server_version]
+                properties:
+                  profiles:
+                    type: array
+                    items:
+                      type: string
+                    example: [models]
+                  max_exposure:
+                    type: string
+                    enum: [public, operator, internal]
+                  subsystems:
+                    type: object
+                    required: [booted, failed]
+                    properties:
+                      booted:
+                        type: array
+                        items:
+                          type: string
+                        example: [llm_facade, model_registry]
+                      failed:
+                        type: array
+                        items:
+                          type: object
+                          required: [id, error]
+                          properties:
+                            id:
+                              type: string
+                            error:
+                              type: string
+                  tools:
+                    type: array
+                    items:
+                      type: string
+                  axis_surfaces:
+                    type: array
+                    items:
+                      type: string
+                    example: [chat, models]
+                  server_version:
+                    type: string
+        "401":
+          description: Missing or invalid bearer token
         "403":
           description: Forwarded HTTPS requirement failed
         "429":

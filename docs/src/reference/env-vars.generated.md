@@ -24,7 +24,7 @@ status: current
 
 Machine-derived from [`contracts/config/env-vars.v1.yaml`](../../../contracts/config/env-vars.v1.yaml).
 
-**Total variables:** 851
+**Total variables:** 857
 
 | Variable | Owner Crate | Type | Required | Introduced | Description |
 |---|---|---|---|---|---|
@@ -284,15 +284,18 @@ Machine-derived from [`contracts/config/env-vars.v1.yaml`](../../../contracts/co
 | `VOX_MCP_HTTP_ALLOWED_TOOLS` | `vox-secrets` | string | No | 0.3.0 | TODO |
 | `VOX_MCP_HTTP_ALLOW_UNAUTHENTICATED` | `vox-secrets` | string | No | 0.3.0 | TODO |
 | `VOX_MCP_HTTP_BEARER_TOKEN` | `vox-secrets` | string | No | 0.3.0 | TODO |
+| `VOX_MCP_HTTP_BEHIND_TUNNEL` | `vox-orchestrator-mcp` | bool | No | 0.6.0 | Set to 1 when a TLS-terminating tunnel/proxy fronts the MCP HTTP gateway. Satisfies TLS-or-tunnel, forces token auth even on a loopback bind, and treats every caller as non-loopback. |
 | `VOX_MCP_HTTP_ENABLED` | `vox-secrets` | string | No | 0.3.0 | TODO |
 | `VOX_MCP_HTTP_HEALTH_AUTH` | `vox-secrets` | string | No | 0.3.0 | TODO |
-| `VOX_MCP_HTTP_HOST` | `vox-secrets` | string | No | 0.3.0 | TODO |
+| `VOX_MCP_HTTP_HOST` | `vox-secrets` | string | No | 0.3.0 | Bind host for the MCP HTTP gateway (IP literal or localhost; default 127.0.0.1). A non-loopback host requires write + read tokens and TLS or VOX_MCP_HTTP_BEHIND_TUNNEL. |
 | `VOX_MCP_HTTP_PORT` | `vox-secrets` | string | No | 0.3.0 | TODO |
 | `VOX_MCP_HTTP_PUBLIC_EVAL_ENABLED` | `vox-orchestrator` | bool | No | 0.4.0 | Enables the public eval sandbox endpoint on the MCP HTTP server when set to '1'. |
 | `VOX_MCP_HTTP_RATE_LIMIT_PER_MINUTE` | `vox-secrets` | string | No | 0.3.0 | TODO |
 | `VOX_MCP_HTTP_READ_BEARER_TOKEN` | `vox-secrets` | string | No | 0.3.0 | TODO |
 | `VOX_MCP_HTTP_READ_ROLE_ALLOWED_TOOLS` | `vox-secrets` | string | No | 0.3.0 | TODO |
 | `VOX_MCP_HTTP_REQUIRE_FORWARDED_HTTPS` | `vox-secrets` | string | No | 0.3.0 | TODO |
+| `VOX_MCP_HTTP_TLS_CERT` | `vox-orchestrator-mcp` | string | No | 0.6.0 | PEM certificate path for TLS termination on the MCP HTTP gateway; requires VOX_MCP_HTTP_TLS_KEY. Satisfies the network bind policy's TLS-or-tunnel requirement. |
+| `VOX_MCP_HTTP_TLS_KEY` | `vox-orchestrator-mcp` | string | No | 0.6.0 | PEM private-key path for TLS termination on the MCP HTTP gateway; requires VOX_MCP_HTTP_TLS_CERT. |
 | `VOX_MCP_HTTP_TRUST_X_FORWARDED_FOR` | `vox-secrets` | string | No | 0.3.0 | TODO |
 | `VOX_MCP_INFER_STUB_ACK` | `vox-orchestrator` | string | No | 0.3.0 | TODO |
 | `VOX_MCP_LLM_COST_EVENTS` | `vox-secrets` | string | No | 0.3.0 | TODO |
@@ -301,8 +304,9 @@ Machine-derived from [`contracts/config/env-vars.v1.yaml`](../../../contracts/co
 | `VOX_MCP_ORCHESTRATOR_RPC_READS` | `vox-orchestrator-mcp` | bool | No | 0.5.0 | Umbrella for MCP orchestrator daemon read RPC pilots; today only enables the status-tool pilot (VOX_MCP_ORCHESTRATOR_STATUS_TOOL_RPC). |
 | `VOX_MCP_ORCHESTRATOR_STATUS_TOOL_RPC` | `vox-orchestrator-mcp` | bool | No | 0.5.0 | Feature gate: vox_orchestrator_status attaches orch.status from the repo-aligned TCP daemon at VOX_ORCHESTRATOR_DAEMON_SOCKET. |
 | `VOX_MCP_TEST_INFER_STUB_BODY` | `vox-orchestrator` | string | No | 0.3.0 | TODO |
-| `VOX_MCP_TIERS` | `vox-orchestrator` | string | No | 0.3.0 | TODO |
+| `VOX_MCP_TIERS` | `vox-orchestrator` | string | No | 0.3.0 | DEPRECATED (2026-10-08): alias for VOX_MCP_WORKSPACE_TOOLS. Values workspace or all advertise workspace-federated MCP tools (other values, including dev and advanced, do not); a warning is logged whenever it is set. Ignored when VOX_MCP_WORKSPACE_TOOLS is set. |
 | `VOX_MCP_TOOL_ARG_SCHEMA_VALIDATE` | `vox-ml-cli` | string | No | 0.3.0 | TODO |
+| `VOX_MCP_WORKSPACE_TOOLS` | `vox-orchestrator-mcp` | bool | No | 0.6.0 | 1 or true (case-insensitive, trimmed; yes is not accepted; empty = off) advertises workspace-federated @tool functions in MCP tools/list (they are always dispatchable by name). Served only under the dev capability profile. |
 | `VOX_MENS_ACT_F32` | `vox-plugin-mens-candle-cuda` | bool | No | 0.6.0 | MENS QLoRA: force F32 activations/embeddings (escape hatch when BF16 matmul paths fail). |
 | `VOX_MENS_BACKGROUND` | `vox-cli` | bool | No | 0.5.0 | MENS training / eval CLI: run GPU work in background mode. |
 | `VOX_MENS_DEVICE` | `vox-cli` | string | No | 0.6.0 | MENS pipeline training device override (e.g. cuda, metal) for mens CLI workflows. |
@@ -632,6 +636,7 @@ Machine-derived from [`contracts/config/env-vars.v1.yaml`](../../../contracts/co
 | `VOX_PREPUSH_AUDIT_LOG` | `vox-cli` | string | No | 0.5.0 | Append JSON audit lines from successful `vox git pre-push-check` runs (non dry-run) to this file path. |
 | `VOX_PREPUSH_BASE` | `vox-cli` | string | No | 0.5.0 | Git ref for pre-push comparison base (default `origin/main` when unset). |
 | `VOX_PREVIEW_URL` | `vox-gui` | string | No | 0.6.0 | Base URL for the GUI browser preview surface (Playwright e2e and preview sidecar spawn). |
+| `VOX_PROFILE` | `vox-mcp-registry` | string | No | 0.6.0 | Comma-separated capability profile ids (contracts/profiles/<id>.v1.yaml) scoping the MCP/HTTP tool surface; unset or empty means dev (every tool). vox mcp / vox serve also read the VOX_PROFILE key in ~/.vox/config.toml; spawners (CLI, Axis) pass it to vox-orchestrator-d. |
 | `VOX_PROVIDER_DAILY_LIMITS_FILE` | `vox-secrets` | string | No | 0.3.0 | TODO |
 | `VOX_PROVIDER_DAILY_LIMITS_JSON` | `vox-secrets` | string | No | 0.3.0 | TODO |
 | `VOX_PROVIDER_DAILY_LIMIT_DEFAULT` | `vox-secrets` | string | No | 0.3.0 | TODO |
@@ -861,6 +866,7 @@ Machine-derived from [`contracts/config/env-vars.v1.yaml`](../../../contracts/co
 | `VOX_WORKFLOW_ARGS` | `vox-compiler` | string | No | 0.3.0 | TODO |
 | `VOX_WORKFLOW_JOURNAL_CODEX_OFF` | `vox-cli-core` | string | No | 0.3.0 | TODO |
 | `VOX_WORKFLOW_NON_DETERMINISTIC_BUILTIN` | `vox-cli` | string | No | 0.5.0 | Referenced from workspace sources; locate callsites with rg. |
+| `VOX_WORKFLOW_RUN_ID` | `vox-codegen` | string | No | 0.6.0 | durable run id for generated workflow binaries |
 | `VOX_WORKSPACE_JOURNEY_FALLBACK_CANONICAL` | `vox-cli` | string | No | 0.3.0 | TODO |
 | `VOX_WORKSPACE_JOURNEY_STORE` | `vox-cli` | string | No | 0.3.0 | TODO |
 | `VOX_WORKSPACE_ROOT` | `vox-secrets` | string | No | 0.3.0 | TODO |

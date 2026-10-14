@@ -296,3 +296,22 @@ describe('Sidebar degraded Review badge', () => {
   });
 });
 
+
+import { StaticBackendStatusProvider } from '../../hooks/useBackendStatus';
+
+describe('Sidebar remote gating', () => {
+  it('marks unavailable child surfaces with their reason', () => {
+    render(
+      <LanguageProvider>
+        <StaticBackendStatusProvider
+          status={{ mode: 'remote', url: 'https://vox.lan:3921/', profile: null, surfaces: [{ surface: 'dashboard', available: true, reason: null }] }}
+        >
+          <Sidebar {...baseProps} mode="wide" view="dashboard" />
+        </StaticBackendStatusProvider>
+      </LanguageProvider>,
+    );
+    const flow = screen.getAllByRole('button').find((b) => b.getAttribute('data-unavailable') === 'not_in_profile');
+    expect(flow).toBeTruthy();
+    expect(flow?.getAttribute('title')).toMatch(/not available on this server/i);
+  });
+});

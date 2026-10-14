@@ -27,6 +27,8 @@ struct BundleEntry {
     extends: Option<String>,
     #[serde(default)]
     plugins: Vec<String>,
+    #[serde(default)]
+    profiles: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -76,6 +78,7 @@ fn resolve_bundle(
 
 fn main() {
     println!("cargo:rerun-if-changed=catalog.toml");
+    println!("cargo:rerun-if-changed=../../contracts/profiles");
     let src = std::fs::read_to_string("catalog.toml").expect("catalog.toml not found");
     let cat: CatalogFile = match toml::from_str(&src) {
         Ok(v) => v,
@@ -168,6 +171,31 @@ fn main() {
                 "bundle '{}' extends '{}', but no such bundle exists",
                 b.id, parent
             ));
+        }
+        let mut seen_profiles = HashSet::new();
+        for prof in &b.profiles {
+            if !seen_profiles.insert(prof.clone()) {
+                errors.push(format!("bundle '{}' lists profile '{}' twice", b.id, prof));
+            }
+            if prof == "browser" {
+                errors.push(format!(
+                    "bundle '{}' lists profile 'browser', which is never part of a bundle default",
+                    b.id
+                ));
+            }
+            if prof != "dev"
+                && !std::path::Path::new("../../contracts/profiles")
+                    .join(format!("{prof}.v1.yaml"))
+                    .is_file()
+            {
+                errors.push(format!(
+                    "bundle '{}' lists profile '{}', but contracts/profiles/{}.v1.yaml does not exist",
+                    b.id, prof, prof
+                ));
+            }
+        }
+        if b.profiles.iter().any(|p| p == "dev") && b.profiles.len() > 1 {
+            errors.push(format!("bundle '{}': profile 'dev' must stand alone", b.id));
         }
     }
 

@@ -143,7 +143,6 @@ env-var-not-in-registry|crates/vox-orchestrator-mcp/src/http_gateway/dashboard_a
 env-var-not-in-registry|crates/vox-orchestrator-mcp/src/http_gateway/dashboard_api.rs|VOX_DASHBOARD_LIVE_RUNS
 env-var-not-in-registry|crates/vox-orchestrator-mcp/src/http_gateway/dashboard_api.rs|VOX_DASHBOARD_ROUTING_VIZ
 env-var-not-in-registry|crates/vox-orchestrator-mcp/src/post_verification.rs|VOX_VERIFY_ON_WRITE
-env-var-not-in-registry|crates/vox-orchestrator-mcp/src/server.rs|VOX_MCP_TIERS
 env-var-not-in-registry|crates/vox-orchestrator/src/mesh_federation_poll.rs|VOX_POPULI_PERSIST_LOCAL_REGISTRY
 env-var-not-in-registry|crates/vox-orchestrator/src/models/select.rs|VOX_EXPLORATION_BUDGET_EXHAUSTED
 env-var-not-in-registry|crates/vox-orchestrator/src/models/select.rs|VOX_MODEL_AXES

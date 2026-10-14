@@ -21,7 +21,7 @@ category: "Language Reference"
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml) (itself projected from [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml)).
 
-**schema_version:** `1` · **vox-cli operations:** 998
+**schema_version:** `1` · **vox-cli operations:** 1005
 
 | Path | Status | Feature gate | Latin ns | Product lane | Catalog group |
 |------|--------|--------------|----------|--------------|----------------|
@@ -719,6 +719,10 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox harness publish` | active | — | — | ai | — |
 | `vox harness report` | active | — | — | ai | — |
 | `vox init` | active | — | pm | platform | — |
+| `vox kb` | active | — | — | ai | — |
+| `vox kb eval` | active | — | — | ai | — |
+| `vox kb reindex` | active | — | — | ai | — |
+| `vox kb status` | active | — | — | ai | — |
 | `vox live` | active | live | — | ai | — |
 | `vox llm` | active | — | — | ai | — |
 | `vox llm prompt` | active | — | — | ai | — |
@@ -758,6 +762,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox migrate names` | active | — | pm | platform | — |
 | `vox migrate web` | active | — | pm | platform | — |
 | `vox model` | active | — | — | ai | — |
+| `vox model bench` | active | — | — | ai | — |
 | `vox model cas` | active | — | — | ai | — |
 | `vox model cas ls` | active | — | — | ai | — |
 | `vox model cas pull` | active | — | — | ai | — |
@@ -767,6 +772,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox model council-report` | active | — | — | ai | — |
 | `vox model discover` | active | — | — | ai | — |
 | `vox model eval` | active | — | — | ai | — |
+| `vox model eval-compare` | active | — | — | ai | — |
 | `vox model eval-corpus` | active | — | — | ai | — |
 | `vox model explain` | active | — | — | ai | — |
 | `vox model list` | active | — | — | ai | — |
@@ -974,6 +980,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox secrets set` | active | — | ars | platform | — |
 | `vox secrets status` | active | — | ars | platform | — |
 | `vox secrets sync` | active | — | ars | platform | — |
+| `vox serve` | active | — | — | platform | — |
 | `vox share` | active | — | ars | interop | — |
 | `vox shell` | active | — | — | platform | — |
 | `vox shell check` | active | — | — | platform | — |

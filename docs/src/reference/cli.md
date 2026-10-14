@@ -692,6 +692,14 @@ Without `--allow-unverified`, an install with no matching `sha256` fails closed:
 
 Spawns the **`vox-lsp`** binary (from the `vox-lsp` crate) with stdio inherited. Ensure `vox-lsp` is on `PATH` (e.g. `cargo build -p vox-lsp` and use `target/debug`).
 
+### `vox mcp`
+
+Starts the stdio MCP server (feature `mcp-server`). Tool calls are forwarded to the shared `vox-orchestrator-d`. `--profile <ids>` scopes `tools/list` and dispatch to a capability profile (default: `VOX_PROFILE`, then `VOX_PROFILE` in `~/.vox/config.toml`, then `dev` = every tool). A running daemon with a different profile is not adopted (`profile_mismatch`). See [capability-profiles.md](capability-profiles.md).
+
+### `vox serve`
+
+Runs `vox-orchestrator-d` in the foreground with the HTTP gateway enabled and no stdio transport, scoped by `--profile <ids>` (same defaults as `vox mcp`). Requires gateway auth (`VOX_MCP_HTTP_BEARER_TOKEN` / `VOX_MCP_HTTP_READ_BEARER_TOKEN`, or `VOX_MCP_HTTP_ALLOW_UNAUTHENTICATED=1` for local testing). Refuses to start when a daemon is already running. See [capability-profiles.md](capability-profiles.md).
+
 ## Mens / DeI (feature-gated)
 
 **Normative semantics** (defaults, train / merge / serve matrix, data-prep SSOT, deferred trainer flags): **[`reference/mens-training.md`](mens-training.md)**. This section lists **CLI surfaces and build features** only; do not treat it as a second SSOT for training behavior.
@@ -930,6 +938,7 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `gui` | `gui` | `commands::gui` — launch Axis; `vox gui drive` is `commands::gui::drive` |
 | `harness` | default | `commands::harness` |
 | `mcp` | `mcp-server` | `commands::mcp::run` — start the Model Context Protocol server; without the feature it fails with a rebuild instruction |
+| `serve` | default | `commands::serve::run` — foreground `vox-orchestrator-d` with the HTTP gateway enabled and no stdio MCP, scoped by `--profile` |
 | `add` | default | `commands::add` |
 | `audit` | default | `commands::audit` |
 | `auth` | default | `commands::auth` |

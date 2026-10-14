@@ -1,171 +1,103 @@
-//! GUI chat session persistence via `conversations` / `conversation_messages`.
+//! GUI chat sessions, served by the daemon (`GET /api/v2/chat/*` and the `vox_chat_session_*`
+//! ops) so they work against a local or a remote Vox server.
 
 use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde_json::json;
 use tauri::State;
-use vox_db::VoxDb;
+use vox_orchestrator_mcp::gui_ops::dto::chat::reply_metadata_json;
+pub use vox_orchestrator_mcp::gui_ops::dto::chat::{ChatMessageDto, ChatSessionDto};
 
-use crate::commands::daemon::PersistentDaemon;
-use crate::commands::gui_db_pool::{GuiDbPool, map_db_err};
+use crate::remote::backend::BackendState;
+use crate::remote::calls::{BackendCalls, api_data, encode_component, path_with_query, tool_data};
 
-fn pool_db(pool: &GuiDbPool) -> Result<Arc<VoxDb>, String> {
-    pool.handle()
+const CREATE_TOOL: &str = "vox_chat_session_create";
+const APPEND_TOOL: &str = "vox_chat_session_append";
+const RENAME_TOOL: &str = "vox_chat_session_rename";
+const ARCHIVE_TOOL: &str = "vox_chat_session_archive";
+const CHAT_TOOL: &str = "vox_chat_message";
+
+pub(crate) async fn create_session_impl<B: BackendCalls>(
+    b: &B,
+    title: Option<String>,
+) -> Result<ChatSessionDto, String> {
+    tool_data(
+        CREATE_TOOL,
+        b.call_tool(CREATE_TOOL, json!({ "title": title })).await?,
+    )
 }
 
-#[derive(Debug, Serialize)]
-pub struct ChatSessionDto {
-    pub session_id: String,
-    pub title: String,
-    pub updated_at: String,
-    pub message_count: i64,
-    pub conversation_id: i64,
-    pub repository_id: Option<String>,
+pub(crate) async fn list_sessions_impl<B: BackendCalls>(
+    b: &B,
+    limit: Option<usize>,
+    include_archived: Option<bool>,
+) -> Result<Vec<ChatSessionDto>, String> {
+    let path = path_with_query(
+        "/chat/sessions",
+        &[
+            ("limit", limit.map(|l| l.to_string())),
+            (
+                "include_archived",
+                Some(include_archived.unwrap_or(false).to_string()),
+            ),
+        ],
+    );
+    api_data(b.api_v2_get(&path).await?)
 }
 
-#[derive(Debug, Serialize)]
-pub struct ChatMessageDto {
-    pub id: i64,
-    pub role: String,
-    pub content: String,
-    pub created_at: String,
-    pub task_id: Option<String>,
-    /// Model that produced this message, if recorded at append time.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub model_id: Option<String>,
-    /// Turn latency in milliseconds, if recorded at append time (synchronous
-    /// chat replies only — see `chat_send_message`).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub latency_ms: Option<u64>,
-    /// Human-readable reason the model was chosen, if recorded at append time
-    /// (synchronous chat replies only — see `chat_send_message`).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub selection_reason: Option<String>,
-    /// True when the opt-in post-reply grounding check (see
-    /// `ChatSendInput::grounding_check_enabled`) flagged this reply as
-    /// low-confidence. `None` when the check was not run (disabled, or an
-    /// older message predating this field).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub grounding_flagged: Option<bool>,
+pub(crate) async fn get_messages_impl<B: BackendCalls>(
+    b: &B,
+    session_id: &str,
+    limit: Option<usize>,
+) -> Result<Vec<ChatMessageDto>, String> {
+    let path = path_with_query(
+        &format!("/chat/sessions/{}/messages", encode_component(session_id)),
+        &[("limit", limit.map(|l| l.to_string()))],
+    );
+    api_data(b.api_v2_get(&path).await?)
+}
+
+async fn append_impl<B: BackendCalls>(
+    b: &B,
+    session_id: &str,
+    role: &str,
+    content: &str,
+    metadata_json: Option<String>,
+) -> Result<ChatMessageDto, String> {
+    let args = json!({
+        "session_id": session_id,
+        "role": role,
+        "content": content,
+        "metadata_json": metadata_json,
+    });
+    tool_data(APPEND_TOOL, b.call_tool(APPEND_TOOL, args).await?)
 }
 
 #[tauri::command]
 pub async fn chat_create_session(
-    pool: State<'_, GuiDbPool>,
+    backend: State<'_, Arc<BackendState>>,
     title: Option<String>,
 ) -> Result<ChatSessionDto, String> {
-    let db = pool_db(&pool)?;
-    let session_id = uuid::Uuid::new_v4().to_string();
-    let title = title.unwrap_or_else(|| "New chat".to_string());
-
-    let cwd = std::env::current_dir().unwrap_or_default();
-    let repo_ctx = vox_repository::discover_repository_or_fallback(&cwd);
-    let repository_id = Some(repo_ctx.repository_id);
-
-    let conv_id = db
-        .chat_ensure_gui_session_with_repo(&session_id, &title, repository_id.as_deref())
-        .await
-        .map_err(map_db_err)?;
-
-    // Match SQLite's `datetime('now')` format (YYYY-MM-DD HH:MM:SS) so this freshly-created
-    // row's timestamp sorts correctly (lexicographically) alongside DB-read rows -- an empty
-    // string here previously sorted a brand-new session to the bottom of its repo group in
-    // the sidebar instead of the top.
-    let updated_at = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
-
-    Ok(ChatSessionDto {
-        session_id,
-        title,
-        updated_at,
-        message_count: 0,
-        conversation_id: conv_id,
-        repository_id,
-    })
+    create_session_impl(&backend.current().await, title).await
 }
 
 #[tauri::command]
 pub async fn chat_list_sessions(
-    pool: State<'_, GuiDbPool>,
+    backend: State<'_, Arc<BackendState>>,
     limit: Option<usize>,
     include_archived: Option<bool>,
 ) -> Result<Vec<ChatSessionDto>, String> {
-    let db = pool_db(&pool)?;
-    let lim = limit.unwrap_or(40);
-    let rows = db
-        .chat_list_gui_sessions(lim, include_archived.unwrap_or(false))
-        .await
-        .map_err(map_db_err)?;
-    Ok(rows
-        .into_iter()
-        .map(
-            |(conversation_id, title, session_id, updated_at, message_count, repository_id)| {
-                ChatSessionDto {
-                    session_id,
-                    title,
-                    updated_at,
-                    message_count,
-                    conversation_id,
-                    repository_id,
-                }
-            },
-        )
-        .collect())
+    list_sessions_impl(&backend.current().await, limit, include_archived).await
 }
 
 #[tauri::command]
 pub async fn chat_get_messages(
-    pool: State<'_, GuiDbPool>,
+    backend: State<'_, Arc<BackendState>>,
     session_id: String,
     limit: Option<usize>,
 ) -> Result<Vec<ChatMessageDto>, String> {
-    let db = pool_db(&pool)?;
-    let lim = limit.unwrap_or(500);
-    let rows = db
-        .chat_get_gui_messages(&session_id, lim)
-        .await
-        .map_err(map_db_err)?;
-    Ok(rows
-        .into_iter()
-        .map(|(id, role, content, created_at, payload)| {
-            let (task_id, model_id, latency_ms, selection_reason, grounding_flagged) = payload
-                .and_then(|p| serde_json::from_str::<serde_json::Value>(&p).ok())
-                .map(|v| {
-                    let task_id = v
-                        .get("task_id")
-                        .and_then(|t| t.as_str())
-                        .map(str::to_string);
-                    let model_id = v
-                        .get("model_id")
-                        .and_then(|m| m.as_str())
-                        .map(str::to_string);
-                    let latency_ms = v.get("latency_ms").and_then(|l| l.as_u64());
-                    let selection_reason = v
-                        .get("selection_reason")
-                        .and_then(|s| s.as_str())
-                        .map(str::to_string);
-                    let grounding_flagged = v.get("grounding_flagged").and_then(|g| g.as_bool());
-                    (
-                        task_id,
-                        model_id,
-                        latency_ms,
-                        selection_reason,
-                        grounding_flagged,
-                    )
-                })
-                .unwrap_or((None, None, None, None, None));
-            ChatMessageDto {
-                id,
-                role,
-                content,
-                created_at,
-                task_id,
-                model_id,
-                latency_ms,
-                selection_reason,
-                grounding_flagged,
-            }
-        })
-        .collect())
+    get_messages_impl(&backend.current().await, &session_id, limit).await
 }
 
 #[derive(Debug, Deserialize)]
@@ -184,45 +116,45 @@ pub struct ChatAppendInput {
     pub already_submitted: bool,
 }
 
-#[tauri::command]
-pub async fn chat_append_message<R: tauri::Runtime>(
-    app_handle: tauri::AppHandle<R>,
-    input: ChatAppendInput,
-    pool: State<'_, GuiDbPool>,
-    // No longer used to dispatch a task directly (Task 0.2: propose-only —
-    // see `secretary_confirm_task` for the daemon call). Kept in the
-    // signature so the Tauri command's argument shape (and existing test
-    // call sites) don't need to change.
-    _daemon: tauri::State<'_, Arc<PersistentDaemon>>,
-) -> Result<i64, String> {
+/// `payload_json` for an appended message: `task_id` / `model_id` when present.
+fn append_metadata_json(input: &ChatAppendInput) -> Option<String> {
+    let mut obj = serde_json::Map::new();
+    if let Some(t) = &input.task_id {
+        obj.insert("task_id".into(), t.clone().into());
+    }
+    if let Some(m) = &input.model_id {
+        obj.insert("model_id".into(), m.clone().into());
+    }
+    (!obj.is_empty()).then(|| serde_json::Value::Object(obj).to_string())
+}
+
+pub(crate) async fn append_message_impl<B: BackendCalls>(
+    b: &B,
+    input: &ChatAppendInput,
+) -> Result<ChatMessageDto, String> {
     if input.session_id.trim().is_empty() {
         return Err("session_id must not be empty".to_string());
     }
     if input.role.trim().is_empty() {
         return Err("role must not be empty".to_string());
     }
-    let db = pool_db(&pool)?;
-    let conv_id = db
-        .chat_ensure_gui_session(&input.session_id, "Chat")
-        .await
-        .map_err(map_db_err)?;
-    let payload = match (&input.task_id, &input.model_id) {
-        (None, None) => None,
-        _ => {
-            let mut obj = serde_json::Map::new();
-            if let Some(ref t) = input.task_id {
-                obj.insert("task_id".to_string(), serde_json::Value::String(t.clone()));
-            }
-            if let Some(ref m) = input.model_id {
-                obj.insert("model_id".to_string(), serde_json::Value::String(m.clone()));
-            }
-            Some(serde_json::Value::Object(obj).to_string())
-        }
-    };
-    let msg_id = db
-        .chat_append_message(conv_id, &input.role, &input.content, payload.as_deref())
-        .await
-        .map_err(map_db_err)?;
+    append_impl(
+        b,
+        &input.session_id,
+        &input.role,
+        &input.content,
+        append_metadata_json(input),
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn chat_append_message<R: tauri::Runtime>(
+    app_handle: tauri::AppHandle<R>,
+    input: ChatAppendInput,
+    backend: State<'_, Arc<BackendState>>,
+) -> Result<i64, String> {
+    let msg = append_message_impl(&backend.current().await, &input).await?;
 
     // Secretary: detect actionable intent in user messages and *propose* it
     // to the user — it must NOT auto-submit to the orchestrator daemon task
@@ -251,7 +183,7 @@ pub async fn chat_append_message<R: tauri::Runtime>(
         );
     }
 
-    Ok(msg_id)
+    Ok(msg.id)
 }
 
 /// Build the SUBMIT_TASK RPC params for a secretary-confirmed task.
@@ -283,21 +215,16 @@ pub async fn secretary_confirm_task<R: tauri::Runtime>(
     session_id: String,
     intent: String,
     active_skill: Option<String>,
-    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+    backend: State<'_, Arc<BackendState>>,
 ) -> Result<Option<String>, String> {
-    use vox_foundation::protocol::orch_daemon_method;
-    use vox_orchestrator::orch_daemon::OrchDaemonClient;
-
     let params = build_submit_task_params(&session_id, &intent, active_skill.as_deref());
-    let addr = daemon.ensure().await.map_err(|e| e.to_string())?;
-    let client = match daemon.token().await {
-        Some(token) => OrchDaemonClient::with_token(addr, token),
-        None => OrchDaemonClient::new(addr),
-    };
-    let raw = client
-        .call(orch_daemon_method::SUBMIT_TASK, params)
+    let raw = backend
+        .call(
+            vox_foundation::protocol::orch_daemon_method::SUBMIT_TASK,
+            params,
+        )
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(String::from)?;
 
     let task_id = submitted_task_id(&raw);
     if task_id.is_some() {
@@ -308,53 +235,47 @@ pub async fn secretary_confirm_task<R: tauri::Runtime>(
     Ok(task_id)
 }
 
+pub(crate) async fn rename_session_impl<B: BackendCalls>(
+    b: &B,
+    session_id: &str,
+    title: &str,
+) -> Result<(), String> {
+    let args = json!({ "session_id": session_id, "title": title });
+    tool_data::<String>(RENAME_TOOL, b.call_tool(RENAME_TOOL, args).await?).map(|_| ())
+}
+
+pub(crate) async fn archive_session_impl<B: BackendCalls>(
+    b: &B,
+    session_id: &str,
+    archived: bool,
+) -> Result<(), String> {
+    let args = json!({ "session_id": session_id, "archived": archived });
+    tool_data::<String>(ARCHIVE_TOOL, b.call_tool(ARCHIVE_TOOL, args).await?).map(|_| ())
+}
+
 #[tauri::command]
 pub async fn chat_rename_session(
-    pool: State<'_, GuiDbPool>,
+    backend: State<'_, Arc<BackendState>>,
     session_id: String,
     title: String,
 ) -> Result<(), String> {
-    let db = pool_db(&pool)?;
-    let conv_id = db
-        .chat_find_gui_conversation_id(&session_id)
-        .await
-        .map_err(map_db_err)?
-        .ok_or_else(|| "session not found".to_string())?;
-    db.chat_rename_conversation(conv_id, &title)
-        .await
-        .map_err(map_db_err)
+    rename_session_impl(&backend.current().await, &session_id, &title).await
 }
 
 #[tauri::command]
 pub async fn chat_archive_session(
-    pool: State<'_, GuiDbPool>,
+    backend: State<'_, Arc<BackendState>>,
     session_id: String,
 ) -> Result<(), String> {
-    let db = pool_db(&pool)?;
-    let conv_id = db
-        .chat_find_gui_conversation_id(&session_id)
-        .await
-        .map_err(map_db_err)?
-        .ok_or_else(|| "session not found".to_string())?;
-    db.chat_archive_conversation(conv_id)
-        .await
-        .map_err(map_db_err)
+    archive_session_impl(&backend.current().await, &session_id, true).await
 }
 
 #[tauri::command]
 pub async fn chat_unarchive_session(
-    pool: State<'_, GuiDbPool>,
+    backend: State<'_, Arc<BackendState>>,
     session_id: String,
 ) -> Result<(), String> {
-    let db = pool_db(&pool)?;
-    let conv_id = db
-        .chat_find_gui_conversation_id_including_archived(&session_id)
-        .await
-        .map_err(map_db_err)?
-        .ok_or_else(|| format!("session {session_id} not found"))?;
-    db.chat_unarchive_conversation(conv_id)
-        .await
-        .map_err(map_db_err)
+    archive_session_impl(&backend.current().await, &session_id, false).await
 }
 
 /// Secretary gate: never classify a message the composer already submitted
@@ -409,8 +330,8 @@ pub(crate) struct ParsedChatReply {
 
 /// Extracts a [`ParsedChatReply`] from a `vox_chat_message` `ToolResult`
 /// envelope (`{"success", "data": {"message": {..., "content"}, "model_used"}}`
-/// or `{"success": false, "error"}`) as returned directly by
-/// `OrchDaemonClient::call(TOOL_CALL, ...)`.
+/// or `{"success": false, "error"}`), or reports a profile denial
+/// (`{"error": {"code", "message"}}`) as `code: message`.
 pub(crate) fn parse_chat_message_envelope(
     envelope: &serde_json::Value,
 ) -> Result<ParsedChatReply, String> {
@@ -419,12 +340,15 @@ pub(crate) fn parse_chat_message_envelope(
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
     if !success {
-        let err = envelope
-            .get("error")
-            .and_then(|v| v.as_str())
-            .unwrap_or("vox_chat_message failed with no error detail")
-            .to_string();
-        return Err(err);
+        return Err(match envelope.get("error") {
+            Some(serde_json::Value::String(s)) => s.clone(),
+            Some(serde_json::Value::Object(o)) => format!(
+                "{}: {}",
+                o.get("code").and_then(|c| c.as_str()).unwrap_or("error"),
+                o.get("message").and_then(|m| m.as_str()).unwrap_or("")
+            ),
+            _ => "vox_chat_message failed with no error detail".to_string(),
+        });
     }
     let data = envelope
         .get("data")
@@ -458,105 +382,42 @@ pub(crate) fn parse_chat_message_envelope(
     })
 }
 
-/// Persists an already-parsed assistant reply and returns a DTO with a real
-/// (not blank) `created_at`. Split out from `chat_send_message` so this half
-/// of the flow — the part that doesn't need a live daemon — is independently
-/// unit-testable against the in-memory test DB.
+/// Persists an already-parsed assistant reply into the GUI session's display
+/// transcript (`vox_chat_session_append`) and returns the stored message, with
+/// the server's real `created_at`.
 ///
-/// This writes into the GUI-only conversation returned by
-/// `VoxDb::chat_ensure_gui_session(session_id, ..)`, keyed by `session_id`
-/// alone. That store is display-only, for rendering the transcript in this
-/// GUI's chat panel — it is NOT what feeds the model's context. This is
-/// intentionally separate from, and independent of, the "workspace"
-/// conversation that `vox_chat_message` itself persists into inside
-/// `vox-orchestrator-mcp`'s `chat_tools::chat::message` handler, via
-/// `VoxDb::chat_ensure_workspace_conversation(repository_id, session_id, ..)`
-/// (keyed by `(repository_id, session_id)`), which is what actually backs
-/// `chat_history:{session_id}` and is threaded into future model context.
-/// Both writes happen on every `chat_send_message` call — that duplication
-/// is correct, not a bug: do not remove either write thinking it duplicates
-/// the other.
-pub(crate) async fn persist_assistant_reply(
-    db: &VoxDb,
-    conv_id: i64,
-    content: &str,
-    model_id: Option<&str>,
-    latency_ms: Option<u64>,
-    selection_reason: Option<&str>,
+/// That store is display-only, for rendering the transcript in this GUI's chat
+/// panel — it is NOT what feeds the model's context. `vox_chat_message` itself
+/// persists the turn into the separate "workspace" conversation keyed by
+/// `(repository_id, session_id)`, which backs `chat_history:{session_id}`.
+/// Both writes happen on every synchronous turn — that duplication is correct,
+/// not a bug: do not remove either write thinking it duplicates the other.
+pub(crate) async fn persist_assistant_reply<B: BackendCalls>(
+    b: &B,
+    session_id: &str,
+    reply: &ParsedChatReply,
     grounding_flagged: Option<bool>,
 ) -> Result<ChatMessageDto, String> {
-    let payload = if model_id.is_some()
-        || latency_ms.is_some()
-        || selection_reason.is_some()
-        || grounding_flagged.is_some()
-    {
-        let mut obj = serde_json::Map::new();
-        if let Some(m) = model_id {
-            obj.insert(
-                "model_id".to_string(),
-                serde_json::Value::String(m.to_string()),
-            );
-        }
-        if let Some(l) = latency_ms {
-            obj.insert("latency_ms".to_string(), serde_json::json!(l));
-        }
-        if let Some(r) = selection_reason {
-            obj.insert(
-                "selection_reason".to_string(),
-                serde_json::Value::String(r.to_string()),
-            );
-        }
-        if let Some(g) = grounding_flagged {
-            obj.insert("grounding_flagged".to_string(), serde_json::json!(g));
-        }
-        Some(serde_json::Value::Object(obj).to_string())
-    } else {
-        None
-    };
-    let msg_id = db
-        .chat_append_message(conv_id, "assistant", content, payload.as_deref())
-        .await
-        .map_err(map_db_err)?;
-    let created_at = db
-        .chat_message_created_at(msg_id)
-        .await
-        .map_err(map_db_err)?;
-    Ok(ChatMessageDto {
-        id: msg_id,
-        role: "assistant".to_string(),
-        content: content.to_string(),
-        created_at,
-        task_id: None,
-        model_id: model_id.map(str::to_string),
-        latency_ms,
-        selection_reason: selection_reason.map(str::to_string),
+    let metadata = reply_metadata_json(
+        reply.model_id.as_deref(),
+        reply.latency_ms,
+        reply.selection_reason.as_deref(),
         grounding_flagged,
-    })
+    );
+    append_impl(b, session_id, "assistant", &reply.content, metadata).await
 }
 
-/// Synchronous chat reply: calls the real agent loop (`vox_chat_message` via
-/// the daemon's `orch.tool_call`) and persists the assistant's reply via
-/// `persist_assistant_reply`. Unlike `secretary_confirm_task` (which submits
-/// a background work-order task via `SUBMIT_TASK`), this returns a
-/// model-authored reply directly for immediate transcript rendering — the
-/// synchronous chat path this GUI never had. Mirrors `secretary_confirm_task`'s
-/// daemon-call shape exactly (same file, a few lines above) rather than going
-/// through the generic `invoke_mcp_tool` command, whose extra
-/// `{"tool","is_error","result"}` wrapper this function does not need.
-///
-/// Note on persistence: the `vox_chat_message` call below already persists
-/// the user+assistant turn server-side into a "workspace" conversation (see
-/// `persist_assistant_reply`'s doc comment for the exact tables/keys). The
-/// `persist_assistant_reply` call after it writes the same assistant reply
-/// again, but into a separate GUI-only "display" conversation. Both writes
-/// are intentional and target different, non-converging stores — see
-/// `persist_assistant_reply` for why.
-#[tauri::command]
-pub async fn chat_send_message<R: tauri::Runtime>(
-    _app_handle: tauri::AppHandle<R>,
-    input: ChatSendInput,
-    pool: State<'_, GuiDbPool>,
-    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+/// Opt-in, non-blocking post-reply grounding check: runs after the reply is
+/// already in hand (a cheap deterministic heuristic, not a second LLM call —
+/// see `assess_reply_confidence`'s doc comment).
+pub(crate) fn grounding_flag(enabled: Option<bool>, content: &str) -> Option<bool> {
+    (enabled == Some(true))
+        .then(|| vox_orchestrator::grounding::assess_reply_confidence(content).flagged)
+}
+
+pub(crate) async fn send_message_impl<B: BackendCalls>(
+    b: &B,
+    input: &ChatSendInput,
 ) -> Result<ChatMessageDto, String> {
     if input.session_id.trim().is_empty() {
         return Err("session_id must not be empty".to_string());
@@ -564,141 +425,210 @@ pub async fn chat_send_message<R: tauri::Runtime>(
     if input.content.trim().is_empty() {
         return Err("content must not be empty".to_string());
     }
-    let addr = daemon.ensure().await?;
-    let client = match daemon.token().await {
-        Some(token) => vox_orchestrator::orch_daemon::OrchDaemonClient::with_token(addr, token),
-        None => vox_orchestrator::orch_daemon::OrchDaemonClient::new(addr),
-    };
-    let mut args = serde_json::json!({
+    let mut args = json!({
         "prompt": input.content,
         "session_id": input.session_id,
     });
     if let Some(skill) = input.active_skill.as_ref() {
         args["active_skill"] = serde_json::Value::String(skill.clone());
     }
-    // Task 15d review round 1 (B1): see chat_turn.rs's `run_sync` for why
-    // `vox_chat_message` needs its own, longer client read deadline.
-    let envelope = client
-        .call_with_deadline(
-            vox_foundation::protocol::orch_daemon_method::TOOL_CALL,
-            serde_json::json!({ "name": "vox_chat_message", "args": args }),
-            vox_orchestrator_mcp::dispatch_timeout::CHAT_MESSAGE_CLIENT_DEADLINE,
-        )
-        .await
-        .map_err(|e| e.to_string())?;
+    let envelope = b.call_tool(CHAT_TOOL, args).await?;
     let reply = parse_chat_message_envelope(&envelope)?;
+    let grounding_flagged = grounding_flag(input.grounding_check_enabled, &reply.content);
+    persist_assistant_reply(b, &input.session_id, &reply, grounding_flagged).await
+}
 
-    // Opt-in, non-blocking post-reply grounding check: runs after the reply
-    // is already in hand (a cheap deterministic heuristic, not a second LLM
-    // call — see `assess_reply_confidence`'s doc comment), so it never
-    // delays the response the user sees.
-    let grounding_flagged = if input.grounding_check_enabled == Some(true) {
-        Some(vox_orchestrator::grounding::assess_reply_confidence(&reply.content).flagged)
-    } else {
-        None
-    };
-
-    let db = pool_db(&pool)?;
-    let conv_id = db
-        .chat_ensure_gui_session(&input.session_id, "Chat")
-        .await
-        .map_err(map_db_err)?;
-    persist_assistant_reply(
-        &db,
-        conv_id,
-        &reply.content,
-        reply.model_id.as_deref(),
-        reply.latency_ms,
-        reply.selection_reason.as_deref(),
-        grounding_flagged,
-    )
-    .await
+/// Synchronous chat reply: calls the real agent loop (`vox_chat_message`) and
+/// persists the assistant's reply into the display transcript. The user's own
+/// message is appended by the frontend (`chat_append_message`) beforehand.
+#[tauri::command]
+pub async fn chat_send_message<R: tauri::Runtime>(
+    _app_handle: tauri::AppHandle<R>,
+    input: ChatSendInput,
+    backend: State<'_, Arc<BackendState>>,
+) -> Result<ChatMessageDto, String> {
+    send_message_impl(&backend.current().await, &input).await
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vox_db::{DbConfig, VoxDb};
+    use crate::remote::calls::fake::FakeBackend;
 
-    #[tokio::test]
-    async fn chat_append_rejects_empty_session_id() {
-        use tauri::Manager;
-        let app = tauri::test::mock_app();
-        app.manage(Arc::new(PersistentDaemon::default()));
-        app.manage(GuiDbPool::connect_memory().await.expect("memory pool"));
-        let input = ChatAppendInput {
-            session_id: "   ".to_string(),
-            role: "user".to_string(),
-            content: "hi".to_string(),
-            task_id: None,
+    fn keys(b: &FakeBackend) -> Vec<String> {
+        b.calls().into_iter().map(|(k, _)| k).collect()
+    }
+
+    fn ok_tool(data: serde_json::Value) -> Result<serde_json::Value, String> {
+        Ok(json!({ "success": true, "data": data }))
+    }
+
+    fn message(id: i64, role: &str, content: &str) -> serde_json::Value {
+        json!({ "id": id, "role": role, "content": content, "created_at": "2026-10-09 00:00:00", "task_id": null })
+    }
+
+    fn session(id: &str) -> serde_json::Value {
+        json!({
+            "session_id": id, "title": "T", "updated_at": "now", "message_count": 0,
+            "conversation_id": 1, "repository_id": "repo"
+        })
+    }
+
+    fn append_input(session_id: &str, role: &str) -> ChatAppendInput {
+        ChatAppendInput {
+            session_id: session_id.into(),
+            role: role.into(),
+            content: "please fix the broken authentication flow in the login page it keeps failing"
+                .into(),
+            task_id: Some("7".into()),
             model_id: None,
             already_submitted: false,
-        };
-        let daemon = app.state::<Arc<PersistentDaemon>>();
-        let pool = app.state::<GuiDbPool>();
-        let err = chat_append_message(app.handle().clone(), input, pool, daemon)
-            .await
-            .expect_err("empty session");
-        assert!(err.contains("session_id"));
+        }
     }
 
     #[tokio::test]
-    async fn chat_session_round_trip() {
-        let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
-        let session_id = "test-session-1";
-        let conv = db
-            .chat_ensure_gui_session(session_id, "Test")
-            .await
-            .expect("ensure");
-        let msg_id = db
-            .chat_append_message(conv, "user", "hello", None)
-            .await
-            .expect("append");
-        assert!(msg_id > 0);
-        let msgs = db.chat_get_gui_messages(session_id, 10).await.expect("get");
-        assert_eq!(msgs.len(), 1);
-        assert_eq!(msgs[0].2, "hello");
+    async fn each_session_command_issues_exactly_its_call() {
+        let b = FakeBackend::new()
+            .on_tool(CREATE_TOOL, ok_tool(session("s1")))
+            .on_tool(RENAME_TOOL, ok_tool(json!("s1")))
+            .on_tool(ARCHIVE_TOOL, ok_tool(json!("s1")))
+            .on_get(
+                "/chat/sessions?limit=200&include_archived=false",
+                Ok(json!({ "v": 1, "data": [session("s1")] })),
+            )
+            .on_get(
+                "/chat/sessions/a%2Fb/messages?limit=5",
+                Ok(json!({ "v": 1, "data": [message(1, "user", "hi")] })),
+            );
+
+        let s = create_session_impl(&b, Some("T".into())).await.unwrap();
+        assert_eq!(s.session_id, "s1");
+        let all = list_sessions_impl(&b, Some(200), None).await.unwrap();
+        assert_eq!(all.len(), 1);
+        let msgs = get_messages_impl(&b, "a/b", Some(5)).await.unwrap();
+        assert_eq!(msgs[0].content, "hi");
+        rename_session_impl(&b, "s1", "New").await.unwrap();
+        archive_session_impl(&b, "s1", true).await.unwrap();
+        archive_session_impl(&b, "s1", false).await.unwrap();
+
+        assert_eq!(
+            keys(&b),
+            vec![
+                "tool:vox_chat_session_create",
+                "get:/chat/sessions?limit=200&include_archived=false",
+                "get:/chat/sessions/a%2Fb/messages?limit=5",
+                "tool:vox_chat_session_rename",
+                "tool:vox_chat_session_archive",
+                "tool:vox_chat_session_archive",
+            ]
+        );
+        let calls = b.calls();
+        assert_eq!(calls[0].1, json!({ "title": "T" }));
+        assert_eq!(calls[4].1["archived"], true);
+        assert_eq!(calls[5].1["archived"], false);
     }
 
-    /// Task 0.2 regression: a classified message must NOT trigger a
-    /// `SUBMIT_TASK` daemon round-trip from `chat_append_message` — it only
-    /// emits the proposal event. Before this fix, an actionable message
-    /// spawned a task that called `daemon.ensure()` (which spawns/connects to
-    /// the real orchestrator daemon binary and can take seconds). Bounding
-    /// the call in a short timeout proves no such daemon interaction happens
-    /// on this path anymore.
     #[tokio::test]
-    async fn chat_append_message_does_not_auto_dispatch_to_daemon() {
-        use tauri::Manager;
-        let app = tauri::test::mock_app();
-        app.manage(Arc::new(PersistentDaemon::default()));
-        app.manage(GuiDbPool::connect_memory().await.expect("memory pool"));
-        let input = ChatAppendInput {
-            session_id: "propose-only-session".to_string(),
-            role: "user".to_string(),
-            // Actionable per the classifier (>=10 words, whole-word verb).
-            content: "please fix the broken authentication flow in the login \
-                      page it keeps failing"
-                .to_string(),
-            task_id: None,
-            model_id: None,
-            already_submitted: false,
+    async fn append_validates_locally_and_records_task_metadata() {
+        let b = FakeBackend::new().on_tool(APPEND_TOOL, ok_tool(message(9, "user", "x")));
+        for (sid, role, needle) in [("  ", "user", "session_id"), ("s", " ", "role")] {
+            let err = append_message_impl(&b, &append_input(sid, role))
+                .await
+                .unwrap_err();
+            assert!(err.contains(needle), "{err}");
+        }
+        assert!(
+            b.calls().is_empty(),
+            "invalid input must not reach the server"
+        );
+
+        let msg = append_message_impl(&b, &append_input("s", "user"))
+            .await
+            .unwrap();
+        assert_eq!(msg.id, 9);
+        let calls = b.calls();
+        assert_eq!(keys(&b), vec!["tool:vox_chat_session_append"]);
+        assert_eq!(calls[0].1["role"], "user");
+        assert_eq!(calls[0].1["metadata_json"], r#"{"task_id":"7"}"#);
+    }
+
+    #[tokio::test]
+    async fn send_message_calls_chat_then_persists_the_reply_with_metadata() {
+        let b = FakeBackend::new()
+            .on_tool(
+                CHAT_TOOL,
+                Ok(json!({
+                    "success": true,
+                    "data": {
+                        "message": {"content": "Perhaps this is the cause. It might be unclear. This is probably wrong."},
+                        "model_used": "m/x",
+                        "latency_ms": 12
+                    }
+                })),
+            )
+            .on_tool(APPEND_TOOL, ok_tool(message(3, "assistant", "reply")));
+        let input = ChatSendInput {
+            session_id: "s".into(),
+            content: "hello".into(),
+            active_skill: Some("code-review".into()),
+            grounding_check_enabled: Some(true),
         };
-        let daemon = app.state::<Arc<PersistentDaemon>>();
-        let pool = app.state::<GuiDbPool>();
-        let result = tokio::time::timeout(
-            vox_config::timeouts::D_500MS,
-            chat_append_message(app.handle().clone(), input, pool, daemon),
-        )
-        .await
-        .expect("chat_append_message must not block on the orchestrator daemon")
-        .expect("append should succeed");
-        assert!(result > 0);
+        let dto = send_message_impl(&b, &input).await.unwrap();
+        assert_eq!(dto.id, 3);
+        assert_eq!(
+            keys(&b),
+            vec!["tool:vox_chat_message", "tool:vox_chat_session_append"]
+        );
+        let calls = b.calls();
+        assert_eq!(calls[0].1["active_skill"], "code-review");
+        assert_eq!(calls[1].1["role"], "assistant");
+        let meta: serde_json::Value =
+            serde_json::from_str(calls[1].1["metadata_json"].as_str().unwrap()).unwrap();
+        assert_eq!(meta["model_id"], "m/x");
+        assert_eq!(meta["latency_ms"], 12);
+        assert_eq!(meta["grounding_flagged"], true);
+    }
+
+    #[tokio::test]
+    async fn send_message_rejects_empty_input_and_surfaces_chat_errors() {
+        let b = FakeBackend::new().on_tool(
+            CHAT_TOOL,
+            Ok(json!({"error": {"code": "tool_not_in_profile", "message": "not served"}})),
+        );
+        let empty = ChatSendInput {
+            session_id: String::new(),
+            content: "hello".into(),
+            active_skill: None,
+            grounding_check_enabled: None,
+        };
+        assert!(
+            send_message_impl(&b, &empty)
+                .await
+                .unwrap_err()
+                .contains("session_id")
+        );
+        assert!(b.calls().is_empty());
+
+        let input = ChatSendInput {
+            session_id: "s".into(),
+            ..empty
+        };
+        let err = send_message_impl(&b, &input).await.unwrap_err();
+        assert_eq!(err, "tool_not_in_profile: not served");
+        assert_eq!(keys(&b), vec!["tool:vox_chat_message"], "nothing persisted");
+    }
+
+    #[test]
+    fn chat_module_has_no_direct_db_access() {
+        let src = include_str!("chat.rs");
+        let (body, _) = src.split_once("#[cfg(test)]").unwrap();
+        assert!(!body.contains("vox_db"));
+        assert!(!body.contains("GuiDbPool"));
+        assert!(!body.contains("PersistentDaemon"));
     }
 
     #[test]
     fn secretary_classify_short_user_message_returns_none() {
-        // Verify that short messages don't trigger the secretary
         let result = vox_orchestrator::secretary::classify("user", "fix it");
         assert!(result.is_none(), "short message should return None");
     }
@@ -713,81 +643,18 @@ mod tests {
     }
 
     #[test]
-    fn chat_message_dto_model_id_roundtrip() {
-        let dto = ChatMessageDto {
-            id: 1,
-            role: "assistant".to_string(),
-            content: "hi".to_string(),
-            created_at: "now".to_string(),
-            task_id: Some("7".to_string()),
-            model_id: Some("anthropic/claude-opus-4-5".to_string()),
-            latency_ms: Some(842),
-            selection_reason: Some("Chosen by the model scorer".to_string()),
-            grounding_flagged: Some(true),
-        };
-        let j = serde_json::to_string(&dto).unwrap();
-        assert!(
-            j.contains("\"model_id\":\"anthropic/claude-opus-4-5\""),
-            "model_id present: {j}"
-        );
-        assert!(j.contains("\"task_id\":\"7\""), "task_id present: {j}");
-        assert!(j.contains("\"latency_ms\":842"), "latency_ms present: {j}");
-        assert!(
-            j.contains("\"selection_reason\":\"Chosen by the model scorer\""),
-            "selection_reason present: {j}"
-        );
-        assert!(
-            j.contains("\"grounding_flagged\":true"),
-            "grounding_flagged present: {j}"
-        );
-    }
-
-    #[test]
-    fn chat_message_dto_model_id_absent_when_none() {
-        let dto = ChatMessageDto {
-            id: 2,
-            role: "user".to_string(),
-            content: "hello".to_string(),
-            created_at: "now".to_string(),
-            task_id: None,
-            model_id: None,
-            latency_ms: None,
-            selection_reason: None,
-            grounding_flagged: None,
-        };
-        let j = serde_json::to_string(&dto).unwrap();
-        assert!(!j.contains("model_id"), "model_id absent when None: {j}");
-        assert!(
-            !j.contains("latency_ms"),
-            "latency_ms absent when None: {j}"
-        );
-        assert!(
-            !j.contains("selection_reason"),
-            "selection_reason absent when None: {j}"
-        );
-        assert!(
-            !j.contains("grounding_flagged"),
-            "grounding_flagged absent when None: {j}"
-        );
-    }
-
-    #[test]
     fn secretary_skips_messages_the_composer_already_submitted() {
-        // Precondition: this message IS actionable for the classifier.
         let msg = "fix the broken authentication flow in the login page it keeps redirecting users";
         assert!(
             vox_orchestrator::secretary::classify("user", msg).is_some(),
             "precondition: classifier finds this actionable"
         );
-        // The composer already dispatched it -> secretary must stand down.
         assert!(secretary_candidate("user", msg, true).is_none());
-        // Same message NOT pre-submitted -> secretary still classifies it.
         assert!(secretary_candidate("user", msg, false).is_some());
     }
 
     #[test]
     fn submitted_task_id_is_none_when_daemon_dedupes() {
-        // Dedupe reply: null task_id + duplicate_of. No toast may be built from this.
         assert_eq!(
             submitted_task_id(&serde_json::json!({"task_id": null, "duplicate_of": 7})),
             None
@@ -806,30 +673,6 @@ mod tests {
         )
         .expect("older frontends omit the field");
         assert!(!input.already_submitted);
-    }
-
-    #[tokio::test]
-    async fn chat_send_message_rejects_empty_session_id() {
-        use tauri::Manager;
-        let app = tauri::test::mock_app();
-        app.manage(Arc::new(PersistentDaemon::default()));
-        app.manage(GuiDbPool::connect_memory().await.expect("memory pool"));
-        let daemon = app.state::<Arc<PersistentDaemon>>();
-        let pool = app.state::<GuiDbPool>();
-        let result = chat_send_message(
-            app.handle().clone(),
-            ChatSendInput {
-                session_id: String::new(),
-                content: "hello".to_string(),
-                active_skill: None,
-                grounding_check_enabled: None,
-            },
-            pool,
-            daemon,
-        )
-        .await;
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("session_id"));
     }
 
     #[test]
@@ -872,28 +715,10 @@ mod tests {
     /// Proves the "honesty gate" (plan P3.2): `model_id` reports the
     /// server's actually-*served* model (`data.model_used`), never a
     /// silent fallback or an echo of anything else in the envelope.
-    ///
-    /// `ChatSendInput` (see above) carries no "requested model" / pinned
-    /// model field, and none reaches `parse_chat_message_envelope` — so
-    /// the request-vs-served mismatch scenario described in the plan
-    /// isn't directly constructible at this layer. Instead this proves
-    /// the next-strongest property: `model_id` comes from `model_used`
-    /// and only `model_used`.
-    ///
-    /// Case 1 plants a decoy `data.model` field with a *different* value
-    /// than `model_used`, plus reply text that itself names a third
-    /// model — a hypothetical regression that read the wrong key (e.g.
-    /// `data.get("model")`) or scraped the reply text would report a
-    /// value other than `model_used` here, so this fails against that
-    /// bug even though it passes the existing narrower test.
-    ///
-    /// Case 2 omits `model_used` entirely and asserts `model_id` is
-    /// `None` rather than falling back to the decoy `model` field or
-    /// anything else present in the envelope.
+    /// Case 1 plants a decoy `data.model` field and reply text naming a third
+    /// model; case 2 omits `model_used` and expects `None`, not the decoy.
     #[test]
     fn chat_turn_reports_model_id_of_served_hub() {
-        // Case 1: model_used is present and differs from every other
-        // model-shaped string in the envelope — the served value must win.
         let envelope = serde_json::json!({
             "success": true,
             "data": {
@@ -909,8 +734,6 @@ mod tests {
         let reply = parse_chat_message_envelope(&envelope).expect("parse ok");
         assert_eq!(reply.model_id.as_deref(), Some("qwen/qwen3.8-27b-hub"));
 
-        // Case 2: the server reports no resolved model at all — model_id
-        // must be None, not a fallback to the decoy `model` field.
         let envelope_no_model_used = serde_json::json!({
             "success": true,
             "data": {
@@ -929,65 +752,12 @@ mod tests {
         assert_eq!(err, "model unavailable");
     }
 
-    #[tokio::test]
-    async fn persist_assistant_reply_writes_row_and_returns_real_created_at() {
-        let pool = GuiDbPool::connect_memory().await.expect("memory pool");
-        let db = pool.handle().expect("db handle");
-        let conv_id = db
-            .chat_ensure_gui_session("sess-persist", "Chat")
-            .await
-            .expect("ensure session");
-        let dto = persist_assistant_reply(
-            &db,
-            conv_id,
-            "Hello!",
-            Some("openrouter/auto"),
-            Some(1234),
-            Some("Chosen by the model scorer"),
-            Some(true),
-        )
-        .await
-        .expect("persist ok");
-        assert_eq!(dto.role, "assistant");
-        assert_eq!(dto.content, "Hello!");
-        assert_eq!(dto.model_id.as_deref(), Some("openrouter/auto"));
-        assert_eq!(dto.latency_ms, Some(1234));
-        assert_eq!(
-            dto.selection_reason.as_deref(),
-            Some("Chosen by the model scorer")
-        );
-        assert_eq!(dto.grounding_flagged, Some(true));
-        assert!(!dto.created_at.is_empty(), "created_at must not be blank");
-
-        // Round-trip through chat_get_messages to prove latency_ms/selection_reason/
-        // grounding_flagged survive the payload JSON persisted into `conversation_messages`.
-        let msgs = db
-            .chat_get_gui_messages("sess-persist", 10)
-            .await
-            .expect("get messages");
-        assert_eq!(msgs.len(), 1);
-        let payload: serde_json::Value =
-            serde_json::from_str(msgs[0].4.as_deref().expect("payload_json present"))
-                .expect("payload is valid JSON");
-        assert_eq!(payload["latency_ms"], serde_json::json!(1234));
-        assert_eq!(
-            payload["selection_reason"],
-            serde_json::json!("Chosen by the model scorer")
-        );
-        assert_eq!(payload["grounding_flagged"], serde_json::json!(true));
-    }
-
-    #[tokio::test]
-    async fn chat_send_message_computes_grounding_flagged_when_enabled() {
-        // Unit-level check that `assess_reply_confidence` on a heavily-hedged
-        // reply (the shape `chat_send_message` feeds it) yields `flagged`,
-        // matching what `chat_send_message` would persist when
-        // `grounding_check_enabled` is set. `chat_send_message` itself needs
-        // a live daemon round-trip and is covered by the harness eval /
-        // manual GUI flow instead of a unit test here.
+    #[test]
+    fn grounding_flag_runs_only_when_enabled() {
         let hedged = "Perhaps this is the cause. It might be unclear. This is probably wrong.";
-        let result = vox_orchestrator::grounding::assess_reply_confidence(hedged);
-        assert!(result.flagged, "{result:?}");
+        assert_eq!(grounding_flag(Some(true), hedged), Some(true));
+        assert_eq!(grounding_flag(None, hedged), None);
+        assert_eq!(grounding_flag(Some(false), hedged), None);
     }
 
     #[test]
@@ -1000,51 +770,5 @@ mod tests {
     fn secretary_confirm_task_params_active_skill_null_when_absent() {
         let params = build_submit_task_params("sess-1", "do the thing", None);
         assert_eq!(params["active_skill"], serde_json::Value::Null);
-    }
-
-    #[tokio::test]
-    async fn chat_create_session_sets_repository_id() {
-        use tauri::Manager;
-        let app = tauri::test::mock_app();
-        app.manage(GuiDbPool::connect_memory().await.expect("memory pool"));
-        let pool = app.state::<GuiDbPool>();
-
-        let dto = chat_create_session(pool, Some("Test".into()))
-            .await
-            .unwrap();
-
-        assert!(
-            dto.repository_id.is_some(),
-            "repository_id should resolve from cwd"
-        );
-    }
-
-    #[tokio::test]
-    async fn chat_archive_and_unarchive_session_round_trip() {
-        use tauri::Manager;
-        let app = tauri::test::mock_app();
-        app.manage(GuiDbPool::connect_memory().await.expect("memory pool"));
-        let pool = app.state::<GuiDbPool>();
-
-        let dto = chat_create_session(pool.clone(), Some("Test".into()))
-            .await
-            .unwrap();
-        chat_archive_session(pool.clone(), dto.session_id.clone())
-            .await
-            .unwrap();
-
-        let active = chat_list_sessions(pool.clone(), None, None).await.unwrap();
-        assert!(!active.iter().any(|s| s.session_id == dto.session_id));
-
-        let all = chat_list_sessions(pool.clone(), None, Some(true))
-            .await
-            .unwrap();
-        assert!(all.iter().any(|s| s.session_id == dto.session_id));
-
-        chat_unarchive_session(pool.clone(), dto.session_id.clone())
-            .await
-            .unwrap();
-        let active_again = chat_list_sessions(pool, None, None).await.unwrap();
-        assert!(active_again.iter().any(|s| s.session_id == dto.session_id));
     }
 }

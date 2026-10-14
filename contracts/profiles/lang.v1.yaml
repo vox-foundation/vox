@@ -1,0 +1,25 @@
+id: lang
+description: "Vox language checks, validation, tests, builds/lints, grammar export, and compiler introspection."
+requires: [compiler]
+tools:
+  include:
+    - vox_check
+    - vox_check_workspace
+    - vox_validate_file
+    - vox_validate_source
+    - vox_validate_vuv
+    - vox_run_tests
+    - vox_test_all
+    - vox_build_crate
+    - vox_lint_crate
+    - vox_coverage_report
+    - vox_language_surface
+    - vox_builtin_registry
+    - vox_decorator_registry
+    - vox_export_grammar_ebnf
+    - "vox_compiler::ast_inspect"
+    - vox_workspace_modules
+    - vox_pipeline_status
+  include_lanes: []
+max_exposure: operator
+axis_surfaces: [lang]

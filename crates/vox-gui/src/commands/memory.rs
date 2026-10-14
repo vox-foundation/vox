@@ -1,29 +1,22 @@
-//! Mnemosyne (memory) surface for the Vox GUI.
-//!
-//! `mnemosyne_recall` / `mnemosyne_reindex` previously called
-//! `vox_orchestrator::bootstrap::build_repo_scoped_orchestrator`, which
-//! constructs a brand-new in-process `Orchestrator` — a second, disconnected
-//! instance from the one owned by `vox-orchestrator-d` (see
-//! `crate::commands::daemon::PersistentDaemon`). Only `build.config.memory`
-//! was ever read from that build, so both commands now call
-//! `repo_scoped_orchestrator_config` directly (config-only: no `Orchestrator`
-//! constructed) to resolve the repo-scoped `.vox/memory` paths. `MemoryManager`
-//! and `MemorySearchEngine` (hybrid search over `search_documents` /
-//! `knowledge_nodes` / `memories`) still run in-process here — they are
-//! stateless-per-call readers/writers over the shared VoxDb, not a second
-//! orchestrator, so there is no split-brain risk analogous to a duplicate
-//! `Orchestrator`.
+//! Mnemosyne (memory) surface for the Vox GUI, served by the daemon so it works against a
+//! local or a remote Vox server: corpus counts from `GET /api/v2/knowledge/corpus-counts`,
+//! recall from `GET /api/v2/knowledge/recall`, reindex via the `vox_memory_reindex` op (the
+//! daemon owns `MEMORY.md` and the memory database). Shard tiles and the recent-recall list
+//! are presentation state and stay GUI-side.
 
 use serde::Serialize;
+use serde_json::json;
 use std::collections::{HashMap, VecDeque};
-use std::sync::Arc;
-use std::sync::Mutex;
-use tauri::command;
-use turso::params;
-use vox_db::{DbConnectSurface, GuardedRows, connect_workspace_journey_optional};
-use vox_orchestrator::bootstrap::{discover_repository_from_cwd, repo_scoped_orchestrator_config};
-use vox_orchestrator::memory::MemoryManager;
-use vox_search::memory_hybrid::MemorySearchEngine;
+use std::sync::{Arc, Mutex};
+use tauri::State;
+use vox_orchestrator_mcp::gui_ops::dto::knowledge::CorpusCountsDto;
+pub use vox_orchestrator_mcp::gui_ops::dto::knowledge::UiHitResult;
+
+use crate::remote::backend::BackendState;
+use crate::remote::calls::{BackendCalls, api_data, path_with_query, tool_data};
+
+const REINDEX_TOOL: &str = "vox_memory_reindex";
+const RECENT_RECALLS_CAP: usize = 5;
 
 static RECENT_RECALLS: Mutex<VecDeque<RecentRecallPayload>> = Mutex::new(VecDeque::new());
 
@@ -53,201 +46,174 @@ pub struct RecentRecallPayload {
     pub when: String,
 }
 
-#[derive(Serialize)]
-pub struct UiHitResult {
-    pub src: String,
-    pub line: usize,
-    pub score: f64,
-    pub kind: String,
-    pub text: String,
+fn shard(id: &str, depth: u32, entries: u32, hot: bool, dirty: bool) -> ShardPayload {
+    ShardPayload {
+        id: id.to_string(),
+        depth,
+        entries,
+        hot,
+        dirty,
+        spark: Vec::new(),
+    }
 }
 
-#[command]
-pub async fn get_memory_status() -> Result<MemoryStatusPayload, String> {
-    let db = connect_workspace_journey_optional(DbConnectSurface::Runtime, true)
-        .await
-        .ok_or_else(|| "No workspace db found".to_string())?;
-
-    let conn = db.connection();
-
-    macro_rules! count_query {
-        ($sql:expr) => {{
-            let res: Result<GuardedRows, turso::Error> = conn.query($sql, params![]).await;
-            match res {
-                Ok(mut rows) => {
-                    let next_res: Result<Option<turso::Row>, turso::Error> = rows.next().await;
-                    if let Ok(Some(row)) = next_res {
-                        match row.get::<i64>(0) {
-                            Ok(val) => val as u32,
-                            Err(_) => 0,
-                        }
-                    } else {
-                        0
-                    }
-                }
-                Err(_) => 0,
-            }
-        }};
-    }
-
-    let mut corpus_counts = HashMap::new();
-
-    let proj_count = count_query!("SELECT COUNT(*) FROM search_documents");
-    corpus_counts.insert("proj".to_string(), proj_count);
-
-    let docs_count = count_query!("SELECT COUNT(*) FROM knowledge_nodes");
-    corpus_counts.insert("docs".to_string(), docs_count);
-
-    let chats_count = count_query!("SELECT COUNT(*) FROM memories WHERE memory_type = 'chat'");
-    corpus_counts.insert("chats".to_string(), chats_count);
-
-    let rules_count = count_query!("SELECT COUNT(*) FROM components");
-    corpus_counts.insert("rules".to_string(), rules_count);
-
-    let web_count = count_query!("SELECT COUNT(*) FROM search_document_chunks");
-    corpus_counts.insert("web".to_string(), web_count);
-
-    // Simulate real activity based on memories table timestamps if available
-    let recent_activity =
-        count_query!("SELECT COUNT(*) FROM memories WHERE created_at > datetime('now', '-1 hour')");
-
+fn status_from_counts(c: CorpusCountsDto, recent: Vec<RecentRecallPayload>) -> MemoryStatusPayload {
+    let corpus_counts = HashMap::from([
+        ("proj".to_string(), c.proj),
+        ("docs".to_string(), c.docs),
+        ("chats".to_string(), c.chats),
+        ("rules".to_string(), c.rules),
+        ("web".to_string(), c.web),
+    ]);
     let shards = vec![
-        ShardPayload {
-            id: "K-01".to_string(),
-            depth: 2,
-            entries: docs_count,
-            hot: recent_activity > 0,
-            dirty: false,
-            spark: Vec::new(),
-        },
-        ShardPayload {
-            id: "M-01".to_string(),
-            depth: 1,
-            entries: chats_count,
-            hot: true,
-            dirty: true,
-            spark: Vec::new(),
-        },
-        ShardPayload {
-            id: "W-01".to_string(),
-            depth: 3,
-            entries: proj_count,
-            hot: false,
-            dirty: false,
-            spark: Vec::new(),
-        },
-        ShardPayload {
-            id: "C-01".to_string(),
-            depth: 2,
-            entries: rules_count,
-            hot: false,
-            dirty: false,
-            spark: Vec::new(),
-        },
+        shard("K-01", 2, c.docs, c.recent_memories > 0, false),
+        shard("M-01", 1, c.chats, true, true),
+        shard("W-01", 3, c.proj, false, false),
+        shard("C-01", 2, c.rules, false, false),
     ];
-
-    let recent = RECENT_RECALLS.lock().unwrap().iter().cloned().collect();
-
-    Ok(MemoryStatusPayload {
+    MemoryStatusPayload {
         corpus_counts,
         shards,
         recent_recalls: recent,
         embedding_dim: Some(1024),
-    })
+    }
 }
 
-#[command]
+fn record_recall(q: String, n: usize) {
+    let mut recent = RECENT_RECALLS.lock().unwrap_or_else(|p| p.into_inner());
+    recent.push_front(RecentRecallPayload {
+        q,
+        n,
+        when: "just now".to_string(),
+    });
+    recent.truncate(RECENT_RECALLS_CAP);
+}
+
+fn recent_recalls() -> Vec<RecentRecallPayload> {
+    let recent = RECENT_RECALLS.lock().unwrap_or_else(|p| p.into_inner());
+    recent.iter().cloned().collect()
+}
+
+pub(crate) async fn memory_status_impl<B: BackendCalls>(
+    b: &B,
+) -> Result<MemoryStatusPayload, String> {
+    let counts: CorpusCountsDto = api_data(b.api_v2_get("/knowledge/corpus-counts").await?)?;
+    Ok(status_from_counts(counts, recent_recalls()))
+}
+
+pub(crate) async fn recall_impl<B: BackendCalls>(
+    b: &B,
+    query: &str,
+    limit: usize,
+) -> Result<Vec<UiHitResult>, String> {
+    let path = path_with_query(
+        "/knowledge/recall",
+        &[
+            ("q", Some(query.to_string())),
+            ("limit", Some(limit.to_string())),
+        ],
+    );
+    api_data(b.api_v2_get(&path).await?)
+}
+
+pub(crate) async fn reindex_impl<B: BackendCalls>(b: &B) -> Result<(), String> {
+    let _: String = tool_data(REINDEX_TOOL, b.call_tool(REINDEX_TOOL, json!({})).await?)?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn get_memory_status(
+    backend: State<'_, Arc<BackendState>>,
+) -> Result<MemoryStatusPayload, String> {
+    memory_status_impl(&backend.current().await).await
+}
+
+#[tauri::command]
 pub async fn mnemosyne_recall(
+    backend: State<'_, Arc<BackendState>>,
     query: String,
     _scope: String,
     limit: usize,
 ) -> Result<Vec<UiHitResult>, String> {
-    // Config-only bootstrap: `repo_scoped_orchestrator_config` roots the memory
-    // paths under `.vox/memory` for the current repository without constructing
-    // an `Orchestrator` (which would be a second in-process instance, disjoint
-    // from the one the daemon owns — see module docs).
-    let config = vox_orchestrator::OrchestratorConfig::default();
-    let repository = discover_repository_from_cwd(None);
-    let memory_config = repo_scoped_orchestrator_config(config, &repository).memory;
-
-    let db = connect_workspace_journey_optional(DbConnectSurface::Runtime, true)
-        .await
-        .ok_or_else(|| "No workspace db found".to_string())?;
-
-    // Use Hybrid Search Engine for real scores and fusion
-    let engine = MemorySearchEngine::new().with_db(Arc::new(db));
-
-    // Index the local workspace memory if possible
-    let memory_manager = MemoryManager::new(memory_config).map_err(|e| e.to_string())?;
-    let _memory_content = memory_manager.bootstrap_context();
-
-    // Perform hybrid search
-    // Note: hybrid_search is async and takes an optional embedding service
-    let hits = engine.hybrid_search(&query, limit, None, 0.5).await;
-
-    let ui_hits = hits
-        .into_iter()
-        .map(|h| {
-            let kind = if h.path.contains("memory.md") {
-                "chat"
-            } else if h.path.contains("docs") || h.path.contains("README") {
-                "text"
-            } else if h.path.contains("crates") || h.path.contains(".rs") {
-                "code"
-            } else {
-                "text"
-            };
-
-            UiHitResult {
-                src: h.path,
-                line: 0, // hybrid_search doesn't provide line numbers yet in the hit structure
-                score: h.score,
-                kind: kind.to_string(),
-                text: h.content_snippet,
-            }
-        })
-        .collect::<Vec<_>>();
-
-    {
-        let mut recent = RECENT_RECALLS.lock().unwrap();
-        recent.push_front(RecentRecallPayload {
-            q: query,
-            n: ui_hits.len(),
-            when: "just now".to_string(),
-        });
-        if recent.len() > 5 {
-            recent.pop_back();
-        }
-    }
-
-    Ok(ui_hits)
+    let hits = recall_impl(&backend.current().await, &query, limit).await?;
+    record_recall(query, hits.len());
+    Ok(hits)
 }
 
-#[command]
-pub async fn mnemosyne_reindex() -> Result<(), String> {
-    // Config-only bootstrap (see `mnemosyne_recall`) — no in-process `Orchestrator`.
-    let config = vox_orchestrator::OrchestratorConfig::default();
-    let repository = discover_repository_from_cwd(None);
-    let memory_config = repo_scoped_orchestrator_config(config, &repository).memory;
+#[tauri::command]
+pub async fn mnemosyne_reindex(backend: State<'_, Arc<BackendState>>) -> Result<(), String> {
+    reindex_impl(&backend.current().await).await
+}
 
-    // Get DB handle
-    let db = connect_workspace_journey_optional(DbConnectSurface::Runtime, true)
-        .await
-        .ok_or_else(|| "No workspace db found".to_string())?;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::remote::calls::fake::FakeBackend;
 
-    let mut memory_manager = MemoryManager::new(memory_config)
-        .map_err(|e| e.to_string())?
-        .with_db(Arc::new(db));
+    #[tokio::test]
+    async fn status_maps_daemon_counts_into_corpus_tiles_and_shards() {
+        let b = FakeBackend::new().on_get(
+            "/knowledge/corpus-counts",
+            Ok(json!({ "v": 1, "data": {
+                "proj": 7, "docs": 3, "chats": 2, "rules": 1, "web": 9, "recent_memories": 4
+            }})),
+        );
+        let s = memory_status_impl(&b).await.unwrap();
+        assert_eq!(s.corpus_counts["docs"], 3);
+        assert_eq!(s.corpus_counts["web"], 9);
+        assert_eq!(s.corpus_counts.len(), 5);
+        let k = &s.shards[0];
+        assert_eq!((k.id.as_str(), k.entries, k.hot), ("K-01", 3, true));
+        assert_eq!(s.shards[2].entries, 7);
+    }
 
-    // Sync memory back and forth
-    memory_manager
-        .sync_from_db()
-        .await
-        .map_err(|e| e.to_string())?;
-    memory_manager
-        .sync_to_db()
-        .await
-        .map_err(|e| e.to_string())?;
+    #[test]
+    fn k01_is_cold_without_recent_memories() {
+        let s = status_from_counts(CorpusCountsDto::default(), Vec::new());
+        assert!(!s.shards[0].hot);
+        assert!(s.shards[1].hot && s.shards[1].dirty);
+    }
 
-    Ok(())
+    #[tokio::test]
+    async fn recall_and_reindex_go_through_the_daemon() {
+        let b = FakeBackend::new()
+            .on_get(
+                "/knowledge/recall?q=what%20is&limit=3",
+                Ok(json!({ "v": 1, "data": [
+                    { "src": "MEMORY.md", "line": 0, "score": 0.5, "kind": "chat", "text": "t" }
+                ]})),
+            )
+            .on_tool(
+                REINDEX_TOOL,
+                Ok(json!({ "success": true, "data": "reindexed" })),
+            );
+        let hits = recall_impl(&b, "what is", 3).await.unwrap();
+        assert_eq!(hits.len(), 1);
+        reindex_impl(&b).await.unwrap();
+        let keys: Vec<String> = b.calls().into_iter().map(|(k, _)| k).collect();
+        assert_eq!(
+            keys,
+            vec![
+                "get:/knowledge/recall?q=what%20is&limit=3".to_string(),
+                format!("tool:{REINDEX_TOOL}")
+            ]
+        );
+    }
+
+    #[test]
+    fn recent_recalls_are_capped() {
+        for i in 0..(RECENT_RECALLS_CAP + 3) {
+            record_recall(format!("q{i}"), i);
+        }
+        let r = recent_recalls();
+        assert_eq!(r.len(), RECENT_RECALLS_CAP);
+        assert_eq!(r[0].q, format!("q{}", RECENT_RECALLS_CAP + 2));
+    }
+
+    #[test]
+    fn memory_module_no_longer_touches_the_db_directly() {
+        let src = include_str!("memory.rs");
+        assert!(!src.contains(&["vox_", "db::"].concat()));
+        assert!(!src.contains(&["turso", "::"].concat()));
+    }
 }

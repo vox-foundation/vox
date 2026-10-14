@@ -28,6 +28,7 @@ pub mod feedback_tools;
 pub mod hitl_rehydrate;
 pub mod params;
 pub mod pending_approvals;
+pub mod profiles;
 pub mod server_state;
 pub mod skill_promotion;
 
@@ -82,6 +83,7 @@ pub mod grammar_tools;
 /// Graphify corpus freshness and lexical search (`vox_graphify_status`, `vox_graphify_search`).
 pub mod graph_tools;
 /// GUI registry + validation tools (`vox_gui_components`, `vox_gui_tokens`, `vox_gui_rules`, `vox_validate_vuv`).
+pub mod gui_ops;
 pub mod gui_registry_tools;
 /// `vox_search_history`: first-parent repo history for agents (same facade as `vox graph history`).
 pub mod history_tools;
@@ -220,7 +222,10 @@ pub mod lifecycle;
 pub mod plugin_skills_bridge;
 pub mod server;
 
-pub use lifecycle::{load_config, mcp_agent_fleet_env_enabled, run_stdio_server_blocking};
+pub use lifecycle::{
+    load_config, mcp_agent_fleet_env_enabled, run_stdio_server_blocking,
+    run_stdio_server_blocking_with_profile,
+};
 pub use params::ToolResult;
 pub use server::VoxMcpServer;
 pub use server_state::{CachedCatalog, ServerState};

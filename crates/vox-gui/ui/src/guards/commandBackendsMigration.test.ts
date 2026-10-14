@@ -1,0 +1,92 @@
+import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+// Plan 07: each migrated module must be classified `daemon` in the command-backend manifest.
+const MANIFEST = readFileSync(
+  join(import.meta.dirname, '../../../../../contracts/gui/command-backends.v1.yaml'),
+  'utf8',
+);
+
+function moduleClass(module: string): string | null {
+  const m =
+    MANIFEST.match(new RegExp(`- \\{ module: ${module}, class: (\\w+)`)) ??
+    MANIFEST.match(new RegExp(`- module: ${module}\\n\\s+class: (\\w+)`));
+  return m ? m[1] : null;
+}
+
+describe('plan 07 db-command migration', () => {
+  it('pattern: model_active is daemon-class', () => {
+    expect(moduleClass('model_active')).toBe('daemon');
+  });
+});
+
+describe('plan 07 models group', () => {
+  it('models is daemon-class and its host-only commands live in models_host', () => {
+    expect(moduleClass('models')).toBe('daemon');
+    expect(moduleClass('models_host')).toBe('host');
+    expect(moduleClass('routing_explain')).toBe('daemon');
+  });
+});
+
+describe('plan 07 chat group', () => {
+  it('chat and chat_turn reach sessions through the daemon, not a GUI db pool', () => {
+    expect(moduleClass('chat')).toBe('daemon');
+    expect(moduleClass('chat_turn')).toBe('daemon');
+  });
+});
+
+describe('plan 07 preferences', () => {
+  it('preferences stays shell-class: client-side when remote, loopback daemon ops locally (D1)', () => {
+    expect(moduleClass('preferences')).toBe('shell');
+  });
+});
+
+describe('plan 07 knowledge/memory/search group', () => {
+  it('knowledge, memory and search are daemon-class; opening a hit stays on the host', () => {
+    for (const m of ['knowledge', 'memory', 'search']) expect(moduleClass(m)).toBe('daemon');
+    expect(moduleClass('locator')).toBe('host');
+  });
+});
+
+describe('plan 07 research group', () => {
+  it('research, scientia and harness-issue modules are daemon-class; local doc/sandbox I/O stays on the host', () => {
+    for (const m of ['scientia', 'scientia_review', 'research', 'search_probe', 'harness_issues']) {
+      expect(moduleClass(m)).toBe('daemon');
+    }
+    expect(moduleClass('research_host')).toBe('host');
+  });
+});
+
+describe('plan 07 mesh group', () => {
+  it('console_a2a sends through the daemon; the console terminal stays host-class', () => {
+    expect(moduleClass('console_a2a')).toBe('daemon');
+    for (const m of ['pty', 'terminal_core']) expect(moduleClass(m)).toBe('host');
+  });
+});
+
+describe('plan 07 attention group', () => {
+  it('llm_spend reads the server spend; user_config stays on the host', () => {
+    expect(moduleClass('llm_spend')).toBe('daemon');
+    expect(moduleClass('user_config')).toBe('host');
+  });
+});
+
+describe('plan 07 orchestrator group', () => {
+  it('hopper, context budget, plan panel, runs, activity and harness eval are daemon-class; orchestrator status/config stays on the host', () => {
+    for (const m of ['hopper', 'context_budget', 'plan_panel', 'runs', 'activity', 'harness_eval']) {
+      expect(moduleClass(m)).toBe('daemon');
+    }
+    expect(moduleClass('orchestrator')).toBe('host');
+    expect(MANIFEST).not.toMatch(/module: orchestrator,[^\n]*hopper_\* = db/);
+  });
+});
+
+describe('plan 07 gamify group', () => {
+  it('gamify and discovery go through the daemon; gamify settings stay on the host', () => {
+    expect(moduleClass('gamify')).toBe('daemon');
+    expect(moduleClass('discovery')).toBe('daemon');
+    expect(moduleClass('gamify_settings')).toBe('host');
+    expect(MANIFEST).toMatch(/module: gamify_settings,[^\n]*surfaces: \[gamify, settings\]/);
+  });
+});

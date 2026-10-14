@@ -33,6 +33,7 @@ const STREAM_RECONNECT_BACKOFF: std::time::Duration = D_2S;
 pub fn spawn_orchestrator_status_stream(
     app_handle: tauri::AppHandle,
     daemon: Arc<PersistentDaemon>,
+    backend: Arc<crate::remote::backend::BackendState>,
 ) {
     tokio::spawn(async move {
         loop {
@@ -59,6 +60,9 @@ pub fn spawn_orchestrator_status_stream(
             });
 
             while let Some(raw) = rx.recv().await {
+                if backend.is_remote() {
+                    continue;
+                }
                 let gui_status = to_gui_status(raw);
                 if let Ok(value) = serde_json::to_value(&gui_status) {
                     let _ = app_handle.emit(ORCH_STATUS_EVENT, value);
@@ -109,7 +113,11 @@ fn extract_offset(value: &serde_json::Value) -> Option<u64> {
 /// rather than exiting. Each emitted payload is the raw serialized
 /// `AgentEvent` (or T1.3 replay envelope) forwarded verbatim from the daemon.
 // toestub-ignore(skeleton/untested-pub-api) — spawns a background task bridging the orchestrator daemon to Tauri events; covered by integration
-pub fn spawn_agent_event_stream(app_handle: tauri::AppHandle, daemon: Arc<PersistentDaemon>) {
+pub fn spawn_agent_event_stream(
+    app_handle: tauri::AppHandle,
+    daemon: Arc<PersistentDaemon>,
+    backend: Arc<crate::remote::backend::BackendState>,
+) {
     tokio::spawn(async move {
         let mut last_offset: Option<u64> = None;
         loop {
@@ -142,6 +150,9 @@ pub fn spawn_agent_event_stream(app_handle: tauri::AppHandle, daemon: Arc<Persis
             });
 
             while let Some(value) = rx.recv().await {
+                if backend.is_remote() {
+                    continue;
+                }
                 if let Some(offset) = extract_offset(&value) {
                     last_offset = Some(offset);
                 }
@@ -392,29 +403,67 @@ async fn enrich_mesh_from_tool(gui: &mut GuiOrchestratorStatus, daemon: &Persist
     }
 }
 
+const GAMIFY_NOTIFICATIONS_TOOL: &str = "vox_gamify_notifications_list";
+const GAMIFY_ALERT_LIMIT: u32 = 20;
+
+#[derive(serde::Deserialize)]
+struct GamifyNotifications {
+    notifications: Vec<vox_gamify::notifications::Notification>,
+}
+
+/// Unread gamify notifications mapped to the `LudusBanner` alert shape (`{id, level, title,
+/// body}`). Best-effort: any error — including `exposure_denied` from a remote server, where the
+/// tool is dev-only — yields no alerts.
+pub(crate) async fn gamify_alerts<B: crate::remote::calls::BackendCalls>(
+    b: &B,
+) -> Vec<serde_json::Value> {
+    let args = serde_json::json!({ "limit": GAMIFY_ALERT_LIMIT });
+    let Ok(envelope) = b.call_tool(GAMIFY_NOTIFICATIONS_TOOL, args).await else {
+        return Vec::new();
+    };
+    let Ok(data) =
+        crate::remote::calls::tool_data::<GamifyNotifications>(GAMIFY_NOTIFICATIONS_TOOL, envelope)
+    else {
+        return Vec::new();
+    };
+    data.notifications
+        .iter()
+        .map(|n| {
+            serde_json::json!({
+                "id": n.id,
+                "level": crate::commands::gamify::notification_level(&n.notification_type),
+                "title": n.title,
+                "body": n.message,
+            })
+        })
+        .collect()
+}
+
 #[tauri::command]
 pub async fn get_orchestrator_status(
     daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+    backend: tauri::State<'_, Arc<crate::remote::backend::BackendState>>,
 ) -> Result<serde_json::Value, String> {
     let status = daemon_status(&daemon).await?;
     let mut gui = to_gui_status(status);
     if gui.peers.is_empty() {
         enrich_mesh_from_tool(&mut gui, &daemon).await;
     }
-    gui.alerts = crate::commands::gamify::fetch_gamify_alerts().await;
+    gui.alerts = gamify_alerts(&backend.current().await).await;
     serde_json::to_value(gui).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn get_orchestrator_status_bin(
     daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+    backend: tauri::State<'_, Arc<crate::remote::backend::BackendState>>,
 ) -> Result<tauri::ipc::Response, String> {
     let status = daemon_status(&daemon).await?;
     let mut gui = to_gui_status(status);
     if gui.peers.is_empty() {
         enrich_mesh_from_tool(&mut gui, &daemon).await;
     }
-    gui.alerts = crate::commands::gamify::fetch_gamify_alerts().await;
+    gui.alerts = gamify_alerts(&backend.current().await).await;
     let bytes = rmp_serde::to_vec_named(&gui).map_err(|e| e.to_string())?;
     Ok(tauri::ipc::Response::new(bytes))
 }
@@ -993,328 +1042,6 @@ pub async fn get_orchestrator_config() -> Result<serde_json::Value, String> {
     }))
 }
 
-/// Token budget snapshot returned to the frontend.
-#[derive(Debug, serde::Serialize)]
-pub struct ContextBudgetPayload {
-    /// Maximum tokens the model's context can hold (from `CompactionConfig`).
-    pub max_context_tokens: usize,
-    /// Tokens reserved for the model's response (subtracted from usable budget).
-    pub reserved_tokens: usize,
-    /// Token count at which compaction triggers (`max * compaction_threshold`).
-    pub threshold_tokens: usize,
-    /// Usable token budget (`max - reserved`).
-    pub usable_tokens: usize,
-    /// Human-readable compaction strategy name: "aggressive", "balanced", or "conservative".
-    pub strategy: String,
-    /// Tokens currently occupying the context window for the given session:
-    /// input + output of the most recent llm_interactions row. Zero when no
-    /// session is provided or no rows exist.
-    pub used_tokens: usize,
-}
-
-/// Return the active context-window budget from the current compaction config.
-///
-/// Reads directly from the local in-memory config snapshot. When `session_id`
-/// is provided, also queries `llm_interactions` for the latest input token count
-/// so the frontend can render a real context-window fill percentage.
-#[tauri::command]
-pub async fn get_context_budget(
-    session_id: Option<String>,
-) -> Result<ContextBudgetPayload, String> {
-    let cfg = vox_orchestrator::config::OrchestratorConfig::snapshot().compaction;
-
-    let used_tokens: usize = if let Some(sid) = session_id.as_deref() {
-        match vox_db::VoxDb::connect_canonical().await {
-            Ok(db) => {
-                // Most recent interaction only: input + output of the latest call is
-                // what currently occupies the context window. A SUM over all rows would
-                // grow unbounded across turns and peg the meter at 100% — dishonest.
-                let rows = db
-                    .query_all(
-                        "SELECT COALESCE(input_tokens, 0) + COALESCE(output_tokens, 0) \
-                         FROM llm_interactions \
-                         WHERE session_id = ?1 \
-                         ORDER BY rowid DESC LIMIT 1",
-                        turso::params![sid],
-                    )
-                    .await
-                    .unwrap_or_default();
-                rows.into_iter()
-                    .next()
-                    .and_then(|row| row.get::<i64>(0).ok())
-                    .map(|n| n.max(0) as usize)
-                    .unwrap_or(0)
-            }
-            Err(_) => 0,
-        }
-    } else {
-        0
-    };
-
-    Ok(ContextBudgetPayload {
-        max_context_tokens: cfg.max_context_tokens,
-        reserved_tokens: cfg.reserved_tokens,
-        threshold_tokens: cfg.trigger_at(),
-        usable_tokens: cfg.usable_budget(),
-        strategy: cfg.strategy.to_string(),
-        used_tokens,
-    })
-}
-
-#[derive(Debug, serde::Serialize)]
-pub struct HopperTaskDto {
-    pub item_id: String,
-    pub intent: String,
-    pub priority: u8,
-    pub state: String,
-    pub task_id: u64,
-    /// Chat/CLI session the item was submitted from (persisted column).
-    pub session_id: Option<String>,
-    /// Agent bound to the item while `state == "assigned"` (from state JSON).
-    pub agent_id: Option<String>,
-    /// Origin daemon for mesh-replicated items (from source JSON).
-    pub remote_node: Option<String>,
-}
-
-fn hopper_item_to_dto(item: &vox_orchestrator::hopper::IntakeItem) -> HopperTaskDto {
-    let agent_id = match &item.state {
-        vox_orchestrator::hopper::ItemState::Assigned { agent_id } => Some(agent_id.clone()),
-        _ => None,
-    };
-    let remote_node = match &item.source {
-        vox_orchestrator::hopper::IntakeSource::Mesh { node_id } => Some(node_id.clone()),
-        _ => None,
-    };
-    HopperTaskDto {
-        item_id: item.item_id.0.clone(),
-        intent: item.intent.clone(),
-        priority: item.classified_priority as u8,
-        state: item.state.kind().to_string(),
-        task_id: vox_orchestrator::orchestrator::dispatch::stable_hash(&item.item_id.0),
-        session_id: item.session_id.clone(),
-        agent_id,
-        remote_node,
-    }
-}
-
-/// Most-recent bound on completed items chained into `hopper_list` (F7): the
-/// command is re-polled on every tasks-changed event, so the done read must
-/// not grow with all-time history. Pinned by
-/// `done_history_limit_is_the_agreed_bound` below and exercised by
-/// `history_recent_is_bounded_and_newest_first` in sqlite_store.rs.
-const DONE_HISTORY_LIMIT: u32 = 50;
-
-#[tauri::command]
-pub async fn hopper_list() -> Result<Vec<HopperTaskDto>, String> {
-    use vox_orchestrator::hopper::HopperIntake;
-    let db = vox_db::VoxDb::connect_canonical()
-        .await
-        .map_err(|e| e.to_string())?;
-    let hopper = vox_orchestrator::hopper::SqliteHopper::new(Arc::new(db));
-    let inbox = hopper.inbox().await;
-    let assigned = hopper.assigned().await;
-    // Bounded, newest-first; the recent-window read is already scoped to
-    // `done` at the SQL layer (ops_orchestrator::hopper_history_list_recent),
-    // this filter is defense-in-depth against that changing silently.
-    let done: Vec<_> = hopper
-        .history_recent(DONE_HISTORY_LIMIT)
-        .await
-        .into_iter()
-        .filter(|i| matches!(i.state, vox_orchestrator::hopper::ItemState::Done))
-        .collect();
-    let mut all = Vec::new();
-    for item in inbox.iter().chain(assigned.iter()).chain(done.iter()) {
-        all.push(hopper_item_to_dto(item));
-    }
-    Ok(all)
-}
-
-#[tauri::command]
-pub async fn hopper_submit(
-    app_handle: tauri::AppHandle,
-    intent: String,
-    affinity: Vec<String>,
-) -> Result<HopperTaskDto, String> {
-    use vox_orchestrator::hopper::HopperIntake;
-    let db = vox_db::VoxDb::connect_canonical()
-        .await
-        .map_err(|e| e.to_string())?;
-    let hopper = vox_orchestrator::hopper::SqliteHopper::new(Arc::new(db));
-    let item = hopper
-        .submit(
-            intent,
-            affinity,
-            vox_orchestrator::hopper::PriorityHint::Normal,
-            vox_orchestrator::hopper::IntakeSource::Developer,
-            None,
-        )
-        .await;
-    emit_tasks_changed(&app_handle);
-    Ok(hopper_item_to_dto(&item))
-}
-
-#[tauri::command]
-pub async fn hopper_reprioritize(
-    app_handle: tauri::AppHandle,
-    item_id: String,
-    priority: u8,
-) -> Result<HopperTaskDto, String> {
-    use vox_orchestrator::hopper::HopperIntake;
-    let db = vox_db::VoxDb::connect_canonical()
-        .await
-        .map_err(|e| e.to_string())?;
-    let hopper = vox_orchestrator::hopper::SqliteHopper::new(Arc::new(db));
-    let hid = vox_orchestrator::hopper::HopperItemId(item_id);
-    let new_priority = vox_orchestrator::types::TaskPriority::from_u8(priority);
-    let cap = vox_orchestrator::hopper::capability::DeveloperOverrideMint::new().mint(
-        "Tauri GUI",
-        "GUI Reprioritization",
-        "gui-override",
-    );
-    let item = hopper
-        .reprioritize(&hid, new_priority, cap)
-        .await
-        .map_err(|e| e.to_string())?;
-    emit_tasks_changed(&app_handle);
-    Ok(hopper_item_to_dto(&item))
-}
-
-#[tauri::command]
-pub async fn hopper_cancel(
-    app_handle: tauri::AppHandle,
-    item_id: String,
-) -> Result<HopperTaskDto, String> {
-    use vox_orchestrator::hopper::HopperIntake;
-    let db = vox_db::VoxDb::connect_canonical()
-        .await
-        .map_err(|e| e.to_string())?;
-    let hopper = vox_orchestrator::hopper::SqliteHopper::new(Arc::new(db));
-    let hid = vox_orchestrator::hopper::HopperItemId(item_id);
-    let item = hopper.cancel(&hid).await.map_err(|e| e.to_string())?;
-    emit_tasks_changed(&app_handle);
-    Ok(hopper_item_to_dto(&item))
-}
-
-#[tauri::command]
-pub async fn hopper_mark_done(
-    app_handle: tauri::AppHandle,
-    item_id: String,
-) -> Result<HopperTaskDto, String> {
-    use vox_orchestrator::hopper::HopperIntake;
-    let db = vox_db::VoxDb::connect_canonical()
-        .await
-        .map_err(|e| e.to_string())?;
-    let hopper = vox_orchestrator::hopper::SqliteHopper::new(Arc::new(db));
-    let hid = vox_orchestrator::hopper::HopperItemId(item_id);
-    let item = hopper.complete(&hid).await.map_err(|e| e.to_string())?;
-    emit_tasks_changed(&app_handle);
-    Ok(hopper_item_to_dto(&item))
-}
-
-#[cfg(test)]
-mod hopper_tests {
-    use super::*;
-    use vox_orchestrator::hopper::IntakeItem;
-    use vox_orchestrator::hopper::types::{IntakeSource, PriorityHint};
-
-    #[test]
-    fn test_hopper_item_to_dto() {
-        let item = IntakeItem::new(
-            "test intent".to_string(),
-            vec![],
-            PriorityHint::Normal,
-            IntakeSource::Developer,
-            None,
-        );
-        let dto = hopper_item_to_dto(&item);
-        assert_eq!(dto.item_id, item.item_id.0);
-        assert_eq!(dto.intent, "test intent");
-        assert_eq!(dto.state, "inbox");
-        assert_eq!(
-            dto.task_id,
-            vox_orchestrator::orchestrator::dispatch::stable_hash(&item.item_id.0)
-        );
-    }
-
-    #[test]
-    fn hopper_dto_carries_persisted_session_agent_and_mesh_fields() {
-        use vox_orchestrator::hopper::types::ItemState;
-        let mut item = IntakeItem::new(
-            "wired intent".to_string(),
-            vec![],
-            PriorityHint::Normal,
-            IntakeSource::Mesh {
-                node_id: "did:vox:peer-1".into(),
-            },
-            Some("gui-session-9".to_string()),
-        );
-        item.state = ItemState::Assigned {
-            agent_id: "agent-42".into(),
-        };
-        let dto = hopper_item_to_dto(&item);
-        assert_eq!(dto.session_id.as_deref(), Some("gui-session-9"));
-        assert_eq!(dto.agent_id.as_deref(), Some("agent-42"));
-        assert_eq!(dto.remote_node.as_deref(), Some("did:vox:peer-1"));
-        // Inbox developer items carry none of the three.
-        let plain = IntakeItem::new(
-            "p".into(),
-            vec![],
-            PriorityHint::Normal,
-            IntakeSource::Developer,
-            None,
-        );
-        let dto2 = hopper_item_to_dto(&plain);
-        assert!(dto2.session_id.is_none() && dto2.agent_id.is_none() && dto2.remote_node.is_none());
-    }
-
-    #[test]
-    fn done_history_limit_is_the_agreed_bound() {
-        // Spec Phase 2 item 6 records "bounded, most-recent-N" for the done
-        // read; changing N is a product decision, not a drive-by.
-        assert_eq!(DONE_HISTORY_LIMIT, 50);
-    }
-
-    #[test]
-    fn task_priority_wire_values_match_frontend_constants() {
-        // Mirror of crates/vox-gui/ui/src/lib/taskPriority.ts (TASK_PRIORITY_WIRE).
-        // If either side changes, both tests must be updated together.
-        use vox_orchestrator::types::TaskPriority;
-        assert_eq!(TaskPriority::Background as u8, 0);
-        assert_eq!(TaskPriority::Normal as u8, 1);
-        assert_eq!(TaskPriority::Urgent as u8, 2);
-    }
-}
-
-#[cfg(test)]
-mod budget_tests {
-    use super::*;
-
-    #[test]
-    fn context_budget_payload_serializes() {
-        let payload = ContextBudgetPayload {
-            max_context_tokens: 128_000,
-            reserved_tokens: 10_000,
-            threshold_tokens: 102_400,
-            usable_tokens: 118_000,
-            strategy: "balanced".to_string(),
-            used_tokens: 0,
-        };
-        let json = serde_json::to_value(&payload).expect("serialize");
-        assert_eq!(json["max_context_tokens"], 128_000);
-        assert_eq!(json["strategy"], "balanced");
-        assert_eq!(json["threshold_tokens"], 102_400);
-    }
-
-    #[test]
-    fn threshold_tokens_matches_trigger_at() {
-        // CompactionConfig::trigger_at() = max * threshold_fraction
-        // Default: 128_000 * 0.80 = 102_400
-        let cfg = vox_orchestrator::compaction::CompactionConfig::default();
-        assert_eq!(cfg.trigger_at(), 102_400);
-        assert_eq!(cfg.usable_budget(), 118_000);
-    }
-}
-
 #[cfg(test)]
 mod secretary_tests {
     use super::*;
@@ -1350,5 +1077,32 @@ mod gui_status_tests {
         let gui = to_gui_status(raw);
         let ab = gui.attention_budget.expect("budget passed through");
         assert_eq!(ab["spent_ms"], 1_800_000);
+    }
+
+    #[tokio::test]
+    async fn gamify_alerts_map_notifications_and_swallow_errors() {
+        use crate::remote::calls::fake::FakeBackend;
+        let b = FakeBackend::new().on_tool(
+            GAMIFY_NOTIFICATIONS_TOOL,
+            Ok(
+                serde_json::json!({ "success": true, "data": { "notifications": [{
+                "id": "n1", "user_id": "u", "notification_type": "StreakLost",
+                "title": "t", "message": "m", "read": false, "created_at": 0
+            }] } }),
+            ),
+        );
+        let alerts = gamify_alerts(&b).await;
+        assert_eq!(
+            alerts,
+            vec![serde_json::json!({ "id": "n1", "level": "warn", "title": "t", "body": "m" })]
+        );
+        assert_eq!(b.calls()[0].1["limit"], GAMIFY_ALERT_LIMIT);
+
+        let denied = FakeBackend::new().on_tool(
+            GAMIFY_NOTIFICATIONS_TOOL,
+            Ok(serde_json::json!({ "error": { "code": "exposure_denied", "message": "dev only" } })),
+        );
+        assert!(gamify_alerts(&denied).await.is_empty());
+        assert!(gamify_alerts(&FakeBackend::new()).await.is_empty());
     }
 }

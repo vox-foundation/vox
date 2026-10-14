@@ -16,7 +16,16 @@ const SUMMARY = {
   decision_preview: null,
 };
 
-const baseImpl = (cmd: string) => {
+type Impl = (cmd: string) => Promise<unknown>;
+const snapshotOf = async (impl: Impl) => ({
+  cards: await impl('list_model_cards'),
+  routing: await impl('get_routing_summary_live'),
+  active_model: await impl('get_active_model'),
+  providers: (await impl('inference_provider_status')) ?? [],
+});
+
+const baseImpl: Impl = (cmd: string) => {
+  if (cmd === 'get_models_snapshot') return snapshotOf(baseImpl);
   if (cmd === 'list_model_cards') return Promise.resolve(CARDS);
   if (cmd === 'get_routing_summary_live') return Promise.resolve(SUMMARY);
   if (cmd === 'get_active_model') return Promise.resolve('openai/gpt-x');
@@ -43,7 +52,9 @@ describe('ModelsView', () => {
 
   it('a routing summary without its counts never prints "undefined" in the header', async () => {
     invokeMock.mockImplementation((cmd: string) =>
-      cmd === 'get_routing_summary_live' ? Promise.resolve({ decision_preview: null }) : baseImpl(cmd));
+      cmd === 'get_models_snapshot'
+        ? snapshotOf((c) => (c === 'get_routing_summary_live' ? Promise.resolve({ decision_preview: null }) : baseImpl(c)))
+        : baseImpl(cmd));
     render(<ModelsView pushToast={vi.fn()} />);
     expect(await screen.findByText('Routing summary unavailable')).toBeTruthy();
     expect(document.body.textContent).not.toMatch(/undefined|NaN/);
@@ -68,6 +79,20 @@ describe('ModelsView', () => {
     render(<ModelsView pushToast={vi.fn()} />);
     await waitFor(() => expect(screen.getAllByRole('list').length).toBeGreaterThan(0));
     expect(screen.getAllByRole('listitem').length).toBe(CARDS.length);
+  });
+
+  it('refreshes through one batched get_models_snapshot call', async () => {
+    invokeMock.mockImplementation((cmd: string) =>
+      cmd === 'get_models_snapshot'
+        ? Promise.resolve({ cards: CARDS, routing: SUMMARY, active_model: 'openai/gpt-x', providers: [] })
+        : baseImpl(cmd),
+    );
+    render(<ModelsView pushToast={vi.fn()} />);
+    await waitFor(() => expect(screen.getByText('ollama/llama')).toBeTruthy());
+    const cmds = invokeMock.mock.calls.map((c) => c[0]);
+    expect(cmds).toContain('get_models_snapshot');
+    expect(cmds).not.toContain('list_model_cards');
+    invokeMock.mockImplementation(baseImpl);
   });
 });
 
@@ -94,7 +119,8 @@ const ROUTING_CARDS = [...CARDS, {
   id: 'acme/widget-9', provider: 'acme', tier: 'Pro', cost_per_1k: 0.02, max_tokens: 64000, is_free: false,
   latency_p50_ms: 500,
 }];
-const routingAware = (cmd: string) => {
+const routingAware: Impl = (cmd: string) => {
+  if (cmd === 'get_models_snapshot') return snapshotOf(routingAware);
   if (cmd === 'list_model_cards') return Promise.resolve(ROUTING_CARDS);
   if (cmd === 'get_routing_summary_live') return Promise.resolve({ ...SUMMARY, decision_preview: PREVIEW });
   if (cmd === 'explain_routing') return Promise.resolve(EXPLANATION);

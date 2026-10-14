@@ -19,6 +19,9 @@ mod webhook_intake;
 /// Host-side registration of the nvml-probe plugin as the orchestrator's GPU probe.
 pub mod vram_probe;
 
+mod boot_gate;
+pub use boot_gate::subsystem_not_booted_json;
+
 #[derive(Debug, Clone)]
 pub struct CachedCatalog {
     pub resolved: vox_repository::ResolvedRepoCatalog,
@@ -132,11 +135,23 @@ pub struct ServerState {
     /// Learned per-model prompt profiles (Track F).  Hydrated from DB at startup;
     /// updated in-process as variants are promoted through the confidence state machine.
     pub model_prompt_registry: Arc<ModelPromptRegistry>,
+
+    /// Capability profile this host serves (`dev` unless `--profile` / `VOX_PROFILE`).
+    pub active_profile: Arc<crate::profiles::ActiveProfile>,
+
+    /// Subsystems actually up. "Everything booted" until plan 03's conditioned boot.
+    pub boot_report: Arc<PrRwLock<crate::profiles::BootReport>>,
 }
 
 impl ServerState {
     pub fn feedback(&self) -> vox_orchestrator::feedback::FeedbackStore {
         self.feedback.clone()
+    }
+
+    /// Scope this state to `profile` (advertising and dispatch both honor it).
+    pub fn with_profile(mut self, profile: crate::profiles::ActiveProfile) -> Self {
+        self.active_profile = Arc::new(profile);
+        self
     }
 
     /// The trusted caller role for this server (human vs agent), used to authorize
@@ -326,6 +341,8 @@ impl ServerState {
             skill_search_index,
             active_skill_id: Arc::new(parking_lot::RwLock::new(None)),
             model_prompt_registry: Arc::new(ModelPromptRegistry::new()),
+            active_profile: Arc::new(crate::profiles::ActiveProfile::dev()),
+            boot_report: Arc::new(PrRwLock::new(crate::profiles::full_boot_report())),
         };
 
         // Spawn pollers
@@ -351,6 +368,25 @@ impl ServerState {
         repository: vox_repository::RepositoryContext,
         session_manager: Arc<TokMutex<SessionManager>>,
         skill_registry: Arc<SkillRegistry>,
+    ) -> Self {
+        Self::new_for_daemon_gated(
+            orchestrator,
+            orchestrator_config,
+            repository,
+            session_manager,
+            skill_registry,
+            true,
+        )
+    }
+
+    /// [`Self::new_for_daemon`] with the Research-only scientia mesh jobs made optional (skipped when `Research` is outside the capability-profile closure).
+    pub fn new_for_daemon_gated(
+        orchestrator: Arc<Orchestrator>,
+        orchestrator_config: OrchestratorConfig,
+        repository: vox_repository::RepositoryContext,
+        session_manager: Arc<TokMutex<SessionManager>>,
+        skill_registry: Arc<SkillRegistry>,
+        spawn_research_jobs: bool,
     ) -> Self {
         let workspace_root = Some(repository.root.clone());
         let workspace_mcp_root = workspace_root
@@ -402,13 +438,17 @@ impl ServerState {
             )),
             active_skill_id: Arc::new(parking_lot::RwLock::new(None)),
             model_prompt_registry: Arc::new(ModelPromptRegistry::new()),
+            active_profile: Arc::new(crate::profiles::ActiveProfile::dev()),
+            boot_report: Arc::new(PrRwLock::new(crate::profiles::full_boot_report())),
         };
         Self::spawn_external_skill_hydration(
             state.skill_registry.clone(),
             workspace_mcp_root,
             state.skill_search_index.clone(),
         );
-        state.spawn_scientia_research_mesh_background_jobs();
+        if spawn_research_jobs {
+            state.spawn_scientia_research_mesh_background_jobs();
+        }
         // Phase 3 D-04: no [orchestrator.webhook] section => no-op.
         let _ = webhook_intake::spawn_webhook_intake_poller(
             state.orchestrator_config.webhook.as_ref(),
@@ -733,6 +773,8 @@ impl ServerState {
             )),
             active_skill_id: Arc::new(parking_lot::RwLock::new(None)),
             model_prompt_registry: Arc::new(ModelPromptRegistry::new()),
+            active_profile: Arc::new(crate::profiles::ActiveProfile::dev()),
+            boot_report: Arc::new(PrRwLock::new(crate::profiles::full_boot_report())),
         }
     }
 
@@ -744,10 +786,11 @@ impl ServerState {
 
 /// Returns true when JSON looks like `ToolResult` with `success: false` (MCP `is_error` signal).
 pub fn tool_json_envelope_is_error(json: &str) -> bool {
-    serde_json::from_str::<serde_json::Value>(json)
-        .ok()
-        .and_then(|v| v.get("success").and_then(|s| s.as_bool()))
-        == Some(false)
+    let Ok(v) = serde_json::from_str::<serde_json::Value>(json) else {
+        return false;
+    };
+    v.get("success").and_then(|s| s.as_bool()) == Some(false)
+        || crate::profiles::is_profile_denial_json(&v)
 }
 
 #[cfg(test)]
@@ -755,6 +798,18 @@ mod tests {
     use super::*;
     use vox_orchestrator::feedback::FeedbackKind;
     use vox_orchestrator::types::TaskId;
+
+    #[tokio::test]
+    async fn with_profile_replaces_active_profile_and_keeps_boot_report() {
+        let state = ServerState::new_test().await;
+        let models = crate::profiles::ActiveProfile::resolve(&["models"]).expect("models");
+        let scoped = state.with_profile(models.clone());
+        assert_eq!(*scoped.active_profile, models);
+        assert_eq!(
+            *scoped.boot_report.read(),
+            crate::profiles::full_boot_report()
+        );
+    }
 
     #[tokio::test]
     async fn feedback_shared() {

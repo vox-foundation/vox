@@ -1,42 +1,8 @@
-//! `vox harness history`/`report` — CLI surfacing for persisted harness eval runs, plus
-//! the regression-detection logic shared with the GUI's Harness Health surface (design spec
-//! §10.3).
+//! `vox harness history`/`report` — CLI surfacing for persisted harness eval runs. The
+//! regression-detection logic shared with the Harness Health surface lives next to the record
+//! types (`vox_db::detect_regressions`, design spec §10.3).
 
-/// A detected regression between two consecutive runs. `flipped_task_ids` is populated only for
-/// `RegressionKind::TaskFlippedToFail` (design spec §10.3's "specific task/selection rows that
-/// changed" requirement) — empty for the aggregate-threshold kinds.
-#[derive(Debug, Clone, PartialEq)]
-pub struct RegressionFlag {
-    pub kind: RegressionKind,
-    pub previous_run_id: String,
-    pub current_run_id: String,
-    pub previous_git_sha: String,
-    pub current_git_sha: String,
-    pub changed_files: Vec<String>,
-    pub flipped_task_ids: Vec<String>,
-    pub detail: String,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RegressionKind {
-    /// A single task went from pass in the previous run to fail in the current run — flagged
-    /// independent of the aggregate pass-rate threshold below, since an aggregate percentage can
-    /// mask one task flipping fail while a different task happens to flip pass in the same run.
-    TaskFlippedToFail,
-    PassRateDrop,
-    CostTierRatioDrop,
-}
-
-const PASS_RATE_DROP_THRESHOLD_PP: f64 = 10.0;
-const COST_TIER_RATIO_DROP_THRESHOLD_PP: f64 = 15.0;
-
-fn pass_rate(run: &vox_db::HarnessEvalRunRecord) -> f64 {
-    let graded = run.task_count - run.skip_count;
-    if graded <= 0 {
-        return 100.0;
-    }
-    (run.pass_count as f64 / graded as f64) * 100.0
-}
+pub use vox_db::{RegressionFlag, RegressionKind, detect_regressions, free_cheap_ratio};
 
 /// Task M3: unbiased pass@k estimator (Chen et al. 2021, "Evaluating Large Language Models
 /// Trained on Code", eq. 1) for one task's `n` total samples and `c` passing ones. Using
@@ -106,97 +72,6 @@ fn mean_pass_hat_k(task_results: &[vox_db::HarnessEvalTaskResultRecord], k: i64)
         return None;
     }
     Some(scores.iter().sum::<f64>() / scores.len() as f64)
-}
-
-fn free_cheap_ratio(events: &[vox_db::ModelSelectionEventRecord]) -> f64 {
-    let non_privacy_forced: Vec<_> = events.iter().filter(|e| !e.was_privacy_gated).collect();
-    if non_privacy_forced.is_empty() {
-        return 100.0;
-    }
-    let free_or_cheap = non_privacy_forced
-        .iter()
-        .filter(|e| e.cost_tier == "free" || e.cost_tier == "cheap")
-        .count();
-    (free_or_cheap as f64 / non_privacy_forced.len() as f64) * 100.0
-}
-
-/// Compare two consecutive runs, their selection events, AND their per-task result lists,
-/// returning any regressions detected. Pure function — no DB access — so it's fully unit-testable
-/// against fixture data (design spec §12). Aggregate-only comparison (the two runs' pass_count/
-/// task_count alone) cannot answer "which task regressed" — that's why `previous_task_results`/
-/// `current_task_results` are required inputs, not optional ones.
-pub fn detect_regressions(
-    previous: &vox_db::HarnessEvalRunRecord,
-    current: &vox_db::HarnessEvalRunRecord,
-    previous_task_results: &[vox_db::HarnessEvalTaskResultRecord],
-    current_task_results: &[vox_db::HarnessEvalTaskResultRecord],
-    previous_events: &[vox_db::ModelSelectionEventRecord],
-    current_events: &[vox_db::ModelSelectionEventRecord],
-    changed_files: &[String],
-) -> Vec<RegressionFlag> {
-    let mut flags = Vec::new();
-
-    let prev_status_by_task: std::collections::HashMap<&str, &str> = previous_task_results
-        .iter()
-        .map(|t| (t.task_id.as_str(), t.status.as_str()))
-        .collect();
-    let flipped_task_ids: Vec<String> = current_task_results
-        .iter()
-        .filter(|t| {
-            t.status == "fail" && prev_status_by_task.get(t.task_id.as_str()) == Some(&"pass")
-        })
-        .map(|t| t.task_id.clone())
-        .collect();
-    if !flipped_task_ids.is_empty() {
-        flags.push(RegressionFlag {
-            kind: RegressionKind::TaskFlippedToFail,
-            previous_run_id: previous.run_id.clone(),
-            current_run_id: current.run_id.clone(),
-            previous_git_sha: previous.git_sha.clone(),
-            current_git_sha: current.git_sha.clone(),
-            changed_files: changed_files.to_vec(),
-            detail: format!(
-                "{} task(s) flipped from pass to fail: {}",
-                flipped_task_ids.len(),
-                flipped_task_ids.join(", ")
-            ),
-            flipped_task_ids,
-        });
-    }
-
-    let prev_pass_rate = pass_rate(previous);
-    let cur_pass_rate = pass_rate(current);
-    if prev_pass_rate - cur_pass_rate > PASS_RATE_DROP_THRESHOLD_PP {
-        flags.push(RegressionFlag {
-            kind: RegressionKind::PassRateDrop,
-            previous_run_id: previous.run_id.clone(),
-            current_run_id: current.run_id.clone(),
-            previous_git_sha: previous.git_sha.clone(),
-            current_git_sha: current.git_sha.clone(),
-            changed_files: changed_files.to_vec(),
-            flipped_task_ids: vec![],
-            detail: format!("pass rate dropped from {prev_pass_rate:.1}% to {cur_pass_rate:.1}%"),
-        });
-    }
-
-    let prev_ratio = free_cheap_ratio(previous_events);
-    let cur_ratio = free_cheap_ratio(current_events);
-    if prev_ratio - cur_ratio > COST_TIER_RATIO_DROP_THRESHOLD_PP {
-        flags.push(RegressionFlag {
-            kind: RegressionKind::CostTierRatioDrop,
-            previous_run_id: previous.run_id.clone(),
-            current_run_id: current.run_id.clone(),
-            previous_git_sha: previous.git_sha.clone(),
-            current_git_sha: current.git_sha.clone(),
-            changed_files: changed_files.to_vec(),
-            flipped_task_ids: vec![],
-            detail: format!(
-                "free/cheap model-selection ratio dropped from {prev_ratio:.1}% to {cur_ratio:.1}%"
-            ),
-        });
-    }
-
-    flags
 }
 
 use clap::Parser;

@@ -38,20 +38,19 @@ flowchart LR
 
 ## Dispatch
 
-- **Tools:** Federated `tool` functions run via the Vox interpreter (`vox_compiler::eval::Interpreter`). JSON args map to `VoxValue`; optional HIR parameters (with defaults) are omitted from JSON Schema `required`.
+- **Tools:** Federated `@tool` functions run via the Vox interpreter (`vox_compiler::eval::Interpreter`). JSON args map to `VoxValue`; optional HIR parameters (with defaults) are omitted from JSON Schema `required`.
 - **Resources:** Federated `@mcp.resource` functions are nullary; `resources/read` invokes the declaring fn and returns its `str` body.
 
-## MCP tier policy
+## MCP tool visibility
 
-`VOX_MCP_TIERS` filters `tools/list` by `vox_tier` metadata (default: `core` only):
-
-| Tier | Source |
-|------|--------|
-| `core`, `dev`, `advanced` | Static catalog (`TOOL_REGISTRY`) |
-| `workspace` | Federated `tool` declarations |
-| `skill` | Instructional macro tools from installed skills |
-
-Set `VOX_MCP_TIERS=all` to advertise every tier.
+`tools/list` advertises every catalog tool compiled into the server plus instructional macro tools
+from installed skills (`vox_source: skill`). Federated `@tool` functions (`vox_source: workspace`)
+are dispatchable by name; set `VOX_MCP_WORKSPACE_TOOLS=1` to also advertise them.
+Each catalog tool's `_meta` carries `vox_exposure`, `vox_side_effect_class`, and `vox_requires`,
+projected from `mcp.exposure`, `side_effect_class`, and `mcp.requires` in
+`contracts/operations/catalog.v1.yaml`.
+`VOX_MCP_TIERS` is a deprecated alias for that opt-in (`workspace` or `all` only);
+setting it logs a warning.
 
 ## CI gates
 

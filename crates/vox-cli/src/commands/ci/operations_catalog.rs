@@ -11,6 +11,7 @@ use super::command_compliance::registry::{
     MCP_TOOL_REGISTRY_REL, REGISTRY_REL, validate_mcp_tool_registry_against_json_schema,
     validate_registry_against_json_schema,
 };
+use super::operations_catalog_exposure::ensure_mcp_classified;
 use crate::command_registry_model::{RegistryFile, RegistryOperation};
 use vox_bounded_fs::read_utf8_path_capped;
 use vox_capability_registry::{
@@ -153,12 +154,12 @@ pub struct McpProjection {
     pub name: String,
     #[serde(default)]
     pub http_read_role_eligible: bool,
-    #[serde(default = "default_mcp_tier")]
-    pub tier: String,
-}
-
-fn default_mcp_tier() -> String {
-    "core".to_string()
+    /// `public | operator | internal`; required for every MCP op (capability profiles).
+    #[serde(default)]
+    pub exposure: Option<String>,
+    /// Subsystem ids the tool needs booted; `[]` when none. Required for every MCP op.
+    #[serde(default)]
+    pub requires: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -192,8 +193,12 @@ struct McpCanonicalTool {
     product_lane: String,
     #[serde(default)]
     http_read_role_eligible: bool,
-    #[serde(default = "default_mcp_tier")]
-    tier: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    exposure: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    side_effect_class: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    requires: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -327,10 +332,14 @@ fn build_catalog_from_live_registries(repo_root: &Path) -> Result<OperationsCata
             row.description = t.description.clone();
         }
         row.product_lane = t.product_lane.clone();
+        if row.side_effect_class.is_none() {
+            row.side_effect_class = t.side_effect_class.clone();
+        }
         row.mcp = Some(McpProjection {
             name: t.name,
             http_read_role_eligible: t.http_read_role_eligible,
-            tier: t.tier,
+            exposure: t.exposure,
+            requires: t.requires,
         });
     }
 
@@ -459,6 +468,7 @@ fn write_inventory_report(repo_root: &Path, catalog: &OperationsCatalog) -> Resu
 pub fn verify(repo_root: &Path) -> Result<()> {
     let raw = read_utf8_path_capped(&repo_root.join(OPERATIONS_CATALOG_REL))
         .with_context(|| format!("read {}", OPERATIONS_CATALOG_REL))?;
+    // Constraint: the JSON Schema rejects rows missing exposure/requires/side_effect_class before `ensure_mcp_classified` runs; the per-op listing comes from `operations-sync --target mcp`.
     validate_operations_catalog_against_json_schema(repo_root, &raw)?;
     let catalog: OperationsCatalog =
         serde_yaml::from_str(&raw).context("parse operations catalog")?;
@@ -577,6 +587,7 @@ pub fn verify(repo_root: &Path) -> Result<()> {
         }
     }
     verify_catalog_nomenclature(&catalog)?;
+    ensure_mcp_classified(&catalog)?;
     verify_mcp_dispatch_coverage(repo_root, &seen_mcp)?;
     verify_mcp_input_schema_coverage(repo_root, &seen_mcp)?;
     verify_catalog_read_role_vs_governance(repo_root, &catalog)?;
@@ -737,7 +748,9 @@ fn project_mcp_registry(catalog: &OperationsCatalog) -> McpCanonicalRegistry {
                 description: row.description.clone(),
                 product_lane: row.product_lane.clone(),
                 http_read_role_eligible: m.http_read_role_eligible,
-                tier: m.tier.clone(),
+                exposure: m.exposure.clone(),
+                side_effect_class: row.side_effect_class.clone(),
+                requires: m.requires.clone(),
             })
         })
         .collect();
@@ -957,6 +970,7 @@ pub fn sync(repo_root: &Path, target: &str, write: bool) -> Result<()> {
         }
         "mcp" => {
             let catalog = read_catalog(repo_root)?;
+            ensure_mcp_classified(&catalog)?;
             let text = mcp_registry_yaml_text(&catalog)?;
             let path = repo_root.join(MCP_TOOL_REGISTRY_REL);
             write_or_verify_text(
@@ -1242,5 +1256,192 @@ mod tests {
                 .is_file(),
             "expected vox-orchestrator-mcp input_schemas.rs (operations-verify anchor)"
         );
+    }
+
+    #[test]
+    fn mcp_projection_emits_exposure_metadata_and_no_tier() {
+        let mut row = create_row("x.ok", None, None, "active");
+        row.cli = None;
+        row.side_effect_class = Some("read_only".to_string());
+        row.mcp = Some(McpProjection {
+            name: "vox_x_ok".to_string(),
+            http_read_role_eligible: false,
+            exposure: Some("public".to_string()),
+            requires: Some(vec!["db".to_string(), "search_index".to_string()]),
+        });
+        let cat = OperationsCatalog {
+            schema_version: 1,
+            capability: Default::default(),
+            exemptions: Default::default(),
+            operations: vec![row],
+        };
+        let text = mcp_registry_yaml_text(&cat).expect("serialize");
+        assert!(text.contains("  exposure: public\n"), "{text}");
+        assert!(text.contains("  side_effect_class: read_only\n"), "{text}");
+        assert!(
+            text.contains("  requires:\n  - db\n  - search_index\n"),
+            "{text}"
+        );
+        assert!(!text.contains("tier"), "{text}");
+    }
+
+    const UNCLASSIFIED_CATALOG: &str = "schema_version: 1
+operations:
+- id: x.unclassified
+  title: Unclassified
+  description: d
+  product_lane: ai
+  mcp:
+    name: vox_x_unclassified
+";
+
+    /// Schema-valid but gate-failing: a read-role tool whose side effect is not `read_only`.
+    const LEAKY_CATALOG: &str = "schema_version: 1
+operations:
+- id: x.leaky
+  title: Leaky
+  description: d
+  product_lane: ai
+  side_effect_class: writes_files
+  mcp:
+    name: vox_x_leaky
+    http_read_role_eligible: true
+    exposure: public
+    requires: []
+";
+
+    const LEAKY_MCP_REGISTRY: &str = "version: 1
+tools:
+- name: vox_x_leaky
+  description: d
+  product_lane: ai
+  http_read_role_eligible: true
+";
+
+    fn real_repo_root() -> std::path::PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
+    }
+
+    fn write_rel(root: &Path, rel: &str, text: &str) {
+        let p = root.join(rel);
+        fs::create_dir_all(p.parent().expect("parent")).expect("mkdir");
+        fs::write(p, text).expect("write fixture");
+    }
+
+    #[test]
+    fn sync_mcp_target_fails_on_unclassified_catalog() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        write_rel(dir.path(), OPERATIONS_CATALOG_REL, UNCLASSIFIED_CATALOG);
+        let err = sync(dir.path(), "mcp", false).unwrap_err().to_string();
+        assert!(err.contains("MCP exposure-metadata problem(s)"), "{err}");
+        assert!(err.contains("missing `exposure`"), "{err}");
+    }
+
+    #[test]
+    fn verify_runs_classification_gate_after_structural_checks() {
+        // `verify` validates the JSON Schema first, which already rejects a row with no
+        // `exposure`/`requires`/`side_effect_class`; the gate is therefore only reachable with a
+        // schema-valid row that breaks a semantic invariant (read-role tool that is not read_only).
+        let dir = tempfile::tempdir().expect("tempdir");
+        let schema = fs::read_to_string(real_repo_root().join(OPERATIONS_CATALOG_SCHEMA_REL))
+            .expect("read real schema");
+        write_rel(dir.path(), OPERATIONS_CATALOG_SCHEMA_REL, &schema);
+        write_rel(dir.path(), OPERATIONS_CATALOG_REL, LEAKY_CATALOG);
+        write_rel(dir.path(), MCP_TOOL_REGISTRY_REL, LEAKY_MCP_REGISTRY);
+        write_rel(
+            dir.path(),
+            REGISTRY_REL,
+            "schema_version: 1\noperations: []\n",
+        );
+        let err = verify(dir.path()).unwrap_err().to_string();
+        assert!(err.contains("MCP exposure-metadata problem(s)"), "{err}");
+        assert!(err.contains("http_read_role_eligible"), "{err}");
+    }
+
+    #[test]
+    fn verify_rejects_unclassified_row_at_schema_validation() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let schema = fs::read_to_string(real_repo_root().join(OPERATIONS_CATALOG_SCHEMA_REL))
+            .expect("read real schema");
+        write_rel(dir.path(), OPERATIONS_CATALOG_SCHEMA_REL, &schema);
+        write_rel(dir.path(), OPERATIONS_CATALOG_REL, UNCLASSIFIED_CATALOG);
+        let err = format!("{:#}", verify(dir.path()).unwrap_err());
+        assert!(!err.contains("MCP exposure-metadata problem(s)"), "{err}");
+        assert!(
+            err.contains("catalog.v1.schema.json") && err.contains("/operations/0/mcp"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn catalog_schema_enums_match_vox_mcp_registry_vocabulary() {
+        use std::collections::BTreeSet;
+        use vox_mcp_registry::{Exposure, SideEffectClass, Subsystem};
+
+        // Compile-time guards: adding a variant forces this list (and the schema) to be updated.
+        let exposures = [Exposure::Public, Exposure::Operator, Exposure::Internal];
+        for e in exposures {
+            match e {
+                Exposure::Public | Exposure::Operator | Exposure::Internal => {}
+            }
+        }
+        let effects = [
+            SideEffectClass::None,
+            SideEffectClass::ReadOnly,
+            SideEffectClass::WritesFiles,
+            SideEffectClass::SpawnsProcess,
+            SideEffectClass::Network,
+            SideEffectClass::RemoteMutation,
+            SideEffectClass::Destructive,
+        ];
+        for e in effects {
+            match e {
+                SideEffectClass::None
+                | SideEffectClass::ReadOnly
+                | SideEffectClass::WritesFiles
+                | SideEffectClass::SpawnsProcess
+                | SideEffectClass::Network
+                | SideEffectClass::RemoteMutation
+                | SideEffectClass::Destructive => {}
+            }
+        }
+
+        let raw = fs::read_to_string(real_repo_root().join(OPERATIONS_CATALOG_SCHEMA_REL))
+            .expect("read schema");
+        let schema: serde_json::Value = serde_json::from_str(&raw).expect("schema json");
+        let enum_set = |v: &serde_json::Value| -> (usize, BTreeSet<String>) {
+            let arr = v.as_array().expect("enum array");
+            let set: BTreeSet<String> = arr
+                .iter()
+                .map(|x| x.as_str().expect("enum string").to_string())
+                .collect();
+            (arr.len(), set)
+        };
+        let mcp_props = &schema["definitions"]["mcpProjection"]["properties"];
+        let cases: [(&str, (usize, BTreeSet<String>), Vec<&str>); 3] = [
+            (
+                "exposure",
+                enum_set(&mcp_props["exposure"]["enum"]),
+                exposures.iter().map(|e| e.as_str()).collect(),
+            ),
+            (
+                "side_effect_class",
+                enum_set(
+                    &schema["definitions"]["operationRow"]["then"]["properties"]["side_effect_class"]
+                        ["enum"],
+                ),
+                effects.iter().map(|e| e.as_str()).collect(),
+            ),
+            (
+                "requires",
+                enum_set(&mcp_props["requires"]["items"]["enum"]),
+                Subsystem::ALL.iter().map(|s| s.as_str()).collect(),
+            ),
+        ];
+        for (name, (len, got), want) in cases {
+            let want_set: BTreeSet<String> = want.iter().map(|s| s.to_string()).collect();
+            assert_eq!(len, want.len(), "{name}: schema enum length");
+            assert_eq!(got, want_set, "{name}: schema enum vs vox_mcp_registry");
+        }
     }
 }

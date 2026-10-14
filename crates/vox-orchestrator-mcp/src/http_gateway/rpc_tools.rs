@@ -17,7 +17,7 @@ pub(super) async fn http_tools(
                 .into_response();
         }
     };
-    let visible_tools = visible_tools_for_role(&state, role);
+    let visible_tools = visible_tools_for(&state, call_context(&state, &connect.0, role));
     let mut docs: Vec<ToolDescriptor> = Vec::new();
     for t in tool_registry() {
         let name = t.name.to_string();
@@ -59,25 +59,69 @@ pub(super) async fn http_call_tool(
                 .into_response();
         }
     };
-    call_tool_response(&state, req.name, req.args, Some(connect.0), role).await
+    let ctx = call_context(&state, &connect.0, role);
+    call_tool_response(&state, req.name, req.args, Some(connect.0), ctx).await
 }
 pub(super) async fn call_tool_response(
     state: &GatewayState,
     name: String,
     args: Value,
     peer: Option<SocketAddr>,
-    role: AccessRole,
+    ctx: CallContext,
 ) -> Response {
-    Json(call_tool_response_value(state, name, args, peer, role).await).into_response()
+    let canonical = canonical_tool_name(name.as_str()).to_string();
+    if let Some(d) = gateway_denial(state, ctx, &canonical) {
+        let status = StatusCode::from_u16(d.http_status()).unwrap_or(StatusCode::FORBIDDEN);
+        let body =
+            crate::profiles::denial_error_json(&canonical, &d, &state.server_state.active_profile);
+        return (status, Json(body)).into_response();
+    }
+    Json(call_tool_response_value(state, canonical, args, peer, ctx).await).into_response()
+}
+pub(super) fn gateway_denial(
+    state: &GatewayState,
+    ctx: CallContext,
+    tool: &str,
+) -> Option<ProfileDenial> {
+    crate::profiles::guard_tool(&state.server_state, ctx, tool).err()
+}
+/// Call a fixed tool for an aggregate endpoint, still subject to the caller's context.
+pub(super) async fn gated_tool_json(state: &GatewayState, ctx: CallContext, tool: &str) -> Value {
+    match gateway_denial(state, ctx, tool) {
+        Some(d) => crate::profiles::denial_error_json(tool, &d, &state.server_state.active_profile),
+        None => {
+            call_tool_json(
+                &state.server_state,
+                tool,
+                Value::Object(serde_json::Map::new()),
+            )
+            .await
+        }
+    }
 }
 pub(super) async fn call_tool_response_value(
     state: &GatewayState,
     name: String,
     args: Value,
     peer: Option<SocketAddr>,
-    role: AccessRole,
+    ctx: CallContext,
 ) -> ToolCallResponse {
     let canonical = canonical_tool_name(name.as_str()).to_string();
+    if let Err(denial) = crate::profiles::guard_tool(&state.server_state, ctx, &canonical) {
+        return ToolCallResponse {
+            success: false,
+            is_error: true,
+            result: crate::profiles::denial_error_json(
+                &canonical,
+                &denial,
+                &state.server_state.active_profile,
+            ),
+        };
+    }
+    let role = match ctx.role {
+        CallerRole::Read => AccessRole::Read,
+        CallerRole::Write => AccessRole::Write,
+    };
     if !visible_tools_for_role(state, role).contains(&canonical) {
         return ToolCallResponse {
             success: false,

@@ -40,11 +40,10 @@ function Kpi({ label, value, tone }: { label: string; value: number; tone?: stri
 }
 
 /**
- * Phase H structured dashboard: assembles a QueueSnapshot from the live DB via
- * the native `scientia_dashboard_snapshot` command, which reads through this
- * app's own already-open DB pool instead of shelling out to a `vox scientia
- * dashboard` subprocess (which used to contend with this app's own
- * connection for the same DB file lock — "Locking error ... os error 33").
+ * Phase H structured dashboard: a QueueSnapshot from the native
+ * `scientia_dashboard_snapshot` command, served by the daemon
+ * (`GET /api/v2/scientia/queue`) so it reflects whichever Vox server Axis is
+ * connected to, local or remote.
  */
 export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
   const embedded = useIsEmbeddedSurface();

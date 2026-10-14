@@ -141,6 +141,14 @@ export function installTauriMock(viewKey: string): void {
       (window as any).__TAURI_CALLS__.push({ cmd, args: args ?? null });
       try {
         switch (cmd) {
+        case 'get_models_snapshot': {
+          // Composed from the per-command fixtures so tauriMockRich's overrides flow through.
+          const inv = (window as any).__TAURI_INTERNALS__.invoke;
+          const [cards, routing, active_model, providers] = await Promise.all([
+            inv('list_model_cards'), inv('get_routing_summary_live'), inv('get_active_model'), inv('inference_provider_status'),
+          ]);
+          return { cards, routing, active_model, providers };
+        }
         case 'list_model_cards': return models;
         case 'get_active_model': return 'anthropic/claude-sonnet';
         case 'get_auto_model_recommendation':

@@ -33,7 +33,15 @@ pub fn load_config() -> OrchestratorConfig {
 }
 
 pub async fn run_stdio_server_blocking() -> anyhow::Result<()> {
-    tracing::info!("vox native mcp server starting...");
+    let profile = crate::profiles::ActiveProfile::from_env()?;
+    run_stdio_server_blocking_with_profile(profile).await
+}
+
+/// Stdio MCP (or HTTP-gateway-only when `VOX_MCP_HTTP_ENABLED=1`) scoped to `profile`.
+pub async fn run_stdio_server_blocking_with_profile(
+    profile: crate::profiles::ActiveProfile,
+) -> anyhow::Result<()> {
+    tracing::info!(profile = %profile.id_string(), "vox native mcp server starting...");
 
     // Load configuration
     let config = load_config();
@@ -46,7 +54,7 @@ pub async fn run_stdio_server_blocking() -> anyhow::Result<()> {
     // is forwarded to the daemon per-call (`crate::daemon_route`), so this
     // process does not need to probe for or align with an external daemon
     // itself the way the old full-stack path did.
-    let state = ServerState::new_full(config);
+    let state = ServerState::new_full(config).with_profile(profile);
 
     #[cfg(feature = "populi-transport")]
     crate::populi_startup::publish_mesh_on_mcp_start(&state).await;
@@ -83,4 +91,12 @@ pub async fn run_stdio_server_blocking() -> anyhow::Result<()> {
 
     tracing::info!("vox native mcp server shutting down");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn load_config_builds_without_panicking() {
+        let _ = super::load_config();
+    }
 }

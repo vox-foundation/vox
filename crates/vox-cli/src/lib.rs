@@ -473,7 +473,19 @@ pub enum Cli {
         cmd: commands::migrate::MigrateCmd,
     },
     /// Start the Vox MCP (Model Context Protocol) server
-    Mcp,
+    Mcp {
+        /// Capability profile ids (comma-separated), e.g. `models,knowledge`. Default: `VOX_PROFILE`, then `~/.vox/config.toml`, then `dev`.
+        #[arg(long, value_name = "IDS")]
+        profile: Option<String>,
+    },
+    /// Run the Vox daemon + HTTP gateway headless (no stdio), scoped to a capability profile
+    Serve {
+        /// Capability profile ids (comma-separated), e.g. `orchestrator,knowledge,mesh`. Default: `VOX_PROFILE`, then `~/.vox/config.toml`, then `dev`.
+        #[arg(long, value_name = "IDS")]
+        profile: Option<String>,
+        #[command(flatten)]
+        network: crate::commands::serve_network::ServeNetworkArgs,
+    },
     /// Export the Vox language grammar in various formats for MENS training.
     Grammar {
         /// Arguments.

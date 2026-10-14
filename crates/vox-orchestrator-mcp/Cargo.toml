@@ -38,6 +38,9 @@ heavy-browser = []
 # `cargo test`. OFF by default so plain consumers of this crate (vox-server, vox-gui,
 # ...) never link a mock-HTTP-server crate; `vox-cli` opts in explicitly.
 eval-gate = ["dep:wiremock"]
+# Server-side URL ingest for Axis (`vox_kb_ingest_url`). OFF by default like the rest of
+# the heavy retrieval stack; the daemon binary and vox-cli `heavy-retrieval` opt in.
+web-scrape = ["vox-search/web-scrape"]
 
 [dependencies]
 vox-orchestrator-driver = { workspace = true }
@@ -61,6 +64,7 @@ rmcp = { workspace = true, features = [
 ] }
 schemars = { workspace = true, features = ["derive"] }
 tower-http = { workspace = true, features = ["cors"] }
+tower = { workspace = true, features = ["util"] }
 
 # Workspace deps the moved code references
 vox-compiler.workspace = true
@@ -109,9 +113,15 @@ vox-speech = { workspace = true, optional = true, features = ["compiler-rerank"]
 
 # Standard deps
 tokio = { workspace = true }
+# MCP HTTP gateway TLS termination (capability-profiles plan 04). The workspace pins select
+# the `ring` provider with default features off; never enable rustls/tokio-rustls defaults
+# here (they select `aws_lc_rs`). Provider changes need a transport-providers ledger entry.
+rustls = { workspace = true, features = ["std", "logging", "tls12"] }
+tokio-rustls = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml.workspace = true
+similar = { workspace = true }
 toml = { workspace = true }
 tracing = { workspace = true }
 thiserror = { workspace = true }
@@ -165,7 +175,6 @@ serde_yaml = { workspace = true }
 # #[cfg(test)] would compile out for this crate's non-cfg(test) main dependency.
 vox-orchestrator = { path = "../vox-orchestrator", default-features = false, features = ["runtime", "test-support"] }
 vox-plugin-api = { workspace = true }
-tower = { workspace = true, features = ["util"] }
 serial_test.workspace = true
 jsonschema.workspace = true
 # Unconditionally available under `cargo test` regardless of the `eval-gate`
@@ -173,6 +182,8 @@ jsonschema.workspace = true
 # feature-gated optional [dependencies] entry above is only what makes it
 # reachable from non-test code (the eval-gate check functions).
 wiremock.workspace = true
+# Self-signed certs for gateway TLS tests; same pin/features as vox-populi's tls_smoke test.
+rcgen = { version = "0.14", default-features = false, features = ["ring", "pem"] }
 # Task 8e: pre-main hermetic-test-env init (see src/lib.rs `hermetic_test_env`).
 ctor.workspace = true
 # Task 8e: process-exit cleanup of the temp VOX_HOME dir the ctor above creates.

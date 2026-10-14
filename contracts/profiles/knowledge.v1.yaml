@@ -1,0 +1,13 @@
+id: knowledge
+description: "Agent memory, MCP sessions, knowledge bases, code/graph search, and knowledge queries."
+requires: [memory, sessions, search_index]
+tools:
+  include:
+    - vox_memory_*
+    - vox_session_*
+    - vox_kb_*
+    - vox_search_*
+    - vox_knowledge_query
+  include_lanes: []
+max_exposure: operator
+axis_surfaces: [memory, knowledge, search]

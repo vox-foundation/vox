@@ -8,6 +8,7 @@ import { RunsView } from '../surfaces/Runs/RunsView';
 import { TasksView } from '../surfaces/Tasks/TasksView';
 import { SettingsView } from '../surfaces/Settings/SettingsView';
 import { RepositoryView } from '../surfaces/Repository/RepositoryView';
+import { SurfaceGate } from './SurfaceUnavailable';
 import { MeshView } from '../surfaces/Mesh/MeshView';
 import { GamifyView } from '../surfaces/Gamify/GamifyView';
 import { HarnessRedirect } from '../surfaces/Harness/HarnessRedirect';
@@ -217,7 +218,7 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
 }
 
 export function renderSurfaceContent(viewKey: string, props: SurfaceProps): React.ReactNode {
-  return childRenderer(props, viewKey);
+  return <SurfaceGate viewKey={viewKey}>{childRenderer(props, viewKey)}</SurfaceGate>;
 }
 
 /** @deprecated Prefer {@link renderSurfaceContent} with a leaf view key. */

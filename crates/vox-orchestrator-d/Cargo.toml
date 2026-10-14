@@ -14,7 +14,7 @@ license.workspace = true
 # `token-counting` feature, which mirrors this one).
 vox-orchestrator = { workspace = true, features = ["token-counting"] }
 # Shipping MCP server: keep the full default tool surface (news/scientia/visus).
-vox-orchestrator-mcp = { workspace = true, features = ["news-publish", "gui-visual-review", "heavy-browser", "token-counting"] }
+vox-orchestrator-mcp = { workspace = true, features = ["news-publish", "gui-visual-review", "heavy-browser", "token-counting", "web-scrape"] }
 vox-skills.workspace = true
 vox-terminal-core = { path = "../vox-terminal-core" }
 vox-db.workspace = true
@@ -34,9 +34,17 @@ base64.workspace = true
 serde_json.workspace = true
 workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
+[lib]
+path = "src/lib.rs"
+
 [[bin]]
 name = "vox-orchestrator-d"
 path = "src/bin/vox_orchestrator_d.rs"
+doc = false
+
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

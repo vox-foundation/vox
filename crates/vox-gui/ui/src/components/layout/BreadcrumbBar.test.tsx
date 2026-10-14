@@ -43,3 +43,18 @@ describe('BreadcrumbBar', () => {
     expect(onNavigate).toHaveBeenCalledWith('research');
   });
 });
+
+import { StaticBackendStatusProvider } from '../../hooks/useBackendStatus';
+
+describe('BreadcrumbBar remote gating', () => {
+  it('appends the unavailability reason for the current view', () => {
+    render(
+      <StaticBackendStatusProvider
+        status={{ mode: 'remote', url: 'https://vox.lan:3921/', profile: null, surfaces: [{ surface: 'models', available: false, reason: 'not_remote_capable' }] }}
+      >
+        <BreadcrumbBar viewKey="models" />
+      </StaticBackendStatusProvider>,
+    );
+    expect(screen.getByTestId('breadcrumb-unavailable').textContent).toContain('not remote-capable yet');
+  });
+});

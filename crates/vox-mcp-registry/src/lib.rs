@@ -2,17 +2,40 @@
 //!
 //! Consume [`TOOL_REGISTRY`] instead of duplicating name/description tables.
 
-/// One MCP tool row (name, description, bell-curve [`product_lane`](McpToolRegistryEntry::product_lane)).
+mod boot;
+mod classification;
+mod exposure;
+mod profile;
+mod subsystem;
+
+pub use boot::{BootReport, ProfileDenial};
+pub use classification::{ToolClassification, classify_tool_row};
+pub use exposure::{Exposure, SideEffectClass};
+pub use profile::{
+    ActiveProfile, CallContext, CallerRole, DEV_PROFILE_ID, PROFILES, ProfileError,
+    ProfileManifest, authorize_tool,
+};
+pub use subsystem::{Subsystem, subsystem_closure};
+
+/// One MCP tool row: identity, bell-curve [`product_lane`](McpToolRegistryEntry::product_lane),
+/// and capability-profile exposure metadata.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct McpToolRegistryEntry {
     pub name: &'static str,
     pub description: &'static str,
     pub product_lane: &'static str,
     pub http_read_role_eligible: bool,
-    pub tier: &'static str,
+    pub exposure: Exposure,
+    pub side_effect_class: SideEffectClass,
+    pub requires: &'static [Subsystem],
 }
 
 include!(concat!(env!("OUT_DIR"), "/tool_registry.rs"));
+
+/// Row for an exact canonical tool name; wire aliases are not resolved here.
+pub fn registry_entry(name: &str) -> Option<&'static McpToolRegistryEntry> {
+    TOOL_REGISTRY.iter().find(|e| e.name == name)
+}
 
 mod semcov_wave46_tests;
 
@@ -73,3 +96,25 @@ pub const ORCHESTRATOR_TOOLS: &[&str] = &[
     "vox_lock_status",
     "vox_budget_status",
 ];
+
+#[cfg(test)]
+mod registry_entry_tests {
+    use super::*;
+
+    #[test]
+    fn registry_entry_finds_every_row_by_name() {
+        for e in TOOL_REGISTRY {
+            assert_eq!(registry_entry(e.name), Some(e));
+        }
+    }
+
+    #[test]
+    fn registry_entry_rejects_unknown_and_alias_names() {
+        assert_eq!(registry_entry("vox_no_such_tool"), None);
+        assert_eq!(
+            registry_entry("vox_model_list"),
+            None,
+            "wire aliases resolve in vox-orchestrator-mcp, not here"
+        );
+    }
+}

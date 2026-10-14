@@ -206,6 +206,8 @@ impl PersistentDaemon {
             return Ok(addr);
         }
 
+        let requested_profile = gui_requested_profile()?;
+
         let addr =
             match vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOrchestratorDaemonSocket)
                 .expose()
@@ -237,6 +239,17 @@ impl PersistentDaemon {
                     "existing vox-orchestrator-d is not human-role; stop it and let the GUI spawn \
 (or restart it with VOX_MCP_CALLER_ROLE=human)"
                         .to_string(),
+                );
+            }
+            if !vox_cli_core::daemon_ipc::orchestrator_daemon_ensure::ping_profile_matches(
+                &resp,
+                &requested_profile,
+            ) {
+                return Err(
+                    vox_cli_core::daemon_ipc::orchestrator_daemon_ensure::profile_mismatch_error(
+                        &resp,
+                        &requested_profile,
+                    ),
                 );
             }
             *self.resolved.write().await = Some((addr.clone(), existing_token));
@@ -283,6 +296,7 @@ impl PersistentDaemon {
         cmd.env("VOX_ORCHESTRATOR_DAEMON_SOCKET", &addr)
             .env("VOX_ORCHESTRATOR_DAEMON_TOKEN", &spawned_token)
             .env("VOX_MCP_CALLER_ROLE", "human")
+            .env("VOX_PROFILE", &requested_profile)
             .stdin(Stdio::null())
             .stdout(Stdio::null());
         // Capture daemon stderr under ~/.vox/run so empty-frame tool_call
@@ -464,9 +478,12 @@ impl PersistentDaemon {
 /// (adopting or spawning as needed). Used by Axis Drive to stamp `orch_fresh`.
 #[tauri::command]
 pub async fn orchestrator_daemon_ready(
-    state: tauri::State<'_, std::sync::Arc<PersistentDaemon>>,
+    state: tauri::State<'_, std::sync::Arc<crate::remote::backend::BackendState>>,
 ) -> Result<bool, String> {
-    Ok(state.ensure_live().await.is_ok())
+    Ok(match state.current().await {
+        crate::remote::backend::Backend::Local(daemon) => daemon.ensure_live().await.is_ok(),
+        crate::remote::backend::Backend::Remote(_) => true,
+    })
 }
 
 /// Axis Drive must not adopt a foreign orch that predates this process's
@@ -480,9 +497,15 @@ fn refuse_drive_foreign_adopt() -> bool {
 /// `None` when versions match or no mismatch has been observed yet.
 #[tauri::command]
 pub async fn orchestrator_version_mismatch(
-    state: tauri::State<'_, std::sync::Arc<PersistentDaemon>>,
+    state: tauri::State<'_, std::sync::Arc<crate::remote::backend::BackendState>>,
 ) -> Result<Option<VersionMismatch>, String> {
-    Ok(state.last_version_mismatch.read().await.clone())
+    Ok(match state.current().await {
+        crate::remote::backend::Backend::Local(daemon) => {
+            daemon.last_version_mismatch.read().await.clone()
+        }
+        // Remote major.minor is enforced at connect time (`version_mismatch`).
+        crate::remote::backend::Backend::Remote(_) => None,
+    })
 }
 
 /// Adopt only when ping proves the daemon was launched with a human MCP role.
@@ -492,6 +515,13 @@ pub fn existing_daemon_is_adoptable_for_gui(ping_response: &serde_json::Value) -
         .get("caller_role")
         .and_then(|v| v.as_str())
         .is_some_and(|s| s.eq_ignore_ascii_case("human"))
+}
+
+/// Capability profile Axis asks its local daemon to serve: `VOX_PROFILE` when set, else `dev`.
+pub fn gui_requested_profile() -> Result<String, String> {
+    vox_orchestrator_mcp::profiles::ActiveProfile::from_env()
+        .map(|p| p.id_string())
+        .map_err(|e| e.to_string())
 }
 
 /// Compares the daemon's self-reported `version` (from its ping response)
@@ -536,6 +566,14 @@ mod version_mismatch_tests {
             "ok": true,
             "caller_role": "HUMAN"
         })));
+    }
+
+    #[test]
+    fn gui_requested_profile_is_env_profile_or_dev() {
+        let want = vox_orchestrator_mcp::profiles::ActiveProfile::from_env()
+            .map(|p| p.id_string())
+            .map_err(|e| e.to_string());
+        assert_eq!(gui_requested_profile(), want);
     }
 
     #[test]

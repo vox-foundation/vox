@@ -1063,6 +1063,13 @@ variables:
     introduced_in: "0.6.0"
     default: "agent"
     description: "Trusted MCP caller role for privileged operations. Set by the launcher (not tool requests). Values: human (privileged browser/privileged paths) or agent (default when unset or any other value)."
+  - name: "VOX_PROFILE"
+    owner_crate: "vox-mcp-registry"
+    kind: "string"
+    required: false
+    introduced_in: "0.6.0"
+    default: "dev"
+    description: "Comma-separated capability profile ids (contracts/profiles/<id>.v1.yaml) scoping the MCP/HTTP tool surface; unset or empty means dev (every tool). vox mcp / vox serve also read the VOX_PROFILE key in ~/.vox/config.toml; spawners (CLI, Axis) pass it to vox-orchestrator-d."
   - name: "VOX_MCP_DECODE_POLICY"
     owner_crate: "vox-secrets"
     kind: "string"
@@ -1110,7 +1117,7 @@ variables:
     kind: "string"
     required: false
     introduced_in: "0.3.0"
-    description: "TODO"
+    description: "Bind host for the MCP HTTP gateway (IP literal or localhost; default 127.0.0.1). A non-loopback host requires write + read tokens and TLS or VOX_MCP_HTTP_BEHIND_TUNNEL."
   - name: "VOX_MCP_HTTP_PORT"
     owner_crate: "vox-secrets"
     kind: "string"
@@ -1182,7 +1189,14 @@ variables:
     kind: "string"
     required: false
     introduced_in: "0.3.0"
-    description: "TODO"
+    description: "DEPRECATED (2026-10-08): alias for VOX_MCP_WORKSPACE_TOOLS. Values workspace or all advertise workspace-federated MCP tools (other values, including dev and advanced, do not); a warning is logged whenever it is set. Ignored when VOX_MCP_WORKSPACE_TOOLS is set."
+  - name: "VOX_MCP_WORKSPACE_TOOLS"
+    owner_crate: "vox-orchestrator-mcp"
+    kind: "bool"
+    required: false
+    introduced_in: "0.6.0"
+    default: "0"
+    description: "1 or true (case-insensitive, trimmed; yes is not accepted; empty = off) advertises workspace-federated @tool functions in MCP tools/list (they are always dispatchable by name). Served only under the dev capability profile."
   - name: "VOX_MCP_TOOL_ARG_SCHEMA_VALIDATE"
     owner_crate: "vox-ml-cli"
     kind: "string"
@@ -4302,6 +4316,24 @@ variables:
     required: false
     introduced_in: "0.4.0"
     description: "Enables the public eval sandbox endpoint on the MCP HTTP server when set to '1'."
+  - name: "VOX_MCP_HTTP_TLS_CERT"
+    owner_crate: "vox-orchestrator-mcp"
+    kind: "string"
+    required: false
+    introduced_in: "0.6.0"
+    description: "PEM certificate path for TLS termination on the MCP HTTP gateway; requires VOX_MCP_HTTP_TLS_KEY. Satisfies the network bind policy's TLS-or-tunnel requirement."
+  - name: "VOX_MCP_HTTP_TLS_KEY"
+    owner_crate: "vox-orchestrator-mcp"
+    kind: "string"
+    required: false
+    introduced_in: "0.6.0"
+    description: "PEM private-key path for TLS termination on the MCP HTTP gateway; requires VOX_MCP_HTTP_TLS_CERT."
+  - name: "VOX_MCP_HTTP_BEHIND_TUNNEL"
+    owner_crate: "vox-orchestrator-mcp"
+    kind: "bool"
+    required: false
+    introduced_in: "0.6.0"
+    description: "Set to 1 when a TLS-terminating tunnel/proxy fronts the MCP HTTP gateway. Satisfies TLS-or-tunnel, forces token auth even on a loopback bind, and treats every caller as non-loopback."
   - name: "VOX_TELEMETRY"
     owner_crate: "vox-telemetry"
     kind: "string"

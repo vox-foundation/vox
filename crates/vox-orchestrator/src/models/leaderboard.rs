@@ -26,7 +26,7 @@ pub const MODES: [ClutchProfile; 4] = [
 ];
 
 /// One cell of the table.
-#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ModeRoute {
     pub mode: String,
     pub category: String,
@@ -69,8 +69,13 @@ pub fn mode_routing_table(
             );
             probe.task_category = category;
             probe.estimated_complexity = complexity.clamp(1, 10);
-            let sel =
-                registry.best_for_task_under_gate(&probe, resolved.cost_preference, clutch, &gate);
+            let routing_task = super::RoutingTask::from(&probe);
+            let sel = registry.best_for_task_under_gate(
+                &routing_task,
+                resolved.cost_preference,
+                clutch,
+                &gate,
+            );
             let (quality, quality_source, bench_cases) = sel
                 .as_ref()
                 .and_then(|s| s.spec.capabilities.quality_prior.as_ref())

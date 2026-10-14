@@ -14,7 +14,9 @@ use vox_foundation::protocol::{
 };
 use vox_orchestrator::orch_daemon::ExtraDispatch;
 
+use crate::profiles::Subsystem;
 use crate::server_state::ServerState;
+use crate::server_state::subsystem_not_booted_json;
 
 /// [`ExtraDispatch`] backed by an MCP [`ServerState`].
 pub struct McpExtraDispatch {
@@ -57,6 +59,16 @@ impl ExtraDispatch for McpExtraDispatch {
             // This is the cross-process executor for `vox research run --async`,
             // which only inserts a `queued` row and never runs the pipeline.
             dei_method::RESEARCH_RUN => {
+                if !self.state.subsystem_up(Subsystem::Research) {
+                    return Some(error(
+                        &req.id,
+                        subsystem_not_booted_json(
+                            "method",
+                            dei_method::RESEARCH_RUN,
+                            Subsystem::Research,
+                        ),
+                    ));
+                }
                 let params: crate::memory::ResearchStartParams =
                     match serde_json::from_value(req.params.clone()) {
                         Ok(p) => p,
@@ -93,6 +105,16 @@ impl ExtraDispatch for McpExtraDispatch {
                 Some(result(&req.id, value))
             }
             dei_method::RESEARCH_PERSIST_CLAIMS => {
+                if !self.state.subsystem_up(Subsystem::Db) {
+                    return Some(error(
+                        &req.id,
+                        subsystem_not_booted_json(
+                            "method",
+                            dei_method::RESEARCH_PERSIST_CLAIMS,
+                            Subsystem::Db,
+                        ),
+                    ));
+                }
                 let Some(db) = self.state.db.clone() else {
                     return Some(error(&req.id, "VoxDb not attached to daemon"));
                 };
@@ -173,6 +195,25 @@ impl ExtraDispatch for McpExtraDispatch {
                     }),
                 ))
             }
+            orch_daemon_method::BOOT_REPORT => Some(
+                match serde_json::to_value(self.state.boot_report_snapshot()) {
+                    Ok(value) => result(&req.id, value),
+                    Err(e) => error(&req.id, format!("serialize boot report: {e}")),
+                },
+            ),
+            orch_daemon_method::API_V2_GET => {
+                let path = req
+                    .params
+                    .get("path")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                Some(
+                    match crate::gui_ops::inproc::api_v2_get(&self.state, path).await {
+                        Ok(v) => result(&req.id, v),
+                        Err(e) => error(&req.id, e),
+                    },
+                )
+            }
             orch_daemon_method::TOOL_CALL => {
                 let Some(name) = req.params.get("name").and_then(|v| v.as_str()) else {
                     return Some(error(&req.id, "params.name (string) required"));
@@ -236,5 +277,18 @@ impl ExtraDispatch for McpExtraDispatch {
             }
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::McpExtraDispatch;
+    use crate::profiles::Subsystem;
+
+    #[tokio::test]
+    async fn new_wraps_a_server_state_whose_default_report_is_fully_booted() {
+        let state = crate::ServerState::new_full(crate::load_config());
+        let extra = McpExtraDispatch::new(state);
+        assert!(extra.state.subsystem_up(Subsystem::Db));
     }
 }

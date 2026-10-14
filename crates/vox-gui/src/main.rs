@@ -3,6 +3,19 @@
 mod commands;
 mod config;
 mod drive;
+mod remote;
+
+/// `tauri::generate_handler!` plus the (root, module, command) table the remote-mode gate needs.
+macro_rules! axis_invoke_handler {
+    ($($root:ident :: $module:ident :: $cmd:ident),* $(,)?) => {{
+        const COMMAND_MODULES: &remote::gate::CommandTable =
+            &[$((stringify!($root), stringify!($module), stringify!($cmd))),*];
+        let inner = remote::gate::typed_handler(tauri::generate_handler![$($root::$module::$cmd),*]);
+        move |invoke: tauri::ipc::Invoke<tauri::Wry>| {
+            remote::gate::gate_invoke(COMMAND_MODULES, invoke, &inner)
+        }
+    }};
+}
 
 use commands::app_state::GuiState;
 use std::sync::Mutex;
@@ -56,6 +69,7 @@ async fn main() {
         }
     }
 
+    let persistent_daemon = std::sync::Arc::new(commands::daemon::PersistentDaemon::default());
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
@@ -75,9 +89,10 @@ async fn main() {
         .manage(commands::mic::MicCaptureState::default())
         .manage(commands::pty::PtyManager::default())
         .manage(commands::terminal_core::TerminalSessionManager::default())
-        .manage(std::sync::Arc::new(
-            commands::daemon::PersistentDaemon::default(),
-        ))
+        .manage(persistent_daemon.clone())
+        .manage(std::sync::Arc::new(remote::backend::BackendState::new(
+            persistent_daemon,
+        )))
         .manage(std::sync::Arc::new(
             commands::browser::BrowserState::default(),
         ))
@@ -98,8 +113,8 @@ async fn main() {
                 drive::bridge::hide_drive_window_early(&app.handle().clone());
             }
             // `.setup()` runs synchronously on a worker thread already inside
-            // the #[tokio::main] runtime (needed below so scientia's
-            // tokio::spawn calls have an ambient reactor) — block_on alone
+            // the #[tokio::main] runtime (needed so the pool connect has an
+            // ambient reactor) — block_on alone
             // panics with "Cannot start a runtime from within a runtime".
             // block_in_place is the sanctioned way to block synchronously
             // from within a multi-thread runtime's worker thread.
@@ -108,10 +123,6 @@ async fn main() {
                     commands::gui_db_pool::GuiDbPool::connect_workspace(),
                 )
             });
-            if let Ok(db) = pool.handle() {
-                commands::scientia::spawn_scientia_queue_stream(app.handle().clone(), db.clone());
-                commands::scientia::spawn_discovery_surfaced_stream(app.handle().clone(), db);
-            }
             app.manage(pool);
 
             // Single persistent orchestrator daemon shared by tool calls,
@@ -119,6 +130,10 @@ async fn main() {
             // so the first chat send is not racing a cold spawn (up to ~15s).
             let daemon = app
                 .state::<std::sync::Arc<commands::daemon::PersistentDaemon>>()
+                .inner()
+                .clone();
+            let backend = app
+                .state::<std::sync::Arc<remote::backend::BackendState>>()
                 .inner()
                 .clone();
             if let Err(err) = tokio::task::block_in_place(|| {
@@ -134,16 +149,20 @@ async fn main() {
             commands::orchestrator::spawn_orchestrator_status_stream(
                 app.handle().clone(),
                 daemon.clone(),
+                backend.clone(),
             );
             // B4: start the live agent-event stream, re-emitting each AgentEvent
             // as the "vox://agent-events" Tauri event.
-            commands::orchestrator::spawn_agent_event_stream(app.handle().clone(), daemon.clone());
+            commands::orchestrator::spawn_agent_event_stream(app.handle().clone(), daemon.clone(), backend.clone());
             // T3.1: background supervision task — periodically pings the
             // cached orchestrator daemon and clears/re-resolves it if it has
             // gone unreachable, so liveness is actively monitored rather than
             // only checked reactively the next time a stream/command touches
             // the daemon.
             daemon.clone().spawn_supervisor();
+            // F2: Scientia queue + discovery push bridges poll the active backend.
+            commands::scientia::spawn_scientia_queue_stream(app.handle().clone(), backend.clone());
+            commands::scientia::spawn_discovery_surfaced_stream(app.handle().clone(), backend.clone());
             let daemon = app
                 .state::<std::sync::Arc<commands::daemon::PersistentDaemon>>()
                 .inner()
@@ -171,7 +190,7 @@ async fn main() {
             commands::orchestrator::spawn_orchestrator_config_watch(app.handle().clone());
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![
+        .invoke_handler(axis_invoke_handler![
             commands::activity::activity_query,
             commands::catalog::get_command_catalog,
             commands::discovery::discovery_suggest,
@@ -241,7 +260,7 @@ async fn main() {
             commands::llm_settings::get_llm_config,
             commands::llm_settings::set_llm_config,
             commands::llm_settings::openrouter_key_status,
-            commands::llm_settings::inference_provider_status,
+            commands::models::inference_provider_status,
             commands::mens_serve::mens_serve_status,
             commands::mens_serve::mens_serve_start,
             commands::mens_serve::mens_serve_stop,
@@ -252,19 +271,20 @@ async fn main() {
             commands::orchestrator::get_orchestrator_status_bin,
             commands::orchestrator::set_orchestrator_config,
             commands::orchestrator::get_orchestrator_config,
-            commands::orchestrator::get_context_budget,
-            commands::orchestrator::hopper_list,
-            commands::orchestrator::hopper_submit,
-            commands::orchestrator::hopper_reprioritize,
-            commands::orchestrator::hopper_cancel,
-            commands::orchestrator::hopper_mark_done,
+            commands::context_budget::get_context_budget,
+            commands::hopper::hopper_list,
+            commands::hopper::hopper_submit,
+            commands::hopper::hopper_reprioritize,
+            commands::hopper::hopper_cancel,
+            commands::hopper::hopper_mark_done,
             commands::dynamic_mapping::get_command_metadata,
             commands::dynamic_mapping::get_full_registry,
             commands::models::list_model_cards,
-            commands::models::search_model_cards,
-            commands::models::get_active_model,
-            commands::models::set_active_model,
-            commands::models::get_auto_model_recommendation,
+            commands::models_host::search_model_cards,
+            commands::models::get_models_snapshot,
+            commands::model_active::get_active_model,
+            commands::model_active::set_active_model,
+            commands::models_host::get_auto_model_recommendation,
             commands::models::get_routing_summary_live,
             commands::models::get_model_leaderboard,
             commands::models::set_routing_priority,
@@ -273,8 +293,8 @@ async fn main() {
             commands::models::get_selection_policy,
             commands::models::set_selection_policy,
             commands::models::get_model_scoreboard,
-            commands::models::explain_model_selection,
-            commands::models::suggest_model_for_task,
+            commands::models_host::explain_model_selection,
+            commands::models_host::suggest_model_for_task,
             commands::routing_explain::explain_routing,
             commands::routing_explain::get_routing_health,
             commands::memory::get_memory_status,
@@ -312,14 +332,14 @@ async fn main() {
             commands::user_config::get_user_config,
             commands::user_config::set_user_config,
             commands::user_config::reset_user_config,
-            commands::user_config::get_llm_spend,
+            commands::llm_spend::get_llm_spend,
             commands::stt_config::get_stt_config,
             commands::stt_config::set_stt_config,
             commands::gamify::get_ludus_profile,
             commands::gamify::list_ludus_notifications,
             commands::gamify::ack_ludus_notification,
-            commands::gamify::get_gamify_settings,
-            commands::gamify::set_gamify_settings,
+            commands::gamify_settings::get_gamify_settings,
+            commands::gamify_settings::set_gamify_settings,
             commands::gamify::record_gui_event,
             commands::gamify::list_gamify_leaderboard,
             commands::gamify::list_gamify_companions,
@@ -331,10 +351,11 @@ async fn main() {
             commands::harness_town::vcs_town_status,
             commands::research::start_research_async,
             commands::research::flag_research_misleading,
+            commands::research_host::save_research_doc,
             commands::research::persist_research_claims,
             commands::research::generate_research_doc_draft,
             commands::research::publish_research_doc,
-            commands::research::execute_sandbox_probe,
+            commands::research_host::execute_sandbox_probe,
             commands::search_probe::get_research_engine_status,
             commands::search_probe::save_research_engine_config,
             commands::search_probe::probe_search_provider,
@@ -356,7 +377,7 @@ async fn main() {
             commands::scientia_review::run_autofill,
             commands::scientia_review::get_archive_status,
             commands::search::vox_search_query,
-            commands::search::open_locator,
+            commands::locator::open_locator,
             commands::policy::policy_list,
             commands::policy::policy_show,
             commands::policy::policy_status,
@@ -397,6 +418,9 @@ async fn main() {
             commands::mission_control::set_task_mesh_policy,
             commands::daemon::orchestrator_daemon_ready,
             commands::daemon::orchestrator_version_mismatch,
+            commands::axis_remote::axis_connect_remote,
+            commands::axis_remote::axis_disconnect_remote,
+            commands::axis_remote::axis_backend_status,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

@@ -2,6 +2,7 @@
 
 use vox_mcp_registry::{
     A2A_MESSAGE_TYPES, McpToolRegistryEntry, ORCHESTRATOR_TOOLS, SKILL_TOOLS, TOOL_REGISTRY,
+    registry_entry,
 };
 
 #[test]
@@ -27,7 +28,7 @@ fn sample_entry_has_expected_shape() {
     let entry = row.expect("canonical registry should include `vox_submit_task`");
     assert!(!entry.description.is_empty());
     assert!(!entry.product_lane.is_empty());
-    assert!(!entry.tier.is_empty());
+    assert_eq!(registry_entry("vox_submit_task"), Some(entry));
 }
 
 #[test]

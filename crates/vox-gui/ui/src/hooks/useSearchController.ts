@@ -6,8 +6,11 @@ import {
   type UserScope,
 } from '../lib/searchController';
 import { voxTransport } from '../transport';
+import { useBackendStatus } from './useBackendStatus';
 
 const DEFAULT_DEBOUNCE_MS = 200;
+/** Each search is an HTTPS round trip to a remote server; wait for a longer typing pause. */
+const REMOTE_DEBOUNCE_MS = 350;
 
 export interface UseSearchControllerOptions {
   debounceMs?: number;
@@ -15,7 +18,8 @@ export interface UseSearchControllerOptions {
 }
 
 export function useSearchController(options: UseSearchControllerOptions = {}) {
-  const { debounceMs = DEFAULT_DEBOUNCE_MS, enabled = true } = options;
+  const { mode } = useBackendStatus().status;
+  const { debounceMs = mode === 'remote' ? REMOTE_DEBOUNCE_MS : DEFAULT_DEBOUNCE_MS, enabled = true } = options;
   const [state, dispatch] = useReducer(searchReducer, initialSearchState);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 

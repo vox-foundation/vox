@@ -8,15 +8,17 @@ test.describe('Vox Models view', () => {
       (window as any).__TAURI_INTERNALS__ = {
         invoke: async (cmd: string) => {
           if (cmd === 'get_initial_view') return 'models';
-          if (cmd === 'list_model_cards') {
-            return [
-              { id: 'free/model-a', provider: 'openrouter', tier: 'Free', cost_per_1k: 0, max_tokens: 8000, is_free: true, latency_p50_ms: 400, quality_score: 0.8 },
-              { id: 'paid/model-b', provider: 'openrouter', tier: 'Pro', cost_per_1k: 0.01, max_tokens: 8000, is_free: false, latency_p50_ms: 300, quality_score: 0.9 },
-            ];
+          if (cmd === 'get_models_snapshot') {
+            return {
+              cards: [
+                { id: 'free/model-a', provider: 'openrouter', tier: 'Free', cost_per_1k: 0, max_tokens: 8000, is_free: true, latency_p50_ms: 400, quality_score: 0.8 },
+                { id: 'paid/model-b', provider: 'openrouter', tier: 'Pro', cost_per_1k: 0.01, max_tokens: 8000, is_free: false, latency_p50_ms: 300, quality_score: 0.9 },
+              ],
+              routing: { decision_preview: null },
+              active_model: null,
+              providers: [],
+            };
           }
-          if (cmd === 'get_routing_summary_live') return { decision_preview: null };
-          if (cmd === 'get_active_model') return null;
-          if (cmd === 'inference_provider_status') return [];
           return null;
         },
       };
@@ -36,12 +38,14 @@ test.describe('Vox Models view', () => {
       (window as any).__TAURI_INTERNALS__ = {
         invoke: async (cmd: string) => {
           if (cmd === 'get_initial_view') return 'models';
-          if (cmd === 'list_model_cards') {
-            return [{ id: 'free/model-a', provider: 'openrouter', tier: 'Free', cost_per_1k: 0, max_tokens: 8000, is_free: true, latency_p50_ms: 400, quality_score: 0.8 }];
+          if (cmd === 'get_models_snapshot') {
+            return {
+              cards: [{ id: 'free/model-a', provider: 'openrouter', tier: 'Free', cost_per_1k: 0, max_tokens: 8000, is_free: true, latency_p50_ms: 400, quality_score: 0.8 }],
+              routing: { decision_preview: null },
+              active_model: null,
+              providers: [],
+            };
           }
-          if (cmd === 'get_routing_summary_live') return { decision_preview: null };
-          if (cmd === 'get_active_model') return null;
-          if (cmd === 'inference_provider_status') return [];
           return null;
         },
       };

@@ -1,13 +1,15 @@
-//! Tauri commands for querying the activity log.
-//!
-//! TASK-5.0
+//! Tauri command for querying the activity log. Served by the daemon (`GET /api/v2/activity`).
 
-use serde::{Deserialize, Serialize};
-use vox_db::{DbConnectSurface, connect_workspace_journey_optional};
+use std::sync::Arc;
+
+use serde::Deserialize;
+use tauri::State;
+pub use vox_orchestrator_mcp::gui_ops::dto::orchestrator::ActivityRowDto;
+
+use crate::remote::backend::BackendState;
+use crate::remote::calls::{BackendCalls, api_data, path_with_query};
 
 /// Filter options for querying the activity log.
-///
-/// TASK-5.0
 #[derive(Debug, Clone, Deserialize)]
 pub struct ActivityFilter {
     pub agent_id: Option<String>,
@@ -17,134 +19,84 @@ pub struct ActivityFilter {
     pub before_id: Option<i64>,
 }
 
-/// DTO representing a row in the activity log returned to the GUI.
-///
-/// TASK-5.0
-#[derive(Debug, Clone, Serialize)]
-pub struct ActivityRowDto {
-    pub id: i64,
-    pub ts_ms: i64,
-    pub agent_id: Option<String>,
-    pub session_id: Option<String>,
-    pub kind: String,
-    pub summary: String,
-    pub detail_json: String,
+fn activity_path(filter: ActivityFilter) -> String {
+    path_with_query(
+        "/activity",
+        &[
+            ("agent_id", filter.agent_id),
+            ("kind", filter.kind),
+            ("session_id", filter.session_id),
+            ("limit", Some(filter.limit.to_string())),
+            ("before_id", filter.before_id.map(|id| id.to_string())),
+        ],
+    )
 }
 
-/// Build the WHERE clause and parameters from filter.
-///
-/// TASK-5.0
-pub fn build_where(filter: &ActivityFilter) -> (String, Vec<turso::Value>) {
-    let mut clauses = Vec::new();
-    let mut params = Vec::<turso::Value>::new();
-
-    if let Some(agent_id) = &filter.agent_id {
-        clauses.push("agent_id = ?");
-        params.push(agent_id.clone().into());
-    }
-    if let Some(kind) = &filter.kind {
-        clauses.push("kind = ?");
-        params.push(kind.clone().into());
-    }
-    if let Some(session_id) = &filter.session_id {
-        clauses.push("session_id = ?");
-        params.push(session_id.clone().into());
-    }
-    if let Some(before_id) = filter.before_id {
-        clauses.push("id < ?");
-        params.push(before_id.into());
-    }
-
-    let where_clause = if clauses.is_empty() {
-        String::new()
-    } else {
-        format!("WHERE {}", clauses.join(" AND "))
-    };
-
-    (where_clause, params)
+pub(crate) async fn query_impl<B: BackendCalls>(
+    b: &B,
+    filter: ActivityFilter,
+) -> Result<Vec<ActivityRowDto>, String> {
+    api_data(b.api_v2_get(&activity_path(filter)).await?)
 }
 
-/// Query the activity log table with the specified filters.
-///
-/// TASK-5.0
-// toestub-ignore(skeleton/untested-pub-api) — thin Tauri IPC over activity_log read; covered by unit tests
+/// Query the activity log, newest first.
 #[tauri::command]
-pub async fn activity_query(filter: ActivityFilter) -> Result<Vec<ActivityRowDto>, String> {
-    let db = connect_workspace_journey_optional(DbConnectSurface::Runtime, true)
-        .await
-        .ok_or_else(|| "No database handle available".to_string())?;
-
-    let (where_clause, mut params) = build_where(&filter);
-
-    let sql = format!(
-        "SELECT id, ts_ms, agent_id, session_id, kind, summary, detail_json \
-         FROM activity_log \
-         {} \
-         ORDER BY id DESC LIMIT ?",
-        where_clause
-    );
-    params.push((filter.limit as i64).into());
-
-    let rows = db
-        .query_all(&sql, params)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    let mut out = Vec::new();
-    for row in rows {
-        let id: i64 = row.get(0).map_err(|e| e.to_string())?;
-        let ts_ms: i64 = row.get(1).map_err(|e| e.to_string())?;
-        let agent_id: Option<String> = row.get(2).map_err(|e| e.to_string())?;
-        let session_id: Option<String> = row.get(3).map_err(|e| e.to_string())?;
-        let kind: String = row.get(4).map_err(|e| e.to_string())?;
-        let summary: String = row.get(5).map_err(|e| e.to_string())?;
-        let detail_json: String = row.get(6).map_err(|e| e.to_string())?;
-
-        out.push(ActivityRowDto {
-            id,
-            ts_ms,
-            agent_id,
-            session_id,
-            kind,
-            summary,
-            detail_json,
-        });
-    }
-
-    Ok(out)
+pub async fn activity_query(
+    backend: State<'_, Arc<BackendState>>,
+    filter: ActivityFilter,
+) -> Result<Vec<ActivityRowDto>, String> {
+    query_impl(&backend.current().await, filter).await
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::remote::calls::fake::FakeBackend;
+    use serde_json::json;
 
-    #[test]
-    fn filter_by_agent_and_kind() {
-        let filter = ActivityFilter {
-            agent_id: Some("A1".to_string()),
-            kind: Some("TaskCompleted".to_string()),
+    fn filter() -> ActivityFilter {
+        ActivityFilter {
+            agent_id: None,
+            kind: None,
             session_id: None,
             limit: 50,
-            before_id: Some(100),
-        };
-        let (sql, params) = build_where(&filter);
-        assert!(sql.contains("agent_id = ?"));
-        assert!(sql.contains("kind = ?"));
-        assert!(sql.contains("id < ?"));
-        assert_eq!(params.len(), 3);
+            before_id: None,
+        }
     }
 
     #[test]
-    fn filter_by_session() {
-        let filter = ActivityFilter {
-            agent_id: None,
-            kind: None,
-            session_id: Some("chat-s1".to_string()),
-            limit: 50,
-            before_id: None,
-        };
-        let (sql, params) = build_where(&filter);
-        assert!(sql.contains("session_id = ?"));
-        assert_eq!(params.len(), 1);
+    fn every_filter_field_becomes_a_query_param() {
+        let path = activity_path(ActivityFilter {
+            agent_id: Some("A1".into()),
+            kind: Some("TaskCompleted".into()),
+            session_id: Some("chat:s1".into()),
+            before_id: Some(100),
+            ..filter()
+        });
+        assert_eq!(
+            path,
+            "/activity?agent_id=A1&kind=TaskCompleted&session_id=chat%3As1&limit=50&before_id=100"
+        );
+        assert_eq!(activity_path(filter()), "/activity?limit=50");
+    }
+
+    #[tokio::test]
+    async fn query_reads_the_activity_route() {
+        let b = FakeBackend::new().on_get(
+            "/activity?limit=50",
+            Ok(json!({ "v": 1, "data": [{
+                "id": 1, "ts_ms": 2, "agent_id": null, "session_id": null,
+                "kind": "k", "summary": "s", "detail_json": "{}"
+            }] })),
+        );
+        let rows = query_impl(&b, filter()).await.unwrap();
+        assert_eq!(rows[0].kind, "k");
+    }
+
+    #[test]
+    fn module_has_no_direct_db_access() {
+        let src = include_str!("activity.rs");
+        assert!(!src.contains(concat!("vox", "_db")));
+        assert!(!src.contains(concat!("tur", "so")));
     }
 }

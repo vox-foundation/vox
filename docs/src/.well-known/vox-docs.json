@@ -88,7 +88,7 @@
         "id": "orchestrator",
         "label": "Orchestrator & agents",
         "cli": 28,
-        "mcp": 65,
+        "mcp": 72,
         "surfaces": 2
       },
       {
@@ -101,7 +101,7 @@
       {
         "id": "ml",
         "label": "ML / Mens",
-        "cli": 51,
+        "cli": 53,
         "mcp": 0,
         "surfaces": 2
       },
@@ -109,7 +109,7 @@
         "id": "research",
         "label": "Research / Scientia",
         "cli": 78,
-        "mcp": 62,
+        "mcp": 67,
         "surfaces": 2
       },
       {
@@ -123,7 +123,7 @@
         "id": "gui",
         "label": "GUI",
         "cli": 15,
-        "mcp": 5,
+        "mcp": 9,
         "surfaces": 17
       },
       {
@@ -172,7 +172,7 @@
         "id": "gamify",
         "label": "Gamification",
         "cli": 50,
-        "mcp": 10,
+        "mcp": 16,
         "surfaces": 1
       },
       {
@@ -192,8 +192,8 @@
       {
         "id": "platform",
         "label": "Platform (other)",
-        "cli": 29,
-        "mcp": 88,
+        "cli": 34,
+        "mcp": 97,
         "surfaces": 2
       }
     ]

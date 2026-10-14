@@ -40,3 +40,10 @@ fn generated_md_starts_with_frontmatter_then_do_not_edit_marker() {
     assert!(cat.contains(marker), "catalog md missing autogen marker");
     assert!(bun.contains(marker), "bundles md missing autogen marker");
 }
+
+#[test]
+fn bundles_md_shows_default_profiles() {
+    let md = render_bundles_md();
+    assert!(md.contains("default profile"));
+    assert!(md.contains("`orchestrator,knowledge,mesh`"));
+}

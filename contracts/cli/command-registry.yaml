@@ -11836,6 +11836,17 @@ operations:
   handler_rust: null
 - surface: vox-cli
   path:
+  - serve
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::serve::run
+- surface: vox-cli
+  path:
   - share
   status: active
   latin_ns: ars

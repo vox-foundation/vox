@@ -4,6 +4,7 @@ import { backendAvailable, BackendUnavailableError } from './lib/backendGuard';
 import { MODEL_LIST_LIMIT } from './config/constants';
 import type { ActionManifest } from './types/actionManifest';
 import type {
+  BackendStatus,
   CommandCatalog,
   OpenLocator,
   OpenOutcome,
@@ -856,6 +857,24 @@ export function getModelLeaderboard(): Promise<ModelLeaderboard> {
  *  scoreboard and benchmark evidence the daemon routes a chat turn with). */
 export function getAutoRoutePreview(): Promise<RoutingSummary> {
   return safeInvoke<RoutingSummary>('get_routing_summary_live');
+}
+
+/** Remote Axis: current backend (local daemon or remote gateway) and per-surface availability. */
+export function axisBackendStatus(): Promise<BackendStatus> {
+  return safeInvoke<BackendStatus>('axis_backend_status');
+}
+
+/** Connect to a `vox serve` gateway. Rejects with an Axis error envelope (`tls_pin_required`, …). */
+export function axisConnectRemote(
+  url: string,
+  token: string | null,
+  acceptFingerprint: string | null,
+): Promise<BackendStatus> {
+  return safeInvoke<BackendStatus>('axis_connect_remote', { url, token, acceptFingerprint });
+}
+
+export function axisDisconnectRemote(): Promise<BackendStatus> {
+  return safeInvoke<BackendStatus>('axis_disconnect_remote');
 }
 
 export const PTY_OUTPUT_EVENT = 'vox://pty-output';
