@@ -51,7 +51,7 @@ This roadmap unifies all six parallel GSD workstreams (`kb`, `discoverability`, 
 
 ### Wave 0: Single-Branch & Worktree Convergence (`[SEQUENTIAL]`, `[MODEL: ARGON-4]`)
 
-- [ ] **Phase 05: Unified Branch & Worktree Convergence** — Checkpoint the 403 uncommitted files in `/Users/brbrainerd/dev/vox` onto `feat/unified-2026-q4` without touching any external worktrees, then merge `origin/main`, backend feature worktrees (`true-workflow-durability`, `fmt-safety`, `warp-fork-axis-gui` `term.*`), `kb` Phases 01–04 (DB baseline 96), `discoverability` Phases 06.1–06.3, and `capability-profiles`, finishing with a single `vox run scripts/ssot-regen.vox` pass.
+- [x] **Phase 05: Unified Branch & Worktree Convergence** — Checkpoint the 403 uncommitted files in `/Users/brbrainerd/dev/vox` onto `feat/unified-2026-q4` without touching any external worktrees, then merge `origin/main`, backend feature worktrees (`true-workflow-durability`, `fmt-safety`, `warp-fork-axis-gui` `term.*`), `kb` Phases 01–04 (DB baseline 96), `discoverability` Phases 06.1–06.3, and `capability-profiles`, finishing with a single `vox run scripts/ssot-regen.vox` pass. (Completed 2026-10-13)
 
 ### Wave 1: Foundational Data Floors, Safety Contracts & Trust Calibration
 
@@ -110,11 +110,11 @@ This roadmap unifies all six parallel GSD workstreams (`kb`, `discoverability`, 
 **Goal**: Converge all uncommitted work in `/Users/brbrainerd/dev/vox` and all active feature worktrees (`origin/main`, `true-workflow-durability`, `fmt-safety`, `warp-fork-axis-gui`, `kb` Phases 1–4, `discoverability` Phases 06.1–06.3, `capability-profiles`) onto a single branch in `/Users/brbrainerd/dev/vox` without deleting any worktrees on disk.
 **Depends on**: Completed phases `01..04`, `06.1..06.3`, `20..24`
 **Requirements**: `CONV-01`, `CONV-02`, `CONV-03`, `CONV-04`
-**Plans**: 4 plans (`05-01-PLAN.md` .. `05-04-PLAN.md`)
-- [ ] `05-01-PLAN.md` — `[MODEL: ARGON-4]` `[SEQUENTIAL]` Verify all 42 worktrees intact, create unified branch `feat/unified-2026-q4` from current `/Users/brbrainerd/dev/vox` HEAD (`b64377d40`), checkpoint the 403 uncommitted files in logical atomic commits (`docs-freshness` v1.3, `research-trial-flywheel` WIP, `vox-gui` WIP), and merge `origin/main` + `docs-freshness-p20-1`.
-- [ ] `05-02-PLAN.md` — `[MODEL: ARGON-4]` `[SEQUENTIAL]` Merge backend feature branches: `feat/true-workflow-durability` (`ce9cbc67c`), `wip/fmt-safety-2026-10-12` (`499c75bce`), and `warp-fork-axis-gui-b682cd` (`345542f4a` `term.*` session host).
-- [ ] `05-03-PLAN.md` — `[MODEL: ARGON-4]` `[SEQUENTIAL]` Merge `claude/vox-knowledge-base-research-2964d2` (`e60182f6f` — `kb` Phases 01–04, `vox-kb-facets` L0 crate, `vox_kb_*` MCP tools, and **VoxDb schema baseline 96**) and verify `cargo test -p vox-db -p vox-kb-facets -p vox-search`.
-- [ ] `05-04-PLAN.md` — `[MODEL: ARGON-4]` `[SEQUENTIAL]` Merge `claude/vox-discoverability-a72c8c` (`d3a93f756` — `06.1`–`06.3`) and `feat/capability-profiles` (`77f5dfa9a`), reconcile `contracts/operations/catalog.v1.yaml` + `crates/vox-mcp-registry/`, and run `vox run scripts/ssot-regen.vox` + `vox ci crate-edges`.
+**Plans**: 4/4 plans complete (`05-01-PLAN.md` .. `05-04-PLAN.md`)
+- [x] `05-01-PLAN.md` — `[MODEL: ARGON-4]` `[SEQUENTIAL]` Verify all 42 worktrees intact, create unified branch `feat/unified-2026-q4` from current `/Users/brbrainerd/dev/vox` HEAD (`b64377d40`), checkpoint the 403 uncommitted files in logical atomic commits (`docs-freshness` v1.3, `research-trial-flywheel` WIP, `vox-gui` WIP), and merge `origin/main` + `docs-freshness-p20-1`.
+- [x] `05-02-PLAN.md` — `[MODEL: ARGON-4]` `[SEQUENTIAL]` Merge backend feature branches: `feat/true-workflow-durability` (`ce9cbc67c`), `wip/fmt-safety-2026-10-12` (`499c75bce`), and `warp-fork-axis-gui-b682cd` (`345542f4a` `term.*` session host).
+- [x] `05-03-PLAN.md` — `[MODEL: ARGON-4]` `[SEQUENTIAL]` Merge `claude/vox-knowledge-base-research-2964d2` (`e60182f6f` — `kb` Phases 01–04, `vox-kb-facets` L0 crate, `vox_kb_*` MCP tools, and **VoxDb schema baseline 96**) and verify `cargo test -p vox-db -p vox-kb-facets -p vox-search`.
+- [x] `05-04-PLAN.md` — `[MODEL: ARGON-4]` `[SEQUENTIAL]` Merge `claude/vox-discoverability-a72c8c` (`d3a93f756` — `06.1`–`06.3`) and `feat/capability-profiles` (`77f5dfa9a`), reconcile `contracts/operations/catalog.v1.yaml` + `crates/vox-mcp-registry/`, and run `vox run scripts/ssot-regen.vox` + `vox ci crate-edges`.
 
 ### Phase 12: Autonomy Safety Floor & Lowering-Path Closures
 **Goal**: Lock the non-bypassable action-only safety floor (`permission-modes.v2.yaml`) and close all four runtime lowering paths before any autonomy resolver or UI work runs.
