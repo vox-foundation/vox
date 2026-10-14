@@ -31,7 +31,7 @@ describe('RiskPopover', () => {
     const cls = screen.getByRole('dialog').className;
     expect(cls).toContain('bottom-full');
     expect(cls).toContain('left-0');
-    expect(cls).toContain('z-50');
+    expect(cls).toContain('z-[99999]');
   });
 
   it('calls onClose on Escape key', () => {

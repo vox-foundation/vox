@@ -1528,8 +1528,22 @@ export default function App() {
       })();
       return true;
     }
+    if (base === '/docs') {
+      const query = cmd.slice(base.length).trim();
+      if (!query) {
+        setIsCommandOpen(true);
+        return true;
+      }
+      if (query.endsWith('.md') || query.includes('/')) {
+        const docPath = query.startsWith('docs/') ? query : `docs/src/${query}`;
+        openDocTab(docPath, query.split('/').pop() || query);
+        return true;
+      }
+      openDocTab(`docs/src/${query}.md`, query);
+      return true;
+    }
     return false;
-  }, [loadTaskDiff, navigateTo, handleLoquelaSubmit, pushToast]);
+  }, [loadTaskDiff, navigateTo, handleLoquelaSubmit, pushToast, openDocTab]);
 
   // Persist assistant transcript rows when a run completes (user rows persist on submit).
   useEffect(() => {

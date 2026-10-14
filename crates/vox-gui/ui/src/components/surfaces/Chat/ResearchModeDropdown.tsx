@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Popover } from '../../ui/Popover';
 import { Icon } from '../../ui/Icons';
+import { Tooltip } from '../../ui/Tooltip';
 
 export type ResearchMode = 'auto' | 'fast' | 'deep' | 'off';
 
@@ -54,32 +55,33 @@ export function ResearchModeDropdown({
 
   return (
     <div className={`relative ${className}`}>
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-label={`Research mode: ${selected.label}`}
-        onClick={() => setOpen(o => !o)}
-        title={selected.hint}
-        className="inline-flex items-center gap-1.5 rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 text-text-secondary hover:border-white/20 transition-colors"
-      >
-        {selected.id === 'auto' ? (
-          <Icon.brain className="size-3 text-brass" />
-        ) : selected.id === 'fast' ? (
-          <Icon.bolt className="size-3 text-amber-300" />
-        ) : selected.id === 'deep' ? (
-          <Icon.globe className="size-3 text-cyan-300" />
-        ) : (
-          <Icon.search className="size-3 text-text-muted" />
-        )}
-        <span className="text-[11px] text-text-muted">Research:</span>
-        <span className="text-[11px] text-text-primary font-medium">{selected.shortLabel}</span>
-        {selected.badge && (
-          <span className="rounded bg-brass/15 px-1 py-0.5 font-mono text-[8px] text-brass">
-            {selected.badge}
-          </span>
-        )}
-        <Icon.chevR className="size-2.5 text-text-muted rotate-90" />
-      </button>
+      <Tooltip content={selected.hint} side="top">
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-label={`Research mode: ${selected.label}`}
+          onClick={() => setOpen(o => !o)}
+          className="inline-flex items-center gap-1.5 rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 text-text-secondary hover:border-white/20 transition-colors"
+        >
+          {selected.id === 'auto' ? (
+            <Icon.brain className="size-3 text-brass" />
+          ) : selected.id === 'fast' ? (
+            <Icon.bolt className="size-3 text-amber-300" />
+          ) : selected.id === 'deep' ? (
+            <Icon.globe className="size-3 text-cyan-300" />
+          ) : (
+            <Icon.search className="size-3 text-text-muted" />
+          )}
+          <span className="text-[11px] text-text-muted">Research:</span>
+          <span className="text-[11px] text-text-primary font-medium">{selected.shortLabel}</span>
+          {selected.badge && (
+            <span className="rounded bg-brass/15 px-1 py-0.5 font-mono text-[8px] text-brass">
+              {selected.badge}
+            </span>
+          )}
+          <Icon.chevR className="size-2.5 text-text-muted rotate-90" />
+        </button>
+      </Tooltip>
 
       <Popover open={open}>
         <div className="w-64 p-1">

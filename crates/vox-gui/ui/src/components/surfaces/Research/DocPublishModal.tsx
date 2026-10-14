@@ -39,6 +39,25 @@ export function sanitizeSlug(input: string): string {
     .replace(/-+/g, '-');
 }
 
+const VALID_CATEGORIES = new Set([
+  'Architecture SSOTs',
+  'Tutorials',
+  'How-To Guides',
+  'Reference',
+  'Explanation',
+  'Concepts',
+  'Operations',
+  'Contributors',
+]);
+
+const VALID_STATUSES = new Set([
+  'current',
+  'research',
+  'roadmap',
+  'deprecated',
+  'legacy',
+]);
+
 function validateFrontmatter(md: string): ValidationCheck[] {
   const trimmed = md.trimStart();
   const fenceMatch = trimmed.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
@@ -54,17 +73,19 @@ function validateFrontmatter(md: string): ValidationCheck[] {
   const hasDesc = Boolean(rawDesc);
 
   const catMatch = frontmatter.match(/^category:\s*["']?([^"'\r\n]+)["']?/m);
-  const hasCategory = Boolean(catMatch && catMatch[1].trim() === 'Architecture SSOTs');
+  const rawCategory = catMatch ? catMatch[1].trim() : '';
+  const hasCategory = Boolean(rawCategory && VALID_CATEGORIES.has(rawCategory));
 
   const statusMatch = frontmatter.match(/^status:\s*["']?([^"'\r\n]+)["']?/m);
-  const hasStatus = Boolean(statusMatch && statusMatch[1].trim() === 'current');
+  const rawStatus = statusMatch ? statusMatch[1].trim().toLowerCase() : '';
+  const hasStatus = Boolean(rawStatus && VALID_STATUSES.has(rawStatus));
 
   return [
     { id: 'fences', label: 'YAML frontmatter fences (---)', valid: hasFences },
     { id: 'title', label: 'Title defined', valid: hasTitle },
     { id: 'description', label: 'Description defined', valid: hasDesc },
-    { id: 'category', label: 'Category is "Architecture SSOTs"', valid: hasCategory },
-    { id: 'status', label: 'Status is "current"', valid: hasStatus },
+    { id: 'category', label: 'Category is "Architecture SSOTs" (or valid docs category)', valid: hasCategory },
+    { id: 'status', label: 'Status is "current" (or valid doc status)', valid: hasStatus },
   ];
 }
 
@@ -306,8 +327,8 @@ export function DocPublishModal({
                   {!allChecksPass && (
                     <div className="text-[11px] text-amber-400/90 bg-amber-500/10 border border-amber-500/20 p-2.5 rounded">
                       Ensure the document starts with YAML frontmatter containing <code>title</code>,{' '}
-                      <code>description</code>, <code>category: &quot;Architecture SSOTs&quot;</code>, and{' '}
-                      <code>status: &quot;current&quot;</code>.
+                      <code>description</code>, a valid <code>category</code> (e.g. &quot;Architecture SSOTs&quot;), and{' '}
+                      a valid <code>status</code> (&quot;current&quot;, &quot;research&quot;, &quot;roadmap&quot;, &quot;deprecated&quot;, or &quot;legacy&quot;).
                     </div>
                   )}
                 </div>

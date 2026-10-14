@@ -27,6 +27,43 @@ export function DocReader({ path, onNavigateToResearch }: DocReaderProps) {
     return { sessionId, stabilityScore };
   }, [q.data]);
 
+  const statusInfo = useMemo(() => {
+    if (!q.data) return null;
+    const match = q.data.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+    if (!match) return null;
+    const statusMatch = match[1].match(/^status:\s*["']?([^"'\r\n]+)["']?/m);
+    if (!statusMatch) return null;
+    const status = statusMatch[1].trim().toLowerCase();
+    switch (status) {
+      case 'research':
+        return {
+          label: 'Internals — research note',
+          description: 'Investigation or findings, not a description of shipped behaviour.',
+          tone: 'border-amber-500/30 bg-amber-500/10 text-amber-300',
+        };
+      case 'roadmap':
+        return {
+          label: 'Internals — roadmap',
+          description: 'Describes planned work that may not match the current code.',
+          tone: 'border-sky-500/30 bg-sky-500/10 text-sky-300',
+        };
+      case 'deprecated':
+        return {
+          label: 'Deprecated',
+          description: 'Kept for migration notes only; do not build on this.',
+          tone: 'border-rose-500/30 bg-rose-500/10 text-rose-300',
+        };
+      case 'legacy':
+        return {
+          label: 'Legacy',
+          description: 'Still present, but not the recommended path.',
+          tone: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300',
+        };
+      default:
+        return null;
+    }
+  }, [q.data]);
+
   if (q.isLoading) {
     return (
       <article className="p-6 text-text-muted font-display text-sm" data-testid="doc-reader">
@@ -58,6 +95,15 @@ export function DocReader({ path, onNavigateToResearch }: DocReaderProps) {
           />
         )}
       </header>
+      {statusInfo && (
+        <div
+          data-testid="doc-status-banner"
+          role="note"
+          className={`mb-4 rounded-lg border p-3 text-xs leading-relaxed ${statusInfo.tone}`}
+        >
+          <strong>{statusInfo.label}:</strong> {statusInfo.description}
+        </div>
+      )}
       <pre className="whitespace-pre-wrap font-mono text-[12px] leading-relaxed text-text-secondary">
         {q.data ?? ''}
       </pre>

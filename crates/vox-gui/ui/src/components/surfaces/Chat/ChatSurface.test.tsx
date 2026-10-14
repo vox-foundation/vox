@@ -1076,6 +1076,20 @@ describe('ChatSurface', () => {
     expect(screen.getByTestId('chat-dock-activity')).toBeInTheDocument();
   });
 
+  it('mounts a Research panel dockable from Chat via the Panels menu Add section', () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <LanguageProvider>
+        <QueryClientProvider client={client}>
+          <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
+        </QueryClientProvider>
+      </LanguageProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /panels/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /^research$/i }));
+    expect(screen.getByTestId('chat-dock-research')).toBeInTheDocument();
+  });
+
   it('the Activity panel does not resurrect on the next render after being closed', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const { rerender } = render(

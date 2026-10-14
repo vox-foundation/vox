@@ -78,6 +78,37 @@ describe('DocReader', () => {
     screen.getByRole('button', { name: /Open Full Research Session #101/i }).click();
     expect(onNavigate).toHaveBeenCalledWith(101);
   });
+
+  it('renders status banner for research note and deprecated doc, but not current doc', async () => {
+    vi.mocked(voxTransport.readDocMarkdown).mockResolvedValue(
+      '---\ntitle: "Research Doc"\nstatus: "research"\n---\n\n# Research Doc\n\nContent.',
+    );
+
+    const { unmount } = renderDocReader('docs/src/architecture/some-research.md');
+    await waitFor(() => {
+      expect(screen.getByTestId('doc-status-banner')).toBeDefined();
+      expect(screen.getByText(/Internals — research note:/i)).toBeDefined();
+    });
+    unmount();
+
+    vi.mocked(voxTransport.readDocMarkdown).mockResolvedValue(
+      '---\ntitle: "Old API"\nstatus: "deprecated"\n---\n\n# Old API\n\nContent.',
+    );
+    const { unmount: unmount2 } = renderDocReader('docs/src/reference/old.md');
+    await waitFor(() => {
+      expect(screen.getByTestId('doc-status-banner')).toBeDefined();
+      expect(screen.getByText(/Deprecated:/i)).toBeDefined();
+    });
+    unmount2();
+
+    vi.mocked(voxTransport.readDocMarkdown).mockResolvedValue(
+      '---\ntitle: "Stable API"\nstatus: "current"\n---\n\n# Stable API\n\nContent.',
+    );
+    renderDocReader('docs/src/reference/stable.md');
+    await waitFor(() => {
+      expect(screen.queryByTestId('doc-status-banner')).toBeNull();
+    });
+  });
 });
 
 

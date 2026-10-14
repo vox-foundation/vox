@@ -97,13 +97,13 @@ describe('Sidebar has no nav filter', () => {
   it('still renders top-level nav items', () => {
     renderSidebar();
     expect(screen.getByRole('button', { name: 'Chat' })).toBeDefined();
-    expect(screen.getByRole('button', { name: /Agents/ })).toBeDefined();
+    expect(screen.getByRole('button', { name: /^Agents/i })).toBeDefined();
   });
 
   it('workspace nav calls onOpenParent with workspace key', () => {
     const onOpenParent = vi.fn();
     renderSidebar({ onOpenParent });
-    fireEvent.click(screen.getByRole('button', { name: /Workspace/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Workspace$/i }));
     expect(onOpenParent).toHaveBeenCalledWith('workspace');
   });
 });
@@ -155,7 +155,7 @@ describe('Sidebar language labels', () => {
   });
 });
 
-describe('Sidebar accordion (wide mode only)', () => {
+describe('Sidebar accordion (default and wide modes)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     Element.prototype.scrollIntoView = vi.fn();
@@ -169,14 +169,25 @@ describe('Sidebar accordion (wide mode only)', () => {
     expect(screen.queryByRole('button', { name: /^policies$/i })).not.toBeInTheDocument();
   });
 
-  it('does not render a child tree in rail mode', () => {
-    renderSidebar({ view: 'flow', mode: 'rail' });
-    expect(screen.queryByRole('button', { name: /^tasks$/i })).not.toBeInTheDocument();
+  it('expands the parent containing the active view in default mode as well', () => {
+    renderSidebar({ view: 'flow', mode: 'default' });
+    expect(screen.getByRole('button', { name: /^flow$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^tasks$/i })).toBeInTheDocument();
   });
 
-  it('does not render a child tree in default mode either', () => {
-    renderSidebar({ view: 'flow', mode: 'default' });
+  it('renders a portaled flyout menu for subsections in rail mode on hover or click and navigates', () => {
+    const onOpenTab = vi.fn();
+    renderSidebar({ view: 'flow', mode: 'rail', onOpenTab });
+    // In rail mode, the inline tree is collapsed
     expect(screen.queryByRole('button', { name: /^tasks$/i })).not.toBeInTheDocument();
+    // Clicking the parent reveals the portaled flyout menu
+    const agentsBtn = screen.getByRole('button', { name: /Agents/ });
+    fireEvent.click(agentsBtn);
+    expect(screen.getByTestId('rail-flyout-agents')).toBeInTheDocument();
+    const taskItem = screen.getByRole('menuitem', { name: /^tasks$/i });
+    expect(taskItem).toBeInTheDocument();
+    fireEvent.click(taskItem);
+    expect(onOpenTab).toHaveBeenCalledWith('tasks');
   });
 
   it('clicking a child calls onOpenTab with that child key', () => {

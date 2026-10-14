@@ -8,7 +8,8 @@ describe('BreadcrumbBar', () => {
   it('renders parent and child for dashboard', () => {
     render(<BreadcrumbBar viewKey="dashboard" />);
     expect(screen.getByText('Agents')).toBeDefined();
-    expect(screen.getByText('Dashboard')).toBeDefined();
+    expect(screen.getAllByText('Dashboard').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByRole('tab', { name: 'Flow' })).toBeDefined();
   });
 
   it('hides on chat view', () => {
@@ -22,5 +23,13 @@ describe('BreadcrumbBar', () => {
     const btn = screen.getByRole('button', { name: 'Navigate to Workspace' });
     btn.click();
     expect(onNavigate).toHaveBeenCalledWith('workspace');
+  });
+
+  it('calls onNavigate when subsection tab clicked', async () => {
+    const onNavigate = vi.fn();
+    render(<BreadcrumbBar viewKey="memory" onNavigate={onNavigate} />);
+    const researchTab = screen.getByRole('tab', { name: 'Research' });
+    researchTab.click();
+    expect(onNavigate).toHaveBeenCalledWith('research');
   });
 });

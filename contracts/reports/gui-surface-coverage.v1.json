@@ -2930,6 +2930,10 @@
       "feature_gate": null
     },
     {
+      "path": "model bench",
+      "feature_gate": null
+    },
+    {
       "path": "model cas",
       "feature_gate": null
     },
@@ -2963,6 +2967,10 @@
     },
     {
       "path": "model eval",
+      "feature_gate": null
+    },
+    {
+      "path": "model eval-compare",
       "feature_gate": null
     },
     {
@@ -4893,6 +4901,7 @@
     "migrate.names",
     "migrate.web",
     "model",
+    "model.bench",
     "model.cas",
     "model.cas.ls",
     "model.cas.pull",
@@ -4902,6 +4911,7 @@
     "model.council-report",
     "model.discover",
     "model.eval",
+    "model.eval-compare",
     "model.eval-corpus",
     "model.explain",
     "model.list",
@@ -5355,6 +5365,7 @@
     "coderabbit_report",
     "coderabbit_run_async",
     "coderabbit_token_present",
+    "delete_knowledge_node",
     "discovery_help",
     "discovery_record",
     "discovery_suggest",
@@ -5364,6 +5375,7 @@
     "execute_command",
     "execute_sandbox_probe",
     "explain_model_selection",
+    "explain_routing",
     "finish_gui_run",
     "flag_research_misleading",
     "force_orchestrator_verify",
@@ -5385,10 +5397,12 @@
     "get_gui_run",
     "get_identity_summary",
     "get_initial_view",
+    "get_kb_health",
     "get_llm_config",
     "get_llm_spend",
     "get_ludus_profile",
     "get_memory_status",
+    "get_model_leaderboard",
     "get_model_scoreboard",
     "get_novelty_assessment",
     "get_orchestrator_config",
@@ -5397,6 +5411,7 @@
     "get_orchestrator_status_bin",
     "get_research_engine_status",
     "get_research_session_detail",
+    "get_routing_health",
     "get_routing_intentions",
     "get_routing_summary_live",
     "get_selection_policy",
@@ -5415,6 +5430,8 @@
     "hopper_submit",
     "import_env",
     "inference_provider_status",
+    "ingest_text",
+    "ingest_url",
     "insert_plan_node",
     "interrupt_orchestrator_task",
     "invoke_mcp_tool",
@@ -5428,6 +5445,7 @@
     "list_harness_fix_proposals",
     "list_harness_issues",
     "list_harness_issues_for_session",
+    "list_knowledge_nodes",
     "list_ludus_notifications",
     "list_mc_approvals",
     "list_model_cards",
@@ -5492,6 +5510,7 @@
     "run_autofill",
     "save_research_doc",
     "save_research_engine_config",
+    "save_research_session_to_kb",
     "scan_training_corpus",
     "scientia_cost_rollup",
     "scientia_dashboard_snapshot",

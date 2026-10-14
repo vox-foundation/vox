@@ -5,6 +5,7 @@ import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
 import { Popover } from '../../ui/Popover';
+import { Tooltip } from '../../ui/Tooltip';
 import { voxTransport } from '../../../transport';
 import { buildSlashEntries, type SlashEntry } from '../../../lib/slashCommands';
 import {
@@ -820,17 +821,19 @@ export function Loquela({
               <span className="font-display text-[11px] uppercase tracking-[0.18em]">Resume</span>
             </button>
           ) : (
-            <button
-              type="button"
-              onClick={() => void send()}
-              disabled={!canSend}
-              aria-label="Run (Enter)"
-              className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border px-3 font-display text-[11px] uppercase tracking-[0.18em] transition ${canSend ? "border-brass/40 bg-brass/15 text-brass hover:bg-brass/25 shadow-[0_0_24px_-8px_rgb(var(--brass)/0.6)]" : "border-white/5 bg-white/2 text-zinc-600 cursor-not-allowed"}`}
-            >
-              <Icon.send className="size-3.5" />
-              Run
-              <kbd className="rounded-sm border border-current px-1 text-[9px] opacity-75">↵</kbd>
-            </button>
+            <Tooltip content="Run prompt (Enter; Shift+Enter for new line)" side="top">
+              <button
+                type="button"
+                onClick={() => void send()}
+                disabled={!canSend}
+                aria-label="Run (Enter)"
+                className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border px-3 font-display text-[11px] uppercase tracking-[0.18em] transition ${canSend ? "border-brass/40 bg-brass/15 text-brass hover:bg-brass/25 shadow-[0_0_24px_-8px_rgb(var(--brass)/0.6)]" : "border-white/5 bg-white/2 text-zinc-600 cursor-not-allowed"}`}
+              >
+                <Icon.send className="size-3.5" />
+                Run
+                <kbd className="rounded-sm border border-current px-1 text-[9px] opacity-75">↵</kbd>
+              </button>
+            </Tooltip>
           )}
         </div>
 
@@ -840,29 +843,34 @@ export function Loquela({
 
         <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-white/5 pt-1.5 text-[10px]">
           <div className="flex items-center gap-1.5">
-            <button type="button" aria-label="Attach local file(s) to context" onClick={attachContext} title="Attach local file(s) to context (native picker)" className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-primary hover:border-white/25 transition">
-              <Icon.plus className="size-3.5" aria-hidden="true" />
-            </button>
-            <button type="button" aria-label="Attach a URL to context" onClick={attachUrl} title="Attach a URL to context" className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-primary hover:border-white/25 transition">
-              <Icon.link className="size-3.5" aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              aria-label="Voice input"
-              onClick={toggleMic}
-              disabled={transcribing}
-              title={transcribing ? 'Transcribing…' : recording ? 'Stop recording & transcribe' : 'Voice input — record & transcribe'}
-              aria-pressed={recording}
-              className={`flex size-7 shrink-0 items-center justify-center rounded-md border transition ${
-                transcribing
-                  ? 'border-border-subtle bg-overlay-subtle text-text-muted cursor-wait'
-                  : recording
-                  ? 'border-rose-400/50 bg-rose-400/15 text-rose-300 animate-pulse'
-                  : 'border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-primary hover:border-white/25'
-              }`}
-            >
-              <Icon.mic className="size-3.5" aria-hidden="true" />
-            </button>
+            <Tooltip content="Attach local file(s) to context" side="top">
+              <button type="button" aria-label="Attach local file(s) to context" onClick={attachContext} className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-primary hover:border-white/25 transition">
+                <Icon.plus className="size-3.5" aria-hidden="true" />
+              </button>
+            </Tooltip>
+            <Tooltip content="Attach a URL to context" side="top">
+              <button type="button" aria-label="Attach a URL to context" onClick={attachUrl} className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-primary hover:border-white/25 transition">
+                <Icon.link className="size-3.5" aria-hidden="true" />
+              </button>
+            </Tooltip>
+            <Tooltip content={transcribing ? 'Transcribing…' : recording ? 'Stop recording & transcribe' : 'Voice input — record & transcribe'} side="top">
+              <button
+                type="button"
+                aria-label="Voice input"
+                onClick={toggleMic}
+                disabled={transcribing}
+                aria-pressed={recording}
+                className={`flex size-7 shrink-0 items-center justify-center rounded-md border transition ${
+                  transcribing
+                    ? 'border-border-subtle bg-overlay-subtle text-text-muted cursor-wait'
+                    : recording
+                    ? 'border-rose-400/50 bg-rose-400/15 text-rose-300 animate-pulse'
+                    : 'border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-primary hover:border-white/25'
+                }`}
+              >
+                <Icon.mic className="size-3.5" aria-hidden="true" />
+              </button>
+            </Tooltip>
           </div>
 
           <span className="h-5 w-px bg-white/10" aria-hidden="true" />
@@ -889,21 +897,25 @@ export function Loquela({
             </button>
           )}
 
-          <button type="button" aria-label="Structured intent" aria-expanded={intentOpen}
-            onClick={() => setIntentOpen((o) => !o)}
-            className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 transition ${
-              hasIntent(intent) || intentOpen
-                ? 'border-brass/40 bg-brass/10 text-brass'
-                : 'border-border-subtle bg-overlay-subtle text-text-secondary hover:border-white/20'
-            }`}>
-            <Icon.list className="size-3" aria-hidden="true" /> Intent{hasIntent(intent) ? ' ·' : ''}
-          </button>
+          <Tooltip content="Structured task intent and goal declaration" side="top">
+            <button type="button" aria-label="Structured intent" aria-expanded={intentOpen}
+              onClick={() => setIntentOpen((o) => !o)}
+              className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 transition ${
+                hasIntent(intent) || intentOpen
+                  ? 'border-brass/40 bg-brass/10 text-brass'
+                  : 'border-border-subtle bg-overlay-subtle text-text-secondary hover:border-white/20'
+              }`}>
+              <Icon.list className="size-3" aria-hidden="true" /> Intent{hasIntent(intent) ? ' ·' : ''}
+            </button>
+          </Tooltip>
 
           <div className="relative flex items-center gap-1.5" ref={tierRootRef}>
-            <button type="button" aria-expanded={tierOpen} aria-label="Choose model tier" onClick={() => { setTierOpen(o => !o); setSkillOpen(false); setModeOpen(false); if (!tierOpen) setTierQuery(''); }} className="inline-flex items-center gap-1 rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 text-text-secondary hover:border-white/20">
-              <Icon.cpu className="size-3 text-cyan-300" /><span className="text-text-muted">Run on</span> <span className="text-text-primary">{triggerLabel}</span>
-              <Icon.chevR className="size-2.5 text-text-muted rotate-90" />
-            </button>
+            <Tooltip content="Select which model tier to run on" side="top">
+              <button type="button" aria-expanded={tierOpen} aria-label="Choose model tier" onClick={() => { setTierOpen(o => !o); setSkillOpen(false); setModeOpen(false); if (!tierOpen) setTierQuery(''); }} className="inline-flex items-center gap-1 rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 text-text-secondary hover:border-white/20">
+                <Icon.cpu className="size-3 text-cyan-300" /><span className="text-text-muted">Run on</span> <span className="text-text-primary">{triggerLabel}</span>
+                <Icon.chevR className="size-2.5 text-text-muted rotate-90" />
+              </button>
+            </Tooltip>
             {modelLoadStatus === 'error' && (
               <span className="font-mono text-[9px] text-amber-300" data-testid="model-load-status">Models unavailable</span>
             )}
@@ -948,10 +960,12 @@ export function Loquela({
           </div>
 
           <div className="relative">
-            <button type="button" aria-expanded={skillOpen} aria-label="Choose skill" onClick={() => { setSkillOpen(o => !o); setTierOpen(false); setModeOpen(false); }} className="inline-flex items-center gap-1 rounded-md border border-brass/25 bg-brass/6 px-2 py-1 text-brass hover:bg-brass/12">
-              <Icon.bolt className="size-3" /><span className="text-brass/70">Skill</span> <span>{activeSkill ? (activeSkill.name ?? activeSkill.command ?? activeSkill.id) : "auto"}</span>
-              <Icon.chevR className="size-2.5 text-brass/60 rotate-90" />
-            </button>
+            <Tooltip content="Select specialized agent skill or auto" side="top">
+              <button type="button" aria-expanded={skillOpen} aria-label="Choose skill" onClick={() => { setSkillOpen(o => !o); setTierOpen(false); setModeOpen(false); }} className="inline-flex items-center gap-1 rounded-md border border-brass/25 bg-brass/6 px-2 py-1 text-brass hover:bg-brass/12">
+                <Icon.bolt className="size-3" /><span className="text-brass/70">Skill</span> <span>{activeSkill ? (activeSkill.name ?? activeSkill.command ?? activeSkill.id) : "auto"}</span>
+                <Icon.chevR className="size-2.5 text-brass/60 rotate-90" />
+              </button>
+            </Tooltip>
             <Popover open={skillOpen}>
               <div className="max-h-64 overflow-y-auto overscroll-contain">
                 <button type="button" onClick={() => { setActiveSkill(null); setSkillOpen(false); }} className="block w-full rounded-sm px-2 py-1.5 text-left text-[11px] text-text-muted hover:bg-overlay-subtle hover:text-text-primary">auto</button>
@@ -967,10 +981,12 @@ export function Loquela({
           </div>
 
           <div className="relative">
-            <button type="button" aria-expanded={modeOpen} aria-label="Choose send mode" onClick={() => { setModeOpen(o => !o); setTierOpen(false); setSkillOpen(false); }} className="inline-flex items-center gap-1 rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 text-text-secondary hover:border-white/20">
-              <Icon.bolt className="size-3" /><span>{SEND_MODES.find(m => m.id === executionMode)?.label}</span>
-              <Icon.chevR className="size-2.5 text-text-muted rotate-90" />
-            </button>
+            <Tooltip content="Choose send mode (Plan, Act, Verify, etc.)" side="top">
+              <button type="button" aria-expanded={modeOpen} aria-label="Choose send mode" onClick={() => { setModeOpen(o => !o); setTierOpen(false); setSkillOpen(false); }} className="inline-flex items-center gap-1 rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 text-text-secondary hover:border-white/20">
+                <Icon.bolt className="size-3" /><span>{SEND_MODES.find(m => m.id === executionMode)?.label}</span>
+                <Icon.chevR className="size-2.5 text-text-muted rotate-90" />
+              </button>
+            </Tooltip>
             <Popover open={modeOpen}>
               {SEND_MODES.map(m => (
                 <button key={m.id} type="button" aria-label={`Set send mode: ${m.label}`} onClick={() => { setExecutionMode(m.id); setModeOpen(false); }} className={`flex w-full items-start gap-2 rounded-sm px-2 py-1.5 text-left hover:bg-overlay-subtle ${executionMode === m.id ? "bg-overlay-subtle" : ""}`}>

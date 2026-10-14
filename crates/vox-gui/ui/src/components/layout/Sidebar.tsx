@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../ui/Glass';
 import { Icon } from '../ui/Icons';
@@ -22,7 +23,7 @@ interface NavItemProps {
   active: boolean;
   icon: React.ReactNode;
   label: string;
-  onClick: () => void;
+  onClick: (e?: React.MouseEvent<HTMLButtonElement>) => void;
   badge?: number | string | null;
   badgeClass?: string;
   railBadgeClass?: string;
@@ -157,10 +158,48 @@ export function Sidebar({
   // null = no override (show active parent's children).
   // '' (empty string) = user explicitly collapsed the active parent.
   const [peekedParent, setPeekedParent] = useState<string | null>(null);
+  const [railMenuOpenKey, setRailMenuOpenKey] = useState<string | null>(null);
+  const [railMenuPos, setRailMenuPos] = useState<{ top: number; left: number } | null>(null);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setPeekedParent(null);
   }, [activeParent]);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    };
+  }, []);
+
+  const handleRailMouseEnter = (key: string, e: React.MouseEvent<HTMLElement>) => {
+    if (!collapsed) return;
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    const rect = e.currentTarget.getBoundingClientRect();
+    setRailMenuPos({ top: rect.top, left: rect.right + 6 });
+    setRailMenuOpenKey(key);
+  };
+
+  const handleRailMouseLeave = () => {
+    if (!collapsed) return;
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = setTimeout(() => {
+      setRailMenuOpenKey(null);
+      setRailMenuPos(null);
+    }, 150);
+  };
+
+  const handleFlyoutMouseEnter = () => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+  };
+
+  const handleFlyoutMouseLeave = () => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = setTimeout(() => {
+      setRailMenuOpenKey(null);
+      setRailMenuPos(null);
+    }, 150);
+  };
 
   const expandedParent = peekedParent === '' ? null : peekedParent ?? activeParent;
 
@@ -228,7 +267,7 @@ export function Sidebar({
             const label = navLabelFor(key, lang);
             const IconCmp = (Icon as Record<string, any>)[TOP_NAV_ICON[key] ?? 'file'] ?? Icon.file;
             const isActive = activeParent === key;
-            const isExpanded = expandedParent === key && mode === 'wide';
+            const isExpanded = expandedParent === key && mode !== 'rail';
             const children = CHILD_ORDER_BY_PARENT[key];
             const badge =
               key === 'agents' ? agentsCount
@@ -242,13 +281,30 @@ export function Sidebar({
                 : undefined;
             return (
               <React.Fragment key={key}>
-                <div className="flex items-center gap-0.5">
+                <div
+                  className="relative flex items-center gap-0.5"
+                  onMouseEnter={(e) => collapsed && children && handleRailMouseEnter(key, e)}
+                  onMouseLeave={handleRailMouseLeave}
+                >
                   <div className="flex-1 min-w-0">
                     <NavItem
                       innerRef={isActive ? activeRef : undefined}
                       collapsed={collapsed}
                       active={isActive}
-                      onClick={() => onOpenParent(key)}
+                      onClick={(e) => {
+                        onOpenParent(key);
+                        if (collapsed && children) {
+                          if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+                          if (railMenuOpenKey === key) {
+                            setRailMenuOpenKey(null);
+                            setRailMenuPos(null);
+                          } else {
+                            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                            setRailMenuPos({ top: rect.top, left: rect.right + 6 });
+                            setRailMenuOpenKey(key);
+                          }
+                        }
+                      }}
                       icon={<IconCmp className="size-4" />}
                       label={label}
                       badge={badge}
@@ -256,7 +312,7 @@ export function Sidebar({
                     />
                   </div>
                   {/* chat has no child views but expands to its session list, so it needs the toggle too */}
-                  {(children || key === 'chat') && mode === 'wide' && (
+                  {(children || key === 'chat') && mode !== 'rail' && (
                     <button
                       type="button"
                       aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${label}`}
@@ -266,6 +322,50 @@ export function Sidebar({
                     >
                       <Icon.chevR className={`size-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`} aria-hidden="true" />
                     </button>
+                  )}
+                  {collapsed && railMenuOpenKey === key && children && typeof document !== 'undefined' && createPortal(
+                    <div
+                      role="menu"
+                      aria-label={`${label} subsections`}
+                      data-testid={`rail-flyout-${key}`}
+                      onMouseEnter={handleFlyoutMouseEnter}
+                      onMouseLeave={handleFlyoutMouseLeave}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                          setRailMenuOpenKey(null);
+                          setRailMenuPos(null);
+                        }
+                      }}
+                      style={railMenuPos ? { top: `${railMenuPos.top}px`, left: `${railMenuPos.left}px` } : undefined}
+                      className="fixed z-[99999] min-w-[180px] rounded-xl border border-border-subtle bg-bg-base/95 p-1.5 shadow-2xl backdrop-blur-xl animate-in fade-in-0 zoom-in-95 pointer-events-auto"
+                    >
+                      <div className="px-2.5 py-1 text-[10px] font-display uppercase tracking-widest text-text-muted border-b border-border-subtle mb-1">
+                        {label}
+                      </div>
+                      <div className="flex flex-col gap-0.5">
+                        {children.map(childKey => (
+                          <button
+                            key={childKey}
+                            type="button"
+                            role="menuitem"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onOpenTab(childKey);
+                              setRailMenuOpenKey(null);
+                              setRailMenuPos(null);
+                            }}
+                            className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs transition ${
+                              view === childKey
+                                ? 'bg-brass/15 text-brass font-medium'
+                                : 'text-text-secondary hover:bg-overlay-hover hover:text-text-primary'
+                            }`}
+                          >
+                            {labelForNavKey(childKey)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>,
+                    document.body
                   )}
                 </div>
                 {isExpanded && key === 'chat' && chatSessions && (

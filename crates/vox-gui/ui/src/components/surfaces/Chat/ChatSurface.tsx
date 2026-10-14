@@ -29,6 +29,8 @@ import { RepositoryView } from '../Repository/RepositoryView';
 import { Mercatus } from '../Mercatus/Mercatus';
 import { HarnessRedirect } from '../Harness/HarnessRedirect';
 import { getPermissionMode } from '../../../transport';
+import { ResearchView } from '../Research/ResearchView';
+import { Tooltip } from '../../ui/Tooltip';
 
 
 
@@ -73,8 +75,12 @@ const PANEL_SIZE_CONSTRAINTS: Partial<
 // branch in the refresh effect — only a guarded `.update()` if already
 // present — so they can only ever be (re)created via the Panels menu's Add
 // section, never resurrected on an unrelated re-render.
-const OPT_IN_PANEL_IDS = ['needs-you', 'voxgraph', 'activity', 'repository', 'mercatus', 'harness', 'approvals'] as const;
+const OPT_IN_PANEL_IDS = ['needs-you', 'voxgraph', 'activity', 'repository', 'mercatus', 'harness', 'approvals', 'research'] as const;
 type OptInPanelId = (typeof OPT_IN_PANEL_IDS)[number];
+
+function ResearchDockPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
+  return <div data-testid="chat-dock-research" className="h-full overflow-y-auto p-2">{props.params.node}</div>;
+}
 
 function TranscriptPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
   return <div data-testid="chat-dock-transcript" className="flex h-full min-w-0 flex-col overflow-hidden p-2">{props.params.node}</div>;
@@ -240,6 +246,7 @@ const CHAT_DOCK_COMPONENTS = {
   mercatus: MercatusDockPanel,
   harness: HarnessDockPanel,
   approvals: ApprovalsDockPanel,
+  research: ResearchDockPanel,
 };
 
 // Marker rendered inside the transcript panel's dockview tab element. Task
@@ -630,6 +637,8 @@ export function ChatSurface({
 
   const harnessNode = <HarnessRedirect gamifyEnabled={gamifyEnabled} />;
 
+  const researchNode = <ResearchView pushToast={pushToast} gamifyEnabled={gamifyEnabled} />;
+
   const approvalsParams = {
     pendingApprovals,
     permissionMode: getPermissionMode() ?? 'ask',
@@ -719,6 +728,7 @@ export function ChatSurface({
     // permissionMode/onNavigate), never a rendered node, so it never mounts
     // a second live <ApprovalsView> poll loop.
     approvals: { title: labelForNavKey('approvals'), params: approvalsParams, referenceChain: ['todos', 'executionRail', 'transcript'] },
+    research: { title: labelForNavKey('research'), params: { node: researchNode }, referenceChain: ['todos', 'executionRail', 'transcript'] },
   };
 
   // Positions a newly-activated opt-in panel next to whichever opt-in panel
@@ -843,25 +853,28 @@ export function ChatSurface({
     api.getPanel('mercatus')?.update({ params: panelDefs.mercatus.params });
     api.getPanel('harness')?.update({ params: panelDefs.harness.params });
     api.getPanel('approvals')?.update({ params: panelDefs.approvals.params });
+    api.getPanel('research')?.update({ params: panelDefs.research.params });
   });
 
   const panelsMenu = (
     <div className="relative">
-            <button
-              ref={panelsTriggerRef}
-              type="button"
-              aria-label="Panels"
-              aria-expanded={panelsMenuOpen}
-              onClick={() => setPanelsMenuOpen(o => !o)}
-              className="rounded-lg border border-border-subtle bg-overlay-subtle p-2 text-text-muted transition hover:border-brass/40 hover:text-brass"
-            >
-              <span className="font-mono text-xs">Panels ▾</span>
-            </button>
-            {panelsMenuOpen ? (
-              <div
-                ref={panelsMenuRef}
-                className="absolute right-0 top-full z-50 mt-1 w-56 rounded-lg border border-border-subtle bg-bg-base p-1 shadow-2xl"
-              >
+      <Tooltip content="Toggle docked panels and workspace layout" side="top">
+        <button
+          ref={panelsTriggerRef}
+          type="button"
+          aria-label="Panels"
+          aria-expanded={panelsMenuOpen}
+          onClick={() => setPanelsMenuOpen(o => !o)}
+          className="rounded-lg border border-border-subtle bg-overlay-subtle p-2 text-text-muted transition hover:border-brass/40 hover:text-brass"
+        >
+          <span className="font-mono text-xs">Panels ▾</span>
+        </button>
+      </Tooltip>
+      {panelsMenuOpen ? (
+        <div
+          ref={panelsMenuRef}
+          className={`absolute right-0 ${tabBarTrailingSlot ? 'bottom-full mb-2' : 'top-full mt-1'} z-[99999] w-56 rounded-lg border border-border-subtle bg-bg-base p-1 shadow-2xl`}
+        >
                 {[
                   ...CORE_PANEL_IDS.filter(id => id !== 'executionRail' || executionRailNode != null),
                   ...OPT_IN_PANEL_IDS,

@@ -23,6 +23,7 @@ export const APP_SLASH_COMMANDS = [
   '/research',
   '/deepresearch',
   '/research-search',
+  '/docs',
 ] as const;
 
 export type AppSlashCommand = (typeof APP_SLASH_COMMANDS)[number];
