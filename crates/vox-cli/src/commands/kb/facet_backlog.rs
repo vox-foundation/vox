@@ -117,6 +117,7 @@ mod tests {
     }
 
     fn git(dir: &Path, args: &[&str]) {
+        // vox-arch-check: allow git-exec
         let ok = Command::new("git")
             .current_dir(dir)
             .args([

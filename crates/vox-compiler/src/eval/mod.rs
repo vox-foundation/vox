@@ -554,6 +554,28 @@ impl Interpreter {
             self.module_scope.set(f.name.clone(), val);
         }
 
+        // Register MCP tools (`tool "desc" name(...)`), MCP resources
+        // (`resource ("uri", "desc") name(...)`), and `@example` functions so
+        // playground/script callers can invoke them directly under `--interp`.
+        for f in module
+            .mcp_tools
+            .iter()
+            .map(|t| &t.func)
+            .chain(module.mcp_resources.iter().map(|r| &r.func))
+            .chain(module.examples.iter())
+        {
+            let val = VoxValue::Fn {
+                params: f.params.iter().map(|p| p.name.clone()).collect(),
+                body: std::rc::Rc::new(f.body.clone()),
+                env: Scope::new(),
+                name: f.name.clone(),
+                is_versioned: f.is_versioned,
+                is_traced: f.is_traced,
+            };
+            self.scope.set(f.name.clone(), val.clone());
+            self.module_scope.set(f.name.clone(), val);
+        }
+
         Ok(())
     }
 

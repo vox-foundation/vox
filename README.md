@@ -14,11 +14,16 @@
 
   <br><br>
 
-  <p><strong>Vox is an experimental, AI-native development suite: a language and compiler, a CLI, an agent harness, an operator GUI, and a native ML lane, built as one research project.</strong></p>
+  <p><strong>Vox is an experimental, AI-native programming language and development suite: a full-stack compiler and script interpreter, a unified CLI, a multi-agent orchestrator, a desktop operator console, a curated knowledge base, and a native Rust ML training lane — built together in one repository.</strong></p>
 
-  <p>Led by Bertrand Reyna-Brainerd · stewarded by the Vox Foundation (in formation) · Apache-2.0 · <strong>not production software</strong></p>
+  <p>Led by Bertrand Reyna-Brainerd · stewarded by the Vox Foundation (in formation) · Apache-2.0 · <strong>research prototype (pre-1.0)</strong></p>
 
-  <p><a href="https://voxlang.org">voxlang.org</a></p>
+  <p>
+    <a href="https://voxlang.org">voxlang.org</a> ·
+    <a href="https://voxlang.org/tutorials/tut-getting-started/">Getting Started</a> ·
+    <a href="https://voxlang.org/reference/ref-syntax/">Syntax Reference</a> ·
+    <a href="https://voxlang.org/reference/stability/">Stability Matrix</a>
+  </p>
 </div>
 
 <p align="center">
@@ -28,11 +33,7 @@
 </p>
 
 > [!WARNING]
-> **Last reviewed: 2026-09-21.** Very little here is finished. Of the 70 components
-> checked on that date, fewer than a fifth do their basic job reliably, and none are
-> hardened. There are no releases. The syntax still breaks. Main-branch CI is red.
-> As far as I know, nobody outside the project depends on any of it. Treat the repo
-> as a lab notebook, and please don't build anything you rely on with it.
+> **Last reviewed: 2026-10-13.** Vox is an active pre-1.0 research project (`0.6.0` workspace), not hardened production software. Core paths — the parser and type checker (`vox check`), the sandboxed script interpreter (`vox run`), the SQLite/Turso data layer (`vox-db`), the curated knowledge-base index (`vox kb`), and the repository's CI/architecture guards — work and are tested daily. Full-stack app codegen (`vox build`), durable workflow replay, the Tauri operator GUI (`vox-gui`), deep research (`vox research`), and local QLoRA model training (`vox mens`) are active prototypes with known rough edges documented in the [Status](#status) tables below. There are no binary releases yet; build from source and treat the repository as an open engineering lab notebook.
 
 <div align="center">
   <blockquote>
@@ -41,172 +42,33 @@
   </blockquote>
 </div>
 
-## What Vox is
+---
 
-Vox began as a programming language designed for LLM code generation (see [The language](#the-language)). To build and test that language with AI agents, I kept building the tools around it, and the tools became most of the project. Today it is one repository and one `vox` binary covering:
+## Contents
 
-- **Language & compiler.** `.vox` source compiles to a TypeScript/React frontend, a Rust (Axum) server, and a SQL schema, or runs directly in an interpreter.
-- **CLI (`vox`).** Build, run, check, scaffold, deploy, and a large surface of project and repo tooling.
-- **Agent harness.** An orchestrator daemon, an MCP tool server, model registry and routing, skills (agentskills.io format), and plugins.
-- **Interfaces.** A Tauri operator GUI for driving agents, a VS Code extension, and a terminal UI.
-- **ML lane (MENS).** A Rust-native (Candle) QLoRA trainer and inference server aimed at a Vox-specialised model.
-- **Research tools.** Deep research, SCIENTIA publication, hybrid search, a code-intelligence graph.
-- **Dev infrastructure.** CI gates, architecture and source-policy audits, docs pipeline, secrets (Clavis), telemetry.
+1. [Why Vox](#why-vox)
+2. [A First Look at `.vox` Code](#a-first-look-at-vox-code)
+3. [What's in the Box](#whats-in-the-box)
+4. [Tradeoffs: What Vox Optimizes For (and What It Costs)](#tradeoffs-what-vox-optimizes-for-and-what-it-costs)
+5. [How It's Built & Project Stewardship](#how-its-built--project-stewardship)
+6. [Status](#status)
+7. [Log](#log)
+8. [Trying It](#trying-it)
+9. [The CLI](#the-cli)
+10. [Contributing, License & Contact](#contributing)
 
-Many of these are feature-gated or optional plugins, so the default binary does not include all of them. Each row in the tables below notes when that applies.
-
-## How it's built, and who it's for
-
-I'm the only maintainer, and I write most of the code with AI coding agents. That is part of the experiment: as of 2026-09-21, roughly nine in ten commits were authored or co-authored by an AI agent. It also explains the repo's shape. Breadth grew very fast, while depth, hardening, and outside validation lag far behind. A large share of commits fix recently landed work. I keep audits that are critical of the project in-tree under [`docs/src/architecture/`](docs/src/architecture/) rather than smoothing them over.
-
-Vox is stewarded by the **Vox Foundation**, which is still being set up as of 2026-09. Donors will help steer what the project works on. The work itself is free and open source under Apache-2.0: whatever comes out of it belongs to everyone. Support goes through [Open Collective](https://opencollective.com/vox-foundation), which has a public ledger.
-
-## Status
-
-The four states, in order of how much you can lean on them:
-
-- **Working.** Does its basic job when tried. Not hardened, no stability promise.
-- **Prototype.** Code exists and partly works. Expect gaps and wrong behaviour.
-- **Research.** Exploratory. Not working as intended yet.
-- **Not started.** Planned only, or a stub.
-
-Rows checked on 2026-09-21 were verified two ways: by running an installed `vox 0.6.0+build.5357`, which is about 450 commits behind `main`, and by reading current `main` source. Where the two differ, the note describes `main`. Per-bug detail: [suite status audit](docs/src/architecture/suite-status-audit-2026-09-21.md).
-
-### Language & compiler
-
-| Component | State | Checked | Notes |
-|:---|:---|:---|:---|
-| Parser & type checker (`vox check`) | Working | 2026-09-21 | 85 of 87 golden examples check; the 2 failures come from a commit newer than the tested build. Grammar still changes; last break 2026-08-09. |
-| Interpreter (`vox run` on scripts) | Working | 2026-09-21 | Runs `fn main()` scripts, including this repo's own automation (46 of 51 `scripts/*.vox` type-check). Older builds default to the cargo lane; use `--interp` there. |
-| Full-stack codegen (`vox build`) | Prototype | 2026-09-22 | Emits TS/React, an Axum server, and SQL DDL. The generated server now builds outside a Vox checkout when `vox` was built from source (it finds Vox's crates via `VOX_REPO_ROOT` or the build's own repo root); a `voxup`-installed binary with no source tree still can't ([design](docs/src/architecture/generated-project-runtime-deps.md)). A slow, ignored test runs `cargo check` on a generated app outside the repo; nothing tests that one serves requests. Mutations that write to the database compile, and Axum handler parameters bind as their declared types (a bad value gets a 400). The Tauri shell still binds parameters as untyped JSON. |
-| OpenAPI & client emit (`vox emit`) | Prototype | 2026-09-21 | OpenAPI works. Client emit fails with a write error on any file containing a `component`. |
-| Formatter (`vox fmt`) | Prototype | 2026-09-21 | **Deletes comments and silently drops `workflow`/`activity` declarations.** Don't run it on files you care about. |
-| Tests (`vox test`, `@test`) | Prototype | 2026-09-22 | Goes through generated Rust and cargo, so it shares full-stack codegen's source-build requirement. |
-| REPL (`vox repl`) | Prototype | 2026-09-21 | Single expressions only; `let`/`fn` don't persist between lines. |
-| Dev loop (`vox dev`) | Working | 2026-09-21 | Watches and rebuilds. |
-| Durable workflows (`workflow`/`activity`) | Prototype | 2026-09-21 | Interpreter support for a restricted subset. Crash-replay durability is still [design](docs/src/architecture/true-workflow-durability-design-2026.md). |
-| Mobile (`--target mobile`, React Native) | Research | 2026-09-21 | Emits an Expo project. The device runtime is thin, and the iOS E2E workflow has never passed. |
-| Desktop packaging (`vox compile`) | Prototype | 2026-09-21 | Emits a Tauri project. Unit tests only; no end-to-end packaging test. |
-| LSP (`vox lsp`) | Prototype | 2026-09-21 | Diagnostics, hover, completion, symbols, semantic tokens, code actions. No go-to-definition. Formatting uses the broken formatter. No installer ships the `vox-lsp` binary. |
-| Scaffolding (`vox init`, `vox new`) | Prototype | 2026-09-22 | The `vox init` starter checks with zero diagnostics, and `vox run` takes the app lane on it; that lane needs pnpm for the frontend bundle. `vox new web` writes 2 files. |
-| Packages (`vox add`/`lock`/`sync`) | Prototype | 2026-09-21 | Manifest editing works locally. |
-| Package registry (`vox pm`) | Not started | 2026-09-21 | The default registry URL doesn't exist. |
-| Grammar export (`vox grammar`) | Working | 2026-09-21 | EBNF, Lark, JSON-Schema. |
-| Deploy & share (`vox deploy`, `vox share`) | Prototype | 2026-09-21 | Target scaffolding and dry-runs. Real deployment of a generated app is untested. |
-
-### Agent harness
-
-| Component | State | Checked | Notes |
-|:---|:---|:---|:---|
-| Orchestrator daemon | Prototype | 2026-09-21 | Answers RPC (spawn agent, status, tasks). A real task run was not tried. Churn is high. |
-| MCP server (`vox mcp`) | Prototype | 2026-09-21 | 338 tools registered. A test checks that each compiled-in tool has a handler, and one is an explicit stub. Most have no behavioural tests. Not in the default build (`--features mcp-server`). |
-| Chat (`vox chat`) | Prototype | 2026-09-21 | Defaults to OpenRouter. A fixed 30s request timeout is too short for a cold local model. |
-| Harness eval (`vox harness eval`) | Working | 2026-09-21 | Offline golden set passes; live tasks are opt-in. |
-| Model registry & routing (`vox model`) | Prototype | 2026-09-21 | Catalog listing works. Scoreboard and cost views are empty on a fresh DB. |
-| Planning / dispatch preview | Prototype | 2026-09-21 | `vox plan` is thin. `vox dispatch preview` prints "not yet wired", and `vox workflow ls` is a stub that never contacts the daemon. |
-| Rollback (`vox rollback`) | Prototype | 2026-09-21 | Starts a fresh daemon per call rather than talking to the running one, and overwrites the running daemon's token file. |
-| Memory search (`vox memory search`) | Prototype | 2026-09-21 | Retrieval runs, but the CLI never prints the hits. Web search is part of the default plan. |
-| Skills (`vox skill`) | Prototype | 2026-09-21 | Registry is tested. The CLI is not in the default build (`--features ars`). |
-| Plugins & bundles (`vox plugin`, `vox bundle`) | Prototype | 2026-09-21 | List, info, and doctor work. 11 of 18 catalog plugins point at repos that don't exist. |
-| LLM repair & generate (`vox repair`, `vox generate`) | Prototype | 2026-09-21 | `repair` calls OpenRouter directly. `generate` probes endpoints a stock Ollama server doesn't have. |
-| Policy & exec-policy (`vox policy`, `vox shell check`) | Working | 2026-09-21 | Lists the policy catalog; allows and blocks shell commands as specified. |
-| Identity & auth (`vox auth`, `vox login`) | Prototype | 2026-09-21 | Local trust store works; login flow not exercised. |
-| OpenClaw runtime | Research | 2026-09-21 | CLI and MCP tools behind `--features ars`; little recent work. |
-
-### Interfaces
-
-| Component | State | Checked | Notes |
-|:---|:---|:---|:---|
-| Operator GUI (`vox-gui`, Tauri) | Prototype | 2026-09-21 | 36 routed surfaces, all calling registered backend commands. E2E tests run against mocks, and the release build workflow is failing. The highest-churn crate since July. It does not compile `.vox` apps into desktop apps. |
-| GUI chat & agent flow | Prototype | 2026-09-21 | Needs the orchestrator daemon. "Run on mesh" is always empty, because mesh transport isn't compiled in. |
-| GUI research surface | Prototype | 2026-09-21 | The daemon ignores the lane toggle, and doc drafts are hardcoded placeholder text. |
-| VS Code extension | Prototype | 2026-09-21 | Compiles. Not packaged or published, and has no tests. Its extension ID collides with an unrelated published extension. See [`apps/editor/vox-vscode`](apps/editor/vox-vscode/). |
-| Terminal UI (`vox term`) | Research | 2026-09-21 | Draws a prompt, but submitted input is discarded. The promised headless mode isn't implemented. |
-| Speech-to-code (`vox speech`) | Research | 2026-09-21 | Whisper code exists behind a default-off feature. The stock command errors. |
-| Visual review (Visus) | Research | 2026-09-21 | Screenshot plus VLM audit. Not in the default build. |
-| Installer & updater (`voxup`, `vox upgrade`) | Prototype | 2026-09-21 | Code exists, but there are no releases to install. `vox upgrade` wrongly reports "up to date". |
-| Docs site ([voxlang.org](https://voxlang.org)) | Prototype | 2026-09-21 | Builds. Every deploy since 2026-05-12 has failed at the Cloudflare step, so the live site is stale; its feed stops at 2026-05-15. |
-
-### ML lane (MENS)
-
-| Component | State | Checked | Notes |
-|:---|:---|:---|:---|
-| Fine-tuning (`vox mens train`) | Research | 2026-09-21 | Trainer runs on Metal. Gradient accumulation discards most gradients, and the training data is thin (about 7k rows, about 1.2k unique responses). |
-| Serving (`vox mens serve`) | Prototype | 2026-09-21 | Non-streaming only. Needs an `execution-api` + GPU build or the [`vox-ml` bundle](docs/src/how-to/how-to-migrate-from-cargo-features.md). |
-| Corpus & eval gates | Prototype | 2026-09-21 | Extraction runs. The eval prompt format differs from training, so its scores don't measure the trained setup. |
-| Quantization / GGUF export | Prototype | 2026-09-21 | Library is tested. There's no standalone GGUF export; it goes through `merge-qlora --gguf-out` with llama.cpp. |
-| Grammar-constrained decoding | Not started | 2026-09-21 | The crate exists and is declared as a dependency, but nothing calls it. |
-| Released model weights | Not started | 2026-09-21 | Nothing is published, and no trained model is worth using yet. |
-| Mesh control plane (`vox populi`) | Prototype | 2026-09-21 | Status and a bearer-authenticated control server exist. Multi-node flows untested. |
-| Distributed training & routing | Research | 2026-09-21 | Off-process routing is off by default. The cloud training path has never completed a job. |
-
-### Research tools
-
-| Component | State | Checked | Notes |
-|:---|:---|:---|:---|
-| Deep research (`vox research`) | Prototype | 2026-09-21 | A 2026-09-20 review found off-topic results scored as good, because judge-parsing failures fell back to a constant score. Fixes are not yet merged. |
-| SCIENTIA & publication | Prototype | 2026-09-21 | Large and heavily tested. Not exercised end to end in this review. |
-| Socrates evidence gate | Prototype | 2026-09-21 | Wired into task submit. Enforcement and fusion are both off by default. |
-| Hybrid search (`vox-search`) | Prototype | 2026-09-21 | See the memory search row: results are computed but never shown. |
-| Code graph (`vox graph`) | Working | 2026-09-21 | Query finds definitions. Ranking is nearly flat. Needs `vox graph refresh --auto` once per clone. |
-| Multi-repo catalog (`vox repo`, `vox catalog`) | Working | 2026-09-21 | Add, list, and text query work. |
-
-### Dev infrastructure
-
-| Component | State | Checked | Notes |
-|:---|:---|:---|:---|
-| CI gate runner (`vox ci`) | Working | 2026-09-21 | Cheap guards pass. Refuses to run from a stale binary, by design. |
-| Architecture checker (`vox-arch-check`) | Working | 2026-09-21 | Finds real layer violations in the current tree. |
-| Drift checker & docs pipeline | Working | 2026-09-21 | Both produce real findings. |
-| Source-policy audits (`vox audit code`) | Prototype | 2026-09-21 | Large detector set. A full run didn't finish in 2 minutes, and it can't be scoped to a path. |
-| Commit effort audit (`vox audit effort`) | Prototype | 2026-09-21 | End-to-end with a mock judge; the real LLM judge is untried. |
-| Secrets (Clavis, `vox secrets`) | Working | 2026-09-21 | Doctor reports sources and gaps correctly. |
-| Config & capability registry | Working | 2026-09-21 | |
-| Local database (VoxDB) | Prototype | 2026-09-21 | Additive migrations only. A DB newer than the binary is reported as "legacy", with advice to export and re-create it. |
-| Telemetry | Prototype | 2026-09-21 | Records locally. Nothing consumes it, and the local spool grows without bound even with upload off. |
-| Build broker (cargo shim) | Prototype | 2026-09-21 | Exists but not installed on the checked machine. |
-| VCS layer (jj-lib) | Prototype | 2026-09-21 | Used inside the orchestrator; no CLI. |
-| Script sandbox (`--caps`) | Prototype | 2026-09-21 | Present with tests. Without `--caps`, local scripts get every capability ([ADR-048](docs/src/adr/048-interpreter-is-the-execution-and-sandbox-tier.md)). |
-| WASM / container skill sandboxes | Research | 2026-09-21 | Optional plugins; nothing depends on them. |
-| Snapshot cleanup (`vox snapshot orphans`) | Prototype | 2026-09-21 | Resolves every path wrongly and reports success. |
-| Self-hosted CI fleet | Prototype | 2026-09-21 | Fleet down (0 of 2 runners); six main-branch workflows failing. |
-
-### The central claim
-
-| Component | State | Checked | Notes |
-|:---|:---|:---|:---|
-| Evidence that Vox improves LLM code generation | Not started | 2026-09-21 | No valid benchmark yet. An eval harness is designed but unrun. The figures in [`language-benchmark-2026.md`](docs/src/architecture/language-benchmark-2026.md) have no data behind them. |
-
-Longer-horizon targets, mostly unbuilt: [v1.0 release criteria](docs/src/architecture/v1-release-criteria.md). Per-surface detail: [stability matrix](docs/src/reference/stability.md), which still uses the older, overstated grades and is being re-graded to these states.
-
-## Log
-
-Newest first.
-
-- **2026-09-22**: Generated Axum handlers bind parameters as their declared types instead of raw JSON, and `vox-db`'s test target compiles with default features again.
-- **2026-09-22**: Generated mutations that write to the database compile now. Before this, none did: `db.T.insert(...)?` stacked a second `?`, and the transaction wrapper moved `db` while borrowing it. Also cleared the clippy lint wave that failed `cargo clippy -p vox-orchestrator-mcp` in its dependencies.
-- **2026-09-22**: Fixed four bugs from the audit. `vox run` routes the `vox init` starter to the app lane. The starter no longer trips its own `id`-column lint. `vox doctor` exits non-zero when a required check fails, while missing optional subsystems only warn. Generated servers find Vox's crates outside a checkout and depend only on the runtime crates they use. The audit's claim that an MCP tool had no dispatch arm was wrong; `vox_visual_rag_query` is now labeled as unimplemented.
-- **2026-09-21**: Audited the whole suite against the code ([findings and bug handoff](docs/src/architecture/suite-status-audit-2026-09-21.md)) and rewrote this README around it. The previous README called several areas "Stable" or "Mature" that aren't, and its quick start failed.
-- **2026-09-20**: MENS pipeline review. The trainer was discarding most gradients, and published eval numbers had no artifacts behind them.
-- **2026-09-20**: Deep-research review. The planner was skipped on the default lane, judge scores were constant fallbacks, and fallback model slugs were dead.
-- **2026-09-10**: [GUI chat/model-knobs audit](docs/src/architecture/chat-ui-model-knobs-audit-2026-09-10.md).
-- **2026-09-08**: [ADR-048](docs/src/adr/048-interpreter-is-the-execution-and-sandbox-tier.md) makes the interpreter the execution and sandbox tier, retiring the WASM, container, and microVM isolation modes.
-- **2026-08-09**: Core-syntax convergence (#469).
-- **2026-06-30**: Retired `@`-decorator spellings became hard parse errors; data-layer declarations are now bare keywords.
-- **2026-06-05**: Hardened the [v1.0 criteria](docs/src/architecture/v1-release-criteria.md) after an audit found the compiler's own correctness was ungated.
-- **2026-05-26**: v0.6.0 ([CHANGELOG](CHANGELOG.md)). `@endpoint` retired, telemetry unified, single-machine multi-agent orchestration.
-- **2026-05-12**: The Tauri operator GUI replaced the old Axum dashboard.
-- **2026-05-08**: Plugin system redesign: slim core, runtime-loadable plugins, skill marketplace.
-- **2026-02-17**: Git history begins, with an import of the existing compiler: lexer, parser, type checker, LSP, and Rust/TypeScript/WASM/LLVM codegen.
-
-## The language
-
-The suite exists to serve this question, so the language is still the core research bet.
+---
 
 <!-- ANCHOR: why_vox -->
 ## Why Vox
 
-Mainstream languages predate LLMs by decades. They tolerate implicit state — nulls, exceptions, schemas restated three times across the stack. That's tractable for a person; it's a minefield for a statistical code generator. A million-token context window doesn't help when most of it is integration boilerplate.
+When you build a web application in mainstream languages, you usually write the same idea four separate times:
+1. A **database table** (in SQL or an ORM migration).
+2. A **backend data struct and API route** (in Rust, Go, Python, or Node).
+3. A **network client** that serializes JSON over HTTP.
+4. A **frontend interface** (in TypeScript/React) that unpacks that JSON and renders it.
+
+Mainstream languages predate large language models (LLMs) by decades. They tolerate implicit state — `null` pointers, undeclared exceptions, and schemas restated three or four times across the stack. Experienced developers keep those layers in sync by habit, but for both beginning programmers and statistical AI code generators, every boundary is a place where field names drift, types mismatch, or error handling gets skipped. A million-token context window doesn't help when most of it is glue code.
 
 <div align="center">
 
@@ -214,20 +76,247 @@ Mainstream languages predate LLMs by decades. They tolerate implicit state — n
 
   <p>
     <strong>Fragmentation in Traditional Web Development</strong><br />
-    Traditional development requires restating data models and logic across frontend, API, backend, and database layers. This duplication creates significant maintenance overhead and increases the risk of integration drift.
+    Traditional development requires restating data models and logic across frontend, API, backend, and database layers. This duplication creates maintenance overhead and increases the risk of integration drift.
   </p>
 </div>
 
-Vox is what falls out when you design the language *after* the model: collapse the duplications, push errors into the type system, draw the browser/server boundary in one place, and build durability and tool exposure into the grammar instead of layering them on top.
+Vox is what falls out when you design the language *after* the model:
+- **Declare data once.** One `table` declaration generates the SQL schema, the backend types, the HTTP wire format, and the TypeScript client.
+- **No `null`, no uncaught exceptions.** Missing values use `Option[T]` (`Some(x)` or `None`) and operations that can fail return `Result[T]` (`Ok(x)` or `Error(msg)`). The compiler refuses code that ignores an error.
+- **One file, clear boundaries.** Database queries (`query` / `mutation`), server endpoints (`server`), UI components (`component`), durable workflows (`workflow` / `activity`), and AI agent tools (`tool` / `resource`) live in a single `.vox` grammar with one consistent rule: **bare keywords open scopes, and `@decorators` modify declarations**.
 <!-- ANCHOR_END: why_vox -->
 
-That is a hypothesis, not a result. It hasn't been measured yet (see [The central claim](#the-central-claim)).
+> **Research honesty note:** Whether this language design measurably improves LLM pass rates over TypeScript or Python is our central research hypothesis — not an established fact. The statistical evaluation harness (`vox model eval-compare` and `eval-corpus` with seeded multi-turn compiler-feedback repair) landed in October 2026, and controlled benchmark trials are now being wired up (see [The central claim](#the-central-claim)).
 
-In practice, one `.vox` file declares tables, queries, mutations, server functions, UI components, and routes. The compiler is designed to split it along a domain boundary: logic goes to Rust, and browser code goes to TypeScript. The check that would enforce that split isn't built yet. The grammar rule is that bare keywords (`table`, `query`, `component`, `workflow`, …) open scopes, and decorators (`@auth`, `@uses`, `@pure`, `@scheduled`, …) modify declarations. The syntax is still settling. [`AGENTS.md`](AGENTS.md) lists what has been retired, and the [where things live](docs/src/architecture/where-things-live.md) table maps concepts to crates.
+---
 
-## Trying it
+## A First Look at `.vox` Code
 
-There are no releases, so build from source. You need Rust **1.98.1** (pinned in `rust-toolchain.toml`) and a C compiler. Node and pnpm are needed for generated frontends or the GUI.
+If you are new to Vox, here is a complete, runnable program that defines a database table, a read query, an AI-callable tool, and a `main` function:
+
+```vox
+// 1. Define a database table. Vox automatically adds a typed primary key (`Id[Task]`).
+table Task {
+    title: str
+    done:  bool
+}
+
+// 2. Define a read-only database query.
+query get_tasks() to int {
+    return len(db.Task.all())
+}
+
+// 3. Expose a typed function that both your code and AI assistants (via MCP) can call.
+//    Returning `Result[str]` means failures are values, and `?` propagates errors safely.
+tool "Mark a task complete" complete(id: Id[Task]) to Result[str] {
+    db.Task.delete(id)?
+    return Ok("done")
+}
+
+// 4. Entry point when running as a script (`vox run`).
+fn main() to Result[str] {
+    let id = db.Task.insert({ title: "Learn Vox", done: false })?
+    print("Tasks queued: " + str(get_tasks()))
+    let status = complete(id)?
+    print("Tasks remaining: " + str(get_tasks()))
+    return Ok(status)
+}
+```
+
+### Two Ways to Run `.vox` Files
+
+Depending on what you are building, Vox gives you two execution lanes for the same language:
+
+| Lane | Command | How it works (for beginners) | Best for |
+|:---|:---|:---|:---|
+| **Interpreter lane** | `vox run file.vox` | Runs your `.vox` code immediately in memory (like Python or Node) with an in-memory SQLite database and optional capability sandboxing (`--caps`). No Rust compilation step required. | Learning Vox, scripts, repo automation (`scripts/*.vox`), and the browser playground. |
+| **Full-stack compile lane** | `vox build file.vox -o dist` | Translates your `.vox` file into a real **TypeScript/React** web frontend (`dist/`) and a **Rust (Axum)** backend server (`src/target/generated/`) backed by SQLite/Turso. | Full-stack web or Tauri desktop applications with compiled native performance. |
+
+---
+
+## What's in the Box
+
+Vox started as a compiler, but testing an AI-native language required building the agent harness, knowledge base, and evaluation tools around it. Today one repository and one `vox` binary family cover six connected areas:
+
+| Area | Plain-English Summary | Key Commands / Crates |
+|:---|:---|:---|
+| **1. Language & Compiler** | Parses and type-checks `.vox` files, runs scripts in a capability-sandboxed interpreter, or generates full-stack Rust + React/TypeScript + SQL code and durable workflow journals. | `vox check`, `vox run`, `vox build`, `vox fmt`, `vox lsp` (`vox-compiler`, `vox-codegen`) |
+| **2. Agent Harness & Orchestrator** | Coordinates multiple AI coding agents over a local daemon (`vox-orchestrator-d`) and Model Context Protocol (MCP) server (`vox mcp`), complete with cryptographic tool-execution receipts, task-hopper resource locks, and live OpenRouter/local model routing. | `vox mcp`, `vox serve`, `vox chat`, `vox model`, `vox skill` (`vox-orchestrator`, `vox-orchestrator-mcp`) |
+| **3. Knowledge Base & Research** | Indexes curated documentation with Tantivy lexical search (`vox kb`), enforces a four-tier retrieval trust model (`SystemVerified` → `Untrusted`) so raw web scrapes never silently pollute prompts, and runs multi-source web/academic research with per-sentence citation checks. | `vox kb status`, `vox kb reindex`, `vox research` (`vox-search`, `vox-kb-facets`, `vox-scientia`) |
+| **4. Interfaces (GUI, Terminal, Docs)** | **Axis** (`vox-gui`), a Tauri 2 desktop operator console with local and remote (TOFU TLS-pinned) server modes and a universal `⌘K` capability palette; a daemon-hosted terminal session layer (`vox term`); and the public docs site ([voxlang.org](https://voxlang.org)). | `vox term`, `vox explain`, `vox features` (`vox-gui`, `vox-terminal-core`, `docs-astro`) |
+| **5. Native ML Lane (MENS)** | Pure-Rust (Candle) QLoRA fine-tuning, adapter lineage tracking, inference serving, and statistical model evaluation (`eval-corpus`, `eval-compare`) across Metal, CUDA, and CPU plugins. | `vox mens train`, `vox mens serve`, `vox model eval-compare` (`vox-populi`, `vox-ml-cli`) |
+| **6. Dev & Safety Infrastructure** | Architectural layer checker (`vox-arch-check`), source-policy auditor (`vox audit`), doc-pipeline linter (`vox-doc-pipeline`), unified secrets resolver (`Clavis` / `vox secrets`), and capability-classified CLI/MCP contracts. | `vox doctor`, `vox ci`, `vox audit`, `vox secrets` (`vox-arch-check`, `vox-code-audit`, `vox-secrets`) |
+
+*Note: Several subsystems (`mcp-server`, `ars` skills, `oratio` speech, `dei` visual review, and GPU training plugins) are feature-gated or loadable plugins so the default CLI stays lean. Each row in the [Status](#status) tables notes when a feature flag or plugin is required.*
+
+---
+
+## Tradeoffs: What Vox Optimizes For (and What It Costs)
+
+Every programming tool makes tradeoffs. Understanding what Vox gives up to achieve its goals will save you time deciding whether to explore it:
+
+| Design Choice | What You Gain (The Upside) | What It Costs (The Tradeoff) |
+|:---|:---|:---|
+| **Single-file full-stack grammar** (`table`, `query`, `component` in one `.vox` file) | Zero schema drift between database, server, and UI; far less boilerplate for humans and LLMs to read or write. | **Target lock-in.** Full-stack codegen targets Vox's opinionated stack (Rust/Axum backend, React/TypeScript frontend, SQLite/Turso DB). If you want a Django backend or Vue frontend, Vox codegen won't emit it. |
+| **No `null` + mandatory `Result[T]` / `Option[T]`** | The compiler catches unhandled failures and missing data before your code ever runs. AI agents cannot quietly ignore error states. | **Stricter upfront code.** You must explicitly unwrap, match, or propagate (`?`) every fallible call — even in small prototypes. |
+| **Two execution tiers** (Interpreter vs. Rust/TS Codegen) | `vox run` starts in milliseconds with `--caps` sandboxing and no Rust build; `vox build` emits native Rust and bundled TypeScript. | **Dual-runtime maintenance.** Some features behave differently between `--interp` and compiled Rust while codegen parity is still being completed (for example, standalone binaries still require a source checkout via `VOX_REPO_ROOT`). |
+| **Strict retrieval trust tiers & cryptographic tool receipts** | Web scrapes and unverified agent notes are quarantined as `Untrusted` in `kb_findings` and cannot silently hijack your chat prompt; tool calls are verifiable via HMAC receipts. | **More ceremony.** External findings must be reviewed before entering the trusted knowledge base or MENS training set. |
+| **Integrated AI monorepo** (Compiler + Orchestrator + GUI + ML in one tree) | One shared type system, one capability registry (`contracts/operations/catalog.v1.yaml`), and zero cross-repo version skew. | **Large footprint & uneven maturity.** A cold workspace build compiles over a hundred Rust crates, and peripheral surfaces (mobile, package registry, cloud mesh) lag behind the core compiler and CLI. |
+| **AI-assisted research velocity** (Pre-1.0) | Rapid iteration across compiler, agent harness, and evaluation tooling, with candid in-tree audits. | **Breaking changes.** Syntax and CLI flags still evolve; retired decorators (`@endpoint`, `@island`, `@table`) become hard parse errors rather than carrying long deprecation windows. |
+
+---
+
+## How It's Built & Project Stewardship
+
+I'm the sole human maintainer, and I build Vox alongside AI coding agents (Claude Code, Cursor, Antigravity). That is a deliberate part of the experiment: roughly nine in ten commits are authored or co-authored by AI agents under strict architectural gates (`vox-arch-check`, `vox-code-audit`, `vox-doc-pipeline`, and tighten-only ratchets). When an audit finds that a subsystem is broken, overstated, or incomplete, the critical audit is committed directly under [`docs/src/architecture/`](docs/src/architecture/) rather than smoothed over.
+
+Vox is stewarded by the **Vox Foundation** (in formation). All code and documentation are free and open source under the [Apache 2.0 License](LICENSE). Community backing goes through [Open Collective](https://opencollective.com/vox-foundation), which maintains a transparent public ledger.
+
+---
+
+## Status
+
+Every surface is graded into one of four honest states:
+
+- **Working.** Does its basic job reliably when tried. Not production-hardened; no long-term stability promise yet.
+- **Prototype.** Real implementation exists and works on primary paths, but expect gaps, rough edges, or missing edge cases.
+- **Research.** Exploratory or mid-redesign; not working end-to-end as intended yet.
+- **Not started.** Planned only, or an unimplemented stub.
+
+Rows dated `2026-09-21` come from the full [suite status audit](docs/src/architecture/suite-status-audit-2026-09-21.md); rows dated `2026-10-13` reflect subsequent fixes and phase completions verified on `main` / the unified `v1.5` convergence stream.
+
+### Language & compiler
+
+| Component | State | Checked | Notes |
+|:---|:---|:---|:---|
+| Parser & type checker (`vox check`) | Working | 2026-10-13 | Bare keywords (`table`, `query`, `mutation`, `server`, `component`, `workflow`, `activity`, `actor`, `tool`, `resource`) open scopes; `@decorators` modify declarations. `@ai(structured_output = T, max_iterations = N)` emits strict JSON-Schema LLM calls with bounded retries. |
+| Interpreter & sandbox (`vox run`, `--interp`, `--caps`) | Working | 2026-10-13 | Executes scripts and declaration-only modules (`table`/`query`/`tool` without requiring `fn main()`), powers repo automation (`scripts/*.vox`) and the `/v1/eval` browser sandbox (`--caps deterministic`). `Option::None` compares equal to `null` (`is null` / `isnt null`). |
+| Full-stack codegen (`vox build`) | Prototype | 2026-10-13 | Emits React/TSX (`dist/`), a typed Rust/Axum server (`src/target/generated/`), and SQL DDL. Generated `Cargo.toml` resolves outside a Vox checkout when `vox` is built from source (`VOX_REPO_ROOT`), trims unused crates, binds typed Axum parameters, and compiles DB mutations. `vox --json build` emits a uniform single-line `BuildLaneEnvelope`. Standalone `voxup` installs without a source checkout still cannot compile generated servers ([design](docs/src/architecture/generated-project-runtime-deps.md)). |
+| OpenAPI & client emit (`vox emit`) | Prototype | 2026-09-21 | OpenAPI emission works. Standalone client emit had a missing parent-dir creation bug on `component` outputs (tracked in the 09-21 audit). |
+| Formatter (`vox fmt`) | Prototype | 2026-10-13 | Preserves comment trivia, fixes binary-operator and match-arm printing, and enforces a `layout_only` token-equivalence safety guard so `vox fmt` refuses to overwrite a file if any non-whitespace token or declaration would be dropped. |
+| Tests (`vox test`, `@test`) | Prototype | 2026-10-13 | Emits uniform `BuildLaneEnvelope` under `vox --json test`. Runs through generated Rust + Cargo, so it shares `vox build`'s source-checkout requirement. |
+| REPL (`vox repl`) | Prototype | 2026-09-21 | Evaluates single expressions; `let`/`fn` declarations do not yet persist across lines. |
+| Dev loop (`vox dev`) | Working | 2026-09-21 | Watches `.vox` sources and rebuilds on change. |
+| Durable workflows (`workflow` / `activity`) | Prototype | 2026-10-13 | Interpreter executes workflows through the host bridge with strict `VoxValue` journal encoding, per-function call-ordinal activity identity, SQL-persisted `workflow.version` patches, `workflow_signal_log` consume-or-park signals, and `workflow_run_log` timer parking + lease expiry. Codegen emits `VoxDbTracker` and `__vox_run_workflow` ([ADR-019](docs/src/adr/019-durable-workflow-journal-contract-v1.md), [ADR-021](docs/src/adr/021-generated-workflow-durability-parity.md), [ADR-041](docs/src/adr/041-durable-functions-completion-2026.md)). |
+| Desktop packaging (`vox compile`) | Prototype | 2026-10-13 | Emits a Tauri project; generated Tauri apps with `table` declarations now compile (`#633`). |
+| Mobile (`--target mobile`, React Native) | Research | 2026-09-21 | Emits an Expo project scaffold; device runtime is thin and mobile E2E is unverified. |
+| LSP (`vox lsp`) | Prototype | 2026-09-21 | Diagnostics, hover, completion, symbols, semantic tokens, and code actions ([capabilities SSOT](docs/src/architecture/vox-lsp-capabilities-ssot-2026.md)). Go-to-definition is partial; requires building the `vox-lsp` binary from source. |
+| Scaffolding (`vox init`, `vox new`) | Working | 2026-10-13 | `vox init` starter checks cleanly with zero diagnostics and routes automatically to the app lane on `vox run` (requires `pnpm` for frontend bundling). |
+| Packages (`vox add` / `lock` / `sync`) | Prototype | 2026-09-21 | Local manifest and lockfile editing work. |
+| Package registry (`vox pm`) | Not started | 2026-09-21 | Client code exists, but no public package registry is hosted yet. |
+| Grammar export (`vox grammar`) | Working | 2026-09-21 | Exports EBNF, Lark, and JSON Schema grammars. |
+| Deploy & share (`vox deploy`, `vox share`) | Prototype | 2026-09-21 | Generates Docker/Kubernetes/Fly.io target configs and dry-runs. |
+
+### Agent harness & orchestration
+
+| Component | State | Checked | Notes |
+|:---|:---|:---|:---|
+| Orchestrator daemon (`vox-orchestrator-d`) | Prototype | 2026-10-13 | Handles task/agent lifecycle RPCs, streaming `ExtraDispatch` / `ChainDispatch` hooks, session-scoped SQLite hopper resource locks (`hopper_inbox.resource_id`, lazy lease sweep, [ADR-025](docs/src/adr/025-hopper-canonical-intake-contract.md)), and daemon-hosted terminal sessions (`term.*`). |
+| MCP server & HTTP gateway (`vox mcp`, `vox serve`) | Prototype | 2026-10-13 | 300+ registered tools in `contracts/mcp/tool-registry.canonical.yaml` (`--features mcp-server`). Issues and verifies `vox-crypto` HMAC receipts around every MCP tool dispatch (`vox_verify_task_claims`, [ADR-029](docs/src/adr/029-tool-execution-receipt-contract.md)). `vox serve` enforces loopback-by-default bind policy with `--bind`, `--tls-cert`/`--tls-key`, `--behind-tunnel`, and `/v1/profile`. |
+| Model registry & routing (`vox model`) | Working | 2026-10-13 | Self-maintaining routing over OpenRouter `/api/v1/models` and local Ollama/MENS: parses model recency, benchmarks, price bands, and expiry; skips superseded family versions and keyless providers; keeps `Efficiency`/`Balanced` off flagship pricing; supports `VOX_MODEL_FORCE` and per-role pins; threads `seed` and `top_p` through `vox_actor_runtime::llm`. |
+| Chat (`vox chat`) | Prototype | 2026-10-13 | Routes through the model facade with deterministic research-intent classification (codebase vs. quick web vs. deep research), numbered-source citation checks, and trust-tier preamble filtering. |
+| Capability discovery (`vox explain`, `vox features`) | Working | 2026-10-13 | Backed by the generated capability index (`contracts/capabilities/capability-index.v1.json`) across CLI commands, MCP tools, skills, crates, and docs, with side-effect classifications (`ReadOnly`, `WorkspaceWrite`, `ExternalEffect`, `Destructive`) and confirmation gates. |
+| Harness eval (`vox harness eval`) | Working | 2026-10-13 | Offline golden set passes; Clavis secret lookup no longer panics on `current_thread` Tokio runtimes. |
+| Skills (`vox skill`) | Prototype | 2026-10-13 | [agentskills.io](https://agentskills.io/specification)-compliant `SKILL.md` parser and registry (`--features ars`), synced with `crates/vox-plugin-catalog/catalog.toml`. |
+| Plugins & bundles (`vox plugin`, `vox bundle`) | Prototype | 2026-10-13 | `list`, `info`, and `doctor` work; MENS backend plugins (`mens-candle-metal`, `mens-candle-cuda`, `mens-candle-cpu`) align with host platform detection. Several third-party catalog entries remain placeholders. |
+| Policy & exec-policy (`vox policy`, `vox shell check`) | Working | 2026-09-21 | Evaluates terminal command allowlists and blocks unsafe shell constructs against `contracts/terminal/exec-policy.v1.yaml`. |
+| Planning / rollback (`vox plan`, `vox rollback`) | Prototype | 2026-09-21 | Prototype orchestration helpers; see [suite status audit](docs/src/architecture/suite-status-audit-2026-09-21.md) for daemon token caveats on `rollback`. |
+| Identity & auth (`vox auth`, `vox login`) | Prototype | 2026-09-21 | Local trust store and OpenRouter PKCE / Clavis integration exist; full multi-user auth is unexercised. |
+
+### Knowledge base, search & research tools
+
+| Component | State | Checked | Notes |
+|:---|:---|:---|:---|
+| Curated KB Library (`vox kb`, `vox_kb_*`) | Working | 2026-10-13 | Replaces the retired 12-tool legacy `VoxKB` CRUD surface (`vox-db` baseline 96). Indexes curated `docs/src/` pages in Tantivy 0.22 (`vox kb reindex`, `vox kb status`) and serves `vox_kb_search`, `vox_kb_get`, and `vox_kb_cite` with SKOS taxonomy (`contracts/documentation/kb-taxonomy.v1.yaml`) synonym expansion. |
+| Retrieval trust tiers & findings inbox | Working | 2026-10-13 | Every `search_documents` row and knowledge-graph node carries a stored `trust_tier` (`SystemVerified`, `Trusted`, `Advisory`, `Untrusted`). Uncommitted doc edits, agent-stored facts (`persist_fact`), and web hits are marked `Untrusted`, blocked from automatic chat-preamble injection, sanitized via `vox_db::kb_text::sanitize`, and routed to the `kb_findings` review inbox. |
+| Deep & quick research (`vox research`) | Prototype | 2026-10-13 | Multi-source parallel dispatcher (OpenAlex, arXiv with 334ms rate pacing, Wikipedia, SearXNG JSON, and Tavily with SQLite quota tracking) using Reciprocal Rank Fusion (RRF), relevance reranking, per-provider diversity caps, exponential-decay domain misguidance penalties, and per-sentence citation grounding. |
+| SCIENTIA & publication | Prototype | 2026-10-13 | Claim-span verification checks sentences against measured character offsets and fails closed on unverifiable spans. |
+| Socrates evidence gate | Prototype | 2026-09-21 | Wired into task submission; strict enforcement is opt-in. |
+| Code graph (`vox graph`) | Working | 2026-09-21 | Queries symbol definitions across the workspace after `vox graph refresh --auto`. |
+| Multi-repo catalog (`vox repo`, `vox catalog`) | Working | 2026-09-21 | Add, list, and text-query repositories. |
+
+### Interfaces
+
+| Component | State | Checked | Notes |
+|:---|:---|:---|:---|
+| Operator GUI (`vox-gui`, Axis / Tauri 2) | Prototype | 2026-10-13 | Desktop operator console supporting both local loopback daemon and **Remote Axis** mode (`GatewayClient` with TOFU TLS certificate pinning, OS keyring token storage, and per-surface availability gating by server profile). Includes the universal `⌘K` Omnibar capability palette (`#` crate search, prefilled CLI forms, confirmation gates), chat tool-receipt chips, hopper resource-lock chips, and `ResearchEngineDrawer`. |
+| Terminal sessions (`vox term`, `vox-terminal-core`) | Prototype | 2026-10-13 | Rebuilt around `SessionHost` (`LocalHost` PTY and `DaemonHost` client over `term.*` daemon RPCs) with a replay ring buffer and gap-free sequence numbers for session re-attach (`#641`). |
+| Public docs site ([voxlang.org](https://voxlang.org)) | Working | 2026-10-13 | Cloudflare deployment unblocked (`#635`, `#640`); ships collapsible reader layout, automated crate API reference (`docs/src/api/*.generated.md`), reader trust badges, verified `llms.txt` / `.well-known/llms.txt` (excluding `Internals`), and blocking Playwright link/honesty/redirect gates. |
+| Browser eval sandbox (`eval.voxlang.org`) | Working | 2026-10-13 | Runs `vox run --interp --caps deterministic` behind the MCP HTTP gateway `/v1/eval` endpoint, deployed via Coolify (`POST /api/v1/deploy`). |
+| VS Code extension | Prototype | 2026-09-21 | Compiles in [`apps/editor/vox-vscode`](apps/editor/vox-vscode/); not yet published to the VS Code Marketplace. |
+| Installer & updater (`voxup`, `vox upgrade`) | Prototype | 2026-10-13 | `/voxup` and `/voxup.ps1` bootstrap scripts are served and smoke-tested on `voxlang.org`, and `voxup` resolves forge auth tokens via Clavis; awaits first tagged binary release. |
+| Speech-to-code (`vox speech` / `vox oratio`) | Research | 2026-09-21 | Whisper integration behind `--features oratio`. |
+| Visual review (`vox visus`) | Research | 2026-09-21 | Screenshot + VLM audit behind `--features dei`. |
+
+### ML lane (MENS)
+
+| Component | State | Checked | Notes |
+|:---|:---|:---|:---|
+| Fine-tuning (`vox mens train`) | Prototype | 2026-10-13 | Unified backend selector (`select_mens_backend` across Metal, CUDA, and `mens-candle-cpu`); loads untied `lm_head.weight` on Qwen3 checkpoints (`tie_word_embeddings: false`); applies single-pass Q/K RMSNorm on CUDA; enforces calibrated VRAM-fit checks (`contracts/mens/memory-model.v1.yaml`, override via `VOX_MENS_FORCE_TRAIN`); writes adapter lineage cards (`12-06`); and excludes unattested LLM/web pages from training extracts. |
+| Serving (`vox mens serve`) | Prototype | 2026-10-13 | Serves non-streaming `/v1/completions` and `/generate` with seeded nucleus (`top_p`) sampling and deterministic index tie-breaking (the broken `/v1/completions/stream` route was removed). |
+| Corpus & statistical eval (`eval-corpus`, `vox model eval-compare`) | Working | 2026-10-13 | Routes through the model registry and LLM facade, draws seeded `n` samples per fixture, runs multi-turn compiler-feedback repair (`12-08`), verifies adapter lineage cards, gates write-back on section-5 report completeness (`schema-2`), and computes McNemar, Holm-Bonferroni, and paired bootstrap verdicts in `eval-compare`. |
+| Quantization / GGUF export | Prototype | 2026-09-21 | Merged via `merge-qlora --gguf-out` with llama.cpp; roundtrip tests run against the workspace-built plugin. |
+| Mesh control plane (`vox populi`) | Prototype | 2026-09-21 | Bearer-authenticated control plane over iroh QUIC ([ADR-047](docs/src/adr/047-iroh-sole-quic-transport-for-populi-mesh.md)); multi-node workloads remain experimental. |
+| Grammar-constrained decoding | Not started | 2026-09-21 | `vox-constrained-gen` crate exists in-tree but is not yet wired into serving. |
+| Released model weights | Not started | 2026-10-13 | Training and evaluation plumbing is now verified, but no fine-tuned checkpoint has been published yet. |
+
+### Dev infrastructure
+
+| Component | State | Checked | Notes |
+|:---|:---|:---|:---|
+| CI gate runner (`vox ci`) | Working | 2026-10-13 | Runs manifest, command-compliance, operations-verify, crate-edges, fan-in budgets, and SSOT drift guards; `ci.yml` includes deterministic `ssot-autoregen`. |
+| Architecture checker (`vox-arch-check`) | Working | 2026-10-13 | Enforces [`docs/src/architecture/layers.toml`](docs/src/architecture/layers.toml), fan-in budgets, and forbidden raw `git` execution (`GitExec` policy). |
+| Drift checker & docs pipeline (`vox-doc-pipeline`) | Working | 2026-10-13 | Enforces frontmatter, KB taxonomy facets (`topic`, `domain`, `authorship`, `kb:summary`) with a shrink-only ratchet (`contracts/documentation/kb-facet-backlog.v1.yaml`), `README.md` ↔ `index.mdx` sync, and `.vox` doctests. |
+| Source-policy & effort audits (`vox audit`) | Prototype | 2026-09-21 | `vox audit code` enforces crypto and LLM-facade boundaries (`vox_actor_runtime::llm`); `vox audit effort` and `effort-route` audit commit history. |
+| Secrets (`Clavis`, `vox secrets`) | Working | 2026-10-13 | Exclusive secret resolution via `vox_secrets::resolve_secret(...)`; vault lookup is safe on both multi-thread and `current_thread` Tokio runtimes and isolated from `~/.vox` in tests. |
+| Local database (`VoxDb`, `vox-db`) | Working | 2026-10-13 | Schema baseline `96` (`kb_findings`, `search_documents.trust_tier`, `workflow_patch_log`, `model_benchmark_results`, `hopper_inbox.resource_id`). Legacy `VoxKB` tables are quarantined without data loss. |
+| Environment & build diagnostics (`vox doctor`) | Working | 2026-10-13 | Exits non-zero on required check failures, reports MCP HTTP gateway bind policy, and supports targeted `[diag id=…]` probes via `vox doctor --diag <id>`. |
+
+### The central claim
+
+| Component | State | Checked | Notes |
+|:---|:---|:---|:---|
+| Evidence that Vox improves LLM code generation | Research | 2026-10-13 | The statistical benchmark harness (`eval-corpus` with multi-turn compiler feedback, seeded sampling, completeness-gated schema-2 reports, adapter lineage verification, and `vox model eval-compare` with McNemar/Holm/paired-bootstrap tests) is built and tested (`Phase 12`). Pre-registered cross-model trial runs (`Phase 07`–`11`) are next; until those trials run, Vox's LLM advantage remains an unproved hypothesis. |
+
+Longer-horizon targets: [v1.0 release criteria](docs/src/architecture/v1-release-criteria.md) · [Stability Matrix](docs/src/reference/stability.md) · [Unified Workstream Plan](docs/src/architecture/unified-workstream-execution-plan-2026.md).
+
+---
+
+## Log
+
+Newest first.
+
+- **2026-10-13**: Fixed the browser playground `/v1/eval` sandbox (`vox run --interp` now registers `tool`/`resource`/`@example` declarations, handles declaration-only modules without `fn main()`, and passes `--caps deterministic`), updated Coolify deployment triggers in `.github/workflows/deploy-hetzner.yml` and `vox ci coolify-eval` to `POST /api/v1/deploy` (with `405` fallback to `GET`), and cleared the `vox-arch-check` `raw-git-exec` violation in `facet_backlog.rs`.
+- **2026-10-13**: Completed `v1.5` Wave 0 unified branch convergence (`Phase 05`): merged the parallel `kb`, `discoverability`, `docs-freshness`, `capability-profiles`, `true-workflow-durability`, `warp-fork-axis-gui`, and `fmt-safety` streams into one tree at `VoxDb` schema baseline `96` and regenerated all CLI, MCP, and capability contracts.
+- **2026-10-12**: Merged `feat/true-workflow-durability` (host-bridge workflow execution, run-stable per-function activity call ordinals, SQL-persisted `workflow.version` patches, `workflow_signal_log` signal parking, `workflow_run_log` timer parking, and generated `VoxDbTracker` / `__vox_run_workflow`) and `wip/fmt-safety-2026-10-12` (comment preservation and `layout_only` token-equivalence guard in `vox fmt`).
+- **2026-10-11**: Landed `Phase 12` code-generation benchmark & provenance plumbing (`12-01`..`12-08`): seeded sampling (`seed`, `top_p`) through `vox_actor_runtime::llm` and Candle samplers, unbiased `pass@k` in `eval-local`, schema-2 completeness-gated eval reports, QLoRA adapter lineage cards, `vox model eval-compare` (McNemar, Holm, paired bootstrap), and multi-turn compiler-feedback repair in `eval-corpus`.
+- **2026-10-10**: Landed **Remote Axis** and capability profiles (`vox serve --bind/--tls-cert/--tls-key/--behind-tunnel`, `/v1/profile`, `GatewayClient` with TOFU TLS certificate pinning, keyring token storage, and daemon-backed GUI surfaces) plus daemon-hosted terminal sessions (`vox-terminal-core`, `SessionHost`, `term.*` RPCs with ring-buffer replay, `#641`).
+- **2026-10-09**: Completed **KB Phases 1–4** (`#645`) and **Discoverability Phases 06.1–06.3**: Tantivy 0.22 `Library` index (`vox kb`, `vox_kb_search`/`get`/`cite`), four-tier retrieval trust enforcement (`SystemVerified`..`Untrusted`) and `kb_findings` quarantine inbox, SKOS taxonomy (`contracts/documentation/kb-taxonomy.v1.yaml`) and shrink-only facet backlog lint, generated capability index (`vox explain`, `vox features`), and the GUI `⌘K` Omnibar with side-effect confirmation gates.
+- **2026-10-06**: Unblocked `voxlang.org` Cloudflare deployments and completed **Docs Freshness v1.3** (`Phases 20–24`, `#635`, `#640`): blocking internal link and honesty Playwright gates, automated crate API reference generation (`docs/src/api/*.generated.md`), collapsible reader layout, reader trust signals, and generated Tauri app compilation with `table` declarations (`#633`).
+- **2026-10-02**: Completed **Phase 5** (`MESH-01`, `TRUST-01`): cryptographic `vox-crypto` HMAC receipts around every MCP tool dispatch (`vox_verify_task_claims`, [ADR-029](docs/src/adr/029-tool-execution-receipt-contract.md)) and SQLite hopper resource locks (`hopper_inbox.resource_id`, [ADR-025](docs/src/adr/025-hopper-canonical-intake-contract.md)) surfaced as live chips in the chat GUI, plus self-maintaining OpenRouter model routing.
+- **2026-09-27**: Landed end-to-end multi-source chat and deep research (`OpenAlex`, `arXiv`, `Wikipedia`, `SearXNG`, `Tavily`), deterministic research-intent classification, per-provider RRF diversity caps, domain misguidance decay penalties, and Qwen3 untied `lm_head.weight` + `mens-candle-cpu` plugin fixes in MENS.
+- **2026-09-22**: Fixed generated Axum handler parameter typing, DB-writing mutations (`db.T.insert(...)?`), starter app-lane routing in `vox run`, `vox doctor` exit codes, external `VOX_REPO_ROOT` resolution in generated `Cargo.toml`, and `Option::None == null` equality in the interpreter.
+- **2026-09-21**: Audited the whole suite against the code ([findings and bug handoff](docs/src/architecture/suite-status-audit-2026-09-21.md)) and rewrote this README around dated 4-state tables.
+- **2026-09-08**: [ADR-048](docs/src/adr/048-interpreter-is-the-execution-and-sandbox-tier.md) makes the interpreter the execution and sandbox tier, retiring the WASM, container, and microVM isolation modes.
+- **2026-08-09**: Core-syntax convergence (`#469`).
+- **2026-06-30**: Retired `@`-decorator spellings became hard parse errors; data-layer declarations are now bare keywords.
+- **2026-05-26**: `v0.6.0` ([CHANGELOG](CHANGELOG.md)): `@endpoint` retired, telemetry unified, single-machine multi-agent orchestration.
+- **2026-05-12**: The Tauri operator GUI replaced the old Axum dashboard.
+- **2026-05-08**: Plugin system redesign: slim core, runtime-loadable plugins, skill marketplace.
+- **2026-02-17**: Git history begins, with an import of the initial compiler (lexer, parser, type checker, LSP, and Rust/TypeScript codegen).
+
+---
+
+## Trying It
+
+Because Vox is pre-1.0, there are no prebuilt binary releases yet — you build `vox` from source using Cargo (Rust's package manager).
+
+### Prerequisites
+
+1. **Rust `1.98.1`** (automatically selected by `rustup` via the repository's `rust-toolchain.toml` file) and your platform's standard C compiler (`xcode-select --install` on macOS, `build-essential` on Ubuntu/Debian, or Visual Studio C++ Build Tools on Windows).
+2. **Node.js and `pnpm`** *(optional for scripts, required if you want to bundle generated React frontends or run the `vox-gui` desktop app)*.
+
+### 1. Build and Install the `vox` CLI
 
 ```bash
 git clone https://github.com/vox-foundation/vox.git
@@ -236,7 +325,18 @@ cargo install --locked --path crates/vox-cli
 vox doctor
 ```
 
-Scaffold a project and inspect what the compiler emits:
+### 2. Run a `.vox` Script Immediately (Interpreter Lane)
+
+The fastest way to try Vox is the built-in interpreter, which needs no frontend bundler or secondary Rust compile:
+
+```bash
+vox check examples/golden/hello.vox
+vox run examples/golden/hello.vox
+```
+
+### 3. Scaffold and Build a Full-Stack App (Codegen Lane)
+
+To generate a complete TypeScript/React frontend and Rust/Axum backend from a single `.vox` file:
 
 ```bash
 vox init my-app
@@ -245,24 +345,35 @@ vox check src/main.vox
 vox build src/main.vox -o dist
 ```
 
-The TypeScript lands in `dist/`. The generated Rust server lands in `src/target/generated/`.
+- The generated **TypeScript and React components** are written to `dist/`.
+- The generated **Rust (Axum) server and SQL schema** are written to `src/target/generated/`.
 
-> **Known issues (2026-09-22):**
-> - `vox run src/main.vox` on the starter needs pnpm, because the app lane bundles the frontend.
-> - The generated server finds Vox's crates only when `vox` was built from a source checkout.
-> - `vox fmt` deletes comments and drops some declarations.
-> - Some `vox doctor` hints are wrong on macOS.
+> **Things to keep in mind (`2026-10-13`):**
+> - Running `vox run src/main.vox` on a full-stack app uses the **app lane**, which bundles the React frontend and requires `pnpm` in your `PATH`.
+> - When compiling a generated Rust server outside the Vox repository, keep your local `vox` source clone on disk (or set `VOX_REPO_ROOT` to point to it) so Cargo can resolve Vox's runtime crates.
 
-More: [Installing Vox](docs/src/reference/installation.md) · [CLI reference](docs/src/reference/cli.md).
+More details: [Installing Vox](docs/src/reference/installation.md) · [Getting Started Tutorial](docs/src/tutorials/tut-getting-started.md) · [First Full-Stack App](docs/src/tutorials/tut-first-app.md).
+
+---
 
 ## The CLI
 
-The full CLI surface, including every `vox ci`, `vox populi`, and `vox mens` subcommand, lives at [`docs/src/reference/cli.md`](docs/src/reference/cli.md). Run `vox commands --recommended` for first-time discovery.
+Vox has a broad CLI surface covering compilation, agent orchestration, knowledge-base indexing, model routing, and CI guardrails.
+
+- **First-time discovery:** Run `vox commands --recommended` to list the core everyday commands, or `vox features` and `vox explain <term>` to search the capability index across CLI commands, MCP tools, skills, and crates.
+- **Full reference:** Every `vox`, `vox ci`, `vox kb`, `vox model`, `vox populi`, and `vox mens` subcommand is documented at [`docs/src/reference/cli.md`](docs/src/reference/cli.md) and [`docs/src/reference/cli-command-surface.generated.md`](docs/src/reference/cli-command-surface.generated.md).
+
+---
 
 ## Contributing
 
-Curiosity, criticism, and experiments are welcome. Expect things to move under you. Start at the [Contributor Hub](docs/src/contributors/contributor-hub.md). The [TOESTUB Guide](docs/src/contributors/toestub-contributor-guide.md) covers common CI gate failures. Repo rules for humans and agents are in [`AGENTS.md`](AGENTS.md).
+Curiosity, bug reports, sceptical benchmarks, and experiments are welcome. Expect internals to move quickly.
 
-## License & contact
+- **Start here:** [Contributor Hub](docs/src/contributors/contributor-hub.md)
+- **Where code lives:** [Concept-to-Crate Lookup Table](docs/src/architecture/where-things-live.md) and [Architectural Layers (`layers.toml`)](docs/src/architecture/layers.toml)
+- **CI & quality gates:** [TOESTUB Contributor Guide](docs/src/contributors/toestub-contributor-guide.md)
+- **Agent & contributor policy:** [`AGENTS.md`](AGENTS.md)
 
-[Apache 2.0](LICENSE). Discussion: [GitHub Issues](https://github.com/vox-foundation/vox/issues). Support the Vox Foundation: [Open Collective](https://opencollective.com/vox-foundation).
+## License & Contact
+
+Licensed under [Apache 2.0](LICENSE). Questions and bug reports: [GitHub Issues](https://github.com/vox-foundation/vox/issues). Support the Vox Foundation: [Open Collective](https://opencollective.com/vox-foundation).

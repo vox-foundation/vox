@@ -240,12 +240,22 @@ Body head: {}",
 
     if deploy {
         let deploy_url = format!("{base}/api/v1/deploy?uuid={uuid}");
-        let dresp = client
-            .get(&deploy_url)
+        let mut dresp = client
+            .post(&deploy_url)
             .header("Authorization", format!("Bearer {write_tok}"))
+            .header("Accept", "application/json")
             .send()
             .await
-            .context("GET deploy")?;
+            .context("POST deploy")?;
+        if dresp.status().as_u16() == 405 {
+            dresp = client
+                .get(&deploy_url)
+                .header("Authorization", format!("Bearer {write_tok}"))
+                .header("Accept", "application/json")
+                .send()
+                .await
+                .context("GET deploy")?;
+        }
         let ds = dresp.status();
         let dtxt = dresp.text().await.unwrap_or_default();
         println!("Deploy trigger HTTP {ds}: {}", &dtxt[..dtxt.len().min(400)]);
@@ -255,4 +265,15 @@ Body head: {}",
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn coolify_eval_cmd_construct() {
+        let cmd = CoolifyEvalCmd::Discover;
+        assert!(matches!(cmd, CoolifyEvalCmd::Discover));
+    }
 }

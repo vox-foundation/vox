@@ -200,3 +200,37 @@ fn unsafe_raw_query_clause_reports_interp_diagnostic() {
         other => panic!("expected AssertionFailed diagnostic, got {other:?}"),
     }
 }
+
+#[test]
+fn playground_task_query_and_tool_execute_in_interp() {
+    let res = run_main(
+        "
+        table Task {
+            title: str
+            done:  bool
+        }
+
+        query get_tasks() to int {
+            return len(db.Task.all())
+        }
+
+        tool \"Mark a task complete\" complete(id: Id[Task]) to Result[str] {
+            db.Task.delete(id)?
+            return Ok(\"done\")
+        }
+
+        fn main() to Result[str] {
+            let id = db.Task.insert({ title: \"Write Vox in the browser\", done: false })?
+            assert(get_tasks() == 1, \"expected 1 queued task\")
+            let status = complete(id)?
+            assert(get_tasks() == 0, \"expected 0 tasks after complete\")
+            return Ok(status)
+        }
+        ",
+    );
+    assert_eq!(
+        res,
+        VoxValue::Result(Ok(Box::new(VoxValue::Str("done".to_string().into())))),
+        "playground sample must insert, query, and run MCP tool in --interp"
+    );
+}

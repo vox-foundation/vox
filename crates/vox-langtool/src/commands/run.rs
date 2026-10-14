@@ -48,9 +48,13 @@ pub fn run(file: &Path, _args: &[String]) -> Result<()> {
         .run_module(&lowered)
         .map_err(|e| anyhow::anyhow!("Eval failed: {:?}", e))?;
 
-    let res = interpreter
-        .call("main", vec![])
-        .map_err(|e| anyhow::anyhow!("Eval failed calling main: {:?}", e))?;
+    let res = if lowered.functions.iter().any(|f| f.name == "main") {
+        interpreter
+            .call("main", vec![])
+            .map_err(|e| anyhow::anyhow!("Eval failed calling main: {:?}", e))?
+    } else {
+        vox_compiler::eval::value::VoxValue::Null
+    };
 
     if !matches!(res, vox_compiler::eval::value::VoxValue::Null) {
         println!("{}", vox_compiler::eval::builtins::vox_value_display(&res));
@@ -58,4 +62,21 @@ pub fn run(file: &Path, _args: &[String]) -> Result<()> {
 
     interpreter.flush_exit_commands();
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn run_test_empty_and_main() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("test.vox");
+        std::fs::write(&file, "fn main() to int { return 42; }").unwrap();
+        assert!(run(&file, &[]).is_ok());
+
+        let decl_only = dir.path().join("decl.vox");
+        std::fs::write(&decl_only, "table Task { done: bool }").unwrap();
+        assert!(run(&decl_only, &[]).is_ok());
+    }
 }

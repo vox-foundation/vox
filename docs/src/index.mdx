@@ -1,6 +1,6 @@
 ---
 title: "Vox: The AI-Native Programming Language"
-description: "Pre-1.0 language: one .vox file can compile to a database schema, type-safe server, and browser UI — designed with LLMs in the loop."
+description: "Pre-1.0 full-stack language and AI development suite: declare tables, server routes, UI components, workflows, and agent tools in one .vox file."
 sort_order: 0
 category: "Getting Started"
 status: "current"
@@ -9,13 +9,21 @@ training_eligible: true
 
 import VoxPlayground from '../../docs-astro/src/components/VoxPlayground.astro';
 
-<div style="text-align: center; padding: 1.5rem 0 0.5rem;">
-  <h1 style="font-size: 2.25rem; line-height: 1.15; margin-bottom: 0.75rem;">The Language That Speaks First to LLMs</h1>
-  <p style="font-size: 1.15rem; color: var(--sl-color-gray-2); max-width: 42rem; margin: 0 auto 1.5rem;">Pre-1.0 (workspace 0.6.0). One <code>.vox</code> file can compile to a database schema, typed server, and browser UI — null is not a valid state, and a local training pipeline is part of the repo.</p>
+<div style="text-align: center; padding: 2rem 0 1rem;">
+  <p style="font-size: 0.85rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--sl-color-gray-3); margin: 0 0 0.5rem;">
+    Pre-1.0 Research Prototype · Workspace v0.6.0 · Apache-2.0
+  </p>
+  <h1 style="font-size: 2.35rem; line-height: 1.15; margin: 0 0 0.85rem;">
+    One Language for Database, Server, UI, and AI Agents
+  </h1>
+  <p style="font-size: 1.1rem; line-height: 1.6; color: var(--sl-color-gray-2); max-width: 44rem; margin: 0 auto 1.5rem;">
+    Write one <code>.vox</code> file and run it immediately in a sandboxed interpreter, or compile it into a <strong>SQLite/Turso schema</strong>, a <strong>Rust (Axum) backend</strong>, and a <strong>TypeScript/React frontend</strong> — with no <code>null</code> values and every error checked at compile time.
+  </p>
   <div style="display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
-    <a href="/tutorials/tut-getting-started/" style="background: var(--sl-color-accent); color: var(--sl-color-black); padding: 0.6rem 1.25rem; border-radius: 6px; font-weight: 600; text-decoration: none;">Get Started →</a>
-    <a href="/reference/ref-syntax/" style="border: 1px solid var(--sl-color-gray-5); padding: 0.6rem 1.25rem; border-radius: 6px; text-decoration: none;">Syntax Reference</a>
-    <a href="https://github.com/vox-foundation/vox" style="padding: 0.6rem 1.25rem; border-radius: 6px; text-decoration: none; color: var(--sl-color-gray-2);">GitHub ↗</a>
+    <a href="/tutorials/tut-getting-started/" style="background: var(--sl-color-accent); color: var(--sl-color-black); padding: 0.65rem 1.3rem; border-radius: 6px; font-weight: 600; text-decoration: none;">Get Started →</a>
+    <a href="#try-it" style="border: 1px solid var(--sl-color-gray-5); padding: 0.65rem 1.3rem; border-radius: 6px; font-weight: 500; text-decoration: none;">Try in Browser ↓</a>
+    <a href="/reference/ref-syntax/" style="border: 1px solid var(--sl-color-gray-5); padding: 0.65rem 1.3rem; border-radius: 6px; text-decoration: none;">Syntax Reference</a>
+    <a href="https://github.com/vox-foundation/vox" style="padding: 0.65rem 1.1rem; border-radius: 6px; text-decoration: none; color: var(--sl-color-gray-2);">GitHub ↗</a>
   </div>
 </div>
 
@@ -24,27 +32,35 @@ import VoxPlayground from '../../docs-astro/src/components/VoxPlayground.astro';
 {/* SYNC-FROM-README: why_vox */}
 ## Why Vox
 
-Mainstream languages predate LLMs by decades. They tolerate implicit state — nulls, exceptions, schemas restated three times across the stack. That's tractable for a person; it's a minefield for a statistical code generator. A million-token context window doesn't help when most of it is integration boilerplate.
+When you build a web application in mainstream languages, you usually write the same idea four separate times:
+1. A **database table** (in SQL or an ORM migration).
+2. A **backend data struct and API route** (in Rust, Go, Python, or Node).
+3. A **network client** that serializes JSON over HTTP.
+4. A **frontend interface** (in TypeScript/React) that unpacks that JSON and renders it.
+
+Mainstream languages predate large language models (LLMs) by decades. They tolerate implicit state — `null` pointers, undeclared exceptions, and schemas restated three or four times across the stack. Experienced developers keep those layers in sync by habit, but for both beginning programmers and statistical AI code generators, every boundary is a place where field names drift, types mismatch, or error handling gets skipped. A million-token context window doesn't help when most of it is glue code.
 
 <div align="center">
-  <img src="/assets/old_internet_knot_abstract.png" alt="A diagram illustrating the complexity of traditional web development fragmentation." width="80%" />
+
+![A diagram illustrating the complexity of traditional web development fragmentation.](./assets/old_internet_knot_abstract.png)
+
   <p>
     <strong>Fragmentation in Traditional Web Development</strong><br />
-    Traditional development requires restating data models and logic across frontend, API, backend, and database layers. This duplication creates significant maintenance overhead and increases the risk of integration drift.
+    Traditional development requires restating data models and logic across frontend, API, backend, and database layers. This duplication creates maintenance overhead and increases the risk of integration drift.
   </p>
 </div>
 
-Vox is what falls out when you design the language *after* the model: collapse the duplications, push errors into the type system, draw the browser/server boundary in one place, and build durability and tool exposure into the grammar instead of layering them on top.
+Vox is what falls out when you design the language *after* the model:
+- **Declare data once.** One `table` declaration generates the SQL schema, the backend types, the HTTP wire format, and the TypeScript client.
+- **No `null`, no uncaught exceptions.** Missing values use `Option[T]` (`Some(x)` or `None`) and operations that can fail return `Result[T]` (`Ok(x)` or `Error(msg)`). The compiler refuses code that ignores an error.
+- **One file, clear boundaries.** Database queries (`query` / `mutation`), server endpoints (`server`), UI components (`component`), durable workflows (`workflow` / `activity`), and AI agent tools (`tool` / `resource`) live in a single `.vox` grammar with one consistent rule: **bare keywords open scopes, and `@decorators` modify declarations**.
 {/* SYNC-END: why_vox */}
-
-> *"Is it a fact — or have I dreamt it — that, by means of electricity, the world of matter has become a great nerve, vibrating thousands of miles in a breathless point of time?"*
-> — Nathaniel Hawthorne, *The House of the Seven Gables* (1851)
 
 ---
 
 ## Try it
 
-Write Vox in the browser when the eval backend is up. If it is not, the static sample below is current syntax — install locally to run it.
+Edit the code below and click **Run** to execute it in the sandboxed Vox interpreter (`vox run --interp --caps deterministic`).
 
 <VoxPlayground initialCode={`// One declaration → schema, wire format, typed client
 table Task {
@@ -59,87 +75,108 @@ query get_tasks() to int {
 tool "Mark a task complete" complete(id: Id[Task]) to Result[str] {
     db.Task.delete(id)?
     return Ok("done")
+}
+
+fn main() to Result[str] {
+    let id = db.Task.insert({ title: "Write Vox in the browser", done: false })?
+    print("Tasks queued: " + str(get_tasks()))
+    let status = complete(id)?
+    print("Tasks remaining: " + str(get_tasks()))
+    return Ok(status)
 }`} />
+
+### How to Read the Example Above (For Beginners)
+
+- **`table Task { ... }`** creates a database table with `title` (text) and `done` (true/false) columns, plus an automatic typed ID (`Id[Task]`) so you can never accidentally pass a user ID where a task ID is expected.
+- **`query get_tasks() to int`** defines a read-only database query returning an integer (`int`).
+- **`tool "..." complete(...) to Result[str]`** defines a function that both your program and AI assistants (via the [Model Context Protocol](https://modelcontextprotocol.io)) can call. Its return type `Result[str]` means it either succeeds with `Ok("done")` or returns an `Error`. The `?` after `db.Task.delete(id)?` automatically returns early if the database step fails.
+- **`fn main() to Result[str]`** is the script entry point when you click **Run** or execute `vox run` in your terminal.
 
 ---
 
-{/* condensed pillar grid — full detail: /explanation/expl-architecture/ */}
-## How Vox works
+## How the Vox Suite Works
 
-One `.vox` file can drive schema, typed server, and browser UI from the same declarations. Five pillars make that possible:
+Vox combines the language with an AI-native toolchain in one repository. Six pillars connect the workflow from writing code to running agents:
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1rem; margin: 1.5rem 0;">
-  <div style="border: 1px solid var(--sl-color-gray-5); border-radius: 8px; padding: 1rem;">
-    <h3 style="margin-top: 0; font-size: 1.05rem;">Schema</h3>
-    <p style="margin-bottom: 0;">One source of truth: one declaration becomes SQL schema, wire format, typed client.</p>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.15rem; margin: 1.5rem 0;">
+  <div style="border: 1px solid var(--sl-color-gray-5); border-radius: 8px; padding: 1.15rem;">
+    <h3 style="margin-top: 0; font-size: 1.05rem;">1. Unified Schema & Types</h3>
+    <p style="margin-bottom: 0; font-size: 0.95rem; line-height: 1.55;">One <code>table</code> declaration drives SQLite/Turso tables, Rust structs, HTTP handlers, and TypeScript clients. <code>Option[T]</code> and <code>Result[T]</code> replace <code>null</code> and exceptions.</p>
   </div>
-  <div style="border: 1px solid var(--sl-color-gray-5); border-radius: 8px; padding: 1rem;">
-    <h3 style="margin-top: 0; font-size: 1.05rem;">Errors</h3>
-    <p style="margin-bottom: 0;">In the type system: <code>Result[T]</code> + exhaustive <code>match</code>; the compiler refuses code that drops an <code>Error</code>.</p>
+  <div style="border: 1px solid var(--sl-color-gray-5); border-radius: 8px; padding: 1.15rem;">
+    <h3 style="margin-top: 0; font-size: 1.05rem;">2. Two Execution Lanes</h3>
+    <p style="margin-bottom: 0; font-size: 0.95rem; line-height: 1.55;">Use <code>vox run</code> for instant, capability-sandboxed script execution in memory, or <code>vox build</code> to emit a standalone Rust (Axum) server and React/TSX frontend.</p>
   </div>
-  <div style="border: 1px solid var(--sl-color-gray-5); border-radius: 8px; padding: 1rem;">
-    <h3 style="margin-top: 0; font-size: 1.05rem;">Deploy</h3>
-    <p style="margin-bottom: 0;"><code>vox build</code> emits React/TSX, a typed RPC bridge, and optional Docker/K8s/Fly targets. Deployment maturity varies by lane — see the <a href="/explanation/faq/">FAQ</a>.</p>
+  <div style="border: 1px solid var(--sl-color-gray-5); border-radius: 8px; padding: 1.15rem;">
+    <h3 style="margin-top: 0; font-size: 1.05rem;">3. Durable Workflows</h3>
+    <p style="margin-bottom: 0; font-size: 0.95rem; line-height: 1.55;">First-class <code>workflow</code> and <code>activity</code> blocks persist call ordinals, signals, and timers to a SQLite journal so long-running jobs can resume after crashes.</p>
   </div>
-  <div style="border: 1px solid var(--sl-color-gray-5); border-radius: 8px; padding: 1rem;">
-    <h3 style="margin-top: 0; font-size: 1.05rem;">Agents</h3>
-    <p style="margin-bottom: 0;">MCP-native: bare <code>tool</code>/<code>resource</code> expose typed functions to any Model Context Protocol client.</p>
+  <div style="border: 1px solid var(--sl-color-gray-5); border-radius: 8px; padding: 1.15rem;">
+    <h3 style="margin-top: 0; font-size: 1.05rem;">4. Verified Agent Harness</h3>
+    <p style="margin-bottom: 0; font-size: 0.95rem; line-height: 1.55;">A built-in MCP server and orchestrator issue cryptographic HMAC receipts for tool calls, lock shared resources in the task hopper, and route across live OpenRouter and local models.</p>
   </div>
-  <div style="border: 1px solid var(--sl-color-gray-5); border-radius: 8px; padding: 1rem;">
-    <h3 style="margin-top: 0; font-size: 1.05rem;">Training</h3>
-    <p style="margin-bottom: 0;">Grammar-constrained decoding plus a local QLoRA pipeline (Preview/Emergent; extra features for CUDA).</p>
+  <div style="border: 1px solid var(--sl-color-gray-5); border-radius: 8px; padding: 1.15rem;">
+    <h3 style="margin-top: 0; font-size: 1.05rem;">5. Trusted Knowledge Base</h3>
+    <p style="margin-bottom: 0; font-size: 0.95rem; line-height: 1.55;"><code>vox kb</code> indexes curated docs with Tantivy and SKOS taxonomy facets while quarantining unverified web scrapes and agent notes as <code>Untrusted</code> in a review inbox.</p>
+  </div>
+  <div style="border: 1px solid var(--sl-color-gray-5); border-radius: 8px; padding: 1.15rem;">
+    <h3 style="margin-top: 0; font-size: 1.05rem;">6. Native ML & Eval (MENS)</h3>
+    <p style="margin-bottom: 0; font-size: 0.95rem; line-height: 1.55;">Pure-Rust (Candle) QLoRA training across Metal, CUDA, and CPU plugins, paired with seeded multi-turn compiler-feedback evaluation (<code>vox model eval-compare</code>).</p>
   </div>
 </div>
 
-For example, the schema pillar in code:
-
-```vox
-table Task {
-    title: str
-    done:  bool
-    owner: str
-}
-```
-
-→ Full five-pillar walkthrough, with all code samples: [Compiler Architecture](/explanation/expl-architecture/)
+→ Deep dive into the compiler pipeline and IR stages: [Compiler Architecture](/explanation/expl-architecture/)
 
 ---
 
-## Stability
+## Tradeoffs: When Vox Fits (and When It Doesn't)
 
-{/* condensed status strip — full matrix: /reference/stability/ */}
-Vox is marching toward a production-hardened v1.0 release. Surfaces are graded by their architectural stability and proximity to the v1 criteria — a representative slice:
+We want you to know the costs of Vox's design before you invest time learning it:
 
-| Feature Area | Status |
+| Tradeoff | Why You Might Like Vox | Why You Might Wait or Pick Another Tool |
+|:---|:---|:---|
+| **Opinionated Stack vs. Bring-Your-Own Framework** | You want one `.vox` file to generate your database schema, backend API, and frontend UI without wiring up four separate tools. | Full-stack codegen targets **Rust (Axum) + React/TypeScript + SQLite/Turso**. If you need a Python/Go backend or Vue/Svelte frontend, Vox won't emit it. |
+| **Compile-Time Strictness vs. Loose Scripting** | Every possible failure (`Result[T]`) and optional value (`Option[T]`) is checked before the program runs — catching bugs that LLMs and beginners often miss. | You must handle `Ok`/`Error` and `Some`/`None` explicitly instead of writing quick untyped code that ignores errors. |
+| **Interpreter vs. Full-Stack Codegen** | `vox run` runs scripts immediately with zero Rust compile wait and `--caps` sandboxing; `vox build` emits native Rust and TypeScript. | Compiling a generated Rust server outside the Vox repo currently requires building `vox` from a local source checkout (`VOX_REPO_ROOT`). |
+| **Pre-1.0 Research Velocity vs. Long-Term Stability** | You can inspect an active AI-native language, agent harness, and evaluation lab with candid in-tree audits. | Vox is **pre-1.0 prototype software**. Syntax and CLI flags still evolve, and there are no prebuilt binary releases yet. |
+
+---
+
+## Current State & Stability
+
+Surfaces are graded honestly by what works today versus what is still a prototype (last reviewed **2026-10-13**):
+
+| Surface | Status | What Works Today & Known Caveats |
+|:---|:---|:---|
+| **Compiler & Type Checker (`vox check`)** | 🟣 Mature / Working | Lexer, recursive-descent parser, HIR lowering, bidirectional type checker, and `@ai(structured_output = T)` JSON-Schema emission. |
+| **Script Interpreter & Sandbox (`vox run`)** | 🔵 Stable / Working | Runs `.vox` scripts, `table`/`query`/`tool` modules, repo automation (`scripts/*.vox`), and this page's browser sandbox (`--caps deterministic`). |
+| **Database & Secrets (`vox-db`, `vox secrets`)** | 🔵 Stable / Working | SQLite/Turso engine at schema baseline 96 and `Clavis` secret resolution (`vox_secrets`). |
+| **Curated Knowledge Base (`vox kb`)** | 🔵 Stable / Working | Tantivy 0.22 lexical search, SKOS taxonomy facets, and four-tier trust filtering (`SystemVerified` → `Untrusted` inbox quarantine). |
+| **Full-Stack Codegen (`vox build`, `vox compile`)** | 🟡 Preview / Prototype | Emits React/TSX, typed Axum handlers, DB mutations, and Tauri desktop projects. Needs a local Vox source checkout (`VOX_REPO_ROOT`) to compile generated Rust servers. |
+| **Durable Runtime (`workflow` / `activity`)** | 🟡 Preview / Prototype | Host-bridge execution with SQLite journal replay, activity call ordinals, signals, and timers ([ADR-019](/adr/019-durable-workflow-journal-contract-v1/), [ADR-021](/adr/021-generated-workflow-durability-parity/)). |
+| **Agent Harness & Operator GUI (`vox mcp`, `vox-gui`)** | 🟡 Preview / Prototype | MCP server with HMAC tool receipts, task-hopper resource locks, live OpenRouter model routing, `⌘K` capability palette, and Remote Axis (TOFU TLS). |
+| **Local ML & Eval (`vox mens`, `eval-compare`)** | 🟠 Emergent / Prototype | Seeded multi-turn benchmark harness (`eval-compare`) is working; QLoRA training runs on Metal/CUDA/CPU plugins, with no published model weights yet. |
+
+→ Full per-component status tables and audit links: [Stability Matrix](/reference/stability/) · [v1.0 Release Criteria](/architecture/v1-release-criteria/)
+
+---
+
+## Documentation Map
+
+Organized by the [Diátaxis framework](https://diataxis.fr/) — structured around what you want to accomplish:
+
+| Goal | Start Here |
 |:---|:---|
-| Compiler Core | 🟣 Mature |
-| Database Engine | 🔵 Stable |
-| Durable Runtime | 🔵 Stable (interpreter) / 🟡 Preview (codegen) |
-| Native GUI (operator console) | 🟡 Preview |
-| Distributed Mesh | 🟠 Emergent |
-
-→ Full per-surface matrix, all tiers explained: [Stability Matrix](/reference/stability/)
+| **Learn step by step** | [Installing Vox](/reference/installation/) · [Getting Started](/tutorials/tut-getting-started/) · [First Full-Stack App](/tutorials/tut-first-app/) · [Durable Workflows](/tutorials/tut-workflow-durability/) |
+| **Follow task recipes** | [External App Bootstrap](/how-to/external-app-bootstrap/) · [AI Agents & MCP](/how-to/how-to-ai-agents/) · [Troubleshooting FAQ](/how-to/troubleshooting-faq/) |
+| **Understand the design** | [Why Vox for AI](/explanation/why-vox-for-ai/) · [Compiler Architecture](/explanation/expl-architecture/) · [General FAQ](/explanation/faq/) |
+| **Look up exact details** | [Syntax Reference](/reference/ref-syntax/) · [CLI Reference](/reference/cli/) · [Decorators](/reference/ref-decorators/) · [Stability Matrix](/reference/stability/) |
+| **Contribute or audit** | [Where Things Live](/architecture/where-things-live/) · [Contributor Hub](/contributors/contributor-hub/) · [Agents Policy (`AGENTS.md`)](/repo/agents-md/) |
 
 ---
 
-## Documentation
+## Community, Stewardship & License
 
-Organized by the [Diátaxis framework](https://diataxis.fr/) — structured by user intent, not by feature.
-
-| Intent | Start here |
-|---|---|
-| **Learning** | [Getting Started](/tutorials/tut-getting-started/) · [First full-stack app](/tutorials/tut-first-app/) |
-| **Task recipes** | [How-To Guides](/how-to/) · [AI Agents & MCP](/how-to/how-to-ai-agents/) |
-| **Understanding** | [Why Vox for AI](/explanation/why-vox-for-ai/) · [Compiler architecture](/explanation/expl-architecture/) |
-| **Reference** | [CLI](/reference/cli/) · [Decorators](/reference/ref-decorators/) · [Stability Matrix](/reference/stability/) |
-| **Architecture** | [Where things live](/architecture/where-things-live/) · [Contributor hub](/contributors/contributor-hub/) |
-
----
-
-## Community, Backing & License
-
-**Open Collective.** Community-backed via [Open Collective](https://opencollective.com/vox-foundation) — the ledger is public (early-stage).
-
-**License.** Apache 2.0 — commercial use permitted, patent rights granted, modifications allowed with attribution.
-
-**Get involved.** [GitHub Issues](https://github.com/vox-foundation/vox/issues) · [RSS Feed](https://voxlang.org/feed.xml) · [Contributor Hub](/contributors/contributor-hub/)
+- **Stewardship.** Stewarded by the Vox Foundation (in formation) and backed by the community via [Open Collective](https://opencollective.com/vox-foundation) with a public ledger.
+- **License.** [Apache 2.0](https://github.com/vox-foundation/vox/blob/main/LICENSE) — free for personal, academic, and commercial use with attribution.
+- **Links.** [GitHub Repository](https://github.com/vox-foundation/vox) · [GitHub Issues](https://github.com/vox-foundation/vox/issues) · [RSS Feed](https://voxlang.org/feed.xml) · [LLM Discovery Index (`/llms.txt`)](https://voxlang.org/llms.txt)

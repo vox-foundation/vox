@@ -86,12 +86,14 @@ jobs:
           json_first_list_uuid() {
             local body="$1"
             case "$body" in
-              \{*) ;;
+              \{*|\[*) ;;
               *) echo ""; return 0 ;;
             esac
             jq -r '
-              (if type == "array" then .[0].uuid else empty end)
+              (if type == "array" then (.[0].deployment_uuid // .[0].uuid) else empty end)
+                // .data[0].deployment_uuid
                 // .data[0].uuid
+                // .deployments[0].deployment_uuid
                 // .deployments[0].uuid
                 // empty
             ' <<<"$body" 2>/dev/null || true
@@ -101,13 +103,23 @@ jobs:
           DEPLOY_UUID=""
           
           # 1) Official deploy endpoint — works with "Deploy" API token scope (not "Write").
-          echo "Triggering Coolify via GET /api/v1/deploy?uuid=..."
+          # Coolify v4.0.0-beta.4xx+ requires POST (returns HTTP 405 on GET).
+          echo "Triggering Coolify via POST /api/v1/deploy?uuid=..."
           TMP="$(mktemp)"
           HTTP_CODE="$(
-            curl -sS -o "$TMP" -w '%{http_code}' -X GET \
+            curl -sS -o "$TMP" -w '%{http_code}' -X POST \
               -H "Authorization: Bearer ${COOLIFY_TOKEN}" \
+              -H "Accept: application/json" \
               "${BASE}/api/v1/deploy?uuid=${COOLIFY_APP_UUID}" || echo "000"
           )"
+          if [ "$HTTP_CODE" = "405" ]; then
+            HTTP_CODE="$(
+              curl -sS -o "$TMP" -w '%{http_code}' -X GET \
+                -H "Authorization: Bearer ${COOLIFY_TOKEN}" \
+                -H "Accept: application/json" \
+                "${BASE}/api/v1/deploy?uuid=${COOLIFY_APP_UUID}" || echo "000"
+            )"
+          fi
           BODY="$(cat "$TMP" 2>/dev/null || echo "")"
           rm -f "$TMP"
           echo "Deploy API HTTP ${HTTP_CODE} — ${BODY}"
@@ -121,10 +133,19 @@ jobs:
             START_URL="${BASE}/api/v1/applications/${COOLIFY_APP_UUID}/start?instant_deploy=true"
             TMP="$(mktemp)"
             HTTP_CODE="$(
-              curl -sS -o "$TMP" -w '%{http_code}' -X GET \
+              curl -sS -o "$TMP" -w '%{http_code}' -X POST \
                 -H "Authorization: Bearer ${COOLIFY_TOKEN}" \
+                -H "Accept: application/json" \
                 "$START_URL" || echo "000"
             )"
+            if [ "$HTTP_CODE" = "405" ]; then
+              HTTP_CODE="$(
+                curl -sS -o "$TMP" -w '%{http_code}' -X GET \
+                  -H "Authorization: Bearer ${COOLIFY_TOKEN}" \
+                  -H "Accept: application/json" \
+                  "$START_URL" || echo "000"
+              )"
+            fi
             BODY="$(cat "$TMP" 2>/dev/null || echo "")"
             rm -f "$TMP"
             echo "Start API HTTP ${HTTP_CODE} — ${BODY}"
@@ -136,14 +157,14 @@ jobs:
           # 3) Optional webhook URLs (manual hooks often omit Bearer).
           if [ -z "$DEPLOY_UUID" ] && [ -n "${COOLIFY_WEBHOOK_URL:-}" ]; then
             echo "Webhook fallback (no Authorization header)..."
-            WH_RES="$(curl -sS -X GET "${COOLIFY_WEBHOOK_URL}" || true)"
+            WH_RES="$(curl -sS -X POST -H "Accept: application/json" "${COOLIFY_WEBHOOK_URL}" || true)"
             echo "Webhook response head: ${WH_RES:0:200}"
             DEPLOY_UUID="$(json_deploy_uuid "$WH_RES")"
           fi
           
           if [ -z "$DEPLOY_UUID" ] && [ -n "${COOLIFY_WEBHOOK_URL:-}" ]; then
             echo "Webhook fallback (Bearer token)..."
-            WH_RES="$(curl -sS -X GET -H "Authorization: Bearer ${COOLIFY_TOKEN}" "${COOLIFY_WEBHOOK_URL}" || true)"
+            WH_RES="$(curl -sS -X POST -H "Authorization: Bearer ${COOLIFY_TOKEN}" -H "Accept: application/json" "${COOLIFY_WEBHOOK_URL}" || true)"
             echo "Webhook response head: ${WH_RES:0:200}"
             DEPLOY_UUID="$(json_deploy_uuid "$WH_RES")"
           fi
@@ -152,9 +173,15 @@ jobs:
           if [ -z "$DEPLOY_UUID" ]; then
             echo "Polling deployments list for this application..."
             sleep 5
-            LATEST="$(curl -sS -H "Authorization: Bearer ${POLL_TOKEN}" \
+            LATEST="$(curl -sS -H "Authorization: Bearer ${POLL_TOKEN}" -H "Accept: application/json" \
+              "${BASE}/api/v1/deployments/applications/${COOLIFY_APP_UUID}" || true)"
+            echo "Deployments (/deployments/applications) response: $LATEST"
+            DEPLOY_UUID="$(json_first_list_uuid "$LATEST")"
+          fi
+          if [ -z "$DEPLOY_UUID" ]; then
+            LATEST="$(curl -sS -H "Authorization: Bearer ${POLL_TOKEN}" -H "Accept: application/json" \
               "${BASE}/api/v1/applications/${COOLIFY_APP_UUID}/deployments" || true)"
-            echo "Deployments response: $LATEST"
+            echo "Deployments (/applications/deployments) response: $LATEST"
             DEPLOY_UUID="$(json_first_list_uuid "$LATEST")"
           fi
           
@@ -187,13 +214,20 @@ jobs:
           deployments_list_status_for_uuid() {
             local deploy_uuid="$1"
             local list apps s
-            list="$(curl -sS -H "Authorization: Bearer ${POLL_TOKEN}" "${BASE}/api/v1/deployments" || true)"
+            list="$(curl -sS -H "Authorization: Bearer ${POLL_TOKEN}" -H "Accept: application/json" "${BASE}/api/v1/deployments" || true)"
             s="$(jq -r --arg u "$deploy_uuid" '
                 (if type == "array" then . elif (.data | type) == "array" then .data else [] end)
                 | [.[] | select((.deployment_uuid // .uuid // "") == $u)][0].status // empty
               ' <<<"$list" 2>/dev/null || true)"
             if [ -n "$s" ]; then echo "$s"; return 0; fi
-            apps="$(curl -sS -H "Authorization: Bearer ${POLL_TOKEN}" \
+            apps="$(curl -sS -H "Authorization: Bearer ${POLL_TOKEN}" -H "Accept: application/json" \
+              "${BASE}/api/v1/deployments/applications/${COOLIFY_APP_UUID}" || true)"
+            s="$(jq -r --arg u "$deploy_uuid" '
+                (if type == "array" then . elif (.data | type) == "array" then .data elif (.deployments | type) == "array" then .deployments else [] end)
+                | [.[] | select((.deployment_uuid // .uuid // "") == $u)][0].status // empty
+              ' <<<"$apps" 2>/dev/null || true)"
+            if [ -n "$s" ]; then echo "$s"; return 0; fi
+            apps="$(curl -sS -H "Authorization: Bearer ${POLL_TOKEN}" -H "Accept: application/json" \
               "${BASE}/api/v1/applications/${COOLIFY_APP_UUID}/deployments" || true)"
             jq -r --arg u "$deploy_uuid" '
                 (if type == "array" then . elif (.data | type) == "array" then .data else [] end)

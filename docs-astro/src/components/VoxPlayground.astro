@@ -16,6 +16,14 @@ tool "Mark a task complete" complete(id: Id[Task]) to Result[str] {
     db.Task.delete(id)?
     return Ok("done")
 }
+
+fn main() to Result[str] {
+    let id = db.Task.insert({ title: "Write Vox in the browser", done: false })?
+    print("Tasks queued: " + str(get_tasks()))
+    let status = complete(id)?
+    print("Tasks remaining: " + str(get_tasks()))
+    return Ok(status)
+}
 ` } = Astro.props;
 ---
 
@@ -38,20 +46,7 @@ tool "Mark a task complete" complete(id: Id[Task]) to Result[str] {
     <!-- Default state when backend is offline: clean static code demo, no broken banner -->
     <div class="static-demo">
       <div class="demo-label">Vox — Language at a Glance</div>
-      <pre class="demo-code"><code>// One declaration → schema, wire format, typed client
-table Task &#123;
-    title: str
-    done:  bool
-&#125;
-
-query get_tasks() to int &#123;
-    return len(db.Task.all())
-&#125;
-
-tool "Mark a task complete" complete(id: Id[Task]) to Result[str] &#123;
-    db.Task.delete(id)?
-    return Ok("done")
-&#125;</code></pre>
+      <pre class="demo-code"><code>{initialCode.trim()}</code></pre>
       <div class="demo-footer">
         <span class="demo-note">Static sample (current syntax). <a href="/tutorials/tut-getting-started/">Install Vox from source</a> to run it locally.</span>
       </div>
@@ -196,6 +191,19 @@ tool "Mark a task complete" complete(id: Id[Task]) to Result[str] &#123;
           // Remain in static-demo state — intentional, no banner needed
         });
 
+      const postEval = async (payloadCode, headers) => {
+        const res = await fetch(evalUrl, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ code: payloadCode }),
+        });
+        if (!res.ok) {
+          const errJson = await res.json().catch(() => null);
+          throw new Error(errJson?.error || `HTTP ${res.status}`);
+        }
+        return res.json();
+      };
+
       if (runBtn) {
         runBtn.addEventListener('click', async () => {
           const code = editor.value;
@@ -209,30 +217,44 @@ tool "Mark a task complete" complete(id: Id[Task]) to Result[str] &#123;
             const headers = { 'Content-Type': 'application/json' };
             if (token) headers['Authorization'] = `Bearer ${token}`;
 
-            const res = await fetch(evalUrl, {
-              method: 'POST',
-              headers,
-              body: JSON.stringify({ code }),
-            });
+            let data = await postEval(code, headers);
 
-            if (!res.ok) {
-              const errJson = await res.json().catch(() => null);
-              throw new Error(errJson?.error || `HTTP ${res.status}`);
+            // Compatibility shim when talking to an older eval container before
+            // the latest image (which registers `tool`/`resource` in `--interp`
+            // and permits declaration-only modules without `fn main`) rolls out.
+            if (!data.success && data.stderr && data.stderr.includes('UndefinedVariable(')) {
+              let fallbackCode = code.replace(
+                /^(\s*)tool\s+"[^"]*"\s+(?:fn\s+)?/gm,
+                '$1fn '
+              );
+              if (
+                data.stderr.includes('UndefinedVariable("main")') &&
+                !/\bfn\s+main\s*\(/.test(fallbackCode)
+              ) {
+                fallbackCode = `${fallbackCode}\n\nfn main() {}\n`;
+              }
+              if (fallbackCode !== code) {
+                data = await postEval(fallbackCode, headers);
+              }
             }
 
-            const data = await res.json();
             if (data.error) {
-              outputDisplay.textContent = `Error: ${data.error}\n\n${data.stderr}`;
+              outputDisplay.textContent = data.stderr
+                ? `Error: ${data.error}\n\n${data.stderr}`
+                : `Error: ${data.error}`;
               outputDisplay.style.color = 'var(--sl-color-text-error, #f87171)';
+              statusMsg.textContent = 'Error';
             } else {
               let out = data.stdout || '';
-              if (data.stderr) out += `\n[stderr]\n${data.stderr}`;
+              if (data.stderr) {
+                out += (out ? '\n' : '') + `[stderr]\n${data.stderr}`;
+              }
               outputDisplay.textContent = out || '(no output)';
               outputDisplay.style.color = data.success
                 ? 'var(--sl-color-gray-2)'
                 : 'var(--sl-color-text-error, #f87171)';
+              statusMsg.textContent = data.success ? 'Done' : 'Error';
             }
-            statusMsg.textContent = 'Done';
           } catch (err) {
             outputDisplay.textContent = `Execution failed: ${err.message}`;
             outputDisplay.style.color = 'var(--sl-color-text-error, #f87171)';

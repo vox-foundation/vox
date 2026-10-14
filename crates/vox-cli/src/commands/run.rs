@@ -104,10 +104,14 @@ async fn run_interp(
         interpreter.set_source_path(file.to_path_buf());
     }
 
-    let res = match interpreter
-        .run_module(&lowered)
-        .and_then(|()| interpreter.call("main", vec![]))
-    {
+    let has_main = lowered.functions.iter().any(|f| f.name == "main");
+    let res = match interpreter.run_module(&lowered).and_then(|()| {
+        if has_main {
+            interpreter.call("main", vec![])
+        } else {
+            Ok(vox_compiler::eval::value::VoxValue::Null)
+        }
+    }) {
         Ok(res) => res,
         Err(vox_compiler::eval::EvalError::CapabilityDenied { ns, method }) => {
             eprintln!(
