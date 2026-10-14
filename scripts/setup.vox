@@ -23,6 +23,28 @@ fn check_command(cmd: str, args: list[str], name: str) to bool {
     return true
 }
 
+fn install_tool(path: str, bin: str, name: str) to bool {
+    // `--debug --target-dir target` reuses the workspace's dev-build artifacts, so this is
+    // near-instant after a normal build. Hooks call these binaries and never build them.
+    let result_opt = if bin == "" {
+        process.run("cargo", ["install", "--locked", "--debug", "--force", "--target-dir", "target", "--path", path])
+    } else {
+        process.run("cargo", ["install", "--locked", "--debug", "--force", "--target-dir", "target", "--path", path, "--bin", bin])
+    }
+    if result_opt is None {
+        print("Could not spawn cargo to install " + name)
+        return false
+    }
+    let result = result_opt.unwrap()
+    if result.code != 0 {
+        print(result.stderr)
+        print("Failed to install " + name)
+        return false
+    }
+    print("Installed: " + name)
+    return true
+}
+
 fn main() {
     print("Initializing Vox Workspace Setup")
 
@@ -71,7 +93,17 @@ fn main() {
         }
     }
 
-    print("[6] Validating Workspace Integrity...")
+    print("[6] Installing the tools the git hooks call (vox, toestub, vox-drift-check)...")
+    // Git hooks never build (lefthook.yml; enforced by `vox ci dev-loop-guard`). They run
+    // these installed binaries, so a fresh clone needs them before its first commit.
+    let vox_ok = install_tool("crates/vox-cli", "", "vox")
+    let toestub_ok = install_tool("crates/vox-code-audit", "toestub", "toestub")
+    let drift_ok = install_tool("crates/vox-drift-check", "", "vox-drift-check")
+    if not (vox_ok and toestub_ok and drift_ok) {
+        print("Some hook tools did not install; commits that need them will fail until they do.")
+    }
+
+    print("[7] Validating Workspace Integrity...")
     print("Running cargo check --workspace (excluding vox-gui)...")
     // Exclude `vox-gui`: it is a native Tauri desktop app (WebKit/Cocoa system
     // frameworks) that is not in `default-members` and does not check in a stripped

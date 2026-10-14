@@ -189,14 +189,18 @@ pub struct VoxMatch {
 }
 
 impl VoxRegex {
-    pub fn matches(&self, text: &str) -> bool {
-        self.0.is_match(text)
+    // `impl AsRef<str>`: generated code passes owned `String`s as well as `&str`.
+    pub fn matches(&self, text: impl AsRef<str>) -> bool {
+        self.0.is_match(text.as_ref())
     }
-    pub fn find(&self, text: &str) -> Option<VoxMatch> {
-        self.0.captures(text).map(captures_to_match)
+    pub fn find(&self, text: impl AsRef<str>) -> Option<VoxMatch> {
+        self.0.captures(text.as_ref()).map(captures_to_match)
     }
-    pub fn find_all(&self, text: &str) -> Vec<VoxMatch> {
-        self.0.captures_iter(text).map(captures_to_match).collect()
+    pub fn find_all(&self, text: impl AsRef<str>) -> Vec<VoxMatch> {
+        self.0
+            .captures_iter(text.as_ref())
+            .map(captures_to_match)
+            .collect()
     }
 }
 
@@ -1154,6 +1158,20 @@ pub fn vox_scrape_select_attr(html: &str, css: &str, attr: &str) -> Result<Strin
         .filter_map(|el| el.value().attr(attr).map(str::to_string))
         .collect();
     Ok(out.join("\n"))
+}
+
+#[cfg(test)]
+mod regex_value_tests {
+    use super::*;
+
+    #[test]
+    fn regex_methods_take_owned_and_borrowed_text() {
+        let re = vox_regex_compile(r"mood\D*(\d)").unwrap();
+        let owned = String::from("mood is 7");
+        assert!(re.matches(owned.clone()) && re.matches("mood 3"));
+        assert_eq!(re.find(owned).and_then(|m| m.group(1)), Some("7".into()));
+        assert_eq!(re.find_all("mood 1, mood 2").len(), 2);
+    }
 }
 
 #[cfg(test)]

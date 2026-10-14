@@ -582,19 +582,11 @@
       "feature_gate": null
     },
     {
-      "path": "ci check-frozen",
-      "feature_gate": null
-    },
-    {
       "path": "ci check-links",
       "feature_gate": null
     },
     {
       "path": "ci check-summary-drift",
-      "feature_gate": null
-    },
-    {
-      "path": "ci collateral-damage-gate",
       "feature_gate": null
     },
     {
@@ -635,10 +627,6 @@
     },
     {
       "path": "ci config-registry-parity",
-      "feature_gate": null
-    },
-    {
-      "path": "ci constrained-gen-smoke",
       "feature_gate": null
     },
     {
@@ -802,10 +790,6 @@
       "feature_gate": null
     },
     {
-      "path": "ci grpo-reward-baseline",
-      "feature_gate": null
-    },
-    {
       "path": "ci gui-catalog-parity",
       "feature_gate": null
     },
@@ -871,10 +855,6 @@
     },
     {
       "path": "ci mcp-vox-surface-parity",
-      "feature_gate": null
-    },
-    {
-      "path": "ci mens-corpus-health",
       "feature_gate": null
     },
     {
@@ -1010,10 +990,6 @@
       "feature_gate": null
     },
     {
-      "path": "ci queue",
-      "feature_gate": null
-    },
-    {
       "path": "ci release-build",
       "feature_gate": null
     },
@@ -1039,22 +1015,6 @@
     },
     {
       "path": "ci row-serde-lint",
-      "feature_gate": null
-    },
-    {
-      "path": "ci runner-policy-check",
-      "feature_gate": null
-    },
-    {
-      "path": "ci runner-preflight",
-      "feature_gate": null
-    },
-    {
-      "path": "ci runner-scale",
-      "feature_gate": null
-    },
-    {
-      "path": "ci runner-status",
       "feature_gate": null
     },
     {
@@ -1139,6 +1099,10 @@
     },
     {
       "path": "ci ssot-drift",
+      "feature_gate": null
+    },
+    {
+      "path": "ci status",
       "feature_gate": null
     },
     {
@@ -2674,6 +2638,30 @@
       "feature_gate": null
     },
     {
+      "path": "graph history brief",
+      "feature_gate": null
+    },
+    {
+      "path": "graph history focus",
+      "feature_gate": null
+    },
+    {
+      "path": "graph history forgotten",
+      "feature_gate": null
+    },
+    {
+      "path": "graph history log",
+      "feature_gate": null
+    },
+    {
+      "path": "graph history search",
+      "feature_gate": null
+    },
+    {
+      "path": "graph history timeline",
+      "feature_gate": null
+    },
+    {
       "path": "graph index",
       "feature_gate": null
     },
@@ -2775,6 +2763,22 @@
     },
     {
       "path": "init",
+      "feature_gate": null
+    },
+    {
+      "path": "kb",
+      "feature_gate": null
+    },
+    {
+      "path": "kb eval",
+      "feature_gate": null
+    },
+    {
+      "path": "kb reindex",
+      "feature_gate": null
+    },
+    {
+      "path": "kb status",
       "feature_gate": null
     },
     {
@@ -3394,11 +3398,23 @@
       "feature_gate": null
     },
     {
+      "path": "research flag",
+      "feature_gate": null
+    },
+    {
       "path": "research history",
       "feature_gate": null
     },
     {
       "path": "research preview",
+      "feature_gate": null
+    },
+    {
+      "path": "research probe",
+      "feature_gate": null
+    },
+    {
+      "path": "research publish",
       "feature_gate": null
     },
     {
@@ -4216,10 +4232,8 @@
     "ci.capability-sync",
     "ci.check-codex-ssot",
     "ci.check-docs-ssot",
-    "ci.check-frozen",
     "ci.check-links",
     "ci.check-summary-drift",
-    "ci.collateral-damage-gate",
     "ci.command-compliance",
     "ci.command-sync",
     "ci.commit-lint",
@@ -4230,7 +4244,6 @@
     "ci.config-gui-codegen",
     "ci.config-hygiene",
     "ci.config-registry-parity",
-    "ci.constrained-gen-smoke",
     "ci.contracts-index",
     "ci.coolify-eval",
     "ci.coolify-eval.discover",
@@ -4271,7 +4284,6 @@
     "ci.grammar-drift",
     "ci.grammar-export-check",
     "ci.grammar-ssot-parity",
-    "ci.grpo-reward-baseline",
     "ci.gui-catalog-parity",
     "ci.gui-honesty",
     "ci.gui-smoke",
@@ -4289,7 +4301,6 @@
     "ci.line-endings",
     "ci.manifest",
     "ci.mcp-vox-surface-parity",
-    "ci.mens-corpus-health",
     "ci.mens-scorecard",
     "ci.mens-scorecard.burn-rnd",
     "ci.mens-scorecard.decide",
@@ -4323,7 +4334,6 @@
     "ci.pre-push",
     "ci.profile-parity",
     "ci.query-all-guard",
-    "ci.queue",
     "ci.release-build",
     "ci.release-draft-guard",
     "ci.repo-guards",
@@ -4331,10 +4341,6 @@
     "ci.retired-symbol-check",
     "ci.retirement-audit",
     "ci.row-serde-lint",
-    "ci.runner-policy-check",
-    "ci.runner-preflight",
-    "ci.runner-scale",
-    "ci.runner-status",
     "ci.runtime-regress",
     "ci.rust-ecosystem-policy",
     "ci.safety-inventory",
@@ -4356,6 +4362,7 @@
     "ci.sql-surface-guard",
     "ci.ssot-audit",
     "ci.ssot-drift",
+    "ci.status",
     "ci.string-id-lint",
     "ci.sync-ignore-files",
     "ci.test-inventory",
@@ -4781,6 +4788,12 @@
     "graph.crate-map",
     "graph.gc",
     "graph.history",
+    "graph.history.brief",
+    "graph.history.focus",
+    "graph.history.forgotten",
+    "graph.history.log",
+    "graph.history.search",
+    "graph.history.timeline",
     "graph.history_mcp",
     "graph.index",
     "graph.ingest",
@@ -4820,18 +4833,13 @@
     "init",
     "inline.edit",
     "journey.canonical.steps",
-    "kb.add_entry",
-    "kb.add_rule",
-    "kb.clip",
-    "kb.create",
-    "kb.delete",
-    "kb.delete_entry",
-    "kb.get_feed",
-    "kb.list",
-    "kb.list_entries",
-    "kb.list_rules",
-    "kb.query",
-    "kb.review_entry",
+    "kb",
+    "kb.cite",
+    "kb.eval",
+    "kb.get",
+    "kb.reindex",
+    "kb.search",
+    "kb.status",
     "knowledge.query",
     "language.surface",
     "learn.pattern",
@@ -5063,9 +5071,12 @@
     "research",
     "research.down",
     "research.eval",
+    "research.flag",
     "research.get",
     "research.history",
     "research.preview",
+    "research.probe",
+    "research.publish",
     "research.result",
     "research.run",
     "research.search",
@@ -5508,7 +5519,6 @@
     "resume_orchestrator_agent",
     "rotate_signing_key",
     "run_autofill",
-    "save_research_doc",
     "save_research_engine_config",
     "save_research_session_to_kb",
     "scan_training_corpus",

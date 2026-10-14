@@ -150,7 +150,7 @@ fn run_global(
     let (_inflight, would_coalesce) = global::register_inflight(&root, &key)?;
 
     let t_wait = Instant::now();
-    let (_slot, _waited_ms, busy) = global::acquire_slot(&root, n)?;
+    let (_slot, _waited_ms, busy) = global::acquire_slot_adaptive(&root, n)?;
     let queue_wait_ms = t_wait.elapsed().as_millis() as u64;
     if busy > 0 {
         eprintln!(
@@ -159,9 +159,15 @@ fn run_global(
         );
     }
 
+    let build_args = resolve::build_args_for_run(args);
+    let run_cmd_args: &[String] = match &build_args {
+        Some(b) => b.as_slice(),
+        None => args,
+    };
+
     let t_run = Instant::now();
     let mut cmd = Command::new(real);
-    cmd.args(args).current_dir(&cwd);
+    cmd.args(run_cmd_args).current_dir(&cwd);
     cmd.env_clear();
     for (k, v) in &env {
         cmd.env(k, v);
@@ -179,6 +185,8 @@ fn run_global(
     }
     let status = cmd.status()?;
     let ran_ms = t_run.elapsed().as_millis() as u64;
+    drop(_slot);
+    drop(_inflight);
 
     let worktree = resolve::worktree_root_of(&cwd).unwrap_or_else(|| cwd.clone());
     let rec = metrics::MetricRecord {
@@ -207,6 +215,14 @@ fn run_global(
     {
         use std::io::Write;
         let _ = f.write_all(line.as_bytes());
+    }
+
+    if build_args.is_some() {
+        if status.success() {
+            exec_real(real, args, depth, toolchain);
+        } else {
+            return Ok(status.code().unwrap_or(1));
+        }
     }
 
     Ok(status.code().unwrap_or(1))

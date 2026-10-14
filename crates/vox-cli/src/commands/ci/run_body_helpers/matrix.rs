@@ -585,22 +585,20 @@ pub(crate) fn run_toestub_scoped_roots(
             })
             .collect()
     };
-    let cargo = cargo_bin();
-    let nested_target = nested_cargo_target_dir(repo);
-    let mut c = Command::new(&cargo);
-    c.current_dir(repo)
-        .env("CARGO_TARGET_DIR", &nested_target)
-        .args([
-            "run",
-            "-q",
-            "-p",
-            "vox-code-audit",
-            "--bin",
-            "toestub",
-            "--",
-            "--format",
-            "json",
-        ]);
+    // Installed `toestub`, never `cargo run` (that built vox-code-audit into a cold nested
+    // target on every push). Locally a missing binary is skipped; hosted CI builds it first.
+    let bin = match vox_cli_ci::installed_tool("toestub") {
+        vox_cli_ci::ToolPath::Found(p) => p,
+        vox_cli_ci::ToolPath::SkipLocal => {
+            println!("    TOESTUB: toestub not installed: skipped locally (hosted CI runs it)");
+            return Ok(());
+        }
+        vox_cli_ci::ToolPath::MissingOnCi => {
+            bail!("toestub is not on PATH; the CI job must build vox-code-audit before this step")
+        }
+    };
+    let mut c = Command::new(&bin);
+    c.current_dir(repo).args(["--format", "json"]);
     if mode != ToestubCiMode::Legacy {
         c.arg("--mode").arg(mode.as_cli_str());
     }

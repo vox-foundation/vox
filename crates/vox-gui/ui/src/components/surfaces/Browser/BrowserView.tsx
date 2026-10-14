@@ -589,7 +589,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
     <section className="space-y-4">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-display text-lg tracking-[0.14em] uppercase text-text-primary">{useLabel('browser')}</h1>
+          <h2 className="font-display text-lg tracking-[0.14em] uppercase text-text-primary">{useLabel('browser')}</h2>
           <p className="text-[12px] text-text-muted mt-1">
             Preview Vox web apps and mirror agent-driven CDP browser sessions.
           </p>

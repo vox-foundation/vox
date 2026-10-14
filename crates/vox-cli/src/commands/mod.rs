@@ -63,6 +63,8 @@ pub mod secrets;
 // `db.rs` re-exports this tree; keep a same-file reference for tooling / unwired-module checks.
 #[allow(unused_imports)]
 use self::db_research as _;
+/// Daemon `orch.tool_call` helpers shared by `vox dei` and `vox kb status|reindex`.
+pub(crate) mod daemon_tool;
 /// Local VoxDB / Codex diagnostics (`vox db`).
 pub mod db;
 /// Clap entrypoints for `vox db`.
@@ -194,6 +196,9 @@ pub mod gui;
 
 /// Workspace drift and pattern-repetition linter (`vox drift-check`).
 pub mod drift_check;
+
+/// Knowledge-base operations (`vox kb eval|status|reindex`).
+pub mod kb;
 
 /// Insta snapshot helpers: orphan detection and cleanup (`vox snapshot`).
 pub mod snapshot;

@@ -6,6 +6,7 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
+use vox_orchestrator_types::trust::{AGENT_CONCEPT_NODE_TYPE, AGENT_FACT_NODE_TYPE};
 
 use crate::services::persistence_obs::log_persistence_failure;
 use crate::types::AgentId;
@@ -203,13 +204,21 @@ impl MemoryManager {
                     log_persistence_failure("memory.persist_fact.save_memory", e);
                 }
 
-                // 2. Upsert a knowledge_node for this fact
+                // 2. Upsert a knowledge_node for this fact. D-07: graph rows written here are
+                //    model-originated, so they carry the agent node types (Untrusted).
                 let meta_json = format!(
                     "{{\"value\":{:?},\"media_url\":{:?},\"media_type\":{:?}}}",
                     v, m_url, m_type
                 );
                 if let Err(e) = db
-                    .upsert_knowledge_node(&k, &k, &v, Some("fact"), Some(&meta_json), None)
+                    .upsert_knowledge_node(
+                        &k,
+                        &k,
+                        &v,
+                        Some(AGENT_FACT_NODE_TYPE),
+                        Some(&meta_json),
+                        None,
+                    )
                     .await
                 {
                     log_persistence_failure("memory.persist_fact.upsert_knowledge_node", e);
@@ -218,7 +227,14 @@ impl MemoryManager {
                 // 3. Create knowledge_edge links for related facts
                 for r in rels {
                     if let Err(e) = db
-                        .upsert_knowledge_node(&r, &r, &r, Some("concept"), None, None)
+                        .upsert_knowledge_node(
+                            &r,
+                            &r,
+                            &r,
+                            Some(AGENT_CONCEPT_NODE_TYPE),
+                            None,
+                            None,
+                        )
                         .await
                     {
                         log_persistence_failure("memory.persist_fact.upsert_related_node", e);
@@ -645,63 +661,17 @@ impl MemoryManager {
         }
         Ok(removed)
     }
+}
 
-    /// Persists verified research findings and key claims to MEMORY.md and VoxDb.
-    pub fn sync_verified_research_findings(
-        &self,
-        query: &str,
-        summary: &str,
-        key_claims: &[(&str, &str)],
-    ) -> Result<(), MemoryError> {
-        let content = self.long_term.read_all().unwrap_or_default();
-        let needs_header = !content.contains("# Verified Research Knowledgebase");
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-        let slug = query
-            .to_ascii_lowercase()
-            .chars()
-            .map(|c| if c.is_alphanumeric() { c } else { '-' })
-            .collect::<String>()
-            .split('-')
-            .filter(|s| !s.is_empty())
-            .collect::<Vec<_>>()
-            .join("-");
-
-        let key = format!("research:{slug}");
-        let mut value = format!("**Query:** {query}\n**Summary:** {summary}\n**Key Claims:**\n");
-        for (claim, verdict) in key_claims {
-            value.push_str(&format!("- [{verdict}] {claim}\n"));
-        }
-
-        if needs_header {
-            let initial = if content.is_empty() {
-                format!("# Verified Research Knowledgebase\n\n## {key}\n{value}\n")
-            } else {
-                format!("{content}\n# Verified Research Knowledgebase\n\n## {key}\n{value}\n")
-            };
-            let tmp_path = self.config.memory_md_path.with_extension("tmp");
-            {
-                use std::io::Write;
-                let mut f = std::fs::File::create(&tmp_path).map_err(MemoryError::Io)?;
-                f.write_all(initial.as_bytes()).map_err(MemoryError::Io)?;
-                f.sync_all().map_err(MemoryError::Io)?;
-            }
-            std::fs::rename(&tmp_path, &self.config.memory_md_path).map_err(MemoryError::Io)?;
-            Ok(())
-        } else {
-            self.long_term.set(&key, &value)
-        }?;
-
-        if let Some(db) = self.db.clone() {
-            let k = key.clone();
-            let q = query.to_string();
-            let v = value.clone();
-            tokio::spawn(async move {
-                let _ = db
-                    .upsert_knowledge_node(&k, &q, &v, Some("research_finding"), None, None)
-                    .await;
-            });
-        }
-
-        Ok(())
+    #[test]
+    fn for_account_scopes_the_manager_and_starts_with_no_keys() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let mgr = MemoryManager::for_account("test-acc", dir.path()).expect("manager");
+        assert_eq!(mgr.account_id(), "test-acc");
+        assert!(mgr.list_keys().expect("keys").is_empty());
     }
 }

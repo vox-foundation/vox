@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { LEXICON, pick, labelFor } from './lexicon';
+import { SURFACE_REGISTRY } from '../generated/surfaceRegistry.generated';
 
 describe('lexicon', () => {
   it('English mode returns en', () => {
@@ -32,5 +33,14 @@ describe('lexicon', () => {
   it('covers all 41 navigable viewKeys', () => {
     const viewKeys = ['activity','agents','approvals','archive-panel','browser','catalog','chat','claims','commands','compute','console','coverage','dashboard','discovery-inbox','discovery-review','flow','gamify','harness','knowledge','matrix','memory','mens','mercatus','mesh','models','needs-you','oratio','policies','populi','publications','repository','research','review','runs','scientia','search','settings','skills','sub-agents','vox-search','workspace'];
     for (const k of viewKeys) expect(LEXICON[k], `missing lexicon entry: ${k}`).toBeTruthy();
+  });
+  it('every registry surface has a lexicon entry', () => {
+    const missing = SURFACE_REGISTRY.filter((e) => e.navLabel && !LEXICON[e.viewKey as string]).map((e) => e.viewKey);
+    expect(missing).toEqual([]);
+  });
+  it('registry navLabels agree with the English lexicon, so the contract and the UI cannot drift', () => {
+    const drift = SURFACE_REGISTRY.filter((e) => e.navLabel && LEXICON[e.viewKey as string] && LEXICON[e.viewKey as string].en !== e.navLabel)
+      .map((e) => `${e.viewKey}: registry "${e.navLabel}" vs lexicon "${LEXICON[e.viewKey as string].en}"`);
+    expect(drift).toEqual([]);
   });
 });

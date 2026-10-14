@@ -184,7 +184,7 @@ The "contrast / occlusion impossible" promises were audited (2026-06-12) and fou
 | **`@layer(tier:)`** on components (not just fns) | parser lookahead → HIR → `data-vox-layer` on root; reserved-tier guard over components | `vox/layer/reserved-tier` |
 | **Cross-platform** — guarantees follow the view tree, not the target | mobile (`--target mobile`) runs the web_ir validators as a blocking analysis pass | (same codes) |
 
-The single canonical z-ladder is `ZTier::z_value()` (tier × 100). Every forbidden case has a fixture under [`examples/forbidden/`](../../../examples/forbidden/) asserting the exact code fires ([`forbidden_corpus_test.rs`](../../../crates/vox-compiler/tests/forbidden_corpus_test.rs)).
+The single canonical z-ladder is `ZTier::z_value()` (tier × 100). Every forbidden case has a fixture under [`examples/forbidden/`](../../../examples/forbidden/) asserting the exact code fires ([`forbidden_corpus_test.rs`](../../../crates/vox-compiler/tests/it/forbidden_corpus_test.rs)).
 
 Still backlog: portal emission (modal/toast still emit inline `position:fixed`), `@tokens` `on:`-pair contrast (the block-form check still compares light-vs-dark; the registry + palette paths are correct), and RN primitive/style parity.
 

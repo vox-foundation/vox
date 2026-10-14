@@ -28,7 +28,7 @@ describe('RunsView', () => {
 
   it('renders the Recent Activity heading', () => {
     render(<RunsView pushToast={vi.fn()} />);
-    expect(screen.getByText('Recent Activity')).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'Recent Activity' })).toBeTruthy();
   });
 
   it('every button carries an explicit type="button"', async () => {

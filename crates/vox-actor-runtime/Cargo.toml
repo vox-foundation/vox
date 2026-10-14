@@ -8,7 +8,7 @@ license.workspace = true
 [features]
 default = []
 ## Enables [`crate::db`] — global **Codex** (`vox_db::VoxDb`) connection using `VOX_DB_*` (canonical) with legacy `TURSO_*` fallback.
-database = ["dep:vox-db"]
+database = ["dep:vox-db", "vox-db/host-integration"]
 
 [dependencies]
 tokio = { workspace = true }

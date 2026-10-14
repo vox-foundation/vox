@@ -19,9 +19,11 @@ repo, so hosted minutes are free, and GitHub keeps the images and the runner
 application current, so there is no runner-version floor to check.
 
 **One workflow still carries a `self-hosted` label, and it is parked.**
-`ml_data_extraction.yml`'s `extract` (`[self-hosted, linux]`) and `train`
-(`[self-hosted, linux, x64, gpu]`) jobs name labels with **zero registered
-runners**. The workflow is disabled and `workflow_dispatch`-only (no
+`ml_data_extraction.yml`'s `train` job (`[self-hosted, linux, x64, gpu]`)
+names labels with **zero registered runners**; its `extract` job already runs on
+`ubuntu-latest`. Self-hosted runners are an optional backup, never a gate, and
+`workflow_policy_guard` fails any other workflow that declares a `self-hosted`
+label. The workflow is disabled and `workflow_dispatch`-only (no
 schedule), so nothing queues; it is kept as documentation of the target
 shape, since the CUDA lanes cannot run on a hosted runner. The
 `mens-candle-cuda` row was removed from `nightly-artifacts.yml`'s plugin

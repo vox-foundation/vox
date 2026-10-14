@@ -748,6 +748,17 @@ mod tests {
     use super::*;
 
     #[test]
+    fn metadata_read_role_excludes_vox_kb_status() {
+        let set = metadata_read_role_eligible_tools();
+        // WR-08: status returns absolute corpus_root/index_dir/error paths; reindex writes.
+        assert!(!set.contains("vox_kb_status"));
+        assert!(!set.contains("vox_kb_reindex"));
+        for t in ["vox_kb_search", "vox_kb_get", "vox_kb_cite"] {
+            assert!(set.contains(t), "{t} must stay read-role eligible");
+        }
+    }
+
+    #[test]
     fn constant_time_eq_length_256_multiple_not_equal() {
         // Lengths differ by 256 — before the fix, `(256 ^ 0) as u8 == 0` produces a false positive.
         let a = vec![0u8; 256];

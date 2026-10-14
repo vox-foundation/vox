@@ -8,7 +8,7 @@ describe('StatusPill Component', () => {
   it('renders status indicators matching the status tone', () => {
     render(<StatusPill tone="pass" label="Done" data-testid="status-pill" />);
     const pill = screen.getByTestId('status-pill');
-    expect(pill).toHaveClass('text-emerald-300');
+    expect(pill).toHaveClass('text-(--color-status-pass)');
   });
 
   it('renders status glyph default matching tone', () => {

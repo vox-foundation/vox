@@ -84,7 +84,7 @@ pub mod bulletin;
 /// Prefix-cache hit predictor (D7).
 pub mod cache_predictor;
 /// Calibration loop: Welford drift detection + Thompson bandit (D10).
-pub mod calibration;
+pub use vox_orchestrator_models::calibration;
 /// Host capability probing and merge with `OrchestratorConfig::default_agent_capabilities`.
 pub mod capability_probe;
 /// Dynamic model catalogs.
@@ -143,9 +143,6 @@ pub mod risk_matrix;
 pub mod subagent_dispatch;
 /// Three-tier model cascade for autonomous model-routing (D1).
 pub mod tier_cascade;
-
-pub mod knowledge_base;
-pub use knowledge_base::{KbEntry, KbEntrySource, KbRoutingRule, KbRoutingRuleType, KnowledgeBase};
 
 /// Entropy-based hallucination detection.
 pub mod entropy_scorer;
@@ -236,9 +233,9 @@ pub mod topology;
 /// Core identifiers, tasks, messages, and shared value types.
 pub mod types;
 /// Aggregated LLM usage, quotas, and cost accounting.
-pub mod usage;
+pub use vox_orchestrator_models::usage;
 /// Provider daily quota policy (dynamic + defaults).
-pub mod usage_policy;
+pub use vox_orchestrator_models::usage_policy;
 /// Per-agent workspace views and pending change tracking.
 pub mod workspace;
 
@@ -406,3 +403,14 @@ pub use orchestrator_policy::{
 
 pub mod preregistration;
 pub mod secretary;
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn reexport_paths_resolve() {
+        // The three modules moved to vox-orchestrator-models; the old paths must keep resolving.
+        let _: Option<crate::usage::RemainingBudget> = None;
+        let _: Option<crate::usage_policy::ProviderLimitOwned> = None;
+        let _: Option<crate::calibration::CalibrationConfig> = None;
+    }
+}

@@ -64,3 +64,14 @@ describe('Toasts', () => {
     expect(screen.getByText('Line 42')).toBeInTheDocument();
   });
 });
+
+describe('Toasts error tone', () => {
+  it('renders an error toast in the fail status colour', () => {
+    const { container } = render(
+      <Toasts items={[{ id: 'e', tone: 'error', title: 'Save failed', cause: 'backend-error' }]} onClose={vi.fn()} />);
+    expect(screen.getByText('Save failed')).toBeInTheDocument();
+    expect(container.innerHTML).toContain('--color-status-fail');
+    expect(screen.getByTestId('toast-stack')).toBeInTheDocument();
+  });
+});
+

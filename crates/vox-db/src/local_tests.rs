@@ -461,6 +461,17 @@ async fn history_entries_round_trip() {
 #[cfg(feature = "legacy-import")]
 mod legacy_tests {
     use super::*;
+
+    /// The legacy export list stays sorted and carries the KB findings inbox. Lives here, not in
+    /// `codex_legacy`, because that module is `#[deprecated]` and libtest's generated per-test
+    /// const would trip `-D deprecated` from inside it.
+    #[test]
+    fn legacy_export_tables_stay_sorted_and_include_the_findings_inbox() {
+        use crate::legacy::codex::LEGACY_EXPORT_TABLES;
+        assert!(LEGACY_EXPORT_TABLES.windows(2).all(|w| w[0] < w[1]));
+        assert!(LEGACY_EXPORT_TABLES.contains(&"kb_findings"));
+    }
+
     use crate::codex_schema::missing_codex_reactivity_tables;
     use crate::legacy::codex::{
         LEGACY_EXPORT_SKIP_TABLES, LEGACY_EXPORT_TABLES, export_legacy_jsonl, import_legacy_jsonl,
@@ -511,14 +522,33 @@ mod legacy_tests {
             .expect("list tables");
         live.retain(|n| !LEGACY_EXPORT_SKIP_TABLES.contains(&n.as_str()));
         live.sort();
-        let mut expected: Vec<&str> = LEGACY_EXPORT_TABLES.to_vec();
-        expected.sort();
-
-        assert_eq!(
-            live,
-            expected.iter().map(|s| s.to_string()).collect::<Vec<_>>(),
-            "LEGACY_EXPORT_TABLES must match sqlite_master after migrate (minus skip list)"
+        let missing: Vec<&String> = live
+            .iter()
+            .filter(|n| !LEGACY_EXPORT_TABLES.contains(&n.as_str()))
+            .collect();
+        let stale: Vec<&&str> = LEGACY_EXPORT_TABLES
+            .iter()
+            .filter(|t| !live.iter().any(|n| n == **t))
+            .collect();
+        assert!(
+            missing.is_empty() && stale.is_empty() && live.len() == LEGACY_EXPORT_TABLES.len(),
+            "LEGACY_EXPORT_TABLES must match sqlite_master after migrate (minus skip list); \
+             live tables not listed: {missing:?}; listed tables not live: {stale:?}"
         );
+    }
+
+    #[test]
+    fn export_table_list_is_sorted_unique_and_disjoint_from_skip_list() {
+        assert!(
+            LEGACY_EXPORT_TABLES.windows(2).all(|w| w[0] < w[1]),
+            "LEGACY_EXPORT_TABLES must stay sorted with no duplicates"
+        );
+        for t in LEGACY_EXPORT_SKIP_TABLES {
+            assert!(
+                !LEGACY_EXPORT_TABLES.contains(t),
+                "{t} is both exported and skipped"
+            );
+        }
     }
 
     /// Gamification + coordination rows survive JSONL export/import on baseline DBs.
@@ -780,6 +810,87 @@ async fn migrate_adds_archived_at_to_a_pre_existing_conversations_table() {
     );
 }
 
+/// `PRAGMA table_info` column names of `table`.
+async fn column_names(conn: &turso::Connection, table: &str) -> Vec<String> {
+    let mut rows = conn
+        .query(&format!("PRAGMA table_info({table})"), ())
+        .await
+        .unwrap();
+    let mut names = Vec::new();
+    while let Some(row) = rows.next().await.unwrap() {
+        names.push(row.get::<String>(1).unwrap());
+    }
+    names
+}
+
+#[tokio::test]
+async fn migrate_adds_latency_columns_to_a_database_already_at_the_baseline_version() {
+    let db = VoxDb::connect(DbConfig::Memory).await.expect("memory db");
+    let conn = db.connection();
+
+    // The Task M3 columns were added to the baseline DDL without a version bump, so a
+    // database already recorded at BASELINE_VERSION never got them. Recreate that shape and
+    // leave `schema_version` untouched (the upgrade branch must NOT be what fixes it).
+    conn.execute_batch(
+        "DROP TABLE llm_interactions;
+         CREATE TABLE llm_interactions (
+             id INTEGER PRIMARY KEY AUTOINCREMENT,
+             session_id TEXT NOT NULL,
+             prompt TEXT NOT NULL,
+             response TEXT NOT NULL,
+             model_version TEXT NOT NULL,
+             task_category TEXT NOT NULL DEFAULT 'general',
+             strength_tag TEXT NOT NULL DEFAULT 'generalist',
+             success INTEGER NOT NULL DEFAULT 1,
+             latency_ms INTEGER,
+             cost_usd REAL,
+             created_at TEXT NOT NULL DEFAULT (datetime('now'))
+         );
+         DROP TABLE model_scoreboard;
+         CREATE TABLE model_scoreboard (
+             model_id TEXT NOT NULL,
+             task_category TEXT NOT NULL,
+             strength_tag TEXT NOT NULL,
+             window_days INTEGER NOT NULL,
+             updated_at_ms INTEGER NOT NULL,
+             PRIMARY KEY (model_id, task_category, strength_tag, window_days)
+         );",
+    )
+    .await
+    .unwrap();
+    assert!(
+        !column_names(conn, "llm_interactions")
+            .await
+            .contains(&"ttft_ms".to_string())
+    );
+
+    crate::VoxDb::migrate(conn).await.expect("migrate");
+
+    let interactions = column_names(conn, "llm_interactions").await;
+    for c in ["ttft_ms", "tpot_ms"] {
+        assert!(
+            interactions.contains(&c.to_string()),
+            "llm_interactions missing {c}"
+        );
+    }
+    let scoreboard = column_names(conn, "model_scoreboard").await;
+    for c in ["p95_ttft_ms", "p95_tpot_ms", "goodput_tokens_per_sec"] {
+        assert!(
+            scoreboard.contains(&c.to_string()),
+            "model_scoreboard missing {c}"
+        );
+    }
+
+    // Idempotent, and a fresh database (columns already present) is untouched.
+    crate::VoxDb::migrate(conn)
+        .await
+        .expect("second migrate is a no-op");
+    let fresh = VoxDb::connect(DbConfig::Memory).await.expect("fresh db");
+    crate::VoxDb::migrate(fresh.connection())
+        .await
+        .expect("fresh migrate");
+}
+
 #[tokio::test]
 async fn hopper_inbox_has_resource_id_on_a_fresh_database() {
     let db = VoxDb::connect(DbConfig::Memory).await.expect("memory db");
@@ -914,4 +1025,254 @@ async fn delegation_lineage_survives_reconnect() {
     .expect("payload parses");
     assert_eq!(payload["origin_turn_id"], "call_xyz");
     assert_eq!(payload["reason"], "delegate research");
+}
+
+/// Baseline 96: a v95 database (no `kb_findings`) gains the inbox on open; a second open is a no-op.
+#[tokio::test]
+async fn kb_findings_migration_from_95() {
+    use crate::kb_text::{ContentHash, FindingOrigin, SanitizedText};
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("v95.db").to_string_lossy().to_string();
+    {
+        let raw = turso::Builder::new_local(&path).build().await.unwrap();
+        let conn = raw.connect().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE schema_version (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL DEFAULT (datetime('now')));
+             INSERT INTO schema_version (version) VALUES (95);
+             CREATE TABLE search_documents (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, source_uri TEXT NOT NULL,
+                title TEXT NOT NULL DEFAULT '', mime_type TEXT NOT NULL DEFAULT '',
+                content_hash TEXT NOT NULL DEFAULT '',
+                ingested_at TEXT NOT NULL DEFAULT (datetime('now')),
+                corpus TEXT NOT NULL DEFAULT '', rel_path TEXT, frontmatter_json TEXT,
+                indexed_commit TEXT, index_error TEXT);
+             INSERT INTO search_documents (source_uri, title) VALUES ('old://doc', 'Old');",
+        )
+        .await
+        .unwrap();
+    }
+    let finding = crate::NewKbFinding {
+        dedupe_key: "k".into(),
+        tier: crate::FindingTier::Untrusted,
+        origin: FindingOrigin::WebSearch,
+        title: SanitizedText::new("t"),
+        summary: SanitizedText::new("s"),
+        quotes: vec![],
+        source_url: None,
+        fetched_at_ms: 1,
+        content_hash: ContentHash::from_blake3_hex(&"b".repeat(64)).unwrap(),
+        snapshot_relpath: None,
+        provenance: serde_json::json!({}),
+    };
+    {
+        let db = VoxDb::open(&path).await.unwrap();
+        assert_eq!(db.schema_version().await.unwrap(), BASELINE_VERSION);
+        assert_eq!(BASELINE_VERSION, 96);
+        assert!(db.insert_pending_finding(&finding).await.unwrap().is_some());
+    }
+    let db = VoxDb::open(&path).await.unwrap();
+    assert_eq!(db.schema_version().await.unwrap(), BASELINE_VERSION);
+    assert_eq!(db.kb_findings_list(None, 10).await.unwrap().len(), 1);
+}
+
+/// Build a v95 database: `search_documents` without `trust_tier`, one `kb_index_state` row for
+/// corpus `library` (when `index_tier` is given), and one row per legacy/web/library source.
+async fn build_v95_trust_tier_db(path: &str, index_tier: Option<&str>) {
+    let raw = turso::Builder::new_local(path).build().await.unwrap();
+    let conn = raw.connect().unwrap();
+    conn.execute_batch(
+        "CREATE TABLE schema_version (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL DEFAULT (datetime('now')));
+         INSERT INTO schema_version (version) VALUES (95);
+         CREATE TABLE search_documents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, source_uri TEXT NOT NULL,
+            title TEXT NOT NULL DEFAULT '', mime_type TEXT NOT NULL DEFAULT '',
+            content_hash TEXT NOT NULL DEFAULT '',
+            ingested_at TEXT NOT NULL DEFAULT (datetime('now')),
+            corpus TEXT NOT NULL DEFAULT '', rel_path TEXT, frontmatter_json TEXT,
+            indexed_commit TEXT, index_error TEXT);
+         CREATE TABLE kb_index_state (
+            corpus TEXT PRIMARY KEY, corpus_root TEXT NOT NULL, corpus_commit TEXT,
+            indexed_at TEXT NOT NULL, doc_count INTEGER NOT NULL, chunk_count INTEGER NOT NULL,
+            card_count INTEGER NOT NULL, chunker_version TEXT NOT NULL, lexical_backend TEXT NOT NULL,
+            trust_tier TEXT NOT NULL, embed_model_id TEXT, embed_revision TEXT, embed_dim INTEGER,
+            errors_json TEXT NOT NULL DEFAULT '[]', duration_ms INTEGER NOT NULL);
+         INSERT INTO search_documents (source_uri, corpus) VALUES
+            ('web-ingest:a', ''), ('tavily:b', ''), ('https://c', ''), ('vox-docs:d', ''),
+            ('vox://publication/p', ''), ('library:docs/src/x.md', 'library');",
+    )
+    .await
+    .unwrap();
+    if let Some(tier) = index_tier {
+        conn.execute_batch(format!(
+            "INSERT INTO kb_index_state (corpus, corpus_root, indexed_at, doc_count, chunk_count,
+                card_count, chunker_version, lexical_backend, trust_tier, duration_ms)
+             VALUES ('library', 'docs/src', 'now', 1, 1, 0, 'v1', 'fts', '{tier}', 1);"
+        ))
+        .await
+        .unwrap();
+    }
+}
+
+async fn search_document_tiers(db: &VoxDb) -> Vec<(String, String)> {
+    let mut rows = db
+        .connection()
+        .query(
+            "SELECT source_uri, trust_tier FROM search_documents ORDER BY source_uri",
+            (),
+        )
+        .await
+        .unwrap();
+    let mut out = Vec::new();
+    while let Some(r) = rows.next().await.unwrap() {
+        out.push((r.get::<String>(0).unwrap(), r.get::<String>(1).unwrap()));
+    }
+    out
+}
+
+fn tier_of<'a>(tiers: &'a [(String, String)], uri: &str) -> &'a str {
+    &tiers.iter().find(|(u, _)| u == uri).unwrap().1
+}
+
+#[tokio::test]
+async fn kb_trust_tier_raw_insert_without_tier_reads_back_untrusted() {
+    let db = VoxDb::open_memory().await.unwrap();
+    db.connection()
+        .execute_batch("INSERT INTO search_documents (source_uri, title) VALUES ('raw://x', 'x');")
+        .await
+        .unwrap();
+    assert_eq!(
+        tier_of(&search_document_tiers(&db).await, "raw://x"),
+        "untrusted"
+    );
+}
+
+#[tokio::test]
+async fn kb_trust_tier_backfill_retiers_existing_rows_without_deleting() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("v95.db").to_string_lossy().to_string();
+    build_v95_trust_tier_db(&path, Some("trusted")).await;
+    let db = VoxDb::open(&path).await.unwrap();
+    let t = search_document_tiers(&db).await;
+    assert_eq!(t.len(), 6, "D-03: re-tier, never purge");
+    for uri in ["web-ingest:a", "tavily:b", "https://c", "vox-docs:d"] {
+        assert_eq!(tier_of(&t, uri), "untrusted", "{uri}");
+    }
+    assert_eq!(tier_of(&t, "vox://publication/p"), "advisory");
+    assert_eq!(tier_of(&t, "library:docs/src/x.md"), "trusted");
+}
+
+#[tokio::test]
+async fn kb_trust_tier_library_rows_follow_the_corpus_state_tier() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("v95.db").to_string_lossy().to_string();
+    build_v95_trust_tier_db(&path, Some("advisory")).await;
+    let db = VoxDb::open(&path).await.unwrap();
+    let t = search_document_tiers(&db).await;
+    assert_eq!(tier_of(&t, "library:docs/src/x.md"), "advisory");
+}
+
+#[tokio::test]
+async fn kb_trust_tier_library_row_without_corpus_state_stays_untrusted() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("v95.db").to_string_lossy().to_string();
+    build_v95_trust_tier_db(&path, None).await;
+    let db = VoxDb::open(&path).await.unwrap();
+    let t = search_document_tiers(&db).await;
+    assert_eq!(tier_of(&t, "library:docs/src/x.md"), "untrusted");
+}
+
+#[tokio::test]
+async fn kb_trust_tier_invalid_corpus_state_string_backfills_untrusted() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("v95.db").to_string_lossy().to_string();
+    build_v95_trust_tier_db(&path, Some("TRUSTED")).await;
+    let db = VoxDb::open(&path).await.unwrap();
+    let t = search_document_tiers(&db).await;
+    assert_eq!(tier_of(&t, "library:docs/src/x.md"), "untrusted");
+}
+
+#[tokio::test]
+async fn kb_trust_tier_backfill_runs_once() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("v95.db").to_string_lossy().to_string();
+    build_v95_trust_tier_db(&path, Some("trusted")).await;
+    {
+        let db = VoxDb::open(&path).await.unwrap();
+        db.connection()
+            .execute_batch("UPDATE search_documents SET trust_tier = 'untrusted';")
+            .await
+            .unwrap();
+    }
+    let db = VoxDb::open(&path).await.unwrap();
+    let t = search_document_tiers(&db).await;
+    assert_eq!(
+        tier_of(&t, "library:docs/src/x.md"),
+        "untrusted",
+        "second open must not re-run the backfill"
+    );
+}
+
+/// D-03 + D-07: legacy `persist_fact` graph rows (type fact / concept) are re-typed to the agent
+/// types once, in the baseline-96 gate; graphify ingest keeps its tier; nothing is deleted.
+#[tokio::test]
+async fn kb_agent_nodes_retyped_once_on_upgrade_never_deleted() {
+    use crate::ContextTrustTier;
+    use vox_orchestrator_types::trust::{AGENT_CONCEPT_NODE_TYPE, AGENT_FACT_NODE_TYPE};
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("v95.db").to_string_lossy().to_string();
+    {
+        let raw = turso::Builder::new_local(&path).build().await.unwrap();
+        raw.connect()
+            .unwrap()
+            .execute_batch(
+                "CREATE TABLE schema_version (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL DEFAULT (datetime('now')));
+                 INSERT INTO schema_version (version) VALUES (95);
+                 CREATE TABLE knowledge_nodes (
+                    id TEXT PRIMARY KEY, label TEXT NOT NULL, content TEXT,
+                    node_type TEXT NOT NULL DEFAULT 'concept', media_url TEXT, media_type TEXT,
+                    metadata TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')));
+                 CREATE TABLE knowledge_edges (
+                    src_id TEXT NOT NULL, dst_id TEXT NOT NULL, relation TEXT NOT NULL,
+                    weight REAL NOT NULL DEFAULT 1.0,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    PRIMARY KEY (src_id, dst_id, relation));
+                 INSERT INTO knowledge_nodes (id, label, node_type) VALUES
+                    ('k-fact', 'k-fact', 'fact'), ('k-concept', 'k-concept', 'concept'),
+                    ('graphify:c:node:x', 'x', 'concept'), ('ext', 'ext', 'external_research');",
+            )
+            .await
+            .unwrap();
+    }
+    let ids = ["k-fact", "k-concept", "graphify:c:node:x", "ext"].map(String::from);
+    let db = VoxDb::open(&path).await.unwrap();
+    let t = db.trust_tiers_for_knowledge_nodes(&ids).await.unwrap();
+    assert_eq!(t["k-fact"], ContextTrustTier::Untrusted);
+    assert_eq!(t["k-concept"], ContextTrustTier::Untrusted);
+    assert_eq!(t["graphify:c:node:x"], ContextTrustTier::Advisory);
+    assert_eq!(t["ext"], ContextTrustTier::Untrusted);
+    let listed = |ty: &'static str, want: &'static str| {
+        let db = &db;
+        async move {
+            db.list_knowledge_nodes(Some(ty), 0, 10)
+                .await
+                .unwrap()
+                .iter()
+                .any(|n| n.id == want)
+        }
+    };
+    assert!(listed(AGENT_FACT_NODE_TYPE, "k-fact").await);
+    assert!(listed(AGENT_CONCEPT_NODE_TYPE, "k-concept").await);
+    assert_eq!(db.list_knowledge_nodes(None, 0, 10).await.unwrap().len(), 4);
+
+    // The gate ran once: a non-agent fact written afterwards keeps Advisory across a reopen.
+    db.upsert_knowledge_node("k-new", "k-new", "c", Some("fact"), None, None)
+        .await
+        .unwrap();
+    drop(db);
+    let db = VoxDb::open(&path).await.unwrap();
+    let t = db
+        .trust_tiers_for_knowledge_nodes(&["k-new".to_string()])
+        .await
+        .unwrap();
+    assert_eq!(t["k-new"], ContextTrustTier::Advisory);
 }

@@ -201,7 +201,31 @@ Corpus registry and freshness status/ingest operations for Vox Graph knowledge m
 | `vox graph status` | Report per-corpus freshness (node/edge counts, graph path). `--corpus <id>` limits output; `--strict` exits non-zero when any corpus is stale; `--json` emits machine-readable status. |
 | `vox graph ingest` | Project graph nodes into Turso `knowledge_nodes` via VoxDb. |
 | `vox graph rebuild` | Rebuild the base AST code graph and cluster it. |
-| `vox graph history <log\|focus\|forgotten\|search\|timeline\|brief>` | First-parent history of `origin/main` (else `main`) with rename/split/merge lineage. Mechanical (fmt/generated/import-only) changes are flagged and hidden unless `--include-mechanical`. Every subcommand except `brief` catches up on new commits first. One store is shared by all worktrees, at `<git-common-dir>/vox-cache/repo-history/`. `brief` prints one line from disk and says how many commits it is behind. |
+| `vox graph history <log\|focus\|forgotten\|search\|timeline\|brief>` | First-parent history of `origin/main` (else `main`) with rename/split/merge lineage. Mechanical (fmt/generated/import-only) changes are flagged and hidden unless `--include-mechanical`. Every subcommand except `brief` catches up on new commits first. One store is shared by all worktrees, at `<git-common-dir>/vox-cache/repo-history/`. `brief` prints one line from disk and says how many commits it is behind. Forms: `vox graph history log`, `vox graph history focus`, `vox graph history forgotten`, `vox graph history search`, `vox graph history timeline`, `vox graph history brief`. |
+
+### `vox kb eval`
+
+Deterministic retrieval eval over the golden set in `contracts/kb/eval/` (scored on doc and chunk ids through the Library index, `library-tantivy-v1`, over the frozen corpus snapshot). Plain `vox kb eval` prints the metric report for the chosen split.
+
+| Flag | Role |
+|------|------|
+| `--split <dev\|test>` | Golden-set split to score (default `dev`). `--split test` is milestone-close only. |
+| `--json` | Emit the report as JSON. |
+| `--query <TEXT>` / `--top <N>` | Print the top-N (default 20) Library-index chunk ids for the text, for qrel pooling. `--top` requires `--query`. |
+| `--headings <DOC_ID>` | Print every valid `heading_path` of a corpus snapshot doc. |
+| `--snapshot-corpus` | Rewrite the frozen `contracts/kb/eval/corpus.jsonl` from tracked non-archive `docs/src` markdown. |
+
+`--query`, `--headings` and `--snapshot-corpus` are mutually exclusive modes.
+
+Ratchet modes guard the committed baseline `contracts/kb/retrieval-baseline.v1.json`. They always score the dev split and refuse `--split`, `--query`, `--headings` and `--snapshot-corpus`; they are mutually exclusive.
+
+| Flag | Role |
+|------|------|
+| `--gate` / `--base <REF>` | One report of every failure, exit non-zero on any. Categories: `[regression]` (a dev metric fell below the baseline by more than the tolerance, or no baseline), `[tighten-only]` (the baseline loosened versus `REF`, default `origin/main`, read via `git show`; an unresolvable `REF` fails closed), `[canary]` (the golden-set GUID reached tracked files, indexer roots, the MENS docs extractor output, local MENS jsonl, or a query of 40+ characters was pasted into tracked `docs/` or `crates/` markdown). `--base` requires `--gate`. |
+| `--tighten` | Raise baseline values to the current dev report. Never lowers a value; writes nothing when nothing improved. |
+| `--write-baseline --epoch-note <TEXT>` | Bootstrap or re-epoch the baseline: epoch +1 (1 when absent), tolerance kept (0.01 first). The note is required. Human-reviewed; this is the only way to loosen a value. |
+
+Every mode that builds an index first asserts that no corpus doc contains the canary GUID.
 
 ### `vox ci …`
 
@@ -286,6 +310,7 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `scientia-novelty-ledger-contracts` | Validates example `contracts/reports/scientia-finding-candidate.example.v1.json` and `scientia-novelty-evidence-bundle.example.v1.json` against `finding-candidate.v1.schema.json` and `novelty-evidence-bundle.v1.schema.json` |
 | `speech-runtime-suite [--run-id <id>] [--plugins-dir <dir>] [--limit <n>] [--skip-runtime]` | Runs the speech-to-code MUST+SHOULD audit matrix from `contracts/speech-to-code/audit-matrix.v1.yaml`, executes the CPU Candle Oratio eval when runtime is enabled, and writes per-cell `cell_result.json`, `cell_result.kpi.json`, and aggregate `scorecard.json` under `.vox/audit/<run-id>/`. |
 | `ssot-drift` | Runs `check-docs-ssot`, `check-codex-ssot`, `sql-surface-guard --all` (includes `sqlx` isolation enforcement), `query-all-guard --all`, `turso-import-guard --all`, `operations-verify`, `command-compliance`, `capability-sync` (verify-only), `contracts-index`, **`docs-reality-audit verify`**, `exec-policy-contract`, in-process completion-policy Tier A scan (no audit JSON write), `scientia-worthiness-contract`, `scientia-novelty-ledger-contracts`, and `data-ssot-guards` in one pass |
+| `status [--hook]` | Prints this branch's failed or timed-out GitHub CI jobs, open `nightly-failure` issues, and how far local `main` is ahead of `origin/main`. **`--hook`** is the never-failing form the pre-commit hook runs. |
 
 ### Bootstrap / dev launcher (missing `vox` on `PATH`)
 
@@ -913,6 +938,7 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `deploy` | default | `commands::deploy` |
 | `dispatch` | default | `commands::dispatch` |
 | `drift-check` | default | `commands::drift_check` |
+| `kb` | default | `commands::kb` (`kb eval`: `commands::kb::eval`) |
 | `upgrade` | default | `commands::upgrade` (toolchain only) |
 | `init` | default | `commands::init` |
 | `llm` | default | `commands::llm` |
@@ -934,7 +960,7 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `codex` | default | `commands::codex` |
 | `dei` | `dei` | `commands::dei` |
 | `repo` | default | `commands::repo` |
-| `research` | default | `commands::research`: infra **`vox research up`** / **`vox research down`** / **`vox research status`** / **`vox research eval`**; **`vox research run`** calls orchestrator `run_research` (`--json`, `--scope`, `--site-scope`, `--lane fast\|deep`, `--waves N`, `--domain-mode`, …); **`vox research search <query>`** full-text search over past research artifacts; **`vox research probe [query] [--provider P] [--json]`** sends a live query to the search providers and reports status, latency and remediation; **`vox research flag <session> --url <u> [--defect D] [--notes …]`** marks a cited source misleading (penalizes its domain in later retrieval); **`vox research publish <session> [--slug S]`** writes the session report to `docs/src/architecture/<slug>-2026.md` with frontmatter |
+| `research` | default | `commands::research`: infra **`vox research up`** / **`vox research down`** / **`vox research status`** / **`vox research eval`**; **`vox research run`** calls orchestrator `run_research` (`--json`, `--scope`, `--site-scope`, `--lane fast\|deep`, `--waves N`, `--domain-mode`, …); **`vox research search <query>`** full-text search over past research artifacts; **`vox research probe [query] [--provider P] [--json]`** sends a live query to the search providers and reports status, latency and remediation; **`vox research flag <session> --url <u> [--defect D] [--notes …]`** marks a cited source misleading (penalizes its domain in later retrieval); **`vox research publish <session> [--slug S]`** writes the session report as a local draft to `.vox/cache/research-drafts/<slug>-2026.md` (gitignored; it enters `docs/src` only through a reviewed PR) |
 | `repair` | default | `commands::repair` |
 | `review` | `coderabbit` | `commands::review` |
 | `rollback` | default | `commands::rollback` |

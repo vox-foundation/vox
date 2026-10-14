@@ -163,6 +163,19 @@ fn vox_crate_dep_line(crate_name: &str, relative_prefix: &str, extra: &str) -> S
     format!("{crate_name} = {{ path = \"{path}\"{extra} }}\n")
 }
 
+/// vox-workflow-runtime plus `anyhow`, which activity lowering names in its return
+/// type (`durability_lower::activity_inner_return_type`) — same pairing as the script lane.
+fn workflow_runtime_deps(relative_prefix: &str) -> String {
+    format!(
+        "{}anyhow = \"1\"\n",
+        vox_crate_dep_line(
+            "vox-workflow-runtime",
+            relative_prefix,
+            ", default-features = false"
+        )
+    )
+}
+
 fn emit_generated_extra_deps(module: &HirModule) -> String {
     let mut out = String::new();
     out.push_str(&vox_crate_dep_line("vox-telemetry", "../..", ""));
@@ -330,13 +343,14 @@ fn generate_tauri_workspace(
         emit_tauri_build_rs(needs_stt),
     );
 
+    let app = script_db::prepare_app_module(module);
     let marker = rust_app_shell_marker(RustAppShell::TauriApp);
     files.insert(
         "src-tauri/src/main.rs".to_string(),
-        emit_tauri_main_rs(marker, module, package_name, needs_stt),
+        emit_tauri_main_rs(marker, &app, package_name, needs_stt),
     );
 
-    let lib_rs = emit_lib(module);
+    let lib_rs = script_db::with_app_lane(&app, || emit_lib(&app));
     files.insert(
         "src-tauri/src/lib.rs".to_string(),
         format_generated_lib_rs(&lib_rs),
@@ -412,6 +426,61 @@ fn emit_tauri_build_rs(needs_stt: bool) -> String {
     .to_string()
 }
 
+/// A `#[tauri::command]` wrapper over the endpoint's lib fn (see
+/// `script_db::prepare_app_module`): deserialize each declared param, call the
+/// lib fn by path (the command shares its name), and return `Result` as Tauri
+/// requires for async commands.
+fn emit_tauri_command(
+    sf: &vox_compiler::hir::HirEndpointFn,
+    module: &HirModule,
+    crate_ident: &str,
+) -> String {
+    let mut out = format!(
+        "#[tauri::command]\nasync fn {}(request: serde_json::Value) -> Result<",
+        sf.name
+    );
+    let ret = sf.return_type.as_ref().map(types::emit_type);
+    let returns_json = ret.as_deref() == Some("Json");
+    out.push_str(match ret.as_deref() {
+        None => "()",
+        Some("Json") => "serde_json::Value",
+        Some(r) => r,
+    });
+    out.push_str(", String> {\n");
+    let mut args = Vec::new();
+    for p in &sf.params {
+        let name = &p.name;
+        let get = format!("request[\"{name}\"].clone()");
+        match p.type_ann.as_ref().map(types::emit_type).as_deref() {
+            None | Some("serde_json::Value") => out.push_str(&format!("    let {name} = {get};\n")),
+            Some("Json") => out.push_str(&format!(
+                "    let {name} = {}({get});\n",
+                types::VOX_JSON_RUST_TYPE
+            )),
+            Some(ty) => out.push_str(&format!(
+                "    let {name}: {ty} = serde_json::from_value({get}).map_err(|e| format!(\"invalid parameter `{name}`: {{e}}\"))?;\n"
+            )),
+        }
+        args.push(name.clone());
+    }
+    let is_async = module
+        .functions
+        .iter()
+        .any(|f| f.name == sf.name && f.is_async);
+    let call = format!(
+        "{crate_ident}::{}({}){}",
+        sf.name,
+        args.join(", "),
+        if is_async { ".await" } else { "" }
+    );
+    if returns_json {
+        out.push_str(&format!("    Ok({call}.0)\n}}\n\n"));
+    } else {
+        out.push_str(&format!("    Ok({call})\n}}\n\n"));
+    }
+    out
+}
+
 fn emit_tauri_main_rs(
     shell_header: &str,
     module: &HirModule,
@@ -437,56 +506,10 @@ use {}::*;
     let needs_setup = has_tables || has_scheduled;
     let mut command_names = Vec::new();
 
+    let crate_ident = package_name.replace('-', "_");
     for sf in &module.endpoint_fns {
         command_names.push(sf.name.clone());
-
-        out.push_str("#[tauri::command]\n");
-        out.push_str(&format!("async fn {}(", sf.name));
-
-        if has_tables {
-            out.push_str("db: tauri::State<'_, std::sync::Arc<vox_db::Codex>>, ");
-        }
-        out.push_str("request: serde_json::Value)");
-
-        let ret_type = sf
-            .return_type
-            .as_ref()
-            .map(types::emit_type)
-            .unwrap_or_else(|| "()".to_string());
-
-        if ret_type != "()" {
-            out.push_str(&format!(" -> {} {{\n", ret_type));
-        } else {
-            out.push_str(" {\n");
-        }
-
-        if has_tables {
-            out.push_str("    let db = &*db;\n");
-        }
-
-        for param in &sf.params {
-            out.push_str(&format!(
-                "    let {} = request[\"{}\"].clone();\n",
-                param.name, param.name
-            ));
-        }
-
-        for stmt in &sf.body {
-            let emitted = stmt_expr::emit_stmt(
-                stmt,
-                1,
-                false,
-                false,
-                false,
-                Some(&module.inferred_types),
-                None,
-                None,
-                None,
-            );
-            out.push_str(&emitted);
-        }
-
-        out.push_str("}\n\n");
+        out.push_str(&emit_tauri_command(sf, module, &crate_ident));
     }
 
     out.push_str("fn main() {\n");
@@ -585,7 +608,12 @@ use {}::*;
             );
             out.push_str(&emit_schema_drift_verify(module));
             out.push_str("            });\n");
-            out.push_str("            app.manage(std::sync::Arc::new(codex));\n");
+            out.push_str("            let codex = std::sync::Arc::new(codex);\n");
+            out.push_str(&format!(
+                "            {}\n",
+                script_db::set_app_db_stmt("codex.clone()")
+            ));
+            out.push_str("            app.manage(codex);\n");
         }
         if has_scheduled {
             // Tauri's `fn main()` is synchronous but the durable-boot prelude
@@ -726,11 +754,7 @@ proptest = "1"
             vox_crate_dep_line("vox-db", "../../..", ", features = [\"host-integration\"]"),
         vox_actor_runtime_dep = vox_crate_dep_line("vox-actor-runtime", "../../..", ""),
         vox_compiler_dep = vox_crate_dep_line("vox-compiler", "../../..", ""),
-        vox_workflow_runtime_dep = vox_crate_dep_line(
-            "vox-workflow-runtime",
-            "../../..",
-            ", default-features = false"
-        ),
+        vox_workflow_runtime_dep = workflow_runtime_deps("../../.."),
         mcp_bin = mcp_bin,
         edition = crate::codegen_rust::GENERATED_CARGO_EDITION,
     )
@@ -844,11 +868,7 @@ turso = {{ version = "0.6", default-features = false, features = ["sync"] }}
         vox_db_dep = vox_crate_dep_line("vox-db", "../..", ", features = [\"host-integration\"]"),
         vox_actor_runtime_dep = vox_crate_dep_line("vox-actor-runtime", "../..", ""),
         vox_compiler_dep = vox_crate_dep_line("vox-compiler", "../..", ""),
-        vox_workflow_runtime_dep = vox_crate_dep_line(
-            "vox-workflow-runtime",
-            "../..",
-            ", default-features = false"
-        ),
+        vox_workflow_runtime_dep = workflow_runtime_deps("../.."),
         mcp_bin = mcp_bin,
         edition = crate::codegen_rust::GENERATED_CARGO_EDITION,
     )

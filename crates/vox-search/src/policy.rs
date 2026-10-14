@@ -57,6 +57,7 @@ fn default_persist_web_hits() -> bool {
 }
 
 #[inline]
+// drift-allow(serde-default-dup): local default; vox_config::serde_defaults would add a crate edge (owner-approved edges only)
 fn default_true() -> bool {
     true
 }
@@ -124,8 +125,6 @@ pub struct SearchPolicy {
     pub qdrant_collection: String,
     /// When the collection uses **named** dense vectors, set to the config name (e.g. `default`).
     pub qdrant_vector_name: Option<String>,
-    /// Root directory for on-disk Tantivy indices (under `.vox/search/tantivy` by default).
-    pub tantivy_index_root: Option<std::path::PathBuf>,
     /// Enable reciprocal rank fusion across corpus hit lists (`VOX_SEARCH_PREFER_RRF`).
     pub prefer_rrf_merge: bool,
     /// Tavily master switch. `false` in `Default`; `from_env` enables it when a key is
@@ -198,9 +197,17 @@ pub struct SearchPolicy {
     /// Reciprocal rank fusion smoothing constant (`VOX_SEARCH_RRF_K`).
     #[serde(default = "default_rrf_k")]
     pub rrf_k: f64,
-    /// When true, web-retrieval hits are mirrored into `search_documents` (async best-effort).
+    /// When true (default), web-retrieval hits are captured into the `kb_findings` inbox
+    /// (Untrusted, pending, deduped) through the injected `WebFindingCapture` sink. They are
+    /// never written to the searchable corpus; with no sink injected nothing is persisted.
     #[serde(default = "default_persist_web_hits")]
     pub persist_web_hits: bool,
+    /// Execution knob, not a stored tier: drop `Untrusted` chunk, knowledge and web hits (and
+    /// their typed `unified_hits`) before fusion. The MCP chat preamble sets it so a legacy web row
+    /// never reaches an unprompted prompt (D-03, D-05); explicit tool queries leave it false and
+    /// get the hit back labelled `[tier:untrusted]`. Default false.
+    #[serde(default)]
+    pub exclude_untrusted_hits: bool,
     /// Minimum novelty score (0.0-1.0) for a hit to appear in synthesis context.
     /// Env: `VOX_SEARCH_NOVELTY_MIN_SCORE`. Default: 0.15.
     #[serde(default = "default_novelty_min_score")]
@@ -290,12 +297,6 @@ impl Default for SearchPolicy {
             .expose()
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty()),
-            tantivy_index_root: vox_secrets::resolve_secret(
-                vox_secrets::SecretId::VoxSearchTantivyRoot,
-            )
-            .expose()
-            .filter(|s| !s.trim().is_empty())
-            .map(std::path::PathBuf::from),
             prefer_rrf_merge: parse_prefer_rrf_merge(
                 vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchPreferRrf).expose(),
             ),
@@ -407,6 +408,7 @@ impl Default for SearchPolicy {
             persist_web_hits: !parse_truthy_env(
                 vox_secrets::SecretId::VoxSearchPersistWebHitsDisabled,
             ),
+            exclude_untrusted_hits: false,
             novelty_min_score: vox_secrets::resolve_secret(
                 vox_secrets::SecretId::VoxSearchNoveltyMinScore,
             )
@@ -789,6 +791,16 @@ mod tests {
     // field_reassign is a stylistic test-setup pattern here.
     #![allow(clippy::field_reassign_with_default)]
     use super::*;
+
+    #[test]
+    fn exclude_untrusted_hits_defaults_off_and_deserializes_when_absent() {
+        assert!(!SearchPolicy::default().exclude_untrusted_hits);
+        let v = serde_json::to_value(SearchPolicy::default()).unwrap();
+        let mut obj = v.as_object().unwrap().clone();
+        obj.remove("exclude_untrusted_hits");
+        let p: SearchPolicy = serde_json::from_value(serde_json::Value::Object(obj)).unwrap();
+        assert!(!p.exclude_untrusted_hits);
+    }
 
     #[test]
     fn searxng_engine_csv_accepts_baseline() {

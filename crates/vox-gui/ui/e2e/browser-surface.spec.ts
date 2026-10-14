@@ -42,11 +42,11 @@ test.describe('Browser surface', () => {
     });
 
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: 'Browser' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Browser', level: 2 })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Start preview' })).toBeVisible();
     await expect(page.getByRole('tab', { name: 'Agent live view' })).toBeVisible();
     await page.getByRole('tab', { name: 'Agent live view' }).click();
-    await expect(page.getByRole('button', { name: 'Back' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Back', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Forward' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Reload' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();

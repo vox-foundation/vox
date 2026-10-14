@@ -38,7 +38,7 @@
     },
     {
       "crate": "aws-lc-rs",
-      "version": "1.17.0",
+      "version": "1.18.1",
       "reason": "UNAVOIDABLE while preserving features. reqwest 0.13.x maps rustls-tls to __rustls-aws-lc-rs (the provider default changed between reqwest majors). reqwest 0.13 is required by chromiumoxide 0.9.1 (browser plugin) and by gix-transport 0.57.1 <- gix <- jj-lib 0.42 <- vox-vcs. jj-lib exposes no TLS feature at all (default = [\"git\"], git = [\"dep:gix\"]), so this cannot be steered from our manifests. Removing it means dropping the browser plugin or VCS.",
       "entered_via": [
         "reqwest 0.13.4 via chromiumoxide",

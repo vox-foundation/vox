@@ -43,6 +43,24 @@ pub(super) fn emit_durable_body(
     }
 }
 
+fn is_result_type(ret: &HirType) -> bool {
+    matches!(ret, HirType::Generic(name, _) if name == "Result")
+}
+
+/// Rust return type of a workflow fn: `Result<R, String>` for a declared `R`
+/// (`Result<(), String>` when none), with no exception for a declared `Result`.
+///
+/// The journal records the workflow's own return value, so a domain `Err` is a
+/// value of `R`; the outer `Err` means only that the durable runtime failed
+/// (journal, replay). Keeping the two apart lets `R` carry any error type with no
+/// conversion from the runtime's, and gives callers one rule to follow.
+pub(super) fn workflow_rust_return_type(ret: Option<&HirType>) -> String {
+    match ret {
+        Some(r) => format!("Result<{}, String>", emit_type(r)),
+        None => "Result<(), String>".into(),
+    }
+}
+
 fn emit_workflow_body(func: &HirFn) -> String {
     let name = &func.name;
     let hash = func.generated_hash.as_deref().unwrap_or("UNSTAMPED");
@@ -59,14 +77,74 @@ fn emit_workflow_body(func: &HirFn) -> String {
     out.push_str(&format!(
         "    let __vox_journal = ::vox_workflow_runtime::workflow::interpret_workflow_durable(__vox_hir, \"{name}\", &mut __vox_tracker).await.map_err(|e| e.to_string())?;\n"
     ));
-    if let Some(ret) = &func.return_type {
-        out.push_str(&format!(
-            "    ::vox_workflow_runtime::workflow::extract_terminal_return::<{ty}>(&__vox_journal).map_err(|e| e.to_string())?\n",
+    match &func.return_type {
+        Some(ret) => out.push_str(&format!(
+            "    Ok(::vox_workflow_runtime::workflow::extract_terminal_return::<{ty}>(&__vox_journal).map_err(|e| e.to_string())?)\n",
             ty = emit_type(ret),
-        ));
-    } else {
-        out.push_str("    Ok(())\n");
+        )),
+        None => out.push_str("    Ok(())\n"),
     }
+    out
+}
+
+/// `pub async fn __vox_run_workflow(name, args)` — the dispatcher `main.rs` calls when
+/// `VOX_RUN_WORKFLOW` is set. Args are positional JSON values; the result is printed as JSON.
+/// Empty when the module declares no workflows.
+pub(super) fn emit_workflow_dispatcher(functions: &[HirFn]) -> String {
+    let workflows: Vec<&HirFn> = functions
+        .iter()
+        .filter(|f| f.durability == Some(DurabilityKind::Workflow))
+        .collect();
+    if workflows.is_empty() {
+        return String::new();
+    }
+    let mut out = String::new();
+    out.push_str("/// Runs a workflow by name with positional JSON args (`VOX_RUN_WORKFLOW` / `VOX_WORKFLOW_ARGS`).\n");
+    out.push_str("pub async fn __vox_run_workflow(__vox_wf_name: &str, __vox_wf_args: &[serde_json::Value]) -> Result<(), String> {\n");
+    out.push_str("    match __vox_wf_name {\n");
+    for wf in workflows {
+        let rust_name = wf.name.replace("::", "_");
+        out.push_str(&format!("        \"{}\" => {{\n", wf.name));
+        let mut call_args = Vec::new();
+        for (i, p) in wf.params.iter().enumerate() {
+            let ty = emit_type(
+                p.type_ann
+                    .as_ref()
+                    .unwrap_or(&HirType::Named("serde_json::Value".into())),
+            );
+            out.push_str(&format!(
+                "            let {name} = serde_json::from_value::<{ty}>(__vox_wf_args.get({i}).cloned().unwrap_or(serde_json::Value::Null)).map_err(|e| format!(\"workflow {wf} arg {i} ({name}): {{e}}\"))?;\n",
+                name = p.name,
+                wf = wf.name,
+            ));
+            call_args.push(p.name.clone());
+        }
+        // `?` here surfaces only runtime failure; `out` is the declared value.
+        out.push_str(&format!(
+            "            let out = {rust_name}({}).await?;\n",
+            call_args.join(", ")
+        ));
+        match &wf.return_type {
+            None => out.push_str("            let () = out;\n            Ok(())\n"),
+            Some(ret) => {
+                // Machine-readable result on stdout (a `Result` prints as {"Ok":..}/{"Err":..}).
+                out.push_str("            println!(\"{}\", serde_json::to_string(&out).map_err(|e| e.to_string())?);\n");
+                if is_result_type(ret) {
+                    // A domain `Err` is a failed run for the caller's exit status.
+                    out.push_str(&format!(
+                        "            match out {{ Ok(_) => Ok(()), Err(_) => Err(\"workflow {} returned Err\".to_string()) }}\n",
+                        wf.name
+                    ));
+                } else {
+                    out.push_str("            Ok(())\n");
+                }
+            }
+        }
+        out.push_str("        }\n");
+    }
+    out.push_str("        _ => Err(format!(\"unknown workflow: {__vox_wf_name}\")),\n");
+    out.push_str("    }\n");
+    out.push_str("}\n\n");
     out
 }
 

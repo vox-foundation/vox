@@ -103,8 +103,14 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::ConfigRegistryParity { update_baseline } => {
             vox_cli_ci::config_registry_parity::run(update_baseline)
         }
-        CiCmd::ConfigGuiCodegen { check, fields } => {
-            if fields {
+        CiCmd::ConfigGuiCodegen {
+            check,
+            fields,
+            kb_facets,
+        } => {
+            if kb_facets {
+                vox_cli_ci::kb_facets_ts::run(&root, check)
+            } else if fields {
                 vox_cli_ci::config_gui_codegen::run_fields(check)
             } else {
                 vox_cli_ci::config_gui_codegen::run(check)
@@ -591,8 +597,8 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::CrateBudget { exit_zero } => {
             vox_cli_ci::crate_budget::run_crate_budget(&root, exit_zero)
         }
-        CiCmd::CrateBuildMapParity => {
-            vox_cli_ci::crate_build_map_parity::run_crate_build_map_parity(&root)
+        CiCmd::CrateBuildMapParity { write } => {
+            vox_cli_ci::crate_build_map_parity::run_crate_build_map_parity(&root, write)
         }
         CiCmd::FanInBudget { exit_zero } => {
             vox_cli_ci::fan_in_budget::run_fan_in_budget(&root, exit_zero)
@@ -609,8 +615,18 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             out,
             check,
             github_output,
+            shards,
+            exclude,
         } => {
             let mut args: Vec<String> = vec![];
+            if let Some(n) = shards {
+                args.push("--shards".into());
+                args.push(n.to_string());
+            }
+            for e in exclude {
+                args.push("--exclude".into());
+                args.push(e);
+            }
             if regen {
                 args.push("--regen".into());
             }

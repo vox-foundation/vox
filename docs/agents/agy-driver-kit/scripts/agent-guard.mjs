@@ -62,11 +62,23 @@ const PROTECTED = [
   [/(^|[\\/])Cargo\.lock$/, "Cargo.lock is shared; dependency changes are out of scope"],
 ];
 
+// The checkout this kit lives in. When it is a worktree, the shared checkout at SHARED_ROOT belongs to another
+// session: a plan step that hardcodes `cd /Users/brbrainerd/dev/vox/...` would run (and `sed -i`) in THEIR tree.
+const ROOT = fileURLToPath(new URL("../../", import.meta.url)).replace(/\/$/, "");
+const SHARED_ROOT = "/Users/brbrainerd/dev/vox";
+const SHARED_PATH = /\/Users\/brbrainerd\/dev\/vox(?:\/[^\s"'`;&|)]*)?/g;
+const outsideRoot = (text) =>
+  [...String(text).matchAll(SHARED_PATH)].map((m) => m[0]).find((p) => p !== ROOT && !p.startsWith(`${ROOT}/`));
+
 export const isDriven = () => existsSync(fileURLToPath(new URL("../.driven", import.meta.url)));
 
 export function decide(input) {
   const name = input?.toolCall?.name ?? "";
   const args = input?.toolCall?.args ?? {};
+  const stray = outsideRoot(JSON.stringify(args));
+  if (stray) {
+    return { decision: "deny", reason: `agent-guard: ${stray} is outside this checkout (${ROOT}); use relative paths, the shared checkout belongs to another session` };
+  }
   if (name === "run_command") {
     for (const seg of String(args.CommandLine ?? "").split(/&&|\|\||;|\||\n|\$\(|`/)) {
       const why = checkSegment(seg);
@@ -91,7 +103,12 @@ function selfTest() {
     [run("pnpm --dir crates/vox-gui/ui typecheck"), "allow"],
     [run("pnpm --dir crates/vox-gui/ui exec playwright test e2e/chat-receipts.spec.ts"), "allow"],
     [run("git status --short && git diff --stat"), "allow"],
-    [run("cd /Users/brbrainerd/dev/vox && cargo check -p vox-crypto"), "allow"],
+    [run(`cd ${ROOT} && cargo check -p vox-crypto`), "allow"],
+    // Another checkout's absolute path: allowed only when this kit IS the shared checkout.
+    [run("cd /Users/brbrainerd/dev/vox/crates/vox-gui/ui && ls"), ROOT === SHARED_ROOT ? "allow" : "deny"],
+    [run("sed -i '' s/a/b/ /Users/brbrainerd/dev/vox/crates/vox-gui/ui/src/x.tsx"), ROOT === SHARED_ROOT ? "allow" : "deny"],
+    [file("replace_file_content", "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/src/x.tsx"), ROOT === SHARED_ROOT ? "allow" : "deny"],
+    [run(`cat ${ROOT}/crates/vox-gui/ui/src/x.tsx`), "allow"],
     [run("rm -rf target/agent-scratch /tmp/x"), "allow"],
     [run("RUST_LOG=debug cargo test -p vox-gui --bin vox-gui"), "allow"],
     [run("git push origin main"), "deny"],

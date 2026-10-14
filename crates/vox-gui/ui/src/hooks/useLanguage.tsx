@@ -19,6 +19,12 @@ export function useLang(): LangCtx {
   return ctx;
 }
 
+/** Provider-safe current language: the live context value, else the persisted one. */
+export function useCurrentLang(): Lang {
+  const ctx = useContext(Ctx);
+  return ctx?.lang ?? currentLang();
+}
+
 export function useLabel(id: string): string {
   const ctx = useContext(Ctx);
   return labelFor(id, ctx?.lang ?? currentLang());

@@ -4,11 +4,12 @@
 //! - [`context::SearchRuntimeContext`] — repo root, optional VoxDb handle, memory paths.
 //! - [`execution::execute_search_plan`] — memory hybrid + knowledge + chunks + repo inventory.
 //! - [`bundle::run_search_with_verification`] — automatic verification pass.
-//! - Optional **Tantivy** (`tantivy-lexical`) and **Qdrant** (`qdrant-vector`) backends.
+//! - Optional **Tantivy** (`tantivy-lexical`, the KB Library index in `library`) and **Qdrant** (`qdrant-vector`) backends.
 
 pub mod a2a_contract;
 pub mod arxiv;
 pub mod bundle;
+pub mod capture;
 pub mod context;
 pub mod corroboration;
 pub mod crag;
@@ -20,6 +21,8 @@ pub mod embeddings;
 pub mod evaluation;
 pub mod execution;
 pub mod ingest;
+pub mod kb_eval;
+pub mod kb_ids;
 pub mod llm_query_expansion;
 mod memory_cache;
 pub mod memory_hybrid;
@@ -54,7 +57,7 @@ pub mod web_dispatcher;
 pub mod wikipedia;
 
 #[cfg(feature = "tantivy-lexical")]
-pub mod lexical_tantivy;
+pub mod library;
 #[cfg(feature = "tavily")]
 pub mod tavily;
 #[cfg(feature = "qdrant-vector")]
@@ -91,6 +94,15 @@ pub use web_dispatcher::{WebSearchDispatcher, WebSearchDispatcherExt};
 
 #[cfg(test)]
 mod semcov_wave21_tests;
+
+/// Guard for the approved `feature:vox-search-default` decision: the KB Library tests only run
+/// in PR CI because `tantivy-lexical` is a default feature.
+#[cfg(test)]
+#[test]
+#[allow(clippy::assertions_on_constants)] // the constant IS the assertion
+fn tantivy_lexical_enabled_by_default() {
+    assert!(cfg!(feature = "tantivy-lexical"));
+}
 
 /// Task 9c: the unit-test twin of `tests/common/mod.rs` — routes every
 /// non-loopback request through a dead local proxy so no unit test (e.g. a

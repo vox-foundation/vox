@@ -156,8 +156,16 @@ fn job_problem(workflow: &str, job: &Job, kind: ProblemKind) -> JobProblem {
 }
 
 /// Empty string when there is nothing to report (hooks then print nothing).
+#[cfg(test)]
 fn render(s: &CiStatus) -> String {
+    render_with_unpushed(s, None)
+}
+
+fn render_with_unpushed(s: &CiStatus, unpushed: Option<&str>) -> String {
     let mut out = Vec::new();
+    if let Some(u) = unpushed {
+        out.push(u.to_string());
+    }
     for p in &s.problems {
         let what = match p.kind {
             ProblemKind::TimedOut => "TIMED OUT",
@@ -427,11 +435,12 @@ pub fn run(args: StatusArgs) -> Result<()> {
     // string a detached checkout's own git prints.
     let branch = current_branch().unwrap_or_else(|| "DETACHED".into());
     let now = chrono::Utc::now().timestamp();
+    let unpushed = unpushed_main_from_git();
     if !(args.hook || args.changed_only) {
         let s = fetch(&branch, now)?;
         write_cache(&s)?;
         let _ = std::fs::remove_file(cache_dir().join(format!("refreshing-{}", sanitize(&branch))));
-        let r = render(&s);
+        let r = render_with_unpushed(&s, unpushed.as_deref());
         if r.is_empty() {
             println!("GitHub CI: nothing failing on {branch}; no open nightly failures.");
         } else {
@@ -447,7 +456,17 @@ pub fn run(args: StatusArgs) -> Result<()> {
     {
         spawn_refresh(&branch);
     }
-    let current = cached.as_ref().map(render).unwrap_or_default();
+    let current = match (&cached, &unpushed) {
+        (Some(c), _) => render_with_unpushed(c, unpushed.as_deref()),
+        (None, Some(u)) => {
+            let empty = CiStatus {
+                branch: branch.clone(),
+                ..Default::default()
+            };
+            render_with_unpushed(&empty, Some(u))
+        }
+        (None, None) => String::new(),
+    };
     if args.changed_only {
         let mut stdin = String::new();
         if !std::io::stdin().is_terminal() {
@@ -497,15 +516,62 @@ pub(crate) fn print_live_for_push() {
             None => return,
         },
     };
-    let r = render(&s);
+    let unpushed = unpushed_main_from_git();
+    let r = render_with_unpushed(&s, unpushed.as_deref());
     if !r.is_empty() {
         println!("{r}");
     }
 }
 
+fn unpushed_main_from_git() -> Option<String> {
+    // vox-arch-check: allow git-exec
+    let out = Command::new("git")
+        .args(["rev-list", "--count", "origin/main..main"])
+        .stdin(Stdio::null())
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let count: u32 = String::from_utf8_lossy(&out.stdout).trim().parse().ok()?;
+    unpushed_main_line(count)
+}
+
+pub fn unpushed_main_line(ahead: u32) -> Option<String> {
+    (ahead > 0)
+        .then(|| format!("main is {ahead} commits ahead of origin/main — land it through a PR"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn unpushed_main_line_warns_when_ahead_and_silent_when_in_sync() {
+        assert_eq!(
+            unpushed_main_line(57).as_deref(),
+            Some("main is 57 commits ahead of origin/main — land it through a PR")
+        );
+        assert_eq!(unpushed_main_line(0), None);
+        assert!(
+            unpushed_main_line(1).is_some(),
+            "one unpushed commit still warns"
+        );
+    }
+
+    #[test]
+    fn render_includes_unpushed_main_line() {
+        let s = CiStatus {
+            branch: "main".into(),
+            ..Default::default()
+        };
+        let r = render_with_unpushed(
+            &s,
+            Some("main is 57 commits ahead of origin/main — land it through a PR"),
+        );
+        assert!(r.contains("main is 57 commits ahead of origin/main — land it through a PR"));
+        assert!(r.starts_with("GitHub CI (auto-injected by vox hooks):"));
+    }
 
     fn step(
         name: &str,

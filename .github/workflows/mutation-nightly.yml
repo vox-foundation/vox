@@ -82,7 +82,10 @@ jobs:
           echo "Mutation shard: ${SHARD_INDEX}/${SHARD_TOTAL} (day-of-year $(date -u +%j))" | tee -a "$GITHUB_STEP_SUMMARY"
 
           LOG=mutants-run.log
-          cargo mutants -p vox-compiler --no-times --jobs 4 \
+          # Each job is a full vox-compiler build: half the runner's cores, at least 1
+          # (a fixed 4 was tuned on a 24-core self-hosted box).
+          JOBS=$(( $(nproc) / 2 )); [ "$JOBS" -ge 1 ] || JOBS=1
+          cargo mutants -p vox-compiler --no-times --jobs "$JOBS" \
             --shard "${SHARD_INDEX}/${SHARD_TOTAL}" \
             -- -E 'not binary(emission_ladder_test)' \
             > "$LOG" 2>&1 &
@@ -92,12 +95,15 @@ jobs:
           while kill -0 "$MUTANTS_PID" 2>/dev/null; do
             sleep 300
             ELAPSED_MIN=$(( ($(date +%s) - START_TS) / 60 ))
-            DONE=$(grep -cE "^(MISSED|CAUGHT|TIMEOUT|UNVIABLE)" "$LOG" 2>/dev/null)
+            # `grep -c` exits 1 on zero matches; under bash -e that killed the step at the
+            # first heartbeat, before cargo-mutants finished its baseline build.
+            DONE=$(grep -cE "^(MISSED|CAUGHT|TIMEOUT|UNVIABLE)" "$LOG" 2>/dev/null || true)
             TOTAL=$(sed -nE 's/.*Found ([0-9]+) mutants.*/\1/p' "$LOG" | head -1)
             echo "heartbeat: ${ELAPSED_MIN}m elapsed, ${DONE}/${TOTAL:-?} mutants tested so far (still running)"
           done
 
-          wait "$MUTANTS_PID"
-          EXIT=$?
+          # Capture the status without tripping bash -e, so the log is always printed.
+          EXIT=0
+          wait "$MUTANTS_PID" || EXIT=$?
           cat "$LOG"
           exit "$EXIT"

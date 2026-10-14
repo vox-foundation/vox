@@ -9,49 +9,7 @@ pub(super) fn sanitize_chatml(input: &str) -> String {
 /// Sanitize evidence snippets from search results to neutralize multi-provider prompt injection,
 /// role spoofing, and bidirectional unicode steganography.
 pub(super) fn sanitize_evidence(text: &str) -> String {
-    let mut out = text.to_string();
-
-    // 1. Strip zero-width and bidirectional unicode steganography / visual spoofing characters
-    // first, so interleaved evasion characters (e.g. `<|\u{200B}im_start|>`) cannot bypass
-    // downstream control token neutralization rules.
-    out.retain(|c| {
-        !matches!(
-            c,
-            '\u{200B}'..='\u{200F}'
-                | '\u{202A}'..='\u{202E}'
-                | '\u{2066}'..='\u{2069}'
-                | '\u{FEFF}'
-        )
-    });
-
-    // 2. Strip ChatML control tokens
-    out = out
-        .replace("<|im_start|>", "[im_start]")
-        .replace("<|im_end|>", "[im_end]");
-
-    // 3. Strip Llama / Mistral instruction wrappers
-    out = out
-        .replace("[INST]", "[inst_neutralized]")
-        .replace("[/INST]", "[/inst_neutralized]")
-        .replace("<<SYS>>", "[sys_neutralized]")
-        .replace("<</SYS>>", "[/sys_neutralized]");
-
-    // 4. Strip Anthropic / Claude system tags
-    out = out
-        .replace("<antThinking>", "[ant_thinking]")
-        .replace("</antThinking>", "[/ant_thinking]");
-
-    // 5. Strip Gemma turn markers
-    out = out
-        .replace("<start_of_turn>", "[start_of_turn]")
-        .replace("<end_of_turn>", "[end_of_turn]");
-
-    // 6. Strip DeepSeek turn markers
-    out = out
-        .replace("<｜User｜>", "[user_neutralized]")
-        .replace("<｜Assistant｜>", "[assistant_neutralized]");
-
-    out
+    vox_db::kb_text::sanitize(text)
 }
 
 /// When the verifier still uses the default NLI sentinel ([`super::super::model_select::FALLBACK_NLI_MODEL_ID`]),
@@ -171,6 +129,16 @@ mod tests {
         assert!(cleaned.contains("[end_of_turn]"));
         assert!(cleaned.contains("[user_neutralized]"));
         assert!(cleaned.contains("[assistant_neutralized]"));
+    }
+
+    #[test]
+    fn sanitize_evidence_strips_tag_block_and_zero_width_payload() {
+        let payload = "ok\u{E0041}\u{E0042}\u{200B}done";
+        assert_eq!(sanitize_evidence(payload), "okdone");
+        assert_eq!(
+            sanitize_evidence(payload),
+            vox_db::kb_text::sanitize(payload)
+        );
     }
 
     #[test]

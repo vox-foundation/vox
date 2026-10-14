@@ -32,7 +32,7 @@ export function PhaseChip({
   onForceVerify,
 }: PhaseChipProps) {
   return (
-    <span className="inline-flex items-center gap-2 text-[10px]">
+    <span className="inline-flex items-center gap-2 text-[11px]">
       {/* Phase badge */}
       <span
         className="rounded-sm border border-brass/30 px-1.5 py-0.5 font-mono text-brass"
@@ -75,7 +75,7 @@ export function PhaseChip({
       )}
 
       {phase === "done" && (
-        <span className="text-emerald-400" aria-label="phase complete">
+        <span className="text-(--color-status-pass)" aria-label="phase complete">
           ✓
         </span>
       )}

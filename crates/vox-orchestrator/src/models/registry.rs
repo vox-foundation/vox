@@ -4,10 +4,11 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use crate::catalog::{ModelCatalog, OpenRouterCatalog};
 use crate::config::CostPreference;
-use crate::types::{AgentTask, TaskCategory};
+use crate::types::TaskCategory;
+
+use super::RoutingTask;
 
 use super::health::MODEL_CATALOG_LAST_REFRESH_KEY;
-
 use super::spec::{
     ModelCapabilities, ModelConfig, ModelSpec, PricingSource, ProviderType, task_category_strength,
 };
@@ -414,7 +415,9 @@ impl ModelRegistry {
     /// Credential gate used by the canonical selector: true iff the provider's
     /// primary key is resolvable right now (local providers always pass).
     pub(crate) fn key_is_present_for(m: &ModelSpec) -> bool {
-        super::key_guard::inference_wire_for(&m.provider_type).is_some()
+        // Through `selection_key_available` so a test can pin the provider set per thread
+        // (`key_guard::set_test_key_availability`); with no override it is the same Clavis check.
+        super::key_guard::selection_key_available(&m.provider_type)
     }
 
     fn min_refresh_interval() -> Duration {
@@ -935,14 +938,18 @@ impl ModelRegistry {
         self.models.clear();
     }
 
-    pub fn best_for_task(&self, task: &AgentTask, preference: CostPreference) -> Option<ModelSpec> {
+    pub fn best_for_task(
+        &self,
+        task: &RoutingTask,
+        preference: CostPreference,
+    ) -> Option<ModelSpec> {
         self.best_for_task_with_filter(task, preference, |_| true)
     }
 
     /// Like [`Self::best_for_task`] but only considers models for which `pred` returns true.
     pub fn best_for_task_with_filter(
         &self,
-        task: &AgentTask,
+        task: &RoutingTask,
         preference: CostPreference,
         pred: impl FnMut(&ModelSpec) -> bool,
     ) -> Option<ModelSpec> {
@@ -973,7 +980,7 @@ impl ModelRegistry {
         preference: CostPreference,
         allow_free_in_performance_mode: bool,
         mut pred: impl FnMut(&ModelSpec) -> bool,
-        task: Option<&AgentTask>,
+        task: Option<&RoutingTask>,
     ) -> Option<ModelSpec> {
         self.rank_with_filter(
             task_type,

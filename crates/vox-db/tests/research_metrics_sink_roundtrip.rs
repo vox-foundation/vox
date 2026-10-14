@@ -33,6 +33,7 @@ async fn wait_for_session_rows(
         {
             return rows;
         }
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
     Vec::new()
@@ -48,6 +49,7 @@ async fn wait_for_type_rows(
         {
             return rows;
         }
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
     Vec::new()

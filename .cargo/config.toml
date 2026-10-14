@@ -20,7 +20,9 @@ gui-check = "check -p vox-gui --config target.x86_64-pc-windows-msvc.linker=\"li
 # Or per-user: add `[build] rustc-wrapper = "sccache"` to ~/.cargo/config.toml
 #
 [build]
-jobs = 24
+# No `jobs` count: cargo defaults to the machine's available parallelism.
+# `vox ci dev-loop-guard` rejects a hardcoded value (it oversubscribed every machine
+# it was not tuned for, e.g. 24 jobs x 6 broker slots on an 18-core laptop).
 rustdocflags = ["-D", "warnings"]
 
 # Bumped from cargo's default of 2 after a self-hosted nightly CI runner hit

@@ -42,6 +42,7 @@ impl DriftRule for SerdeDefaultDupRule {
 
         features.fn_definitions.iter()
             .filter(|def| COMMON_PREFIXES.iter().any(|p| def.name.starts_with(p)))
+            .filter(|def| !crate::extractor::is_allowed_at(features, self.id(), def.loc.line))
             .map(|def| Finding {
                 rule_id: self.id().to_string(),
                 rule_name: "Duplicate Serde Default Function".into(),
@@ -98,5 +99,25 @@ mod tests {
         });
         let rule = SerdeDefaultDupRule;
         assert_eq!(rule.check(&f, &ctx()).len(), 1);
+    }
+
+    #[test]
+    fn honors_drift_allow_on_the_fn_line() {
+        let mut f = ExtractedFeatures::new(
+            PathBuf::from("crates/vox-publisher/src/types.rs"),
+            Language::Rust,
+        );
+        f.crate_name = Some("vox-publisher".into());
+        f.fn_definitions.push(FnDef {
+            name: "default_true".into(),
+            body_hash: 99,
+            sig_hash: 99,
+            loc: Loc { line: 3, col: 0 },
+        });
+        f.allowed_lines
+            .entry("serde-default-dup".into())
+            .or_default()
+            .extend([2, 3]); // a comment on line 2 covers lines 2 and 3; the fn is on line 3
+        assert!(SerdeDefaultDupRule.check(&f, &ctx()).is_empty());
     }
 }

@@ -29,8 +29,8 @@ const DEFAULT_GLYPHS: Record<StatusToneKind, string> = {
 };
 
 const SIZE_CLASS = {
-  xs: 'px-1.5 py-px text-[9px]',
-  sm: 'px-2 py-0.5 text-[10px]',
+  xs: 'px-1.5 py-px text-[11px]',
+  sm: 'px-2 py-0.5 text-[11px]',
 };
 
 export function StatusPill({ 
@@ -51,7 +51,7 @@ export function StatusPill({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full font-medium tracking-wide uppercase ring-1 bg-overlay-subtle shrink-0 select-none",
+        "inline-flex items-center gap-1.5 rounded-full font-medium tracking-[0.08em] uppercase ring-1 bg-overlay-subtle shrink-0 select-none",
         toneStyle.ring,
         toneStyle.text,
         SIZE_CLASS[size],

@@ -250,7 +250,7 @@ prereg signature + analysis-code commit hash; any deviation surfaces as
 | [vox-publisher/scientia_*](../../../crates/vox-publisher/) | Atlas publication | Extend with per-claim nanopub emission + RO-Crate builder + TOP/ACM badges. |
 | [pipeline.rs](../../../crates/vox-research-shim/src/research/orchestrator/pipeline.rs) | Phantom imports | **Phase 0a** — resolve `claims/gate/verifier/planner/provider/types` modules. |
 | [research_metrics_contract.rs](../../../crates/vox-db/src/research_metrics_contract.rs) | Provider Atlas raw signal | Wire D1–D10 events → `ProviderObservation` family per Mesh §4.1. |
-| [calibration.rs](../../../crates/vox-orchestrator/src/calibration.rs) | Drift detection | Already gives drift z-scores; emit `DriftAlert` → atomic claim → nanopub. |
+| [calibration.rs](../../../crates/vox-orchestrator-models/src/calibration.rs) | Drift detection | Already gives drift z-scores; emit `DriftAlert` → atomic claim → nanopub. |
 | [vox-crypto](../../../crates/vox-crypto/) | Nanopub signing | Reuse ed25519 — no new crypto. |
 | [vox-doc-pipeline](../../../crates/vox-doc-pipeline/) | RO-Crate manifest regen | Add `ro-crate-metadata.json` to regen list. |
 | [vox-arch-check](../../../crates/vox-arch-check/) | Layer enforcement | Add rule: nanopub crate at L2; no horizontal L3 publisher↔scientia-ingest. |

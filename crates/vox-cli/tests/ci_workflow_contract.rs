@@ -98,22 +98,24 @@ fn linux_ci_runs_workspace_tests_and_windows_stack_wrappers_stay_cfg_gated() {
 }
 
 #[test]
-fn compile_matrix_runs_compile_suite_workspace_smoke() {
+fn nightly_runs_compile_suite_workspace_smoke() {
+    // These smokes live in nightly.yml: three release builds do not fit
+    // compile-matrix.yml's 30-min PR lane.
     let yml = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../.github/workflows/compile-matrix.yml"
+        "/../../.github/workflows/nightly.yml"
     ));
     assert!(
         yml.contains("examples/compile-suite"),
-        "compile-matrix.yml should run from examples/compile-suite"
+        "nightly.yml should run from examples/compile-suite"
     );
     assert!(
         yml.contains("compile --workspace --target native-binary"),
-        "compile-matrix.yml should smoke `vox compile --workspace --target native-binary`"
+        "nightly.yml should smoke `vox compile --workspace --target native-binary`"
     );
     assert!(
         yml.contains("compile --target desktop"),
-        "compile-matrix.yml should smoke desktop Tauri codegen via `vox compile --target desktop`"
+        "nightly.yml should smoke desktop Tauri codegen via `vox compile --target desktop`"
     );
 }
 
@@ -301,8 +303,10 @@ fn gui_cross_build_covers_three_os_with_webkit() {
         yml.contains("libwebkit2gtk-4.1-dev"),
         "Linux GUI build needs WebKitGTK"
     );
+    // `cargo gui-build` is the .cargo/config.toml alias for the same build with link.exe
+    // on Windows (lld-link cannot link vox-gui).
     assert!(
-        yml.contains("cargo build -p vox-gui"),
+        yml.contains("cargo gui-build") || yml.contains("cargo build -p vox-gui"),
         "must actually compile the GUI crate"
     );
     // Runs on schedule, not pull_request/merge_group: the full matrix build
@@ -404,8 +408,8 @@ fn ssot_autoregen_builds_vox_like_the_gate() {
     ));
     let builds: Vec<&str> = yml
         .lines()
-        .map(str::trim)
-        .filter(|l| l.starts_with("run: cargo build -p vox-cli"))
+        .map(|l| l.trim().trim_start_matches("run: "))
+        .filter(|l| l.starts_with("cargo build -p vox-cli"))
         .collect();
     assert_eq!(
         builds.len(),
@@ -512,7 +516,7 @@ fn quarantine_is_gate_only_and_nightly_still_runs_everything() {
         "/../../.config/nextest.toml"
     ));
     assert!(
-        ci.contains("--profile ci-gate --locked --no-tests=pass --partition"),
+        ci.contains("cargo nextest run $SHARD_P_ARGS --profile ci-gate --locked --no-tests=pass"),
         "gate shards must use the ci-gate profile"
     );
     assert!(
@@ -520,12 +524,53 @@ fn quarantine_is_gate_only_and_nightly_still_runs_everything() {
         "nightly must not use the quarantining profile"
     );
     assert!(
-        nightly.contains("cargo nextest run --workspace --exclude vox-gui --profile ci --locked"),
-        "nightly's full job must run the whole suite under the ci profile"
+        nightly.contains("cargo llvm-cov nextest --workspace --exclude vox-gui --profile ci"),
+        "nightly must execute the whole suite under the ci profile (the llvm-cov run)"
     );
     assert!(
         nextest.contains("[profile.ci-gate]") && nextest.contains("issues/569"),
         "ci-gate must exist and point at its tracking issue"
+    );
+}
+
+/// Tests that run a nested `cargo build` take minutes apiece: they must run one at a
+/// time (the `nested-cargo` test group, with a long per-test timeout) and stay out of the
+/// PR gate. The group's filter and the ci-gate exclusion are two copies of one
+/// expression; a test that compiles generated crates but escapes the filter runs in the
+/// gate's parallel shards and times out.
+#[test]
+fn nested_cargo_tests_are_grouped_and_excluded_from_the_gate() {
+    let nextest = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.config/nextest.toml"
+    ));
+    let group_filter = nextest
+        .split("test-group = 'nested-cargo'")
+        .next()
+        .and_then(|before| before.rsplit("filter = '").next())
+        .and_then(|rest| rest.split('\'').next())
+        .expect("a [[profile.default.overrides]] entry must assign the nested-cargo group");
+    let gate = nextest
+        .split("[profile.ci-gate]")
+        .nth(1)
+        .expect("ci-gate profile");
+    assert!(
+        gate.contains(group_filter),
+        "ci-gate must exclude exactly the nested-cargo filter:\n{group_filter}"
+    );
+    // Drives every rust-script ladder fixture through a nested cargo compile.
+    assert!(
+        group_filter.contains("test(=ladder_contract_drives_each_fixture_target)"),
+        "the ladder contract test compiles fixtures and must be in the nested-cargo group"
+    );
+    let override_block = nextest
+        .split("test-group = 'nested-cargo'")
+        .nth(1)
+        .and_then(|after| after.split("\n\n").next())
+        .unwrap_or_default();
+    assert!(
+        override_block.contains("slow-timeout"),
+        "nested-cargo tests need their own slow-timeout; the default 60s x 3 kills a cold compile"
     );
 }
 
@@ -537,10 +582,17 @@ fn ci_tests_are_sharded_out_of_the_linux_leg() {
         env!("CARGO_MANIFEST_DIR"),
         "/../../.github/workflows/ci.yml"
     ));
-    assert!(yml.contains("shard: [1, 2, 3]"), "tests job must shard");
     assert!(
-        yml.contains(r#"--partition "hash:${SHARD}/3""#),
-        "each shard must run its nextest partition, and the count must match the matrix"
+        yml.contains("shard: ${{ fromJSON(needs.linux.outputs.shard_list) }}"),
+        "tests job must shard over the groups linux planned"
+    );
+    assert!(
+        yml.contains("--shards 3 --exclude vox-gui"),
+        "linux must plan crate-level shards (each shard compiles only its own crates)"
+    );
+    assert!(
+        yml.contains("needs.linux.outputs[format('shard_{0}_p_args', matrix.shard)]"),
+        "each shard must run only its own group's crates"
     );
     assert!(
         yml.contains("if: needs.linux.outputs.run_tests == 'true'"),
@@ -666,8 +718,19 @@ fn vox_gui_is_tested_somewhere() {
     // file but proves nothing about ordering relative to the step that
     // actually runs on the same OS as `full`. rfind anchors on the step
     // immediately preceding it.
+    // `cargo gui-test` is the .cargo/config.toml alias for the same suite with link.exe on Windows.
+    // Scope to the gui-cross-build job: the gui-windows-build-smoke job after it has its
+    // own sidecar staging step, which would otherwise win the rfind.
+    let yml = yml
+        .split_once("\n  gui-cross-build:")
+        .expect("gui-cross-build job")
+        .1;
+    let yml = yml
+        .split_once("\n  gui-windows-build-smoke:")
+        .map_or(yml, |(job, _)| job);
     let full = yml
-        .find("cargo test -p vox-gui --locked")
+        .find("cargo gui-test --locked")
+        .or_else(|| yml.find("cargo test -p vox-gui --locked"))
         .expect("full vox-gui test suite");
     let sidecar = yml
         .rfind("Stage Tauri external sidecar")
@@ -681,10 +744,22 @@ fn ml_cuda_health_is_hosted_compile_only_and_fail_closed() {
         env!("CARGO_MANIFEST_DIR"),
         "/../../.github/workflows/nightly.yml"
     ));
-    let job = yml
+    let rest = yml
         .split_once("\n  ml-cuda-health:")
         .expect("nightly must define the ml-cuda-health job")
         .1;
+    // Only this job: stop at the next top-level job key (two-space indent), or a later
+    // job's text (e.g. a `save-if: false`) trips the fail-closed markers below.
+    let job = &rest[..rest
+        .match_indices("\n  ")
+        .map(|(i, _)| i)
+        .find(|&i| {
+            rest[i + 3..]
+                .chars()
+                .next()
+                .is_some_and(|c| c != ' ' && c != '#' && c != '\n')
+        })
+        .unwrap_or(rest.len())];
 
     assert!(job.contains("    name: ML CUDA dependency health"));
     assert!(job.contains("    runs-on: ubuntu-latest"));
@@ -713,6 +788,125 @@ fn ml_cuda_health_is_hosted_compile_only_and_fail_closed() {
         assert!(
             !job.contains(forbidden),
             "ml-cuda-health must fail closed; found forbidden marker {forbidden}"
+        );
+    }
+}
+
+/// `(job key, job body)` for each job under a workflow's top-level `jobs:` map.
+fn workflow_jobs(yml: &str) -> Vec<(&str, &str)> {
+    let Some((_, jobs)) = yml.split_once("\njobs:\n") else {
+        return Vec::new();
+    };
+    let mut starts = Vec::new();
+    let mut offset = 0;
+    for line in jobs.split_inclusive('\n') {
+        if let Some(key) = line
+            .strip_prefix("  ")
+            .filter(|rest| rest.starts_with(|c: char| c.is_ascii_alphanumeric()))
+            .and_then(|rest| rest.trim_end().strip_suffix(':'))
+        {
+            starts.push((key, offset));
+        }
+        offset += line.len();
+    }
+    starts
+        .iter()
+        .enumerate()
+        .map(|(i, &(key, start))| {
+            let end = starts.get(i + 1).map_or(jobs.len(), |&(_, s)| s);
+            (key, &jobs[start..end])
+        })
+        .collect()
+}
+
+/// Byte offset of the first non-comment line in `job` that compiles vox-gui —
+/// directly, via the `.cargo/config.toml` `gui-*` aliases, or through the
+/// Tauri CLI / tauri-action. Compiling vox-gui runs its build.rs, which needs
+/// every `bundle.externalBin` sidecar staged.
+fn first_vox_gui_compile(job: &str) -> Option<usize> {
+    let mut offset = 0;
+    for line in job.split_inclusive('\n') {
+        let code = line.trim_start();
+        if !code.starts_with('#')
+            && (code.contains("tauri-apps/tauri-action")
+                || code.contains("cargo tauri build")
+                || code.contains("cargo gui-")
+                || (code.contains("cargo ") && code.contains("-p vox-gui")))
+        {
+            return Some(offset);
+        }
+        offset += line.len();
+    }
+    None
+}
+
+/// tauri.conf.json `bundle.externalBin` is the ONLY list of GUI sidecars. Every
+/// job that compiles vox-gui must stage them through
+/// `./.github/actions/stage-tauri-sidecars` (which reads that list) before the
+/// compile. Hand-written per-workflow lists missed vox-ml-cli when it joined
+/// externalBin (44c208048), and build.rs's nested-cargo autobuild of it
+/// deadlocked `cargo tauri build --target` until the 3-hour cap.
+#[test]
+fn every_vox_gui_compile_stages_sidecars_from_tauri_conf() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let action =
+        std::fs::read_to_string(root.join(".github/actions/stage-tauri-sidecars/action.yml"))
+            .expect("read stage-tauri-sidecars action");
+    assert!(
+        action.contains("jq -r '.bundle.externalBin[]' \"$gui/tauri.conf.json\""),
+        "the staging action must read the sidecar list from tauri.conf.json"
+    );
+    assert!(
+        action.contains("cargo metadata"),
+        "the staging action must derive each sidecar's owning package, not hard-code it"
+    );
+    assert!(
+        action.contains("profile=dist") && action.contains("--profile \"$profile\""),
+        "sidecars ship inside the bundle and must build with --profile dist"
+    );
+    for name in ["vox-cli", "vox-ml-cli", "for bin in"] {
+        assert!(
+            !action.contains(name),
+            "the staging action must not hand-list sidecars; found `{name}`"
+        );
+    }
+
+    let mut seen = Vec::new();
+    for entry in std::fs::read_dir(root.join(".github/workflows")).expect("read workflows") {
+        let path = entry.expect("dir entry").path();
+        if !matches!(
+            path.extension().and_then(|e| e.to_str()),
+            Some("yml" | "yaml")
+        ) {
+            continue;
+        }
+        let file = path.file_name().unwrap().to_string_lossy().into_owned();
+        let yml = std::fs::read_to_string(&path).expect("read workflow");
+        for (job, body) in workflow_jobs(&yml) {
+            let Some(compile) = first_vox_gui_compile(body) else {
+                continue;
+            };
+            let stage = body.find("uses: ./.github/actions/stage-tauri-sidecars");
+            assert!(
+                stage.is_some_and(|s| s < compile),
+                "{file} job `{job}` compiles vox-gui without first staging its sidecars via \
+                 `uses: ./.github/actions/stage-tauri-sidecars` (do not hand-copy a sidecar list)"
+            );
+            seen.push(format!("{file}:{job}"));
+        }
+    }
+    // Detector self-check: the known GUI jobs must be found, or a scanner bug
+    // would let this test pass vacuously.
+    for known in [
+        "release-gui.yml:build-tauri",
+        "nightly-artifacts.yml:build-gui",
+        "gui-cross-build.yml:gui-cross-build",
+        "gui-cross-build.yml:gui-windows-build-smoke",
+        "nightly.yml:gui-orchestrator-relaunch-smoke",
+    ] {
+        assert!(
+            seen.iter().any(|s| s == known),
+            "expected {known} to be detected as a vox-gui compile; saw {seen:?}"
         );
     }
 }

@@ -1,14 +1,16 @@
 ---
 source: crates/vox-compiler/tests/golden_svg_vuv_test.rs
-assertion_line: 101
+assertion_line: 102
 expression: ts
 ---
 import React from "react";
 
 export function PlayIcon(): React.ReactElement {
   return (
+    <div className="px-4">
     <svg fill={"none"} stroke={"currentColor"} strokeWidth={1.5} viewBox={"0 0 24 24"}>
       <polygon points={"5 3 19 12 5 21 5 3"} />
     </svg>
+    </div>
   );
 }

@@ -10,6 +10,7 @@ use clap::Subcommand;
 use vox_research_shim::research::types::{ResearchDomainMode, ResearchStage};
 use vox_search::policy::ResearchLane;
 
+mod answer_overlap;
 pub mod eval;
 pub mod infra;
 
@@ -123,7 +124,8 @@ pub enum ResearchCmd {
         #[arg(long)]
         notes: Option<String>,
     },
-    /// Publish a session's report to `docs/src/architecture/` with frontmatter.
+    /// Write a session's report as a local draft under `.vox/cache/research-drafts/` (with
+    /// frontmatter); it enters `docs/src` only through a reviewed PR.
     Publish {
         /// Numeric `scientia_research_sessions.id`.
         session_id: i64,
@@ -480,10 +482,18 @@ pub async fn research_publish(session_id: i64, slug: Option<String>) -> anyhow::
         &artifact.report_markdown,
     )?;
     let root = vox_repository::discover_repository_or_fallback(&std::env::current_dir()?).root;
-    let path = root.join("docs/src/architecture").join(&filename);
+    let path = publish_draft_path(&root, &filename);
     vox_db::research_doc_io::atomic_write_secure(&path, doc.as_bytes())?;
-    println!("published {}", path.display());
+    println!("draft written to {}", path.display());
+    println!("this draft is local (gitignored); it enters docs/src only through a reviewed PR");
     Ok(())
+}
+
+/// Where `vox research publish` writes: a gitignored local drafts dir, never `docs/src`
+/// (LLM output must not reach the tree Phase 2 indexes as Trusted).
+// vox:defactored-from vox-config 2026-10-06 (REPO_CACHE_DIR; vox-cli-research has no vox-config edge)
+fn publish_draft_path(repo_root: &std::path::Path, filename: &str) -> std::path::PathBuf {
+    repo_root.join(".vox/cache/research-drafts").join(filename)
 }
 
 pub async fn research_watch(session_id: i64) -> anyhow::Result<()> {
@@ -705,6 +715,25 @@ async fn run_research_async_via_daemon(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn publish_draft_path_never_in_docs_src() {
+        let root = std::path::Path::new("/repo");
+        let p = publish_draft_path(root, "x-2026.md");
+        assert_eq!(
+            p,
+            std::path::Path::new("/repo/.vox/cache/research-drafts/x-2026.md")
+        );
+        assert!(!p.to_string_lossy().contains("docs/src"));
+    }
+
+    #[test]
+    fn publish_draft_render_rejects_traversal_slug_and_keeps_research_status() {
+        assert!(render_published_doc("q", 1, Some("../x"), "body").is_err());
+        let (name, doc) = render_published_doc("some q", 7, None, "body").unwrap();
+        assert_eq!(name, "session-7-research-2026.md");
+        assert!(doc.contains("status: \"research\""));
+    }
 
     fn run_query(
         lane: ResearchLane,

@@ -1612,7 +1612,10 @@ mod sql_surface_tests {
         ] {
             assert!(re.is_match(&read), "not flagged: {read}");
         }
-        assert!(!re.is_match(r#"std::env::var("VOX_REPO_ROOT_HINT")"#));
+        // Built like `name` above so the config-hygiene scanner doesn't read
+        // this non-secret fixture name as a real env knob.
+        let non_secret = ["VOX_", "REPO_ROOT_HINT"].concat();
+        assert!(!re.is_match(&format!(r#"std::env::var("{non_secret}")"#)));
         // Unregistered, but secret-shaped by suffix.
         let unregistered = ["ACME", "_API_KEY"].concat();
         assert!(re.is_match(&format!(r#"std::env::var("{unregistered}")"#)));

@@ -13,6 +13,16 @@ symbols:
     pattern: "\\bvox-ars(?:[^-\\w]|$)"
     replacement: "vox-openclaw-runtime"
     rationale: "Crate retired; ARS runtime types live in vox-openclaw-runtime. (vox-openclaw-runtime itself is the canonical replacement and is not flagged.)"
+  # KB Phase 3 (RET-02, D-02). Boundary patterns, not substrings: Phase 2's retained tools
+  # (vox_kb_search, vox_kb_get, vox_kb_cite, vox_kb_status, vox_kb_reindex) never match.
+  - id: voxkb-kbstore-surface
+    pattern: "\\bvox_kb_(?:create|list|delete|add_entry|delete_entry|list_entries|review_entry|get_feed|add_rule|list_rules|query|clip)\\b"
+    replacement: "vox_kb_search / vox_kb_get / vox_kb_cite, or the kb_findings inbox"
+    rationale: "The 12 legacy vox_kb_* CRUD tools were removed with no aliases (KB Phase 3, D-02)."
+  - id: voxkb-kbstore-type
+    pattern: "\\b(?:KbStore|KbRouter)\\b"
+    replacement: "vox_search Library retrieval and the kb_findings inbox"
+    rationale: "The LIKE-search store and the keyword router were removed in KB Phase 3 (RET-02)."
   - id: vox-lexer-crate
     pattern: "\\bvox-lexer\\b"
     replacement: "vox-compiler"

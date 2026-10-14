@@ -29,11 +29,19 @@ pub fn is_sentinel(path: &str) -> bool {
     SENTINEL_EXACT.contains(&path) || SENTINEL_PREFIX.iter().any(|p| path.starts_with(p))
 }
 
+/// Generated reports: written by `vox ci … --write`, read back only by `vox ci ssot-drift`,
+/// which the PR `linux` job runs on every PR. A change confined to them needs no test run.
+pub const GENERATED_CONTRACT_REPORTS: &str = "contracts/reports/";
+
 /// Non-graph `contracts/**` edits can change SSOT surfaces workspace-wide; force a full PR gate.
+/// Generated reports are the exception (see [`GENERATED_CONTRACT_REPORTS`]); every other
+/// contracts path still forces a full run, so a new reader of a contract can never be skipped.
 pub fn contracts_outside_graph_force_full(changed_files: &[String]) -> bool {
-    changed_files
-        .iter()
-        .any(|f| f.starts_with("contracts/") && f != CRATE_GRAPH_SENTINEL)
+    changed_files.iter().any(|f| {
+        f.starts_with("contracts/")
+            && f != CRATE_GRAPH_SENTINEL
+            && !f.starts_with(GENERATED_CONTRACT_REPORTS)
+    })
 }
 
 /// CI workflow edits can change gate behavior workspace-wide; force a full PR gate.
@@ -283,6 +291,20 @@ mod tests {
         ]));
         assert!(!super::contracts_outside_graph_force_full(&[
             CRATE_GRAPH_SENTINEL.into()
+        ]));
+    }
+
+    #[test]
+    fn generated_reports_alone_do_not_force_a_full_run_but_other_contracts_still_do() {
+        assert!(!super::contracts_outside_graph_force_full(&[
+            "contracts/reports/gui-surface-coverage.v1.json".into()
+        ]));
+        assert!(super::contracts_outside_graph_force_full(&[
+            "contracts/reports/gui-surface-coverage.v1.json".into(),
+            "contracts/ci/crate-edges.allow.v1.json".into()
+        ]));
+        assert!(super::contracts_outside_graph_force_full(&[
+            "contracts/brand-new-dir/x.yaml".into()
         ]));
     }
 

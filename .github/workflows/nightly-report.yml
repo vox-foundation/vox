@@ -20,13 +20,13 @@ on:
       - Differential gate (nightly, interp vs native)
       - Mutation (nightly, vox-compiler)
       - Harness Eval (Nightly Live)
-      - Mobile E2E (iOS)
       - Mobile E2E - Android
       - GUI Cross-Platform Build (Win/macOS/Ubuntu)
       - Nightly Artifacts
       - Nightly
       - OpenSSF Scorecard
       - CI liveness
+      - Cache seed
     types: [completed]
 
 permissions:

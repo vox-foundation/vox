@@ -16,8 +16,8 @@ export function installTauriMock(viewKey: string): void {
   }
   shared.seedMockEnvironment(viewKey);
 
-  const modelIds = ['mens-8b', 'opus-4-8', 'sonnet-4-6', 'haiku-4-5', 'qwen-coder-7b', 'local-llama'];
-  const modelNames = ['Mens 8B', 'Opus 4.8', 'Sonnet 4.6', 'Haiku 4.5', 'Qwen Coder 7B', 'Local Llama'];
+  const modelIds = ['mens-8b', 'anthropic/claude-opus', 'anthropic/claude-sonnet', 'anthropic/claude-haiku', 'qwen-coder-7b', 'local-llama'];
+  const modelNames = ['Mens 8B', 'Claude Opus', 'Claude Sonnet', 'Claude Haiku', 'Qwen Coder 7B', 'Local Llama'];
   const models = Array.from({ length: 6 }, (_, i) => ({
     id: modelIds[i],
     // ModelsView reads `id`; harness route is HarnessRedirect (composer parity). Provide all model keys.
@@ -128,6 +128,7 @@ export function installTauriMock(viewKey: string): void {
         .map(({ resolved: _r, ...a }) => a);
       return { success: true, data: { approvals: pending } };
     }
+    if (tool.includes('feedback_list')) return { success: true, data: { needs_you: [], withheld: [] } };
     if (tool.includes('git_diff')) return { success: true, data: 'diff --git a/README.md b/README.md\n' };
     if (tool.includes('skill') || tool.includes('plugin')) return { skills: [{ id: 'superpowers', name: 'Superpowers', enabled: true }], plugins: [{ id: 'design', name: 'Design' }] };
     return { ok: true };
@@ -141,7 +142,7 @@ export function installTauriMock(viewKey: string): void {
       try {
         switch (cmd) {
         case 'list_model_cards': return models;
-        case 'get_active_model': return 'opus-4-8';
+        case 'get_active_model': return 'anthropic/claude-sonnet';
         case 'get_auto_model_recommendation':
           return {
             selected_model_id: 'mens/runs/qwen3_27b_metal_check/quant_q6_k',
@@ -149,14 +150,65 @@ export function installTauriMock(viewKey: string): void {
             tier_reason: 'High-fidelity 6-bit quantized 27B',
           };
         case 'get_routing_summary_live':
+          // Family keys from the bootstrap catalog (see e2e/lib/tauriMock.families.test.ts); no live catalog in e2e.
           return {
-            active_model: 'opus-4-8', exploration_spent_usd: 2.4, exploration_budget_usd: 50,
+            active_model: 'anthropic/claude-sonnet', exploration_spent_usd: 2.4, exploration_budget_usd: 50,
             arm_count: 6, model_count: 7,
-            decision_preview: { selected_model: 'opus-4-8', discovery_state: 'exploit',
-              alternatives: ['sonnet-4-6', 'haiku-4-5'], rejection_reasons: ['budget cap'],
+            family: 'anthropic/claude-sonnet', resolved_from: 'bootstrap', reason: 'lowest cost that fits the mode',
+            decision_preview: { selected_model: 'anthropic/claude-sonnet', discovery_state: 'confirmed',
+              alternatives: ['anthropic/claude-haiku', 'deepseek/deepseek-flash'], rejection_reasons: ['budget cap'],
               intelligence_score: 0.92, efficiency_score: 0.7, latency_score: 0.6 },
           };
-        case 'get_selection_policy': return { chain: ['opus-4-8', 'sonnet-4-6', 'haiku-4-5'], free_tier: true };
+        case 'explain_routing':
+          return {
+            mode: args?.mode ?? 'efficiency',
+            task: args?.task ?? 'codegen',
+            complexity: args?.complexity ?? 7,
+            chosen: 'acme/widget-5.5',
+            only_candidate: false,
+            total_models: 120,
+            candidates: [
+              {
+                id: 'acme/widget-5.5',
+                provider: 'acme',
+                tier: 'Fast',
+                is_free: false,
+                price_out_per_m: 0.9,
+                score: 0.65,
+                quality: { value: 0.6, source: 'inherited', index: 38.2, inherited_from: 'acme/widget-5.0' },
+                parts: { quality: 0.3, efficiency: 0.2, latency: 0.1, other: 0.05, bonuses: 0 },
+              },
+              {
+                id: 'acme/widget-9',
+                provider: 'acme',
+                tier: 'Pro',
+                is_free: false,
+                price_out_per_m: null,
+                score: 0.61,
+                quality: { value: 0.8, source: 'benchmark', index: 46.3, inherited_from: null },
+                parts: { quality: 0.3, efficiency: 0.2, latency: 0.1, other: 0.05, bonuses: 0 },
+              },
+            ],
+            excluded: [
+              { reason: 'flagship_excluded_by_mode', count: 4, examples: ['acme/widget-flagship-9', 'acme/widget-flagship-8'] },
+              { reason: 'superseded', count: 1, examples: ['acme/widget-4.8'] },
+            ],
+          };
+        case 'get_routing_health':
+          return {
+            schema_version: 1,
+            checked_at_unix: 0,
+            models: 120,
+            cloud_models: 100,
+            benchmarked: 40,
+            inherited: 7,
+            unknown_tier_cloud: 0,
+            quality_scale: 'derived',
+            price_bands: 'derived',
+            efficient_pick: 'acme/widget-5.5',
+            violations: [],
+          };
+        case 'get_selection_policy': return { chain: ['anthropic/claude-opus', 'anthropic/claude-sonnet', 'anthropic/claude-haiku'], free_tier: true };
         case 'get_routing_intentions': return [
           { id: 'axis-quality', parent: 'Quality', branch: 'Opus', phase: 'Validated', conf: 0.92, note: 'Highest reasoning tier' },
           { id: 'axis-speed', parent: 'Latency', branch: 'Haiku', phase: 'Active', conf: 0.74, note: 'Fast path for chat' },
@@ -197,8 +249,8 @@ export function installTauriMock(viewKey: string): void {
           cost_per_success_usd: [0.0, 0.02, 0.004, 0.001, 0.0, 0.0][i],
           quality_score: m.quality_score,
         }));
-        case 'explain_model_selection': return { chosen: 'opus-4-8', reason: 'highest quality within budget' };
-        case 'suggest_model_for_task': return 'sonnet-4-6';
+        case 'explain_model_selection': return { chosen: 'anthropic/claude-sonnet', reason: 'lowest cost that fits the mode' };
+        case 'suggest_model_for_task': return 'anthropic/claude-sonnet';
         case 'get_ludus_profile': return ludusProfile;
         case 'list_ludus_notifications': return [
           { id: 'n1', level: 'ok', title: 'Level up! → 27', message: 'Reached Centurio', created_at: 1717400000000, kind: 'LevelUp' },
@@ -410,7 +462,7 @@ export function installTauriMock(viewKey: string): void {
             content: background ? '' : 'Mock quick-chat reply.',
             created_at: new Date().toISOString(),
             task_id: background ? '101' : null,
-            model_id: args?.input?.model_override ?? 'opus-4-8',
+            model_id: args?.input?.model_override ?? 'anthropic/claude-opus',
             events: [],
           };
         }
@@ -461,7 +513,7 @@ export function installTauriMock(viewKey: string): void {
           if (hit) hit.state = 'done';
           return hit ? { ...hit } : null;
         }
-        case 'inference_provider_status': return [{ provider: 'OpenRouter', key_present: true, is_local: false, local_reachable: null, local_models: [] }, { provider: 'Ollama', key_present: true, is_local: true, local_reachable: true, local_models: ['llama3.2'] }, { provider: 'Mens', key_present: true, is_local: true, local_reachable: true, local_models: ['mens-8b', 'mens/e2e-smoke-metal'] }];
+        case 'inference_provider_status': return [{ provider: 'OpenRouter', key_present: true, is_local: false, local_reachable: null, local_models: [] }, { provider: 'Ollama', key_present: true, is_local: true, local_reachable: true, local_models: ['local-llama-small'] }, { provider: 'Mens', key_present: true, is_local: true, local_reachable: true, local_models: ['mens-8b', 'mens/e2e-smoke-metal'] }];
         case 'set_active_model': return null;
         case 'get_archive_status': return { swhid: null, swh_task_id: null, swh_task_status: null, zenodo_doi: null, zenodo_state: null };
         case 'get_completion_report': return { score: 100, warnings: [], is_complete: true };

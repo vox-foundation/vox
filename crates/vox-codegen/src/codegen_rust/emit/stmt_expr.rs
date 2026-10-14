@@ -398,6 +398,29 @@ fn emit_return_stmt(
                 })
                 .collect();
             format!("Ok({struct_name} {{ {} }})", props.join(", "))
+        } else if let HirExpr::ObjectLit(..) = v
+            && let Some(struct_name) = enclosing_return_type.and_then(super::types::struct_name)
+        {
+            // `fn f() to Table { return { .. } }`: the literal emits as JSON; convert it
+            // through serde so omitted optional fields still default.
+            let json = emit_expr_with(
+                v,
+                is_route,
+                is_actor,
+                mutation_tx,
+                inferred_types,
+                usage,
+                OwnershipMode::Owned,
+                None,
+            );
+            if json.starts_with("serde_json::json!") {
+                format!(
+                    "serde_json::from_value::<{struct_name}>({json}).expect(\"vox codegen: object literal as {struct_name}\")"
+                )
+            } else {
+                // Typeck already resolved the literal to the struct; it emitted a struct literal.
+                json
+            }
         } else {
             emit_expr_with(
                 v,
@@ -913,7 +936,8 @@ pub(super) fn emit_expr_with(
                 .iter()
                 .map(|arg| emit(&arg.value, OwnershipMode::Owned))
                 .collect();
-            let script_auto_await = super::script_db::script_db_emit_mode()
+            let script_auto_await = (super::script_db::script_db_emit_mode()
+                || super::script_db::app_lane_mode())
                 && matches!(callee.as_ref(), HirExpr::Ident(name, _) if super::script_db::script_async_call(name));
             if *is_await || script_auto_await {
                 format!("{}({}).await", c, a.join(", "))

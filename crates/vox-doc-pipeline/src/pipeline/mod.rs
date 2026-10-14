@@ -1,10 +1,19 @@
 //! Documentation linter for `docs/src/`. Checks frontmatter, code fences,
 //! training rationale, and embedded Vox doctests.
+//!
+//! Facet backlog tools (KB Phase 4, D-04): `--seed-facet-backlog --epoch-note <why>` writes
+//! `contracts/documentation/kb-facet-backlog.v1.yaml` from live violations (re-seeding is
+//! USER-AUTHORIZED-ONLY); `--tighten-facet-backlog` only removes rows and rule ids.
 
 pub mod anchors;
 pub mod doctest;
+mod facet_backlog;
+mod facets;
 mod lint;
 pub mod types;
+
+pub use facet_backlog::facet_backlog_gate_failures;
+pub use vox_kb_facets::BACKLOG_REL as FACET_BACKLOG_REL;
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -71,6 +80,7 @@ fn workflow_for_kind(kind: &LintKind) -> &'static str {
         LintKind::ReadmeSyncSourceMissing { .. } => {
             "restore README.md and docs/src/index.mdx — the sync check can't run without both"
         }
+        LintKind::Facet(i) => i.workflow(),
     }
 }
 
@@ -98,6 +108,7 @@ fn kind_label(kind: &LintKind) -> &'static str {
         LintKind::ReadmeSyncMissingBlock { .. } => "readme-sync-missing-block",
         LintKind::ReadmeSyncMissingAnchor { .. } => "readme-sync-missing-anchor",
         LintKind::ReadmeSyncSourceMissing { .. } => "readme-sync-source-missing",
+        LintKind::Facet(i) => i.rule_id(),
     }
 }
 
@@ -234,6 +245,28 @@ pub fn lint_in(root: &Path, args: &[String]) -> i32 {
         return 1;
     }
 
+    // Backlog ratchet tools. Handled before `FacetCtx::load`: seeding must work with no backlog.
+    let tool = |r: Result<String, String>| match r {
+        Ok(msg) => {
+            println!("{msg}");
+            0
+        }
+        Err(msg) => {
+            eprintln!("{msg}");
+            1
+        }
+    };
+    if args.contains(&"--seed-facet-backlog".to_string()) {
+        let note = args
+            .windows(2)
+            .find(|w| w[0] == "--epoch-note")
+            .map_or("", |w| w[1].as_str());
+        return tool(facet_backlog::seed(root, note));
+    }
+    if args.contains(&"--tighten-facet-backlog".to_string()) {
+        return tool(facet_backlog::tighten(root));
+    }
+
     if corpus_mode {
         let mut md_files = Vec::new();
         collect_md_files(&docs_src, &mut md_files);
@@ -304,11 +337,29 @@ pub fn lint_in(root: &Path, args: &[String]) -> i32 {
     }
 
     let mut lint_errors: Vec<LintError> = Vec::new();
+    // Taxonomy + backlog load once, before the parallel file pass. A missing or invalid
+    // contract is one hard error (fail closed), never "no facet rules apply".
+    let facet_ctx = match facets::FacetCtx::load(root) {
+        Ok(ctx) => Some(ctx),
+        Err(issue) => {
+            lint_errors.push(LintError {
+                file: root.to_path_buf(),
+                line: 0,
+                kind: LintKind::Facet(issue),
+            });
+            None
+        }
+    };
     if lint_targets.is_empty() {
-        collect_lint_errors_target_with_root(&docs_src, &mut lint_errors, root);
+        collect_lint_errors_target_with_root(&docs_src, &mut lint_errors, root, facet_ctx.as_ref());
     } else {
         for target in &lint_targets {
-            collect_lint_errors_target_with_root(target, &mut lint_errors, root);
+            collect_lint_errors_target_with_root(
+                target,
+                &mut lint_errors,
+                root,
+                facet_ctx.as_ref(),
+            );
         }
     }
     // Always run, even in scoped mode: it's two cheap file reads (README.md,
@@ -474,33 +525,44 @@ pub fn lint_in(root: &Path, args: &[String]) -> i32 {
                         path
                     );
                 }
+                LintKind::Facet(i) => {
+                    eprintln!(
+                        "  {}  {}:{} — {} ({})",
+                        if i.is_hard() { "ERROR" } else { "WARN " },
+                        rel.display(),
+                        e.line,
+                        i.message(),
+                        i.rule_id()
+                    );
+                }
             }
         }
 
         let hard_errors = lint_errors
             .iter()
             .filter(|e| {
-                matches!(
-                    e.kind,
-                    LintKind::UnclosedCodeFence
-                        | LintKind::ShortCodeFence { .. }
-                        | LintKind::GenericDescription
-                        | LintKind::UnknownCategory { .. }
-                        | LintKind::UnknownStatus { .. }
-                        | LintKind::UnknownSchemaType { .. }
-                        | LintKind::BrokenIncludeFile { .. }
-                        | LintKind::BrokenIncludeAnchor { .. }
-                        | LintKind::WholeFileIncludeHasTrainingHeader { .. }
-                        | LintKind::MissingTrainingRationale
-                        | LintKind::HandAuthoredLastUpdated
-                        | LintKind::HandAuthoredLastVerified
-                        | LintKind::DocTestFailed { .. }
-                        | LintKind::DuplicateFrontmatter { .. }
-                        | LintKind::ReadmeSyncDrift { .. }
-                        | LintKind::ReadmeSyncMissingBlock { .. }
-                        | LintKind::ReadmeSyncMissingAnchor { .. }
-                        | LintKind::ReadmeSyncSourceMissing { .. }
-                )
+                matches!(&e.kind, LintKind::Facet(i) if i.is_hard())
+                    || matches!(
+                        e.kind,
+                        LintKind::UnclosedCodeFence
+                            | LintKind::ShortCodeFence { .. }
+                            | LintKind::GenericDescription
+                            | LintKind::UnknownCategory { .. }
+                            | LintKind::UnknownStatus { .. }
+                            | LintKind::UnknownSchemaType { .. }
+                            | LintKind::BrokenIncludeFile { .. }
+                            | LintKind::BrokenIncludeAnchor { .. }
+                            | LintKind::WholeFileIncludeHasTrainingHeader { .. }
+                            | LintKind::MissingTrainingRationale
+                            | LintKind::HandAuthoredLastUpdated
+                            | LintKind::HandAuthoredLastVerified
+                            | LintKind::DocTestFailed { .. }
+                            | LintKind::DuplicateFrontmatter { .. }
+                            | LintKind::ReadmeSyncDrift { .. }
+                            | LintKind::ReadmeSyncMissingBlock { .. }
+                            | LintKind::ReadmeSyncMissingAnchor { .. }
+                            | LintKind::ReadmeSyncSourceMissing { .. }
+                    )
             })
             .count();
         print_grouped_summary(&lint_errors);
@@ -568,6 +630,7 @@ mod tests {
             std::thread::current().id()
         ));
         std::fs::create_dir_all(root.join("docs/src")).unwrap();
+        write_facet_contracts(&root, " []");
         root
     }
 
@@ -607,5 +670,100 @@ mod tests {
         // Drift under `root` must be reported.
         write_readme_sync_fixture(&root, "Same text.", "Different text.");
         assert_ne!(lint_in(&root, &["--paths=index.mdx".to_string()]), 0);
+    }
+
+    const FACET_TAXONOMY: &str =
+        include_str!("../../../../contracts/documentation/kb-taxonomy.v1.yaml");
+
+    fn write_facet_contracts(root: &Path, backlog_docs: &str) {
+        let c = root.join("contracts/documentation");
+        std::fs::create_dir_all(&c).unwrap();
+        std::fs::write(c.join("kb-taxonomy.v1.yaml"), FACET_TAXONOMY).unwrap();
+        std::fs::write(
+            c.join("kb-facet-backlog.v1.yaml"),
+            format!("schema_version: 1\nepoch: 1\nepoch_note: test fixture\ndocs:{backlog_docs}\n"),
+        )
+        .unwrap();
+    }
+
+    const BASE_FM: &str = "title: \"Doc\"\ndescription: \"A specific hand-written description for this fixture page.\"\ncategory: \"Concepts\"";
+
+    #[test]
+    fn lint_in_facet_backlog_tracer() {
+        let root = fixture_root();
+        write_readme_sync_fixture(&root, "Same text.", "Same text.");
+        write_facet_contracts(
+            &root,
+            "\n  - path: docs/src/old.md\n    rules: [facet-missing-authorship, facet-missing-domain, facet-missing-summary, facet-missing-topic]",
+        );
+        let bare = format!("---\n{BASE_FM}\n---\n# Doc\n\nbody\n");
+        std::fs::write(root.join("docs/src/old.md"), &bare).unwrap();
+        std::fs::write(root.join("docs/src/new.md"), &bare).unwrap();
+        let words = vec!["word"; 40].join(" ");
+        std::fs::write(
+            root.join("docs/src/good.md"),
+            format!(
+                "---\n{BASE_FM}\ntopic: search-retrieval\ndomain: knowledge\nauthorship: human\n---\n# Doc\n\n<!-- kb:summary -->\n{words}\n<!-- /kb:summary -->\n"
+            ),
+        )
+        .unwrap();
+        assert_eq!(lint_in(&root, &["--paths=old.md".to_string()]), 0);
+        assert_eq!(lint_in(&root, &["--paths=new.md".to_string()]), 1);
+        assert_eq!(lint_in(&root, &["--paths=good.md".to_string()]), 0);
+    }
+
+    #[test]
+    fn missing_contract_is_one_hard_error() {
+        let root = fixture_root();
+        write_readme_sync_fixture(&root, "Same text.", "Same text.");
+        std::fs::write(
+            root.join("docs/src/a.md"),
+            format!("---\n{BASE_FM}\n---\n# A\n"),
+        )
+        .unwrap();
+        write_facet_contracts(&root, " []");
+        std::fs::remove_file(root.join("contracts/documentation/kb-taxonomy.v1.yaml")).unwrap();
+        let err = facets::FacetCtx::load(&root)
+            .err()
+            .expect("load must fail without the taxonomy");
+        assert_eq!(err.rule_id(), "facet-contract-unreadable");
+        assert_eq!(lint_in(&root, &["--paths=a.md".to_string()]), 1);
+        // an unreadable backlog fails the same way
+        write_facet_contracts(&root, " []");
+        std::fs::remove_file(root.join("contracts/documentation/kb-facet-backlog.v1.yaml"))
+            .unwrap();
+        assert_eq!(lint_in(&root, &["--paths=a.md".to_string()]), 1);
+    }
+
+    #[test]
+    fn stale_backlog_entry_warns_but_exits_zero() {
+        let root = fixture_root();
+        write_readme_sync_fixture(&root, "Same text.", "Same text.");
+        write_facet_contracts(
+            &root,
+            "\n  - path: docs/src/good.md\n    rules: [facet-missing-topic]",
+        );
+        let words = vec!["word"; 40].join(" ");
+        std::fs::write(
+            root.join("docs/src/good.md"),
+            format!(
+                "---\n{BASE_FM}\ntopic: search-retrieval\ndomain: knowledge\nauthorship: human\n---\n# Doc\n\n<!-- kb:summary -->\n{words}\n<!-- /kb:summary -->\n"
+            ),
+        )
+        .unwrap();
+        assert_eq!(lint_in(&root, &["--paths=good.md".to_string()]), 0);
+    }
+
+    #[test]
+    fn empty_backlog_holds_every_doc() {
+        let root = fixture_root();
+        write_readme_sync_fixture(&root, "Same text.", "Same text.");
+        write_facet_contracts(&root, " []");
+        std::fs::write(
+            root.join("docs/src/a.md"),
+            format!("---\n{BASE_FM}\n---\n# A\n"),
+        )
+        .unwrap();
+        assert_eq!(lint_in(&root, &["--paths=a.md".to_string()]), 1);
     }
 }

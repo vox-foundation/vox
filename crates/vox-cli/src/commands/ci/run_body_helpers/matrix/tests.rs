@@ -49,15 +49,6 @@ fn feature_sets_include_script_execution_lane() {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — feature matrix lane until oratio dep stable in CI"]
-fn feature_sets_include_populi_oratio_lane() {
-    assert!(
-        FEATURE_SETS.contains(&"oratio"),
-        "CI feature matrix must compile the oratio (Oratio STT) lane"
-    );
-}
-
-#[test]
 fn canonical_mens_gate_manifest_exists_in_repo() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join("..");
     let resolved = resolve_mens_gate_manifest_path(&root);

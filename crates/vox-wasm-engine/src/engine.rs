@@ -95,8 +95,7 @@ impl WasmHost {
 
         // Preopened directories.
         for preopen in &opts.preopens {
-            let (dp, fp) = preopen.wasi_perms();
-            builder.preopened_dir(&preopen.host, &preopen.guest, dp, fp)?;
+            builder.preopened_dir(&preopen.host, &preopen.guest, preopen.wasi_perms())?;
         }
 
         let wasi_ctx = builder.build_p1();
@@ -137,5 +136,23 @@ impl WasmHost {
 impl Default for WasmHost {
     fn default() -> Self {
         Self::new().expect("Failed to create default WasmHost")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_has_no_fuel_and_with_fuel_records_it() {
+        assert_eq!(WasmHost::new().unwrap().fuel, None);
+        assert_eq!(WasmHost::with_fuel(1_000).unwrap().fuel, Some(1_000));
+    }
+
+    #[test]
+    fn execute_errors_on_missing_module() {
+        let host = WasmHost::new().unwrap();
+        let missing = Path::new("/nonexistent/vox-wasm-engine-test.wasm");
+        assert!(host.execute(missing, &WasmExecOpts::default()).is_err());
     }
 }

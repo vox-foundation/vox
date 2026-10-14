@@ -5,6 +5,8 @@ use std::sync::Arc;
 
 use vox_db::VoxDb;
 
+use crate::capture::WebFindingCapture;
+
 /// Cross-platform retrieval runtime inputs (orchestrator, MCP, CLI).
 #[derive(Clone)]
 pub struct SearchRuntimeContext {
@@ -18,6 +20,8 @@ pub struct SearchRuntimeContext {
     pub memory_md_path: PathBuf,
     /// Optional MCP/orchestrator trace id for logging and outbound HTTP (e.g. Qdrant).
     pub trace_id: Option<String>,
+    /// Sink for web hits (inbox capture). `None` means web hits are persisted nowhere.
+    pub web_capture: Option<Arc<dyn WebFindingCapture>>,
 }
 
 impl std::fmt::Debug for SearchRuntimeContext {
@@ -28,6 +32,7 @@ impl std::fmt::Debug for SearchRuntimeContext {
             .field("memory_log_dir", &self.memory_log_dir)
             .field("memory_md_path", &self.memory_md_path)
             .field("has_trace_id", &self.trace_id.is_some())
+            .field("has_web_capture", &self.web_capture.is_some())
             .finish()
     }
 }
@@ -46,6 +51,7 @@ impl SearchRuntimeContext {
             memory_log_dir,
             memory_md_path,
             trace_id: None,
+            web_capture: None,
         }
     }
 
@@ -53,6 +59,13 @@ impl SearchRuntimeContext {
     #[must_use]
     pub fn with_trace_id(mut self, trace_id: Option<String>) -> Self {
         self.trace_id = trace_id;
+        self
+    }
+
+    /// Attach (or clear) the web-hit capture sink.
+    #[must_use]
+    pub fn with_web_capture(mut self, sink: Option<Arc<dyn WebFindingCapture>>) -> Self {
+        self.web_capture = sink;
         self
     }
 }
@@ -108,6 +121,11 @@ mod semcov_wave2_tests {
         assert!(ctx.trace_id.is_none());
         let s = format!("{ctx:?}");
         assert!(s.contains("has_trace_id: false"), "got: {s}");
+    }
+
+    #[test]
+    fn debug_masks_web_capture_as_bool() {
+        assert!(format!("{:?}", ctx_no_db()).contains("has_web_capture: false"));
     }
 
     #[test]

@@ -104,49 +104,18 @@ jobs:
         working-directory: ./crates/vox-gui/ui
         run: pnpm build
 
-      # vox-gui's tauri.conf.json declares `externalBin: ["../../target/release/vox"]`
-      # (a Tauri sidecar) — tauri-action does not build or universalize this binary
-      # itself, so it must be staged at the triple-suffixed sidecar path before
-      # "Build Tauri Application" or crates/vox-gui/build.rs panics. See the
-      # "vox-gui sidecar missing" entry in AGENTS.md's Perennial Bug Patterns.
-      - name: Build vox CLI sidecar (release, macOS universal)
-        if: matrix.target == 'universal-apple-darwin'
-        run: |
-          # rustup target add (no channel arg) always targets whatever
-          # toolchain cargo will actually use here — the repo's pinned
-          # rust-toolchain.toml channel, matching the toolchain installed by
-          # the ./.github/actions/setup-rust step above. Installing this via
-          # the action's `targets:` input instead left x86_64-apple-darwin's
-          # core/std missing at build time.
-          rustup target add x86_64-apple-darwin
-          cargo build -p vox-cli --profile dist --target aarch64-apple-darwin
-          cargo build -p vox-cli --profile dist --target x86_64-apple-darwin
-          mkdir -p "$(dirname target/release/vox-universal-apple-darwin)"
-          # Universal builds compile each arch separately (TARGET=<real triple>),
-          # so the per-arch sidecar names must exist for cargo/build.rs, and the
-          # lipo'd universal name must exist for the final bundling pass.
-          cp target/aarch64-apple-darwin/dist/vox target/release/vox-aarch64-apple-darwin
-          cp target/x86_64-apple-darwin/dist/vox target/release/vox-x86_64-apple-darwin
-          lipo -create -output target/release/vox-universal-apple-darwin \
-            target/aarch64-apple-darwin/dist/vox \
-            target/x86_64-apple-darwin/dist/vox
-
-      - name: Build vox CLI sidecar (release)
-        if: matrix.target != 'universal-apple-darwin'
-        run: cargo build -p vox-cli --profile dist --target ${{ matrix.target }}
-
-      - name: Stage Tauri external sidecar (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force (Split-Path "target/release/vox-${{ matrix.target }}.exe") | Out-Null
-          Copy-Item target/${{ matrix.target }}/dist/vox.exe target/release/vox-${{ matrix.target }}.exe -Force
-
-      - name: Stage Tauri external sidecar (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          mkdir -p "$(dirname "target/release/vox-${{ matrix.target }}")"
-          cp target/${{ matrix.target }}/dist/vox target/release/vox-${{ matrix.target }}
+      # tauri-action does not build the externalBin sidecars (vox, vox-ml-cli, ...;
+      # tauri.conf.json is the list), so they must be staged at their
+      # triple-suffixed paths first or crates/vox-gui/build.rs panics. For
+      # universal-apple-darwin the action builds both arches and stages the
+      # per-arch names (each arch compiles with TARGET=<real triple>) plus the
+      # lipo'd universal name the bundling pass reads. It also `rustup target add`s
+      # x86_64-apple-darwin itself: setup-rust's `targets:` input left its
+      # core/std missing at build time.
+      - name: Stage Tauri external sidecars
+        uses: ./.github/actions/stage-tauri-sidecars
+        with:
+          target: ${{ matrix.target }}
 
       # Build-only: `tagName`/`releaseName`/`releaseId` are deliberately
       # omitted. Per tauri-action's docs, omitting all three makes it build

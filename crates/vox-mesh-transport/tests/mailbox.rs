@@ -112,6 +112,7 @@ async fn a_message_queued_for_an_offline_peer_is_delivered_when_it_comes_back() 
     outbox.queue(&receiver_id, &msg("k1", "hello")).unwrap();
 
     let delivered = timeout(
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
         Duration::from_secs(20),
         outbox.flush(&sender, &sender_trust),
     )
@@ -137,6 +138,7 @@ async fn a_message_queued_for_an_offline_peer_is_delivered_when_it_comes_back() 
     let reopened = Outbox::at(out_dir.path());
     assert_eq!(reopened.depth(), 1, "the queue is on disk, not in memory");
     let delivered = timeout(
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
         Duration::from_secs(20),
         reopened.flush(&sender, &reopened_trust),
     )
@@ -169,6 +171,7 @@ async fn a_redelivery_after_a_lost_ack_does_not_duplicate() {
         outbox
             .queue(&receiver.id, &msg("same-key", "body"))
             .unwrap();
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
         timeout(Duration::from_secs(20), outbox.flush(&sender, &trust))
             .await
             .expect("no timeout");
@@ -196,6 +199,7 @@ async fn an_untrusted_sender_cannot_write_to_the_inbox() {
     let out_dir = tempfile::tempdir().unwrap();
     let outbox = Outbox::at(out_dir.path());
     outbox.queue(&receiver.id, &msg("k", "payload")).unwrap();
+    // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
     let delivered = timeout(Duration::from_secs(20), outbox.flush(&sender, &trust))
         .await
         .expect("no timeout");
@@ -227,6 +231,7 @@ async fn revoking_trust_stops_delivery_mid_connection() {
     let out_dir = tempfile::tempdir().unwrap();
     let outbox = Outbox::at(out_dir.path());
     outbox.queue(&receiver.id, &msg("first", "a")).unwrap();
+    // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
     let delivered = timeout(Duration::from_secs(20), outbox.flush(&sender, &trust))
         .await
         .expect("no timeout");
@@ -234,6 +239,7 @@ async fn revoking_trust_stops_delivery_mid_connection() {
 
     receiver.trust.untrust(&sender_id).unwrap();
     outbox.queue(&receiver.id, &msg("second", "b")).unwrap();
+    // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
     let delivered = timeout(Duration::from_secs(20), outbox.flush(&sender, &trust))
         .await
         .expect("no timeout");
@@ -323,6 +329,7 @@ async fn a_peer_with_no_stored_address_is_skipped_rather_than_dialed() {
     let outbox = Outbox::at(out_dir.path());
     outbox.queue(&peer, &msg("k", "body")).unwrap();
 
+    // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
     let delivered = timeout(Duration::from_secs(5), outbox.flush(&sender, &trust))
         .await
         .expect("an address-less peer must be skipped, not dialed until timeout");

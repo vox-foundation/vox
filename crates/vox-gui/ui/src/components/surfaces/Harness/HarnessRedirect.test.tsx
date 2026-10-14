@@ -14,6 +14,11 @@ describe('HarnessRedirect', () => {
     expect(title.textContent?.toLowerCase()).toMatch(/composer|loquela/);
   });
 
+  it('titles itself at h2, directly under the shell h1 (axe heading-order)', () => {
+    render(<HarnessRedirect onFocusComposer={vi.fn()} />);
+    expect(screen.getByRole('heading', { level: 2, name: 'Quick Harness lives in the composer' })).toBeTruthy();
+  });
+
   it('calls onFocusComposer when action button is clicked', () => {
     const onFocusComposer = vi.fn();
     render(<HarnessRedirect onFocusComposer={onFocusComposer} />);

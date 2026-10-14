@@ -79,6 +79,7 @@ contracts/reports/gui-surface-coverage.v1.json                   linguist-genera
 contracts/reports/gui-surface-registry.v1.json                   linguist-generated=true -diff
 contracts/reports/gui-visual-review/bundle-cache.v1.json         linguist-generated=true -diff
 contracts/reports/gui-visual-review/bundle-digest.md             linguist-generated=true -diff
+contracts/kb/eval/corpus.jsonl                                  linguist-generated=true -diff
 **/review-bundle/**                                              linguist-generated=true -diff
 # Generated Docs Freshness ledger (regen: `vox audit docs`):
 contracts/reports/docs-freshness/ledger.v1.json                  linguist-generated=true -diff

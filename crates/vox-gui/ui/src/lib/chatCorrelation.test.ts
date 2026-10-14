@@ -150,8 +150,8 @@ describe('chatReducer', () => {
     let s = chatReducer(initialChatState, { type: 'submit', runId: 'R1', prompt: 'hi' });
     s = chatReducer(s, { type: 'submitResolved', runId: 'R1', taskId: '7' });
     s = chatReducer(s, evt({ type: 'task_started', task_id: 7, agent_id: 3 }));
-    s = chatReducer(s, evt({ type: 'cost_incurred', agent_id: 3, provider: 'openrouter', model: 'anthropic/claude-opus-4.7' }));
-    expect(assistant(s, 'R1')?.modelId).toBe('anthropic/claude-opus-4.7');
+    s = chatReducer(s, evt({ type: 'cost_incurred', agent_id: 3, provider: 'openrouter', model: 'anthropic/claude-opus' }));
+    expect(assistant(s, 'R1')?.modelId).toBe('anthropic/claude-opus');
   });
 
   it('keeps the first modelId when multiple cost frames arrive', () => {

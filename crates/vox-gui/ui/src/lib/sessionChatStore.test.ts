@@ -282,9 +282,9 @@ describe('sessionChatStore', () => {
     });
     store = sessionChatReducer(store, {
       type: 'agentEvent',
-      event: evt({ type: 'cost_incurred', agent_id: 3, provider: 'openrouter', model: 'anthropic/claude-opus-4.7' }),
+      event: evt({ type: 'cost_incurred', agent_id: 3, provider: 'openrouter', model: 'anthropic/claude-opus' }),
     });
     const assistant = getSessionMessages(store, 'sess-a').find(m => m.role === 'assistant');
-    expect(assistant?.modelId).toBe('anthropic/claude-opus-4.7');
+    expect(assistant?.modelId).toBe('anthropic/claude-opus');
   });
 });

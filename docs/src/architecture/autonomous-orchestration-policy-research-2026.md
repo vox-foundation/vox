@@ -690,7 +690,7 @@ Citations are split into three categories: **academic** (peer-reviewed papers an
 [^reflexion-pattern]: Agent Patterns — Reflexion Agent Pattern. https://agent-patterns.readthedocs.io/en/stable/patterns/reflexion.html
 [^tot-ibm]: IBM — What is Tree Of Thoughts Prompting? https://www.ibm.com/think/topics/tree-of-thoughts
 [^tot-stanford]: *More Effectively Searching Trees of Thought*. https://web.stanford.edu/class/archive/cs/cs224n/cs224n.1244/final-projects/KamyarJohnSalahiPranavGurusankarSathyaEdamadaka.pdf
-[^circuit-breaker]: DEV.to — *AI Agent Circuit Breakers*. https://dev.to/waxell/ai-agent-circuit-breakers-the-reliability-pattern-production-teams-are-missing-5bpg
+[^circuit-breaker]: DEV.to (user `waxell`) — *AI Agent Circuit Breakers: the reliability pattern production teams are missing*. The article has since been removed (404 as of 2026-10-08).
 [^paperclip-issue]: paperclipai/paperclip — *feat: Agent circuit breaker* issue. https://github.com/paperclipai/paperclip/issues/390
 [^ralph-claude]: DEV.to — *ralph-claude-code: The Technology to "Stop" AI Agents*. https://dev.to/tumf/ralph-claude-code-the-technology-to-stop-ai-agents-how-the-circuit-breaker-pattern-prevents-3di4
 [^ai-agent-failure]: MindStudio — *AI Agent Failure Pattern Recognition*. https://www.mindstudio.ai/blog/ai-agent-failure-pattern-recognition

@@ -9,7 +9,7 @@ schema_type: "TechArticle"
 
 # Local CI parity (pre-push)
 
-`vox ci pre-push` is the **`git push` hook** target (`cargo run -q -p vox-cli -- ci install-hooks`).
+`vox ci pre-push` is the **`git push` hook** target (installed by `vox run scripts/setup.vox`; the hook runs the installed `vox`, never `cargo run`).
 It runs **before** the remote receives objects.
 
 > **Canonical tier table:** `docs/superpowers/specs/2026-05-27-test-suite-perf-and-gate-tiers-design.md §4`
@@ -19,7 +19,7 @@ It runs **before** the remote receives objects.
 
 | Profile | Flags | What runs | Target wall-clock (post Phase 2+3) |
 | -------- | ----- | ----------- | ------------------- |
-| **Fast** (default) | _(none)_, or **`--quick`** | `cargo fmt --check`, **`vox ci line-endings`**, **`vox ci ssot-drift`** (includes **`contracts-index`**, **`docs-reality-audit verify`**, registry parity, …), **`vox ci check-links`**, **`vox ci retired-symbol-check`**, **`vox ci canonical-map-verify`**, **scoped** **`vox-doc-pipeline --lint-only`** + **`vox ci doctest-md --strict`** on changed `docs/src/**/*.md` (excludes **`docs/src/archive/`**), **`vox-drift-check`**. No workspace clippy / doc-inventory / scoped TOESTUB. | **≤60s** (arch-check cached). |
+| **Fast** (default) | _(none)_, or **`--quick`** | `cargo fmt --check`, **`vox ci line-endings`**, **`vox ci ssot-drift`** (includes **`contracts-index`**, **`docs-reality-audit verify`**, registry parity, …), **`vox ci check-links`**, **`vox ci retired-symbol-check`**, **`vox ci canonical-map-verify`**, **`vox kb eval --gate`** (retrieval ratchet + canary sweep, ~5s debug), the **facet backlog gate** (tighten-only vs the base ref; growth needs a user-authorized re-seed), **scoped** **`vox-doc-pipeline --lint-only`** + **`vox ci doctest-md --strict`** on changed `docs/src/**/*.md` (excludes **`docs/src/archive/`**), **`vox-drift-check`**. No workspace clippy / doc-inventory / scoped TOESTUB. | **≤60s** (arch-check cached). |
 | **Complete** | **`--complete`** | Everything in **fast**, plus **full-tree** doc lint + doctest under **`docs/src/`**, **`vox ci doc-inventory verify`**, workspace **`cargo clippy … -D warnings`**, scoped TOESTUB on changed `crates/<pkg>`. Matches the historical pre-merge static gate (without integration tests). | **≤180s** typical. |
 | **Full** | **`--full`** | **`--complete`** plus **`cargo nextest run --workspace --profile ci --no-fail-fast`** (slow `#[ignore]` tests excluded). | **≤120s** (slow excluded). |
 | **Full+cov** | **`--full --with-coverage`** | **`--full`** but uses **`cargo llvm-cov nextest`** + emits lcov/HTML report under `target/llvm-cov/`. | **≤260s**. |
@@ -64,10 +64,13 @@ Use **`vox ci ssot-drift`** for an aggregate check if you want one heavy command
 ## Install the git hook (one-time)
 
 ```bash
-cargo run -q -p vox-cli -- ci install-hooks
+vox run scripts/setup.vox
 ```
 
-This writes `.git/hooks/pre-push` as a thin delegate to **`vox ci pre-push`** (fast profile by default). See [AGENTS.md §VoxScript-First Glue Code](../../../AGENTS.md).
+Setup installs lefthook's hooks from `lefthook.yml` and the binaries they call (`vox`, `toestub`,
+`vox-drift-check`, via `cargo install --debug --target-dir target`, which reuses your dev build). The
+pre-push hook runs the installed **`vox ci pre-push`** (fast profile) and refuses a push to `main`; no
+hook ever builds. `vox ci install-hooks` re-runs just the lefthook step.
 
 ## Bypass (emergency only)
 

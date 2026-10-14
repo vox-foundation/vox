@@ -10,8 +10,8 @@ use crate::server_state::ServerState;
 /// respect agent scope and file locks. `every_write_tool_is_registered` fails if a name
 /// here is not in `TOOL_REGISTRY` (the previous list never was, so no gate ever fired).
 /// Not listed: `vox_inline_edit` only returns replacement text (the editor writes it),
-/// `vox_kb_*` write DB rows, and the search/scaffold/workspace tools write caches or
-/// whole trees rather than one path argument.
+/// and the search/scaffold/workspace tools write caches or whole trees rather than one
+/// path argument.
 pub(crate) const WRITE_TOOLS: &[&str] = &["vox_apply_structured_edit", "vox_generate_code"];
 
 /// Path argument key names for write tools (checked in order).
@@ -107,8 +107,10 @@ mod write_gate_tests {
     #[tokio::test]
     async fn scope_gate_rejects_a_path_outside_the_agent_scope() {
         let repo = tempfile::tempdir().unwrap();
+        // drift-allow(vox-path-literal): test fixture mirrors the on-disk layout
         std::fs::create_dir_all(repo.path().join(".vox/agents")).unwrap();
         std::fs::write(
+            // drift-allow(vox-path-literal): test fixture mirrors the on-disk layout
             repo.path().join(".vox/agents/builder.md"),
             "---\nscope: [\"src/**\"]\n---\n",
         )
@@ -128,8 +130,10 @@ mod write_gate_tests {
     #[tokio::test]
     async fn scope_gate_reads_generate_code_output_path() {
         let repo = tempfile::tempdir().unwrap();
+        // drift-allow(vox-path-literal): test fixture mirrors the on-disk layout
         std::fs::create_dir_all(repo.path().join(".vox/agents")).unwrap();
         std::fs::write(
+            // drift-allow(vox-path-literal): test fixture mirrors the on-disk layout
             repo.path().join(".vox/agents/builder.md"),
             "---\nscope: [\"src/**\"]\n---\n",
         )

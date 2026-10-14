@@ -687,6 +687,7 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
         vox_cli_ci::workflow_policy_guard::run(root)
     )?;
     ds!("cache_key_lint", vox_cli_ci::cache_key_lint::run(root))?;
+    ds!("kb_facets_ts", vox_cli_ci::kb_facets_ts::run(root, true))?;
     println!("ssot-drift: nested SSOT guards OK");
     Ok(())
 }
@@ -894,6 +895,18 @@ mod stale_ref_guard_tests {
         assert!(
             src.contains(&needle),
             "run_ssot_drift must call ds!(\"cache_key_lint\", ...)"
+        );
+    }
+
+    /// KB Phase 4 (D-02): `run_ssot_drift` must dispatch the kb-facets TS check, or a facet
+    /// schema change without a regenerated GUI type never blocks PR CI. Split needle as above.
+    #[test]
+    fn run_ssot_drift_dispatches_kb_facets_ts() {
+        let src = include_str!("docs.rs");
+        let needle = format!("{}{}", "ds!(\"kb_facets", "_ts\"");
+        assert!(
+            src.contains(&needle),
+            "run_ssot_drift must call ds!(\"kb_facets_ts\", ...)"
         );
     }
 }

@@ -6,6 +6,7 @@ import {
   CHILD_ORDER_BY_PARENT,
   labelForNavKey,
 } from '../../lib/navigation';
+import { useCurrentLang } from '../../hooks/useLanguage';
 import { recordGamifyGuiEvent } from '../../lib/gamifyGuiEvents';
 
 interface Props {
@@ -15,7 +16,8 @@ interface Props {
 }
 
 export function BreadcrumbBar({ viewKey, onNavigate, gamifyEnabled }: Props) {
-  const segments = breadcrumbsForView(viewKey);
+  const lang = useCurrentLang();
+  const segments = breadcrumbsForView(viewKey, lang);
   if (segments.length === 0 || viewKey === 'chat') return null;
 
   const { parent, child } = resolveNavigation(viewKey);
@@ -61,7 +63,7 @@ export function BreadcrumbBar({ viewKey, onNavigate, gamifyEnabled }: Props) {
     <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 px-1 pb-2">
       <div className="flex items-center gap-2">
         {segments.map((seg, i) => (
-          <React.Fragment key={seg.key}>
+          <React.Fragment key={`${i}:${seg.key}`}>
             {i > 0 && <span className="text-text-muted text-[10px]" aria-hidden="true">›</span>}
             {renderSegment(seg, i)}
           </React.Fragment>

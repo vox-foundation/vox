@@ -207,6 +207,7 @@ pub async fn verify_rust_code_in_sandbox(
             drop(stdin);
         }
         let output = match tokio::time::timeout(
+            // drift-allow(timeout-literal,duplicate-numeric-literal): local wait/poll bound, not an HTTP request timeout; a shared constant needs a vox-config edge
             std::time::Duration::from_secs(10),
             child.wait_with_output(),
         )
@@ -271,6 +272,7 @@ pub async fn verify_rust_code_in_sandbox(
             .stderr(std::process::Stdio::piped());
 
         let output =
+            // drift-allow(timeout-literal,duplicate-numeric-literal): local wait/poll bound, not an HTTP request timeout; a shared constant needs a vox-config edge
             match tokio::time::timeout(std::time::Duration::from_secs(10), cmd.output()).await {
                 Ok(res) => res?,
                 Err(_) => {

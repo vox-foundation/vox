@@ -10,7 +10,6 @@
   --color-void: var(--color-bg-base);
   --color-steel: var(--color-text-muted);
   --color-brass: rgb(var(--brass));
-  --color-amber-glow: rgb(var(--brass) / 0.5);
   --color-border: var(--color-border-subtle);
   --color-background: var(--color-bg-base);
   --color-primary: rgb(var(--brass));
@@ -122,7 +121,6 @@
     border: 2px solid rgb(var(--brass));
     border-radius: 50%;
     cursor: pointer;
-    box-shadow: 0 0 10px rgb(var(--brass) / 0.5);
   }
 }
 
@@ -186,8 +184,8 @@
      label) — it never caps the section with a top border above the first label.
      Keep in sync with ds/components.css. */
   font-family: var(--font-family-display);
-  font-size: 9px;
-  letter-spacing: 0.28em;
+  font-size: 11px;
+  letter-spacing: 0.13em;
   text-transform: uppercase;
   color: var(--color-text-muted);
   padding-bottom: 4px;
@@ -278,11 +276,11 @@
 .attention-budget-meter__summary {
   font-family: monospace;
   font-size: 0.7rem;
-  color: #a1a1aa;
+  color: var(--color-text-secondary);
 }
 
 .attention-budget-meter__toggle {
-  color: #71717a;
+  color: var(--color-text-muted);
   font-size: 0.7rem;
   line-height: 1;
   padding: 0.125rem 0.25rem;
@@ -290,7 +288,7 @@
 }
 
 .attention-budget-meter__toggle:hover {
-  color: #f4f4f5;
+  color: var(--color-text-primary);
   background: rgba(255, 255, 255, 0.06);
 }
 
@@ -305,7 +303,7 @@
   font-size: 0.85rem;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: #f4f4f5;
+  color: var(--color-text-primary);
 }
 
 .attention-budget-meter header span:last-child {
@@ -330,7 +328,7 @@
 
 .attention-budget-meter__fill {
   height: 100%;
-  background: linear-gradient(90deg, rgb(var(--brass)) 0%, #f43f5e 100%);
+  background: rgb(var(--brass));
   border-radius: 4px;
   transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -338,14 +336,14 @@
 .attention-budget-meter p {
   margin: 0.25rem 0 0 0;
   font-size: 0.75rem;
-  color: #71717a;
+  color: var(--color-text-muted);
 }
 
 .attention-budget-meter p:last-child {
   margin-top: 0.375rem;
   font-family: monospace;
   font-size: 0.7rem;
-  color: #a1a1aa;
+  color: var(--color-text-secondary);
 }
 
 

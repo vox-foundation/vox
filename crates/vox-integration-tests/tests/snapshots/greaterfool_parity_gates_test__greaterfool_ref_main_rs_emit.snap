@@ -483,6 +483,7 @@ _id INTEGER PRIMARY KEY AUTOINCREMENT,
         }
     }
     let db = Arc::new(codex);
+    let _ = VOX_APP_DB.set(db.clone());
 
     // 1. Initialize the durable database.
     //    Uses `DbConfig::resolve_canonical()` so the binary picks up

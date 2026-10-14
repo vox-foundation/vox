@@ -12,10 +12,12 @@ import {
 } from '../../hooks/useHudTiles';
 import { INITIAL_KPIS } from '../../data/initialState';
 import { WORKBENCH_TABBAR_TRAILING_SLOT_ID } from '../../lib/domIds';
-import { routingCardValue } from '../../lib/routingSummary';
-import type { RoutingSummary } from '../../types/tauri';
+import { routingCardValue, routingHealthProblems } from '../../lib/routingSummary';
+import type { RoutingHealth, RoutingSummary } from '../../types/tauri';
 import type { MeshNode } from '../surfaces/Mesh/MeshView';
 import { StatusBarCluster } from '../common/StatusBarCluster';
+import { NotificationCenter } from '../common/NotificationCenter';
+import type { Notice } from '../../lib/noticeStore';
 
 type KpiState = typeof INITIAL_KPIS;
 
@@ -29,30 +31,37 @@ export interface BottomStatusBarProps {
   liveFreshMs: number;
   /** Global routing pick (get_routing_summary_live); a version is shown only when catalog-resolved. */
   routingSummary?: RoutingSummary | null;
+  /** Routing health (get_routing_health); the Routing card shows a dot only when it reports a problem. */
+  routingHealth?: RoutingHealth | null;
   openrouterSpendUsd?: number | null;
   /** This chat session's spend (get_llm_spend sessionUsd), shown in the Spend popover. */
   sessionSpentUsd?: number | null;
   /** Approvals plus open questions (attention inbox `totalCount`). */
   needsYouCount?: number | null;
+  /** Inbox sources that failed to load; the card never shows a clear 0 while any are unknown. */
+  needsYouDegraded?: string[];
   meshNodes?: MeshNode[];
   gamifyEnabled?: boolean;
   onOpenAchievements?: () => void;
   onOpenResearchDrawer?: () => void;
+  /** Every toast and engine problem the app has kept; the bell is the last item when both are given. */
+  notices?: Notice[];
+  onMarkAllNoticesRead?: () => void;
 }
 
 function freshnessClasses(tone: 'live' | 'poll' | 'stale') {
   if (tone === 'live') {
     return {
-      pill: 'border-emerald-400/20 bg-emerald-400/4 text-emerald-300',
-      dot: 'bg-emerald-400',
+      pill: 'border-(--color-status-pass)/20 bg-(--color-status-pass)/4 text-(--color-status-pass)',
+      dot: 'bg-(--color-status-pass)',
       label: 'Live',
       title: 'Live: receiving engine events',
     };
   }
   if (tone === 'poll') {
     return {
-      pill: 'border-amber-400/20 bg-amber-400/4 text-amber-300',
-      dot: 'bg-amber-400',
+      pill: 'border-(--color-status-warn)/20 bg-(--color-status-warn)/4 text-(--color-status-warn)',
+      dot: 'bg-(--color-status-warn)',
       label: 'Poll',
       title: 'Polling: no event stream, refreshing on a timer',
     };
@@ -72,11 +81,16 @@ function Segment({
   onClick,
   expanded,
   buttonRef,
+  ariaLabel,
+  badge,
 }: {
   testId: string;
   label: string;
   value: string;
   onClick: () => void;
+  /** Overrides the accessible name (the visible label and value stay as they are). */
+  ariaLabel?: string;
+  badge?: React.ReactNode;
   /** Set only on a card that opens a popover. */
   expanded?: boolean;
   buttonRef?: React.Ref<HTMLButtonElement>;
@@ -87,11 +101,12 @@ function Segment({
       type="button"
       data-testid={testId}
       onClick={onClick}
+      aria-label={ariaLabel}
       aria-haspopup={expanded === undefined ? undefined : 'dialog'}
       aria-expanded={expanded}
-      className="inline-flex items-center gap-1.5 rounded-sm px-2 py-0.5 text-[10px] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
+      className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-sm px-2 py-0.5 text-[11px] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
     >
-      <span data-card-label className="uppercase tracking-[0.14em] text-text-muted">{label}</span>
+      <span data-card-label className="uppercase tracking-[0.08em] text-text-muted">{label}</span>
       <span
         data-card-value
         title={value}
@@ -99,6 +114,7 @@ function Segment({
       >
         {value}
       </span>
+      {badge}
     </button>
   );
 }
@@ -112,13 +128,17 @@ export function BottomStatusBar({
   orchUsesPolling,
   liveFreshMs,
   routingSummary = null,
+  routingHealth = null,
   openrouterSpendUsd = null,
   sessionSpentUsd = null,
   needsYouCount = null,
+  needsYouDegraded = [],
   meshNodes,
   gamifyEnabled = false,
   onOpenAchievements,
   onOpenResearchDrawer,
+  notices,
+  onMarkAllNoticesRead,
 }: BottomStatusBarProps) {
   const tone = useFreshness(lastOrchEventAt, {
     freshMs: liveFreshMs,
@@ -168,6 +188,8 @@ export function BottomStatusBar({
       ? '—'
       : `${meshNodes.filter((n) => n.status === 'online').length}/${meshNodes.length} online`;
 
+  const routingProblems = routingHealthProblems(routingHealth);
+
   const renderSegment = (kind: HudTileKind): React.ReactNode => {
     const label = HUD_TILE_LABELS[kind];
     switch (kind) {
@@ -210,7 +232,23 @@ export function BottomStatusBar({
             testId="bottom-status-bar-routing"
             label={label}
             value={routingCardValue(routingSummary)}
-            onClick={() => onNavigate('models')}
+            ariaLabel="Open routing details"
+            badge={
+              routingProblems > 0 ? (
+                <span
+                  role="img"
+                  data-testid="bottom-status-bar-routing-health"
+                  aria-label={`Routing health: ${routingProblems} ${routingProblems === 1 ? 'problem' : 'problems'}`}
+                  className="size-1.5 shrink-0 rounded-full"
+                  style={{ background: 'var(--color-status-warn)' }}
+                />
+              ) : null
+            }
+            onClick={() => {
+              onNavigate('models');
+              // ponytail: one timed retry for a surface that mounts after navigation; a ref handshake if it ever misses.
+              window.setTimeout(() => document.getElementById('routing-panel')?.scrollIntoView?.({ block: 'start' }), 150);
+            }}
           />
         );
       case 'pending_approvals':
@@ -219,7 +257,11 @@ export function BottomStatusBar({
             key={kind}
             testId="bottom-status-bar-needs-you"
             label={label}
-            value={String(needsYouCount ?? 0)}
+            value={
+              needsYouDegraded.length > 0
+                ? `${(needsYouCount ?? 0) > 0 ? needsYouCount : '—'} · couldn't load ${needsYouDegraded.join(', ')}`
+                : String(needsYouCount ?? 0)
+            }
             onClick={() => onNavigate('needs-you')}
           />
         );
@@ -233,7 +275,7 @@ export function BottomStatusBar({
       data-testid="bottom-status-bar"
       role="status"
       aria-label="Operator status"
-      className="flex h-7 w-full items-center gap-1 p-0 px-3 rounded-none border-x-0 border-b-0 shadow-none text-[10px] text-text-muted"
+      className="flex h-7 w-full items-center gap-1 p-0 px-3 rounded-none border-x-0 border-b-0 shadow-none text-[11px] text-text-muted"
     >
       <div className="relative flex min-w-0 flex-1">
         <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
@@ -276,7 +318,7 @@ export function BottomStatusBar({
           data-testid="achievements-trigger"
           aria-label="Open achievements"
           onClick={onOpenAchievements}
-          className="inline-flex shrink-0 items-center justify-center rounded-sm px-1.5 py-0.5 text-amber-300/80 hover:bg-overlay-subtle hover:text-amber-200 transition"
+          className="inline-flex shrink-0 items-center justify-center rounded-sm px-1.5 py-0.5 text-brass hover:bg-overlay-subtle hover:text-text-primary transition"
         >
           <Icon.trophy className="size-3.5" aria-hidden="true" />
         </button>
@@ -289,9 +331,9 @@ export function BottomStatusBar({
           onClick={() => setOpenPanel((p) => (p === 'configure' ? null : 'configure'))}
           aria-expanded={openPanel === 'configure'}
           aria-label="Configure status bar"
-          className="rounded-sm px-1.5 py-0.5 text-[10px] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
+          className="rounded-sm px-1.5 py-0.5 text-[11px] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
         >
-          Configure ▾
+          <span className="max-[639px]:sr-only">Configure </span>▾
         </button>
         {openPanel === 'configure' ? (
           <div
@@ -309,7 +351,7 @@ export function BottomStatusBar({
                   onChange={(e) =>
                     onHudTilesChange(toggleHudTile(hudTilesConfig, tile.id, e.target.checked))
                   }
-                  className="rounded-sm border-border-subtle bg-bg-base text-brass focus:ring-brass/40 focus:ring-offset-bg-base size-3.5"
+                  className="accent-brass rounded-sm border-border-subtle bg-bg-base text-brass focus:ring-brass/40 focus:ring-offset-bg-base size-3.5"
                 />
                 {HUD_TILE_LABELS[tile.kind]}
               </label>
@@ -323,7 +365,7 @@ export function BottomStatusBar({
         className={`ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-sm border px-2 py-0.5 ${fresh.pill}`}
       >
         <span className={`size-1.5 rounded-full ${fresh.dot}`} />
-        <span className="uppercase tracking-[0.14em]">{fresh.label}</span>
+        <span className="uppercase tracking-[0.08em] max-[639px]:sr-only">{fresh.label}</span>
       </div>
 
       {/* Fixed home for surface-level chrome that needs to sit inline with
@@ -343,6 +385,9 @@ export function BottomStatusBar({
         data-testid={WORKBENCH_TABBAR_TRAILING_SLOT_ID}
         className="ml-2 flex shrink-0 items-center"
       />
+      {notices && onMarkAllNoticesRead ? (
+        <NotificationCenter notices={notices} onMarkAllRead={onMarkAllNoticesRead} />
+      ) : null}
     </Glass>
   );
 }

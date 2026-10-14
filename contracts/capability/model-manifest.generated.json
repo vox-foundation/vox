@@ -1191,130 +1191,79 @@
       "curated": true
     },
     {
-      "capability_id": "mcp.vox_kb_add_entry",
-      "mcp_tool": "vox_kb_add_entry",
+      "capability_id": "mcp.vox_kb_cite",
+      "mcp_tool": "vox_kb_cite",
       "implicit": false,
-      "title": "Add Knowledge Entry",
-      "description_model": "Add a knowledge entry to a knowledge base.",
+      "title": "Cite Knowledge Library Chunk",
+      "description_model": "Build a citation (heading path, doc link with anchor, kb:// URI, indexed commit) for an indexed KB Library chunk by chunk_hash.",
+      "intent_tags": [
+        "retrieval",
+        "knowledge"
+      ],
+      "scope_kind": "repository",
+      "reversible": true,
+      "requires_repo": true,
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_kb_get",
+      "mcp_tool": "vox_kb_get",
+      "implicit": false,
+      "title": "Get Knowledge Library Document",
+      "description_model": "Fetch one indexed KB Library document by docs/src rel_path (frontmatter, chunk list, reconstructed markdown) or one chunk by 64-hex chunk_hash; reads only the index, never the file system.",
+      "intent_tags": [
+        "retrieval",
+        "knowledge"
+      ],
+      "scope_kind": "repository",
+      "reversible": true,
+      "requires_repo": true,
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_kb_reindex",
+      "mcp_tool": "vox_kb_reindex",
+      "implicit": false,
+      "title": "Reindex Knowledge Library",
+      "description_model": "Rebuild the KB Library index from the repository docs/src tree (takes no path arguments; single-flight); returns the index report.",
+      "intent_tags": [
+        "retrieval",
+        "knowledge"
+      ],
       "side_effect_class": "writes_files",
-      "scope_kind": "session",
-      "reversible": false,
+      "scope_kind": "repository",
+      "reversible": true,
+      "requires_repo": true,
       "curated": true
     },
     {
-      "capability_id": "mcp.vox_kb_add_rule",
-      "mcp_tool": "vox_kb_add_rule",
+      "capability_id": "mcp.vox_kb_search",
+      "mcp_tool": "vox_kb_search",
       "implicit": false,
-      "title": "Add Knowledge Rule",
-      "description_model": "Add an ingestion filter rule.",
-      "side_effect_class": "writes_files",
-      "scope_kind": "session",
-      "reversible": false,
+      "title": "Search Knowledge Library",
+      "description_model": "Search the curated KB Library (Vox docs plus docs/src/library) by BM25 over heading chunks; returns ranked hits with chunk_hash, heading_path, anchor, snippet and kb:// URIs.",
+      "intent_tags": [
+        "retrieval",
+        "knowledge"
+      ],
+      "scope_kind": "repository",
+      "reversible": true,
+      "requires_repo": true,
       "curated": true
     },
     {
-      "capability_id": "mcp.vox_kb_clip",
-      "mcp_tool": "vox_kb_clip",
+      "capability_id": "mcp.vox_kb_status",
+      "mcp_tool": "vox_kb_status",
       "implicit": false,
-      "title": "Clip Knowledge Fact",
-      "description_model": "Clip code/notes into knowledge bases.",
-      "side_effect_class": "writes_files",
-      "scope_kind": "session",
-      "reversible": false,
-      "curated": true
-    },
-    {
-      "capability_id": "mcp.vox_kb_create",
-      "mcp_tool": "vox_kb_create",
-      "implicit": false,
-      "title": "Create Knowledge Base",
-      "description_model": "Create a new knowledge base.",
-      "side_effect_class": "writes_files",
-      "scope_kind": "session",
-      "reversible": false,
-      "curated": true
-    },
-    {
-      "capability_id": "mcp.vox_kb_delete",
-      "mcp_tool": "vox_kb_delete",
-      "implicit": false,
-      "title": "Delete Knowledge Base",
-      "description_model": "Delete a knowledge base by ID.",
-      "side_effect_class": "writes_files",
-      "scope_kind": "session",
-      "reversible": false,
-      "curated": true
-    },
-    {
-      "capability_id": "mcp.vox_kb_delete_entry",
-      "mcp_tool": "vox_kb_delete_entry",
-      "implicit": false,
-      "title": "Delete Knowledge Entry",
-      "description_model": "Delete a knowledge entry by ID.",
-      "side_effect_class": "writes_files",
-      "scope_kind": "session",
-      "reversible": false,
-      "curated": true
-    },
-    {
-      "capability_id": "mcp.vox_kb_get_feed",
-      "mcp_tool": "vox_kb_get_feed",
-      "implicit": false,
-      "title": "Get Knowledge Feed",
-      "description_model": "Get the feed of knowledge entries.",
-      "scope_kind": "session",
-      "reversible": false,
-      "curated": true
-    },
-    {
-      "capability_id": "mcp.vox_kb_list",
-      "mcp_tool": "vox_kb_list",
-      "implicit": false,
-      "title": "List Knowledge Bases",
-      "description_model": "List all available knowledge bases.",
-      "scope_kind": "session",
-      "reversible": false,
-      "curated": true
-    },
-    {
-      "capability_id": "mcp.vox_kb_list_entries",
-      "mcp_tool": "vox_kb_list_entries",
-      "implicit": false,
-      "title": "List Knowledge Entries",
-      "description_model": "List all knowledge entries in a knowledge base.",
-      "scope_kind": "session",
-      "reversible": false,
-      "curated": true
-    },
-    {
-      "capability_id": "mcp.vox_kb_list_rules",
-      "mcp_tool": "vox_kb_list_rules",
-      "implicit": false,
-      "title": "List Knowledge Rules",
-      "description_model": "List ingestion filter rules.",
-      "scope_kind": "session",
-      "reversible": false,
-      "curated": true
-    },
-    {
-      "capability_id": "mcp.vox_kb_query",
-      "mcp_tool": "vox_kb_query",
-      "implicit": false,
-      "title": "Query Knowledge Base",
-      "description_model": "Query knowledge bases with semantic search.",
-      "scope_kind": "session",
-      "reversible": false,
-      "curated": true
-    },
-    {
-      "capability_id": "mcp.vox_kb_review_entry",
-      "mcp_tool": "vox_kb_review_entry",
-      "implicit": false,
-      "title": "Review Knowledge Entry",
-      "description_model": "Accept or reject a knowledge entry.",
-      "side_effect_class": "writes_files",
-      "scope_kind": "session",
-      "reversible": false,
+      "title": "Knowledge Library Status",
+      "description_model": "Report KB Library index state, covering corpus root and commit, doc/chunk/card counts, chunker version, lexical backend, embed model, trust tier, per-file errors and index consistency.",
+      "intent_tags": [
+        "retrieval",
+        "knowledge"
+      ],
+      "scope_kind": "repository",
+      "reversible": true,
+      "requires_repo": true,
       "curated": true
     },
     {
@@ -4681,17 +4630,6 @@
       "curated": true
     },
     {
-      "capability_id": "cli.ci.check-frozen",
-      "cli_path": [
-        "ci",
-        "check-frozen"
-      ],
-      "implicit": false,
-      "title": "Ci Check-frozen",
-      "description_model": "CLI operation `vox ci check-frozen`",
-      "curated": true
-    },
-    {
       "capability_id": "cli.ci.check-links",
       "cli_path": [
         "ci",
@@ -4711,17 +4649,6 @@
       "implicit": false,
       "title": "Ci Check-summary-drift",
       "description_model": "CLI operation `vox ci check-summary-drift`",
-      "curated": true
-    },
-    {
-      "capability_id": "cli.ci.collateral-damage-gate",
-      "cli_path": [
-        "ci",
-        "collateral-damage-gate"
-      ],
-      "implicit": false,
-      "title": "Ci Collateral-damage-gate",
-      "description_model": "CLI operation `vox ci collateral-damage-gate`",
       "curated": true
     },
     {
@@ -4832,17 +4759,6 @@
       "implicit": false,
       "title": "Ci Config-registry-parity",
       "description_model": "Every operational VOX_* env knob read in code must be in the config registry.",
-      "curated": true
-    },
-    {
-      "capability_id": "cli.ci.constrained-gen-smoke",
-      "cli_path": [
-        "ci",
-        "constrained-gen-smoke"
-      ],
-      "implicit": false,
-      "title": "Ci Constrained-gen-smoke",
-      "description_model": "CLI operation `vox ci constrained-gen-smoke`",
       "curated": true
     },
     {
@@ -5294,17 +5210,6 @@
       "curated": true
     },
     {
-      "capability_id": "cli.ci.grpo-reward-baseline",
-      "cli_path": [
-        "ci",
-        "grpo-reward-baseline"
-      ],
-      "implicit": false,
-      "title": "Ci Grpo-reward-baseline",
-      "description_model": "CLI operation `vox ci grpo-reward-baseline`",
-      "curated": true
-    },
-    {
       "capability_id": "cli.ci.gui-catalog-parity",
       "cli_path": [
         "ci",
@@ -5489,17 +5394,6 @@
       "implicit": false,
       "title": "Ci Mcp-vox-surface-parity",
       "description_model": "CLI operation `vox ci mcp-vox-surface-parity`",
-      "curated": true
-    },
-    {
-      "capability_id": "cli.ci.mens-corpus-health",
-      "cli_path": [
-        "ci",
-        "mens-corpus-health"
-      ],
-      "implicit": false,
-      "title": "Ci Mens-corpus-health",
-      "description_model": "CLI operation `vox ci mens-corpus-health`",
       "curated": true
     },
     {
@@ -5877,17 +5771,6 @@
       "curated": true
     },
     {
-      "capability_id": "cli.ci.queue",
-      "cli_path": [
-        "ci",
-        "queue"
-      ],
-      "implicit": false,
-      "title": "Ci Queue",
-      "description_model": "CLI operation `vox ci queue`",
-      "curated": true
-    },
-    {
       "capability_id": "cli.ci.release-build",
       "cli_path": [
         "ci",
@@ -5962,50 +5845,6 @@
       "implicit": false,
       "title": "Ci Row-serde-lint",
       "description_model": "CLI operation `vox ci row-serde-lint`",
-      "curated": true
-    },
-    {
-      "capability_id": "cli.ci.runner-policy-check",
-      "cli_path": [
-        "ci",
-        "runner-policy-check"
-      ],
-      "implicit": false,
-      "title": "Ci Runner-policy-check",
-      "description_model": "CLI operation `vox ci runner-policy-check`",
-      "curated": true
-    },
-    {
-      "capability_id": "cli.ci.runner-preflight",
-      "cli_path": [
-        "ci",
-        "runner-preflight"
-      ],
-      "implicit": false,
-      "title": "Ci Runner-preflight",
-      "description_model": "CLI operation `vox ci runner-preflight`",
-      "curated": true
-    },
-    {
-      "capability_id": "cli.ci.runner-scale",
-      "cli_path": [
-        "ci",
-        "runner-scale"
-      ],
-      "implicit": false,
-      "title": "Ci Runner-scale",
-      "description_model": "CLI operation `vox ci runner-scale`",
-      "curated": true
-    },
-    {
-      "capability_id": "cli.ci.runner-status",
-      "cli_path": [
-        "ci",
-        "runner-status"
-      ],
-      "implicit": false,
-      "title": "Ci Runner-status",
-      "description_model": "CLI operation `vox ci runner-status`",
       "curated": true
     },
     {
@@ -6239,6 +6078,17 @@
       "implicit": false,
       "title": "Ci Ssot-drift",
       "description_model": "CLI operation `vox ci ssot-drift`",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.ci.status",
+      "cli_path": [
+        "ci",
+        "status"
+      ],
+      "implicit": false,
+      "title": "Ci Status",
+      "description_model": "CLI operation `vox ci status`",
       "curated": true
     },
     {
@@ -10710,6 +10560,78 @@
       "curated": true
     },
     {
+      "capability_id": "cli.graph.history.brief",
+      "cli_path": [
+        "graph",
+        "history",
+        "brief"
+      ],
+      "implicit": false,
+      "title": "Graph History Brief",
+      "description_model": "CLI operation `vox graph history brief`",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.graph.history.focus",
+      "cli_path": [
+        "graph",
+        "history",
+        "focus"
+      ],
+      "implicit": false,
+      "title": "Graph History Focus",
+      "description_model": "CLI operation `vox graph history focus`",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.graph.history.forgotten",
+      "cli_path": [
+        "graph",
+        "history",
+        "forgotten"
+      ],
+      "implicit": false,
+      "title": "Graph History Forgotten",
+      "description_model": "CLI operation `vox graph history forgotten`",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.graph.history.log",
+      "cli_path": [
+        "graph",
+        "history",
+        "log"
+      ],
+      "implicit": false,
+      "title": "Graph History Log",
+      "description_model": "CLI operation `vox graph history log`",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.graph.history.search",
+      "cli_path": [
+        "graph",
+        "history",
+        "search"
+      ],
+      "implicit": false,
+      "title": "Graph History Search",
+      "description_model": "CLI operation `vox graph history search`",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.graph.history.timeline",
+      "cli_path": [
+        "graph",
+        "history",
+        "timeline"
+      ],
+      "implicit": false,
+      "title": "Graph History Timeline",
+      "description_model": "CLI operation `vox graph history timeline`",
+      "curated": true
+    },
+    {
       "capability_id": "cli.graph.index",
       "cli_path": [
         "graph",
@@ -11083,6 +11005,64 @@
       "preferred_for_models": true,
       "human_takeover_friendly": true,
       "mens_planner_visible": true,
+      "curated": true
+    },
+    {
+      "capability_id": "cli.kb",
+      "cli_path": [
+        "kb"
+      ],
+      "implicit": false,
+      "title": "KB",
+      "description_model": "Knowledge-base commands (`vox kb`); umbrella for the deterministic retrieval eval and its ratchet gate.",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.kb.eval",
+      "cli_path": [
+        "kb",
+        "eval"
+      ],
+      "implicit": false,
+      "title": "KB Eval",
+      "description_model": "CLI operation `vox kb eval` — deterministic retrieval eval (Recall/MRR/nDCG on doc and chunk ids, answer-in-budget) and the retrieval ratchet gate",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.kb.reindex",
+      "cli_path": [
+        "kb",
+        "reindex"
+      ],
+      "implicit": false,
+      "title": "Reindex Knowledge Library",
+      "description_model": "Rebuild the KB Library index from the repository docs/src tree (takes no path arguments; single-flight); returns the index report.",
+      "intent_tags": [
+        "retrieval",
+        "knowledge"
+      ],
+      "side_effect_class": "writes_files",
+      "scope_kind": "repository",
+      "reversible": true,
+      "requires_repo": true,
+      "curated": true
+    },
+    {
+      "capability_id": "cli.kb.status",
+      "cli_path": [
+        "kb",
+        "status"
+      ],
+      "implicit": false,
+      "title": "Knowledge Library Status",
+      "description_model": "Report KB Library index state, covering corpus root and commit, doc/chunk/card counts, chunker version, lexical backend, embed model, trust tier, per-file errors and index consistency.",
+      "intent_tags": [
+        "retrieval",
+        "knowledge"
+      ],
+      "scope_kind": "repository",
+      "reversible": true,
+      "requires_repo": true,
       "curated": true
     },
     {
@@ -12821,6 +12801,17 @@
       "curated": true
     },
     {
+      "capability_id": "cli.research.flag",
+      "cli_path": [
+        "research",
+        "flag"
+      ],
+      "implicit": false,
+      "title": "Research Flag",
+      "description_model": "CLI operation `vox research flag`",
+      "curated": true
+    },
+    {
       "capability_id": "cli.research.history",
       "cli_path": [
         "research",
@@ -12840,6 +12831,28 @@
       "implicit": false,
       "title": "Research Preview",
       "description_model": "CLI operation `vox research preview`",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.research.probe",
+      "cli_path": [
+        "research",
+        "probe"
+      ],
+      "implicit": false,
+      "title": "Research Probe",
+      "description_model": "CLI operation `vox research probe`",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.research.publish",
+      "cli_path": [
+        "research",
+        "publish"
+      ],
+      "implicit": false,
+      "title": "Research Publish",
+      "description_model": "CLI operation `vox research publish`",
       "curated": true
     },
     {

@@ -15,9 +15,11 @@
 //! the plan's Task 9 addendum for the full writeup. 39 tables remain below
 //! (was 42).
 //!
-//! This DDL only compiles into the schema baseline when the `quarantine`
+//! This DDL only reaches the schema baseline when the `quarantine`
 //! feature is enabled (see `crates/vox-db/Cargo.toml` and
-//! `schema::manifest::baseline_sql`); it is OFF by default. Each table below
+//! `schema::manifest::baseline_sql`); it is OFF by default. The module itself always
+//! compiles, because `SCHEMA_LEGACY_VOXKB` (below) backs `vox_db::LEGACY_VOXKB_DDL` on
+//! default builds. Each table below
 //! carries a status (DEAD = zero references anywhere in current source;
 //! DORMANT = internal `vox-db` wrapper functions exist but have no caller
 //! outside `vox-db`/`vox-db-types`), the referencing-file trail from the
@@ -716,4 +718,67 @@ CREATE TABLE IF NOT EXISTS toestub_file_cache (
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY (path, content_hash, rules_version)
 );
+";
+
+/// Legacy VoxKB tables (`knowledge_bases`, `kb_entries`, `kb_routing_rules`), retired in favour of
+/// `kb_findings` by KB Phase 3 (RET-02/RET-03, D-03). The single copy of this DDL: appended to
+/// the baseline only under the `quarantine` feature, and re-exported as `vox_db::LEGACY_VOXKB_DDL`
+/// so legacy-seeding tests can create the tables on a default-feature database. Existing
+/// databases keep the tables and their rows (they are NOT in `QUARANTINE_DROP_TABLES`); only
+/// the deprecation-marked readers in `store/ops_memory/kb_legacy.rs` still touch them.
+pub const SCHEMA_LEGACY_VOXKB: &str = "
+-- Table: knowledge_bases
+-- Status: RETIRED (KB Phase 3 leak closure; rows migrated to kb_findings by 03-08)
+-- Evidence: literal_string
+-- Referencing files: crates/vox-db/src/store/ops_memory/kb_legacy.rs (read-only legacy readers)
+-- Origin: crates/vox-db/src/schema/domains/knowledge.rs
+CREATE TABLE IF NOT EXISTS knowledge_bases (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    description TEXT NOT NULL DEFAULT '',
+    created_at_ms INTEGER NOT NULL,
+    updated_at_ms INTEGER NOT NULL,
+    entry_count INTEGER NOT NULL DEFAULT 0
+);
+
+-- Table: kb_entries
+-- Status: RETIRED (KB Phase 3 leak closure; rows migrated to kb_findings by 03-08)
+-- Evidence: literal_string
+-- Referencing files: crates/vox-db/src/store/ops_memory/kb_legacy.rs (read-only legacy readers)
+-- Origin: crates/vox-db/src/schema/domains/knowledge.rs
+CREATE TABLE IF NOT EXISTS kb_entries (
+    id TEXT PRIMARY KEY,
+    kb_id TEXT NOT NULL REFERENCES knowledge_bases(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    source_signal TEXT NOT NULL,
+    source_ref TEXT,
+    routing_confidence REAL NOT NULL DEFAULT 1.0,
+    tags TEXT NOT NULL DEFAULT '[]',
+    created_at_ms INTEGER NOT NULL,
+    last_accessed_at_ms INTEGER,
+    access_count INTEGER NOT NULL DEFAULT 0,
+    accepted INTEGER NOT NULL DEFAULT 1,
+    mens_queued INTEGER NOT NULL DEFAULT 0
+);
+
+-- Table: kb_routing_rules
+-- Status: RETIRED (KB Phase 3 leak closure; rows migrated to kb_findings by 03-08)
+-- Evidence: literal_string
+-- Referencing files: crates/vox-db/src/store/ops_memory/kb_legacy.rs (read-only legacy readers)
+-- Origin: crates/vox-db/src/schema/domains/knowledge.rs
+CREATE TABLE IF NOT EXISTS kb_routing_rules (
+    id TEXT PRIMARY KEY,
+    kb_id TEXT NOT NULL REFERENCES knowledge_bases(id) ON DELETE CASCADE,
+    rule_type TEXT NOT NULL,
+    pattern TEXT NOT NULL,
+    priority INTEGER NOT NULL DEFAULT 0,
+    created_at_ms INTEGER NOT NULL
+);
+
+-- Indexes of the three tables above
+CREATE INDEX IF NOT EXISTS idx_kb_entries_kb_id ON kb_entries(kb_id);
+CREATE INDEX IF NOT EXISTS idx_kb_entries_source_signal ON kb_entries(source_signal);
+CREATE INDEX IF NOT EXISTS idx_kb_entries_accepted ON kb_entries(accepted);
+CREATE INDEX IF NOT EXISTS idx_kb_entries_mens_queued ON kb_entries(mens_queued, accepted);
+CREATE INDEX IF NOT EXISTS idx_kb_routing_rules_kb_id ON kb_routing_rules(kb_id);
 ";

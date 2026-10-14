@@ -124,6 +124,7 @@ vox-orchestrator-types = { layer = 0 }
 vox-llm-config         = { layer = 0, staleness_exempt = true }   # SSOT for LLM/AI setting-key metadata; pure-data, zero workspace deps; vox-secrets/vox-config/vox-gui are views
 
 vox-db-types           = { layer = 0 }
+vox-kb-facets          = { layer = 0 }   # KB facet contract (Facets, eligibility rule, summary block, provenance validators); workspace-hack only
 vox-mesh-types         = { layer = 0, publishable = true }
 vox-ast                = { layer = 0, max_dependents = 40 }   # pure-data Vox AST (serde-only); extracted from vox-compiler 2026-06-05, re-exported as vox_compiler::ast
 workspace-hack         = { layer = 0, staleness_exempt = true }   # hakari feature-unification crate; excluded from the Rule 2 fan-in count entirely (vox-arch-check's FAN_IN_EXEMPT, mirroring crate_edges::EXEMPT) rather than budgeted, since its dependent count is structural and grows with every crate, not architectural fan-in
@@ -208,6 +209,7 @@ vox-scientia-jsonschema-codegen = { layer = 3, kind = "binary" }               #
 vox-ml-cli              = { layer = 3, kind = "binary", max_loc = 20_000 }
 vox-publisher           = { layer = 3, max_loc = 22_000 }  # raised from 20_000 (was at 19,951 / 20,000 headroom)
 vox-orchestrator        = { layer = 3, max_dependents = 30, max_loc = 70_000 }
+vox-orchestrator-models = { layer = 3 }
 vox-research-shim            = { layer = 3, max_loc = 8_000, staleness_exempt = true }  # A-12 wedge: DEI research + model-selection extracted from vox-orchestrator
 vox-orchestrator-test-helpers = { layer = 3, kind = "test-only", max_dependents = 25, staleness_exempt = true }
 vox-actor-runtime       = { layer = 3, max_loc = 15_000 }

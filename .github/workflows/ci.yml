@@ -27,6 +27,10 @@ jobs:
     outputs:
       p_args: ${{ steps.affected.outputs.p_args }}
       run_tests: ${{ steps.plan.outputs.run_tests }}
+      shard_list: ${{ steps.affected.outputs.shard_list }}
+      shard_1_p_args: ${{ steps.affected.outputs.shard_1_p_args }}
+      shard_2_p_args: ${{ steps.affected.outputs.shard_2_p_args }}
+      shard_3_p_args: ${{ steps.affected.outputs.shard_3_p_args }}
     steps:
       - name: Start budget clock
         shell: bash
@@ -47,8 +51,13 @@ jobs:
         with:
           tool: cargo-nextest,cargo-deny
 
-      - name: Build vox CLI
-        run: cargo build -p vox-cli --locked
+      # vox plus the tool its fast tier calls; the tier never `cargo run`s a tool, and on CI a
+      # missing tool is an error (vox_cli_ci::installed_tool), so build it here.
+      - name: Build vox CLI and fast-tier tools
+        run: |
+          cargo build -p vox-cli --locked
+          cargo build -p vox-drift-check --locked
+          echo "$PWD/target/debug" >> "$GITHUB_PATH"
 
       - name: Fast tier (same checks as local `vox ci pre-push`)
         run: ./target/debug/vox ci pre-push
@@ -62,13 +71,20 @@ jobs:
           set -euo pipefail
           [ -n "$BASE_SHA" ] || { echo "::error::no base SHA"; exit 1; }
           git diff --name-only "$BASE_SHA...HEAD" > /tmp/changed.txt
-          if ! grep -qE '^(crates/|Cargo\.(toml|lock)|\.cargo/|rust-toolchain\.toml|contracts/|\.config/|examples/|\.github/workflows/)' /tmp/changed.txt; then
+          # Generated reports (contracts/reports/) are verified by the fast tier's ssot-drift
+          # above; a diff confined to them needs no clippy or tests. A file, not a pipe: under
+          # pipefail a `grep -q` that exits early would SIGPIPE the producer and skip tests.
+          grep -v '^contracts/reports/' /tmp/changed.txt > /tmp/changed-src.txt || true
+          if ! grep -qE '^(crates/|Cargo\.(toml|lock)|\.cargo/|rust-toolchain\.toml|contracts/|\.config/|examples/|\.github/workflows/)' /tmp/changed-src.txt; then
             echo "No Rust changes — clippy/tests skipped."
             echo "p_args=" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          # --shards: crate-level groups balanced by size; each test shard compiles and runs only
+          # its own group (hash-partition shards each compiled every test binary, 17-19 min).
           ./target/debug/vox ci affected-crates --changed /tmp/changed.txt \
-            --graph contracts/ci/crate-graph.v1.json --github-output /tmp/affected.out
+            --graph contracts/ci/crate-graph.v1.json --github-output /tmp/affected.out \
+            --shards 3 --exclude vox-gui
           full=$(grep -E '^full=' /tmp/affected.out | tail -1 | cut -d= -f2 || true)
           args=$(grep -E '^affected_p_args=' /tmp/affected.out | tail -1 | cut -d= -f2- || true)
           # Fail closed: anything but an explicit non-empty affected set → whole workspace.
@@ -78,6 +94,7 @@ jobs:
           # vox-gui needs ui/dist + the release sidecar (tauri-build); it is covered by nightly.
           args=$(echo "$args" | sed 's/-p vox-gui//g' | xargs)
           echo "p_args=$args" >> "$GITHUB_OUTPUT"
+          grep -E '^(shard_list|shard_[0-9]+_p_args)=' /tmp/affected.out >> "$GITHUB_OUTPUT"
           echo "### Affected: \`$args\`" >> "$GITHUB_STEP_SUMMARY"
 
       # A toolchain bump brings a wave of new clippy/rustdoc lints that a warm
@@ -142,7 +159,7 @@ jobs:
           fi
 
   tests:
-    name: Tests (affected, shard ${{ matrix.shard }}/3)
+    name: Tests (affected, shard ${{ matrix.shard }})
     needs: linux
     if: needs.linux.outputs.run_tests == 'true'
     runs-on: ubuntu-latest
@@ -150,7 +167,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        shard: ${{ fromJSON(needs.linux.outputs.shard_list) }}
     steps:
       - name: Start budget clock
         shell: bash
@@ -165,19 +182,19 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: workspace
-          save-if: false   # nightly.yml on main is the only writer (default-branch caches are shared)
+          save-if: false   # cache-seed.yml on main is the writer (default-branch caches are shared)
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-nextest
 
-      - name: Tests (affected)
+      - name: Tests (this shard's crates)
         shell: bash
         env:
-          P_ARGS: ${{ needs.linux.outputs.p_args }}   # crate names validated by `vox ci affected-crates`
-          SHARD: ${{ matrix.shard }}
-        # $P_ARGS is deliberately unquoted so it splits into `-p <crate>` words.
+          # crate names validated by `vox ci affected-crates`; one balanced group per shard
+          SHARD_P_ARGS: ${{ needs.linux.outputs[format('shard_{0}_p_args', matrix.shard)] }}
+        # $SHARD_P_ARGS is deliberately unquoted so it splits into `-p <crate>` words.
         # ci-gate = ci + a quarantine of tests red on main (issue #569); nightly runs them all.
-        run: cargo nextest run $P_ARGS --profile ci-gate --locked --no-tests=pass --partition "hash:${SHARD}/3"
+        run: cargo nextest run $SHARD_P_ARGS --profile ci-gate --locked --no-tests=pass
 
       - name: Warn when the leg nears its 30-min cap
         if: always()
@@ -351,31 +368,11 @@ jobs:
         shell: bash
         run: |
           set -uo pipefail
-          # SOURCE OF TRUTH for this list: run_ssot_drift() in
-          # crates/vox-cli/src/commands/ci/run_body_helpers/docs.rs — each generator it
-          # verifies in read-only mode is re-run here with its --write flag. Keep in sync
-          # when that function gains/loses a generator.
-          VOX=./target/debug/vox
-          for cmd in \
-            "operations-sync --target all --write" \
-            "command-sync --write" \
-            "generate-plugin-catalog-docs" \
-            "plugin-catalog-sync --write" \
-            "plugin-surface-sync --write" \
-            "plugin-skill-parity --write" \
-            "gui-version-sync --write" \
-            "capability-sync --write" \
-            "gui-surface-coverage --write" \
-            "gui-surface-registry --write" \
-            "affected-crates --regen --out contracts/ci/crate-graph.v1.json"; do
-            echo "::group::vox ci $cmd"
-            # Best-effort: a generator that errors (not just rewrites) is surfaced as a
-            # warning but does not fail the job — the ssot-drift gate still verifies it.
-            # $cmd is deliberately unquoted so its words split into subcommand + flags.
-            # shellcheck disable=SC2086
-            $VOX --quiet ci $cmd || echo "::warning::regenerator failed: vox ci $cmd"
-            echo "::endgroup::"
-          done
+          # The generator list lives in scripts/ssot-regen.vox (one list for CI and for
+          # developers). Best-effort: a failing generator is a warning here; the ssot-drift
+          # gate still verifies the result.
+          PATH="$PWD/target/debug:$PATH" ./target/debug/vox run scripts/ssot-regen.vox \
+            || echo "::warning::one or more SSOT regenerators failed (see log)"
       - name: Commit regenerated artifacts to the PR branch (only if drift)
         shell: bash
         env:

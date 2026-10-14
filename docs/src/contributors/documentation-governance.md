@@ -44,6 +44,7 @@ Use one of these `category` values in frontmatter:
 | `Tutorials` | guided learning |
 | `How-To Guides` | goal-oriented instructions |
 | `Concepts` | conceptual understanding |
+| `Library` | general (non-Vox) curated knowledge pages under docs/src/library/, indexed by the KB |
 | `Language Reference` | stable lookup information |
 | `API Reference — Crates` | per-crate API surface |
 | `Examples` | worked examples |
@@ -77,7 +78,9 @@ Do not use `status` to make aspirational pages sound shipped.
 
 ### Internals section
 
-Pages with `status: research` or `status: roadmap` are grouped under a collapsed **Internals** sidebar section (shown last) instead of their category; they render a status banner and a `noindex` robots tag, are omitted from the sitemap and from every published llms.txt variant, and stay searchable on the site, labelled as Internals; pages with `status: deprecated` or `legacy` keep their category but get a banner and `noindex`. The single source is `docs-astro/src/utils/page-status.mjs`, and no category or frontmatter rewrite is needed.
+Pages with `status: research` or `status: roadmap` are grouped under a collapsed **Internals** sidebar section, shown last, instead of under their `category`. They render a status banner and a `noindex` robots tag, and they are omitted from the sitemap and from every published llms.txt variant. They stay searchable in the on-site search, labelled as Internals. Pages with `status: deprecated` or `status: legacy` keep their category but also get a banner and `noindex`.
+
+The single source for this rule is `docs-astro/src/utils/page-status.mjs`; the sidebar, route metadata, sitemap filter and llms exclusion all read it. No category or frontmatter rewrite is needed — set `status` honestly and the page lands in the right place.
 
 ### Frontmatter starter template
 
@@ -89,11 +92,22 @@ title: "Page title"
 description: "One specific sentence about what this page covers."
 category: "Architecture SSOTs"
 status: "roadmap"
+topic: "doc-governance"           # prefLabel from contracts/documentation/kb-taxonomy.v1.yaml
+domain: "documentation"           # prefLabel from the same file
+authorship: "human"               # human | llm-assisted | llm-generated (+ authorship_model for LLM)
 training_eligible: true
 ---
+
+# Page title
+
+<!-- kb:summary -->
+40 to 120 words that say what the page is for and what it decides.
+<!-- /kb:summary -->
 ```
 
-**Note on temporal metadata:** The "Last updated" date is the committer date of the newest commit touching the page's source file, computed at build time by `docs-astro/src/utils/git-dates.mjs`; commits listed in the repo-root `.git-blame-ignore-revs`, `chore(ssot): auto-regenerate` commits, formatting commits and bulk commits (more than 100 files) are skipped; renames are followed; frontmatter `last_updated` is ignored and should not be added. To keep a future mechanical sweep from resetting dates, add its SHA to `.git-blame-ignore-revs`.
+New pages must also carry the KB facets and summary block shown above; see [KB facets (taxonomy contract)](#kb-facets-taxonomy-contract).
+
+**Note on temporal metadata:** The "Last updated" date is the committer date of the newest commit touching the page's source file, computed at build time by `docs-astro/src/utils/git-dates.mjs`. Commits listed in the repo-root `.git-blame-ignore-revs`, `chore(ssot): auto-regenerate` commits, formatting commits (`style:` and `chore: fmt`-style subjects) and bulk commits touching more than 100 files are skipped, and renames are followed. Frontmatter `last_updated` is ignored; do not add it. To keep a future mechanical sweep from resetting dates, add its commit SHA to `.git-blame-ignore-revs`.
 
 ### Code Anchors & Freshness Governance
 
@@ -115,6 +129,60 @@ Fast local lint loop:
 Authoring guardrail:
 
 - Do not start a line with a single backtick in prose (for example `` `vox ...`` at line start). Use normal prose with inline code or a full triple-backtick fence.
+
+## KB facets (taxonomy contract)
+
+Every **new or renamed** page under `docs/src/` (outside `archive/` and `*.generated.md`) must carry KB facets so the knowledge base can filter, cite and gate training on it. The vocabulary is [`contracts/documentation/kb-taxonomy.v1.yaml`](../../../contracts/documentation/kb-taxonomy.v1.yaml); the typed schema is `contracts/documentation/kb-facets.v1.schema.json` (generated from `vox_kb_facets::Facets`).
+
+Required facets:
+
+- `topic` and `domain`: exact `prefLabel` values from the taxonomy. A synonym (`altLabel`) or a retired alias is a lint error that names the right label.
+- `authorship`: `human`, `llm-assisted` or `llm-generated`. Add `authorship_model` whenever the authorship is LLM. Never write a value you cannot vouch for.
+- A page-one summary directly under the H1, independent of `description` and stripped from MENS training (shape below).
+
+```text
+# Page title
+
+<!-- kb:summary -->
+40 to 120 words that say what the page is for and what it decides.
+<!-- /kb:summary -->
+```
+
+Training eligibility is forced to `false` for `origin: web-promoted` pages and for LLM authorship unless `human_attested_by` names the human reviewer. Only a human sets `human_attested_by`; agents must never write it.
+
+Promoted (`origin: web-promoted`) pages need `sources[]`, each with `url`, `date` (`YYYY-MM-DD`) and `hash` (`blake3:` plus 64 hex characters). Quotes are capped at 50 words each and 200 words per page.
+
+Optional facets: `kb_tier`, `trust_tier`, `scope`, `review_by`, `verified_at`, `supersedes`, `superseded_by`, `sensitivity`.
+
+### Facet lint rule ids
+
+| Rule id | Fix |
+| --- | --- |
+| `facet-missing-topic`, `facet-missing-domain` | add the facet with a taxonomy prefLabel |
+| `facet-unknown-topic`, `facet-unknown-domain`, `facet-deprecated-label` | use the prefLabel the message suggests |
+| `facet-domain-mismatch` | pick a topic that belongs to the page's domain, or fix the domain |
+| `facet-missing-summary`, `facet-summary-placement` | put the `kb:summary` block directly under the H1 |
+| `facet-summary-word-count` | keep the summary between 40 and 120 words |
+| `facet-missing-authorship`, `facet-missing-authorship-model` | add `authorship` (and `authorship_model` for LLM authorship) |
+| `facet-training-eligible-contradiction` | drop `training_eligible: true`, or add `human_attested_by` after human review |
+| `facet-missing-sources`, `facet-source-field` | give every source a url, date and blake3 hash |
+| `facet-quote-over-cap` | shorten or paraphrase the quote |
+| `facet-invalid-date` | use `YYYY-MM-DD` |
+| `facet-unknown-key` | rename the misspelled frontmatter key (for example `training_eligble`) to the facet the message names |
+| `facet-invalid-attestation` | name the human reviewer in `human_attested_by` (not a placeholder such as `false`, `none`, `todo` or an AI name), or remove the key |
+| `facet-parse-error` | fix the facet value named in the message |
+| `facet-backlog-stale` (warning) | run `--tighten-facet-backlog` |
+| `facet-contract-unreadable` | restore the taxonomy and backlog under `contracts/documentation/` |
+
+### Backlog ratchet
+
+Docs that predate the contract are listed, with the rule ids they still violate, in [`contracts/documentation/kb-facet-backlog.v1.yaml`](../../../contracts/documentation/kb-facet-backlog.v1.yaml). A listed doc is excused only for its listed rule ids; editing it does not force compliance, but fixing it should be followed by:
+
+```text
+cargo run -p vox-doc-pipeline -- --tighten-facet-backlog
+```
+
+The backlog only shrinks. Adding a row or rule id is **USER-AUTHORIZED-ONLY**: it needs a re-seed (`--seed-facet-backlog --epoch-note "<why>"`), which bumps the epoch, and the fast-tier gate rejects any growth that lacks one. Even a re-seed cannot list a doc that does not exist at the base ref: a new or renamed doc is never excused. Never hand-edit the file.
 
 ## Documentation Reality Audit
 

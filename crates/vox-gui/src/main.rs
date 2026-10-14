@@ -331,7 +331,6 @@ async fn main() {
             commands::harness_town::vcs_town_status,
             commands::research::start_research_async,
             commands::research::flag_research_misleading,
-            commands::research::save_research_doc,
             commands::research::persist_research_claims,
             commands::research::generate_research_doc_draft,
             commands::research::publish_research_doc,

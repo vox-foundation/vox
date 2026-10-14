@@ -133,6 +133,8 @@ impl Ty {
             ),
             Ty::Tuple(elems) => HirType::Tuple(elems.iter().map(|t| t.to_hir_type()).collect()),
             Ty::Named(n) => HirType::Named(n.clone()),
+            // A table used as a value (a row) is its generated struct.
+            Ty::Table(n, _, _) => HirType::Named(n.clone()),
             _ => HirType::Named(self.signature()), // Fallback to signature as name
         }
     }

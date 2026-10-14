@@ -1,4 +1,4 @@
-import type { RoutingSummary } from '../types/tauri';
+import type { RoutingHealth, RoutingSummary } from '../types/tauri';
 import type { TurnEventDto } from '../types/dashboard';
 import { familyKey } from './modelFamily';
 import { routingModelLabel } from './turnEvents';
@@ -24,6 +24,16 @@ function summaryModelLabel(summary: RoutingSummary | null | undefined): string |
 export function routingCardValue(summary: RoutingSummary | null | undefined): string {
   const label = summaryModelLabel(summary);
   return label ? `Auto → ${label}` : 'Auto';
+}
+
+/** How many things the engine says are wrong with routing: each violation, and each scale that fell back. */
+export function routingHealthProblems(health: RoutingHealth | null | undefined): number {
+  if (!health) return 0;
+  return (
+    health.violations.length +
+    (health.quality_scale === 'fallback' ? 1 : 0) +
+    (health.price_bands === 'fallback' ? 1 : 0)
+  );
 }
 
 /** The chat rail's Routing section (the engine's pick for the next turn). */

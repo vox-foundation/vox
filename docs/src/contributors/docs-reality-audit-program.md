@@ -5,7 +5,7 @@ category: "Contributors"
 status: "roadmap"
 sort_order: 11
 training_eligible: true
-training_rationale: "Roadmap for documentation reality audit program and claim taxonomy."
+training_rationale: "Describes the documentation reality audit taxonomy, scoring and CI entry points that phase 21 of the docs-freshness workstream reactivates."
 schema_type: "TechArticle"
 ---
 

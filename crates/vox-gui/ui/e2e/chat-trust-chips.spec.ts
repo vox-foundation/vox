@@ -59,7 +59,7 @@ test('receipt chips render on the assistant turn', async ({ page }) => {
         content: 'Checked the repository status.',
         created_at: '2026-09-28T12:00:00.000Z',
         task_id: null,
-        model_id: 'opus-4-8',
+        model_id: 'anthropic/claude-opus',
         events: [
           {
             kind: 'tool_receipt',
@@ -140,7 +140,7 @@ test('claims verdict renders and flags fabricated claims', async ({ page }) => {
         content: 'Verified claimed receipts.',
         created_at: '2026-09-28T12:05:00.000Z',
         task_id: null,
-        model_id: 'opus-4-8',
+        model_id: 'anthropic/claude-opus',
         events: [
           {
             kind: 'tool_receipt',
@@ -464,7 +464,7 @@ test('overview: receipts, claims and lock chips in one chat view', async ({ page
         content: 'Verified claimed receipts.',
         created_at: '2026-09-28T12:10:00.000Z',
         task_id: null,
-        model_id: 'opus-4-8',
+        model_id: 'anthropic/claude-opus',
         events: [
           {
             kind: 'tool_receipt',

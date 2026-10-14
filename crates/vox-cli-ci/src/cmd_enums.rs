@@ -205,6 +205,9 @@ pub enum CiCmd {
         /// Also generate/check the Rust FIELDS catalog (generated_fields.rs).
         #[arg(long)]
         fields: bool,
+        /// Generate/check the GUI KB facet type (crates/vox-gui/ui/src/generated/kbFacets.generated.ts) from contracts/documentation/kb-facets.v1.schema.json.
+        #[arg(long)]
+        kb_facets: bool,
     },
     /// Run documentation + Codex + command-compliance + contracts-index guards in one shot.
     #[command(name = "ssot-drift")]
@@ -849,7 +852,12 @@ pub enum CiCmd {
     /// Verify contracts/ci/crate-build-map.v1.json is in sync with crate-graph.v1.json
     /// (recomputes derived blast_s/dependents and fails on drift).
     #[command(name = "crate-build-map-parity")]
-    CrateBuildMapParity,
+    CrateBuildMapParity {
+        /// Rewrite the summary's derived fields from the committed graph, keeping its
+        /// `compile_s` (no timing build needed).
+        #[arg(long)]
+        write: bool,
+    },
     /// Gate workspace fan-in growth: fail when any crate gains new dependents vs the
     /// committed snapshot in `contracts/ci/fan-in-snapshot.v1.json`.
     /// Uses `contracts/ci/crate-graph.v1.json` for actual counts.
@@ -903,6 +911,13 @@ pub enum CiCmd {
         /// Write computed outputs to `$GITHUB_OUTPUT`.
         #[arg(long)]
         github_output: Option<String>,
+        /// Also emit `shard_list` and `shard_<i>_p_args`: the affected crates (or the whole
+        /// graph when the run is full) split into at most this many size-balanced groups.
+        #[arg(long)]
+        shards: Option<usize>,
+        /// Crates never placed in a shard (repeatable), e.g. `vox-gui`.
+        #[arg(long)]
+        exclude: Vec<String>,
     },
     /// GitHub CI state for the current branch (failed/timed-out jobs, slowest
     /// steps) plus open `nightly-failure` issues. Hooks call `--hook` /

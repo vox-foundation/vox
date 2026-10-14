@@ -14,6 +14,7 @@ import { TaskComposer } from './TaskComposer';
 import { feedbackList, hopperList, hopperMarkDone, listenFeedbackChanged, voxTransport, type FeedbackRow } from '../../../transport';
 import { priorityLabel, TASK_PRIORITY_WIRE } from '../../../lib/taskPriority';
 import type { AttentionInbox } from '../../../hooks/useAttentionInbox';
+import type { Toast } from '../../../types/tauri';
 
 interface StoredSession { id: string; title: string }
 
@@ -33,7 +34,7 @@ export function TasksView({
   gamifyEnabled = false,
   attention,
 }: {
-  pushToast?: (t: unknown) => void;
+  pushToast?: (t: Toast) => void;
   gamifyEnabled?: boolean;
   /** When provided, this surface sources its task/feedback data from the
    *  shared inbox instead of self-fetching (App owns polling via
@@ -189,6 +190,7 @@ export function TasksView({
       width: 110,
       render: (r: TaskRow) => (
         <select
+          aria-label={`Priority for task #${r.id.toString().slice(0, 8)}`}
           value={r.priority === 'urgent' ? TASK_PRIORITY_WIRE.urgent : r.priority === 'background' ? TASK_PRIORITY_WIRE.background : TASK_PRIORITY_WIRE.normal}
           onChange={(e) => {
             const val = Number(e.target.value);
@@ -300,7 +302,7 @@ export function TasksView({
     <div className="flex flex-col gap-4 p-6 h-full overflow-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-[15px] font-medium text-text-primary">Tasks</h1>
+          <h2 className="text-[15px] font-medium text-text-primary">Tasks</h2>
           <p className="text-[11px] text-text-muted">
             Everything queued or running across the agent fleet — hopper to-dos
             and orchestrator task graph runs, tagged by origin.

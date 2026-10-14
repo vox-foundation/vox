@@ -229,7 +229,9 @@ async fn list_nodes_omits_stale_entries_when_server_prune_env_set() {
         .expose()
         .map(|s| s.to_string());
     unsafe {
-        std::env::set_var("VOX_MESH_SERVER_STALE_PRUNE_MS", "5");
+        // Long enough that the node is still listed right after `join` on a slow runner
+        // (a 5 ms threshold lost that race), short enough that the prune wait below is quick.
+        std::env::set_var("VOX_MESH_SERVER_STALE_PRUNE_MS", "250");
     }
 
     let state = PopuliTransportState::new();

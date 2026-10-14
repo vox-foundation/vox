@@ -1,0 +1,5 @@
+query-id	corpus-id	score
+q001	docs/src/alpha.md	2
+q001	docs/src/gamma.md	1
+q002	docs/src/alpha.md	2
+q003	docs/src/beta.md	2

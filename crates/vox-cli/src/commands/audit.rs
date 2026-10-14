@@ -215,6 +215,13 @@ pub struct AuditArgs {
     /// command (CR-F0). Only meaningful with `--gate all`.
     #[arg(long)]
     pub strict_block_ga: bool,
+
+    /// With `--strict-block-ga`: exit non-zero only when a GA gate is unmet that is NOT
+    /// listed as known-unmet in this baseline (a regression). The snapshot's `ga_met`
+    /// stays the honest v1.0 verdict; this lets CI stay green while v1.0 is in progress
+    /// and go red the moment a passing gate breaks.
+    #[arg(long, value_name = "PATH")]
+    pub ga_baseline: Option<std::path::PathBuf>,
 }
 
 // ---------------------------------------------------------------------------
@@ -876,6 +883,36 @@ fn run_cr_l_gate(gate_name: &str, args: &AuditArgs) -> Result<()> {
                 serde_json::to_string_pretty(&snap)
                     .map_err(|err| anyhow::anyhow!("render GA snapshot: {err}"))?
             );
+            if let Some(path) = &args.ga_baseline {
+                let text = std::fs::read_to_string(path)
+                    .map_err(|e| anyhow::anyhow!("read GA baseline {}: {e}", path.display()))?;
+                let known = vox_audit::ga::parse_ga_baseline(&text)
+                    .map_err(|e| anyhow::anyhow!("parse GA baseline {}: {e}", path.display()))?;
+                let r = vox_audit::ga::ratchet(&snap, &known);
+                let met = snap
+                    .gates
+                    .iter()
+                    .filter(|g| g.tier != "tooling" && g.met)
+                    .count();
+                let total = snap.gates.iter().filter(|g| g.tier != "tooling").count();
+                eprintln!(
+                    "GA progress: {met}/{total} gates met (ga_met={}); {} known-unmet in {}",
+                    snap.ga_met,
+                    known.len(),
+                    path.display()
+                );
+                for g in &r.newly_met {
+                    eprintln!("GA ratchet: `{g}` is now met; remove it from the baseline");
+                }
+                if !r.regressions.is_empty() {
+                    eprintln!(
+                        "GA ratchet: REGRESSION, unmet and not known-unmet: {}",
+                        r.regressions.join(", ")
+                    );
+                    std::process::exit(1);
+                }
+                std::process::exit(0);
+            }
             std::process::exit(snap.exit_code);
         }
         let outcomes = vox_audit::run_all(&common);
@@ -1100,6 +1137,7 @@ mod tests {
             threshold: None,
             no_canonical_report: false,
             strict_block_ga: false,
+            ga_baseline: None,
         };
         let filtered = filter_checks(&checks, &args);
         assert_eq!(filtered.len(), 1);
@@ -1124,6 +1162,7 @@ mod tests {
             threshold: None,
             no_canonical_report: true,
             strict_block_ga: false,
+            ga_baseline: None,
         }
     }
 
@@ -1258,6 +1297,7 @@ mod tests {
             threshold: None,
             no_canonical_report: false,
             strict_block_ga: false,
+            ga_baseline: None,
         };
         let filtered = filter_checks(&checks, &args);
         assert_eq!(filtered.len(), 1);

@@ -16,8 +16,7 @@ interface ChatTurnEventRowProps {
 /**
  * Renders a single chat-turn event derived from a tool call's RESULT (see
  * Rust `turn_event_for_result` and `receipt_turn_event`) — e.g. a chip naming a skill the model
- * loaded or a tool execution receipt chip. Deliberately separate from `ChatAgentEventRow` (which owns the
- * three HITL plan/verify controls) — this component owns nothing but
+ * loaded or a tool execution receipt chip. This component owns nothing but
  * read-only chips plus the skill-exclusion action.
  *
  * An unrecognized `kind` renders nothing rather than throwing — event shapes
@@ -31,7 +30,7 @@ export function ChatTurnEventRow({ event, onExcludeSkill }: ChatTurnEventRowProp
     return (
       <div
         data-testid="chat-turn-event-row"
-        className="flex items-center gap-2 self-start rounded-full border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary"
+        className="flex items-center gap-2 self-start rounded-full border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[11px] text-text-secondary"
       >
         <span>skill activated · {skillId}</span>
         {onExcludeSkill && skillId !== 'unknown' && (
@@ -57,7 +56,7 @@ export function ChatTurnEventRow({ event, onExcludeSkill }: ChatTurnEventRowProp
       <div
         data-testid="chat-turn-receipt-row"
         data-verified={verified ? 'true' : 'false'}
-        className="flex items-center gap-2 self-start rounded-full border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary"
+        className="flex items-center gap-2 self-start rounded-full border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[11px] text-text-secondary"
         title={`receipt ${receiptId}`}
       >
         <span>
@@ -87,8 +86,8 @@ export function ChatTurnEventRow({ event, onExcludeSkill }: ChatTurnEventRowProp
       <div
         data-testid="chat-turn-claims-row"
         data-flagged={flagged ? 'true' : 'false'}
-        className={`flex items-center gap-2 self-start rounded-full border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] ${
-          flagged ? 'text-amber-300' : 'text-text-secondary'
+        className={`flex items-center gap-2 self-start rounded-full border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[11px] ${
+          flagged ? 'text-(--color-status-warn)' : 'text-text-secondary'
         }`}
       >
         <span>

@@ -129,7 +129,15 @@ async fn run_research_metered(
     } else {
         0
     };
+<<<<<<< HEAD
     super::super::metering::set_run_session(run_session_label(config, session_id, session_key));
+=======
+    super::super::metering::set_run_session(if session_id > 0 {
+        format!("research_session:{session_id}")
+    } else {
+        session_key
+    });
+>>>>>>> origin/main
 
     let report_progress = |msg: String, pct: Option<f32>| {
         if let Some(ref cb) = config.progress_callback {
@@ -240,11 +248,9 @@ async fn run_research_metered(
         Some(ctx) => Some(ctx),
         None => {
             if let Some(db) = db {
-                synthesized_ctx = Some(SearchRuntimeContext::new(
+                synthesized_ctx = Some(fallback_search_ctx(
+                    db,
                     std::env::current_dir().unwrap_or_default(),
-                    Some(std::sync::Arc::new(db.clone())),
-                    std::env::temp_dir(),
-                    std::env::temp_dir().join("MEMORY.md"),
                 ));
                 synthesized_ctx.as_ref()
             } else {
@@ -912,28 +918,6 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
     // PHASE_0a_STUB: training pair persistence not yet wired to vox_db.
     // Phase 1 re-enables after vox_db gains store_training_pair.
 
-    // ── (j) Persistence ──────────────────────────────────────────────────────
-    if persist_enabled
-        && query.persist_to_docs
-        && confidence_signal.score as f64 >= config.persist_min_confidence
-        && answer.len() >= 200
-    {
-        use std::path::Path;
-        if let Some(root_str) =
-            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxWorkspaceRoot).expose()
-        {
-            let root = Path::new(root_str);
-            let slug = super::super::persistence::slug_from_query(&query.query);
-            let _ = super::super::persistence::write_research_doc(
-                root,
-                &slug,
-                &query.query,
-                &answer,
-                resolved_llm.synthesis_model.as_str(),
-            );
-        }
-    }
-
     // PHASE_0a_STUB: memory write not yet wired (save_memory API shape confirmed but
     // session management methods missing from vox_db).
     // Phase 1 re-enables after vox_db gains create_research_session etc.
@@ -1368,6 +1352,18 @@ fn now_ms_i64() -> i64 {
         .unwrap_or(0)
 }
 
+/// Search context for a run given a DB but no caller context: the repo's own memory
+/// layout under `cwd`, as `vox research` and `vox memory search` resolve it.
+fn fallback_search_ctx(db: &Codex, cwd: std::path::PathBuf) -> SearchRuntimeContext {
+    let mem = vox_orchestrator::MemoryConfig::default();
+    SearchRuntimeContext::new(
+        cwd.clone(),
+        Some(std::sync::Arc::new(db.clone())),
+        cwd.join(&mem.log_dir),
+        cwd.join(&mem.memory_md_path),
+    )
+}
+
 fn render_research_report_markdown(
     query: &ResearchQuery,
     plan: &ResearchPlan,
@@ -1460,6 +1456,23 @@ mod tests {
         }
     }
 
+    #[tokio::test]
+    async fn fallback_search_ctx_reads_repo_memory_not_the_system_temp_dir() {
+        let db = vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
+            .await
+            .expect("memory db");
+        let cwd = std::path::PathBuf::from("/work/repo");
+        let ctx = fallback_search_ctx(&db, cwd.clone());
+        let mem = vox_orchestrator::MemoryConfig::default();
+        // The memory corpus is walked recursively; the system temp dir can hold
+        // hundreds of thousands of entries and stalled every DB-backed run.
+        assert!(!ctx.memory_log_dir.starts_with(std::env::temp_dir()));
+        assert_eq!(ctx.memory_log_dir, cwd.join(&mem.log_dir));
+        assert_eq!(ctx.memory_md_path, cwd.join(&mem.memory_md_path));
+        assert_eq!(ctx.repo_root, cwd);
+        assert!(ctx.db.is_some());
+    }
+
     #[test]
     fn fast_lane_plan_condenses_long_prompt_and_keeps_original() {
         let long = "Find all high-value sources of data for events in Tucson that are updated \
@@ -1519,6 +1532,7 @@ mod tests {
         let metadata = crate::research::metering::scope(async {
             let mut metadata = sample_metadata();
             metadata.duration_ms = 0;
+            // drift-allow(duplicate-numeric-literal): test delay
             tokio::time::sleep(std::time::Duration::from_millis(5)).await;
             crate::research::metering::meter_failure();
             refresh_run_totals(&mut metadata, start);

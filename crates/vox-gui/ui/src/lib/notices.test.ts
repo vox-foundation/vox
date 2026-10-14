@@ -7,6 +7,7 @@ describe('notices', () => {
       { severity: 'success', scope: 'action', source: 'backend-ok', title: 'Saved', groupKey: 'Saved', atMs: 10 });
     expect(noticeFromToast({ tone: 'warn', title: 'x', cause: 'backend-error' }, 1).severity).toBe('warning');
     expect(noticeFromToast({ tone: 'info', title: 'x', cause: 'external' }, 1).severity).toBe('info');
+    expect(noticeFromToast({ tone: 'error', title: 'x', cause: 'backend-error' }, 1).severity).toBe('error');
   });
 
   it('only engine warnings and errors become notices, grouped per task', () => {

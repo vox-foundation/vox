@@ -33,14 +33,13 @@ fn read_fixture(name: &str) -> String {
 // ── for r in rows { … } — synthetic _i ────────────────────────────────────────
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn for_loop_minimal_body_compiles() {
     let src = read_fixture("for_minimal_body.vox");
     let files = compile_components(&src);
     let ts = get_component(&files, "Empty");
 
     assert!(
-        ts.contains("rows.map((r, _i) =>"),
+        ts.contains("rows.map((r: any, _i: number) =>"),
         "Empty.tsx must lower `for r in rows` to `.map((r, _i) =>`. got:\n{ts}"
     );
     assert!(
@@ -50,14 +49,13 @@ fn for_loop_minimal_body_compiles() {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn for_loop_no_index_emits_underscore_i() {
     let src = read_fixture("for_no_index.vox");
     let files = compile_components(&src);
     let ts = get_component(&files, "NoIndex");
 
     assert!(
-        ts.contains("rows.map((r, _i) =>"),
+        ts.contains("rows.map((r: any, _i: number) =>"),
         "NoIndex.tsx must use synthetic _i for index-free for-loop. got:\n{ts}"
     );
     assert!(
@@ -69,14 +67,13 @@ fn for_loop_no_index_emits_underscore_i() {
 // ── for x, i in arr { … } — explicit index ────────────────────────────────────
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn for_loop_emits_array_map_with_explicit_index() {
     let src = read_fixture("runs_table.vox");
     let files = compile_components(&src);
     let ts = get_component(&files, "RunsTable");
 
     assert!(
-        ts.contains("rows.map((r, i) =>"),
+        ts.contains("rows.map((r: any, i: number) =>"),
         "RunsTable.tsx must preserve user-named `i` index. got:\n{ts}"
     );
     assert!(
@@ -90,7 +87,6 @@ fn for_loop_emits_array_map_with_explicit_index() {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn for_loop_nested_emits_nested_maps() {
     let src = read_fixture("for_nested.vox");
     let files = compile_components(&src);
@@ -98,13 +94,13 @@ fn for_loop_nested_emits_nested_maps() {
 
     // Outer for row, i in matrix
     assert!(
-        ts.contains("matrix.map((row, i) =>"),
-        "Matrix.tsx outer loop must be matrix.map((row, i) => …). got:\n{ts}"
+        ts.contains("matrix.map((row: any, i: number) =>"),
+        "Matrix.tsx outer loop must be matrix.map((row: any, i: number) => …). got:\n{ts}"
     );
     // Inner for cell, j in row
     assert!(
-        ts.contains("row.map((cell, j) =>"),
-        "Matrix.tsx inner loop must be row.map((cell, j) => …). got:\n{ts}"
+        ts.contains("row.map((cell: any, j: number) =>"),
+        "Matrix.tsx inner loop must be row.map((cell: any, j: number) => …). got:\n{ts}"
     );
     assert!(
         ts.contains("{cell}"),

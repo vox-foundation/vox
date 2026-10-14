@@ -111,6 +111,22 @@ surfaces:
       contract_symbol_id: "vox-ars-crate"
     rationale: "ARS runtime types live in vox-openclaw-runtime."
 
+  - id: voxkb-kbstore-surface
+    retired_pattern: "KbStore, KbRouter, legacy vox_kb_* CRUD tools"
+    canonical: "vox_kb_search / vox_kb_get / vox_kb_cite (Library) and the kb_findings inbox"
+    agents_md_row: "KbStore, KbRouter, legacy vox_kb_* CRUD tools"
+    enforcement:
+      kind: documentation-only
+      backed_by_contract: "contracts/documentation/retired-symbols.v1.yaml"
+      contract_symbol_id: "voxkb-kbstore-surface"
+    rationale: >
+      KB Phase 3 (RET-02, D-02) retired the LIKE-search store, the router, the
+      model-output signal adapters and the 12 legacy CRUD tools with no aliases.
+      Model and web text now reaches the knowledge base only as a pending,
+      Untrusted kb_findings row. The static test
+      crates/vox-orchestrator-mcp/tests/legacy_voxkb_retired.rs keeps the
+      symbols out of crates/ and the MCP contracts.
+
   - id: vox-ludus-crate
     retired_pattern: "vox-ludus"
     canonical: "vox-gamify"

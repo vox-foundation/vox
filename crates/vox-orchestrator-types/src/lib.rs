@@ -7,9 +7,12 @@
 
 pub mod agent_types;
 pub mod merge_outcome;
+pub mod routing_values;
 pub mod socrates_policy;
+pub mod trust;
 pub mod vcs_capability;
 
+pub use routing_values::{CostPreference, RoutingProfile};
 pub use vcs_capability::{
     BranchCreate, BranchName, BranchNameError, RemoteId, WorkingTreeWrite, WorkspaceId,
 };
@@ -20,6 +23,7 @@ pub use agent_types::{
     SnapshotIdGenerator, SwitchAccessMode, SwitchAction, SwitchActionType, TaskId, TaskIdGenerator,
 };
 pub use merge_outcome::{DaemonId, MergeOutcome};
+pub use trust::{ContextTrustTier, FindingTier, tier_for_curated, tier_for_knowledge_node_type};
 
 include!(concat!(env!("OUT_DIR"), "/generated_providers.rs"));
 

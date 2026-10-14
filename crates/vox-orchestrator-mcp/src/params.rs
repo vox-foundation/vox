@@ -636,6 +636,7 @@ pub struct BrowserSnapshotParams {
     pub include_boxes: bool,
 }
 
+// drift-allow(serde-default-dup): local default; vox_config::serde_defaults would add a crate edge (owner-approved edges only)
 fn default_true_interactive() -> bool {
     true
 }

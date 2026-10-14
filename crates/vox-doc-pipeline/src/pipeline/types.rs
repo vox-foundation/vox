@@ -72,4 +72,81 @@ pub enum LintKind {
     ReadmeSyncSourceMissing {
         path: String,
     },
+    /// A KB facet finding; the rule id is the backlog key.
+    Facet(FacetIssue),
+}
+
+/// One facet-lint finding (KB Phase 4). The stable rule id (see `facets.rs`) is also the key
+/// the facet backlog uses to excuse a doc from exactly this rule.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FacetIssue {
+    /// The taxonomy or backlog contract could not be read or validated (fail closed).
+    ContractUnreadable {
+        path: String,
+        error: String,
+    },
+    /// A facet value in frontmatter does not deserialize.
+    ParseError {
+        msg: String,
+    },
+    MissingTopic,
+    MissingDomain,
+    UnknownTopic {
+        value: String,
+        hint: Option<String>,
+    },
+    UnknownDomain {
+        value: String,
+        hint: Option<String>,
+    },
+    /// A retired alias was written as a facet value.
+    DeprecatedLabel {
+        field: &'static str,
+        value: String,
+        replaced_by: String,
+    },
+    DomainMismatch {
+        topic: String,
+        domain: String,
+        expected: String,
+    },
+    MissingSummary,
+    SummaryPlacement {
+        reason: String,
+    },
+    SummaryWordCount {
+        words: usize,
+    },
+    MissingAuthorship,
+    MissingAuthorshipModel,
+    /// `training_eligible: true` on a page the shared rule forces ineligible.
+    TrainingEligibleContradiction,
+    MissingSources,
+    SourceField {
+        index: usize,
+        field: &'static str,
+        problem: String,
+    },
+    QuoteOverCap {
+        words: usize,
+        cap: usize,
+        scope: &'static str,
+    },
+    InvalidDate {
+        field: &'static str,
+        value: String,
+    },
+    /// A frontmatter key that looks like a misspelled facet key (WR-03).
+    UnknownFacetKey {
+        key: String,
+        did_you_mean: &'static str,
+    },
+    /// `human_attested_by` is blank, a placeholder or an AI name (WR-02).
+    InvalidAttestation {
+        value: String,
+    },
+    /// The backlog lists a rule the doc no longer violates (warning).
+    BacklogStale {
+        rule: String,
+    },
 }

@@ -43,6 +43,9 @@ pub use research::{
 /// Alias kept for back-compat (`vox_db::MemoryParams`).
 pub type MemoryParams<'a> = store_types::SaveMemoryParams<'a>;
 
+/// KB-text sanitizer and provenance newtypes (TRUST-05).
+pub mod kb_text;
+
 /// Typed string-ID newtypes for DB row fields (UUIDs, hashes, human-readable IDs).
 pub mod ids;
 pub use ids::{DbAgentId, DbCorrelationId, DbPlanSessionId, DbSessionId, DbTaskId, DbUserId};

@@ -244,6 +244,8 @@ mod tests {
                 model: "google/gemini-3-flash-preview".into(),
                 reviewed_at: "2026-06-15T00:00:00Z".into(),
                 prompt_version: "2026-07-16.1".into(),
+                defects: Vec::new(),
+                ux_report: None,
             },
         );
         let s = serde_json::to_string(&idx).unwrap();

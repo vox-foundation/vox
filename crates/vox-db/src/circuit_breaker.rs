@@ -100,6 +100,7 @@ impl DbCircuitBreaker {
     /// Create from `VOX_DB_CIRCUIT_BREAKER` env with sensible defaults (5 failures, 30 s reset).
     #[must_use]
     pub fn from_env() -> Self {
+        // drift-allow(timeout-literal,duplicate-numeric-literal): local wait/poll bound, not an HTTP request timeout; a shared constant needs a vox-config edge
         Self::new(5, Duration::from_secs(30), Self::enabled_from_env())
     }
 
@@ -183,6 +184,7 @@ mod tests {
 
     #[tokio::test]
     async fn closed_to_open_after_threshold() {
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
         let cb = DbCircuitBreaker::new(3, Duration::from_secs(60), true);
         for _ in 0..3 {
             let _: Result<(), String> = cb
@@ -194,6 +196,7 @@ mod tests {
 
     #[tokio::test]
     async fn open_returns_error_without_calling() {
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
         let cb = DbCircuitBreaker::new(1, Duration::from_secs(60), true);
         // Trip it
         let _: Result<(), String> = cb.call(|| async { Err::<(), _>("fail".to_string()) }).await;
@@ -211,6 +214,7 @@ mod tests {
 
     #[tokio::test]
     async fn success_resets_count() {
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
         let cb = DbCircuitBreaker::new(5, Duration::from_secs(60), true);
         // One failure
         let _: Result<(), String> = cb.call(|| async { Err("oops".to_string()) }).await;
@@ -223,6 +227,7 @@ mod tests {
 
     #[tokio::test]
     async fn disabled_always_passes_through() {
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
         let cb = DbCircuitBreaker::new(1, Duration::from_secs(60), false);
         // Failures don't trip
         for _ in 0..10 {

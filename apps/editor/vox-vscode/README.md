@@ -10,7 +10,7 @@ training_rationale: "Provides documentation for the VS Code extension, including
 
 > Syntax highlighting, LSP integration, and build commands for [Vox](https://github.com/vox-foundation/vox) — the AI-native, full-stack programming language.
 
-**Frontend output (2026):** `vox build` emits **`routes.manifest.ts`** and **`vox-client.ts`**; generated **`App.tsx` / `VoxTanStackRouter.tsx` / `serverFns.ts`** are retired. Use **`vox build --scaffold`** (or `VOX_WEB_EMIT_SCAFFOLD=1`) to seed a user-owned `app/App.tsx` + Vite shell that imports the manifest. Extension docs, snippets, and path assumptions should align with manifest-first adapters (see [`react-interop-hybrid-adapter-cookbook.md`](../../../docs/src/architecture/react-interop-hybrid-adapter-cookbook.md)).
+**Frontend output (2026):** `vox build` emits **`routes.manifest.ts`** and **`vox-client.ts`**; generated **`App.tsx` / `VoxTanStackRouter.tsx` / `serverFns.ts`** are retired. Use **`vox build --scaffold`** (or `VOX_WEB_EMIT_SCAFFOLD=1`) to seed a user-owned `app/App.tsx` + Vite shell that imports the manifest. Extension docs, snippets, and path assumptions should align with manifest-first adapters (see [`react-interop-hybrid-adapter-cookbook.md`](../../../docs/src/archive/research-2026-q1/react-interop-hybrid-adapter-cookbook.md)).
 
 ## Features
 
@@ -66,7 +66,7 @@ npm run compile
 
 ## Privacy and telemetry
 
-- **Vox product telemetry SSOT** (trust boundaries, naming, and debug flags): [`docs/src/architecture/telemetry-trust-ssot.md`](../../../docs/src/architecture/telemetry-trust-ssot.md), [`docs/src/architecture/telemetry-client-disclosure-ssot.md`](../../../docs/src/architecture/telemetry-client-disclosure-ssot.md).
+- **Vox product telemetry SSOT** (trust boundaries, naming, and debug flags): [`docs/src/architecture/telemetry-trust-ssot.md`](../../../docs/src/architecture/telemetry-trust-ssot.md), [`docs/src/archive/research-2026-q1/telemetry-client-disclosure-ssot.md`](../../../docs/src/archive/research-2026-q1/telemetry-client-disclosure-ssot.md).
 - **MCP debug payloads** (`vox.mcp.debugPayloads`): see [`docs/src/reference/vscode-mcp-compat.md`](../../../docs/src/reference/vscode-mcp-compat.md) — high-sensitivity diagnostic, not anonymous usage data.
 - The webview may expose a **local** “telemetry” or insights tab for **on-machine** stats; it is not a separate remote analytics product unless documented otherwise in the SSOT above.
 

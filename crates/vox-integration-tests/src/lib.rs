@@ -116,7 +116,7 @@ pub fn run_tsc_noemit(scratch: &Path, tsconfig_path: &Path) -> std::process::Out
 /// default. Under that path, two tests setting different values for the same var can race.
 static ENV_VAR_LOCK: Mutex<()> = Mutex::new(());
 
-/// Take [`ENV_VAR_LOCK`] (recovering from a poisoned lock), then mutate env vars
+/// Take `ENV_VAR_LOCK` (recovering from a poisoned lock), then mutate env vars
 /// through `vox_test_harness::env_scratch::EnvScratch`, the workspace's one
 /// reviewed `set_var` site. Bind the lock BEFORE the scratch. Locals drop in
 /// reverse order, so the vars are restored while the lock is still held, even

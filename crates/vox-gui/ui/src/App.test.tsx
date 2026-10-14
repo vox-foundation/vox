@@ -141,6 +141,54 @@ describe('App shell', () => {
     expect(screen.getAllByText(/Daily budget of \$5\.00 exceeded/).length).toBeGreaterThan(0);
   });
 
+  // /diff used to load the diff into state that nothing rendered.
+  it('the /diff slash command shows the pending diff in a dialog', async () => {
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve([]);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'gui-test-session' });
+      if (cmd === 'get_task_diff') return Promise.resolve('diff --git a/x b/x\n-old\n+new\n');
+      return Promise.resolve(null);
+    });
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    const composer = await screen.findByPlaceholderText(/describe a task/i);
+    const user = userEvent.setup();
+    await user.click(composer);
+    await user.type(composer, '/diff');
+    await user.keyboard('{Enter}');
+
+    expect(await screen.findByRole('dialog', { name: 'Pending diff' })).toBeInTheDocument();
+    expect((await screen.findByTestId('task-diff-text')).textContent).toContain('+new');
+    expect(invokeMock).toHaveBeenCalledWith('get_task_diff', { path: null });
+  });
+
+  // The toast expires after 5s; the bell keeps it (pushToast -> notice store -> status bar).
+  it('a toast is kept by the status bar bell as an unread problem', async () => {
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve([]);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'gui-test-session' });
+      if (cmd === 'chat_turn') {
+        return Promise.reject({ kind: 'budget_exceeded', message: 'Daily budget of $5.00 exceeded (spent $5.12)' });
+      }
+      return Promise.resolve(null);
+    });
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    const composer = await screen.findByPlaceholderText(/describe a task/i);
+    const user = userEvent.setup();
+    await user.click(composer);
+    await user.type(composer, 'hello there');
+    await user.keyboard('{Enter}');
+
+    expect(
+      await screen.findByRole('button', { name: 'Notifications, 1 need attention' }),
+    ).toBeInTheDocument();
+  });
+
   // Same distinct handling must apply to the other lifecycle a chat message
   // can take — the background execution (`/spawn`) — since the budget guard
   // is wired into both server-side, not just the synchronous one.

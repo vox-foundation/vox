@@ -25,6 +25,53 @@ describe('BottomStatusBar', () => {
     expect(screen.getByText('Mesh')).toBeInTheDocument();
   });
 
+  describe('notification bell', () => {
+    const problem = {
+      id: 'notice-1',
+      groupKey: 'engine:Disk full',
+      severity: 'warning' as const,
+      scope: 'engine' as const,
+      source: 'engine',
+      title: 'Disk full',
+      count: 1,
+      lastAtMs: 0,
+      read: false,
+    };
+    const bar = (extra: Partial<ComponentProps<typeof BottomStatusBar>> = {}) => (
+      <BottomStatusBar
+        kpis={INITIAL_KPIS}
+        hudTilesConfig={defaultHudTiles()}
+        onNavigate={vi.fn()}
+        lastOrchEventAt={null}
+        orchUsesPolling={false}
+        liveFreshMs={10_000}
+        {...extra}
+      />
+    );
+
+    it('is the last item and names the unread problems', () => {
+      render(bar({ notices: [problem], onMarkAllNoticesRead: vi.fn() }));
+      const bell = screen.getByRole('button', { name: 'Notifications, 1 need attention' });
+      const slot = screen.getByTestId(WORKBENCH_TABBAR_TRAILING_SLOT_ID);
+      expect(slot.compareDocumentPosition(bell) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('is absent when the app passes no notice store', () => {
+      render(bar());
+      expect(screen.queryByRole('button', { name: /^Notifications/ })).toBeNull();
+    });
+
+    it('opening the drawer does not mark anything read; "Mark all read" does', () => {
+      const onMarkAllNoticesRead = vi.fn();
+      render(bar({ notices: [problem], onMarkAllNoticesRead }));
+      fireEvent.click(screen.getByRole('button', { name: /^Notifications/ }));
+      expect(screen.getByText('Disk full')).toBeInTheDocument();
+      expect(onMarkAllNoticesRead).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole('button', { name: 'Mark all read' }));
+      expect(onMarkAllNoticesRead).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('a disabled tile in hudTilesConfig does not render', () => {
     const config = defaultHudTiles();
     config.tiles = config.tiles.map((t) =>
@@ -283,6 +330,54 @@ describe('BottomStatusBar cards (chat-surfaces plan 3a)', () => {
     expect(card).toHaveTextContent('Needs you3');
     fireEvent.click(card);
     expect(onNavigate).toHaveBeenCalledWith('needs-you');
+  });
+
+  describe('Routing card health', () => {
+    const health = (over: Record<string, unknown> = {}) => ({
+      schema_version: 1,
+      checked_at_unix: 0,
+      models: 10,
+      cloud_models: 8,
+      benchmarked: 8,
+      inherited: 0,
+      unknown_tier_cloud: 0,
+      quality_scale: 'derived' as const,
+      price_bands: 'derived' as const,
+      efficient_pick: null,
+      violations: [] as Array<{ invariant: string; detail: string }>,
+      ...over,
+    });
+
+    it('shows nothing extra when routing is healthy', () => {
+      renderBar({ routingHealth: health() });
+      expect(screen.queryByTestId('bottom-status-bar-routing-health')).toBeNull();
+    });
+
+    it('shows a dot that says how many problems when there are violations or a fallback scale', () => {
+      renderBar({
+        routingHealth: health({ violations: [{ invariant: 'a', detail: 'x' }], price_bands: 'fallback' }),
+      });
+      expect(screen.getByRole('img', { name: 'Routing health: 2 problems' })).toBeInTheDocument();
+    });
+
+    it('is named "Open routing details" and opens Models', () => {
+      const onNavigate = vi.fn();
+      renderBar({ onNavigate });
+      fireEvent.click(screen.getByRole('button', { name: 'Open routing details' }));
+      expect(onNavigate).toHaveBeenCalledWith('models');
+    });
+  });
+
+  it('Needs you never reads as a clear 0 while a source failed to load', () => {
+    renderBar({ needsYouCount: 0, needsYouDegraded: ['approvals'] });
+    const card = screen.getByTestId('bottom-status-bar-needs-you');
+    expect(card).toHaveTextContent("Needs you— · couldn't load approvals");
+    expect(card.textContent).not.toMatch(/Needs you0/);
+  });
+
+  it('Needs you keeps its count and names the failed source beside it', () => {
+    renderBar({ needsYouCount: 2, needsYouDegraded: ['feedback'] });
+    expect(screen.getByTestId('bottom-status-bar-needs-you')).toHaveTextContent("Needs you2 · couldn't load feedback");
   });
 
   it('no retired segment renders', () => {

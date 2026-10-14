@@ -275,6 +275,7 @@
       "vox-compiler",
       "vox-db",
       "vox-eval",
+      "vox-kb-facets",
       "vox-mcp-registry",
       "vox-repository",
       "workspace-hack"
@@ -310,6 +311,7 @@
     "vox-doc-pipeline": [
       "vox-bounded-fs",
       "vox-compiler",
+      "vox-kb-facets",
       "workspace-hack"
     ],
     "vox-drift-check": [
@@ -431,6 +433,9 @@
     "vox-jsonschema-util": [
       "workspace-hack"
     ],
+    "vox-kb-facets": [
+      "workspace-hack"
+    ],
     "vox-langtool": [
       "vox-cli-core",
       "vox-codegen",
@@ -446,7 +451,6 @@
       "workspace-hack"
     ],
     "vox-llm-egress": [
-      "vox-config",
       "vox-http-client",
       "vox-openai",
       "workspace-hack"
@@ -523,6 +527,7 @@
       "vox-mcp-registry",
       "vox-mesh-policy",
       "vox-mesh-types",
+      "vox-orchestrator-models",
       "vox-orchestrator-queue",
       "vox-orchestrator-types",
       "vox-package",
@@ -548,6 +553,7 @@
       "vox-repository",
       "vox-secrets",
       "vox-skills",
+      "vox-terminal-core",
       "workspace-hack"
     ],
     "vox-orchestrator-driver": [
@@ -602,6 +608,12 @@
       "vox-skills",
       "vox-telemetry",
       "workspace-hack"
+    ],
+    "vox-orchestrator-models": [
+      "vox-bounded-fs",
+      "vox-config",
+      "vox-db",
+      "vox-secrets"
     ],
     "vox-orchestrator-queue": [
       "vox-config",
@@ -848,8 +860,10 @@
       "vox-actor-runtime",
       "vox-bounded-fs",
       "vox-config",
+      "vox-crypto",
       "vox-db",
       "vox-http-client",
+      "vox-kb-facets",
       "vox-secrets",
       "workspace-hack"
     ],

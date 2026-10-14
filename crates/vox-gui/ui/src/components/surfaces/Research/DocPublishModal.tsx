@@ -21,7 +21,7 @@ export interface DocPublishModalProps {
   sessionId: number;
   isOpen: boolean;
   onClose: () => void;
-  onPublished: (relativePath: string) => void;
+  onPublished: (proposedPath: string, status: string) => void;
 }
 
 type TabType = 'preview' | 'raw' | 'validation';
@@ -148,7 +148,7 @@ export function DocPublishModal({
     setPublishError(null);
     try {
       const res = await publishResearchDoc(sessionId, finalSlug, content);
-      onPublished(res.relative_path);
+      onPublished(res.proposed_path, res.status);
       onClose();
     } catch (err) {
       setPublishError(sanitizeErrorForToast(err));
@@ -174,7 +174,7 @@ export function DocPublishModal({
               Publish Architecture SSOT
             </DialogTitle>
             <DialogDescription className="mt-0.5 text-xs text-text-muted">
-              Review, edit, and publish the research findings to docs/src/architecture/.
+              Review and edit the draft, then file it for review as a proposed docs/src/architecture/ page. Nothing is written until a reviewer approves it.
             </DialogDescription>
           </div>
           <button

@@ -45,7 +45,7 @@ use cargo_metadata::MetadataCommand;
 use serde::Serialize;
 use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 use std::fs::OpenOptions;
-use std::io::Write;
+use std::io::{IsTerminal, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Arc;
@@ -151,6 +151,20 @@ struct OwnedStep {
 
 #[allow(unsafe_code)] // `set_var` is unsafe on Rust 2024; pre-push is single-threaded.
 pub fn run(root: &Path, opts: PrePushOpts) -> Result<()> {
+    // Only as a git pre-push hook (lefthook sets VOX_PRE_PUSH_REFS=1): git writes the refs to
+    // stdin and closes it. Elsewhere stdin may be an open, idle pipe (agents, CI) and a read
+    // would block forever.
+    if std::env::var_os("VOX_PRE_PUSH_REFS").is_some() && !std::io::stdin().is_terminal() {
+        let mut s = String::new();
+        std::io::stdin().read_to_string(&mut s)?;
+        if let Some(msg) = vox_cli_ci::pre_push_refs::refused_main_push(
+            &s,
+            std::env::var_os("VOX_ALLOW_MAIN_PUSH").is_some(),
+        ) {
+            bail!("{msg}");
+        }
+    }
+
     // nextest and other tools spawn nested `cargo` without our `--config` flags;
     // clear the workspace rustc-wrapper so gates work when sccache is absent.
     unsafe {
@@ -487,6 +501,11 @@ fn build_steps(root: &Path, opts: &PrePushOpts) -> Result<Vec<OwnedStep>> {
             run: Box::new(step_workflow_permissions_guard),
         },
         OwnedStep {
+            label: "vox ci dev-loop-guard".into(),
+            scope: None,
+            run: Box::new(step_dev_loop_guard),
+        },
+        OwnedStep {
             label: "vox ci check-links".into(),
             scope: None,
             run: Box::new(step_check_links),
@@ -500,6 +519,16 @@ fn build_steps(root: &Path, opts: &PrePushOpts) -> Result<Vec<OwnedStep>> {
             label: "vox ci canonical-map-verify".into(),
             scope: None,
             run: Box::new(step_canonical_map_verify),
+        },
+        OwnedStep {
+            label: "vox kb eval --gate".into(),
+            scope: None,
+            run: Box::new(step_kb_eval_gate),
+        },
+        OwnedStep {
+            label: "vox-doc-pipeline facet backlog (tighten-only vs base)".into(),
+            scope: None,
+            run: Box::new(step_facet_backlog_gate),
         },
     ];
 
@@ -835,16 +864,18 @@ fn nextest_cargo_status(root: &Path, args: &[&str]) -> Result<()> {
     Ok(())
 }
 
-/// Returns a `Command` that invokes the current `vox` binary.
-///
-/// On Windows, `cargo run -p vox-cli` would try to relink `vox.exe`, which
-/// fails with "Access is denied" (os error 5) because the currently running
-/// process holds a lock on the executable. We avoid this by resolving
-/// `current_exe()` and invoking it directly — the binary is already fresh
-/// (we just ran it). On non-Windows platforms we keep using `cargo run` so
-/// that sub-commands always run against the latest source.
+/// Diff base for pre-push checks: `override_ref` when set, else `origin/main`.
+fn base_ref_or_default(override_ref: Option<String>) -> String {
+    override_ref.unwrap_or_else(|| "origin/main".into())
+}
+
+/// Single reader of the diff-base override, shared by the diff step and the kb eval gate.
+fn prepush_base_ref() -> String {
+    base_ref_or_default(std::env::var("VOX_PREPUSH_BASE").ok())
+}
+
 fn git_diff_name_only_for_prepush(root: &Path) -> Result<String> {
-    let primary = std::env::var("VOX_PREPUSH_BASE").unwrap_or_else(|_| "origin/main".into());
+    let primary = prepush_base_ref();
     let attempt = |base: &str| -> Result<String> {
         let out = // vox-arch-check: allow git-exec
         Command::new("git")
@@ -1064,6 +1095,10 @@ fn step_workflow_permissions_guard(root: &Path) -> Result<()> {
     vox_cli_ci::workflow_permissions_guard::run(root)
 }
 
+fn step_dev_loop_guard(root: &Path) -> Result<()> {
+    vox_cli_ci::dev_loop_guard::run(root)
+}
+
 fn step_check_links(root: &Path) -> Result<()> {
     // In-process — avoids Windows nested `current_exe()` spawning a stale sibling `vox.exe`.
     vox_cli_ci::check_links::run(root, None)
@@ -1075,6 +1110,14 @@ fn step_retired_symbol_check(root: &Path) -> Result<()> {
 
 fn step_canonical_map_verify(root: &Path) -> Result<()> {
     vox_cli_ci::canonical_docs::run(root)
+}
+
+fn step_kb_eval_gate(root: &Path) -> Result<()> {
+    crate::commands::kb::gate::run_gate(root, &prepush_base_ref())
+}
+
+fn step_facet_backlog_gate(root: &Path) -> Result<()> {
+    crate::commands::kb::facet_backlog::run_facet_backlog_gate(root, &prepush_base_ref())
 }
 
 fn step_doc_inventory(root: &Path) -> Result<()> {
@@ -1172,19 +1215,21 @@ fn step_drift_check(root: &Path) -> Result<()> {
     // that are tracked separately; blocking every push on them was always a
     // false-positive-saturated gate.  Error-level findings are hard failures
     // (e.g. security-sensitive patterns) and must stay blocked.
-    let status = cargo()
-        .args([
-            "run",
-            "-q",
-            "-p",
-            "vox-drift-check",
-            "--",
-            ".",
-            "--severity",
-            "warning",
-            "--fail-on",
-            "error",
-        ])
+    // Never `cargo run` the tool here (it rebuilt vox-drift-check and workspace-hack's
+    // dependency set before every push): use the installed binary; locally a missing one is
+    // skipped, and hosted CI builds it before this step.
+    let bin = match vox_cli_ci::installed_tool("vox-drift-check") {
+        vox_cli_ci::ToolPath::Found(p) => p,
+        vox_cli_ci::ToolPath::SkipLocal => {
+            println!("    vox-drift-check not installed: skipped locally (hosted CI runs it)");
+            return Ok(());
+        }
+        vox_cli_ci::ToolPath::MissingOnCi => {
+            bail!("vox-drift-check is not on PATH; the CI job must build it before the fast tier")
+        }
+    };
+    let status = Command::new(bin)
+        .args([".", "--severity", "warning", "--fail-on", "error"])
         .current_dir(root)
         .status()
         .context("spawn vox-drift-check")?;
@@ -1536,6 +1581,12 @@ fn changed_dirs_under_crates(root: &Path) -> Result<Vec<PathBuf>> {
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn prepush_base_ref_defaults_to_origin_main() {
+        assert_eq!(base_ref_or_default(None), "origin/main");
+        assert_eq!(base_ref_or_default(Some("HEAD~3".into())), "HEAD~3");
+    }
 
     #[test]
     fn heartbeat_does_not_pad_fast_steps() {

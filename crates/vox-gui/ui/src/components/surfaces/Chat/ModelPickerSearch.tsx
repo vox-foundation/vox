@@ -19,7 +19,7 @@ export function ModelPickerSearch({
         e.stopPropagation();
         if (e.key === 'Enter') e.preventDefault();
       }}
-      className="mb-1 w-full rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-primary placeholder:text-text-muted focus:border-brass/40 focus:outline-hidden"
+      className="mb-1 w-full rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[11px] text-text-primary placeholder:text-text-muted focus:border-brass/40 focus:outline-hidden"
     />
   );
 }

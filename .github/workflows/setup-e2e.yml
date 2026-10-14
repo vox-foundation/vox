@@ -63,11 +63,26 @@ jobs:
         shell: bash
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
 
+      # Build once and run setup.vox from a copy outside target/. Launching it with
+      # `cargo run` each time rebuilt vox-cli on the second run (setup.vox's own
+      # `cargo install --target-dir target` replaces target/debug/vox), which changed the
+      # binary's mtime and missed the script cache (a full native recompile of setup.vox),
+      # past the 600s guard on Linux; on Windows that install cannot replace the running
+      # vox.exe at all ("Access is denied", os error 5).
+      - name: Build vox and stage a runnable copy
+        shell: bash
+        run: |
+          source "$HOME/.cargo/env" || export PATH="$HOME/.cargo/bin:$PATH"
+          cargo build -p vox-cli --features script-execution
+          ext=""; [[ "$RUNNER_OS" == "Windows" ]] && ext=".exe"
+          mkdir -p "$RUNNER_TEMP/vox-bin"
+          cp "target/debug/vox$ext" "$RUNNER_TEMP/vox-bin/vox$ext"
+
       - name: Run setup.vox (First run - Provision)
         shell: bash
         run: |
           source "$HOME/.cargo/env" || export PATH="$HOME/.cargo/bin:$PATH"
-          cargo run -p vox-cli --features script-execution -- run --mode script scripts/setup.vox
+          "$RUNNER_TEMP/vox-bin/vox" run --mode script scripts/setup.vox
 
       - name: Run setup.vox (Second run - Idempotency)
         # The second run re-runs the full script (including `cargo check
@@ -79,9 +94,9 @@ jobs:
         run: |
           source "$HOME/.cargo/env" || export PATH="$HOME/.cargo/bin:$PATH"
           if [[ "$RUNNER_OS" == "Linux" ]]; then
-            timeout 600s cargo run -p vox-cli --features script-execution -- run --mode script scripts/setup.vox
+            timeout 600s "$RUNNER_TEMP/vox-bin/vox" run --mode script scripts/setup.vox
           else
-            cargo run -p vox-cli --features script-execution -- run --mode script scripts/setup.vox
+            "$RUNNER_TEMP/vox-bin/vox" run --mode script scripts/setup.vox
           fi
 
       # `populi` is a NON-DEFAULT feature of vox-ml-cli, so a bare

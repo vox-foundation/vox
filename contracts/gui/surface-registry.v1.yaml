@@ -68,7 +68,7 @@ surfaces:
 - view_key: flow
   cli_group: null
   representation_tier: live_backend
-  nav_label: Agents
+  nav_label: Flow
   nav_icon: flow
   nav_group: operate
   parent_surface: agents
@@ -92,7 +92,7 @@ surfaces:
 - view_key: mercatus
   cli_group: null
   representation_tier: live_backend
-  nav_label: Mercatus
+  nav_label: Market
   nav_icon: scale
   nav_group: operate
   parent_surface: null
@@ -268,7 +268,7 @@ surfaces:
 - view_key: catalog
   cli_group: commands
   representation_tier: live_backend
-  nav_label: Commands
+  nav_label: Catalog
   nav_icon: catalog
   nav_group: develop
   parent_surface: commands
@@ -465,6 +465,14 @@ surfaces:
   nav_group: null
   parent_surface: null
   notes: null
+- view_key: null
+  cli_group: kb
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  parent_surface: null
+  notes: CLI-only until the Library GUI (kb workstream Phase 6)
 - view_key: null
   cli_group: live
   representation_tier: none

@@ -145,7 +145,12 @@ pub fn spawn_agent_event_stream(app_handle: tauri::AppHandle, daemon: Arc<Persis
                 if let Some(offset) = extract_offset(&value) {
                     last_offset = Some(offset);
                 }
+                let mut value = value;
+                let loggable = super::event_annotate::annotate_agent_event(&mut value);
                 let _ = app_handle.emit(AGENT_EVENTS_EVENT, value);
+                if loggable {
+                    let _ = app_handle.emit(super::event_annotate::ACTIVITY_APPENDED_EVENT, ());
+                }
             }
 
             // Stream ended (daemon stopped or errored). Invalidate the cached

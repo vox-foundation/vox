@@ -95,7 +95,7 @@ export function buildFederatedIndex(sources: FederatedIndexSources): FederatedIn
     entries.push({
       kind: 'surface',
       id: `surface:${s.viewKey}`,
-      label: s.navLabel,
+      label: LEXICON[s.viewKey]?.en ?? s.navLabel,
       detail: s.navGroup ?? '',
       keywords: [LEXICON[s.viewKey]?.en, LEXICON[s.viewKey]?.la, s.navLabel].filter(Boolean) as string[],
       payload: { type: 'surface', viewKey: s.viewKey },

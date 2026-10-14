@@ -4,6 +4,12 @@
   "suppressions": [
     {
       "rule_id_prefix": "skeleton/untested-pub-api",
+      "path_glob": "**/vox-db/src/codex_legacy.rs",
+      "reason": "Pre-existing pub fns, tested in src/local_tests.rs `legacy_tests` (features local + legacy-import). The module is #[deprecated], so an in-file #[test] module raises deprecation warnings from the test harness's crate-root reference to each test; the 2026-10-06 quarantine fix only edited the table lists.",
+      "owner": "robot"
+    },
+    {
+      "rule_id_prefix": "skeleton/untested-pub-api",
       "path_glob": "**/vox-cli-review/src/coderabbit/github/comments.rs",
       "reason": "trigger_coderabbit and wait_for_review are pre-existing (predate the 2026-09-27 vox-config defactor, which only replaced an inline `vox_config::timeouts::D_30S` reference with a local `const POLL_INTERVAL`). Both call the live GitHub API through vox_forge::github::GitHubProvider, which tdd-guard's same-file #[test] scan cannot cover without a mocked provider — out of scope for this drive-by manifest-dependency change.",
       "owner": "robot"
@@ -129,7 +135,6 @@
       "owner": "robot"
     },
     {
-
       "rule_id_prefix": "skeleton/untested-pub-api",
       "path_glob": "**/vox-cli-ci/src/gui_smoke.rs",
       "reason": "run() is pre-existing process-orchestration (predates the Clavis secrets migration, which only replaced two std::env::var reads with vox_secrets::resolve_secret for VOX_WEB_VITE_SMOKE/VOX_GUI_PLAYWRIGHT). The entire body spawns cargo nextest / pnpm subprocesses with no pure logic to extract; unit-testing it would mean mocking process execution, a separate, out-of-scope effort from the secrets fix. Surfaced only because tdd-guard re-scans the whole touched file, not the diff.",
@@ -227,14 +232,14 @@
     },
     {
       "rule_id_prefix": "skeleton/untested-pub-api",
-      "path_glob": "**/vox-cli/src/commands/model/mod.rs",
-      "reason": "pub async fn run() is the pre-existing `vox model` dispatcher (a thin match onto each subcommand's run); the model-routing change only adds the Bench arm, whose handler is tested in bench/. Surfaced only because tdd-guard re-scans the whole touched file, not the diff.",
+      "path_glob": "**/vox-cli/src/commands/ci/run_body_helpers/orchestration_audit.rs",
+      "reason": "run_ssot_audit is pre-existing; the 2026-10-04 RoutingTask refactor (build-loop Part B task B2) only changed one call inside it. It is an integration command over the live VoxDb scoreboard (`vox ci ssot-audit`), which tdd-guard's same-file #[test] scan cannot cover without a database fixture.",
       "owner": "robot"
     },
     {
-      "rule_id_prefix": "skeleton/untested-pub-api",
-      "path_glob": "**/vox-db/src/codex_legacy.rs",
-      "reason": "verify_legacy_store and the LEGACY_EXPORT_TABLES list are covered by vox-db's local_tests.rs (codex_reactivity_schema_and_legacy_verify plus the sqlite_master drift test); tdd-guard only looks for tests in the same file.",
+      "rule_id_prefix": "skeleton/hollow-fn",
+      "path_glob": "**/vox-cli/src/commands/ci/run_body_helpers/orchestration_audit.rs",
+      "reason": "The cfg(not(feature = \"dei\")) run_ssot_audit is a deliberate feature-off stub that prints why the audit is skipped; pre-existing, touched only by the B2 call-site change in the same file.",
       "owner": "robot"
     }
   ]

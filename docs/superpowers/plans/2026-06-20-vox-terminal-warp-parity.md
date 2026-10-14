@@ -99,6 +99,7 @@ T7  Packaging / distribution (vox term binary + font)
 - **T2, T3, T4, T5** are mutually independent once T1 is frozen → parallelizable (see §4.1).
 - **T6 (Nushell)** depends on the `ShellBackend` seam (T1 Task 1.5) and edits the shared `pty`/`session` seam → run it **sequentially**, not concurrently with T2/T4 (would conflict on the seam).
 - **T7** depends on T2.
+- **Amendment 2026-10-08 — session host (T3 prerequisite).** Sessions are hosted in `vox-orchestrator-d` so `vox-term` and the Axis GUI attach to the *same* live session (seamless CLI↔GUI switching, shared chat context), with an in-process `LocalHost` fallback for headless builds. Tasks H1–H8 in [`terminal-session-host-design-2026.md`](../../src/architecture/terminal-session-host-design-2026.md) §9. H1–H5 land before T3; H6 *is* T3 against `term.attach` (it replaces the `TerminalSessionManager` design below); H7 extends T2. Warp fork options were evaluated and rejected (that doc §8).
 
 ---
 
@@ -791,6 +792,8 @@ The adapter subscribes to `orch.event_bus()` and translates `AgentEvent` → `Se
 ---
 
 ## 7. Track 3 — GUI Console refactor (decompose; harden in Phase-4)
+
+> **Superseded in part (2026-10-08):** the GUI attaches to daemon-hosted sessions via `term.attach` instead of a per-process `TerminalSessionManager`; see [`terminal-session-host-design-2026.md`](../../src/architecture/terminal-session-host-design-2026.md) task H6. The retire-`osc633.ts` and parity-verification goals below still stand.
 
 **Goal:** the existing React Console renders the *same* core. **Surface the terminal in the same terminal view** in Axis, now backed by `vox-terminal-core` instead of TS-local logic.
 

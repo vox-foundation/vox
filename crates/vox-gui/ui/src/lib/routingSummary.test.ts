@@ -1,5 +1,34 @@
 import { describe, it, expect } from 'vitest';
-import { modelStateHint, railRoutingFromSummary, routingCardValue } from './routingSummary';
+import { modelStateHint, railRoutingFromSummary, routingCardValue, routingHealthProblems } from './routingSummary';
+import type { RoutingHealth } from '../types/tauri';
+
+const health = (over: Partial<RoutingHealth> = {}): RoutingHealth => ({
+  schema_version: 1,
+  checked_at_unix: 0,
+  models: 10,
+  cloud_models: 8,
+  benchmarked: 8,
+  inherited: 0,
+  unknown_tier_cloud: 0,
+  quality_scale: 'derived',
+  price_bands: 'derived',
+  efficient_pick: 'acme/widget',
+  violations: [],
+  ...over,
+});
+
+describe('routingHealthProblems', () => {
+  it('is zero for a healthy report and for no report', () => {
+    expect(routingHealthProblems(health())).toBe(0);
+    expect(routingHealthProblems(null)).toBe(0);
+  });
+
+  it('counts each violation and each scale that fell back', () => {
+    expect(routingHealthProblems(health({ violations: [{ invariant: 'a', detail: 'x' }, { invariant: 'b', detail: 'y' }] }))).toBe(2);
+    expect(routingHealthProblems(health({ quality_scale: 'fallback' }))).toBe(1);
+    expect(routingHealthProblems(health({ price_bands: 'fallback', quality_scale: 'fallback' }))).toBe(2);
+  });
+});
 
 const summary = (over: Record<string, unknown> = {}, preview: Record<string, unknown> = {}) =>
   ({

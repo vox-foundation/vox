@@ -13,62 +13,6 @@ fn codegen_rust(src: &str) -> String {
     emit_lib(&hir)
 }
 
-// ── Tombstone tests (no codegen output, just parse-error assertion) ───────────
-
-/// `activity` keyword is tombstoned (TASK-2.6); parsing source that uses it must fail.
-#[test]
-#[ignore = "activity keyword is now valid (un-tombstoned); test expected parse error but gets parse success; owner: vox-compiler; sunset: 2026-12-31"]
-fn codegen_activity_emits_async_fn() {
-    let src = r#"
-activity send_email(recipient: str, subject: str) to Result[str] {
-    return Ok(recipient)
-}
-"#;
-    assert!(
-        parse(lex(src)).is_err(),
-        "tombstoned `activity` keyword should produce a parse error"
-    );
-}
-
-/// `activity` + `workflow` keywords are both tombstoned (TASK-2.6).
-#[test]
-#[ignore = "activity/workflow keywords are now valid (un-tombstoned); update assertions; owner: vox-compiler; sunset: 2026-12-31"]
-fn codegen_with_expression_emits_execute_activity() {
-    let activity_src = r#"activity fetch_data() to Result[str] { return Ok("data") }"#;
-    let workflow_src = r#"workflow main_flow() to Result[str] { return Ok("done") }"#;
-    assert!(
-        parse(lex(activity_src)).is_err(),
-        "tombstoned `activity` keyword should produce a parse error"
-    );
-    assert!(
-        parse(lex(workflow_src)).is_err(),
-        "tombstoned `workflow` keyword should produce a parse error"
-    );
-}
-
-/// `activity` keyword is tombstoned (TASK-2.6); plain `fn` is the canonical form.
-#[test]
-#[ignore = "activity keyword is now valid (un-tombstoned); first assert expects error but gets Ok; owner: vox-compiler; sunset: 2026-12-31"]
-fn codegen_activity_without_with_is_plain_call() {
-    let tombstoned_src = r#"activity do_work(input: str) to Result[str] { return Ok(input) }"#;
-    assert!(
-        parse(lex(tombstoned_src)).is_err(),
-        "tombstoned `activity` keyword should produce a parse error"
-    );
-
-    let canonical_src = r#"
-fn do_work(input: str) to str {
-    return input
-}
-fn main() to str {
-    let result = do_work("test")
-    return result
-}
-"#;
-    let output = codegen_rust(canonical_src);
-    insta::assert_snapshot!("activity_canonical_fn_output", output);
-}
-
 // ── with-expression option codegen ────────────────────────────────────────────
 
 #[test]

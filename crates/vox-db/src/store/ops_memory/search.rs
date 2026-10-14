@@ -3,6 +3,7 @@ use crate::{
     RetrievalEvidenceSource, RetrievalResult, SearchBackend, SearchDiagnostics, fuse_hybrid_results,
 };
 use turso::params;
+use vox_orchestrator_types::trust::ContextTrustTier;
 
 impl crate::VoxDb {
     /// Full-text search over `search_document_chunks` joined with `search_documents` titles.
@@ -37,13 +38,29 @@ impl crate::VoxDb {
         self.query_search_document_chunks_like(query, lim).await
     }
 
-    /// Upsert one `search_documents` row and return its id.
+    /// Upsert one `search_documents` row at `tier` and return its id. The tier is required and
+    /// overwritten on conflict, so a re-ingest cannot keep a stale higher tier (TRUST-01).
+    ///
+    /// ```compile_fail
+    /// # async fn f(db: &vox_db::VoxDb) {
+    /// db.upsert_search_document("u", "t", "text/markdown", "h").await.unwrap();
+    /// # }
+    /// ```
+    ///
+    /// ```no_run
+    /// # async fn f(db: &vox_db::VoxDb) {
+    /// db.upsert_search_document("u", "t", "text/markdown", "h", vox_db::ContextTrustTier::Untrusted)
+    ///     .await
+    ///     .unwrap();
+    /// # }
+    /// ```
     pub async fn upsert_search_document(
         &self,
         source_uri: &str,
         title: &str,
         mime_type: &str,
         content_hash: &str,
+        tier: ContextTrustTier,
     ) -> Result<i64, StoreError> {
         let source_uri = source_uri.to_string();
         let title = title.to_string();
@@ -54,18 +71,20 @@ impl crate::VoxDb {
         breaker
             .call(|| async move {
                 conn.execute(
-                    "INSERT INTO search_documents (source_uri, title, mime_type, content_hash)
-                     VALUES (?1, ?2, ?3, ?4)
+                    "INSERT INTO search_documents (source_uri, title, mime_type, content_hash, trust_tier)
+                     VALUES (?1, ?2, ?3, ?4, ?5)
                      ON CONFLICT(source_uri) DO UPDATE SET
                         title = excluded.title,
                         mime_type = excluded.mime_type,
                         content_hash = excluded.content_hash,
+                        trust_tier = excluded.trust_tier,
                         ingested_at = datetime('now')",
                     params![
                         source_uri.as_str(),
                         title.as_str(),
                         mime_type.as_str(),
-                        content_hash.as_str()
+                        content_hash.as_str(),
+                        tier.as_db_str()
                     ],
                 )
                 .await?;
@@ -82,6 +101,72 @@ impl crate::VoxDb {
                 Ok::<_, StoreError>(id)
             })
             .await
+    }
+
+    /// `(source_uri, corpus, trust_tier)` of every `search_documents` row, ordered by `source_uri`.
+    /// A stored tier that does not parse reads as `Untrusted` (fail closed).
+    pub async fn search_document_tiers(
+        &self,
+    ) -> Result<Vec<(String, String, ContextTrustTier)>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT source_uri, corpus, trust_tier FROM search_documents ORDER BY source_uri",
+                (),
+            )
+            .await?;
+        let mut out = Vec::new();
+        while let Some(r) = rows.next().await? {
+            out.push((
+                r.get::<String>(0)?,
+                r.get::<String>(1)?,
+                ContextTrustTier::from_db_str(&r.get::<String>(2)?),
+            ));
+        }
+        Ok(out)
+    }
+
+    /// Trust tier of the document owning each chunk rowid in `chunk_ids` (TRUST-01). Fail closed:
+    /// an id that is not a chunk rowid, or whose chunk is gone, maps to `Untrusted`.
+    pub async fn trust_tiers_for_chunk_ids(
+        &self,
+        chunk_ids: &[String],
+    ) -> Result<std::collections::HashMap<String, ContextTrustTier>, StoreError> {
+        let mut out = std::collections::HashMap::with_capacity(chunk_ids.len());
+        for id in chunk_ids {
+            let mut tier = ContextTrustTier::Untrusted;
+            if let Ok(rowid) = id.parse::<i64>() {
+                let mut rows = self
+                    .conn
+                    .query(
+                        "SELECT d.trust_tier FROM search_document_chunks c \
+                         JOIN search_documents d ON d.id = c.document_id WHERE c.id = ?1",
+                        params![rowid],
+                    )
+                    .await?;
+                if let Some(r) = rows.next().await? {
+                    tier = ContextTrustTier::from_db_str(&r.get::<String>(0)?);
+                }
+            }
+            out.insert(id.clone(), tier);
+        }
+        Ok(out)
+    }
+
+    /// Row counts of `(search_documents, search_document_chunks)`; used to prove a path wrote no corpus rows.
+    pub async fn search_corpus_row_counts(&self) -> Result<(i64, i64), StoreError> {
+        let mut out = [0i64; 2];
+        for (slot, sql) in out.iter_mut().zip([
+            "SELECT COUNT(*) FROM search_documents",
+            "SELECT COUNT(*) FROM search_document_chunks",
+        ]) {
+            let mut rows = self.conn.query(sql, ()).await?;
+            *slot = match rows.next().await? {
+                Some(r) => r.get::<i64>(0)?,
+                None => 0,
+            };
+        }
+        Ok((out[0], out[1]))
     }
 
     /// Replace all chunks for `document_id` with the provided ordered bodies.
@@ -297,4 +382,86 @@ async fn collect_search_chunk_rows(
         out.push((chunk_id, doc_id, snippet, title));
     }
     Ok(out)
+}
+
+#[cfg(test)]
+mod tier_tests {
+    use crate::VoxDb;
+    use vox_orchestrator_types::trust::ContextTrustTier::{Advisory, Untrusted};
+
+    async fn tier_of(db: &VoxDb, id: i64) -> String {
+        let mut rows = db
+            .connection()
+            .query(
+                "SELECT trust_tier FROM search_documents WHERE id = ?1",
+                [id],
+            )
+            .await
+            .unwrap();
+        rows.next().await.unwrap().unwrap().get(0).unwrap()
+    }
+
+    #[tokio::test]
+    async fn trust_tiers_for_chunk_ids_reads_owner_tier_and_fails_closed() {
+        let db = VoxDb::open_memory().await.unwrap();
+        let adv = db
+            .upsert_search_document("u://adv", "A", "text/markdown", "h", Advisory)
+            .await
+            .unwrap();
+        let unt = db
+            .upsert_search_document("u://unt", "U", "text/markdown", "h", Untrusted)
+            .await
+            .unwrap();
+        db.replace_search_document_chunks(adv, &["a".into()])
+            .await
+            .unwrap();
+        db.replace_search_document_chunks(unt, &["u".into()])
+            .await
+            .unwrap();
+        let ids = [
+            "1".to_string(),
+            "2".to_string(),
+            "999".into(),
+            "not-a-number".into(),
+        ];
+        let t = db.trust_tiers_for_chunk_ids(&ids).await.unwrap();
+        assert_eq!(t["1"], Advisory);
+        assert_eq!(t["2"], Untrusted);
+        assert_eq!(t["999"], Untrusted, "missing chunk fails closed");
+        assert_eq!(t["not-a-number"], Untrusted, "unparseable id fails closed");
+    }
+
+    #[tokio::test]
+    async fn search_corpus_row_counts_track_documents_and_chunks() {
+        let db = VoxDb::open_memory().await.unwrap();
+        assert_eq!(db.search_corpus_row_counts().await.unwrap(), (0, 0));
+        let id = db
+            .upsert_search_document("u://c", "C", "text/markdown", "h", Untrusted)
+            .await
+            .unwrap();
+        db.replace_search_document_chunks(id, &["one".into(), "two".into()])
+            .await
+            .unwrap();
+        assert_eq!(db.search_corpus_row_counts().await.unwrap(), (1, 2));
+    }
+
+    #[tokio::test]
+    async fn search_document_upsert_stores_and_overwrites_tier() {
+        let db = VoxDb::open_memory().await.unwrap();
+        let id = db
+            .upsert_search_document("u://a", "A", "text/markdown", "h1", Advisory)
+            .await
+            .unwrap();
+        assert_eq!(tier_of(&db, id).await, "advisory");
+        let again = db
+            .upsert_search_document("u://a", "A", "text/markdown", "h2", Untrusted)
+            .await
+            .unwrap();
+        assert_eq!(again, id);
+        assert_eq!(tier_of(&db, id).await, "untrusted");
+        assert_eq!(
+            db.search_document_tiers().await.unwrap(),
+            vec![("u://a".to_string(), String::new(), Untrusted)]
+        );
+    }
 }

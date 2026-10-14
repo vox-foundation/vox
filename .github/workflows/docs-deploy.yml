@@ -9,17 +9,25 @@ on:
       - 'crates/vox-doc-pipeline/**'
       - 'examples/**'
       - '.github/workflows/docs-deploy.yml'
-      # 20-09: mounted repo sources, contracts, and ignore configs
-      - '.github/copilot-instructions.md'
+      # 20-09: repo Markdown mounted at /repo/<route>/ (contracts/documentation/site-mounted-repo-docs.v1.json)
       - 'AGENTS.md'
       - 'CHANGELOG.md'
       - 'CLAUDE.md'
       - 'GEMINI.md'
       - 'LANGUAGE_DESIGN_PRIORITIES.md'
       - 'README.md'
-      - 'contracts/**'
+      - '.github/copilot-instructions.md'
+      - 'apps/editor/vox-vscode/README.md'
+      - 'contracts/README.md'
+      - 'contracts/speech-to-code/README.md'
+      - 'contracts/speech-to-code/labeling_rubric.md'
       - 'crates/**/README.md'
-      - 'scripts/**/README.md'
+      - 'scripts/README.md'
+      - 'scripts/coverage-graph/README.md'
+      - 'scripts/show/README.md'
+      - 'tree-sitter-vox/GRAMMAR_SSOT.md'
+      - 'tree-sitter-vox/README.md'
+      - 'contracts/documentation/**'
       - '.git-blame-ignore-revs'
       - '.lycheeignore'
   workflow_dispatch:
@@ -34,7 +42,9 @@ concurrency:
   cancel-in-progress: true
 
 # ── Permissions ────────────────────────────────────────────────────────────
-# Permissions are job-scoped; top-level defaults to read-only.
+# Read-only by default. Pages (pages: write + id-token: write) is granted only
+# to the deploy-pages job, and issues: write only to the two notify jobs, so
+# no job that installs third-party packages holds an OIDC-minting token.
 permissions:
   contents: read
 
@@ -48,6 +58,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          # Full history: per-page "last updated" dates come from git log.
+          # No `filter:` — a blobless clone lazy-fetches blobs during rename detection.
           fetch-depth: 0
 
       - name: Simulate failure
@@ -59,8 +71,6 @@ jobs:
       - name: Install Rust toolchain
         uses: ./.github/actions/setup-rust
 
-      - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.11
 
       - name: Install system deps (libdbus/GTK)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
@@ -76,8 +86,6 @@ jobs:
 
       - name: Build Docs Pipeline
         run: cargo build -p vox-doc-pipeline --profile ci
-        env:
-          RUSTC_WRAPPER: sccache
 
       - name: Run Docs Pipeline (extract + validate SUMMARY)
         run: cargo run -p vox-doc-pipeline
@@ -101,25 +109,29 @@ jobs:
         working-directory: docs-astro
         run: pnpm build
 
-      # ── GitHub Pages Deploy Artifact ──────────────────────────────────
+      # ── GitHub Pages Deploy ─────────────────────────────────────────────
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
         with:
           path: docs-astro/dist
 
-      # ── Cloudflare / Job Hand-off Artifact ─────────────────────────────
+      # ── Built site for the Cloudflare job (no second build) ─────────────
       - name: Upload docs-dist artifact
         uses: actions/upload-artifact@v7
         with:
           name: docs-dist
           path: docs-astro/dist
+          # The site ships .well-known/ (llms.txt); hidden files are skipped by default.
           include-hidden-files: true
           retention-days: 3
           if-no-files-found: error
 
+  # The deploy and smoke jobs run only on main: workflow_dispatch can start this
+  # workflow from any branch, and both deploys publish to production.
   deploy-pages:
     name: Deploy to GitHub Pages
     needs: build-docs
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -134,10 +146,14 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v5
 
-  # ── Cloudflare Pages Deploy ──────────────────────────────────────────────
+  # ── Cloudflare Pages Deploy (parallel to GH Pages during cutover) ─────────
+  # After CF Pages is stable, the GH Pages job above can be removed (see
+  # docs/superpowers/plans/2026-05-23-voxlang-hosting-docs-overhaul.md Phase Z).
+  # Deploys the site build-docs produced; it does not rebuild Rust or Astro.
   deploy-cloudflare:
     name: Deploy to Cloudflare Pages
     needs: build-docs
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -168,16 +184,14 @@ jobs:
           name: docs-dist
           path: docs-astro/dist
 
-      - name: Assert built artifacts exist
+      - name: Check downloaded site
         run: |
-          if [ ! -f "docs-astro/dist/index.html" ]; then
-            echo "::error::Missing docs-astro/dist/index.html"
-            exit 1
-          fi
-          if [ ! -f "docs-astro/dist/.well-known/llms.txt" ]; then
-            echo "::error::Missing docs-astro/dist/.well-known/llms.txt"
-            exit 1
-          fi
+          for f in docs-astro/dist/index.html docs-astro/dist/.well-known/llms.txt; do
+            if [ ! -f "$f" ]; then
+              echo "::error title=docs-dist incomplete::missing $f"
+              exit 1
+            fi
+          done
 
       - name: Deploy to Cloudflare Pages
         working-directory: docs-astro
@@ -190,6 +204,7 @@ jobs:
   smoke-test:
     name: Smoke test live site
     needs: deploy-cloudflare
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -216,6 +231,9 @@ jobs:
           BASE_URL: https://voxlang.org
 
   # ── Failure visibility ─────────────────────────────────────────────────────
+  # One open `docs-deploy-broken` issue per failure streak, edited in place on
+  # every failing main run (never commented on: #462 collected 57 comments that
+  # way). The `nightly-failure` label puts it in every session's `vox ci status`.
   notify-on-failure:
     name: Notify on docs deploy failure
     runs-on: ubuntu-latest
@@ -225,7 +243,7 @@ jobs:
     permissions:
       issues: write
     steps:
-      - name: Open or update tracking issue
+      - name: Open or edit the tracking issue in place
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -237,81 +255,67 @@ jobs:
           NEEDS_JSON: ${{ toJSON(needs) }}
         run: |
           set -euo pipefail
-          gh label create docs-deploy-broken --color d73a4a --description "docs-deploy.yml is failing on main" --force >/dev/null || true
-          gh label create nightly-failure --color B60205 --description "A scheduled or deploy workflow is failing" --force >/dev/null || true
-
-          FAILED_JOBS=$(node -e '
-            const needs = JSON.parse(process.env.NEEDS_JSON || "{}");
-            const failed = Object.entries(needs)
-              .filter(([_, v]) => v && v.result === "failure")
-              .map(([k, _]) => k);
-            process.stdout.write(failed.join(", "));
-          ')
-
-          existing=$(gh issue list --repo "$GH_REPO" --label docs-deploy-broken --state open --limit 10 --json number -q '.[0].number // empty')
-          now_iso=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          first_failure="$now_iso"
-          consecutive=1
-
-          existing_body=""
-          if [ -n "$existing" ]; then
-            existing_body=$(gh issue view "$existing" --repo "$GH_REPO" --json body -q .body)
-            parsed_first=$(echo "$existing_body" | grep -oE '<!-- first-failure: [^ ]+ -->' | head -n 1 | sed -E 's/<!-- first-failure: (.*) -->/\1/' || true)
-            parsed_consec=$(echo "$existing_body" | grep -oE '<!-- consecutive: [0-9]+ -->' | head -n 1 | sed -E 's/<!-- consecutive: ([0-9]+) -->/\1/' || true)
-            if [ -n "$parsed_first" ]; then
-              first_failure="$parsed_first"
-            fi
-            if [ -n "$parsed_consec" ]; then
-              consecutive=$((parsed_consec + 1))
-            fi
+          gh label create docs-deploy-broken --color d73a4a \
+            --description "docs-deploy.yml is failing on main" --force >/dev/null
+          gh label create nightly-failure --color B60205 \
+            --description "A scheduled workflow is failing" --force >/dev/null
+          failed_jobs=$(jq -r '[to_entries[] | select(.value.result == "failure") | .key] | join(", ")' <<< "$NEEDS_JSON")
+          num=$(gh issue list --label docs-deploy-broken --state open --limit 100 --json number \
+                --jq 'map(.number) | min // empty')
+          now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          old_body=""
+          if [ -n "$num" ]; then
+            # Bodies edited in the web UI come back with CRLF line endings.
+            old_body=$(gh issue view "$num" --json body -q .body | tr -d '\r')
           fi
-
-          managed_block=$(cat <<EOF
-          <!-- docs-deploy-status:start -->
-          <!-- first-failure: ${first_failure} -->
-          <!-- consecutive: ${consecutive} -->
-          Latest failing run: ${RUN_URL}
-          Event: ${EVENT_NAME}, commit ${HEAD_SHA}
-          Failed jobs: ${FAILED_JOBS}
-          Consecutive failing runs: ${consecutive}
-          First failure in this streak: ${first_failure}
-          <!-- docs-deploy-status:end -->
-          EOF
-          )
-
-          tmp_body=$(mktemp)
-          if [ -n "$existing" ]; then
-            node -e '
-              const fs = require("fs");
-              const body = process.argv[1];
-              const block = process.argv[2];
-              const startMarker = "<!-- docs-deploy-status:start -->";
-              const endMarker = "<!-- docs-deploy-status:end -->";
-              const sIdx = body.indexOf(startMarker);
-              const eIdx = body.indexOf(endMarker);
-              let newBody = "";
-              if (sIdx !== -1 && eIdx !== -1 && eIdx >= sIdx) {
-                newBody = body.slice(0, sIdx) + block.trim() + body.slice(eIdx + endMarker.length);
-              } else {
-                newBody = body.trim() + "\n\n" + block.trim();
-              }
-              fs.writeFileSync(process.argv[3], newBody, "utf8");
-            ' "$existing_body" "$managed_block" "$tmp_body"
-
-            gh issue edit "$existing" --repo "$GH_REPO" --body-file "$tmp_body" --add-assignee brbrainerd --add-label nightly-failure
+          first=$(awk '/^<!-- first-failure: [^ ]+ -->$/ { print $3; exit }' <<< "$old_body")
+          prev=$(awk '/^<!-- consecutive: [0-9]+ -->$/ { print $3; exit }' <<< "$old_body")
+          first=${first:-$now}
+          count=$(( ${prev:-0} + 1 ))
+          start='<!-- docs-deploy-status:start -->'
+          end='<!-- docs-deploy-status:end -->'
+          section=$(mktemp)
+          body=$(mktemp)
+          {
+            echo "$start"
+            echo "<!-- first-failure: $first -->"
+            echo "<!-- consecutive: $count -->"
+            echo "- Latest failing run: $RUN_URL (run $RUN_ID)"
+            echo "- Event: $EVENT_NAME, commit $HEAD_SHA"
+            echo "- Failed jobs: ${failed_jobs:-none reported}"
+            echo "- Consecutive failing runs: $count"
+            echo "- First failure in this streak: $first"
+            echo "$end"
+          } > "$section"
+          if [ -z "$num" ]; then
+            {
+              echo "docs-deploy.yml is failing on main. This issue is edited in place on every"
+              echo "failing run and closed by the next green push run on main."
+              echo
+              cat "$section"
+            } > "$body"
+            gh issue create --title "docs-deploy is failing on main" \
+              --label docs-deploy-broken --label nightly-failure \
+              --assignee brbrainerd --body-file "$body"
           else
-            cat <<EOF > "$tmp_body"
-          docs-deploy.yml failed on main.
-
-          ${managed_block}
-          EOF
-            gh issue create --repo "$GH_REPO" --title "docs-deploy is failing on main" --label docs-deploy-broken --label nightly-failure --assignee brbrainerd --body-file "$tmp_body"
+            # Replace the managed section; everything outside the markers is kept.
+            if grep -qxF "$start" <<< "$old_body" && grep -qxF "$end" <<< "$old_body"; then
+              awk -v sec="$section" -v s="$start" -v e="$end" '
+                $0 == s { while ((getline line < sec) > 0) print line; skip = 1; next }
+                $0 == e && skip { skip = 0; next }
+                !skip { print }
+              ' <<< "$old_body" > "$body"
+            else
+              { printf '%s\n\n' "$old_body"; cat "$section"; } > "$body"
+            fi
+            gh issue edit "$num" --body-file "$body" \
+              --add-assignee brbrainerd --add-label nightly-failure
           fi
-          rm -f "$tmp_body"
 
-  # ── Recovery visibility ────────────────────────────────────────────────────
+  # Only a green push run proves the deploy path end to end; a manual dispatch
+  # must not close the tracking issue.
   notify-on-success:
-    name: Auto-close tracking issue on recovery
+    name: Close docs deploy issue on recovery
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: [build-docs, deploy-pages, deploy-cloudflare, smoke-test]
@@ -319,7 +323,7 @@ jobs:
     permissions:
       issues: write
     steps:
-      - name: Close resolved issue
+      - name: Close open docs-deploy-broken issues
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -329,8 +333,10 @@ jobs:
           HEAD_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          open_issues=$(gh issue list --repo "$GH_REPO" --label docs-deploy-broken --state open --json number -q '.[].number' || true)
-          for num in $open_issues; do
-            [ -n "$num" ] || continue
-            gh issue close "$num" --repo "$GH_REPO" --comment "Recovered: ${RUN_URL} (${EVENT_NAME}, ${HEAD_SHA})."
+          gh label create docs-deploy-broken --color d73a4a \
+            --description "docs-deploy.yml is failing on main" --force >/dev/null
+          nums=$(gh issue list --label docs-deploy-broken --state open --limit 100 --json number \
+                 --jq '.[].number')
+          for n in $nums; do
+            gh issue close "$n" --comment "Recovered: ${RUN_URL} (${EVENT_NAME}, ${HEAD_SHA})."
           done

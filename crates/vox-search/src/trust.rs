@@ -1,7 +1,9 @@
 //! Source trust scoring: Crossref retraction lookup + OpenAlex venue/author
 //! reputation, feeding `ResearchHit.trust_score`. Both APIs are free/keyless.
-//! Fail-open: any network or parse error yields a neutral trust score
-//! rather than blocking the research pipeline.
+//! Ranking is fail-open: any network or parse error yields a neutral trust
+//! score rather than blocking the research pipeline. Promotion eligibility
+//! ([`promotion_eligibility`]) is the one fail-closed consumer: a failed lookup
+//! is `Unavailable`, which is ineligible.
 
 use serde::Deserialize;
 use std::sync::OnceLock;
@@ -77,6 +79,22 @@ impl TrustScorer {
             .iter()
             .any(|u| u.update_type.eq_ignore_ascii_case("retraction"));
         Some(is_retracted)
+    }
+
+    /// Promotion-time lookup: the one fail-closed consumer of the retraction
+    /// check. The explicit `doi` wins over one extracted from `url`; no DOI means
+    /// `NotApplicable` (no network call).
+    pub async fn lookup_for_promotion(&self, url: &str, doi: Option<&str>) -> TrustLookup {
+        let Some(doi) = doi.map(str::to_owned).or_else(|| extract_doi_from_url(url)) else {
+            return TrustLookup::NotApplicable;
+        };
+        match self.check_retraction(&doi).await {
+            Some(true) => TrustLookup::Retracted,
+            Some(false) => TrustLookup::Clean,
+            None => TrustLookup::Unavailable {
+                reason: format!("Crossref lookup failed for DOI {doi}"),
+            },
+        }
     }
 
     /// Returns the OpenAlex venue `source_type` string (e.g. "journal",
@@ -235,6 +253,38 @@ pub async fn score_hit_trust_for_url(title: &str, doi: Option<&str>, url: &str) 
     score_hit_trust(title, doi).await
 }
 
+/// Outcome of a trust lookup made for a promotion decision (TRUST-06).
+/// `NotApplicable` (no DOI, so no lookup possible) is distinct from
+/// `Unavailable` (a lookup was possible but failed).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TrustLookup {
+    Clean,
+    Retracted,
+    NotApplicable,
+    Unavailable { reason: String },
+}
+
+/// Promotion verdict derived from a [`TrustLookup`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PromotionEligibility {
+    Eligible,
+    Ineligible { reason: String },
+}
+
+/// Fail-closed promotion verdict. Exhaustive on purpose: a new `TrustLookup`
+/// variant must force a decision here.
+pub fn promotion_eligibility(lookup: &TrustLookup) -> PromotionEligibility {
+    match lookup {
+        TrustLookup::Clean | TrustLookup::NotApplicable => PromotionEligibility::Eligible,
+        TrustLookup::Retracted => PromotionEligibility::Ineligible {
+            reason: "source is retracted".into(),
+        },
+        TrustLookup::Unavailable { reason } => PromotionEligibility::Ineligible {
+            reason: format!("trust lookup unavailable: {reason}"),
+        },
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -387,5 +437,111 @@ mod tests {
             score, 1.0,
             "non-academic URL should short-circuit to neutral without an OpenAlex call"
         );
+    }
+
+    #[test]
+    fn promotion_eligibility_fails_closed() {
+        let unavailable = TrustLookup::Unavailable { reason: "x".into() };
+        assert!(matches!(
+            promotion_eligibility(&unavailable),
+            PromotionEligibility::Ineligible { .. }
+        ));
+        assert!(matches!(
+            promotion_eligibility(&TrustLookup::Retracted),
+            PromotionEligibility::Ineligible { .. }
+        ));
+    }
+
+    #[test]
+    fn promotion_eligibility_open_for_clean_and_not_applicable() {
+        assert_eq!(
+            promotion_eligibility(&TrustLookup::Clean),
+            PromotionEligibility::Eligible
+        );
+        assert_eq!(
+            promotion_eligibility(&TrustLookup::NotApplicable),
+            PromotionEligibility::Eligible
+        );
+    }
+
+    #[tokio::test]
+    async fn promotion_lookup_without_doi_is_not_applicable_and_makes_no_call() {
+        let server = MockServer::start().await;
+        let scorer = TrustScorer::with_base_urls(server.uri(), "http://unused.invalid");
+        let got = scorer
+            .lookup_for_promotion("https://example.com/post", None)
+            .await;
+        assert_eq!(got, TrustLookup::NotApplicable);
+        assert!(server.received_requests().await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn promotion_lookup_http_error_is_unavailable_naming_doi() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path_regex(r"^/works/.*"))
+            .respond_with(ResponseTemplate::new(500))
+            .mount(&server)
+            .await;
+        let scorer = TrustScorer::with_base_urls(server.uri(), "http://unused.invalid");
+        match scorer
+            .lookup_for_promotion("https://doi.org/10.1/x", None)
+            .await
+        {
+            TrustLookup::Unavailable { reason } => assert!(reason.contains("10.1/x"), "{reason}"),
+            other => panic!("expected Unavailable, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn promotion_lookup_retraction_is_retracted() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path_regex(r"^/works/.*"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "message": { "update-to": [{"type": "retraction"}] }
+            })))
+            .mount(&server)
+            .await;
+        let scorer = TrustScorer::with_base_urls(server.uri(), "http://unused.invalid");
+        let got = scorer
+            .lookup_for_promotion("https://doi.org/10.1/x", None)
+            .await;
+        assert_eq!(got, TrustLookup::Retracted);
+    }
+
+    #[tokio::test]
+    async fn promotion_lookup_no_updates_is_clean() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path_regex(r"^/works/.*"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "message": { "update-to": [] }
+            })))
+            .mount(&server)
+            .await;
+        let scorer = TrustScorer::with_base_urls(server.uri(), "http://unused.invalid");
+        let got = scorer
+            .lookup_for_promotion("https://doi.org/10.1/x", None)
+            .await;
+        assert_eq!(got, TrustLookup::Clean);
+    }
+
+    #[tokio::test]
+    async fn promotion_lookup_explicit_doi_wins_over_non_doi_url() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path_regex(r"^/works/.*"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "message": { "update-to": [] }
+            })))
+            .mount(&server)
+            .await;
+        let scorer = TrustScorer::with_base_urls(server.uri(), "http://unused.invalid");
+        let got = scorer
+            .lookup_for_promotion("https://example.com/post", Some("10.1/x"))
+            .await;
+        assert_eq!(got, TrustLookup::Clean);
+        assert_eq!(server.received_requests().await.unwrap().len(), 1);
     }
 }

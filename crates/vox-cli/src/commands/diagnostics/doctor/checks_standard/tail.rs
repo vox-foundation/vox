@@ -294,9 +294,13 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
     let is_local_dev = exe_path_str.contains("target")
         && (exe_path_str.contains("debug") || exe_path_str.contains("release"));
     let is_installed = exe_path_str.contains(".vox") && exe_path_str.contains("bin");
-    let binary_source_pass = !in_vox_repo || is_local_dev;
+    let binary_source_pass = binary_source_ok(in_vox_repo, &exe_path_str);
     let binary_source_detail = if is_local_dev {
         format!("{} (local dev build)", exe_path_str)
+    } else if exe_path_str.contains(".cargo") && in_vox_repo {
+        format!(
+            "{exe_path_str} (installed by scripts/setup.vox; the freshness check flags it when stale)"
+        )
     } else if is_installed && in_vox_repo {
         format!(
             "{} — using installed binary while in repo; prefer: export PATH=\"$(./scripts/dev-path.sh):$PATH\" or cargo run -p vox-cli -- ...",
@@ -334,6 +338,7 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
     // report it here, where new installs already look. Only meaningful inside the
     // repo; `vox graph` is a repo-scoped tool.
     if in_vox_repo {
+        // drift-allow(vox-path-literal): fixed relative layout; vox_config::paths would add a crate edge (owner-approved edges only)
         let cache_dir = std::path::Path::new(".vox/cache/graphify");
         let mut built = 0usize;
         if let Ok(mut entries) = tokio::fs::read_dir(cache_dir).await {
@@ -395,6 +400,7 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
     // writes** — so the check could never pass and no advice could ever cure it.
     // `vox repo init` writes `.vox/repositories.yaml`; that is the observable
     // registration state, so check for it and the cure now matches the symptom.
+    // drift-allow(vox-path-literal): fixed relative layout; vox_config::paths would add a crate edge (owner-approved edges only)
     let repo_yaml = std::path::Path::new(".vox/repositories.yaml");
     let reg_pass = tokio::fs::try_exists(repo_yaml).await.unwrap_or(false);
     let reg_detail = if reg_pass {
@@ -474,6 +480,15 @@ async fn v0_named_export_doctor_check(checks: &mut Vec<Check>) {
     }
 }
 
+/// Inside the repo, `vox` must be a dev build (`target/{debug,release}`) or the copy
+/// `scripts/setup.vox` installs into `~/.cargo/bin` (git hooks call it; `vox ci` refuses to run
+/// guards with it when it is older than the tree). Outside the repo any source is fine.
+fn binary_source_ok(in_vox_repo: bool, exe: &str) -> bool {
+    let is_local_dev = exe.contains("target") && (exe.contains("debug") || exe.contains("release"));
+    let is_setup_install = exe.contains(".cargo/bin") || exe.contains(".cargo\\bin");
+    !in_vox_repo || is_local_dev || is_setup_install
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -531,5 +546,13 @@ mod tests {
             "the vox-lsp auto-heal cargo build must be preceded by an \
              is_contributor_mode() gate (spec §9.1)"
         );
+    }
+
+    #[test]
+    fn binary_source_accepts_dev_builds_and_the_setup_install_inside_the_repo() {
+        assert!(super::binary_source_ok(true, "/r/target/debug/vox"));
+        assert!(super::binary_source_ok(true, "/Users/u/.cargo/bin/vox"));
+        assert!(!super::binary_source_ok(true, "/opt/homebrew/bin/vox"));
+        assert!(super::binary_source_ok(false, "/opt/homebrew/bin/vox"));
     }
 }

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import React from 'react';
 
 vi.mock('@tauri-apps/api/core', () => ({
@@ -175,6 +175,20 @@ describe('Sidebar accordion (default and wide modes)', () => {
     expect(screen.getByRole('button', { name: /^tasks$/i })).toBeInTheDocument();
   });
 
+  it('names the runs child "Runs" under the "Review" parent, in the active language', () => {
+    renderSidebar({ view: 'runs', mode: 'wide' });
+    expect(screen.getByRole('button', { name: /^runs$/i })).toBeInTheDocument();
+    cleanup();
+    window.localStorage.setItem('vox.lang', 'la');
+    renderSidebar({ view: 'runs', mode: 'wide' });
+    expect(screen.getByRole('button', { name: /^cursus$/i })).toBeInTheDocument();
+  });
+
+  it('does not render a child tree in rail mode', () => {
+    renderSidebar({ view: 'flow', mode: 'rail' });
+    expect(screen.queryByRole('button', { name: /^tasks$/i })).not.toBeInTheDocument();
+  });
+
   it('renders a portaled flyout menu for subsections in rail mode on hover or click and navigates', () => {
     const onOpenTab = vi.fn();
     renderSidebar({ view: 'flow', mode: 'rail', onOpenTab });
@@ -263,3 +277,22 @@ describe('Sidebar chat sessions section (Task 9)', () => {
     expect(onSessionChange).toHaveBeenCalledWith('s1');
   });
 });
+
+describe('Sidebar degraded Review badge', () => {
+  beforeEach(() => {
+    Element.prototype.scrollIntoView = vi.fn();
+    window.localStorage.clear();
+  });
+
+  it('shows a degraded badge instead of all-clear when a source failed', () => {
+    renderSidebar({ needsYouCount: 0, needsYouDegraded: ['approvals'] } as never);
+    const review = screen.getByRole('button', { name: "Review, couldn't load approvals" });
+    expect(review.textContent).toContain('!');
+  });
+
+  it('keeps the count and names the failed source when other sources have items', () => {
+    renderSidebar({ needsYouCount: 2, needsYouDegraded: ['feedback'] } as never);
+    expect(screen.getByRole('button', { name: "Review, 2 items need you (couldn't load feedback)" })).toBeDefined();
+  });
+});
+

@@ -152,15 +152,21 @@ fn emit_node(
             else_children,
             ..
         } => {
-            let then_s: String = then_children
-                .iter()
-                .map(|c| emit_node(module, *c, indent + 1, stats))
-                .collect();
-            let else_s: String = else_children
-                .iter()
-                .map(|c| emit_node(module, *c, indent + 1, stats))
-                .collect();
-            format!("{pad}{{({predicate}) ? (\n{then_s}{pad}) : (\n{else_s}{pad})}}\n")
+            // Each branch is a fragment: a bare `{expr}` child inside `( … )` would
+            // parse as an object literal, and several children need one parent.
+            let mut branch = |children: &[DomNodeId]| -> String {
+                if children.is_empty() {
+                    return "null".to_string();
+                }
+                let inner: String = children
+                    .iter()
+                    .map(|c| emit_node(module, *c, indent + 2, stats))
+                    .collect();
+                format!("(\n{pad}  <>\n{inner}{pad}  </>\n{pad})")
+            };
+            let then_s = branch(then_children);
+            let else_s = branch(else_children);
+            format!("{pad}{{({predicate}) ? {then_s} : {else_s}}}\n")
         }
         DomNode::Loop {
             iterator,

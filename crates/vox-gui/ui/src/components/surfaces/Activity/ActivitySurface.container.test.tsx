@@ -9,10 +9,14 @@ import React from 'react';
 
 // Captured callbacks so tests can fire synthetic events.
 let capturedAgentEventsCb: (() => void) | null = null;
+let capturedAppendedCb: (() => void) | null = null;
 
 vi.mock('../../../transport', () => ({
   activityQuery: vi.fn().mockResolvedValue(null),
-  listenActivityAppended: vi.fn().mockResolvedValue(() => {}),
+  listenActivityAppended: vi.fn().mockImplementation((cb: () => void) => {
+    capturedAppendedCb = cb;
+    return Promise.resolve(() => { capturedAppendedCb = null; });
+  }),
   listenAgentEvents: vi.fn().mockImplementation((cb: () => void) => {
     capturedAgentEventsCb = cb;
     return Promise.resolve(() => { capturedAgentEventsCb = null; });
@@ -21,6 +25,7 @@ vi.mock('../../../transport', () => ({
 
 import { ActivitySurface } from './ActivitySurface';
 import * as transport from '../../../transport';
+import { ACTIVITY_REFRESH_DEBOUNCE_MS } from '../../../config/constants';
 
 /** Local error-boundary probe: makes a render-time throw observable as DOM. */
 class Probe extends React.Component<{ children: React.ReactNode }, { msg: string | null }> {
@@ -36,6 +41,7 @@ class Probe extends React.Component<{ children: React.ReactNode }, { msg: string
 describe('ActivitySurface null-safety', () => {
   beforeEach(() => {
     capturedAgentEventsCb = null;
+    capturedAppendedCb = null;
     vi.mocked(transport.activityQuery).mockResolvedValue(null as any);
   });
 
@@ -59,34 +65,38 @@ describe('ActivitySurface null-safety', () => {
     expect(container.textContent).toContain('No Activity Logged');
   });
 
-  it('refetches activity when vox://agent-events fires', async () => {
-    const activityQueryMock = vi.mocked(transport.activityQuery);
-    activityQueryMock.mockResolvedValue([]);
+  it('re-queries once per burst of activity-appended and ignores other engine events', async () => {
+    vi.useFakeTimers();
+    try {
+      const activityQueryMock = vi.mocked(transport.activityQuery);
+      activityQueryMock.mockResolvedValue([]);
+      render(<Probe><ActivitySurface pushToast={vi.fn()} /></Probe>);
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      const afterMount = activityQueryMock.mock.calls.length;
+      expect(afterMount).toBeGreaterThanOrEqual(1);
+      expect(capturedAppendedCb).not.toBeNull();
 
-    render(
-      <Probe>
-        <ActivitySurface pushToast={vi.fn()} />
-      </Probe>,
-    );
+      // Token and other engine frames no longer re-query.
+      await act(async () => {
+        capturedAgentEventsCb?.();
+        capturedAgentEventsCb?.();
+        await vi.advanceTimersByTimeAsync(1000);
+      });
+      expect(activityQueryMock.mock.calls.length).toBe(afterMount);
 
-    // Flush mount effects so listenAgentEvents callback is registered.
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    const callsAfterMount = activityQueryMock.mock.calls.length;
-    expect(callsAfterMount).toBeGreaterThanOrEqual(1);
-    expect(capturedAgentEventsCb).not.toBeNull();
-
-    // Simulate a vox://agent-events Tauri event arriving.
-    await act(async () => {
-      capturedAgentEventsCb!();
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    // activityQuery should have been called again (refetch triggered).
-    expect(activityQueryMock.mock.calls.length).toBeGreaterThan(callsAfterMount);
+      // A burst of appended rows becomes one query after the debounce.
+      await act(async () => {
+        capturedAppendedCb!();
+        capturedAppendedCb!();
+        capturedAppendedCb!();
+        await vi.advanceTimersByTimeAsync(ACTIVITY_REFRESH_DEBOUNCE_MS + 10);
+      });
+      expect(activityQueryMock.mock.calls.length).toBe(afterMount + 1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

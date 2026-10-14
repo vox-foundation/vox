@@ -798,6 +798,7 @@ mod tests {
             &indices,
             VERIFY_CONCURRENCY,
             |claim| async move {
+                // drift-allow(duplicate-numeric-literal): test delay
                 tokio::time::sleep(std::time::Duration::from_millis(200)).await;
                 let mut v = unverified(claim.clone());
                 v.verdict = Verdict::Supported;

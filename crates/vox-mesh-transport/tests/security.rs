@@ -138,6 +138,8 @@ async fn an_untrusted_peer_cannot_reach_the_executor() {
         .expect("connect");
 
     let result = timeout(
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
         Duration::from_secs(10),
         send_request_on(&conn, JobRequest::Probe),
     )
@@ -196,6 +198,7 @@ async fn untrust_closes_a_live_connection() {
     // Give the server's accept task a moment to register the connection.
     for _ in 0..50 {
         if server.trust.is_trusted(&client_id) {
+            // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
             tokio::time::sleep(Duration::from_millis(20)).await;
             break;
         }
@@ -251,8 +254,10 @@ async fn live_registration_is_removed_after_connection_handler_exits() {
         .await
         .expect("probe response");
     assert!(matches!(response, JobResponse::Probed { .. }));
+    // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
     timeout(Duration::from_secs(5), async {
         while server.trust.registered_connections(&client_id()) != 0 {
+            // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
             tokio::time::sleep(Duration::from_millis(20)).await;
         }
     })
@@ -270,8 +275,10 @@ async fn external_trust_store_removal_closes_a_live_connection() {
         .await
         .expect("connect");
 
+    // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
     timeout(Duration::from_secs(5), async {
         while server.trust.registered_connections(&client_id()) == 0 {
+            // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
             tokio::time::sleep(Duration::from_millis(20)).await;
         }
     })
@@ -281,9 +288,11 @@ async fn external_trust_store_removal_closes_a_live_connection() {
     // Simulate `vox mesh untrust` in a separate process: that process shares
     // the trust file, but not this server's in-memory connection registry.
     std::fs::write(server.trust.path(), "[]").unwrap();
+    // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
     timeout(Duration::from_secs(5), conn.closed())
         .await
         .expect("server must observe external revocation and close the connection");
+    // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
     timeout(Duration::from_secs(5), async {
         while server.trust.registered_connections(&client_id()) != 0 {
             tokio::time::sleep(Duration::from_millis(20)).await;
@@ -323,6 +332,7 @@ async fn a_non_reading_peer_cannot_retain_a_live_registration_forever() {
         .unwrap();
     send.finish().unwrap();
 
+    // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
     timeout(Duration::from_secs(5), async {
         while server.trust.registered_connections(&client_id()) == 0 {
             tokio::time::sleep(Duration::from_millis(20)).await;
@@ -330,8 +340,10 @@ async fn a_non_reading_peer_cannot_retain_a_live_registration_forever() {
     })
     .await
     .expect("server must register the non-reading peer");
+    // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
     timeout(Duration::from_secs(20), async {
         while server.trust.registered_connections(&client_id()) != 0 {
+            // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
             tokio::time::sleep(Duration::from_millis(50)).await;
         }
     })

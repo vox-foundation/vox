@@ -46,10 +46,12 @@ export interface DocDraftPreview {
   validation_errors: string[];
 }
 
+/** Mirrors the Rust `PublishDocResult`: the draft is filed for review, not written to docs/src. */
 export interface PublishDocResult {
-  file_path: string;
-  relative_path: string;
-  indexed: boolean;
+  finding_id: string | null;
+  proposed_path: string;
+  /** `pending` (new) or `duplicate` (already in the inbox). */
+  status: string;
 }
 
 export async function generateResearchDocDraft(sessionId: number): Promise<DocDraftPreview> {
