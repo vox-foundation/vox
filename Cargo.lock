@@ -17263,6 +17263,7 @@ dependencies = [
  "ed25519-dalek 2.2.0",
  "hex",
  "rand 0.8.6",
+ "sha2 0.11.0",
  "sha3",
  "workspace-hack",
  "x25519-dalek",
@@ -17353,11 +17354,18 @@ name = "vox-doc-pipeline"
 version = "0.6.0"
 dependencies = [
  "anyhow",
+ "chrono",
+ "pulldown-cmark",
  "rayon",
+ "regex",
+ "serde",
  "serde_json",
+ "serde_yaml_ng",
+ "sha2 0.11.0",
  "vox-bounded-fs",
  "vox-compiler",
  "vox-kb-facets",
+ "walkdir",
  "workspace-hack",
 ]
 
