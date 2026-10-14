@@ -47,6 +47,22 @@ impl BaselineFile {
         self.deficits.iter().any(|d| d.fingerprint == fp)
     }
 
+    /// Match either exact fingerprint or `(page_path, raw_text)` so line-number shifts
+    /// caused by frontmatter or header edits do not invalidate grandfathered entries.
+    pub fn contains_deficit(&self, fp: &str, doc_paths: &[String], claim_ids: &[String]) -> bool {
+        if self.contains_fingerprint(fp) {
+            return true;
+        }
+        let Some(raw) = claim_ids.first() else {
+            return false;
+        };
+        doc_paths.iter().any(|p| {
+            self.deficits
+                .iter()
+                .any(|d| d.page_path == *p && d.raw_text == *raw)
+        })
+    }
+
     /// Tighten baseline by removing deficits that have been resolved.
     /// Baseline can ONLY shrink, never grow.
     pub fn tighten(&mut self, active_fingerprints: &HashSet<String>) -> usize {
@@ -103,7 +119,7 @@ pub fn evaluate_drift_gate(
 
         let fp = f.fingerprint.as_deref().unwrap_or(&f.id);
         // Check if grandfathered in baseline
-        if baseline.contains_fingerprint(fp) {
+        if baseline.contains_deficit(fp, &f.doc_paths, &f.claim_ids) {
             active_baselined_count += 1;
             continue;
         }
@@ -264,5 +280,33 @@ mod tests {
         let tightened_count = baseline.tighten(&active_fps);
         assert_eq!(tightened_count, 1);
         assert_eq!(baseline.deficits.len(), 0);
+    }
+
+    #[test]
+    fn test_drift_gate_tolerates_line_number_shift() {
+        let today = NaiveDate::from_ymd_opt(2026, 10, 14).unwrap();
+        let shifted_finding = sample_finding(
+            "doc-deficit-0001",
+            "fp-shifted-line",
+            "docs/src/reference/cli.md",
+            "vox old-cmd",
+        );
+        let baseline = BaselineFile {
+            schema_version: 1,
+            generated_at: "2026-10-13T00:00:00Z".to_string(),
+            deficits: vec![GrandfatheredDeficit {
+                fingerprint: "fp-original-line".to_string(),
+                page_path: "docs/src/reference/cli.md".to_string(),
+                raw_text: "vox old-cmd".to_string(),
+            }],
+        };
+        let suppressions = SuppressionsFile {
+            schema_version: 1,
+            suppressions: Vec::new(),
+        };
+        let res = evaluate_drift_gate(&[shifted_finding], &baseline, &suppressions, today);
+        assert!(res.passed);
+        assert_eq!(res.new_deficits.len(), 0);
+        assert_eq!(res.active_baselined_count, 1);
     }
 }

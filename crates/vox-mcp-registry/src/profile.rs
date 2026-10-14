@@ -606,4 +606,24 @@ mod authorize_tests {
             );
         }
     }
+
+    #[test]
+    fn profile_contracts_declare_schema_version() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .and_then(|p| p.parent())
+            .expect("workspace root");
+        for p in PROFILES.iter().filter(|p| p.id != DEV_PROFILE_ID) {
+            let path = root
+                .join("contracts/profiles")
+                .join(format!("{}.v1.yaml", p.id));
+            let body = std::fs::read_to_string(&path)
+                .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+            assert!(
+                body.contains("schema_version: 1"),
+                "{} must declare schema_version: 1",
+                path.display()
+            );
+        }
+    }
 }

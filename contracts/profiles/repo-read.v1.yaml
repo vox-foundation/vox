@@ -1,3 +1,4 @@
+schema_version: 1
 id: repo-read
 description: "Read-only repository views: git status/diff/log/blame, VCS status, repo catalog/index/queries, snapshots, change log."
 requires: []

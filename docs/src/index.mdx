@@ -41,12 +41,11 @@ When you build a web application in mainstream languages, you usually write the 
 Mainstream languages predate large language models (LLMs) by decades. They tolerate implicit state — `null` pointers, undeclared exceptions, and schemas restated three or four times across the stack. Experienced developers keep those layers in sync by habit, but for both beginning programmers and statistical AI code generators, every boundary is a place where field names drift, types mismatch, or error handling gets skipped. A million-token context window doesn't help when most of it is glue code.
 
 <div align="center">
-
-![A diagram illustrating the complexity of traditional web development fragmentation.](./assets/old_internet_knot_abstract.png)
-
+  <img src="./assets/old_internet_knot_abstract.png" alt="Schema Fragmentation in Traditional Web Stacks — 4-layer technical schematic" width="760" />
   <p>
-    <strong>Fragmentation in Traditional Web Development</strong><br />
-    Traditional development requires restating data models and logic across frontend, API, backend, and database layers. This duplication creates maintenance overhead and increases the risk of integration drift.
+    <strong>Schema Fragmentation Across Traditional Web Stacks</strong><br />
+    <em>Restating one domain model across SQL migrations, backend structs, JSON wire schemas, and frontend state introduces field drift, type mismatches, and glue-code overhead at every boundary.</em><br />
+    <sub>Diagram: Google Imagen 3 (<code>imagen-3.0-generate-002</code> / <code>gemini-3.1-flash-image</code>) · Signed 2026-10-14 · Bertrand Reyna-Brainerd &amp; Vox Foundation</sub>
   </p>
 </div>
 
@@ -144,7 +143,7 @@ We want you to know the costs of Vox's design before you invest time learning it
 
 ## Current State & Stability
 
-Surfaces are graded honestly by what works today versus what is still a prototype (last reviewed **2026-10-13**):
+Surfaces are graded honestly by what works today versus what is still a prototype (last reviewed **2026-10-14**):
 
 | Surface | Status | What Works Today & Known Caveats |
 |:---|:---|:---|

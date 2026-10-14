@@ -1,3 +1,4 @@
+schema_version: 1
 id: orchestrator
 description: "Tasks, agents, queue, file locks, plans, handoffs, HITL approvals, and clarification questions."
 # vox_set_agent_budget requires attention. vox_drain_agent is exposure internal (dev only).

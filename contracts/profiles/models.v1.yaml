@@ -1,3 +1,4 @@
+schema_version: 1
 id: models
 description: "Model registry, active-model selection, model suggestion, benchmarks, and chat through the selected model."
 requires: [db, model_registry, llm_facade] # D1: scoreboard, bench evidence, chat history

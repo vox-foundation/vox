@@ -1,3 +1,4 @@
+schema_version: 1
 id: knowledge
 description: "Agent memory, MCP sessions, knowledge bases, code/graph search, and knowledge queries."
 requires: [memory, sessions, search_index]
