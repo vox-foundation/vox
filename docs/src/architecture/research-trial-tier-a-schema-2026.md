@@ -3,10 +3,18 @@ title: "Research Trial Tier A Schema Contract (STORE-01)"
 description: "Canonical campaign, run and sample schema for research trials and Phase 12 code benchmarks: DDL at baseline 97, vocabularies, invariants, run grain, and the model_benchmark_results boundary, awaiting human approval."
 category: "Architecture SSOTs"
 status: "roadmap"
+topic: "scientia-research"
+domain: "knowledge"
+authorship: "llm-assisted"
+authorship_model: "claude-3-5-sonnet"
 training_eligible: false
 ---
 
 # Research Trial Tier A Schema Contract (STORE-01)
+
+<!-- kb:summary -->
+Defines the canonical relational schema contract for research trial campaigns, execution runs, and benchmark samples at database baseline 97. Establishes complete DDL definitions, controlled status vocabularies, table relationships, and data integrity invariants governing observational trial data storage within the shared `vox-db` database for the research trial flywheel.
+<!-- /kb:summary -->
 
 This is the single reviewed source for the Tier A trial tables. Plan 07-06 copies the DDL
 below verbatim into a vox-db domain fragment. **No migration code exists until the Decision

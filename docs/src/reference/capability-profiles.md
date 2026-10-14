@@ -3,10 +3,18 @@ title: "Capability profiles"
 description: "Reference for Vox capability profiles: the first-wave profile ids, how they compose, the --profile flag and VOX_PROFILE, how HTTP allowlists combine with profiles, and the typed profile errors."
 category: "Language Reference"
 status: "current"
-training_eligible: true
+topic: "identity-trust"
+domain: "security"
+authorship: "llm-assisted"
+authorship_model: "claude-3-5-sonnet"
+training_eligible: false
 ---
 
 # Capability profiles
+
+<!-- kb:summary -->
+Provides the canonical reference for Vox capability profiles that enforce deterministic exposure boundaries across MCP tools and subsystems. Explains the profile compilation model from contracts, standard profiles like dev, models, knowledge, and mesh, composition rules via the `--profile` flag and `VOX_PROFILE`, interaction with HTTP gateway allowlists, and structured error responses.
+<!-- /kb:summary -->
 
 A capability profile is a named slice of Vox's MCP tool surface plus the subsystems it needs.
 Running a server with a profile makes MCP `tools/list`, HTTP `GET /v1/tools`, WebSocket

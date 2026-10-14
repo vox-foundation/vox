@@ -3,9 +3,17 @@ title: "Running Vox as a server"
 description: "Run a scoped Vox capability profile as an HTTP/MCP server on loopback, on a LAN with TLS, or behind Tailscale or Cloudflare Tunnel, and discover what it serves with GET /v1/profile."
 category: "How-To Guides"
 status: "current"
+topic: "deployment"
+domain: "platform"
+authorship: "llm-assisted"
+authorship_model: "claude-3-5-sonnet"
 ---
 
 # Running Vox as a server
+
+<!-- kb:summary -->
+Explains how to run a scoped Vox capability profile as a dedicated HTTP and MCP server using `vox serve`. Covers single-tenant token generation with Clavis secrets, network binding security for loopback, LAN with TLS certificates, and tunnels, token authorization boundaries across caller roles, and dynamic capability discovery using `GET /v1/profile`.
+<!-- /kb:summary -->
 
 `vox serve --profile <ids>` starts the Vox daemon with the MCP HTTP gateway and only the
 capability slice you name (for example `models`, `knowledge`, `mesh`; see

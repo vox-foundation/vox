@@ -4,11 +4,18 @@ description: "Single-branch, dependency-ordered master plan unifying all six par
 category: "Architecture SSOTs"
 status: "current"
 sort_order: 15
-training_eligible: true
-training_rationale: "Canonical multi-stream convergence and model-routed execution plan for the Vox repository."
+topic: "agent-orchestrator"
+domain: "orchestration"
+authorship: "llm-assisted"
+authorship_model: "claude-3-5-sonnet"
+training_eligible: false
 ---
 
 # Unified Workstream & Worktree Execution Master Plan (2026 Q4)
+
+<!-- kb:summary -->
+Establishes the single-branch execution and convergence plan across six parallel GSD workstreams and feature worktrees for Vox in 2026 Q4. Sequences four dependency-ordered waves covering baseline consolidation, durable execution and capability profiles, deep research, and final release criteria under model-routed agent execution.
+<!-- /kb:summary -->
 
 > [!IMPORTANT]
 > **Single Stream & Zero Worktree Deletion Policy:** All parallel GSD workstreams (`kb`, `discoverability`, `docs-freshness` v1.3/v1.4, `autonomy-ux`, `code-atlas`, `research-trial-flywheel`) and active feature worktrees (`capability-profiles`, `true-workflow-durability`, `warp-fork-axis-gui-b682cd`, `api-key-management-16bb08`) are now unified into `.planning/workstreams/unified/` (active in `.planning/active-workstream` and mirrored at `.planning/ROADMAP.md`) inside `/Users/brbrainerd/dev/vox`. **Do not delete, prune, or clean any existing worktrees under `.claude/worktrees/` or `.worktrees/`.**

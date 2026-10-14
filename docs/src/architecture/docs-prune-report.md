@@ -3,9 +3,17 @@ title: "Documentation Corpus Prune Report"
 description: "Evidence-based prune dispositions for all pages in the Vox documentation corpus."
 category: "Architecture SSOTs"
 status: "current"
+topic: "doc-governance"
+domain: "documentation"
+authorship: "llm-assisted"
+authorship_model: "claude-3-5-sonnet"
 ---
 
 # Documentation Corpus Prune Report
+
+<!-- kb:summary -->
+Audits the complete Vox documentation corpus across 971 pages, classifying each into merge, move to internals, archive, or keep dispositions. Evaluates pages against dead symbol mentions, inbound references, age, and semantic cluster membership to streamline the documentation tree and eliminate duplication.
+<!-- /kb:summary -->
 
 - **Total Pages Scanned**: 971
 - **merge**: 29

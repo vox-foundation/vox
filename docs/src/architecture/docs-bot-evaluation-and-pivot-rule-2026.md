@@ -3,9 +3,17 @@ title: "Docs Bot Evaluation & Decision D9 Pivot Rule"
 description: "Empirical evaluation of commercial and academic documentation verification systems and the quantitative pivot rule for Vox documentation automation."
 category: "Architecture SSOTs"
 status: "current"
+topic: "doc-governance"
+domain: "documentation"
+authorship: "llm-assisted"
+authorship_model: "claude-3-5-sonnet"
 ---
 
 # Docs Bot Evaluation & Decision D9 Pivot Rule
+
+<!-- kb:summary -->
+Evaluates commercial and academic documentation maintenance bots against Vox requirements under Decision D9. Compares systems like Promptless, Dosu, Mintlify, and DocPrism on accuracy, grounding, and policy compliance, establishing a quantitative pivot threshold that rejects third-party hosted bots in favor of in-house AST-grounded verification via `vox-doc-pipeline`.
+<!-- /kb:summary -->
 
 ## Executive Summary
 

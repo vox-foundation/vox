@@ -3,10 +3,18 @@ title: "Model Routing Audit and Live Proof — Handoff (2026-10-11)"
 description: "State of the measured-quality model routing work on feat/research-trial-flywheel: what shipped, what was verified live, and the remaining manual steps with exact commands."
 category: "Architecture SSOTs"
 status: "research"
+topic: "model-routing"
+domain: "orchestration"
+authorship: "llm-assisted"
+authorship_model: "claude-3-5-sonnet"
 training_eligible: false
 ---
 
 # Model Routing Audit and Live Proof — Handoff
+
+<!-- kb:summary -->
+Documents the handoff state for measured-quality model routing within the research trial flywheel workstream. Summarizes delivered components including OpenRouter dynamic ingestion, benchmark database integration, tier selection policies, live verified endpoints, and the operator procedure for live validation and daemon rolling deployment.
+<!-- /kb:summary -->
 
 **Written for:** whoever finishes this work next, human or agent, in any IDE. It assumes
 no memory of the sessions that produced it (2026-10-08 to 2026-10-11).

@@ -3,11 +3,18 @@ title: "Vox/MENS Continuous Language Benchmark — Provenance and Experimental D
 description: "Audit of the current Vox/MENS code-generation eval stack and a design for an automatically triggered, provenance-complete, statistically valid benchmark of MENS versus other models, and of Vox versus other languages, recorded on every syntax change and release but never gating merges."
 category: "Architecture SSOTs"
 status: "roadmap"
-training_eligible: true
-training_rationale: "Benchmark methodology only: names no individual fixtures, reference solutions, or held-out content, so it cannot leak answers into the MENS corpus."
+topic: "model-evaluation"
+domain: "ml"
+authorship: "llm-assisted"
+authorship_model: "claude-3-5-sonnet"
+training_eligible: false
 ---
 
 # Vox/MENS Continuous Language Benchmark — Provenance and Experimental Design
+
+<!-- kb:summary -->
+Specifies the continuous evaluation and provenance architecture for Vox and MENS code generation benchmarks. Details experimental triggers tied to syntax changes and releases, provenance record metadata, statistical significance testing with McNemar and Holm-Bonferroni corrections, and isolation invariants that prevent held-out fixture contamination while evaluating models across languages without blocking routine CI merges.
+<!-- /kb:summary -->
 
 > **Builds on:** [Comparative efficacy research](vox-mens-comparative-efficacy-benchmarking-research-2026-09-01.md),
 > [Adversarial audit](vox-efficacy-benchmark-adversarial-audit-2026-09-01.md) (C1–C7, S1–S3),
