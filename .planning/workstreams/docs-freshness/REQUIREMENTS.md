@@ -1,155 +1,99 @@
-# Requirements — v1.3 Self-Maintaining Public Docs (workstream `docs-freshness`)
+# Requirements — v1.4 OpenWiki-Style Self-Organizing & Self-Healing Public Docs (workstream `docs-freshness`)
 
-**Goal:** voxlang.org stays accurate to the code without constant manual upkeep. Anything derivable from code is generated; everything else is anchored to code and checked deterministically in CI; drift is surfaced to humans and LLM agents; readers and agents can see what is verified. LLM claim verification and the draft-PR bot follow in v1.4.
+**Goal:** Turn `voxlang.org` into a self-organizing, continuously verified knowledge base that imports the best properties of OpenWiki/DeepWiki in-house (hierarchical subsystem maps from the code graph, deep symbol-level crate pages, auto-generated Mermaid dependency/call diagrams, calibrated trust signals, systematic debt burn-down, and a nightly DocPrism-style LLM claim verifier + draft-PR bot) with zero external subscription and zero new crate edges.
 
-Brief: `CONTEXT.md`. Research: `research/SUMMARY.md` (+ STACK, FEATURES, ARCHITECTURE, PITFALLS).
+Brief: `CONTEXT.md`. Research: `research/SUMMARY.md`, `docs/src/architecture/docs-bot-evaluation-and-pivot-rule-2026.md` (EVAL-01), `contracts/reports/docs-freshness/golden-drift-eval-set.v1.json` (EVAL-02).
 
-## Decisions (user, 2026-10-08)
+## Decisions (user, 2026-10-08 through 2026-10-13)
 
-- D1: Separate GSD workstream `docs-freshness`, phases 20+.
-- D2: All five outcomes in scope across v1.3–v1.4: drift detection, generated reference, agent-drafted fixes, case-by-case pruning, reader freshness signals.
-- D3: LLM fixes arrive only as **draft PRs for human review** — never auto-merged (v1.4).
-- D4: Build, mostly in-house (hybrid). Keep Starlight. Vendor bots that call LLM hosts directly are design references only (they violate the LLM-facade and secrets policy).
-- D5: Pruning is **case by case** from a generated audit report — no blanket or time-based archiving.
-- D6: v1.3 = phases 20–24 (no new crate edges). LLM verification + draft-PR bot = v1.4.
-- D7: Internal architecture/research/roadmap notes move to a separate **Internals** section: out of the main sidebar, `noindex`, excluded from llms.txt.
-- D8: Drift gate **blocks new drift only** (tighten-only baseline ratchet) on reader-facing `status: current` pages; existing drift is baselined.
-- D9: No hosted-bot trial. Instead, gather published accuracy and acceptance data for hosted docs bots and set a pivot rule: if they are far better than what we can build, switch to buying.
-- D10: No LLM runs on pull requests. PR-time checks are deterministic only.
-- D11 (2026-10-08, user): Links on the site must work, repo Markdown must render as doc pages, and tutorials especially must all be current. This promotes docs-as-tests for tutorials from out of scope into v1.3.
-- D12 (2026-10-08, user): Both sidebars collapse. The left one folds to a rail that expands on hover; the right one can be hidden, with a small control to bring it back. The article widens into the freed space. Everything works on mobile, including the landing page. Inserted as Phase 20.1.
+- D1–D12 (v1.3): Separate GSD workstream `docs-freshness`; Starlight kept; draft PRs only (never auto-merge prose); case-by-case pruning; Internals sidebar isolation; tighten-only baseline ratchet; no LLM on PRs; executable tutorial tests (`TUT-02`); collapsible reader layout (`Phase 20.1`).
+- D13 (2026-10-13, user): Milestone v1.4 in `docs-freshness` includes all five pillars (`SIGNAL`, `WIKI`, `DEBT`, `VERIFY`, `BOT`) to import OpenWiki-style self-organization and continuous self-healing without subscribing to external SaaS tools.
+- D14 (2026-10-13, user): Avoid new crate dependency edges — implement LLM claim verification inside existing `vox-cli` / `vox-doc-pipeline` crates, routing through `vox_actor_runtime::llm` under authorized `TaskCategory::DocClaimJudge`, and reuse `SSOT_AUTOREGEN_TOKEN` for draft PR creation.
+- D15 (2026-10-13, user): Continue global phase numbering at **Phases 32–36** (after `code-atlas` Phases 25–31) so phase numbers remain globally unique across all active workstreams.
 
-## v1.3 Requirements
+---
 
-### Deploy & liveness (DEPLOY)
+## v1.4 Requirements
 
-- [ ] **DEPLOY-01**: voxlang.org deploys successfully from `main` again (Cloudflare Pages token rotated by the user with `Pages:Edit` on `vox-docs`), and issue #462 is closed with the root cause recorded.
-- [ ] **DEPLOY-02**: A docs-deploy failure escalates once (single de-duplicated issue, assignee pinged, no repeat comments). A deploy that hasn't succeeded within N days raises a liveness alert through the existing `ci-liveness` mechanism.
-- [ ] **DEPLOY-03**: Post-deploy smoke checks run against the live site: home page and `/voxup` respond, every URL in the published `llms.txt` resolves, and no retired syntax appears on sampled pages.
-- [ ] **DEPLOY-04**: Per-page git dates are correct on the deployed site (full-history checkout; content symlink verified by a local build), and mechanical commits (fmt, regen, bulk renames) are excluded from the date.
+### 1. Trust Signal Calibration & Ledger Sync (`SIGNAL`)
 
-### Public-surface honesty (HONEST)
+Measured 2026-10-13: Only 28 of 972 pages (2.9%) in `contracts/reports/docs-freshness/ledger.v1.json` are `state: verified` (`689 broken`, `113 drifting`, `110 unanchored`, `32 historical`), and 0 of 7 tutorials show `verified` because of illustrative path false-positives, unseeded `verified_hash` values on command claims, and 127 `docs/src/api/*.generated.md` files created after the ledger snapshot.
 
-- [ ] **HONEST-01**: Pages with `status: research | roadmap | deprecated | legacy` render a visible status banner and are `noindex`, driven by frontmatter alone.
-- [ ] **HONEST-02**: Architecture/research/roadmap notes live under a separate **Internals** sidebar section, excluded from the main navigation, search-engine indexing, and every published llms.txt variant (D7).
-- [ ] **HONEST-03**: The overlapping designs (dormant Docs Reality Audit Program narrative, `docs/superpowers/specs/2026-08-22-docs-corpus-repair*`, `docs/superpowers/specs/2026-09-14-deep-research-documentation-engine*`) are merged into this workstream or marked superseded, so one design is authoritative.
+- [ ] **SIGNAL-01**: `vox-doc-pipeline::claims` distinguishes illustrative user-project/example paths (`src/main.vox`, `app.vox`, `package.json`, `vite.config.ts`, `train.jsonl`, `vox.db`, etc.) from repository paths so valid tutorials, journeys, and how-to guides are not falsely marked `broken`.
+- [ ] **SIGNAL-02**: Validated CLI command, env-var, and config-key claims in `ledger.v1.json` seed `verified_hash` from their resolved contract/registry hash rather than `"missing-file-hash"`, allowing verified tutorials and reference pages to reach `state: verified`.
+- [ ] **SIGNAL-03**: `vox ci ssot-drift` runs freshness ledger generation after `crate-api-sync` and contract generators, ensuring all 127 `docs/src/api/*.generated.md` and generated reference files are registered and `state: verified` in `ledger.v1.json`.
+- [ ] **SIGNAL-04**: Reader-facing conceptual pages (`explanation/`, `journeys/`, `learning/`, `index.mdx`) gain deterministic module/contract `code_anchors` so the `unanchored` count across public reader sections drops to zero.
 
-### Working links (LINKS)
+### 2. OpenWiki-Style Auto-Organization, Deep Crate Symbols & Diagrams (`WIKI`)
 
-Measured 2026-10-08: 2,803 relative `.md` links across 438 live pages are written relative to the repo, but Starlight serves each page as a directory (`/tutorials/tut-getting-started/`), so the browser resolves them one level too deep. For example `../reference/installation.md` becomes `/tutorials/reference/installation.md`, which returns 404. Another 1,909 links point outside `docs/src/` (top targets: `AGENTS.md` ×123, `LANGUAGE_DESIGN_PRIORITIES.md` ×23, Rust sources, contracts) and all 404. `vox ci check-links` validates repo paths, so it passes. The lychee step on the built site only prints guidance and never fails.
+- [ ] **WIKI-01**: A deterministic generator (`vox ci wiki-sync` in `vox-cli-ci`) synthesizes hierarchical **Subsystem Architecture Overview** pages under `docs/src/architecture/subsystems/` from `docs/src/architecture/layers.toml` (L0–L5), `where-things-live.md`, and `vox-graph-reader`, organizing all 127 workspace crates and active SSoT ADRs/specs by domain topology (Compiler & Language, Runtime & Durable Workflows, Orchestrator & AgentOS, VoxDB & Turso Data Layer, Populi Mesh, Mens ML Training, GUI & Surfaces).
+- [ ] **WIKI-02**: `vox ci crate-api-sync` (`crates/vox-cli-ci/src/crate_api_docs.rs`) extracts public `struct`, `enum`, `trait`, `fn`, and `type` items with signatures, docstrings, and GitHub line links (`[src/...#Lstart-Lend]`) for every workspace crate, replacing placeholder `| Module | — |` tables.
+- [ ] **WIKI-03**: Each generated Subsystem Hub and Crate API page includes deterministic **Mermaid architecture and dependency diagrams** (`flowchart LR` / `flowchart TD`) derived from `vox-graph-reader` crate-dependency and call-graph edges, validated for Mermaid syntax by `vox-doc-pipeline`.
+- [ ] **WIKI-04**: Starlight sidebar navigation (`docs-astro/src/utils/sidebar.mjs`) surfaces the generated Subsystem Architecture Wiki Hubs as a structured, reader-navigable architecture tree while keeping raw research/roadmap/historical notes collapsed under `Internals`.
 
-- [ ] **LINKS-01**: Relative links between docs pages (`foo.md`, `../x/bar.md#anchor`, `index.md` / `README.md`) render as working site routes. They are rewritten at build time (remark plugin in `docs-astro/src/plugins/`) to Starlight slugs, anchors preserved; source Markdown stays repo-relative so GitHub rendering keeps working.
-- [ ] **LINKS-02**: Links that leave `docs/src/` resolve. Repo Markdown files (e.g. `AGENTS.md`, `LANGUAGE_DESIGN_PRIORITIES.md`, `README.md`, `CONTRIBUTING.md`, crate READMEs) are rendered as doc pages on the site from a single source (no hand copies). Non-Markdown repo files (source, contracts, `Cargo.toml`) link to their GitHub blob on `main`.
-- [ ] **LINKS-03**: The built site fails CI on any broken internal link (blocking check over `dist/`), including a deliberately broken fixture. External links are checked nightly, cached, and non-blocking.
+### 3. Corpus Consolidation & Baseline Deficit Ratchet (`DEBT`)
 
-### Reader layout (SITE)
+- [ ] **DEBT-01**: Merge or archive the 29 duplicate-cluster pages and 51 stale non-architecture pages identified in `contracts/reports/docs-freshness/prune-report.v1.json` (including `docs/src/ref/env-vars*`, hand-written duplicates alongside `.generated.md` files, and deprecated stubs like `docs/src/api/vox-codegen-ts.md`), adding 301 redirects in `docs-astro/public/_redirects` for every retired public URL.
+- [ ] **DEBT-02**: Audit and reclassify or repair the 158 `docs/src/architecture/` pages still marked `status: current` (122 currently `broken`), demoting point-in-time design notes to `status: research | roadmap | historical` and anchoring genuine SSoT pages to current code symbols.
+- [ ] **DEBT-03**: Systematically burn down the 920 baselined reader-facing deficits in `contracts/reports/docs-freshness/baseline.v1.json` by repairing stale references (`vox-mcp`, `vox-fullstack`, `vox-oratio`, `vox-dashboard`, `vox-vscode`, removed CLI subcommands) across high-debt reader pages (`reference/cli.md`, `mens-training.md`, `telemetry-metric-contract.md`, `how-to-train-mens-*`, `oratio-speech.md`, `scientia-ssot-handbook.md`) and ratcheting `baseline.v1.json` downward.
 
-Added 2026-10-08 (D12). The site runs stock Starlight 0.38 with no component overrides; neither sidebar can be collapsed.
+### 4. Nightly LLM Claim Verification (`VERIFY`)
 
-- [ ] **SITE-01**: The left navigation sidebar collapses to a narrow rail. While collapsed, hovering over or focusing the rail temporarily expands it as an overlay without moving the article. A toggle pins it open or collapsed, and the choice persists across pages (localStorage).
-- [ ] **SITE-02**: The right "On this page" sidebar can be hidden with a toggle. When hidden, a small, unobtrusive control stays visible to bring it back, and the choice persists across pages.
-- [ ] **SITE-03**: With either or both sidebars collapsed or hidden, the article widens into the freed space up to a readable maximum width. Wide content (tables, code, diagrams) uses the extra room.
-- [ ] **SITE-04**: Full responsive support on docs pages and the voxlang.org landing page, at phone, tablet and desktop widths. Mobile keeps Starlight's menu drawer, touch devices get no hover-only behaviour, all controls are keyboard-operable with ARIA state, the layout is stable on first paint (no flash), and reduced-motion preferences are honoured.
-- [ ] **SITE-05**: Playwright visual-stepper specs in `docs-astro/tests/` cover each sidebar state × {phone, tablet, desktop} × {light, dark} plus the landing page, and save screenshots to a review bundle. `docs-quality.yml` runs them.
+- [ ] **VERIFY-01**: Register `TaskCategory::DocClaimJudge` in `contracts/orchestration/model-routing.v1.yaml` and `[audit.docs]` budget configuration in `vox.toml`, routing all LLM verification calls through `vox_actor_runtime::llm` from `vox-cli` / `vox-doc-pipeline` with zero new crate dependency edges.
+- [ ] **VERIFY-02**: Implement DocPrism/LCEF-style structured claim verification (`vox audit docs --verify-llm`) that evaluates only `drifting` or `broken` pages against exact symbol spans hashed in `ledger.v1.json`, requiring every verdict to cite verifiable repo file and line ranges (`[path:Lstart-Lend]`).
+- [ ] **VERIFY-03**: Add content-hash caching (`contracts/reports/docs-freshness/llm-verify-cache.v1.json`) and per-run token/spend caps so unchanged `(claim_hash, symbol_span_hash)` pairs are never re-evaluated, keeping steady-state spend within the \$13–\$45/mo budget.
+- [ ] **VERIFY-04**: Score `vox audit docs --verify-llm` against the 10-case `contracts/reports/docs-freshness/golden-drift-eval-set.v1.json`, enforcing $\le 10\%$ false-positive rate and $\ge 80\%$ precision on historical drift commits before enabling automated patch drafting.
 
-### Tutorials current (TUT)
+### 5. Self-Healing Draft-PR Automation & Continuous Website Sync (`BOT`)
 
-- [ ] **TUT-01**: Every tutorial (7 today) is audited and corrected against current code. Every `vox` command and flag exists in `command-registry.yaml`, every `vox` snippet compiles as a doctest (`vox:skip` only with a stated reason), install and prerequisite steps match `reference/installation.md`, and every link resolves. Each tutorial records the commit it was verified against.
-- [ ] **TUT-02**: Tutorials are executable docs-as-tests. A `.vox` harness runs each tutorial's steps end to end in CI (on PRs touching `docs/src/tutorials/**`, the CLI, or the compiler, plus nightly), and a failing tutorial blocks the merge.
+- [ ] **BOT-01**: Implement `scripts/docs-fix-drafts.vox` and `.github/workflows/docs-self-heal.yml` with a strict two-job privilege split: an unprivileged read-only job runs `vox audit docs --verify-llm` and produces a verified diff artifact; a separate no-LLM job using `SSOT_AUTOREGEN_TOKEN` opens or updates a draft PR.
+- [ ] **BOT-02**: Restrict bot patches strictly to `docs/src/**` (excluding `*.generated.md` and `docs/src/archive/`), and require every candidate patch to pass `vox-doc-pipeline --lint-only`, `vox ci doctest-md --strict`, `vox ci retired-symbol-check`, and `vox ci check-links` before opening or updating a draft PR.
+- [ ] **BOT-03**: Enforce alert-fatigue and precision guardrails: cap open doc-bot draft PRs at $\le 3$ concurrently, update existing draft PRs in place rather than opening duplicates, record acceptance/closure precision in `contracts/reports/docs-freshness/bot-metrics.v1.json`, and auto-pause draft PR creation if precision drops below threshold.
+- [ ] **BOT-04**: Ensure continuous front-facing website freshness on `voxlang.org`: merging any code or documentation PR keeps `crate-api-sync`, `wiki-sync`, and `ledger.v1.json` synchronized via `ssot-autoregen`, triggers `docs-deploy.yml`, and verifies live trust banners and Subsystem Wiki routes in post-deploy smoke checks.
 
-### Measurement & pruning (MEASURE)
+---
 
-- [ ] **MEASURE-01**: A deterministic mention extractor in `vox-doc-pipeline` (`claims` module) finds file paths, crate names, Rust symbols, `vox` CLI commands/flags, env vars, and config keys in Markdown prose and code fences. It honours `vox:skip` / `text` fences and tells "mentions" apart from "prescribes".
-- [ ] **MEASURE-02**: Each extracted mention is resolved against the repo (filesystem, `command-registry.yaml`, `env-vars.v1.yaml`, `retired-symbols.v1.yaml`, git grep; `vox graph` when available) and classified as resolved / missing / retired / ambiguous.
-- [ ] **MEASURE-03**: Report-only CLI (`vox audit docs`, findings JSONL with `schema_version`) runs locally and in CI without gating. The false-positive rate is measured on a hand-labelled sample before any gate is enabled.
-- [ ] **MEASURE-04**: The Docs Reality Audit's findings are **machine-generated** from the extractor. The schema is bumped with `source`, `fingerprint`, `detector`; findings are de-duplicated by fingerprint; metrics tell "empty because unpopulated" apart from "healthy".
-- [ ] **MEASURE-05**: A prune report lists every live page as keep / merge / move-to-Internals / archive candidate, with evidence: dead-mention count, inbound links, last substantive edit, status, section, and duplicate-topic clusters.
-- [ ] **MEASURE-06**: The user approves page dispositions case by case, and the approved moves, merges and archives are applied with redirects for removed public URLs.
+## Validated Requirements (Shipped in v1.3, Phases 20–24)
 
-### Drift gate & PR impact (DRIFT)
-
-- [ ] **DRIFT-01**: Every PR gets one PR comment, edited in place, listing reader-facing docs that reference files or symbols the PR changed (reverse index from code anchor to docs).
-- [ ] **DRIFT-02**: A generated freshness ledger (`contracts/reports/docs-freshness/ledger.v1.json`, `linguist-generated`) records per page: anchors, anchor content hashes at the symbol-span level, `last_verified_commit`, and `state ∈ {verified, drifting, broken, unanchored, historical}`.
-- [ ] **DRIFT-03**: Authored frontmatter gains only `owner`, `review_cadence`, and optional `code_anchors`. These keys are defined once in `vox-doc-pipeline` and parity-tested against the governance doc. There is no hand-written `last_verified`.
-- [ ] **DRIFT-04**: A gate blocks merges that introduce **new** broken mentions on `status: current` pages under reference / tutorials / how-to / explanation. Existing drift is baselined; the baseline can only tighten.
-- [ ] **DRIFT-05**: Every suppression carries owner, reason, and expiry date. Expired suppressions fail the gate.
-- [ ] **DRIFT-06**: A human can re-attest a page (CLI or PR label) to re-stamp it `verified` in the ledger after review.
-- [ ] **DRIFT-07**: A docs-definition-of-done rule: a PR that changes a public CLI command, env var, or contract without touching its doc or generator gets a deterministic warning.
-
-### Generated reference (GEN)
-
-- [ ] **GEN-01**: Env-var reference is generated from `contracts/config/env-vars.v1.yaml`, replacing the hand-maintained page.
-- [ ] **GEN-02**: At least two more hand-maintained references become `*.generated.md` from their contracts (candidates: config keys, error codes, MCP tool catalog, operations catalog). Each one names its reader.
-- [ ] **GEN-03**: Every `*.generated.md` has a registered generator wired into `ssot-drift` and `ssot-autoregen`. Generators have tests, including for dead paths.
-
-### Reader trust & agent surfaces (TRUST)
-
-- [ ] **TRUST-01**: Each public page shows its ledger state: "Verified against `<sha>`" / "May be out of date — code changed since verification" / "Unverified". Sidebar badges mark non-verified pages.
-- [ ] **TRUST-02**: A curated `current` llms.txt set contains only `verified` reader-facing pages. CI fails if any curated llms.txt URL points to a non-verified or Internals page.
-- [ ] **TRUST-03**: The hand-committed `.well-known/llms-full.txt` is retired; agents get a single generated source (no split-brain).
-- [ ] **TRUST-04**: Every GUI/site change for TRUST-01 has Playwright visual-stepper coverage, with screenshots in the review bundle.
-
-### v1.4 go/no-go evaluation (EVAL)
-
-- [ ] **EVAL-01**: A research note in `docs/src/architecture/` collects published and vendor-reported accuracy, false-positive, and draft-PR acceptance data for hosted docs bots (Promptless, Dosu, Mintlify agent, DeepDocs, etc.). It also covers academic baselines (DocPrism, CASCADE), states what the user should expect from each, and defines a numeric pivot rule (D9).
-- [ ] **EVAL-02**: A golden eval set of past drift cases (commits `e2bb133a1`, `49a08f34e`, `f48dbc810`, …) is committed, so v1.4's LLM verifier and any vendor can be scored on the same cases.
-
-## v1.4 Requirements (deferred — next milestone)
-
-- **VERIFY-01..**: `vox-doc-verify` crate (needs user-authorized crate edges) → nightly LLM claim verification through `vox_actor_runtime::llm`, new `DocClaimJudge` routing category, cited evidence lines that must resolve, content-hash cache, per-run budget (about $13–45/mo).
-- **BOT-01..**: `scripts/docs-fix-drafts.vox` + scheduled workflow. Two jobs: an LLM job with read-only access produces a patch; a PR job with no LLM opens it. Edits allowed only under `docs/src/**` (generated files excluded). Every patch is re-linted, re-doctested and re-checked for retired symbols. At most 3 open draft PRs; precision is tracked; security review required. Needs a PAT secret.
+- [x] **DEPLOY-01..04**: `voxlang.org` Cloudflare Pages deploy restored, single-issue failure escalation + `ci-liveness`, live post-deploy smoke checks, and accurate git dates across symlinked content (Phase 20).
+- [x] **HONEST-01..03**: Frontmatter-driven status banners + `noindex`, `Internals` sidebar section, and supersession of overlapping doc-audit specs (Phase 20).
+- [x] **LINKS-01..03**: Build-time relative `.md` link rewriting, `/repo/` mounted Markdown pages, and blocking built-site link checks (Phase 20).
+- [x] **TUT-01..02**: All 7 tutorials audited against current CLI/compiler and gated by an executable `.vox` tutorial test harness in CI (Phases 20, 22).
+- [x] **SITE-01..05**: Collapsible left hover-rail and right TOC sidebars, wide-article layout, responsive mobile/tablet/desktop support, and Playwright visual-stepper suite (Phase 20.1).
+- [x] **MEASURE-01..06**: Deterministic claim extractor + resolvers in `vox-doc-pipeline::claims`, `vox audit docs`, machine-generated Docs Reality Audit findings, and initial prune dispositions (Phase 21).
+- [x] **DRIFT-01..07**: Symbol-span freshness ledger (`ledger.v1.json`), tighten-only baseline ratchet (`baseline.v1.json`), expiring suppressions, PR impact comment, and docs-definition-of-done warning (Phase 22).
+- [x] **GEN-01..05**: Generated `env-vars.generated.md`, `config-keys.generated.md`, `mcp-tools.generated.md`, 127 `docs/src/api/*.generated.md` files, CLI `build_catalog()` compliance, and retired-decorator prose lint (Phase 23).
+- [x] **TRUST-01..04 & EVAL-01..02**: Reader trust banners & sidebar badges, curated `llms.txt` verification gate, single `/llms-full.txt`, 10-case golden drift eval set, and Decision D9 in-house build verdict (Phase 24).
 
 ## Out of Scope
 
-- Migrating off Starlight to a hosted docs platform — the rewrite cost outweighs the benefit (D4).
-- LLM checks on pull requests (D10).
-- Auto-merging any prose change (D3).
-- Blanket or time-based archiving (D5).
-- Hosted docs MCP endpoint with a feedback tool — deferred until Cloudflare logs show agent and reader demand. (Tutorial docs-as-tests moved into scope as TUT-02, per D11.)
-- Vale prose linting — `retired-symbol-check` stays the source of truth for banned terms.
+- Subscribing to commercial SaaS wiki/doc bots (OpenWiki hosted, Promptless, Dosu, Mintlify) — rejected by the Decision D9 evaluation (`docs-bot-evaluation-and-pivot-rule-2026.md`).
+- Adding new crate dependency edges (`vox-doc-verify` standalone crate) — all v1.4 verification logic lives inside `vox-doc-pipeline` and `vox-cli` (D14).
+- Running LLM inference synchronously on pull requests — PR checks remain 100% deterministic; LLM verification runs on a schedule or explicit CLI invocation (D10).
+- Auto-merging any LLM-drafted prose change without human review (D3).
 
-## Traceability
+## Traceability (v1.4)
 
 | Requirement | Phase | Status |
 |---|---|---|
-| DEPLOY-01 | Phase 20 | Pending |
-| DEPLOY-02 | Phase 20 | Pending |
-| DEPLOY-03 | Phase 20 | Pending |
-| DEPLOY-04 | Phase 20 | Pending |
-| HONEST-01 | Phase 20 | Pending |
-| HONEST-02 | Phase 20 | Pending |
-| HONEST-03 | Phase 20 | Pending |
-| LINKS-01 | Phase 20 | Pending |
-| LINKS-02 | Phase 20 | Pending |
-| LINKS-03 | Phase 20 | Pending |
-| TUT-01 | Phase 20 | Pending |
-| SITE-01 | Phase 20.1 | Pending |
-| SITE-02 | Phase 20.1 | Pending |
-| SITE-03 | Phase 20.1 | Pending |
-| SITE-04 | Phase 20.1 | Pending |
-| SITE-05 | Phase 20.1 | Pending |
-| MEASURE-01 | Phase 21 | Pending |
-| MEASURE-02 | Phase 21 | Pending |
-| MEASURE-03 | Phase 21 | Pending |
-| MEASURE-04 | Phase 21 | Pending |
-| MEASURE-05 | Phase 21 | Pending |
-| MEASURE-06 | Phase 21 | Pending |
-| DRIFT-01 | Phase 22 | Pending |
-| DRIFT-02 | Phase 22 | Pending |
-| DRIFT-03 | Phase 22 | Pending |
-| DRIFT-04 | Phase 22 | Pending |
-| DRIFT-05 | Phase 22 | Pending |
-| DRIFT-06 | Phase 22 | Pending |
-| DRIFT-07 | Phase 22 | Pending |
-| TUT-02 | Phase 22 | Pending |
-| GEN-01 | Phase 23 | Pending |
-| GEN-02 | Phase 23 | Pending |
-| GEN-03 | Phase 23 | Pending |
-| TRUST-01 | Phase 24 | Pending |
-| TRUST-02 | Phase 24 | Pending |
-| TRUST-03 | Phase 24 | Pending |
-| TRUST-04 | Phase 24 | Pending |
-| EVAL-01 | Phase 24 | Pending |
-| EVAL-02 | Phase 24 | Pending |
+| SIGNAL-01 | Phase 32 | Planned |
+| SIGNAL-02 | Phase 32 | Planned |
+| SIGNAL-03 | Phase 32 | Planned |
+| SIGNAL-04 | Phase 32 | Planned |
+| WIKI-01 | Phase 33 | Planned |
+| WIKI-02 | Phase 33 | Planned |
+| WIKI-03 | Phase 33 | Planned |
+| WIKI-04 | Phase 33 | Planned |
+| DEBT-01 | Phase 34 | Planned |
+| DEBT-02 | Phase 34 | Planned |
+| DEBT-03 | Phase 34 | Planned |
+| VERIFY-01 | Phase 35 | Planned |
+| VERIFY-02 | Phase 35 | Planned |
+| VERIFY-03 | Phase 35 | Planned |
+| VERIFY-04 | Phase 35 | Planned |
+| BOT-01 | Phase 36 | Planned |
+| BOT-02 | Phase 36 | Planned |
+| BOT-03 | Phase 36 | Planned |
+| BOT-04 | Phase 36 | Planned |
 
-Coverage: 39/39 v1.3 requirements mapped, no duplicates.
+Coverage: 19/19 v1.4 requirements mapped across Phases 32–36, no duplicates.

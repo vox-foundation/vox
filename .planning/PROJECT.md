@@ -1,72 +1,65 @@
-PROJECT.md 74L
-PROJECT.md 81L
-PROJECT.md 132L
 # Vox
+
 ## What This Is
-Vox is a mature, actively-developed cross-platform Rust workspace (138 crates) that implements its own programming language — the `.vox` frontend, compiler, and interpreter — plus the surfaces built on top of it: `vox-cli` (the `vox` binary), `vox-gui` (a Tauri 2 desktop application), a multi-agent orchestrator with MCP tool exposure, a local-first mesh (iroh QUIC) for distributed agent/model work, and a native-Rust ML training stack (Candle/QLoRA) for its own fine-tuned model ("Mens"). It is developed and stewarded as a FOSS project under an in-formation Vox Foundation, not a monetized product.
-v1.0 (Architectural Housekeeping, shipped 2026-10-01) disposed of 20 audited dead/misplaced crates and closed the open architecture decisions a full-corpus ADR/SPEC ingest surfaced. The current milestone, v1.1 Research Trial Flywheel, turns Vox's existing research, telemetry, evaluation, model-routing, and retrieval infrastructure into a governed measure–compare–promote–replay loop for its research agents.
+
+Vox is a mature, actively-developed cross-platform Rust workspace (138+ crates) that implements its own programming language — the `.vox` frontend, compiler, and interpreter — plus the surfaces built on top of it: `vox-cli` (the `vox` binary), `vox-gui` (a Tauri 2 desktop application), a multi-agent orchestrator with MCP tool exposure, a local-first mesh (iroh QUIC) for distributed agent/model work, and a native-Rust ML training stack (Candle/QLoRA) for its own fine-tuned model ("Mens"). It is developed and stewarded as a FOSS project under an in-formation Vox Foundation, not a monetized product.
+
+v1.0 (Architectural Housekeeping, shipped 2026-10-01) disposed of 20 audited dead/misplaced crates and closed the open architecture decisions a full-corpus ADR/SPEC ingest surfaced. v1.3 (Self-Maintaining Public Docs, completed 2026-10-13) shipped the deterministic drift gate, automated crate API reference generator, collapsible reader layout, and trust signal foundation.
+
 ## Core Value
-The compiler, orchestrator, and runtime that everything else depends on must keep building and passing CI throughout this cleanup — no crate disposition or architecture-decision closure is worth a broken workspace.
-## Current Milestone: v1.1 Research Trial Flywheel
-**Goal:** Race research-agent conditions under preregistered, budgeted campaigns; rate answer quality, speed, and efficiency; accumulate verified, searchable knowledge; and propose — never silently apply — the next improvement.
-**Milestone value:** Each research run produces reproducible evidence, comparable quality/latency/cost metrics, searchable verified knowledge, and a safe proposal for the next experiment.
-... [lean-ctx: omitted 1 lines]
+
+The compiler, orchestrator, runtime, knowledge base, and public documentation site (`voxlang.org`) that everything else depends on must keep building, staying verified, and passing CI from a single unified worktree (`/Users/brbrainerd/dev/vox`).
+
+## Current Milestone: v1.5 Unified Holistic Stream (`unified`)
+
+**Goal:** Converge all six parallel GSD workstreams (`kb`, `discoverability`, `docs-freshness` v1.3/v1.4, `autonomy-ux`, `code-atlas`, `research-trial-flywheel`) and active feature worktrees (`capability-profiles`, `true-workflow-durability`, `warp-fork-axis-gui`, `fmt-safety`) into a **single branch, worktree (`/Users/brbrainerd/dev/vox`), and dependency-ordered execution plan** engineered for Antigravity IDE (`[MODEL: FLASH-3.8]` + `[MODEL: ARGON-4]`), without deleting any existing worktrees on disk.
+
+**Canonical Master Plan:** [`docs/src/architecture/unified-workstream-execution-plan-2026.md`](../docs/src/architecture/unified-workstream-execution-plan-2026.md)
+**Active Stream Roadmap:** [`.planning/workstreams/unified/ROADMAP.md`](workstreams/unified/ROADMAP.md) (mirrored at [`.planning/ROADMAP.md`](ROADMAP.md))
+
 ## Requirements
+
 ### Validated
-<!-- Shipped and confirmed valuable; inferred from the existing, working codebase. -->
-- ✓ `.vox` compiler pipeline (lex → parse → HIR → typeck → codegen) and a separate `--interp` execution path — `crates/vox-compiler/`
-... [lean-ctx: omitted 1 lines]
+
+- ✓ `.vox` compiler pipeline (lex → parse → HIR → typeck → codegen) and `--interp` execution path — `crates/vox-compiler/`
+- ✓ `vox` CLI with full subcommand surface (`crates/vox-cli/`)
 - ✓ Multi-agent orchestrator with D1-D10 policy modules and MCP tool/HTTP exposure — `crates/vox-orchestrator/`, `crates/vox-orchestrator-mcp/`
-... [lean-ctx: omitted 1 lines]
+- ✓ Tauri 2 desktop GUI (`vox-gui`) as the sole orchestration surface (ADR-045)
+- ✓ iroh QUIC mesh transport for Populi (ADR-047, locked)
 - ✓ Durable functions runtime (`workflow`/`activity`/`actor`/`@scheduled`) with journal-backed replay (ADR-019/021/041, locked)
-... [lean-ctx: omitted 1 lines]
-- ✓ ADR-045 ratified; `vox-gui` command surface sourced from `CommandCatalog`; Vox-native vs React interop boundary enforced — v1.0
-... [lean-ctx: omitted 1 lines]
-### Active
-<!-- Current scope for v1.1 Research Trial Flywheel. Detailed, phase-mapped requirements live in REQUIREMENTS.md. -->
-- [ ] Trial identity, signed campaign preregistration, structural telemetry, and atomic Tier A persistence with an observational baseline
-... [lean-ctx: omitted 1 lines]
-- [ ] Verified, provenance-rich, searchable knowledge accumulation with frozen per-arm manifests and memory ablations
-... [lean-ctx: omitted 1 lines]
-### Out of Scope
-<!-- Explicit boundaries, with reasoning, surfaced by the full-corpus ADR/SPEC ingest. -->
-... [lean-ctx: omitted 1 lines]
-- Re-litigating the ADR-030/ADR-031 "vox-dashboard" naming — both ADRs' core decisions (state_machine as reactive-state SSoT; vox-vscode deprecation) remain valid and locked; only their prose still names the retired `vox-dashboard` surface. No source edit needed per operator review; downstream readers should treat `vox-gui` as current.
-- Transport crypto provider collapse (`reqwest` 0.12→0.13, `ring`/`aws-lc-rs` dedup) — real, documented, and unresolved (see `contracts/crypto/transport-providers.v1.json`), but it's a codebase-audit finding, not an ADR/SPEC-sourced decision this milestone's ingest scope covers. Tracked for a future milestone.
-## Context
-- **Scale**: 138 first-party crates under a strict L0→L5 layered Cargo workspace (`docs/src/architecture/layers.toml`, enforced by `vox-arch-check`); TypeScript/React only in `crates/vox-gui/ui/` (Tauri frontend) and `docs-astro/` (docs site).
-- **Provenance of this milestone's scope**: a full-corpus ingest of 430 classified documents (49 ADRs, 96 SPECs, 1 PRD, 284 DOCs) from `docs/src/adr/` and `docs/src/architecture/`. Full synthesis at `.planning/intel/SYNTHESIS.md`; per-type detail in `.planning/intel/{decisions,requirements,constraints,context}.md`; conflict/warning detail in `.planning/INGEST-CONFLICTS.md`.
-... [lean-ctx: omitted 1 lines]
-- **Two ADR supersessions were resolved in the source tree before this ingest ran**: ADR-024 (Axum dashboard) → superseded by ADR-045 (Tauri GUI); ADR-037 (Tauri Convergence)'s mobile-target clause → partially superseded by locked `adr-NNN` (React Native + Expo + uniffi for mobile). Both are reflected in Validated/Active above.
-... [lean-ctx: omitted 1 lines]
-- **Known tech debt not in this milestone's scope** (from `.planning/codebase/CONCERNS.md`): 549 God-object findings from a stale (2026-06-06) `vox-arch-check` scan; duplicated dispatch logic between `vox-populi` and `vox-plugin-populi-mesh`; three deprecation markers (`retire-by="0.7.0"`) that will start failing CI the moment the workspace version bumps past 0.6.0; the `reqwest` 0.12/0.13 split noted in Out of Scope above.
+- ✓ Native Rust ML training (Candle + qlora-rs) (ADR-003/006/034, locked)
+- ✓ Codex/Arca/Turso as the sole database stack (ADR-004, locked)
+- ✓ Secrets resolution exclusively through `vox_secrets::resolve_secret(...)` (Clavis/`vox-secrets`)
+- ✓ `kb` Phases 01–04: Retrieval eval harness, Library index & `vox_kb_*` MCP tools, Provenance/trust tiers at VoxDb baseline 96, and `vox-kb-facets` L0 taxonomy crate — completed on `claude/vox-knowledge-base-research-2964d2`
+- ✓ `discoverability` Phases 06.1–06.3: Hosted CI fast local loop, generated capability index (`contracts/capabilities/capability-index.v1.json`, `vox explain`, `vox features`), and Universal `⌘K` Palette — completed on `claude/vox-discoverability-a72c8c`
+- ✓ `docs-freshness` v1.3 Phases 20–24: Deploy unblock, collapsible reader layout, corpus measure/prune audit, deterministic drift gate, automated crate API docs (`docs/src/api/*.generated.md`), and reader trust signals — completed in `/Users/brbrainerd/dev/vox`
+
+### Active (Sequenced Across Waves 0–4 in `REQUIREMENTS.md`)
+
+- [ ] **Wave 0 (`Phase 05`):** Unified branch & worktree convergence onto `feat/unified-2026-q4` (`CONV-01..04`)
+- [ ] **Wave 1 (`Phases 12, 07, 07.1, 25, 32`):** Autonomy safety floor (`FLOOR-01..02`), Trial identity & Tier A persistence at DB baseline 97 (`TRIAL-01`, `STORE-01..02`, `BENCH-09`), Unified Code & Architecture Graph Data Floor (`GRAPH-01..02`), and Docs trust signal calibration (`SIGNAL-01..04`)
+- [ ] **Wave 2 (`Phases 33, 34, 13–17, 37–41, 08–11 & 42`):** OpenWiki Subsystem Hubs & deep crate symbols (`WIKI-01..04`), Docs corpus consolidation & debt burn-down (`DEBT-01..03`), Autonomy oversight daemon & consumers (`OVS-01..03`, `ATTN-01`), KB local embeddings/context/inbox/rewrites/staleness (`EMB`, `INJ`, `GROW`, `REWR`, `STALE`), and Research Trial Race Harness & promotion governance (`RACE`, `KNOW`, `PROMO`, `HARD`, `BENCH-13`)
+- [ ] **Wave 3 (`Phases 06.4, 26–31, 43–45, 18–19`):** Sequenced GUI unification across `CapabilityExplorer.tsx`, Code & Architecture Atlas canvas/dock/click-to-`@`, KB `Library`/Context Inspector, and `Oversight: 1..5` composer control + Claims Ledger
+- [ ] **Wave 4 (`Phases 35, 36, 06.6`):** Constrained nightly LLM doc claim verifier (`VERIFY-01..04`), self-healing draft-PR bot & freshness ratchet (`BOT-01..04`), and cold-start time-to-find journeys (`DISC-15..17`)
+
 ## Constraints
-- **Build toolchain**: pinned Rust `1.98.1` (`rust-toolchain.toml`); a clean clone must build with only the pinned toolchain, a platform C compiler, and Node+pnpm — no cmake, nasm, Go, perl, or libclang via any dependency (AGENTS.md Build-toolchain invariant).
-- **Crate dependency edges**: CI-gated by `vox ci crate-edges` against `contracts/ci/crate-edges.allow.v1.json`; new edges need a narrower `-types`/`-core` crate or the <50-line defactor policy; `exceptions` ledger entries are user-authorized-only, never self-added — directly binds the EXTRACT-TO-PLUGIN and WIRE-UP dead-crate work.
-... [lean-ctx: omitted 1 lines]
-- **Cryptography**: application crypto exclusively through `vox-crypto`; MD5/SHA-1/AEGIS/DES/RC4/ECB permanently banned; transport TLS/QUIC crypto is allowlisted and ledgered separately (`contracts/crypto/transport-providers.v1.json`), never routed through `vox-crypto`.
-... [lean-ctx: omitted 1 lines]
-- **Test-first**: every new `pub fn` in `crates/*/src/**` needs an adjacent test (`skeleton/untested-pub-api` detector, pre-commit `tdd-guard` hook) — binds all six phases below, especially the wire-up and extraction work which touches call sites directly.
-... [lean-ctx: omitted 1 lines]
-## Key Decisions
-<!-- Locked ADRs load-bearing for this milestone, plus the non-locked/open decisions this milestone acts on. -->
-... [lean-ctx: omitted 1 lines]
-| ADR-045: Tauri GUI replaces Axum dashboard | `vox-dashboard` decommissioned and confirmed absent from the tree; `vox-gui` is the sole orchestration surface | ⚠️ Revisit — current & non-contradicted but not itself locked/Accepted; this milestone ratifies it |
-... [lean-ctx: omitted 1 lines]
-| ADR-027: Dual-Track UI Surfaces | Split UI primitives into Vox-native vs React/TanStack interop tracks. Superseded 2026-05-03 by external-frontend-interop-plan-2026 | Boundary established and enforced in Phase 4 under the superseding plan (`authoring_track` in contracts/frontend/surface-ownership.v1.yaml) |
-... [lean-ctx: omitted 2 lines]
-| v1.1 trial governance (grill G1–G25, R1–R9) | Signed immutable campaigns, atomic spend reservations, group-sequential stats, two-campaign promotion, dual-control designation, structural-only telemetry, linked retries instead of resume | — Pending — v1.1 implements it |
-## Workstreams
-- `research-trial-flywheel` — v1.1 Research Trial Flywheel (default; `.planning/workstreams/research-trial-flywheel/`)
-- `autonomy-ux` — v1.2 Unified Autonomy Control, run in parallel: one human-legible oversight control (more = safer) replacing the inverted Risk popover, Check replies, and duplicated spend chrome; every claimed effect wired in the backend for both sync chat and background tasks; the cross-agent attention/interruption budget made visible and controllable. Mode (cost↔intelligence) stays a separate axis. (`.planning/workstreams/autonomy-ux/`)
-- `docs-freshness` — v1.3 Self-Maintaining Public Docs, run in parallel: the public site (voxlang.org, Starlight over `docs/src/`) stays accurate to the code without constant manual upkeep. Drift between docs and code is detected in CI and surfaced to humans and LLM agents; agents draft fix PRs for human review; more reference is generated from code/contracts; the corpus is audited and pruned case by case; readers see per-page freshness. Brief: `.planning/workstreams/docs-freshness/CONTEXT.md`.
-... [lean-ctx: omitted 1 lines]
-## Evolution
-This document evolves at phase transitions and milestone boundaries.
-... [lean-ctx: omitted 4 lines]
-*Last updated: 2026-10-09 — v1.4 Code Atlas started as the `code-atlas` workstream*
-[lean-ctx] full source: read "/Users/brbrainerd/dev/vox/.planning/PROJECT.md" directly (no MCP)  ·  or ctx_read("/Users/brbrainerd/dev/vox/.planning/PROJECT.md", mode="full")
-[lean-ctx] full source: read "/Users/brbrainerd/dev/vox/.planning/PROJECT.md" directly (no MCP)  ·  or ctx_read("/Users/brbrainerd/dev/vox/.planning/PROJECT.md", mode="full")
 
+- **Zero Worktree Deletion:** Never delete or clean up existing worktrees under `.claude/worktrees/` or `.worktrees/`.
+- **Build toolchain:** Pinned Rust `1.98.1` (`rust-toolchain.toml`); no cmake, nasm, Go, perl, or libclang via any dependency.
+- **Crate dependency edges:** CI-gated by `vox ci crate-edges` against `contracts/ci/crate-edges.allow.v1.json`.
+- **LLM provider boundary:** All LLM calls go through `vox_actor_runtime::llm`.
+- **Cryptography & Secrets:** Application crypto exclusively through `vox-crypto`; secrets exclusively through `vox_secrets::resolve_secret(...)`.
+- **VoxScript-first glue:** Automation is `.vox` run via `vox run`, never new `.sh`/`.ps1`/`.py`.
 
-[lean-ctx] full source: read "/Users/brbrainerd/dev/vox/.planning/PROJECT.md" directly (no MCP)  ·  or ctx_read("/Users/brbrainerd/dev/vox/.planning/PROJECT.md", mode="full")
+## Workstreams (Unified into `unified`)
+
+- **`unified` (Active Default — `.planning/workstreams/unified/`):** Single converged stream integrating all six historical workstreams below in strict dependency order.
+- `kb` (Historical source preserved at `.planning/workstreams/kb/`) — v1.1 Vox Knowledge Base
+- `discoverability` (Historical source preserved at `.planning/workstreams/discoverability/`) — Phases 06.1–06.6
+- `docs-freshness` (Historical source preserved at `.planning/workstreams/docs-freshness/`) — v1.3 (complete) & v1.4 OpenWiki Self-Organizing Docs (Phases 32–36)
+- `autonomy-ux` (Historical source preserved at `.planning/workstreams/autonomy-ux/`) — v1.2 Unified Autonomy Control (Phases 12–19)
+- `code-atlas` (Historical source preserved at `.planning/workstreams/code-atlas/`) — v1.4 Code Atlas (Phases 25–31)
+- `research-trial-flywheel` (Historical source preserved at `.planning/workstreams/research-trial-flywheel/`) — v1.1 Research Trial Flywheel (Phases 07–11, 12–13)
+
+---
+*Last updated: 2026-10-13 — All parallel workstreams unified into `.planning/workstreams/unified/`*

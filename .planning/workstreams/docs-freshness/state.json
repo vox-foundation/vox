@@ -1,12 +1,43 @@
 {
   "contract": "1.0.0",
   "flavor": "core",
-  "milestone": null,
-  "phases": [],
+  "milestone": "v1.4 — LLM Claim Verification & Draft-PR Bot (planned)",
+  "phases": [
+    {
+      "number": "20",
+      "name": "Deploy Unblock & Public-Surface Honesty",
+      "status": "complete"
+    },
+    {
+      "number": "20.1",
+      "name": "Collapsible Reader Layout (INSERTED)",
+      "status": "complete"
+    },
+    {
+      "number": "21",
+      "name": "Measure & Prune",
+      "status": "complete"
+    },
+    {
+      "number": "22",
+      "name": "Deterministic Drift Gate & PR Impact",
+      "status": "complete"
+    },
+    {
+      "number": "23",
+      "name": "Generated Reference Expansion",
+      "status": "complete"
+    },
+    {
+      "number": "24",
+      "name": "Reader Trust Signals, Agent Surfaces & v1.4 Go/No-Go",
+      "status": "complete"
+    }
+  ],
   "next": {
     "command": "/gsd-discuss-phase",
     "label": "Discuss the first phase",
     "reason": "Project initialized — plan your first phase"
   },
-  "updated_at": "2026-10-09T00:15:00.000Z"
+  "updated_at": "2026-10-14T02:08:51.131Z"
 }

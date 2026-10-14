@@ -1,14 +1,14 @@
 ---
 gsd_state_version: "1.0"
-milestone: v1.3
-milestone_name: Self-Maintaining Public Docs
+milestone: v1.4
+milestone_name: OpenWiki-Style Self-Organizing & Self-Healing Public Docs
 status: planning
-last_updated: "2026-10-09T00:15:00.000Z"
-last_activity: 2026-10-08
+last_updated: "2026-10-14T02:08:51.129Z"
+last_activity: 2026-10-13
 progress:
-  total_phases: 6
+  total_phases: 5
   completed_phases: 0
-  total_plans: 12
+  total_plans: 0
   completed_plans: 0
   percent: 0
 ---
@@ -17,40 +17,36 @@ progress:
 
 ## Project Reference
 
-See: `.planning/PROJECT.md`; workstream brief `CONTEXT.md`; roadmap `ROADMAP.md`; requirements `REQUIREMENTS.md` (29 v1.3 requirements, all mapped); research `research/SUMMARY.md`.
+See: `.planning/PROJECT.md`; workstream brief `CONTEXT.md`; roadmap `ROADMAP.md`; requirements `REQUIREMENTS.md` (19 v1.4 requirements across Phases 32–36, all mapped; 41 v1.3 requirements shipped); research `research/SUMMARY.md` + `docs/src/architecture/docs-bot-evaluation-and-pivot-rule-2026.md`.
 
-**Core value:** voxlang.org stays accurate to the code without constant manual upkeep — derivable reference is generated, everything else is anchored to code and checked deterministically in CI, and readers and agents can see what is verified.
+**Core value:** `voxlang.org` stays accurate to the code and self-organizes without manual upkeep or SaaS subscriptions — derivable reference, crate API symbols, and subsystem wiki hubs with Mermaid diagrams are generated from the code graph, claims are anchored and verified deterministically + nightly via `vox_actor_runtime::llm`, and readers/agents see calibrated trust signals.
 
 ## Current Position
 
-Phase: 20 of 20–24 (Deploy Unblock & Public-Surface Honesty)
-Plan: 0 of 12 (planned, 7 waves; checker passed after 2 revisions)
-Status: Ready to execute — `/gsd-execute-phase 20`
-Last activity: 2026-10-08 — Phase 20 planned (12 plans); Phase 20.1 (collapsible reader layout) inserted
+Phase: 32 of 32–36 (Trust Signal Calibration & Ledger Synchronization)
+Plan: —
+Status: Ready to plan Phase 32
+Last activity: 2026-10-13 — Milestone v1.4 roadmap & 19 requirements defined (Phases 32–36)
 
 ## Progress
 
-**Phases Complete:** 0/6
-**Current Plan:** 20-01 (wave 1: 20-01..20-05 parallel)
+**v1.4 Phases Complete:** 0/5 (Phases 32–36 planned)
+**Prior Milestone (v1.3):** 6/6 phases complete (Phases 20, 20.1, 21, 22, 23, 24 shipped 2026-10-13)
 
 ## Accumulated Context
 
 ### Decisions
 
-- D1–D10 recorded in `REQUIREMENTS.md` (separate workstream; all five outcomes across v1.3–v1.4; draft PRs only, never auto-merge; hybrid build, keep Starlight; case-by-case pruning; v1.3 = phases 20–24 with no new crate edges; Internals section; drift gate blocks new drift only; no hosted-bot trial, pivot rule instead; no LLM on PRs).
-- Roadmap: requirement→phase mapping from `REQUIREMENTS.md` kept unchanged. Phase 23 runs in parallel with 22 after 21; Phase 24 depends on 22's ledger.
+- D1–D12 (v1.3) recorded in `REQUIREMENTS.md`.
+- D13 (2026-10-13): v1.4 in `docs-freshness` includes all 5 pillars (`SIGNAL`, `WIKI`, `DEBT`, `VERIFY`, `BOT`) to import OpenWiki-style self-organization and continuous self-healing in-house.
+- D14 (2026-10-13): Zero new crate edges — implement LLM claim verification inside `vox-doc-pipeline` / `vox-cli` via `vox_actor_runtime::llm`, authorize `TaskCategory::DocClaimJudge` in `model-routing.v1.yaml`, and reuse `SSOT_AUTOREGEN_TOKEN` for bot draft PRs.
+- D15 (2026-10-13): Global phase numbering continues at **Phases 32–36** (after `code-atlas` Phases 25–31).
 
 ### Blockers / Gates
 
-- DEPLOY-01: Cloudflare token rotated 2026-10-08; manual run 37869058499 green. Still needs a green push-triggered run before closing #462 (plan 20-11).
-- 20-01 checkpoint: user approves the `wrangler` pin version (recommended 4.146.0).
-- P20-D8 (archive unpublish → `/retired/`) and P20-D9 (`/repo/` prefix) are defaults; override before 20-12 / 20-09 run.
-- MEASURE-06 (Phase 21): user approves page dispositions case by case and the research/roadmap sidebar policy.
-- Phase 22: needs phase research (symbol-span hashing, attestation, FP measurement); user authorizes switching the gate to blocking after baselining.
-- v1.4 prerequisites (user-only): `vox-doc-verify` crate edges, bot PAT secret, `DocClaimJudge` routing category + budget.
-- Runs in parallel with `research-trial-flywheel` (7–11) and `autonomy-ux` (12–19); do not touch their files.
+- Runs in parallel with `research-trial-flywheel` (Phases 7–11), `autonomy-ux` (Phases 12–19), and `code-atlas` (Phases 25–31); do not touch their files.
 
 ## Session Continuity
 
-**Stopped At:** Roadmap drafted, awaiting approval
-**Resume File:** None
+**Completed:** Milestone v1.4 initialized (`REQUIREMENTS.md`, `ROADMAP.md`, `STATE.md`, `MILESTONES.md`)
+**Next Step:** `/gsd-discuss-phase 32 --ws docs-freshness` or `/gsd-plan-phase 32 --ws docs-freshness`
