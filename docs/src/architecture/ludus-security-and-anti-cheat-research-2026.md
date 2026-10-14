@@ -1,7 +1,7 @@
 ---
 title: "ludus-security-and-anti-cheat-research-2026"
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: false
 ---
 # Ludus Security and Anti-Cheat Architecture (Research 2026)

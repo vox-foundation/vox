@@ -2,7 +2,7 @@
 title: "Local Models vs OpenRouter Quality & Hybrid Topology Research (2026)"
 description: "Comparative empirical analysis of fine-tuned local models (Qwen 3 8B via MENS/Populi) versus OpenRouter frontier models (Claude 3.5 Sonnet, Claude Opus, GPT-4o) across reasoning depth, token economics, latency, and hybrid orchestration."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 ---
 
 # Local Models vs. OpenRouter Quality & Hybrid Topology Research (2026)

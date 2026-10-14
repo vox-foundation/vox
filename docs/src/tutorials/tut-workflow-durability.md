@@ -13,7 +13,7 @@ schema_type: "HowTo"
 Learn how to build resilient, long-running processes using Vox workflows. This tutorial explains the durability story Vox supports today: interpreted workflow step replay, stable activity ids, and idempotent activities.
 
 > [!WARNING]
-> Interpreted workflow runtime durability and generated-Rust workflow durability are different things. The durable replay and recovery story shown here uses the interpreted path (`vox mens workflow ...`), not compiled native async functions.
+> Interpreted workflow runtime durability and generated-Rust workflow durability are different things. The durable replay and recovery story shown here uses the interpreted path (`vox mens workflow ...`, provided by `vox-ml-cli`), not compiled native async functions.
 
 ## 1. The Challenge of Long-Running Tasks
 
@@ -21,12 +21,40 @@ Traditional async functions lose their state if the server restarts or a network
 
 ## 2. Defining a Workflow
 
-Use the bare `activity` and `workflow` keywords to describe long-running orchestration. 
-
-Use the bare `activity` and `workflow` keywords to describe long-running orchestration. 
+Use the bare `activity` and `workflow` keywords to describe long-running orchestration.
 
 ```vox
-{{#include ../../../examples/golden/getting_started.vox:logic}}
+activity charge_card(amount: int) to Result[str] {
+    if amount > 1000 {
+        return Error("amount too large")
+    }
+    return Ok("tx_" + str(amount))
+}
+
+activity send_receipt(tx: str) to Result[str] {
+    return Ok("emailed:" + tx)
+}
+
+workflow checkout(amount: int) to Result[str] {
+    let tx = charge_card(amount)?
+    let receipt = send_receipt(tx)?
+    return Ok(receipt)
+}
+```
+
+*Source: examples/golden/durable_workflow_real.vox*
+
+You can also specify execution options using a `with` block:
+
+```vox
+activity process_payment(amount: int) to Result[str] {
+    return Ok("paid")
+}
+
+workflow checkout_with_options(amount: int) to Result[str] {
+    let res = process_payment(amount) with { retries: 3, timeout: "30s", initial_backoff: "1s" }
+    return res
+}
 ```
 
 The `with` block provides execution options for the activity:

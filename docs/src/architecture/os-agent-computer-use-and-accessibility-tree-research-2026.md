@@ -2,7 +2,7 @@
 title: "OS-Level Computer Use and Accessibility-Tree Semantic Grounding (2026)"
 description: "Comprehensive empirical research on native OS accessibility APIs (macOS AXUIElement, Windows UIA, Linux AT-SPI2), Vision-AX hybrid grounding (OmniParser, Set-of-Marks), token serialization, adversarial UI injection defenses, multi-monitor display geometry, Linux Wayland protocols, Windows MTA concurrency, and failure taxonomies for agentic desktop interaction."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: true
 training_rationale: "Defines native OS accessibility and computer-use grounding architecture beyond browser DOM."
 ---

@@ -47,7 +47,7 @@ When working under the Vox repository, ALL research findings, architecture docum
 
 **Committed and kept in sync by pre-commit hooks (`lefthook.yml`):**
 
-- `docs/src/reference/cli-command-surface.generated.md`, `docs/src/reference/mens-train-defaults.generated.md` — regenerate with `cargo run -p vox-cli -- ci command-sync`.
+- `docs/src/reference/cli-command-surface.generated.md`, `docs/src/reference/mens-train-defaults.generated.md`, `docs/src/reference/env-vars.generated.md`, `docs/src/reference/config-keys.generated.md`, `docs/src/reference/mcp-tools.generated.md` — regenerate with `cargo run -p vox-cli -- ci command-sync`.
 - `docs/src/reference/plugin-catalog.generated.md`, `docs/src/reference/distribution-bundles.generated.md` — regenerate with `cargo run -p vox-cli -- ci generate-plugin-catalog-docs`.
 - `.cursorignore`, `.aiignore`, `.aiexclude` — derived from `.voxignore`; regenerate with `vox ci sync-ignore-files`.
 

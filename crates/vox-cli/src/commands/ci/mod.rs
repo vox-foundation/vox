@@ -2,7 +2,7 @@
 
 mod capability_sync;
 mod command_compliance;
-mod command_sync;
+pub mod command_sync;
 mod eval_matrix;
 mod exec_policy_contract;
 mod gui_catalog_parity;

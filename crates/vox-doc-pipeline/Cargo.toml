@@ -20,7 +20,14 @@ vox-bounded-fs = { workspace = true }
 workspace-hack = { version = "0.6", path = "../workspace-hack" }
 vox-compiler = { workspace = true }
 serde_json.workspace = true
+serde = { workspace = true }
+serde_yaml = { workspace = true }
+pulldown-cmark = { workspace = true }
+regex = { workspace = true }
+walkdir = { workspace = true }
+sha2 = { workspace = true }
 rayon = { workspace = true }
+chrono = { workspace = true }
 
 [lints]
 workspace = true

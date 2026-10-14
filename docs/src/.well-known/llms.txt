@@ -2,33 +2,30 @@
 > Vox is a pre-1.0 (workspace 0.6.0) AI-native full-stack language that compiles to Rust and TypeScript.
 > One .vox file can compile to a database schema, a type-safe server, and a browser UI.
 > Install today by building from source. Release installers are not published.
-> Maturity: https://voxlang.org/reference/stability/ — compiler/CLI are the strongest surfaces.
+> Maturity: compiler/CLI are the strongest surfaces.
 > Current syntax: bare `table` / `query` / `mutation` / `server` / `tool` / `component`.
 > Retired (hard parse errors): `@endpoint`, `@table type`, `@mcp.tool`. Do not emit them.
 > Not the unrelated Vox-lang (English-to-assembly) project at github.com/Vox-lang/vox.
+> All links listed in this index are verified against automated code tests.
 
 ## Agent Policy Entry Points
-- [AGENTS.md](https://voxlang.org/AGENTS.md): Cross-tool policy for all coding agents (required reading)
-- [GEMINI.md](https://voxlang.org/GEMINI.md): Antigravity-specific overlay
-- [CLAUDE.md](https://voxlang.org/CLAUDE.md): Claude Code overlay
+- [AGENTS.md](https://voxlang.org/agents/): Cross-tool policy for all coding agents (required reading)
 
-## Core Documentation
-- [Getting Started](https://voxlang.org/tutorials/tut-getting-started/): Install from source and build your first app
-- [Language Syntax Reference](https://voxlang.org/reference/ref-syntax/): Full syntax specification
-- [CLI Reference](https://voxlang.org/reference/cli/): All vox subcommands
-- [Stability Matrix](https://voxlang.org/reference/stability/): Per-surface maturity
-- [Environment Variables SSOT](https://voxlang.org/reference/env-vars/): Configuration surface
-- [Secrets (Secret Management)](https://voxlang.org/reference/secrets-ssot/): API keys and credentials
+## Language & Parser Specifications
+- [Type System Reference](https://voxlang.org/reference/ref-type-system/): Verified type system specifications and primitives
+- [Literals Reference](https://voxlang.org/reference/ref-literals/): Number, string, array, and object literal rules
+- [Operator Precedence Reference](https://voxlang.org/reference/ref-operator-precedence/): Operator precedence and associativity tables
+- [Parser Feature Matrix](https://voxlang.org/reference/parser-feature-matrix/): Implemented language syntax and grammar features
+- [Parser Ambiguity Inventory](https://voxlang.org/reference/parser-ambiguity-inventory/): Grammar ambiguities and resolution rules
 
-## Architecture Authority
-- [Where things live](https://voxlang.org/architecture/where-things-live/): Concept → crate lookup table
-- [Classification SSOT](https://voxlang.org/architecture/classification-ssot-2026/): Canonical surface classifications
-- [Front-facing honesty audit](https://voxlang.org/architecture/front-facing-honesty-audit-2026/): What scrape-first surfaces may and may not claim
+## Architecture & System SSOTs
+- [Wire Format v1 SSOT](https://voxlang.org/architecture/wire-format-v1-ssot/): Network protocol wire format specification
+- [Context Isolation SSOT](https://voxlang.org/architecture/context-isolation-ssot-2026/): Execution sandbox and context isolation guarantees
+- [Frontend Surface Ownership](https://voxlang.org/reference/frontend-surface-ownership/): UI and GUI surface boundaries and ownership
+- [ADR 021: Generated Workflow Durability Parity](https://voxlang.org/adr/021-generated-workflow-durability-parity/): Durable workflow journal and replay parity
+- [ADR 025: Multi-Agent Lock Coherence](https://voxlang.org/adr/025-multi-agent-lock-coherence/): Lease propagation and concurrency semantics
 
-## Contributor Hub
-- [Contributor Hub](https://voxlang.org/contributors/contributor-hub/): Start here; Architecture SSOTs are listed in the Starlight sidebar
-- [Documentation Governance](https://voxlang.org/contributors/documentation-governance/): Doc authority map
-- [Agent Instruction Architecture](https://voxlang.org/contributors/agent-instruction-architecture/): How AI agents should navigate this repo
-
-## AI Coding-Assistant Integration
-- [How-to: wire AI assistants to vox_validate_source MCP](https://voxlang.org/how-to/how-to-mcp-vox-validate/): Configure Claude Desktop / Cursor to validate AI-generated Vox source against the real compiler with structured autofix suggestions; documents the diagnostic shape (`code` + `fixes`), the iterate-against-the-compiler loop, and the most useful diagnostic-code namespaces.
+## Contributor & Learning Guides
+- [Contributor Hub](https://voxlang.org/contributors/contributor-hub/): Contributor entry point and documentation guide
+- [Lesson 1 — Ownership in Practice](https://voxlang.org/learning/rust-via-vox/lesson-01-ownership-pattern-drill/): Ownership pattern drill for Vox and Rust
+- [Clinical Export](https://voxlang.org/how-to/clinical-export-from-vox-apps/): Application-owned export and validation

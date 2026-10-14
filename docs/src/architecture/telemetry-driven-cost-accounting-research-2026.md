@@ -1,7 +1,7 @@
 ---
 title: "telemetry-driven-cost-accounting-research-2026"
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: false
 ---
 # Telemetry-Driven Cost Accounting Architecture (2026)

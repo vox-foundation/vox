@@ -59,6 +59,12 @@ struct FindingRow {
     status: String,
     #[allow(dead_code)]
     recommended_action: String,
+    #[allow(dead_code)]
+    source: Option<String>,
+    #[allow(dead_code)]
+    fingerprint: Option<String>,
+    #[allow(dead_code)]
+    detector: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -181,7 +187,13 @@ fn verify_findings_consistency(
     findings: &FindingsFile,
 ) -> Result<()> {
     let claim_ids: HashSet<_> = inv.claims.iter().map(|c| c.id.as_str()).collect();
+    let mut fingerprints = HashSet::new();
     for f in &findings.findings {
+        if let Some(fp) = &f.fingerprint {
+            if !fingerprints.insert(fp.as_str()) {
+                anyhow::bail!("finding {}: duplicate fingerprint {}", f.id, fp);
+            }
+        }
         let expected = compute_priority_score(&f.scores);
         if expected != f.priority_score {
             anyhow::bail!(

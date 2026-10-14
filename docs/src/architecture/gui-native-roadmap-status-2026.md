@@ -2,7 +2,7 @@
 title: "GUI-Native Language Roadmap — Execution Status"
 description: "Live tracking of task completion for the Vox GUI-native language roadmap (April 2026)."
 category: "Architecture SSOTs"
-status: "current"
+status: "roadmap"
 training_eligible: false
 ---
 

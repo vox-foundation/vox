@@ -1,7 +1,7 @@
 ---
 title: "Implementation Plan: State Unification & TS Hardening (2026)"
 category: "Architecture SSOTs"
-status: "current"
+status: "roadmap"
 ---
 
 # Implementation Plan: State Unification & TS Hardening (2026)

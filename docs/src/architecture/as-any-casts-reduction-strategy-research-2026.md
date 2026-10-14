@@ -2,8 +2,9 @@
 title: "FableForge as any Casts Reduction Strategy"
 description: "A systemic strategy for auditing, classifying, and eliminating legacy as any casts across the FableForge monorepo."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: true
+training_rationale: "Project architecture and research context."
 ---
 
 # FableForge "as any" Casts Reduction Strategy

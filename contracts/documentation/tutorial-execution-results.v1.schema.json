@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Tutorial Execution Results Contract",
+  "description": "Contract for executable end-to-end tutorial tests (TUT-02).",
+  "type": "object",
+  "required": [
+    "x-vox-version",
+    "generated_by",
+    "executed_at_commit",
+    "tutorials"
+  ],
+  "properties": {
+    "x-vox-version": {
+      "type": "integer"
+    },
+    "generated_by": {
+      "type": "string"
+    },
+    "executed_at_commit": {
+      "type": "string"
+    },
+    "tutorials": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "slug",
+          "path",
+          "status",
+          "duration_ms",
+          "steps_executed",
+          "steps_passed"
+        ],
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pass", "fail", "skip"]
+          },
+          "duration_ms": {
+            "type": "integer"
+          },
+          "steps_executed": {
+            "type": "integer"
+          },
+          "steps_passed": {
+            "type": "integer"
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

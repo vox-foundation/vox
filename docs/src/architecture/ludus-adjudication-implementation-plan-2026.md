@@ -1,7 +1,7 @@
 ---
 title: "ludus-adjudication-implementation-plan-2026"
 category: "Architecture SSOTs"
-status: "current"
+status: "roadmap"
 training_eligible: false
 ---
 # Ludus Adjudication System — Implementation Plan (2026)

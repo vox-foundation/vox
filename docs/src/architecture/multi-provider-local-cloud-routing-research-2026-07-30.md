@@ -2,7 +2,7 @@
 title: "Multi-Provider & Local-vs-Cloud Model Routing — Verified Research 2026-07-30"
 description: "Adversarially verified research into production LLM routing: LiteLLM's deployment/strategy model, OpenRouter's inverse-square price weighting and provider policy object, Portkey's recursive conditional routing DSL, and RouteLLM's learned binary router — distilled into a declarative policy design Vox can adopt, with an explicit ledger of what does not transplant."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: false
 ---
 

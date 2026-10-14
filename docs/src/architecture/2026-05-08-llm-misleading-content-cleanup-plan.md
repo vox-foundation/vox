@@ -119,7 +119,7 @@ Files (verified as of 2026-05-08):
 5. [`.voxindexingignore`](../../../.voxindexingignore) — line 59.
 6. [`vox-schema.json`](../../../vox-schema.json) — `"vox-clavis"` key on line ~50 and `path_pattern` on line ~52. **Caveat:** this is a JSON schema that may be consumed by tooling — search for consumers of `"vox-clavis"` as a key before renaming the key. If consumers exist, leave the key and only update `path_pattern`.
 7. [`contracts/toestub/suppressions.v1.json`](../../../contracts/toestub/suppressions.v1.json) — `path_glob` on line 7.
-8. [`crates/_frozen.md`](../../../crates/_frozen.md) — line 13.
+8. `crates/_frozen.md` — line 13.
 9. [`docs/agents/turso-import-allowlist.txt`](../../agents/turso-import-allowlist.txt) — line 8.
 10. [`docs/agents/sql-connection-api-allowlist.txt`](../../agents/sql-connection-api-allowlist.txt) — line 8.
 11. [`docs/agents/query-all-allowlist.txt`](../../agents/query-all-allowlist.txt) — line 7.

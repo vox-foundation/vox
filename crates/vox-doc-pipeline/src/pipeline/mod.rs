@@ -58,6 +58,9 @@ fn workflow_for_kind(kind: &LintKind) -> &'static str {
             "make the ```vox block compile, or annotate it `// vox:skip` with a reason"
         }
         LintKind::HandAuthoredLastUpdated => "remove the hand-authored last_updated key",
+        LintKind::HandAuthoredLastVerified => {
+            "remove hand-authored last_verified or last_verified_commit key"
+        }
         LintKind::ReadmeSyncDrift { .. } => {
             "re-sync the block with README.md, or fix the ANCHOR if content genuinely changed"
         }
@@ -90,6 +93,7 @@ fn kind_label(kind: &LintKind) -> &'static str {
         LintKind::UnlabeledCodeFence { .. } => "unlabeled-code-fence",
         LintKind::DuplicateFrontmatter { .. } => "duplicate-frontmatter",
         LintKind::HandAuthoredLastUpdated => "hand-authored-last-updated",
+        LintKind::HandAuthoredLastVerified => "hand-authored-last-verified",
         LintKind::ReadmeSyncDrift { .. } => "readme-sync-drift",
         LintKind::ReadmeSyncMissingBlock { .. } => "readme-sync-missing-block",
         LintKind::ReadmeSyncMissingAnchor { .. } => "readme-sync-missing-anchor",
@@ -436,6 +440,12 @@ pub fn lint_in(root: &Path, args: &[String]) -> i32 {
                         rel.display()
                     );
                 }
+                LintKind::HandAuthoredLastVerified => {
+                    eprintln!(
+                        "  ERROR  {} — hand-authored `last_verified:` or `last_verified_commit:` in frontmatter; the pipeline derives this from the Freshness Ledger (DRIFT-02/03). Remove the key.",
+                        rel.display()
+                    );
+                }
                 LintKind::ReadmeSyncDrift { block } => {
                     eprintln!(
                         "  ERROR  {} — SYNC block '{}' has drifted from its README.md ANCHOR counterpart. Re-sync both, or fix the anchor if content genuinely changed.",
@@ -483,6 +493,7 @@ pub fn lint_in(root: &Path, args: &[String]) -> i32 {
                         | LintKind::WholeFileIncludeHasTrainingHeader { .. }
                         | LintKind::MissingTrainingRationale
                         | LintKind::HandAuthoredLastUpdated
+                        | LintKind::HandAuthoredLastVerified
                         | LintKind::DocTestFailed { .. }
                         | LintKind::DuplicateFrontmatter { .. }
                         | LintKind::ReadmeSyncDrift { .. }

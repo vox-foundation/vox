@@ -2,18 +2,36 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import starlightLlmsTxt from 'starlight-llms-txt';
+import sitemap from '@astrojs/sitemap';
 import { voxGrammar } from './src/plugins/vox-grammar.mjs';
 import { getSidebar } from './src/utils/sidebar.mjs';
 import { remarkVoxInclude } from './src/plugins/remark-vox-include.mjs';
+import { remarkDocLinks } from './src/plugins/remark-doc-links.mjs';
+import { listDocPages, noindexRoutes, internalsDocIds } from './src/utils/page-index.mjs';
+
+const docsSrc = new URL('../docs/src', import.meta.url).pathname;
+const docPages = listDocPages(docsSrc);
+const noindex = noindexRoutes(docPages);
+const internalsExcluded = internalsDocIds(docPages);
 
 export default defineConfig({
   site: 'https://voxlang.org/',
   // Process {{#include path:anchor}} directives in code blocks (mdBook SSOT pattern).
   // Build fails loudly for any unresolved path/anchor — preventing silent blank code blocks.
   markdown: {
-    remarkPlugins: [remarkVoxInclude],
+    remarkPlugins: [
+      remarkVoxInclude,
+      [remarkDocLinks, { repoUrl: 'https://github.com/vox-foundation/vox' }],
+    ],
   },
   integrations: [
+    sitemap({
+      filter: (page) => {
+        const p = new URL(page).pathname;
+        const normalized = p.endsWith('/') ? p : `${p}/`;
+        return !noindex.has(p) && !noindex.has(normalized) && p !== '/retired/' && p !== '/retired';
+      },
+    }),
     starlight({
       title: 'Vox: The AI-Native Programming Language',
       description: 'Pre-1.0 documentation for Vox, an AI-native full-stack programming language that compiles .vox to Rust and TypeScript.',
@@ -39,11 +57,24 @@ export default defineConfig({
         starlightLlmsTxt({
           projectName: 'Vox',
           description: 'Vox is a pre-1.0 (0.6.0) AI-native full-stack language that compiles a .vox file to a database schema, type-safe server, and browser UI. Build from source; see https://voxlang.org/reference/stability/ for maturity. Current syntax uses bare table / query / mutation / server / tool — not @endpoint.',
-          llmsFullTxt: true,
+          exclude: internalsExcluded,
         }),
       ],
       lastUpdated: true,
       pagefind: true,
+      customCss: ['./src/styles/reader-layout.css'],
+      components: {
+        Sidebar: './src/components/Sidebar.astro',
+        TableOfContents: './src/components/TableOfContents.astro',
+        PageSidebar: './src/components/PageSidebar.astro',
+        Banner: './src/components/Banner.astro',
+      },
+      head: [
+        {
+          tag: 'script',
+          content: `(function(){try{var s=localStorage.getItem('vox-sidebar-state');var t=localStorage.getItem('vox-toc-state');document.documentElement.dataset.sidebarState=(s==='collapsed'?'collapsed':'pinned');document.documentElement.dataset.tocState=(t==='hidden'?'hidden':'visible');}catch(e){}})();`,
+        },
+      ],
     }),
   ],
   vite: {

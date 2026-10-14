@@ -1,0 +1,231 @@
+{
+  "schema_version": 1,
+  "description": "Hand-labelled ground truth sample for evaluating mention extractor and resolver precision/recall/false-positive rate.",
+  "samples": [
+    {
+      "id": "sample-01",
+      "doc_path": "docs/src/architecture/where-things-live.md",
+      "raw_text": "crates/vox-cli",
+      "kind": "file_path",
+      "expected_role": "prescribes",
+      "expected_status": "resolved",
+      "is_true_deficit": false
+    },
+    {
+      "id": "sample-02",
+      "doc_path": "docs/src/architecture/where-things-live.md",
+      "raw_text": "crates/vox-nonexistent-12345",
+      "kind": "file_path",
+      "expected_role": "prescribes",
+      "expected_status": "missing",
+      "is_true_deficit": true
+    },
+    {
+      "id": "sample-03",
+      "doc_path": "docs/src/reference/secrets-ssot.md",
+      "raw_text": "vox-secrets",
+      "kind": "crate_name",
+      "expected_role": "prescribes",
+      "expected_status": "resolved",
+      "is_true_deficit": false
+    },
+    {
+      "id": "sample-04",
+      "doc_path": "docs/src/reference/secrets-ssot.md",
+      "raw_text": "vox-crypto",
+      "kind": "crate_name",
+      "expected_role": "prescribes",
+      "expected_status": "resolved",
+      "is_true_deficit": false
+    },
+    {
+      "id": "sample-05",
+      "doc_path": "docs/src/architecture/cryptography-ssot-2026.md",
+      "raw_text": "TURSO_URL",
+      "kind": "env_var",
+      "expected_role": "mentions",
+      "expected_status": "retired",
+      "is_true_deficit": false
+    },
+    {
+      "id": "sample-06",
+      "doc_path": "docs/src/architecture/cryptography-ssot-2026.md",
+      "raw_text": "TURSO_AUTH_TOKEN",
+      "kind": "env_var",
+      "expected_role": "mentions",
+      "expected_status": "retired",
+      "is_true_deficit": false
+    },
+    {
+      "id": "sample-07",
+      "doc_path": "docs/src/reference/secrets-ssot.md",
+      "raw_text": "VOX_DB_URL",
+      "kind": "env_var",
+      "expected_role": "prescribes",
+      "expected_status": "resolved",
+      "is_true_deficit": false
+    },
+    {
+      "id": "sample-08",
+      "doc_path": "docs/src/reference/secrets-ssot.md",
+      "raw_text": "VOX_NONEXISTENT_FAKE_ENV_VAR",
+      "kind": "env_var",
+      "expected_role": "prescribes",
+      "expected_status": "missing",
+      "is_true_deficit": true
+    },
+    {
+      "id": "sample-09",
+      "doc_path": "docs/src/how-to/run-scripts.md",
+      "raw_text": "vox run",
+      "kind": "cli_command",
+      "expected_role": "prescribes",
+      "expected_status": "resolved",
+      "is_true_deficit": false
+    },
+    {
+      "id": "sample-10",
+      "doc_path": "docs/src/how-to/run-scripts.md",
+      "raw_text": "vox check",
+      "kind": "cli_command",
+      "expected_role": "prescribes",
+      "expected_status": "resolved",
+      "is_true_deficit": false
+    },
+    {
+      "id": "sample-11",
+      "doc_path": "docs/src/how-to/run-scripts.md",
+      "raw_text": "vox non-existent-command-xyz",
+      "kind": "cli_command",
+      "expected_role": "prescribes",
+      "expected_status": "missing",
+      "is_true_deficit": true
+    },
+    {
+      "id": "sample-12",
+      "doc_path": "docs/src/reference/cli-command-surface.generated.md",
+      "raw_text": "vox audit",
+      "kind": "cli_command",
+      "expected_role": "prescribes",
+      "expected_status": "resolved",
+      "is_true_deficit": false
+    },
+    {
+      "id": "sample-13",
+      "doc_path": "docs/src/reference/cli-command-surface.generated.md",
+      "raw_text": "vox audit arch",
+      "kind": "cli_command",
+      "expected_role": "prescribes",
+      "expected_status": "resolved",
+      "is_true_deficit": false
+    },
+    {
+      "id": "sample-14",
+      "doc_path": "docs/src/architecture/where-things-live.md",
+      "raw_text": "vox-actor-runtime",
+      "kind": "crate_name",
+      "expected_role": "prescribes",
+      "expected_status": "resolved",
+      "is_true_deficit": false
+    },
+    {
+      "id": "sample-15",
+      "doc_path": "docs/src/architecture/where-things-live.md",
+      "raw_text": "vox-compiler",
+      "kind": "crate_name",
+      "expected_role": "prescribes",
+      "expected_status": "resolved",
+      "is_true_deficit": false
+    },
+    {
+      "id": "sample-16",
+      "doc_path": "docs/src/architecture/where-things-live.md",
+      "raw_text": "vox_actor_runtime::llm",
+      "kind": "rust_symbol",
+      "expected_role": "prescribes",
+      "expected_status": "resolved",
+      "is_true_deficit": false
+    },
+    {
+      "id": "sample-17",
+      "doc_path": "docs/src/architecture/where-things-live.md",
+      "raw_text": "Cargo.toml",
+      "kind": "file_path",
+      "expected_role": "prescribes",
+      "expected_status": "resolved",
+      "is_true_deficit": false
+    },
+    {
+      "id": "sample-18",
+      "doc_path": "docs/src/architecture/where-things-live.md",
+      "raw_text": "contracts/documentation/retired-symbols.v1.yaml",
+      "kind": "file_path",
+      "expected_role": "prescribes",
+      "expected_status": "resolved",
+      "is_true_deficit": false
+    },
+    {
+      "id": "sample-19",
+      "doc_path": "docs/src/architecture/where-things-live.md",
+      "raw_text": "vox-dei",
+      "kind": "crate_name",
+      "expected_role": "mentions",
+      "expected_status": "retired",
+      "is_true_deficit": false
+    },
+    {
+      "id": "sample-20",
+      "doc_path": "docs/src/architecture/where-things-live.md",
+      "raw_text": "vox-ars",
+      "kind": "crate_name",
+      "expected_role": "mentions",
+      "expected_status": "retired",
+      "is_true_deficit": false
+    },
+    {
+      "id": "sample-21",
+      "doc_path": "docs/src/how-to/run-scripts.md",
+      "raw_text": "scripts/fmt.vox",
+      "kind": "file_path",
+      "expected_role": "prescribes",
+      "expected_status": "resolved",
+      "is_true_deficit": false
+    },
+    {
+      "id": "sample-22",
+      "doc_path": "docs/src/how-to/run-scripts.md",
+      "raw_text": "scripts/sync-superpowers-skills.vox",
+      "kind": "file_path",
+      "expected_role": "prescribes",
+      "expected_status": "resolved",
+      "is_true_deficit": false
+    },
+    {
+      "id": "sample-23",
+      "doc_path": "docs/src/architecture/cryptography-ssot-2026.md",
+      "raw_text": "vox-fake-retired-xyz",
+      "kind": "crate_name",
+      "expected_role": "prescribes",
+      "expected_status": "missing",
+      "is_true_deficit": true
+    },
+    {
+      "id": "sample-24",
+      "doc_path": "docs/src/reference/secrets-ssot.md",
+      "raw_text": "RUST_LOG",
+      "kind": "env_var",
+      "expected_role": "prescribes",
+      "expected_status": "resolved",
+      "is_true_deficit": false
+    },
+    {
+      "id": "sample-25",
+      "doc_path": "docs/src/reference/secrets-ssot.md",
+      "raw_text": "llm_request_timeout_ms",
+      "kind": "config_key",
+      "expected_role": "prescribes",
+      "expected_status": "resolved",
+      "is_true_deficit": false
+    }
+  ]
+}

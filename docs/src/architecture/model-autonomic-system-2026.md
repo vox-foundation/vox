@@ -248,10 +248,6 @@ One gap remains. Frontier models were not in the $10 proof sweep, so genius mode
 sees them through their public index, and a measured 0.98 flash model outranks them.
 Bench them at a higher `--max-usd` before trusting genius routes to prefer them.
 
-One gap remains. Frontier models were not in the $10 proof sweep, so genius mode only
-sees them through their public index, and a measured 0.98 flash model outranks them.
-Bench them at a higher `--max-usd` before trusting genius routes to prefer them.
-
 ## 6. Roll-out phases
 
 | Phase | What | Status |

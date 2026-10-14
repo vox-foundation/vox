@@ -2,7 +2,7 @@
 title: "Next-Generation AI Orchestrator: Systemic Flaws, Power User Demands, and Production Design Patterns"
 description: "Comprehensive research synthesis covering enterprise AI orchestration failure modes, native-systems performance advantages, multi-provider routing semantics, autonomous FinOps, hallucination prevention, mesh GPU architecture, multi-agent coherence, and the rationale for AI-first domain-specific languages."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: true
 training_rationale: "Core orchestration design reference. Names all production failure modes, quantified benchmarks, and implementation patterns that should inform Vox orchestrator feature roadmap."
 sourced_at: "2026-04-23"

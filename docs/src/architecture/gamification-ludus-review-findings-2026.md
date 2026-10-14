@@ -2,7 +2,7 @@
 title: "Vox Gamification & Ludus System Review"
 description: "Comprehensive review of the Vox Gamify (Ludus) architecture, identifying gaps in wellness features, cost controls, and custom SVG art generation."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: true
 training_rationale: "Strategic review of gamification and health mechanics in Vox."
 ---

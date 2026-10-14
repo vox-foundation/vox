@@ -2,7 +2,7 @@
 title: "Deep Research Capabilities Audit — Verification Pass (2026-08-01)"
 description: "Re-verifies all 9 gaps from the 2026-06-17 audit against current code, with file:line evidence and commit hashes: G4 (free-tier routing) and G5 (confidence gate fusion) resolved, G1/G3/G6 partially addressed with a newly-found pipeline split, G2/G7/G8/G9 still open. Flags that core module doc comments still falsely claim Phase 0a stub state."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: true
 training_rationale: "Normative delta-verification of the 2026-06-17 deep-research audit; corrects stale claims and identifies a real pipeline-split integration gap not previously documented."
 ---

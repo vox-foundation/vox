@@ -50,6 +50,84 @@ pub enum AuditSubcommand {
     /// Audit architecture SSOTs for empirical test citations and verify existence.
     #[command(name = "research-parity")]
     ResearchParity(crate::commands::audit_research_parity::ResearchParityArgs),
+    /// Deterministic Documentation Reality Audit & Mention Extractor
+    Docs(DocsAuditArgs),
+}
+
+/// Arguments for `vox audit docs`.
+#[derive(clap::Args, Debug, Clone)]
+pub struct DocsAuditArgs {
+    /// Format of findings output: text (human summary), json, or jsonl.
+    #[arg(long, default_value = "text")]
+    pub format: String,
+
+    /// Generate prune report for the documentation corpus.
+    #[arg(long)]
+    pub prune_report: bool,
+
+    /// Write machine-generated findings to contracts/reports/docs-reality-audit/findings.v1.json and update metrics.
+    #[arg(long)]
+    pub write_findings: bool,
+
+    /// Hand-labelled evaluation sample path for false-positive rate calculation.
+    #[arg(long)]
+    pub eval_sample: Option<PathBuf>,
+
+    /// Filter scan to specific relative doc paths.
+    #[arg(long)]
+    pub paths: Option<Vec<PathBuf>>,
+
+    /// Output destination file for prune report (markdown or json).
+    #[arg(long)]
+    pub prune_out: Option<PathBuf>,
+
+    /// Update or generate contracts/reports/docs-freshness/ledger.v1.json.
+    #[arg(long)]
+    pub update_ledger: bool,
+
+    /// Check drift gate against baseline and suppressions.
+    #[arg(long)]
+    pub check_drift: bool,
+
+    /// Tighten baseline by removing deficits that are no longer present.
+    #[arg(long)]
+    pub tighten_baseline: bool,
+
+    /// Generate or initialize contracts/reports/docs-freshness/baseline.v1.json.
+    #[arg(long)]
+    pub generate_baseline: bool,
+
+    /// Re-attest a documentation page against HEAD commit in the Freshness Ledger.
+    #[arg(long)]
+    pub attest: Option<PathBuf>,
+
+    /// Subcommand action for docs audit: pr-impact or dod.
+    #[arg(value_name = "ACTION")]
+    pub action: Option<String>,
+
+    /// Generate PR impact comment for reader-facing documentation affected by code changes.
+    #[arg(long)]
+    pub pr_impact: bool,
+
+    /// Evaluate Docs Definition-of-Done rules for modified contracts and registries.
+    #[arg(long)]
+    pub dod: bool,
+
+    /// Git base reference for PR diff (e.g. origin/main or commit SHA).
+    #[arg(long)]
+    pub diff_base: Option<String>,
+
+    /// Git head reference for PR diff (e.g. HEAD or commit SHA).
+    #[arg(long)]
+    pub diff_head: Option<String>,
+
+    /// Destination file for PR impact markdown output.
+    #[arg(long)]
+    pub diff_out: Option<PathBuf>,
+
+    /// Dry run mode using synthetic or representative sample.
+    #[arg(long)]
+    pub dry_run: bool,
 }
 
 // ---------------------------------------------------------------------------
@@ -211,6 +289,10 @@ pub fn run_audit_subcommand(cmd: &AuditSubcommand) -> Result<()> {
             crate::commands::audit_research_parity::run_research_parity_audit_sync(args)?;
             return Ok(());
         }
+        AuditSubcommand::Docs(args) => {
+            run_docs_audit(&root, args)?;
+            return Ok(());
+        }
         AuditSubcommand::Effort(_) | AuditSubcommand::EffortRoute(_) => {
             anyhow::bail!("async audit subcommand must be dispatched from cli_dispatch");
         }
@@ -234,6 +316,445 @@ pub fn run_audit_subcommand(cmd: &AuditSubcommand) -> Result<()> {
 
 fn run_core_gates_summary() -> Result<()> {
     run_audit_subcommand(&AuditSubcommand::Core)
+}
+
+fn run_docs_audit(root: &Path, args: &DocsAuditArgs) -> Result<()> {
+    // 1. Hand-labelled evaluation sample path
+    if let Some(ref sample_path) = args.eval_sample {
+        let registry = vox_doc_pipeline::claims::GroundTruthRegistry::load(root)?;
+        let full_sample = if sample_path.is_absolute() {
+            sample_path.clone()
+        } else {
+            root.join(sample_path)
+        };
+        let report = vox_doc_pipeline::claims::evaluate_sample_dataset(&full_sample, &registry)?;
+        println!(
+            "Docs Claims Extractor Evaluation:\n  Samples: {}\n  Precision: {:.2}%\n  Recall: {:.2}%\n  False-Positive Rate: {:.2}%\n  Acceptable: {}",
+            report.total_samples,
+            report.precision * 100.0,
+            report.recall * 100.0,
+            report.false_positive_rate * 100.0,
+            if report.is_acceptable() { "YES" } else { "NO" }
+        );
+        return Ok(());
+    }
+
+    // 2. PR impact and Definition-of-Done
+    let is_pr_impact = args.pr_impact || args.action.as_deref() == Some("pr-impact");
+    let is_dod = args.dod || args.action.as_deref() == Some("dod");
+
+    if is_pr_impact || is_dod {
+        let changed: Vec<String> = if args.dry_run {
+            vec![
+                "crates/vox-cli/src/main.rs".to_string(),
+                "contracts/cli/command-registry.yaml".to_string(),
+            ]
+        } else {
+            let base = args.diff_base.as_deref().unwrap_or("HEAD~1");
+            let head = args.diff_head.as_deref().unwrap_or("HEAD");
+            // vox-arch-check: allow git-exec
+            let output = std::process::Command::new("git")
+                .args(["diff", "--name-only", base, head])
+                .current_dir(root)
+                .output()?;
+            let text = String::from_utf8_lossy(&output.stdout);
+            text.lines()
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect()
+        };
+
+        if is_pr_impact {
+            let ledger_path = root.join("contracts/reports/docs-freshness/ledger.v1.json");
+            let ledger = vox_doc_pipeline::claims::FreshnessLedger::load_from_file(&ledger_path)
+                .unwrap_or_default();
+            let index = vox_doc_pipeline::claims::ReverseIndex::build(&ledger);
+            let report = index.query_impact(&changed, &ledger);
+
+            if let Some(ref out_path) = args.diff_out {
+                let full_out = if out_path.is_absolute() {
+                    out_path.clone()
+                } else {
+                    root.join(out_path)
+                };
+                if let Some(parent) = full_out.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
+                std::fs::write(&full_out, &report.markdown_comment)?;
+                eprintln!("Wrote PR impact report to {}", full_out.display());
+            } else {
+                println!("{}", report.markdown_comment);
+            }
+        }
+
+        if is_dod {
+            let warnings = vox_doc_pipeline::claims::check_definition_of_done(&changed);
+            if warnings.is_empty() {
+                println!(
+                    "\n✅ Docs Definition-of-Done PASSED: All modified contracts/registries have documentation updates."
+                );
+            } else {
+                eprintln!(
+                    "\n⚠️ Docs Definition-of-Done Warnings ({}):",
+                    warnings.len()
+                );
+                for w in &warnings {
+                    eprintln!("  • [{}] {} — {}", w.rule_id, w.trigger_file, w.message);
+                }
+            }
+        }
+
+        let only_pr_or_dod = !args.check_drift
+            && !args.write_findings
+            && !args.update_ledger
+            && !args.prune_report
+            && !args.generate_baseline
+            && !args.tighten_baseline
+            && args.attest.is_none();
+        if only_pr_or_dod {
+            return Ok(());
+        }
+    }
+
+    // 2. Scan corpus
+    let resolved = vox_doc_pipeline::claims::scan_corpus(root, args.paths.as_deref())?;
+    let findings = vox_doc_pipeline::claims::generate_findings(&resolved);
+
+    let total_mentions = resolved.len();
+    let resolved_count = resolved
+        .iter()
+        .filter(|m| m.status == vox_doc_pipeline::claims::ResolutionStatus::Resolved)
+        .count();
+    let retired_count = resolved
+        .iter()
+        .filter(|m| m.status == vox_doc_pipeline::claims::ResolutionStatus::Retired)
+        .count();
+    let missing_count = resolved
+        .iter()
+        .filter(|m| m.status == vox_doc_pipeline::claims::ResolutionStatus::Missing)
+        .count();
+    let ambiguous_count = resolved
+        .iter()
+        .filter(|m| m.status == vox_doc_pipeline::claims::ResolutionStatus::Ambiguous)
+        .count();
+
+    let mut pages_set = std::collections::HashSet::new();
+    for m in &resolved {
+        pages_set.insert(&m.extracted.source_file);
+    }
+    let pages_scanned = pages_set.len();
+
+    if args.format == "jsonl" {
+        for f in &findings {
+            let record = serde_json::json!({
+                "schema_version": 1,
+                "discriminator": "doc_deficit",
+                "finding": f,
+            });
+            println!("{}", serde_json::to_string(&record)?);
+        }
+    } else if args.format == "json" {
+        let file_record = vox_doc_pipeline::claims::FindingsFile {
+            schema_version: 1,
+            findings: findings.clone(),
+        };
+        println!("{}", serde_json::to_string_pretty(&file_record)?);
+    } else {
+        println!("=== Vox Documentation Reality Audit ===");
+        println!("Pages scanned:             {}", pages_scanned);
+        println!("Total mentions extracted:  {}", total_mentions);
+        println!("  Resolved:                {}", resolved_count);
+        println!("  Retired:                 {}", retired_count);
+        println!("  Missing:                 {}", missing_count);
+        println!("  Ambiguous:               {}", ambiguous_count);
+        println!("Actionable deficits found: {}", findings.len());
+
+        if !findings.is_empty() {
+            println!("\nTop Actionable Deficits:");
+            for f in findings.iter().take(10) {
+                println!(
+                    "  [{}] {} ({}) - {}",
+                    f.priority_band,
+                    f.id,
+                    f.doc_paths.first().map(|s| s.as_str()).unwrap_or("?"),
+                    f.recommended_action
+                );
+            }
+            if findings.len() > 10 {
+                println!("  ... and {} more deficits.", findings.len() - 10);
+            }
+        }
+    }
+
+    if args.write_findings {
+        let findings_path = root.join("contracts/reports/docs-reality-audit/findings.v1.json");
+        let metrics_path = root.join("contracts/reports/docs-reality-audit/metrics.v1.json");
+
+        let file_record = vox_doc_pipeline::claims::FindingsFile {
+            schema_version: 1,
+            findings: findings.clone(),
+        };
+        std::fs::write(&findings_path, serde_json::to_string_pretty(&file_record)?)?;
+
+        let metrics = vox_doc_pipeline::claims::compute_metrics(
+            &findings,
+            pages_scanned,
+            total_mentions,
+            resolved_count,
+        );
+        std::fs::write(&metrics_path, serde_json::to_string_pretty(&metrics)?)?;
+        eprintln!(
+            "Updated findings at {} and metrics at {}",
+            findings_path.display(),
+            metrics_path.display()
+        );
+    }
+
+    if args.prune_report {
+        let prune_report = vox_doc_pipeline::claims::generate_prune_report(root, &resolved)?;
+        println!("\n=== Documentation Prune Report ===");
+        println!(
+            "Total pages evaluated:    {}",
+            prune_report.total_pages_scanned
+        );
+        for (disp, count) in &prune_report.count_by_disposition {
+            println!("  {:<20} {}", disp, count);
+        }
+        println!("Topic clusters detected:  {}", prune_report.clusters.len());
+
+        if let Some(ref out_path) = args.prune_out {
+            let full_out = if out_path.is_absolute() {
+                out_path.clone()
+            } else {
+                root.join(out_path)
+            };
+            if let Some(parent) = full_out.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+
+            if full_out.extension().and_then(|s| s.to_str()) == Some("json") {
+                let json_data = serde_json::to_string_pretty(&prune_report)?;
+                std::fs::write(&full_out, json_data)?;
+                eprintln!("Prune report JSON written to {}", full_out.display());
+            } else {
+                let mut md = String::new();
+                md.push_str("---\n");
+                md.push_str("title: \"Documentation Corpus Prune Report\"\n");
+                md.push_str("description: \"Evidence-based prune dispositions for all pages in the Vox documentation corpus.\"\n");
+                md.push_str("category: \"Architecture SSOTs\"\n");
+                md.push_str("status: \"current\"\n");
+                md.push_str("---\n\n");
+                md.push_str("# Documentation Corpus Prune Report\n\n");
+                md.push_str(&format!(
+                    "- **Total Pages Scanned**: {}\n",
+                    prune_report.total_pages_scanned
+                ));
+                for (disp, count) in &prune_report.count_by_disposition {
+                    md.push_str(&format!("- **{}**: {}\n", disp, count));
+                }
+                md.push_str(&format!(
+                    "- **Topic Clusters**: {}\n\n",
+                    prune_report.clusters.len()
+                ));
+                md.push_str("## Page Dispositions\n\n");
+                md.push_str("| Page | Category | Status | Disposition | Dead Mentions | Inbound Links | Age (days) | Rationale |\n");
+                md.push_str("|---|---|---|---|---|---|---|---|\n");
+                for p in &prune_report.pages {
+                    md.push_str(&format!(
+                        "| `{}` | {} | {} | **{:?}** | {} | {} | {} | {} |\n",
+                        p.relative_path,
+                        p.category,
+                        p.status,
+                        p.recommended_disposition,
+                        p.dead_mentions_count,
+                        p.inbound_links_count,
+                        p.days_since_substantive_edit,
+                        p.disposition_rationale
+                    ));
+                }
+                std::fs::write(&full_out, md)?;
+                eprintln!("Prune report Markdown written to {}", full_out.display());
+            }
+        }
+    }
+
+    if args.update_ledger {
+        let ledger_path = root.join("contracts/reports/docs-freshness/ledger.v1.json");
+        let existing = vox_doc_pipeline::claims::FreshnessLedger::load_from_file(&ledger_path);
+        // vox-arch-check: allow git-exec
+        let head_commit = std::process::Command::new("git")
+            .args(["rev-parse", "HEAD"])
+            .current_dir(root)
+            .output()
+            .ok()
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .map(|s| s.trim().to_string())
+            .unwrap_or_else(|| "0000000000000000000000000000000000000000".to_string());
+
+        let ledger = vox_doc_pipeline::claims::generate_freshness_ledger(
+            root,
+            &head_commit,
+            existing.as_ref(),
+        );
+        ledger.save_to_file(&ledger_path)?;
+        eprintln!(
+            "Freshness ledger written to {} ({} pages, {} verified, {} drifting, {} broken, {} historical, {} unanchored)",
+            ledger_path.display(),
+            ledger.metrics.total_pages,
+            ledger.metrics.verified_count,
+            ledger.metrics.drifting_count,
+            ledger.metrics.broken_count,
+            ledger.metrics.historical_count,
+            ledger.metrics.unanchored_count,
+        );
+    }
+
+    if args.generate_baseline {
+        let baseline_path = root.join("contracts/reports/docs-freshness/baseline.v1.json");
+        let mut deficits = Vec::new();
+        for f in &findings {
+            if f.doc_paths
+                .iter()
+                .any(|p| vox_doc_pipeline::claims::is_reader_facing_page(p))
+            {
+                deficits.push(vox_doc_pipeline::claims::GrandfatheredDeficit {
+                    fingerprint: f.fingerprint.clone().unwrap_or_else(|| f.id.clone()),
+                    page_path: f.doc_paths.first().cloned().unwrap_or_default(),
+                    raw_text: f.claim_ids.first().cloned().unwrap_or_default(),
+                });
+            }
+        }
+        let baseline = vox_doc_pipeline::claims::BaselineFile {
+            schema_version: 1,
+            generated_at: chrono::Utc::now().to_rfc3339(),
+            deficits,
+        };
+        baseline.save_to_file(&baseline_path)?;
+        eprintln!(
+            "Generated grandfathered baseline at {} with {} deficits",
+            baseline_path.display(),
+            baseline.deficits.len()
+        );
+    }
+
+    if args.tighten_baseline {
+        let baseline_path = root.join("contracts/reports/docs-freshness/baseline.v1.json");
+        let mut baseline = vox_doc_pipeline::claims::BaselineFile::load_from_file(&baseline_path)
+            .map_err(|e| anyhow::anyhow!(e))?;
+        let active_fps: std::collections::HashSet<String> = findings
+            .iter()
+            .map(|f| f.fingerprint.clone().unwrap_or_else(|| f.id.clone()))
+            .collect();
+        let tightened = baseline.tighten(&active_fps);
+        baseline.save_to_file(&baseline_path)?;
+        eprintln!(
+            "Tightened baseline at {}: removed {} resolved deficits (remaining: {})",
+            baseline_path.display(),
+            tightened,
+            baseline.deficits.len()
+        );
+    }
+
+    if let Some(ref attest_path) = args.attest {
+        let ledger_path = root.join("contracts/reports/docs-freshness/ledger.v1.json");
+        let mut ledger = vox_doc_pipeline::claims::FreshnessLedger::load_from_file(&ledger_path)
+            .ok_or_else(|| {
+                anyhow::anyhow!("Freshness ledger not found at {}", ledger_path.display())
+            })?;
+
+        // vox-arch-check: allow git-exec
+        let head_commit = std::process::Command::new("git")
+            .args(["rev-parse", "HEAD"])
+            .current_dir(root)
+            .output()
+            .ok()
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .map(|s| s.trim().to_string())
+            .unwrap_or_else(|| "0000000000000000000000000000000000000000".to_string());
+
+        let norm_path = attest_path
+            .strip_prefix(root)
+            .unwrap_or(attest_path)
+            .to_string_lossy()
+            .replace('\\', "/");
+
+        let page_rec = ledger
+            .pages
+            .get_mut(&norm_path)
+            .ok_or_else(|| anyhow::anyhow!("Page '{}' not found in freshness ledger", norm_path))?;
+
+        for anchor in &mut page_rec.anchors {
+            anchor.verified_hash = anchor.content_hash.clone();
+        }
+        page_rec.last_verified_commit = Some(head_commit);
+        if page_rec.broken_mentions.is_empty() {
+            page_rec.state = vox_doc_pipeline::claims::DocState::Verified;
+        }
+        let new_state = page_rec.state.clone();
+        ledger.recompute_metrics();
+        ledger.save_to_file(&ledger_path)?;
+        eprintln!(
+            "Attested '{}': state set to {:?}, updated anchors to match disk hashes",
+            norm_path, new_state
+        );
+    }
+
+    if args.check_drift {
+        let baseline_path = root.join("contracts/reports/docs-freshness/baseline.v1.json");
+        let suppressions_path = root.join("contracts/reports/docs-freshness/suppressions.v1.json");
+
+        let baseline = vox_doc_pipeline::claims::BaselineFile::load_from_file(&baseline_path)
+            .map_err(|e| anyhow::anyhow!(e))?;
+        let suppressions =
+            vox_doc_pipeline::claims::SuppressionsFile::load_from_file(&suppressions_path)
+                .map_err(|e| anyhow::anyhow!(e))?;
+
+        let today = chrono::Utc::now().date_naive();
+        let result = vox_doc_pipeline::claims::evaluate_drift_gate(
+            &findings,
+            &baseline,
+            &suppressions,
+            today,
+        );
+
+        if !result.passed {
+            eprintln!("\n❌ Documentation Drift Gate FAILED");
+            if !result.expired_suppression_errors.is_empty() {
+                eprintln!("\nExpired or Invalid Suppressions:");
+                for err in &result.expired_suppression_errors {
+                    eprintln!("  • {}", err);
+                }
+            }
+            if !result.new_deficits.is_empty() {
+                eprintln!("\nNew Unsuppressed Reader-Facing Deficits:");
+                for f in &result.new_deficits {
+                    eprintln!(
+                        "  • [{}] {} in {} — {}",
+                        f.priority_band,
+                        f.id,
+                        f.doc_paths.first().map(|s| s.as_str()).unwrap_or("?"),
+                        f.recommended_action
+                    );
+                }
+            }
+            eprintln!(
+                "\nActive grandfathered deficits: {}, Resolved baselined deficits: {}",
+                result.active_baselined_count, result.resolved_baselined_count
+            );
+            anyhow::bail!(
+                "Drift gate failed with {} new deficits",
+                result.new_deficits.len()
+            );
+        }
+
+        println!("\n✅ Documentation Drift Gate PASSED");
+        println!(
+            "Active grandfathered deficits: {}, Resolved: {}, Expired suppressions: 0",
+            result.active_baselined_count, result.resolved_baselined_count
+        );
+    }
+
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------

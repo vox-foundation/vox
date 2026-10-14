@@ -24,6 +24,7 @@ pub mod constants;
 pub mod coolify_eval;
 pub mod corpus_integrity;
 pub mod coverage_gates;
+pub mod crate_api_docs;
 pub mod crate_edges;
 pub mod data_storage_guard;
 pub mod dep_cycles;

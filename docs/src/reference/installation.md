@@ -20,7 +20,7 @@ see [Packaging status](#packaging-status).
 ## Quick install (from source)
 
 **Prerequisites:** Rust **1.98.1** (`rust-toolchain.toml`; workspace
-`rust-version` is 1.96), Node.js >= 18 (frontend scaffolding), and a C compiler
+`rust-version` is 1.96), Node.js >= 18 (frontend scaffolding), pnpm >= 9, and a C compiler
 (gcc / clang / MSVC).
 
 ```bash
@@ -165,6 +165,7 @@ vox doctor
 |---|---|---|
 | Rust 1.98.1 (`rust-toolchain.toml`; workspace `rust-version` is 1.96) | Yes | [rustup.rs](https://rustup.rs) |
 | Node.js >= 18 | Optional | [nodejs.org](https://nodejs.org) |
+| pnpm >= 9 | Optional | [pnpm.io](https://pnpm.io) |
 | Git | Yes | [git-scm.com](https://git-scm.com) |
 | C compiler (MSVC / gcc / clang) | Yes | Platform-specific, see below |
 | clang / LLVM | Optional | The workspace patches **`aegis`** with **`pure-rust`** defaults, so a typical Windows + MSVC build does **not** need `clang-cl` for Turso. Install LLVM only if you hit a toolchain that still expects native crypto builds. |
@@ -178,6 +179,7 @@ Example output:
 ```text
   ✓  Rust / Cargo              cargo 1.98.1
   ✓  Node.js                   v20.11.0 (>= v18)
+  ✓  pnpm                      v9.1.0 (>= v9)
   ✓  Git                       git version 2.44.0
   ✓  C Compiler                MSVC Build Tools found
   ✓  Google AI Studio Key      configured (free Gemini models available)

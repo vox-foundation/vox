@@ -2,7 +2,7 @@
 title: "Free-Tier Model Selection & Onboarding — Audit, Research, and Risk-Reviewed Design (2026-08-01)"
 description: "Live-code audit of Vox's model-selection engine and free-tier handling, external research on public model-rating registries, coding-specific benchmarks, model-router prior art, and competitor onboarding UX, plus an adversarial pre-mortem and risk register for the resulting design recommendations."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: false
 ---
 

@@ -2,7 +2,7 @@
 title: "Workspace Crate & Plugin Audit + Implementation Plan (2026, v2)"
 description: "Verified four-axis audit + 50-task phased plan covering cycle/layer pressure, external dep hygiene, plugin↔core duplication, discoverability/naming drift. Each claim was cross-verified against current code; false positives removed, true positives sharpened."
 category: "Architecture SSOTs"
-status: "current"
+status: "roadmap"
 training_eligible: true
 training_rationale: "Architectural decision log with explicit verification trail; high-value for LLM navigation."
 sort_order: 30

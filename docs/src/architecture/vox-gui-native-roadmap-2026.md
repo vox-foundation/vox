@@ -2,7 +2,7 @@
 title: "Vox GUI-Native Language Roadmap (April 2026)"
 description: "Executable roadmap for turning Vox into a GUI-native language whose compiler catches correctness invariants that React + TypeScript structurally cannot."
 category: "Architecture SSOTs"
-status: "current"
+status: "roadmap"
 training_eligible: false
 ---
 

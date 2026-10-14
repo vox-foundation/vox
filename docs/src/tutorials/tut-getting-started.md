@@ -2,6 +2,7 @@
 title: "Getting Started with Vox"
 description: "Install Vox from source, scaffold a project, and understand every line of a real .vox file."
 category: "Tutorials"
+status: "current"
 sort_order: 1
 schema_type: "HowTo"
 keywords: ["Vox installation", "getting started Vox", "AI programming language tutorial", "Rust TypeScript compiler"]
@@ -18,8 +19,7 @@ Canonical install detail: [Installing Vox](../reference/installation.md).
 Before you begin, make sure you have:
 
 - **Rust** (1.98.1) — [Install](https://rustup.rs/). This repo pins that channel in `rust-toolchain.toml`.
-- **Node.js** (20+) — [Install](https://nodejs.org/)
-- **pnpm** (9+) — `pnpm` is the repo package manager; `npm install -g pnpm` if you do not have it.
+- Node.js and pnpm — see the [Prerequisites](../reference/installation.md#quick-install-from-source) in the Installation reference.
 
 > **Tip**: After install, run `vox doctor` to check dependencies and environment variables.
 
@@ -46,40 +46,44 @@ cd my-app
 
 This scaffolds a complete project structure containing a `src/main.vox` entrypoint.
 
-## Step 3: Write a notes app
+## Step 3: Understand the scaffolded app
 
-Open `src/main.vox` and replace its contents with the following. This one file defines a database table, a browser UI component, a read query, and a write mutation — the whole stack.
+Open `src/main.vox`. This scaffolded file defines a database table, backend server functions, a browser UI component, and routes:
 
 ```vox
 table Note {
     title: str
     content: str
+    created_at: str
+}
+
+server add_note(title: str, content: str) to Result[str] {
+    return Ok("Added: " + title)
+}
+
+server list_notes() to Result[str] {
+    return Ok("[]")
 }
 
 component App() {
-    view: text() { "Hello Vox" }
+    view: column(raw_class="app") {
+        heading(level=1) { "My Vox App" }
+        text() { "Edit src/main.vox to get started" }
+    }
+}
+
+routes {
+    "/" to App
 }
 ```
 
 `table Note { ... }` is the single source of truth for this data: the same declaration becomes the SQL schema, the wire format, and the typed client — there's no separate migration file or API type to keep in sync by hand.
 
-`component App() { ... }` is the browser UI. `vox build` compiles it to a plain React/TSX component; `view:` describes what renders.
+`server add_note(...)` and `server list_notes()` declare server-side functions executed on the backend, returning typed `Result` values.
 
-Add a query and a mutation so the app can actually read and write notes:
+`component App() { ... }` is the browser UI. `vox build` compiles it into React/TSX component code; `view:` describes what renders.
 
-```vox
-query get_notes() to int {
-    // Returns note count; db.Note.all() returns a list
-    return len(db.Note.all())
-}
-
-mutation create_note(title: str, content: str) to Result[str] {
-    db.Note.insert({ title: title, content: content })?
-    return Ok("created")
-}
-```
-
-`query` and `mutation` are the two ways a client talks to your data — reads and writes, kept structurally distinct so an agent (or a reviewer) can tell which functions are safe to retry and which aren't. `create_note` returns `Result[str]`: the `?` after `db.Note.insert(...)` propagates a database error immediately, and any caller of `create_note` is compiler-forced to handle the `Error` arm — there's no way to silently drop it.
+`routes { "/" to App }` routes incoming HTTP requests to your root application component.
 
 ## Step 4: Type check
 
@@ -107,25 +111,26 @@ Run the generated binary directly:
 vox run src/main.vox
 ```
 
-Open `http://localhost:3000` in your browser. You'll see the `App` component's "Hello Vox" text — the same server that's now running also exposes `get_notes`/`create_note` as typed endpoints, callable from the generated `vox-client.ts` bridge.
+Open `http://localhost:3000` in your browser. You'll see the `App` component's "My Vox App" heading.
 
 ## What you just built
 
-Four declarations, one file, no boilerplate glue:
+Declarations in one file, no boilerplate glue:
 
 | Declaration | What it does | What `vox build` emits |
 |---|---|---|
 | `table Note { ... }` | Defines a database table | SQL schema + migration diff + typed client |
-| `query get_notes()` | Read-only database operation | Optimized read endpoint |
-| `mutation create_note(...)` | Write-enabled database operation | Insert/update endpoint with `Result` error handling |
+| `server add_note(...)` | Server-side write function | Typed server endpoint with `Result` error handling |
+| `server list_notes()` | Server-side read function | Typed server endpoint with `Result` error handling |
 | `component App()` | Browser UI | React/TSX component |
+| `routes { "/" to App }` | Route mapping | Router configuration linking path to component |
 
 Two more declaration kinds you'll reach for as the app grows:
 
 | Declaration | What it does |
 |---|---|
-| `server name(...) to T` | A server-side function that isn't a direct db read/write (e.g. calling an external API) |
-| `tool "description" fn(...)` | Exposes a function to any Model Context Protocol client — the same function an HTTP caller uses, now callable by an agent |
+| `query name()` / `mutation name()` | Dedicated database read and write endpoints |
+| `tool "description" fn(...)` | Exposes a function to any Model Context Protocol client — callable by an AI agent |
 
 Full grammar reference: [decorators and bare keywords](../reference/ref-decorators.md).
 

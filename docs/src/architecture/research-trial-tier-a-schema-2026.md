@@ -1,6 +1,6 @@
 ---
 title: "Research Trial Tier A Schema Contract (STORE-01)"
-description: "Canonical campaign, run and sample schema for research trials and Phase 12 code benchmarks: DDL at baseline 96, vocabularies, invariants, run grain, and the model_benchmark_results boundary, awaiting human approval."
+description: "Canonical campaign, run and sample schema for research trials and Phase 12 code benchmarks: DDL at baseline 97, vocabularies, invariants, run grain, and the model_benchmark_results boundary, awaiting human approval."
 category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: false
@@ -12,7 +12,7 @@ This is the single reviewed source for the Tier A trial tables. Plan 07-06 copie
 below verbatim into a vox-db domain fragment. **No migration code exists until the Decision
 record at the bottom reads `Decision status: approved` (D-04).**
 
-This is a one-way door. Once baseline 96 has created these tables on a shared database,
+This is a one-way door. Once baseline 97 has created these tables on a shared database,
 changing a column needs an explicit migration on every existing database.
 
 ## 1. Scope and home (D-01)
@@ -27,17 +27,19 @@ changing a column needs an explicit migration on every existing database.
 
 ## 2. Baseline (D-05)
 
-- `main` is at baseline 94. Baseline 95 belongs to `model_benchmark_results` (commit
-  `139bdd20e`). The next free baseline is **96**.
+- `main` was at baseline 94; baseline 95 belongs to `model_benchmark_results` (commit
+  `139bdd20e`), and baseline 96 belongs to `kb` Phase 3 (`kb_findings` inbox and trust-tier
+  filtering on `claude/vox-knowledge-base-research-2964d2`). The next free baseline in the
+  unified stream is **97**.
 - Re-check `origin/main` and open PRs immediately before the migration commit.
-- **Loud guard.** When `schema_version` equals the baseline (96) but any of the four trial
+- **Loud guard.** When `schema_version` equals the baseline (97) but any of the four trial
   tables is missing, `migrate` fails with
   `StoreError::BaselineStampedWithoutTables { version, missing }` and remediation text. The
-  failure mode it prevents: another branch or worktree binary stamps 96 on the shared store
+  failure mode it prevents: another branch or worktree binary stamps 97 on the shared store
   without creating these tables, and the first trial query then dies with "no such table".
-- **Operational effect, stated plainly.** A database stamped 96 is refused by 94 and 95
+- **Operational effect, stated plainly.** A database stamped 97 is refused by 94, 95, and 96
   binaries through the existing `LegacySchemaChain` guard, exactly as a database stamped 95 is
-  refused by 94 binaries today. Databases already at 95 pick up the new tables on first open
+  refused by 94 binaries today. Databases already at 95 or 96 pick up the new tables on first open
   (`CREATE TABLE IF NOT EXISTS`); no ALTER is needed.
 
 ## 3. Run grain (gate question 1)

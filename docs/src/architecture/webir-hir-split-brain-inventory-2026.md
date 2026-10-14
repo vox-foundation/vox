@@ -50,7 +50,7 @@ This document is the **baseline split-brain map** for the [WebIR/HIR unification
 
 ### 4. Tauri Rust command path — stub only
 
-- **Files:** [`crates/vox-codegen/src/codegen_rust/emit/tauri_stub.rs`](../../../crates/vox-codegen/src/codegen_rust/emit/tauri_stub.rs) (banner only; Axum remains primary for `@endpoint`).
+- **Files:** `crates/vox-codegen/src/codegen_rust/emit/tauri_stub.rs` (banner only; Axum remains primary for `@endpoint`).
 - **Risk:** Future `#[tauri::command]` emission must reuse the same capability resolution as web + mobile.
 
 ## Anti–split-brain guards (tests)

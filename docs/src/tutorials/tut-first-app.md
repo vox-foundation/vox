@@ -19,7 +19,7 @@ Create a new directory and initialize a Vox application:
 ```bash
 mkdir vox-task-list
 cd vox-task-list
-vox init --kind application
+vox init
 ```
 
 ## 2. Define the Data Model

@@ -122,7 +122,8 @@ pub(crate) fn check_docs_ssot(root: &Path) -> Result<()> {
             let entry = entry?;
             let path = entry.path();
             if path.extension().is_some_and(|e| e == "md") {
-                if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                if let Some(raw_stem) = path.file_stem().and_then(|s| s.to_str()) {
+                    let stem = raw_stem.strip_suffix(".generated").unwrap_or(raw_stem);
                     // Check if the filename looks like a crate name or matches an existing crate
                     if stem.starts_with("vox-") || actual_crates.contains(stem) {
                         let md = read_utf8_path_capped(&path)?;
@@ -642,6 +643,10 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
     ds!(
         "generate_plugin_catalog_docs",
         vox_cli_ci::generate_plugin_catalog_docs::run(None, None, true)
+    )?;
+    ds!(
+        "crate_api_docs",
+        vox_cli_ci::crate_api_docs::run(root, false)
     )?;
     ds!(
         "plugin_skill_parity",

@@ -220,7 +220,7 @@ The full checklist for adding a new language construct:
 ## The five pillars
 
 <div align="center">
-  <img src="../assets/vox_architecture_prism.png" alt="A diagram showing one source file generating multiple stack components." width="80%" />
+  <img src="/assets/vox_architecture_prism.png" alt="A diagram showing one source file generating multiple stack components." width="80%" />
   <p>
     <strong>Unified Compilation from a Single Source</strong><br />
     Vox uses a single .vox file to derive the entire technology stack. The compiler uses this unified source of truth to generate synchronized database schemas, API servers, and reactive UI components simultaneously.
@@ -237,7 +237,7 @@ table Task {
 }
 ```
 
-The declaration is the [schema](https://github.com/vox-foundation/vox/tree/main/crates/vox-db/), the [wire format](https://github.com/vox-foundation/vox/tree/main/crates/vox-protocol/), and the typed client. `index Task.by_owner on (owner)` lives next to it. [Migrations](https://github.com/vox-foundation/vox/tree/main/crates/vox-db/) come from the diff against the previous schema.
+The declaration is the [schema](https://github.com/vox-foundation/vox/tree/main/crates/vox-db/), the [wire format](https://github.com/vox-foundation/vox/tree/main/crates/vox-foundation/), and the typed client. `index Task.by_owner on (owner)` lives next to it. [Migrations](https://github.com/vox-foundation/vox/tree/main/crates/vox-db/) come from the diff against the previous schema.
 
 → [`table` reference](../reference/ref-decorators.md) · [migration guide](../how-to/how-to-database.md)
 
@@ -309,11 +309,11 @@ resource "vox://tasks/open" "Open tasks right now" open_tasks_resource() to list
 [`vox-orchestrator`](https://github.com/vox-foundation/vox/tree/main/crates/vox-orchestrator/) routes work to agents by file affinity and ten policy modules (tier cascade, plan-mode trigger, risk matrix, budget gate, circuit breaker, calibration, …). Capabilities are extensible: dozens of first-party plugins (compiler, git, memory, RAG, testing, Mens-Candle-CUDA/Metal, WASM and OCI runtimes) load through [`vox-plugin-host`](https://github.com/vox-foundation/vox/tree/main/crates/vox-plugin-host/) behind a stable ABI.
 
 <div align="center">
-  <img src="../assets/durable_essentialist_loop.webp" alt="A continuous ribbon with four checkpoint markers — the durability loop the workflow runtime executes." width="600px" style="border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);" />
+  <img src="/assets/durable_essentialist_loop.webp" alt="A continuous ribbon with four checkpoint markers — the durability loop the workflow runtime executes." width="600px" style="border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);" />
   <div style="max-width: 600px; text-align: left; margin-top: 15px;">
     <h3>Durable execution</h3>
     <p>
-      <code>workflow</code> and <code>activity</code> are keywords, not a library. The runtime in <a href="https://github.com/vox-foundation/vox/tree/main/crates/vox-workflow-runtime/"><code>vox-workflow-runtime</code></a> checkpoints every <code>activity</code> result to a per-run journal (<a href="../adr/019-durable-workflow-journal-contract-v1.md">ADR-019, v1 contract</a>). A crash mid-run resumes on restart with the completed activities replayed from the journal; only the remaining steps re-execute. <code>@scheduled</code> functions run on a persistent scheduler loop with crash-safe state. Supported subset documented in <a href="../adr/021-generated-workflow-durability-parity.md">ADR-021</a>; completion ADR is <a href="../adr/041-durable-functions-completion-2026.md">ADR-041</a>. The supported subset ships today; unrestricted control-flow replay remains future work.
+      <code>workflow</code> and <code>activity</code> are keywords, not a library. The runtime in [`vox-workflow-runtime`](https://github.com/vox-foundation/vox/tree/main/crates/vox-workflow-runtime/) checkpoints every <code>activity</code> result to a per-run journal ([ADR-019, v1 contract](../adr/019-durable-workflow-journal-contract-v1.md)). A crash mid-run resumes on restart with the completed activities replayed from the journal; only the remaining steps re-execute. <code>@scheduled</code> functions run on a persistent scheduler loop with crash-safe state. Supported subset documented in [ADR-021](../adr/021-generated-workflow-durability-parity.md); completion ADR is [ADR-041](../adr/041-durable-functions-completion-2026.md). The supported subset ships today; unrestricted control-flow replay remains future work.
     </p>
   </div>
 </div>
@@ -325,7 +325,7 @@ resource "vox://tasks/open" "Open tasks right now" open_tasks_resource() to list
 The shape of the four pillars above is downstream of one decision: *design the language after the model*. Three subsystems make that concrete.
 
 - **Grammar-constrained decoding.** [`vox-constrained-gen`](https://github.com/vox-foundation/vox/tree/main/crates/vox-constrained-gen/) is an Earley/PDA decoder with a deadlock watchdog. Token-stream constraint, not post-hoc validation — invalid Vox cannot be sampled.
-- **Measurable detectors.** Rules live in [`rules.v1.yaml`](https://github.com/vox-foundation/vox/blob/main/crates/vox-rule-pack/rules/rules.v1.yaml) with a JSON Schema and an [F1 bench scorer](https://en.wikipedia.org/wiki/F-score) over fixture corpora. Stub, hollow-fn, victory-claim, AI-laziness, secret, magic-value, deprecated-symbol, and effect-system rules are all scored against ground truth, not vibes.
+- **Measurable detectors.** Rules live in [`rules.v1.yaml`](https://github.com/vox-foundation/vox/blob/main/contracts/code-audit/rules.v1.yaml) with a JSON Schema and an [F1 bench scorer](https://en.wikipedia.org/wiki/F-score) over fixture corpora. Stub, hollow-fn, victory-claim, AI-laziness, secret, magic-value, deprecated-symbol, and effect-system rules are all scored against ground truth, not vibes.
 - **Local training.** Vox is new; mainstream languages saturate the public training corpus, Vox doesn't. `vox populi` runs QLoRA fine-tunes and OpenAI-compatible serving on detected CUDA / Metal / WebGPU — [Burn](https://github.com/tracel-ai/burn) + [Candle](https://github.com/huggingface/candle), no Python. Requires the `gpu` cargo feature.
 
 → [`examples/golden/`](https://github.com/vox-foundation/vox/tree/main/examples/golden/) · [Rosetta comparison](expl-rosetta-inventory.md) · [why Vox for AI](why-vox-for-ai.md)
@@ -349,16 +349,16 @@ fn classify(score: int, override: bool, calibrated: bool) to str {
 
 **`?` propagation + `match` exhaustiveness.** The `?` postfix unwraps `Ok(value)` or short-circuits the function with the `Error`. The only way to consume a `Result` is `match`, and `match` arms must cover both `Ok` and `Error` — the compiler refuses to build silent error-swallowing code.
 
-**Sandboxed execution.** Script-shaped files run under the HIR interpreter by default ([ADR-048](../adr/048-interpreter-is-the-execution-and-sandbox-tier.md)). Isolation is capability denial plus counted bounds (steps, heap, depth, output, disk bytes, file counts), imposed by the receiver via repeatable `--caps`. [`vox-bounded-fs`](https://github.com/vox-foundation/vox/tree/main/crates/vox-bounded-fs/) caps reads by size; [`vox-exec-grammar`](https://github.com/vox-foundation/vox/tree/main/crates/vox-exec-grammar/) classifies shell-out risk before execution. Native compile is an explicit hatch (`--mode script`), not a sandbox.
+**Sandboxed execution.** Script-shaped files run under the HIR interpreter by default ([ADR-048](../adr/048-interpreter-is-the-execution-and-sandbox-tier.md)). Isolation is capability denial plus counted bounds (steps, heap, depth, output, disk bytes, file counts), imposed by the receiver via repeatable `--caps`. [`vox-bounded-fs`](https://github.com/vox-foundation/vox/tree/main/crates/vox-bounded-fs/) caps reads by size; [`vox-container-types`](https://github.com/vox-foundation/vox/tree/main/crates/vox-container-types/) classifies shell-out risk before execution. Native compile is an explicit hatch (`--mode script`), not a sandbox.
 
-**`vox audit`** runs the [rule pack](https://github.com/vox-foundation/vox/blob/main/crates/vox-rule-pack/rules/rules.v1.yaml) — stub, hollow-fn, victory-claim, AI-laziness, secret, magic-value, deprecated-symbol, and effect-system detectors — each [F1-scored](https://en.wikipedia.org/wiki/F-score) against fixture corpora. Rules are calibrated, not vibes.
+**`vox audit`** runs the [rule pack](https://github.com/vox-foundation/vox/blob/main/contracts/code-audit/rules.v1.yaml) — stub, hollow-fn, victory-claim, AI-laziness, secret, magic-value, deprecated-symbol, and effect-system detectors — each [F1-scored](https://en.wikipedia.org/wiki/F-score) against fixture corpora. Rules are calibrated, not vibes.
 
 ### Engineering invariants
 
 Properties enforced on the project itself, invisible from the language surface:
 
 - **Layered crate graph.** All 101 workspace crates declare a layer (L0 pure types → L5 surfaces) in [`layers.toml`](../architecture/layers.toml). [`vox-arch-check`](https://github.com/vox-foundation/vox/tree/main/crates/vox-arch-check/) blocks inversions, fan-in violations, LoC budget overruns, and orphaned modules.
-- **Sandboxed execution.** The HIR interpreter is the isolation tier ([ADR-048](../adr/048-interpreter-is-the-execution-and-sandbox-tier.md)). [`vox-bounded-fs`](https://github.com/vox-foundation/vox/tree/main/crates/vox-bounded-fs/) (size-capped reads), [`vox-exec-grammar`](https://github.com/vox-foundation/vox/tree/main/crates/vox-exec-grammar/) (shell risk classifier). Caps are repeatable `--caps` on `vox run`.
+- **Sandboxed execution.** The HIR interpreter is the isolation tier ([ADR-048](../adr/048-interpreter-is-the-execution-and-sandbox-tier.md)). [`vox-bounded-fs`](https://github.com/vox-foundation/vox/tree/main/crates/vox-bounded-fs/) (size-capped reads), [`vox-container-types`](https://github.com/vox-foundation/vox/tree/main/crates/vox-container-types/) (shell risk classifier). Caps are repeatable `--caps` on `vox run`.
 - **Declared capabilities.** [`vox-capability-registry`](https://github.com/vox-foundation/vox/tree/main/crates/vox-capability-registry/) gates what tools can do; [`vox-identity`](https://github.com/vox-foundation/vox/tree/main/crates/vox-identity/) signs with [ed25519](https://en.wikipedia.org/wiki/EdDSA#Ed25519) against a trust ledger; [`vox-secrets`](https://github.com/vox-foundation/vox/tree/main/crates/vox-secrets/) is the only path to a secret value.
 
 ---

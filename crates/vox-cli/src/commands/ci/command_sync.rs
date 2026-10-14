@@ -4,6 +4,7 @@ use std::fs;
 use std::path::Path;
 
 use anyhow::{Context, Result, anyhow};
+use serde::Deserialize;
 
 use crate::command_registry_model::RegistryFile;
 use vox_bounded_fs::read_utf8_path_capped;
@@ -12,6 +13,15 @@ const REGISTRY_REL: &str = "contracts/cli/command-registry.yaml";
 
 const GENERATED_REL: &str = "docs/src/reference/cli-command-surface.generated.md";
 const GENERATED_MENS_DEFAULTS_REL: &str = "docs/src/reference/mens-train-defaults.generated.md";
+
+const ENV_VARS_REL: &str = "contracts/config/env-vars.v1.yaml";
+const GENERATED_ENV_VARS_REL: &str = "docs/src/reference/env-vars.generated.md";
+
+const CONFIG_REGISTRY_REL: &str = "contracts/config/registry.v1.yaml";
+const GENERATED_CONFIG_KEYS_REL: &str = "docs/src/reference/config-keys.generated.md";
+
+const MCP_REGISTRY_REL: &str = "contracts/mcp/tool-registry.canonical.yaml";
+const GENERATED_MCP_TOOLS_REL: &str = "docs/src/reference/mcp-tools.generated.md";
 
 fn normalize_lf(s: &str) -> String {
     s.replace("\r\n", "\n").replace('\r', "\n")
@@ -131,6 +141,179 @@ fn write_or_verify_generated_file(
     Ok(())
 }
 
+#[derive(Deserialize, Debug)]
+struct EnvVarsFile {
+    #[serde(default)]
+    _version: u32,
+    variables: Vec<EnvVarEntry>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+struct EnvVarEntry {
+    name: String,
+    owner_crate: String,
+    kind: String,
+    #[serde(default)]
+    required: bool,
+    #[serde(default)]
+    introduced_in: String,
+    #[serde(default)]
+    description: String,
+}
+
+#[derive(Deserialize, Debug)]
+struct ConfigRegistryFile {
+    #[serde(default)]
+    _schema_version: String,
+    knobs: Vec<ConfigKnobEntry>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+struct ConfigKnobEntry {
+    name: String,
+    #[serde(default)]
+    env_var: Option<String>,
+    #[serde(default)]
+    description: String,
+    owner_crate: String,
+    #[serde(default)]
+    status: String,
+    #[serde(default)]
+    default_value: Option<String>,
+    #[serde(default)]
+    _since: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+struct McpToolRegistryFile {
+    #[serde(default)]
+    _version: u32,
+    tools: Vec<McpToolEntry>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+struct McpToolEntry {
+    name: String,
+    description: String,
+    #[serde(default)]
+    product_lane: String,
+    #[serde(default)]
+    http_read_role_eligible: bool,
+    #[serde(default)]
+    tier: String,
+}
+
+fn escape_table_cell(s: &str) -> String {
+    s.replace('\r', "")
+        .replace('\n', " ")
+        .replace('|', "\\|")
+        .trim()
+        .to_string()
+}
+
+fn render_env_vars_md(vars_file: &EnvVarsFile) -> String {
+    let mut out = String::new();
+    out.push_str("---\n");
+    out.push_str("title: \"Environment variables (generated)\"\n");
+    out.push_str("description: \"Machine-derived reference for all environment variables declared across Vox workspace crates.\"\n");
+    out.push_str("category: \"Language Reference\"\n");
+    out.push_str("status: current\n");
+    out.push_str("---\n\n");
+    out.push_str(WARNING_BLOCK);
+    out.push_str("\n\n# Environment variables (generated)\n\n");
+    out.push_str("**Intended readers:** Developers configuring Vox CLI, runtime developers, and operators deploying Vox services.\n\n");
+    out.push_str("Machine-derived from [`contracts/config/env-vars.v1.yaml`](../../../contracts/config/env-vars.v1.yaml).\n\n");
+    out.push_str(&format!(
+        "**Total variables:** {}\n\n",
+        vars_file.variables.len()
+    ));
+    out.push_str("| Variable | Owner Crate | Type | Required | Introduced | Description |\n");
+    out.push_str("|---|---|---|---|---|---|\n");
+
+    let mut vars = vars_file.variables.clone();
+    vars.sort_by(|a, b| a.name.cmp(&b.name));
+    for v in vars {
+        let req = if v.required { "Yes" } else { "No" };
+        let desc = escape_table_cell(&v.description);
+        out.push_str(&format!(
+            "| `{}` | `{}` | {} | {} | {} | {} |\n",
+            v.name, v.owner_crate, v.kind, req, v.introduced_in, desc
+        ));
+    }
+    out
+}
+
+fn render_config_keys_md(cfg_file: &ConfigRegistryFile) -> String {
+    let mut out = String::new();
+    out.push_str("---\n");
+    out.push_str("title: \"Configuration keys (generated)\"\n");
+    out.push_str("description: \"Machine-derived reference for runtime configuration knobs, budgets, and operational defaults.\"\n");
+    out.push_str("category: \"Language Reference\"\n");
+    out.push_str("status: current\n");
+    out.push_str("---\n\n");
+    out.push_str(WARNING_BLOCK);
+    out.push_str("\n\n# Configuration keys (generated)\n\n");
+    out.push_str("**Intended readers:** Operators, system administrators, and developers tuning Vox runtime knobs and pipeline limits.\n\n");
+    out.push_str("Machine-derived from [`contracts/config/registry.v1.yaml`](../../../contracts/config/registry.v1.yaml).\n\n");
+    out.push_str(&format!("**Total knobs:** {}\n\n", cfg_file.knobs.len()));
+    out.push_str("| Key | Environment Variable | Owner Crate | Status | Default | Description |\n");
+    out.push_str("|---|---|---|---|---|---|\n");
+
+    let mut knobs = cfg_file.knobs.clone();
+    knobs.sort_by(|a, b| a.name.cmp(&b.name));
+    for k in knobs {
+        let env_str = k
+            .env_var
+            .as_deref()
+            .map(|e| format!("`{}`", e))
+            .unwrap_or_else(|| "—".to_string());
+        let def_str = k
+            .default_value
+            .as_deref()
+            .map(|d| format!("`{}`", d))
+            .unwrap_or_else(|| "—".to_string());
+        let desc = escape_table_cell(&k.description);
+        out.push_str(&format!(
+            "| `{}` | {} | `{}` | {} | {} | {} |\n",
+            k.name, env_str, k.owner_crate, k.status, def_str, desc
+        ));
+    }
+    out
+}
+
+fn render_mcp_tools_md(mcp_file: &McpToolRegistryFile) -> String {
+    let mut out = String::new();
+    out.push_str("---\n");
+    out.push_str("title: \"MCP tool catalog (generated)\"\n");
+    out.push_str("description: \"Machine-derived catalog of canonical Model Context Protocol (MCP) tools provided by Vox.\"\n");
+    out.push_str("category: \"Language Reference\"\n");
+    out.push_str("status: current\n");
+    out.push_str("---\n\n");
+    out.push_str(WARNING_BLOCK);
+    out.push_str("\n\n# MCP tool catalog (generated)\n\n");
+    out.push_str("**Intended readers:** Agent tool developers, orchestrator contributors, and client integration authors.\n\n");
+    out.push_str("Machine-derived from [`contracts/mcp/tool-registry.canonical.yaml`](../../../contracts/mcp/tool-registry.canonical.yaml).\n\n");
+    out.push_str(&format!("**Total tools:** {}\n\n", mcp_file.tools.len()));
+    out.push_str("| Tool | Product Lane | Tier | HTTP Read Eligible | Description |\n");
+    out.push_str("|---|---|---|---|---|\n");
+
+    let mut tools = mcp_file.tools.clone();
+    tools.sort_by(|a, b| a.name.cmp(&b.name));
+    for t in tools {
+        let http_eligible = if t.http_read_role_eligible {
+            "Yes"
+        } else {
+            "No"
+        };
+        let desc = escape_table_cell(&t.description);
+        out.push_str(&format!(
+            "| `{}` | {} | {} | {} | {} |\n",
+            t.name, t.product_lane, t.tier, http_eligible, desc
+        ));
+    }
+    out
+}
+
 /// Write or verify the generated Markdown fragment.
 pub fn run(repo_root: &Path, write: bool) -> Result<()> {
     let reg_path = repo_root.join(REGISTRY_REL);
@@ -153,6 +336,45 @@ pub fn run(repo_root: &Path, write: bool) -> Result<()> {
         &render_mens_train_defaults_md(default_base_model),
         write,
     )?;
+
+    // Environment variables reference (GEN-01)
+    let env_path = repo_root.join(ENV_VARS_REL);
+    let env_raw =
+        read_utf8_path_capped(&env_path).with_context(|| format!("read {}", env_path.display()))?;
+    let env_file: EnvVarsFile = serde_yaml::from_str(&env_raw).context("parse env-vars.v1.yaml")?;
+    write_or_verify_generated_file(
+        repo_root,
+        GENERATED_ENV_VARS_REL,
+        &render_env_vars_md(&env_file),
+        write,
+    )?;
+
+    // Config keys reference (GEN-02)
+    let cfg_path = repo_root.join(CONFIG_REGISTRY_REL);
+    let cfg_raw =
+        read_utf8_path_capped(&cfg_path).with_context(|| format!("read {}", cfg_path.display()))?;
+    let cfg_file: ConfigRegistryFile =
+        serde_yaml::from_str(&cfg_raw).context("parse registry.v1.yaml")?;
+    write_or_verify_generated_file(
+        repo_root,
+        GENERATED_CONFIG_KEYS_REL,
+        &render_config_keys_md(&cfg_file),
+        write,
+    )?;
+
+    // MCP tools reference (GEN-02)
+    let mcp_path = repo_root.join(MCP_REGISTRY_REL);
+    let mcp_raw =
+        read_utf8_path_capped(&mcp_path).with_context(|| format!("read {}", mcp_path.display()))?;
+    let mcp_file: McpToolRegistryFile =
+        serde_yaml::from_str(&mcp_raw).context("parse tool-registry.canonical.yaml")?;
+    write_or_verify_generated_file(
+        repo_root,
+        GENERATED_MCP_TOOLS_REL,
+        &render_mcp_tools_md(&mcp_file),
+        write,
+    )?;
+
     let cap_path = repo_root.join("contracts/capability/capability-registry.yaml");
     if cap_path.exists() {
         let cap_raw = read_utf8_path_capped(&cap_path).context("read capability-registry.yaml")?;
@@ -172,13 +394,17 @@ pub fn run(repo_root: &Path, write: bool) -> Result<()> {
     }
 
     println!(
-        "command-sync OK ({}, {})",
-        GENERATED_REL, GENERATED_MENS_DEFAULTS_REL
+        "command-sync OK ({}, {}, {}, {}, {})",
+        GENERATED_REL,
+        GENERATED_MENS_DEFAULTS_REL,
+        GENERATED_ENV_VARS_REL,
+        GENERATED_CONFIG_KEYS_REL,
+        GENERATED_MCP_TOOLS_REL
     );
     Ok(())
 }
 
 /// Verify the generated file (used from `command-compliance`).
-pub(crate) fn verify(repo_root: &Path) -> Result<()> {
+pub fn verify(repo_root: &Path) -> Result<()> {
     run(repo_root, false)
 }

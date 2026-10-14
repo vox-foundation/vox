@@ -2,7 +2,7 @@
 title: "Deep Research Systems: A From-First-Principles Technical Reference"
 description: "Explains the general architectural pattern behind deep-research/agentic-research systems (planning, hybrid retrieval, CRAG/Reflexion loops, claim verification, novelty scoring, reranking, citation-grounded synthesis, confidence gating, evaluation benchmarks) and maps each concept onto Vox's existing vox-research-shim/vox-search/vox-research-events/vox-scientia/vox-publisher implementation as of 2026-08-01."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: true
 training_rationale: "Normative technical reference for deep-research system architecture and how each pattern maps onto Vox's current implementation; groundwork for the 2026-08-01 deep-research enhancement program."
 ---

@@ -1,0 +1,377 @@
+/**
+ * Vox Starlight Reader Layout Stylesheet
+ * Governs collapsible left navigation rail and right table of contents.
+ */
+
+:root {
+  --vox-sidebar-rail-width: 3.5rem;
+  --vox-sidebar-expanded-width: 18.75rem;
+  --vox-sidebar-transition: width 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+}
+
+/* Sidebar Pin / Collapse Toggle */
+.vox-sidebar-toggle-container {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0.5rem 0.75rem 0.25rem;
+  border-bottom: 1px solid var(--sl-color-hairline-light);
+  margin-bottom: 0.5rem;
+}
+
+#vox-sidebar-pin-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0.25rem;
+  border-radius: 0.375rem;
+  border: 1px solid var(--sl-color-hairline);
+  background: var(--sl-color-bg);
+  color: var(--sl-color-gray-2);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+}
+
+#vox-sidebar-pin-toggle:hover {
+  color: var(--sl-color-white);
+  border-color: var(--sl-color-gray-3);
+  background: var(--sl-color-gray-6);
+}
+
+#vox-sidebar-pin-toggle:focus-visible {
+  outline: 2px solid var(--sl-color-accent);
+  outline-offset: 2px;
+}
+
+#vox-sidebar-pin-toggle svg {
+  width: 1.125rem;
+  height: 1.125rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Desktop Sidebar Rail Behavior */
+@media (min-width: 50rem) {
+  html[data-sidebar-state="collapsed"] {
+    --sl-sidebar-width: var(--vox-sidebar-rail-width);
+    --sl-content-inline-start: var(--vox-sidebar-rail-width);
+  }
+
+  html[data-sidebar-state="collapsed"] .sidebar-pane {
+    width: var(--vox-sidebar-rail-width);
+    overflow-x: hidden;
+    transition: var(--vox-sidebar-transition);
+    background-color: var(--sl-color-bg-sidebar, var(--sl-color-bg));
+  }
+
+  html[data-sidebar-state="collapsed"] .vox-sidebar-toggle-container {
+    justify-content: center;
+    padding: 0.5rem 0.25rem;
+  }
+
+  html[data-sidebar-state="collapsed"] .sidebar-content {
+    overflow-x: hidden;
+  }
+
+  /* Hover and Focus-Within Expansion Overlay */
+  @media (hover: hover) {
+    html[data-sidebar-state="collapsed"] .sidebar-pane:hover,
+    html[data-sidebar-state="collapsed"] nav.sidebar:focus-within .sidebar-pane {
+      width: var(--vox-sidebar-expanded-width);
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+      z-index: 25;
+    }
+
+    html[data-sidebar-state="collapsed"] .sidebar-pane:hover .vox-sidebar-toggle-container,
+    html[data-sidebar-state="collapsed"] nav.sidebar:focus-within .vox-sidebar-toggle-container {
+      justify-content: flex-end;
+      padding: 0.5rem 0.75rem 0.25rem;
+    }
+  }
+}
+
+/* Mobile Viewports (< 50rem) */
+@media (max-width: 49.99rem) {
+  .vox-sidebar-toggle-container {
+    display: none;
+  }
+}
+
+/* Touch Safety */
+@media (hover: none) {
+  /* Prevent hover expansion when device only supports touch */
+  html[data-sidebar-state="collapsed"] .sidebar-pane:hover {
+    width: var(--vox-sidebar-rail-width);
+    box-shadow: none;
+  }
+}
+
+/* Accessibility: Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-pane,
+  #vox-sidebar-pin-toggle,
+  #vox-toc-restore-btn,
+  #vox-toc-hide-btn {
+    transition: none !important;
+  }
+}
+
+/* Table of Contents Hide & Restore Controls */
+.vox-toc-controls {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.25rem;
+}
+
+#vox-toc-hide-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--sl-color-gray-3);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+}
+
+#vox-toc-hide-btn:hover {
+  color: var(--sl-color-white);
+  border-color: var(--sl-color-hairline);
+  background: var(--sl-color-gray-6);
+}
+
+#vox-toc-hide-btn:focus-visible {
+  outline: 2px solid var(--sl-color-accent);
+  outline-offset: 1px;
+}
+
+#vox-toc-hide-btn svg {
+  width: 0.75rem;
+  height: 0.75rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Restore button: hidden by default */
+#vox-toc-restore-btn {
+  display: none;
+}
+
+/* Desktop behavior for hidden TOC */
+@media (min-width: 72rem) {
+  html[data-toc-state="hidden"] aside.right-sidebar {
+    display: none !important;
+  }
+
+  html[data-toc-state="hidden"] .right-sidebar-panel {
+    display: none !important;
+  }
+
+  html[data-toc-state="hidden"] #vox-toc-restore-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    position: fixed;
+    top: 4.25rem;
+    right: 1.25rem;
+    z-index: 20;
+    padding: 0.375rem 0.625rem;
+    font-size: var(--sl-text-xs);
+    font-weight: 500;
+    color: var(--sl-color-gray-2);
+    background: var(--sl-color-bg-nav, var(--sl-color-bg));
+    border: 1px solid var(--sl-color-hairline);
+    border-radius: 9999px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  html[data-toc-state="hidden"] #vox-toc-restore-btn:hover {
+    color: var(--sl-color-white);
+    border-color: var(--sl-color-gray-3);
+    background: var(--sl-color-gray-6);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  }
+
+  html[data-toc-state="hidden"] #vox-toc-restore-btn:focus-visible {
+    outline: 2px solid var(--sl-color-accent);
+    outline-offset: 2px;
+  }
+
+  html[data-toc-state="hidden"] #vox-toc-restore-btn svg {
+    width: 0.875rem;
+    height: 0.875rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+}
+
+/* Global Viewport Overflow Guard */
+html,
+body {
+  overflow-x: hidden;
+}
+
+/* Article Width Expansion and Breakout Rules */
+:root {
+  --sl-content-width: 48rem;
+}
+
+@media (min-width: 50rem) {
+  /* When left sidebar is collapsed */
+  html[data-sidebar-state="collapsed"] {
+    --sl-content-width: 60rem;
+  }
+}
+
+@media (min-width: 72rem) {
+  /* When right TOC is hidden */
+  html[data-toc-state="hidden"] {
+    --sl-content-width: 60rem;
+  }
+
+  /* When BOTH sidebars are collapsed */
+  html[data-sidebar-state="collapsed"][data-toc-state="hidden"] {
+    --sl-content-width: 74rem;
+  }
+}
+
+/* Typography Line Length Constraint */
+.sl-markdown-content > p,
+.sl-markdown-content > ul,
+.sl-markdown-content > ol {
+  max-width: 75ch;
+}
+
+/* Wide Content Breakout */
+.sl-markdown-content table,
+.sl-markdown-content .expressive-code,
+.sl-markdown-content pre,
+.vox-playground {
+  max-width: 100%;
+  width: 100%;
+}
+
+.sl-markdown-content table {
+  display: block;
+  overflow-x: auto;
+}
+
+/* Trust Signal Banners */
+.vox-trust-banner {
+  padding: 0.5rem 1rem;
+  margin-bottom: 1.5rem;
+  border-radius: 0.375rem;
+  font-size: var(--sl-text-body-sm);
+  line-height: 1.4;
+  border: 1px solid transparent;
+  display: flex;
+  align-items: center;
+}
+
+.vox-trust-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.vox-trust-indicator {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.vox-trust-text {
+  flex: 1 1 auto;
+}
+
+.vox-trust-text code {
+  font-size: 0.85em;
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.25rem;
+  background-color: rgba(0, 0, 0, 0.15);
+}
+
+:root[data-theme='light'] .vox-trust-text code {
+  background-color: rgba(0, 0, 0, 0.06);
+}
+
+.vox-trust-link {
+  font-size: var(--sl-text-xs);
+  text-decoration: underline;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* Verified State (Subtle Green) */
+.vox-trust-verified {
+  background-color: var(--sl-color-green-low);
+  border-color: var(--sl-color-green);
+  color: var(--sl-color-white);
+}
+:root[data-theme='light'] .vox-trust-verified {
+  color: var(--sl-color-green-high);
+}
+.vox-trust-verified .vox-trust-indicator {
+  background-color: var(--sl-color-green);
+}
+.vox-trust-verified .vox-trust-link {
+  color: inherit;
+}
+
+/* Drifting State (Amber / Caution) */
+.vox-trust-drifting {
+  background-color: var(--sl-color-orange-low);
+  border-color: var(--sl-color-orange);
+  color: var(--sl-color-white);
+}
+:root[data-theme='light'] .vox-trust-drifting {
+  color: var(--sl-color-orange-high);
+}
+.vox-trust-drifting .vox-trust-indicator {
+  background-color: var(--sl-color-orange);
+}
+.vox-trust-drifting .vox-trust-link {
+  color: inherit;
+}
+
+/* Unverified / Broken / Historical State (Neutral Muted Slate) */
+.vox-trust-broken,
+.vox-trust-unanchored,
+.vox-trust-historical {
+  background-color: var(--sl-color-gray-6);
+  border-color: var(--sl-color-gray-4);
+  color: var(--sl-color-gray-2);
+}
+.vox-trust-broken .vox-trust-indicator,
+.vox-trust-unanchored .vox-trust-indicator,
+.vox-trust-historical .vox-trust-indicator {
+  background-color: var(--sl-color-gray-3);
+}
+.vox-trust-broken .vox-trust-link,
+.vox-trust-unanchored .vox-trust-link,
+.vox-trust-historical .vox-trust-link {
+  color: inherit;
+}
+

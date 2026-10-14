@@ -2,7 +2,7 @@
 title: "Trust, Novelty & Quality-Scoring Landscape for Deep Research (2026-08-01)"
 description: "Confirms current stub state of vox-research-shim's gate.rs/verifier.rs and vox-research-events' NoveltyEvidenceBundle/WorthinessSignalsV2 against source, then surveys source-credibility scoring, novelty/dedup detection, claim-verification/hallucination-detection, and bad-research flagging techniques, mapping each to a concrete non-stub replacement and data source."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: true
 training_rationale: "Normative gap analysis and technique survey for making Vox's confidence gate, claim verifier, and novelty scoring non-stub; direct input to the deep-research enhancement implementation plan."
 ---

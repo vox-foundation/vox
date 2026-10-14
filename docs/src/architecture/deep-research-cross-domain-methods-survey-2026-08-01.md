@@ -2,7 +2,7 @@
 title: "Beyond Crossref/OpenAlex: Cross-Domain Research Methods Survey (2026-08-01)"
 description: "Surveys how legal, medical, historical, and journalistic research validate sources/claims without a DOI-keyed citation graph, extracting 11 concrete, adoptable techniques (citation-validity graphs, evidence-tier tagging, corroboration counting, domain reputation scoring) for Vox's trust/novelty pipeline, which is currently scholarly-paper-shaped."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: true
 training_rationale: "Normative cross-domain research-methods survey grounding the deep-research Stage 2 domain-agnosticism work; identifies concrete, implementable techniques with data-source notes."
 ---

@@ -1,0 +1,47 @@
+---
+import type { Props } from '@astrojs/starlight/props';
+import Default from '@astrojs/starlight/components/PageSidebar.astro';
+---
+
+<button
+  id="vox-toc-restore-btn"
+  type="button"
+  aria-label="Show table of contents"
+  aria-expanded="false"
+  title="Show table of contents"
+>
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <line x1="21" y1="10" x2="3" y2="10" />
+    <line x1="21" y1="6" x2="3" y2="6" />
+    <line x1="21" y1="14" x2="3" y2="14" />
+    <line x1="21" y1="18" x2="7" y2="18" />
+  </svg>
+  <span class="vox-toc-restore-label">On this page</span>
+</button>
+
+<Default {...Astro.props}><slot /></Default>
+
+<script is:inline>
+  (function() {
+    function initTocRestore() {
+      var btn = document.getElementById('vox-toc-restore-btn');
+      if (!btn) return;
+      var hideBtn = document.getElementById('vox-toc-hide-btn');
+      var isHidden = document.documentElement.dataset.tocState === 'hidden';
+      btn.setAttribute('aria-expanded', isHidden ? 'false' : 'true');
+      btn.addEventListener('click', function() {
+        document.documentElement.dataset.tocState = 'visible';
+        btn.setAttribute('aria-expanded', 'true');
+        if (hideBtn) hideBtn.setAttribute('aria-expanded', 'true');
+        try {
+          localStorage.setItem('vox-toc-state', 'visible');
+        } catch (e) {}
+      });
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initTocRestore);
+    } else {
+      initTocRestore();
+    }
+  })();
+</script>

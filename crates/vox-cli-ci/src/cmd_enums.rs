@@ -91,6 +91,13 @@ pub enum CiCmd {
         #[arg(long)]
         write: bool,
     },
+    /// Generate or verify workspace crate API reference docs under docs/src/api/.
+    #[command(name = "crate-api-sync")]
+    CrateApiSync {
+        /// Write generated docs. Without this flag, verify only.
+        #[arg(long)]
+        write: bool,
+    },
     /// Generate or verify machine-readable GUI coverage classification report.
     #[command(name = "gui-surface-coverage")]
     GuiSurfaceCoverage {

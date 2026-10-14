@@ -2,7 +2,7 @@
 title: "Deep Research GUI Representation Design (2026-08-01)"
 description: "Design for surfacing trust, citation, novelty, and verification signals in Vox's ResearchView GUI, currently a raw markdown/JSON dump with none. Reuses established patterns already built for ScientiaSurface/ClaimsView/NoveltyEvidencePanel (VerdictBadge, signal grids, prior-art citation lists) rather than inventing new UI language, and extends them to be legible across subject types, not just academic/technical queries."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: true
 training_rationale: "Normative GUI design for surfacing deep-research trust/citation/verification signals; direct input to the Stage 2 implementation plan."
 ---

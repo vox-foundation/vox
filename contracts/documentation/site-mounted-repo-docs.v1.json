@@ -1,0 +1,15 @@
+{
+  "x-vox-version": 1,
+  "always_mount": [
+    "AGENTS.md",
+    "CLAUDE.md",
+    "GEMINI.md"
+  ],
+  "never_mount_prefixes": [
+    "docs/superpowers/",
+    "docs/ci/",
+    "apps/",
+    "tree-sitter-vox/"
+  ],
+  "titles": {}
+}

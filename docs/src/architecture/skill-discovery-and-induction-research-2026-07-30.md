@@ -2,7 +2,7 @@
 title: "Skill Discovery at Scale & Automatic Skill Induction — Verified Research 2026-07-30"
 description: "Adversarially verified research into how agent skill/tool libraries stay discoverable past 30-50 entries (Tool Search Tool, MCP-Zero, ToolRet) and how they grow themselves (Voyager, CRAFT, AWM, SkillWeaver, Memp) — including every promotion gate, the measured gains, and the unsolved retirement problem."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: false
 ---
 

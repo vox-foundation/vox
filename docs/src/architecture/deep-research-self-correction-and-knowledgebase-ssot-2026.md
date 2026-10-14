@@ -2,7 +2,7 @@
 title: "Deep Research Self-Correction and Knowledgebase Architecture SSOT (2026)"
 description: "Architectural single source of truth for empirical compiler self-correction, 3-wave contradiction isolation, VoxDB FTS5 knowledgebase persistence, and competitive superiority over Gemini and Claude Deep Research."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: true
 training_rationale: "Defines the architecture, verification math, and competitive benchmarks for self-correcting research and knowledgebases in Vox."
 ---

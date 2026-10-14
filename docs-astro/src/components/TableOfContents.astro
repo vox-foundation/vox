@@ -1,0 +1,47 @@
+---
+import type { Props } from '@astrojs/starlight/props';
+import Default from '@astrojs/starlight/components/TableOfContents.astro';
+---
+
+<div class="vox-toc-wrapper">
+  <div class="vox-toc-controls">
+    <button
+      id="vox-toc-hide-btn"
+      type="button"
+      aria-label="Hide table of contents"
+      aria-expanded="true"
+      title="Hide table of contents"
+    >
+      <span class="vox-toc-hide-text">Hide</span>
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M18 6L6 18M6 6l12 12" />
+      </svg>
+    </button>
+  </div>
+  <Default {...Astro.props}><slot /></Default>
+</div>
+
+<script is:inline>
+  (function() {
+    function initTocHide() {
+      var btn = document.getElementById('vox-toc-hide-btn');
+      if (!btn) return;
+      var restoreBtn = document.getElementById('vox-toc-restore-btn');
+      var isHidden = document.documentElement.dataset.tocState === 'hidden';
+      btn.setAttribute('aria-expanded', isHidden ? 'false' : 'true');
+      btn.addEventListener('click', function() {
+        document.documentElement.dataset.tocState = 'hidden';
+        btn.setAttribute('aria-expanded', 'false');
+        if (restoreBtn) restoreBtn.setAttribute('aria-expanded', 'false');
+        try {
+          localStorage.setItem('vox-toc-state', 'hidden');
+        } catch (e) {}
+      });
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initTocHide);
+    } else {
+      initTocHide();
+    }
+  })();
+</script>

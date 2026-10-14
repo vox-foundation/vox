@@ -2,7 +2,7 @@
 title: "LoRA adapter application at serve time"
 description: "Why a QLoRA-fine-tuned model served through vox mens serve returned base-model output, the real adapter key and scaling conventions, and how delta application is now wired and enforced."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 ---
 
 # LoRA adapter application at serve time

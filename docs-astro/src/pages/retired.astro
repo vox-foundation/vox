@@ -1,0 +1,26 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+---
+
+<StarlightPage
+  frontmatter={{
+    title: 'Retired page',
+    pagefind: false,
+    head: [
+      {
+        tag: 'meta',
+        attrs: {
+          name: 'robots',
+          content: 'noindex',
+        },
+      },
+    ],
+  }}
+>
+  <p>
+    This page was part of the retired research archive, kept in the repository's history but no longer published on this site.
+  </p>
+  <p>
+    Return to the <a href="/">documentation home</a> or browse the raw archive in the repository at <a href="https://github.com/vox-foundation/vox/tree/main/docs/src/archive">GitHub</a>.
+  </p>
+</StarlightPage>

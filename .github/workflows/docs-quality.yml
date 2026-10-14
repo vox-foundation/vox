@@ -9,7 +9,23 @@ on:
       - 'docs/**'
       - 'contracts/**'
       - 'crates/vox-doc-pipeline/**'
-      - 'crates/vox-cli/src/commands/ci/**'
+      - 'crates/vox-cli/**'
+      - 'crates/vox-compiler/**'
+      - 'crates/vox-runtime/**'
+      - 'scripts/docs/**'
+      - 'docs-astro/**'
+      - '.git-blame-ignore-revs'
+      - '.lycheeignore'
+      - '.github/workflows/docs-quality.yml'
+      # 20-09: mounted repo sources
+      - '.github/copilot-instructions.md'
+      - 'CHANGELOG.md'
+      - 'CLAUDE.md'
+      - 'GEMINI.md'
+      - 'LANGUAGE_DESIGN_PRIORITIES.md'
+      - 'crates/**/README.md'
+      - 'examples/**'
+      - 'scripts/**/README.md'
   push:
     branches: [main]
     paths:
@@ -19,7 +35,23 @@ on:
       - 'docs/**'
       - 'contracts/**'
       - 'crates/vox-doc-pipeline/**'
-      - 'crates/vox-cli/src/commands/ci/**'
+      - 'crates/vox-cli/**'
+      - 'crates/vox-compiler/**'
+      - 'crates/vox-runtime/**'
+      - 'scripts/docs/**'
+      - 'docs-astro/**'
+      - '.git-blame-ignore-revs'
+      - '.lycheeignore'
+      - '.github/workflows/docs-quality.yml'
+      # 20-09: mounted repo sources
+      - '.github/copilot-instructions.md'
+      - 'CHANGELOG.md'
+      - 'CLAUDE.md'
+      - 'GEMINI.md'
+      - 'LANGUAGE_DESIGN_PRIORITIES.md'
+      - 'crates/**/README.md'
+      - 'examples/**'
+      - 'scripts/**/README.md'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -31,6 +63,7 @@ env:
 
 permissions:
   contents: read
+  pull-requests: write
 
 jobs:
   docs-quality:
@@ -38,6 +71,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Install Rust toolchain
         uses: ./.github/actions/setup-rust
@@ -65,6 +100,40 @@ jobs:
       - name: Doctest extraction and check (SSG-agnostic)
         run: cargo run -p vox-cli ci doctest-md --strict
 
+      # Hard gate: tutorials are executable docs-as-tests (TUT-02).
+      - name: Tutorial test harness
+        run: cargo run -p vox-cli -- run --mode interp scripts/docs/tutorial-test-runner.vox -- --all
+
+      # Hard gate: deterministic drift gate blocks merges that introduce new broken mentions
+      # on reader-facing status: current pages. Existing drift is grandfathered in baseline.
+      - name: Documentation Drift Gate
+        run: cargo run -p vox-cli -- audit docs --check-drift
+
+      # Informative & Definition-of-Done: analyze PR impact on reader-facing docs and check contract DoD
+      - name: Docs PR Impact and Definition-of-Done
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p target
+          cargo run -p vox-cli -- audit docs pr-impact \
+            --diff-base ${{ github.event.pull_request.base.sha }} \
+            --diff-head ${{ github.event.pull_request.head.sha }} \
+            --diff-out target/pr-impact.md || true
+          cargo run -p vox-cli -- audit docs dod \
+            --diff-base ${{ github.event.pull_request.base.sha }} \
+            --diff-head ${{ github.event.pull_request.head.sha }} || true
+          if [ -f target/pr-impact.md ] && [ -n "${{ github.event.pull_request.number }}" ]; then
+            COMMENT_ID=$(gh api repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments \
+              --jq '.[] | select(.body | contains("<!-- vox-docs-freshness-pr-impact -->")) | .id' 2>/dev/null | head -n 1 || true)
+            if [ -n "$COMMENT_ID" ]; then
+              gh api --method PATCH repos/${{ github.repository }}/issues/comments/$COMMENT_ID -f body=@target/pr-impact.md 2>/dev/null || true
+            else
+              gh pr comment ${{ github.event.pull_request.number }} -F target/pr-impact.md 2>/dev/null || true
+            fi
+          fi
+
+      # Hard gate: repo and contract link validation.
       - name: Internal Markdown link check
         run: cargo run -p vox-cli ci check-links
 
@@ -79,6 +148,55 @@ jobs:
         id: starlight_build
         working-directory: docs-astro
         run: pnpm build
+
+      - name: Link checker self-test
+        id: lychee_selftest
+        uses: lycheeverse/lychee-action@v2
+        with:
+          lycheeVersion: v0.24.2
+          fail: false
+          output: lychee/selftest.md
+          args: --offline --no-progress --root-dir ${{ github.workspace }}/docs-astro/dist --include-fragments --index-files index.html docs-astro/tests/fixtures/broken-link/index.html
+
+      - name: Verify link checker self-test
+        env:
+          SELFTEST_EXIT: ${{ steps.lychee_selftest.outputs.exit_code }}
+        run: |
+          set -euo pipefail
+          if [ "$SELFTEST_EXIT" != "2" ]; then
+            echo "::error::link checker cannot detect broken links (exit code $SELFTEST_EXIT != 2)"
+            exit 1
+          fi
+          if ! grep -qF "this-route-does-not-exist" lychee/selftest.md || ! grep -qF "no-such-anchor-p20" lychee/selftest.md; then
+            echo "::error::link checker cannot detect broken links (missing expected failure targets in report)"
+            exit 1
+          fi
+
+      - name: Offline link check
+        uses: lycheeverse/lychee-action@v2
+        with:
+          lycheeVersion: v0.24.2
+          fail: true
+          args: --offline --no-progress --root-dir ${{ github.workspace }}/docs-astro/dist --include-fragments --index-files index.html 'docs-astro/dist/**/*.html'
+
+      - name: Docs unit tests
+        working-directory: docs-astro
+        run: node --test "tests/unit/*.test.mjs"
+
+      - name: Build-output checks
+        working-directory: docs-astro
+        run: npx playwright test tests/build-output/ --reporter=line
+
+      - name: Reader layout visual-stepper checks
+        working-directory: docs-astro
+        run: npx playwright test tests/reader-layout.spec.ts --reporter=line
+
+      - name: Upload reader layout review bundle
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reader-layout-review-bundle
+          path: docs-astro/test-results/review-bundle/
 
       # Hard gate: graduated from continue-on-error after baseline stabilised.
       # Covers docs-astro, apps/vox-mental-tracker, apps/experimental/visualizer, vox-codegen TS tests.

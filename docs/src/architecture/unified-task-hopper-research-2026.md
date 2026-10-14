@@ -2,7 +2,7 @@
 title: "Unified Task Hopper — Research, Design Space, and Recommendation (2026-05-09)"
 description: "Audits the proposal of a single developer-facing 'hopper' (one chat-driven intake that fans out across all agents and the mesh) against the existing per-agent priority queues, scope-based isolation, agentic VCS automation, and Populi mesh north-star. Identifies what is already built, what is genuinely new, the version-control consequences across concurrent agents, the telemetry-driven priority-learning loop, the developer-override invariant, the mesh dimension, and the do-nothing alternative. Concludes with a recommendation."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: true
 training_rationale: "Establishes the canonical mental model for cross-agent task intake and prioritization, and the contract that orchestrator dispatch must obey developer overrides. Future implementation plans will cite this doc as the SSOT for hopper design choices."
 sourced_at: "2026-05-09"
@@ -107,7 +107,7 @@ priority-learning loop.
 
 ### 1.5 Dashboard is a stub
 
-[`crates/vox-dashboard/src/`](../../../crates/vox-dashboard/) ships
+`crates/vox-dashboard/src/` ships
 `/api/v2/runs` and `/api/v2/mesh` returning fixture data. The
 [dashboard migration research doc](dashboard-migration-research-2026.md) explicitly notes
 the missing operator's harness — no command palette, no status bar, no persistent run timeline,
@@ -775,7 +775,7 @@ work *is* queued.
 - [`crates/vox-orchestrator/src/workspace.rs`](../../../crates/vox-orchestrator/src/workspace.rs) — `AgentWorkspace`
 - [`crates/vox-orchestrator/src/events.rs`](../../../crates/vox-orchestrator/src/events.rs) — `AgentEvent` variants
 - [`crates/vox-orchestrator-types/`](../../../crates/vox-orchestrator-types/) — `AgentTask`, `TaskPriority`, capability tokens
-- [`crates/vox-dashboard/`](../../../crates/vox-dashboard/) — Phase 2/3 surface
+- `crates/vox-dashboard/` — Phase 2/3 surface
 - [`crates/vox-orchestrator-mcp/`](../../../crates/vox-orchestrator-mcp/) — MCP tool layer
 
 ## Appendix C — Related Architecture Docs

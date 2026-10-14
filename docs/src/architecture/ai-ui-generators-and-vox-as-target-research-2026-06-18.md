@@ -2,8 +2,9 @@
 title: "AI UI Generators (v0.dev, Claude Design, Bolt, Lovable) — How They Work & Vox-as-Target Strategy"
 description: "How modern AI UI generators produce interfaces, why they default to generic/rule-breaking output, and the concrete strategy for making Vox/VUV an ideal target they can emit into — with compile-time contrast/occlusion/accessibility guarantees exposed via a component registry and MCP. Includes a Vox readiness audit and the top gaps."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: true
+training_rationale: "Project architecture and research context."
 ---
 
 # AI UI Generators & Vox-as-Target Strategy

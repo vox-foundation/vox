@@ -20,7 +20,7 @@ maximize cross-platform parity, and exit clean enough to merge back to main.
 1. We already have **most of the installer infrastructure**:
    [`vox doctor`](../../../crates/vox-cli/src/commands/diagnostics/doctor/) (with
    per-check `auto_heal`),
-   [`vox-install-policy`](../../../crates/vox-install-policy/) (SSOT for install
+   `vox-install-policy` (SSOT for install
    surfaces), `vox-bootstrap` (offline-friendly companion binary), and
    `vox setup` (registration). The gap is **one unified entry point** —
    `vox doctor --install` (or `vox setup --full`) that walks every check and
@@ -140,8 +140,8 @@ Before designing anything new, the relevant existing pieces:
 | Surface | Path | What it does today |
 |---|---|---|
 | `vox doctor` | [`crates/vox-cli/src/commands/diagnostics/doctor/`](../../../crates/vox-cli/src/commands/diagnostics/doctor/) | Per-check audit (`toolchain.rs`, `gpu_hardware.rs`, `secrets.rs`, `model_catalog.rs`, `test_health.rs`, `vox_ignore.rs`, `web_frontend.rs`, `tail.rs`). Has `auto_heal` flag — already auto-installs `pnpm` via `npm install -g pnpm` when missing. |
-| `vox-install-policy` | [`crates/vox-install-policy/`](../../../crates/vox-install-policy/) | SSOT constants for install/update surfaces (source path, release targets, GitHub coordinates). |
-| `vox-bootstrap` | separate binary in workspace | Offline install / first-run companion. References [`vox-checksum-manifest`](../../../crates/vox-checksum-manifest/) for asset SHA verification. |
+| `vox-install-policy` | `crates/vox-install-policy/` | SSOT constants for install/update surfaces (source path, release targets, GitHub coordinates). |
+| `vox-bootstrap` | separate binary in workspace | Offline install / first-run companion. References `vox-checksum-manifest` for asset SHA verification. |
 | `vox setup` | (planned/partial — referenced from `tail.rs:300`) | Currently just a registration step. Right place to grow into the unified installer. |
 | `vox ci install-hooks` | [`crates/vox-cli-ci/src/install_hooks.rs`](../../../crates/vox-cli-ci/src/install_hooks.rs) | One-shot git hook installer (already pure-Rust). |
 | `vox shell check` | [`crates/vox-cli/src/commands/runtime/shell/`](../../../crates/vox-cli/src/commands/runtime/shell/) | PowerShell AST + exec-policy check. |
@@ -423,5 +423,5 @@ A single PR (or stack) with this work is mergeable when:
 - [Local CI parity (pre-push)](../contributors/local-ci-pre-push.md)
 - [Where things live](where-things-live.md)
 - [`AGENTS.md` §VoxScript-First Glue Code](../../../AGENTS.md)
-- [`vox-install-policy` crate](../../../crates/vox-install-policy/)
+- `vox-install-policy` crate
 - [`vox doctor` source](../../../crates/vox-cli/src/commands/diagnostics/doctor/)

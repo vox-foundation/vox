@@ -51,6 +51,8 @@ pub enum LintKind {
     },
     /// A hand-authored `last_updated:` key is present at all; the pipeline derives this from Git.
     HandAuthoredLastUpdated,
+    /// A hand-authored `last_verified:` or `last_verified_commit:` key is present; the pipeline manages this via the Freshness Ledger.
+    HandAuthoredLastVerified,
     /// index.mdx's SYNC-FROM-README block content differs from README's matching ANCHOR block,
     /// after known intentional link-scheme transforms are applied.
     ReadmeSyncDrift {

@@ -2,7 +2,7 @@
 title: "Agent Chat UX, Noise Control & Panel Information Design — Verified Research 2026-07-30"
 description: "Adversarially verified research into presenting agent work without drowning the user: ARIA live-region roles as a ready-made severity taxonomy, WCAG 4.1.3 as a binding requirement for status panels, NN/g progress-indicator thresholds, and the CHI 2024 finding that verification consumes 22.4% of session time — with every agent-specific mapping labelled as inference."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: false
 ---
 

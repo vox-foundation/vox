@@ -2,7 +2,7 @@
 title: "Deep Research Implementation Divergence Audit (2026-08-01)"
 description: "Diffs what Stage 1's synthesis doc and two implementation plans promised against what actually shipped. Corrects an earlier claim that the post-hoc citation audit pass was silently dropped — `audit_citations()`/`CitationAuditResult` exists and is wired into `ResearchMetadata`, but as a lighter-weight evidence-span-overlap check rather than the spec's true post-hoc re-fetch. Finds the NLI-first-pass verifier design was substituted with LLM self-consistency resampling, NoveltyEvidenceBundle remains unpopulated despite dedup work landing, and self_consistency is computed but still unconsumed by the confidence gate. Identifies the dominant implementation-time failure pattern: under-specified integration surface (wire X into the real call site), not incorrect algorithms."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: true
 training_rationale: "Normative divergence audit between the deep-research Stage 1 plans and shipped code; the pattern finding (under-specified integration surface) should directly shape how the Stage 2 implementation plan is written."
 ---

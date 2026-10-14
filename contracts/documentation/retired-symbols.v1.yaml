@@ -102,3 +102,39 @@ symbols:
     pattern: "\\bexec_bundle_b64\\b"
     replacement: "VoxScript source on the mesh stream"
     rationale: "ADR-048 Task 10. The native-bundle lane is deleted; the mesh ships source only."
+  - id: table-decorator
+    pattern: "@table\\b"
+    replacement: "table"
+    rationale: "Retired syntax form (ADR-041 / v0.6.0). Bare-keyword blocks declare scope; use the bare 'table' keyword."
+  - id: query-decorator
+    pattern: "@query\\b"
+    replacement: "query"
+    rationale: "Retired syntax form (ADR-041 / v0.6.0). Bare-keyword blocks declare scope; use the bare 'query' keyword."
+  - id: mutation-decorator
+    pattern: "@mutation\\b"
+    replacement: "mutation"
+    rationale: "Retired syntax form (ADR-041 / v0.6.0). Bare-keyword blocks declare scope; use the bare 'mutation' keyword."
+  - id: server-decorator
+    pattern: "@server\\b"
+    replacement: "server"
+    rationale: "Retired syntax form (ADR-041 / v0.6.0). Bare-keyword blocks declare scope; use the bare 'server' keyword."
+  - id: tool-decorator
+    pattern: "@tool\\b"
+    replacement: "tool or @mcp.tool"
+    rationale: "Retired syntax form (ADR-041 / v0.6.0). Bare-keyword blocks declare scope; use the bare 'tool' keyword or dotted '@mcp.tool'."
+  - id: resource-decorator
+    pattern: "@resource\\b"
+    replacement: "resource or @mcp.resource"
+    rationale: "Retired syntax form (ADR-041 / v0.6.0). Bare-keyword blocks declare scope; use the bare 'resource' keyword or dotted '@mcp.resource'."
+  - id: form-decorator
+    pattern: "@form\\b"
+    replacement: "form"
+    rationale: "Retired syntax form (ADR-041 / v0.6.0). Bare-keyword blocks declare scope; use the bare 'form' keyword."
+  - id: index-decorator
+    pattern: "@index\\b"
+    replacement: "index"
+    rationale: "Retired syntax form (ADR-041 / v0.6.0). Bare-keyword blocks declare scope; use the bare 'index' keyword."
+  - id: endpoint-decorator
+    pattern: "@endpoint\\b"
+    replacement: "server, query, or mutation"
+    rationale: "Retired in v0.6.0. Use bare keyword 'server', 'query', or 'mutation'."

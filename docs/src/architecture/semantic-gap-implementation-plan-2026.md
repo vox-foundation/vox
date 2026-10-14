@@ -1,7 +1,7 @@
 ---
 title: "Semantic Gap Implementation Plan (2026-05-16)"
 category: "Architecture SSOTs"
-status: "current"
+status: "roadmap"
 ---
 
 # Semantic Gap Implementation Plan (2026-05-16)

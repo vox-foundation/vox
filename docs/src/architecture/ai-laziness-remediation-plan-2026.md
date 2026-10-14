@@ -1,7 +1,7 @@
 ---
 title: "AI-Laziness Audit — Findings & Pivot (2026-05-16)"
 category: "Architecture SSOTs"
-status: "current"
+status: "roadmap"
 ---
 
 # AI-Laziness Audit — Findings & Pivot (2026-05-16)

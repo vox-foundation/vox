@@ -1,0 +1,50 @@
+---
+import Default from '@astrojs/starlight/components/Banner.astro';
+import { getFreshnessForPath } from '../utils/docs-freshness.mjs';
+
+const route = Astro.locals.starlightRoute;
+const entry = route?.entry;
+const sourcePath = entry?.data?._sourcePath;
+const isSplash = entry?.data?.template === 'splash' || !route?.id || route?.id === '' || route?.id === 'index';
+const freshness = !isSplash ? getFreshnessForPath(sourcePath, entry?.filePath) : null;
+---
+
+<!-- Render standard Starlight status banner if present (research, roadmap, deprecated, legacy) -->
+<Default {...Astro.props} />
+
+<!-- Render Trust Signal Banner for public reader-facing pages -->
+{freshness && (
+  <div class={`vox-trust-banner vox-trust-${freshness.state}`} data-pagefind-ignore>
+    <div class="vox-trust-inner">
+      <span class="vox-trust-indicator" aria-hidden="true"></span>
+      <span class="vox-trust-text">
+        {freshness.state === 'verified' && (
+          <>
+            <strong>Verified:</strong> Accurate against commit{' '}
+            <code>{freshness.shortCommit}</code>
+          </>
+        )}
+        {freshness.state === 'drifting' && (
+          <>
+            <strong>May be out of date:</strong> Code changed since verification (at <code>{freshness.shortCommit}</code>).
+          </>
+        )}
+        {(freshness.state === 'broken' || freshness.state === 'unanchored') && (
+          <>
+            <strong>Unverified:</strong> This page has not yet been anchored to automated code tests.
+          </>
+        )}
+        {freshness.state === 'historical' && (
+          <>
+            <strong>Historical:</strong> Archived or legacy material preserved for historical context.
+          </>
+        )}
+      </span>
+      {freshness.state === 'verified' && freshness.commitUrl && (
+        <a href={freshness.commitUrl} class="vox-trust-link" target="_blank" rel="noopener noreferrer">
+          View Commit
+        </a>
+      )}
+    </div>
+  </div>
+)}

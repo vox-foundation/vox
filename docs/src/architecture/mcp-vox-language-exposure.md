@@ -38,7 +38,7 @@ flowchart LR
 
 ## Dispatch
 
-- **Tools:** Federated `@tool` functions run via the Vox interpreter (`vox_compiler::eval::Interpreter`). JSON args map to `VoxValue`; optional HIR parameters (with defaults) are omitted from JSON Schema `required`.
+- **Tools:** Federated `tool` functions run via the Vox interpreter (`vox_compiler::eval::Interpreter`). JSON args map to `VoxValue`; optional HIR parameters (with defaults) are omitted from JSON Schema `required`.
 - **Resources:** Federated `@mcp.resource` functions are nullary; `resources/read` invokes the declaring fn and returns its `str` body.
 
 ## MCP tier policy
@@ -48,7 +48,7 @@ flowchart LR
 | Tier | Source |
 |------|--------|
 | `core`, `dev`, `advanced` | Static catalog (`TOOL_REGISTRY`) |
-| `workspace` | Federated `@tool` declarations |
+| `workspace` | Federated `tool` declarations |
 | `skill` | Instructional macro tools from installed skills |
 
 Set `VOX_MCP_TIERS=all` to advertise every tier.

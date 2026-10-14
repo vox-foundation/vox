@@ -2,8 +2,8 @@
 title: "Tutorial: first .vox app (checkpoints)"
 description: "Checkpoints for a minimal compile/run path"
 category: "Tutorials"
+status: "current"
 sort_order: 3
-
 schema_type: "HowTo"
 ---
 
@@ -19,16 +19,16 @@ Use this alongside [First full-stack app](../how-to/first-full-stack-app.md) and
 ## Checkpoint B — typecheck + HIR
 
 - [ ] `vox check app.vox` shows no type errors.
-- [ ] Optional JSON: `vox check app.vox --json` and confirm diagnostics carry `category` when emitted from the shared pipeline.
+- [ ] Optional JSON: `vox check app.vox --json` and confirm diagnostics carry `error_code` and `severity` when emitted from the shared pipeline.
 
 ## Checkpoint C — build / run (when applicable)
 
 - [ ] `vox build app.vox` or your project’s documented build entry.
-- [ ] `vox run …` for script mode only when built with **`script-execution`** (see [CLI reference](../reference/cli.md)).
+- [ ] `vox run …` for script mode (see [CLI reference](../reference/cli.md)).
 
 ## Checkpoint D — mens (optional)
 
-- [ ] With **`populi`** feature: `vox populi serve` local smoke; see [Populi SSOT](../reference/populi.md).
+- [ ] With **`populi`** feature: `vox populi serve` local smoke (requires `vox-ml-cli` installed with the `populi` feature; see [Beyond the CLI](../reference/installation.md#beyond-the-cli) and [Populi SSOT](../reference/populi.md)).
 
 When stuck, capture **full** diagnostic output and cross-check [parser inventory](../reference/parser-ambiguity-inventory.md) and the [CLI reference](../reference/cli.md).
 

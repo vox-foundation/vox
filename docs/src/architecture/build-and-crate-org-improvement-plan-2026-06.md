@@ -2,7 +2,7 @@
 title: "Build-Time, Crate-Org & Target-Sprawl Improvement Plan (2026-06)"
 description: "Synthesis of a 7-lens parallel audit of the Vox workspace: build-time hotspots, crate inventory/layers, dead/combine/new crates, feature-gates-vs-crates, plugin boundaries, and the 400+ GB target-folder sprawl. Records the quick wins already landed (with measured before/after) and the gated workstreams that follow."
 category: "Architecture SSOTs"
-status: "current"
+status: "roadmap"
 training_eligible: false
 ---
 

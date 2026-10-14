@@ -2,7 +2,7 @@
 title: "Deep Research Waves, Batches, and Competitive SOTA Analysis (2026)"
 description: "Architectural comparison of Vox Deep Research against Gemini Deep Research and Claude Deep Research, detailing multi-wave iterative execution, dynamic escalation, intelligent context window distillation, and batch orchestration."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: true
 training_rationale: "Defines architecture and competitive analysis for multi-wave deep research in Vox."
 ---

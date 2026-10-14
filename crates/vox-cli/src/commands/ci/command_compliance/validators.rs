@@ -71,6 +71,37 @@ pub(crate) fn check_catalog_feature_gates_match_registry(reg: &RegistryFile) -> 
     Ok(())
 }
 
+/// Verify that every top-level clap command in build_catalog() is registered in command-registry.yaml (GEN-05).
+pub(crate) fn check_catalog_top_level_command_presence(reg: &RegistryFile) -> Result<()> {
+    let catalog = crate::command_catalog::build_catalog();
+    let reg_top_levels: std::collections::HashSet<&str> = reg
+        .operations
+        .iter()
+        .filter(|o| o.surface == "vox-cli" && o.path.len() == 1)
+        .map(|o| o.path[0].as_str())
+        .collect();
+
+    let mut missing = Vec::new();
+    for entry in &catalog.entries {
+        if entry.path.len() == 1 {
+            let cmd_name = entry.path[0].as_str();
+            if !reg_top_levels.contains(cmd_name) {
+                missing.push(cmd_name);
+            }
+        }
+    }
+    missing.sort();
+    missing.dedup();
+    if !missing.is_empty() {
+        return Err(anyhow!(
+            "{} top-level CLI command(s) in clap catalog missing from command-registry.yaml (projected from catalog.v1.yaml):\n  {:?}\nAdd corresponding operation rows to contracts/operations/catalog.v1.yaml.",
+            missing.len(),
+            missing
+        ));
+    }
+    Ok(())
+}
+
 pub(crate) fn check_catalog_generation_smoke() -> Result<()> {
     let catalog = crate::command_catalog::build_catalog();
     if catalog.entries.is_empty() {

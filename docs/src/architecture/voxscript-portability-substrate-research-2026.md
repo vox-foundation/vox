@@ -2,7 +2,7 @@
 title: "VoxScript portability substrate: research and findings (2026-09)"
 description: "Measured answer to 'make VoxScripts run the same on every system': why one substrate cannot deliver it, what Vox already has, and the cheap fixes that are still available."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: false
 ---
 

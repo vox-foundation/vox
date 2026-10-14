@@ -48,7 +48,7 @@ Use one of these `category` values in frontmatter:
 | `API Reference — Crates` | per-crate API surface |
 | `Examples` | worked examples |
 | `Architecture Decisions (ADRs)` | architecture decisions |
-| `Architecture SSOTs` | current architecture, authority maps, research pages (sidebar-listed via frontmatter), roadmaps |
+| `Architecture SSOTs` | current architecture, authority maps (research and roadmap pages appear under Internals — see below) |
 | `CI & Quality` | CI and quality-specific references |
 | `Contributors` | contributor-facing governance and process docs |
 | `Operations` | runbooks and operational catalogs |
@@ -75,6 +75,10 @@ Use `status` when the distinction matters to readers:
 
 Do not use `status` to make aspirational pages sound shipped.
 
+### Internals section
+
+Pages with `status: research` or `status: roadmap` are grouped under a collapsed **Internals** sidebar section (shown last) instead of their category; they render a status banner and a `noindex` robots tag, are omitted from the sitemap and from every published llms.txt variant, and stay searchable on the site, labelled as Internals; pages with `status: deprecated` or `legacy` keep their category but get a banner and `noindex`. The single source is `docs-astro/src/utils/page-status.mjs`, and no category or frontmatter rewrite is needed.
+
 ### Frontmatter starter template
 
 Use this template for new pages so docs lint passes on first run:
@@ -89,7 +93,19 @@ training_eligible: true
 ---
 ```
 
-**Note on temporal metadata:** The `last_updated` field is automatically derived from the file's Git commit history by the documentation pipeline and AI search engine. You do *not* need to manually update dates in frontmatter. Manual dates are considered legacy and will be superseded by Git metadata.
+**Note on temporal metadata:** The "Last updated" date is the committer date of the newest commit touching the page's source file, computed at build time by `docs-astro/src/utils/git-dates.mjs`; commits listed in the repo-root `.git-blame-ignore-revs`, `chore(ssot): auto-regenerate` commits, formatting commits and bulk commits (more than 100 files) are skipped; renames are followed; frontmatter `last_updated` is ignored and should not be added. To keep a future mechanical sweep from resetting dates, add its SHA to `.git-blame-ignore-revs`.
+
+### Code Anchors & Freshness Governance
+
+To support deterministic drift detection without LLM dependencies (DRIFT-02, DRIFT-03), authored frontmatter optionally accepts:
+
+- `owner`: owning team or contributor (e.g. `team-infra`)
+- `review_cadence`: review period (e.g. `"90d"`, `"180d"`)
+- `code_anchors`: list of code paths or symbol spans the document relies on (e.g. `crates/vox-cli/src/main.rs`, `crates/vox-compiler/src/parser/mod.rs#Parser`).
+
+**Forbidden Keys in Authored Frontmatter:**
+- `last_updated`: derived automatically from Git history. Hand-authoring is a hard lint error (`hand-authored-last-updated`).
+- `last_verified` / `last_verified_commit`: managed exclusively by the Freshness Ledger (`contracts/reports/docs-freshness/ledger.v1.json`). Hand-authoring is a hard lint error (`hand-authored-last-verified`).
 
 Fast local lint loop:
 

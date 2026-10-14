@@ -2,7 +2,7 @@
 title: "Deep Research Local Depth, Structure, and Power Expansion (2026)"
 description: "Comprehensive architectural research blueprint and actionable catalogue of dozens of high-value improvements to dramatically scale Vox Deep Research locally and overcome online web reconnaissance weaknesses."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: true
 training_rationale: "Defines the concrete architectural roadmap for scaling deep research depth, local compute, autonomous crawling, multi-language sandboxing, and epistemic graph reasoning."
 ---

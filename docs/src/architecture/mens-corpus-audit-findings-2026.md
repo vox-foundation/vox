@@ -2,7 +2,7 @@
 title: "MENS Corpus Pipeline Audit & Golden Example Repair — 2026-05-13"
 description: "Audit findings and fixes for the MENS training data pipeline, golden example suite, and end-to-end corpus generation run."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: false
 ---
 

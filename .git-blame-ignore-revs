@@ -1,0 +1,16 @@
+# Mechanical commits ignored by git blame and by the docs 'Last updated' date map (docs-astro/src/utils/git-dates.mjs)
+
+# Cloudflare migration + sidebar category overhaul (743 files)
+014a41d015bc4132554aa8de96e6152e14db3796
+
+# strip last_updated frontmatter (337 files)
+4e98a0f87ee3cbae99925d6f14843e8fc00af192
+
+# clavis->secrets rename (part 1)
+ce22efcf0a323176195fd6fe70770e4dc988920c
+
+# clavis->secrets rename (part 2)
+c2c1b9f2c091b81516b29c50349b9c14a944695b
+
+# stale crate-name sweep
+3456cc901b4b44bed8a00966206950544b7999b2

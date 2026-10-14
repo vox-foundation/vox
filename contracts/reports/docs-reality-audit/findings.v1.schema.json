@@ -107,7 +107,19 @@
           "type": "string",
           "enum": ["new", "triaged", "in-progress", "verified", "closed"]
         },
-        "notes": { "type": "string" }
+        "notes": { "type": "string" },
+        "source": {
+          "type": "string",
+          "enum": ["mention_extractor", "manual_audit", "link_crawler"]
+        },
+        "fingerprint": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "detector": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     }
   }

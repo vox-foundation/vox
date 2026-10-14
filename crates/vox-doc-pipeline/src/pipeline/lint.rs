@@ -225,7 +225,7 @@ pub(crate) fn lint_file(path: &Path, content: &str, repo_root: &Path, errors: &m
             || after_backticks
                 .trim()
                 .chars()
-                .all(|c| c.is_alphanumeric() || c == '-' || c == '_');
+                .all(|c| c.is_alphanumeric() || c == '-' || c == '_' || c == ',' || c == '.');
 
         if backtick_count >= 1 && rest_is_fence_like {
             if (1..3).contains(&backtick_count) {
@@ -245,7 +245,8 @@ pub(crate) fn lint_file(path: &Path, content: &str, repo_root: &Path, errors: &m
                 } else {
                     fence_open = true;
                     fence_start_line = line_no;
-                    let lang = trimmed[backtick_count..].trim();
+                    let lang_full = trimmed[backtick_count..].trim();
+                    let lang = lang_full.split(',').next().unwrap_or("").trim();
                     fence_is_vox = lang == "vox";
                     if lang.is_empty() && !skip_unlabeled_code_fence(path, repo_root) {
                         errors.push(LintError {
@@ -428,6 +429,12 @@ fn lint_frontmatter(path: &Path, content: &str, errors: &mut Vec<LintError>) {
                     kind: LintKind::HandAuthoredLastUpdated,
                 });
             }
+        } else if line.starts_with("last_verified:") || line.starts_with("last_verified_commit:") {
+            errors.push(LintError {
+                file: path.to_owned(),
+                line: line_no,
+                kind: LintKind::HandAuthoredLastVerified,
+            });
         }
     }
 
@@ -574,7 +581,8 @@ fn rewrite_repo_relative_links(s: &str, needle: &str, open_len: usize, terminato
 fn normalize_for_compare(s: &str) -> String {
     let transformed = s
         // Used by why_vox (its two figure images).
-        .replace("docs/src/assets/", "./assets/")
+        .replace("docs/src/assets/", "/assets/")
+        .replace("./assets/", "/assets/")
         // The following `docs/src/X/` -> `./X/` swaps, the CHANGELOG.md case, and the
         // `examples/`/`crates/` rewrites below existed only for former how_vox/tier_table
         // content (decorator-reference links, ADR links, crate/example links, the
@@ -737,6 +745,19 @@ mod tests {
                 .iter()
                 .any(|e| matches!(e.kind, LintKind::HandAuthoredLastUpdated)),
             "did not expect a HandAuthoredLastUpdated error, got: {errs:?}"
+        );
+    }
+
+    #[test]
+    fn hand_authored_last_verified_is_a_hard_error() {
+        let mut errs = Vec::new();
+        let md_path = Path::new("fixture.md");
+        let content = "---\ntitle: \"Fixture\"\ndescription: \"A fixture page.\"\ncategory: \"Concepts\"\nlast_verified: \"2026-10-13\"\n---\n\nBody.\n";
+        lint_frontmatter(md_path, content, &mut errs);
+        assert!(
+            errs.iter()
+                .any(|e| matches!(e.kind, LintKind::HandAuthoredLastVerified)),
+            "expected HandAuthoredLastVerified error, got: {errs:?}"
         );
     }
 

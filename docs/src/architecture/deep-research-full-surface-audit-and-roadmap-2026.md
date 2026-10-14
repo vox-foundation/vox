@@ -2,7 +2,7 @@
 title: "Deep Research Full-Surface Audit, Architecture, and Roadmap (2026)"
 description: "End-to-end audit of Vox deep research from retrieval engines, model cascades (OpenRouter and local MENS), storage, and chat to the GUI, identifying critical bugs, architectural gaps, and domain solutions for shopping and code generation."
 category: "Architecture SSOTs"
-status: "current"
+status: "roadmap"
 training_eligible: true
 training_rationale: "Comprehensive audit and roadmap of deep research capabilities, bugs, and architecture in Vox."
 ---

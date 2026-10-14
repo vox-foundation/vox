@@ -113,6 +113,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::CheckDocsSsot => check_docs_ssot(&root),
         CiCmd::GuiCatalogParity => super::gui_catalog_parity::run(&root),
         CiCmd::GuiVersionSync { write } => vox_cli_ci::gui_version_sync::run(&root, write),
+        CiCmd::CrateApiSync { write } => vox_cli_ci::crate_api_docs::run(&root, write),
         CiCmd::GuiSurfaceCoverage { write } => super::gui_surface_coverage::run(&root, write),
         CiCmd::GuiSurfaceRegistry { write } => super::gui_surface_registry::run(&root, write),
         CiCmd::GuiHonesty => vox_cli_ci::gui_honesty::run(&root),

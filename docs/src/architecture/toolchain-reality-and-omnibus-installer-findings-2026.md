@@ -2,7 +2,7 @@
 title: "Toolchain Reality and Omnibus Installer Findings"
 description: "Analysis of the hidden dependency gap in the Vox 'single-command install' and the roadmap to true independence."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 ---
 
 # Toolchain Reality and Omnibus Installer Findings

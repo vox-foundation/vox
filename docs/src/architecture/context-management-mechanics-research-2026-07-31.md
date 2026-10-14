@@ -2,7 +2,7 @@
 title: "Context Management Mechanics — Verified Research 2026-07-31"
 description: "Implementation-level verified research on agent context management: exact clear_tool_uses_20250919 and compact_20260112 parameters, the memory tool's six commands, measured compaction-vs-clearing token results, and prompt-caching prefix mechanics (render order tools→system→messages, breakpoint semantics, per-model minimums) — including the finding that dynamic tool loading invalidates the entire cache."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: false
 ---
 
