@@ -37,7 +37,7 @@ v1.7 retires Mermaid as the primary diagram *authoring* format. A new pure L2 cr
 - Integer phases (83, 84, ...): Planned milestone work
 - Decimal phases (e.g. 85.1): Urgent insertions (marked INSERTED)
 
-- [ ] **Phase 83: Core Crate - Parser, IR & Diagnostics** - Registered L2 `vox-diagram` crate: graph DSL, recovering parser, typed IR, all-errors diagnostics with fixes, canonical `fmt`, input caps
+- [x] **Phase 83: Core Crate - Parser, IR & Diagnostics** - Registered L2 `vox-diagram` crate: graph DSL, recovering parser, typed IR, all-errors diagnostics with fixes, canonical `fmt`, input caps (completed 2026-10-16)
 - [ ] **Phase 84: Mermaid Emitter & Strict Importer** - Sanitized Mermaid export that real Mermaid accepts; fail-closed importer verified by corpus round trip
 - [ ] **Phase 85: Graph Layout & Deterministic SVG** - `dagre` seam behind a go/no-go spike; byte-identical, injection-safe, themeable SVG
 - [ ] **Phase 86: Sequence Kind** - `sequence` DSL, width-aware lane SVG, and DSL round trip for the corpus sequence blocks
@@ -61,7 +61,7 @@ v1.7 retires Mermaid as the primary diagram *authoring* format. A new pure L2 cr
   4. Oversized input, over-nested containers, and an edge whose endpoint is a container are rejected with span-precise errors; adversarial inputs terminate within a bounded time with no panic and no silent mis-layout.
   5. `vox-diagram` is registered at L2 (single crate, no `-core` split) with `layers.toml` row, `where-things-live.md` rows, hakari entry and crate docs, and hosted CI gates (`vox-arch-check`, `vox ci crate-edges`, `ssot-drift`) pass with no new consumer edge.
 
-**Plans**: 7/7 plans executed in 6 waves
+**Plans**: 7/7 plans complete in 6 waves
 
 Plans:
 **Wave 1**
@@ -216,7 +216,7 @@ Phases execute in numeric order, with the parallel opportunities noted under Ove
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 83. Core Crate - Parser, IR & Diagnostics | 7/7 | In Progress | - |
+| 83. Core Crate - Parser, IR & Diagnostics | 7/7 | Complete    | 2026-10-16 |
 | 84. Mermaid Emitter & Strict Importer | 0/TBD | Not started | - |
 | 85. Graph Layout & Deterministic SVG | 0/TBD | Not started | - |
 | 86. Sequence Kind | 0/TBD | Not started | - |

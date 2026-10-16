@@ -1,7 +1,7 @@
 ---
 phase: 83-core-crate-parser-ir-diagnostics
 verified: 2026-10-16T00:00:00Z
-status: human_needed
+status: passed
 score: 4/5 must-haves verified
 covered_files:
   - ".planning/workstreams/voxdiagram/phases/83-core-crate-parser-ir-diagnostics/83-01-PLAN.md"
@@ -124,3 +124,7 @@ No code-level gaps. Notes (non-blocking):
 
 _Verified: 2026-10-16_
 _Verifier: Claude (gsd-verifier)_
+
+## Human Validation
+
+2026-10-16: user accepted local evidence for SC5 (hosted CI gates); hosted CI will run on the milestone PR.

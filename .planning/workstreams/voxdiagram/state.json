@@ -6,7 +6,7 @@
     {
       "number": "83",
       "name": "Core Crate - Parser, IR & Diagnostics",
-      "status": "in_progress"
+      "status": "complete"
     },
     {
       "number": "84",
@@ -51,8 +51,8 @@
   ],
   "next": {
     "command": "/gsd:progress --next",
-    "label": "Advance to the next step (verify)",
-    "reason": "Phase 83 of 9 · ready to verify"
+    "label": "Advance to the next step (plan phase 84)",
+    "reason": "Phase 84 of 9 — needs a plan"
   },
-  "updated_at": "2026-10-16T20:33:20.733Z"
+  "updated_at": "2026-10-16T23:23:10.529Z"
 }
