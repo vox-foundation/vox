@@ -178,3 +178,28 @@ proptest! {
         }
     }
 }
+
+const MERMAID_DOCS: [&str; 4] = [
+    "flowchart TD\nA --> B\nB --> C: \"x y\"\nC --> A\n",
+    "graph LR\nnode a: \"x\"\nnode b: \"y\"\na -> b: \"go\"\n",
+    "flowchart LR\nsubgraph s [S]\nA[Label] --> B\nend\n",
+    "graph TD\nA -->|yes| B\nB --- C\n",
+];
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(256))]
+
+    /// Same property for Mermaid-header documents, whose EOF scope closer is a different edit.
+    #[test]
+    fn truncate_and_repair_mermaid_never_worsens(doc in 0usize..4, cut in 0usize..256) {
+        let src = MERMAID_DOCS[doc];
+        let at = (0..=src.len().min(cut)).rev().find(|&i| src.is_char_boundary(i)).unwrap_or(0);
+        let bad = &src[..at];
+        let (before, after) = (check(bad), repair(bad, 8));
+        let (b, a) = (error_count(&before), error_count(&after.report));
+        prop_assert!(a <= b, "{b} -> {a}\n{bad:?}\n=>\n{:?}", after.text);
+        // No Mermaid doc contains `}`, so trailing content after one is a repair artifact.
+        let stray = after.report.diagnostics.iter().any(|d| d.code == "diagram/trailing-content");
+        prop_assert!(!stray, "{bad:?}\n=>\n{:?}", after.text);
+    }
+}

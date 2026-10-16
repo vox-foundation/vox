@@ -27,6 +27,23 @@ fn cr01_truncated_mid_string_repairs_quote_before_brace() {
     assert!(r.report.valid, "{:?}\n{}", r.report.diagnostics, r.text);
 }
 
+/// CR-01 (iteration 2): the Mermaid-header closer (`}\n`, `\n}\n`) must also sort after the
+/// closing quote inserted at the same EOF offset.
+#[test]
+fn cr01_mermaid_header_truncated_mid_string_repairs_quote_before_brace() {
+    for src in [
+        "flowchart TD\nA --> B\nB --> C: \"x",
+        "graph LR\nnode a: \"x",
+    ] {
+        let r = repair(src, 8);
+        assert!(
+            r.report.valid,
+            "{src:?}: {:?}\n{}",
+            r.report.diagnostics, r.text
+        );
+    }
+}
+
 /// CR-02: a decoded `\n` in the trailing edge label must stay escaped in the generated fix.
 #[test]
 fn cr02_chained_edge_label_keeps_newline_escaped() {

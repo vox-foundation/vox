@@ -81,8 +81,9 @@ pub fn apply_fixes(source: &str, diagnostics: &[Diagnostic]) -> FixOutcome {
         }
     }
     // Stable: equal (start, end) keeps acceptance order, except that EOF scope closers
-    // (`\n}`) go last, so a closing quote inserted at the same offset precedes them.
-    accepted.sort_by_key(|&(s, e, r)| (s, e, r == "\n}"));
+    // (`\n}`, and the Mermaid-header `}\n` / `\n}\n`) go last, so a closing quote inserted at
+    // the same offset precedes them.
+    accepted.sort_by_key(|&(s, e, r)| (s, e, r.trim() == "}"));
     let mut text = String::with_capacity(source.len());
     let mut pos = 0;
     for (s, e, replacement) in accepted {
