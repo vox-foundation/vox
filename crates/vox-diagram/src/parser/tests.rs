@@ -101,3 +101,56 @@ fn blank_lines_collapse_to_a_flag_and_never_mark_the_first_entry() {
         .collect();
     assert_eq!(flags, [false, true, false]);
 }
+
+mod recovery {
+    use crate::diag::Collector;
+    use crate::lexer::lex;
+    use crate::parser::run;
+    use crate::span::{LineIndex, Location};
+    use crate::{check, codes};
+
+    #[test]
+    fn broken_node_is_still_declared_so_edges_do_not_cascade() {
+        let r = check("graph {\n node a:\n node b: \"B\"\n a -> b\n}\n");
+        let got: Vec<_> = r.diagnostics.iter().map(|d| d.code).collect();
+        assert_eq!(got, [codes::UNEXPECTED_TOKEN]);
+    }
+
+    #[test]
+    fn container_header_without_brace_is_declared_empty() {
+        let r = check("graph {\n container c: \"C\"\n node x: \"X\"\n x -> x\n}\n");
+        let got: Vec<_> = r.diagnostics.iter().map(|d| d.code).collect();
+        assert_eq!(got, [codes::UNEXPECTED_TOKEN]);
+        assert_eq!(r.diagnostics[0].span.line, 2);
+    }
+
+    #[test]
+    fn container_header_with_garbled_label_still_parses_its_body() {
+        let r = check("graph {\n container c: oops {\n node x: \"X\"\n }\n c.x -> c.x\n}\n");
+        let got: Vec<_> = r.diagnostics.iter().map(|d| d.code).collect();
+        assert_eq!(got, [codes::UNEXPECTED_TOKEN], "{:?}", r.diagnostics);
+    }
+
+    #[test]
+    fn edge_with_unparseable_endpoint_is_dropped_without_cascade() {
+        let r = check("graph {\n node a: \"A\"\n a -> ?\n a -> a\n}\n");
+        assert_eq!(r.diagnostics.len(), 1);
+        assert_eq!(r.stats.edges, 1);
+    }
+
+    #[test]
+    fn exhausted_fuel_halts_with_exactly_one_limit_diagnostics() {
+        let src = "graph {\n a -> b\n a -> b\n a -> b\n a -> b\n a -> b\n}\n";
+        let idx = LineIndex::new(src);
+        let (toks, _) = lex(src, &idx);
+        let mut sink = Collector::new();
+        let doc = run(src, &idx, &toks, &mut sink, 3);
+        let out = sink.finish(Location::default());
+        let sentinels = out
+            .iter()
+            .filter(|d| d.code == codes::LIMIT_DIAGNOSTICS)
+            .count();
+        assert_eq!(sentinels, 1);
+        assert!(doc.body.entries.len() < 5, "parsing must stop early");
+    }
+}

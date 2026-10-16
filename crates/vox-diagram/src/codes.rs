@@ -21,6 +21,9 @@ pub const FORBIDDEN_CHAR: &str = "diagram/forbidden-char";
 /// A word that is not a valid identifier.
 pub const INVALID_IDENTIFIER: &str = "diagram/invalid-identifier";
 
+/// More diagnostics were found than one report can hold (sentinel, always a warning).
+pub const LIMIT_DIAGNOSTICS: &str = "diagram/limit-diagnostics";
+
 /// Every code the crate can emit.
 pub const ALL_CODES: &[&str] = &[
     UNEXPECTED_TOKEN,
@@ -32,6 +35,7 @@ pub const ALL_CODES: &[&str] = &[
     INVALID_ESCAPE,
     FORBIDDEN_CHAR,
     INVALID_IDENTIFIER,
+    LIMIT_DIAGNOSTICS,
 ];
 
 #[cfg(test)]
@@ -51,6 +55,6 @@ mod tests {
             );
             assert!(!ALL_CODES[..i].contains(code), "{code} is duplicated");
         }
-        assert_eq!(ALL_CODES.len(), 9);
+        assert_eq!(ALL_CODES.len(), 10);
     }
 }

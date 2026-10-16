@@ -3,10 +3,11 @@
 
 use crate::ast::{Block, Comment, Document, Entry, Item, ItemKind};
 use crate::codes;
-use crate::diag::Diagnostic;
+use crate::diag::{Collector, Diagnostic, clip};
 use crate::lexer::{Token, TokenKind};
 use crate::span::{LineIndex, Span};
 
+mod recover;
 mod stmt;
 #[cfg(test)]
 mod tests;
@@ -16,34 +17,43 @@ struct Parser<'a> {
     idx: &'a LineIndex,
     toks: &'a [Token],
     pos: usize,
-    diags: Vec<Diagnostic>,
+    diags: &'a mut Collector,
+    /// Work budget, see [`Parser::spend_fuel`].
+    fuel: usize,
+    /// Set when the collector is full or the fuel ran out; parsing stops.
+    halted: bool,
 }
 
-/// Parse a token stream (ending in `Eof`) into a document plus syntax diagnostics.
+/// Parse a token stream (ending in `Eof`) into a document; diagnostics go to `diags`.
 pub(crate) fn parse_tokens(
     src: &str,
     idx: &LineIndex,
     toks: &[Token],
-) -> (Document, Vec<Diagnostic>) {
+    diags: &mut Collector,
+) -> Document {
+    run(src, idx, toks, diags, 4 * toks.len() + 1_000)
+}
+
+fn run(src: &str, idx: &LineIndex, toks: &[Token], diags: &mut Collector, fuel: usize) -> Document {
+    let halted = diags.is_full();
     let mut p = Parser {
         src,
         idx,
         toks,
         pos: 0,
-        diags: Vec::new(),
+        diags,
+        fuel,
+        halted,
     };
-    let doc = p.document();
-    (doc, p.diags)
+    p.document()
 }
 
 fn describe(kind: &TokenKind) -> String {
     match kind {
-        TokenKind::Ident(s) => format!("identifier `{}`", s.chars().take(20).collect::<String>()),
-        TokenKind::Str { value, .. } => {
-            format!("string \"{}\"", value.chars().take(20).collect::<String>())
-        }
+        TokenKind::Ident(s) => format!("identifier `{}`", clip(s)),
+        TokenKind::Str { value, .. } => format!("string \"{}\"", clip(value)),
         TokenKind::Comment(_) => "a comment".into(),
-        TokenKind::BadIdent(s) => format!("`{}`", s.chars().take(20).collect::<String>()),
+        TokenKind::BadIdent(s) => format!("`{}`", clip(s)),
         TokenKind::Arrow => "`->`".into(),
         TokenKind::Colon => "`:`".into(),
         TokenKind::Dot => "`.`".into(),
@@ -83,18 +93,14 @@ impl Parser<'_> {
 
     /// An `unexpected-token` error over `span`.
     fn error_at(&mut self, span: Span, message: String) {
-        let loc = self.idx.location(self.src, span);
-        self.diags
-            .push(Diagnostic::error(codes::UNEXPECTED_TOKEN, message, loc));
+        self.report(codes::UNEXPECTED_TOKEN, span, message);
     }
 
-    /// Advance to the next newline, `}` or EOF without consuming it.
-    fn skip_to_stmt_end(&mut self) {
-        while !matches!(
-            self.peek().kind,
-            TokenKind::Newline | TokenKind::RBrace | TokenKind::Eof
-        ) {
-            self.bump();
+    /// An error with `code` over `span`; a full collector halts parsing.
+    fn report(&mut self, code: &'static str, span: Span, message: String) {
+        let loc = self.idx.location(self.src, span);
+        if self.diags.push(Diagnostic::error(code, message, loc)) {
+            self.halted = true;
         }
     }
 
@@ -165,7 +171,7 @@ impl Parser<'_> {
         }
         // Anything after the closing brace except newlines and comments is an error.
         let trailing = self.own_line_comments();
-        if !matches!(self.peek().kind, TokenKind::Eof) {
+        if !self.halted && !matches!(self.peek().kind, TokenKind::Eof) {
             self.unexpected("end of input");
         }
         Document {
@@ -188,7 +194,13 @@ impl Parser<'_> {
             self.bump();
         }
         let mut blank = false;
+        let mut last_pos = usize::MAX;
         loop {
+            if self.halted || !self.spend_fuel() {
+                break;
+            }
+            debug_assert!(self.pos != last_pos, "parser stalled at token {}", self.pos);
+            last_pos = self.pos;
             // A blank line never marks the first entry of a block.
             let blank_before = blank && !entries.is_empty();
             match self.peek().kind {

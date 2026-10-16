@@ -2,13 +2,13 @@
 
 use crate::ast::Document;
 use crate::codes;
-use crate::diag::{CheckReport, Diagnostic, Severity, Stats};
+use crate::diag::{CheckReport, Collector, Diagnostic, Stats};
 use crate::ir::Ir;
 use crate::lexer::lex;
 use crate::limits::MAX_SOURCE_BYTES;
 use crate::parser::parse_tokens;
 use crate::resolve::resolve;
-use crate::span::{LineIndex, Span, to_u32};
+use crate::span::{LineIndex, Location, Span, to_u32};
 
 /// Result of [`parse`].
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -40,14 +40,16 @@ fn size_gate(source: &str) -> Option<Diagnostic> {
     Some(Diagnostic::error(codes::LIMIT_SOURCE, msg, loc))
 }
 
-fn parse_with(source: &str, idx: &LineIndex) -> Parsed {
-    let (toks, mut diagnostics) = lex(source, idx);
-    let (doc, syntax) = parse_tokens(source, idx, &toks);
-    diagnostics.extend(syntax);
-    Parsed {
-        ast: Some(doc),
-        diagnostics,
-    }
+/// Lex and parse into `sink`; the lexer's diagnostics go in first.
+fn parse_into(source: &str, idx: &LineIndex, sink: &mut Collector) -> Document {
+    let (toks, lexical) = lex(source, idx);
+    sink.extend(lexical);
+    parse_tokens(source, idx, &toks, sink)
+}
+
+fn eof_location(source: &str, idx: &LineIndex) -> Location {
+    let end = to_u32(source.len());
+    idx.location(source, Span { start: end, end })
 }
 
 /// Lex and parse `source`. Never panics.
@@ -58,43 +60,40 @@ pub fn parse(source: &str) -> Parsed {
             diagnostics: vec![d],
         };
     }
-    parse_with(source, &LineIndex::new(source))
+    let idx = LineIndex::new(source);
+    let mut sink = Collector::new();
+    let doc = parse_into(source, &idx, &mut sink);
+    Parsed {
+        ast: Some(doc),
+        diagnostics: sink.finish(eof_location(source, &idx)),
+    }
 }
 
 /// Check `source` end to end: size gate, lex, parse, resolve. The IR is withheld while any
 /// `Error` diagnostic exists. Never panics.
 pub fn check(source: &str) -> CheckReport {
     if let Some(d) = size_gate(source) {
-        return finish(vec![d], Stats::default(), None);
+        return finish(vec![d], true, Stats::default(), None);
     }
     let idx = LineIndex::new(source);
-    let Parsed {
-        ast,
-        mut diagnostics,
-    } = parse_with(source, &idx);
-    let mut stats = Stats::default();
-    let mut graph = None;
-    if let Some(doc) = ast {
-        let (g, s, sem) = resolve(&doc, source, &idx);
-        diagnostics.extend(sem);
-        stats = s;
-        graph = Some(g);
-    }
-    diagnostics.sort_by_key(|d| (d.span.start, d.code));
-    let has_error = diagnostics.iter().any(|d| d.severity == Severity::Error);
-    finish(
-        diagnostics,
-        stats,
-        if has_error {
-            None
-        } else {
-            graph.map(Ir::Graph)
-        },
-    )
+    let mut sink = Collector::new();
+    let doc = parse_into(source, &idx, &mut sink);
+    let (graph, stats, semantic) = resolve(&doc, source, &idx);
+    sink.extend(semantic);
+    // Read before `finish`: a dropped Error still invalidates the report.
+    let has_error = sink.has_error();
+    let diagnostics = sink.finish(eof_location(source, &idx));
+    let ir = (!has_error).then_some(Ir::Graph(graph));
+    finish(diagnostics, has_error, stats, ir)
 }
 
-fn finish(diagnostics: Vec<Diagnostic>, stats: Stats, ir: Option<Ir>) -> CheckReport {
-    let valid = !diagnostics.iter().any(|d| d.severity == Severity::Error);
+fn finish(
+    diagnostics: Vec<Diagnostic>,
+    has_error: bool,
+    stats: Stats,
+    ir: Option<Ir>,
+) -> CheckReport {
+    let valid = !has_error;
     CheckReport {
         schema_version: 1,
         valid,

@@ -2,7 +2,9 @@
 //! contextual: `node`/`container`/`direction` followed by `->` or `.` is an edge endpoint.
 
 use super::Parser;
-use crate::ast::{ContainerDecl, DirectionStmt, EdgeStmt, Ident, ItemKind, Label, NodeDecl, Ref};
+use crate::ast::{
+    Block, ContainerDecl, DirectionStmt, EdgeStmt, Ident, ItemKind, Label, NodeDecl, Ref,
+};
 use crate::ir::{Direction, Shape};
 use crate::lexer::TokenKind;
 use crate::span::Span;
@@ -88,16 +90,35 @@ impl Parser<'_> {
         }))
     }
 
+    /// A label made from the id, used when the real one cannot be recovered.
+    fn placeholder(id: &Ident) -> Label {
+        Label {
+            value: id.name.clone(),
+            span: id.span,
+        }
+    }
+
+    /// Declare-then-diagnose: once `node <id>` was read the node is always declared, even
+    /// when the rest is broken, so later edges to it do not cascade into `undeclared-node`.
     fn node_decl(&mut self) -> Option<ItemKind> {
         self.bump(); // `node`
         let id = self.ident("a node id")?;
-        self.expect(&TokenKind::Colon, "`:`")?;
-        let label = self.label()?;
+        let has_colon = self.expect(&TokenKind::Colon, "`:`").is_some();
+        let mut label = None;
+        if has_colon || matches!(self.peek().kind, TokenKind::Str { .. }) {
+            label = self.label();
+            if label.is_none() {
+                self.skip_to_stmt_end();
+            }
+        } else {
+            self.skip_to_stmt_end();
+        }
         let shape = if matches!(self.peek().kind, TokenKind::LBrace) {
-            self.attr_block()?
+            self.attr_block().unwrap_or_default()
         } else {
             Shape::default()
         };
+        let label = label.unwrap_or_else(|| Self::placeholder(&id));
         Some(ItemKind::Node(NodeDecl { id, label, shape }))
     }
 
@@ -178,14 +199,33 @@ impl Parser<'_> {
         Some(shape)
     }
 
+    /// Declare-then-diagnose for a container header. A broken header with a `{` later on the
+    /// same line still parses its body; with no `{` on the line the container is declared
+    /// empty (the body's `}` then surfaces as one acceptable follow-up error).
     fn container_decl(&mut self) -> Option<ItemKind> {
         self.bump(); // `container`
         let id = self.ident("a container id")?;
-        self.expect(&TokenKind::Colon, "`:`")?;
-        let label = self.label()?;
-        self.expect(&TokenKind::LBrace, "`{`")?;
-        let header_trailing = self.trailing_comment();
-        let body = self.block(false);
+        let has_colon = self.expect(&TokenKind::Colon, "`:`").is_some();
+        let label = if has_colon || matches!(self.peek().kind, TokenKind::Str { .. }) {
+            self.label()
+        } else {
+            None
+        };
+        let opened = if matches!(self.peek().kind, TokenKind::LBrace) {
+            self.bump();
+            true
+        } else {
+            if label.is_some() {
+                self.unexpected("`{`");
+            }
+            self.consume_through_lbrace()
+        };
+        let label = label.unwrap_or_else(|| Self::placeholder(&id));
+        let (header_trailing, body) = if opened {
+            (self.trailing_comment(), self.block(false))
+        } else {
+            (None, Block::default())
+        };
         Some(ItemKind::Container(ContainerDecl {
             id,
             label,
