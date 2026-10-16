@@ -5,7 +5,7 @@
 use super::Parser;
 use crate::ast::Label;
 use crate::codes;
-use crate::diag::clip;
+use crate::diag::{Fix, clip};
 use crate::lexer::TokenKind;
 use crate::span::Span;
 
@@ -90,10 +90,21 @@ impl Parser<'_> {
         self.pos = self.toks.len().saturating_sub(1);
     }
 
-    /// `unclosed-brace` at the `{` that opened the scope.
+    /// `unclosed-brace` at the `{` that opened the scope. At EOF the fix appends `\n}`; one
+    /// diagnostic per open scope, so two open scopes insert two (never deduplicated). Before
+    /// EOF (an attribute block cut short by the next declaration) no single edit is safe.
     pub(super) fn unclosed(&mut self, open: Span) {
         let msg = "unclosed `{`; add a matching `}`".to_string();
-        self.report(codes::UNCLOSED_BRACE, open, msg);
+        let at = self.peek().span;
+        let fixes = if matches!(self.peek().kind, TokenKind::Eof) {
+            vec![Fix {
+                span: at,
+                replacement: "\n}".to_string(),
+            }]
+        } else {
+            Vec::new()
+        };
+        self.report_full(codes::UNCLOSED_BRACE, open, msg, None, fixes);
     }
 
     /// After a broken attribute: skip to the `}` that closes the attribute block and consume

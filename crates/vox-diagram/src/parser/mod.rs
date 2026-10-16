@@ -11,7 +11,7 @@
 
 use crate::ast::{Block, Comment, Document, Entry, Item, ItemKind};
 use crate::codes;
-use crate::diag::{Collector, Diagnostic, clip};
+use crate::diag::{Collector, Diagnostic, Fix, clip};
 use crate::lexer::{Token, TokenKind};
 use crate::limits::{MAX_EDGES, MAX_NODES};
 use crate::span::{LineIndex, Span};
@@ -123,9 +123,22 @@ impl Parser<'_> {
         message: String,
         help: Option<String>,
     ) {
+        self.report_full(code, span, message, help, Vec::new());
+    }
+
+    /// An error with `code` over `span`, an optional `help` and machine-applicable `fixes`.
+    fn report_full(
+        &mut self,
+        code: &'static str,
+        span: Span,
+        message: String,
+        help: Option<String>,
+        fixes: Vec<Fix>,
+    ) {
         let loc = self.idx.location(self.src, span);
         let mut d = Diagnostic::error(code, message, loc);
         d.help = help;
+        d.fixes = fixes;
         if self.diags.push(d) {
             self.halted = true;
         }

@@ -33,6 +33,8 @@ pub mod sequence_ir;
 pub mod span;
 
 mod check;
+/// Machine-applicable fixes and the bounded repair loop.
+mod fixes;
 mod lexer;
 mod parser;
 /// Canonical formatter.
@@ -40,4 +42,5 @@ mod print;
 mod resolve;
 
 pub use check::{Parsed, check, parse};
+pub use fixes::{FixOutcome, Repaired, apply_fixes, repair};
 pub use print::fmt;
