@@ -4,18 +4,18 @@ milestone: v1.7
 milestone_name: VoxDiagram
 current_phase: 83
 current_phase_name: Core Crate - Parser, IR & Diagnostics
-current_plan: N/A
-status: planning
-stopped_at: Roadmap created (Phases 83-91); ready to plan Phase 83
-last_updated: "2026-10-16T18:53:51.533Z"
+current_plan: 2
+status: executing
+stopped_at: Completed 83-01-PLAN.md
+last_updated: "2026-10-16T19:09:24.584Z"
 last_activity: 2026-10-16
-last_activity_desc: Roadmap created for milestone v1.7 (9 phases, 25/25 requirements mapped)
-state_head: 112eb173e719b8c2c6210020bba8008a2c64e9ae
+last_activity_desc: Phase 83 execution started
+state_head: 950fcca513c24fe36b60386f7f8b8c468a759d46
 progress:
   total_phases: 9
   completed_phases: 0
   total_plans: 7
-  completed_plans: 0
+  completed_plans: 1
 ---
 
 # Project State: VoxDiagram (`voxdiagram`)
@@ -25,21 +25,21 @@ progress:
 See: `.planning/PROJECT.md` (shared, owned by the `unified` workstream, not edited here) and `.planning/workstreams/voxdiagram/PROJECT-MILESTONE.md`.
 
 **Core value:** For this milestone, agents and humans author diagrams that cannot render-crash, and every live docs diagram renders deterministically.
-**Current focus:** Phase 83 — Core Crate: Parser, IR & Diagnostics.
+**Current focus:** Phase 83 — Core Crate - Parser, IR & Diagnostics
 
 ## Current Position
 
-Phase: 83 (Core Crate - Parser, IR & Diagnostics) — READY TO EXECUTE
-Plan: — (not yet planned)
-Status: Ready to plan Phase 83
-Last activity: 2026-10-16 — Roadmap created for milestone v1.7 (9 phases, 25/25 requirements mapped)
+Phase: 83 (Core Crate - Parser, IR & Diagnostics) — EXECUTING
+Plan: 2 of 7
+Status: Ready to execute
+Last activity: 2026-10-16 — Phase 83 execution started
 
 Progress: [░░░░░░░░░░] 0% (0/9 phases)
 
 ## Progress
 
 **Phases Complete:** 0
-**Current Plan:** N/A
+**Current Plan:** 2
 
 ## Key Decisions (milestone-level)
 
@@ -64,5 +64,18 @@ None yet.
 
 ## Session Continuity
 
-**Stopped At:** Roadmap created; awaiting orchestrator commit and user approval.
-**Resume File:** `.planning/workstreams/voxdiagram/ROADMAP.md`
+**Last session:** 2026-10-16T19:09:24.572Z
+
+**Stopped At:** Completed 83-01-PLAN.md
+**Resume File:** None
+
+## Performance Metrics
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 83 P01 | 70min | 2 tasks | 21 files |
+
+## Decisions
+
+- [Phase 83]: 83-01: all phase deps declared in the tracer plan so Cargo.toml/Cargo.lock have one owner; later plans must not touch them
+- [Phase 83]: 83-01: resolver keeps first declaration on duplicate ids with no diagnostic until plan 03

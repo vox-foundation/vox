@@ -1,12 +1,58 @@
 {
   "contract": "1.0.0",
   "flavor": "core",
-  "milestone": null,
-  "phases": [],
+  "milestone": "v1.7 — VoxDiagram",
+  "phases": [
+    {
+      "number": "83",
+      "name": "Core Crate - Parser, IR & Diagnostics",
+      "status": "in_progress"
+    },
+    {
+      "number": "84",
+      "name": "Mermaid Emitter & Strict Importer",
+      "status": "pending"
+    },
+    {
+      "number": "85",
+      "name": "Graph Layout & Deterministic SVG",
+      "status": "pending"
+    },
+    {
+      "number": "86",
+      "name": "Sequence Kind",
+      "status": "pending"
+    },
+    {
+      "number": "87",
+      "name": "Doc-Pipeline Consumer & Legacy-Mermaid Ratchet",
+      "status": "pending"
+    },
+    {
+      "number": "88",
+      "name": "MCP Tool, CLI & Agent Guidance",
+      "status": "pending"
+    },
+    {
+      "number": "89",
+      "name": "Docs-Astro Integration",
+      "status": "pending"
+    },
+    {
+      "number": "90",
+      "name": "Corpus Migration & Gate Tightening",
+      "status": "pending"
+    },
+    {
+      "number": "91",
+      "name": "Measurement Harness & Advisory Closure",
+      "status": "pending"
+    }
+  ],
   "next": {
-    "command": "/gsd:discuss-phase",
-    "label": "Discuss the first phase",
-    "reason": "Project initialized — plan your first phase"
+    "command": "/gsd:progress --next",
+    "label": "Advance to the next step",
+    "reason": "Phase 83 of 9 · executing"
   },
-  "updated_at": "2026-10-16T13:42:53.270Z"
+  "updated_at": "2026-10-16T19:08:41.238Z"
 }
