@@ -80,8 +80,9 @@ pub fn apply_fixes(source: &str, diagnostics: &[Diagnostic]) -> FixOutcome {
             None => skipped += 1,
         }
     }
-    // Stable: equal (start, end) keeps acceptance order.
-    accepted.sort_by_key(|&(s, e, _)| (s, e));
+    // Stable: equal (start, end) keeps acceptance order, except that EOF scope closers
+    // (`\n}`) go last, so a closing quote inserted at the same offset precedes them.
+    accepted.sort_by_key(|&(s, e, r)| (s, e, r == "\n}"));
     let mut text = String::with_capacity(source.len());
     let mut pos = 0;
     for (s, e, replacement) in accepted {
