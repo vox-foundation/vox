@@ -4,18 +4,18 @@ milestone: v1.7
 milestone_name: VoxDiagram
 current_phase: 83
 current_phase_name: Core Crate - Parser, IR & Diagnostics
-current_plan: 2
+current_plan: 3
 status: executing
-stopped_at: Completed 83-01-PLAN.md
-last_updated: "2026-10-16T19:09:24.584Z"
+stopped_at: Completed 83-02-PLAN.md
+last_updated: "2026-10-16T19:21:54.429Z"
 last_activity: 2026-10-16
 last_activity_desc: Phase 83 execution started
-state_head: 950fcca513c24fe36b60386f7f8b8c468a759d46
+state_head: 167836957ba5d7b73174bda1ed58a005a0e705bd
 progress:
   total_phases: 9
   completed_phases: 0
   total_plans: 7
-  completed_plans: 1
+  completed_plans: 2
 ---
 
 # Project State: VoxDiagram (`voxdiagram`)
@@ -30,7 +30,7 @@ See: `.planning/PROJECT.md` (shared, owned by the `unified` workstream, not edit
 ## Current Position
 
 Phase: 83 (Core Crate - Parser, IR & Diagnostics) — EXECUTING
-Plan: 2 of 7
+Plan: 3 of 7
 Status: Ready to execute
 Last activity: 2026-10-16 — Phase 83 execution started
 
@@ -39,7 +39,7 @@ Progress: [░░░░░░░░░░] 0% (0/9 phases)
 ## Progress
 
 **Phases Complete:** 0
-**Current Plan:** 2
+**Current Plan:** 3
 
 ## Key Decisions (milestone-level)
 
@@ -64,9 +64,9 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-10-16T19:09:24.572Z
+**Last session:** 2026-10-16T19:21:54.405Z
 
-**Stopped At:** Completed 83-01-PLAN.md
+**Stopped At:** Completed 83-02-PLAN.md
 **Resume File:** None
 
 ## Performance Metrics
@@ -74,8 +74,11 @@ None yet.
 | Plan | Duration | Tasks | Files |
 |------|----------|-------|-------|
 | Phase 83 P01 | 70min | 2 tasks | 21 files |
+| Phase 83 P02 | 60min | 3 tasks | 14 files |
 
 ## Decisions
 
 - [Phase 83]: 83-01: all phase deps declared in the tracer plan so Cargo.toml/Cargo.lock have one owner; later plans must not touch them
 - [Phase 83]: 83-01: resolver keeps first declaration on duplicate ids with no diagnostic until plan 03
+- [Phase 83]: 83-02: lexer emits its own diagnostics and best-effort tokens (Str terminated:false, BadIdent) that the parser accepts, so one mistake yields one diagnostic
+- [Phase 83]: 83-02: direction: is a statement only directly inside graph { }; in a container it is an unexpected-token

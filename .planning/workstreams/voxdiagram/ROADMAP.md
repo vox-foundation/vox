@@ -61,14 +61,14 @@ v1.7 retires Mermaid as the primary diagram *authoring* format. A new pure L2 cr
   4. Oversized input, over-nested containers, and an edge whose endpoint is a container are rejected with span-precise errors; adversarial inputs terminate within a bounded time with no panic and no silent mis-layout.
   5. `vox-diagram` is registered at L2 (single crate, no `-core` split) with `layers.toml` row, `where-things-live.md` rows, hakari entry and crate docs, and hosted CI gates (`vox-arch-check`, `vox ci crate-edges`, `ssot-drift`) pass with no new consumer edge.
 
-**Plans**: 1/7 plans executed in 6 waves
+**Plans**: 2/7 plans executed in 6 waves
 
 Plans:
 **Wave 1**
 - [x] 83-01-PLAN.md — Tracer `check()` through every layer + L2 crate registration (wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 83-02-PLAN.md — Full graph grammar to resolved IR: canonical example, lexer, trivia, determinism guard (wave 2)
+- [x] 83-02-PLAN.md — Full graph grammar to resolved IR: canonical example, lexer, trivia, determinism guard (wave 2)
 - [ ] 83-03-PLAN.md — CommonMark fence scanner + sequence IR types (wave 2, parallel with 02)
 
 **Wave 3** *(blocked on Wave 2 completion)*
@@ -216,7 +216,7 @@ Phases execute in numeric order, with the parallel opportunities noted under Ove
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 83. Core Crate - Parser, IR & Diagnostics | 1/7 | In Progress | - |
+| 83. Core Crate - Parser, IR & Diagnostics | 2/7 | In Progress | - |
 | 84. Mermaid Emitter & Strict Importer | 0/TBD | Not started | - |
 | 85. Graph Layout & Deterministic SVG | 0/TBD | Not started | - |
 | 86. Sequence Kind | 0/TBD | Not started | - |
