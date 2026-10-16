@@ -86,7 +86,8 @@ pub(crate) fn declarable(name: &str) -> bool {
 
 /// Rule R: the insert that declares `node <name>: "<name>"` inside the scope whose braces are
 /// `open` and `close`. Multi-line scope: at the end of the `{` line, so the declaration is the
-/// scope's first statement. Single-line scope: right after the `{`, with a trailing newline.
+/// scope's first statement. Otherwise (single-line scope, or more than a comment after the
+/// `{`): right after the `{`, with a trailing newline.
 /// `None` when `name` is not safely declarable.
 pub(crate) fn declare_node(src: &str, open: Span, close: Span, name: &str) -> Option<Fix> {
     if !declarable(name) {
@@ -99,7 +100,14 @@ pub(crate) fn declare_node(src: &str, open: Span, close: Span, name: &str) -> Op
 pub(crate) fn insert_decl(src: &str, open: Span, close: Span, decl: &str) -> Option<Fix> {
     let (after_open, before_close) = (open.end as usize, close.start as usize);
     let indent = indent_of(src, open.start);
-    let (at, replacement) = match src.get(after_open..before_close)?.find('\n') {
+    let scope = src.get(after_open..before_close)?;
+    // The end of the `{` line hosts the declaration only when nothing but a comment follows
+    // the `{` there; otherwise (`{ container c {`) it would land in a nested block.
+    let line_end = scope.find('\n').filter(|&nl| {
+        let rest = scope.get(..nl).unwrap_or_default().trim();
+        rest.is_empty() || rest.starts_with("//")
+    });
+    let (at, replacement) = match line_end {
         None => (after_open, format!("\n{indent}    {decl}\n")),
         Some(nl) => {
             let mut eol = after_open + nl;

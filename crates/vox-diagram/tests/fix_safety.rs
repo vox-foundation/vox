@@ -29,3 +29,13 @@ fn cr02_chained_edge_label_keeps_newline_escaped() {
     assert!(r.report.valid, "{:?}\n{}", r.report.diagnostics, r.text);
     assert!(r.text.contains("b -> c: \"x\\ny\""), "{}", r.text);
 }
+
+/// CR-03: `{` followed by a nested block on the same line must not host the root declaration.
+#[test]
+fn cr03_declaration_lands_in_the_root_scope() {
+    let src = "graph { container c: \"C\" {\n  node x: \"X\"\n}\n  a -> ghost\n}\n";
+    let r = repair(src, 5);
+    assert!(r.report.valid, "{:?}\n{}", r.report.diagnostics, r.text);
+    assert_eq!(r.text.matches("node a:").count(), 1, "{}", r.text);
+    assert_eq!(r.text.matches("node ghost:").count(), 1, "{}", r.text);
+}
