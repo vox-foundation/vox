@@ -1,4 +1,5 @@
-//! Single-pass lexer over `char_indices`. Offsets are original bytes (CRLF is one newline).
+//! Single-pass lexer over `char_indices`. Offsets are original bytes (CRLF is one newline, a
+//! lone CR is a newline too).
 //! Lexer problems (bad escapes, forbidden characters, unterminated strings, bad identifiers)
 //! are reported here and the token stream still covers the whole input, so the parser never
 //! cascades a second error on the same mistake.
@@ -191,8 +192,8 @@ impl Lexer<'_> {
                 *end += 1;
                 TokenKind::Newline
             }
-            '\r' => return None,
-            '\n' => TokenKind::Newline,
+            // A lone CR is a line break, as `fence::normalize` treats it.
+            '\r' | '\n' => TokenKind::Newline,
             ':' => TokenKind::Colon,
             '.' => TokenKind::Dot,
             '{' => TokenKind::LBrace,
@@ -216,9 +217,7 @@ impl Lexer<'_> {
     /// `//` to end of line; the token span ends at the last non-blank character.
     fn comment(&mut self, start: usize, end: &mut usize) -> TokenKind {
         while let Some(&(j, n)) = self.it.peek() {
-            if n == '\n'
-                || (n == '\r' && self.src.get(j + 1..).is_some_and(|r| r.starts_with('\n')))
-            {
+            if n == '\n' || n == '\r' {
                 break;
             }
             self.it.next();

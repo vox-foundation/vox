@@ -76,3 +76,21 @@ fn wr05_dotted_mermaid_links_after_an_identifier() {
         assert_eq!(codes, [vox_diagram::codes::MERMAID_SYNTAX], "{link}");
     }
 }
+
+/// WR-01: a lone CR is a line break everywhere (as `fence::normalize` treats it), so content
+/// after it is checked, and line numbers agree with the LF form of the same text.
+#[test]
+fn wr01_lone_cr_is_a_line_break() {
+    let lf = "graph {\n    node a: \"A\"\n    // note\n a -> ghost2\n}\n";
+    let cr = lf.replace('\n', "\r");
+    let key = |s: &str| {
+        let ds = check(s).diagnostics;
+        ds.iter()
+            .map(|d| (d.code, d.span.line, d.span.col))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(key(&cr), key(lf));
+    assert!(!check(&cr).valid);
+    let mixed = "graph {\r    node a: \"A\"\r\n    // c\r a -> ghost2\r\n}\r";
+    assert!(!check(mixed).valid);
+}

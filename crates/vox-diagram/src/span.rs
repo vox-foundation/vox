@@ -33,8 +33,8 @@ pub(crate) fn to_u32(n: usize) -> u32 {
     u32::try_from(n).unwrap_or(u32::MAX)
 }
 
-/// Sorted line-start offsets with binary-search lookup. CRLF is one line break; offsets stay
-/// in original bytes.
+/// Sorted line-start offsets with binary-search lookup. CRLF is one line break and a lone CR is
+/// one too; offsets stay in original bytes.
 pub(crate) struct LineIndex {
     starts: Vec<u32>,
 }
@@ -42,7 +42,15 @@ pub(crate) struct LineIndex {
 impl LineIndex {
     pub(crate) fn new(src: &str) -> Self {
         let mut starts = vec![0u32];
-        starts.extend(src.match_indices('\n').map(|(i, _)| to_u32(i + 1)));
+        let b = src.as_bytes();
+        // A line starts after `\n` and after a lone `\r` (one not followed by `\n`).
+        let ends = |i: usize, c: u8| c == b'\n' || (c == b'\r' && b.get(i + 1) != Some(&b'\n'));
+        starts.extend(
+            b.iter()
+                .enumerate()
+                .filter(|&(i, &c)| ends(i, c))
+                .map(|(i, _)| to_u32(i + 1)),
+        );
         Self { starts }
     }
 
