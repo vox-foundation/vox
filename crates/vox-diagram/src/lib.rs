@@ -21,6 +21,8 @@ pub mod ast;
 pub mod codes;
 /// Diagnostics, fixes and the check report.
 pub mod diag;
+/// Markdown fenced-block scanner shared by every diagram consumer.
+pub mod fence;
 /// Resolved serialisable diagram IR.
 pub mod ir;
 /// Named input caps.
