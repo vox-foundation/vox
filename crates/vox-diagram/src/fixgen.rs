@@ -34,9 +34,47 @@ pub(crate) fn quote(text: &str) -> String {
     out
 }
 
+/// A Mermaid label as `(decoded text, canonical quoted spelling)`: trimmed, surrounding
+/// double quotes stripped, `<br>` and `<br/>` turned into line breaks (the `\n` escape in the
+/// quoted form), then escaped like [`quote`].
+pub(crate) fn mermaid_label(raw: &str) -> (String, String) {
+    let t = raw.trim();
+    let t = t
+        .strip_prefix('"')
+        .and_then(|r| r.strip_suffix('"'))
+        .unwrap_or(t);
+    let t = t
+        .replace("<br/>", "\n")
+        .replace("<br />", "\n")
+        .replace("<br>", "\n");
+    let decoded: String = t
+        .chars()
+        .filter(|&c| c != '\r' && !is_forbidden(c))
+        .collect();
+    let lines: Vec<String> = decoded
+        .split('\n')
+        .map(|l| {
+            let q = quote(l);
+            q.get(1..q.len() - 1).unwrap_or_default().to_string()
+        })
+        .collect();
+    let quoted = format!("\"{}\"", lines.join("\\n"));
+    (decoded, quoted)
+}
+
+/// The leading blanks of the line that contains byte `at`.
+pub(crate) fn indent_of(src: &str, at: u32) -> String {
+    let before = src.get(..at as usize).unwrap_or_default();
+    let line = before.rfind('\n').map_or(0, |i| i + 1);
+    let text = src.get(line..).unwrap_or_default();
+    text.chars()
+        .take_while(|c| matches!(c, ' ' | '\t'))
+        .collect()
+}
+
 /// True when `name` can be declared as a node id without raising another diagnostic: an
 /// ASCII identifier, not a keyword, short enough to be its own label.
-fn declarable(name: &str) -> bool {
+pub(crate) fn declarable(name: &str) -> bool {
     name.len() <= MAX_LABEL_CHARS
         && name.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
         && name
@@ -53,17 +91,13 @@ pub(crate) fn declare_node(src: &str, open: Span, close: Span, name: &str) -> Op
     if !declarable(name) {
         return None;
     }
+    insert_decl(src, open, close, &format!("node {name}: \"{name}\""))
+}
+
+/// Rule R for an arbitrary declaration line `decl` (see [`declare_node`]).
+pub(crate) fn insert_decl(src: &str, open: Span, close: Span, decl: &str) -> Option<Fix> {
     let (after_open, before_close) = (open.end as usize, close.start as usize);
-    let line_start = src
-        .get(..open.start as usize)?
-        .rfind('\n')
-        .map_or(0, |i| i + 1);
-    let indent: String = src
-        .get(line_start..)?
-        .chars()
-        .take_while(|c| matches!(c, ' ' | '\t'))
-        .collect();
-    let decl = format!("node {name}: \"{name}\"");
+    let indent = indent_of(src, open.start);
     let (at, replacement) = match src.get(after_open..before_close)?.find('\n') {
         None => (after_open, format!("\n{indent}    {decl}\n")),
         Some(nl) => {
@@ -87,6 +121,22 @@ mod tests {
         assert_eq!(quote("a\"b\\c"), "\"a\\\"b\\\\c\"");
         assert_eq!(quote("x\ry\u{202e}z\tw"), "\"xyz\tw\"");
         assert_eq!(quote(""), "\"\"");
+    }
+
+    #[test]
+    fn mermaid_label_decodes_and_escapes() {
+        let q = |raw: &str| mermaid_label(raw);
+        assert_eq!(q("  Plain  "), ("Plain".into(), "\"Plain\"".into()));
+        assert_eq!(q("\"Quoted\""), ("Quoted".into(), "\"Quoted\"".into()));
+        assert_eq!(
+            q("a<br>b<br/>c"),
+            ("a\nb\nc".into(), "\"a\\nb\\nc\"".into())
+        );
+        assert_eq!(
+            q("say \"hi\" \\"),
+            ("say \"hi\" \\".into(), "\"say \\\"hi\\\" \\\\\"".into())
+        );
+        assert_eq!(q(""), (String::new(), "\"\"".into()));
     }
 
     #[test]

@@ -1,3 +1,4 @@
+diagram/chained-edge
 diagram/container-endpoint
 diagram/direction-in-container
 diagram/duplicate-direction

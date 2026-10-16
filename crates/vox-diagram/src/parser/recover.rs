@@ -3,12 +3,37 @@
 //! statement, so total parser work stays linear in the token count.
 
 use super::Parser;
-use crate::ast::Label;
+use crate::ast::{ItemKind, Label};
 use crate::codes;
 use crate::diag::{Fix, clip};
 use crate::fixgen::{quote, replace};
 use crate::lexer::TokenKind;
+use crate::limits::{MAX_EDGES, MAX_NODES};
 use crate::span::Span;
+
+pub(super) fn describe(kind: &TokenKind) -> String {
+    match kind {
+        TokenKind::Ident(s) => format!("identifier `{}`", clip(s)),
+        TokenKind::Str { value, .. } => format!("string \"{}\"", clip(value)),
+        TokenKind::Comment(_) => "a comment".into(),
+        TokenKind::BadIdent(s) => format!("`{}`", clip(s)),
+        TokenKind::Arrow => "`->`".into(),
+        TokenKind::MArrow { .. } => "a Mermaid link".into(),
+        TokenKind::Bracket { .. } => "a bracketed label".into(),
+        TokenKind::Styling => "a styling line".into(),
+        TokenKind::StyleSuffix => "a `:::` class suffix".into(),
+        TokenKind::Semi => "`;`".into(),
+        TokenKind::Amp => "`&`".into(),
+        TokenKind::Colon => "`:`".into(),
+        TokenKind::Dot => "`.`".into(),
+        TokenKind::LBrace => "`{`".into(),
+        TokenKind::RBrace => "`}`".into(),
+        TokenKind::Comma => "`,`".into(),
+        TokenKind::Newline => "end of line".into(),
+        TokenKind::Unknown(c) => format!("`{}`", c.escape_default()),
+        TokenKind::Eof => "end of input".into(),
+    }
+}
 
 impl Parser<'_> {
     /// Spend one unit of the work budget (`4 * tokens + 1_000`): once per statement-loop
@@ -176,5 +201,52 @@ impl Parser<'_> {
     /// True when the token after the current newline begins a `node`/`container` declaration.
     pub(super) fn next_line_starts_decl(&self) -> bool {
         matches!(&self.peek_at(1).kind, TokenKind::Ident(s) if s == "node" || s == "container")
+    }
+
+    /// Count a parsed statement toward the node and edge caps. Items past a cap stay in the
+    /// AST (so edges to them do not cascade into `undeclared-node`); the one error carries
+    /// the total and the IR is withheld.
+    pub(super) fn count(&mut self, kind: &ItemKind, span: Span) {
+        match kind {
+            ItemKind::Node(_) => {
+                self.nodes += 1;
+                if self.nodes == MAX_NODES + 1 {
+                    self.first_extra_node = Some(span);
+                }
+            }
+            ItemKind::Edge(_) => {
+                self.edges += 1;
+                if self.edges == MAX_EDGES + 1 {
+                    self.first_extra_edge = Some(span);
+                }
+            }
+            ItemKind::Direction(_) | ItemKind::Container(_) => {}
+        }
+    }
+
+    pub(super) fn report_caps(&mut self) {
+        if let Some(span) = self.first_extra_node {
+            let msg = format!("diagram has {} nodes; the limit is {MAX_NODES}", self.nodes);
+            self.report(codes::LIMIT_NODES, span, msg);
+        }
+        if let Some(span) = self.first_extra_edge {
+            let msg = format!("diagram has {} edges; the limit is {MAX_EDGES}", self.edges);
+            self.report(codes::LIMIT_EDGES, span, msg);
+        }
+    }
+
+    /// One `trailing-content` error over everything up to EOF, then consume it.
+    pub(super) fn trailing_content(&mut self) {
+        let start = self.peek().span.start;
+        let last = self.toks.len().saturating_sub(1);
+        let mut end = start;
+        for t in self.toks.get(self.pos..last).unwrap_or_default() {
+            if !matches!(t.kind, TokenKind::Newline) {
+                end = t.span.end;
+            }
+        }
+        let msg = "unexpected content after the closing `}` of the graph block; remove it";
+        self.report(codes::TRAILING_CONTENT, Span { start, end }, msg.into());
+        self.skip_rest();
     }
 }

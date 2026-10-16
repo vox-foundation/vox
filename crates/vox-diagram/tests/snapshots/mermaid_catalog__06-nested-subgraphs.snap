@@ -1,0 +1,16 @@
+---
+source: crates/vox-diagram/tests/mermaid_catalog.rs
+expression: r.text
+---
+graph {
+    direction: down
+    container platform: "Platform" {
+        container svc: "Services" {
+            node api: "API"
+            node worker: "Worker"
+            api -> worker
+        }
+        node cache: "Cache" { shape: cylinder }
+    }
+    node audit: "Audit Log"
+}

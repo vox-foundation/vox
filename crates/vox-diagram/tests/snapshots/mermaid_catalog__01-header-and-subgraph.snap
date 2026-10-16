@@ -1,0 +1,16 @@
+---
+source: crates/vox-diagram/tests/mermaid_catalog.rs
+expression: r.text
+---
+graph {
+    node client: "Desktop Client"
+    node gw: "Gateway"
+    direction: down
+    // the desktop talks to the gateway
+    client -> gw
+    container core: "Core Runtime" {
+        node orch: "Orchestrator"
+        node db: "Task DB" { shape: cylinder }
+        orch -> db: "persist"
+    }
+}

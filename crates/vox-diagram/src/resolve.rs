@@ -5,11 +5,11 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::ast::{Block, Document, Entry, ItemKind, Ref};
+use crate::ast::{Block, Document, Entry, Ident, ItemKind, Ref};
 use crate::codes;
 use crate::diag::{Diagnostic, Fix, Related, Stats, clip};
 use crate::fixgen::declare_node;
-use crate::ir::{GraphIr, IrContainer, IrEdge, IrNode};
+use crate::ir::{GraphIr, IrContainer, IrEdge, IrNode, Shape};
 use crate::span::{LineIndex, Span, to_u32};
 
 #[derive(Clone, Copy)]
@@ -141,21 +141,10 @@ impl<'a> Resolver<'a> {
             let loc = self.idx.location(self.src, item.span);
             match &item.kind {
                 ItemKind::Node(n) => {
-                    let id = qualify(path, &n.id.name);
-                    self.claim(
-                        scope,
-                        (&n.id.name, n.id.span),
-                        &id,
-                        Entity::Node(self.ir.nodes.len()),
-                    );
-                    self.ir.nodes.push(IrNode {
-                        id,
-                        local_id: n.id.name.clone(),
-                        label: n.label.value.clone(),
-                        shape: n.shape,
-                        container: enclosing,
-                        span: loc,
-                    });
+                    self.add_node(scope, &n.id, &n.label.value, n.shape, item.span);
+                    if let Some(b) = &n.bracket {
+                        self.bracket_stmt(&n.id.name, b);
+                    }
                 }
                 ItemKind::Container(c) => {
                     let id = qualify(path, &c.id.name);
@@ -183,9 +172,30 @@ impl<'a> Resolver<'a> {
                     });
                     self.declare(&c.body, child, depth + 1);
                 }
-                ItemKind::Direction(_) | ItemKind::Edge(_) => {}
+                ItemKind::Edge(e) => {
+                    self.bracket_endpoint(scope, &e.from);
+                    self.bracket_endpoint(scope, &e.to);
+                }
+                ItemKind::Direction(_) => {}
             }
         }
+    }
+
+    /// Declare node `id` in `scope` (a repeat is a `duplicate-id`).
+    fn add_node(&mut self, scope: usize, id: &'a Ident, label: &str, shape: Shape, span: Span) {
+        let path = &self.scopes[scope].path;
+        let full = qualify(path, &id.name);
+        let container = (!path.is_empty()).then(|| path.clone());
+        let entity = Entity::Node(self.ir.nodes.len());
+        self.claim(scope, (&id.name, id.span), &full, entity);
+        self.ir.nodes.push(IrNode {
+            id: full,
+            local_id: id.name.clone(),
+            label: label.to_string(),
+            shape,
+            container,
+            span: self.idx.location(self.src, span),
+        });
     }
 
     fn link(&mut self, block: &'a Block, scope: usize) {
@@ -336,5 +346,6 @@ fn qualify(path: &str, name: &str) -> String {
     }
 }
 
+mod mermaid;
 #[cfg(test)]
 mod tests;

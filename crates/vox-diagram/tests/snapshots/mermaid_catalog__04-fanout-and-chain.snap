@@ -1,0 +1,16 @@
+---
+source: crates/vox-diagram/tests/mermaid_catalog.rs
+expression: r.text
+---
+graph {
+    node A: "Client"
+    node B: "CLI"
+    node C: "Gateway"
+    node D: "Auth"
+    node E: "Service"
+    direction: right
+    A -> C
+    B -> C
+    C -> D
+    D -> E
+}

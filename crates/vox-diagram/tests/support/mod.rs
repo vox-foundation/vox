@@ -231,6 +231,7 @@ pub fn strip_spans(v: Value) -> Value {
     }
 }
 
+pub mod mermaid;
 mod noisy;
 
 /// S2: print `m` with `n`'s layout noise. The text is always valid and denotes `m`.

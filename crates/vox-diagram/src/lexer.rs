@@ -31,6 +31,19 @@ pub(crate) enum TokenKind {
         exact: bool,
         label: Option<String>,
     },
+    /// A Mermaid `id[Label]` bracket form directly after an identifier; `text` is the raw
+    /// text between the brackets, `closed` false when the line ended first.
+    Bracket {
+        open: &'static str,
+        text: String,
+        closed: bool,
+    },
+    /// A whole Mermaid styling line (`style`, `classDef`, `click`, ...).
+    Styling,
+    /// A Mermaid `:::name` class suffix.
+    StyleSuffix,
+    Semi,
+    Amp,
     Colon,
     Dot,
     LBrace,
@@ -58,6 +71,12 @@ struct Lexer<'a> {
     /// that line can close either, so the scan is not repeated (keeps a line O(n)).
     dash_fail_until: usize,
     pipe_fail_until: usize,
+    /// End offset of the last identifier and whether it is a keyword.
+    prev_ident: (usize, bool),
+    /// No token yet on the current line.
+    fresh: bool,
+    /// Cached end of the line last measured by `rest_of_line`.
+    eol: usize,
 }
 
 /// A control character or bidirectional override that must never reach a label (A8).
@@ -81,6 +100,9 @@ pub(crate) fn lex(src: &str, idx: &LineIndex) -> (Vec<Token>, Vec<Diagnostic>) {
         diags: Vec::new(),
         dash_fail_until: 0,
         pipe_fail_until: 0,
+        prev_ident: (usize::MAX, false),
+        fresh: true,
+        eol: 0,
     };
     let mut out = Vec::new();
     while let Some((i, c)) = lx.it.next() {
@@ -142,12 +164,28 @@ impl Lexer<'_> {
     /// Lex the token that starts with `c` at byte `i`; `None` for skipped trivia.
     fn token(&mut self, i: usize, c: char) -> Option<Token> {
         let mut end = i + c.len_utf8();
-        let kind = match c {
+        let kind = match self.mermaid_token(i, c, &mut end) {
+            Some(kind) => kind,
+            None => self.plain_token(i, c, &mut end)?,
+        };
+        self.fresh = matches!(kind, TokenKind::Newline);
+        Some(Token {
+            kind,
+            span: Span {
+                start: to_u32(i),
+                end: to_u32(end),
+            },
+        })
+    }
+
+    /// The token for `c` outside the Mermaid forms; `None` for skipped trivia.
+    fn plain_token(&mut self, i: usize, c: char, end: &mut usize) -> Option<TokenKind> {
+        Some(match c {
             '\u{feff}' if i == 0 => return None,
             ' ' | '\t' => return None,
             '\r' if self.peek_is('\n') => {
                 self.it.next();
-                end += 1;
+                *end += 1;
                 TokenKind::Newline
             }
             '\r' => return None,
@@ -159,21 +197,16 @@ impl Lexer<'_> {
             ',' => TokenKind::Comma,
             '-' if self.peek_is('>') => {
                 self.it.next();
-                end += 1;
+                *end += 1;
                 TokenKind::Arrow
             }
-            '-' | '=' if self.starts_link(i) => self.link(i, &mut end),
-            '/' if self.peek_is('/') => self.comment(i, &mut end),
-            '"' => self.string(i, &mut end),
-            c if c.is_alphanumeric() || c == '_' => self.word(i, &mut end),
+            '/' if self.peek_is('/') => self.comment(i, end),
+            '"' => self.string(i, end),
+            c if c.is_alphanumeric() || c == '_' => {
+                let word = self.word(i, end);
+                self.after_word(word, end)
+            }
             other => TokenKind::Unknown(other),
-        };
-        Some(Token {
-            kind,
-            span: Span {
-                start: to_u32(i),
-                end: to_u32(end),
-            },
         })
     }
 

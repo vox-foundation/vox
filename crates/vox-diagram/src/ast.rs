@@ -113,6 +113,9 @@ pub struct NodeDecl {
     pub label: Label,
     /// Shape (default rect).
     pub shape: Shape,
+    /// Set when it was written as Mermaid `id[Label]`; the resolver reports it.
+    #[serde(skip)]
+    pub bracket: Option<Box<Bracket>>,
 }
 
 /// An edge statement.
@@ -133,6 +136,24 @@ pub struct Ref {
     pub segments: Vec<Ident>,
     /// Whole reference span.
     pub span: Span,
+    /// Set when it was written as Mermaid `id[Label]`; the resolver declares and reports it.
+    #[serde(skip)]
+    pub bracket: Option<Box<Bracket>>,
+}
+
+/// Mermaid `id[Label]` text where a plain id belongs: it declares the node (M3).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Bracket {
+    /// The bracketed text, decoded.
+    pub label: String,
+    /// The canonical quoted spelling of the label.
+    pub quoted: String,
+    /// The shape the brackets stand for; `None` when VoxDiagram has no exact equivalent.
+    pub shape: Option<Shape>,
+    /// From the last id segment through the closing bracket.
+    pub form: Span,
+    /// False when the line ended before the closing bracket.
+    pub closed: bool,
 }
 
 /// An identifier.

@@ -60,6 +60,9 @@ pub const LIMIT_LABEL: &str = "diagram/limit-label";
 /// Mermaid syntax used where VoxDiagram has a different canonical form.
 pub const MERMAID_SYNTAX: &str = "diagram/mermaid-syntax";
 
+/// `a -> b -> c`: several edges chained on one line.
+pub const CHAINED_EDGE: &str = "diagram/chained-edge";
+
 /// More diagnostics were found than one report can hold (sentinel, always a warning).
 pub const LIMIT_DIAGNOSTICS: &str = "diagram/limit-diagnostics";
 
@@ -93,6 +96,7 @@ pub const ALL_CODES: &[&str] = &[
     LIMIT_DEPTH,
     LIMIT_LABEL,
     MERMAID_SYNTAX,
+    CHAINED_EDGE,
 ];
 
 #[cfg(test)]
@@ -112,6 +116,6 @@ mod tests {
             );
             assert!(!ALL_CODES[..i].contains(code), "{code} is duplicated");
         }
-        assert_eq!(ALL_CODES.len(), 28);
+        assert_eq!(ALL_CODES.len(), 29);
     }
 }

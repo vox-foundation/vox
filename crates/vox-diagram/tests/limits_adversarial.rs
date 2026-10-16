@@ -214,6 +214,24 @@ fn adversarial_keyword_soup() {
 }
 
 #[test]
+fn adversarial_mermaid_tokens() {
+    // Link-label scans (`-- text -->`, `-->|text|`) and bracket forms must stay linear when
+    // nothing ever closes them, and fan-out, chains and nested frames must stay capped.
+    adversarial(&"-- ".repeat(21_000));
+    adversarial(&"-->| ".repeat(12_000));
+    adversarial(&"a[ ".repeat(21_000));
+    adversarial(&"a[(".repeat(21_000));
+    adversarial(&"a & ".repeat(16_000));
+    adversarial(&"a -> ".repeat(13_000));
+    adversarial(&"a --> b ".repeat(8_000));
+    adversarial(&"subgraph a\n".repeat(5_000));
+    adversarial(&"%%".repeat(30_000));
+    adversarial(&"style a\n".repeat(7_000));
+    adversarial(&";".repeat(60_000));
+    adversarial(&":::c ".repeat(12_000));
+}
+
+#[test]
 fn adversarial_brace_pairs() {
     adversarial(&"{}".repeat(32_000));
     adversarial(&"{ node a: ".repeat(6_000));

@@ -2,9 +2,8 @@
 //! contextual: `node`/`container`/`direction` followed by `->` or `.` is an edge endpoint.
 
 use super::Parser;
-use crate::ast::{
-    Block, ContainerDecl, DirectionStmt, EdgeStmt, Ident, ItemKind, Label, NodeDecl, Ref,
-};
+use super::mermaid::mermaid_dir;
+use crate::ast::{Block, ContainerDecl, DirectionStmt, Ident, ItemKind, Label, NodeDecl, Ref};
 use crate::codes;
 use crate::diag::clip;
 use crate::fixgen::{quote, replace};
@@ -28,17 +27,25 @@ impl Parser<'_> {
     /// One statement; `root` is true directly inside `graph { }`.
     pub(super) fn statement(&mut self, root: bool) -> Option<(ItemKind, Span)> {
         let start = self.peek().span.start;
+        if matches!(self.peek().kind, TokenKind::Styling) {
+            self.styling();
+            return None;
+        }
         let kw = match &self.peek().kind {
             TokenKind::Ident(s) => s.clone(),
             _ => String::new(),
         };
         let next = &self.peek_at(1).kind;
         let edge_next = matches!(next, TokenKind::Arrow | TokenKind::Dot);
+        let dir_next = matches!(next, TokenKind::Colon)
+            || matches!(next, TokenKind::Ident(w) if mermaid_dir(w).is_some());
+        let ident_next = matches!(next, TokenKind::Ident(_));
         let kind = match kw.as_str() {
             "node" if !edge_next => self.node_decl()?,
             "container" if !edge_next => self.container_decl()?,
-            "direction" if matches!(next, TokenKind::Colon) => self.direction_stmt(root)?,
-            _ => self.edge()?,
+            "direction" if dir_next => self.direction_stmt(root)?,
+            "subgraph" if ident_next => self.subgraph()?,
+            _ => self.edge_stmt()?,
         };
         Some((
             kind,
@@ -49,7 +56,7 @@ impl Parser<'_> {
         ))
     }
 
-    fn ident(&mut self, expected: &str) -> Option<Ident> {
+    pub(super) fn ident(&mut self, expected: &str) -> Option<Ident> {
         let tok = self.peek().clone();
         // A bad identifier was already reported by the lexer; accept it to avoid a second error.
         if let TokenKind::Ident(name) | TokenKind::BadIdent(name) = tok.kind {
@@ -66,7 +73,7 @@ impl Parser<'_> {
 
     /// A quoted label. Unquoted text is recovered as the label (and reported); `None` only
     /// when there is nothing label-like at all.
-    fn label(&mut self, stop_lbrace: bool, owner: Owner) -> Option<Label> {
+    pub(super) fn label(&mut self, stop_lbrace: bool, owner: Owner) -> Option<Label> {
         let tok = self.peek().clone();
         if let TokenKind::Str { value, terminated } = tok.kind {
             self.bump();
@@ -111,13 +118,24 @@ impl Parser<'_> {
 
     fn direction_stmt(&mut self, root: bool) -> Option<ItemKind> {
         let start = self.bump().span.start; // `direction`
-        self.expect(&TokenKind::Colon, "`:`")?;
+        if matches!(self.peek().kind, TokenKind::Colon) {
+            self.bump();
+        }
         let word = self.ident("`down`, `right`, `up` or `left`")?;
+        let mapped = mermaid_dir(&word.name);
         let value = match word.name.as_str() {
             "down" => Direction::Down,
             "right" => Direction::Right,
             "up" => Direction::Up,
             "left" => Direction::Left,
+            _ if mapped.is_some() => {
+                let span = Span {
+                    start,
+                    end: word.span.end,
+                };
+                self.mermaid_direction(span, mapped.map(|(_, w)| w));
+                mapped.map_or_else(Direction::default, |(d, _)| d)
+            }
             _ => {
                 let msg = format!(
                     "expected `down`, `right`, `up` or `left`, found `{}`",
@@ -176,7 +194,12 @@ impl Parser<'_> {
             Shape::default()
         };
         let label = label.unwrap_or_else(|| Self::placeholder(&id));
-        Some(ItemKind::Node(NodeDecl { id, label, shape }))
+        Some(ItemKind::Node(NodeDecl {
+            id,
+            label,
+            shape,
+            bracket: None,
+        }))
     }
 
     /// `{ shape: <word> }` — the only attribute in v1; attributes may be separated by `,` or
@@ -296,7 +319,9 @@ impl Parser<'_> {
             }
             Some(open) => {
                 self.depth += 1;
+                let frame = std::mem::replace(&mut self.mframe, false);
                 let parsed = (self.trailing_comment(), self.block(false, Some(open)));
+                self.mframe = frame;
                 self.depth -= 1;
                 parsed
             }
@@ -311,7 +336,7 @@ impl Parser<'_> {
         }))
     }
 
-    fn reference(&mut self) -> Option<Ref> {
+    pub(super) fn reference(&mut self) -> Option<Ref> {
         let first = self.ident("a node reference")?;
         let mut segments = vec![first];
         while matches!(self.peek().kind, TokenKind::Dot) {
@@ -322,26 +347,10 @@ impl Parser<'_> {
             start: segments[0].span.start,
             end: segments[segments.len() - 1].span.end,
         };
-        Some(Ref { segments, span })
-    }
-
-    fn edge(&mut self) -> Option<ItemKind> {
-        let from = self.reference()?;
-        if let TokenKind::MArrow { exact, label } = self.peek().kind.clone() {
-            let span = self.bump().span;
-            self.mermaid_arrow(span, exact, label.is_some());
-        } else {
-            self.expect(&TokenKind::Arrow, "`->`")?;
-        }
-        let to = self.reference()?;
-        let mut label = None;
-        if matches!(self.peek().kind, TokenKind::Colon) {
-            self.bump();
-            label = self.label(false, Owner::Edge { from: to.span.end });
-            if label.is_none() {
-                self.skip_to_stmt_end();
-            }
-        }
-        Some(ItemKind::Edge(EdgeStmt { from, to, label }))
+        Some(Ref {
+            segments,
+            span,
+            bracket: None,
+        })
     }
 }

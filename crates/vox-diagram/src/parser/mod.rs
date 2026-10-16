@@ -13,9 +13,11 @@ use crate::ast::{Block, Comment, Document, Entry, Item, ItemKind};
 use crate::codes;
 use crate::diag::{Collector, Diagnostic, Fix, clip};
 use crate::lexer::{Token, TokenKind};
-use crate::limits::{MAX_EDGES, MAX_NODES};
 use crate::span::{LineIndex, Span};
+use recover::describe;
 
+mod edges;
+mod frame;
 mod mermaid;
 mod recover;
 mod stmt;
@@ -41,6 +43,12 @@ struct Parser<'a> {
     /// Spans of the first node / edge past the caps, reported once at the end with totals.
     first_extra_node: Option<Span>,
     first_extra_edge: Option<Span>,
+    /// The block being parsed is a Mermaid `subgraph ... end` frame.
+    mframe: bool,
+    /// Span of the `end` that closed the last frame.
+    frame_end: Option<Span>,
+    /// Edges of a statement past its first (chains, fan-out); the block loop adds them.
+    extra: Vec<(ItemKind, Span)>,
 }
 
 /// Parse a token stream (ending in `Eof`) into a document; diagnostics go to `diags`.
@@ -69,27 +77,11 @@ fn run(src: &str, idx: &LineIndex, toks: &[Token], diags: &mut Collector, fuel: 
         edges: 0,
         first_extra_node: None,
         first_extra_edge: None,
+        mframe: false,
+        frame_end: None,
+        extra: Vec::new(),
     };
     p.document()
-}
-
-fn describe(kind: &TokenKind) -> String {
-    match kind {
-        TokenKind::Ident(s) => format!("identifier `{}`", clip(s)),
-        TokenKind::Str { value, .. } => format!("string \"{}\"", clip(value)),
-        TokenKind::Comment(_) => "a comment".into(),
-        TokenKind::BadIdent(s) => format!("`{}`", clip(s)),
-        TokenKind::Arrow => "`->`".into(),
-        TokenKind::MArrow { .. } => "a Mermaid link".into(),
-        TokenKind::Colon => "`:`".into(),
-        TokenKind::Dot => "`.`".into(),
-        TokenKind::LBrace => "`{`".into(),
-        TokenKind::RBrace => "`}`".into(),
-        TokenKind::Comma => "`,`".into(),
-        TokenKind::Newline => "end of line".into(),
-        TokenKind::Unknown(c) => format!("`{}`", c.escape_default()),
-        TokenKind::Eof => "end of input".into(),
-    }
 }
 
 impl Parser<'_> {
@@ -211,8 +203,14 @@ impl Parser<'_> {
         let start = self.peek().span.start;
         let (mut header_trailing, mut close_trailing) = (None, None);
         let head = self.peek().clone();
-        match &head.kind {
-            TokenKind::Ident(s) if s == "graph" => {
+        match (self.mermaid_header(), &head.kind) {
+            (Some((header, dir)), _) => {
+                header_trailing = self.trailing_comment();
+                body = self.block(true, None);
+                close_trailing = self.trailing_comment();
+                self.report_header(header, dir);
+            }
+            (None, TokenKind::Ident(s)) if s == "graph" => {
                 self.bump();
                 let open = if matches!(self.peek().kind, TokenKind::LBrace) {
                     Some(self.bump().span)
@@ -224,7 +222,7 @@ impl Parser<'_> {
                 body = self.block(true, open);
                 close_trailing = self.trailing_comment();
             }
-            TokenKind::Ident(s) => {
+            (None, TokenKind::Ident(s)) => {
                 let msg = format!(
                     "unknown diagram kind `{}`; only `graph` is supported (`sequence` arrives in a later release)",
                     clip(s)
@@ -232,7 +230,7 @@ impl Parser<'_> {
                 self.report(codes::UNKNOWN_DIAGRAM_KIND, head.span, msg);
                 self.skip_rest();
             }
-            _ => {
+            (None, _) => {
                 self.unexpected("`graph`");
                 self.skip_rest();
             }
@@ -254,53 +252,6 @@ impl Parser<'_> {
                 end: self.peek().span.end,
             },
         }
-    }
-
-    /// Count a parsed statement toward the node and edge caps. Items past a cap stay in the
-    /// AST (so edges to them do not cascade into `undeclared-node`); the one error carries
-    /// the total and the IR is withheld.
-    fn count(&mut self, kind: &ItemKind, span: Span) {
-        match kind {
-            ItemKind::Node(_) => {
-                self.nodes += 1;
-                if self.nodes == MAX_NODES + 1 {
-                    self.first_extra_node = Some(span);
-                }
-            }
-            ItemKind::Edge(_) => {
-                self.edges += 1;
-                if self.edges == MAX_EDGES + 1 {
-                    self.first_extra_edge = Some(span);
-                }
-            }
-            ItemKind::Direction(_) | ItemKind::Container(_) => {}
-        }
-    }
-
-    fn report_caps(&mut self) {
-        if let Some(span) = self.first_extra_node {
-            let msg = format!("diagram has {} nodes; the limit is {MAX_NODES}", self.nodes);
-            self.report(codes::LIMIT_NODES, span, msg);
-        }
-        if let Some(span) = self.first_extra_edge {
-            let msg = format!("diagram has {} edges; the limit is {MAX_EDGES}", self.edges);
-            self.report(codes::LIMIT_EDGES, span, msg);
-        }
-    }
-
-    /// One `trailing-content` error over everything up to EOF, then consume it.
-    fn trailing_content(&mut self) {
-        let start = self.peek().span.start;
-        let last = self.toks.len().saturating_sub(1);
-        let mut end = start;
-        for t in self.toks.get(self.pos..last).unwrap_or_default() {
-            if !matches!(t.kind, TokenKind::Newline) {
-                end = t.span.end;
-            }
-        }
-        let msg = "unexpected content after the closing `}` of the graph block; remove it";
-        self.report(codes::TRAILING_CONTENT, Span { start, end }, msg.into());
-        self.skip_rest();
     }
 
     /// Entries up to and including the closing `}`; `open` is the span of this block's `{`
@@ -326,10 +277,13 @@ impl Parser<'_> {
                     self.bump();
                     blank = true;
                 }
+                // A frame never owns the `}` of its parent block.
+                TokenKind::RBrace if self.mframe => break,
                 TokenKind::RBrace => {
                     close = Some(self.bump().span.start);
                     break;
                 }
+                TokenKind::Semi => self.semicolon(),
                 TokenKind::Eof => {
                     if let Some(open) = open {
                         self.unclosed(open);
@@ -345,6 +299,10 @@ impl Parser<'_> {
                     self.end_of_statement();
                 }
                 _ => {
+                    if self.mframe && self.at_frame_end() {
+                        self.frame_end = Some(self.bump().span);
+                        break;
+                    }
                     if let Some((mut kind, span)) = self.statement(root) {
                         self.count(&kind, span);
                         // After a container this is the comment on its closing `}` line.
@@ -365,6 +323,15 @@ impl Parser<'_> {
                     } else {
                         self.skip_to_stmt_end();
                     }
+                    for (kind, span) in std::mem::take(&mut self.extra) {
+                        self.count(&kind, span);
+                        entries.push(Entry::Item(Item {
+                            kind,
+                            blank_before: false,
+                            trailing: None,
+                            span,
+                        }));
+                    }
                     blank = false;
                     self.end_of_statement();
                 }
@@ -383,6 +350,7 @@ impl Parser<'_> {
                 self.bump();
             }
             TokenKind::RBrace | TokenKind::Eof => {}
+            TokenKind::Semi => self.semicolon(),
             _ => {
                 self.unexpected("end of line");
                 self.skip_to_stmt_end();

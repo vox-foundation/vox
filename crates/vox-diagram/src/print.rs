@@ -87,7 +87,7 @@ fn direction_word(d: Direction) -> &'static str {
     }
 }
 
-fn shape_word(s: Shape) -> &'static str {
+pub(crate) fn shape_word(s: Shape) -> &'static str {
     match s {
         Shape::Rect => "rect",
         Shape::Rounded => "rounded",
