@@ -39,3 +39,11 @@ fn cr03_declaration_lands_in_the_root_scope() {
     assert_eq!(r.text.matches("node a:").count(), 1, "{}", r.text);
     assert_eq!(r.text.matches("node ghost:").count(), 1, "{}", r.text);
 }
+
+/// WR-04: the empty-label fix must not delete the target's bracket text.
+#[test]
+fn wr04_empty_edge_label_fix_keeps_bracket_text() {
+    let r = repair("graph {\n    node a: \"A\"\n    a -> B((x)) : \"\"\n}\n", 5);
+    assert!(r.text.contains("a -> B((x))\n"), "{}", r.text);
+    assert!(!r.text.contains("\"\""), "{}", r.text);
+}

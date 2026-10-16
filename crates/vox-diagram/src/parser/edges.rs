@@ -63,11 +63,9 @@ impl Parser<'_> {
         }
         let mut label = None;
         if matches!(self.peek().kind, TokenKind::Colon) {
+            // The last token before the colon, so a bracket on the target stays.
+            let from = self.toks[self.pos - 1].span.end;
             self.bump();
-            let from = groups
-                .last()
-                .and_then(|g| g.last())
-                .map_or(0, |r| r.span.end);
             label = self.label(false, Owner::Edge { from });
             if label.is_none() {
                 self.skip_to_stmt_end();

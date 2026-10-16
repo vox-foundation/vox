@@ -17,7 +17,7 @@ use crate::span::Span;
 pub(super) enum Owner<'a> {
     /// A node or container: an empty label becomes its id.
     Id(&'a str),
-    /// An edge: an empty label is deleted back to the end of the target at `from`.
+    /// An edge: an empty label is deleted back to `from`, the end of the last token before the colon.
     Edge { from: u32 },
 }
 
