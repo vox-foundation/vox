@@ -95,6 +95,41 @@ fn wr01_lone_cr_is_a_line_break() {
     assert!(!check(mixed).valid);
 }
 
+fn unsafe_char(c: char) -> bool {
+    c.is_control()
+        || matches!(
+            c,
+            '\u{200e}' | '\u{200f}' | '\u{61c}' | '\u{2028}' | '\u{2029}'
+        )
+        || matches!(c, '\u{202a}'..='\u{202e}' | '\u{2066}'..='\u{2069}')
+}
+
+/// WR-02: untrusted text echoed into a message or help line is escaped, never raw.
+#[test]
+fn wr02_messages_never_echo_control_or_bidi_characters() {
+    let hostile = [
+        "\u{1b}[2Jy",
+        "x\\ny",
+        "\u{9b}31m",
+        "a\u{200e}b",
+        "a\u{202e}b",
+    ];
+    for h in hostile {
+        let sources = [
+            format!("graph {{\n    node a: \"A\" \"{h}\"\n}}\n"),
+            format!("graph {{\n    node a: {h}\n}}\n"),
+            format!("graph {{\n    node a: \"A\\{h}\"\n}}\n"),
+            format!("graph {{\n    {h} -> {h}\n}}\n"),
+        ];
+        for src in sources {
+            for d in check(&src).diagnostics {
+                let text = format!("{}{}", d.message, d.help.as_deref().unwrap_or_default());
+                assert!(!text.chars().any(unsafe_char), "{text:?}\n{src:?}");
+            }
+        }
+    }
+}
+
 /// WR-03: C1 controls and implicit bidi marks are forbidden in labels (and so are fixed away).
 #[test]
 fn wr03_c1_and_implicit_bidi_marks_are_forbidden_in_labels() {

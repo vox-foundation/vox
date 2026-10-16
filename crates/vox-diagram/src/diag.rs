@@ -4,6 +4,7 @@ use serde::Serialize;
 
 use crate::codes;
 use crate::ir::Ir;
+use crate::lexer::is_forbidden;
 use crate::limits::MAX_DIAGNOSTICS;
 use crate::span::{Location, Span};
 
@@ -83,9 +84,18 @@ impl Diagnostic {
 /// First `MAX_CLIP` chars of user text echoed in a message (T-83-11).
 const MAX_CLIP: usize = 40;
 
-/// At most [`MAX_CLIP`] chars of `s`, with `...` appended when cut.
+/// At most [`MAX_CLIP`] chars of `s`, with `...` appended when cut. Control characters, bidi
+/// marks and line breaks are shown as `\u{..}` escapes, so echoed user text cannot drive a
+/// terminal or forge a log line.
 pub(crate) fn clip(s: &str) -> String {
-    let mut out: String = s.chars().take(MAX_CLIP).collect();
+    let mut out = String::new();
+    for c in s.chars().take(MAX_CLIP) {
+        if is_forbidden(c) || matches!(c, '\n' | '\r' | '\t') {
+            out.extend(c.escape_unicode());
+        } else {
+            out.push(c);
+        }
+    }
     if s.chars().nth(MAX_CLIP).is_some() {
         out.push_str("...");
     }

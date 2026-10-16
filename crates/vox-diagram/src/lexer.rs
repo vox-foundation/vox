@@ -329,8 +329,9 @@ impl Lexer<'_> {
             Some(c) => value.push(c),
             None => {
                 let shown = self.src.get(at..*end).unwrap_or("\\");
+                let echoed = crate::diag::clip(shown);
                 let msg = format!(
-                    "invalid escape `{shown}`; the supported escapes are `\\\"`, `\\\\` and `\\n`"
+                    "invalid escape `{echoed}`; the supported escapes are `\\\"`, `\\\\` and `\\n`"
                 );
                 // Doubling the backslash keeps the literal text.
                 let fix = Self::fix(at, at + 1, "\\\\");
