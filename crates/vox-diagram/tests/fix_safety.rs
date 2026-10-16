@@ -1,7 +1,13 @@
 //! Phase 83 review regressions: fixes must never make a document worse. Each case is the
 //! reviewer's exact input (CR-01..03, WR-04, WR-07, IN-02).
 
-use vox_diagram::repair;
+use vox_diagram::diag::Severity;
+use vox_diagram::{check, repair};
+
+fn errors(src: &str) -> usize {
+    let ds = check(src).diagnostics;
+    ds.iter().filter(|d| d.severity == Severity::Error).count()
+}
 
 fn assert_repairs_to(src: &str, expected: &str) {
     let r = repair(src, 5);
@@ -46,4 +52,17 @@ fn wr04_empty_edge_label_fix_keeps_bracket_text() {
     let r = repair("graph {\n    node a: \"A\"\n    a -> B((x)) : \"\"\n}\n", 5);
     assert!(r.text.contains("a -> B((x))\n"), "{}", r.text);
     assert!(!r.text.contains("\"\""), "{}", r.text);
+}
+
+/// WR-07: a bare `graph` line followed by `{` on the next line is not a Mermaid header.
+#[test]
+fn wr07_bare_graph_then_brace_next_line_is_not_rewritten() {
+    let src = "graph\n{\n  node a: \"A\"\n}";
+    let codes: Vec<_> = check(src).diagnostics.iter().map(|d| d.code).collect();
+    assert!(
+        !codes.contains(&vox_diagram::codes::MERMAID_SYNTAX),
+        "{codes:?}"
+    );
+    let r = repair(src, 5);
+    assert!(errors(&r.text) <= errors(src), "{}", r.text);
 }

@@ -60,6 +60,14 @@ impl Parser<'_> {
         if !ends {
             return None;
         }
+        // `graph` then `{` on a later line is a missing-brace typo, not a Mermaid header.
+        let mut m = n;
+        while matches!(self.peek_at(m).kind, TokenKind::Newline) {
+            m += 1;
+        }
+        if matches!(self.peek_at(m).kind, TokenKind::LBrace) {
+            return None;
+        }
         let end = self.peek_at(n - 1).span.end;
         self.pos += n;
         Some((Span { start, end }, dir))
