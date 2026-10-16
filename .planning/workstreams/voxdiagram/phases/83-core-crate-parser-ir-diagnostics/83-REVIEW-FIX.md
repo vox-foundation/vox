@@ -2,7 +2,7 @@
 phase: 83-core-crate-parser-ir-diagnostics
 fixed_at: 2026-10-16T00:00:00Z
 review_path: .planning/workstreams/voxdiagram/phases/83-core-crate-parser-ir-diagnostics/83-REVIEW.md
-iteration: 1
+iteration: 2
 findings_in_scope: 12
 fixed: 12
 skipped: 0
@@ -113,3 +113,27 @@ None. IN-01, IN-02 and IN-03 are Info findings, outside `fix_scope: critical_war
 _Fixed: 2026-10-16_
 _Fixer: Claude (gsd-code-fixer)_
 _Iteration: 1_
+
+---
+
+# Iteration 2
+
+**Fixed at:** 2026-10-16
+**Source review:** 83-REVIEW.md (iteration 2)
+**Summary:** findings in scope 1, fixed 1, skipped 0. Verified in the main checkout (`workflow.use_worktrees=false`, no worktree): `INSTA_UPDATE=no cargo nextest run -p vox-diagram` 184/184 pass, `cargo clippy -p vox-diagram --all-targets -- -D warnings` clean, `cargo fmt -p vox-diagram` applied.
+
+## Fixed Issues
+
+### CR-01: EOF closer ordering fix does not cover Mermaid-header documents
+
+**Files modified:** `crates/vox-diagram/src/fixes.rs`, `crates/vox-diagram/tests/fix_safety.rs`, `crates/vox-diagram/tests/repair_props.rs`
+**Commit:** 6e862a0ec
+**Status:** fixed: requires human verification (ordering logic; guarded by tests below)
+**Applied fix:** the `apply_fixes` tie-break now classifies EOF scope closers by `r.trim() == "}"` instead of the literal `"\n}"`, so the Mermaid header closers (`}\n`, `\n}\n`) also sort after a closing quote inserted at the same offset.
+**Tests:** `cr01_mermaid_header_truncated_mid_string_repairs_quote_before_brace` covers both reviewer repros (watched failing first, with a stray `""` and `trailing-content`). `repair_props::truncate_and_repair_mermaid_never_worsens` truncates four Mermaid-header documents at every offset and asserts the error count does not rise and that no `trailing-content` diagnostic appears (no fixture contains `}`, so one is always a repair artifact). Mutation: reverting the tie-break to `r == "\n}"` makes the new property fail; restored afterwards. As in iteration 1, the plain error-count comparison alone cannot see this bug (2 errors become 1), hence the `trailing-content` assertion.
+
+---
+
+_Fixed: 2026-10-16_
+_Fixer: Claude (gsd-code-fixer)_
+_Iteration: 2_
