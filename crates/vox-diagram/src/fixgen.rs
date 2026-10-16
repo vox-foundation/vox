@@ -16,7 +16,7 @@ pub(crate) fn replace(span: Span, replacement: impl Into<String>) -> Fix {
     }
 }
 
-/// `text` as a double-quoted label: `\` and `"` escaped, `\r` and forbidden characters
+/// `text` as a double-quoted label: `\`, `"` and newline escaped, `\r` and forbidden characters
 /// (which a label cannot hold) dropped.
 pub(crate) fn quote(text: &str) -> String {
     let mut out = String::with_capacity(text.len() + 2);
@@ -25,6 +25,7 @@ pub(crate) fn quote(text: &str) -> String {
         match c {
             '\\' => out.push_str("\\\\"),
             '"' => out.push_str("\\\""),
+            '\n' => out.push_str("\\n"),
             '\r' => {}
             c if is_forbidden(c) => {}
             c => out.push(c),
@@ -121,6 +122,7 @@ mod tests {
         assert_eq!(quote("a\"b\\c"), "\"a\\\"b\\\\c\"");
         assert_eq!(quote("x\ry\u{202e}z\tw"), "\"xyz\tw\"");
         assert_eq!(quote(""), "\"\"");
+        assert_eq!(quote("x\ny"), "\"x\\ny\"");
     }
 
     #[test]

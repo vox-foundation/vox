@@ -20,3 +20,12 @@ fn cr01_truncated_mid_string_repairs_quote_before_brace() {
     let r = repair("graph {\n    node a: \"abc\\", 5);
     assert!(r.report.valid, "{:?}\n{}", r.report.diagnostics, r.text);
 }
+
+/// CR-02: a decoded `\n` in the trailing edge label must stay escaped in the generated fix.
+#[test]
+fn cr02_chained_edge_label_keeps_newline_escaped() {
+    let src = "graph {\n    node a: \"A\"\n    node b: \"B\"\n    node c: \"C\"\n    a -> b -> c: \"x\\ny\"\n}\n";
+    let r = repair(src, 5);
+    assert!(r.report.valid, "{:?}\n{}", r.report.diagnostics, r.text);
+    assert!(r.text.contains("b -> c: \"x\\ny\""), "{}", r.text);
+}
