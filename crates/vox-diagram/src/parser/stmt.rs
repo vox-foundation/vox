@@ -101,26 +101,48 @@ impl Parser<'_> {
         Some(ItemKind::Node(NodeDecl { id, label, shape }))
     }
 
-    /// `{ shape: <word> }` — the only attribute in v1. Returns the shape.
+    /// `{ shape: <word> }` — the only attribute in v1; attributes may be separated by `,` or
+    /// newlines. Returns the shape (last one wins).
     fn attr_block(&mut self) -> Option<Shape> {
         self.bump(); // `{`
-        let shape = self.shape_attr();
-        if shape.is_none() {
-            // Re-sync inside the braces so the closing `}` does not end the enclosing block.
-            while !matches!(
-                self.peek().kind,
-                TokenKind::RBrace | TokenKind::Newline | TokenKind::Eof
-            ) {
+        let mut shape = Shape::default();
+        loop {
+            while matches!(self.peek().kind, TokenKind::Newline | TokenKind::Comma) {
                 self.bump();
             }
+            match self.peek().kind {
+                TokenKind::RBrace => {
+                    self.bump();
+                    return Some(shape);
+                }
+                TokenKind::Eof => {
+                    self.unexpected("`}`");
+                    return None;
+                }
+                _ => {}
+            }
+            let parsed = self.shape_attr();
+            let separated = matches!(
+                self.peek().kind,
+                TokenKind::Newline | TokenKind::Comma | TokenKind::RBrace
+            );
+            if parsed.is_some() && !separated {
+                self.unexpected("`,`, a newline or `}`");
+            }
+            match parsed {
+                Some(s) if separated => shape = s,
+                _ => {
+                    // Re-sync to the closing brace so it does not end the enclosing block.
+                    while !matches!(self.peek().kind, TokenKind::RBrace | TokenKind::Eof) {
+                        self.bump();
+                    }
+                    if matches!(self.peek().kind, TokenKind::RBrace) {
+                        self.bump();
+                    }
+                    return None;
+                }
+            }
         }
-        if matches!(self.peek().kind, TokenKind::RBrace) {
-            self.bump();
-        } else if shape.is_some() {
-            self.unexpected("`}`");
-            return None;
-        }
-        shape
     }
 
     fn shape_attr(&mut self) -> Option<Shape> {
@@ -162,12 +184,13 @@ impl Parser<'_> {
         self.expect(&TokenKind::Colon, "`:`")?;
         let label = self.label()?;
         self.expect(&TokenKind::LBrace, "`{`")?;
+        let header_trailing = self.trailing_comment();
         let body = self.block(false);
         Some(ItemKind::Container(ContainerDecl {
             id,
             label,
             body,
-            header_trailing: None,
+            header_trailing,
             close_trailing: None,
         }))
     }

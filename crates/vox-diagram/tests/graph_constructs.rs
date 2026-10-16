@@ -88,3 +88,36 @@ fn ir_json_is_stable() {
         );
     }
 }
+
+const ALL: &str = include_str!("fixtures/valid/all_constructs.vdg");
+
+#[test]
+fn all_constructs_ir() {
+    let report = check(ALL);
+    assert!(report.valid, "{:?}", report.diagnostics);
+    assert_eq!(report.stats.max_depth, 3);
+    insta::assert_json_snapshot!(report.ir);
+}
+
+fn strip_spans(v: &mut serde_json::Value) {
+    match v {
+        serde_json::Value::Object(m) => {
+            m.remove("span");
+            m.values_mut().for_each(strip_spans);
+        }
+        serde_json::Value::Array(a) => a.iter_mut().for_each(strip_spans),
+        _ => {}
+    }
+}
+
+#[test]
+fn crlf_input_yields_same_ir() {
+    let crlf = ALL.replace('\n', "\r\n");
+    let (lf, crlf) = (check(ALL), check(&crlf));
+    assert!(crlf.valid, "{:?}", crlf.diagnostics);
+    let mut a = serde_json::to_value(&lf.ir).unwrap_or_default();
+    let mut b = serde_json::to_value(&crlf.ir).unwrap_or_default();
+    strip_spans(&mut a);
+    strip_spans(&mut b);
+    assert_eq!(a, b);
+}

@@ -1,13 +1,15 @@
 //! Error-recovering parser for the `graph { ... }` block. Recovery re-syncs at the next newline
 //! or `}` so independent mistakes are all reported.
 
-use crate::ast::{Block, Document, Entry, Item};
+use crate::ast::{Block, Comment, Document, Entry, Item, ItemKind};
 use crate::codes;
 use crate::diag::Diagnostic;
 use crate::lexer::{Token, TokenKind};
 use crate::span::{LineIndex, Span};
 
 mod stmt;
+#[cfg(test)]
+mod tests;
 
 struct Parser<'a> {
     src: &'a str,
@@ -105,34 +107,73 @@ impl Parser<'_> {
         }
     }
 
+    /// A comment on the current line, if the next token is one.
+    fn trailing_comment(&mut self) -> Option<Comment> {
+        let tok = self.peek().clone();
+        let TokenKind::Comment(text) = tok.kind else {
+            return None;
+        };
+        self.bump();
+        Some(Comment {
+            text,
+            blank_before: false,
+            span: tok.span,
+        })
+    }
+
+    /// Own-line comments (and the newlines between them) outside any block. A comment is
+    /// `blank_before` iff a blank line separates it from the previous comment.
+    fn own_line_comments(&mut self) -> Vec<Comment> {
+        let mut out: Vec<Comment> = Vec::new();
+        let mut blank = false;
+        loop {
+            match self.peek().kind {
+                TokenKind::Newline => {
+                    self.bump();
+                    blank = true;
+                }
+                TokenKind::Comment(_) => {
+                    if let Some(mut c) = self.trailing_comment() {
+                        c.blank_before = blank && !out.is_empty();
+                        out.push(c);
+                    }
+                    if matches!(self.peek().kind, TokenKind::Newline) {
+                        self.bump();
+                    }
+                    blank = false;
+                }
+                _ => return out,
+            }
+        }
+    }
+
     fn document(&mut self) -> Document {
         let mut body = Block::default();
-        while matches!(self.peek().kind, TokenKind::Newline) {
-            self.bump();
-        }
+        let leading = self.own_line_comments();
         let start = self.peek().span.start;
+        let (mut header_trailing, mut close_trailing) = (None, None);
         let is_graph = matches!(&self.peek().kind, TokenKind::Ident(s) if s == "graph");
         if !is_graph {
             self.unexpected("`graph`");
         } else {
             self.bump();
             if self.expect(&TokenKind::LBrace, "`{`").is_some() {
+                header_trailing = self.trailing_comment();
                 body = self.block(true);
+                close_trailing = self.trailing_comment();
             }
         }
-        // Anything after the closing brace except newlines is an error.
-        while matches!(self.peek().kind, TokenKind::Newline) {
-            self.bump();
-        }
+        // Anything after the closing brace except newlines and comments is an error.
+        let trailing = self.own_line_comments();
         if !matches!(self.peek().kind, TokenKind::Eof) {
             self.unexpected("end of input");
         }
         Document {
-            leading: Vec::new(),
+            leading,
             body,
-            header_trailing: None,
-            close_trailing: None,
-            trailing: Vec::new(),
+            header_trailing,
+            close_trailing,
+            trailing,
             span: Span {
                 start,
                 end: self.peek().span.end,
@@ -140,7 +181,7 @@ impl Parser<'_> {
         }
     }
 
-    /// Statements up to and including the closing `}`.
+    /// Entries up to and including the closing `}`.
     fn block(&mut self, root: bool) -> Block {
         let mut entries = Vec::new();
         if matches!(self.peek().kind, TokenKind::Newline) {
@@ -148,6 +189,8 @@ impl Parser<'_> {
         }
         let mut blank = false;
         loop {
+            // A blank line never marks the first entry of a block.
+            let blank_before = blank && !entries.is_empty();
             match self.peek().kind {
                 TokenKind::Newline => {
                     self.bump();
@@ -161,13 +204,29 @@ impl Parser<'_> {
                     self.unexpected("`}`");
                     break;
                 }
+                TokenKind::Comment(_) => {
+                    if let Some(mut c) = self.trailing_comment() {
+                        c.blank_before = blank_before;
+                        entries.push(Entry::Comment(c));
+                    }
+                    blank = false;
+                    self.end_of_statement();
+                }
                 _ => {
-                    if let Some(kind_span) = self.statement(root) {
-                        let (kind, span) = kind_span;
+                    if let Some((mut kind, span)) = self.statement(root) {
+                        // After a container this is the comment on its closing `}` line.
+                        let trailing = self.trailing_comment();
+                        let item_trailing = match &mut kind {
+                            ItemKind::Container(c) => {
+                                c.close_trailing = trailing;
+                                None
+                            }
+                            _ => trailing,
+                        };
                         entries.push(Entry::Item(Item {
                             kind,
-                            blank_before: blank,
-                            trailing: None,
+                            blank_before,
+                            trailing: item_trailing,
                             span,
                         }));
                     } else {
