@@ -2,19 +2,38 @@
 
 use serde::Serialize;
 
-use crate::ir::Shape;
+use crate::ir::{Direction, Shape};
 use crate::span::Span;
 
-/// A parsed `graph { ... }` document.
+/// A parsed `graph { ... }` document, with the comments around it.
 #[derive(Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct Document {
+    /// Own-line comments before `graph`.
+    pub leading: Vec<Comment>,
     /// Statements of the graph block.
     pub body: Block,
+    /// Comment on the `graph {` line.
+    pub header_trailing: Option<Comment>,
+    /// Comment on the closing `}` line.
+    pub close_trailing: Option<Comment>,
+    /// Own-line comments after the closing `}`.
+    pub trailing: Vec<Comment>,
     /// Whole document span.
     pub span: Span,
 }
 
-/// Ordered entries of a `{ ... }` block (comments and trivia arrive with the formatter).
+/// A `//` comment. `blank_before` follows the same rule as [`Item::blank_before`].
+#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
+pub struct Comment {
+    /// Text after `//`, with trailing whitespace and `\r` trimmed.
+    pub text: String,
+    /// True when a blank line separates it from the previous entry of its block.
+    pub blank_before: bool,
+    /// Span from `//` to the end of the text.
+    pub span: Span,
+}
+
+/// Ordered entries of a `{ ... }` block.
 #[derive(Serialize, Debug, Clone, PartialEq, Eq, Default)]
 pub struct Block {
     /// Entries in source order.
@@ -24,17 +43,22 @@ pub struct Block {
 /// One block entry.
 #[derive(Serialize, Debug, Clone, PartialEq, Eq)]
 pub enum Entry {
+    /// An own-line comment.
+    Comment(Comment),
     /// A statement.
     Item(Item),
 }
 
-/// A statement plus its leading blank-line flag.
+/// A statement plus its trivia.
 #[derive(Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct Item {
     /// What the statement is.
     pub kind: ItemKind,
-    /// True when a blank line precedes the statement.
+    /// True iff at least one blank line separates it from the previous entry in the same
+    /// block (always false for the first entry of a block).
     pub blank_before: bool,
+    /// Comment on the same line after the statement.
+    pub trailing: Option<Comment>,
     /// Statement span.
     pub span: Span,
 }
@@ -42,10 +66,38 @@ pub struct Item {
 /// Statement kinds.
 #[derive(Serialize, Debug, Clone, PartialEq, Eq)]
 pub enum ItemKind {
+    /// `direction: down`.
+    Direction(DirectionStmt),
     /// `node id: "label"`.
     Node(NodeDecl),
+    /// `container id: "label" { ... }`.
+    Container(ContainerDecl),
     /// `a -> b` with optional `: "label"`.
     Edge(EdgeStmt),
+}
+
+/// `direction: <down|right|up|left>`.
+#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
+pub struct DirectionStmt {
+    /// The flow direction.
+    pub value: Direction,
+    /// Statement span.
+    pub span: Span,
+}
+
+/// A container declaration with its nested body.
+#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
+pub struct ContainerDecl {
+    /// Declared id.
+    pub id: Ident,
+    /// Display label.
+    pub label: Label,
+    /// Nested statements.
+    pub body: Block,
+    /// Comment on the `container ... {` line.
+    pub header_trailing: Option<Comment>,
+    /// Comment on the closing `}` line.
+    pub close_trailing: Option<Comment>,
 }
 
 /// A node declaration.

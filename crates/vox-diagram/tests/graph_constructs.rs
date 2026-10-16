@@ -65,3 +65,26 @@ fn tracer_rejects_oversized_source() {
     let report = check(&ok);
     assert!(report.valid, "{:?}", report.diagnostics);
 }
+
+const CANONICAL: &str = include_str!("fixtures/valid/canonical.vdg");
+
+#[test]
+fn canonical_example_ir() {
+    let report = check(CANONICAL);
+    assert!(report.valid, "{:?}", report.diagnostics);
+    assert_eq!(report.stats.containers, 1);
+    assert_eq!(report.stats.max_depth, 1);
+    insta::assert_json_snapshot!(report.ir);
+}
+
+#[test]
+fn ir_json_is_stable() {
+    let first = serde_json::to_string(&check(CANONICAL)).unwrap_or_default();
+    assert!(first.contains("backend.gateway"));
+    for _ in 0..3 {
+        assert_eq!(
+            serde_json::to_string(&check(CANONICAL)).unwrap_or_default(),
+            first
+        );
+    }
+}

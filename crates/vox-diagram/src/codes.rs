@@ -7,8 +7,19 @@ pub const UNDECLARED_NODE: &str = "diagram/undeclared-node";
 /// The source exceeds `limits::MAX_SOURCE_BYTES`.
 pub const LIMIT_SOURCE: &str = "diagram/limit-source";
 
+/// A dotted reference passes through a node (only containers have children).
+pub const NOT_A_CONTAINER: &str = "diagram/not-a-container";
+/// An edge endpoint resolves to a container; edges connect nodes.
+pub const CONTAINER_ENDPOINT: &str = "diagram/container-endpoint";
+
 /// Every code the crate can emit.
-pub const ALL_CODES: &[&str] = &[UNEXPECTED_TOKEN, UNDECLARED_NODE, LIMIT_SOURCE];
+pub const ALL_CODES: &[&str] = &[
+    UNEXPECTED_TOKEN,
+    UNDECLARED_NODE,
+    LIMIT_SOURCE,
+    NOT_A_CONTAINER,
+    CONTAINER_ENDPOINT,
+];
 
 #[cfg(test)]
 mod tests {
@@ -27,6 +38,6 @@ mod tests {
             );
             assert!(!ALL_CODES[..i].contains(code), "{code} is duplicated");
         }
-        assert_eq!(ALL_CODES.len(), 3);
+        assert_eq!(ALL_CODES.len(), 5);
     }
 }

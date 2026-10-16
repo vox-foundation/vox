@@ -1,0 +1,128 @@
+---
+source: crates/vox-diagram/tests/graph_constructs.rs
+expression: report.ir
+---
+{
+  "kind": "graph",
+  "direction": "down",
+  "nodes": [
+    {
+      "id": "client",
+      "local_id": "client",
+      "label": "Axis Desktop Client",
+      "shape": "rect",
+      "container": null,
+      "span": {
+        "start": 33,
+        "end": 67,
+        "line": 4,
+        "col": 5,
+        "end_line": 4,
+        "end_col": 39
+      }
+    },
+    {
+      "id": "backend.gateway",
+      "local_id": "gateway",
+      "label": "HTTP / WebSocket Gateway",
+      "shape": "rect",
+      "container": "backend",
+      "span": {
+        "start": 122,
+        "end": 162,
+        "line": 7,
+        "col": 9,
+        "end_line": 7,
+        "end_col": 49
+      }
+    },
+    {
+      "id": "backend.engine",
+      "local_id": "engine",
+      "label": "Agent Actor Runtime",
+      "shape": "rect",
+      "container": "backend",
+      "span": {
+        "start": 171,
+        "end": 205,
+        "line": 8,
+        "col": 9,
+        "end_line": 8,
+        "end_col": 43
+      }
+    },
+    {
+      "id": "backend.db",
+      "local_id": "db",
+      "label": "Turso / Codex SQLite",
+      "shape": "cylinder",
+      "container": "backend",
+      "span": {
+        "start": 214,
+        "end": 265,
+        "line": 9,
+        "col": 9,
+        "end_line": 9,
+        "end_col": 60
+      }
+    }
+  ],
+  "containers": [
+    {
+      "id": "backend",
+      "local_id": "backend",
+      "label": "Orchestrator Host",
+      "parent": null,
+      "depth": 1,
+      "span": {
+        "start": 73,
+        "end": 362,
+        "line": 6,
+        "col": 5,
+        "end_line": 13,
+        "end_col": 6
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "backend.gateway",
+      "to": "backend.engine",
+      "label": "Dispatches turns",
+      "span": {
+        "start": 275,
+        "end": 312,
+        "line": 11,
+        "col": 9,
+        "end_line": 11,
+        "end_col": 46
+      }
+    },
+    {
+      "from": "backend.engine",
+      "to": "backend.db",
+      "label": "Queries & Mutations",
+      "span": {
+        "start": 321,
+        "end": 356,
+        "line": 12,
+        "col": 9,
+        "end_line": 12,
+        "end_col": 44
+      }
+    },
+    {
+      "from": "client",
+      "to": "backend.gateway",
+      "label": "TLS / WebSocket",
+      "span": {
+        "start": 368,
+        "end": 412,
+        "line": 15,
+        "col": 5,
+        "end_line": 15,
+        "end_col": 49
+      }
+    }
+  ]
+}

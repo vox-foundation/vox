@@ -1,0 +1,16 @@
+graph {
+    direction: down
+
+    node client: "Axis Desktop Client"
+
+    container backend: "Orchestrator Host" {
+        node gateway: "HTTP / WebSocket Gateway"
+        node engine: "Agent Actor Runtime"
+        node db: "Turso / Codex SQLite" { shape: cylinder }
+
+        gateway -> engine: "Dispatches turns"
+        engine -> db: "Queries & Mutations"
+    }
+
+    client -> backend.gateway: "TLS / WebSocket"
+}

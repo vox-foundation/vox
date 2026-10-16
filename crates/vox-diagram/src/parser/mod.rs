@@ -1,12 +1,13 @@
 //! Error-recovering parser for the `graph { ... }` block. Recovery re-syncs at the next newline
 //! or `}` so independent mistakes are all reported.
 
-use crate::ast::{Block, Document, EdgeStmt, Entry, Ident, Item, ItemKind, Label, NodeDecl, Ref};
+use crate::ast::{Block, Document, Entry, Item};
 use crate::codes;
 use crate::diag::Diagnostic;
-use crate::ir::Shape;
 use crate::lexer::{Token, TokenKind};
 use crate::span::{LineIndex, Span};
+
+mod stmt;
 
 struct Parser<'a> {
     src: &'a str,
@@ -55,6 +56,10 @@ impl Parser<'_> {
         &self.toks[self.pos.min(self.toks.len() - 1)]
     }
 
+    fn peek_at(&self, n: usize) -> &Token {
+        &self.toks[(self.pos + n).min(self.toks.len() - 1)]
+    }
+
     fn bump(&mut self) -> Token {
         let t = self.peek().clone();
         if !matches!(t.kind, TokenKind::Eof) {
@@ -66,9 +71,15 @@ impl Parser<'_> {
     fn unexpected(&mut self, expected: &str) {
         let tok = self.peek();
         let message = format!("expected {expected}, found {}", describe(&tok.kind));
-        let span = self.idx.location(self.src, tok.span);
+        let span = tok.span;
+        self.error_at(span, message);
+    }
+
+    /// An `unexpected-token` error over `span`.
+    fn error_at(&mut self, span: Span, message: String) {
+        let loc = self.idx.location(self.src, span);
         self.diags
-            .push(Diagnostic::error(codes::UNEXPECTED_TOKEN, message, span));
+            .push(Diagnostic::error(codes::UNEXPECTED_TOKEN, message, loc));
     }
 
     /// Advance to the next newline, `}` or EOF without consuming it.
@@ -102,7 +113,7 @@ impl Parser<'_> {
         } else {
             self.bump();
             if self.expect(&TokenKind::LBrace, "`{`").is_some() {
-                body = self.block();
+                body = self.block(true);
             }
         }
         // Anything after the closing brace except newlines is an error.
@@ -113,7 +124,11 @@ impl Parser<'_> {
             self.unexpected("end of input");
         }
         Document {
+            leading: Vec::new(),
             body,
+            header_trailing: None,
+            close_trailing: None,
+            trailing: Vec::new(),
             span: Span {
                 start,
                 end: self.peek().span.end,
@@ -122,7 +137,7 @@ impl Parser<'_> {
     }
 
     /// Statements up to and including the closing `}`.
-    fn block(&mut self) -> Block {
+    fn block(&mut self, root: bool) -> Block {
         let mut entries = Vec::new();
         if matches!(self.peek().kind, TokenKind::Newline) {
             self.bump();
@@ -143,11 +158,12 @@ impl Parser<'_> {
                     break;
                 }
                 _ => {
-                    if let Some(kind_span) = self.statement() {
+                    if let Some(kind_span) = self.statement(root) {
                         let (kind, span) = kind_span;
                         entries.push(Entry::Item(Item {
                             kind,
                             blank_before: blank,
+                            trailing: None,
                             span,
                         }));
                     } else {
@@ -176,89 +192,5 @@ impl Parser<'_> {
                 }
             }
         }
-    }
-
-    fn statement(&mut self) -> Option<(ItemKind, Span)> {
-        let start = self.peek().span.start;
-        let is_node = matches!(&self.peek().kind, TokenKind::Ident(s) if s == "node");
-        let kind = if is_node {
-            self.node_decl()?
-        } else {
-            self.edge()?
-        };
-        Some((
-            kind,
-            Span {
-                start,
-                end: self.toks[self.pos - 1].span.end,
-            },
-        ))
-    }
-
-    fn ident(&mut self, expected: &str) -> Option<Ident> {
-        let tok = self.peek().clone();
-        if let TokenKind::Ident(name) = tok.kind {
-            self.bump();
-            Some(Ident {
-                name,
-                span: tok.span,
-            })
-        } else {
-            self.unexpected(expected);
-            None
-        }
-    }
-
-    fn label(&mut self) -> Option<Label> {
-        let tok = self.peek().clone();
-        if let TokenKind::Str(value) = tok.kind {
-            self.bump();
-            Some(Label {
-                value,
-                span: tok.span,
-            })
-        } else {
-            self.unexpected("a quoted label");
-            None
-        }
-    }
-
-    fn node_decl(&mut self) -> Option<ItemKind> {
-        self.bump(); // `node`
-        let id = self.ident("a node id")?;
-        self.expect(&TokenKind::Colon, "`:`")?;
-        let label = self.label()?;
-        Some(ItemKind::Node(NodeDecl {
-            id,
-            label,
-            shape: Shape::default(),
-        }))
-    }
-
-    fn reference(&mut self) -> Option<Ref> {
-        let first = self.ident("a node reference")?;
-        let mut segments = vec![first];
-        while matches!(self.peek().kind, TokenKind::Dot) {
-            self.bump();
-            segments.push(self.ident("an identifier after `.`")?);
-        }
-        let span = Span {
-            start: segments[0].span.start,
-            end: segments[segments.len() - 1].span.end,
-        };
-        Some(Ref { segments, span })
-    }
-
-    fn edge(&mut self) -> Option<ItemKind> {
-        let from = self.reference()?;
-        self.expect(&TokenKind::Arrow, "`->`")?;
-        let to = self.reference()?;
-        let label = if matches!(self.peek().kind, TokenKind::Colon) {
-            self.bump();
-            Some(self.label()?)
-        } else {
-            None
-        };
-        Some(ItemKind::Edge(EdgeStmt { from, to, label }))
     }
 }
