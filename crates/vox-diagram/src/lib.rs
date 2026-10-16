@@ -35,6 +35,9 @@ pub mod span;
 mod check;
 mod lexer;
 mod parser;
+/// Canonical formatter.
+mod print;
 mod resolve;
 
 pub use check::{Parsed, check, parse};
+pub use print::fmt;
