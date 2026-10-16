@@ -16,6 +16,7 @@ use crate::lexer::{Token, TokenKind};
 use crate::limits::{MAX_EDGES, MAX_NODES};
 use crate::span::{LineIndex, Span};
 
+mod mermaid;
 mod recover;
 mod stmt;
 #[cfg(test)]
@@ -79,6 +80,7 @@ fn describe(kind: &TokenKind) -> String {
         TokenKind::Comment(_) => "a comment".into(),
         TokenKind::BadIdent(s) => format!("`{}`", clip(s)),
         TokenKind::Arrow => "`->`".into(),
+        TokenKind::MArrow { .. } => "a Mermaid link".into(),
         TokenKind::Colon => "`:`".into(),
         TokenKind::Dot => "`.`".into(),
         TokenKind::LBrace => "`{`".into(),

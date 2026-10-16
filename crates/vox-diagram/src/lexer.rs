@@ -25,6 +25,12 @@ pub(crate) enum TokenKind {
     /// A word that is not a valid identifier (digit start or non-ASCII letters).
     BadIdent(String),
     Arrow,
+    /// A Mermaid link (`-->`, `==>`, `-.->`, `---`, `-- text -->`, `-->|text|`). `exact` means
+    /// the head is `-{2,}>`; `label` is the raw link text.
+    MArrow {
+        exact: bool,
+        label: Option<String>,
+    },
     Colon,
     Dot,
     LBrace,
@@ -48,6 +54,10 @@ struct Lexer<'a> {
     idx: &'a LineIndex,
     it: Chars<'a>,
     diags: Vec<Diagnostic>,
+    /// End of the line on which a scan for a link label found no closer: nothing later on
+    /// that line can close either, so the scan is not repeated (keeps a line O(n)).
+    dash_fail_until: usize,
+    pipe_fail_until: usize,
 }
 
 /// A control character or bidirectional override that must never reach a label (A8).
@@ -69,6 +79,8 @@ pub(crate) fn lex(src: &str, idx: &LineIndex) -> (Vec<Token>, Vec<Diagnostic>) {
         idx,
         it: src.char_indices().peekable(),
         diags: Vec::new(),
+        dash_fail_until: 0,
+        pipe_fail_until: 0,
     };
     let mut out = Vec::new();
     while let Some((i, c)) = lx.it.next() {
@@ -150,6 +162,7 @@ impl Lexer<'_> {
                 end += 1;
                 TokenKind::Arrow
             }
+            '-' | '=' if self.starts_link(i) => self.link(i, &mut end),
             '/' if self.peek_is('/') => self.comment(i, &mut end),
             '"' => self.string(i, &mut end),
             c if c.is_alphanumeric() || c == '_' => self.word(i, &mut end),
@@ -291,5 +304,6 @@ impl Lexer<'_> {
     }
 }
 
+mod mermaid;
 #[cfg(test)]
 mod tests;

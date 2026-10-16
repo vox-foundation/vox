@@ -327,7 +327,12 @@ impl Parser<'_> {
 
     fn edge(&mut self) -> Option<ItemKind> {
         let from = self.reference()?;
-        self.expect(&TokenKind::Arrow, "`->`")?;
+        if let TokenKind::MArrow { exact, label } = self.peek().kind.clone() {
+            let span = self.bump().span;
+            self.mermaid_arrow(span, exact, label.is_some());
+        } else {
+            self.expect(&TokenKind::Arrow, "`->`")?;
+        }
         let to = self.reference()?;
         let mut label = None;
         if matches!(self.peek().kind, TokenKind::Colon) {

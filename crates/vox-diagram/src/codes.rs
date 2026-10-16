@@ -57,6 +57,9 @@ pub const LIMIT_DEPTH: &str = "diagram/limit-depth";
 /// A label longer than `limits::MAX_LABEL_CHARS` characters.
 pub const LIMIT_LABEL: &str = "diagram/limit-label";
 
+/// Mermaid syntax used where VoxDiagram has a different canonical form.
+pub const MERMAID_SYNTAX: &str = "diagram/mermaid-syntax";
+
 /// More diagnostics were found than one report can hold (sentinel, always a warning).
 pub const LIMIT_DIAGNOSTICS: &str = "diagram/limit-diagnostics";
 
@@ -89,6 +92,7 @@ pub const ALL_CODES: &[&str] = &[
     LIMIT_EDGES,
     LIMIT_DEPTH,
     LIMIT_LABEL,
+    MERMAID_SYNTAX,
 ];
 
 #[cfg(test)]
@@ -108,6 +112,6 @@ mod tests {
             );
             assert!(!ALL_CODES[..i].contains(code), "{code} is duplicated");
         }
-        assert_eq!(ALL_CODES.len(), 27);
+        assert_eq!(ALL_CODES.len(), 28);
     }
 }

@@ -15,6 +15,7 @@ diagram/limit-edges
 diagram/limit-label
 diagram/limit-nodes
 diagram/limit-source
+diagram/mermaid-syntax
 diagram/not-a-container
 diagram/reserved-word
 diagram/shadowed-id
