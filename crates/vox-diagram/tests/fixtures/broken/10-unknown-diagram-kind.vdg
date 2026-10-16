@@ -1,0 +1,4 @@
+// expect: diagram/unknown-diagram-kind
+sequence {
+    a -> b
+}

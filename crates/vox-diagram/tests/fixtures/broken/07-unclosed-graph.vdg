@@ -1,0 +1,3 @@
+// expect: diagram/unclosed-brace
+graph {
+    node a: "A"

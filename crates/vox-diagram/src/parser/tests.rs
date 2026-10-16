@@ -128,7 +128,7 @@ mod recovery {
     fn container_header_with_garbled_label_still_parses_its_body() {
         let r = check("graph {\n container c: oops {\n node x: \"X\"\n }\n c.x -> c.x\n}\n");
         let got: Vec<_> = r.diagnostics.iter().map(|d| d.code).collect();
-        assert_eq!(got, [codes::UNEXPECTED_TOKEN], "{:?}", r.diagnostics);
+        assert_eq!(got, [codes::EXPECTED_QUOTED_LABEL], "{:?}", r.diagnostics);
     }
 
     #[test]

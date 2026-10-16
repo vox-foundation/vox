@@ -5,6 +5,8 @@ use super::Parser;
 use crate::ast::{
     Block, ContainerDecl, DirectionStmt, EdgeStmt, Ident, ItemKind, Label, NodeDecl, Ref,
 };
+use crate::codes;
+use crate::diag::clip;
 use crate::ir::{Direction, Shape};
 use crate::lexer::TokenKind;
 use crate::span::Span;
@@ -22,7 +24,7 @@ impl Parser<'_> {
         let kind = match kw.as_str() {
             "node" if !edge_next => self.node_decl()?,
             "container" if !edge_next => self.container_decl()?,
-            "direction" if root && matches!(next, TokenKind::Colon) => self.direction_stmt()?,
+            "direction" if matches!(next, TokenKind::Colon) => self.direction_stmt(root)?,
             _ => self.edge()?,
         };
         Some((
@@ -49,21 +51,29 @@ impl Parser<'_> {
         }
     }
 
-    fn label(&mut self) -> Option<Label> {
+    /// A quoted label. Unquoted text is recovered as the label (and reported); `None` only
+    /// when there is nothing label-like at all.
+    fn label(&mut self, stop_lbrace: bool) -> Option<Label> {
         let tok = self.peek().clone();
-        if let TokenKind::Str { value, .. } = tok.kind {
+        if let TokenKind::Str { value, terminated } = tok.kind {
             self.bump();
-            Some(Label {
+            if terminated && value.is_empty() {
+                let msg = "label is empty; give it some text".to_string();
+                self.report(codes::EMPTY_LABEL, tok.span, msg);
+            }
+            return Some(Label {
                 value,
                 span: tok.span,
-            })
-        } else {
-            self.unexpected("a quoted label");
-            None
+            });
         }
+        if let Some(label) = self.unquoted_label(stop_lbrace) {
+            return Some(label);
+        }
+        self.unexpected("a quoted label");
+        None
     }
 
-    fn direction_stmt(&mut self) -> Option<ItemKind> {
+    fn direction_stmt(&mut self, root: bool) -> Option<ItemKind> {
         let start = self.bump().span.start; // `direction`
         self.expect(&TokenKind::Colon, "`:`")?;
         let word = self.ident("`down`, `right`, `up` or `left`")?;
@@ -75,19 +85,30 @@ impl Parser<'_> {
             _ => {
                 let msg = format!(
                     "expected `down`, `right`, `up` or `left`, found `{}`",
-                    word.name.chars().take(20).collect::<String>()
+                    clip(&word.name)
                 );
-                self.error_at(word.span, msg);
+                let closest = ["down", "right", "up", "left"]
+                    .into_iter()
+                    .min_by_key(|w| strsim::levenshtein(w, &word.name))
+                    .unwrap_or("down");
+                let help = Some(format!("did you mean `{closest}`?"));
+                self.report_help(codes::INVALID_DIRECTION, word.span, msg, help);
                 return None;
             }
         };
-        Some(ItemKind::Direction(DirectionStmt {
-            value,
-            span: Span {
-                start,
-                end: word.span.end,
-            },
-        }))
+        let span = Span {
+            start,
+            end: word.span.end,
+        };
+        if !root {
+            let msg = "`direction` is only allowed directly inside `graph { }`".to_string();
+            self.report(codes::DIRECTION_IN_CONTAINER, span, msg);
+        } else if self.seen_direction {
+            let msg = "a graph has one `direction`; remove this one".to_string();
+            self.report(codes::DUPLICATE_DIRECTION, span, msg);
+        }
+        self.seen_direction |= root;
+        Some(ItemKind::Direction(DirectionStmt { value, span }))
     }
 
     /// A label made from the id, used when the real one cannot be recovered.
@@ -106,7 +127,7 @@ impl Parser<'_> {
         let has_colon = self.expect(&TokenKind::Colon, "`:`").is_some();
         let mut label = None;
         if has_colon || matches!(self.peek().kind, TokenKind::Str { .. }) {
-            label = self.label();
+            label = self.label(true);
             if label.is_none() {
                 self.skip_to_stmt_end();
             }
@@ -114,7 +135,7 @@ impl Parser<'_> {
             self.skip_to_stmt_end();
         }
         let shape = if matches!(self.peek().kind, TokenKind::LBrace) {
-            self.attr_block().unwrap_or_default()
+            self.attr_block()
         } else {
             Shape::default()
         };
@@ -123,22 +144,27 @@ impl Parser<'_> {
     }
 
     /// `{ shape: <word> }` — the only attribute in v1; attributes may be separated by `,` or
-    /// newlines. Returns the shape (last one wins).
-    fn attr_block(&mut self) -> Option<Shape> {
-        self.bump(); // `{`
+    /// newlines. Returns the shape (last one wins; the default after any error).
+    fn attr_block(&mut self) -> Shape {
+        let open = self.bump().span; // `{`
         let mut shape = Shape::default();
         loop {
             while matches!(self.peek().kind, TokenKind::Newline | TokenKind::Comma) {
+                // A line-leading `node`/`container` means the block was never closed.
+                if matches!(self.peek().kind, TokenKind::Newline) && self.next_line_starts_decl() {
+                    self.unclosed(open);
+                    return shape;
+                }
                 self.bump();
             }
             match self.peek().kind {
                 TokenKind::RBrace => {
                     self.bump();
-                    return Some(shape);
+                    return shape;
                 }
                 TokenKind::Eof => {
-                    self.unexpected("`}`");
-                    return None;
+                    self.unclosed(open);
+                    return shape;
                 }
                 _ => {}
             }
@@ -153,14 +179,8 @@ impl Parser<'_> {
             match parsed {
                 Some(s) if separated => shape = s,
                 _ => {
-                    // Re-sync to the closing brace so it does not end the enclosing block.
-                    while !matches!(self.peek().kind, TokenKind::RBrace | TokenKind::Eof) {
-                        self.bump();
-                    }
-                    if matches!(self.peek().kind, TokenKind::RBrace) {
-                        self.bump();
-                    }
-                    return None;
+                    self.resync_attr(open);
+                    return Shape::default();
                 }
             }
         }
@@ -169,12 +189,11 @@ impl Parser<'_> {
     fn shape_attr(&mut self) -> Option<Shape> {
         let key = self.ident("`shape`")?;
         if key.name != "shape" {
-            let span = key.span;
             let msg = format!(
-                "expected `shape`, found `{}`",
-                key.name.chars().take(20).collect::<String>()
+                "unknown attribute `{}`; the only attribute is `shape`",
+                clip(&key.name)
             );
-            self.error_at(span, msg);
+            self.report(codes::UNKNOWN_ATTRIBUTE, key.span, msg);
             return None;
         }
         self.expect(&TokenKind::Colon, "`:`")?;
@@ -187,12 +206,11 @@ impl Parser<'_> {
             "start" => Shape::Start,
             "end" => Shape::End,
             other => {
-                let span = word.span;
                 let msg = format!(
                     "expected one of rect, rounded, diamond, cylinder, start, end, found `{}`",
-                    other.chars().take(20).collect::<String>()
+                    clip(other)
                 );
-                self.error_at(span, msg);
+                self.report(codes::INVALID_SHAPE, word.span, msg);
                 return None;
             }
         };
@@ -207,13 +225,12 @@ impl Parser<'_> {
         let id = self.ident("a container id")?;
         let has_colon = self.expect(&TokenKind::Colon, "`:`").is_some();
         let label = if has_colon || matches!(self.peek().kind, TokenKind::Str { .. }) {
-            self.label()
+            self.label(true)
         } else {
             None
         };
-        let opened = if matches!(self.peek().kind, TokenKind::LBrace) {
-            self.bump();
-            true
+        let open = if matches!(self.peek().kind, TokenKind::LBrace) {
+            Some(self.bump().span)
         } else {
             if label.is_some() {
                 self.unexpected("`{`");
@@ -221,10 +238,9 @@ impl Parser<'_> {
             self.consume_through_lbrace()
         };
         let label = label.unwrap_or_else(|| Self::placeholder(&id));
-        let (header_trailing, body) = if opened {
-            (self.trailing_comment(), self.block(false))
-        } else {
-            (None, Block::default())
+        let (header_trailing, body) = match open {
+            Some(open) => (self.trailing_comment(), self.block(false, Some(open))),
+            None => (None, Block::default()),
         };
         Some(ItemKind::Container(ContainerDecl {
             id,
@@ -253,12 +269,14 @@ impl Parser<'_> {
         let from = self.reference()?;
         self.expect(&TokenKind::Arrow, "`->`")?;
         let to = self.reference()?;
-        let label = if matches!(self.peek().kind, TokenKind::Colon) {
+        let mut label = None;
+        if matches!(self.peek().kind, TokenKind::Colon) {
             self.bump();
-            Some(self.label()?)
-        } else {
-            None
-        };
+            label = self.label(false);
+            if label.is_none() {
+                self.skip_to_stmt_end();
+            }
+        }
         Some(ItemKind::Edge(EdgeStmt { from, to, label }))
     }
 }

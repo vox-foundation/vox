@@ -21,6 +21,33 @@ pub const FORBIDDEN_CHAR: &str = "diagram/forbidden-char";
 /// A word that is not a valid identifier.
 pub const INVALID_IDENTIFIER: &str = "diagram/invalid-identifier";
 
+/// A label that is unquoted or single-quoted; labels are double-quoted.
+pub const EXPECTED_QUOTED_LABEL: &str = "diagram/expected-quoted-label";
+/// A `{` that is never closed before the end of the input.
+pub const UNCLOSED_BRACE: &str = "diagram/unclosed-brace";
+/// Anything after the closing `}` of the graph block.
+pub const TRAILING_CONTENT: &str = "diagram/trailing-content";
+/// The header word is not a supported diagram kind.
+pub const UNKNOWN_DIAGRAM_KIND: &str = "diagram/unknown-diagram-kind";
+/// A declared id that equals a keyword.
+pub const RESERVED_WORD: &str = "diagram/reserved-word";
+/// A direction word other than down, right, up or left.
+pub const INVALID_DIRECTION: &str = "diagram/invalid-direction";
+/// A second `direction` statement in one graph.
+pub const DUPLICATE_DIRECTION: &str = "diagram/duplicate-direction";
+/// A `direction` statement inside a container.
+pub const DIRECTION_IN_CONTAINER: &str = "diagram/direction-in-container";
+/// A shape word that is not one of the six shapes.
+pub const INVALID_SHAPE: &str = "diagram/invalid-shape";
+/// An attribute key other than `shape`.
+pub const UNKNOWN_ATTRIBUTE: &str = "diagram/unknown-attribute";
+/// The same id declared twice in one scope.
+pub const DUPLICATE_ID: &str = "diagram/duplicate-id";
+/// An inner id hides an outer id (warning).
+pub const SHADOWED_ID: &str = "diagram/shadowed-id";
+/// A quoted label with no text.
+pub const EMPTY_LABEL: &str = "diagram/empty-label";
+
 /// More diagnostics were found than one report can hold (sentinel, always a warning).
 pub const LIMIT_DIAGNOSTICS: &str = "diagram/limit-diagnostics";
 
@@ -36,6 +63,19 @@ pub const ALL_CODES: &[&str] = &[
     FORBIDDEN_CHAR,
     INVALID_IDENTIFIER,
     LIMIT_DIAGNOSTICS,
+    EXPECTED_QUOTED_LABEL,
+    UNCLOSED_BRACE,
+    TRAILING_CONTENT,
+    UNKNOWN_DIAGRAM_KIND,
+    RESERVED_WORD,
+    INVALID_DIRECTION,
+    DUPLICATE_DIRECTION,
+    DIRECTION_IN_CONTAINER,
+    INVALID_SHAPE,
+    UNKNOWN_ATTRIBUTE,
+    DUPLICATE_ID,
+    SHADOWED_ID,
+    EMPTY_LABEL,
 ];
 
 #[cfg(test)]
@@ -55,6 +95,6 @@ mod tests {
             );
             assert!(!ALL_CODES[..i].contains(code), "{code} is duplicated");
         }
-        assert_eq!(ALL_CODES.len(), 10);
+        assert_eq!(ALL_CODES.len(), 23);
     }
 }

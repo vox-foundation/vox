@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 
 use crate::ast::{Block, Document, Entry, ItemKind, Ref};
 use crate::codes;
-use crate::diag::{Diagnostic, Stats};
+use crate::diag::{Diagnostic, Related, Stats, clip};
 use crate::ir::{GraphIr, IrContainer, IrEdge, IrNode};
 use crate::span::{LineIndex, Span, to_u32};
 
@@ -22,7 +22,8 @@ struct Scope<'a> {
     parent: Option<usize>,
     /// Full dotted id of the owning container (empty for the root).
     path: String,
-    names: BTreeMap<&'a str, Entity>,
+    /// Declared names with the span of the id that declared each first.
+    names: BTreeMap<&'a str, (Entity, Span)>,
     first_child: Option<String>,
 }
 
@@ -72,12 +73,57 @@ pub(crate) fn resolve<'a>(
 }
 
 impl<'a> Resolver<'a> {
-    /// Register `name` in `scope`; the first declaration of a name wins.
-    // ponytail: duplicate ids are silently first-wins; plan 04 adds duplicate/shadow diagnostics.
-    fn claim(&mut self, scope: usize, name: &'a str, full: &str, entity: Entity) {
-        let s = &mut self.scopes[scope];
-        s.names.entry(name).or_insert(entity);
-        s.first_child.get_or_insert_with(|| full.to_string());
+    /// Register `name` in `scope`. The first declaration of a name wins; a repeat is a
+    /// `duplicate-id`, a keyword is a `reserved-word`, and an id that hides one in an
+    /// enclosing scope is a `shadowed-id` at `Severity::Warning` (innermost still wins).
+    fn claim(&mut self, scope: usize, id: (&'a str, Span), full: &str, entity: Entity) {
+        let (name, span) = id;
+        if RESERVED.contains(&name) {
+            let msg = format!("`{name}` is a keyword and cannot be used as an id");
+            self.report(codes::RESERVED_WORD, span, msg, None);
+        }
+        if let Some(&(_, first)) = self.scopes[scope].names.get(name) {
+            let msg = format!("`{}` is already declared in this scope", clip(name));
+            let mut d =
+                Diagnostic::error(codes::DUPLICATE_ID, msg, self.idx.location(self.src, span));
+            d.related.push(self.related("first declared here", first));
+            self.diags.push(d);
+        } else {
+            self.scopes[scope].names.insert(name, (entity, span));
+            if let Some(outer) = self.outer_decl(scope, name) {
+                let msg = format!(
+                    "`{}` hides an id of the same name in an enclosing scope",
+                    clip(name)
+                );
+                let loc = self.idx.location(self.src, span);
+                let mut d = Diagnostic::warning(codes::SHADOWED_ID, msg, loc);
+                d.related
+                    .push(self.related("the hidden declaration", outer));
+                self.diags.push(d);
+            }
+        }
+        self.scopes[scope]
+            .first_child
+            .get_or_insert_with(|| full.to_string());
+    }
+
+    fn related(&self, message: &str, span: Span) -> Related {
+        Related {
+            message: message.to_string(),
+            span: self.idx.location(self.src, span),
+        }
+    }
+
+    /// Where `name` is declared in a scope enclosing `scope`, nearest first.
+    fn outer_decl(&self, scope: usize, name: &str) -> Option<Span> {
+        let mut cur = self.scopes[scope].parent;
+        while let Some(i) = cur {
+            if let Some(&(_, span)) = self.scopes[i].names.get(name) {
+                return Some(span);
+            }
+            cur = self.scopes[i].parent;
+        }
+        None
     }
 
     fn declare(&mut self, block: &'a Block, scope: usize, depth: u32) {
@@ -89,7 +135,12 @@ impl<'a> Resolver<'a> {
             match &item.kind {
                 ItemKind::Node(n) => {
                     let id = qualify(path, &n.id.name);
-                    self.claim(scope, &n.id.name, &id, Entity::Node(self.ir.nodes.len()));
+                    self.claim(
+                        scope,
+                        (&n.id.name, n.id.span),
+                        &id,
+                        Entity::Node(self.ir.nodes.len()),
+                    );
                     self.ir.nodes.push(IrNode {
                         id,
                         local_id: n.id.name.clone(),
@@ -108,7 +159,12 @@ impl<'a> Resolver<'a> {
                         names: BTreeMap::new(),
                         first_child: None,
                     });
-                    self.claim(scope, &c.id.name, &id, Entity::Container(child));
+                    self.claim(
+                        scope,
+                        (&c.id.name, c.id.span),
+                        &id,
+                        Entity::Container(child),
+                    );
                     self.ir.containers.push(IrContainer {
                         id,
                         local_id: c.id.name.clone(),
@@ -164,7 +220,7 @@ impl<'a> Resolver<'a> {
                 .iter()
                 .map(|s| s.name.as_str())
                 .collect();
-            names.join(".")
+            clip(&names.join("."))
         };
         let rest = |from: usize| Span {
             start: r.segments[from].span.start,
@@ -172,7 +228,7 @@ impl<'a> Resolver<'a> {
         };
         let mut cur = scope;
         let mut found = loop {
-            if let Some(e) = self.scopes[cur].names.get(r.segments[0].name.as_str()) {
+            if let Some((e, _)) = self.scopes[cur].names.get(r.segments[0].name.as_str()) {
                 break *e;
             }
             match self.scopes[cur].parent {
@@ -190,7 +246,7 @@ impl<'a> Resolver<'a> {
                 self.report(codes::NOT_A_CONTAINER, rest(i), msg, None);
                 return None;
             };
-            let Some(next) = self.scopes[sc].names.get(r.segments[i].name.as_str()) else {
+            let Some((next, _)) = self.scopes[sc].names.get(r.segments[i].name.as_str()) else {
                 let msg = format!("node `{}` is not declared", written(i));
                 self.report(codes::UNDECLARED_NODE, rest(i), msg, None);
                 return None;
@@ -202,7 +258,7 @@ impl<'a> Resolver<'a> {
             Entity::Container(sc) => {
                 let name = written(r.segments.len() - 1);
                 let help = match &self.scopes[sc].first_child {
-                    Some(c) => format!("connect to a node inside it, such as `{c}`"),
+                    Some(c) => format!("connect to a node inside it, such as `{}`", clip(c)),
                     None => format!("declare a node inside `{name}` and connect to that"),
                 };
                 let msg = format!("`{name}` is a container; an edge endpoint must be a node");
@@ -212,6 +268,16 @@ impl<'a> Resolver<'a> {
         }
     }
 }
+
+/// Words that can never be declared as ids.
+const RESERVED: [&str; 6] = [
+    "graph",
+    "sequence",
+    "direction",
+    "node",
+    "container",
+    "shape",
+];
 
 fn qualify(path: &str, name: &str) -> String {
     if path.is_empty() {

@@ -1,0 +1,7 @@
+// expect: diagram/direction-in-container
+graph {
+    container c: "C" {
+        direction: right
+        node x: "X"
+    }
+}

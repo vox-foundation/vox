@@ -22,6 +22,8 @@ struct Parser<'a> {
     fuel: usize,
     /// Set when the collector is full or the fuel ran out; parsing stops.
     halted: bool,
+    /// A `direction` statement was already seen in the graph block.
+    seen_direction: bool,
 }
 
 /// Parse a token stream (ending in `Eof`) into a document; diagnostics go to `diags`.
@@ -44,6 +46,7 @@ fn run(src: &str, idx: &LineIndex, toks: &[Token], diags: &mut Collector, fuel: 
         diags,
         fuel,
         halted,
+        seen_direction: false,
     };
     p.document()
 }
@@ -91,6 +94,22 @@ impl Parser<'_> {
         self.error_at(span, message);
     }
 
+    /// An error with `code` over `span` plus a `help` line.
+    fn report_help(
+        &mut self,
+        code: &'static str,
+        span: Span,
+        message: String,
+        help: Option<String>,
+    ) {
+        let loc = self.idx.location(self.src, span);
+        let mut d = Diagnostic::error(code, message, loc);
+        d.help = help;
+        if self.diags.push(d) {
+            self.halted = true;
+        }
+    }
+
     /// An `unexpected-token` error over `span`.
     fn error_at(&mut self, span: Span, message: String) {
         self.report(codes::UNEXPECTED_TOKEN, span, message);
@@ -98,10 +117,7 @@ impl Parser<'_> {
 
     /// An error with `code` over `span`; a full collector halts parsing.
     fn report(&mut self, code: &'static str, span: Span, message: String) {
-        let loc = self.idx.location(self.src, span);
-        if self.diags.push(Diagnostic::error(code, message, loc)) {
-            self.halted = true;
-        }
+        self.report_help(code, span, message, None);
     }
 
     fn expect(&mut self, want: &TokenKind, expected: &str) -> Option<Token> {
@@ -158,21 +174,37 @@ impl Parser<'_> {
         let leading = self.own_line_comments();
         let start = self.peek().span.start;
         let (mut header_trailing, mut close_trailing) = (None, None);
-        let is_graph = matches!(&self.peek().kind, TokenKind::Ident(s) if s == "graph");
-        if !is_graph {
-            self.unexpected("`graph`");
-        } else {
-            self.bump();
-            if self.expect(&TokenKind::LBrace, "`{`").is_some() {
+        let head = self.peek().clone();
+        match &head.kind {
+            TokenKind::Ident(s) if s == "graph" => {
+                self.bump();
+                let open = if matches!(self.peek().kind, TokenKind::LBrace) {
+                    Some(self.bump().span)
+                } else {
+                    self.unexpected("`{`");
+                    None
+                };
                 header_trailing = self.trailing_comment();
-                body = self.block(true);
+                body = self.block(true, open);
                 close_trailing = self.trailing_comment();
             }
+            TokenKind::Ident(s) => {
+                let msg = format!(
+                    "unknown diagram kind `{}`; only `graph` is supported (`sequence` arrives in a later release)",
+                    clip(s)
+                );
+                self.report(codes::UNKNOWN_DIAGRAM_KIND, head.span, msg);
+                self.skip_rest();
+            }
+            _ => {
+                self.unexpected("`graph`");
+                self.skip_rest();
+            }
         }
-        // Anything after the closing brace except newlines and comments is an error.
+        // Anything after the closing brace except newlines and comments is one error.
         let trailing = self.own_line_comments();
         if !self.halted && !matches!(self.peek().kind, TokenKind::Eof) {
-            self.unexpected("end of input");
+            self.trailing_content();
         }
         Document {
             leading,
@@ -187,8 +219,24 @@ impl Parser<'_> {
         }
     }
 
-    /// Entries up to and including the closing `}`.
-    fn block(&mut self, root: bool) -> Block {
+    /// One `trailing-content` error over everything up to EOF, then consume it.
+    fn trailing_content(&mut self) {
+        let start = self.peek().span.start;
+        let last = self.toks.len().saturating_sub(1);
+        let mut end = start;
+        for t in self.toks.get(self.pos..last).unwrap_or_default() {
+            if !matches!(t.kind, TokenKind::Newline) {
+                end = t.span.end;
+            }
+        }
+        let msg = "unexpected content after the closing `}` of the graph block; remove it";
+        self.report(codes::TRAILING_CONTENT, Span { start, end }, msg.into());
+        self.skip_rest();
+    }
+
+    /// Entries up to and including the closing `}`; `open` is the span of this block's `{`
+    /// (reported as `unclosed-brace` when EOF comes first).
+    fn block(&mut self, root: bool, open: Option<Span>) -> Block {
         let mut entries = Vec::new();
         if matches!(self.peek().kind, TokenKind::Newline) {
             self.bump();
@@ -213,7 +261,9 @@ impl Parser<'_> {
                     break;
                 }
                 TokenKind::Eof => {
-                    self.unexpected("`}`");
+                    if let Some(open) = open {
+                        self.unclosed(open);
+                    }
                     break;
                 }
                 TokenKind::Comment(_) => {

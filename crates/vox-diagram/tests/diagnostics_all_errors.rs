@@ -105,3 +105,120 @@ fn declare_then_diagnose_keeps_a_broken_declaration() {
     );
     assert_eq!(undeclared[0].span.line, 6);
 }
+
+fn one(src: &str) -> Vec<Diagnostic> {
+    check(src).diagnostics
+}
+
+#[test]
+fn diagnostics_all_errors_six_independent() {
+    let src = fixtures()
+        .into_iter()
+        .find(|(n, _)| n.starts_with("02-"))
+        .map(|(_, s)| s)
+        .unwrap_or_default();
+    let report = check(&src);
+    assert_eq!(report.diagnostics.len(), 6, "{:#?}", report.diagnostics);
+    let lines: Vec<u32> = report.diagnostics.iter().map(|d| d.span.line).collect();
+    assert_eq!(
+        lines,
+        [3, 4, 5, 6, 7, 8],
+        "one diagnostic per mistaken line"
+    );
+    assert!(report.ir.is_none() && !report.valid);
+    insta::assert_json_snapshot!("six_independent_mistakes", report.diagnostics);
+}
+
+#[test]
+fn codes_registry_covers_emitted_codes() {
+    for (name, src) in fixtures() {
+        for d in check(&src).diagnostics {
+            assert!(
+                vox_diagram::codes::ALL_CODES.contains(&d.code),
+                "{name}: {} is not in ALL_CODES",
+                d.code
+            );
+        }
+    }
+}
+
+#[test]
+fn codes_golden_is_subset() {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/codes.golden.txt");
+    let golden = fs::read_to_string(path).unwrap_or_else(|e| panic!("codes.golden.txt: {e}"));
+    let mut seen = 0;
+    for line in golden.lines().filter(|l| !l.is_empty()) {
+        assert!(line.starts_with("diagram/"), "{line}");
+        assert!(
+            vox_diagram::codes::ALL_CODES.contains(&line),
+            "{line} was renamed or removed; codes are only ever added"
+        );
+        seen += 1;
+    }
+    assert!(seen >= 22, "golden lists only {seen} codes");
+}
+
+#[test]
+fn shadowed_id_is_a_warning_and_the_report_stays_valid() {
+    let r = check("graph {\n node x: \"X\"\n container c: \"C\" {\n  node x: \"I\"\n }\n}\n");
+    assert!(r.valid && r.ir.is_some());
+    assert_eq!(r.diagnostics.len(), 1);
+    assert_eq!(r.diagnostics[0].code, "diagram/shadowed-id");
+    assert_eq!(
+        r.diagnostics[0].severity,
+        vox_diagram::diag::Severity::Warning
+    );
+}
+
+#[test]
+fn duplicate_id_points_back_at_the_first_declaration() {
+    let ds = one("graph {\n node a: \"A\"\n node a: \"B\"\n}\n");
+    assert_eq!(ds.len(), 1);
+    assert_eq!(ds[0].span.line, 3);
+    assert_eq!(ds[0].related.len(), 1);
+    assert_eq!(ds[0].related[0].span.line, 2);
+}
+
+#[test]
+fn invalid_direction_help_names_the_closest_word() {
+    let ds = one("graph {\n direction: rigth\n}\n");
+    assert_eq!(ds.len(), 1);
+    assert_eq!(ds[0].code, "diagram/invalid-direction");
+    assert!(ds[0].help.as_deref().is_some_and(|h| h.contains("`right`")));
+}
+
+#[test]
+fn unclosed_braces_point_at_their_opening_brace() {
+    let src = "graph {\n container c: \"C\" {\n  node x: \"X\"\n";
+    let ds = one(src);
+    let spans: Vec<(u32, u32)> = ds.iter().map(|d| (d.span.line, d.span.col)).collect();
+    assert_eq!(spans, [(1, 7), (2, 19)]);
+}
+
+#[test]
+fn echoed_user_text_is_cut_at_40_chars() {
+    let q = "Q".repeat(100);
+    let sources = [
+        format!("graph {{\n node a: \"A\"\n a -> {q}\n}}\n"),
+        format!("graph {{\n direction: {q}\n}}\n"),
+        format!("graph {{\n node a: \"A\" {{ shape: {q} }}\n}}\n"),
+        format!("graph {{\n node a: \"A\" {{ {q}: red }}\n}}\n"),
+        format!("{q} {{\n}}\n"),
+        format!(
+            "graph {{\n container {q}: \"C\" {{\n node x: \"X\"\n }}\n node a: \"A\"\n a -> {q}\n}}\n"
+        ),
+        format!("graph {{\n node a: \"A\"\n a -> {q}.{q}\n}}\n"),
+        format!("graph {{\n {q}\n}}\n"),
+        format!("graph {{\n node a: {q} {q}\n}}\n"),
+    ];
+    let needle = "Q".repeat(41);
+    for src in &sources {
+        let ds = one(src);
+        assert!(!ds.is_empty(), "{src}");
+        for d in ds {
+            let help = d.help.clone().unwrap_or_default();
+            assert!(!d.message.contains(&needle), "{}", d.message);
+            assert!(!help.contains(&needle), "{help}");
+        }
+    }
+}
