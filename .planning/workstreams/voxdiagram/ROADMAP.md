@@ -61,7 +61,7 @@ v1.7 retires Mermaid as the primary diagram *authoring* format. A new pure L2 cr
   4. Oversized input, over-nested containers, and an edge whose endpoint is a container are rejected with span-precise errors; adversarial inputs terminate within a bounded time with no panic and no silent mis-layout.
   5. `vox-diagram` is registered at L2 (single crate, no `-core` split) with `layers.toml` row, `where-things-live.md` rows, hakari entry and crate docs, and hosted CI gates (`vox-arch-check`, `vox ci crate-edges`, `ssot-drift`) pass with no new consumer edge.
 
-**Plans**: 6/7 plans executed in 6 waves
+**Plans**: 7/7 plans executed in 6 waves
 
 Plans:
 **Wave 1**
@@ -81,7 +81,7 @@ Plans:
 - [x] 83-06-PLAN.md — Fix engine (`apply_fixes`/`repair`), native fixes, seeded repair set, hostile properties (wave 5)
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 83-07-PLAN.md — Mermaid-ism leniency + fixes, grammar card, mutate-and-repair, governance closure (wave 6)
+- [x] 83-07-PLAN.md — Mermaid-ism leniency + fixes, grammar card, mutate-and-repair, governance closure (wave 6)
 
 **Research flag**: DEEP. DSL surface (conservative, always-quoted strings), error-recovery strategy, and a draft of the <=~600-token grammar card (finalized in Phase 88).
 **Folded decisions**: single-crate decision and `max_loc` baseline; `orphan_exempt = true` until Phase 87 wires the first consumer; `sequence` IR types are defined here (consumed by Phases 84 and 86); no direct `blake3`/`sha2` in the crate; tests first per the Test-First Policy.
@@ -216,7 +216,7 @@ Phases execute in numeric order, with the parallel opportunities noted under Ove
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 83. Core Crate - Parser, IR & Diagnostics | 6/7 | In Progress | - |
+| 83. Core Crate - Parser, IR & Diagnostics | 7/7 | In Progress | - |
 | 84. Mermaid Emitter & Strict Importer | 0/TBD | Not started | - |
 | 85. Graph Layout & Deterministic SVG | 0/TBD | Not started | - |
 | 86. Sequence Kind | 0/TBD | Not started | - |

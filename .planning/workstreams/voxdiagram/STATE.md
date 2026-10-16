@@ -5,17 +5,17 @@ milestone_name: VoxDiagram
 current_phase: 83
 current_phase_name: Core Crate - Parser, IR & Diagnostics
 current_plan: 7
-status: executing
-stopped_at: Completed 83-06-PLAN.md
-last_updated: "2026-10-16T20:06:19.891Z"
+status: verifying
+stopped_at: Completed 83-07-PLAN.md
+last_updated: "2026-10-16T20:33:26.629Z"
 last_activity: 2026-10-16
 last_activity_desc: Phase 83 execution started
-state_head: 57fa90407eabc0c6e75b497a1b98f9b353c4d268
+state_head: 9b34403108e379f96970281a89bc182ac2ee7816
 progress:
   total_phases: 9
   completed_phases: 0
   total_plans: 7
-  completed_plans: 6
+  completed_plans: 7
 ---
 
 # Project State: VoxDiagram (`voxdiagram`)
@@ -31,7 +31,7 @@ See: `.planning/PROJECT.md` (shared, owned by the `unified` workstream, not edit
 
 Phase: 83 (Core Crate - Parser, IR & Diagnostics) — EXECUTING
 Plan: 7 of 7
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-10-16 — Phase 83 execution started
 
 Progress: [░░░░░░░░░░] 0% (0/9 phases)
@@ -64,9 +64,9 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-10-16T20:06:19.877Z
+**Last session:** 2026-10-16T20:33:26.616Z
 
-**Stopped At:** Completed 83-06-PLAN.md
+**Stopped At:** Completed 83-07-PLAN.md
 **Resume File:** None
 
 ## Performance Metrics
@@ -79,6 +79,7 @@ None yet.
 | Phase 83 P04 | 75min | 3 tasks | 30 files |
 | Phase 83 P05 | 45m | 3 tasks | 9 files |
 | Phase 83 P06 | 80m | 3 tasks | 41 files |
+| Phase 83 P07 | 3h | 3 tasks | 37 files |
 
 ## Decisions
 
@@ -92,3 +93,6 @@ None yet.
 - [Phase 83]: 83-05: generator ids unique by DFS counter suffix; edges are indices into declared nodes; noise is a shrinkable die stream
 - [Phase 83]: 83-06: apply_fixes applies each diagnostic's fixes as one atomic group, rejecting out-of-range, off-boundary or overlapping groups; equal-offset inserts keep diagnostic order and are never deduplicated
 - [Phase 83]: 83-06: undeclared-node declare-fix only for a single-segment ref or the last segment of a dotted ref; scopes without both braces get no fix until closed (repair converges in a second round)
+- [Phase 83]: Mermaid free-text forms (links with labels, id[Label] brackets, styling lines, %% comments) are single lexer tokens so their text never raises lexical noise
+- [Phase 83]: M3 id[Label] is reported by the resolver (needs scope braces for Rule R); chains and fan-out get one whole-statement fix
+- [Phase 83]: Lexer caches the line end so a line of links or brackets is scanned once (quadratic scan found by adversarial_mermaid_tokens)
