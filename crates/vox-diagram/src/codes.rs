@@ -48,6 +48,15 @@ pub const SHADOWED_ID: &str = "diagram/shadowed-id";
 /// A quoted label with no text.
 pub const EMPTY_LABEL: &str = "diagram/empty-label";
 
+/// More than `limits::MAX_NODES` nodes.
+pub const LIMIT_NODES: &str = "diagram/limit-nodes";
+/// More than `limits::MAX_EDGES` edges.
+pub const LIMIT_EDGES: &str = "diagram/limit-edges";
+/// Containers nested deeper than `limits::MAX_DEPTH`.
+pub const LIMIT_DEPTH: &str = "diagram/limit-depth";
+/// A label longer than `limits::MAX_LABEL_CHARS` characters.
+pub const LIMIT_LABEL: &str = "diagram/limit-label";
+
 /// More diagnostics were found than one report can hold (sentinel, always a warning).
 pub const LIMIT_DIAGNOSTICS: &str = "diagram/limit-diagnostics";
 
@@ -76,6 +85,10 @@ pub const ALL_CODES: &[&str] = &[
     DUPLICATE_ID,
     SHADOWED_ID,
     EMPTY_LABEL,
+    LIMIT_NODES,
+    LIMIT_EDGES,
+    LIMIT_DEPTH,
+    LIMIT_LABEL,
 ];
 
 #[cfg(test)]
@@ -95,6 +108,6 @@ mod tests {
             );
             assert!(!ALL_CODES[..i].contains(code), "{code} is duplicated");
         }
-        assert_eq!(ALL_CODES.len(), 23);
+        assert_eq!(ALL_CODES.len(), 27);
     }
 }

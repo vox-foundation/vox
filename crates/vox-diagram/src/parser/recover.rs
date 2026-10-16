@@ -68,6 +68,23 @@ impl Parser<'_> {
         None
     }
 
+    /// After a container's `{`: skip to its matching `}` (consumed) with a brace counter.
+    pub(super) fn skip_container_body(&mut self) {
+        let mut depth = 1usize;
+        while depth > 0 {
+            if !self.spend_fuel() {
+                return;
+            }
+            match self.peek().kind {
+                TokenKind::Eof => return,
+                TokenKind::LBrace => depth += 1,
+                TokenKind::RBrace => depth -= 1,
+                _ => {}
+            }
+            self.bump();
+        }
+    }
+
     /// Drop every remaining token without a diagnostic.
     pub(super) fn skip_rest(&mut self) {
         self.pos = self.toks.len().saturating_sub(1);

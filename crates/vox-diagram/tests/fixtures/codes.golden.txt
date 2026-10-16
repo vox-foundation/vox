@@ -9,7 +9,11 @@ diagram/invalid-direction
 diagram/invalid-escape
 diagram/invalid-identifier
 diagram/invalid-shape
+diagram/limit-depth
 diagram/limit-diagnostics
+diagram/limit-edges
+diagram/limit-label
+diagram/limit-nodes
 diagram/limit-source
 diagram/not-a-container
 diagram/reserved-word

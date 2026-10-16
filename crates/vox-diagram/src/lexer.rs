@@ -8,6 +8,7 @@ use std::str::CharIndices;
 
 use crate::codes;
 use crate::diag::Diagnostic;
+use crate::limits::MAX_DIAGNOSTICS;
 use crate::span::{LineIndex, Span, to_u32};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -87,6 +88,10 @@ pub(crate) fn lex(src: &str, idx: &LineIndex) -> (Vec<Token>, Vec<Diagnostic>) {
 
 impl Lexer<'_> {
     fn error(&mut self, code: &'static str, start: usize, end: usize, message: String) {
+        // The collector keeps at most MAX_DIAGNOSTICS anyway; stop paying for line/col lookups.
+        if self.diags.len() >= MAX_DIAGNOSTICS {
+            return;
+        }
         let span = Span {
             start: to_u32(start),
             end: to_u32(end),

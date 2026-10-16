@@ -1,10 +1,19 @@
 //! Error-recovering parser for the `graph { ... }` block. Recovery re-syncs at the next newline
 //! or `}` so independent mistakes are all reported.
+//!
+//! Bounded time (DGM-06). The lexer is one pass, O(n). The parser is O(tokens): every
+//! statement-loop iteration and every scanned token spends one unit of fuel
+//! (`4 * tokens + 1_000`) and every scan either consumes what it scanned or ends the
+//! statement, so nothing is rescanned. Recursion is bounded by `MAX_DEPTH`: a container past
+//! the cap has its body skipped with a brace counter instead of a recursive call. The
+//! resolver is O(edges * depth * log nodes) and `LineIndex` lookups are O(log lines).
+//! Diagnostics are capped by the collector, and the parser stops once it is full.
 
 use crate::ast::{Block, Comment, Document, Entry, Item, ItemKind};
 use crate::codes;
 use crate::diag::{Collector, Diagnostic, clip};
 use crate::lexer::{Token, TokenKind};
+use crate::limits::{MAX_EDGES, MAX_NODES};
 use crate::span::{LineIndex, Span};
 
 mod recover;
@@ -24,6 +33,13 @@ struct Parser<'a> {
     halted: bool,
     /// A `direction` statement was already seen in the graph block.
     seen_direction: bool,
+    /// Containers currently being parsed; capped at `MAX_DEPTH`, which bounds recursion.
+    depth: usize,
+    nodes: usize,
+    edges: usize,
+    /// Spans of the first node / edge past the caps, reported once at the end with totals.
+    first_extra_node: Option<Span>,
+    first_extra_edge: Option<Span>,
 }
 
 /// Parse a token stream (ending in `Eof`) into a document; diagnostics go to `diags`.
@@ -47,6 +63,11 @@ fn run(src: &str, idx: &LineIndex, toks: &[Token], diags: &mut Collector, fuel: 
         fuel,
         halted,
         seen_direction: false,
+        depth: 0,
+        nodes: 0,
+        edges: 0,
+        first_extra_node: None,
+        first_extra_edge: None,
     };
     p.document()
 }
@@ -203,6 +224,7 @@ impl Parser<'_> {
         }
         // Anything after the closing brace except newlines and comments is one error.
         let trailing = self.own_line_comments();
+        self.report_caps();
         if !self.halted && !matches!(self.peek().kind, TokenKind::Eof) {
             self.trailing_content();
         }
@@ -216,6 +238,38 @@ impl Parser<'_> {
                 start,
                 end: self.peek().span.end,
             },
+        }
+    }
+
+    /// Count a parsed statement toward the node and edge caps. Items past a cap stay in the
+    /// AST (so edges to them do not cascade into `undeclared-node`); the one error carries
+    /// the total and the IR is withheld.
+    fn count(&mut self, kind: &ItemKind, span: Span) {
+        match kind {
+            ItemKind::Node(_) => {
+                self.nodes += 1;
+                if self.nodes == MAX_NODES + 1 {
+                    self.first_extra_node = Some(span);
+                }
+            }
+            ItemKind::Edge(_) => {
+                self.edges += 1;
+                if self.edges == MAX_EDGES + 1 {
+                    self.first_extra_edge = Some(span);
+                }
+            }
+            ItemKind::Direction(_) | ItemKind::Container(_) => {}
+        }
+    }
+
+    fn report_caps(&mut self) {
+        if let Some(span) = self.first_extra_node {
+            let msg = format!("diagram has {} nodes; the limit is {MAX_NODES}", self.nodes);
+            self.report(codes::LIMIT_NODES, span, msg);
+        }
+        if let Some(span) = self.first_extra_edge {
+            let msg = format!("diagram has {} edges; the limit is {MAX_EDGES}", self.edges);
+            self.report(codes::LIMIT_EDGES, span, msg);
         }
     }
 
@@ -276,6 +330,7 @@ impl Parser<'_> {
                 }
                 _ => {
                     if let Some((mut kind, span)) = self.statement(root) {
+                        self.count(&kind, span);
                         // After a container this is the comment on its closing `}` line.
                         let trailing = self.trailing_comment();
                         let item_trailing = match &mut kind {

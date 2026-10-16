@@ -9,6 +9,7 @@ use crate::codes;
 use crate::diag::clip;
 use crate::ir::{Direction, Shape};
 use crate::lexer::TokenKind;
+use crate::limits::{MAX_DEPTH, MAX_LABEL_CHARS};
 use crate::span::Span;
 
 impl Parser<'_> {
@@ -60,6 +61,16 @@ impl Parser<'_> {
             if terminated && value.is_empty() {
                 let msg = "label is empty; give it some text".to_string();
                 self.report(codes::EMPTY_LABEL, tok.span, msg);
+            }
+            // Chars never outnumber bytes, so short values skip the count.
+            let chars = if value.len() > MAX_LABEL_CHARS {
+                value.chars().count()
+            } else {
+                0
+            };
+            if chars > MAX_LABEL_CHARS {
+                let msg = format!("label has {chars} characters; the limit is {MAX_LABEL_CHARS}");
+                self.report(codes::LIMIT_LABEL, tok.span, msg);
             }
             return Some(Label {
                 value,
@@ -221,7 +232,7 @@ impl Parser<'_> {
     /// same line still parses its body; with no `{` on the line the container is declared
     /// empty (the body's `}` then surfaces as one acceptable follow-up error).
     fn container_decl(&mut self) -> Option<ItemKind> {
-        self.bump(); // `container`
+        let kw = self.bump(); // `container`
         let id = self.ident("a container id")?;
         let has_colon = self.expect(&TokenKind::Colon, "`:`").is_some();
         let label = if has_colon || matches!(self.peek().kind, TokenKind::Str { .. }) {
@@ -239,7 +250,24 @@ impl Parser<'_> {
         };
         let label = label.unwrap_or_else(|| Self::placeholder(&id));
         let (header_trailing, body) = match open {
-            Some(open) => (self.trailing_comment(), self.block(false, Some(open))),
+            Some(open) if self.depth >= MAX_DEPTH => {
+                // Skip the body with a brace counter instead of recursing, so nesting depth
+                // can never exceed MAX_DEPTH frames however deep the input goes.
+                let span = Span {
+                    start: kw.span.start,
+                    end: open.end,
+                };
+                let msg = format!("containers nest at most {MAX_DEPTH} deep; flatten this one");
+                self.report(codes::LIMIT_DEPTH, span, msg);
+                self.skip_container_body();
+                (None, Block::default())
+            }
+            Some(open) => {
+                self.depth += 1;
+                let parsed = (self.trailing_comment(), self.block(false, Some(open)));
+                self.depth -= 1;
+                parsed
+            }
             None => (None, Block::default()),
         };
         Some(ItemKind::Container(ContainerDecl {
