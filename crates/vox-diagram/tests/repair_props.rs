@@ -8,7 +8,7 @@ use proptest::prelude::*;
 use serde_json::{Value, to_value};
 use support::{model_graph, noise, noisy_source, strip_spans};
 use vox_diagram::ast::{Block, Entry, Item, ItemKind};
-use vox_diagram::diag::CheckReport;
+use vox_diagram::diag::{CheckReport, Severity};
 use vox_diagram::parse;
 use vox_diagram::{check, repair};
 
@@ -150,5 +150,31 @@ proptest! {
         let fixed = repair(&bad, 5);
         prop_assert!(fixed.report.valid, "{:?}\n{bad}\n=>\n{}", fixed.report.diagnostics, fixed.text);
         prop_assert_eq!(ir(&fixed.report), ir(&original), "{}\n=>\n{}\n=>\n{}", src, bad, fixed.text);
+    }
+}
+
+fn error_count(report: &CheckReport) -> usize {
+    let n = report
+        .diagnostics
+        .iter()
+        .filter(|d| d.severity == Severity::Error);
+    n.count()
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(256))]
+
+    /// Truncation (what an LLM cut-off produces) is not exactly invertible, but repair must
+    /// never leave the document with more errors than the truncated text had.
+    #[test]
+    fn truncate_and_repair_never_worsens(m in model_graph(), n in noise(), cut in 0usize..4096) {
+        let src = noisy_source(&m, &n);
+        let at = (0..=src.len().min(cut)).rev().find(|&i| src.is_char_boundary(i)).unwrap_or(0);
+        let bad = &src[..at];
+        let (before, after) = (check(bad), repair(bad, 5));
+        if before.diagnostics.len() < 99 && after.report.diagnostics.len() < 99 {
+            let (b, a) = (error_count(&before), error_count(&after.report));
+            prop_assert!(a <= b, "{b} -> {a}\n{bad:?}\n=>\n{:?}", after.text);
+        }
     }
 }

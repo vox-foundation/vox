@@ -2,7 +2,7 @@
 //! `repair` or `fmt`, and every diagnostic and fix span is safe to slice.
 
 use proptest::prelude::*;
-use vox_diagram::diag::Diagnostic;
+use vox_diagram::diag::{CheckReport, Diagnostic, Severity};
 use vox_diagram::{apply_fixes, check, fmt, repair};
 
 /// Pieces that exercise the lexer, recovery, the resolver and multibyte handling.
@@ -98,6 +98,15 @@ fn check_report(src: &str) -> Result<(), TestCaseError> {
     Ok(())
 }
 
+/// Error count of a report, or `None` when the 99-diagnostic cap hides the true count.
+fn errors(r: &CheckReport) -> Option<usize> {
+    let n = r
+        .diagnostics
+        .iter()
+        .filter(|d| d.severity == Severity::Error);
+    (r.diagnostics.len() < 99).then(|| n.count())
+}
+
 fn fixes_are_safe(src: &str) -> Result<(), TestCaseError> {
     let report = check(src);
     let out = apply_fixes(src, &report.diagnostics);
@@ -111,6 +120,14 @@ fn fixes_are_safe(src: &str) -> Result<(), TestCaseError> {
     let _ = check(&out.text);
     let repaired = repair(src, 3);
     prop_assert!(repaired.rounds <= 3);
+    // A fix never makes the document worse: repair must not increase the error count.
+    if let (Some(before), Some(after)) = (errors(&report), errors(&repaired.report)) {
+        prop_assert!(
+            after <= before,
+            "{before} -> {after}\n{src:?}\n=>\n{:?}",
+            repaired.text
+        );
+    }
     Ok(())
 }
 
@@ -142,7 +159,7 @@ proptest! {
         }
     }
 
-    /// `apply_fixes` and `repair` never panic and the fixed text still checks.
+    /// `apply_fixes` and `repair` never panic and never increase the error count.
     #[test]
     fn hostile_apply_fixes_and_repair_never_panic(a in "\\PC{0,400}", b in soup()) {
         fixes_are_safe(&a)?;
