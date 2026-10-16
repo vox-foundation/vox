@@ -4,7 +4,7 @@
 
 use std::sync::mpsc;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use vox_diagram::check;
 use vox_diagram::diag::CheckReport;
@@ -229,6 +229,30 @@ fn adversarial_mermaid_tokens() {
     adversarial(&"style a\n".repeat(7_000));
     adversarial(&";".repeat(60_000));
     adversarial(&":::c ".repeat(12_000));
+    adversarial(&"a>".repeat(30_000));
+}
+
+/// WR-06: `a>a>a>...` (an unclosed `>[`-form opener) once rescanned the line per `>`. A
+/// coarse growth check, not an absolute time: 4x the input must cost well under 16x (linear
+/// is about 4x, quadratic about 16x); best of three runs each to shed scheduler noise.
+#[test]
+fn unclosed_gt_openers_scale_linearly() {
+    let best = |n: usize| {
+        let src = "a>".repeat(n);
+        (0..3)
+            .map(|_| {
+                let t = Instant::now();
+                let _ = check(&src);
+                t.elapsed()
+            })
+            .min()
+            .unwrap_or_default()
+    };
+    let (small, large) = (best(8_000), best(32_000));
+    assert!(
+        large < small * 10 + Duration::from_millis(20),
+        "{small:?} -> {large:?}"
+    );
 }
 
 #[test]

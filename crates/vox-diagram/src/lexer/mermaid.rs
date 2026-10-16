@@ -111,6 +111,17 @@ impl<'a> Lexer<'a> {
             if !line.starts_with(open) {
                 continue;
             }
+            // An unclosed `>` is not a bracket and consumes nothing; remember the miss so a
+            // line of `a>a>a>` scans once, not once per `>`.
+            if open == ">" {
+                if i < self.gt_fail_until {
+                    return None;
+                }
+                if !line.contains(close) {
+                    self.gt_fail_until = i + line.len();
+                    return None;
+                }
+            }
             let body = line.get(open.len()..)?;
             if let Some(p) = find_close(body, open, close) {
                 let len = open.len() + p + close.len();
@@ -123,9 +134,6 @@ impl<'a> Lexer<'a> {
             }
         }
         let (open, text, len, closed) = pick?;
-        if open == ">" && !closed {
-            return None;
-        }
         *end = i + len;
         self.advance_to(*end);
         Some(TokenKind::Bracket { open, text, closed })

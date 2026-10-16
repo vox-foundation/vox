@@ -71,6 +71,8 @@ struct Lexer<'a> {
     /// that line can close either, so the scan is not repeated (keeps a line O(n)).
     dash_fail_until: usize,
     pipe_fail_until: usize,
+    /// Same for `>` openers: no `]` follows on the line past this `>`.
+    gt_fail_until: usize,
     /// End offset of the last identifier and whether it is a keyword.
     prev_ident: (usize, bool),
     /// No token yet on the current line.
@@ -100,6 +102,7 @@ pub(crate) fn lex(src: &str, idx: &LineIndex) -> (Vec<Token>, Vec<Diagnostic>) {
         diags: Vec::new(),
         dash_fail_until: 0,
         pipe_fail_until: 0,
+        gt_fail_until: 0,
         prev_ident: (usize::MAX, false),
         fresh: true,
         eol: 0,
