@@ -1,0 +1,13 @@
+---
+source: crates/vox-diagram/tests/fmt_golden.rs
+expression: a
+---
+// first
+
+// second
+graph {
+    node a: "A"
+}
+// after
+
+// last
