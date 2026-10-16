@@ -61,7 +61,7 @@ v1.7 retires Mermaid as the primary diagram *authoring* format. A new pure L2 cr
   4. Oversized input, over-nested containers, and an edge whose endpoint is a container are rejected with span-precise errors; adversarial inputs terminate within a bounded time with no panic and no silent mis-layout.
   5. `vox-diagram` is registered at L2 (single crate, no `-core` split) with `layers.toml` row, `where-things-live.md` rows, hakari entry and crate docs, and hosted CI gates (`vox-arch-check`, `vox ci crate-edges`, `ssot-drift`) pass with no new consumer edge.
 
-**Plans**: 4/7 plans executed in 6 waves
+**Plans**: 5/7 plans executed in 6 waves
 
 Plans:
 **Wave 1**
@@ -75,7 +75,7 @@ Plans:
 - [x] 83-04-PLAN.md — All-errors recovery, diagnostic catalogue, caps and adversarial corpus (wave 3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 83-05-PLAN.md — Canonical idempotent `fmt` + shared proptest generators (wave 4)
+- [x] 83-05-PLAN.md — Canonical idempotent `fmt` + shared proptest generators (wave 4)
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 83-06-PLAN.md — Fix engine (`apply_fixes`/`repair`), native fixes, seeded repair set, hostile properties (wave 5)
@@ -216,7 +216,7 @@ Phases execute in numeric order, with the parallel opportunities noted under Ove
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 83. Core Crate - Parser, IR & Diagnostics | 4/7 | In Progress | - |
+| 83. Core Crate - Parser, IR & Diagnostics | 5/7 | In Progress | - |
 | 84. Mermaid Emitter & Strict Importer | 0/TBD | Not started | - |
 | 85. Graph Layout & Deterministic SVG | 0/TBD | Not started | - |
 | 86. Sequence Kind | 0/TBD | Not started | - |

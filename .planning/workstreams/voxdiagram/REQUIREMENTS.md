@@ -17,7 +17,7 @@
 - [ ] **DGM-02**: Author can write a `sequence` diagram with actors, ordered messages, dashed returns, and `note over`
 - [ ] **DGM-03**: A single check reports every error in a diagram (parser recovery), each with a stable `diagram/*` code, severity, and exact source span
 - [ ] **DGM-04**: Diagnostics carry machine-applicable `fixes[]` (`{span, replacement}`) that an agent can apply without re-prompting
-- [ ] **DGM-05**: Author can canonically format a diagram (idempotent `fmt`)
+- [x] **DGM-05**: Author can canonically format a diagram (idempotent `fmt`)
 - [x] **DGM-06**: Oversized or over-nested input and edges targeting a container are rejected with span-precise errors (no silent mis-layout, no hang)
 
 ### Rendering (REND)
@@ -82,7 +82,7 @@
 | DGM-02 | Phase 86 | Pending |
 | DGM-03 | Phase 83 | Pending |
 | DGM-04 | Phase 83 | Pending |
-| DGM-05 | Phase 83 | Pending |
+| DGM-05 | Phase 83 | Complete |
 | DGM-06 | Phase 83 | Complete |
 | REND-01 | Phase 85 | Pending |
 | REND-02 | Phase 85 | Pending |
