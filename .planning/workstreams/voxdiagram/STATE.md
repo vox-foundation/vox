@@ -4,18 +4,18 @@ milestone: v1.7
 milestone_name: VoxDiagram
 current_phase: 83
 current_phase_name: Core Crate - Parser, IR & Diagnostics
-current_plan: 6
+current_plan: 7
 status: executing
-stopped_at: Completed 83-05-PLAN.md
-last_updated: "2026-10-16T19:50:56.901Z"
+stopped_at: Completed 83-06-PLAN.md
+last_updated: "2026-10-16T20:06:19.891Z"
 last_activity: 2026-10-16
 last_activity_desc: Phase 83 execution started
-state_head: c71ef28e8f38275aa96c575f0a2eb84bf6441b12
+state_head: 57fa90407eabc0c6e75b497a1b98f9b353c4d268
 progress:
   total_phases: 9
   completed_phases: 0
   total_plans: 7
-  completed_plans: 5
+  completed_plans: 6
 ---
 
 # Project State: VoxDiagram (`voxdiagram`)
@@ -30,7 +30,7 @@ See: `.planning/PROJECT.md` (shared, owned by the `unified` workstream, not edit
 ## Current Position
 
 Phase: 83 (Core Crate - Parser, IR & Diagnostics) — EXECUTING
-Plan: 6 of 7
+Plan: 7 of 7
 Status: Ready to execute
 Last activity: 2026-10-16 — Phase 83 execution started
 
@@ -39,7 +39,7 @@ Progress: [░░░░░░░░░░] 0% (0/9 phases)
 ## Progress
 
 **Phases Complete:** 0
-**Current Plan:** 6
+**Current Plan:** 7
 
 ## Key Decisions (milestone-level)
 
@@ -64,9 +64,9 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-10-16T19:50:56.874Z
+**Last session:** 2026-10-16T20:06:19.877Z
 
-**Stopped At:** Completed 83-05-PLAN.md
+**Stopped At:** Completed 83-06-PLAN.md
 **Resume File:** None
 
 ## Performance Metrics
@@ -78,6 +78,7 @@ None yet.
 | Phase 83 P03 | 20min | 2 tasks | 5 files |
 | Phase 83 P04 | 75min | 3 tasks | 30 files |
 | Phase 83 P05 | 45m | 3 tasks | 9 files |
+| Phase 83 P06 | 80m | 3 tasks | 41 files |
 
 ## Decisions
 
@@ -89,3 +90,5 @@ None yet.
 - [Phase 83]: 83-04: items past the node/edge cap stay in the AST (IR withheld by the Error) so edges to them do not cascade into undeclared-node
 - [Phase 83]: 83-04: skip_to_stmt_end is brace-aware and stops at a line-leading node/container; unquoted labels are recovered as the label
 - [Phase 83]: 83-05: generator ids unique by DFS counter suffix; edges are indices into declared nodes; noise is a shrinkable die stream
+- [Phase 83]: 83-06: apply_fixes applies each diagnostic's fixes as one atomic group, rejecting out-of-range, off-boundary or overlapping groups; equal-offset inserts keep diagnostic order and are never deduplicated
+- [Phase 83]: 83-06: undeclared-node declare-fix only for a single-segment ref or the last segment of a dotted ref; scopes without both braces get no fix until closed (repair converges in a second round)
