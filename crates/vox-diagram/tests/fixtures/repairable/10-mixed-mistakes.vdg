@@ -1,0 +1,9 @@
+graph {
+    direction: right
+    node a: Alpha service
+    node b: "B\q"
+    node c: "" { shape: Diamond }
+    a -> b: 'sends'
+    b -> c
+    c -> missing
+}

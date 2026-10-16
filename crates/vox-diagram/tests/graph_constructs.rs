@@ -41,7 +41,10 @@ fn tracer_reports_undeclared_node() {
     let d = &report.diagnostics[0];
     assert_eq!(d.code, "diagram/undeclared-node");
     assert_eq!((d.span.line, d.span.col), (5, 10));
-    assert!(d.fixes.is_empty());
+    // Rule R: the declare-fix lands at the end of the `graph {` line.
+    assert_eq!(d.fixes.len(), 1);
+    assert_eq!((d.fixes[0].span.start, d.fixes[0].span.end), (7, 7));
+    assert_eq!(d.fixes[0].replacement, "\n    node c: \"c\"");
 }
 
 #[test]

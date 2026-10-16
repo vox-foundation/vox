@@ -1,0 +1,5 @@
+graph {
+    node a: "A"
+    container be: "B" { }
+    a -> be.ghost
+}

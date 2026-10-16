@@ -1,0 +1,9 @@
+graph {
+    node a: "A"
+    container be: "B" {
+        node x: "X"
+        x -> phantom
+    }
+    a -> be.ghost
+    a -> be.ghost
+}

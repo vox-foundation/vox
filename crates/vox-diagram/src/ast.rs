@@ -38,6 +38,10 @@ pub struct Comment {
 pub struct Block {
     /// Entries in source order.
     pub entries: Vec<Entry>,
+    /// Byte offsets of the block's `{` and `}`, when it has both; not part of the JSON form.
+    /// Two bare offsets (not spans) keep `Entry` small.
+    #[serde(skip)]
+    pub braces: Option<(u32, u32)>,
 }
 
 /// One block entry.

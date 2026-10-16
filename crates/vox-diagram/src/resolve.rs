@@ -3,11 +3,12 @@
 //! never hash-based ones. A bare name is searched in the current scope, then each enclosing
 //! scope outward; later segments of a dotted path are searched among children only.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::ast::{Block, Document, Entry, ItemKind, Ref};
 use crate::codes;
-use crate::diag::{Diagnostic, Related, Stats, clip};
+use crate::diag::{Diagnostic, Fix, Related, Stats, clip};
+use crate::fixgen::declare_node;
 use crate::ir::{GraphIr, IrContainer, IrEdge, IrNode};
 use crate::span::{LineIndex, Span, to_u32};
 
@@ -25,6 +26,8 @@ struct Scope<'a> {
     /// Declared names with the span of the id that declared each first.
     names: BTreeMap<&'a str, (Entity, Span)>,
     first_child: Option<String>,
+    /// The scope's `{` and `}`; a declare-fix needs both.
+    braces: Option<(Span, Span)>,
 }
 
 struct Resolver<'a> {
@@ -35,6 +38,8 @@ struct Resolver<'a> {
     diags: Vec<Diagnostic>,
     /// Pass B replays pass A's pre-order scope numbering.
     next_scope: usize,
+    /// `(scope, id)` pairs whose declare-fix is already owned by an earlier diagnostic.
+    fixed: BTreeSet<(usize, String)>,
 }
 
 /// Resolve `doc` into IR plus semantic diagnostics.
@@ -57,9 +62,11 @@ pub(crate) fn resolve<'a>(
             path: String::new(),
             names: BTreeMap::new(),
             first_child: None,
+            braces: braces(&doc.body),
         }],
         diags: Vec::new(),
         next_scope: 0,
+        fixed: BTreeSet::new(),
     };
     r.declare(&doc.body, 0, 1);
     r.link(&doc.body, 0);
@@ -158,6 +165,7 @@ impl<'a> Resolver<'a> {
                         path: id.clone(),
                         names: BTreeMap::new(),
                         first_child: None,
+                        braces: braces(&c.body),
                     });
                     self.claim(
                         scope,
@@ -207,9 +215,28 @@ impl<'a> Resolver<'a> {
         }
     }
 
+    /// Rule R: the fix declaring `name` in `scope`. Only the first diagnostic per `(scope, id)`
+    /// carries it; none when the scope lacks a `{` or `}` (an unclosed scope is closed first
+    /// and the declaration comes next round) or the name is not safely declarable.
+    fn declare_fix(&mut self, scope: usize, name: &str) -> Vec<Fix> {
+        let Some((open, close)) = self.scopes[scope].braces else {
+            return Vec::new();
+        };
+        match declare_node(self.src, open, close, name) {
+            Some(fix) if self.fixed.insert((scope, name.to_string())) => vec![fix],
+            _ => Vec::new(),
+        }
+    }
+
     fn report(&mut self, code: &'static str, span: Span, message: String, help: Option<String>) {
         let mut d = Diagnostic::error(code, message, self.idx.location(self.src, span));
         d.help = help;
+        self.diags.push(d);
+    }
+
+    fn report_fixes(&mut self, code: &'static str, span: Span, message: String, fixes: Vec<Fix>) {
+        let mut d = Diagnostic::error(code, message, self.idx.location(self.src, span));
+        d.fixes = fixes;
         self.diags.push(d);
     }
 
@@ -235,7 +262,13 @@ impl<'a> Resolver<'a> {
                 Some(p) => cur = p,
                 None => {
                     let msg = format!("node `{}` is not declared", written(0));
-                    self.report(codes::UNDECLARED_NODE, rest(0), msg, None);
+                    let single = r.segments.len() == 1;
+                    let fixes = if single {
+                        self.declare_fix(scope, &r.segments[0].name)
+                    } else {
+                        Vec::new()
+                    };
+                    self.report_fixes(codes::UNDECLARED_NODE, rest(0), msg, fixes);
                     return None;
                 }
             }
@@ -248,7 +281,13 @@ impl<'a> Resolver<'a> {
             };
             let Some((next, _)) = self.scopes[sc].names.get(r.segments[i].name.as_str()) else {
                 let msg = format!("node `{}` is not declared", written(i));
-                self.report(codes::UNDECLARED_NODE, rest(i), msg, None);
+                let last = i + 1 == r.segments.len();
+                let fixes = if last {
+                    self.declare_fix(sc, &r.segments[i].name)
+                } else {
+                    Vec::new()
+                };
+                self.report_fixes(codes::UNDECLARED_NODE, rest(i), msg, fixes);
                 return None;
             };
             found = *next;
@@ -270,7 +309,7 @@ impl<'a> Resolver<'a> {
 }
 
 /// Words that can never be declared as ids.
-const RESERVED: [&str; 6] = [
+pub(crate) const RESERVED: [&str; 6] = [
     "graph",
     "sequence",
     "direction",
@@ -278,6 +317,16 @@ const RESERVED: [&str; 6] = [
     "container",
     "shape",
 ];
+
+/// A block's braces when it has both.
+fn braces(block: &Block) -> Option<(Span, Span)> {
+    let (open, close) = block.braces?;
+    let one = |start: u32| Span {
+        start,
+        end: start + 1,
+    };
+    Some((one(open), one(close)))
+}
 
 fn qualify(path: &str, name: &str) -> String {
     if path.is_empty() {
@@ -288,102 +337,4 @@ fn qualify(path: &str, name: &str) -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    use crate::diag::CheckReport;
-    use crate::ir::{Direction, Ir};
-    use crate::{check, codes};
-
-    fn graph(r: &CheckReport) -> &crate::ir::GraphIr {
-        let Some(Ir::Graph(g)) = &r.ir else {
-            panic!("expected graph ir, got {:?}", r.diagnostics)
-        };
-        g
-    }
-
-    #[test]
-    fn canonical_shape_dfs_order_and_labels() {
-        let r = check(include_str!("../tests/fixtures/valid/canonical.vdg"));
-        let g = graph(&r);
-        let ids: Vec<_> = g.nodes.iter().map(|n| n.id.as_str()).collect();
-        assert_eq!(
-            ids,
-            ["client", "backend.gateway", "backend.engine", "backend.db"]
-        );
-        assert_eq!(g.nodes[3].container.as_deref(), Some("backend"));
-        assert_eq!(g.containers[0].depth, 1);
-        assert_eq!(g.containers[0].parent, None);
-        assert_eq!(g.containers[0].label, "Orchestrator Host");
-        let e: Vec<_> = g
-            .edges
-            .iter()
-            .map(|e| (e.from.as_str(), e.to.as_str()))
-            .collect();
-        assert_eq!(
-            e,
-            [
-                ("backend.gateway", "backend.engine"),
-                ("backend.engine", "backend.db"),
-                ("client", "backend.gateway")
-            ]
-        );
-    }
-
-    #[test]
-    fn innermost_scope_wins_then_outward() {
-        let src = "graph {\n node x: \"X\"\n node y: \"Y\"\n container be: \"B\" {\n node x: \"BX\"\n x -> y\n }\n}\n";
-        let r = check(src);
-        let g = graph(&r);
-        assert_eq!(
-            (g.edges[0].from.as_str(), g.edges[0].to.as_str()),
-            ("be.x", "y")
-        );
-    }
-
-    #[test]
-    fn forward_reference_and_direction_statement() {
-        let src = "graph {\n a -> b\n direction: right\n node a: \"A\"\n node b: \"B\"\n}\n";
-        let r = check(src);
-        assert_eq!(graph(&r).direction, Direction::Right);
-        assert_eq!(graph(&r).edges.len(), 1);
-    }
-
-    #[test]
-    fn dotted_path_through_nested_containers() {
-        let src = "graph {\n container o: \"O\" {\n container i: \"I\" {\n node x: \"X\"\n }\n }\n o.i.x -> o.i.x\n}\n";
-        let r = check(src);
-        let g = graph(&r);
-        assert_eq!(g.nodes[0].id, "o.i.x");
-        assert_eq!(g.containers[1].id, "o.i");
-        assert_eq!(g.containers[1].depth, 2);
-        assert_eq!(g.containers[1].parent.as_deref(), Some("o"));
-        assert_eq!(r.stats.max_depth, 2);
-    }
-
-    #[test]
-    fn path_through_a_node_is_not_a_container() {
-        let src = "graph {\n container o: \"O\" {\n node leaf: \"L\"\n }\n node a: \"A\"\n a -> o.leaf.x\n}\n";
-        let r = check(src);
-        assert_eq!(r.diagnostics.len(), 1);
-        let d = &r.diagnostics[0];
-        assert_eq!(d.code, codes::NOT_A_CONTAINER);
-        assert_eq!((d.span.line, d.span.col, d.span.end_col), (6, 14, 15));
-    }
-
-    #[test]
-    fn container_as_endpoint_is_rejected_with_help() {
-        let src = "graph {\n node client: \"C\"\n container backend: \"B\" {\n node gateway: \"G\"\n }\n client -> backend\n}\n";
-        let r = check(src);
-        assert_eq!(r.diagnostics.len(), 1);
-        let d = &r.diagnostics[0];
-        assert_eq!(d.code, codes::CONTAINER_ENDPOINT);
-        assert!(d.fixes.is_empty());
-        assert!(
-            d.help
-                .as_deref()
-                .is_some_and(|h| h.contains("backend.gateway")),
-            "{:?}",
-            d.help
-        );
-        assert_eq!((d.span.line, d.span.col), (6, 12));
-    }
-}
+mod tests;

@@ -7,10 +7,22 @@ use crate::ast::{
 };
 use crate::codes;
 use crate::diag::clip;
+use crate::fixgen::{quote, replace};
 use crate::ir::{Direction, Shape};
 use crate::lexer::TokenKind;
 use crate::limits::{MAX_DEPTH, MAX_LABEL_CHARS};
 use crate::span::Span;
+
+/// What a label belongs to, so an empty one can be repaired.
+#[derive(Clone, Copy)]
+pub(super) enum Owner<'a> {
+    /// A node or container: an empty label becomes its id.
+    Id(&'a str),
+    /// An edge: an empty label is deleted back to the end of the target at `from`.
+    Edge { from: u32 },
+}
+
+const SHAPES: [&str; 6] = ["rect", "rounded", "diamond", "cylinder", "start", "end"];
 
 impl Parser<'_> {
     /// One statement; `root` is true directly inside `graph { }`.
@@ -54,13 +66,26 @@ impl Parser<'_> {
 
     /// A quoted label. Unquoted text is recovered as the label (and reported); `None` only
     /// when there is nothing label-like at all.
-    fn label(&mut self, stop_lbrace: bool) -> Option<Label> {
+    fn label(&mut self, stop_lbrace: bool, owner: Owner) -> Option<Label> {
         let tok = self.peek().clone();
         if let TokenKind::Str { value, terminated } = tok.kind {
             self.bump();
             if terminated && value.is_empty() {
                 let msg = "label is empty; give it some text".to_string();
-                self.report(codes::EMPTY_LABEL, tok.span, msg);
+                let fixes = match owner {
+                    Owner::Id(id) if id.len() <= MAX_LABEL_CHARS => {
+                        vec![replace(tok.span, quote(id))]
+                    }
+                    Owner::Edge { from } => {
+                        let span = Span {
+                            start: from,
+                            end: tok.span.end,
+                        };
+                        vec![replace(span, "")]
+                    }
+                    Owner::Id(_) => Vec::new(),
+                };
+                self.report_full(codes::EMPTY_LABEL, tok.span, msg, None, fixes);
             }
             // Chars never outnumber bytes, so short values skip the count.
             let chars = if value.len() > MAX_LABEL_CHARS {
@@ -138,7 +163,7 @@ impl Parser<'_> {
         let has_colon = self.expect(&TokenKind::Colon, "`:`").is_some();
         let mut label = None;
         if has_colon || matches!(self.peek().kind, TokenKind::Str { .. }) {
-            label = self.label(true);
+            label = self.label(true, Owner::Id(&id.name));
             if label.is_none() {
                 self.skip_to_stmt_end();
             }
@@ -221,7 +246,14 @@ impl Parser<'_> {
                     "expected one of rect, rounded, diamond, cylinder, start, end, found `{}`",
                     clip(other)
                 );
-                self.report(codes::INVALID_SHAPE, word.span, msg);
+                // Only an exact case-fold match is mechanical; anything else is a guess.
+                let fixes = SHAPES
+                    .iter()
+                    .find(|s| s.eq_ignore_ascii_case(other))
+                    .map(|s| replace(word.span, *s))
+                    .into_iter()
+                    .collect();
+                self.report_full(codes::INVALID_SHAPE, word.span, msg, None, fixes);
                 return None;
             }
         };
@@ -236,7 +268,7 @@ impl Parser<'_> {
         let id = self.ident("a container id")?;
         let has_colon = self.expect(&TokenKind::Colon, "`:`").is_some();
         let label = if has_colon || matches!(self.peek().kind, TokenKind::Str { .. }) {
-            self.label(true)
+            self.label(true, Owner::Id(&id.name))
         } else {
             None
         };
@@ -300,7 +332,7 @@ impl Parser<'_> {
         let mut label = None;
         if matches!(self.peek().kind, TokenKind::Colon) {
             self.bump();
-            label = self.label(false);
+            label = self.label(false, Owner::Edge { from: to.span.end });
             if label.is_none() {
                 self.skip_to_stmt_end();
             }

@@ -35,6 +35,7 @@ pub mod span;
 mod check;
 /// Machine-applicable fixes and the bounded repair loop.
 mod fixes;
+mod fixgen;
 mod lexer;
 mod parser;
 /// Canonical formatter.

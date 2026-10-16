@@ -27,7 +27,16 @@ expression: report.diagnostics
       "col": 13,
       "end_line": 4,
       "end_col": 20
-    }
+    },
+    "fixes": [
+      {
+        "span": {
+          "start": 198,
+          "end": 205
+        },
+        "replacement": "\"Backend\""
+      }
+    ]
   },
   {
     "code": "diagram/invalid-shape",
@@ -53,7 +62,16 @@ expression: report.diagnostics
       "col": 13,
       "end_line": 6,
       "end_col": 15
-    }
+    },
+    "fixes": [
+      {
+        "span": {
+          "start": 253,
+          "end": 255
+        },
+        "replacement": "\"d\""
+      }
+    ]
   },
   {
     "code": "diagram/invalid-direction",
@@ -80,6 +98,15 @@ expression: report.diagnostics
       "col": 10,
       "end_line": 8,
       "end_col": 17
-    }
+    },
+    "fixes": [
+      {
+        "span": {
+          "start": 170,
+          "end": 170
+        },
+        "replacement": "\n    node missing: \"missing\""
+      }
+    ]
   }
 ]

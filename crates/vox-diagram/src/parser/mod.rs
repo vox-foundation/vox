@@ -310,6 +310,7 @@ impl Parser<'_> {
         }
         let mut blank = false;
         let mut last_pos = usize::MAX;
+        let mut close = None;
         loop {
             if self.halted || !self.spend_fuel() {
                 break;
@@ -324,7 +325,7 @@ impl Parser<'_> {
                     blank = true;
                 }
                 TokenKind::RBrace => {
-                    self.bump();
+                    close = Some(self.bump().span.start);
                     break;
                 }
                 TokenKind::Eof => {
@@ -367,7 +368,10 @@ impl Parser<'_> {
                 }
             }
         }
-        Block { entries }
+        Block {
+            entries,
+            braces: open.zip(close).map(|(open, close)| (open.start, close)),
+        }
     }
 
     /// A statement must end at a newline, `}` or EOF.

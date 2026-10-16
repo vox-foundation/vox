@@ -1,0 +1,5 @@
+graph {
+    node a: "A" { shape: Cylinder }
+    node b: "B" { shape: END }
+    a -> b
+}

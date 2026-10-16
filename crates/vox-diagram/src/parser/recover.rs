@@ -6,6 +6,7 @@ use super::Parser;
 use crate::ast::Label;
 use crate::codes;
 use crate::diag::{Fix, clip};
+use crate::fixgen::{quote, replace};
 use crate::lexer::TokenKind;
 use crate::span::Span;
 
@@ -164,7 +165,8 @@ impl Parser<'_> {
             .and_then(|r| r.strip_suffix('\''))
             .unwrap_or(raw);
         let msg = format!("labels must be double-quoted; write \"{}\"", clip(text));
-        self.report(codes::EXPECTED_QUOTED_LABEL, span, msg);
+        let fixes = vec![replace(span, quote(text))];
+        self.report_full(codes::EXPECTED_QUOTED_LABEL, span, msg, None, fixes);
         Some(Label {
             value: text.to_string(),
             span,
