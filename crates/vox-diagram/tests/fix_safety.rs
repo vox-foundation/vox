@@ -66,3 +66,13 @@ fn wr07_bare_graph_then_brace_next_line_is_not_rewritten() {
     let r = repair(src, 5);
     assert!(errors(&r.text) <= errors(src), "{}", r.text);
 }
+
+/// WR-05: `-.->` and `-.-` directly after an identifier are Mermaid links, not part of the id.
+#[test]
+fn wr05_dotted_mermaid_links_after_an_identifier() {
+    for link in ["A-.->B", "A-.-B", "A -.-> B"] {
+        let src = format!("graph {{\n    node A: \"A\"\n    node B: \"B\"\n    {link}\n}}\n");
+        let codes: Vec<_> = check(&src).diagnostics.iter().map(|d| d.code).collect();
+        assert_eq!(codes, [vox_diagram::codes::MERMAID_SYNTAX], "{link}");
+    }
+}

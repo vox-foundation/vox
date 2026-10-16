@@ -235,7 +235,7 @@ impl Lexer<'_> {
                     && !self
                         .src
                         .get(j + 1..)
-                        .is_some_and(|r| r.starts_with('>') || r.starts_with('-')));
+                        .is_some_and(|r| r.starts_with(['>', '-']) || r.starts_with(".-")));
             if !joins {
                 break;
             }
