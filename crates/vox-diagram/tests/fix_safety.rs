@@ -94,3 +94,21 @@ fn wr01_lone_cr_is_a_line_break() {
     let mixed = "graph {\r    node a: \"A\"\r\n    // c\r a -> ghost2\r\n}\r";
     assert!(!check(mixed).valid);
 }
+
+/// WR-03: C1 controls and implicit bidi marks are forbidden in labels (and so are fixed away).
+#[test]
+fn wr03_c1_and_implicit_bidi_marks_are_forbidden_in_labels() {
+    for c in [
+        '\u{80}', '\u{9b}', '\u{9f}', '\u{200e}', '\u{200f}', '\u{61c}', '\u{2028}', '\u{2029}',
+    ] {
+        let src = format!("graph {{\n    node a: \"x{c}y\"\n}}\n");
+        let codes: Vec<_> = check(&src).diagnostics.iter().map(|d| d.code).collect();
+        assert_eq!(
+            codes,
+            [vox_diagram::codes::FORBIDDEN_CHAR],
+            "U+{:04X}",
+            c as u32
+        );
+        assert!(repair(&src, 3).report.valid, "U+{:04X}", c as u32);
+    }
+}

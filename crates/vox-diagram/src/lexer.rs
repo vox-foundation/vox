@@ -82,10 +82,12 @@ struct Lexer<'a> {
     eol: usize,
 }
 
-/// A control character or bidirectional override that must never reach a label (A8).
+/// A control character (C0, DEL, C1), line/paragraph separator or bidirectional control that
+/// must never reach a label (A8). Zero-width joiners stay legal: emoji and Persian need them.
 pub(crate) fn is_forbidden(c: char) -> bool {
     matches!(c,
-        '\u{0}'..='\u{8}' | '\u{b}' | '\u{c}' | '\u{e}'..='\u{1f}' | '\u{7f}'
+        '\u{0}'..='\u{8}' | '\u{b}' | '\u{c}' | '\u{e}'..='\u{1f}' | '\u{7f}'..='\u{9f}'
+        | '\u{61c}' | '\u{200e}' | '\u{200f}' | '\u{2028}' | '\u{2029}'
         | '\u{202a}'..='\u{202e}' | '\u{2066}'..='\u{2069}')
 }
 
