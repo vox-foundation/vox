@@ -121,7 +121,21 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::GuiVersionSync { write } => vox_cli_ci::gui_version_sync::run(&root, write),
         CiCmd::CrateApiSync { write } => vox_cli_ci::crate_api_docs::run(&root, write),
         CiCmd::GuiSurfaceCoverage { write } => super::gui_surface_coverage::run(&root, write),
-        CiCmd::GuiSurfaceRegistry { write } => super::gui_surface_registry::run(&root, write),
+        CiCmd::GuiSurfaceRegistry {
+            write,
+            tighten,
+            today,
+        } => {
+            if tighten {
+                super::gui_surface_registry::tighten_baselines(&root)
+            } else {
+                let parsed_today = today
+                    .as_deref()
+                    .map(super::gui_surface_registry::parse_today)
+                    .transpose()?;
+                super::gui_surface_registry::run(&root, write, parsed_today)
+            }
+        }
         CiCmd::CapabilityIndex {
             write,
             tighten,

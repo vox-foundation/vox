@@ -68,4 +68,29 @@ describe('useChatSessions', () => {
     await expect(result.current.createSession()).rejects.toThrow('backend unreachable');
     expect(result.current.sessions).toHaveLength(0); // no optimistic entry left behind
   });
+
+  it('returns null from createSession when backend returns null or missing session_id', async () => {
+    vi.mocked(invoke).mockResolvedValueOnce([]); // initial load
+    const { result } = renderHook(() => useChatSessions());
+    await waitFor(() => expect(result.current.sessions).toHaveLength(0));
+
+    vi.mocked(invoke).mockResolvedValueOnce(null);
+    await expect(result.current.createSession()).resolves.toBeNull();
+    expect(result.current.sessions).toHaveLength(0);
+  });
+
+  it('upsertSession inserts or deduplicates sessions cleanly', async () => {
+    vi.mocked(invoke).mockResolvedValueOnce([session({ session_id: 's1', title: 'Old' })]);
+    const { result } = renderHook(() => useChatSessions());
+    await waitFor(() => expect(result.current.sessions).toHaveLength(1));
+
+    act(() => {
+      result.current.upsertSession(session({ session_id: 's1', title: 'Updated' }));
+      result.current.upsertSession(session({ session_id: 's2', title: 'Second' }));
+    });
+
+    expect(result.current.sessions).toHaveLength(2);
+    expect(result.current.sessions[0]).toMatchObject({ session_id: 's2', title: 'Second' });
+    expect(result.current.sessions[1]).toMatchObject({ session_id: 's1', title: 'Updated' });
+  });
 });

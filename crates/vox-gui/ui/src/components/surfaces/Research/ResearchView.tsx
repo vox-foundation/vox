@@ -11,6 +11,7 @@ import {
   getResearchEngineStatus,
   safeParseJson,
   type ResearchEngineStatusDto,
+  type EpistemicDagDto,
 } from './researchActions';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 import { ResearchClaimAccordion, type ResearchClaimRow } from './ResearchClaimAccordion';
@@ -24,6 +25,10 @@ import { JudgeInspector } from './JudgeInspector';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '../../ui/Dialog';
 import { SafeExternalLink } from './SafeExternalLink';
 import { ResearchEngineDrawer } from './ResearchEngineDrawer';
+import { MultiWaveProgressTimeline } from './MultiWaveProgressTimeline';
+import { ShoppingDecisionCard, type ShoppingDecisionPayload } from './ShoppingDecisionCard';
+import { CodeGenVerificationCard, type CodeGenVerificationPayload } from './CodeGenVerificationCard';
+import { promoteCandidate } from '../../../api/scientia';
 
 interface ResearchSession { id: number; status: string; query_text: string; started_at_ms: number; finished_at_ms: number | null; }
 
@@ -53,6 +58,14 @@ interface ResearchDetail {
   source_count?: number;
   citation_precision?: number;
   citations?: Array<{ url: string }>;
+  wave_count?: number;
+  wave_stability?: number;
+  quality_score?: number;
+  synthesis_model?: string;
+  domain_mode?: 'general' | 'shopping' | 'codegen';
+  shopping_decision?: ShoppingDecisionPayload;
+  codegen_verification?: CodeGenVerificationPayload;
+  epistemic_dag?: EpistemicDagDto;
 }
 
 /**
@@ -282,6 +295,11 @@ export function ResearchView({
   const [isSavingToKb, setIsSavingToKb] = useState(false);
 
   const [lane, setLane] = useState<'fast' | 'deep'>(initialLane);
+  const [domainMode, setDomainMode] = useState<'general' | 'shopping' | 'codegen'>('general');
+  const [scope, setScope] = useState<'web' | 'local' | 'both'>('both');
+  const [waves, setWaves] = useState<1 | 2 | 3>(1);
+  const [siteScope, setSiteScope] = useState('');
+  const [isPromotingScientia, setIsPromotingScientia] = useState(false);
   const [engineStatus, setEngineStatus] = useState<ResearchEngineStatusDto | null>(null);
   const [lowEvidence, setLowEvidence] = useState(initialLowEvidence);
   const [isEngineDrawerOpen, setIsEngineDrawerOpen] = useState(false);
@@ -404,7 +422,15 @@ export function ResearchView({
       // A2: fire-and-forget via the persistent daemon's async executor. Returns
       // {session_id, task_id, status: "running"} immediately — does NOT block on
       // the pipeline. Status transitions arrive through the queue watcher below.
-      const handle = await startResearchAsync({ query: activeQuery, verifyClaims: true, lane: activeLane });
+      const handle = await startResearchAsync({
+        query: activeQuery,
+        verifyClaims: true,
+        lane: activeLane,
+        scope,
+        waves,
+        domainMode,
+        siteScope: siteScope.trim() || undefined,
+      });
       setActiveSessionId(handle.session_id);
       await loadHistory();
     } catch (err) {
@@ -588,12 +614,114 @@ export function ResearchView({
           {running ? 'Running…' : 'Run'}
         </button>
       </div>
+
+      <div
+        data-testid="research-power-control-bar"
+        className="flex flex-wrap items-center gap-3 rounded-lg border border-border-subtle bg-black/30 px-3 py-2 text-xs"
+      >
+        <div
+          data-testid="research-domain-mode-group"
+          role="group"
+          aria-label="Domain Mode"
+          className="flex items-center gap-1"
+        >
+          <span className="font-mono text-[10px] uppercase tracking-wider text-text-muted mr-1">Mode</span>
+          {(['general', 'shopping', 'codegen'] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              data-testid={`domain-mode-${mode}`}
+              aria-pressed={domainMode === mode}
+              onClick={() => setDomainMode(mode)}
+              className={`rounded px-2 py-0.5 text-[11px] font-medium capitalize transition-colors ${
+                domainMode === mode
+                  ? 'border border-brass/40 bg-brass/20 text-brass'
+                  : 'border border-transparent text-text-muted hover:text-text-secondary'
+              }`}
+            >
+              {mode === 'codegen' ? 'CodeGen' : mode}
+            </button>
+          ))}
+        </div>
+
+        <div
+          data-testid="research-scope-group"
+          role="group"
+          aria-label="Retrieval Scope"
+          className="flex items-center gap-1"
+        >
+          <span className="font-mono text-[10px] uppercase tracking-wider text-text-muted mr-1">Scope</span>
+          {(['web', 'local', 'both'] as const).map((s) => (
+            <button
+              key={s}
+              type="button"
+              data-testid={`research-scope-${s}`}
+              aria-pressed={scope === s}
+              onClick={() => setScope(s)}
+              className={`rounded px-2 py-0.5 text-[11px] font-medium capitalize transition-colors ${
+                scope === s
+                  ? 'border border-brass/40 bg-brass/20 text-brass'
+                  : 'border border-transparent text-text-muted hover:text-text-secondary'
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+
+        <div
+          data-testid="research-waves-group"
+          role="group"
+          aria-label="Adversarial Waves"
+          className="flex items-center gap-1"
+        >
+          <span className="font-mono text-[10px] uppercase tracking-wider text-text-muted mr-1">Waves</span>
+          {([1, 2, 3] as const).map((w) => (
+            <button
+              key={w}
+              type="button"
+              data-testid={`research-waves-${w}`}
+              aria-pressed={waves === w}
+              onClick={() => setWaves(w)}
+              className={`rounded px-2 py-0.5 text-[11px] font-mono transition-colors ${
+                waves === w
+                  ? 'border border-brass/40 bg-brass/20 text-brass'
+                  : 'border border-transparent text-text-muted hover:text-text-secondary'
+              }`}
+            >
+              {w}W
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-1.5 ml-auto">
+          <label htmlFor="research-site-scope-input" className="font-mono text-[10px] uppercase tracking-wider text-text-muted">
+            Site
+          </label>
+          <input
+            id="research-site-scope-input"
+            data-testid="research-site-scope-input"
+            type="text"
+            value={siteScope}
+            onChange={(e) => setSiteScope(e.target.value)}
+            placeholder="docs.rs, arxiv.org"
+            className="w-36 rounded border border-border-subtle bg-black/40 px-2 py-0.5 text-[11px] font-mono text-text-secondary outline-hidden focus:border-brass/40"
+          />
+        </div>
+      </div>
+
       {showDiagnostics && (
         <LiveSourceProber initialQuery={query} />
       )}
       {running && (
-        <div className="rounded-lg border border-border-subtle bg-overlay-subtle p-3" aria-live="polite">
+        <div className="rounded-lg border border-border-subtle bg-overlay-subtle p-3 space-y-3" aria-live="polite">
           <PipelineTimeline stages={RESEARCH_STAGES} statuses={deriveStages('active')} />
+          {(waves > 1 || lane === 'deep') && (
+            <MultiWaveProgressTimeline
+              currentWave={1}
+              totalWaves={waves > 1 ? waves : 3}
+            />
+          )}
           <div className="mt-2 text-[11px] text-text-muted">
             Running in the background{activeSessionId != null ? ` (session ${activeSessionId})` : ''} — the answer opens automatically when it completes.
           </div>
@@ -642,23 +770,52 @@ export function ResearchView({
       </div>
 
       {detail && (() => {
-        const parsedMeta = safeParseJson<any>(detail.artifact_json)?.result?.research_metadata;
+        const parsedArtifact = safeParseJson<any>(detail.artifact_json);
+        const parsedResult = parsedArtifact?.result;
+        const parsedMeta = parsedResult?.research_metadata;
+        const effectiveWaveCount = detail.wave_count ?? parsedMeta?.wave_count;
+        const effectiveWaveStability = detail.wave_stability ?? parsedMeta?.wave_stability;
+        const effectiveQualityScore = detail.quality_score ?? parsedMeta?.quality_score;
+        const effectiveSynthesisModel = detail.synthesis_model ?? parsedMeta?.synthesis_model;
+        const shoppingDecision: ShoppingDecisionPayload | undefined =
+          detail.shopping_decision ?? parsedResult?.shopping_decision;
+        const codegenVerification: CodeGenVerificationPayload | undefined =
+          detail.codegen_verification ?? parsedResult?.codegen_verification;
+        const epistemicDagDto: EpistemicDagDto | undefined =
+          detail.epistemic_dag ?? parsedResult?.epistemic_dag;
+
         return (
           <div className="rounded-lg border border-border-subtle bg-overlay-subtle p-3">
             <div className="mb-2 flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[12px] font-medium text-text-primary">Session {detail.session.id}</span>
-                {(parsedMeta?.subquery_count != null || parsedMeta?.wave_count != null || parsedMeta?.wave_stability != null) && (
+                {(parsedMeta?.subquery_count != null || effectiveWaveCount != null || effectiveWaveStability != null) && (
                   <span data-testid="session-metadata-stats" className="text-[11px] font-mono text-text-muted">
                     {[
-                      parsedMeta.subquery_count != null ? `${parsedMeta.subquery_count} subqueries` : null,
-                      parsedMeta.wave_count != null ? `${parsedMeta.wave_count} waves` : null,
-                      parsedMeta.wave_stability != null ? `stability ${Math.round(parsedMeta.wave_stability * 100)}%` : null,
+                      parsedMeta?.subquery_count != null ? `${parsedMeta.subquery_count} subqueries` : null,
+                      effectiveWaveCount != null ? `${effectiveWaveCount} waves` : null,
+                      effectiveWaveStability != null ? `stability ${Math.round(effectiveWaveStability * 100)}%` : null,
                     ].filter(Boolean).join(' · ')}
                   </span>
                 )}
+                {(effectiveSynthesisModel != null || effectiveQualityScore != null || effectiveWaveCount != null) && (
+                  <div
+                    data-testid="research-telemetry-ribbon"
+                    className="inline-flex items-center gap-1.5 rounded border border-border-subtle bg-black/30 px-2 py-0.5 text-[10px] font-mono text-text-secondary"
+                  >
+                    {effectiveSynthesisModel && (
+                      <span className="text-brass">🤖 {effectiveSynthesisModel}</span>
+                    )}
+                    {effectiveQualityScore != null && (
+                      <span className="text-emerald-400">★ {effectiveQualityScore}/5</span>
+                    )}
+                    {effectiveWaveCount != null && (
+                      <span>{effectiveWaveCount}W</span>
+                    )}
+                  </div>
+                )}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <button
                   type="button"
                   data-testid="toggle-judge-btn"
@@ -710,6 +867,36 @@ export function ResearchView({
                 </button>
                 <button
                   type="button"
+                  data-testid="promote-to-scientia-btn"
+                  disabled={isPromotingScientia}
+                  onClick={async () => {
+                    if (!detail?.session?.id) return;
+                    setIsPromotingScientia(true);
+                    try {
+                      const promoted = await promoteCandidate(`finding-${detail.session.id}`);
+                      pushToast?.({
+                        tone: 'ok',
+                        title: 'Promoted to Scientia',
+                        body: `Seeded publication ${promoted.publication_id} (${promoted.claims_seeded} claims).`,
+                        cause: 'backend-ok',
+                      });
+                    } catch (err) {
+                      pushToast?.({
+                        tone: 'warn',
+                        title: 'Scientia promotion failed',
+                        body: sanitizeErrorForToast(err),
+                        cause: 'backend-error',
+                      });
+                    } finally {
+                      setIsPromotingScientia(false);
+                    }
+                  }}
+                  className="rounded border border-purple-500/40 bg-purple-500/10 px-2.5 py-1 text-[11px] text-purple-300 hover:bg-purple-500/20 disabled:opacity-50 transition"
+                >
+                  {isPromotingScientia ? 'Promoting…' : 'Promote to Scientia Publication'}
+                </button>
+                <button
+                  type="button"
                   onClick={() => setIsPublishModalOpen(true)}
                   className="rounded border border-brass/40 bg-brass/10 px-2.5 py-1 text-[11px] text-brass hover:bg-brass/20"
                 >
@@ -719,6 +906,16 @@ export function ResearchView({
               </div>
             </div>
             <PipelineTimeline stages={RESEARCH_STAGES} statuses={deriveStages(detail.session.status)} />
+            {(effectiveWaveCount != null && effectiveWaveCount > 1) && (
+              <div className="mt-2" data-testid="detail-multi-wave-timeline">
+                <MultiWaveProgressTimeline
+                  currentWave={effectiveWaveCount + 1}
+                  totalWaves={Math.max(effectiveWaveCount, 3)}
+                  stabilityScore={effectiveWaveStability}
+                  earlyExitTriggered={Boolean(effectiveWaveStability != null && effectiveWaveStability >= 0.85 && effectiveWaveCount < 3)}
+                />
+              </div>
+            )}
             {parsedMeta?.planner_degraded && (
               <div
                 data-testid="planner-degraded-chip"
@@ -759,23 +956,48 @@ export function ResearchView({
               ])
             ).filter(Boolean);
 
-            const dagNodes: DagNode[] = claimRows.map((c, i) => {
-              const isContradicted =
-                c.verdict.toLowerCase() === 'refuted' || c.verdict.toLowerCase() === 'contradicted';
-              const isVerified =
-                c.verdict.toLowerCase() === 'verified' || c.verdict.toLowerCase() === 'supported';
-              return {
-                id: c.claimId,
-                label: `${c.claimId}: ${c.text}`,
-                wave: Math.floor(i / 2),
-                status: isContradicted ? 'contradicted' : isVerified ? 'verified' : 'pending',
-              };
-            });
-            const dagEdges: DagEdge[] = dagNodes.slice(1).map((node, i) => ({
-              srcId: dagNodes[i].id,
-              dstId: node.id,
-              relation: node.status === 'contradicted' ? 'contradicts' : 'supports',
-            }));
+            const dagNodes: DagNode[] = epistemicDagDto?.nodes?.length
+              ? epistemicDagDto.nodes.map((n) => ({
+                  id: n.id,
+                  label: n.label,
+                  wave: n.wave,
+                  kind: n.kind,
+                  status:
+                    n.status ??
+                    (n.verdict?.toLowerCase() === 'refuted' || n.verdict?.toLowerCase() === 'contradicted'
+                      ? 'contradicted'
+                      : n.verdict
+                      ? 'verified'
+                      : 'pending'),
+                  confidence: n.confidence,
+                  excerpt: n.excerpt ?? n.snippet,
+                  url: n.url,
+                }))
+              : claimRows.map((c, i) => {
+                  const isContradicted =
+                    c.verdict.toLowerCase() === 'refuted' || c.verdict.toLowerCase() === 'contradicted';
+                  const isVerified =
+                    c.verdict.toLowerCase() === 'verified' || c.verdict.toLowerCase() === 'supported';
+                  return {
+                    id: c.claimId,
+                    label: `${c.claimId}: ${c.text}`,
+                    wave: Math.floor(i / 2),
+                    kind: 'claim',
+                    status: isContradicted ? 'contradicted' : isVerified ? 'verified' : 'pending',
+                    confidence: c.confidence,
+                  };
+                });
+            const dagEdges: DagEdge[] = epistemicDagDto?.edges?.length
+              ? epistemicDagDto.edges.map((e) => ({
+                  srcId: e.src_id ?? e.source ?? '',
+                  dstId: e.dst_id ?? e.target ?? '',
+                  relation: e.relation ?? (e.kind === 'contradicts' ? 'contradicts' : 'supports'),
+                }))
+              : dagNodes.slice(1).map((node, i) => ({
+                  srcId: dagNodes[i].id,
+                  dstId: node.id,
+                  relation: node.status === 'contradicted' ? 'contradicts' : 'supports',
+                }));
 
             return (
               <>
@@ -787,6 +1009,16 @@ export function ResearchView({
                     contradictedClaims={contradictedClaims}
                     totalClaims={claimRows.length}
                   />
+                )}
+                {shoppingDecision && (
+                  <div className="mt-2">
+                    <ShoppingDecisionCard decision={shoppingDecision} />
+                  </div>
+                )}
+                {codegenVerification && (
+                  <div className="mt-2">
+                    <CodeGenVerificationCard verification={codegenVerification} />
+                  </div>
                 )}
                 <div className="mt-2 max-h-[360px] overflow-auto">
                   <ResearchReportMarkdown

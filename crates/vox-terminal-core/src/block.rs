@@ -42,10 +42,23 @@ impl OutputChunk {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum BlockOrigin {
+    #[default]
+    User,
+    Agent {
+        agent_id: String,
+    },
+    System,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Block {
     pub id: BlockId,
     pub kind: BlockKind,
+    #[serde(default)]
+    pub origin: BlockOrigin,
     pub input: String,
     pub output: Vec<OutputChunk>,
     pub status: BlockStatus,
@@ -57,11 +70,17 @@ impl Block {
         Self {
             id,
             kind,
+            origin: BlockOrigin::User,
             input: input.into(),
             output: vec![],
             status: BlockStatus::Running,
             exit_code: None,
         }
+    }
+
+    pub fn with_origin(mut self, origin: BlockOrigin) -> Self {
+        self.origin = origin;
+        self
     }
 
     pub fn push(&mut self, c: OutputChunk) {

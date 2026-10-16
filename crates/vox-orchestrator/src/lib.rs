@@ -187,6 +187,8 @@ pub mod orchestration_feature_flags;
 /// Core multi-agent orchestrator implementation.
 pub mod orchestrator;
 pub use crate::orchestrator::core::is_chat_research_enabled;
+/// Oversight composition: safety floor, policy enforcement, and approval tiers.
+pub mod oversight;
 /// PII-aware redacting filter for sensitive data.
 pub mod pii_filter;
 /// Dynamic planning domain (router, synthesis, policies, replanning).

@@ -54,15 +54,18 @@ export function attachDriveAgentListener(
     stateRef.current = { ...stateRef.current, ...eventState };
   })
     .then(stop => {
-      if (cancelled) stop();
-      else unlisten = stop;
+      if (cancelled) {
+        try { void Promise.resolve(stop()).catch(() => {}); } catch { /* ignore */ }
+      } else {
+        unlisten = stop;
+      }
     })
     .catch(() => {
       // Browser/vitest harness: no Tauri agent-event plane.
     });
   return () => {
     cancelled = true;
-    unlisten?.();
+    try { void Promise.resolve(unlisten?.()).catch(() => {}); } catch { /* ignore */ }
   };
 }
 

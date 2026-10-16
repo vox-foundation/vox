@@ -39,7 +39,7 @@ let crates = parsed.unwrap().as_array().unwrap_or([])
 let layers_raw = fs.read("docs/src/architecture/layers.toml").unwrap_or("")
 
 // Find plugin crates from layers.toml by scanning for kind = "plugin".
-let plugin_names: list[str] = []
+let mut plugin_names: list[str] = []
 let lines = layers_raw.split("\n")
 for line in lines {
     if line.contains("kind = \"plugin\"") {
@@ -58,11 +58,11 @@ let capability_keywords: list[str] = [
 ]
 
 // Collect scored candidates as flat lists (no list.set in interp).
-let candidate_names: list[str] = []
-let candidate_scores: list[int] = []
-let candidate_fan_ins: list[int] = []
-let candidate_locs: list[int] = []
-let candidate_layers: list[int] = []
+let mut candidate_names: list[str] = []
+let mut candidate_scores: list[int] = []
+let mut candidate_fan_ins: list[int] = []
+let mut candidate_locs: list[int] = []
+let mut candidate_layers: list[int] = []
 
 for entry in crates {
     let name = jstr(entry, "crate")
@@ -75,7 +75,7 @@ for entry in crates {
     if name.ends_with("-cli") { continue }
     if name.ends_with("-driver") { continue }
 
-    let score = 0
+    let mut score = 0
     if fan_in <= 3 { score = score + 3 }
 
     for kw in capability_keywords {
@@ -109,7 +109,7 @@ print("------|-------|--------|-----|------")
 // Print score 5 first, then 4.
 let score_thresholds: list[int] = [6, 5, 4]
 for threshold in score_thresholds {
-    let k = 0
+    let mut k = 0
     while k < candidate_names.len() {
         let s = candidate_scores.get(k).unwrap_or(0)
         if s == threshold {

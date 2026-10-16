@@ -139,7 +139,7 @@ export function AppShell({
           onOpenTab={onOpenTab}
           agentsCount={agentsCount}
           data={data}
-          mode={narrow ? 'rail' : sidebarMode}
+          mode={sidebarMode === 'hidden' ? 'hidden' : narrow ? 'rail' : sidebarMode}
           setMode={setSidebarMode}
           pushToast={pushToast}
           appVersion={appVersion}

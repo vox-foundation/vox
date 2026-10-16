@@ -5,6 +5,16 @@ use serde::{Deserialize, Serialize};
 
 const SECONDS_PER_DAY: i64 = 86400;
 
+/// Policy controlling whether weekends are automatically exempt from breaking streaks (HUMANE-02).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum RestDayPolicy {
+    /// Standard consecutive calendar-day tracking.
+    #[default]
+    Standard,
+    /// Saturdays and Sundays (UTC) never count as missed days and never consume grace periods.
+    WeekendsExempt,
+}
+
 /// Tracks daily activity streaks.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StreakTracker {
@@ -18,6 +28,12 @@ pub struct StreakTracker {
     pub grace_periods_available: u64,
     /// How many grace periods have been used.
     pub grace_periods_used: u64,
+    /// Rest-day exemption policy (HUMANE-02).
+    #[serde(default)]
+    pub rest_policy: RestDayPolicy,
+    /// Optional Unix timestamp until which voluntary Rest / Vacation Mode freezes streak decay.
+    #[serde(default)]
+    pub rest_mode_until_ts: Option<i64>,
 }
 
 impl Default for StreakTracker {
@@ -28,6 +44,8 @@ impl Default for StreakTracker {
             last_activity_ts: 0,
             grace_periods_available: 1, // Start with 1 grace period
             grace_periods_used: 0,
+            rest_policy: RestDayPolicy::Standard,
+            rest_mode_until_ts: None,
         }
     }
 }
@@ -64,17 +82,63 @@ impl StreakTracker {
         Self::default()
     }
 
+    /// Create a new `StreakTracker` with an explicit [`RestDayPolicy`] (e.g. [`RestDayPolicy::WeekendsExempt`]).
+    pub fn with_rest_policy(rest_policy: RestDayPolicy) -> Self {
+        Self {
+            rest_policy,
+            ..Self::default()
+        }
+    }
+
+    /// Enable voluntary Rest / Vacation Mode until `until_ts` (Unix seconds).
+    /// Any missed days up to and including `until_ts` are exempt from breaking streaks or consuming grace.
+    pub fn enable_rest_mode_until(&mut self, until_ts: i64) {
+        self.rest_mode_until_ts = Some(until_ts);
+    }
+
     /// Calculate the start of the day in UTC for a given timestamp.
     fn day_start(ts: i64) -> i64 {
         ts - (ts % SECONDS_PER_DAY)
+    }
+
+    /// Returns true if a UTC day-start timestamp falls on Saturday (6) or Sunday (0).
+    /// Unix epoch 1970-01-01 was a Thursday (weekday 4 where Sunday = 0 .. Saturday = 6).
+    fn is_weekend_utc(day_start_ts: i64) -> bool {
+        let day_index = day_start_ts.div_euclid(SECONDS_PER_DAY);
+        let weekday = (day_index + 4).rem_euclid(7);
+        weekday == 0 || weekday == 6
+    }
+
+    /// Count how many non-exempt days were missed between `last_active_day` and `today`.
+    fn count_non_exempt_missed_days(&self, last_active_day: i64, today: i64) -> i64 {
+        let total_diff = (today - last_active_day) / SECONDS_PER_DAY;
+        if total_diff <= 1 {
+            return 0;
+        }
+        let mut missed = 0;
+        for step in 1..total_diff {
+            let day_ts = last_active_day + step * SECONDS_PER_DAY;
+            let exempt_by_weekend =
+                self.rest_policy == RestDayPolicy::WeekendsExempt && Self::is_weekend_utc(day_ts);
+            let exempt_by_rest_mode = self
+                .rest_mode_until_ts
+                .is_some_and(|until| day_ts <= Self::day_start(until));
+            if !exempt_by_weekend && !exempt_by_rest_mode {
+                missed += 1;
+            }
+        }
+        missed
     }
 
     /// Record activity for the current time.
     /// Analyzes the time since `last_activity_ts` and updates the streak,
     /// consuming a grace period if necessary.
     pub fn record_activity(&mut self) -> StreakResult {
-        let now = now_unix();
+        self.record_activity_at(now_unix())
+    }
 
+    /// Record activity at a specific Unix timestamp `now`.
+    pub fn record_activity_at(&mut self, now: i64) -> StreakResult {
         if self.last_activity_ts == 0 {
             // First time ever
             self.current_streak = 1;
@@ -90,15 +154,16 @@ impl StreakTracker {
         let last_active_day = Self::day_start(self.last_activity_ts);
         let days_diff = (today - last_active_day) / SECONDS_PER_DAY;
 
-        if days_diff == 0 {
+        if days_diff <= 0 {
             // Already active today
             return StreakResult::AlreadyActive;
         }
 
         self.last_activity_ts = now;
+        let days_missed = self.count_non_exempt_missed_days(last_active_day, today);
 
-        if days_diff == 1 {
-            // Active on contiguous day
+        if days_missed == 0 {
+            // Active on contiguous day (or all intervening days were exempt rest/weekend days)
             self.current_streak += 1;
             if self.current_streak > self.longest_streak {
                 self.longest_streak = self.current_streak;
@@ -111,28 +176,23 @@ impl StreakTracker {
                 streak: self.current_streak,
                 bonus_xp: self.calculate_bonus(self.current_streak),
             }
-        } else {
-            // Missed one or more days
-            let days_missed = days_diff - 1;
-
-            if days_missed as u64 <= self.grace_periods_available {
-                // We have enough grace periods to cover the absence
-                self.grace_periods_available -= days_missed as u64;
-                self.grace_periods_used += days_missed as u64;
-                self.current_streak += 1;
-                if self.current_streak > self.longest_streak {
-                    self.longest_streak = self.current_streak;
-                }
-                StreakResult::SavedByGrace {
-                    streak: self.current_streak,
-                    bonus_xp: self.calculate_bonus(self.current_streak),
-                }
-            } else {
-                // Streak broken
-                let previous = self.current_streak;
-                self.current_streak = 1;
-                StreakResult::BrokenReset { previous }
+        } else if days_missed as u64 <= self.grace_periods_available {
+            // We have enough grace periods to cover the absence
+            self.grace_periods_available -= days_missed as u64;
+            self.grace_periods_used += days_missed as u64;
+            self.current_streak += 1;
+            if self.current_streak > self.longest_streak {
+                self.longest_streak = self.current_streak;
             }
+            StreakResult::SavedByGrace {
+                streak: self.current_streak,
+                bonus_xp: self.calculate_bonus(self.current_streak),
+            }
+        } else {
+            // Streak broken
+            let previous = self.current_streak;
+            self.current_streak = 1;
+            StreakResult::BrokenReset { previous }
         }
     }
 
@@ -365,5 +425,54 @@ mod tests {
         let res = t.record_activity();
         assert_eq!(res, StreakResult::BrokenReset { previous: 5 });
         assert_eq!(t.current_streak, 1);
+    }
+
+    #[test]
+    fn weekends_exempt_preserves_streak_across_saturday_sunday() {
+        let mut t = StreakTracker::with_rest_policy(RestDayPolicy::WeekendsExempt);
+        t.grace_periods_available = 0;
+        // Day 1 since epoch (1970-01-02) is Friday; Day 2 is Saturday; Day 3 is Sunday; Day 4 is Monday
+        let friday_ts = SECONDS_PER_DAY + 3600;
+        let monday_ts = SECONDS_PER_DAY * 4 + 3600;
+
+        assert_eq!(
+            t.record_activity_at(friday_ts),
+            StreakResult::Continued {
+                streak: 1,
+                bonus_xp: 10
+            }
+        );
+        // Returning on Monday after taking Saturday and Sunday off must continue streak without grace!
+        assert_eq!(
+            t.record_activity_at(monday_ts),
+            StreakResult::Continued {
+                streak: 2,
+                bonus_xp: 20
+            }
+        );
+        assert_eq!(t.current_streak, 2);
+        assert_eq!(t.grace_periods_used, 0);
+    }
+
+    #[test]
+    fn rest_mode_until_ts_freezes_streak_decay() {
+        let mut t = StreakTracker::new();
+        t.grace_periods_available = 0;
+        let start_ts = SECONDS_PER_DAY * 10 + 3600;
+        let vacation_end_ts = SECONDS_PER_DAY * 17 + 3600;
+        let return_ts = SECONDS_PER_DAY * 18 + 3600;
+
+        t.record_activity_at(start_ts);
+        t.enable_rest_mode_until(vacation_end_ts);
+
+        let res = t.record_activity_at(return_ts);
+        assert_eq!(
+            res,
+            StreakResult::Continued {
+                streak: 2,
+                bonus_xp: 20
+            }
+        );
+        assert_eq!(t.current_streak, 2);
     }
 }

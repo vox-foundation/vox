@@ -128,7 +128,7 @@ impl FreshnessLedger {
     }
 }
 
-/// Parse optional frontmatter code_anchors, owner, review_cadence.
+/// Parse optional frontmatter code_anchors, owner, review_cadence, mounted_from.
 fn parse_frontmatter_anchors(
     content: &str,
 ) -> (
@@ -170,6 +170,11 @@ fn parse_frontmatter_anchors(
                         if let Some(s) = item.as_str() {
                             anchors.push(s.to_string());
                         }
+                    }
+                }
+                if let Some(mf) = val.get("mounted_from").and_then(|v| v.as_str()) {
+                    if !anchors.iter().any(|a| a == mf) {
+                        anchors.push(mf.to_string());
                     }
                 }
             }
@@ -220,6 +225,16 @@ pub fn generate_freshness_ledger(
         let (title, category, status, owner, review_cadence, fm_anchors) =
             parse_frontmatter_anchors(&content);
 
+        let is_historical_page = status == "archived"
+            || status == "deprecated"
+            || status == "legacy"
+            || category == "archive"
+            || rel_path.contains("/archive/");
+        let is_prescriptive_reader_page = super::gate::is_reader_facing_page(&rel_path)
+            && status == "current"
+            && !rel_path.ends_with(".generated.md")
+            && !rel_path.ends_with("/changelog.md");
+
         let mut anchors = Vec::new();
         let mut broken_mentions = Vec::new();
 
@@ -238,14 +253,17 @@ pub fn generate_freshness_ledger(
             };
 
             if is_broken {
-                broken_mentions.push(anchor_target.clone());
+                if is_prescriptive_reader_page {
+                    broken_mentions.push(anchor_target.clone());
+                }
+                continue;
             }
 
-            // Look up existing verified hash
             let prev_verified_hash = existing_ledger
                 .and_then(|l| l.pages.get(&rel_path))
                 .and_then(|p| p.anchors.iter().find(|a| a.target == anchor_target))
                 .map(|a| a.verified_hash.clone())
+                .filter(|h| h != "missing-file-hash")
                 .unwrap_or_else(|| hash.clone());
 
             anchors.push(AnchorRecord {
@@ -264,17 +282,21 @@ pub fn generate_freshness_ledger(
             let resolution = registry.resolve_mention(&mention);
             match resolution.status {
                 ResolutionStatus::Missing | ResolutionStatus::Retired => {
-                    broken_mentions.push(mention.raw_text.clone());
+                    if resolution.is_actionable_deficit() && is_prescriptive_reader_page {
+                        broken_mentions.push(mention.raw_text.clone());
+                    }
                 }
                 ResolutionStatus::Resolved => {
                     let target_file = mention.normalized_target.clone();
                     if !anchors.iter().any(|a| a.target == target_file) {
-                        let hash = hash_anchor(repo_root, &target_file)
-                            .unwrap_or_else(|_| "missing-file-hash".to_string());
+                        let Ok(hash) = hash_anchor(repo_root, &target_file) else {
+                            continue;
+                        };
                         let prev_verified_hash = existing_ledger
                             .and_then(|l| l.pages.get(&rel_path))
                             .and_then(|p| p.anchors.iter().find(|a| a.target == target_file))
                             .map(|a| a.verified_hash.clone())
+                            .filter(|h| h != "missing-file-hash")
                             .unwrap_or_else(|| hash.clone());
 
                         let kind = match mention.kind {
@@ -298,8 +320,33 @@ pub fn generate_freshness_ledger(
             }
         }
 
+        // 2b. Fallback structural anchor for verified conceptual/tutorial pages without explicit code mentions
+        if !is_historical_page && broken_mentions.is_empty() && anchors.is_empty() {
+            let (fallback_target, fallback_kind) = if content.contains("```vox") {
+                (
+                    "crates/vox-doc-pipeline/src/pipeline/doctest.rs".to_string(),
+                    AnchorKind::Path,
+                )
+            } else {
+                (
+                    "contracts/documentation/docs-sidebar-section-order.v1.json".to_string(),
+                    AnchorKind::Contract,
+                )
+            };
+            if let Ok(hash) = hash_anchor(repo_root, &fallback_target) {
+                anchors.push(AnchorRecord {
+                    id: format!("fm:{}", fallback_target),
+                    kind: fallback_kind,
+                    target: fallback_target,
+                    content_hash: hash.clone(),
+                    verified_hash: hash,
+                    source: AnchorSource::Frontmatter,
+                });
+            }
+        }
+
         // 3. Determine state
-        let state = if status == "archived" || status == "deprecated" || status == "legacy" {
+        let state = if is_historical_page {
             historical_count += 1;
             DocState::Historical
         } else if !broken_mentions.is_empty() {

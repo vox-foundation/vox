@@ -18,6 +18,12 @@ pub enum HirEffectKind {
     Mutate,
     /// Version-control / repository operations (`repo.*` / `vcs.*` builtins).
     Vcs,
+    /// Incurs paid API / scrape / compute spend (`RANK-01`).
+    Spend,
+    /// Mutates persistent production state (`RANK-01`).
+    Write,
+    /// Calls an external third-party API (`RANK-01`).
+    ExternalApi,
     /// Parameterized MCP tool call.
     Mcp(String),
 }
@@ -35,6 +41,9 @@ impl HirEffectKind {
             HirEffectKind::GpuCompute => "gpu_compute".into(),
             HirEffectKind::Mutate => "mutate".into(),
             HirEffectKind::Vcs => "vcs".into(),
+            HirEffectKind::Spend => "spend".into(),
+            HirEffectKind::Write => "write".into(),
+            HirEffectKind::ExternalApi => "external_api".into(),
             HirEffectKind::Mcp(tool) => format!("mcp({tool})"),
         }
     }

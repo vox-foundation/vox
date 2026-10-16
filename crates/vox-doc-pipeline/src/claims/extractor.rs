@@ -8,11 +8,11 @@ use std::sync::LazyLock;
 use super::types::{ExtractedMention, MentionKind, MentionRole};
 
 static RE_FILE_PATH: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^(?:(?:crates|docs|contracts|\.planning|scripts|tests)/[a-zA-Z0-9_.-]+(?:/[a-zA-Z0-9_.-]+)*|[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+\.(?:rs|md|toml|yaml|yml|json|vox))$").unwrap()
+    Regex::new(r"^(?:(?:crates|docs|contracts|\.planning|scripts|tests|examples|assets|docs-astro)/[a-zA-Z0-9_.-]+(?:/[a-zA-Z0-9_.-]+)*|Cargo\.toml|README\.md|AGENTS\.md)$").unwrap()
 });
 
 static RE_CRATE_NAME: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"^(?:vox-[a-z0-9_-]+)$").unwrap());
+    LazyLock::new(|| Regex::new(r"^(?:vox-[a-z0-9]+(?:-[a-z0-9]+)*)$").unwrap());
 
 static RE_ENV_VAR: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"^(?:VOX_[A-Z0-9_]+|RUST_LOG|RUST_BACKTRACE|TURSO_[A-Z0-9_]+)$").unwrap()
@@ -134,11 +134,15 @@ fn floor_char_boundary(s: &str, mut idx: usize) -> usize {
     idx
 }
 
-/// Check if the text immediately preceding the inline code indicates an illustrative or historical mention.
+/// Check if the text surrounding the inline code on the same line indicates an illustrative or historical mention.
 fn is_descriptive_context(content: &str, byte_offset: usize) -> bool {
     let end = floor_char_boundary(content, byte_offset);
-    let start = floor_char_boundary(content, byte_offset.saturating_sub(60));
-    let slice = content[start..end].to_lowercase();
+    let start = floor_char_boundary(content, byte_offset.saturating_sub(90));
+    let line_end = content[end..]
+        .find('\n')
+        .map(|i| end + i)
+        .unwrap_or(content.len());
+    let slice = content[start..line_end].to_lowercase();
     slice.contains("retired")
         || slice.contains("deprecated")
         || slice.contains("replaced by")
@@ -146,6 +150,28 @@ fn is_descriptive_context(content: &str, byte_offset: usize) -> bool {
         || slice.contains("historical")
         || slice.contains("formerly")
         || slice.contains("previously")
+        || slice.contains("deleted")
+        || slice.contains("removed")
+        || slice.contains("archived")
+        || slice.contains("planned")
+        || slice.contains("proposed")
+        || slice.contains("roadmap")
+        || slice.contains("e.g.")
+        || slice.contains("for example")
+}
+
+fn is_placeholder_target(raw: &str) -> bool {
+    raw.contains("...")
+        || raw.contains('…')
+        || raw.contains("YYYY")
+        || raw.contains("XXXX")
+        || raw.ends_with("_X")
+        || raw.contains('<')
+        || raw.contains('>')
+        || raw.contains("/foo")
+        || raw.contains("/bar")
+        || raw.contains("nonexistent")
+        || raw.contains("fake")
 }
 
 fn classify_inline_code(
@@ -158,12 +184,17 @@ fn classify_inline_code(
     if raw.is_empty() {
         return None;
     }
+    let effective_role = if is_placeholder_target(raw) {
+        MentionRole::Mentions
+    } else {
+        role
+    };
 
     // 1. File Path
     if RE_FILE_PATH.is_match(raw) {
         return Some(ExtractedMention {
             kind: MentionKind::FilePath,
-            role,
+            role: effective_role,
             raw_text: raw.to_string(),
             normalized_target: raw.to_string(),
             source_file: source_file.to_string(),
@@ -178,7 +209,7 @@ fn classify_inline_code(
         let normalized = raw.trim().to_string();
         return Some(ExtractedMention {
             kind: MentionKind::CliCommand,
-            role,
+            role: effective_role,
             raw_text: raw.to_string(),
             normalized_target: normalized,
             source_file: source_file.to_string(),
@@ -192,7 +223,7 @@ fn classify_inline_code(
     if RE_ENV_VAR.is_match(raw) {
         return Some(ExtractedMention {
             kind: MentionKind::EnvVar,
-            role,
+            role: effective_role,
             raw_text: raw.to_string(),
             normalized_target: raw.to_string(),
             source_file: source_file.to_string(),
@@ -206,7 +237,7 @@ fn classify_inline_code(
     if RE_CRATE_NAME.is_match(raw) {
         return Some(ExtractedMention {
             kind: MentionKind::CrateName,
-            role,
+            role: effective_role,
             raw_text: raw.to_string(),
             normalized_target: raw.to_string(),
             source_file: source_file.to_string(),
@@ -220,7 +251,7 @@ fn classify_inline_code(
     if RE_RUST_SYMBOL.is_match(raw) && !raw.contains('/') {
         return Some(ExtractedMention {
             kind: MentionKind::RustSymbol,
-            role,
+            role: effective_role,
             raw_text: raw.to_string(),
             normalized_target: raw.to_string(),
             source_file: source_file.to_string(),
@@ -238,7 +269,7 @@ fn classify_inline_code(
     {
         return Some(ExtractedMention {
             kind: MentionKind::ConfigKey,
-            role,
+            role: effective_role,
             raw_text: raw.to_string(),
             normalized_target: raw.to_string(),
             source_file: source_file.to_string(),
@@ -271,9 +302,14 @@ fn extract_from_code_block(
             || line_trimmed.starts_with("cargo run -p vox")
         {
             let cmd_text = line_trimmed.trim_start_matches('$').trim();
+            let cmd_role = if is_placeholder_target(cmd_text) {
+                MentionRole::Mentions
+            } else {
+                role
+            };
             mentions.push(ExtractedMention {
                 kind: MentionKind::CliCommand,
-                role,
+                role: cmd_role,
                 raw_text: cmd_text.to_string(),
                 normalized_target: cmd_text.to_string(),
                 source_file: source_file.to_string(),
@@ -286,9 +322,14 @@ fn extract_from_code_block(
         // Env vars in code fence (e.g. export VOX_FOO=bar or VOX_FOO: "...")
         for word in line_trimmed.split(&[' ', '=', '"', '\'', ':', ';', '(', ')'][..]) {
             if RE_ENV_VAR.is_match(word) {
+                let env_role = if is_placeholder_target(word) {
+                    MentionRole::Mentions
+                } else {
+                    role
+                };
                 mentions.push(ExtractedMention {
                     kind: MentionKind::EnvVar,
-                    role,
+                    role: env_role,
                     raw_text: word.to_string(),
                     normalized_target: word.to_string(),
                     source_file: source_file.to_string(),

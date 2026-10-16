@@ -286,4 +286,28 @@ describe('VoxGraphStatusPanel', () => {
     renderWithClient(<VoxGraphStatusPanel />);
     expect(screen.getByText(/Loading code graph status/i)).toBeDefined();
   });
+
+  it('renders CodeAtlasCanvas with viewport budget, branch diff overlay, active agent badges, and @ mention chip (Phases 26-30)', async () => {
+    mockUse.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { default_corpus_id: 'repo-code-graph', corpora: [STALE_CORPUS] },
+    });
+    renderWithClient(<VoxGraphStatusPanel />);
+
+    expect(screen.getByTestId('code-atlas-canvas')).toBeDefined();
+    expect(screen.getByTestId('atlas-budget-pill').textContent).toContain('/400 nodes');
+    expect(screen.getByTestId('atlas-agent-badge-crate:vox-compiler').textContent).toContain(
+      'agent:compiler-verifier',
+    );
+
+    // Trigger @ Mention in Chat (Phase 30)
+    fireEvent.click(screen.getByTestId('atlas-mention-btn-crate:vox-compiler'));
+    await waitFor(() => {
+      expect(screen.getByTestId('atlas-last-mention-chip').textContent).toContain(
+        '@file:crates/vox-compiler/src/lib.rs',
+      );
+    });
+  });
 });
+

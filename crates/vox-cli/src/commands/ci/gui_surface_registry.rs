@@ -25,6 +25,8 @@ pub struct SurfaceEntry {
     pub view_key: Option<String>,
     #[serde(default)]
     pub cli_group: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mcp_namespace: Option<String>,
     pub representation_tier: RepresentationTier,
     #[serde(default)]
     pub nav_label: Option<String>,
@@ -66,6 +68,7 @@ pub fn backfill(mut reg: SurfaceRegistry, missing: &[String]) -> SurfaceRegistry
         reg.surfaces.push(SurfaceEntry {
             view_key: None,
             cli_group: Some(g.clone()),
+            mcp_namespace: None,
             representation_tier: RepresentationTier::None,
             nav_label: None,
             nav_icon: None,
@@ -128,7 +131,7 @@ pub fn generate_ts(reg: &SurfaceRegistry) -> String {
     out.push_str("export type RepresentationTier = 'none' | 'generic_form' | 'curated_decorator' | 'live_backend';\n");
     out.push_str("export interface SurfaceRegistryEntry {\n");
     out.push_str(
-        "  viewKey: string | null;\n  cliGroup: string | null;\n  tier: RepresentationTier;\n",
+        "  viewKey: string | null;\n  cliGroup: string | null;\n  mcpNamespace: string | null;\n  tier: RepresentationTier;\n",
     );
     out.push_str(
         "  navLabel: string | null;\n  navIcon: string | null;\n  navGroup: string | null;\n  parentSurface: string | null;\n}\n",
@@ -136,9 +139,10 @@ pub fn generate_ts(reg: &SurfaceRegistry) -> String {
     out.push_str("export const SURFACE_REGISTRY: SurfaceRegistryEntry[] = [\n");
     for e in &reg.surfaces {
         out.push_str(&format!(
-            "  {{ viewKey: {}, cliGroup: {}, tier: '{}', navLabel: {}, navIcon: {}, navGroup: {}, parentSurface: {} }},\n",
+            "  {{ viewKey: {}, cliGroup: {}, mcpNamespace: {}, tier: '{}', navLabel: {}, navIcon: {}, navGroup: {}, parentSurface: {} }},\n",
             opt(&e.view_key),
             opt(&e.cli_group),
+            opt(&e.mcp_namespace),
             tier(&e.representation_tier),
             opt(&e.nav_label),
             opt(&e.nav_icon),
@@ -155,7 +159,7 @@ pub fn generate_ts(reg: &SurfaceRegistry) -> String {
 /// a default-built local binary would disagree on the committed report. The registry lists
 /// every compiled path in either build (guarded by gui_surface_coverage's
 /// `every_compiled_clap_path_is_in_command_registry`).
-fn top_level_groups(repo_root: &Path) -> Result<BTreeSet<String>> {
+pub(crate) fn top_level_groups(repo_root: &Path) -> Result<BTreeSet<String>> {
     use vox_cli_core::command_registry_model::RegistryFile;
 
     let path = repo_root.join("contracts/cli/command-registry.yaml");
@@ -196,31 +200,63 @@ pub(crate) fn load_registry(repo_root: &Path) -> Result<SurfaceRegistry> {
     serde_yaml::from_str(&raw).with_context(|| format!("deserialize {}", path.display()))
 }
 
-pub fn run(repo_root: &Path, write: bool) -> Result<()> {
+pub fn parse_today(s: &str) -> Result<chrono::NaiveDate> {
+    chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d")
+        .map_err(|e| anyhow!("invalid --today date `{s}` (expected YYYY-MM-DD): {e}"))
+}
+
+pub fn run(repo_root: &Path, write: bool, today: Option<chrono::NaiveDate>) -> Result<()> {
     let parsed = load_registry(repo_root)?;
     let top_level = top_level_groups(repo_root)?;
     let missing = missing_groups(&parsed, &top_level);
-    let resolved = backfill(parsed, &missing);
+    let hand = backfill(parsed, &missing);
+
+    let ops = super::operations_catalog::read_catalog(repo_root)?.operations;
+    let effective = super::gui_coverage_gate::resolve_effective(&hand, &ops);
 
     let app_src = fs::read_to_string(repo_root.join(GUI_APP)).context("read App.tsx")?;
-    let violations = wiring_violations(&resolved, &app_src);
+    let violations = wiring_violations(&effective, &app_src);
 
-    let ts = generate_ts(&resolved);
+    let ts = generate_ts(&effective);
     let report = serde_json::json!({
         "schema_version": 1,
         "top_level_groups": top_level.iter().collect::<Vec<_>>(),
-        "surface_count": resolved.surfaces.len(),
+        "surface_count": effective.surfaces.len(),
         "unclassified_backfilled": missing,
         "wiring_violations": violations,
     });
     let report_str = serde_json::to_string_pretty(&report)? + "\n";
 
+    let exemptions = super::gui_coverage_exemptions::load_exemptions(repo_root)?;
+    let crates = super::capability_index::layers_crates(repo_root)?;
+    let tiers: std::collections::BTreeMap<String, RepresentationTier> = effective
+        .surfaces
+        .iter()
+        .filter_map(|s| Some((s.cli_group.clone()?, s.representation_tier)))
+        .collect();
+    let check_date = today.unwrap_or_else(|| chrono::Utc::now().date_naive());
+    let gate = super::gui_coverage_gate::gate_violations(
+        &top_level,
+        &tiers,
+        &exemptions,
+        &crates,
+        check_date,
+    );
+    let (dedicated, generic, exempt, partial) =
+        super::gui_coverage_gate::coverage_summary(&hand, &tiers, &ops, &exemptions);
+    let honesty = super::gui_coverage_gate::honesty_line(dedicated, generic, exempt, &partial);
+
     if write {
-        let yaml_out = serde_yaml::to_string(&resolved)?;
+        let yaml_out = serde_yaml::to_string(&hand)?;
         fs::write(repo_root.join(REGISTRY_PATH), yaml_out).context("write registry yaml")?;
         fs::write(repo_root.join(GENERATED_TS), &ts).context("write generated ts")?;
         fs::write(repo_root.join(REPORT_PATH), report_str).context("write report")?;
         println!("gui-surface-registry: wrote registry, generated TS, and report");
+        println!("{honesty}");
+        // Write mode never fails on, and never edits, the exemption ledger.
+        for m in gate.violations.iter().chain(gate.warnings.iter()) {
+            println!("::warning::gui-surface-registry: {m}");
+        }
         return Ok(());
     }
 
@@ -238,6 +274,43 @@ pub fn run(repo_root: &Path, write: bool) -> Result<()> {
             violations.join("\n  - ")
         ));
     }
+    let reg_violations = super::gui_coverage_gate::registry_violations(&hand, &top_level);
+    if !reg_violations.is_empty() {
+        return Err(anyhow!(
+            "gui-surface-registry: registry violations:\n  - {}",
+            reg_violations.join("\n  - ")
+        ));
+    }
+    println!("{honesty}");
+    for w in &gate.warnings {
+        println!("::warning::gui-surface-registry: {w}");
+    }
+    if !gate.violations.is_empty() {
+        return Err(anyhow!(
+            "gui-surface-registry: coverage gate violations:\n  - {}",
+            gate.violations.join("\n  - ")
+        ));
+    }
+    use super::capability_index::ratchet::{
+        DEDICATED_FLOOR, EXEMPTION, FloorBaseline, RatchetBaseline, check, check_floor,
+        load_baseline,
+    };
+    let live_exemption = super::gui_coverage_gate::exemption_ids(&exemptions);
+    let ex_baseline: RatchetBaseline = load_baseline(
+        repo_root,
+        &EXEMPTION,
+        "vox ci gui-surface-registry --tighten",
+    )?;
+    check(&live_exemption, &ex_baseline, &EXEMPTION)?;
+
+    let live_floor = super::gui_coverage_gate::dedicated_ids(&tiers);
+    let fl_baseline: FloorBaseline = load_baseline(
+        repo_root,
+        &DEDICATED_FLOOR,
+        "vox ci gui-surface-registry --tighten",
+    )?;
+    check_floor(&live_floor, &fl_baseline, &DEDICATED_FLOOR)?;
+
     let existing_ts = fs::read_to_string(repo_root.join(GENERATED_TS)).with_context(|| {
         format!("read {GENERATED_TS} (run `vox ci gui-surface-registry --write`)")
     })?;
@@ -248,6 +321,10 @@ pub fn run(repo_root: &Path, write: bool) -> Result<()> {
     }
     println!("gui-surface-registry: registry and generated TS are up to date");
     Ok(())
+}
+
+pub fn tighten_baselines(repo_root: &Path) -> Result<()> {
+    super::gui_coverage_gate::tighten_baselines(repo_root)
 }
 
 #[cfg(test)]
@@ -267,6 +344,7 @@ mod tests {
         let r = reg(vec![SurfaceEntry {
             view_key: Some("scientia".into()),
             cli_group: Some("scientia".into()),
+            mcp_namespace: None,
             representation_tier: RepresentationTier::CuratedDecorator,
             nav_label: None,
             nav_icon: None,
@@ -300,6 +378,7 @@ mod tests {
         let r = reg(vec![SurfaceEntry {
             view_key: Some("ghost".into()),
             cli_group: Some("ghost".into()),
+            mcp_namespace: None,
             representation_tier: RepresentationTier::CuratedDecorator,
             nav_label: None,
             nav_icon: None,
@@ -352,6 +431,7 @@ mod tests {
         let r = reg(vec![SurfaceEntry {
             view_key: Some("scientia".into()),
             cli_group: Some("scientia".into()),
+            mcp_namespace: Some("ludus".into()),
             representation_tier: RepresentationTier::CuratedDecorator,
             nav_label: Some("Scientia".into()),
             nav_icon: Some("file".into()),
@@ -362,6 +442,56 @@ mod tests {
         let ts = generate_ts(&r);
         assert!(ts.contains("export const SURFACE_REGISTRY"));
         assert!(ts.contains("viewKey: 'scientia'"));
+        assert!(ts.contains("mcpNamespace: 'ludus'"));
         assert!(ts.contains("tier: 'curated_decorator'"));
+    }
+
+    #[test]
+    fn mcp_namespace_round_trips_and_is_omitted_when_absent() {
+        let e1 = SurfaceEntry {
+            view_key: None,
+            cli_group: Some("a".into()),
+            mcp_namespace: None,
+            representation_tier: RepresentationTier::None,
+            nav_label: None,
+            nav_icon: None,
+            nav_group: None,
+            parent_surface: None,
+            notes: None,
+        };
+        let yaml1 = serde_yaml::to_string(&e1).unwrap();
+        assert!(
+            !yaml1.contains("mcp_namespace"),
+            "omitted when None: {yaml1}"
+        );
+        let de1: SurfaceEntry = serde_yaml::from_str(&yaml1).unwrap();
+        assert_eq!(de1.mcp_namespace, None);
+
+        let e2 = SurfaceEntry {
+            view_key: Some("gamify".into()),
+            cli_group: Some("gamify".into()),
+            mcp_namespace: Some("ludus".into()),
+            representation_tier: RepresentationTier::CuratedDecorator,
+            nav_label: None,
+            nav_icon: None,
+            nav_group: None,
+            parent_surface: None,
+            notes: None,
+        };
+        let yaml2 = serde_yaml::to_string(&e2).unwrap();
+        assert!(yaml2.contains("mcp_namespace: ludus"));
+        let de2: SurfaceEntry = serde_yaml::from_str(&yaml2).unwrap();
+        assert_eq!(de2.mcp_namespace.as_deref(), Some("ludus"));
+    }
+
+    #[test]
+    fn load_registry_rejects_generic_form() {
+        let bad = "x_vox_version: 2\nschema_version: 1\nsurfaces:\n  - representation_tier: generic_form\n";
+        let val: serde_json::Value = serde_yaml::from_str(bad).unwrap();
+        let schema_path = repo_root().join(SCHEMA_PATH);
+        let schema_val: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(schema_path).unwrap()).unwrap();
+        let validator = vox_jsonschema_util::compile_validator(&schema_val, "schema").unwrap();
+        assert!(vox_jsonschema_util::validate(&val, &validator, "test").is_err());
     }
 }

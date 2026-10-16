@@ -14,7 +14,7 @@ import { listPlanNodes } from '../../../transport';
 import { labelForNavKey } from '../../../lib/navigation';
 import { WORKBENCH_TABBAR_TRAILING_SLOT_ID } from '../../../lib/domIds';
 import type { ChatMessage } from '../../../lib/chatCorrelation';
-import type { AttentionBudgetSnapshot } from '../../../types/tauri';
+import type { AttentionBudgetSnapshot, Toast } from '../../../types/tauri';
 import { AttentionBudgetMeter } from '../AttentionBudgetMeter';
 import { SecretaryToast } from './SecretaryToast';
 import { listenSecretaryProposed, type SecretaryProposedPayload, feedbackList } from '../../../transport';
@@ -31,6 +31,11 @@ import { HarnessRedirect } from '../Harness/HarnessRedirect';
 import { getPermissionMode } from '../../../transport';
 import { ResearchView } from '../Research/ResearchView';
 import { Tooltip } from '../../ui/Tooltip';
+import {
+  getTerminalBridgeState,
+  subscribeTerminalBridge,
+  type TerminalBridgeState,
+} from '../../../lib/terminalBridge';
 
 
 
@@ -202,8 +207,22 @@ export function MercatusDockPanel(props: IDockviewPanelProps<{ node: React.React
   );
 }
 
-function HarnessDockPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
-  return <div data-testid="chat-dock-harness" className="h-full overflow-y-auto p-2">{props.params.node}</div>;
+const HARNESS_FULL_WIDTH_PX = 420;
+
+export function HarnessDockPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
+  const [width, setWidth] = React.useState(props.api.width);
+  React.useEffect(() => {
+    const disposable = props.api.onDidDimensionsChange(() => setWidth(props.api.width));
+    return () => disposable.dispose();
+  }, [props.api]);
+  const condensed = width < HARNESS_FULL_WIDTH_PX;
+  return (
+    <div data-testid="chat-dock-harness" className="h-full overflow-y-auto p-2">
+      {React.isValidElement(props.params.node)
+        ? React.cloneElement(props.params.node as React.ReactElement<any>, { condensed })
+        : props.params.node}
+    </div>
+  );
 }
 
 // Approvals' working table needs ~850-1000px (4 fixed columns sum to 710px
@@ -235,6 +254,47 @@ export function ApprovalsDockPanel(props: IDockviewPanelProps<{ pendingApprovals
   );
 }
 
+export function TerminalDockPanel(props: IDockviewPanelProps<{ onNavigate?: (viewKey: string) => void }>) {
+  const [termState, setTermState] = useState<TerminalBridgeState>(() => getTerminalBridgeState());
+  useEffect(() => {
+    return subscribeTerminalBridge(setTermState);
+  }, []);
+
+  return (
+    <div data-testid="chat-dock-terminal" className="flex h-full flex-col overflow-hidden p-2 text-xs">
+      <div className="flex items-center justify-between border-b border-white/10 pb-1.5 font-mono text-[11px]">
+        <div className="flex items-center gap-1.5">
+          <span className="font-semibold text-cyan">
+            {termState.activeSessionId ? `term:${termState.activeSessionId}` : 'term:ready'}
+          </span>
+          <span className="text-text-muted">· {termState.blocks.length} blocks</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => props.params.onNavigate?.('console')}
+          className="text-brass hover:underline"
+        >
+          Open Console
+        </button>
+      </div>
+      <div className="flex-1 overflow-y-auto pt-2 font-mono text-[11px] text-text-secondary">
+        {termState.blocks.length === 0 ? (
+          <div className="text-center text-text-muted">No terminal blocks recorded yet.</div>
+        ) : (
+          termState.blocks.slice(-5).map((block) => (
+            <div key={block.id} className="mb-2 rounded border border-white/10 bg-black/40 p-1.5">
+              <div className="font-semibold text-text-primary">$ {block.input}</div>
+              <pre className="max-h-20 overflow-y-auto whitespace-pre-wrap text-[11px] text-text-muted">
+                {block.output.map((c) => c.text).join('')}
+              </pre>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 const CHAT_DOCK_COMPONENTS = {
   transcript: TranscriptPanel,
   executionRail: ExecutionRailPanel,
@@ -247,6 +307,7 @@ const CHAT_DOCK_COMPONENTS = {
   harness: HarnessDockPanel,
   approvals: ApprovalsDockPanel,
   research: ResearchDockPanel,
+  terminal: TerminalDockPanel,
 };
 
 // Marker rendered inside the transcript panel's dockview tab element. Task
@@ -278,7 +339,7 @@ function EmptyTab(props: IDockviewPanelHeaderProps) {
 const CHAT_DOCK_TAB_COMPONENTS = { transcript: EmptyTab };
 
 interface ChatSurfaceProps {
-  pushToast: (t: any) => void;
+  pushToast: (t: Toast) => void;
   onNavigate?: (viewKey: string) => void;
   messages?: ChatMessage[];
   activeSessionId?: string;
@@ -539,11 +600,24 @@ export function ChatSurface({
   }, [planSessionId, planVersion]);
 
   useEffect(() => {
-    const sub = listenSecretaryProposed((payload) => {
+    let cancelled = false;
+    let unlisten: (() => void) | undefined;
+    listenSecretaryProposed((payload) => {
       setSecretaryToast(payload);
-    });
+    })
+      .then((fn) => {
+        if (cancelled) {
+          try { void Promise.resolve(fn()).catch(() => {}); } catch { /* ignore */ }
+          return;
+        }
+        unlisten = fn;
+      })
+      .catch(() => { /* ignore */ });
     return () => {
-      sub.then((fn) => fn());
+      cancelled = true;
+      if (unlisten) {
+        try { void Promise.resolve(unlisten()).catch(() => {}); } catch { /* ignore */ }
+      }
     };
   }, []);
 
@@ -569,9 +643,9 @@ export function ChatSurface({
         const el = document.getElementById(`msg-${match.id}`);
         if (el) {
           el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          el.classList.add('ring-2', 'ring-amber-400', 'ring-offset-2', 'ring-offset-zinc-950');
+          el.classList.add('ring-2', 'ring-(--color-status-warn)', 'ring-offset-2', 'ring-offset-zinc-950');
           setTimeout(() => {
-            el.classList.remove('ring-2', 'ring-amber-400', 'ring-offset-2', 'ring-offset-zinc-950');
+            el.classList.remove('ring-2', 'ring-(--color-status-warn)', 'ring-offset-2', 'ring-offset-zinc-950');
           }, 3000);
         }
       }
@@ -635,7 +709,16 @@ export function ChatSurface({
 
   const mercatusNode = <Mercatus />;
 
-  const harnessNode = <HarnessRedirect gamifyEnabled={gamifyEnabled} />;
+  const harnessNode = (
+    <HarnessRedirect
+      tasks={tasks}
+      messages={messages}
+      routing={routing}
+      sessionSpentUsd={sessionSpentUsd}
+      gamifyEnabled={gamifyEnabled}
+      onOpenRouting={() => setRoutingOpen(true)}
+    />
+  );
 
   const researchNode = <ResearchView pushToast={pushToast} gamifyEnabled={gamifyEnabled} />;
 
@@ -645,6 +728,16 @@ export function ChatSurface({
     onNavigate,
   };
 
+  const [wrapUpDismissed, setWrapUpDismissed] = useState(false);
+  const [kbInspectorOpen, setKbInspectorOpen] = useState(false);
+  const [digestOpen, setDigestOpen] = useState(false);
+  const showHumaneWrapUp =
+    !wrapUpDismissed &&
+    Boolean(
+      attention_budget &&
+        (attention_budget.exhausted || attention_budget.alert_level === 'Critical'),
+    );
+
   const centerContent = (
     <>
       {messages.length === 0 && !(agentStreamItems?.length ?? 0) ? (
@@ -653,6 +746,7 @@ export function ChatSurface({
             icon={<Icon.spark className="size-8 text-brass" aria-hidden="true" />}
             title="No messages yet"
             description="Describe a task in the composer below to start this session."
+            headingLevel={2}
           />
         </div>
       ) : (
@@ -668,6 +762,76 @@ export function ChatSurface({
           className="mt-auto shrink-0 border-t border-border-subtle pt-3"
           data-testid="chat-composer-dock"
         >
+          {/* Phase 18 & Phase 44: Compact KB Context Inspector & Attention Digest Strip */}
+          <div className="mb-1.5 flex flex-wrap items-center gap-2 px-1 text-[11px]">
+            <button
+              type="button"
+              data-testid="kb-context-inspector-toggle"
+              onClick={() => setKbInspectorOpen((o) => !o)}
+              className="rounded border border-border-subtle bg-overlay-subtle px-2 py-0.5 font-mono text-[11px] text-text-secondary hover:text-text-primary"
+            >
+              @kb Context Inspector ({kbInspectorOpen ? 'hide' : 'pinned · <=1.2k tok'})
+            </button>
+            <button
+              type="button"
+              data-testid="inbox-digest-toggle"
+              onClick={() => setDigestOpen((o) => !o)}
+              className="rounded border border-border-subtle bg-overlay-subtle px-2 py-0.5 font-mono text-[11px] text-text-secondary hover:text-text-primary"
+            >
+              Attention Digest ({digestOpen ? 'hide' : 'batched · 0 interruptions'})
+            </button>
+          </div>
+          {kbInspectorOpen ? (
+            <div
+              data-testid="kb-context-inspector-drawer"
+              className="mb-2 rounded-lg border border-border-subtle bg-surface-elevated/40 px-3 py-2 font-mono text-[11px] text-text-secondary"
+            >
+              <div className="font-semibold text-status-warning">
+                Session-Pinned @kb Context Injection (Phase 44 · Deduped RRF)
+              </div>
+              <div className="mt-1 text-[11px] text-text-muted">
+                Budget: 420 / 1,200 tok · Scope: @kb:auto · Citations: where-things-live.md (RRF 0.98), agentos-ssot-2026.md (RRF 0.94)
+              </div>
+            </div>
+          ) : null}
+          {digestOpen ? (
+            <div
+              data-testid="inbox-digest-panel"
+              className="mb-2 rounded-lg border border-border-subtle bg-surface-elevated/40 px-3 py-2 font-mono text-[11px] text-text-secondary"
+            >
+              <div className="font-semibold text-status-info">
+                Batched Attention Inbox Digest (Phase 18 · QueueForDigest)
+              </div>
+              <div className="mt-1 text-[11px] text-text-muted">
+                Low-priority background agent updates are batched here to protect deep-work focus. Hard safety-floor actions always prompt immediately.
+              </div>
+            </div>
+          ) : null}
+          {showHumaneWrapUp ? (
+            <div
+              data-testid="humane-session-wrapup-card"
+              role="region"
+              aria-label="Session wrap-up suggestion"
+              className="mb-2 flex items-center justify-between gap-3 rounded-lg border border-brass/30 bg-brass/8 px-3 py-2 text-xs text-text-secondary"
+            >
+              <div>
+                <div className="font-display text-[11px] uppercase tracking-[0.13em] text-brass">
+                  Session Wrap-Up — Natural Stopping Point
+                </div>
+                <p className="mt-0.5 text-[11px] text-text-muted">
+                  {countCompletedTurns(messages)} turns completed. Take a break or start a fresh context window when ready — rest days never break your streak.
+                </p>
+              </div>
+              <button
+                type="button"
+                aria-label="Dismiss session wrap-up"
+                onClick={() => setWrapUpDismissed(true)}
+                className="shrink-0 rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[11px] text-text-muted hover:text-text-primary"
+              >
+                Dismiss
+              </button>
+            </div>
+          ) : null}
           {attention_budget ? (
             <div className="mb-2 px-1" data-testid="chat-attention-meter">
               <AttentionBudgetMeter
@@ -960,11 +1124,6 @@ export function ChatSurface({
       className="relative flex h-full gap-4"
       data-testid="chat-surface-layout"
     >
-      {/* Axe page-has-heading-one: surfaces render inside a heading-less shell.
-          NOTE: if chatDocked (App.tsx, currently hardcoded false) is ever
-          enabled, a docked ChatSurface adds a second h1 to the page. */}
-      <h1 className="sr-only">Chat</h1>
-
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {tabBarTrailingSlot
           ? createPortal(panelsMenu, tabBarTrailingSlot)
@@ -1084,7 +1243,7 @@ export function ChatSurface({
           <div className="absolute inset-0 bg-black/60" onClick={() => setRoutingOpen(false)} />
           <div className="absolute right-0 top-0 h-full w-[760px] max-w-full overflow-y-auto border-l border-border-subtle bg-bg-base shadow-2xl">
             <div className="flex items-center justify-between px-5 pt-4">
-              <h2 className="font-display text-[13px] uppercase tracking-[0.2em] text-text-secondary">Routing</h2>
+              <h2 className="font-display text-[13px] uppercase tracking-[0.13em] text-text-secondary">Routing</h2>
               <button
                 type="button"
                 aria-label="Close routing panel"

@@ -13,8 +13,11 @@ const SURFACE_REGISTRY_YAML: &str =
 /// Daemon-class modules whose every daemon method has a `RemoteRoute` (see `gateway_client::remote_route`).
 pub const REMOTE_ROUTED_DAEMON_MODULES: &[&str] = &[
     "activity",
+    "chat",
+    "chat_turn",
     "console_a2a",
     "context_budget",
+    "control_plane",
     "daemon",
     "discovery",
     "event_annotate",
@@ -26,9 +29,11 @@ pub const REMOTE_ROUTED_DAEMON_MODULES: &[&str] = &[
     "llm_spend",
     "mcp",
     "memory",
+    "mission_control",
     "model_active",
     "models",
     "plan_panel",
+    "research",
     "routing_explain",
     "runs",
     "scientia",
@@ -39,15 +44,9 @@ pub const REMOTE_ROUTED_DAEMON_MODULES: &[&str] = &[
 ];
 /// Daemon-class modules with at least one method the gateway does not expose yet.
 #[cfg(test)]
-pub const REMOTE_UNROUTED_DAEMON_MODULES: &[&str] = &[
-    "chat",
-    "chat_turn",
-    "control_plane",
-    "mission_control",
-    "research",
-];
+pub const REMOTE_UNROUTED_DAEMON_MODULES: &[&str] = &[];
 /// Surfaces that configure this Axis install itself; available in both modes.
-pub const AXIS_LOCAL_SURFACES: &[&str] = &["settings", "coverage"];
+pub const AXIS_LOCAL_SURFACES: &[&str] = &["settings", "coverage", "explorer"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -222,7 +221,7 @@ mod tests {
         let b = CommandBackends {
             commands: vec![
                 row("mcp", ModuleClass::Daemon, &["mesh", "tasks"]),
-                row("control_plane", ModuleClass::Daemon, &["tasks"]),
+                row("unrouted_daemon", ModuleClass::Daemon, &["tasks"]),
                 row("models", ModuleClass::Db, &["models"]),
                 row("pty", ModuleClass::Host, &["console"]),
                 row("preferences", ModuleClass::Shell, &["memory"]),
@@ -286,13 +285,16 @@ mod tests {
 
     #[test]
     fn every_daemon_module_has_a_routing_decision() {
+        assert!(
+            REMOTE_UNROUTED_DAEMON_MODULES.is_empty(),
+            "zero unrouted daemon modules should remain"
+        );
         for row in &command_backends().commands {
             if row.class == ModuleClass::Daemon {
-                let decided = REMOTE_ROUTED_DAEMON_MODULES.contains(&row.module.as_str())
-                    || REMOTE_UNROUTED_DAEMON_MODULES.contains(&row.module.as_str());
+                let decided = REMOTE_ROUTED_DAEMON_MODULES.contains(&row.module.as_str());
                 assert!(
                     decided,
-                    "daemon module `{}` needs a remote routing decision",
+                    "daemon module `{}` must be in REMOTE_ROUTED_DAEMON_MODULES",
                     row.module
                 );
             }
@@ -317,10 +319,8 @@ mod tests {
         assert_eq!(reason_of(&out, "models"), None);
         // Plan 07 Task 10: every module behind activity is daemon-routed now.
         assert_eq!(reason_of(&out, "activity"), None);
-        assert_eq!(
-            reason_of(&out, "tasks"),
-            Some(UnavailableReason::NotRemoteCapable)
-        );
+        // Phase 79 CORE-03: control_plane is now remote-routed.
+        assert_eq!(reason_of(&out, "tasks"), None);
         assert_eq!(
             reason_of(&out, "console"),
             Some(UnavailableReason::NeedsLocalMachine)
@@ -342,7 +342,7 @@ mod tests {
             .map(|r| r.module.as_str())
             .collect();
         assert!(
-            host_on_console.contains(&"pty") && host_on_console.contains(&"terminal_core"),
+            host_on_console.contains(&"pty") && !host_on_console.contains(&"terminal_core"),
             "{host_on_console:?}"
         );
         let served = strings(&["mesh", "console"]);

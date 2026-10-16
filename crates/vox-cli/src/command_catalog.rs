@@ -168,6 +168,69 @@ pub fn render_text(entries: &[CommandCatalogEntry]) -> String {
     out
 }
 
+/// Renders dynamic Nushell completion signatures (`extern "vox" [...]` and `extern "vox <subcommand>" [...]`).
+pub fn render_nushell_completions(catalog: &CommandCatalog) -> String {
+    let mut out = String::new();
+    out.push_str("# Nushell completions for vox\n");
+    out.push_str("# Generated dynamically by vox completions nushell\n\n");
+
+    // Root command declaration
+    out.push_str("extern \"vox\" [\n");
+    out.push_str("    --help(-h) # Display help for vox\n");
+    out.push_str("    --version(-V) # Display version for vox\n");
+    out.push_str("]\n\n");
+
+    for entry in &catalog.entries {
+        if !entry.compiled_in {
+            continue;
+        }
+        let full_cmd = format!("vox {}", entry.path.join(" "));
+        if !entry.about.is_empty() {
+            out.push_str(&format!("# {}\n", entry.about.replace('\n', " ").trim()));
+        }
+        out.push_str(&format!("extern \"{}\" [\n", full_cmd));
+
+        let mut has_help = false;
+        for arg in &entry.arguments {
+            if arg.name == "help" || arg.long.as_deref() == Some("help") {
+                has_help = true;
+            }
+
+            let mut line = String::from("    ");
+            if let Some(long) = &arg.long {
+                line.push_str(&format!("--{}", long));
+                if let Some(short) = arg.short {
+                    line.push_str(&format!("(-{})", short));
+                }
+                if arg.takes_value {
+                    line.push_str(": string");
+                }
+            } else {
+                let safe_name = arg.name.to_lowercase().replace('-', "_");
+                line.push_str(&safe_name);
+                if !arg.required {
+                    line.push('?');
+                }
+                line.push_str(": string");
+            }
+
+            if let Some(help) = &arg.help {
+                line.push_str(&format!(" # {}", help.replace('\n', " ").trim()));
+            }
+            line.push('\n');
+            out.push_str(&line);
+        }
+
+        if !has_help {
+            out.push_str("    --help(-h) # Display help\n");
+        }
+
+        out.push_str("]\n\n");
+    }
+
+    out
+}
+
 pub fn select_entries(
     all_entries: Vec<CommandCatalogEntry>,
     recommended_only: bool,
@@ -1138,5 +1201,15 @@ mod tests {
             gate_execution(&sv(&["ci", "kill-stuck-tests"]), None),
             Ok(())
         );
+    }
+
+    #[test]
+    fn render_nushell_completions_emits_valid_signatures() {
+        let catalog = build_catalog();
+        let rendered = render_nushell_completions(&catalog);
+        assert!(rendered.contains("extern \"vox\" ["));
+        assert!(rendered.contains("extern \"vox run\" ["));
+        assert!(rendered.contains("extern \"vox build\" ["));
+        assert!(rendered.contains("--help(-h)"));
     }
 }

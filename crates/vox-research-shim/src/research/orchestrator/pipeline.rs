@@ -23,7 +23,7 @@ use super::helpers::{attempt_session_key, fnv1a_hash, verifier_config_for_resear
 use super::pipeline_cache::{research_cache_short_circuit, research_cache_store};
 use super::stages::{
     JudgeParams, SynthesisParams, chat_stage, evaluate_citation_diversity, judge_quality,
-    run_self_verification, synthesize_answer_with_llm,
+    repair_inconsistent_synthesis, run_self_verification, synthesize_answer_with_llm,
 };
 use super::web_gather::{gather_local_hits_for_plan, gather_web_hits_for_plan};
 
@@ -670,6 +670,48 @@ async fn run_research_metered(
                 if !wave_hits.is_empty() {
                     all_hits.extend(wave_hits);
                     dedupe_hits_by_url(&mut all_hits);
+
+                    let unresolved_claims: Vec<super::super::claims::Claim> = claim_verdicts
+                        .iter()
+                        .filter(|v| {
+                            !matches!(v.verdict, super::super::verifier::Verdict::Supported)
+                        })
+                        .map(|v| v.claim.clone())
+                        .collect();
+
+                    if !unresolved_claims.is_empty() {
+                        let (reverified, _) = verify_claims_with_config(
+                            &unresolved_claims,
+                            &query.query,
+                            &all_hits,
+                            &registry,
+                            &research_verifier_cfg,
+                            config.llm_endpoint.as_deref(),
+                            config.api_key.as_deref(),
+                        )
+                        .await;
+                        for new_v in reverified {
+                            if let Some(existing) = claim_verdicts
+                                .iter_mut()
+                                .find(|v| v.claim.claim_id == new_v.claim.claim_id)
+                            {
+                                *existing = new_v.clone();
+                            }
+                            if let Some(db) = db
+                                && session_id > 0
+                            {
+                                let _ = db
+                                    .store_claim_verdict(
+                                        new_v.claim.claim_id,
+                                        &new_v.verdict.to_string(),
+                                        new_v.confidence,
+                                        &research_verifier_cfg.nli_model_id,
+                                    )
+                                    .await;
+                            }
+                        }
+                        wp.resolved_verdicts = claim_verdicts.clone();
+                    }
                 }
             }
 
@@ -868,7 +910,7 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
         ),
         ResearchDomainMode::General => query.query.clone(),
     };
-    let (answer, winning_synthesis_model) = match synthesize_answer_with_llm(SynthesisParams {
+    let (mut answer, winning_synthesis_model) = match synthesize_answer_with_llm(SynthesisParams {
         query: &synthesis_query,
         hits: &all_hits,
         verdicts: &claim_verdicts,
@@ -907,32 +949,45 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
 
     let self_verification_enabled = matches!(routing_tier, RoutingTier::DeepResearch);
 
-    // PHASE_0a_STUB: training pair persistence not yet wired to vox_db.
-    // Phase 1 re-enables after vox_db gains store_training_pair.
-
-    // PHASE_0a_STUB: memory write not yet wired (save_memory API shape confirmed but
-    // session management methods missing from vox_db).
-    // Phase 1 re-enables after vox_db gains create_research_session etc.
-
     // ── (k) Citation audit stage ──────────────────────────────────────────────
     // Set status → auditing_citations before citation audit computation.
     set_session_stage(db, session_id, ResearchStage::AuditingCitations).await;
 
-    // ── (l) Optional CoVE-style self-verification ─────────────────────────────
+    // ── (l) Optional CoVE-style self-verification & closed-loop repair ────────
     let self_verification =
         if self_verification_enabled && !answer.is_empty() && !all_hits.is_empty() {
             report_progress("Running self-verification step...".to_string(), Some(0.95));
-            Some(
-                run_self_verification(
+            let mut sv = run_self_verification(
+                &query.query,
+                &answer,
+                &all_hits,
+                config.llm_endpoint.as_deref(),
+                config.api_key.as_deref(),
+                resolved_llm.synthesis_model.as_str(),
+            )
+            .await;
+            if sv.critical_inconsistency {
+                report_progress(
+                    "Repairing synthesis inconsistencies...".to_string(),
+                    Some(0.97),
+                );
+                if let Some(repaired) = repair_inconsistent_synthesis(
                     &query.query,
                     &answer,
                     &all_hits,
+                    &claim_verdicts,
                     config.llm_endpoint.as_deref(),
                     config.api_key.as_deref(),
                     resolved_llm.synthesis_model.as_str(),
+                    config.synthesis_max_tokens,
                 )
-                .await,
-            )
+                .await
+                {
+                    answer = repaired;
+                    sv.critical_inconsistency = false;
+                }
+            }
+            Some(sv)
         } else {
             None
         };
@@ -1094,6 +1149,41 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
                 .store_research_artifact(session_id, &artifact_json, &report_markdown)
                 .await;
         }
+        let session_label = format!("research_session:{session_id}");
+        let mem_meta = serde_json::json!({
+            "query": query.query,
+            "quality_score": result.research_metadata.quality_score,
+            "confidence": result.research_metadata.confidence,
+            "source_count": result.sources.len(),
+        })
+        .to_string();
+        let _ = db
+            .save_memory(vox_db::SaveMemoryParams {
+                agent_id: "vox-research",
+                session_id: &session_label,
+                memory_type: "research_result",
+                content: &report_markdown,
+                metadata: Some(&mem_meta),
+                importance: (result.research_metadata.quality_score as f64 / 100.0).clamp(0.1, 1.0),
+                vcs_snapshot_id: None,
+            })
+            .await;
+
+        let usage = &result.research_metadata.usage;
+        let _ = db
+            .insert_scientia_cost_telemetry(
+                "vox-research",
+                &session_label,
+                "vox-workspace",
+                "scholarly",
+                Some(&result.research_metadata.provider),
+                Some(&result.research_metadata.synthesis_model),
+                Some(usage.prompt_tokens as i64),
+                Some(usage.completion_tokens as i64),
+                usage.cost_usd,
+                Some(&mem_meta),
+            )
+            .await;
     }
 
     refresh_run_totals(&mut result.research_metadata, start);

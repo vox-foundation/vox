@@ -623,7 +623,7 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
     )?;
     ds!(
         "gui_surface_registry",
-        crate::commands::ci::gui_surface_registry::run(root, false)
+        crate::commands::ci::gui_surface_registry::run(root, false, None)
     )?;
     ds!(
         "capability_sync",

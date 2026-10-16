@@ -21,7 +21,7 @@ test.describe('Dashboard pilot — hash navigation', () => {
     expect(hasDashboard || hasBakeOff).toBeTruthy();
 
     // Workspace parent default child is console (see DEFAULT_CHILD_BY_PARENT in navigation.ts).
-    await page.getByRole('button', { name: 'Workspace' }).click();
+    await page.getByRole('button', { name: 'Workspace', exact: true }).click();
 
     await expect.poll(async () => page.evaluate(() => window.location.hash)).toContain('view=console');
     await expect(page).toHaveURL(/#view=console/);

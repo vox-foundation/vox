@@ -205,5 +205,19 @@ mod tests {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         run(&root)
             .expect("contracts/gui/command-backends.v1.yaml matches crates/vox-gui/src/commands");
+        let manifest = read_yaml(&root.join(MANIFEST_PATH)).expect("read manifest");
+        let rows = manifest
+            .get("commands")
+            .and_then(Value::as_sequence)
+            .expect("commands array");
+        let db_modules: Vec<&str> = rows
+            .iter()
+            .filter(|r| r.get("class").and_then(Value::as_str) == Some("db"))
+            .filter_map(|r| r.get("module").and_then(Value::as_str))
+            .collect();
+        assert!(
+            db_modules.is_empty(),
+            "zero class: db modules should remain in {MANIFEST_PATH}, found: {db_modules:?}"
+        );
     }
 }

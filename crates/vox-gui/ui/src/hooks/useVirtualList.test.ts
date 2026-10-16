@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { renderHook } from '@testing-library/react';
+import { defaultRangeExtractor } from '@tanstack/react-virtual';
 import { useVirtualList } from './useVirtualList';
 
 // useVirtualizer needs a container element with a measurable height.
@@ -69,5 +70,36 @@ describe('useVirtualList', () => {
       expect(typeof items[0].start).toBe('number');
       expect(typeof items[0].size).toBe('number');
     }
+  });
+
+  it('forwards rangeExtractor to keep a chosen index mounted while scrolled to top', () => {
+    const containerRef = makeContainerRef(200);
+
+    const withoutExtractor = renderHook(() =>
+      useVirtualList({
+        containerRef,
+        count: 1000,
+        estimateSize: () => 40,
+        overscan: 2,
+      }),
+    );
+    expect(withoutExtractor.result.current.virtualItems.some((item) => item.index === 999)).toBe(false);
+
+    const withExtractor = renderHook(() =>
+      useVirtualList({
+        containerRef,
+        count: 1000,
+        estimateSize: () => 40,
+        overscan: 2,
+        rangeExtractor: (range) => {
+          const indices = defaultRangeExtractor(range);
+          if (!indices.includes(999)) {
+            indices.push(999);
+          }
+          return indices;
+        },
+      }),
+    );
+    expect(withExtractor.result.current.virtualItems.some((item) => item.index === 999)).toBe(true);
   });
 });

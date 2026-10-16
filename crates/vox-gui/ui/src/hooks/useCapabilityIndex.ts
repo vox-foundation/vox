@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { CapabilityIndexEntry } from '../generated/capabilityIndex.generated';
+import type { CapabilityGroup, CapabilityIndexEntry } from '../generated/capabilityIndex.generated';
 import { getLoadedCapabilityIndex, loadCapabilityIndex, type CapabilityIndexModule } from '../lib/capabilityIndexLoader';
 import { toRankEntries, type RankEntry } from '../lib/capabilityRank';
 import { LEXICON } from '../lib/lexicon';
@@ -9,6 +9,8 @@ export interface UseCapabilityIndexResult {
   /** Rank entries (aliases + tokens), computed once per load. */
   entries: RankEntry[];
   domains: { id: string; label: string }[];
+  groups: CapabilityGroup[];
+  coverageAsOf: { sha: string; date: string } | null;
   loading: boolean;
   error: string | null;
   /** Re-attempt a failed load (the palette's Retry). */
@@ -17,6 +19,7 @@ export interface UseCapabilityIndexResult {
 
 const EMPTY: CapabilityIndexEntry[] = [];
 const NO_DOMAINS: { id: string; label: string }[] = [];
+const NO_GROUPS: CapabilityGroup[] = [];
 
 /** Loads the capability index lazily, only once `enabled` (palette open) is true. */
 export function useCapabilityIndex(enabled: boolean): UseCapabilityIndexResult {
@@ -58,6 +61,8 @@ export function useCapabilityIndex(enabled: boolean): UseCapabilityIndexResult {
     rows,
     entries,
     domains: mod?.CAPABILITY_DOMAINS ?? NO_DOMAINS,
+    groups: mod?.CAPABILITY_GROUPS ?? NO_GROUPS,
+    coverageAsOf: mod?.CAPABILITY_COVERAGE_AS_OF ?? null,
     loading: enabled && !mod && !error,
     error,
     retry,

@@ -165,6 +165,9 @@ pub fn purchase(
 }
 
 /// Build the default shop item list for display.
+///
+/// HUMANE-02: Anxiety-monetized `StreakShield` items are excluded from the shop catalog;
+/// rest days and vacation freezes are free first-class rights in `StreakTracker`.
 pub fn default_shop_items() -> Vec<ShopItem> {
     vec![
         ShopItem::EnergyRefill { base_cost: 30 },
@@ -177,7 +180,6 @@ pub fn default_shop_items() -> Vec<ShopItem> {
             slot_index: 3,
             base_cost: 400,
         },
-        ShopItem::StreakShield { base_cost: 250 },
     ]
 }
 
@@ -185,6 +187,17 @@ pub fn default_shop_items() -> Vec<ShopItem> {
 mod tests {
     use super::*;
     use crate::profile::LudusProfile;
+
+    #[test]
+    fn default_shop_excludes_anxiety_monetized_streak_shields() {
+        let items = default_shop_items();
+        assert!(
+            !items
+                .iter()
+                .any(|item| matches!(item, ShopItem::StreakShield { .. })),
+            "default_shop_items must not sell StreakShields (HUMANE-02)"
+        );
+    }
 
     #[test]
     fn energy_refill_purchase_succeeds() {

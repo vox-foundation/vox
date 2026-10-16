@@ -74,6 +74,11 @@ pub enum LintKind {
     },
     /// A KB facet finding; the rule id is the backlog key.
     Facet(FacetIssue),
+    /// A ```mermaid fenced block has invalid syntax or unsupported diagram type.
+    InvalidMermaid {
+        code: &'static str,
+        msg: String,
+    },
 }
 
 /// One facet-lint finding (KB Phase 4). The stable rule id (see `facets.rs`) is also the key

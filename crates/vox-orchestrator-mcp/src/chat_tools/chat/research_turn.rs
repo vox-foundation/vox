@@ -1748,6 +1748,7 @@ mod tests {
     }
 
     fn snapshot_count(root: &std::path::Path) -> usize {
+        // drift-allow(vox-path-literal): test verifies exact relative path under temp root
         std::fs::read_dir(root.join(".vox/cache/kb-findings"))
             .map(|d| d.count())
             .unwrap_or(0)

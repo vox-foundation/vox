@@ -42,10 +42,9 @@ pub async fn replay_execute(
         let db = vox_db::VoxDb::connect_default()
             .await
             .context("connect to default Codex / VoxDb for replay writeback")?;
-        let detail = serde_json::to_string(&report)?;
-        db.append_publication_status_event(pid, "artifact_replayability_measured", Some(&detail))
+        vox_scientia::review_flow::record_replay_for_publication(&db, pid, &report)
             .await
-            .context("append artifact_replayability_measured status event")?;
+            .context("record replay for publication")?;
     }
     println!("{}", serde_json::to_string_pretty(&report)?);
     Ok(())
@@ -53,11 +52,32 @@ pub async fn replay_execute(
 
 // ── Phase C — manuscript-scaffold ─────────────────────────────────────────────
 
+fn read_or_hydrate_scaffold(
+    scaffold_path: &Path,
+) -> Result<vox_scientia::manuscript::scaffold::ScaffoldInput> {
+    if scaffold_path.exists() {
+        return read_json(scaffold_path);
+    }
+    let pub_id = scaffold_path.to_string_lossy().to_string();
+    if let Ok(handle) = tokio::runtime::Handle::try_current() {
+        return tokio::task::block_in_place(|| {
+            handle.block_on(async {
+                let db = vox_db::VoxDb::connect_default()
+                    .await
+                    .context("connect to default Codex / VoxDb")?;
+                vox_scientia::review_flow::assemble_scaffold_from_db(&db, &pub_id).await
+            })
+        });
+    }
+    read_json(scaffold_path)
+}
+
 /// `vox scientia publication-manuscript-draft --scaffold X.json`
 ///
-/// Reads a `ScaffoldInput` JSON file and emits the IMRaD markdown to stdout.
+/// Reads a `ScaffoldInput` JSON file (or hydrates by `publication_id` when path does not exist)
+/// and emits the IMRaD markdown to stdout.
 pub fn manuscript_draft(scaffold_path: &Path) -> Result<()> {
-    let input: vox_scientia::manuscript::scaffold::ScaffoldInput = read_json(scaffold_path)?;
+    let input = read_or_hydrate_scaffold(scaffold_path)?;
     print!(
         "{}",
         vox_scientia::manuscript::scaffold::render_imrad(&input)
@@ -301,7 +321,7 @@ pub async fn publication_extract_claims(publication_id: &str) -> Result<()> {
         .filter(|s| !s.trim().is_empty())
         .unwrap_or(&manifest_row.body_markdown);
 
-    let pipeline = vox_scientia::claim_extractor::ExtractionPipeline::new(
+    let pipeline = vox_scientia::claim_extractor::ExtractionPipeline::new_calibrated(
         vox_scientia::claim_extractor::ExtractionConfig::default(),
     );
     let result = pipeline
@@ -326,13 +346,12 @@ pub async fn publication_extract_claims(publication_id: &str) -> Result<()> {
         }
     }
 
-    // The verifier surfaces its model id on every VerifierOutput; we don't
-    // capture per-claim outputs here, but reading the env var preserves
-    // the same dispatch the pipeline itself used.
     let verifier_model = if std::env::var("VOX_MINICHECK_ENDPOINT").is_ok() {
         "minicheck-http".to_string()
+    } else if let Ok(model) = std::env::var("VOX_MINICHECK_MODEL") {
+        format!("calibrated-hybrid:{model}")
     } else {
-        "mock".to_string()
+        "calibrated-hybrid:lexical".to_string()
     };
 
     // Persist individual claims + latest verdicts to the SCIENTIA claim ledger so
@@ -549,6 +568,7 @@ pub async fn evidence_assist(publication_id: &str, claim_id: i64) -> Result<()> 
 
 /// Publication ids whose candidate state is `retracted` (the dashboard's
 /// retraction queue). Pure; unit-tested.
+#[allow(dead_code)]
 fn retraction_queue_from(candidates: &[vox_scientia::dashboard::CandidateRow]) -> Vec<String> {
     candidates
         .iter()
@@ -558,54 +578,14 @@ fn retraction_queue_from(candidates: &[vox_scientia::dashboard::CandidateRow]) -
 }
 
 /// Phase H — `vox scientia dashboard`. Assemble a `QueueSnapshot` JSON directly
-/// from the live Codex DB: publication manifests become candidates, the
-/// extracted-claims tables drive `claims_pending`, and retracted candidates form
-/// the retraction queue. (Distinct from `publication-dashboard-snapshot`, which
-/// reads a supplied inputs file.) `manifests_in_reply_window` is empty until a
-/// reply-window source table exists.
+/// from the live Codex DB via `vox_scientia::review_flow::assemble_scientia_queue_from_db`.
 pub async fn scientia_dashboard() -> Result<()> {
-    use vox_scientia::dashboard::{
-        CandidateRow, ClaimsPendingSummary, DashboardInputs, ReplyWindowEntry, build_queue_snapshot,
-    };
     let db = vox_db::VoxDb::connect_default()
         .await
         .context("connect to default Codex / VoxDb")?;
-    let manifests = db
-        .list_publication_manifests(Some("scientia"), None, 200)
+    let snapshot = vox_scientia::review_flow::assemble_scientia_queue_from_db(&db)
         .await
-        .context("list publication manifests")?;
-    // Manifests carry no confidence signal; sourced as 0.0 (honest unknown).
-    let candidates: Vec<CandidateRow> = manifests
-        .iter()
-        .map(|m| CandidateRow {
-            candidate_id: m.publication_id.clone(),
-            candidate_class: m.content_type.clone(),
-            confidence: 0.0,
-            state: m.state.clone(),
-            created_at_ms: m.created_at_ms,
-            updated_at_ms: m.updated_at_ms,
-        })
-        .collect();
-    let retraction_queue = retraction_queue_from(&candidates);
-    let counts = db
-        .scientia_claims_pending_summary()
-        .await
-        .context("claims-pending summary")?;
-    let claims_pending = ClaimsPendingSummary {
-        verifiable: counts.verifiable.max(0) as u64,
-        abstained: counts.abstained.max(0) as u64,
-        extraction_running: counts.extraction_running.max(0) as u64,
-    };
-    let manifests_in_reply_window: Vec<ReplyWindowEntry> = Vec::new();
-    let now_ms = chrono::Utc::now().timestamp_millis();
-    let inputs = DashboardInputs {
-        candidates: &candidates,
-        claims_pending,
-        manifests_in_reply_window: &manifests_in_reply_window,
-        retraction_queue: &retraction_queue,
-        now_ms,
-    };
-    let snapshot = build_queue_snapshot(&inputs);
+        .context("assemble scientia queue")?;
     println!("{}", serde_json::to_string_pretty(&snapshot)?);
     Ok(())
 }
@@ -616,32 +596,7 @@ pub async fn scientia_dashboard() -> Result<()> {
 ///
 /// Assembles a [`vox_scientia::dashboard::cost::CostRollup`] JSON from the
 /// live Codex DB for the **current calendar quarter** and prints it to stdout.
-///
-/// # Cost data sources
-///
-/// * `by_provider` — real per-provider totals from `agent_telemetry_flat`
-///   where `event_kind = 'cost'`.
-/// * `findings_published_this_quarter` — count of `publication_manifests`
-///   with `state = 'published'` in the quarter window.
-///
-/// # Per-phase category lines
-///
-/// `extraction_usd`, `critic_usd`, `novelty_retrieval_usd`, and
-/// `scholarly_submission_usd` are sourced from `agent_telemetry_flat`
-/// `cost` rows grouped by the `pipeline_phase` column (baseline v70) — see
-/// `apply_phase_costs`. A phase shows non-zero only once its call sites emit
-/// phase-tagged cost rows via `VoxDb::insert_scientia_cost_telemetry`. As of
-/// this change the **extraction** (at `publication-extract-claims`) and
-/// **critic** (at `publication-critic-approve`) phases emit attributable rows;
-/// `novelty` and `scholarly` legitimately stay 0.0 until their retrieval /
-/// submission sites are instrumented. Note the recorded dollar amounts may
-/// themselves be 0.0 where the underlying site has no priced facade call yet
-/// (the critic gate is pure policy; the MiniCheck verifier reports no $) — the
-/// row is real and attributed regardless, and carries true spend once those
-/// sites surface cost. An empty DB yields an all-zeros rollup — correct and
-/// expected.
 pub async fn scientia_cost() -> Result<()> {
-    use vox_scientia::dashboard::cost::{CostInputs, build_cost_rollup};
     let db = vox_db::VoxDb::connect_default()
         .await
         .context("connect to default Codex / VoxDb")?;
@@ -653,7 +608,7 @@ pub async fn scientia_cost() -> Result<()> {
         .into_iter()
         .map(|r| (r.provider, r.total_usd))
         .collect();
-    let mut inputs = CostInputs {
+    let mut inputs = vox_scientia::dashboard::cost::CostInputs {
         extraction_usd: 0.0,
         critic_usd: 0.0,
         novelty_retrieval_usd: 0.0,
@@ -665,7 +620,7 @@ pub async fn scientia_cost() -> Result<()> {
         &mut inputs,
         phase_rows.iter().map(|r| (r.phase.as_str(), r.total_usd)),
     );
-    let rollup = build_cost_rollup(&inputs);
+    let rollup = vox_scientia::dashboard::cost::build_cost_rollup(&inputs);
     println!("{}", serde_json::to_string_pretty(&rollup)?);
     Ok(())
 }
@@ -721,11 +676,11 @@ fn merge_extracted_claims_into_metadata(
 
 /// `vox scientia publication-render-latex --scaffold X.json [--output Y.tex]`
 ///
-/// Reads a `ScaffoldInput` JSON and writes the rendered LaTeX to `output`
+/// Reads a `ScaffoldInput` JSON (or hydrates by `publication_id`) and writes the rendered LaTeX to `output`
 /// or stdout. Suitable for piping into `tectonic` / `pdflatex` for PDF
 /// generation.
 pub fn render_latex_handler(scaffold_path: &Path, output: Option<&Path>) -> Result<()> {
-    let input: vox_scientia::manuscript::scaffold::ScaffoldInput = read_json(scaffold_path)?;
+    let input = read_or_hydrate_scaffold(scaffold_path)?;
     let tex = vox_scientia::manuscript::latex::render_latex(&input);
     match output {
         Some(p) => {
@@ -742,20 +697,15 @@ pub fn render_latex_handler(scaffold_path: &Path, output: Option<&Path>) -> Resu
 
 /// `vox scientia publication-arxiv-bundle --scaffold X.json --figures-dir D --output Z.tar.gz`
 ///
-/// Reads a `ScaffoldInput` JSON, resolves each declared figure path against
+/// Reads a `ScaffoldInput` JSON (or hydrates by `publication_id`), resolves each declared figure path against
 /// `figures_dir`, and writes the arXiv-ready `.tar.gz` to `output`.
-/// The bundle contains `main.tex` at the root plus each figure at its
-/// declared sub-path.
-///
-/// Errors when a figure declared in the scaffold has no corresponding file
-/// under `figures_dir`.
 pub fn arxiv_bundle_handler(
     scaffold_path: &Path,
     figures_dir: &Path,
     output: &Path,
     primary_category: Option<&str>,
 ) -> Result<()> {
-    let input: vox_scientia::manuscript::scaffold::ScaffoldInput = read_json(scaffold_path)?;
+    let input = read_or_hydrate_scaffold(scaffold_path)?;
 
     let mut figure_blobs: Vec<(String, Vec<u8>)> = Vec::with_capacity(input.figures.len());
     for f in &input.figures {
@@ -877,10 +827,24 @@ pub fn venue_recommend(candidate_class: &str, yaml_config: Option<&Path>) -> Res
 
 /// `vox scientia publication-finding-page-render --page X.json`
 ///
-/// Reads a `FindingPage` JSON file and emits a complete HTML document on
-/// stdout.
+/// Reads a `FindingPage` JSON file (or hydrates by `publication_id` when path does not exist)
+/// and emits a complete HTML document on stdout.
 pub fn finding_page_render(page_path: &Path) -> Result<()> {
-    let page: vox_scientia::findings_site::FindingPage = read_json(page_path)?;
+    let page: vox_scientia::findings_site::FindingPage = if page_path.exists() {
+        read_json(page_path)?
+    } else if let Ok(handle) = tokio::runtime::Handle::try_current() {
+        let pub_id = page_path.to_string_lossy().to_string();
+        tokio::task::block_in_place(|| {
+            handle.block_on(async {
+                let db = vox_db::VoxDb::connect_default()
+                    .await
+                    .context("connect to default Codex / VoxDb")?;
+                vox_scientia::review_flow::assemble_finding_page_from_db(&db, &pub_id).await
+            })
+        })?
+    } else {
+        read_json(page_path)?
+    };
     print!(
         "{}",
         vox_scientia::findings_site::render_finding_page(&page)

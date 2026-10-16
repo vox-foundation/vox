@@ -127,6 +127,58 @@ pub fn remote_route(method: &str) -> Option<RemoteRoute> {
         orch_daemon_method::VCS_ISOLATION_SET_STRATEGY => {
             Some(RemoteRoute::ApiPost("/api/v2/vcs/isolation/strategy"))
         }
+        orch_daemon_method::SUBMIT_TASK => {
+            Some(RemoteRoute::ApiPost("/api/v2/orchestrator/tasks/submit"))
+        }
+        orch_daemon_method::LIST_TASKS => Some(RemoteRoute::ApiGet("/api/v2/orchestrator/tasks")),
+        orch_daemon_method::EDIT_TASK => {
+            Some(RemoteRoute::ApiPost("/api/v2/orchestrator/tasks/edit"))
+        }
+        orch_daemon_method::CANCEL_TASK => {
+            Some(RemoteRoute::ApiPost("/api/v2/orchestrator/tasks/cancel"))
+        }
+        orch_daemon_method::INTERRUPT_TASK => {
+            Some(RemoteRoute::ApiPost("/api/v2/orchestrator/tasks/interrupt"))
+        }
+        orch_daemon_method::REORDER_TASK => {
+            Some(RemoteRoute::ApiPost("/api/v2/orchestrator/tasks/reorder"))
+        }
+        orch_daemon_method::DOUBT_TASK => {
+            Some(RemoteRoute::ApiPost("/api/v2/orchestrator/tasks/doubt"))
+        }
+        orch_daemon_method::OVERRULE_TASK => {
+            Some(RemoteRoute::ApiPost("/api/v2/orchestrator/tasks/overrule"))
+        }
+        orch_daemon_method::APPROVE_PLAN => Some(RemoteRoute::ApiPost(
+            "/api/v2/orchestrator/tasks/approve-plan",
+        )),
+        orch_daemon_method::SKIP_VERIFY => Some(RemoteRoute::ApiPost(
+            "/api/v2/orchestrator/tasks/skip-verify",
+        )),
+        orch_daemon_method::FORCE_VERIFY => Some(RemoteRoute::ApiPost(
+            "/api/v2/orchestrator/tasks/force-verify",
+        )),
+        orch_daemon_method::PAUSE_AGENT => {
+            Some(RemoteRoute::ApiPost("/api/v2/orchestrator/agents/pause"))
+        }
+        orch_daemon_method::RESUME_AGENT => {
+            Some(RemoteRoute::ApiPost("/api/v2/orchestrator/agents/resume"))
+        }
+        orch_daemon_method::SUBAGENT_TREE => {
+            Some(RemoteRoute::ApiGet("/api/v2/orchestrator/subagent-tree"))
+        }
+        orch_daemon_method::LIST_PENDING_APPROVALS => {
+            Some(RemoteRoute::ApiGet("/api/v2/orchestrator/approvals"))
+        }
+        orch_daemon_method::SET_MESH_POLICY => {
+            Some(RemoteRoute::ApiPost("/api/v2/orchestrator/mesh-policy"))
+        }
+        vox_foundation::protocol::dei_method::RESEARCH_RUN => {
+            Some(RemoteRoute::ApiPost("/api/v2/research/run"))
+        }
+        vox_foundation::protocol::dei_method::RESEARCH_PERSIST_CLAIMS => {
+            Some(RemoteRoute::ApiPost("/api/v2/research/persist-claims"))
+        }
         _ => None,
     }
 }
@@ -497,6 +549,7 @@ pub(crate) mod test_support {
             GatewayClient::from_parts(
                 base,
                 "t0ken".into(),
+                // drift-allow(reqwest-bypass): in-memory duplex websocket test fixture; no HTTP egress
                 reqwest::Client::new(),
                 profile,
                 WsRpc::spawn(client_ws),
@@ -574,7 +627,7 @@ mod tests {
 
     #[test]
     fn route_table() {
-        use vox_foundation::protocol::orch_daemon_method as m;
+        use vox_foundation::protocol::{dei_method, orch_daemon_method as m};
         assert_eq!(remote_route(m::TOOL_CALL), Some(RemoteRoute::ToolCall));
         assert_eq!(
             remote_route(m::VCS_ISOLATION_STATUS),
@@ -584,8 +637,31 @@ mod tests {
             remote_route(m::VCS_ISOLATION_SET_STRATEGY),
             Some(RemoteRoute::ApiPost("/api/v2/vcs/isolation/strategy"))
         );
-        assert_eq!(remote_route(m::SUBMIT_TASK), None);
-        assert_eq!(remote_route(m::SUBAGENT_TREE), None);
+        assert_eq!(
+            remote_route(m::SUBMIT_TASK),
+            Some(RemoteRoute::ApiPost("/api/v2/orchestrator/tasks/submit"))
+        );
+        assert_eq!(
+            remote_route(m::SUBAGENT_TREE),
+            Some(RemoteRoute::ApiGet("/api/v2/orchestrator/subagent-tree"))
+        );
+        assert_eq!(
+            remote_route(m::LIST_PENDING_APPROVALS),
+            Some(RemoteRoute::ApiGet("/api/v2/orchestrator/approvals"))
+        );
+        assert_eq!(
+            remote_route(m::SET_MESH_POLICY),
+            Some(RemoteRoute::ApiPost("/api/v2/orchestrator/mesh-policy"))
+        );
+        assert_eq!(
+            remote_route(dei_method::RESEARCH_RUN),
+            Some(RemoteRoute::ApiPost("/api/v2/research/run"))
+        );
+        assert_eq!(
+            remote_route(dei_method::RESEARCH_PERSIST_CLAIMS),
+            Some(RemoteRoute::ApiPost("/api/v2/research/persist-claims"))
+        );
+        assert_eq!(remote_route(m::PING), None);
     }
 
     #[test]
@@ -610,6 +686,7 @@ mod tests {
         let server = MockServer::start().await;
         Mock::given(method("GET"))
             .and(path("/v1/profile"))
+            // drift-allow(bearer-header-inline): wiremock header matcher in unit test
             .and(header("authorization", "Bearer good"))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({
                 "profiles": ["mesh"], "max_exposure": "operator",
@@ -624,6 +701,7 @@ mod tests {
             .mount(&server)
             .await;
         let base = parse_server_url(&server.uri()).unwrap();
+        // drift-allow(reqwest-bypass): wiremock unit test client
         let http = reqwest::Client::new();
         let p = fetch_profile(&http, &base, "good").await.expect("profile");
         assert_eq!(p.axis_surfaces, vec!["mesh".to_string()]);
@@ -659,6 +737,7 @@ mod tests {
             .call_daemon_method(
                 vox_foundation::protocol::orch_daemon_method::TOOL_CALL,
                 json!({"name":"vox_mesh_status","args":{}}),
+                // drift-allow(timeout-literal,duplicate-numeric-literal): in-memory websocket test timeout
                 Duration::from_secs(5),
             )
             .await
@@ -673,8 +752,9 @@ mod tests {
         let (client, _server) = duplex_client(profile(&["mesh"])).await;
         let err = client
             .call_daemon_method(
-                vox_foundation::protocol::orch_daemon_method::SUBAGENT_TREE,
+                vox_foundation::protocol::orch_daemon_method::PING,
                 json!({}),
+                // drift-allow(timeout-literal,duplicate-numeric-literal): in-memory websocket test timeout
                 Duration::from_secs(1),
             )
             .await
@@ -690,6 +770,7 @@ mod tests {
             .call_daemon_method(
                 vox_foundation::protocol::orch_daemon_method::TOOL_CALL,
                 json!({"name":"vox_mesh_status"}),
+                // drift-allow(timeout-literal,duplicate-numeric-literal): in-memory websocket test timeout
                 Duration::from_secs(5),
             )
             .await

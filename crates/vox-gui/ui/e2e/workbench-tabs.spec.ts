@@ -74,13 +74,13 @@ test.describe('Workbench tabs — sidebar parents', () => {
     await expectActiveSurface(page, 'settings');
   });
 
-  test('footer Coverage opens coverage tab', async ({ page }) => {
+  test('sidebar Explorer opens explorer', async ({ page }) => {
     await addMockInitScript(page, installTauriMock, 'dashboard');
     await page.goto('/');
     await page.waitForSelector('aside nav', { timeout: 15_000 });
-    await page.locator('aside').first().getByRole('button', { name: /^Coverage/ }).scrollIntoViewIfNeeded();
-    await page.locator('aside').first().getByRole('button', { name: /^Coverage/ }).click();
-    await expectActiveSurface(page, 'coverage');
+    await page.locator('aside').first().getByRole('button', { name: /^Explorer/ }).scrollIntoViewIfNeeded();
+    await page.locator('aside').first().getByRole('button', { name: /^Explorer/ }).click();
+    await expectActiveSurface(page, 'explorer');
   });
 });
 

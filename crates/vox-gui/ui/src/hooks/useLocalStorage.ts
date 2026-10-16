@@ -14,7 +14,15 @@ export function useLocalStorage<T>(
     if (options?.skipRead) return initialValue;
     try {
       const item = window.localStorage.getItem(key);
-      return item ? JSON.parse(item) : initialValue;
+      if (!item) return initialValue;
+      try {
+        return JSON.parse(item);
+      } catch {
+        if (typeof initialValue === 'string') {
+          return item as unknown as T;
+        }
+        return initialValue;
+      }
     } catch (error) {
       console.warn(error);
       return initialValue;

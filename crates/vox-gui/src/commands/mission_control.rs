@@ -150,15 +150,12 @@ mod tests {
         let (client, _server) = duplex_client(profile(&["mission-control"])).await;
         let backend = BackendState::new(Arc::new(PersistentDaemon::default()));
         backend.set_remote(Arc::new(client), None).await;
-        let err = call_orchestrator_daemon(
-            &backend,
-            orch_daemon_method::SUBAGENT_TREE,
-            serde_json::json!({}),
-        )
-        .await
-        .unwrap_err();
+        let err =
+            call_orchestrator_daemon(&backend, orch_daemon_method::PING, serde_json::json!({}))
+                .await
+                .unwrap_err();
         let v: serde_json::Value = serde_json::from_str(&err).expect("error envelope");
         assert_eq!(v["error"]["code"], "not_remote_capable");
-        assert_eq!(v["error"]["method"], orch_daemon_method::SUBAGENT_TREE);
+        assert_eq!(v["error"]["method"], orch_daemon_method::PING);
     }
 }

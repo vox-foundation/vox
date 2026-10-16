@@ -4,32 +4,32 @@ const WEB_CONSTRUCTS: &[(&str, &str, &str)] = &[
     (
         "component",
         "Navbar",
-        "component Navbar() {\n  view: <nav><ul><li>Home</li></ul></nav>\n}",
+        "fn Navbar(active_tab: str) to Element {\n    div(class: \"navbar\", children: [text(active_tab)])\n}",
     ),
     (
         "page",
         "Dashboard",
-        "@route(\"/dash\")\ncomponent Dashboard() {\n  view: <main><h1>Dashboard</h1><Counter /></main>\n}",
+        "routes {\n    \"/dash\" to Dashboard\n}\n\nfn Dashboard() to Element {\n    div(class: \"dashboard\", children: [h1(text: \"Dashboard\"), Counter()])\n}",
     ),
     (
-        "@query",
+        "query",
         "get_user",
-        "@query\nfn get_user(id: int) -> Option[User] {\n  ret VoxDb::query(\"SELECT * FROM users WHERE id = ?1\", [id]).first()\n}",
+        "query fn get_user(id: int) to Option[User] {\n    ret db.User.find(id)\n}",
     ),
     (
-        "@mutation",
+        "mutation",
         "update_user",
-        "@mutation\nfn update_user(id: int, name: str) -> Result[Unit] {\n  VoxDb::execute(\"UPDATE users SET name = ?2 WHERE id = ?1\", [id, name])\n  ret Ok(())\n}",
+        "mutation fn update_user(id: int, name: str) to Result[Unit] {\n    db.User.update(id, { name: name })\n    ret Ok(())\n}",
     ),
     (
-        "@action",
+        "server fn",
         "submit_form",
-        "@action\nfn submit_form(data: FormData) -> Result[Unit] {\n  // form logic\n  ret Ok(())\n}",
+        "server fn submit_form(payload: str) to Result[str] {\n    ret Ok(\"submitted: \" + payload)\n}",
     ),
     (
-        "@server",
+        "server fn",
         "generate_pdf",
-        "@server\nfn generate_pdf(report: str) -> bytes {\n  // server side only logic\n  ret b\"...\"\n}",
+        "server fn generate_pdf(report: str) to Result[str] {\n    ret Ok(\"pdf_ready: \" + report)\n}",
     ),
 ];
 

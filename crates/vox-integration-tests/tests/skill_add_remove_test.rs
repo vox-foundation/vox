@@ -1,6 +1,7 @@
 #![allow(missing_docs)]
 
-use vox_orchestrator::OrchestratorConfig;
+use std::sync::Arc;
+use vox_orchestrator::{ApprovalOutcome, OrchestratorConfig};
 use vox_orchestrator_mcp::{ServerState, handle_tool_call as tools};
 
 // Adds a skill from a LOCAL PATH source (no network), confirms it lists, then
@@ -22,10 +23,32 @@ async fn add_then_remove_local_skill() {
     let config = OrchestratorConfig::default();
     let mut state = ServerState::new_full(config);
     state.workspace_root = Some(ws.path().to_path_buf());
+    let state = Arc::new(state);
 
     // 1. Add from the local path.
     let add_req = serde_json::json!({ "source": src.path().to_string_lossy() });
-    let add_resp = tools(&state, "vox_skill_add", add_req).await.unwrap();
+    let state_clone = Arc::clone(&state);
+    let call = tokio::spawn(async move { tools(&state_clone, "vox_skill_add", add_req).await });
+
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(15);
+    let mut approval_id = None;
+    while tokio::time::Instant::now() < deadline {
+        let list = state.pending_approvals.list();
+        if let Some(entry) = list.iter().find(|e| e.tool == "vox_skill_add") {
+            approval_id = Some(entry.approval_id.clone());
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+
+    let aid = approval_id.expect("expected vox_skill_add to park for approval");
+    assert!(
+        state
+            .pending_approvals
+            .resolve(&aid, ApprovalOutcome::Approved)
+    );
+
+    let add_resp = call.await.unwrap().unwrap();
     assert!(
         add_resp.contains("fixture-skill") && !add_resp.contains("\"is_error\":true"),
         "add failed: {add_resp}"

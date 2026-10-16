@@ -856,6 +856,102 @@ pub async fn graphify_rebuild(state: &ServerState, params: GraphifyRebuildParams
     .to_json()
 }
 
+#[derive(Debug, Deserialize)]
+pub struct GraphifyAtlasParams {
+    pub corpus: Option<String>,
+    pub level: vox_graph_reader::lod::AtlasLevel,
+    #[serde(default)]
+    pub focus: Option<String>,
+    #[serde(default)]
+    pub branch_tip: Option<String>,
+    #[serde(default)]
+    pub kinds: Vec<String>,
+    #[serde(default = "default_atlas_limit")]
+    pub limit: usize,
+}
+
+fn default_atlas_limit() -> usize {
+    vox_graph_reader::lod::DEFAULT_ATLAS_LIMIT
+}
+
+/// `vox_search_atlas`: budgeted LOD subgraph slice (`crate -> file -> symbol`) with derived
+/// containment edges and provenance header.
+pub async fn graphify_atlas(state: &ServerState, params: GraphifyAtlasParams) -> String {
+    let repo_root = &state.repository.root;
+    let reg = match load_graphify_corpora(repo_root) {
+        Ok(r) => r,
+        Err(e) => {
+            return ToolResult::<serde_json::Value>::err_with_remediation(
+                e.to_string(),
+                REM_GRAPHIFY,
+            )
+            .to_json();
+        }
+    };
+    let corpus_id = params
+        .corpus
+        .clone()
+        .unwrap_or_else(|| reg.default_corpus_id.clone());
+    let corpus = match corpus_by_id(&reg, &corpus_id) {
+        Ok(c) => c,
+        Err(e) => {
+            return ToolResult::<serde_json::Value>::err_with_remediation(
+                e.to_string(),
+                REM_GRAPHIFY,
+            )
+            .to_json();
+        }
+    };
+
+    let entry = match get_graph(state, &corpus_id, corpus, repo_root).await {
+        Ok(e) => e,
+        Err(e) => {
+            return ToolResult::<serde_json::Value>::err_with_remediation(e, REM_GRAPHIFY)
+                .to_json();
+        }
+    };
+
+    let crate_graph_val: Option<serde_json::Value> =
+        fs::read_to_string(repo_root.join("contracts/architecture/crate-graph.v1.json"))
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok());
+    let crate_audit_val: Option<serde_json::Value> =
+        fs::read_to_string(repo_root.join("contracts/ci/crate-build-map.v1.json"))
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok());
+
+    let head = resolve_head_sha(state).await;
+    let query = vox_graph_reader::lod::AtlasQuery {
+        level: params.level,
+        focus: params.focus,
+        branch_tip: params.branch_tip.clone(),
+        kinds: params.kinds,
+        limit: params.limit,
+    };
+    let identity = vox_graph_reader::lod::AtlasIdentity {
+        corpus_id: corpus_id.clone(),
+        git_sha: head,
+        ref_name: params.branch_tip,
+        worktree_id: None,
+        built_at: None,
+        lens: corpus.extraction_mode.clone(),
+        extractor_version: vox_graph_reader::ast::EXTRACTOR_VERSION.to_string(),
+    };
+
+    match vox_graph_reader::lod::query_atlas_subgraph(
+        &entry.value,
+        crate_graph_val.as_ref(),
+        crate_audit_val.as_ref(),
+        &query,
+        identity,
+    ) {
+        Ok(subgraph) => ToolResult::ok(subgraph).to_json(),
+        Err(err) => {
+            ToolResult::<serde_json::Value>::err_with_remediation(err, REM_GRAPHIFY).to_json()
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

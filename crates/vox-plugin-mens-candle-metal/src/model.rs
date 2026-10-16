@@ -771,6 +771,19 @@ impl Qwen35Model {
         self.head_forward(&x_out)
     }
 
+    /// Whether any layer in this model uses `Qwen35AttentionBlock::Linear`.
+    ///
+    /// Incremental decode over a linear-attention layer is refused by
+    /// [`Self::forward_cached`] because the k-tap causal short conv keeps no
+    /// cross-call state. Callers use this predicate to fall back to a
+    /// full-context [`Self::forward`] on hybrid models instead of crashing on
+    /// token 2.
+    pub fn uses_linear_attention(&self) -> bool {
+        self.layers
+            .iter()
+            .any(|l| matches!(l.attention, Qwen35AttentionBlock::Linear(_)))
+    }
+
     /// An empty decode cache, one slot per layer, shaped to each layer's
     /// attention kind. Every slot starts empty; the prefill fills it.
     pub fn empty_cache(&self) -> Vec<Qwen35LayerCache> {
@@ -1503,6 +1516,12 @@ mod kv_cache_tests {
         model
             .forward_cached(&ids(&[12]), 3, &mut cache)
             .expect("full attention caches keys and values correctly and must still decode");
+    }
+
+    #[test]
+    fn uses_linear_attention_detects_hybrid_layers() {
+        assert!(hybrid_model().uses_linear_attention());
+        assert!(!model_with_rope(8, 2, 2, 16).uses_linear_attention());
     }
 
     #[test]

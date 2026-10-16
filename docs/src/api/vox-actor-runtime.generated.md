@@ -70,6 +70,7 @@ module; blanket Rustdoc on every `pub use` alias would add noise without semanti
 | `activity` | Durable activity execution: retries, timeouts, and backoff around async work. |
 | `auth` | Authentication helpers for generated Vox services: API key / bearer validation and retry-after parsing. |
 | `builtins` | Host-callable builtins surfaced to generated code (hashing, small helpers). |
+| `credential_broker` | Zero-trust capability-scoped credential broker for agents and MCP tools (`CLAVIS-05`). |
 | `db` | Optional Codex / Turso database handle when the `database` feature is enabled. |
 | `durable_scheduler` | Durable / cron scheduler primitives for `@scheduled` + `@durable` (GA-11). |
 | `gc` | Garbage collection arena and !Send pointers for actor memory isolation. |

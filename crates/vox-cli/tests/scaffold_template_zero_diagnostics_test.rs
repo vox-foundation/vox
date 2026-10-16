@@ -70,3 +70,28 @@ fn api_template_scaffold_has_zero_diagnostics() {
 fn mobile_pwa_template_scaffold_has_zero_diagnostics() {
     check_diagnostics("application", Some("mobile-pwa"));
 }
+
+#[test]
+fn explicit_default_template_scaffold_has_zero_diagnostics() {
+    check_diagnostics("application", Some("default"));
+}
+
+#[test]
+fn simulation_rpg_template_scaffold_has_zero_diagnostics() {
+    check_diagnostics("application", Some("simulation-rpg"));
+}
+
+#[test]
+fn script_template_scaffold_has_zero_diagnostics() {
+    check_diagnostics("script", Some("script"));
+}
+
+#[test]
+fn agent_kind_scaffold_has_zero_diagnostics() {
+    check_diagnostics("agent", None);
+}
+
+#[test]
+fn workflow_kind_scaffold_has_zero_diagnostics() {
+    check_diagnostics("workflow", None);
+}

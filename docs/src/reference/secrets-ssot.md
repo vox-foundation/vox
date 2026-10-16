@@ -119,9 +119,17 @@ master-key fallback. **Never** commit vault files or `.env` import fragments.
 
 - `vox secrets doctor --workflow <...> --profile <dev|ci|mobile|prod> --mode <auto|local|cloud> [--bundle <minimal-local-dev|minimal-cloud-dev|gpu-cloud|publish-review>]`
 - `vox secrets set <CANONICAL_ENV_NAME> --stdin`
-- `vox secrets get <CANONICAL_ENV_NAME>`
+- `vox secrets get <CANONICAL_ENV_NAME | clavis://<secret_id>>`
 - `vox secrets backend-status`
 - `vox secrets migrate-auth-store`
+
+## Clavis Next: Provider Manifests, `clavis://` URIs, Zero-Trust Broker & Lifecycle (`CLAVIS-01..08`)
+
+- **Provider Secret Manifest (`CLAVIS-01`, `CLAVIS-04`):** `vox_secrets::provider_manifest_for(SecretId)` and `vox_secrets::all_provider_manifests()` expose structured provider metadata (`provider_slug`, `creation_url`, `key_prefix_hint`, `setup_recipe`, and `supports_validation_probe`) for top-tier AI and search providers.
+- **`clavis://` Secret Reference URIs (`CLAVIS-02`):** Config files, `.vox` scripts, and CLI targets (`vox secrets get clavis://openrouter_api_key`) can reference secrets via `clavis://<secret_id_or_canonical_env>` (`vox_secrets::parse_clavis_uri` and `vox_secrets::resolve_clavis_uri`) so plaintext tokens never land in committed configuration.
+- **External Manager Import & Pre-Flight Recipes (`CLAVIS-03`, `CLAVIS-04`):** `vox_secrets::sources::parse_external_manager_export` normalizes exports from 1Password, Bitwarden, Doppler, and Infisical (`ExternalSecretManager`) into `SecretId` entries, while `vox_secrets::sources::compute_missing_key_recipes` generates actionable setup recipes before a workflow starts.
+- **Zero-Trust Capability-Scoped Agent Credential Broker (`CLAVIS-05`):** [`vox_actor_runtime::credential_broker::CredentialBroker`](../../../crates/vox-actor-runtime/src/credential_broker.rs) checks an agent's `BrokerAgentGrant` against `vox_secrets::capabilities_for_secret`, produces a `SealedHeaderInjection` whose `Debug` and serialized output are strictly redacted, and scrubs tool outputs/logs via `CredentialBroker::scrub_tool_output`.
+- **Rotation Health, Validation Probes & Pull Sync (`CLAVIS-06..08`):** [`vox_secrets::lifecycle`](../../../crates/vox-secrets/src/lifecycle.rs) provides `evaluate_lifecycle_health`, `validation_probe_for`, `rotation_runbook_for`, and `prepare_pull_sync_manifest` (which enforces `SecretClass::Shareable` for mesh pull-sync).
 
 Copy an OpenRouter key, then run the following in PowerShell. The key travels
 from the clipboard through standard input and is never included in shell

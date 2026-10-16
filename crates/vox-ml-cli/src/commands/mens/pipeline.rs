@@ -94,7 +94,7 @@ pub async fn run(
     let planned_stages = plan_stages(stages.as_deref(), skip_train);
 
     let total_stages = planned_stages.len();
-    let validated = PathBuf::from("mens/data/validated.jsonl");
+    let validated = data_dir.join("validated.jsonl");
     let train_jsonl = data_dir.join("train.jsonl");
     let eval_out = output_dir.join("eval_results.json");
 
@@ -111,7 +111,7 @@ pub async fn run(
         }
         std::fs::create_dir_all(&data_dir)?;
         std::fs::create_dir_all(&output_dir)?;
-        std::fs::create_dir_all("mens/data/mix_sources")?;
+        std::fs::create_dir_all(data_dir.join("mix_sources"))?;
     }
 
     for (completed_stages, stage) in planned_stages.into_iter().enumerate() {

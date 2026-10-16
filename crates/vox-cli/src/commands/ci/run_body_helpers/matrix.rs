@@ -29,22 +29,33 @@ pub(crate) fn visit_rs_files(dir: &Path, f: &mut impl FnMut(&Path) -> Result<()>
 /// Allowlisted non-`.vox` glue under `scripts/` (bootstrap / installer stubs only).
 /// Keep in sync with [scripts/ci/script-hygiene.vox](scripts/ci/script-hygiene.vox).
 const SCRIPT_GLUE_ALLOWLIST: &[&str] = &[
-    // Thin bootstrap launchers (pre-`vox`-binary): exempt by design.
+    // Thin bootstrap launchers and public release installers (pre-`vox`-binary): exempt by design.
+    "scripts/install.ps1",
+    "scripts/install.sh",
     "scripts/vox-dev.sh",
     "scripts/windows/vox-dev.ps1",
+    // Inert test fixtures consumed by scripts/broker-bypass-lint.vox (never executed).
+    "scripts/broker-bypass-fixtures/known-bypass-rustup-run-continuation.sh",
+    "scripts/broker-bypass-fixtures/known-bypass-rustup-which.sh",
+    "scripts/broker-bypass-fixtures/known-bypass.sh",
+    "scripts/broker-bypass-fixtures/no-bypass-bare-cargo.sh",
     // Coverage-graph analysis tooling (Python; read-only reporting, not runtime glue).
     // Tracked exception — do NOT add new .py here without rationale.
     "scripts/coverage-graph/build_index.py",
     "scripts/coverage-graph/candidate_gaps.py",
     "scripts/coverage-graph/dup_and_wiring.py",
     "scripts/coverage-graph/emit_baseline.py",
+    "scripts/coverage-graph/emit_unproven_worklist.py",
     "scripts/coverage-graph/export_lcov_chunked.py",
     "scripts/coverage-graph/ingest_reaches.py",
     "scripts/coverage-graph/merge_behaviors_to_graph.py",
     "scripts/coverage-graph/os_compat.py",
     "scripts/coverage-graph/overlay_tests.py",
+    "scripts/coverage-graph/prune_graph_snapshot.py",
+    "scripts/coverage-graph/ratchet_check.py",
     "scripts/coverage-graph/rebuild_full_graph.py",
     "scripts/coverage-graph/recover_and_synth.py",
+    "scripts/coverage-graph/test_manifest_writer.py",
     "scripts/coverage-graph/test_overlay_tests.py",
 ];
 

@@ -31,6 +31,7 @@ pub async fn get_profile(db: &Codex, user_id: &str) -> Result<Option<LudusProfil
             last_activity_ts: vals[9],
             grace_periods_available: vals[10] as u64,
             grace_periods_used: vals[11] as u64,
+            ..Default::default()
         };
         Ok(Some(LudusProfile {
             user_id: user_id.to_string(),

@@ -156,6 +156,7 @@ type View =
   | 'skills'
   | 'settings'
   | 'coverage'
+  | 'explorer'
   | 'publications'
   | 'search'
   | 'vox-search'
@@ -171,7 +172,7 @@ type View =
 const LEGACY_VIEWS: string[] = [
   'dashboard', 'flow', 'catalog', 'matrix', 'memory', 'models', 'runs', 'repository',
   'mesh', 'gamify', 'harness', 'harness-health', 'browser', 'console', 'coderabbit', 'scientia', 'discovery-review', 'discovery-inbox', 'archive-panel', 'claims', 'mens',
-  'populi', 'research', 'oratio', 'approvals', 'policies', 'skills', 'settings', 'coverage',
+  'populi', 'research', 'oratio', 'approvals', 'policies', 'skills', 'settings', 'coverage', 'explorer',
   'publications', 'search', 'vox-search', 'chat', 'agents', 'workspace', 'commands', 'knowledge', 'compute', 'mercatus',
   'review', 'tasks', 'sub-agents',
 ];
@@ -870,13 +871,59 @@ export default function App() {
           setActiveSessionId(sessions[0].session_id);
         } else {
           invoke<Session>('chat_create_session', { title: 'Chat' })
-            .then((s) => { if (s?.session_id) setActiveSessionId(s.session_id); })
+            .then((s) => {
+              if (s?.session_id) {
+                setActiveSessionId(s.session_id);
+                chatSessionsApi.upsertSession({
+                  session_id: s.session_id,
+                  title: s.title || 'Chat',
+                  updated_at: s.updated_at ?? '',
+                  message_count: s.message_count ?? 0,
+                  conversation_id: (s as Partial<ChatSession>).conversation_id ?? 0,
+                  repository_id: (s as Partial<ChatSession>).repository_id ?? null,
+                });
+              }
+            })
             .catch((err) => pushToast({ tone: 'warn', title: 'Chat session', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
         }
       })
       .catch((err) => pushToast({ tone: 'warn', title: 'Chat sessions', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Ensure `activeSessionId` adopts the first loaded session whenever the
+  // session list finishes loading (or recovers after daemon startup) while no
+  // session is active yet.
+  useEffect(() => {
+    if (!activeSessionId && chatSessionsApi.sessions[0]?.session_id) {
+      setActiveSessionId(chatSessionsApi.sessions[0].session_id);
+    }
+  }, [activeSessionId, chatSessionsApi.sessions]);
+
+  // If the orchestrator daemon was still booting at initial mount (so the
+  // mount-time `chat_list_sessions` failed and left `activeSessionId === ''`),
+  // re-bootstrap sessions as soon as the daemon stream reports liveness.
+  const orchRecoveredBootstrapRef = useRef(false);
+  useEffect(() => {
+    if (lastOrchEventAt == null) {
+      orchRecoveredBootstrapRef.current = false;
+      return;
+    }
+    if (activeSessionId || orchRecoveredBootstrapRef.current) return;
+    orchRecoveredBootstrapRef.current = true;
+    chatSessionsApi
+      .reload()
+      .then((loaded) => {
+        if (loaded?.[0]?.session_id) {
+          setActiveSessionId(loaded[0].session_id);
+        } else {
+          return chatSessionsApi.createSession('Chat').then((s) => {
+            if (s?.session_id) setActiveSessionId(s.session_id);
+          });
+        }
+      })
+      .catch(() => {});
+  }, [lastOrchEventAt, activeSessionId, chatSessionsApi]);
 
   // ── Master-sidebar Policies badge: poll the catalog + current-branch status,
   // compute the worst status + count of rules at that tier, color the nav badge.
@@ -936,7 +983,7 @@ export default function App() {
       .then((fn) => {
         if (cancelled) {
           // Effect already cleaned up before subscription resolved.
-          fn();
+          try { void Promise.resolve(fn()).catch(() => {}); } catch { /* ignore */ }
           return;
         }
         unlisten = fn;
@@ -947,7 +994,9 @@ export default function App() {
 
     return () => {
       cancelled = true;
-      if (unlisten) unlisten();
+      if (unlisten) {
+        try { void Promise.resolve(unlisten()).catch(() => {}); } catch { /* ignore */ }
+      }
     };
   }, [recordNotice]);
 
@@ -1033,6 +1082,7 @@ export default function App() {
 
   // Palette → Catalog: select a CLI command and show its form (D-01: never executes).
   const [catalogPrefill, setCatalogPrefill] = useState<{ path: string[]; nonce: number } | null>(null);
+  const [explorerSeed, setExplorerSeed] = useState<{ query: string; nonce: number } | null>(null);
 
   // Palette → explain card (D-07) for rows with no direct GUI action (MCP tool, crate, skill).
   const [explainRowId, setExplainRowId] = useState<string | null>(null);
@@ -1193,7 +1243,18 @@ export default function App() {
   }, [pushToast]);
 
   const handleLoquelaSubmit = useCallback(async (payload: ChatPayload, skillExclusionsOverride?: string[]): Promise<ChatSubmitResult> => {
-    const sessionId = payload.session_id ?? activeSessionId;
+    let sessionId = payload.session_id ?? activeSessionId;
+    if (!sessionId) {
+      try {
+        const created = await chatSessionsApi.createSession('Chat');
+        if (created?.session_id) {
+          sessionId = created.session_id;
+          setActiveSessionId(created.session_id);
+        }
+      } catch {
+        // fall through to validation toast below
+      }
+    }
     if (!sessionId) {
       pushToast({ tone: 'warn', title: 'No chat session', body: 'Create or select a chat session first.', cause: 'validation' });
       return { ok: false, error: 'No chat session' };
@@ -1401,7 +1462,7 @@ export default function App() {
     } finally {
       chatSendInFlightRef.current.delete(sessionId);
     }
-  }, [executeIpcWithRun, pushToast, activeSessionId, activeSkill, gamifySettings.enabled, checkBudgetWarn, chatModelOverride, groundingCheckEnabled, skillExclusions]);
+  }, [executeIpcWithRun, pushToast, activeSessionId, chatSessionsApi, activeSkill, gamifySettings.enabled, checkBudgetWarn, chatModelOverride, groundingCheckEnabled, skillExclusions]);
 
   // "not this one" (ChatTurnEventRow, via ChatSurface -> ChatTranscript):
   // append the skill to session-scoped exclusions AND immediately re-dispatch
@@ -1895,6 +1956,14 @@ export default function App() {
     setSelectedAgentId,
     skills: data.skills,
     catalogPrefill,
+    explorerSeed,
+    onOpenCatalogForm: (path: string[]) => {
+      setCatalogPrefill((p) => ({ path, nonce: (p?.nonce ?? 0) + 1 }));
+      navigateTo('catalog');
+    },
+    onExplain: setExplainRowId,
+    onOpenDoc: (path: string) => openDocTab(path),
+    commandCatalog: data.skills,
     onAttachContext: attachContext,
     onNavigate: navigateTo,
     onOpenChat: () => navigateTo('chat'),
@@ -1988,7 +2057,7 @@ export default function App() {
           if (creatingSessionRef.current) return;
           creatingSessionRef.current = true;
           chatSessionsApi.createSession()
-            .then(s => setActiveSessionId(s.session_id))
+            .then(s => { if (s?.session_id) setActiveSessionId(s.session_id); })
             .catch(err => pushToast({ tone: 'warn', title: 'New session failed', body: sanitizeErrorForToast(err), cause: 'backend-error' }))
             .finally(() => { creatingSessionRef.current = false; });
         }}
@@ -2093,6 +2162,10 @@ export default function App() {
         onOpenCatalogForm={(path) => {
           setCatalogPrefill((p) => ({ path, nonce: (p?.nonce ?? 0) + 1 }));
           navigateTo('catalog');
+        }}
+        onOpenExplorer={(q) => {
+          setExplorerSeed((p) => ({ query: q, nonce: (p?.nonce ?? 0) + 1 }));
+          navigateTo('explorer');
         }}
         onSendToChat={(query) => {
           navigateTo('chat');

@@ -52,9 +52,9 @@ flowchart TD
     GenQueries --> GoogleSearch["Google Search Ingestion"]
     GoogleSearch --> IngestPages["Ingest Full HTML Pages (up to 1M tokens)"]
     IngestPages --> GapAnalysis{"Information Gap or Contradiction Detected?"}
-    GapAnalysis -- Yes (Iter < Max) --> RefineQueries["Formulate Refined / Follow-up Queries"]
+    GapAnalysis -- "Yes (Iter < Max)" --> RefineQueries["Formulate Refined / Follow-up Queries"]
     RefineQueries --> GoogleSearch
-    GapAnalysis -- No or Iter == Max --> LongSynthesis["Synthesize 10-25 Page Report with Citations"]
+    GapAnalysis -- "No or Iter == Max" --> LongSynthesis["Synthesize 10-25 Page Report with Citations"]
 ```
 
 #### Key Architectural Strengths:

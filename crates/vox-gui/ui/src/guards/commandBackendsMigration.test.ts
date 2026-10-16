@@ -61,7 +61,8 @@ describe('plan 07 research group', () => {
 describe('plan 07 mesh group', () => {
   it('console_a2a sends through the daemon; the console terminal stays host-class', () => {
     expect(moduleClass('console_a2a')).toBe('daemon');
-    for (const m of ['pty', 'terminal_core']) expect(moduleClass(m)).toBe('host');
+    expect(moduleClass('pty')).toBe('host');
+    expect(moduleClass('terminal_core')).toBeNull();
   });
 });
 
@@ -90,3 +91,11 @@ describe('plan 07 gamify group', () => {
     expect(MANIFEST).toMatch(/module: gamify_settings,[^\n]*surfaces: \[gamify, settings\]/);
   });
 });
+
+describe('CORE-04 zero db-class modules remain', () => {
+  it('gui_db_pool is shell-class and zero modules use class: db', () => {
+    expect(moduleClass('gui_db_pool')).toBe('shell');
+    expect(MANIFEST).not.toMatch(/class:\s*db\b/);
+  });
+});
+

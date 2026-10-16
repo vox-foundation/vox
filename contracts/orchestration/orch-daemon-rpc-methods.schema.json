@@ -65,7 +65,7 @@
     },
     "params": {
       "type": "object",
-      "description": "Method-specific payload; validated in daemon dispatch. For `orch.subscribe_events`, an optional `from_offset` (u64) requests replay-from-offset (T1.3): every durable Tier-A op with `op_id > from_offset` is pushed before the live tail begins."
+      "description": "Method-specific payload; validated in daemon dispatch. For `orch.subscribe_events`, an optional `from_offset` (u64) requests replay-from-offset (T1.3): every durable Tier-A op with `op_id > from_offset` is pushed before the live tail begins. For `orch.tool_call`, params `{name, args, agent_origin?}` accepts an optional `agent_origin: true` flag marking the call as an agent entry point subject to safety floor gates."
     },
     "auth_token": {
       "type": ["string", "null"],

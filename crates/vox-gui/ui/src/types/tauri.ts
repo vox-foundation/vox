@@ -194,6 +194,8 @@ export interface AttentionBudgetSnapshot {
   interrupt_freq_per_hour: number;
   last_interrupt_ms: number;
   inbox_suppressed_count: number;
+  exhausted?: boolean;
+  alert_level?: string;
 }
 
 

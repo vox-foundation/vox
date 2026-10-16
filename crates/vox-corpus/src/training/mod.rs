@@ -1,12 +1,33 @@
 //! Training path SSOT: canonical directories, workspace discovery, prompts, and train preflight.
 
+pub mod adapter_registry;
 pub mod contract;
+pub mod curriculum;
 pub mod mix_prepare;
 pub mod preflight;
+pub mod spoke_roundtrip;
 
 pub use contract::{
-    find_workspace_root, normalize_training_data_dir, normalize_training_resume_path,
-    normalize_workspace_relative_path, resolve_from_workspace,
+    OracleReceipt, RecordProvenance, SpokeKind, TrainingRecordV2, find_workspace_root,
+    normalize_training_data_dir, normalize_training_resume_path, normalize_workspace_relative_path,
+    resolve_from_workspace,
+};
+pub use curriculum::{
+    ChosenRejectedPairV2, DEFAULT_MIN_SPOKE_WEIGHT_FLOOR, MensAdapterRegistryEntryV1,
+    MensCheckpointManifestV1, PreflightSafetyVerdict, SpokeCurriculumWeights,
+    TrainingBatchManifestV1, build_adapter_registry_entry, compute_curriculum_weights,
+    prepare_training_batch, run_deterministic_qlora_dpo_step, sample_curriculum_records,
+    validate_snapshot_preflight_gate,
+};
+#[cfg(feature = "database")]
+pub use curriculum::{load_checkpoint_from_db, persist_checkpoint_to_db};
+pub use spoke_roundtrip::{
+    AgentHarnessSpec, McpToolSpec, MensSpokeScorecardV1, SpokeEvalTask, SpokeRoundtripCase,
+    SpokeRoundtripReceipt, SpokeScorecardEntry, TaskPlanEnvelope,
+    canonical_five_spoke_golden_suite, evaluate_multi_spoke_suite, evaluate_spoke_case,
+    strip_code_fences, verify_agent_harness_roundtrip, verify_mcp_roundtrip, verify_rust_roundtrip,
+    verify_rust_workspace_roundtrip, verify_shell_roundtrip, verify_structured_shell_roundtrip,
+    verify_voxlang_roundtrip,
 };
 
 /// Default directory for merged `train.jsonl` (matches corpus merge output).
@@ -17,14 +38,19 @@ pub fn timestamp_string() -> String {
     chrono::Utc::now().format("%Y%m%dT%H%M%SZ").to_string()
 }
 
-/// Full Vox expert system prompt: prefers `scripts/vox_system_prompt.txt` at workspace root, else built-in SSOT text.
+/// Full Vox expert system prompt: prefers `scripts/vox_system_prompt.txt` or `mens/config/system_prompt.txt` at workspace root, else built-in SSOT text.
 pub fn generate_system_prompt() -> String {
     if let Some(root) = contract::find_workspace_root() {
-        let p = root.join("scripts/vox_system_prompt.txt");
-        if let Ok(s) = vox_bounded_fs::read_utf8_path_capped(&p) {
-            let t = s.trim();
-            if !t.is_empty() {
-                return t.to_string();
+        for rel in [
+            "scripts/vox_system_prompt.txt",
+            "mens/config/system_prompt.txt",
+        ] {
+            let p = root.join(rel);
+            if let Ok(s) = vox_bounded_fs::read_utf8_path_capped(&p) {
+                let t = s.trim();
+                if !t.is_empty() {
+                    return t.to_string();
+                }
             }
         }
     }
@@ -47,7 +73,7 @@ pub fn generate_training_system_prompt() -> String {
 /// training row, so its tokens come out of `seq_len`. The long-form reference is
 /// `mens/config/system_prompt.txt` (guarded by `mens_system_prompt_syntax_test`);
 /// this text must stay consistent with it.
-fn builtin_system_prompt() -> String {
+pub fn builtin_system_prompt() -> String {
     let preamble = r#"You are a Vox programming language expert and code generation assistant. Vox is an AI-native, full-stack language that compiles to native Rust and TypeScript.
 
 ## Rules
@@ -65,6 +91,7 @@ fn builtin_system_prompt() -> String {
 - `actor Name { on handler(p: T) to U { } }`, `spawn(Name)`
 - `workflow name(p: T) to Result[U] { }` calling `activity name(p: T) to Result[U] { }` with `with { retries: 3, timeout: "30s" }`
 - `routes { "/" to Home }`, `state_machine Name { state A state B on Ev() from A -> B }`, `import module.name`
+- VoxScript automation (`vox run scripts/foo.vox`): `import fs`, `import process`, `fn main() to Result[Unit] { ... }`
 
 ## Decorators (modifiers only)
 `@test`, `@pure`, `@uses(net)`, `@scheduled("1h")`, `@auth(scheme: bearer)`, `@deprecated`, `@durable`.

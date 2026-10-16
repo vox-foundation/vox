@@ -28,5 +28,7 @@ pub mod render;
 pub use fixtures::{default_fixtures_dir, load_finding_fixtures, render_fixture_pages};
 
 pub use meta::{HighwireMetaTags, build_highwire_meta_tags};
-pub use page::{FindingPage, ReplyEntry, RetractionNotice, VerifiedClaim, VersionHistoryEntry};
+pub use page::{
+    Author, FindingPage, ReplyEntry, RetractionNotice, VerifiedClaim, VersionHistoryEntry,
+};
 pub use render::render_finding_page;

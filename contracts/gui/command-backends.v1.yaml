@@ -15,12 +15,12 @@ commands:
 - { module: browser, class: host, surfaces: [browser], notes: "split: browser_* = orch RPC; preview_* spawn processes; frames read local cache" }
 - { module: build_info, class: shell, surfaces: [] }
 - { module: catalog, class: shell, surfaces: [catalog] }
-- { module: chat, class: daemon, surfaces: [chat], notes: "GET /api/v2/chat/* + vox_chat_session_*; secretary_confirm_task = SUBMIT_TASK (no remote route yet)" }
-- { module: chat_turn, class: daemon, surfaces: [chat], notes: "vox_chat_message / vox_plan + vox_chat_session_append; background = SUBMIT_TASK (no remote route yet)" }
+- { module: chat, class: daemon, surfaces: [chat], notes: "GET /api/v2/chat/* + vox_chat_session_*; secretary_confirm_task = POST /api/v2/orchestrator/tasks/submit" }
+- { module: chat_turn, class: daemon, surfaces: [chat], notes: "vox_chat_message / vox_plan + vox_chat_session_append; background = POST /api/v2/orchestrator/tasks/submit" }
 - { module: coderabbit, class: host, surfaces: [coderabbit] }
-- { module: console_a2a, class: daemon, surfaces: [console], notes: "vox_a2a_send route=db as the reserved console operator (sender 0); console itself stays host-only remotely (pty, terminal_core)" }
+- { module: console_a2a, class: daemon, surfaces: [console], notes: "vox_a2a_send route=db as the reserved console operator (sender 0); console itself stays host-only remotely (pty)" }
 - { module: context_budget, class: daemon, surfaces: [chat], notes: "GET /api/v2/orchestrator/context-budget" }
-- { module: control_plane, class: daemon, surfaces: [chat, dashboard, tasks], notes: "no remote route yet" }
+- { module: control_plane, class: daemon, surfaces: [chat, dashboard, tasks], notes: "POST /api/v2/orchestrator/tasks/submit" }
 - { module: daemon, class: daemon, surfaces: [] }
 - { module: devlog, class: shell, surfaces: [] }
 - { module: discovery, class: daemon, surfaces: [console], notes: "vox_gamify_discovery_record (internal, loopback-only); suggest/help read the local command catalog" }
@@ -31,7 +31,7 @@ commands:
 - { module: gamify, class: daemon, surfaces: [gamify], notes: "dev-only vox_gamify_* ops (internal exposure: loopback under dev; remote servers never serve them)" }
 - { module: gamify_settings, class: host, surfaces: [gamify, settings], notes: "reads and writes this machine's Vox config file" }
 - { module: graphify, class: host, surfaces: [] }
-- { module: gui_db_pool, class: db, surfaces: [] }
+- { module: gui_db_pool, class: shell, surfaces: [], notes: "transient Drive store reset check only; zero persistent VoxDb handle in vox-gui" }
 - { module: harness, class: host, surfaces: [chat], notes: "split: get_task_diff = orch tool_call; list_repo_files = local git" }
 - { module: harness_eval, class: daemon, surfaces: [harness-health], notes: "GET /api/v2/harness/eval/{history,regressions}" }
 - { module: harness_issues, class: daemon, surfaces: [chat, scientia], notes: "GET /api/v2/harness/{fix-proposals,issues} + vox_harness_* ops (corpus scan walks the server workspace)" }
@@ -49,7 +49,7 @@ commands:
 - { module: mercatus, class: host, surfaces: [mercatus] }
 - { module: mesh, class: host, surfaces: [settings] }
 - { module: mic, class: host, surfaces: [chat] }
-- { module: mission_control, class: daemon, surfaces: [sub-agents], notes: "no remote route yet" }
+- { module: mission_control, class: daemon, surfaces: [sub-agents], notes: "GET /api/v2/orchestrator/{subagent-tree,approvals} + POST /api/v2/orchestrator/mesh-policy" }
 - { module: model_active, class: daemon, surfaces: [models], notes: "GET /api/v2/models/preferences + vox_models_preference_set" }
 - { module: models, class: daemon, surfaces: [chat, models, runs, settings], notes: "GET /api/v2/models/* + vox_models_preference_set" }
 - { module: models_host, class: host, surfaces: [chat], notes: "keyed-provider search, local explain/suggest, host hardware recommendation" }
@@ -61,7 +61,7 @@ commands:
 - { module: preferences, class: shell, surfaces: [memory, settings], notes: "Axis-local gui.* preferences: remote = client-side axis-preferences.json (D1); local = loopback-only internal ops on the local daemon, errors surfaced (no client-side fallback)" }
 - { module: process_util, class: host, surfaces: [] }
 - { module: pty, class: host, surfaces: [console] }
-- { module: research, class: daemon, surfaces: [research], notes: "GET /api/v2/research/sessions/{id}/doc-draft + vox_research_{flag_misleading,publish_doc}; start/persist ride orch RPC (unrouted remotely)" }
+- { module: research, class: daemon, surfaces: [research], notes: "GET /api/v2/research/sessions/{id}/doc-draft + POST /api/v2/research/run + vox_research_{flag_misleading,publish_doc}" }
 - { module: research_host, class: host, surfaces: [research], notes: "save_research_doc writes docs/ locally; execute_sandbox_probe runs the local sandbox" }
 - { module: routing_explain, class: daemon, surfaces: [models], notes: "GET /api/v2/models/routing-explain + routing-health" }
 - { module: runs, class: daemon, surfaces: [runs], notes: "GET /api/v2/runs/gui* + vox_gui_run_start / vox_gui_run_finish" }
@@ -73,7 +73,6 @@ commands:
 - { module: signing, class: host, surfaces: [settings] }
 - { module: speech_plugin_backend, class: host, surfaces: [] }
 - { module: stt_config, class: host, surfaces: [settings] }
-- { module: terminal_core, class: host, surfaces: [console] }
 - { module: user_config, class: host, surfaces: [settings] }
 - { module: vcs_isolation, class: daemon, surfaces: [repository], notes: "routed via /api/v2/vcs/isolation" }
 - { module: workspace_town, class: host, surfaces: [gamify] }

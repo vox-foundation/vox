@@ -102,12 +102,19 @@ $env.config = ($env.config | upsert hooks {|c|
   let h = ($c.hooks? | default {})
   $h
   | upsert pre_prompt (
-      ($h.pre_prompt? | default []) | append {|| print -n ([(char -u 1b) "]633;A" (char bel)] | str join) }
+      ($h.pre_prompt? | default []) | append {||
+        let ec = ($env.LAST_EXIT_CODE? | default 0)
+        print -n ([(char -u 1b) "]633;D;" $ec (char bel) (char -u 1b) "]633;A" (char bel)] | str join)
+      }
     )
   | upsert pre_execution (
-      ($h.pre_execution? | default []) | append {|| print -n ([(char -u 1b) "]633;C" (char bel)] | str join) }
+      ($h.pre_execution? | default []) | append {|cmd|
+        let enc = ($cmd | default "" | str replace -a '\' '\x5c' | str replace -a ';' '\x3b' | str replace -a "\n" '\x0a')
+        print -n ([(char -u 1b) "]633;E;" $enc (char bel) (char -u 1b) "]633;C" (char bel)] | str join)
+      }
     )
 })
+$env.PROMPT_INDICATOR = {|| ([(char -u 1b) "]633;B" (char bel) "> "] | str join) }
 "#;
 
 /// PowerShell OSC 633 integration (verbatim from vox-gui).
@@ -194,6 +201,84 @@ pub fn run_shell_capture(cmd: &str) -> (i32, String, String) {
             String::from_utf8_lossy(&out.stderr).into_owned(),
         ),
         Err(e) => (-1, String::new(), e.to_string()),
+    }
+}
+
+/// Diagnose POSIX-isms in Nushell input and provide actionable Nushell syntax hints.
+pub fn diagnose_nu_posix_isms(script: &str) -> Vec<String> {
+    let mut diagnostics = Vec::new();
+    if script.contains("&&") {
+        diagnostics
+            .push("POSIX '&&' is not supported in Nushell; use ';' or 'and' instead".to_string());
+    }
+    if script.contains("||") {
+        diagnostics.push("POSIX '||' is not supported in Nushell; use 'or' instead".to_string());
+    }
+    if script.contains("2>&1") {
+        diagnostics.push(
+            "POSIX '2>&1' is not supported in Nushell; use 'out+err>' or 'e>|' instead".to_string(),
+        );
+    }
+    for var in ["$HOME", "$PATH", "$USER"] {
+        if script.contains(var) {
+            diagnostics.push(format!(
+                "POSIX '{var}' should be referenced as '$env.{}' in Nushell",
+                &var[1..]
+            ));
+        }
+    }
+    diagnostics
+}
+
+/// Run pipeline via `nu` with structured JSON capture when available,
+/// falling back gracefully with diagnostics.
+pub fn run_nu_structured_capture(pipeline: &str) -> (i32, String, String) {
+    let warnings = diagnose_nu_posix_isms(pipeline);
+    let mut warning_prefix = String::new();
+    if !warnings.is_empty() {
+        warning_prefix = format!("[nu hint: {}]\n", warnings.join("; "));
+    }
+
+    if std::process::Command::new("nu")
+        .arg("--version")
+        .output()
+        .is_ok()
+    {
+        // Try structured capture via `to json --raw`
+        let structured_cmd = format!("do {{ {pipeline} }} | to json --raw");
+        if let Ok(out) = std::process::Command::new("nu")
+            .arg("--no-config-file")
+            .arg("-c")
+            .arg(&structured_cmd)
+            .output()
+        {
+            if out.status.success() {
+                return (
+                    0,
+                    format!("{warning_prefix}{}", String::from_utf8_lossy(&out.stdout)),
+                    String::from_utf8_lossy(&out.stderr).into_owned(),
+                );
+            }
+        }
+
+        // Fall back to direct execution
+        match std::process::Command::new("nu")
+            .arg("--no-config-file")
+            .arg("-c")
+            .arg(pipeline)
+            .output()
+        {
+            Ok(out) => (
+                out.status.code().unwrap_or(-1),
+                format!("{warning_prefix}{}", String::from_utf8_lossy(&out.stdout)),
+                String::from_utf8_lossy(&out.stderr).into_owned(),
+            ),
+            Err(e) => (-1, String::new(), format!("{warning_prefix}{e}")),
+        }
+    } else {
+        let (code, stdout, stderr) = run_shell_capture(pipeline);
+        let notice = "[nu not found on PATH; executed via platform shell fallback]\n";
+        (code, format!("{notice}{warning_prefix}{stdout}"), stderr)
     }
 }
 
@@ -359,5 +444,31 @@ mod tests {
     fn run_shell_capture_reports_nonzero_exit() {
         let (code, _stdout, _stderr) = run_shell_capture("exit 3");
         assert_eq!(code, 3);
+    }
+
+    #[test]
+    fn nu_snippet_emits_osc633_markers() {
+        let s = shell_integration_snippet("nu").unwrap();
+        assert!(s.contains("]633;A"));
+        assert!(s.contains("]633;B"));
+        assert!(s.contains("]633;C"));
+        assert!(s.contains("]633;D;"));
+        assert!(s.contains("]633;E;"));
+    }
+
+    #[test]
+    fn diagnose_nu_posix_isms_catches_common_mistakes() {
+        let diag = diagnose_nu_posix_isms("echo $HOME && ls 2>&1 || true");
+        assert!(diag.iter().any(|d| d.contains("&&")));
+        assert!(diag.iter().any(|d| d.contains("||")));
+        assert!(diag.iter().any(|d| d.contains("2>&1")));
+        assert!(diag.iter().any(|d| d.contains("$env.HOME")));
+    }
+
+    #[test]
+    fn run_nu_structured_capture_executes_or_falls_back_cleanly() {
+        let (code, stdout, _stderr) = run_nu_structured_capture("echo hello-nu-structured");
+        assert_eq!(code, 0);
+        assert!(stdout.contains("hello-nu-structured"));
     }
 }

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { useLabel } from '../../../hooks/useLanguage';
 import { LudusSandbox } from '../../gamify/LudusSandbox';
+import { HarnessRiverPanel } from '../Harness/HarnessRiverPanel';
 import { invoke } from '@tauri-apps/api/core';
 import { LudusProfile } from '../../../lib/ludus';
 import { LudusHud } from './LudusHud';
@@ -66,6 +67,7 @@ export function GamifyView({ pushToast }: GamifyViewProps) {
   const [companions, setCompanions] = useState<Companion[]>([]);
   const [quests, setQuests] = useState<Quest[]>([]);
   const [loading, setLoading] = useState(false);
+  const [simMode, setSimMode] = useState<'urbs' | 'river'>('urbs');
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -123,10 +125,36 @@ export function GamifyView({ pushToast }: GamifyViewProps) {
       )}
 
       <div className="mb-6 border border-border-subtle rounded-xl overflow-hidden bg-bg-base/60 p-4">
-        <h3 className="mb-2 font-display text-[12px] uppercase tracking-wide text-text-muted">Simulation Map</h3>
-        <div className="h-[560px]">
-          <LudusSandbox energy={profile?.energy ?? 0} maxEnergy={profile?.max_energy ?? 0} />
+        <div className="mb-2 flex items-center justify-between">
+          <h3 className="font-display text-[12px] uppercase tracking-wide text-text-muted">Simulation Map</h3>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              data-testid="gamify-sim-mode-urbs"
+              onClick={() => setSimMode('urbs')}
+              className={`rounded px-2 py-0.5 font-mono text-[10px] ${simMode === 'urbs' ? 'bg-cyan/20 text-cyan border border-cyan/40' : 'bg-overlay-subtle text-text-muted'}`}
+            >
+              Urbs Map
+            </button>
+            <button
+              type="button"
+              data-testid="gamify-sim-mode-river"
+              onClick={() => setSimMode('river')}
+              className={`rounded px-2 py-0.5 font-mono text-[10px] ${simMode === 'river' ? 'bg-cyan/20 text-cyan border border-cyan/40' : 'bg-overlay-subtle text-text-muted'}`}
+            >
+              Live River
+            </button>
+          </div>
         </div>
+        {simMode === 'urbs' ? (
+          <div className="h-[560px]">
+            <LudusSandbox energy={profile?.energy ?? 0} maxEnergy={profile?.max_energy ?? 0} />
+          </div>
+        ) : (
+          <div data-testid="gamify-live-river-container">
+            <HarnessRiverPanel gamifyEnabled />
+          </div>
+        )}
       </div>
 
       <div>

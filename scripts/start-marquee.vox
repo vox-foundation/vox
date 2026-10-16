@@ -33,72 +33,72 @@
 //   - AGENTS.md §VoxScript-First Glue Code — why this is a .vox file
 
 fn vox_build(entry: str, out_dir: str) to bool {
-    print("  vox build " + entry + " -o " + out_dir);
-    let result = std.process.run("vox", ["build", entry, "-o", out_dir]);
+    print("  vox build " + entry + " -o " + out_dir)
+    let result = std.process.run("vox", ["build", entry, "-o", out_dir])
     match result {
-        Ok(code) => return code is 0,
-        Error(m) => {
-            print("  ERROR: vox build failed: " + m);
-            return false;
+        Some(res) => return res.code is 0,
+        None => {
+            print("  ERROR: vox build failed to spawn")
+            return false
         }
     }
 }
 
 fn cargo_build_generated() to bool {
-    print("  cargo build --release --manifest-path target/generated/Cargo.toml");
-    let result = std.process.run("cargo", ["build", "--release", "--manifest-path", "target/generated/Cargo.toml"]);
+    print("  cargo build --release --manifest-path target/generated/Cargo.toml")
+    let result = std.process.run("cargo", ["build", "--release", "--manifest-path", "target/generated/Cargo.toml"])
     match result {
-        Ok(code) => return code is 0,
-        Error(m) => {
-            print("  ERROR: cargo build failed: " + m);
-            return false;
+        Some(res) => return res.code is 0,
+        None => {
+            print("  ERROR: cargo build failed to spawn")
+            return false
         }
     }
 }
 
 fn stash_binary(suffix: str) to bool {
-    let src = "target/generated/target/release/vox_generated_app.exe";
-    let dst = "target/marquee-" + suffix + ".exe";
-    print("  copy " + src + " -> " + dst);
-    let result = std.process.run("cp", [src, dst]);
+    let src = "target/generated/target/release/vox_generated_app.exe"
+    let dst = "target/marquee-" + suffix + ".exe"
+    print("  copy " + src + " -> " + dst)
+    let result = std.process.run("cp", [src, dst])
     match result {
-        Ok(code) => return code is 0,
-        Error(_) => return false
+        Some(res) => return res.code is 0,
+        None => return false
     }
 }
 
 fn spawn_server(suffix: str) to bool {
-    let bin = "target/marquee-" + suffix + ".exe";
-    print("  spawn " + bin + " (reads VOX_PORT from inherited env)");
-    let result = std.process.spawn_background(bin, []);
+    let bin = "target/marquee-" + suffix + ".exe"
+    print("  spawn " + bin + " (reads VOX_PORT from inherited env)")
+    let result = std.process.spawn_background(bin, [])
     match result {
         Ok(_pid) => return true,
         Error(m) => {
-            print("  ERROR: spawn failed: " + m);
-            return false;
+            print("  ERROR: spawn failed: " + m)
+            return false
         }
     }
 }
 
 fn build_and_run_native(entry: str, out_dir: str, suffix: str) to bool {
     if not vox_build(entry, out_dir) {
-        return false;
+        return false
     }
     if not cargo_build_generated() {
-        return false;
+        return false
     }
     if not stash_binary(suffix) {
-        return false;
+        return false
     }
-    return spawn_server(suffix);
+    return spawn_server(suffix)
 }
 
 fn check_via_probe() to Unit {
-    print("running cr-p1 probe...");
-    let result = std.process.run("./target/release/cr-p1.exe", []);
+    print("running cr-p1 probe...")
+    let result = std.process.run("./target/release/cr-p1.exe", [])
     match result {
-        Ok(_) => print("(see cr-p1 output above)"),
-        Error(m) => print("ERROR: cr-p1 probe failed: " + m)
+        Some(_) => print("(see cr-p1 output above)"),
+        None => print("ERROR: cr-p1 probe failed to spawn")
     }
 }
 

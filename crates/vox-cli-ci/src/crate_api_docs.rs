@@ -265,7 +265,10 @@ pub fn run(repo_root: &Path, write: bool) -> Result<()> {
                 let adjusted = line
                     .replace("(../../../", "___REPO_ROOT___")
                     .replace("(../../", "(../../../")
-                    .replace("___REPO_ROOT___", "(../../../");
+                    .replace("___REPO_ROOT___", "(../../../")
+                    .replace("]: ../../../", "___REF_REPO_ROOT___")
+                    .replace("]: ../../", "]: ../../../")
+                    .replace("___REF_REPO_ROOT___", "]: ../../../");
                 doc.push_str(&adjusted);
                 doc.push('\n');
             }
@@ -468,7 +471,12 @@ mod tests {
             .unwrap()
             .parent()
             .unwrap();
+        if std::env::var_os("VOX_CRATE_API_SYNC_WRITE").is_some() {
+            run(repo_root, true).expect("crate_api_docs write mode");
+        }
         // Verify mode (write=false) should succeed on clean repo
-        assert!(run(repo_root, false).is_ok());
+        if let Err(e) = run(repo_root, false) {
+            panic!("crate_api_docs::run failed: {e:#}");
+        }
     }
 }

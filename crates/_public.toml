@@ -1,20 +1,56 @@
-# Canonical external-publication set (CR-K2).
-# Every crate listed here must pass `cargo publish --dry-run` and carry
-# non-empty description, license, repository, and readme metadata.
-#
-# Verify: `vox audit --gate public-set-metadata` (when wired)
-# See: docs/src/architecture/v1-release-criteria.md §CR-K
+# Canonical external-publication crate set (CR-K1..K3).
+# Ordered in reverse-topological (leaf-first) publication order so each tier
+# can be verified with `cargo publish --dry-run -p <crate>` and published cleanly.
+# See docs/src/architecture/v1-release-criteria.md §Tier 1 — Distribution.
 
+[metadata]
 schema_version = 1
+repository = "https://github.com/vox-foundation/vox.git"
+license = "Apache-2.0"
 
-# Example entries — expand as crates graduate to publish=true.
-crates = [
-    "vox-crypto",
-    "voxup",
-    # Plugin ABI trio — publish in dependency order: types → api → sdk
-    "vox-plugin-types",
-    "vox-plugin-api",
-    "vox-plugin-sdk",
-    # "vox-config",
-    # "vox-secrets",
-]
+# Tier 1: Standalone security, architecture guard, and taxonomy crates
+# with minimal intra-workspace edges.
+[[crates]]
+name = "vox-crypto"
+layer = 1
+tier = 1
+rationale = "Pure-Rust AEAD (ChaCha20-Poly1305), Ed25519, X25519, BLAKE3, and SHA3 primitives."
+
+[[crates]]
+name = "vox-mesh-types"
+layer = 0
+tier = 1
+rationale = "Zero-runtime mesh capability and worker registration types."
+
+[[crates]]
+name = "vox-scaling-policy"
+layer = 1
+tier = 1
+depends_on = ["vox-mesh-types"]
+rationale = "Bounded-resource scaling policy and threshold contracts."
+
+[[crates]]
+name = "vox-bounded-fs"
+layer = 1
+tier = 1
+depends_on = ["vox-scaling-policy"]
+rationale = "Capability-bounded filesystem operations for sandboxed execution."
+
+[[crates]]
+name = "vox-secrets"
+layer = 2
+tier = 1
+depends_on = ["vox-crypto", "vox-bounded-fs"]
+rationale = "Clavis: central secret resolution, OS-keyring integration, and encrypted local vault."
+
+[[crates]]
+name = "vox-kb-facets"
+layer = 0
+tier = 1
+rationale = "SKOS-lite documentation taxonomy, facet validators, and training-eligibility rules."
+
+[[crates]]
+name = "vox-arch-check"
+layer = 1
+tier = 1
+rationale = "Standalone Cargo workspace layered-architecture, fan-in, and forbidden-edge guard."

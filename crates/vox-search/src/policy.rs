@@ -496,6 +496,7 @@ impl SearchPolicy {
             .expose()
             .filter(|s| !s.trim().is_empty())
             .map(|s| s.to_string());
+        #[cfg(feature = "tavily")]
         {
             let key = vox_secrets::resolve_secret(vox_secrets::SecretId::TavilyApiKey);
             let override_val =

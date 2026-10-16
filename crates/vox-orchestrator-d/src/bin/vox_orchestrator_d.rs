@@ -226,9 +226,21 @@ async fn async_main() -> anyhow::Result<()> {
             .map(str::to_string);
     let explicit_env_token_was_set = explicit_env_token.is_some();
     let daemon_token: Arc<str> = resolve_daemon_token(explicit_env_token).into();
-    if !is_stdio {
+    let tcp_listener_and_bind = if !is_stdio {
+        let bind = orch_daemon::normalize_tcp_bind_addr(&bind_raw);
+        if bind.is_empty() {
+            anyhow::bail!("VOX_ORCHESTRATOR_DAEMON_SOCKET is empty after normalization");
+        }
+        refuse_non_loopback_without_explicit_token(&bind, explicit_env_token_was_set)?;
+        // Bind BEFORE writing the shared token file: if another daemon already
+        // holds the port, `TcpListener::bind` fails immediately and must NEVER
+        // overwrite the live daemon's `orchestrator-daemon.token` on disk.
+        let listener = tokio::net::TcpListener::bind(&bind).await?;
         persist_daemon_token_file(&daemon_token)?;
-    }
+        Some((listener, bind))
+    } else {
+        None
+    };
 
     let profile = active_profile; // resolved by plan 02 Task 8 (`resolve_daemon_profile`)
     let mut ctx = DaemonBootCtx::new(
@@ -294,18 +306,19 @@ async fn async_main() -> anyhow::Result<()> {
         tracing::error!(error = %e, "Failed to spawn HTTP gateway");
     }
 
-    if orch_daemon::is_stdio_transport(&bind_raw) {
-        return orch_daemon::run_stdio_server_with_extra(repository_id, orch, extra).await;
-    }
-
-    let bind = orch_daemon::normalize_tcp_bind_addr(&bind_raw);
-    if bind.is_empty() {
-        anyhow::bail!("VOX_ORCHESTRATOR_DAEMON_SOCKET is empty after normalization");
-    }
-    refuse_non_loopback_without_explicit_token(&bind, explicit_env_token_was_set)?;
-
-    orch_daemon::run_tcp_server_with_extra(&bind, repository_id, orch, extra, Some(daemon_token))
+    if let Some((listener, bind)) = tcp_listener_and_bind {
+        orch_daemon::serve_listener_with_extra(
+            listener,
+            bind,
+            repository_id,
+            orch,
+            extra,
+            Some(daemon_token),
+        )
         .await
+    } else {
+        orch_daemon::run_stdio_server_with_extra(repository_id, orch, extra).await
+    }
 }
 
 #[cfg(test)]

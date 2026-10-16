@@ -18,7 +18,7 @@ import { surfaceAvailability, useBackendStatus } from '../../hooks/useBackendSta
 import { BackendStatusPill } from './BackendStatusPill';
 import { UNAVAILABLE_COPY } from './SurfaceUnavailable';
 
-export type SidebarMode = 'rail' | 'default' | 'wide';
+export type SidebarMode = 'hidden' | 'rail' | 'default' | 'wide';
 
 type PolicyBadgeStatus = 'pass' | 'fail' | 'warn' | 'not_run';
 export interface PolicyBadge { count: number; status: PolicyBadgeStatus; }
@@ -50,7 +50,7 @@ function NavItem({ active, icon, label, onClick, badge, badgeClass, railBadgeCla
   );
 }
 
-const SIDEBAR_WIDTHS = { rail: 64, default: 212, wide: 280 };
+const SIDEBAR_WIDTHS: Record<SidebarMode, number> = { hidden: 0, rail: 64, default: 212, wide: 280 };
 const SIDEBAR_ORDER: SidebarMode[] = ["rail", "default", "wide"];
 
 // Curated nav icons (labels now come from the lexicon by viewKey).
@@ -133,8 +133,23 @@ export function Sidebar({
   onToggleArchivedSessions,
   onTaskBadgeClick,
 }: SidebarProps) {
-  const w = SIDEBAR_WIDTHS[mode];
-  const collapsed = mode === "rail";
+  const lastVisibleModeRef = useRef<Exclude<SidebarMode, 'hidden'>>(
+    mode === 'hidden' ? 'default' : mode,
+  );
+  const [localHidden, setLocalHidden] = useState(mode === 'hidden');
+  useEffect(() => {
+    if (mode === 'hidden') {
+      setLocalHidden(true);
+    } else {
+      lastVisibleModeRef.current = mode;
+      setLocalHidden(false);
+    }
+  }, [mode]);
+
+  const isHidden = mode === 'hidden' || localHidden;
+  const effectiveMode: SidebarMode = isHidden ? 'hidden' : mode;
+  const w = SIDEBAR_WIDTHS[effectiveMode];
+  const collapsed = effectiveMode === "rail";
   const { parent: activeParent } = resolveNavigation(view);
   const [identity, setIdentity] = useState('operator@vox');
   const tone = useFreshness(lastOrchEventAt, {
@@ -151,9 +166,23 @@ export function Sidebar({
   }, []);
 
   const cycle = (dir: number) => {
-    const i = SIDEBAR_ORDER.indexOf(mode);
+    const i = SIDEBAR_ORDER.indexOf(effectiveMode);
     const ni = Math.max(0, Math.min(SIDEBAR_ORDER.length - 1, i + dir)) as number;
     setMode(SIDEBAR_ORDER[ni]);
+  };
+
+  const handleHideSidebar = () => {
+    if (mode !== 'hidden') {
+      lastVisibleModeRef.current = mode;
+    }
+    setLocalHidden(true);
+    setMode('hidden');
+  };
+
+  const handleRestoreSidebar = () => {
+    const target = lastVisibleModeRef.current || 'default';
+    setLocalHidden(false);
+    setMode(target);
   };
 
   const { lang } = useLang();
@@ -215,7 +244,32 @@ export function Sidebar({
   }, [view]);
 
   const settingsEntry = SURFACE_REGISTRY.find(e => e.viewKey === 'settings');
-  const coverageEntry = SURFACE_REGISTRY.find(e => e.viewKey === 'coverage');
+  const explorerEntry = SURFACE_REGISTRY.find(e => e.viewKey === 'explorer');
+
+  if (isHidden) {
+    return (
+      <aside
+        aria-label="Sidebar"
+        data-sidebar-hidden="true"
+        className="shrink-0 flex flex-col transition-[width] duration-200 ease-out h-full overflow-visible sticky top-0"
+        style={{ width: 0 }}
+      >
+        <button
+          type="button"
+          data-testid="sidebar-restore-button"
+          onClick={handleRestoreSidebar}
+          aria-label="Show sidebar"
+          aria-expanded={false}
+          title="Show sidebar"
+          className="fixed left-3 top-3 z-50 inline-flex items-center gap-1.5 rounded-full border border-brass/40 bg-bg-base/95 px-2.5 py-1.5 font-display text-[10px] uppercase tracking-[0.14em] text-text-secondary shadow-lg backdrop-blur-md transition hover:border-brass hover:bg-overlay-hover hover:text-brass"
+        >
+          <AxisMark className="size-3.5 text-brass" />
+          <span>Sidebar</span>
+          <Icon.chevR className="size-3 text-brass" aria-hidden="true" />
+        </button>
+      </aside>
+    );
+  }
 
   return (
     <aside aria-label="Sidebar" className="shrink-0 flex flex-col transition-[width] duration-200 ease-out h-full overflow-hidden sticky top-0" style={{ width: w }}>
@@ -235,13 +289,24 @@ export function Sidebar({
             </div>
           )}
           <div className={`flex items-center ${collapsed ? "flex-col gap-1" : "gap-0.5"}`}>
-            <button type="button" onClick={() => cycle(-1)} disabled={mode === "rail"} title="Collapse" aria-label="Collapse sidebar"
-              className={`flex size-6 items-center justify-center rounded-md border border-border-subtle ${mode === "rail" ? "opacity-30 cursor-not-allowed" : "hover:bg-overlay-hover text-text-muted hover:text-text-primary"}`}>
+            <button type="button" onClick={() => cycle(-1)} disabled={effectiveMode === "rail"} title="Collapse" aria-label="Collapse sidebar"
+              className={`flex size-6 items-center justify-center rounded-md border border-border-subtle ${effectiveMode === "rail" ? "opacity-30 cursor-not-allowed" : "hover:bg-overlay-hover text-text-muted hover:text-text-primary"}`}>
               <Icon.chevL className="size-3" aria-hidden="true"/>
             </button>
-            <button type="button" onClick={() => cycle(1)} disabled={mode === "wide"} title="Expand" aria-label="Expand sidebar"
-              className={`flex size-6 items-center justify-center rounded-md border border-border-subtle ${mode === "wide" ? "opacity-30 cursor-not-allowed" : "hover:bg-overlay-hover text-text-muted hover:text-text-primary"}`}>
+            <button type="button" onClick={() => cycle(1)} disabled={effectiveMode === "wide"} title="Expand" aria-label="Expand sidebar"
+              className={`flex size-6 items-center justify-center rounded-md border border-border-subtle ${effectiveMode === "wide" ? "opacity-30 cursor-not-allowed" : "hover:bg-overlay-hover text-text-muted hover:text-text-primary"}`}>
               <Icon.chevR className="size-3" aria-hidden="true"/>
+            </button>
+            <button
+              type="button"
+              data-testid="sidebar-hide-button"
+              onClick={handleHideSidebar}
+              title="Hide sidebar"
+              aria-label="Hide sidebar"
+              aria-expanded={true}
+              className="flex size-6 items-center justify-center rounded-md border border-border-subtle text-text-muted transition hover:border-brass/40 hover:bg-overlay-hover hover:text-brass"
+            >
+              <Icon.x className="size-3" aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -373,7 +438,7 @@ export function Sidebar({
                                 : 'text-text-secondary hover:bg-overlay-hover hover:text-text-primary'
                             }`}
                           >
-                            {labelForNavKey(childKey)}
+                            {childLabelFor(childKey, lang)}
                           </button>
                         ))}
                       </div>
@@ -449,14 +514,14 @@ export function Sidebar({
                     : 'Settings'
                 }
               />
-              {coverageEntry && (
+              {explorerEntry && (
                 <NavItem
                   collapsed={collapsed}
-                  active={view === 'coverage'}
-                  onClick={() => onOpenTab('coverage')}
-                  icon={<Icon.check className="size-4" />}
-                  label={labelFor('coverage', lang)}
-                  ariaLabel="Coverage, CI surface gaps"
+                  active={view === 'explorer'}
+                  onClick={() => onOpenTab('explorer')}
+                  icon={<Icon.branch className="size-4" />}
+                  label={labelFor('explorer', lang)}
+                  ariaLabel="Explorer, browse everything Vox can do"
                 />
               )}
             </div>

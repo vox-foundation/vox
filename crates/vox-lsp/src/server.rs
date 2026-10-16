@@ -125,8 +125,19 @@ impl LanguageServer for Backend {
     }
 
     async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
+        let uri = &params.text_document_position.text_document.uri;
+        let text = match self.documents.lock() {
+            Ok(g) => g.get(uri).cloned(),
+            Err(e) => {
+                tracing::error!("completion: documents mutex poisoned: {e}");
+                None
+            }
+        };
         Ok(Some(CompletionResponse::List(
-            crate::completions::CompletionEngine::completions(params),
+            crate::completions::CompletionEngine::completions_for_document(
+                &params,
+                text.as_deref(),
+            ),
         )))
     }
 

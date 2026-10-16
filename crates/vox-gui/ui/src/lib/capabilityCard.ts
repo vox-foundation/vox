@@ -68,7 +68,13 @@ export function buildExplainCard(
   const gui = gather(guiText);
   const generic = [row, ...linked].some((r) => r.catalogForm);
 
-  const cov = row.coverage ?? 'none (not computed)';
+  const cov = row.coverage
+    ? row.coverageAmbiguous
+      ? `${row.coverage} (ambiguous)`
+      : row.coverage
+    : row.coverageReason
+      ? `none (${row.coverageReason})`
+      : 'none (not computed)';
   const snap = asOf ? `coverage as of ${asOf.sha.slice(0, 9)} (${asOf.date})` : 'no snapshot';
   const domainLabel = row.domain ? (domains.find((d) => d.id === row.domain)?.label ?? row.domain) : DASH;
 
@@ -91,6 +97,8 @@ export function buildExplainCard(
       : { path: cliPath, unavailable: UNAVAILABLE }
     : null;
 
+  const docsText = row.docs ? (row.docOrigin ? `${row.docs} (${row.docOrigin})` : row.docs) : DASH;
+
   return {
     title: row.title,
     kind: row.kind,
@@ -100,7 +108,7 @@ export function buildExplainCard(
     location: {
       crate: row.crate ? (row.layer !== null ? `${row.crate} (L${row.layer})` : row.crate) : 'unresolved',
       source: row.source ?? DASH,
-      docs: row.docs ?? DASH,
+      docs: docsText, // first doc only
     },
     status: {
       coverage: `${cov} \u2014 ${snap}`,

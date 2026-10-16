@@ -265,6 +265,20 @@ impl crate::VoxDb {
                 (BASELINE_VERSION,),
             )
             .await?;
+        } else {
+            for tbl in crate::schema::domains::trials::TRIAL_REQUIRED_TABLES {
+                let mut rows = conn
+                    .query(
+                        "SELECT name FROM sqlite_master WHERE type='table' AND name = ?1",
+                        turso::params![*tbl],
+                    )
+                    .await?;
+                if rows.next().await?.is_none() {
+                    return Err(StoreError::BaselineStampedWithoutTables {
+                        missing_table: (*tbl).to_string(),
+                    });
+                }
+            }
         }
 
         Self::ensure_latency_columns(conn).await?;
@@ -385,9 +399,10 @@ impl crate::VoxDb {
     /// open, outside the version gate; it is a cheap `PRAGMA` per table and a no-op on a fresh
     /// database or one that already has the columns. A table that does not exist is skipped.
     async fn ensure_latency_columns(conn: &turso::Connection) -> Result<(), StoreError> {
-        const COLUMNS: [(&str, &str, &str); 5] = [
+        const COLUMNS: [(&str, &str, &str); 6] = [
             ("llm_interactions", "ttft_ms", "INTEGER"),
             ("llm_interactions", "tpot_ms", "REAL"),
+            ("llm_interactions", "trial_run_label", "TEXT"),
             ("model_scoreboard", "p95_ttft_ms", "INTEGER"),
             ("model_scoreboard", "p95_tpot_ms", "REAL"),
             ("model_scoreboard", "goodput_tokens_per_sec", "REAL"),
@@ -548,5 +563,35 @@ mod tests {
             .get(0)
             .expect("v");
         assert_eq!(v, crate::schema::BASELINE_VERSION);
+    }
+
+    #[tokio::test]
+    async fn baseline_stamped_without_tables_errors() {
+        let db = Builder::new_local(":memory:").build().await.expect("mem");
+        let conn = db.connect().expect("conn");
+        VoxDb::apply_pragmas(&conn).await.expect("pragmas");
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS schema_version (
+                version INTEGER PRIMARY KEY,
+                applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );",
+        )
+        .await
+        .expect("create schema_version");
+        conn.execute(
+            "INSERT INTO schema_version (version) VALUES (?1)",
+            (crate::schema::BASELINE_VERSION,),
+        )
+        .await
+        .expect("stamp baseline");
+        let err = VoxDb::migrate(&conn)
+            .await
+            .expect_err("must fail when trial tables are missing");
+        match err {
+            crate::StoreError::BaselineStampedWithoutTables { missing_table } => {
+                assert_eq!(missing_table, "trial_campaigns");
+            }
+            other => panic!("unexpected error: {other:?}"),
+        }
     }
 }

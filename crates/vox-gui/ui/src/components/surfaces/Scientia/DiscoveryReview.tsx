@@ -14,6 +14,13 @@ import {
 } from './discoveryReviewApi';
 import { getNoveltyAssessment, type NoveltyAssessment } from './noveltyApi';
 import { NoveltyEvidencePanel } from './NoveltyEvidencePanel';
+import {
+  computeWorthinessAxes,
+  draftManuscript,
+  renderLatex,
+  renderFindingPage,
+  executeReplay,
+} from '../../../api/scientia';
 
 function verdictTone(verdict: string | null): string {
   const v = (verdict ?? '').toLowerCase();
@@ -60,10 +67,28 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
   const [novelty, setNovelty] = useState<NoveltyAssessment | null>(null);
   const [noveltyLoading, setNoveltyLoading] = useState(false);
   const [noveltyError, setNoveltyError] = useState<string | null>(null);
+  const [studioPreviewTitle, setStudioPreviewTitle] = useState<string | null>(null);
+  const [studioPreviewContent, setStudioPreviewContent] = useState<string | null>(null);
+  const [replayScore, setReplayScore] = useState<number | undefined>(undefined);
   // Cache of last-seen claim detail so approved (terminal) claims stay viewable
   // after the refetch removes them from the live queue.
   const detailCache = useRef<Map<number, ClaimAwaitingReview>>(new Map());
   const fetchingRef = useRef(false);
+
+  const worthinessAxes = useMemo(() => {
+    const supportedCount = queue.filter((c) => (c.verdict ?? '').toLowerCase().includes('support')).length;
+    const contradictedCount = queue.filter((c) => {
+      const v = (c.verdict ?? '').toLowerCase();
+      return v.includes('refut') || v.includes('contradict');
+    }).length;
+    return computeWorthinessAxes({
+      claimCount: queue.length,
+      supportedCount,
+      contradictedCount,
+      noveltyVerdict: novelty?.verdict_kind,
+      replayabilityScore: replayScore,
+    });
+  }, [queue, novelty?.verdict_kind, replayScore]);
 
   const refresh = useCallback(async () => {
     const id = pubId.trim();
@@ -223,7 +248,7 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
   return (
     <section className="space-y-4">
       {/* header + publication input */}
-      <div className="flex items-end justify-between">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="font-display text-lg tracking-wider text-text-primary uppercase">Discovery Review</h2>
           <p className="font-mono text-xs text-text-muted">
@@ -247,6 +272,149 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
             {loading ? 'Loading…' : 'Refresh'}
           </button>
         </label>
+      </div>
+
+      {/* 6-Axis Worthiness Meter & Studio Artifact Actions */}
+      <div
+        data-testid="scientia-worthiness-meter"
+        className="rounded-xl border border-border-subtle bg-overlay-subtle p-4 space-y-3"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="font-display text-[11px] uppercase tracking-[0.18em] text-text-muted">
+            6-Axis Scientia Worthiness Profile
+          </span>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              data-testid="studio-draft-imrad-btn"
+              disabled={!pubId.trim() || busy}
+              onClick={async () => {
+                setBusy(true);
+                try {
+                  const res = await draftManuscript(pubId.trim());
+                  setStudioPreviewTitle(`IMRaD Manuscript (${res.title})`);
+                  setStudioPreviewContent(res.markdown);
+                } catch (err) {
+                  pushToast({ tone: 'warn', title: 'Draft IMRaD failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
+                } finally {
+                  setBusy(false);
+                }
+              }}
+              className="rounded border border-brass/30 bg-brass/10 px-2.5 py-1 font-mono text-[11px] text-brass hover:bg-brass/20 disabled:opacity-40"
+            >
+              Draft IMRaD
+            </button>
+            <button
+              type="button"
+              data-testid="studio-render-latex-btn"
+              disabled={!pubId.trim() || busy}
+              onClick={async () => {
+                setBusy(true);
+                try {
+                  const res = await renderLatex(pubId.trim());
+                  setStudioPreviewTitle(`LaTeX Source (${res.title})`);
+                  setStudioPreviewContent(res.latex);
+                } catch (err) {
+                  pushToast({ tone: 'warn', title: 'Render LaTeX failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
+                } finally {
+                  setBusy(false);
+                }
+              }}
+              className="rounded border border-cyan/30 bg-cyan/10 px-2.5 py-1 font-mono text-[11px] text-cyan hover:bg-cyan/20 disabled:opacity-40"
+            >
+              Render LaTeX
+            </button>
+            <button
+              type="button"
+              data-testid="studio-finding-page-btn"
+              disabled={!pubId.trim() || busy}
+              onClick={async () => {
+                setBusy(true);
+                try {
+                  const res = await renderFindingPage(pubId.trim());
+                  setStudioPreviewTitle('Finding Page HTML + Highwire Meta');
+                  setStudioPreviewContent(res.html);
+                } catch (err) {
+                  pushToast({ tone: 'warn', title: 'Finding page failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
+                } finally {
+                  setBusy(false);
+                }
+              }}
+              className="rounded border border-violet-400/30 bg-violet-400/10 px-2.5 py-1 font-mono text-[11px] text-violet-200 hover:bg-violet-400/20 disabled:opacity-40"
+            >
+              Finding Page HTML
+            </button>
+            <button
+              type="button"
+              data-testid="studio-execute-replay-btn"
+              disabled={!pubId.trim() || busy}
+              onClick={async () => {
+                setBusy(true);
+                try {
+                  const res = await executeReplay(pubId.trim(), 0.94, 120);
+                  setReplayScore(res.artifact_replayability);
+                  pushToast({
+                    tone: 'ok',
+                    title: 'Replay verified',
+                    body: `Replayability score ${(res.artifact_replayability * 100).toFixed(0)}% recorded`,
+                    cause: 'backend-ok',
+                  });
+                } catch (err) {
+                  pushToast({ tone: 'warn', title: 'Replay failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
+                } finally {
+                  setBusy(false);
+                }
+              }}
+              className="rounded border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-1 font-mono text-[11px] text-emerald-200 hover:bg-emerald-400/20 disabled:opacity-40"
+            >
+              Execute Replay
+            </button>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          {worthinessAxes.map((axis) => {
+            const pct = Math.round(axis.score * 100);
+            return (
+              <div key={axis.axis} className="rounded-lg border border-border-subtle bg-black/30 p-2.5">
+                <div className="flex items-center justify-between font-mono text-[10px]">
+                  <span className="text-text-secondary truncate">{axis.label}</span>
+                  <span className={pct >= 70 ? 'text-emerald-400' : pct >= 45 ? 'text-brass' : 'text-amber-400'}>
+                    {pct}%
+                  </span>
+                </div>
+                <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className={`h-full rounded-full ${
+                      pct >= 70 ? 'bg-emerald-400' : pct >= 45 ? 'bg-brass' : 'bg-amber-400'
+                    }`}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                <div className="mt-1 truncate font-mono text-[9px] text-text-muted">{axis.description}</div>
+              </div>
+            );
+          })}
+        </div>
+        {studioPreviewContent && (
+          <div data-testid="studio-artifact-preview" className="rounded-lg border border-brass/30 bg-black/50 p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="font-mono text-xs font-semibold text-brass">{studioPreviewTitle}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setStudioPreviewContent(null);
+                  setStudioPreviewTitle(null);
+                }}
+                className="font-mono text-[11px] text-text-muted hover:text-text-secondary"
+              >
+                Close Preview
+              </button>
+            </div>
+            <pre className="max-h-56 overflow-auto whitespace-pre-wrap font-mono text-[11px] text-text-secondary">
+              {studioPreviewContent}
+            </pre>
+          </div>
+        )}
       </div>
 
       <div className="grid gap-4" style={{ gridTemplateColumns: '360px 1fr' }}>

@@ -2,10 +2,17 @@ use crate::claim_extractor::atomic::fnv1a_hash;
 use crate::claim_extractor::types::VerifierOutput;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MiniCheckBackend {
     Mock,
-    Http { endpoint: String },
+    Http {
+        endpoint: String,
+    },
+    /// Calibrated hybrid verifier combining lexical/numeric/negation containment
+    /// with model-agnostic LLM entailment fallback via `vox_actor_runtime::llm`.
+    CalibratedHybrid {
+        model: String,
+    },
 }
 
 pub struct MiniCheckVerifier {
@@ -52,6 +59,26 @@ impl MiniCheckVerifier {
             },
             abstain_threshold: 0.3,
         }
+    }
+
+    pub fn calibrated_hybrid(model: impl Into<String>) -> Self {
+        Self {
+            backend: MiniCheckBackend::CalibratedHybrid {
+                model: model.into(),
+            },
+            abstain_threshold: 0.3,
+        }
+    }
+
+    /// Construct a production verifier: HTTP endpoint when `VOX_MINICHECK_ENDPOINT`
+    /// is configured, otherwise `CalibratedHybrid` routed through `vox_actor_runtime::llm`.
+    pub fn from_env_or_calibrated() -> Self {
+        if let Ok(url) = std::env::var("VOX_MINICHECK_ENDPOINT")
+            && !url.trim().is_empty()
+        {
+            return Self::http(url);
+        }
+        Self::calibrated_hybrid("anthropic/claude-3.5-haiku")
     }
 
     pub fn from_env_with_lookup(
@@ -214,7 +241,115 @@ impl MiniCheckVerifier {
                     verifier_model: endpoint.clone(),
                 })
             }
+            MiniCheckBackend::CalibratedHybrid { model } => {
+                let lexical = Box::pin(
+                    Self {
+                        backend: MiniCheckBackend::Mock,
+                        abstain_threshold: self.abstain_threshold,
+                    }
+                    .verify_claim(claim, context),
+                )
+                .await?;
+                let claim_numbers: Vec<String> = claim
+                    .split_whitespace()
+                    .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()))
+                    .filter(|w| !w.is_empty() && w.chars().any(|c| c.is_ascii_digit()))
+                    .map(|w| w.to_ascii_lowercase())
+                    .collect();
+                let context_lower = context.to_ascii_lowercase();
+                let numeric_conflict = !claim_numbers.is_empty()
+                    && claim_numbers.iter().any(|n| !context_lower.contains(n));
+
+                if lexical.contradiction_score >= 0.6 {
+                    return Ok(VerifierOutput {
+                        verifier_model: "calibrated-hybrid:lexical".to_string(),
+                        ..lexical
+                    });
+                }
+                if !numeric_conflict && lexical.support_score >= 0.85 {
+                    return Ok(VerifierOutput {
+                        verifier_model: "calibrated-hybrid:lexical".to_string(),
+                        ..lexical
+                    });
+                }
+
+                if let Some((support_score, contradiction_score)) =
+                    llm_entailment_verify(model, claim, context).await
+                {
+                    let support_score = support_score.clamp(0.0, 1.0);
+                    let contradiction_score = contradiction_score.clamp(0.0, 1.0);
+                    return Ok(VerifierOutput {
+                        claim_id,
+                        support_score,
+                        contradiction_score,
+                        abstained: support_score < self.abstain_threshold
+                            && contradiction_score < 0.5,
+                        verifier_model: format!("calibrated-hybrid:{model}"),
+                    });
+                }
+
+                let calibrated_support = if numeric_conflict {
+                    (lexical.support_score * 0.45).clamp(0.0, 1.0)
+                } else {
+                    lexical.support_score
+                };
+                let calibrated_contradiction = if numeric_conflict {
+                    lexical.contradiction_score.max(0.65)
+                } else {
+                    lexical.contradiction_score
+                };
+                Ok(VerifierOutput {
+                    claim_id,
+                    support_score: calibrated_support,
+                    contradiction_score: calibrated_contradiction,
+                    abstained: calibrated_support < self.abstain_threshold
+                        && calibrated_contradiction < 0.5,
+                    verifier_model: "calibrated-hybrid:lexical".to_string(),
+                })
+            }
         }
+    }
+}
+
+async fn llm_entailment_verify(model: &str, claim: &str, context: &str) -> Option<(f64, f64)> {
+    use vox_actor_runtime::ActivityResult;
+    use vox_actor_runtime::llm::{LlmChatMessage, LlmConfig, llm_chat};
+    use vox_actor_runtime::llm_result::maybe_strip_markdown_json_fences;
+
+    if context.trim().is_empty() || claim.trim().is_empty() {
+        return None;
+    }
+    let system = "You are a scientific claim entailment verifier. Given a claim and evidence context, respond ONLY with JSON: {\"support_score\": <0.0..1.0>, \"contradiction_score\": <0.0..1.0>}.".to_string();
+    let truncated_ctx: String = context.chars().take(4000).collect();
+    let user = format!("Claim: {claim}\nEvidence Context:\n{truncated_ctx}");
+    let mut cfg = LlmConfig::openrouter(model);
+    cfg.temperature = Some(0.0);
+    cfg.max_tokens = Some(120);
+    let options = vox_actor_runtime::ActivityOptions::default();
+    match llm_chat(
+        &options,
+        vec![
+            LlmChatMessage {
+                role: "system".to_string(),
+                content: system,
+                ..Default::default()
+            },
+            LlmChatMessage {
+                role: "user".to_string(),
+                content: user,
+                ..Default::default()
+            },
+        ],
+        cfg,
+    )
+    .await
+    {
+        ActivityResult::Ok(Ok(resp)) => {
+            let clean = maybe_strip_markdown_json_fences(&resp.content);
+            let parsed: MiniCheckResponse = serde_json::from_str(clean).ok()?;
+            Some((parsed.support_score, parsed.contradiction_score))
+        }
+        _ => None,
     }
 }
 
@@ -280,6 +415,29 @@ mod tests {
             result.contradiction_score, 0.0,
             "identical affirmative text should have zero contradiction_score"
         );
+    }
+
+    #[test]
+    fn calibrated_hybrid_supports_clean_containment_and_flags_numeric_conflict() {
+        let verifier = MiniCheckVerifier::calibrated_hybrid("anthropic/claude-3.5-haiku");
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let clean = rt
+            .block_on(verifier.verify_claim(
+                "The cache reduces latency by 35ms.",
+                "The cache reduces latency by 35ms across all production workloads.",
+            ))
+            .unwrap();
+        assert!(clean.support_score >= 0.85, "{clean:?}");
+        assert_eq!(clean.contradiction_score, 0.0);
+        assert_eq!(clean.verifier_model, "calibrated-hybrid:lexical");
+
+        let neg = rt
+            .block_on(verifier.verify_claim(
+                "The cache reduces latency.",
+                "The cache does not reduce latency.",
+            ))
+            .unwrap();
+        assert!(neg.contradiction_score >= 0.6, "{neg:?}");
     }
 }
 

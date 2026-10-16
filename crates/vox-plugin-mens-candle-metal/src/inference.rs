@@ -680,20 +680,39 @@ impl InferenceEngine {
         // RoPE keys off, so drifting it produces wrong logits rather than an
         // error. Without this the loop re-forwarded the whole context every
         // step, which is quadratic in the reply length.
+        //
+        // Hybrid Qwen3.5 models with `Qwen35AttentionBlock::Linear` layers
+        // cannot incrementally decode yet (short-conv state caching is not
+        // implemented, and `forward_cached` refuses token 2 rather than
+        // mis-convolve), so those models fall back to re-forwarding the growing
+        // context with `model.forward(&input)`.
+        let uses_linear_attention = match &self.model {
+            InferenceModel::Qwen35(model) => model.uses_linear_attention(),
+        };
         let mut cache = match &self.model {
             InferenceModel::Qwen35(model) => model.empty_cache(),
         };
         let mut pos = 0usize;
+        let mut context = prompt_tokens.clone();
         let mut step_input = prompt_tokens;
 
         for _ in 0..max_tokens {
-            let submitted = step_input.len();
-            let input = Tensor::new(step_input.as_slice(), &self.device)?.unsqueeze(0)?;
-
-            let logits = match &self.model {
-                InferenceModel::Qwen35(model) => model.forward_cached(&input, pos, &mut cache)?,
+            let logits = if uses_linear_attention {
+                let input = Tensor::new(context.as_slice(), &self.device)?.unsqueeze(0)?;
+                match &self.model {
+                    InferenceModel::Qwen35(model) => model.forward(&input)?,
+                }
+            } else {
+                let submitted = step_input.len();
+                let input = Tensor::new(step_input.as_slice(), &self.device)?.unsqueeze(0)?;
+                let logits = match &self.model {
+                    InferenceModel::Qwen35(model) => {
+                        model.forward_cached(&input, pos, &mut cache)?
+                    }
+                };
+                pos += submitted;
+                logits
             };
-            pos += submitted;
 
             let logits = logits.squeeze(0)?;
             let seq = logits.dim(0)?;
@@ -714,7 +733,11 @@ impl InferenceEngine {
             if let Ok(char_str) = self.tokenizer.decode(&[next_token], false) {
                 generated.push_str(&char_str);
             }
-            step_input = vec![next_token];
+            if uses_linear_attention {
+                context.push(next_token);
+            } else {
+                step_input = vec![next_token];
+            }
         }
 
         Ok(generated)
@@ -1713,5 +1736,82 @@ mod tests {
         .to_vec1::<f32>()
         .expect("to_vec1");
         assert_eq!(loaded, vec![1.0f32, 2.0, 3.0, 4.0]);
+    }
+
+    #[test]
+    fn generate_handles_hybrid_linear_attention_beyond_one_token() {
+        use super::{InferenceEngine, InferenceModel};
+        use crate::model::{
+            QuantizedLinear, Qwen2MLP, Qwen35AttentionBlock, Qwen35Layer, Qwen35LinearAttention,
+            Qwen35Model,
+        };
+        use candle_core::{DType, Device, Tensor};
+        use candle_nn::RmsNorm;
+        use qlora_rs::qlora::QLoraConfig;
+        use qlora_rs::quantization::ComputeDType;
+        use tokenizers::Tokenizer;
+
+        let dev = Device::Cpu;
+        let d = 64usize;
+        let num_k_heads = 1usize;
+        let num_v_heads = 2usize;
+        let head_k_dim = 4usize;
+        let head_v_dim = 4usize;
+        let qkv_dim = 2 * num_k_heads * head_k_dim + num_v_heads * head_v_dim;
+        let value_dim = num_v_heads * head_v_dim;
+        let mut cfg = QLoraConfig::preset_all_bf16(4, 8);
+        cfg.quantization.compute_dtype = ComputeDType::F32;
+        let qlin = |d_out: usize, d_in: usize| {
+            let w = Tensor::zeros((d_out, d_in), DType::F32, &dev).unwrap();
+            QuantizedLinear::from_weight(&w, None, &cfg, &dev).unwrap()
+        };
+        let norm = |n: usize| RmsNorm::new(Tensor::ones(n, DType::F32, &dev).unwrap(), 1e-6);
+        let mlp = || Qwen2MLP {
+            gate_proj: qlin(d * 2, d),
+            up_proj: qlin(d * 2, d),
+            down_proj: qlin(d, d * 2),
+        };
+        let linear = Qwen35Layer {
+            input_layernorm: norm(d),
+            attention: Qwen35AttentionBlock::Linear(Qwen35LinearAttention {
+                qkv_proj: qlin(qkv_dim, d),
+                z_proj: qlin(value_dim, d),
+                b_proj: qlin(num_v_heads, d),
+                a_proj: qlin(num_v_heads, d),
+                out_proj: qlin(d, value_dim),
+                conv_weight: Tensor::zeros((qkv_dim, 4), DType::F32, &dev).unwrap(),
+                dt_bias: Tensor::zeros(num_v_heads, DType::F32, &dev).unwrap(),
+                a_log: Tensor::zeros(num_v_heads, DType::F32, &dev).unwrap(),
+                norm: norm(head_v_dim),
+                num_k_heads,
+                num_v_heads,
+                head_k_dim,
+                head_v_dim,
+            }),
+            post_attention_layernorm: norm(d),
+            mlp: mlp(),
+            inv_freq: None,
+        };
+        let model = Qwen35Model {
+            embed_tokens: Tensor::zeros((8, d), DType::F32, &dev).unwrap(),
+            layers: vec![linear],
+            norm: norm(d),
+            lm_head: qlin(8, d),
+        };
+
+        let tok_json = br#"{"version":"1.0","truncation":null,"padding":null,"added_tokens":[],"normalizer":null,"pre_tokenizer":{"type":"Whitespace"},"post_processor":null,"decoder":null,"model":{"type":"WordLevel","vocab":{"a":0,"<unk>":1},"unk_token":"<unk>"}}"#;
+        let tokenizer = Tokenizer::from_bytes(tok_json).expect("valid minimal tokenizer JSON");
+
+        let mut engine = InferenceEngine {
+            model: InferenceModel::Qwen35(model),
+            tokenizer,
+            device: dev,
+            eos_token_ids: Vec::new(),
+        };
+
+        let out = engine
+            .generate("a", 3, 0.0, 1, None, Some(42))
+            .expect("hybrid linear-attention model must generate >1 tokens without error");
+        assert!(!out.is_empty());
     }
 }

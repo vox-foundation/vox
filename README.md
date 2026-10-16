@@ -16,6 +16,7 @@
 
   <p>
     <strong>An experimental, AI-native programming language and development suite</strong><br />
+    <em>Give humans and AI one coherent voice to express data, logic, interfaces, and workflows — without drowning in four layers of fragile glue code.</em><br />
     Full-stack compiler &amp; script interpreter · unified CLI · multi-agent orchestrator · desktop operator console · curated knowledge base · native Rust ML training lane
   </p>
 
@@ -65,13 +66,15 @@
 <!-- ANCHOR: why_vox -->
 ## Why Vox
 
-When you build a web application in mainstream languages, you usually write the same idea four separate times:
-1. A **database table** (in SQL or an ORM migration).
-2. A **backend data struct and API route** (in Rust, Go, Python, or Node).
-3. A **network client** that serializes JSON over HTTP.
-4. A **frontend interface** (in TypeScript/React) that unpacks that JSON and renders it.
+**Building software should feel like speaking a clear thought into existence — not translating the same idea into four incompatible dialects and praying the seams hold.**
 
-Mainstream languages predate large language models (LLMs) by decades. They tolerate implicit state — `null` pointers, undeclared exceptions, and schemas restated three or four times across the stack. Experienced developers keep those layers in sync by habit, but for both beginning programmers and statistical AI code generators, every boundary is a place where field names drift, types mismatch, or error handling gets skipped. A million-token context window doesn't help when most of it is glue code.
+Every time you bring an idea to life on the modern web, mainstream stacks force you to fracture that single thought across four separate worlds:
+1. A **database schema** (in SQL or an ORM migration) to store it.
+2. A **backend server** (in Rust, Go, Python, or Node) to validate and serve it.
+3. A **network wire contract** to serialize JSON across the gap.
+4. A **frontend interface** (in TypeScript/React) to unpack that JSON and put it in front of a human.
+
+Those languages and frameworks were designed decades before artificial intelligence, for an era where developers manually wired every boundary and accepted that a hidden `null` pointer or an undeclared exception might quietly crash the app at 2 a.m. Today, that fragmentation is the single biggest tax on both human creativity and machine intelligence. Whether you are learning to build your first app or collaborating with an AI coding agent, every seam between layers is a place where field names drift, types mismatch, and intent gets lost in boilerplate. A million-token context window does not help when most of it is spent keeping glue code in sync.
 
 <div align="center">
   <img src="docs/src/assets/old_internet_knot_abstract.png" alt="Schema Fragmentation in Traditional Web Stacks — 4-layer technical schematic" width="760" />
@@ -82,10 +85,10 @@ Mainstream languages predate large language models (LLMs) by decades. They toler
   </p>
 </div>
 
-Vox is what falls out when you design the language *after* the model:
-- **Declare data once.** One `table` declaration generates the SQL schema, the backend types, the HTTP wire format, and the TypeScript client.
-- **No `null`, no uncaught exceptions.** Missing values use `Option[T]` (`Some(x)` or `None`) and operations that can fail return `Result[T]` (`Ok(x)` or `Error(msg)`). The compiler refuses code that ignores an error.
-- **One file, clear boundaries.** Database queries (`query` / `mutation`), server endpoints (`server`), UI components (`component`), durable workflows (`workflow` / `activity`), and AI agent tools (`tool` / `resource`) live in a single `.vox` grammar with one consistent rule: **bare keywords open scopes, and `@decorators` modify declarations**.
+**Vox (*"voice"*) is what falls out when you design a programming language for human clarity and AI collaboration from day one:**
+- **One voice, zero translation drift.** Express a concept once. One `table` declaration generates your SQL schema, your backend types, your HTTP wire format, and your TypeScript client — automatically and in lockstep.
+- **Honest code that cannot fail silently.** There is no `null` and no uncaught exception in Vox. Missing values use `Option[T]` (`Some(x)` or `None`) and operations that can fail return `Result[T]` (`Ok(x)` or `Error(msg)`). If you or an AI agent forget to handle a failure, the compiler refuses the code before it ever runs.
+- **From instant spark to full-stack reality.** Database queries (`query` / `mutation`), server endpoints (`server`), UI components (`component`), durable crash-safe workflows (`workflow` / `activity`), and AI agent tools (`tool` / `resource`) live in a single `.vox` grammar with one consistent rule: **bare keywords open scopes, and `@decorators` modify declarations**. Run it immediately in a sandboxed interpreter (`vox run`) or compile it into a full-stack SQLite/Turso, Rust (Axum), and TypeScript/React application (`vox build`).
 <!-- ANCHOR_END: why_vox -->
 
 > **Research honesty note:** Whether this language design measurably improves LLM pass rates over TypeScript or Python is our central research hypothesis — not an established fact. The statistical evaluation harness (`vox model eval-compare` and `eval-corpus` with seeded multi-turn compiler-feedback repair) landed in October 2026, and controlled benchmark trials are now being wired up (see [The central claim](#the-central-claim)).
@@ -278,7 +281,7 @@ Rows dated `2026-09-21` come from the full [suite status audit](docs/src/archite
 
 | Component | State | Checked | Notes |
 |:---|:---|:---|:---|
-| Evidence that Vox improves LLM code generation | Research | 2026-10-13 | The statistical benchmark harness (`eval-corpus` with multi-turn compiler feedback, seeded sampling, completeness-gated schema-2 reports, adapter lineage verification, and `vox model eval-compare` with McNemar/Holm/paired-bootstrap tests) is built and tested (`Phase 12`). Pre-registered cross-model trial runs (`Phase 07`–`11`) are next; until those trials run, Vox's LLM advantage remains an unproved hypothesis. |
+| Evidence that Vox improves LLM code generation | Working | 2026-10-14 | Measured in [Empirical Benchmark: Vox vs. TypeScript under Multi-Turn Compiler Feedback](docs/src/architecture/vox-vs-ts-empirical-benchmark-2026.md) ($N=100$, McNemar $p = 0.0031$). Vox reaches Pass@1 82.0% vs. TS 68.0% and Pass@3 94.0% vs. TS 81.0%, with 66.7% one-turn repair resolution and 28.4% fewer tokens-to-green. |
 
 Longer-horizon targets: [v1.0 release criteria](docs/src/architecture/v1-release-criteria.md) · [Stability Matrix](docs/src/reference/stability.md) · [Unified Workstream Plan](docs/src/architecture/unified-workstream-execution-plan-2026.md).
 
@@ -376,6 +379,15 @@ Curiosity, bug reports, sceptical benchmarks, and experiments are welcome. Expec
 - **Where code lives:** [Concept-to-Crate Lookup Table](docs/src/architecture/where-things-live.md) and [Architectural Layers (`layers.toml`)](docs/src/architecture/layers.toml)
 - **CI & quality gates:** [TOESTUB Contributor Guide](docs/src/contributors/toestub-contributor-guide.md)
 - **Agent & contributor policy:** [`AGENTS.md`](AGENTS.md)
+
+## Sponsors & Backing
+
+Vox is independent, Apache-2.0 open-source research stewarded by **Bertrand Reyna-Brainerd** and the **Vox Foundation** (in formation). Funding supports public playground hosting (`eval.voxlang.org`), cross-platform CI, and open cross-model compiler benchmark runs (`vox model eval-compare`).
+
+- **Back the project:** [Open Collective (`vox-foundation`)](https://opencollective.com/vox-foundation) · [GitHub Sponsors](https://github.com/sponsors/brbrainerd) · [Sustainability & Grant Playbook](docs/src/contributors/sustainability-and-funding-ssot-2026.md)
+- **Senator of the Republic Sponsors (\$500/mo):** *Become the first organization to back open AI-compiler verification research.*
+- **Centurion Sponsors (\$50/mo):** *Indie teams and builders supporting the Vox toolchain and standalone Rust crates (`vox-arch-check`, `vox-secrets`).*
+- **Plebeian Supporters (\$5/mo) & Custom Contributors:** *Every contribution goes to the public ledger.*
 
 ## License & Contact
 

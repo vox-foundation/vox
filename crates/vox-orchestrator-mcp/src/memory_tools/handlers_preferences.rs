@@ -6,7 +6,24 @@ const REM_PREF_KEY: &str =
     "List or set preferences first; the key may not exist for this `user_id`.";
 const REM_PREF_DB: &str =
     "Verify Turso connectivity and vox-db migrations for preferences/learner tables.";
-const REM_LOCK_CFG: &str = "Retry; persistent poisoned-lock errors usually need an MCP restart.";
+
+const OVERSIGHT_PREF_PREFIXES: &[&str] = &[
+    "socrates_gate_enforce",
+    "attention_",
+    "oversight.",
+    "oversight_",
+    "approval",
+    "trust_",
+    "permission",
+    "tier_gate",
+];
+
+fn is_oversight_preference_key(key: &str) -> bool {
+    let normalized = key.trim().to_ascii_lowercase();
+    OVERSIGHT_PREF_PREFIXES
+        .iter()
+        .any(|prefix| normalized.starts_with(prefix))
+}
 
 use super::params::{
     BehaviorRecordParams, BehaviorSummaryParams, LearnPatternParams, MemoryRecallDbParams,
@@ -33,7 +50,23 @@ pub async fn preference_get(state: &ServerState, params: PreferenceGetParams) ->
 }
 
 /// Set a user preference in VoxDb.
+///
+/// Refuses oversight-affecting keys (`socrates_gate_enforce*`, `attention_*`,
+/// `oversight.*`, `oversight_*`, `approval*`, `trust_*`, `permission*`,
+/// `tier_gate*`) with `OVERSIGHT_PREF_REFUSED`. Oversight-affecting preferences
+/// are policy grants (FLOOR-03); human operators configure them via Vox.toml,
+/// the GUI settings, or the `vox attention` CLI.
 pub async fn preference_set(state: &ServerState, params: PreferenceSetParams) -> String {
+    if is_oversight_preference_key(&params.key) {
+        return ToolResult::<String>::err_with_remediation(
+            format!(
+                "OVERSIGHT_PREF_REFUSED: preference '{}' affects oversight and cannot be set through MCP",
+                params.key
+            ),
+            "Configure oversight settings in Vox.toml, through the GUI settings, or via the 'vox attention' CLI.",
+        )
+        .to_json();
+    }
     match &state.db {
         None => ToolResult::<String>::err_with_remediation("VoxDb not attached", REM_PREF_VOXDB)
             .to_json(),
@@ -42,60 +75,6 @@ pub async fn preference_set(state: &ServerState, params: PreferenceSetParams) ->
             .await
         {
             Ok(()) => {
-                if params.key == "socrates_gate_enforced" {
-                    if let Ok(enforce) = params.value.parse::<bool>() {
-                        let cfg_handle = state.orchestrator.config_handle();
-                        match crate::sync_poison::poison_rw_write(
-                            cfg_handle.write(),
-                            "orchestrator config",
-                        ) {
-                            Ok(mut cfg) => cfg.socrates_gate_enforce = enforce,
-                            Err(e) => {
-                                return ToolResult::<String>::err_with_remediation(
-                                    e.to_string(),
-                                    REM_LOCK_CFG,
-                                )
-                                .to_json();
-                            }
-                        }
-                    }
-                } else if params.key == "attention_enabled" {
-                    if let Ok(b) = params.value.parse::<bool>() {
-                        let cfg_handle = state.orchestrator.config_handle();
-                        if let Ok(mut cfg) = crate::sync_poison::poison_rw_write(
-                            cfg_handle.write(),
-                            "orchestrator config",
-                        ) {
-                            cfg.attention_enabled = b;
-                        }
-                    }
-                } else if params.key == "attention_budget_ms" {
-                    if let Ok(v) = params.value.parse::<u64>() {
-                        let cfg_handle = state.orchestrator.config_handle();
-                        if let Ok(mut cfg) = crate::sync_poison::poison_rw_write(
-                            cfg_handle.write(),
-                            "orchestrator config",
-                        ) {
-                            cfg.attention_budget_ms = v;
-                        }
-                        let bm = state.orchestrator.budget_manager_handle();
-                        if let Ok(g) =
-                            crate::sync_poison::poison_rw_write(bm.write(), "budget manager")
-                        {
-                            g.init_attention(v);
-                        }
-                    }
-                } else if params.key == "attention_alert_threshold" {
-                    if let Ok(v) = params.value.parse::<f64>() {
-                        let cfg_handle = state.orchestrator.config_handle();
-                        if let Ok(mut cfg) = crate::sync_poison::poison_rw_write(
-                            cfg_handle.write(),
-                            "orchestrator config",
-                        ) {
-                            cfg.attention_alert_threshold = v;
-                        }
-                    }
-                }
                 ToolResult::ok(format!("Set '{}' = '{}'", params.key, params.value)).to_json()
             }
             Err(e) => {
@@ -284,5 +263,142 @@ pub async fn memory_recall_db(state: &ServerState, params: MemoryRecallDbParams)
                 ToolResult::<String>::err_with_remediation(format!("{e}"), REM_PREF_DB).to_json()
             }
         },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::server_state::ServerState;
+
+    #[test]
+    fn oversight_key_predicate_table() {
+        let positive = [
+            "socrates_gate_enforce",
+            "socrates_gate_enforced",
+            "attention_enabled",
+            "attention_budget_ms",
+            "attention_alert_threshold",
+            "oversight.level",
+            "oversight_level",
+            "approval_allowlist.repo.vox_run_shell",
+            "trust_relax_gates",
+            "permission_mode",
+            "tier_gate_min",
+            "  Attention_Enabled  ",
+        ];
+        for k in positive {
+            assert!(
+                is_oversight_preference_key(k),
+                "key '{k}' should be recognized as an oversight preference key"
+            );
+        }
+
+        let negative = [
+            "ui_theme",
+            "editor.font_size",
+            "attentive_mode",
+            "trusted_hosts",
+            "user.name",
+        ];
+        for k in negative {
+            assert!(
+                !is_oversight_preference_key(k),
+                "key '{k}' should not be recognized as an oversight preference key"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn preference_set_refuses_oversight_keys() {
+        let state = ServerState::new_test().await;
+
+        let initial_cfg = {
+            let handle = state.orchestrator.config_handle();
+            let cfg = handle.read().unwrap();
+            (
+                cfg.socrates_gate_enforce,
+                cfg.attention_enabled,
+                cfg.attention_budget_ms,
+                cfg.attention_alert_threshold,
+            )
+        };
+
+        let oversight_keys = [
+            "socrates_gate_enforce",
+            "socrates_gate_enforced",
+            "attention_enabled",
+            "attention_budget_ms",
+            "attention_alert_threshold",
+            "oversight.level",
+            "oversight_level",
+            "approval_allowlist.repo.vox_run_shell",
+            "trust_relax_gates",
+            "permission_mode",
+            "tier_gate_min",
+            "  Attention_Enabled  ",
+        ];
+
+        for key in oversight_keys {
+            let out = crate::dispatch::handle_tool_call(
+                &state,
+                "vox_preference_set",
+                serde_json::json!({
+                    "user_id": "local_user",
+                    "key": key,
+                    "value": "false",
+                }),
+            )
+            .await
+            .unwrap();
+
+            assert!(
+                out.contains("OVERSIGHT_PREF_REFUSED"),
+                "expected refusal for key '{key}', got: {out}"
+            );
+        }
+
+        let post_cfg = {
+            let handle = state.orchestrator.config_handle();
+            let cfg = handle.read().unwrap();
+            (
+                cfg.socrates_gate_enforce,
+                cfg.attention_enabled,
+                cfg.attention_budget_ms,
+                cfg.attention_alert_threshold,
+            )
+        };
+        assert_eq!(
+            initial_cfg, post_cfg,
+            "config must remain unchanged after attempted lowering"
+        );
+    }
+
+    #[tokio::test]
+    async fn preference_set_allows_non_policy_keys() {
+        let state = ServerState::new_test().await;
+
+        for key in ["ui_theme", "editor.font_size"] {
+            let out = crate::dispatch::handle_tool_call(
+                &state,
+                "vox_preference_set",
+                serde_json::json!({
+                    "user_id": "local_user",
+                    "key": key,
+                    "value": "dark",
+                }),
+            )
+            .await
+            .unwrap();
+
+            assert!(
+                !out.contains("OVERSIGHT_PREF_REFUSED"),
+                "non-policy key '{key}' should not be refused as oversight"
+            );
+            assert!(
+                out.contains("VoxDb not attached"),
+                "expected 'VoxDb not attached' without DB for '{key}', got: {out}"
+            );
+        }
     }
 }

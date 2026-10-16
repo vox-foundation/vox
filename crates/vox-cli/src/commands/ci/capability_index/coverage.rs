@@ -20,6 +20,10 @@ pub(crate) const CORPUS_ID: &str = "vox-gui-surface";
 /// Graph node kinds that join to capability rows. The Tauri `command` kind cannot be joined.
 const KINDS: [&str; 3] = ["tool", "cli-command", "surface"];
 
+/// Node kinds excluded from the orphan metric and given kind: null on index rows (D-04, D-26).
+pub(crate) const EXCLUDED_KINDS: &[(&str, &str)] =
+    &[("surface", "UI entry point has no callers by design")];
+
 /// One graph node's verdict; `status` is the snake_case `CoverageStatus` string.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct SnapshotEntry {
@@ -192,12 +196,26 @@ pub(crate) fn apply_coverage(rows: &mut [IndexRow], snapshot: Option<&CoverageSn
                 .map(|s| (*s, shared.get(k.as_str()).copied().unwrap_or(0) > 1))
         });
         r.coverage = Some(match hit {
-            Some((kind, ambiguous)) => CoverageRef {
-                kind: Some(kind.to_string()),
-                basis: "graph-key".to_string(),
-                ambiguous,
-                reason: None,
-            },
+            Some((kind, ambiguous)) => {
+                if let Some((_, reason)) = EXCLUDED_KINDS
+                    .iter()
+                    .find(|(k, _)| *k == "surface" && r.kind == RowKind::Surface)
+                {
+                    CoverageRef {
+                        kind: None,
+                        basis: "none".to_string(),
+                        ambiguous: false,
+                        reason: Some((*reason).to_string()),
+                    }
+                } else {
+                    CoverageRef {
+                        kind: Some(kind.to_string()),
+                        basis: "graph-key".to_string(),
+                        ambiguous,
+                        reason: None,
+                    }
+                }
+            }
             None => CoverageRef {
                 kind: None,
                 basis: "none".to_string(),
@@ -410,13 +428,14 @@ mod tests {
     }
 
     #[test]
-    fn surface_hit() {
+    fn surface_rows_get_null_kind_with_reason() {
         use crate::commands::ci::gui_surface_registry::{
             RepresentationTier, SurfaceEntry, SurfaceRegistry,
         };
         let entry = SurfaceEntry {
             view_key: Some("mesh".to_string()),
             cli_group: None,
+            mcp_namespace: None,
             representation_tier: RepresentationTier::LiveBackend,
             nav_label: Some("Mesh".to_string()),
             nav_icon: None,
@@ -430,11 +449,19 @@ mod tests {
                 schema_version: 1,
                 surfaces: vec![entry],
             },
-            coverage: Some(snap(&[("surface", "surface:mesh", "surfaced")])),
+            coverage: Some(snap(&[
+                ("surface", "surface:mesh", "orphan_backend"),
+                ("tool", "tool:vox_x", "orphan_backend"),
+            ])),
+            ops: vec![test_op("x", None, Some("vox_x"), "d")],
             ..Default::default()
         })
         .expect("build");
-        assert_eq!(cov(&idx, "surface.mesh").kind.as_deref(), Some("surfaced"));
+        let surface_cov = cov(&idx, "surface.mesh");
+        assert!(surface_cov.kind.is_none());
+        assert_eq!(surface_cov.reason.as_deref(), Some(EXCLUDED_KINDS[0].1));
+        let mcp_cov = cov(&idx, "mcp.vox_x");
+        assert_eq!(mcp_cov.kind.as_deref(), Some("orphan_backend"));
     }
 
     #[test]

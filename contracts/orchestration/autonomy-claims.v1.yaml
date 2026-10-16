@@ -1,0 +1,93 @@
+schema_version: 1
+contract_id: vox.orchestration.autonomy-claims.v1
+description: >-
+  Phase 19 (CLAIMS-01 / VERIF-01..02) Autonomy Claims Ledger mapping every GUI/contract
+  consequence string and hard-floor label in contracts/orchestration/oversight-levels.v1.yaml
+  to an executable behavioral test in crates/vox-orchestrator/src/oversight/.
+retired_claims:
+  - id: safety_tokens
+    banned_substrings:
+      - "safety_token"
+      - "safety-token"
+      - "safety token"
+    reason: "Moved to Mode backlog per v1.2 D8; never claimed by Oversight."
+  - id: delegate_to_free
+    banned_substrings:
+      - "delegate_to_free"
+      - "delegate-to-free"
+      - "delegate to free"
+    reason: "Oversight never alters model selection or delegates to free tier (OVR-04)."
+hard_floor_claims:
+  - floor_id: force_push_history_rewrite
+    label: "Force-push or Git history rewrite"
+    behavioral_test: "oversight::floor::safety_floor_tests::safety_floor_force_push_argv"
+  - floor_id: allowlist_policy_grant
+    label: "Allowlist or permission policy grant"
+    behavioral_test: "oversight::floor::safety_floor_tests::safety_floor_policy_grants"
+  - floor_id: deploy_external_publish
+    label: "Production deploy or external package publish"
+    behavioral_test: "oversight::floor::safety_floor_tests::safety_floor_external_effects"
+  - floor_id: secrets_write
+    label: "Secrets or credential store mutation"
+    behavioral_test: "oversight::floor::safety_floor_tests::safety_floor_secrets_paths"
+level_effect_claims:
+  - level_id: relaxed
+    effect_id: chat_file_edits
+    consequence: "Auto-approved (AcceptEdits)"
+    behavioral_test: "oversight::resolver::tests::background_and_sync_chat_consumers_maintain_parity_and_floor_guards"
+  - level_id: relaxed
+    effect_id: background_gate
+    consequence: "AutoApprove (trust graduation active)"
+    behavioral_test: "oversight::resolver::tests::oversight_contract_yaml_parity_and_monotonic_strictness"
+  - level_id: relaxed
+    effect_id: reply_check
+    consequence: "Advisory only"
+    behavioral_test: "oversight::resolver::tests::background_and_sync_chat_consumers_maintain_parity_and_floor_guards"
+  - level_id: trusted
+    effect_id: chat_file_edits
+    consequence: "Auto-approved (AcceptEdits)"
+    behavioral_test: "oversight::resolver::tests::oversight_contract_yaml_parity_and_monotonic_strictness"
+  - level_id: trusted
+    effect_id: background_gate
+    consequence: "Confirm (grounding enforced)"
+    behavioral_test: "oversight::resolver::tests::oversight_contract_yaml_parity_and_monotonic_strictness"
+  - level_id: trusted
+    effect_id: reply_check
+    consequence: "Advisory only"
+    behavioral_test: "oversight::resolver::tests::oversight_contract_yaml_parity_and_monotonic_strictness"
+  - level_id: standard
+    effect_id: chat_file_edits
+    consequence: "Asks before writing (Ask)"
+    behavioral_test: "oversight::resolver::tests::background_and_sync_chat_consumers_maintain_parity_and_floor_guards"
+  - level_id: standard
+    effect_id: background_gate
+    consequence: "Confirm (grounding enforced)"
+    behavioral_test: "oversight::resolver::tests::oversight_contract_yaml_parity_and_monotonic_strictness"
+  - level_id: standard
+    effect_id: reply_check
+    consequence: "Enabled (non-blocking badge)"
+    behavioral_test: "oversight::resolver::tests::background_and_sync_chat_consumers_maintain_parity_and_floor_guards"
+  - level_id: cautious
+    effect_id: chat_file_edits
+    consequence: "Asks before writing (Ask)"
+    behavioral_test: "oversight::resolver::tests::background_and_sync_chat_consumers_maintain_parity_and_floor_guards"
+  - level_id: cautious
+    effect_id: background_gate
+    consequence: "Review in inbox (Socrates enforced)"
+    behavioral_test: "oversight::resolver::tests::background_and_sync_chat_consumers_maintain_parity_and_floor_guards"
+  - level_id: cautious
+    effect_id: reply_check
+    consequence: "Enabled + bounded self-check"
+    behavioral_test: "oversight::resolver::tests::oversight_contract_yaml_parity_and_monotonic_strictness"
+  - level_id: strict
+    effect_id: chat_file_edits
+    consequence: "Asks before writing (Ask)"
+    behavioral_test: "oversight::resolver::tests::background_and_sync_chat_consumers_maintain_parity_and_floor_guards"
+  - level_id: strict
+    effect_id: background_gate
+    consequence: "Review in inbox (no trust auto-approve)"
+    behavioral_test: "oversight::resolver::tests::oversight_contract_yaml_parity_and_monotonic_strictness"
+  - level_id: strict
+    effect_id: reply_check
+    consequence: "Strict daemon verification"
+    behavioral_test: "oversight::resolver::tests::oversight_contract_yaml_parity_and_monotonic_strictness"

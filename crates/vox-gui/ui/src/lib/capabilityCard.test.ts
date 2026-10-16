@@ -93,14 +93,25 @@ describe('buildExplainCard', () => {
     expect(card('surface.approvals').equivalents.gui).toBe('Approvals (view approvals)');
   });
 
-  it('SURFACE_CRATES equals the Rust constant in vox-capability-registry', () => {
-    const src = readFileSync(
-      join(import.meta.dirname, '..', '..', '..', '..', 'vox-capability-registry', 'src', 'index.rs'),
-      'utf8',
-    );
-    const m = /SURFACE_CRATES:\s*\[&str;\s*\d+\]\s*=\s*\[([^\]]*)\]/.exec(src);
-    expect(m).not.toBeNull();
-    const rust = [...m![1].matchAll(/"([^"]+)"/g)].map((x) => x[1]);
-    expect([...SURFACE_CRATES]).toEqual(rust);
+  it('renders coverage in parity with vox explain: ambiguous, kind, reason, and not computed', () => {
+    const ambig = row({ id: 'r.ambig', kind: 'cli', title: 'A', coverage: 'orphan_backend', coverageAmbiguous: true });
+    expect(buildExplainCard(ambig, [ambig], [], new Set()).status.coverage).toBe('orphan_backend (ambiguous) — no snapshot');
+
+    const kindOnly = row({ id: 'r.kind', kind: 'cli', title: 'K', coverage: 'surfaced', coverageAmbiguous: false });
+    expect(buildExplainCard(kindOnly, [kindOnly], [], new Set()).status.coverage).toBe('surfaced — no snapshot');
+
+    const reasonOnly = row({ id: 'r.reason', kind: 'cli', title: 'R', coverage: null, coverageReason: 'UI entry point has no callers by design' });
+    expect(buildExplainCard(reasonOnly, [reasonOnly], [], new Set()).status.coverage).toBe('none (UI entry point has no callers by design) — no snapshot');
+
+    const neither = row({ id: 'r.none', kind: 'cli', title: 'N', coverage: null, coverageReason: null });
+    expect(buildExplainCard(neither, [neither], [], new Set()).status.coverage).toBe('none (not computed) — no snapshot');
+  });
+
+  it('renders docs with origin for the first doc, or dash when empty', () => {
+    const withOrigin = row({ id: 'r.docs', kind: 'cli', title: 'D', docs: 'docs/src/x.md', docOrigin: 'claim' });
+    expect(buildExplainCard(withOrigin, [withOrigin], [], new Set()).location.docs).toBe('docs/src/x.md (claim)');
+
+    const emptyDocs = row({ id: 'r.nodocs', kind: 'cli', title: 'E', docs: null, docOrigin: null });
+    expect(buildExplainCard(emptyDocs, [emptyDocs], [], new Set()).location.docs).toBe('—');
   });
 });

@@ -13,7 +13,7 @@ use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use tokio::sync::broadcast;
 
-use crate::block::{Block, BlockId};
+use crate::block::{Block, BlockId, BlockOrigin};
 use crate::input::classify;
 use crate::pty::{PtyHandle, default_shell, spawn_pty};
 use crate::session::{Session, SessionEvent};
@@ -24,18 +24,154 @@ pub type SessionId = String;
 pub struct OpenSpec {
     pub cols: u16,
     pub rows: u16,
+    pub shell: Option<String>,
 }
 
 impl Default for OpenSpec {
     fn default() -> Self {
-        Self { cols: 80, rows: 24 }
+        Self {
+            cols: 80,
+            rows: 24,
+            shell: None,
+        }
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    serde::Serialize,
+    serde::Deserialize,
+    Default,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum TermSecurityLevel {
+    #[serde(alias = "1", alias = "read_only")]
+    L1ReadOnly = 1,
+    #[serde(alias = "2", alias = "workspace_build", alias = "safe_exec")]
+    L2WorkspaceBuild = 2,
+    #[default]
+    #[serde(alias = "3", alias = "structured_default", alias = "workspace_write")]
+    L3StructuredDefault = 3,
+    #[serde(alias = "4", alias = "host_gated", alias = "system_exec")]
+    L4HostGated = 4,
+    #[serde(alias = "5", alias = "autopilot_floor")]
+    L5AutopilotFloor = 5,
+}
+
+impl TermSecurityLevel {
+    #[allow(non_upper_case_globals)]
+    pub const L2SafeExec: Self = Self::L2WorkspaceBuild;
+    #[allow(non_upper_case_globals)]
+    pub const L3WorkspaceWrite: Self = Self::L3StructuredDefault;
+    #[allow(non_upper_case_globals)]
+    pub const L4SystemExec: Self = Self::L4HostGated;
+
+    /// Validate whether an agent-issued command is allowed under this security level.
+    pub fn allows_agent_command(&self, cmd: &str) -> Result<(), String> {
+        let trimmed = cmd
+            .trim()
+            .strip_prefix('!')
+            .or_else(|| cmd.trim().strip_prefix("/sh "))
+            .or_else(|| cmd.trim().strip_prefix("/nu "))
+            .unwrap_or(cmd.trim())
+            .trim();
+        let lower = trimmed.to_ascii_lowercase();
+
+        // Always reject catastrophic floor commands at every level
+        for forbidden in [
+            "rm -rf /",
+            "git push --force",
+            "git reset --hard",
+            "mkfs",
+            "dd if=",
+        ] {
+            if lower.contains(forbidden) {
+                return Err(format!(
+                    "security level {self:?} blocked destructive floor pattern `{forbidden}`"
+                ));
+            }
+        }
+
+        match self {
+            Self::L1ReadOnly => {
+                let first = lower.split_whitespace().next().unwrap_or("");
+                let read_only_allow = [
+                    "echo", "ls", "pwd", "cat", "rg", "grep", "find", "head", "tail", "wc",
+                    "which", "whoami", "env", "date", "true", "git",
+                ];
+                if !read_only_allow.contains(&first) {
+                    return Err(format!(
+                        "security level L1ReadOnly only permits read-only inspection commands (got `{first}`)"
+                    ));
+                }
+                if first == "git" {
+                    let sub = lower.split_whitespace().nth(1).unwrap_or("");
+                    if !["status", "log", "diff", "show", "branch", "rev-parse"].contains(&sub) {
+                        return Err(format!(
+                            "security level L1ReadOnly only permits read-only git subcommands (got `git {sub}`)"
+                        ));
+                    }
+                }
+                Ok(())
+            }
+            Self::L2WorkspaceBuild => {
+                for mutating in ["rm ", "mv ", "cp ", "chmod ", "chown ", "sudo ", "su "] {
+                    if lower.starts_with(mutating) || lower.contains(&format!(" {mutating}")) {
+                        return Err(format!(
+                            "security level L2WorkspaceBuild blocked mutating command `{trimmed}`"
+                        ));
+                    }
+                }
+                Ok(())
+            }
+            Self::L3StructuredDefault => {
+                for sys_cmd in ["sudo ", "su ", "systemctl ", "launchctl ", "brew ", "apt "] {
+                    if lower.starts_with(sys_cmd) || lower.contains(&format!(" {sys_cmd}")) {
+                        return Err(format!(
+                            "security level L3StructuredDefault blocked system-level command `{trimmed}`"
+                        ));
+                    }
+                }
+                Ok(())
+            }
+            Self::L4HostGated | Self::L5AutopilotFloor => Ok(()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum TermControlMode {
+    Manual,
+    #[default]
+    CoPilot,
+    Autopilot,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SessionInfo {
     pub id: SessionId,
     pub blocks: usize,
+    #[serde(default)]
+    pub security_level: TermSecurityLevel,
+    #[serde(default)]
+    pub control_mode: TermControlMode,
+}
+
+/// Redacted projection of a completed/open terminal [`Block`] safe for LLM chat context.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct RedactedBlockContext {
+    pub id: u64,
+    pub input: String,
+    pub output: String,
+    pub exit_code: Option<i32>,
+    pub origin: BlockOrigin,
 }
 
 /// Default raw-output replay window per session.
@@ -112,6 +248,8 @@ struct Entry {
     pty: Mutex<Option<PtyHandle>>,
     replay: Mutex<Replay>,
     out_tx: broadcast::Sender<OutputFrame>,
+    security_level: Mutex<TermSecurityLevel>,
+    control_mode: Mutex<TermControlMode>,
 }
 
 impl Entry {
@@ -125,6 +263,8 @@ impl Entry {
                 cap: replay_cap,
             }),
             out_tx: broadcast::channel(256).0,
+            security_level: Mutex::new(TermSecurityLevel::default()),
+            control_mode: Mutex::new(TermControlMode::default()),
         })
     }
 
@@ -176,10 +316,12 @@ impl LocalHost {
             .ok_or_else(|| anyhow!("no such terminal session: {id}"))
     }
 
-    /// Spawn a PTY running the default shell and start pumping its bytes into a
+    /// Spawn a PTY running the configured or default shell and start pumping its bytes into a
     /// new `Session`. Must be called inside a tokio runtime.
     pub async fn open(&self, spec: OpenSpec) -> Result<SessionId> {
-        let (handle, mut rx) = spawn_pty(&default_shell(), spec.cols, spec.rows)?;
+        let def = default_shell();
+        let shell = spec.shell.as_deref().unwrap_or(&def);
+        let (handle, mut rx) = spawn_pty(shell, spec.cols, spec.rows)?;
         let id = {
             let mut n = lock(&self.next);
             *n += 1;
@@ -202,10 +344,34 @@ impl LocalHost {
             .map(|(id, e)| SessionInfo {
                 id: id.clone(),
                 blocks: lock(&e.session).blocks().len(),
+                security_level: *lock(&e.security_level),
+                control_mode: *lock(&e.control_mode),
             })
             .collect();
         v.sort_by(|a, b| a.id.cmp(&b.id));
         v
+    }
+
+    pub fn set_security_level(&self, id: &str, level: TermSecurityLevel) -> Result<()> {
+        let entry = self.entry(id)?;
+        *lock(&entry.security_level) = level;
+        Ok(())
+    }
+
+    pub fn security_level(&self, id: &str) -> Result<TermSecurityLevel> {
+        let entry = self.entry(id)?;
+        Ok(*lock(&entry.security_level))
+    }
+
+    pub fn set_control_mode(&self, id: &str, mode: TermControlMode) -> Result<()> {
+        let entry = self.entry(id)?;
+        *lock(&entry.control_mode) = mode;
+        Ok(())
+    }
+
+    pub fn control_mode(&self, id: &str) -> Result<TermControlMode> {
+        let entry = self.entry(id)?;
+        Ok(*lock(&entry.control_mode))
     }
 
     pub fn attach(&self, id: &str) -> Result<Attachment> {
@@ -232,14 +398,63 @@ impl LocalHost {
 
     /// Classify `line` and run it through the session (`!cmd`, `/cmd`, `?ask`, …).
     pub fn submit(&self, id: &str, line: &str) -> Result<BlockId> {
+        self.submit_with_origin(id, line, BlockOrigin::User)
+    }
+
+    /// Classify `line` and run it through the session with an explicit [`BlockOrigin`].
+    pub fn submit_with_origin(&self, id: &str, line: &str, origin: BlockOrigin) -> Result<BlockId> {
         let entry = self.entry(id)?;
-        let block = lock(&entry.session).submit(classify(line));
+        match &origin {
+            BlockOrigin::User => {
+                let mut mode = lock(&entry.control_mode);
+                if *mode == TermControlMode::Autopilot {
+                    *mode = TermControlMode::Manual;
+                }
+            }
+            BlockOrigin::Agent { .. } => {
+                let level = *lock(&entry.security_level);
+                level
+                    .allows_agent_command(line)
+                    .map_err(|reason| anyhow!(reason))?;
+            }
+            BlockOrigin::System => {}
+        }
+        let block = lock(&entry.session).submit_with_origin(classify(line), origin);
         Ok(block)
     }
 
-    /// Raw bytes to the PTY (keystrokes).
+    /// Return the last `max_blocks` blocks for `id` with `input` and `plain_output()`
+    /// scrubbed through `crate::corpus::redact::redact_owned`.
+    pub fn redacted_context_bundle(
+        &self,
+        id: &str,
+        max_blocks: usize,
+    ) -> Result<Vec<RedactedBlockContext>> {
+        let entry = self.entry(id)?;
+        let s = lock(&entry.session);
+        let blocks = s.blocks();
+        let start = blocks.len().saturating_sub(max_blocks);
+        Ok(blocks[start..]
+            .iter()
+            .map(|b| RedactedBlockContext {
+                id: b.id.0,
+                input: crate::corpus::redact::redact_owned(&b.input),
+                output: crate::corpus::redact::redact_owned(&b.plain_output()),
+                exit_code: b.exit_code,
+                origin: b.origin.clone(),
+            })
+            .collect())
+    }
+
+    /// Raw bytes to the PTY (keystrokes). Automatically drops `Autopilot` to `Manual` on user input.
     pub fn input(&self, id: &str, bytes: &[u8]) -> Result<()> {
         let entry = self.entry(id)?;
+        if !bytes.is_empty() {
+            let mut mode = lock(&entry.control_mode);
+            if *mode == TermControlMode::Autopilot {
+                *mode = TermControlMode::Manual;
+            }
+        }
         let mut pty = lock(&entry.pty);
         pty.as_mut()
             .ok_or_else(|| anyhow!("terminal session {id} is closed"))?
@@ -328,5 +543,104 @@ mod tests {
         assert!(host.input(&id, b"x").is_err());
         assert!(host.close(&id).is_err());
         assert!(host.list().is_empty());
+    }
+
+    #[tokio::test]
+    async fn context_bundle_redacts_secrets_and_caps_blocks() {
+        let host = LocalHost::default();
+        let id = host.open(OpenSpec::default()).await.unwrap();
+        host.submit(&id, "!echo first").unwrap();
+        host.submit(
+            &id,
+            "!echo Authorization: Bearer sk-abcdefghijklmnopqrstuvwxyz123456",
+        )
+        .unwrap();
+        host.submit_with_origin(
+            &id,
+            "!echo third-from-agent",
+            BlockOrigin::Agent {
+                agent_id: "orch-9".to_string(),
+            },
+        )
+        .unwrap();
+
+        let bundle = host.redacted_context_bundle(&id, 2).unwrap();
+        assert_eq!(bundle.len(), 2);
+        assert!(
+            !bundle[0]
+                .input
+                .contains("sk-abcdefghijklmnopqrstuvwxyz123456")
+        );
+        assert!(
+            !bundle[0]
+                .output
+                .contains("sk-abcdefghijklmnopqrstuvwxyz123456")
+        );
+        assert!(bundle[0].output.contains("[REDACTED_KEY]"));
+        assert_eq!(
+            bundle[1].origin,
+            BlockOrigin::Agent {
+                agent_id: "orch-9".to_string()
+            }
+        );
+        host.close(&id).unwrap();
+    }
+
+    #[tokio::test]
+    async fn security_levels_gate_agent_commands_and_autopilot_drops_on_user_input() {
+        let host = LocalHost::default();
+        let id = host.open(OpenSpec::default()).await.unwrap();
+
+        // L1ReadOnly permits echo/ls/git status, rejects cargo/rm
+        host.set_security_level(&id, TermSecurityLevel::L1ReadOnly)
+            .unwrap();
+        assert!(
+            host.submit_with_origin(
+                &id,
+                "!echo allowed",
+                BlockOrigin::Agent {
+                    agent_id: "a1".into()
+                }
+            )
+            .is_ok()
+        );
+        assert!(
+            host.submit_with_origin(
+                &id,
+                "!cargo build",
+                BlockOrigin::Agent {
+                    agent_id: "a1".into()
+                }
+            )
+            .is_err()
+        );
+
+        // L2SafeExec permits cargo/echo, rejects rm
+        host.set_security_level(&id, TermSecurityLevel::L2SafeExec)
+            .unwrap();
+        assert!(
+            host.submit_with_origin(
+                &id,
+                "!rm somefile",
+                BlockOrigin::Agent {
+                    agent_id: "a1".into()
+                }
+            )
+            .is_err()
+        );
+
+        // Autopilot automatically drops to Manual on user submit or keystroke input
+        host.set_control_mode(&id, TermControlMode::Autopilot)
+            .unwrap();
+        assert_eq!(host.control_mode(&id).unwrap(), TermControlMode::Autopilot);
+        host.submit(&id, "!echo user-took-wheel").unwrap();
+        assert_eq!(host.control_mode(&id).unwrap(), TermControlMode::Manual);
+
+        host.set_control_mode(&id, TermControlMode::Autopilot)
+            .unwrap();
+        host.input(&id, b"a").unwrap();
+        assert_eq!(host.control_mode(&id).unwrap(), TermControlMode::Manual);
+
+        host.close(&id).unwrap();
     }
 }

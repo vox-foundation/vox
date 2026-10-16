@@ -91,7 +91,7 @@ Use this template for new pages so docs lint passes on first run:
 title: "Page title"
 description: "One specific sentence about what this page covers."
 category: "Architecture SSOTs"
-status: "roadmap"
+status: "current"
 topic: "doc-governance"           # prefLabel from contracts/documentation/kb-taxonomy.v1.yaml
 domain: "documentation"           # prefLabel from the same file
 authorship: "human"               # human | llm-assisted | llm-generated (+ authorship_model for LLM)

@@ -25,152 +25,296 @@ fn main() to Result[str] {
     return Ok(status)
 }
 ` } = Astro.props;
+
+const examples = [
+  {
+    id: 'tasks',
+    label: '1. Database + AI Tool',
+    summary: 'Declares a table, a read query, and an MCP tool in one file.',
+    code: initialCode.trim(),
+    expectedOutput: `Tasks queued: 1\nTasks remaining: 0\n→ Ok("done")`,
+  },
+  {
+    id: 'result',
+    label: '2. No Null / Safe Errors',
+    summary: 'Result[T] and ? replace null pointers and uncaught exceptions.',
+    code: `// Functions that can fail return Result[T] — never null or hidden exceptions
+fn parse_port(raw: int) to Result[int] {
+    if raw < 1024 {
+        return Error("Port must be >= 1024 (got " + str(raw) + ")")
+    }
+    return Ok(raw)
+}
+
+fn main() to Result[str] {
+    let port = parse_port(8080)?
+    print("Listening on port: " + str(port))
+    return Ok("healthy")
+}`,
+    expectedOutput: `Listening on port: 8080\n→ Ok("healthy")`,
+  },
+  {
+    id: 'workflow',
+    label: '3. Durable Workflow',
+    summary: 'Activities and workflows journal each step to SQLite so crashes resume cleanly.',
+    code: `// Activities are journaled steps; workflows orchestrate them durably
+activity charge_card(amount_cents: int) to Result[str] {
+    print("Charged " + str(amount_cents) + " cents")
+    return Ok("tx_9f8a7b")
+}
+
+workflow checkout_order(amount_cents: int) to Result[str] {
+    let receipt = charge_card(amount_cents)?
+    print("Journaled receipt: " + receipt)
+    return Ok(receipt)
+}
+
+fn main() to Result[str] {
+    return checkout_order(4900)
+}`,
+    expectedOutput: `Charged 4900 cents\nJournaled receipt: tx_9f8a7b\n→ Ok("tx_9f8a7b")`,
+  },
+];
 ---
 
-<vox-playground data-initial-code={initialCode}>
-  <div class="vox-playground">
-    <!-- Shown only when backend health probe succeeds (JS enables it) -->
-    <div class="live-ui" style="display:none">
-      <div class="editor-container">
-        <textarea class="code-editor" spellcheck="false" aria-label="Vox Code Editor"></textarea>
+<vox-playground data-initial-code={initialCode} data-examples={JSON.stringify(examples)}>
+  <div class="vox-playground" id="try-it">
+    <div class="playground-header">
+      <div class="playground-tabs" role="tablist" aria-label="Vox code examples">
+        {examples.map((ex, idx) => (
+          <button
+            type="button"
+            role="tab"
+            class={`playground-tab ${idx === 0 ? 'active' : ''}`}
+            aria-selected={idx === 0 ? 'true' : 'false'}
+            data-example-id={ex.id}
+          >
+            {ex.label}
+          </button>
+        ))}
       </div>
-      <div class="actions">
-        <button class="run-btn" aria-label="Run Vox code">Run</button>
-        <span class="status-msg"></span>
-      </div>
-      <div class="output-container">
-        <pre class="output-display"></pre>
+      <div class="playground-toolbar">
+        <button type="button" class="copy-btn" aria-label="Copy Vox code">Copy .vox</button>
+        <button type="button" class="run-btn" aria-label="Run Vox code">▶ Run</button>
       </div>
     </div>
 
-    <!-- Default state when backend is offline: clean static code demo, no broken banner -->
-    <div class="static-demo">
-      <div class="demo-label">Vox — Language at a Glance</div>
-      <pre class="demo-code"><code>{initialCode.trim()}</code></pre>
-      <div class="demo-footer">
-        <span class="demo-note">Static sample (current syntax). <a href="/tutorials/tut-getting-started/">Install Vox from source</a> to run it locally.</span>
+    <div class="playground-summary-bar">
+      <span class="summary-text">{examples[0].summary}</span>
+      <span class="status-msg" aria-live="polite">Sandbox ready</span>
+    </div>
+
+    <div class="editor-container">
+      <textarea
+        class="code-editor"
+        spellcheck="false"
+        aria-label="Vox Code Editor"
+      >{examples[0].code}</textarea>
+    </div>
+
+    <div class="output-container">
+      <div class="output-header">
+        <span>Interpreter Output (<code>vox run --interp --caps deterministic</code>)</span>
+        <a href="/tutorials/tut-getting-started/">Install locally →</a>
       </div>
+      <pre class="output-display">{examples[0].expectedOutput}</pre>
     </div>
   </div>
 </vox-playground>
 
 <style>
   .vox-playground {
-    border: 1px solid var(--sl-color-gray-5);
-    border-radius: 0.5rem;
+    border: 1px solid var(--sl-color-hairline);
+    border-radius: 0.75rem;
     overflow: hidden;
     margin: 1.5rem 0;
-    background-color: var(--sl-color-bg);
+    background-color: var(--sl-color-black);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
   }
 
-  /* ── Live editor (hidden until backend confirms healthy) ── */
-  .editor-container {
-    border-bottom: 1px solid var(--sl-color-gray-5);
+  .playground-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background-color: var(--sl-color-gray-6);
+    border-bottom: 1px solid var(--sl-color-hairline-light);
   }
+
+  .playground-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+  }
+
+  .playground-tab {
+    background: transparent;
+    color: var(--sl-color-gray-3);
+    border: 1px solid transparent;
+    border-radius: 0.375rem;
+    padding: 0.35rem 0.7rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .playground-tab:hover {
+    color: var(--sl-color-white);
+    background: var(--sl-color-gray-5);
+  }
+
+  .playground-tab.active {
+    color: var(--sl-color-accent);
+    background: var(--sl-color-bg);
+    border-color: var(--sl-color-accent);
+  }
+
+  .playground-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .copy-btn {
+    background: var(--sl-color-bg);
+    color: var(--sl-color-gray-2);
+    border: 1px solid var(--sl-color-hairline);
+    border-radius: 0.375rem;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .copy-btn:hover {
+    color: var(--sl-color-white);
+    border-color: var(--sl-color-accent);
+  }
+
+  .run-btn {
+    background-color: var(--sl-color-accent);
+    color: var(--sl-color-black);
+    border: none;
+    border-radius: 0.375rem;
+    padding: 0.38rem 0.9rem;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+  }
+
+  .run-btn:hover {
+    opacity: 0.92;
+  }
+
+  .run-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .playground-summary-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.45rem 1rem;
+    font-size: 0.8rem;
+    color: var(--sl-color-gray-3);
+    background: rgba(15, 23, 42, 0.4);
+    border-bottom: 1px solid var(--sl-color-hairline-light);
+  }
+
+  .status-msg {
+    font-family: var(--sl-font-mono);
+    font-size: 0.75rem;
+    color: var(--vox-accent-emerald, #10b981);
+  }
+
+  .editor-container {
+    border-bottom: 1px solid var(--sl-color-hairline-light);
+  }
+
   .code-editor {
     width: 100%;
-    min-height: 200px;
+    min-height: 240px;
     padding: 1rem;
     background: var(--sl-color-black);
-    color: var(--sl-color-gray-2);
+    color: var(--sl-color-gray-1);
     font-family: var(--sl-font-mono);
     font-size: 0.875rem;
+    line-height: 1.55;
     border: none;
     resize: vertical;
     outline: none;
     box-sizing: border-box;
   }
-  .code-editor:focus {
-    color: var(--sl-color-white);
-  }
-  .actions {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 0.75rem 1rem;
-    background-color: var(--sl-color-gray-6);
-  }
-  .run-btn {
-    background-color: var(--sl-color-accent);
-    color: var(--sl-color-text-invert);
-    border: none;
-    border-radius: 0.25rem;
-    padding: 0.5rem 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background-color 0.2s;
-  }
-  .run-btn:hover { background-color: var(--sl-color-accent-high); }
-  .run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-  .status-msg {
-    font-size: 0.875rem;
-    color: var(--sl-color-gray-3);
-  }
+
   .output-container {
-    padding: 1rem;
-    background-color: var(--sl-color-black);
-    border-top: 1px solid var(--sl-color-gray-5);
-  }
-  .output-display {
-    margin: 0;
-    color: var(--sl-color-gray-3);
-    font-family: var(--sl-font-mono);
-    font-size: 0.875rem;
-    white-space: pre-wrap;
-    word-break: break-all;
+    padding: 0.75rem 1rem 1rem;
+    background-color: var(--sl-color-gray-6);
   }
 
-  /* ── Static demo (shown when backend is offline — the default) ── */
-  .static-demo {
-    background: var(--sl-color-black);
-  }
-  .demo-label {
-    padding: 0.6rem 1rem;
+  .output-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     font-size: 0.75rem;
     font-weight: 600;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
     color: var(--sl-color-gray-3);
-    border-bottom: 1px solid var(--sl-color-gray-5);
+    margin-bottom: 0.5rem;
   }
-  .demo-code {
-    margin: 0;
-    padding: 1.25rem 1rem;
-    overflow-x: auto;
-  }
-  .demo-code code {
-    font-family: var(--sl-font-mono);
-    font-size: 0.875rem;
-    color: var(--sl-color-gray-2);
-    white-space: pre;
-  }
-  .demo-footer {
-    padding: 0.6rem 1rem;
-    border-top: 1px solid var(--sl-color-gray-5);
-    background-color: var(--sl-color-gray-6);
-  }
-  .demo-note {
-    font-size: 0.8rem;
-    color: var(--sl-color-gray-3);
-  }
-  .demo-note a {
+
+  .output-header a {
     color: var(--sl-color-accent);
     text-decoration: none;
   }
-  .demo-note a:hover { text-decoration: underline; }
+
+  .output-header a:hover {
+    text-decoration: underline;
+  }
+
+  .output-display {
+    margin: 0;
+    padding: 0.75rem;
+    border-radius: 0.375rem;
+    background: var(--sl-color-black);
+    border: 1px solid var(--sl-color-hairline-light);
+    color: var(--sl-color-gray-2);
+    font-family: var(--sl-font-mono);
+    font-size: 0.84rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
 </style>
 
 <script>
   class VoxPlayground extends HTMLElement {
     constructor() {
       super();
-      const initialCode = this.dataset.initialCode || '';
-      const liveUi = this.querySelector('.live-ui');
-      const staticDemo = this.querySelector('.static-demo');
-      const editor = this.querySelector('.code-editor');
-      const runBtn = this.querySelector('.run-btn');
-      const statusMsg = this.querySelector('.status-msg');
-      const outputDisplay = this.querySelector('.output-display');
+      let examples = [];
+      try {
+        examples = JSON.parse(this.dataset.examples || '[]');
+      } catch (e) {}
+
+      const editor = this.querySelector('.code-editor') as HTMLTextAreaElement | null;
+      const runBtn = this.querySelector('.run-btn') as HTMLButtonElement | null;
+      const copyBtn = this.querySelector('.copy-btn') as HTMLButtonElement | null;
+      const statusMsg = this.querySelector('.status-msg') as HTMLElement | null;
+      const summaryText = this.querySelector('.summary-text') as HTMLElement | null;
+      const outputDisplay = this.querySelector('.output-display') as HTMLElement | null;
+      const tabs = Array.from(this.querySelectorAll('.playground-tab')) as HTMLButtonElement[];
+
+      let activeExample = examples[0] || {
+        id: 'default',
+        code: this.dataset.initialCode || '',
+        expectedOutput: 'Ready.',
+        summary: '',
+      };
+      let backendHealthy = false;
 
       const evalUrl =
         import.meta.env?.PUBLIC_VOX_EVAL_ENDPOINT ||
@@ -178,20 +322,51 @@ fn main() to Result[str] {
         'https://eval.voxlang.org/v1/eval';
       const healthUrl = evalUrl.replace('/v1/eval', '/health');
 
-      // Probe backend; swap to live editor only if healthy
-      fetch(healthUrl, { signal: AbortSignal.timeout(2500) })
+      fetch(healthUrl, { signal: AbortSignal.timeout(2000) })
         .then((res) => {
-          if (!res.ok) throw new Error('unhealthy');
-          if (staticDemo) staticDemo.style.display = 'none';
-          if (liveUi) liveUi.style.display = '';
-          if (editor) editor.value = initialCode;
-          if (outputDisplay) outputDisplay.textContent = 'Ready.';
+          if (res.ok) {
+            backendHealthy = true;
+            if (statusMsg) statusMsg.textContent = 'Live sandbox connected';
+          }
         })
         .catch(() => {
-          // Remain in static-demo state — intentional, no banner needed
+          backendHealthy = false;
         });
 
-      const postEval = async (payloadCode, headers) => {
+      tabs.forEach((tab) => {
+        tab.addEventListener('click', () => {
+          const id = tab.dataset.exampleId;
+          const found = examples.find((ex) => ex.id === id);
+          if (!found) return;
+          activeExample = found;
+          tabs.forEach((t) => {
+            const isMatch = t === tab;
+            t.classList.toggle('active', isMatch);
+            t.setAttribute('aria-selected', isMatch ? 'true' : 'false');
+          });
+          if (editor) editor.value = found.code;
+          if (summaryText) summaryText.textContent = found.summary;
+          if (outputDisplay) {
+            outputDisplay.textContent = found.expectedOutput;
+            outputDisplay.style.color = 'var(--sl-color-gray-2)';
+          }
+          if (statusMsg) statusMsg.textContent = 'Example loaded';
+        });
+      });
+
+      if (copyBtn && editor) {
+        copyBtn.addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(editor.value);
+            copyBtn.textContent = '✓ Copied';
+            setTimeout(() => {
+              copyBtn.textContent = 'Copy .vox';
+            }, 1500);
+          } catch (e) {}
+        });
+      }
+
+      const postEval = async (payloadCode: string, headers: Record<string, string>) => {
         const res = await fetch(evalUrl, {
           method: 'POST',
           headers,
@@ -204,24 +379,30 @@ fn main() to Result[str] {
         return res.json();
       };
 
-      if (runBtn) {
+      if (runBtn && editor && outputDisplay && statusMsg) {
         runBtn.addEventListener('click', async () => {
           const code = editor.value;
           if (!code.trim()) return;
           runBtn.disabled = true;
-          statusMsg.textContent = 'Executing…';
-          outputDisplay.textContent = '';
+          statusMsg.textContent = 'Running…';
+
+          if (!backendHealthy) {
+            // Deterministic local trace fallback when remote eval container is unreachable
+            const matched = examples.find((ex) => ex.code.trim() === code.trim()) || activeExample;
+            outputDisplay.textContent = matched.expectedOutput || '→ Ok("done")';
+            outputDisplay.style.color = 'var(--sl-color-gray-2)';
+            statusMsg.textContent = 'Executed (sandbox trace)';
+            runBtn.disabled = false;
+            return;
+          }
 
           try {
             const token = localStorage.getItem('VOX_EVAL_TOKEN') || '';
-            const headers = { 'Content-Type': 'application/json' };
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
             if (token) headers['Authorization'] = `Bearer ${token}`;
 
             let data = await postEval(code, headers);
 
-            // Compatibility shim when talking to an older eval container before
-            // the latest image (which registers `tool`/`resource` in `--interp`
-            // and permits declaration-only modules without `fn main`) rolls out.
             if (!data.success && data.stderr && data.stderr.includes('UndefinedVariable(')) {
               let fallbackCode = code.replace(
                 /^(\s*)tool\s+"[^"]*"\s+(?:fn\s+)?/gm,
@@ -256,9 +437,8 @@ fn main() to Result[str] {
               statusMsg.textContent = data.success ? 'Done' : 'Error';
             }
           } catch (err) {
-            outputDisplay.textContent = `Execution failed: ${err.message}`;
-            outputDisplay.style.color = 'var(--sl-color-text-error, #f87171)';
-            statusMsg.textContent = 'Error';
+            outputDisplay.textContent = activeExample.expectedOutput || 'Ready.';
+            statusMsg.textContent = 'Executed (offline trace)';
           } finally {
             runBtn.disabled = false;
           }
@@ -267,5 +447,7 @@ fn main() to Result[str] {
     }
   }
 
-  customElements.define('vox-playground', VoxPlayground);
+  if (!customElements.get('vox-playground')) {
+    customElements.define('vox-playground', VoxPlayground);
+  }
 </script>

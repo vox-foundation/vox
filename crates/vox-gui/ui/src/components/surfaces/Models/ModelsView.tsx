@@ -68,11 +68,11 @@ export function ModelsView({ pushToast, gamifyEnabled = false }: ModelsViewProps
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const snap = await invoke<ModelsSnapshot>('get_models_snapshot', { limit: 120 });
-      const cards = snap.cards;
-      const routing = snap.routing;
-      const active = snap.active_model;
-      const statuses = snap.providers;
+      const snap = await invoke<ModelsSnapshot | null>('get_models_snapshot', { limit: 120 });
+      const cards = Array.isArray(snap?.cards) ? snap.cards : [];
+      const routing = snap?.routing ?? null;
+      const active = snap?.active_model ?? null;
+      const statuses = snap?.providers;
       setModels(cards);
       setSummary(routing);
       setActiveModel(active);

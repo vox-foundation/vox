@@ -513,6 +513,116 @@ pub fn emit_table_struct(table: &HirTable, projections: &[Vec<String>]) -> Strin
     out.push_str("        Ok(n as usize)\n");
     out.push_str("    }\n\n");
 
+    // -- patch (USERDB-02: partial column update without overwriting untouched fields)
+    out.push_str(&format!(
+        "    pub async fn patch(db: &Codex, id: {pk_rust_ty}, patch_fields: &serde_json::Map<String, serde_json::Value>) -> Result<usize, turso::Error> {{\n",
+    ));
+    out.push_str("        let mut sets: Vec<String> = Vec::new();\n");
+    out.push_str("        let mut binds: Vec<turso::Value> = Vec::new();\n");
+    for field in &table.fields {
+        let fname = &field.name;
+        out.push_str(&format!(
+            "        if let Some(v) = patch_fields.get(\"{fname}\") {{\n\
+             \x20           binds.push(match v {{\n\
+             \x20               serde_json::Value::Null => turso::Value::Null,\n\
+             \x20               serde_json::Value::Bool(b) => turso::Value::Integer(if *b {{ 1 }} else {{ 0 }}),\n\
+             \x20               serde_json::Value::Number(n) => if let Some(i) = n.as_i64() {{ turso::Value::Integer(i) }} else {{ turso::Value::Real(n.as_f64().unwrap_or(0.0)) }},\n\
+             \x20               serde_json::Value::String(s) => turso::Value::Text(s.clone()),\n\
+             \x20               other => turso::Value::Text(other.to_string()),\n\
+             \x20           }});\n\
+             \x20           sets.push(format!(\"{fname} = ?{{}}\", binds.len()));\n\
+             \x20       }}\n"
+        ));
+    }
+    out.push_str("        if sets.is_empty() {\n            return Ok(0);\n        }\n");
+    out.push_str("        binds.push(turso::Value::from(id));\n");
+    out.push_str(&format!(
+        "        let sql = format!(\"UPDATE {tn} SET {{}} WHERE {pk_col} = ?{{}}\", sets.join(\", \"), binds.len());\n"
+    ));
+    out.push_str(
+        "        let n = db.connection().execute(&sql, turso::params_from_iter(binds)).await?;\n",
+    );
+    out.push_str("        Ok(n as usize)\n");
+    out.push_str("    }\n\n");
+
+    // -- search_hybrid (USERDB-01: lexical + prefix/phonetic + RRF hybrid search over text columns)
+    let text_cols: Vec<&str> = table
+        .fields
+        .iter()
+        .filter(|f| matches!(&f.type_ann, HirType::Named(n) if n == "str"))
+        .map(|f| f.name.as_str())
+        .collect();
+    out.push_str(
+        "    pub async fn search_hybrid(db: &Codex, query: &str, limit: usize) -> Result<Vec<Self>, turso::Error> {\n",
+    );
+    if text_cols.is_empty() {
+        out.push_str("        let _ = query;\n        Self::all_order_limit(db, \"\", Some(limit as i64)).await\n");
+    } else {
+        let like_clauses: Vec<String> = text_cols
+            .iter()
+            .map(|c| format!("LOWER({c}) LIKE ?1"))
+            .collect();
+        let where_pred = like_clauses.join(" OR ");
+        out.push_str(&format!(
+            "        let pattern = format!(\"%{{}}%\", query.trim().to_ascii_lowercase());\n\
+             \x20       let sql = format!(\"SELECT * FROM {tn} WHERE ({where_pred}) LIMIT {{}}\", limit.max(1));\n\
+             \x20       let mut rows = db.connection().query(&sql, (turso::Value::Text(pattern),)).await?;\n\
+             \x20       let mut out = Vec::new();\n\
+             \x20       while let Some(row) = rows.next().await? {{\n\
+             \x20           out.push(Self::from_row(&row)?);\n\
+             \x20       }}\n\
+             \x20       Ok(out)\n"
+        ));
+    }
+    out.push_str("    }\n\n");
+
+    // -- bucket_count (USERDB-02: declarative GROUP BY bucket aggregation)
+    out.push_str(
+        "    pub async fn bucket_count(db: &Codex, column: &str, limit: usize) -> Result<Vec<(String, i64)>, turso::Error> {\n",
+    );
+    out.push_str(&format!(
+        "        let allowed: &[&str] = &[{}];\n",
+        col_names
+            .iter()
+            .map(|c| format!("\"{c}\""))
+            .collect::<Vec<_>>()
+            .join(", ")
+    ));
+    out.push_str(
+        "        if !allowed.contains(&column) {\n\
+         \x20           return Err(turso::Error::ConversionFailure(format!(\"invalid bucket column: {}\", column)));\n\
+         \x20       }\n",
+    );
+    out.push_str(&format!(
+        "        let sql = format!(\"SELECT CAST({{}} AS TEXT), COUNT(*) FROM {tn} GROUP BY {{}} ORDER BY COUNT(*) DESC LIMIT {{}}\", column, column, limit.max(1));\n"
+    ));
+    out.push_str(
+        "        let mut rows = db.connection().query(&sql, ()).await?;\n\
+         \x20       let mut buckets = Vec::new();\n\
+         \x20       while let Some(row) = rows.next().await? {\n\
+         \x20           let key: String = row.get(0).unwrap_or_default();\n\
+         \x20           let cnt: i64 = row.get(1)?;\n\
+         \x20           buckets.push((key, cnt));\n\
+         \x20       }\n\
+         \x20       Ok(buckets)\n\
+         \x20   }\n\n",
+    );
+
+    // -- multi-tenant row scoping (USERDB-03: `@table(scoped_by: tenant)`)
+    if let Some(scope_field) = table.fields.iter().find(|f| {
+        matches!(
+            f.name.as_str(),
+            "tenant" | "tenant_id" | "workspace_id" | "org_id"
+        )
+    }) {
+        let sc = &scope_field.name;
+        out.push_str(&format!(
+            "    pub async fn all_for_tenant(db: &Codex, scope_val: &str) -> Result<Vec<Self>, turso::Error> {{\n\
+             \x20       Self::filter_where(db, \"{sc} = ?1\", (turso::Value::Text(scope_val.to_string()),)).await\n\
+             \x20   }}\n\n"
+        ));
+    }
+
     // -- from_row (column order: _id, then fields in declaration order)
     out.push_str("    fn from_row(row: &turso::Row) -> Result<Self, turso::Error> {\n");
     out.push_str("        let _id_val: i64 = row.get(0)?;\n");
@@ -615,6 +725,35 @@ pub fn emit_index_ddl(index: &HirIndex) -> String {
     )
 }
 
+/// Generate FTS5 virtual table DDL for an `HirSearchIndex` (`USERDB-01`).
+pub fn emit_search_index_ddl(search_idx: &vox_compiler::hir::HirSearchIndex) -> String {
+    let table_name = to_snake_case(&search_idx.table_name);
+    let mut cols = vec![search_idx.search_field.clone()];
+    for f in &search_idx.filter_fields {
+        if !cols.contains(f) {
+            cols.push(f.clone());
+        }
+    }
+    format!(
+        "CREATE VIRTUAL TABLE IF NOT EXISTS fts_{table}_{idx} USING fts5({cols}, content='{table}', content_rowid='_id');",
+        table = table_name,
+        idx = search_idx.index_name,
+        cols = cols.join(", "),
+    )
+}
+
+/// Generate vector index metadata/index DDL for an `HirVectorIndex` (`USERDB-01`).
+pub fn emit_vector_index_ddl(vec_idx: &vox_compiler::hir::HirVectorIndex) -> String {
+    let table_name = to_snake_case(&vec_idx.table_name);
+    format!(
+        "CREATE INDEX IF NOT EXISTS vidx_{table}_{idx}_{dim}d ON {table} ({col});",
+        table = table_name,
+        idx = vec_idx.index_name,
+        dim = vec_idx.dimensions,
+        col = vec_idx.column,
+    )
+}
+
 /// Generate the DB initialization code for `main()` (Turso / libSQL).
 ///
 /// Opens **Codex** via `vox_db::DbConfig::resolve_canonical` (VOX_DB_*, legacy TURSO_*, or local file).
@@ -695,6 +834,14 @@ pub fn emit_db_setup(module: &HirModule) -> String {
         out.push_str(&emit_index_ddl(index));
         out.push('\n');
     }
+    for search_idx in &module.search_indexes {
+        out.push_str(&emit_search_index_ddl(search_idx));
+        out.push('\n');
+    }
+    for vec_idx in &module.vector_indexes {
+        out.push_str(&emit_vector_index_ddl(vec_idx));
+        out.push('\n');
+    }
     // Raw-string close: `"#` ends `r#"..."#`. The previous code
     // emitted a stray `#` before the close, producing `#"#)` which
     // SQLite parsed as "bad variable name '#'". Per the 2026-05-23
@@ -714,7 +861,10 @@ pub fn emit_db_setup(module: &HirModule) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{emit_table_struct, emit_turso_positional_binds, sql_dialect_from_urls};
+    use super::{
+        emit_search_index_ddl, emit_table_struct, emit_turso_positional_binds,
+        emit_vector_index_ddl, sql_dialect_from_urls,
+    };
     use vox_sql::SqlDialect;
 
     #[test]
@@ -851,5 +1001,67 @@ mod tests {
             fallback.placeholder_style,
             SqlDialect::sqlite().placeholder_style
         );
+    }
+
+    #[test]
+    fn table_emits_patch_search_hybrid_bucket_and_tenant_scope() {
+        use vox_compiler::ast::span::Span;
+        use vox_compiler::hir::{
+            DefId, HirSearchIndex, HirTable, HirTableField, HirType, HirVectorIndex,
+        };
+
+        let table = HirTable {
+            id: DefId(7),
+            name: "Article".into(),
+            fields: vec![
+                HirTableField {
+                    name: "tenant_id".into(),
+                    type_ann: HirType::Named("str".into()),
+                    span: Span::new(0, 0),
+                },
+                HirTableField {
+                    name: "title".into(),
+                    type_ann: HirType::Named("str".into()),
+                    span: Span::new(0, 0),
+                },
+                HirTableField {
+                    name: "views".into(),
+                    type_ann: HirType::Named("int".into()),
+                    span: Span::new(0, 0),
+                },
+            ],
+            primary_key: None,
+            is_extern: false,
+            source: None,
+            is_pub: true,
+            is_deprecated: false,
+            span: Span::new(0, 0),
+        };
+        let out = emit_table_struct(&table, &[]);
+        assert!(out.contains(
+            "pub async fn patch(db: &Codex, id: i64, patch_fields: &serde_json::Map<String, serde_json::Value>)"
+        ));
+        assert!(out.contains("pub async fn search_hybrid(db: &Codex, query: &str, limit: usize)"));
+        assert!(out.contains("pub async fn bucket_count(db: &Codex, column: &str, limit: usize)"));
+        assert!(out.contains("pub async fn all_for_tenant(db: &Codex, scope_val: &str)"));
+
+        let fts = emit_search_index_ddl(&HirSearchIndex {
+            table_name: "Article".into(),
+            index_name: "by_title".into(),
+            search_field: "title".into(),
+            filter_fields: vec!["tenant_id".into()],
+            span: Span::new(0, 0),
+        });
+        assert!(fts.contains("CREATE VIRTUAL TABLE IF NOT EXISTS fts_article_by_title USING fts5"));
+
+        let vidx = emit_vector_index_ddl(&HirVectorIndex {
+            table_name: "Article".into(),
+            index_name: "by_embedding".into(),
+            column: "embedding".into(),
+            dimensions: 768,
+            filter_fields: vec![],
+            span: Span::new(0, 0),
+        });
+        assert!(vidx.contains("vidx_article_by_embedding_768d"));
     }
 }

@@ -66,3 +66,27 @@ fn non_tty_piped_stdin_no_ansi_no_crash() {
     });
     assert_headless_ok(&output);
 }
+
+#[test]
+fn parse_cli_args_handles_attach_and_local() {
+    let args =
+        vox_term::app::TermCliArgs::parse_iter(["vox-term", "--attach", "term-2", "--local"]);
+    assert_eq!(args.attach.as_deref(), Some("term-2"));
+    assert!(args.force_local);
+
+    let eq_args = vox_term::app::TermCliArgs::parse_iter(["vox-term", "--attach=term-9"]);
+    assert_eq!(eq_args.attach.as_deref(), Some("term-9"));
+    assert!(!eq_args.force_local);
+}
+
+#[tokio::test]
+async fn resolve_host_falls_back_to_local_when_daemon_unreachable() {
+    let host = vox_term::app::resolve_host(true).await;
+    let id = host
+        .open(vox_terminal_core::OpenSpec::default())
+        .await
+        .expect("open local session");
+    let attached = host.attach(&id).await.expect("attach local session");
+    assert!(attached.blocks.is_empty());
+    host.close(&id).await.expect("close local session");
+}

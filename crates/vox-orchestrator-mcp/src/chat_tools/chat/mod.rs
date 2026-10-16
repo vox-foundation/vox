@@ -5,6 +5,7 @@ mod harness_issue_scorer;
 mod history;
 mod hydrate;
 pub(crate) mod mentions;
+pub mod mermaid_repair;
 pub(crate) mod message;
 pub mod research_intent;
 pub mod research_turn;

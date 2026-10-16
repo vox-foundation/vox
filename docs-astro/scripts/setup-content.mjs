@@ -222,6 +222,16 @@ function runSetup() {
     cpSync(assetsSrc, assetsDest, { recursive: true });
     console.log('[setup-content] Copied docs/src/assets → docs-astro/public/assets');
   }
+
+  // Clear Astro's content data store cache so remark plugins and docLinksGate run fresh on local builds.
+  for (const dataStore of [
+    join(repoRoot, 'docs-astro', 'node_modules', '.astro', 'data-store.json'),
+    join(repoRoot, 'docs-astro', '.astro', 'data-store.json'),
+  ]) {
+    if (existsSync(dataStore)) {
+      rmSync(dataStore, { force: true });
+    }
+  }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

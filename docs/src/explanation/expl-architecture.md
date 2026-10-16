@@ -79,7 +79,7 @@ Current path note:
 
 ## ML Training Pipeline
 
-Vox has a native ML training loop powered by [Burn](https://burn.dev) (a pure-Rust deep learning framework):
+Vox has a native ML training loop powered by Candle (pure-Rust QLoRA training across Metal, CUDA, and CPU plugins):
 
 ```text
 docs/src/*.md + examples/*.vox
@@ -91,13 +91,13 @@ vox mens corpus extract   # produces validated.jsonl
 vox mens corpus pairs     # produces train.jsonl (instruction-response pairs)
     │
     ▼
-vox mens train            # native Burn / HF path (default CLI features)
+vox mens train            # native Candle QLoRA path
     │
     ▼
 mens/runs/v1/model_final.bin
 ```
 
-The training loop is defined in `crates/vox-cli/src/training/native.rs`.
+The training loop is coordinated via `crates/vox-ml-cli/src/main.rs`.
 
 ---
 

@@ -38,6 +38,7 @@ async fn rows(db: &VoxDb) -> Vec<KbFindingRow> {
 }
 
 fn snapshot_files(root: &Path) -> Vec<String> {
+    // drift-allow(vox-path-literal): test verifies exact relative path under temp root
     match std::fs::read_dir(root.join(".vox/cache/kb-findings")) {
         Ok(d) => d
             .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())

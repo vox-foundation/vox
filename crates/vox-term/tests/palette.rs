@@ -30,3 +30,19 @@ fn no_match_returns_empty() {
         results = results.iter().map(|c| &c.name).collect::<Vec<_>>()
     );
 }
+
+#[test]
+fn palette_includes_live_sessions() {
+    let mut palette = Palette::new(default_commands());
+    palette.with_sessions(&[vox_terminal_core::SessionInfo {
+        id: "term-1".into(),
+        blocks: 3,
+    }]);
+    let results = palette.search("term-1");
+    assert!(
+        results
+            .iter()
+            .any(|c| c.name == "/attach term-1" && c.description.contains("3 blocks")),
+        "expected /attach term-1 in palette results, got: {results:?}"
+    );
+}

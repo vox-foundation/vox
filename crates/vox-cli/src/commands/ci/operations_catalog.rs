@@ -388,8 +388,34 @@ fn build_catalog_from_live_registries(repo_root: &Path) -> Result<OperationsCata
         });
     }
 
+    // Curated nomenclature (`canonical_name` / `latin_aliases`) may live on a hand-written alias
+    // row (e.g. id `ludus`, path `gamify`) whose CLI path the registries derive under another id
+    // (`gamify`). Merge it onto the derived row so the alias survives regeneration without a
+    // duplicate row for the same CLI path.
+    let mut nomenclature_by_cli_path: BTreeMap<String, (Option<String>, Option<Vec<String>>)> =
+        BTreeMap::new();
+    for p in prev_by_id.values() {
+        if let (Some(cli), true) = (
+            &p.cli,
+            p.canonical_name.is_some() || p.latin_aliases.is_some(),
+        ) {
+            nomenclature_by_cli_path.insert(
+                cli.path.join("."),
+                (p.canonical_name.clone(), p.latin_aliases.clone()),
+            );
+        }
+    }
+
     for row in rows.values_mut() {
         apply_prev_planner_metadata(row, prev_by_id.get(&row.id));
+        if row.canonical_name.is_none()
+            && row.latin_aliases.is_none()
+            && let Some(cli) = &row.cli
+            && let Some((canon, aliases)) = nomenclature_by_cli_path.get(&cli.path.join("."))
+        {
+            row.canonical_name = canon.clone();
+            row.latin_aliases = aliases.clone();
+        }
     }
 
     Ok(OperationsCatalog {
@@ -419,6 +445,8 @@ fn apply_prev_planner_metadata(row: &mut OperationRow, prev: Option<&OperationRo
     row.description_human = p.description_human.clone();
     row.owner_crate = p.owner_crate.clone();
     row.domain = p.domain.clone();
+    row.canonical_name = p.canonical_name.clone();
+    row.latin_aliases = p.latin_aliases.clone();
 }
 
 fn write_inventory_report(repo_root: &Path, catalog: &OperationsCatalog) -> Result<()> {
@@ -1186,6 +1214,15 @@ mod tests {
         let res = verify_catalog_nomenclature(&cat);
         assert!(res.is_err());
         assert!(res.unwrap_err().to_string().contains("T047"));
+    }
+
+    #[test]
+    fn regeneration_preserves_curated_nomenclature() {
+        let prev = create_row("ludus", Some("gamify"), Some(vec!["ludus"]), "active");
+        let mut fresh = create_row("ludus", None, None, "active");
+        apply_prev_planner_metadata(&mut fresh, Some(&prev));
+        assert_eq!(fresh.canonical_name.as_deref(), Some("gamify"));
+        assert_eq!(fresh.latin_aliases, Some(vec!["ludus".to_string()]));
     }
 
     #[test]

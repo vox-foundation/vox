@@ -30,6 +30,7 @@ fn research_run_params(
     waves: Option<u32>,
     domain_mode: Option<String>,
     lane: Option<String>,
+    site_scope: Option<String>,
 ) -> Value {
     json!({
         "query": query,
@@ -39,6 +40,7 @@ fn research_run_params(
         "waves": waves,
         "domain_mode": domain_mode,
         "lane": lane,
+        "site_scope": site_scope,
     })
 }
 
@@ -87,6 +89,7 @@ pub async fn start_research_async(
     waves: Option<u32>,
     domain_mode: Option<String>,
     lane: Option<String>,
+    site_scope: Option<String>,
 ) -> Result<Value, String> {
     let params = research_run_params(
         query,
@@ -96,6 +99,7 @@ pub async fn start_research_async(
         waves,
         domain_mode,
         lane,
+        site_scope,
     );
     backend
         .call(dei_method::RESEARCH_RUN, params)
@@ -161,10 +165,12 @@ mod tests {
             Some(2),
             None,
             Some("deep".into()),
+            Some("docs.rs".into()),
         );
         assert_eq!(p["query"], "q");
         assert_eq!(p["max_sources"], 5);
         assert_eq!(p["lane"], "deep");
+        assert_eq!(p["site_scope"], "docs.rs");
         assert!(p["domain_mode"].is_null());
     }
 

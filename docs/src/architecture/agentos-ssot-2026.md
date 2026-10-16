@@ -9,6 +9,7 @@ schema_type: "TechArticle"
 audience: ["contributors", "agents"]
 related:
   - docs/src/architecture/terminal-exec-policy-ssot.md
+  - docs/src/architecture/llm-first-shell-nushell-skills-mcp-research-2026.md
   - docs/src/architecture/search-retrieval-ssot-2026.md
   - contracts/aci/agent-computer-interface.v1.yaml
 ---

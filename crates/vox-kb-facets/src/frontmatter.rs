@@ -69,9 +69,9 @@ pub(crate) fn fence_intended(text: &str) -> bool {
         .is_some_and(|l| l == "---")
 }
 
-/// Fenced-code tracker (CommonMark): a fence opens with 3+ backticks or tildes at column 0 and
-/// closes only on a line of the same character, at least as long, with nothing after it.
-/// Indented fences are a known limitation (see the phase deferred-items).
+/// Fenced-code tracker (CommonMark): a fence opens with 3+ backticks or tildes with up to 3
+/// leading spaces and closes only on a line of the same character, at least as long, with up to
+/// 3 leading spaces and nothing after it.
 #[derive(Default)]
 pub(crate) struct FenceTracker {
     open: Option<(char, usize)>,
@@ -80,20 +80,30 @@ pub(crate) struct FenceTracker {
 impl FenceTracker {
     /// Feed the next line; true when it is a fence line or lies inside a fence.
     pub(crate) fn step(&mut self, line: &str) -> bool {
-        let run = |c: char| line.chars().take_while(|&x| x == c).count();
+        let leading_spaces = line.bytes().take_while(|&b| b == b' ').count();
+        let trimmed = if leading_spaces <= 3 {
+            &line[leading_spaces..]
+        } else {
+            line
+        };
+        let run = |c: char| trimmed.chars().take_while(|&x| x == c).count();
         if let Some((c, n)) = self.open {
-            let m = run(c);
-            if m >= n && line[m * c.len_utf8()..].trim().is_empty() {
-                self.open = None;
+            if leading_spaces <= 3 {
+                let m = run(c);
+                if m >= n && trimmed[m * c.len_utf8()..].trim().is_empty() {
+                    self.open = None;
+                }
             }
             return true;
         }
-        for c in ['`', '~'] {
-            let n = run(c);
-            // a backtick fence's info string cannot hold a backtick (that is inline code)
-            if n >= 3 && !(c == '`' && line[n..].contains('`')) {
-                self.open = Some((c, n));
-                return true;
+        if leading_spaces <= 3 {
+            for c in ['`', '~'] {
+                let n = run(c);
+                // a backtick fence's info string cannot hold a backtick (that is inline code)
+                if n >= 3 && !(c == '`' && trimmed[n..].contains('`')) {
+                    self.open = Some((c, n));
+                    return true;
+                }
             }
         }
         false

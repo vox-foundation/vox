@@ -114,6 +114,14 @@ export function installTauriMock(viewKey: string): void {
     { session_id: 'mock-session-1', title: 'Mock chat', updated_at: 'now', message_count: 2, conversation_id: 1 },
   ] as any[];
 
+  (window as any).__MOCK_VCS_ISOLATION__ = {
+    strategy_default: 'shared_branch',
+    per_agent: { '1': 'shared_branch', '3': 'separate_branches' },
+    active_conflicts: [
+      { id: 'C-101', path: 'acme/payments-service/src/webhooks/retry.rs', sides: ['1', '3'], created_ms: 1717400000000 },
+    ],
+  };
+
   const mcpResult = (tool: string, targs?: any) => {
     if (tool.includes('mesh_nodes')) return { nodes: [{ id: 'node-a', status: 'online', vram_gb: 24 }, { id: 'node-b', status: 'online', vram_gb: 12 }], edges: [] };
     if (tool.includes('resolve_approval')) {
@@ -445,7 +453,205 @@ export function installTauriMock(viewKey: string): void {
         case 'pty_write':
         case 'pty_resize':
         case 'pty_close':
+        case 'term_session_input':
+        case 'term_session_resize':
+        case 'term_session_close':
           return null;
+        case 'term_session_open': {
+          const store = ((window as any).__MOCK_TERM_SESSIONS__ ??= {
+            's-1': {
+              id: 's-1',
+              blocks: [
+                {
+                  id: 1,
+                  kind: 'Shell',
+                  status: 'Ok',
+                  origin: { kind: 'user' },
+                  input: 'vox run',
+                  output: [{ stream: 'Stdout', text: 'Ready.\n', ts_ms: 1 }],
+                  exit_code: 0,
+                  started_ms: 1,
+                  ended_ms: 5,
+                },
+              ],
+              replay_utf8: 'C:\\workspace\\vox> vox run\r\nReady.\r\n',
+              seq: 1,
+            },
+          });
+          const nextIdx = (((window as any).__MOCK_TERM_NEXT_SESSION__ ??= 1) as number) + 1;
+          (window as any).__MOCK_TERM_NEXT_SESSION__ = nextIdx;
+          const sid = `s-${nextIdx}`;
+          store[sid] = {
+            id: sid,
+            blocks: [],
+            replay_utf8: `C:\\workspace\\vox (${sid})> \r\n`,
+            seq: 1,
+          };
+          return sid;
+        }
+        case 'term_session_list': {
+          const store = ((window as any).__MOCK_TERM_SESSIONS__ ??= {
+            's-1': {
+              id: 's-1',
+              blocks: [
+                {
+                  id: 1,
+                  kind: 'Shell',
+                  status: 'Ok',
+                  origin: { kind: 'user' },
+                  input: 'vox run',
+                  output: [{ stream: 'Stdout', text: 'Ready.\n', ts_ms: 1 }],
+                  exit_code: 0,
+                  started_ms: 1,
+                  ended_ms: 5,
+                },
+              ],
+              replay_utf8: 'C:\\workspace\\vox> vox run\r\nReady.\r\n',
+              seq: 1,
+            },
+          });
+          return Object.values(store).map((s: any) => ({
+            id: s.id,
+            blocks: s.blocks.length,
+          }));
+        }
+        case 'term_session_attach': {
+          const store = ((window as any).__MOCK_TERM_SESSIONS__ ??= {
+            's-1': {
+              id: 's-1',
+              blocks: [
+                {
+                  id: 1,
+                  kind: 'Shell',
+                  status: 'Ok',
+                  origin: { kind: 'user' },
+                  input: 'vox run',
+                  output: [{ stream: 'Stdout', text: 'Ready.\n', ts_ms: 1 }],
+                  exit_code: 0,
+                  started_ms: 1,
+                  ended_ms: 5,
+                },
+              ],
+              replay_utf8: 'C:\\workspace\\vox> vox run\r\nReady.\r\n',
+              seq: 1,
+            },
+          });
+          const sid = String(args?.sessionId ?? 's-1');
+          const sess = store[sid] ?? store['s-1'];
+          return {
+            session_id: sid,
+            blocks: sess.blocks.map((b: any) => ({ ...b })),
+            replay_utf8: sess.replay_utf8,
+            seq: sess.seq,
+          };
+        }
+        case 'term_session_submit': {
+          const store = ((window as any).__MOCK_TERM_SESSIONS__ ??= {
+            's-1': {
+              id: 's-1',
+              blocks: [
+                {
+                  id: 1,
+                  kind: 'Shell',
+                  status: 'Ok',
+                  origin: { kind: 'user' },
+                  input: 'vox run',
+                  output: [{ stream: 'Stdout', text: 'Ready.\n', ts_ms: 1 }],
+                  exit_code: 0,
+                  started_ms: 1,
+                  ended_ms: 5,
+                },
+              ],
+              replay_utf8: 'C:\\workspace\\vox> vox run\r\nReady.\r\n',
+              seq: 1,
+            },
+          });
+          const sid = String(args?.sessionId ?? 's-1');
+          const sess = (store[sid] ??= {
+            id: sid,
+            blocks: [],
+            replay_utf8: '',
+            seq: 0,
+          });
+          const bid = (((window as any).__MOCK_TERM_NEXT_BLOCK__ ??= 1) as number) + 1;
+          (window as any).__MOCK_TERM_NEXT_BLOCK__ = bid;
+          const rawLine = String(args?.line ?? '').trim();
+          const lower = rawLine.toLowerCase();
+
+          const routePrompt = (prompt: string) => {
+            const p = prompt.toLowerCase();
+            if (p.includes('fix') || p.includes('bug') || p.includes('error') || p.includes('fail')) {
+              return { task: 'Debugging', model: 'anthropic/claude-sonnet', tier: 'Pro', axes: 'eff:15/prec:70/lat:15' };
+            }
+            if (p.includes('plan') || p.includes('architect') || p.includes('design') || p.includes('roadmap')) {
+              return { task: 'Planning', model: 'anthropic/claude-opus', tier: 'Elite', axes: 'eff:15/prec:70/lat:15' };
+            }
+            if (p.includes('why') || p.includes('explain') || p.includes('research') || p.includes('compare')) {
+              return { task: 'Research', model: 'anthropic/claude-opus', tier: 'Elite', axes: 'eff:15/prec:70/lat:15' };
+            }
+            if (p.includes('summarize') || p.includes('classify') || p.includes('parse')) {
+              return { task: 'Parsing', model: 'mens-8b', tier: 'Local', axes: 'eff:70/prec:15/lat:15' };
+            }
+            return { task: 'CodeGen', model: 'anthropic/claude-sonnet', tier: 'Pro', axes: 'eff:33/prec:34/lat:33' };
+          };
+
+          let kind = 'Shell';
+          let inputText = rawLine;
+          let stream = 'Stdout';
+          let outText = `Executed: ${rawLine}\n`;
+          let exitCode = 0;
+
+          if (rawLine.startsWith('?') || lower.startsWith('/ai ') || lower.startsWith('/agent ')) {
+            kind = 'AgentTurn';
+            const prompt = rawLine.startsWith('?')
+              ? rawLine.slice(1).trim()
+              : rawLine.replace(/^\/(ai|agent)\s+/i, '').trim();
+            inputText = prompt;
+            stream = 'Agent';
+            const r = routePrompt(prompt);
+            outText = `[routed model=${r.model} task=${r.task} tier=${r.tier} axes=${r.axes}] ${prompt}\n`;
+          } else if (rawLine.startsWith('/')) {
+            kind = 'SlashCommand';
+            if (lower.startsWith('/model route ') || lower.startsWith('/model explain ')) {
+              const prompt = rawLine.replace(/^\/model\s+(route|explain)\s+/i, '').trim();
+              const r = routePrompt(prompt);
+              outText = `[routed model=${r.model} task=${r.task} tier=${r.tier} axes=${r.axes}] ${prompt}\n`;
+            } else if (lower === '/help') {
+              outText = 'Available commands: /help /model /budget /skills /memory /context /sh /ai\n';
+            } else if (lower.startsWith('/model ')) {
+              outText = `Model set to: ${rawLine.slice(7).trim()}\n`;
+            } else {
+              outText = `Slash command executed: ${rawLine}\n`;
+            }
+          } else if (rawLine.startsWith('!nu') || rawLine.startsWith('/nu')) {
+            kind = 'Shell';
+            inputText = rawLine;
+            outText = '[{"name":"vox-terminal-core","status":"ok"}]\n';
+          } else if (rawLine === '40 + 2' || rawLine.startsWith('fn ') || rawLine.startsWith('let ')) {
+            kind = 'VoxNative';
+            outText = 'Int(42)\n';
+          } else {
+            kind = 'Shell';
+            inputText = rawLine.startsWith('!') ? rawLine.slice(1).trim() : rawLine;
+            outText = `[ok] ${inputText}\n`;
+          }
+
+          const newBlock = {
+            id: bid,
+            kind,
+            status: exitCode === 0 ? 'Ok' : 'Failed',
+            origin: { kind: 'user' },
+            input: inputText,
+            output: [{ stream, text: outText, ts_ms: Date.now() }],
+            exit_code: exitCode,
+            started_ms: Date.now() - 5,
+            ended_ms: Date.now(),
+          };
+          sess.blocks.push(newBlock);
+          sess.seq += 1;
+          sess.replay_utf8 += `C:\\workspace\\vox> ${rawLine}\r\n${outText.replace(/\n/g, '\r\n')}`;
+          return bid;
+        }
         case 'invoke_mcp_tool': return { tool: args?.tool ?? 'unknown', is_error: false, result: mcpResult(args?.tool ?? '', args?.args) };
         case 'execute_command': {
           const path: string[] = args?.path ?? [];
@@ -523,8 +729,38 @@ export function installTauriMock(viewKey: string): void {
         }
         case 'inference_provider_status': return [{ provider: 'OpenRouter', key_present: true, is_local: false, local_reachable: null, local_models: [] }, { provider: 'Ollama', key_present: true, is_local: true, local_reachable: true, local_models: ['local-llama-small'] }, { provider: 'Mens', key_present: true, is_local: true, local_reachable: true, local_models: ['mens-8b', 'mens/e2e-smoke-metal'] }];
         case 'set_active_model': return null;
+        case 'get_vcs_isolation':
+          return { ...((window as any).__MOCK_VCS_ISOLATION__ ?? { strategy_default: 'shared_branch', per_agent: {}, active_conflicts: [] }) };
+        case 'set_vcs_isolation_strategy': {
+          const cur = (window as any).__MOCK_VCS_ISOLATION__ ?? { strategy_default: 'shared_branch', per_agent: {}, active_conflicts: [] };
+          if (args?.default) cur.strategy_default = String(args.default);
+          (window as any).__MOCK_VCS_ISOLATION__ = cur;
+          return { ...cur };
+        }
         case 'get_archive_status': return { swhid: null, swh_task_id: null, swh_task_status: null, zenodo_doi: null, zenodo_state: null };
         case 'get_completion_report': return { score: 100, warnings: [], is_complete: true };
+        case 'discovery_suggest': {
+          const raw = String(args?.typed ?? '').trim();
+          const query = raw.replace(/^vox\s*/, '').toLowerCase();
+          const catalog = [
+            { action_id: 'vox.run', completion: 'run', about: 'Run a Vox script or tool' },
+            { action_id: 'vox.check', completion: 'check', about: 'Check a Vox script for type/syntax errors' },
+            { action_id: 'vox.build', completion: 'build', about: 'Compile a Vox package to binary' },
+            { action_id: 'vox.test', completion: 'test', about: 'Execute unit and doc tests' },
+            { action_id: 'vox.config.show', completion: 'config show', about: 'Display resolved configuration values' },
+          ];
+          return catalog.filter((c) => !query || c.completion.toLowerCase().includes(query));
+        }
+        case 'discovery_help': {
+          const actionId = String(args?.actionId ?? '');
+          return {
+            action_id: actionId,
+            about: `Documentation and options for ${actionId}`,
+            args: [{ name: 'target', help: 'Path or package name', required: false }],
+            example: actionId.replace(/^vox\./, 'vox '),
+          };
+        }
+        case 'discovery_record': return null;
         default: {
           const ev = shared.eventPluginResponse(cmd, args);
           if (ev !== undefined) return ev;

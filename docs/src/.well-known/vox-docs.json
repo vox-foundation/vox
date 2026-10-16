@@ -81,7 +81,7 @@
         "id": "compiler",
         "label": "Compiler",
         "cli": 30,
-        "mcp": 9,
+        "mcp": 10,
         "surfaces": 0
       },
       {
@@ -109,7 +109,7 @@
         "id": "research",
         "label": "Research / Scientia",
         "cli": 78,
-        "mcp": 67,
+        "mcp": 68,
         "surfaces": 2
       },
       {
@@ -117,28 +117,28 @@
         "label": "Secrets",
         "cli": 20,
         "mcp": 0,
-        "surfaces": 0
+        "surfaces": 1
       },
       {
         "id": "gui",
         "label": "GUI",
         "cli": 15,
         "mcp": 9,
-        "surfaces": 17
+        "surfaces": 13
       },
       {
         "id": "data",
         "label": "Data & DB",
         "cli": 89,
         "mcp": 18,
-        "surfaces": 0
+        "surfaces": 1
       },
       {
         "id": "ci",
         "label": "CI & governance",
         "cli": 215,
         "mcp": 0,
-        "surfaces": 0
+        "surfaces": 1
       },
       {
         "id": "skills",
@@ -194,7 +194,7 @@
         "label": "Platform (other)",
         "cli": 34,
         "mcp": 97,
-        "surfaces": 2
+        "surfaces": 3
       }
     ]
   }

@@ -163,6 +163,7 @@ SHA3-512 Base32Hex hashing utilities.
 | `temporal_claims` | — |
 | `toestub_store` | — |
 | `training_run` | Mens QLoRA training run persistence (CRUD for `populi_training_run` table). |
+| `trials` | Research Trial Tier-A atomic persistence (`STORE-01`, `STORE-02`). |
 | `types` | — |
 | `workflow_journal` | Interpreted workflow journal (`workflow_journal_entry` in `research_metrics`). |
 | `workspace_journey_store` | Workspace journey store resolution (`.vox/store.db` vs canonical) for repo-backed MCP/daemon flows. |
@@ -198,6 +199,7 @@ SHA3-512 Base32Hex hashing utilities.
 | `execute` | Guarded [`turso::Connection::execute`]. |
 | `execute_batch` | Guarded [`turso::Connection::execute_batch`]. |
 | `pragma_update` | Guarded [`turso::Connection::pragma_update`]. |
+| `transaction` | Execute an async closure inside a serialized SQLite `BEGIN IMMEDIATE ... COMMIT` transaction while holding the [`GuardedConnection`] mutex for the entire transaction lifetime. On any error returned by `f`, issues `ROLLBACK` before releasing the mutex. |
 | `next` | Mirrors [`turso::Rows::next`]'s signature (`async fn` returning a `Result`) purely so existing `rows.next().await?` call sites keep compiling unchanged; the buffer is already fully materialized, so this never actually awaits or errors. |
 
 ### Types

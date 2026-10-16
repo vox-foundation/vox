@@ -111,6 +111,37 @@ component Counter() {
 }
 ```
 
+## VoxScript Automation (`vox run scripts/*.vox`)
+
+All project automation, CI tasks, file migrations, and developer scripts are written as standalone `.vox` files executed via `vox run scripts/name.vox` (never `.sh`, `.ps1`, or `.py`). A script uses short stdlib imports (`import fs`, `import process`, `import env`, `import json`, `import path`) and a typed `fn main() to Result[Unit]` entry point:
+
+```vox
+import fs
+import process
+
+type CheckReport {
+    crate_name: str
+    passed: bool
+}
+
+fn check_crate(pkg: str) to Result[CheckReport] {
+    let status = process.run("cargo", ["check", "-p", pkg])?
+    return Ok(CheckReport {
+        crate_name: pkg,
+        passed: status is 0
+    })
+}
+
+fn main() to Result[Unit] {
+    let report = check_crate("vox-cli")?
+    if not report.passed {
+        return Error("cargo check failed for " + report.crate_name)
+    }
+    fs.write("target/check-ok.txt", report.crate_name)?
+    return Ok(())
+}
+```
+
 ## Agentic Behavior & Tooling
 When acting as an agent generating Vox code:
 - Prefer bare-keyword `tool`/`resource` for MCP capabilities that require external state (not the retired `@mcp.tool` decorator form).
@@ -125,3 +156,10 @@ When acting as an agent generating Vox code:
 4. Use descriptive names: snake_case for functions/variables, PascalCase for types/actors/components.
 5. Prefer tagged unions (`type X = | A | B(...)`) over ad hoc nullable fields.
 6. 4-space indentation is the style convention, but it is cosmetic — braces, not indentation, define block structure.
+
+## Humane & Craft Directness Contract (HUMANE-03)
+- Never use hollow sycophantic praise ("Great question!", "You're absolutely right!", "Brilliant idea!").
+- Push back concisely with technical evidence when a requested pattern violates architecture, security, or YAGNI.
+- Optimize for single-shot verified closure rather than open-ended conversational follow-up bait.
+- Ground architectural claims in concrete file paths, symbol names, and compiler/test invariants.
+

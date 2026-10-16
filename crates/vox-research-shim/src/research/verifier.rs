@@ -310,6 +310,25 @@ pub async fn verify_claims_with_config(
         return (Vec::new(), 0);
     }
 
+    let mut fast_verdicts: Vec<(usize, ClaimVerdict)> = Vec::new();
+    let mut remaining_indices: Vec<usize> = Vec::new();
+    let mut remaining_claims: Vec<Claim> = Vec::new();
+
+    for (idx, claim) in claims.iter().enumerate() {
+        if let Some(verdict) = try_fast_lexical_verify(claim, evidence_hits) {
+            fast_verdicts.push((idx, verdict));
+        } else {
+            remaining_indices.push(idx);
+            remaining_claims.push(claim.clone());
+        }
+    }
+
+    if remaining_claims.is_empty() {
+        let count = fast_verdicts.len();
+        fast_verdicts.sort_by_key(|(i, _)| *i);
+        return (fast_verdicts.into_iter().map(|(_, v)| v).collect(), count);
+    }
+
     #[cfg(feature = "runtime")]
     {
         use vox_actor_runtime::ActivityOptions;
@@ -326,15 +345,14 @@ pub async fn verify_claims_with_config(
             input.openrouter_model = model.to_string();
         }
         let abstain_threshold = config.abstain_threshold.unwrap_or(0.5);
-        let evidence = evidence_context(evidence_hits, 8);
         let opts = ActivityOptions::new().with_timeout_secs(30);
 
         let sample_claim = |claim: &Claim| {
             let claim = claim.clone();
             let opts = &opts;
             let input = &input;
-            let evidence = &evidence;
             async move {
+                let evidence = evidence_context_for_claim(&claim, evidence_hits, 8);
                 let primary =
                     crate::research::orchestrator::model_dispatch::primary_candidate_for_intent(
                         vox_orchestrator::models::SelectionIntent::nli_classifier(),
@@ -398,8 +416,8 @@ pub async fn verify_claims_with_config(
         };
 
         let (to_verify, capped) =
-            select_claims_for_verification(claims, MAX_CLAIMS_VERIFIED_PER_RUN);
-        let verified_count = to_verify.len();
+            select_claims_for_verification(&remaining_claims, MAX_CLAIMS_VERIFIED_PER_RUN);
+        let verified_count = fast_verdicts.len() + to_verify.len();
 
         let verify_one = |claim: Claim| {
             let sample_claim = &sample_claim;
@@ -420,9 +438,17 @@ pub async fn verify_claims_with_config(
             }
         };
 
-        let mut results =
-            verify_indices_concurrently(claims, &to_verify, VERIFY_CONCURRENCY, verify_one).await;
-        results.extend(capped);
+        let llm_results = verify_indices_concurrently(
+            &remaining_claims,
+            &to_verify,
+            VERIFY_CONCURRENCY,
+            verify_one,
+        )
+        .await;
+        let mut results = fast_verdicts;
+        for (rem_idx, verdict) in llm_results.into_iter().chain(capped.into_iter()) {
+            results.push((remaining_indices[rem_idx], verdict));
+        }
         results.sort_by_key(|(i, _)| *i);
 
         (
@@ -434,7 +460,13 @@ pub async fn verify_claims_with_config(
     #[cfg(not(feature = "runtime"))]
     {
         let _ = (query, endpoint, api_key, config);
-        (claims.iter().cloned().map(unverified).collect(), 0)
+        let fast_count = fast_verdicts.len();
+        let mut results = fast_verdicts;
+        for (rem_idx, claim) in remaining_claims.into_iter().enumerate() {
+            results.push((remaining_indices[rem_idx], unverified(claim)));
+        }
+        results.sort_by_key(|(i, _)| *i);
+        (results.into_iter().map(|(_, v)| v).collect(), fast_count)
     }
 }
 
@@ -565,17 +597,192 @@ fn unverified(claim: Claim) -> ClaimVerdict {
     }
 }
 
-fn evidence_context(hits: &[ResearchHit], limit: usize) -> String {
-    hits.iter()
-        .take(limit)
+const STOP_WORDS: &[&str] = &[
+    "the", "and", "for", "that", "with", "this", "from", "are", "was", "were", "has", "have",
+    "had", "into", "over", "under", "when", "where", "which", "while", "than", "then", "also",
+    "such", "only", "both", "each", "more", "most", "some", "very", "can", "will", "may",
+];
+
+const NEGATION_TOKENS: &[&str] = &[
+    "not",
+    "never",
+    "no",
+    "false",
+    "none",
+    "neither",
+    "without",
+    "deprecated",
+    "removed",
+    "unsupported",
+    "fails",
+    "failed",
+    "cannot",
+    "impossible",
+];
+
+fn normalize_tokens(text: &str) -> Vec<String> {
+    text.split(|c: char| !c.is_ascii_alphanumeric() && c != '_' && c != '.')
+        .map(|t| t.trim_matches('.').to_ascii_lowercase())
+        .filter(|t| {
+            !t.is_empty()
+                && (t.len() >= 2 || t.chars().any(|c| c.is_ascii_digit()))
+                && !STOP_WORDS.contains(&t.as_str())
+        })
+        .collect()
+}
+
+fn has_negation_token(text: &str) -> bool {
+    text.split(|c: char| !c.is_ascii_alphanumeric())
+        .map(|t| t.to_ascii_lowercase())
+        .any(|t| NEGATION_TOKENS.contains(&t.as_str()))
+}
+
+fn numeric_tokens(tokens: &[String]) -> Vec<&str> {
+    tokens
+        .iter()
+        .filter(|t| t.chars().any(|c| c.is_ascii_digit()))
+        .map(String::as_str)
+        .collect()
+}
+
+/// Computes `(containment_score, has_conflict)` between `claim_text` and `evidence_text`.
+/// `containment_score` is in `0.0..=1.0` (`0.7 * token_recall + 0.3 * bigram_recall`).
+/// `has_conflict` is `true` when negation polarity disagrees or numeric tokens in the claim
+/// are absent from the evidence.
+pub fn lexical_containment_score(claim_text: &str, evidence_text: &str) -> (f64, bool) {
+    let claim_tokens = normalize_tokens(claim_text);
+    if claim_tokens.is_empty() {
+        return (0.0, false);
+    }
+    let evidence_tokens = normalize_tokens(evidence_text);
+    if evidence_tokens.is_empty() {
+        return (0.0, false);
+    }
+
+    let evidence_set: std::collections::HashSet<&str> =
+        evidence_tokens.iter().map(String::as_str).collect();
+    let matched_tokens = claim_tokens
+        .iter()
+        .filter(|t| evidence_set.contains(t.as_str()))
+        .count();
+    let token_recall = matched_tokens as f64 / claim_tokens.len() as f64;
+
+    let bigram_recall = if claim_tokens.len() >= 2 && evidence_tokens.len() >= 2 {
+        let evidence_bigrams: std::collections::HashSet<(&str, &str)> = evidence_tokens
+            .windows(2)
+            .map(|w| (w[0].as_str(), w[1].as_str()))
+            .collect();
+        let claim_bigram_count = claim_tokens.len() - 1;
+        let matched_bigrams = claim_tokens
+            .windows(2)
+            .filter(|w| evidence_bigrams.contains(&(w[0].as_str(), w[1].as_str())))
+            .count();
+        matched_bigrams as f64 / claim_bigram_count as f64
+    } else {
+        token_recall
+    };
+
+    let score = (0.7 * token_recall + 0.3 * bigram_recall).clamp(0.0, 1.0);
+    let claim_neg = has_negation_token(claim_text);
+    let evidence_neg = has_negation_token(evidence_text);
+    let negation_mismatch = claim_neg != evidence_neg;
+
+    let claim_nums = numeric_tokens(&claim_tokens);
+    let numeric_mismatch = !claim_nums.is_empty()
+        && claim_nums
+            .iter()
+            .any(|num| !evidence_set.contains(num) && !evidence_text.contains(num));
+
+    (score, negation_mismatch || numeric_mismatch)
+}
+
+/// Fast deterministic lexical/n-gram containment verifier.
+/// Short-circuits as `Verdict::Supported` when at least one hit has `score >= 0.82` with zero
+/// negation/numeric conflict and no hit exhibits a high-overlap conflict (`score >= 0.65 && conflict`).
+pub fn try_fast_lexical_verify(claim: &Claim, hits: &[ResearchHit]) -> Option<ClaimVerdict> {
+    let mut supporting_spans = Vec::new();
+    let mut max_score = 0.0_f64;
+
+    for (idx, hit) in hits.iter().enumerate() {
+        let combined = if hit.raw_content.is_empty() {
+            hit.snippet.clone()
+        } else {
+            let raw_excerpt: String = hit.raw_content.chars().take(1200).collect();
+            format!("{} {}", hit.snippet, raw_excerpt)
+        };
+        let (score, has_conflict) = lexical_containment_score(&claim.text, &combined);
+        if score >= 0.65 && has_conflict {
+            return None;
+        }
+        if score >= 0.82 && !has_conflict {
+            max_score = max_score.max(score);
+            let text = hit.snippet.clone();
+            supporting_spans.push(EvidenceSpan {
+                source_id: idx as i64,
+                span_start: 0,
+                span_end: text.len(),
+                text,
+                span_type: SpanType::Supporting,
+            });
+        }
+    }
+
+    if supporting_spans.is_empty() {
+        return None;
+    }
+
+    let supporting_count = supporting_spans.len();
+    Some(ClaimVerdict {
+        claim: claim.clone(),
+        verdict: Verdict::Supported,
+        confidence: max_score.clamp(0.82, 0.96),
+        supporting_count,
+        contradicting_count: 0,
+        evidence_spans: supporting_spans,
+        resample_stability: 1.0,
+    })
+}
+
+/// Selects the top `limit` most relevant evidence hits for `claim`, preserving each hit's
+/// original `[idx]` index in `hits` so `supporting_indices` / `contradicting_indices` returned
+/// by the LLM map directly to `hits[idx]`.
+pub fn evidence_context_for_claim(claim: &Claim, hits: &[ResearchHit], limit: usize) -> String {
+    if hits.is_empty() || limit == 0 {
+        return String::new();
+    }
+    let mut scored: Vec<(usize, f64)> = hits
+        .iter()
         .enumerate()
-        .map(|(i, hit)| {
-            format!(
-                "[{i}] {}\nURL: {}\n{}",
-                hit.title,
-                hit.url,
+        .map(|(idx, hit)| {
+            let raw_head: String = hit.raw_content.chars().take(600).collect();
+            let candidate_text = format!("{} {} {}", hit.title, hit.snippet, raw_head);
+            let (lexical, _) = lexical_containment_score(&claim.text, &candidate_text);
+            let prior = (hit.score as f64).clamp(0.0, 1.0) * 0.08;
+            (idx, lexical + prior)
+        })
+        .collect();
+    scored.sort_by(|a, b| {
+        b.1.partial_cmp(&a.1)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| a.0.cmp(&b.0))
+    });
+    let mut chosen_indices: Vec<usize> = scored.into_iter().take(limit).map(|(i, _)| i).collect();
+    chosen_indices.sort_unstable();
+    chosen_indices
+        .into_iter()
+        .map(|i| {
+            let hit = &hits[i];
+            let body = if hit.raw_content.is_empty() {
                 hit.snippet.replace('\n', " ")
-            )
+            } else {
+                let raw_excerpt: String = hit.raw_content.chars().take(400).collect();
+                format!(
+                    "{} {}",
+                    hit.snippet.replace('\n', " "),
+                    raw_excerpt.replace('\n', " ")
+                )
+            };
+            format!("[{i}] {}\nURL: {}\n{}", hit.title, hit.url, body)
         })
         .collect::<Vec<_>>()
         .join("\n\n")
@@ -904,6 +1111,125 @@ mod tests {
                 super::super::types::Verdict::Contradicted
             ),
             "Disagreement requires sample 3 tie-breaker"
+        );
+    }
+
+    #[test]
+    fn lexical_containment_score_detects_verbatim_overlap_and_negation_or_numeric_conflicts() {
+        let (score, conflict) = lexical_containment_score(
+            "Vox compiler enforces 3 layers of architecture verification.",
+            "The Vox compiler enforces 3 layers of architecture verification in CI.",
+        );
+        assert!(
+            score >= 0.85,
+            "expected high lexical containment score, got {score}"
+        );
+        assert!(
+            !conflict,
+            "identical polarity and numbers must not flag conflict"
+        );
+
+        let (_, neg_conflict) = lexical_containment_score(
+            "Vox compiler enforces 3 layers of architecture verification.",
+            "Vox compiler never enforces 3 layers of architecture verification.",
+        );
+        assert!(
+            neg_conflict,
+            "negation polarity mismatch must flag conflict"
+        );
+
+        let (_, num_conflict) = lexical_containment_score(
+            "Vox compiler enforces 3 layers of architecture verification.",
+            "Vox compiler enforces 5 layers of architecture verification.",
+        );
+        assert!(num_conflict, "numeric token mismatch must flag conflict");
+    }
+
+    #[test]
+    fn try_fast_lexical_verify_supports_clean_containment_and_abstains_on_conflict() {
+        let c = Claim {
+            text: "Vox research orchestrator deduplicates retrieval hits by URL.".to_string(),
+            claim_id: 7,
+            is_numeric: false,
+            is_recent: false,
+            is_named_event: false,
+            salience_score: 0.8,
+        };
+        let supporting_hits = vec![ResearchHit {
+            url: "https://vox.dev/docs/research".to_string(),
+            title: "Research Orchestrator".to_string(),
+            snippet:
+                "The Vox research orchestrator deduplicates retrieval hits by URL across waves."
+                    .to_string(),
+            score: 0.92,
+            http_status: 200,
+            trust_score: 1.0,
+            raw_content: String::new(),
+        }];
+        let verdict =
+            try_fast_lexical_verify(&c, &supporting_hits).expect("should fast-verify clean match");
+        assert_eq!(verdict.verdict, Verdict::Supported);
+        assert!(verdict.confidence >= 0.82);
+        assert_eq!(verdict.supporting_count, 1);
+        assert_eq!(verdict.evidence_spans[0].source_id, 0);
+
+        let conflicting_hits = vec![
+            supporting_hits[0].clone(),
+            ResearchHit {
+                url: "https://vox.dev/docs/old".to_string(),
+                title: "Legacy Orchestrator".to_string(),
+                snippet: "Vox research orchestrator does not deduplicate retrieval hits by URL."
+                    .to_string(),
+                score: 0.80,
+                http_status: 200,
+                trust_score: 1.0,
+                raw_content: String::new(),
+            },
+        ];
+        assert!(
+            try_fast_lexical_verify(&c, &conflicting_hits).is_none(),
+            "high-overlap negation conflict must fall back to LLM verifier"
+        );
+    }
+
+    #[test]
+    fn evidence_context_for_claim_selects_relevant_hits_beyond_index_eight_preserving_indices() {
+        let mut many_hits: Vec<ResearchHit> = (0..12)
+            .map(|i| ResearchHit {
+                url: format!("https://example.com/irrelevant/{i}"),
+                title: format!("Unrelated Document {i}"),
+                snippet: "Completely unrelated gardening notes about tomatoes and soil."
+                    .to_string(),
+                score: 0.95,
+                http_status: 200,
+                trust_score: 1.0,
+                raw_content: String::new(),
+            })
+            .collect();
+        many_hits.push(ResearchHit {
+            url: "https://example.com/deep/12".to_string(),
+            title: "Turso MVCC Concurrency".to_string(),
+            snippet: "Turso MVCC supports concurrent optimistic transactions with row-level locks."
+                .to_string(),
+            score: 0.50,
+            http_status: 200,
+            trust_score: 1.0,
+            raw_content: String::new(),
+        });
+
+        let target_claim = Claim {
+            text: "Turso MVCC supports concurrent optimistic transactions.".to_string(),
+            claim_id: 99,
+            is_numeric: false,
+            is_recent: false,
+            is_named_event: true,
+            salience_score: 0.9,
+        };
+
+        let ctx = evidence_context_for_claim(&target_claim, &many_hits, 4);
+        assert!(
+            ctx.contains("[12] Turso MVCC Concurrency"),
+            "per-claim top-K evidence selector must surface hit [12] beyond index 8 with its original index: {ctx}"
         );
     }
 }

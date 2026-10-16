@@ -182,7 +182,7 @@ impl crate::VoxDb {
     /// Persist the call arguments (journal-JSON) for a workflow run (G27).
     ///
     /// The row must already exist (i.e. call after
-    /// [`VoxDb::record_workflow_run_started`]) since this is an `UPDATE`, not
+    /// [`Self::record_workflow_run_started`]) since this is an `UPDATE`, not
     /// an upsert — arguments are only ever set once, at run start.
     pub async fn workflow_run_set_args_json(
         &self,

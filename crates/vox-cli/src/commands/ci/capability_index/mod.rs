@@ -6,19 +6,21 @@
 mod coverage;
 mod docs_claims;
 mod emit;
+mod groups;
 mod inputs;
 mod join;
 mod nodes;
 mod owner;
-mod ratchet;
+pub(crate) mod ratchet;
 
 pub use coverage::refresh_coverage_snapshot;
 
+use std::collections::BTreeSet;
 use std::path::Path;
 
 use anyhow::{Context, Result, anyhow};
 use vox_bounded_fs::read_utf8_path_capped;
-use vox_capability_registry::CapabilityIndex;
+use vox_capability_registry::{CapabilityIndex, RowKind};
 
 use super::operations_catalog::write_or_verify_text;
 
@@ -47,20 +49,26 @@ fn render(index: &CapabilityIndex) -> Result<String> {
     Ok(text)
 }
 
-/// Read a committed ratchet baseline; a missing file is an error (never silently empty).
-fn load_baseline(
-    repo_root: &Path,
-    spec: &ratchet::RatchetSpec,
-) -> Result<ratchet::RatchetBaseline> {
-    let path = repo_root.join(spec.baseline_rel);
-    if !path.is_file() {
-        return Err(anyhow!(
-            "missing {}; run `vox ci capability-index --tighten` once",
-            spec.baseline_rel
-        ));
-    }
-    serde_json::from_str(&read_utf8_path_capped(&path)?)
-        .with_context(|| format!("parse {}", spec.baseline_rel))
+/// MCP tools with an empty equivalents list (D-17).
+pub(crate) fn mcp_only_names(index: &CapabilityIndex) -> BTreeSet<String> {
+    index
+        .rows
+        .iter()
+        .filter(|r| r.kind == RowKind::McpTool && r.equivalents.is_empty())
+        .map(|r| {
+            r.mcp
+                .as_ref()
+                .map(|m| m.name.clone())
+                .unwrap_or_else(|| r.id.clone())
+        })
+        .collect()
+}
+
+/// Tools MCP-only in `new` that were not in `old` (D-27).
+pub(crate) fn new_mcp_only_names(old: &CapabilityIndex, new: &CapabilityIndex) -> BTreeSet<String> {
+    let old_names = mcp_only_names(old);
+    let new_names = mcp_only_names(new);
+    new_names.difference(&old_names).cloned().collect()
 }
 
 /// Generate (`write`) or verify the committed capability index. Never writes a ratchet
@@ -68,12 +76,49 @@ fn load_baseline(
 pub fn run(repo_root: &Path, write: bool) -> Result<()> {
     let loaded = inputs::load(repo_root)?;
     let index = join::build_index(&loaded)?;
-    // Before any artifact write/verify, so a new ownerless or unclassified command reports the
-    // ratchet error rather than a generic "stale".
-    for spec in [&ratchet::OWNER, &ratchet::SIDE_EFFECT] {
+
+    let total_mcp = index
+        .rows
+        .iter()
+        .filter(|r| r.kind == RowKind::McpTool)
+        .count();
+    let mcp_only = mcp_only_names(&index).len();
+    println!(
+        "capability-index: {mcp_only} of {total_mcp} MCP tools are MCP-only (no CLI twin); warning only (D-17)"
+    );
+
+    if write {
+        if let Ok(committed_text) = read_utf8_path_capped(&repo_root.join(INDEX_REL)) {
+            if let Ok(committed_index) = serde_json::from_str::<CapabilityIndex>(&committed_text) {
+                for name in new_mcp_only_names(&committed_index, &index) {
+                    println!(
+                        "::warning::capability-index: new MCP-only tool without CLI twin: {name}"
+                    );
+                }
+            }
+        }
+    }
+    let snap = loaded.coverage.as_ref().ok_or_else(|| {
+        anyhow!(
+            "missing graph-coverage snapshot (contracts/reports/graph-coverage.v1.json); run `vox graph rebuild --corpus vox-gui-surface && vox ci capability-index --refresh-coverage --write`"
+        )
+    })?;
+    ratchet::check(
+        &ratchet::orphan_ids(snap),
+        &ratchet::load_baseline(
+            repo_root,
+            &ratchet::ORPHAN,
+            "vox ci capability-index --tighten",
+        )?,
+        &ratchet::ORPHAN,
+    )?;
+    for (spec, ids) in [
+        (&ratchet::OWNER, ratchet::owner_ids(&index)),
+        (&ratchet::SIDE_EFFECT, ratchet::side_effect_ids(&index)),
+    ] {
         ratchet::check(
-            &ratchet::unresolved_ids(&index, spec),
-            &load_baseline(repo_root, spec)?,
+            &ids,
+            &ratchet::load_baseline(repo_root, spec, "vox ci capability-index --tighten")?,
             spec,
         )?;
     }
@@ -93,13 +138,24 @@ pub fn run(repo_root: &Path, write: bool) -> Result<()> {
     let docs_json = emit::docs_json_with_capabilities(&read_utf8_path_capped(&docs_path)?, &index)?;
     write_or_verify_text(&docs_path, &docs_json, write, STALE_HINT)
         .map_err(|e| anyhow!("{e:#}"))?;
+    let top_level = super::gui_surface_registry::top_level_groups(repo_root)?;
+    let mut groups = groups::build_groups(&index, &loaded.surfaces, &top_level, &loaded.domains)?;
+    groups::attach_exemptions(
+        &mut groups,
+        &super::gui_coverage_exemptions::load_exemptions(repo_root)?,
+    );
     write_or_verify_text(
         &repo_root.join(TS_REL),
-        &emit::generate_ts(&index),
+        &emit::generate_ts(&index, &groups),
         write,
         STALE_HINT,
     )
     .map_err(|e| anyhow!("{e:#}"))
+}
+
+/// Crate names declared in `layers.toml [crates]` (exemption owners must be one of these).
+pub(crate) fn layers_crates(repo_root: &Path) -> Result<std::collections::BTreeSet<String>> {
+    Ok(inputs::load_layers(repo_root)?.into_keys().collect())
 }
 
 /// Rewrite (or verify) only the generated marker region of each hand-written llms file.
@@ -131,18 +187,21 @@ fn sync_llms_regions(repo_root: &Path, index: &CapabilityIndex, write: bool) -> 
 pub fn tighten_baseline(repo_root: &Path) -> Result<()> {
     let loaded = inputs::load(repo_root)?;
     let index = join::build_index(&loaded)?;
-    for spec in [&ratchet::OWNER, &ratchet::SIDE_EFFECT] {
+    for (spec, ids) in [
+        (&ratchet::OWNER, ratchet::owner_ids(&index)),
+        (&ratchet::SIDE_EFFECT, ratchet::side_effect_ids(&index)),
+    ] {
         let path = repo_root.join(spec.baseline_rel);
-        let current = if path.is_file() {
-            Some(load_baseline(repo_root, spec)?)
+        let current: Option<ratchet::RatchetBaseline> = if path.is_file() {
+            Some(ratchet::load_baseline(
+                repo_root,
+                spec,
+                "vox ci capability-index --tighten",
+            )?)
         } else {
             None
         };
-        let next = ratchet::tighten(
-            &ratchet::unresolved_ids(&index, spec),
-            current.as_ref(),
-            spec,
-        )?;
+        let next = ratchet::tighten(&ids, current.as_ref(), spec)?;
         write_or_verify_text(
             &path,
             &next.render()?,
@@ -151,6 +210,33 @@ pub fn tighten_baseline(repo_root: &Path) -> Result<()> {
         )
         .map_err(|e| anyhow!("{e:#}"))?;
     }
+    let snap = loaded.coverage.as_ref().ok_or_else(|| {
+        anyhow!(
+            "missing graph-coverage snapshot (contracts/reports/graph-coverage.v1.json); run `vox graph rebuild --corpus vox-gui-surface && vox ci capability-index --refresh-coverage --write`"
+        )
+    })?;
+    let path = repo_root.join(ratchet::ORPHAN.baseline_rel);
+    let current: Option<ratchet::RatchetBaseline> = if path.is_file() {
+        Some(ratchet::load_baseline(
+            repo_root,
+            &ratchet::ORPHAN,
+            "vox ci capability-index --tighten",
+        )?)
+    } else {
+        None
+    };
+    let next = ratchet::tighten(
+        &ratchet::orphan_ids(snap),
+        current.as_ref(),
+        &ratchet::ORPHAN,
+    )?;
+    write_or_verify_text(
+        &path,
+        &next.render()?,
+        true,
+        "run `vox ci capability-index --tighten`",
+    )
+    .map_err(|e| anyhow!("{e:#}"))?;
     Ok(())
 }
 
@@ -276,5 +362,79 @@ mod tests {
         )
         .expect_err("absent index must be reported");
         assert!(err.to_string().contains("missing"), "got: {err}");
+    }
+
+    #[test]
+    fn mcp_only_names_behavior() {
+        use vox_capability_registry::IndexRow;
+        let mcp_row = |id: &str, name: &str, eq: &[&str]| {
+            serde_json::from_value::<IndexRow>(serde_json::json!({
+                "id": id, "kind": "mcp_tool", "title": id, "summary": null, "op_id": null,
+                "status": null, "domain": null, "product_lane": null,
+                "side_effect_class": null, "tier": null,
+                "cli": null, "mcp": { "name": name }, "gui": null, "owner": null,
+                "source_path": null, "docs": [], "skills": [],
+                "equivalents": eq, "refs": [], "coverage": null
+            }))
+            .expect("row parses")
+        };
+        let cli_row = serde_json::from_value::<IndexRow>(serde_json::json!({
+            "id": "cli.x", "kind": "cli", "title": "cli.x", "summary": null, "op_id": null,
+            "status": null, "domain": null, "product_lane": null,
+            "side_effect_class": null, "tier": null,
+            "cli": null, "mcp": null, "gui": null, "owner": null,
+            "source_path": null, "docs": [], "skills": [],
+            "equivalents": [], "refs": [], "coverage": null
+        }))
+        .expect("cli row parses");
+
+        let index = CapabilityIndex {
+            schema_version: 1,
+            generator: "test".into(),
+            coverage_snapshot: None,
+            domains: vec![],
+            rows: vec![
+                mcp_row("mcp.vox_only", "vox_only", &[]),
+                mcp_row("mcp.vox_twin", "vox_twin", &["cli.twin"]),
+                cli_row,
+            ],
+        };
+        let names = mcp_only_names(&index);
+        assert_eq!(names, ["vox_only".to_string()].into_iter().collect());
+    }
+
+    #[test]
+    fn new_mcp_only_names_behavior() {
+        use vox_capability_registry::IndexRow;
+        let mcp_row = |id: &str, name: &str| {
+            serde_json::from_value::<IndexRow>(serde_json::json!({
+                "id": id, "kind": "mcp_tool", "title": id, "summary": null, "op_id": null,
+                "status": null, "domain": null, "product_lane": null,
+                "side_effect_class": null, "tier": null,
+                "cli": null, "mcp": { "name": name }, "gui": null, "owner": null,
+                "source_path": null, "docs": [], "skills": [],
+                "equivalents": [], "refs": [], "coverage": null
+            }))
+            .expect("row parses")
+        };
+        let old = CapabilityIndex {
+            schema_version: 1,
+            generator: "test".into(),
+            coverage_snapshot: None,
+            domains: vec![],
+            rows: vec![mcp_row("mcp.vox_old", "vox_old")],
+        };
+        let new = CapabilityIndex {
+            schema_version: 1,
+            generator: "test".into(),
+            coverage_snapshot: None,
+            domains: vec![],
+            rows: vec![
+                mcp_row("mcp.vox_old", "vox_old"),
+                mcp_row("mcp.vox_new", "vox_new"),
+            ],
+        };
+        let diff = new_mcp_only_names(&old, &new);
+        assert_eq!(diff, ["vox_new".to_string()].into_iter().collect());
     }
 }

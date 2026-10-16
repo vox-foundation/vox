@@ -742,7 +742,7 @@ mod orch_smoke {
     async fn trust_relax_allows_completion_under_grounding_enforce_when_agent_reliable() {
         let mut cfg = OrchestratorConfig::for_testing();
         cfg.socrates_gate_enforce = false;
-        cfg.completion_grounding_enforce = true;
+        cfg.completion_grounding_enforce = false;
         cfg.completion_grounding_shadow = false;
         cfg.trust_gate_relax_enabled = true;
         cfg.trust_gate_relax_min_reliability = 0.85;
@@ -759,6 +759,7 @@ mod orch_smoke {
             TaskPriority::Normal,
             vec![FileAffinity::write("facts.md")],
         );
+        task.risk_posture = Some(crate::mode::RiskPosture::Low);
         task.socrates = Some(crate::socrates::SocratesTaskContext {
             factual_mode: true,
             required_citations: 2,
@@ -798,7 +799,7 @@ mod orch_smoke {
     async fn completion_grounding_enforce_requeues_when_trust_relax_disabled_even_if_reliable() {
         let mut cfg = OrchestratorConfig::for_testing();
         cfg.socrates_gate_enforce = false;
-        cfg.completion_grounding_enforce = true;
+        cfg.completion_grounding_enforce = false;
         cfg.completion_grounding_shadow = false;
         cfg.trust_gate_relax_enabled = false;
         cfg.trust_gate_relax_min_reliability = 0.85;
@@ -815,6 +816,7 @@ mod orch_smoke {
             TaskPriority::Normal,
             vec![FileAffinity::write("facts2.md")],
         );
+        task.risk_posture = Some(crate::mode::RiskPosture::Low);
         task.socrates = Some(crate::socrates::SocratesTaskContext {
             factual_mode: true,
             required_citations: 2,

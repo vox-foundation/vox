@@ -119,13 +119,13 @@ pub fn gen_multiturn_vox(
             Turn {
                 role: "assistant",
                 content: format!(
-                    "// Error handling via Result[T, E] — null is banned\n\
-                 @traced\n\
-                 fn {name}(x: int) to Result[str, str] {{\n\
+                    "// Error handling via Result[T] — null is banned\n\
+                 @pure\n\
+                 fn {name}(x: int) to Result[str] {{\n\
                      if x < 0 {{\n\
-                         return Err(\"invalid: x must be non-negative\");\n\
+                         return Error(\"invalid: x must be non-negative\")\n\
                      }}\n\
-                     return Ok(\"done\");\n\
+                     return Ok(\"done\")\n\
                  }}"
                 ),
             },
@@ -138,10 +138,10 @@ pub fn gen_multiturn_vox(
                 content: format!(
                     "@test\n\
                  fn test_{name}_rejects_negative() to Unit {{\n\
-                     let result = {name}(-1);\n\
+                     let result = {name}(-1)\n\
                      match result {{\n\
-                         Ok(_) => fail(\"expected error\"),\n\
-                         Err(msg) => assert(msg.contains(\"invalid\")),\n\
+                         Ok(_) => assert(false),\n\
+                         Error(msg) => assert(msg is not \"\"),\n\
                      }}\n\
                  }}"
                 ),
@@ -157,23 +157,23 @@ pub fn gen_multiturn_vox(
             Turn {
                 role: "assistant",
                 content: format!(
-                    "This Vox {construct} named `{name}` initializes and manages state. It uses strong typing and explicit error handling via Option[T]/Result[T] — null is never used."
+                    "This Vox {construct} named `{name}` uses strong typing and explicit error handling via Option[T]/Result[T] — null is never used."
                 ),
             },
             Turn {
                 role: "user",
-                content: "Can you refactor it to be more performant?".to_string(),
+                content: "Can you refactor it to be pure and well-typed?".to_string(),
             },
             Turn {
                 role: "assistant",
                 content: format!(
-                    "// Refactored: inlined hot path, removed intermediate allocations\n\
-                 @inline\n\
-                 fn {name}(x: int) to Result[str, str] {{\n\
+                    "// Refactored: pure helper with Result[str]\n\
+                 @pure\n\
+                 fn {name}(x: int) to Result[str] {{\n\
                      if x < 0 {{\n\
-                         return Err(\"invalid\");\n\
+                         return Error(\"invalid\")\n\
                      }}\n\
-                     return Ok(\"done\");\n\
+                     return Ok(\"done\")\n\
                  }}"
                 ),
             },
@@ -196,10 +196,10 @@ pub fn gen_multiturn_vox(
                 content: format!(
                     "// Option[T] exhaustive match\n\
                  fn {name}(id: int) to Option[str] {{\n\
-                     if id == 0 {{\n\
-                         return None;\n\
+                     if id is 0 {{\n\
+                         return None\n\
                      }}\n\
-                     return Some(\"found\");\n\
+                     return Some(\"found\")\n\
                  }}"
                 ),
             },
@@ -215,16 +215,15 @@ pub fn gen_multiturn_vox(
             },
             Turn {
                 role: "user",
-                content: "Add call-count tracking to it.".to_string(),
+                content: "Add an actor handler to process increments.".to_string(),
             },
             Turn {
                 role: "assistant",
                 content: format!(
-                    "// Call tracking via actor state\n\
+                    "// Actor message handler\n\
                  actor {name}Tracker {{\n\
-                     state count: int = 0;\n\
-                     on increment() to Unit {{\n\
-                         self.count = self.count + 1;\n\
+                     on increment(current: int) to int {{\n\
+                         return current + 1\n\
                      }}\n\
                  }}"
                 ),
@@ -281,7 +280,7 @@ pub enum BrokenKind {
     TypeMismatch,
     OptionUnwrapMissing,
     BadReturnType,
-    /// Generic instantiated with wrong number of type parameters, e.g. `List[]` instead of `List[int]`.
+    /// Generic instantiated with wrong number of type parameters, e.g. `list[]` instead of `list[int]`.
     UnresolvedGenericArity,
     /// Branches return different types, causing ambiguous inference.
     InferenceAmbiguity,
@@ -293,9 +292,9 @@ pub enum BrokenKind {
 pub fn break_vox(src: &str, kind: BrokenKind) -> (String, String) {
     match kind {
         BrokenKind::MissingReturnArrow => {
-            let broken = src.replace("-> ", "");
-            let explanation = "Missing `->` return type arrow in function signature. \
-                               Vox requires explicit return type annotations."
+            let broken = src.replace("to ", "");
+            let explanation = "Missing `to` return type keyword in function signature. \
+                               Vox requires `to ReturnType` on function signatures (never `->`)."
                 .to_string();
             (broken, explanation)
         }
@@ -336,9 +335,9 @@ pub fn break_vox(src: &str, kind: BrokenKind) -> (String, String) {
             (broken, explanation)
         }
         BrokenKind::MissingToUnit => {
-            let broken = src.replace(" -> Unit", "");
-            let explanation = "Missing `-> Unit` return type. Functions that perform side-effects \
-                               but return no value must explicitly declare `-> Unit`."
+            let broken = src.replace(" to Unit", "");
+            let explanation = "Missing `to Unit` return type. Functions that perform side-effects \
+                               but return no value must explicitly declare `to Unit`."
                 .to_string();
             (broken, explanation)
         }
@@ -355,18 +354,19 @@ pub fn break_vox(src: &str, kind: BrokenKind) -> (String, String) {
             (broken, explanation)
         }
         BrokenKind::BadReturnType => {
-            let broken = src.replace("-> ", "returns ");
+            let broken = src.replace("to ", "-> ");
             let explanation =
-                "Invalid return type syntax: use `->` instead of `returns`.".to_string();
+                "Invalid return type syntax: use `to` instead of `->` for function return types."
+                    .to_string();
             (broken, explanation)
         }
         BrokenKind::UnresolvedGenericArity => {
-            // Replace `List[int]` with `List[]` — missing type argument
+            // Replace `list[int]` with `list[]` — missing type argument
             let broken = src
-                .replace("List[int]", "List[]")
+                .replace("list[int]", "list[]")
                 .replace("Option[str]", "Option[]");
-            let explanation = "Generic type `List` requires exactly one type argument. \
-                               `List[]` is invalid — use `List[int]`, `List[str]`, etc."
+            let explanation = "Generic type `list` requires a type argument. \
+                               `list[]` is invalid — use `list[int]`, `list[str]`, etc."
                 .to_string();
             (broken, explanation)
         }

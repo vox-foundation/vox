@@ -127,7 +127,7 @@ export function useOrchestratorStatus(): OrchestratorStatusHookResult {
     })
       .then((fn) => {
         if (cancelled) {
-          fn();
+          try { void Promise.resolve(fn()).catch(() => {}); } catch { /* ignore */ }
           return;
         }
         unlisten = fn;
@@ -144,7 +144,7 @@ export function useOrchestratorStatus(): OrchestratorStatusHookResult {
 
     return () => {
       cancelled = true;
-      unlisten?.();
+      try { void Promise.resolve(unlisten?.()).catch(() => {}); } catch { /* ignore */ }
     };
   }, [queryClient]);
 

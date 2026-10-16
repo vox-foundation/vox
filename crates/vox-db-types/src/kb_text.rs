@@ -51,7 +51,7 @@ const MAX_PASSES: usize = 8;
 ///
 /// Works on Unicode scalar values, applies no normalization and always returns
 /// valid UTF-8. Idempotent. If the passes have not converged after
-/// [`MAX_PASSES`] the input is adversarially nested and the result is `""`
+/// `MAX_PASSES` the input is adversarially nested and the result is `""`
 /// (fail closed).
 pub fn sanitize(raw: &str) -> String {
     let mut cur = raw.to_string();

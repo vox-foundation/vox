@@ -27,6 +27,8 @@ export const LEXICON: Record<string, LexEntry> = {
   dashboard: { en: 'Dashboard', la: 'Specula' },
   'discovery-inbox': { en: 'Discovery Inbox', la: 'Inventa Nova' },
   'discovery-review': { en: 'Discovery Review', la: 'Recensio Inventorum' },
+  explorer: { en: 'Explorer', la: 'Facultates' },
+  'explorer-title': { en: 'Capability Explorer', la: 'Facultatum Explorator' },
   flow: { en: 'Flow', la: 'Fluxus' },
   gamify: { en: 'Gamify', la: 'Ludus' },
   harness: { en: 'Harness', la: 'Apparatus' },

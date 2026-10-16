@@ -236,15 +236,12 @@ fn emit_typedef(typedef: &vox_compiler::hir::HirTypeDef, out: &mut String) {
 /// Extracted from `emit_lib` per CR-A1: the `if !func.actor_state_fields.is_empty()`
 /// guard + the `filter` closure contributed ~3 DPs inside the for-loop.
 fn emit_fn_with_actor_handlers(func: &HirFn, module: &vox_compiler::hir::HirModule) -> String {
-    let handlers: Vec<&HirFn> = if !func.actor_state_fields.is_empty() {
-        module
-            .functions
-            .iter()
-            .filter(|f| f.name.starts_with(&format!("{}::", func.name)))
-            .collect()
-    } else {
-        vec![]
-    };
+    let prefix = format!("{}::", func.name);
+    let handlers: Vec<&HirFn> = module
+        .functions
+        .iter()
+        .filter(|f| f.name.starts_with(&prefix))
+        .collect();
     emit_fn(func, Some(&module.inferred_types), &handlers)
 }
 

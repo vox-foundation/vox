@@ -112,7 +112,24 @@ impl vox_cli_ci::HeavyGuardHost for VoxCliProviders {
             }
             CiCmd::GuiCatalogParity => super::gui_catalog_parity::run(root),
             CiCmd::GuiSurfaceCoverage { write } => super::gui_surface_coverage::run(root, *write),
-            CiCmd::GuiSurfaceRegistry { write } => super::gui_surface_registry::run(root, *write),
+            CiCmd::GuiSurfaceRegistry {
+                write,
+                tighten,
+                today,
+            } => {
+                if *tighten {
+                    super::gui_surface_registry::tighten_baselines(root)
+                } else {
+                    let parsed_today = today
+                        .as_deref()
+                        .map(super::gui_surface_registry::parse_today)
+                        .transpose();
+                    match parsed_today {
+                        Ok(t) => super::gui_surface_registry::run(root, *write, t),
+                        Err(e) => Err(e),
+                    }
+                }
+            }
             CiCmd::CapabilityIndex {
                 write,
                 tighten,

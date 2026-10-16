@@ -60,7 +60,7 @@
     },
     {
       "path": "docs/src/tutorials/tut-workflow-durability.md",
-      "blob_sha": "7077299c8cc39de7ef419db5a2a64efa511460ef",
+      "blob_sha": "644b8bae0dcf00de0534c8637fa5c0ad1376810e",
       "checks": {
         "commands_in_registry": "pass",
         "snippets_compile": "pass",

@@ -8,6 +8,8 @@ mod eval_matrix;
 mod exec_policy_contract;
 mod gui_catalog_parity;
 mod gui_command_backends;
+pub(crate) mod gui_coverage_exemptions;
+pub(crate) mod gui_coverage_gate;
 mod gui_surface_coverage;
 pub mod gui_surface_registry;
 mod operations_catalog;

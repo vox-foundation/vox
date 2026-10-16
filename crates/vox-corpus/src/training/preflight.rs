@@ -189,6 +189,56 @@ pub fn validate_train_preflight(
     Ok(resolved)
 }
 
+/// Pre-flight training safety gate (`TRAIN-05`).
+///
+/// Blocks training if:
+/// 1. `decontamination.contaminated_removed > 0` and caller did not pass the decontaminated slice,
+///    or `records` is empty;
+/// 2. Any of the 5 `SpokeKind::ALL` spokes has `0` rows in `snapshot` / `records`;
+/// 3. Any record in `records` fails `TrainingRecordV2::verify_integrity()`.
+pub fn validate_snapshot_safety_gate(
+    snapshot: &crate::dataset_snapshot::TrustyDatasetSnapshot,
+    records: &[crate::training::contract::TrainingRecordV2],
+    unfiltered_holdout_leakage_count: usize,
+) -> Result<(), Vec<String>> {
+    let mut errors = Vec::new();
+
+    if unfiltered_holdout_leakage_count > 0 {
+        errors.push(format!(
+            "holdout contamination gate failed: {unfiltered_holdout_leakage_count} benchmark-leaking rows present"
+        ));
+    }
+
+    if records.is_empty() || snapshot.total_rows == 0 {
+        errors.push("snapshot contains zero training records".to_string());
+    }
+
+    for spoke in crate::training::contract::SpokeKind::ALL {
+        let count = records.iter().filter(|r| r.spoke == spoke).count();
+        if count == 0 {
+            errors.push(format!(
+                "spoke coverage gate failed: spoke `{}` has 0 records",
+                spoke.as_str()
+            ));
+        }
+    }
+
+    for (idx, rec) in records.iter().enumerate() {
+        if !rec.verify_integrity() {
+            errors.push(format!(
+                "record {idx} (`{}`) failed oracle or content_digest integrity verification",
+                rec.provenance.source_id
+            ));
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -275,5 +325,51 @@ mod tests {
         let r = resolve_train_input(&data, Some(ws)).expect("resolve");
         assert_eq!(r.source, ResolveSource::Contract);
         assert_eq!(r.path, local_target);
+    }
+
+    #[test]
+    fn validate_snapshot_safety_gate_enforces_contamination_and_spoke_coverage() {
+        use crate::dataset_snapshot::{SplitPolicy, build_trusty_snapshot};
+        use crate::training::contract::{
+            OracleReceipt, RecordProvenance, SpokeKind, TrainingRecordV2,
+        };
+
+        let recs: Vec<TrainingRecordV2> = SpokeKind::ALL
+            .into_iter()
+            .map(|spoke| {
+                TrainingRecordV2::new(
+                    spoke,
+                    format!("prompt {}", spoke.as_str()),
+                    "sys",
+                    "resp",
+                    OracleReceipt {
+                        spoke,
+                        passed: true,
+                        stage: "ok".to_string(),
+                        diagnostics: Vec::new(),
+                        exit_code: Some(0),
+                    },
+                    RecordProvenance {
+                        origin: "test".to_string(),
+                        source_id: spoke.as_str().to_string(),
+                        task_family: "test".to_string(),
+                        difficulty: 3,
+                    },
+                )
+            })
+            .collect();
+        let split = SplitPolicy {
+            train_fraction: 0.9,
+            eval_fraction: 0.1,
+            seed: 42,
+        };
+        let (snap, _) = build_trusty_snapshot("snap-safe", &recs, split.clone());
+        assert!(validate_snapshot_safety_gate(&snap, &recs, 0).is_ok());
+
+        // Contaminate or drop a spoke -> must fail closed.
+        assert!(validate_snapshot_safety_gate(&snap, &recs, 1).is_err());
+        let partial = &recs[..4];
+        let (snap_partial, _) = build_trusty_snapshot("snap-partial", partial, split);
+        assert!(validate_snapshot_safety_gate(&snap_partial, partial, 0).is_err());
     }
 }

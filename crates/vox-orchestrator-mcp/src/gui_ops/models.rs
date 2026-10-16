@@ -394,13 +394,13 @@ pub async fn probe_vox_local_bases(candidates: &[String]) -> (Option<bool>, Vec<
     if candidates.is_empty() {
         return (Some(false), Vec::new());
     }
+    const PROBE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
     let client = vox_http_client::client();
-    let timeout = std::time::Duration::from_secs(2);
     for base in candidates {
         let mut identifies_serve = false;
         for path in ["/health", "/ready"] {
             let url = format!("{base}{path}");
-            match client.get(url).timeout(timeout).send().await {
+            match client.get(url).timeout(PROBE_TIMEOUT).send().await {
                 Ok(resp) if resp.status().is_success() => {
                     if let Ok(body) = resp.text().await
                         && vox_config::inference::vox_local_health_identifies_serve(&body)
@@ -417,7 +417,7 @@ pub async fn probe_vox_local_bases(candidates: &[String]) -> (Option<bool>, Vec<
         }
         let models = match client
             .get(format!("{base}/v1/models"))
-            .timeout(timeout)
+            .timeout(PROBE_TIMEOUT)
             .send()
             .await
         {

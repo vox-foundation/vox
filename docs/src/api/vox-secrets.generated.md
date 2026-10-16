@@ -52,6 +52,7 @@ Secret resolution + redaction (env, vault, infisical, vox-vault backends).
 |---|---|
 | `backend` | — |
 | `errors` | — |
+| `lifecycle` | — |
 | `policy` | — |
 | `redact` | — |
 | `resolver` | — |
@@ -82,6 +83,7 @@ Secret resolution + redaction (env, vault, infisical, vox-vault backends).
 | `secret_id_for_canonical_env` | Find a managed secret by its canonical environment name.  This is the shared lookup used by every user-facing secret writer so the CLI and GUI cannot drift from the registry metadata. |
 | `delete_secret` | Delete a managed secret from the active Clavis account.  The caller supplies a registry-defined [`SecretId`], preventing arbitrary vault keys from becoming an alternate secret-management surface.  # Errors Returns [`SecretError`] when the Clavis vault cannot be initialized or the delete operation fails. |
 | `resolve_secret_for_cli` | — |
+| `resolve_clavis_uri` | Resolve a portable `clavis://<provider>/<key>` URI reference (`CLAVIS-02`). |
 | `resolve_secret_with_context` | — |
 | `resolve_env_only` | — |
 | `set_registry_token` | — |

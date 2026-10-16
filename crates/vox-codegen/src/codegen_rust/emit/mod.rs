@@ -31,6 +31,9 @@ mod usage;
 mod with_emit;
 mod workflow;
 
+pub use client::{PolyglotToolBundle, emit_tool_polyglot_artifacts};
+pub use http::emit_realtime_stream_and_channel_routes;
+
 /// Generated bundles that call `execute_search_plan` need local path resolution.
 fn module_has_distributed_subagent(module: &HirModule) -> bool {
     use vox_compiler::hir::nodes::boilerplate_grafts::HirAiFixture;
@@ -148,19 +151,47 @@ fn resolve_vox_repo_root() -> Option<PathBuf> {
     None
 }
 
-/// Render a `<crate_name> = { path = "...", ... }` dependency line for a
-/// vox-owned runtime crate. Uses an absolute path via `resolve_vox_repo_root`
-/// when possible; otherwise falls back to `<relative_prefix>/crates/<crate_name>`
-/// (the historical behavior, e.g. `"../.."` for the Axum shell's
-/// `Cargo.toml` or `"../../.."` for Tauri's `src-tauri/Cargo.toml`).
-/// `extra` is appended verbatim inside the braces (e.g.
-/// `", default-features = false"`), or `""` for a bare path dep.
-fn vox_crate_dep_line(crate_name: &str, relative_prefix: &str, extra: &str) -> String {
-    let path = match resolve_vox_repo_root() {
-        Some(root) => root.join("crates").join(crate_name).display().to_string(),
-        None => format!("{relative_prefix}/crates/{crate_name}"),
-    };
+/// Canonical repository URL used when a standalone `vox` binary (without a
+/// local Vox source checkout on disk) emits `git` dependencies for generated
+/// Rust projects.
+const VOX_RUNTIME_GIT_REPO: &str = "https://github.com/vox-foundation/vox.git";
+
+/// Format a `<crate_name> = { ... }` dependency line across the four resolution tiers:
+/// 1–2. `resolved_root` (`Some(root)`) -> `{ path = "<root>/crates/<crate_name>"<extra> }`
+/// 2.5. `git_rev` (`Some(rev)` non-empty and not `"unknown"`) -> `{ git = "https://github.com/vox-foundation/vox.git", rev = "<rev>"<extra> }`
+/// 3. Fallback -> `{ path = "<relative_prefix>/crates/<crate_name>"<extra> }`
+pub(crate) fn format_vox_crate_dep_line(
+    crate_name: &str,
+    resolved_root: Option<&Path>,
+    git_rev: Option<&str>,
+    relative_prefix: &str,
+    extra: &str,
+) -> String {
+    if let Some(root) = resolved_root {
+        let path = root.join("crates").join(crate_name).display().to_string();
+        return format!("{crate_name} = {{ path = \"{path}\"{extra} }}\n");
+    }
+    if let Some(rev) = git_rev
+        .map(str::trim)
+        .filter(|r| !r.is_empty() && *r != "unknown")
+    {
+        return format!(
+            "{crate_name} = {{ git = \"{VOX_RUNTIME_GIT_REPO}\", rev = \"{rev}\"{extra} }}\n"
+        );
+    }
+    let path = format!("{relative_prefix}/crates/{crate_name}");
     format!("{crate_name} = {{ path = \"{path}\"{extra} }}\n")
+}
+
+/// Render a `<crate_name> = { path = "...", ... }` (or `git = ...` fallback)
+/// dependency line for a vox-owned runtime crate. Uses an absolute path via
+/// `resolve_vox_repo_root` when possible; otherwise falls back to a pinned
+/// `git` dependency when `VOX_GIT_HASH` is embedded, or
+/// `<relative_prefix>/crates/<crate_name>` as a last resort.
+fn vox_crate_dep_line(crate_name: &str, relative_prefix: &str, extra: &str) -> String {
+    let root = resolve_vox_repo_root();
+    let git_rev = option_env!("VOX_GIT_HASH");
+    format_vox_crate_dep_line(crate_name, root.as_deref(), git_rev, relative_prefix, extra)
 }
 
 /// vox-workflow-runtime plus `anyhow`, which activity lowering names in its return
@@ -874,4 +905,50 @@ turso = {{ version = "0.6", default-features = false, features = ["sync"] }}
         mcp_bin = mcp_bin,
         edition = crate::codegen_rust::GENERATED_CARGO_EDITION,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn format_dep_prefers_local_repo_root_when_present() {
+        let root = Path::new("/opt/vox-checkout");
+        let line = format_vox_crate_dep_line(
+            "vox-db",
+            Some(root),
+            Some("deadbeef1234"),
+            "../..",
+            ", features = [\"host-integration\"]",
+        );
+        assert_eq!(
+            line,
+            "vox-db = { path = \"/opt/vox-checkout/crates/vox-db\", features = [\"host-integration\"] }\n"
+        );
+    }
+
+    #[test]
+    fn format_dep_uses_git_rev_when_no_local_checkout_exists() {
+        let line = format_vox_crate_dep_line(
+            "vox-db",
+            None,
+            Some("deadbeef1234"),
+            "../..",
+            ", features = [\"host-integration\"]",
+        );
+        assert_eq!(
+            line,
+            "vox-db = { git = \"https://github.com/vox-foundation/vox.git\", rev = \"deadbeef1234\", features = [\"host-integration\"] }\n"
+        );
+    }
+
+    #[test]
+    fn format_dep_falls_back_to_relative_path_when_git_rev_unknown() {
+        let line =
+            format_vox_crate_dep_line("vox-actor-runtime", None, Some("unknown"), "../..", "");
+        assert_eq!(
+            line,
+            "vox-actor-runtime = { path = \"../../crates/vox-actor-runtime\" }\n"
+        );
+    }
 }

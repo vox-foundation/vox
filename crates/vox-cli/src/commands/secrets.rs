@@ -258,6 +258,12 @@ pub async fn run(cmd: SecretsCmd) -> Result<()> {
             Ok(())
         }
         SecretsCmd::Get { canonical_env } => {
+            if canonical_env.starts_with("clavis://") {
+                let resolved = vox_secrets::resolve_clavis_uri(&canonical_env)
+                    .map_err(|e| anyhow::anyhow!("{e}"))?;
+                println!("{canonical_env}: {}", resolved.redacted());
+                return Ok(());
+            }
             let secret_id = managed_secret_id(&canonical_env)?;
             let resolved = vox_secrets::resolve_secret_for_cli(secret_id);
             println!("{canonical_env}: {}", resolved.redacted());
@@ -996,5 +1002,35 @@ mod secret_input_tests {
     fn rejects_empty_or_whitespace_only() {
         assert!(normalize_secret_input("").is_err());
         assert!(normalize_secret_input(" \n").is_err());
+    }
+}
+
+/// Inspect provider manifest and validation probe specification for a managed secret (`CLAVIS-01`, `CLAVIS-06`).
+pub fn inspect_secret_lifecycle_plan(
+    canonical_env: &str,
+) -> Result<(
+    Option<vox_secrets::ProviderManifestEntry>,
+    Option<vox_secrets::lifecycle::ValidationProbeSpec>,
+    vox_secrets::lifecycle::RotationRunbook,
+)> {
+    let secret_id = managed_secret_id(canonical_env)?;
+    let manifest = vox_secrets::provider_manifest_for(secret_id);
+    let probe = vox_secrets::lifecycle::validation_probe_for(secret_id);
+    let runbook = vox_secrets::lifecycle::rotation_runbook_for(secret_id);
+    Ok((Some(manifest), probe, runbook))
+}
+
+#[cfg(test)]
+mod clavis_next_cli_tests {
+    use super::inspect_secret_lifecycle_plan;
+
+    #[test]
+    fn lifecycle_plan_returns_manifest_probe_and_runbook() {
+        let (manifest, probe, runbook) =
+            inspect_secret_lifecycle_plan("OPENROUTER_API_KEY").expect("valid canonical env");
+        assert!(manifest.is_some());
+        assert!(probe.is_some());
+        assert_eq!(runbook.canonical_env, "OPENROUTER_API_KEY");
+        assert!(!runbook.rotate_step.is_empty());
     }
 }

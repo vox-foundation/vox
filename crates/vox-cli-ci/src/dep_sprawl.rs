@@ -29,7 +29,17 @@ fn cargo_bin() -> PathBuf {
 }
 
 /// Collect cap violations from a `cargo metadata` packages array.
+#[cfg(test)]
 pub(crate) fn violations_from_packages(packages: &[Value], cap: usize) -> Vec<String> {
+    violations_from_packages_with_ceilings(packages, cap, &std::collections::HashMap::new())
+}
+
+/// Collect cap violations using per-crate ratchet ceilings when present, falling back to `cap`.
+pub(crate) fn violations_from_packages_with_ceilings(
+    packages: &[Value],
+    cap: usize,
+    ceilings: &std::collections::HashMap<String, usize>,
+) -> Vec<String> {
     let mut violations = Vec::new();
     for pkg in packages {
         let Some(name) = pkg["name"].as_str() else {
@@ -39,13 +49,30 @@ pub(crate) fn violations_from_packages(packages: &[Value], cap: usize) -> Vec<St
             continue;
         }
         let dependencies = pkg["dependencies"].as_array().map_or(0, |d| d.len());
-        if dependencies > cap {
+        let effective_cap = ceilings.get(name).copied().unwrap_or(cap);
+        if dependencies > effective_cap {
             violations.push(format!(
-                "{name} has {dependencies} direct dependencies (cap: {cap})"
+                "{name} has {dependencies} direct dependencies (cap: {effective_cap})"
             ));
         }
     }
     violations
+}
+
+fn load_crate_ceilings(repo_root: &Path) -> std::collections::HashMap<String, usize> {
+    let path = repo_root.join("docs/ci/workspace-health-policy.json");
+    let Ok(raw) = std::fs::read_to_string(path) else {
+        return std::collections::HashMap::new();
+    };
+    let Ok(val) = serde_json::from_str::<Value>(&raw) else {
+        return std::collections::HashMap::new();
+    };
+    let Some(map) = val.get("crate_ceilings").and_then(|v| v.as_object()) else {
+        return std::collections::HashMap::new();
+    };
+    map.iter()
+        .filter_map(|(k, v)| v.as_u64().map(|n| (k.clone(), n as usize)))
+        .collect()
 }
 
 /// Run dependency sprawl guard against workspace `cargo metadata`.
@@ -67,16 +94,18 @@ pub fn run(repo_root: &Path, cap: usize) -> Result<()> {
         .as_array()
         .ok_or_else(|| anyhow!("invalid metadata format"))?;
 
+    let ceilings = load_crate_ceilings(repo_root);
     for pkg in packages {
         let name = pkg["name"].as_str().unwrap_or_default();
         if !FROZEN_CORE.contains(&name) {
             continue;
         }
         let dependencies = pkg["dependencies"].as_array().map_or(0, |d| d.len());
-        println!("  {name}: {dependencies} direct dependencies");
+        let effective_cap = ceilings.get(name).copied().unwrap_or(cap);
+        println!("  {name}: {dependencies} direct dependencies (ceiling: {effective_cap})");
     }
 
-    let violations = violations_from_packages(packages, cap);
+    let violations = violations_from_packages_with_ceilings(packages, cap, &ceilings);
     if !violations.is_empty() {
         for v in &violations {
             eprintln!("ERROR: {v}");

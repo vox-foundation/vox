@@ -54,6 +54,8 @@ pub(crate) enum ViolationKind {
     TodoOrUnimplemented,
     /// `de-stub-pending` (case-insensitive) in Rust source.
     DeStubPending,
+    /// Per-spoke `pass@1` fell below the monotonic ratchet floor (`AUDIT-04`).
+    SpokeRatchetRegression,
 }
 
 /// One detected violation.
@@ -322,6 +324,37 @@ pub(crate) fn scan_workspace(root: &Path) -> Result<Vec<Violation>, String> {
             let src = std::fs::read_to_string(path)
                 .map_err(|e| format!("cannot read {}: {e}", path.display()))?;
             all.extend(scan_rust_source(path, &src));
+        }
+    }
+
+    // 4. Per-spoke `pass@1` regression ratchet (`AUDIT-04`) when scorecard artifact is present
+    let scorecard_path = root
+        .join("contracts")
+        .join("reports")
+        .join("mens-spoke-scorecard.v1.json");
+    if scorecard_path.exists() {
+        let raw = std::fs::read_to_string(&scorecard_path)
+            .map_err(|e| format!("cannot read {}: {e}", scorecard_path.display()))?;
+        let val: serde_json::Value = serde_json::from_str(&raw)
+            .map_err(|e| format!("cannot parse {}: {e}", scorecard_path.display()))?;
+        let mut observed = std::collections::BTreeMap::new();
+        if let Some(spokes) = val.get("spokes").and_then(|v| v.as_array()) {
+            for s in spokes {
+                if let (Some(name), Some(pass1)) = (
+                    s.get("spoke").and_then(|v| v.as_str()),
+                    s.get("pass_at_1").and_then(|v| v.as_f64()),
+                ) {
+                    observed.insert(name.to_string(), pass1);
+                }
+            }
+        }
+        let ratchet = SpokeRegressionRatchetV1::canonical_five_spoke_floors(1.0);
+        if verify_spoke_regression_ratchet(&ratchet, &observed).is_err() {
+            all.push(Violation {
+                file: scorecard_path.to_string_lossy().into_owned(),
+                line: 1,
+                kind: ViolationKind::SpokeRatchetRegression,
+            });
         }
     }
 
@@ -761,5 +794,80 @@ pub fn real_fn() {}\n\
             outcome.report.corpus_size, 0,
             "corpus_size = violation count; must be 0"
         );
+    }
+
+    #[test]
+    fn audit_04_spoke_regression_ratchet_enforces_monotonic_floors() {
+        let mut floors = std::collections::BTreeMap::new();
+        floors.insert("vox_lang".to_string(), 0.80);
+        floors.insert("rust_workspace".to_string(), 0.75);
+        let ratchet = SpokeRegressionRatchetV1 {
+            schema_version: "vox.spoke_regression_ratchet.v1".to_string(),
+            spoke_pass_at_1_floors: floors,
+        };
+
+        let mut passing_observed = std::collections::BTreeMap::new();
+        passing_observed.insert("vox_lang".to_string(), 0.85);
+        passing_observed.insert("rust_workspace".to_string(), 0.75);
+        assert!(verify_spoke_regression_ratchet(&ratchet, &passing_observed).is_ok());
+
+        let mut regressed_observed = std::collections::BTreeMap::new();
+        regressed_observed.insert("vox_lang".to_string(), 0.79);
+        regressed_observed.insert("rust_workspace".to_string(), 0.80);
+        assert!(verify_spoke_regression_ratchet(&ratchet, &regressed_observed).is_err());
+    }
+}
+
+/// Per-spoke non-decreasing `pass@1` regression ratchet (`AUDIT-04`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SpokeRegressionRatchetV1 {
+    /// Schema discriminator (`"vox.spoke_regression_ratchet.v1"`).
+    pub schema_version: String,
+    /// Minimum required `pass@1` floor per spoke.
+    pub spoke_pass_at_1_floors: std::collections::BTreeMap<String, f64>,
+}
+
+impl SpokeRegressionRatchetV1 {
+    /// Construct a ratchet seeded with `floor` across all 5 canonical [`crate::subcommands::corpus_feedback::AuditSpokeKind`] spokes.
+    #[must_use]
+    pub fn canonical_five_spoke_floors(floor: f64) -> Self {
+        let mut spoke_pass_at_1_floors = std::collections::BTreeMap::new();
+        for spoke in crate::subcommands::corpus_feedback::AuditSpokeKind::ALL {
+            spoke_pass_at_1_floors.insert(spoke.as_str().to_string(), floor);
+        }
+        Self {
+            schema_version: "vox.spoke_regression_ratchet.v1".to_string(),
+            spoke_pass_at_1_floors,
+        }
+    }
+}
+
+/// Verify that every spoke in `observed_pass_at_1` meets or exceeds the ratchet floor (`AUDIT-04`).
+pub fn verify_spoke_regression_ratchet(
+    ratchet: &SpokeRegressionRatchetV1,
+    observed_pass_at_1: &std::collections::BTreeMap<String, f64>,
+) -> Result<SpokeRegressionRatchetV1, Vec<String>> {
+    let mut violations = Vec::new();
+    let mut updated = ratchet.spoke_pass_at_1_floors.clone();
+    for (spoke, &floor) in &ratchet.spoke_pass_at_1_floors {
+        match observed_pass_at_1.get(spoke) {
+            Some(&obs) if obs + 1e-9 >= floor => {
+                if obs > floor {
+                    updated.insert(spoke.clone(), obs);
+                }
+            }
+            Some(&obs) => violations.push(format!(
+                "spoke `{spoke}` regressed: observed {obs:.4} < ratchet floor {floor:.4}"
+            )),
+            None => violations.push(format!("spoke `{spoke}` missing from observed scorecard")),
+        }
+    }
+    if violations.is_empty() {
+        Ok(SpokeRegressionRatchetV1 {
+            schema_version: ratchet.schema_version.clone(),
+            spoke_pass_at_1_floors: updated,
+        })
+    } else {
+        Err(violations)
     }
 }

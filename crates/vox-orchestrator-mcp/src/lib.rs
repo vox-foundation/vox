@@ -35,6 +35,7 @@ pub mod skill_promotion;
 /// T0.3: persisted per-repo "always allow this tool" allowlist (tier 3 of the
 /// dangerous-tool gate's precedence order).
 pub mod approval_allowlist;
+mod floor_gate;
 /// T0.3: registry-driven risk classification + `PermissionMode` auto-approve
 /// matrix (tier 2 of the dangerous-tool gate's precedence order).
 pub mod permission_modes;

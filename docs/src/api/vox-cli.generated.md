@@ -179,6 +179,7 @@ For the end-user CLI surface and subcommand map, see the `vox` binary crate root
 
 | Enum | Description |
 |---|---|
+| `CompletionShell` | — |
 | `Cli` | Collection of subcommands exposing all features of the `vox` binary. |
 
 ### Functions

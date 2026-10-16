@@ -86,12 +86,15 @@ pub(crate) struct GroupEntry {
 pub(crate) fn load(repo_root: &Path) -> Result<Inputs> {
     let layers = load_layers(repo_root)?;
     let crate_descriptions = load_crate_descriptions(repo_root, &layers)?;
+    let ops = read_catalog(repo_root)?.operations;
+    let hand_surfaces = load_registry(repo_root)?;
+    let surfaces = super::super::gui_coverage_gate::resolve_effective(&hand_surfaces, &ops);
     Ok(Inputs {
-        ops: read_catalog(repo_root)?.operations,
+        ops,
         layers,
         cli_command_files: load_cli_command_files(repo_root)?,
         domains: load_domains(repo_root)?,
-        surfaces: load_registry(repo_root)?,
+        surfaces,
         crate_descriptions,
         skills: load_skills(repo_root)?,
         coverage: load_coverage(repo_root)?,
@@ -221,7 +224,7 @@ fn load_domains(repo_root: &Path) -> Result<Domains> {
         .with_context(|| format!("parse {DOMAINS_REL}"))
 }
 
-fn load_layers(repo_root: &Path) -> Result<Layers> {
+pub(crate) fn load_layers(repo_root: &Path) -> Result<Layers> {
     let path = repo_root.join(LAYERS_REL);
     let doc: toml::Value = toml::from_str(&read_utf8_path_capped(&path)?)
         .with_context(|| format!("parse {} as TOML", path.display()))?;

@@ -94,11 +94,17 @@ vox_file_graph
 vox_gamify_battle_start
 vox_gamify_battle_submit
 vox_gamify_collegium_join
+vox_gamify_companions
+vox_gamify_discovery_record
+vox_gamify_due_actions
+vox_gamify_leaderboard
 vox_gamify_notification_ack
 vox_gamify_notifications_ack_all
 vox_gamify_notifications_list
+vox_gamify_profile
 vox_gamify_progress_snapshot
 vox_gamify_quest_list
+vox_gamify_record_event
 vox_gamify_shop_buy
 vox_gamify_shop_catalog
 vox_generate_code
@@ -113,6 +119,8 @@ vox_gui_components
 vox_gui_preference_get
 vox_gui_preference_set
 vox_gui_rules
+vox_gui_run_finish
+vox_gui_run_start
 vox_gui_tokens
 vox_handoff_context
 vox_handoff_lineage
@@ -121,6 +129,10 @@ vox_harness_fix_propose
 vox_harness_fix_resolve
 vox_harness_issue_decide
 vox_heartbeat
+vox_hopper_cancel
+vox_hopper_mark_done
+vox_hopper_reprioritize
+vox_hopper_submit
 vox_inline_edit
 vox_journey_canonical_steps
 vox_kb_cite
@@ -178,6 +190,8 @@ vox_pending_questions
 vox_pipeline_status
 vox_plan
 vox_plan_list_sessions
+vox_plan_node_upsert
+vox_plan_nodes_approve
 vox_plan_resume
 vox_plan_status
 vox_plugin_catalog
@@ -226,6 +240,7 @@ vox_resume_agent
 vox_retire_agent
 vox_run_tests
 vox_schola_submit
+vox_search_atlas
 vox_search_callees
 vox_search_callers
 vox_search_compare
@@ -274,6 +289,7 @@ vox_transfer_file
 vox_trust_override
 vox_undo
 vox_validate_file
+vox_validate_mermaid
 vox_validate_source
 vox_validate_vuv
 vox_vcs_status

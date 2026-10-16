@@ -1,5 +1,6 @@
 //! Claims and mention extraction engine for documentation reality auditing.
 
+pub mod consolidation;
 pub mod dod;
 pub mod eval;
 pub mod extractor;
@@ -7,12 +8,18 @@ pub mod findings;
 pub mod gate;
 pub mod hasher;
 pub mod ledger;
+pub mod llm_verifier;
 pub mod prune;
 pub mod resolver;
 pub mod reverse_index;
+pub mod self_heal_bot;
 pub mod suppressions;
 pub mod types;
 
+pub use consolidation::{
+    ClusterConsolidationPlan, DuplicateCluster, plan_duplicate_cluster_consolidation,
+    ratchet_kb_facet_backlog, render_redirects_block,
+};
 pub use dod::{DodWarning, check_definition_of_done};
 pub use eval::{EvalReport, EvaluationDataset, EvaluationSample, evaluate_sample_dataset};
 pub use extractor::extract_mentions;

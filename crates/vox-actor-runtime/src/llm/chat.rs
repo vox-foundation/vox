@@ -615,6 +615,7 @@ mod infer_with_retry_latency_tests {
             .respond_with(
                 ResponseTemplate::new(200)
                     .set_body_json(body)
+                    // drift-allow(timeout-literal,duplicate-numeric-literal): wiremock artificial latency fixture
                     .set_delay(std::time::Duration::from_millis(120)),
             )
             .mount(&server)

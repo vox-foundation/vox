@@ -15,6 +15,8 @@ pub mod activity;
 pub mod auth;
 /// Host-callable builtins surfaced to generated code (hashing, small helpers).
 pub mod builtins;
+/// Zero-trust capability-scoped credential broker for agents and MCP tools (`CLAVIS-05`).
+pub mod credential_broker;
 #[cfg(feature = "database")]
 /// Optional Codex / Turso database handle when the `database` feature is enabled.
 pub mod db;

@@ -27,6 +27,36 @@ pub struct ResearchClaimDto {
     pub corroboration_count: usize,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct EpistemicDagNodeDto {
+    pub id: String,
+    pub kind: String,
+    pub label: String,
+    pub wave: u8,
+    #[serde(default)]
+    pub verdict: Option<String>,
+    #[serde(default)]
+    pub confidence: Option<f64>,
+    #[serde(default)]
+    pub url: Option<String>,
+    #[serde(default)]
+    pub snippet: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct EpistemicDagEdgeDto {
+    pub id: String,
+    pub source: String,
+    pub target: String,
+    pub kind: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct EpistemicDagDto {
+    pub nodes: Vec<EpistemicDagNodeDto>,
+    pub edges: Vec<EpistemicDagEdgeDto>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResearchDetailDto {
     pub session: ResearchSessionDto,
@@ -36,6 +66,16 @@ pub struct ResearchDetailDto {
     pub claims: Vec<ResearchClaimDto>,
     pub source_count: Option<usize>,
     pub citation_precision: Option<f64>,
+    #[serde(default)]
+    pub epistemic_dag: Option<EpistemicDagDto>,
+    #[serde(default)]
+    pub wave_count: Option<u8>,
+    #[serde(default)]
+    pub wave_stability: Option<f64>,
+    #[serde(default)]
+    pub quality_score: Option<i32>,
+    #[serde(default)]
+    pub synthesis_model: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

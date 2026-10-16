@@ -103,6 +103,20 @@ impl ExtractionPipeline {
         }
     }
 
+    pub fn new_calibrated(config: ExtractionConfig) -> Self {
+        let gate = VeriScoreGate::new(config.veriscore.clone());
+        let decomposer = AtomicDecomposer::new(config.atomic.clone());
+        let span_checker = SpanChecker::default();
+        let verifier = MiniCheckVerifier::from_env_or_calibrated();
+        Self {
+            config,
+            gate,
+            decomposer,
+            span_checker,
+            verifier,
+        }
+    }
+
     pub async fn extract(
         &self,
         source_text: &str,

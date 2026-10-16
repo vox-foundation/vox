@@ -61,25 +61,18 @@ If none resolve to a real checkout, tier 3 is used as a last resort and the
 generated `Cargo.toml` gets a comment pointing at `VOX_REPO_ROOT` as the
 escape hatch.
 
-### Why not a git dependency
+### Tier 2.5: Pinned `git` + `rev` dependency fallback (for standalone `voxup` installs)
 
-The alternative this doc's authoring task also asked us to weigh: emit
-`vox-db = { git = "https://github.com/vox-foundation/vox", rev = "<hash>" }`
-using the git hash `vox-build-meta` already embeds (`VOX_GIT_HASH`). This is
-the right answer for a `vox` binary *distributed* to a machine that never
-had the source checkout (nightly builds via `voxup`, per
-`docs/src/architecture/nightly-builds-ssot.md`) — tier 2 above embeds the
-CI runner's path in that case, which is useless on the end user's machine.
+When `vox` is distributed to a machine that never had the source checkout (via `voxup` or prebuilt release binaries, per `docs/src/architecture/nightly-builds-ssot.md`), Tier 1 (`VOX_REPO_ROOT`) is unset and Tier 2 (`COMPILED_REPO_ROOT`) embeds the CI runner's path, which does not exist on the end user's machine.
 
-It is **not implemented in this change**: it needs the resolved commit to
-actually be pushed and public (true today — `vox-foundation/vox` is a public
-GitHub repo — but not a property codegen can verify at generation time), and
-a `cargo check` of the generated project would then compile the full
-`vox-db`/`vox-actor-runtime`/etc. dependency graph from a git checkout on
-every fresh clone, which is a materially heavier and slower ask than the
-one bug this change fixes. Flagged as follow-up: add a tier between 2 and 3
-that falls back to a pinned `git`/`rev` dependency when neither the env
-override nor the embedded local path resolves.
+As of **2026-10-14 (`Phase 56`)**, `crates/vox-codegen/build.rs` embeds `VOX_GIT_HASH` (`git rev-parse HEAD`) and `format_vox_crate_dep_line` in `crates/vox-codegen/src/codegen_rust/emit/mod.rs` implements **Tier 2.5**: when neither Tier 1 nor Tier 2 resolves to a local Vox checkout on disk and `VOX_GIT_HASH` is known, `vox_crate_dep_line` emits:
+
+```toml
+vox-db = { git = "https://github.com/vox-foundation/vox.git", rev = "<VOX_GIT_HASH>", features = ["host-integration"] }
+```
+
+Tier 3 (`../../crates/<name>`) remains the final fallback if `VOX_GIT_HASH` is `"unknown"`.
+
 
 ## Trimming unconditional heavy deps
 

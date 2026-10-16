@@ -13,11 +13,44 @@ use vox_db::{
 
 #[derive(Clone)]
 pub struct GuiDbPool {
+    #[allow(dead_code)]
     db: Option<Arc<VoxDb>>,
 }
 
 impl GuiDbPool {
+    /// Short-lived Drive store schema check/reset at Axis launch.
+    ///
+    /// When `VOX_GUI_DRIVE_STORE_ROOT` is set, probes `open_project_db_at_root`
+    /// and wipes a legacy/ahead Drive store only when `VOX_GUI_DRIVE=1` and
+    /// `VOX_GUI_DRIVE_ALLOW_STORE_RESET=1` are set. Immediately drops the
+    /// temporary `VoxDb` connection so `vox-gui` holds zero open database
+    /// handles while `vox-orchestrator-d` runs.
+    pub async fn reset_drive_store_if_requested() {
+        if let Ok(root) = std::env::var("VOX_GUI_DRIVE_STORE_ROOT")
+            && !root.is_empty()
+        {
+            let root_path = Path::new(&root);
+            match open_project_db_at_root(root_path).await {
+                Ok(_db) => {}
+                Err(StoreError::LegacySchemaChain { max_version }) => {
+                    if !drive_store_reset_allowed() {
+                        let msg = legacy_schema_drive_message(&root, max_version);
+                        tracing::error!(max_version, root = %root, "{msg}");
+                        eprintln!("vox-gui: {msg}");
+                    } else {
+                        wipe_drive_store(root_path);
+                        let _ = open_project_db_at_root(root_path).await;
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(error = %e, "Drive store open failed");
+                }
+            }
+        }
+    }
+
     /// Best-effort workspace connect; pool may be empty when Turso is unavailable.
+    #[allow(dead_code)]
     pub async fn connect_workspace() -> Self {
         if let Ok(root) = std::env::var("VOX_GUI_DRIVE_STORE_ROOT")
             && !root.is_empty()
@@ -61,6 +94,7 @@ impl GuiDbPool {
         })
     }
 
+    #[allow(dead_code)]
     pub fn handle(&self) -> Result<Arc<VoxDb>, String> {
         self.db.clone().ok_or_else(|| {
             if std::env::var("VOX_GUI_DRIVE_STORE_ROOT")
@@ -114,6 +148,7 @@ fn wipe_drive_store(root_path: &Path) {
     let _ = std::fs::remove_file(store.with_extension("db-shm"));
 }
 
+#[allow(dead_code)]
 pub fn map_db_err(e: impl std::fmt::Display) -> String {
     let s = e.to_string();
     if s.contains("Locking error")

@@ -58,6 +58,23 @@ fn read_token_file() -> Option<String> {
     }
 }
 
+fn read_daemon_stderr_tail(path: &std::path::Path) -> Option<String> {
+    let contents = std::fs::read_to_string(path).ok()?;
+    contents
+        .lines()
+        .rev()
+        .map(str::trim)
+        .find(|l| !l.is_empty() && !l.starts_with("at ") && !l.starts_with("0:"))
+        .map(str::to_string)
+}
+
+fn allocate_ephemeral_loopback_addr() -> Option<String> {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").ok()?;
+    let addr = listener.local_addr().ok()?.to_string();
+    drop(listener);
+    Some(addr)
+}
+
 /// Tauri-managed holder for the one long-lived orchestrator daemon.
 ///
 /// The resolved `(addr, token)` pair is cached in an [`RwLock`] rather than a
@@ -86,6 +103,8 @@ pub struct PersistentDaemon {
     /// [`detect_version_mismatch`]'s doc on why "unknown" and "match" are not
     /// distinguished here).
     pub last_version_mismatch: tokio::sync::RwLock<Option<VersionMismatch>>,
+    /// Most recent daemon resolution failure for observability/diagnostics.
+    pub last_resolve_error: tokio::sync::RwLock<Option<String>>,
 }
 
 /// A confirmed daemon/GUI version mismatch, named (not a positional tuple) so
@@ -181,6 +200,7 @@ impl PersistentDaemon {
                 .await
         {
             *self.last_version_mismatch.write().await = detect_version_mismatch(&resp);
+            *self.last_resolve_error.write().await = None;
             return Ok(addr);
         }
         // The cached entry (if any) failed its liveness ping — invalidate it
@@ -208,21 +228,21 @@ impl PersistentDaemon {
 
         let requested_profile = gui_requested_profile()?;
 
-        let addr =
-            match vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOrchestratorDaemonSocket)
+        let explicit_socket =
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOrchestratorDaemonSocket)
                 .expose()
-            {
-                Some(s) if s.contains(':') => s.to_string(),
-                _ => DEFAULT_DAEMON_ADDR.to_string(),
-            };
+                .filter(|s| s.contains(':'))
+                .map(str::to_string);
+        let mut addr = explicit_socket
+            .clone()
+            .unwrap_or_else(|| DEFAULT_DAEMON_ADDR.to_string());
 
         // A daemon is already running — only adopt it if a
         // token-authenticated ping actually succeeds. Reading the
         // token file and pinging with it rejects port-squatters: any
         // process that merely answers ping (but doesn't share our
         // token) is not adopted, and we fall through to spawning a
-        // fresh daemon of our own (which self-heals once the bind
-        // becomes available).
+        // fresh daemon of our own.
         //
         // Axis Drive fail-closed: never adopt a foreign orch. Pre-existing
         // daemons were not spawned under VOX_GUI_DRIVE=1 and may lack the
@@ -234,26 +254,56 @@ impl PersistentDaemon {
                 .await
         {
             *self.last_version_mismatch.write().await = detect_version_mismatch(&resp);
-            if !existing_daemon_is_adoptable_for_gui(&resp) {
-                return Err(
+            let role_ok = existing_daemon_is_adoptable_for_gui(&resp);
+            let profile_ok =
+                vox_cli_core::daemon_ipc::orchestrator_daemon_ensure::ping_profile_matches(
+                    &resp,
+                    &requested_profile,
+                );
+            if role_ok && profile_ok {
+                *self.last_resolve_error.write().await = None;
+                *self.resolved.write().await = Some((addr.clone(), existing_token));
+                return Ok(addr);
+            }
+            if explicit_socket.is_some() {
+                let err_msg = if !role_ok {
                     "existing vox-orchestrator-d is not human-role; stop it and let the GUI spawn \
 (or restart it with VOX_MCP_CALLER_ROLE=human)"
-                        .to_string(),
-                );
-            }
-            if !vox_cli_core::daemon_ipc::orchestrator_daemon_ensure::ping_profile_matches(
-                &resp,
-                &requested_profile,
-            ) {
-                return Err(
+                        .to_string()
+                } else {
                     vox_cli_core::daemon_ipc::orchestrator_daemon_ensure::profile_mismatch_error(
                         &resp,
                         &requested_profile,
-                    ),
-                );
+                    )
+                };
+                *self.last_resolve_error.write().await = Some(err_msg.clone());
+                return Err(err_msg);
             }
-            *self.resolved.write().await = Some((addr.clone(), existing_token));
-            return Ok(addr);
+            tracing::warn!(
+                target: "vox_gui::daemon",
+                addr = %addr,
+                role_ok,
+                profile_ok,
+                "existing vox-orchestrator-d on default socket is not adoptable; allocating dedicated GUI loopback port"
+            );
+        }
+
+        // If `VOX_ORCHESTRATOR_DAEMON_SOCKET` was not explicitly pinned and the
+        // default port (`127.0.0.1:9745`) is already bound by an unadoptable
+        // listener (port-squatter, stale daemon with rotated token, or
+        // `VOX_GUI_DRIVE=1` refusing foreign adopt), pick an ephemeral loopback
+        // port so the spawned `vox-orchestrator-d` does not immediately fail
+        // with `Address already in use (os error 48)`.
+        if explicit_socket.is_none() && std::net::TcpListener::bind(&addr).is_err() {
+            if let Some(fallback_addr) = allocate_ephemeral_loopback_addr() {
+                tracing::warn!(
+                    target: "vox_gui::daemon",
+                    occupied_addr = %addr,
+                    fallback_addr = %fallback_addr,
+                    "default daemon socket is already in use; spawning GUI vox-orchestrator-d on fallback loopback port"
+                );
+                addr = fallback_addr;
+            }
         }
 
         // Spawn a fresh daemon and keep the child alive.
@@ -354,9 +404,11 @@ impl PersistentDaemon {
         }
         // Check in-flight *before* spawn so a refused respawn cannot orphan a child.
         self.refuse_kill_while_busy()?;
-        let mut child = cmd
-            .spawn()
-            .map_err(|e| format!("failed to spawn vox-orchestrator-d: {e}"))?;
+        let mut child = cmd.spawn().map_err(|e| {
+            let msg = format!("failed to spawn vox-orchestrator-d: {e}");
+            tracing::error!(target: "vox_gui::daemon", error = %msg);
+            msg
+        })?;
         // TOCTOU: a call may have started between the check and spawn.
         if let Err(e) = self.refuse_kill_while_busy() {
             let _ = child.kill();
@@ -375,8 +427,8 @@ impl PersistentDaemon {
             }
         }
 
-        // Poll until the daemon answers an authenticated ping or the
-        // deadline elapses.
+        // Poll until the daemon answers an authenticated ping, the child exits
+        // early, or the deadline elapses.
         let deadline = std::time::Instant::now() + DAEMON_CONNECT_TIMEOUT;
         while std::time::Instant::now() < deadline {
             if let Ok(resp) = OrchDaemonClient::with_token(addr.clone(), spawned_token.clone())
@@ -384,8 +436,35 @@ impl PersistentDaemon {
                 .await
             {
                 *self.last_version_mismatch.write().await = detect_version_mismatch(&resp);
+                *self.last_resolve_error.write().await = None;
                 *self.resolved.write().await = Some((addr.clone(), spawned_token));
                 return Ok(addr);
+            }
+            let exited_status = if let Ok(mut slot) = self.child.lock()
+                && let Some(ref mut spawned) = *slot
+                && let Ok(Some(status)) = spawned.try_wait()
+            {
+                let _ = slot.take();
+                Some(status)
+            } else {
+                None
+            };
+            if let Some(status) = exited_status {
+                let tail = read_daemon_stderr_tail(&stderr_path)
+                    .map(|t| format!(" ({t})"))
+                    .unwrap_or_default();
+                let err_msg = format!(
+                    "vox-orchestrator-d exited early with {status} before becoming reachable at {addr}{tail}"
+                );
+                tracing::error!(
+                    target: "vox_gui::daemon",
+                    addr = %addr,
+                    status = %status,
+                    stderr_tail = %tail,
+                    "spawned vox-orchestrator-d exited before answering ping"
+                );
+                *self.last_resolve_error.write().await = Some(err_msg.clone());
+                return Err(err_msg);
             }
             tokio::time::sleep(DAEMON_POLL_INTERVAL).await;
         }
@@ -396,9 +475,13 @@ impl PersistentDaemon {
             let _ = spawned.kill();
         }
 
-        Err(format!(
-            "vox-orchestrator-d did not become reachable at {addr} within 15s"
-        ))
+        let tail = read_daemon_stderr_tail(&stderr_path)
+            .map(|t| format!(" ({t})"))
+            .unwrap_or_default();
+        let err_msg =
+            format!("vox-orchestrator-d did not become reachable at {addr} within 15s{tail}");
+        *self.last_resolve_error.write().await = Some(err_msg.clone());
+        Err(err_msg)
     }
 
     /// The daemon auth token resolved as a side effect of [`PersistentDaemon::ensure`]
@@ -860,6 +943,40 @@ mod tests {
         pd.end_call();
         assert_eq!(pd.in_flight.load(Ordering::SeqCst), 0);
         assert!(pd.refuse_kill_while_busy().is_ok());
+    }
+
+    #[test]
+    fn allocate_ephemeral_loopback_addr_returns_valid_non_zero_port() {
+        let addr = allocate_ephemeral_loopback_addr().expect("ephemeral loopback addr");
+        assert!(addr.starts_with("127.0.0.1:"), "unexpected addr: {addr}");
+        let port: u16 = addr
+            .strip_prefix("127.0.0.1:")
+            .unwrap()
+            .parse()
+            .expect("valid port");
+        assert!(port > 0);
+    }
+
+    #[test]
+    fn read_daemon_stderr_tail_truncates_and_trims() {
+        let tmp = tempfile::NamedTempFile::new().expect("temp file");
+        let stderr_log = "2026-10-14 INFO starting\n  Error: Address already in use (os error 48)  \n  0: std::backtrace::Backtrace::create\n  at crates/vox-orchestrator-d/src/bin/vox_orchestrator_d.rs:101\n\n";
+        std::fs::write(tmp.path(), stderr_log).expect("write stderr");
+        let tail = read_daemon_stderr_tail(tmp.path()).expect("stderr tail");
+        assert_eq!(tail, "Error: Address already in use (os error 48)");
+    }
+
+    #[tokio::test]
+    async fn last_resolve_error_records_and_clears_failure_reason() {
+        let pd = PersistentDaemon::default();
+        assert_eq!(*pd.last_resolve_error.read().await, None);
+        *pd.last_resolve_error.write().await = Some("spawn timeout on 127.0.0.1:9745".to_string());
+        assert_eq!(
+            pd.last_resolve_error.read().await.as_deref(),
+            Some("spawn timeout on 127.0.0.1:9745")
+        );
+        *pd.last_resolve_error.write().await = None;
+        assert_eq!(*pd.last_resolve_error.read().await, None);
     }
 
     const D_20MS: std::time::Duration = std::time::Duration::from_millis(20);

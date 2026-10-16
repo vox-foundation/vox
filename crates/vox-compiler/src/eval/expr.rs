@@ -866,11 +866,11 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 interp.iteration_stack.pop();
                 let val = val?;
                 match val {
+                    VoxValue::_Break => {
+                        break;
+                    }
                     // Propagate early-exit signals out of the for loop.
-                    VoxValue::_Return(_)
-                    | VoxValue::_Break
-                    | VoxValue::_Panic(_)
-                    | VoxValue::_Denied(_) => {
+                    VoxValue::_Return(_) | VoxValue::_Panic(_) | VoxValue::_Denied(_) => {
                         interp.scope.pop_frame();
                         return Ok(val);
                     }

@@ -20,6 +20,7 @@ import { DiscoverySurface } from '../surfaces/Discovery/DiscoverySurface';
 import { SkillsPluginsView } from '../surfaces/SkillsPlugins/SkillsPluginsView';
 import { PoliciesView } from '../surfaces/Policies/PoliciesView';
 import { NeedsYouSurface } from '../surfaces/NeedsYou/NeedsYouSurface';
+import { ExplorerView } from '../surfaces/Explorer/ExplorerView';
 import { surfaceDecorators } from '../surfaces/decoratorRegistry';
 import { VoxGraphStatusPanel } from '../surfaces/VoxGraph/VoxGraphStatusPanel';
 import { Mercatus } from '../surfaces/Mercatus';
@@ -50,6 +51,11 @@ export interface SurfaceProps {
   setSelectedAgentId?: (id: string) => void;
   skills?: CatalogEntry[];
   catalogPrefill?: { path: string[]; nonce: number } | null;
+  explorerSeed?: { query: string; nonce: number } | null;
+  onOpenCatalogForm?: (path: string[]) => void;
+  onExplain?: (rowId: string) => void;
+  onOpenDoc?: (path: string) => void;
+  commandCatalog?: CatalogEntry[];
   onAttachContext?: (items: Array<{ kind: 'file' | 'url' | 'image'; label: string }>) => void;
   onNavigate?: (viewKey: string) => void;
   onOpenChat?: () => void;
@@ -137,6 +143,18 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
           onHudTilesChange={props.onHudTilesChange}
         />
       );
+    case 'explorer':
+      return (
+        <ExplorerView
+          pushToast={props.pushToast}
+          onNavigate={props.onNavigate}
+          onOpenForm={props.onOpenCatalogForm}
+          onExplain={props.onExplain}
+          onOpenDoc={props.onOpenDoc}
+          commandCatalog={props.commandCatalog ?? props.data.skills}
+          seed={props.explorerSeed}
+        />
+      );
     case 'repository':
       return <RepositoryView pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'mesh':
@@ -146,6 +164,10 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
     case 'harness':
       return (
         <HarnessRedirect
+          tasks={props.chatTasks}
+          messages={props.chatMessages}
+          routing={props.chatRouting}
+          sessionSpentUsd={props.chatSessionSpentUsd}
           onFocusComposer={props.onFocusComposer}
           gamifyEnabled={props.gamifyEnabled}
         />

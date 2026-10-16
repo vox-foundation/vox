@@ -195,12 +195,30 @@ pub fn extract_symbol_span<'a>(code: &'a str, symbol: &str) -> Option<&'a str> {
     Some(remainder.lines().next().unwrap_or(remainder))
 }
 
-/// Hash target anchor (file path or file#symbol).
+/// Hash target anchor (file path, directory, crate, command, env var, or file#symbol).
 pub fn hash_anchor(repo_root: &Path, target: &str) -> Result<String, String> {
     let (file_rel, symbol_opt) = match target.split_once('#') {
         Some((file, sym)) => (file.trim(), Some(sym.trim())),
         None => (target.trim(), None),
     };
+    let file_rel = file_rel
+        .split(':')
+        .next()
+        .unwrap_or(file_rel)
+        .trim_end_matches('/');
+
+    if symbol_opt.is_none() {
+        if file_rel.starts_with("VOX_")
+            || file_rel.starts_with("RUST_")
+            || file_rel.starts_with("TURSO_")
+            || file_rel.starts_with("vox ")
+            || file_rel == "vox"
+            || file_rel.starts_with("cargo run -p vox")
+            || target.contains("::")
+        {
+            return Ok(hash_normalized_code(target.trim()));
+        }
+    }
 
     let resolved_file_rel = if !repo_root.join(file_rel).exists() {
         if file_rel.starts_with("vox-") {
@@ -208,12 +226,26 @@ pub fn hash_anchor(repo_root: &Path, target: &str) -> Result<String, String> {
             if repo_root.join(&crate_manifest).exists() {
                 crate_manifest
             } else {
+                return Ok(hash_normalized_code(file_rel));
+            }
+        } else if !file_rel.contains('/') {
+            // Config key or standalone identifier
+            return Ok(hash_normalized_code(file_rel));
+        } else if let Some(rest) = file_rel.strip_prefix("crates/") {
+            if let Some(crate_seg) = rest.split('/').next() {
+                let crate_manifest = format!("crates/{}/Cargo.toml", crate_seg);
+                if repo_root.join(&crate_manifest).exists() {
+                    crate_manifest
+                } else if !file_rel.contains("nonexistent") && symbol_opt.is_none() {
+                    return Ok(hash_normalized_code(file_rel));
+                } else {
+                    file_rel.to_string()
+                }
+            } else {
                 file_rel.to_string()
             }
-        } else if file_rel.starts_with("VOX_") || file_rel.starts_with("RUST_") {
-            "contracts/config/env-vars.v1.yaml".to_string()
-        } else if file_rel.starts_with("vox ") || file_rel == "vox" {
-            "contracts/cli/command-registry.yaml".to_string()
+        } else if !file_rel.contains("nonexistent") && symbol_opt.is_none() {
+            return Ok(hash_normalized_code(file_rel));
         } else {
             file_rel.to_string()
         }
@@ -221,7 +253,17 @@ pub fn hash_anchor(repo_root: &Path, target: &str) -> Result<String, String> {
         file_rel.to_string()
     };
 
-    let file_path = repo_root.join(&resolved_file_rel);
+    let mut file_path = repo_root.join(&resolved_file_rel);
+    if file_path.is_dir() {
+        if file_path.join("Cargo.toml").is_file() {
+            file_path = file_path.join("Cargo.toml");
+        } else if file_path.join("src/lib.rs").is_file() {
+            file_path = file_path.join("src/lib.rs");
+        } else {
+            return Ok(hash_normalized_code(file_rel));
+        }
+    }
+
     if !file_path.exists() {
         return Err(format!("File does not exist: {}", file_rel));
     }

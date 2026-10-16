@@ -57,6 +57,38 @@ pub async fn api_v2_get(
     serde_json::from_slice(&bytes).map_err(|e| e.to_string())
 }
 
+pub async fn api_v2_post(
+    state: &ServerState,
+    path_and_query: &str,
+    payload: &serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    validate_api_v2_path(path_and_query)?;
+    let app = axum::Router::new()
+        .nest("/api/v2", crate::http_gateway::dashboard_api::router())
+        .with_state(GatewayState::for_inproc_loopback(state.clone()));
+    let body_bytes = serde_json::to_vec(payload).map_err(|e| e.to_string())?;
+    let mut req = Request::builder()
+        .method(Method::POST)
+        .uri(format!("/api/v2{path_and_query}"))
+        .header("content-type", "application/json")
+        .body(Body::from(body_bytes))
+        .map_err(|e| e.to_string())?;
+    req.extensions_mut()
+        .insert(ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 0))));
+    let resp = app.oneshot(req).await.map_err(|e| e.to_string())?;
+    let status = resp.status();
+    let bytes = axum::body::to_bytes(resp.into_body(), MAX_BODY)
+        .await
+        .map_err(|e| e.to_string())?;
+    if !status.is_success() {
+        return Err(format!(
+            "POST /api/v2{path_and_query}: HTTP {}",
+            status.as_u16()
+        ));
+    }
+    serde_json::from_slice(&bytes).map_err(|e| e.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

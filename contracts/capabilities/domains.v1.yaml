@@ -64,6 +64,7 @@ cli_groups:
   # `vox ars` is the Latin lane for snippet/share/skill/openclaw/ludus; run_ars_cmd in
   # cli_dispatch/lanes.rs calls commands::extras::* inside vox-cli.
   ars: { domain: skills, owner: vox-cli }
+  attention: { domain: orchestrator, owner: vox-cli }
   audit: { domain: ci }
   auth: { domain: secrets }
   build: { domain: compiler }
@@ -90,9 +91,11 @@ cli_groups:
   doctor: { domain: platform, owner: vox-cli }
   drift-check: { domain: ci }
   emit: { domain: compiler }
+  explain: { domain: platform, owner: vox-cli }
   ext: { domain: skills }
   # run_fabrica_cmd in cli_dispatch/lanes.rs (build/check/test/fmt lane) lives in vox-cli.
   fabrica: { domain: compiler, owner: vox-cli }
+  features: { domain: platform, owner: vox-cli }
   fmt: { domain: compiler }
   gamify: { domain: gamify }
   generate: { domain: compiler }
@@ -132,6 +135,7 @@ cli_groups:
   review: { domain: ci }
   rollback: { domain: orchestrator }
   run: { domain: runtime }
+  safety: { domain: orchestrator, owner: vox-cli }
   scientia: { domain: research }
   script: { domain: runtime, owner: vox-cli }
   secrets: { domain: secrets }

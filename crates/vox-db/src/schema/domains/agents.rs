@@ -62,8 +62,10 @@ CREATE TABLE IF NOT EXISTS llm_interactions (
     -- crates/vox-db-types/src/store_types/params.rs's ModelOutcome doc comment).
     ttft_ms INTEGER,
     tpot_ms REAL,
+    trial_run_label TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+CREATE INDEX IF NOT EXISTS idx_llm_interactions_trial ON llm_interactions(trial_run_label) WHERE trial_run_label IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS llm_feedback (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

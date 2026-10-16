@@ -118,6 +118,146 @@ pub fn split_surface(
     (train, eval_rows, manifest)
 }
 
+/// Summary of content-addressed deduplication and benchmark holdout decontamination (`CORPUS-05`).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct DecontaminationReport {
+    /// Clean records surviving exact + near-duplicate deduplication and holdout decontamination.
+    pub clean_records: Vec<crate::training::TrainingRecordV2>,
+    /// Count of exact content-digest duplicates removed.
+    pub exact_duplicates_removed: usize,
+    /// Count of n-gram Jaccard near-duplicates removed.
+    pub near_duplicates_removed: usize,
+    /// Count of records removed due to overlap with held-out `vox-eval` / `vox-audit` prompts.
+    pub holdout_contaminated_removed: usize,
+}
+
+/// Compute normalized word/token 3-gram set hashes for near-duplicate and holdout overlap checks (`CORPUS-05`).
+fn token_trigram_hashes(text: &str) -> std::collections::BTreeSet<u64> {
+    let tokens: Vec<String> = text
+        .split(|c: char| !c.is_alphanumeric() && c != '_')
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_ascii_lowercase())
+        .collect();
+    let mut set = std::collections::BTreeSet::new();
+    if tokens.len() < 3 {
+        if !tokens.is_empty() {
+            let joined = tokens.join(" ");
+            set.insert(xxhash_rust::xxh3::xxh3_64(joined.as_bytes()));
+        }
+        return set;
+    }
+    for win in tokens.windows(3) {
+        let joined = format!("{} {} {}", win[0], win[1], win[2]);
+        set.insert(xxhash_rust::xxh3::xxh3_64(joined.as_bytes()));
+    }
+    set
+}
+
+/// Compute Jaccard similarity in `[0.0, 1.0]` between two 3-gram hash sets.
+fn jaccard_similarity(
+    a: &std::collections::BTreeSet<u64>,
+    b: &std::collections::BTreeSet<u64>,
+) -> f64 {
+    if a.is_empty() || b.is_empty() {
+        return 0.0;
+    }
+    let inter = a.intersection(b).count();
+    let union = a.union(b).count();
+    if union == 0 {
+        0.0
+    } else {
+        inter as f64 / union as f64
+    }
+}
+
+/// Deduplicate [`crate::training::TrainingRecordV2`] records by exact `content_digest` and
+/// 3-gram Jaccard near-duplicate threshold (`CORPUS-05`).
+#[must_use]
+pub fn deduplicate_records_v2(
+    records: &[crate::training::TrainingRecordV2],
+    max_near_dup_jaccard: f64,
+) -> (Vec<crate::training::TrainingRecordV2>, usize, usize) {
+    let mut seen_digests = std::collections::HashSet::new();
+    let mut kept_ngrams: Vec<(crate::training::SpokeKind, std::collections::BTreeSet<u64>)> =
+        Vec::new();
+    let mut clean = Vec::new();
+    let mut exact_dups = 0usize;
+    let mut near_dups = 0usize;
+
+    for rec in records {
+        if !rec.verify_integrity() {
+            continue;
+        }
+        if !seen_digests.insert(rec.content_digest.clone()) {
+            exact_dups += 1;
+            continue;
+        }
+        let ngrams = token_trigram_hashes(&format!("{}\n{}", rec.prompt, rec.response));
+        let is_near_dup = kept_ngrams.iter().any(|(spoke, prev)| {
+            *spoke == rec.spoke && jaccard_similarity(&ngrams, prev) >= max_near_dup_jaccard
+        });
+        if is_near_dup {
+            near_dups += 1;
+            continue;
+        }
+        kept_ngrams.push((rec.spoke, ngrams));
+        clean.push(rec.clone());
+    }
+
+    (clean, exact_dups, near_dups)
+}
+
+/// Deduplicate `records` and decontaminate against held-out `vox-eval` and `vox-audit` benchmark
+/// prompts/targets, guaranteeing `0%` exact or near-duplicate holdout leakage (`CORPUS-05`).
+#[must_use]
+pub fn decontaminate_against_holdout(
+    records: &[crate::training::TrainingRecordV2],
+    holdout_texts: &[String],
+    max_jaccard: f64,
+) -> DecontaminationReport {
+    let (deduped, exact_duplicates_removed, near_duplicates_removed) =
+        deduplicate_records_v2(records, max_jaccard);
+
+    let holdout_exact: std::collections::HashSet<u64> = holdout_texts
+        .iter()
+        .map(|s| xxhash_rust::xxh3::xxh3_64(s.trim().as_bytes()))
+        .collect();
+    let holdout_ngrams: Vec<std::collections::BTreeSet<u64>> = holdout_texts
+        .iter()
+        .map(|s| token_trigram_hashes(s))
+        .collect();
+
+    let mut clean_records = Vec::with_capacity(deduped.len());
+    let mut holdout_contaminated_removed = 0usize;
+
+    for rec in deduped {
+        let prompt_hash = xxhash_rust::xxh3::xxh3_64(rec.prompt.trim().as_bytes());
+        let resp_hash = xxhash_rust::xxh3::xxh3_64(rec.response.trim().as_bytes());
+        if holdout_exact.contains(&prompt_hash) || holdout_exact.contains(&resp_hash) {
+            holdout_contaminated_removed += 1;
+            continue;
+        }
+        let prompt_ngrams = token_trigram_hashes(&rec.prompt);
+        let resp_ngrams = token_trigram_hashes(&rec.response);
+        let leaked = holdout_ngrams.iter().any(|h| {
+            jaccard_similarity(&prompt_ngrams, h) >= max_jaccard
+                || jaccard_similarity(&resp_ngrams, h) >= max_jaccard
+        });
+        if leaked {
+            holdout_contaminated_removed += 1;
+            continue;
+        }
+        clean_records.push(rec);
+    }
+
+    DecontaminationReport {
+        clean_records,
+        exact_duplicates_removed,
+        near_duplicates_removed,
+        holdout_contaminated_removed,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -161,5 +301,62 @@ mod tests {
             "tool leakage: tools in both sets: {:?}",
             overlap
         );
+    }
+
+    #[test]
+    fn deduplicate_and_decontaminate_removes_exact_near_and_holdout_overlap() {
+        use crate::training::{OracleReceipt, RecordProvenance, SpokeKind, TrainingRecordV2};
+
+        let mk = |prompt: &str, resp: &str| {
+            TrainingRecordV2::new(
+                SpokeKind::VoxLang,
+                prompt,
+                "sys",
+                resp,
+                OracleReceipt {
+                    spoke: SpokeKind::VoxLang,
+                    passed: true,
+                    stage: "typeck".to_string(),
+                    diagnostics: Vec::new(),
+                    exit_code: Some(0),
+                },
+                RecordProvenance {
+                    origin: "test".to_string(),
+                    source_id: "t.vox".to_string(),
+                    task_family: "vox_fn".to_string(),
+                    difficulty: 3,
+                },
+            )
+        };
+
+        let r1 = mk(
+            "Write a Vox function that computes fibonacci numbers",
+            "fn fib(n: int) to int { return n }",
+        );
+        let r1_exact_dup = r1.clone();
+        let r1_near_dup = mk(
+            "Write a Vox function that computes fibonacci numbers",
+            "fn fib(n: int) to int { return n  }",
+        );
+        let r2_holdout = mk(
+            "Implement the nth_prime benchmark function in Vox",
+            "fn nth_prime(n: int) to int { return 2 }",
+        );
+        let r3_clean = mk(
+            "Define an actor Counter with Increment handler in Vox",
+            "actor Counter { state c: int = 0 }",
+        );
+
+        let holdout = vec!["Implement the nth_prime benchmark function in Vox".to_string()];
+        let report = decontaminate_against_holdout(
+            &[r1, r1_exact_dup, r1_near_dup, r2_holdout, r3_clean],
+            &holdout,
+            0.80,
+        );
+
+        assert_eq!(report.exact_duplicates_removed, 1);
+        assert_eq!(report.near_duplicates_removed, 1);
+        assert_eq!(report.holdout_contaminated_removed, 1);
+        assert_eq!(report.clean_records.len(), 2);
     }
 }

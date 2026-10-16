@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
 import { voxTransport } from '../../transport';
 import { Icon } from '../ui/Icons';
 import { CommandCatalogEntry } from '../../types/catalog';
@@ -60,7 +60,7 @@ const CLI_HINT: Record<CliActivation['kind'], string> = {
   explain: '↵ explains',
 };
 
-/** D-08a: shown under a capped Commands / Tools facet; the Explorer link arrives in phase 06.4. */
+/** D-08a / D-12: shown under a capped Commands / Tools facet; paired with the Explorer link when onOpenExplorer is provided. */
 const NARROW_HINT = 'Keep typing to narrow, or use > (commands) / # (crates)';
 
 /**
@@ -127,6 +127,8 @@ interface OmnibarProps {
   onSubmitTask: () => void;
   /** Open the Catalog surface with this CLI path selected (never executes). */
   onOpenCatalogForm?: (path: string[]) => void;
+  /** D-12: open the Capability Explorer with the palette query seeded (prefix stripped). */
+  onOpenExplorer?: (query: string) => void;
   /** Explain an index row (MCP tool, crate, skill) in the drawer. */
   onExplain?: (rowId: string) => void;
   /** D-01: run a read-only CLI leaf directly (see decideCliActivation). */
@@ -171,6 +173,7 @@ export function Omnibar({
   onOpenDoc,
   onSubmitTask,
   onOpenCatalogForm,
+  onOpenExplorer,
   onExplain,
   onRunCli,
   agents,
@@ -269,7 +272,10 @@ export function Omnibar({
               crate: null,
               layer: null,
               docs: null,
+              docOrigin: null,
               coverage: null,
+              coverageReason: null,
+              coverageAmbiguous: false,
               equivalents: [],
               refs: [],
               tier: e.tier,
@@ -496,6 +502,12 @@ export function Omnibar({
 
   useEffect(() => setSelectedRowIdx(-1), [rows.length, q]);
 
+  // WR-04: aria-modal needs a real trap. Tab wraps inside the dialog; focus that lands outside
+  // (programmatic, or a click that slipped past the overlay) is pulled back to the first control.
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const focusables = () =>
+    Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('input, button:not([disabled])') ?? []);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -505,6 +517,19 @@ export function Omnibar({
       let idx = idxRef.current;
       if (e.key === 'Escape') {
         onClose();
+      } else if (e.key === 'Tab') {
+        const items = focusables();
+        if (items.length > 0) {
+          const first = items[0];
+          const last = items[items.length - 1];
+          if (e.shiftKey && (document.activeElement === first || !dialogRef.current?.contains(document.activeElement))) {
+            e.preventDefault();
+            last.focus();
+          } else if (!e.shiftKey && (document.activeElement === last || !dialogRef.current?.contains(document.activeElement))) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
       } else if (e.key === 'Enter' && e.shiftKey) {
         e.preventDefault();
         if (q.trim()) onSendToChat(q.trim());
@@ -524,6 +549,11 @@ export function Omnibar({
         const target = idx >= 0 && idx < list.length ? list[idx] : list[0];
         if (target && target.activate.type === 'graph') expandGraphNeighbors(target);
       } else if (e.key === 'Enter') {
+        const targetEl = e.target instanceof Element ? e.target : document.activeElement instanceof Element ? document.activeElement : null;
+        const btn = targetEl?.closest('button');
+        if (btn && !btn.hasAttribute('data-row')) {
+          return;
+        }
         e.preventDefault();
         const target = idx >= 0 && idx < list.length ? list[idx] : list[0];
         if (target) activateRow(target);
@@ -533,11 +563,6 @@ export function Omnibar({
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose, onSendToChat, activateRow, expandGraphNeighbors, q]);
 
-  // WR-04: aria-modal needs a real trap. Tab wraps inside the dialog; focus that lands outside
-  // (programmatic, or a click that slipped past the overlay) is pulled back to the first control.
-  const dialogRef = useRef<HTMLDivElement>(null);
-  const focusables = () =>
-    Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('input, button:not([disabled])') ?? []);
   useEffect(() => {
     if (!open) return;
     const onFocusIn = (e: FocusEvent) => {
@@ -550,16 +575,25 @@ export function Omnibar({
     document.addEventListener('focusin', onFocusIn);
     return () => document.removeEventListener('focusin', onFocusIn);
   }, [open]);
+
+  useLayoutEffect(() => {
+    if (!open || !dialogRef.current) return;
+    const active = document.activeElement;
+    if (!active || active === document.body || (!dialogRef.current.contains(active) && !active.closest('[role="dialog"]'))) {
+      focusables()[0]?.focus();
+    }
+  }, [open]);
+
   const onDialogKeyDown = (e: React.KeyboardEvent) => {
     if (e.key !== 'Tab') return;
     const items = focusables();
     if (items.length === 0) return;
     const first = items[0];
     const last = items[items.length - 1];
-    if (e.shiftKey && document.activeElement === first) {
+    if (e.shiftKey && (document.activeElement === first || !dialogRef.current?.contains(document.activeElement))) {
       e.preventDefault();
       last.focus();
-    } else if (!e.shiftKey && document.activeElement === last) {
+    } else if (!e.shiftKey && (document.activeElement === last || !dialogRef.current?.contains(document.activeElement))) {
       e.preventDefault();
       first.focus();
     }
@@ -639,6 +673,7 @@ export function Omnibar({
                     return (
                       <button
                         key={row.id}
+                        data-row="true"
                         onClick={() => activateRow(row)}
                         onFocus={() => {
                           // WR-03: Tab onto a row makes it the Enter target.
@@ -692,7 +727,25 @@ export function Omnibar({
                   })
                 )}
                 {capped && (facet.key === 'commands' || facet.key === 'tools') ? (
-                  <div className="px-3 py-1 text-[11px] text-text-muted italic">{NARROW_HINT}</div>
+                  <div className="px-3 py-1 text-[11px] text-text-muted italic">
+                    <span>{NARROW_HINT}</span>
+                    {onOpenExplorer ? (
+                      <>
+                        <span>, or </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const stripped = q.replace(/^\s*[>#]\s*/, '');
+                            onClose();
+                            onOpenExplorer(stripped);
+                          }}
+                          className="not-italic underline text-(--color-accent-default)"
+                        >
+                          Browse all {facet.total} in the Explorer
+                        </button>
+                      </>
+                    ) : null}
+                  </div>
                 ) : null}
               </React.Fragment>
             );

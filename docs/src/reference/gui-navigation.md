@@ -20,11 +20,14 @@ The operator console compresses legacy sidebar entries into **nine surfaces** pl
 | Search | Unified search (Memory as a scope chip) |
 | Knowledge | Research · Scientia · Review · Claims · Publications |
 | Compute | Models · Mens · Populi · Oratio · Mesh |
-| Settings | Orchestrator · Model routing · Mesh & peers · Signing · Secrets · Telemetry · Keybinds · Theme · Gamification (prefs) · Coverage (CI surface gaps) |
+| Settings | Orchestrator · Model routing · Mesh & peers · Signing · Secrets · Telemetry · Keybinds · Theme · Gamification (prefs) |
+| Explorer (System) | Domain rail · Four representation badges (`Dedicated surface`, `Generic form`, `CLI-only`, `MCP-only / orphan`) · Status chips · Search · Show exempt groups · Row actions (`Open surface`, `Open form`, `Explain capability`, `Open docs`, `{crate} · L{n}`) |
 
 **Gamification:** no longer an Agents inner tab. When gamification is enabled, open **Achievements** from the trophy control on the StatusBar (`AchievementsDrawer`). Preferences remain under Settings › Gamification. Legacy `gamify` view keys still deep-link for compatibility.
 
-Legacy view keys (`approvals`, `flow`, `catalog`, …) still deep-link: they open the correct parent and inner tab.
+**Capability Explorer:** pinned in the sidebar **System** block (`Explorer`), replacing the retired Coverage tab (`#view=coverage` resolves to the Explorer as a compatibility alias). It presents every indexed capability by domain in a virtualized WAI-ARIA `treegrid` with four representation badges (`Dedicated surface`, `Generic form`, `CLI-only`, `MCP-only / orphan`), multi-select status filter chips, substring search, a `Show exempt groups` toggle (expanding an exempt group shows its `Owner`, `Reason`, `Review by` date, and `Review overdue` tag when past due), and row actions (`Open surface`, `Open form`, `Explain capability`, `Open docs`, and `{crate} · L{n}` crate explain links). The Explorer is strictly read-only and never executes a CLI verb or MCP tool.
+
+Legacy view keys (`approvals`, `flow`, `catalog`, `coverage`, …) still deep-link: they open the correct parent and inner tab.
 
 ## Workbench tabs (Axis, July 2026)
 
@@ -115,7 +118,7 @@ Three entry points share one federated index (`useFederatedSearchIndex` + backen
 | TopHud trigger | “Search or jump…” chip | Opens the same palette (slim and full HUD modes) |
 | Sidebar filter | Collapsible filter field | Narrows top-level nav and matching child tabs client-side |
 
-Palette sections rank surfaces, settings, docs, policies, commands, actions, skills, and backend corpora. Each section shows a few rows with an "N of M" count when more match; keep typing, or use `>` (commands) or `#` (crates), to narrow. Each row carries a kind icon and chips for the interfaces it is reachable through (CLI, GUI, MCP), its domain, and its keybind chord when it has one.
+Palette sections rank surfaces, settings, docs, policies, commands, actions, skills, and backend corpora. Each section shows a few rows with an "N of M" count when more match; keep typing, or use `>` (commands) or `#` (crates), to narrow. Under a capped **Commands** or **Tools & crates** facet, the narrowing hint includes a **Browse all N in the Explorer** link that closes the palette, opens the Capability Explorer, and seeds its search input with your query (with any leading `>` or `#` prefix stripped). Each row carries a kind icon and chips for the interfaces it is reachable through (CLI, GUI, MCP), its domain, and its keybind chord when it has one.
 
 ### Selecting a result
 

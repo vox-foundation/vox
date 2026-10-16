@@ -302,4 +302,59 @@ mod tests {
         assert_eq!(parse_expect(src), Some("hello\nworld".to_string()));
         assert_eq!(parse_expect("fn main() {}\n"), None);
     }
+
+    #[test]
+    fn audit_05_promotes_verified_repair_to_permanent_regression_golden() {
+        let golden = promote_verified_repair_to_golden(
+            "vox_lang",
+            "repair_actor_state_01",
+            "Repair actor state initialization",
+            "// EXPECT: ok\nfn main() { print(\"ok\") }",
+            true,
+        )
+        .expect("verified repair must promote to golden");
+        assert_eq!(golden.spoke, "vox_lang");
+        assert_eq!(golden.case_id, "repair_actor_state_01");
+        assert!(
+            promote_verified_repair_to_golden("vox_lang", "bad", "prompt", "code", false).is_err()
+        );
+    }
+}
+
+/// Permanent per-spoke behavioral regression golden promoted from a verified repair (`AUDIT-05`).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct PromotedSpokeGolden {
+    /// Schema discriminator (`"vox.promoted_spoke_golden.v1"`).
+    pub schema_version: String,
+    /// Target spoke.
+    pub spoke: String,
+    /// Stable golden case ID.
+    pub case_id: String,
+    /// Task prompt.
+    pub prompt: String,
+    /// Verified golden code/payload.
+    pub verified_payload: String,
+}
+
+/// Promote a verified multi-spoke repair into a permanent behavioral regression golden (`AUDIT-05`).
+pub fn promote_verified_repair_to_golden(
+    spoke: &str,
+    case_id: &str,
+    prompt: &str,
+    verified_payload: &str,
+    oracle_verified: bool,
+) -> Result<PromotedSpokeGolden, String> {
+    if !oracle_verified {
+        return Err("cannot promote unverified repair to behavioral golden".to_string());
+    }
+    if case_id.trim().is_empty() || verified_payload.trim().is_empty() {
+        return Err("case_id and verified_payload must be non-empty".to_string());
+    }
+    Ok(PromotedSpokeGolden {
+        schema_version: "vox.promoted_spoke_golden.v1".to_string(),
+        spoke: spoke.to_string(),
+        case_id: case_id.to_string(),
+        prompt: prompt.to_string(),
+        verified_payload: verified_payload.to_string(),
+    })
 }

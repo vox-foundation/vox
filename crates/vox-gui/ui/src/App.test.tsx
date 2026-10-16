@@ -1377,6 +1377,56 @@ describe('App shell', () => {
     await waitFor(() => expect(window.location.hash).toBe('#view=approvals'));
   });
 
+  it('auto-creates a chat session on-demand when submitting after mount session bootstrap failed', async () => {
+    let createCalls = 0;
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve([]);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'chat_create_session') {
+        createCalls += 1;
+        if (createCalls === 1) {
+          return Promise.reject(new Error('daemon still starting'));
+        }
+        return Promise.resolve({
+          session_id: 'on-demand-session-1',
+          title: 'Chat',
+          updated_at: '2026-10-14T12:00:00Z',
+          message_count: 0,
+          conversation_id: 1,
+          repository_id: 'repo-a',
+        });
+      }
+      if (cmd === 'chat_turn') {
+        return Promise.resolve({
+          id: 99,
+          role: 'assistant',
+          content: 'recovered reply',
+          created_at: '2026-10-14T12:00:01Z',
+          task_id: null,
+          model_id: 'openrouter/auto',
+        });
+      }
+      return Promise.resolve(null);
+    });
+
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    const composer = await screen.findByPlaceholderText(/describe a task/i);
+    const user = userEvent.setup();
+    await user.click(composer);
+    await user.type(composer, 'hello after daemon recovery');
+    await user.keyboard('{Enter}');
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('chat_turn', expect.anything()),
+    );
+    expect(screen.queryByText('No chat session')).toBeNull();
+    await waitFor(() => {
+      expect(screen.getByText('recovered reply')).toBeInTheDocument();
+    });
+  });
+
   // Harness-issue polling (App.tsx's 8s-interval effect): the first poll
   // establishes the pending baseline without toasting (so restarting the app
   // doesn't re-toast an existing backlog); only issues that appear on a LATER

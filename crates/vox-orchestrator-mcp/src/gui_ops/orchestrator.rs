@@ -6,11 +6,12 @@ use std::sync::Arc;
 
 use axum::extract::{ConnectInfo, Path, Query, State};
 use axum::http::HeaderMap;
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::{Json, Router};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::Value;
+use vox_foundation::protocol::orch_daemon_method;
 use vox_orchestrator::hopper::{
     HopperIntake, HopperItemId, InMemoryHopper, IntakeItem, IntakeSource, ItemState, PriorityHint,
     SqliteHopper,
@@ -21,13 +22,15 @@ use crate::gui_ops::dto::orchestrator::{
     InsertPlanNodeInput, LatestPlanSessionForChat, PlanNodeDto, StartGuiRunInput,
     UpdatePlanNodeInput,
 };
-use crate::gui_ops::{api_db, enforce_route, require_db};
+use crate::gui_ops::{api_db, enforce_route, enforce_write_route, require_db};
 use crate::http_gateway::GatewayState;
 use crate::params::ToolResult;
 use crate::server_state::ServerState;
 use crate::services::routes::{err, ok};
 
 const HOPPER_SURFACES: &[&str] = &["tasks", "dashboard"];
+const CONTROL_PLANE_SURFACES: &[&str] = &["chat", "dashboard", "tasks"];
+const MISSION_CONTROL_SURFACES: &[&str] = &["sub-agents", "approvals", "tasks", "dashboard"];
 const CONTEXT_SURFACES: &[&str] = &["chat"];
 const PLAN_SURFACES: &[&str] = &["chat", "plan"];
 const RUNS_SURFACES: &[&str] = &["runs", "models"];
@@ -628,10 +631,267 @@ pub async fn get_activity(
     }
 }
 
+// ─── Orchestrator Control Plane & Mission Control (Remote Axis Parity) ───────
+
+async fn dispatch_orch_rpc(gs: &GatewayState, method: &str, params: Value) -> Json<Value> {
+    let state = gs.server_state();
+    let req = vox_foundation::protocol::DispatchRequest {
+        id: "http".to_string(),
+        method: method.to_string(),
+        params,
+        auth_token: None,
+        permission_mode: None,
+    };
+    let resp = vox_orchestrator::orch_daemon::dispatch_request(
+        &state.repository.repository_id,
+        Arc::clone(&state.orchestrator),
+        &req,
+    )
+    .await;
+    match resp.payload {
+        vox_foundation::protocol::DispatchPayload::Result { value } => ok(value),
+        vox_foundation::protocol::DispatchPayload::Error { message, .. } => {
+            err("orchestrator_error", &message)
+        }
+        other => err(
+            "orchestrator_error",
+            &format!("unexpected dispatch payload: {other:?}"),
+        ),
+    }
+}
+
+/// GET /api/v2/orchestrator/tasks — live queue snapshot (`orch.list_tasks`).
+pub async fn get_orchestrator_tasks(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+) -> Json<Value> {
+    if let Err(e) = enforce_route(&gs, &connect.0, &headers, CONTROL_PLANE_SURFACES) {
+        return e;
+    }
+    dispatch_orch_rpc(&gs, orch_daemon_method::LIST_TASKS, serde_json::json!({})).await
+}
+
+/// POST /api/v2/orchestrator/tasks/submit — submit a task (`orch.submit_task`).
+pub async fn post_submit_task(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Json(body): Json<Value>,
+) -> Json<Value> {
+    if let Err(e) = enforce_write_route(&gs, &connect.0, &headers, CONTROL_PLANE_SURFACES) {
+        return e;
+    }
+    dispatch_orch_rpc(&gs, orch_daemon_method::SUBMIT_TASK, body).await
+}
+
+/// POST /api/v2/orchestrator/tasks/edit — update queued task description (`orch.edit_task`).
+pub async fn post_edit_task(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Json(body): Json<Value>,
+) -> Json<Value> {
+    if let Err(e) = enforce_write_route(&gs, &connect.0, &headers, CONTROL_PLANE_SURFACES) {
+        return e;
+    }
+    dispatch_orch_rpc(&gs, orch_daemon_method::EDIT_TASK, body).await
+}
+
+/// POST /api/v2/orchestrator/tasks/cancel — cancel a task (`orch.cancel_task`).
+pub async fn post_cancel_task(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Json(body): Json<Value>,
+) -> Json<Value> {
+    if let Err(e) = enforce_write_route(&gs, &connect.0, &headers, CONTROL_PLANE_SURFACES) {
+        return e;
+    }
+    dispatch_orch_rpc(&gs, orch_daemon_method::CANCEL_TASK, body).await
+}
+
+/// POST /api/v2/orchestrator/tasks/interrupt — interrupt a task (`orch.interrupt_task`).
+pub async fn post_interrupt_task(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Json(body): Json<Value>,
+) -> Json<Value> {
+    if let Err(e) = enforce_write_route(&gs, &connect.0, &headers, CONTROL_PLANE_SURFACES) {
+        return e;
+    }
+    dispatch_orch_rpc(&gs, orch_daemon_method::INTERRUPT_TASK, body).await
+}
+
+/// POST /api/v2/orchestrator/tasks/reorder — change task priority (`orch.reorder_task`).
+pub async fn post_reorder_task(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Json(body): Json<Value>,
+) -> Json<Value> {
+    if let Err(e) = enforce_write_route(&gs, &connect.0, &headers, CONTROL_PLANE_SURFACES) {
+        return e;
+    }
+    dispatch_orch_rpc(&gs, orch_daemon_method::REORDER_TASK, body).await
+}
+
+/// POST /api/v2/orchestrator/tasks/doubt — mark a task as suspect (`orch.doubt_task`).
+pub async fn post_doubt_task(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Json(body): Json<Value>,
+) -> Json<Value> {
+    if let Err(e) = enforce_write_route(&gs, &connect.0, &headers, CONTROL_PLANE_SURFACES) {
+        return e;
+    }
+    dispatch_orch_rpc(&gs, orch_daemon_method::DOUBT_TASK, body).await
+}
+
+/// POST /api/v2/orchestrator/tasks/overrule — overrule a doubted task (`orch.overrule_task`).
+pub async fn post_overrule_task(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Json(body): Json<Value>,
+) -> Json<Value> {
+    if let Err(e) = enforce_write_route(&gs, &connect.0, &headers, CONTROL_PLANE_SURFACES) {
+        return e;
+    }
+    dispatch_orch_rpc(&gs, orch_daemon_method::OVERRULE_TASK, body).await
+}
+
+/// POST /api/v2/orchestrator/tasks/approve-plan — advance PAV loop (`orch.approve_plan`).
+pub async fn post_approve_plan(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Json(body): Json<Value>,
+) -> Json<Value> {
+    if let Err(e) = enforce_write_route(&gs, &connect.0, &headers, CONTROL_PLANE_SURFACES) {
+        return e;
+    }
+    dispatch_orch_rpc(&gs, orch_daemon_method::APPROVE_PLAN, body).await
+}
+
+/// POST /api/v2/orchestrator/tasks/skip-verify — skip PAV verify (`orch.skip_verify`).
+pub async fn post_skip_verify(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Json(body): Json<Value>,
+) -> Json<Value> {
+    if let Err(e) = enforce_write_route(&gs, &connect.0, &headers, CONTROL_PLANE_SURFACES) {
+        return e;
+    }
+    dispatch_orch_rpc(&gs, orch_daemon_method::SKIP_VERIFY, body).await
+}
+
+/// POST /api/v2/orchestrator/tasks/force-verify — force PAV verify (`orch.force_verify`).
+pub async fn post_force_verify(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Json(body): Json<Value>,
+) -> Json<Value> {
+    if let Err(e) = enforce_write_route(&gs, &connect.0, &headers, CONTROL_PLANE_SURFACES) {
+        return e;
+    }
+    dispatch_orch_rpc(&gs, orch_daemon_method::FORCE_VERIFY, body).await
+}
+
+/// POST /api/v2/orchestrator/agents/pause — pause an agent (`orch.pause_agent`).
+pub async fn post_pause_agent(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Json(body): Json<Value>,
+) -> Json<Value> {
+    if let Err(e) = enforce_write_route(&gs, &connect.0, &headers, CONTROL_PLANE_SURFACES) {
+        return e;
+    }
+    dispatch_orch_rpc(&gs, orch_daemon_method::PAUSE_AGENT, body).await
+}
+
+/// POST /api/v2/orchestrator/agents/resume — resume an agent (`orch.resume_agent`).
+pub async fn post_resume_agent(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Json(body): Json<Value>,
+) -> Json<Value> {
+    if let Err(e) = enforce_write_route(&gs, &connect.0, &headers, CONTROL_PLANE_SURFACES) {
+        return e;
+    }
+    dispatch_orch_rpc(&gs, orch_daemon_method::RESUME_AGENT, body).await
+}
+
+/// GET /api/v2/orchestrator/subagent-tree — delegation tree (`orch.subagent_tree`).
+pub async fn get_subagent_tree(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+) -> Json<Value> {
+    if let Err(e) = enforce_route(&gs, &connect.0, &headers, MISSION_CONTROL_SURFACES) {
+        return e;
+    }
+    dispatch_orch_rpc(
+        &gs,
+        orch_daemon_method::SUBAGENT_TREE,
+        serde_json::json!({}),
+    )
+    .await
+}
+
+/// GET /api/v2/orchestrator/approvals — pending HITL approvals (`orch.list_pending_approvals`).
+pub async fn get_pending_approvals(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+) -> Json<Value> {
+    if let Err(e) = enforce_route(&gs, &connect.0, &headers, MISSION_CONTROL_SURFACES) {
+        return e;
+    }
+    ok(serde_json::json!({
+        "approvals": gs.server_state().pending_approvals.list(),
+    }))
+}
+
+/// POST /api/v2/orchestrator/mesh-policy — update task mesh policy (`orch.set_mesh_policy`).
+pub async fn post_mesh_policy(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Json(body): Json<Value>,
+) -> Json<Value> {
+    if let Err(e) = enforce_write_route(&gs, &connect.0, &headers, MISSION_CONTROL_SURFACES) {
+        return e;
+    }
+    dispatch_orch_rpc(&gs, orch_daemon_method::SET_MESH_POLICY, body).await
+}
+
 pub fn api_v2_router() -> Router<GatewayState> {
     Router::new()
         .route("/hopper/list", get(get_hopper_list))
         .route("/orchestrator/context-budget", get(get_context_budget))
+        .route("/orchestrator/tasks", get(get_orchestrator_tasks))
+        .route("/orchestrator/tasks/submit", post(post_submit_task))
+        .route("/orchestrator/tasks/edit", post(post_edit_task))
+        .route("/orchestrator/tasks/cancel", post(post_cancel_task))
+        .route("/orchestrator/tasks/interrupt", post(post_interrupt_task))
+        .route("/orchestrator/tasks/reorder", post(post_reorder_task))
+        .route("/orchestrator/tasks/doubt", post(post_doubt_task))
+        .route("/orchestrator/tasks/overrule", post(post_overrule_task))
+        .route("/orchestrator/tasks/approve-plan", post(post_approve_plan))
+        .route("/orchestrator/tasks/skip-verify", post(post_skip_verify))
+        .route("/orchestrator/tasks/force-verify", post(post_force_verify))
+        .route("/orchestrator/agents/pause", post(post_pause_agent))
+        .route("/orchestrator/agents/resume", post(post_resume_agent))
+        .route("/orchestrator/subagent-tree", get(get_subagent_tree))
+        .route("/orchestrator/approvals", get(get_pending_approvals))
+        .route("/orchestrator/mesh-policy", post(post_mesh_policy))
         .route("/plan/open-task-counts", get(get_plan_open_task_counts))
         .route(
             "/plan/latest-for-chat/{session_id}",
@@ -1113,5 +1373,55 @@ mod tests {
         let gs = GatewayState::for_test_with_state(orch, HashSet::new()).await;
         let served = body(get_hopper_list(State(gs), peer(), HeaderMap::new()).await).await;
         assert_ne!(served["error"]["code"], "tool_not_in_profile", "{served}");
+    }
+
+    #[tokio::test]
+    async fn submit_list_mesh_policy_subagent_tree_and_approvals_routes_round_trip() {
+        let (gs, _db) = gateway_with_memory_db().await;
+        let submitted = body(
+            post_submit_task(
+                State(gs.clone()),
+                peer(),
+                HeaderMap::new(),
+                Json(serde_json::json!({
+                    "description": "remote routed task",
+                })),
+            )
+            .await,
+        )
+        .await;
+        let task_id = submitted["data"]["task_id"]
+            .as_u64()
+            .unwrap_or_else(|| panic!("{submitted}"));
+
+        let listed =
+            body(get_orchestrator_tasks(State(gs.clone()), peer(), HeaderMap::new()).await).await;
+        assert_eq!(listed["data"]["tasks"][0]["id"], task_id, "{listed}");
+
+        let policy_resp = body(
+            post_mesh_policy(
+                State(gs.clone()),
+                peer(),
+                HeaderMap::new(),
+                Json(serde_json::json!({
+                    "task_id": task_id,
+                    "policy": "local_only",
+                })),
+            )
+            .await,
+        )
+        .await;
+        assert_eq!(policy_resp["data"]["ok"], true, "{policy_resp}");
+
+        let tree_resp =
+            body(get_subagent_tree(State(gs.clone()), peer(), HeaderMap::new()).await).await;
+        assert!(tree_resp["data"]["tree"].is_array(), "{tree_resp}");
+
+        let approvals_resp =
+            body(get_pending_approvals(State(gs), peer(), HeaderMap::new()).await).await;
+        assert!(
+            approvals_resp["data"]["approvals"].is_array(),
+            "{approvals_resp}"
+        );
     }
 }

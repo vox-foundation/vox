@@ -4,6 +4,8 @@ mod lanes;
 
 use crate::codex_cmd::CodexCmd;
 use crate::command_catalog;
+#[allow(unused_imports)]
+use clap::CommandFactory;
 // use crate::latin_cmd; // Unused after alias retirement
 use crate::{Cli, GlobalOpts, VoxCliRoot};
 use vox_telemetry::{CommandUsageEvent, TelemetryEvent};
@@ -172,8 +174,24 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
         }
         Cli::Completions { shell } => {
             use clap::CommandFactory;
-            let mut cmd = VoxCliRoot::command();
-            clap_complete::generate(shell, &mut cmd, "vox", &mut std::io::stdout());
+            match shell {
+                crate::CompletionShell::Nushell => {
+                    let catalog = command_catalog::build_catalog();
+                    print!("{}", command_catalog::render_nushell_completions(&catalog));
+                }
+                other => {
+                    let clap_shell = match other {
+                        crate::CompletionShell::Bash => clap_complete::Shell::Bash,
+                        crate::CompletionShell::Elvish => clap_complete::Shell::Elvish,
+                        crate::CompletionShell::Fish => clap_complete::Shell::Fish,
+                        crate::CompletionShell::PowerShell => clap_complete::Shell::PowerShell,
+                        crate::CompletionShell::Zsh => clap_complete::Shell::Zsh,
+                        crate::CompletionShell::Nushell => unreachable!(),
+                    };
+                    let mut cmd = VoxCliRoot::command();
+                    clap_complete::generate(clap_shell, &mut cmd, "vox", &mut std::io::stdout());
+                }
+            }
         }
         Cli::Emit { cmd } => {
             crate::commands::emit::run(cmd).await?;
@@ -662,7 +680,7 @@ mod tests {
         // via their explicit None arm so they don't double-reward).
         assert_eq!(
             universal_reward_command_path(&Cli::Completions {
-                shell: clap_complete::Shell::Bash,
+                shell: crate::CompletionShell::Bash,
             }),
             None
         );

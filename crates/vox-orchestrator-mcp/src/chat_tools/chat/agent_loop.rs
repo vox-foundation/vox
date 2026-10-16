@@ -973,11 +973,13 @@ pub(crate) async fn run_agent_turn(
                         }
                     }
                 }
-                let (result, receipt) = crate::dispatch::handle_tool_call_with_receipt(
-                    state,
-                    &call.name,
-                    dispatch_args,
-                    permission_mode,
+                let (result, receipt) = crate::floor_gate::with_agent_origin(
+                    crate::dispatch::handle_tool_call_with_receipt(
+                        state,
+                        &call.name,
+                        dispatch_args,
+                        permission_mode,
+                    ),
                 )
                 .await;
                 let dispatch_ok = result.is_ok();
@@ -1139,12 +1141,21 @@ pub(crate) async fn run_agent_turn(
             }
             // Otherwise loop: ask the model again with the tool results appended.
         } else {
+            let final_text = Box::pin(super::mermaid_repair::observe_and_repair_turn_mermaid(
+                state,
+                &resp.content,
+                permission_mode,
+                &mut tool_calls_made,
+                &mut events,
+                &mut telemetry,
+            ))
+            .await;
             return Ok(AgentTurnOutcome {
-                final_text: resp.content.clone(),
+                final_text: final_text.clone(),
                 model_used,
                 tool_calls_made,
                 tool_calls_dispatched: tool_calls_made,
-                reply_text: Some(resp.content),
+                reply_text: Some(final_text),
                 telemetry,
                 hit_iteration_limit: false,
                 total_tokens,
@@ -2401,6 +2412,192 @@ mod tests {
             4,
             "each of the two iterations costs one wasted stream-attempt request plus one real \
              non-streaming request while the model is calling tools"
+        );
+    }
+
+    #[tokio::test]
+    async fn agent_loop_cannot_approve_floored_park() {
+        let server = MockServer::start().await;
+        let state = test_state();
+
+        let s = state.clone();
+        let mut call = tokio::spawn(async move {
+            crate::dispatch::handle_tool_call_with_mode(
+                &s,
+                "vox_skill_install",
+                serde_json::json!({}),
+                Some("accept_all"),
+            )
+            .await
+        });
+
+        // drift-allow(timeout-literal,duplicate-numeric-literal): local test approval poll deadline
+        let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(15);
+        let mut approval_id = None;
+        while tokio::time::Instant::now() < deadline {
+            let list = state.pending_approvals.list();
+            if let Some(entry) = list.iter().find(|e| e.tool == "vox_skill_install") {
+                approval_id = Some(entry.approval_id.clone());
+                break;
+            }
+            // drift-allow(timeout-literal,duplicate-numeric-literal): local test approval poll interval
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
+        let aid = approval_id.expect("vox_skill_install should park");
+
+        let resolve_tool_body = serde_json::json!({
+            "id": "chatcmpl-test",
+            "model": "test-model",
+            "choices": [{
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": null,
+                    "tool_calls": [{
+                        "id": "call_resolve_1",
+                        "type": "function",
+                        "function": {
+                            "name": "vox_resolve_approval",
+                            "arguments": serde_json::to_string(&serde_json::json!({
+                                "approval_id": aid,
+                                "outcome": "approve",
+                            })).unwrap(),
+                        },
+                    }],
+                },
+                "finish_reason": "tool_calls",
+            }],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 5},
+        });
+
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(resolve_tool_body))
+            .up_to_n_times(1)
+            .mount(&server)
+            .await;
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(plain_response_body("done")))
+            .mount(&server)
+            .await;
+
+        let config = test_config(format!("{}/chat/completions", server.uri()));
+        let outcome = run_agent_turn(
+            &state,
+            None,
+            vec![],
+            "system prompt".to_string(),
+            "please approve".to_string(),
+            Some("accept_all"),
+            None,
+            config,
+            DEFAULT_MAX_ITERATIONS,
+            false,
+        )
+        .await
+        .expect("run_agent_turn should succeed");
+
+        assert_eq!(outcome.tool_calls_made, 1);
+
+        let requests = server.received_requests().await.expect("received requests");
+        assert_eq!(requests.len(), 2, "expected exactly two model round-trips");
+        let second_body: serde_json::Value =
+            serde_json::from_slice(&requests[1].body).expect("second request body is JSON");
+        let msgs = second_body["messages"].as_array().expect("messages array");
+        let tool_msg = msgs
+            .iter()
+            .find(|m| m["role"] == "tool")
+            .expect("tool message exists");
+        let tool_content = tool_msg["content"]
+            .as_str()
+            .expect("tool content is string");
+        assert!(
+            tool_content.contains("FLOOR_SELF_APPROVAL_REFUSED"),
+            "expected FLOOR_SELF_APPROVAL_REFUSED in tool response, got: {tool_content}"
+        );
+
+        assert!(
+            state
+                .pending_approvals
+                .list()
+                .iter()
+                .any(|e| e.approval_id == aid),
+            "parked approval should still be listed"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        assert!(
+            !call.is_finished(),
+            "spawned install should not finish while approval was refused"
+        );
+
+        // 5. Clean up as human would
+        assert!(
+            state
+                .pending_approvals
+                .resolve(&aid, vox_orchestrator::ApprovalOutcome::Rejected)
+        );
+        let raw = (&mut call)
+            .await
+            .expect("join")
+            .expect("dispatch returns Ok");
+        assert!(
+            crate::server_state::tool_json_envelope_is_error(&raw),
+            "spawned install should return error envelope on rejection"
+        );
+    }
+
+    #[tokio::test]
+    async fn run_agent_turn_automatically_observes_and_repairs_broken_mermaid() {
+        let server = MockServer::start().await;
+        let broken_mermaid_reply = "Here is the architecture:\n```mermaid\nflowchart TD\n    subgraph Loop\n    A[Step 1 (Init) <br/> Ready] -- Yes (Iter < Max) --> B[Done]\n```\n";
+        Mock::given(method("POST"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(plain_response_body(broken_mermaid_reply)),
+            )
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let state = test_state();
+        let config = test_config(format!("{}/chat/completions", server.uri()));
+        let outcome = run_agent_turn(
+            &state,
+            None,
+            vec![],
+            "system prompt".to_string(),
+            "show me a diagram".to_string(),
+            None,
+            None,
+            config,
+            DEFAULT_MAX_ITERATIONS,
+            false,
+        )
+        .await
+        .expect("run_agent_turn should succeed");
+
+        // Must have dispatched `vox_validate_mermaid` automatically and repaired the diagram.
+        assert_eq!(outcome.tool_calls_made, 1);
+        assert!(outcome.final_text.contains("A[\"Step 1 (Init) - Ready\"]"));
+        assert!(outcome.final_text.contains("-- \"Yes (Iter < Max)\" -->"));
+        assert!(outcome.final_text.contains("    end"));
+        assert_eq!(
+            outcome.telemetry.get("mermaid_repaired"),
+            Some(&serde_json::json!(true))
+        );
+        assert!(
+            outcome
+                .events
+                .iter()
+                .any(|e| e["kind"] == "mermaid_repaired" && e["repaired"] == true),
+            "expected mermaid_repaired event in outcome.events: {:?}",
+            outcome.events
+        );
+        assert!(
+            outcome
+                .events
+                .iter()
+                .any(|e| e["kind"] == "tool_receipt" && e["tool_name"] == "vox_validate_mermaid"),
+            "expected tool_receipt for vox_validate_mermaid in outcome.events: {:?}",
+            outcome.events
         );
     }
 }

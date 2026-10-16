@@ -260,6 +260,39 @@ pub fn chunk_document(
     }
 }
 
+/// Deterministic contextual prefix for chunk embedding and hybrid indexing (`EMB-03`):
+/// combines `title › heading_path` (avoiding duplicate title prefix) with the optional page-one summary.
+#[must_use]
+pub fn contextual_prefix(title: &str, heading_path: &str, summary: Option<&str>) -> String {
+    let header = if heading_path.is_empty() || heading_path == title {
+        title.trim().to_string()
+    } else if heading_path.starts_with(title) {
+        heading_path.trim().to_string()
+    } else {
+        format!("{} › {}", title.trim(), heading_path.trim())
+    };
+    match summary.map(str::trim).filter(|s| !s.is_empty()) {
+        Some(s) => format!("{header}\n{s}"),
+        None => header,
+    }
+}
+
+/// Prepend [`contextual_prefix`] to a chunk body before embedding (`EMB-03`).
+#[must_use]
+pub fn format_chunk_for_embedding(
+    title: &str,
+    heading_path: &str,
+    summary: Option<&str>,
+    body: &str,
+) -> String {
+    let prefix = contextual_prefix(title, heading_path, summary);
+    if prefix.is_empty() {
+        body.to_string()
+    } else {
+        format!("{prefix}\n\n{body}")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

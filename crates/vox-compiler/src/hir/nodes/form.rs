@@ -43,5 +43,11 @@ pub enum HirFieldConstraint {
     MinLen(usize),
     Pattern(String),
     Enum(Vec<HirExpr>),
+    Step(f64),
+    Unit(String),
+    FileKind(String),
+    MutuallyExclusiveGroup(String),
+    Preset(String, HirExpr),
+    CostCredits(u32),
     Custom(String),
 }

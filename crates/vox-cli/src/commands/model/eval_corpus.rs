@@ -758,7 +758,7 @@ pub async fn draw_samples(
                     cost_usd: None,
                     provider_model: String::new(),
                 }),
-                SampleSource::Live { config, ctx } => {
+                SampleSource::Live { config, ctx: _ } => {
                     let mut config = (*config).clone();
                     config.seed = Some(seed);
                     match generate_candidate(&config, &prompt).await {

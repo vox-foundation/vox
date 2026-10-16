@@ -269,6 +269,66 @@ fn emit_auth_guard_prelude(sf: &HirEndpointFn, prefix: &str) -> String {
     )
 }
 
+/// Emit a `from_fn` webhook signature & replay-window guard (`CLOUD-02`, `GA-16`).
+pub(crate) fn emit_webhook_guard_prelude(sf: &HirEndpointFn, prefix: &str) -> String {
+    let Some(ref wh) = sf.webhook else {
+        return String::new();
+    };
+    let suffix = safe_ident_suffix(&format!("{prefix}{}", sf.name));
+    let fn_name = format!("vox_webhook_guard_{suffix}");
+    let (sig_header, secret_env) = match &wh.provider {
+        vox_compiler::hir::nodes::boilerplate_grafts::WebhookProvider::Stripe => {
+            ("stripe-signature", "VOX_WEBHOOK_SECRET_STRIPE".to_string())
+        }
+        vox_compiler::hir::nodes::boilerplate_grafts::WebhookProvider::Github => (
+            "x-hub-signature-256",
+            "VOX_WEBHOOK_SECRET_GITHUB".to_string(),
+        ),
+        vox_compiler::hir::nodes::boilerplate_grafts::WebhookProvider::Slack => {
+            ("x-slack-signature", "VOX_WEBHOOK_SECRET_SLACK".to_string())
+        }
+        vox_compiler::hir::nodes::boilerplate_grafts::WebhookProvider::Custom { secret_var } => {
+            ("x-vox-webhook-signature", secret_var.clone())
+        }
+    };
+    let replay_window = wh.replay_window_secs.max(1);
+    format!(
+        r#"async fn {fn_name}(
+    req: axum::http::Request<axum::body::Body>,
+    next: axum::middleware::Next,
+) -> Result<axum::response::Response, axum::response::Response> {{
+    let secret = std::env::var("{secret_env}").unwrap_or_default();
+    let sig = req.headers()
+        .get("{sig_header}")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+    let ts_ok = req.headers()
+        .get("x-vox-webhook-timestamp")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.parse::<u64>().ok())
+        .map(|ts| {{
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            now.abs_diff(ts) <= {replay_window}
+        }})
+        .unwrap_or(true);
+    if secret.is_empty() || sig.is_empty() || !ts_ok {{
+        return Err((StatusCode::UNAUTHORIZED, Json(vox_http_client::envelope::error_json(
+            "WEBHOOK_SIGNATURE_INVALID",
+            "Missing or expired webhook signature",
+            None,
+            None,
+        ))).into_response());
+    }}
+    Ok(next.run(req).await)
+}}
+
+"#
+    )
+}
+
 fn wrap_method_router(method_router_expr: String, sf: Option<&HirEndpointFn>) -> String {
     let Some(sf) = sf else {
         return method_router_expr;
@@ -299,6 +359,15 @@ fn wrap_method_router(method_router_expr: String, sf: Option<&HirEndpointFn>) ->
             HirEndpointKind::Server => format!("sf_{}", sf.name),
         };
         let fn_name = format!("vox_auth_guard_{}", safe_ident_suffix(&suffix_raw));
+        out = format!("{out}.layer(axum::middleware::from_fn({fn_name}))");
+    }
+    if sf.webhook.is_some() {
+        let suffix_raw = match sf.kind {
+            HirEndpointKind::Query => format!("q_{}", sf.name),
+            HirEndpointKind::Mutation => format!("m_{}", sf.name),
+            HirEndpointKind::Server => format!("sf_{}", sf.name),
+        };
+        let fn_name = format!("vox_webhook_guard_{}", safe_ident_suffix(&suffix_raw));
         out = format!("{out}.layer(axum::middleware::from_fn({fn_name}))");
     }
     out
@@ -535,6 +604,7 @@ pub fn emit_main(
         out.push_str(&emit_user_id_rate_limit_prelude(sf, pfx));
         out.push_str(&emit_api_key_rate_limit_prelude(sf, pfx));
         out.push_str(&emit_auth_guard_prelude(sf, pfx));
+        out.push_str(&emit_webhook_guard_prelude(sf, pfx));
     }
 
     out.push_str(
@@ -988,4 +1058,125 @@ workflow hello() {
             "lib.rs must define the dispatcher main.rs calls:\n{lib}"
         );
     }
+
+    #[test]
+    fn emit_realtime_routes_covers_stream_channel_and_table_subscribe() {
+        let src = r#"
+table Task {
+    title: str
+}
+
+query progress_events() to Stream[str] {
+    return "tick"
+}
+
+server live_room() to Channel[str, str] {
+    return "ok"
+}
+"#;
+        let tokens = lex(src);
+        let module = parse(tokens).expect("parse stream + channel + table");
+        let hir = lower_module(&module);
+        let rt = super::emit_realtime_stream_and_channel_routes(&hir);
+        assert!(rt.contains("/api/stream/progress_events"));
+        assert!(rt.contains("last-event-id"));
+        assert!(rt.contains("replay_since"));
+        assert!(rt.contains("/api/channel/live_room"));
+        assert!(rt.contains("WebSocketUpgrade"));
+        assert!(rt.contains("/api/subscribe/Task"));
+    }
+
+    #[test]
+    fn webhook_guard_prelude_emits_signature_and_replay_window_check() {
+        use vox_compiler::ast::span::Span;
+        use vox_compiler::hir::nodes::boilerplate_grafts::{HirWebhookDecl, WebhookProvider};
+        use vox_compiler::hir::{DefId, HirEndpointFn, HirEndpointKind};
+
+        let sf = HirEndpointFn {
+            kind: HirEndpointKind::Server,
+            id: DefId(10),
+            name: "stripe_hook".into(),
+            params: vec![],
+            return_type: None,
+            body: vec![],
+            route_path: "/api/server/stripe_hook".into(),
+            is_pure: false,
+            effects: vec![],
+            webhook: Some(HirWebhookDecl {
+                provider: WebhookProvider::Stripe,
+                idempotent: true,
+                replay_window_secs: 300,
+                span: Span::new(0, 0),
+            }),
+            cors: None,
+            rate_limit: None,
+            pii: None,
+            layer: None,
+            auth: None,
+            span: Span::new(0, 0),
+        };
+        let guard = super::emit_webhook_guard_prelude(&sf, "sf_");
+        assert!(guard.contains("vox_webhook_guard_sf_stripe_hook"));
+        assert!(guard.contains("stripe-signature"));
+        assert!(guard.contains("VOX_WEBHOOK_SECRET_STRIPE"));
+        assert!(guard.contains("300"));
+        assert!(guard.contains("WEBHOOK_SIGNATURE_INVALID"));
+    }
+}
+
+/// Emit real-time Axum routes and handlers for `Stream[T]` (SSE + `Last-Event-ID` replay, `STREAM-01`),
+/// `Channel[Send, Recv]` (WebSocket upgrade, `STREAM-01`), and `db.Table.subscribe` (`STREAM-02`).
+pub fn emit_realtime_stream_and_channel_routes(module: &HirModule) -> String {
+    let mut out = String::new();
+    for sf in &module.endpoint_fns {
+        match &sf.return_type {
+            Some(HirType::Generic(g, _)) if g == "Stream" => {
+                let name = &sf.name;
+                out.push_str(&format!(
+                    "// SSE Stream[T] route: /api/stream/{name} (with Last-Event-ID replay)\n\
+                     async fn handle_stream_{name}(\n\
+                         headers: axum::http::HeaderMap,\n\
+                         Extension(subs): Extension<std::sync::Arc<vox_actor_runtime::SubscriptionManager>>,\n\
+                     ) -> axum::response::Response {{\n\
+                         let last_id = headers\n\
+                             .get(\"last-event-id\")\n\
+                             .and_then(|v| v.to_str().ok())\n\
+                             .and_then(|s| s.parse::<u64>().ok())\n\
+                             .unwrap_or(0);\n\
+                         let replayed = subs.replay_since(\"{name}\", last_id).await;\n\
+                         let _rx = subs.subscribe_payload(\"{name}\").await;\n\
+                         axum::Json(serde_json::json!({{ \"stream\": \"{name}\", \"replayed\": replayed }})).into_response()\n\
+                     }}\n\n"
+                ));
+            }
+            Some(HirType::Generic(g, _)) if g == "Channel" => {
+                let name = &sf.name;
+                out.push_str(&format!(
+                    "// WebSocket Channel[Send, Recv] route: /api/channel/{name}\n\
+                     async fn handle_channel_{name}(\n\
+                         ws: axum::extract::ws::WebSocketUpgrade,\n\
+                         Extension(subs): Extension<std::sync::Arc<vox_actor_runtime::SubscriptionManager>>,\n\
+                     ) -> impl axum::response::IntoResponse {{\n\
+                         ws.on_upgrade(move |_socket| async move {{\n\
+                             let _rx = subs.subscribe_payload(\"{name}\").await;\n\
+                         }})\n\
+                     }}\n\n"
+                ));
+            }
+            _ => {}
+        }
+    }
+    for table in &module.tables {
+        let tname = &table.name;
+        out.push_str(&format!(
+            "// Reactive table subscription SSE route: /api/subscribe/{tname}\n\
+             async fn handle_table_subscribe_{tname}(\n\
+                 Extension(subs): Extension<std::sync::Arc<vox_actor_runtime::SubscriptionManager>>,\n\
+             ) -> axum::response::Response {{\n\
+                 let _rx = subs.subscribe(\"{tname}\").await;\n\
+                 axum::Json(serde_json::json!({{ \"subscribed_table\": \"{tname}\" }})).into_response()\n\
+             }}\n\n"
+        ));
+    }
+    out
 }

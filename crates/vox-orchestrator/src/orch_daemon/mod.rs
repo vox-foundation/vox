@@ -793,6 +793,25 @@ pub async fn dispatch_request(
                 Err(e) => response_err(&req.id, e),
             }
         }
+        orch_daemon_method::SET_MESH_POLICY => {
+            let Some(task_id) = req.params.get("task_id").and_then(|x| x.as_u64()) else {
+                return response_err(&req.id, "params.task_id (u64) required");
+            };
+            let Some(policy_val) = req.params.get("policy") else {
+                return response_err(&req.id, "params.policy required");
+            };
+            let policy =
+                match serde_json::from_value::<crate::types::MeshPolicy>(policy_val.clone()) {
+                    Ok(p) => p,
+                    Err(e) => return response_err(&req.id, format!("invalid policy: {e}")),
+                };
+            match orch.set_task_mesh_policy(TaskId(task_id), policy) {
+                Ok(()) => {
+                    response_result(&req.id, serde_json::json!({ "ok": true, "message": "ok" }))
+                }
+                Err(e) => response_err(&req.id, e),
+            }
+        }
         orch_daemon_method::DRAIN_AGENT => {
             let Some(agent_id) = req.params.get("agent_id").and_then(|x| x.as_u64()) else {
                 return response_err(&req.id, "params.agent_id (u64) required");
@@ -2144,6 +2163,7 @@ mod stream_tests {
         while out.len() < 8 {
             buf.clear();
             let read = tokio::time::timeout(
+                // drift-allow(timeout-literal,duplicate-numeric-literal): local test socket drain bound
                 std::time::Duration::from_millis(500),
                 rd.read_line(&mut buf),
             )

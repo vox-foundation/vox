@@ -13,7 +13,7 @@ vi.mock('../../generated/surfaceRegistry.generated', () => ({
     { viewKey: 'flow', navLabel: 'Flow', parentSurface: 'agents', tier: 'surface' },
     { viewKey: 'memory', navLabel: 'Memory', parentSurface: 'search', tier: 'surface' },
     { viewKey: 'settings', navLabel: 'Settings', parentSurface: null, tier: 'surface' },
-    { viewKey: 'coverage', navLabel: 'Coverage', parentSurface: 'settings', tier: 'surface' },
+    { viewKey: 'explorer', navLabel: 'Explorer', parentSurface: null, tier: 'surface' },
   ],
 }));
 
@@ -75,9 +75,9 @@ describe('Sidebar badges', () => {
     expect(screen.getByRole('button', { name: 'Settings' })).toBeDefined();
   });
 
-  it('exposes Coverage shortcut with CI surface gaps aria-label', () => {
+  it('exposes Explorer shortcut with browse everything Vox can do aria-label', () => {
     renderSidebar();
-    expect(screen.getByRole('button', { name: /Coverage.*CI surface gaps/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /Explorer.*browse everything Vox can do/i })).toBeDefined();
   });
 });
 
@@ -313,5 +313,37 @@ describe('Sidebar remote gating', () => {
     const flow = screen.getAllByRole('button').find((b) => b.getAttribute('data-unavailable') === 'not_in_profile');
     expect(flow).toBeTruthy();
     expect(flow?.getAttribute('title')).toMatch(/not available on this server/i);
+  });
+});
+
+describe('Sidebar hide and restore button', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    Element.prototype.scrollIntoView = vi.fn();
+    window.localStorage.clear();
+  });
+
+  it('hides the sidebar completely when Hide sidebar button is clicked and restores it via Show sidebar button', () => {
+    const setMode = vi.fn();
+    renderSidebar({ mode: 'default', setMode });
+
+    const hideBtn = screen.getByTestId('sidebar-hide-button');
+    expect(hideBtn).toHaveAttribute('aria-label', 'Hide sidebar');
+    expect(hideBtn).toHaveAttribute('aria-expanded', 'true');
+
+    fireEvent.click(hideBtn);
+    expect(setMode).toHaveBeenCalledWith('hidden');
+
+    const aside = screen.getByRole('complementary', { name: 'Sidebar' });
+    expect(aside).toHaveAttribute('data-sidebar-hidden', 'true');
+    expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();
+
+    const restoreBtn = screen.getByTestId('sidebar-restore-button');
+    expect(restoreBtn).toHaveAttribute('aria-label', 'Show sidebar');
+    expect(restoreBtn).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.click(restoreBtn);
+    expect(setMode).toHaveBeenCalledWith('default');
+    expect(screen.getByRole('navigation', { name: 'Primary navigation' })).toBeInTheDocument();
   });
 });

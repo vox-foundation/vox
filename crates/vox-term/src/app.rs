@@ -21,6 +21,7 @@ use std::io::{self, BufRead, IsTerminal};
 use tokio::sync::broadcast::error::TryRecvError;
 
 use vox_terminal_core::session::{Session, SessionEvent};
+use vox_terminal_core::{SessionHost, daemon_host::resolve_session_host};
 
 use crate::{
     term_setup::TermSetup,
@@ -28,6 +29,49 @@ use crate::{
     ui::{blocks, input::InputBox},
     vt::VtGrid,
 };
+
+/// Parsed CLI flags for `vox-term` (`--attach <session_id>`, `--local`).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct TermCliArgs {
+    pub attach: Option<String>,
+    pub force_local: bool,
+}
+
+impl TermCliArgs {
+    pub fn parse_iter<I, S>(args: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        let mut parsed = Self::default();
+        let mut iter = args.into_iter().skip(1);
+        while let Some(arg) = iter.next() {
+            let s = arg.as_ref();
+            if s == "--local" {
+                parsed.force_local = true;
+            } else if s == "--attach" {
+                if let Some(next) = iter.next() {
+                    parsed.attach = Some(next.as_ref().to_string());
+                }
+            } else if let Some(rest) = s.strip_prefix("--attach=") {
+                if !rest.is_empty() {
+                    parsed.attach = Some(rest.to_string());
+                }
+            }
+        }
+        parsed
+    }
+
+    pub fn from_env() -> Self {
+        Self::parse_iter(std::env::args())
+    }
+}
+
+/// Resolve the active [`SessionHost`]: connects to `vox-orchestrator-d` when reachable
+/// (unless `force_local` is true) and falls back to an in-process `LocalHost`.
+pub async fn resolve_host(force_local: bool) -> std::sync::Arc<dyn SessionHost> {
+    resolve_session_host(force_local).await
+}
 
 /// True when crossterm/ratatui must not be initialized: `TERM=dumb`, or
 /// stdin/stdout is not a tty (piped input, redirected output, CI). Checked
@@ -57,6 +101,7 @@ fn run_plain() -> Result<()> {
 /// module; this loop itself is an interactive event loop over a real
 /// terminal and isn't unit-testable. See `contracts/toestub/suppressions.v1.json`.
 pub fn run() -> Result<()> {
+    let _cli_args = TermCliArgs::from_env();
     if is_headless() {
         return run_plain();
     }

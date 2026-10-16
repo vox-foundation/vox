@@ -397,6 +397,8 @@ mod tests {
             "agent_handoff_accepted",
             "peer_teach_session",
             "message_sent",
+            "single_shot_verified",
+            "local_mens_verified",
             "pr_merged",
             "code_reviewed",
             "issue_closed",

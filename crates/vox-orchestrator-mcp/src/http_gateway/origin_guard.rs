@@ -199,6 +199,7 @@ mod tests {
     fn test_ws_upgrade_without_origin_allowed_only_with_bearer() {
         let mut headers = HeaderMap::new();
         headers.insert("upgrade", HeaderValue::from_static("websocket"));
+        // drift-allow(bearer-header-inline): unit test fixture for origin_guard header parsing
         headers.insert("authorization", HeaderValue::from_static("Bearer t0ken"));
         assert!(is_origin_allowed(false, "/v1/ws", &headers));
 
@@ -213,6 +214,7 @@ mod tests {
         // A browser always sends Origin; a non-loopback Origin stays denied even with a bearer.
         let mut browser = HeaderMap::new();
         browser.insert("upgrade", HeaderValue::from_static("websocket"));
+        // drift-allow(bearer-header-inline): unit test fixture for origin_guard header parsing
         browser.insert("authorization", HeaderValue::from_static("Bearer t0ken"));
         browser.insert(
             "origin",

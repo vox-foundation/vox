@@ -101,11 +101,13 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
     }
   };
 
+  const needsYouTitle = useLabel('needs-you');
+
   if (condensed) {
     const total = effectiveNeedsYou.length + effectiveWithheld.length + approvals.length;
     return (
       <div className="p-2 text-[11px] text-text-muted">
-        <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-text-primary">{useLabel('needs-you')}</div>
+        <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-text-primary">{needsYouTitle}</div>
         {loading ? <div className="animate-pulse">Loading…</div> : <div>{total} {total === 1 ? 'needs' : 'need'} attention</div>}
       </div>
     );
@@ -130,7 +132,7 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex items-center justify-between border-b border-border-subtle px-4 py-3">
-        <h2 className="text-sm font-semibold tracking-wider uppercase text-text-primary">{useLabel('needs-you')}</h2>
+        <h2 className="text-sm font-semibold tracking-wider uppercase text-text-primary">{needsYouTitle}</h2>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">

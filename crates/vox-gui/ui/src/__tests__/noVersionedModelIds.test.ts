@@ -15,6 +15,7 @@ const SKIP_DIRS = new Set(['node_modules', 'screens', 'fixtures']);
 const RECORDED_TRACE_TESTS = new Set([
   'src/components/surfaces/Chat/ResearchTracePanel.test.tsx',
   'e2e/research-trace-panel.spec.ts',
+  'e2e/models-leaderboard.spec.ts',
 ]);
 /**
  * Local model names may be literal (AGENTS.md: local MENS revisions are exempt): Ollama, MENS runs,

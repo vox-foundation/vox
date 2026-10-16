@@ -3,6 +3,10 @@ name = "vox-arch-check"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+authors.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+readme = "README.md"
 description = "CI guard: enforces the workspace layered-architecture model. See docs/src/architecture/2026-05-08-workspace-reorg-design.md."
 
 [dependencies]

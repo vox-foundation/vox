@@ -570,5 +570,78 @@ describe('ResearchView', () => {
         }));
       });
     });
+
+    it('forwards domainMode, scope, waves, and siteScope from power control bar (Phase 54)', async () => {
+      render(<ResearchView />);
+      fireEvent.click(screen.getByTestId('domain-mode-shopping'));
+      fireEvent.click(screen.getByTestId('research-scope-web'));
+      fireEvent.click(screen.getByTestId('research-waves-3'));
+      fireEvent.change(screen.getByTestId('research-site-scope-input'), {
+        target: { value: 'docs.rs, arxiv.org' },
+      });
+
+      const input = screen.getByLabelText('Research question');
+      fireEvent.change(input, { target: { value: 'best rust http client' } });
+      fireEvent.keyDown(input, { key: 'Enter' });
+
+      await waitFor(() => {
+        expect(invokeMock).toHaveBeenCalledWith(
+          'start_research_async',
+          expect.objectContaining({
+            query: 'best rust http client',
+            domainMode: 'shopping',
+            scope: 'web',
+            waves: 3,
+            siteScope: 'docs.rs, arxiv.org',
+          }),
+        );
+      });
+    });
+
+    it('renders ShoppingDecisionCard, CodeGenVerificationCard, and telemetry ribbon in detail view (Phase 54)', async () => {
+      detailResponse = {
+        session: SESSIONS[0],
+        report_markdown: 'Comparison complete.',
+        wave_count: 2,
+        wave_stability: 0.91,
+        quality_score: 5,
+        synthesis_model: 'gemini-pro',
+        shopping_decision: {
+          query: 'best rust http client',
+          recommended_option: 'Reqwest',
+          confidence: 0.92,
+          criteria: ['Ergonomics', 'Async'],
+          options: [
+            {
+              name: 'Reqwest',
+              overall_score: 0.92,
+              pros: ['Ecosystem standard'],
+              cons: ['Compile time'],
+              criteria_scores: { Ergonomics: 0.95, Async: 0.9 },
+              citation_urls: ['https://docs.rs/reqwest'],
+            },
+          ],
+        },
+        codegen_verification: {
+          passed: true,
+          compiler_exit_code: 0,
+          snippet_count: 2,
+          diagnostics: ['vox check: 0 errors, 0 warnings'],
+          verified_symbols: ['vox_search::pipeline'],
+        },
+      };
+
+      render(<ResearchView />);
+      await waitFor(() => expect(screen.getByText('What is Vox?')).toBeInTheDocument());
+      fireEvent.click(screen.getByText('What is Vox?'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('research-telemetry-ribbon')).toBeInTheDocument();
+        expect(screen.getByTestId('shopping-decision-card')).toBeInTheDocument();
+        expect(screen.getByTestId('codegen-verification-card')).toBeInTheDocument();
+        expect(screen.getByTestId('detail-multi-wave-timeline')).toBeInTheDocument();
+        expect(screen.getByTestId('promote-to-scientia-btn')).toBeInTheDocument();
+      });
+    });
   });
 });
