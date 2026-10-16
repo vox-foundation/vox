@@ -27,6 +27,8 @@ pub mod fence;
 pub mod ir;
 /// Named input caps.
 pub mod limits;
+/// Sequence diagram IR types (parser arrives in Phase 86).
+pub mod sequence_ir;
 /// Byte spans and line/col locations.
 pub mod span;
 
