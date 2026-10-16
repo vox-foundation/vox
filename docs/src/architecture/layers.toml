@@ -185,6 +185,7 @@ vox-effort-audit        = { layer = 3, kind = "library", max_loc = 4_000 }
 vox-effort-route        = { layer = 3, kind = "library", max_loc = 4_000 }
 vox-eval                = { layer = 2 }
 vox-similarity          = { layer = 2, max_loc = 6_000 }          # L2 pure simhash/minhash/LSH; no async runtime deps
+vox-diagram             = { layer = 2, max_loc = 12_000, orphan_exempt = true }   # L2 pure VoxDiagram core (graph DSL lexer/parser, resolved IR, diagnostics + fixes, fmt, markdown fence scanner); first consumer (vox-doc-pipeline) lands in Phase 87, which removes orphan_exempt
 vox-skill-discovery     = { layer = 3, kind = "binary", max_loc = 8_000 }  # L3 code-block miner + dedup (vox-discover bin)
 
 

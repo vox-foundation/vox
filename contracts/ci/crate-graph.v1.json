@@ -303,6 +303,9 @@
       "vox-container-types",
       "workspace-hack"
     ],
+    "vox-diagram": [
+      "workspace-hack"
+    ],
     "vox-doc-inventory": [
       "vox-bounded-fs",
       "vox-repository",
