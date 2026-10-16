@@ -92,9 +92,9 @@ Plans:
 **Depends on**: Phase 83
 **Requirements**: REND-06, MIG-01, MIG-02
 **Success Criteria** (what must be TRUE):
-  1. Mermaid exported from any graph or sequence IR (including hostile labels and ids such as `end`, `o`, `x`, quotes, `<br>`) is accepted by a pinned real Mermaid parser, and `validate_and_repair_mermaid` returns `was_repaired == false` on it.
+  1. Mermaid exported from any graph or sequence IR (including hostile labels and ids such as `end`, `o`, `x`, quotes, `<br>`) is accepted by a pinned real Mermaid parser (the sole oracle; no dependency on the uncommitted `mermaid.rs` validator).
   2. Importing a Mermaid flowchart/graph/state/sequence block produces a diagram, or fails closed with a by-line `unsupported` list (e.g. `classDef`, `click`, Gantt); the documented leniencies (unquoted labels, `&` fan-out and chain expansion, `<br>` to newline) work and nothing else is dropped without being listed.
-  3. Over the live corpus (37 graph, 1 state, 2 sequence), import then Mermaid export gives node/edge-set equality against the original block, with the original's sets extracted by an independent path (the pinned Mermaid parser); the Gantt block is reported unsupported, not mangled.
+  3. Over the frozen live corpus (all `docs/src` fences at committed HEAD, archive excluded — 33 fences / 21 files on 2026-10-16), import then Mermaid export gives node/edge-set equality against the original block, with the original's sets extracted by an independent path (the pinned Mermaid parser); the Gantt block is reported unsupported, not mangled.
 
 **Plans**: TBD
 **Research flag**: standard patterns. Node-side parse oracle lives with the existing `docs-astro` `node --test` suites.
