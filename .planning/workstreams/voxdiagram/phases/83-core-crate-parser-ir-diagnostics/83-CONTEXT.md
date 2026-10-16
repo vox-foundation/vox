@@ -34,6 +34,13 @@ Requirements: DGM-01, DGM-03, DGM-04, DGM-05, DGM-06.
 - `fmt`: 4-space indent, one statement per line, declaration order preserved (never sorted), `//` comments kept attached to their statement; `fmt(fmt(x)) == fmt(x)` and `parse(fmt(x)) == parse(x)` (proptest).
 - `sequence` IR types (actors, messages incl. dashed return, `note over`) defined now, no parser (Phase 86).
 
+### Post-research decisions (user, 2026-10-16)
+- A1: kebab-case ids allowed (`-`/`->` lookahead rule).
+- A2: Mermaid-isms are Error severity; `check().ir` is withheld while any Error exists.
+- A3: `fmt` preserves single blank lines between statements (collapses runs).
+- A8: control and bidi characters in labels are rejected (`diagram/forbidden-char`).
+- `fence` module is greenfield (the `mermaid.rs` validator is not committed anywhere); VoxDiagram must not depend on that uncommitted work in any phase.
+
 ### Claude's Discretion
 - Internal module layout under the 500-line file cap; lexer token set; exact diagnostic message wording; `max_loc` value in layers.toml; proptest generators.
 
