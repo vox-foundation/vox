@@ -78,9 +78,35 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (filled by roadmapper) | | |
+| DGM-01 | Phase 83 | Pending |
+| DGM-02 | Phase 86 | Pending |
+| DGM-03 | Phase 83 | Pending |
+| DGM-04 | Phase 83 | Pending |
+| DGM-05 | Phase 83 | Pending |
+| DGM-06 | Phase 83 | Pending |
+| REND-01 | Phase 85 | Pending |
+| REND-02 | Phase 85 | Pending |
+| REND-03 | Phase 85 | Pending |
+| REND-04 | Phase 85 | Pending |
+| REND-05 | Phase 86 | Pending |
+| REND-06 | Phase 84 | Pending |
+| MIG-01 | Phase 84 | Pending |
+| MIG-02 | Phase 84 | Pending |
+| MIG-03 | Phase 90 | Pending |
+| MIG-04 | Phase 90 | Pending |
+| DOCS-01 | Phase 87 | Pending |
+| DOCS-02 | Phase 87 | Pending |
+| DOCS-03 | Phase 89 | Pending |
+| DOCS-04 | Phase 89 | Pending |
+| TOOL-01 | Phase 88 | Pending |
+| TOOL-02 | Phase 88 | Pending |
+| TOOL-03 | Phase 88 | Pending |
+| EVAL-01 | Phase 91 | Pending |
+| EVAL-02 | Phase 91 | Pending |
 
-**Coverage:** v1.7 requirements: 25 total — mapped: 0 — unmapped: 25 ⚠️
+**Coverage:** v1.7 requirements: 25 total — mapped: 25 — unmapped: 0 ✓
+
+Cross-cutting note: DGM-03/04/05 are owned by Phase 83 (graph kind); Phase 86 re-asserts them for the `sequence` kind. REND-06/MIG-01/MIG-02 are owned by Phase 84 (both kinds at IR level via the Phase 83 sequence IR types); Phase 86 re-verifies the sequence round trip through the DSL. Phase 90 re-runs DOCS-04's Playwright suite over the migrated corpus.
 
 ---
 *Requirements defined: 2026-10-16*
