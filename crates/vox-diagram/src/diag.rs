@@ -99,6 +99,8 @@ pub(crate) fn clip(s: &str) -> String {
 pub(crate) struct Collector {
     items: Vec<Diagnostic>,
     overflow: bool,
+    /// Parser fuel ran out: the AST is truncated, so the report can never be valid.
+    halted: bool,
     has_error: bool,
 }
 
@@ -132,9 +134,12 @@ impl Collector {
         }
     }
 
-    /// Record that diagnostics were lost (parser fuel ran out) without storing one.
+    /// Record that the parser halted (fuel ran out) without storing a diagnostic. The AST is
+    /// truncated, so this counts as an error: a partial document must never look valid.
     pub(crate) fn trip(&mut self) {
         self.overflow = true;
+        self.halted = true;
+        self.has_error = true;
     }
 
     pub(crate) fn has_error(&self) -> bool {
@@ -147,10 +152,14 @@ impl Collector {
         v.sort_by_key(|d| (d.span.start, d.code, d.span.end));
         v.dedup_by(|a, b| a.code == b.code && a.span == b.span);
         if self.overflow {
-            let msg = format!(
-                "more than {} diagnostics; fix the ones above and check again",
-                MAX_DIAGNOSTICS - 1
-            );
+            let msg = if self.halted {
+                "input too complex to check in full; simplify it and check again".to_string()
+            } else {
+                format!(
+                    "more than {} diagnostics; fix the ones above and check again",
+                    MAX_DIAGNOSTICS - 1
+                )
+            };
             v.push(Diagnostic::warning(codes::LIMIT_DIAGNOSTICS, msg, eof));
         }
         v
@@ -260,6 +269,17 @@ mod tests {
             "a dropped Error must still invalidate the report"
         );
         assert_eq!(c.finish(at(500)).len(), MAX_DIAGNOSTICS);
+    }
+
+    #[test]
+    fn halted_parser_invalidates_the_report() {
+        let mut c = Collector::new();
+        c.trip();
+        assert!(c.has_error(), "a truncated AST must never look valid");
+        let out = c.finish(at(5));
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].code, codes::LIMIT_DIAGNOSTICS);
+        assert!(out[0].message.contains("too complex"), "{}", out[0].message);
     }
 
     #[test]
