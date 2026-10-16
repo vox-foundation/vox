@@ -37,7 +37,11 @@ pub(crate) fn parse_tokens(
 fn describe(kind: &TokenKind) -> String {
     match kind {
         TokenKind::Ident(s) => format!("identifier `{}`", s.chars().take(20).collect::<String>()),
-        TokenKind::Str(s) => format!("string \"{}\"", s.chars().take(20).collect::<String>()),
+        TokenKind::Str { value, .. } => {
+            format!("string \"{}\"", value.chars().take(20).collect::<String>())
+        }
+        TokenKind::Comment(_) => "a comment".into(),
+        TokenKind::BadIdent(s) => format!("`{}`", s.chars().take(20).collect::<String>()),
         TokenKind::Arrow => "`->`".into(),
         TokenKind::Colon => "`:`".into(),
         TokenKind::Dot => "`.`".into(),

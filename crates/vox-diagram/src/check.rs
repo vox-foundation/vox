@@ -41,7 +41,9 @@ fn size_gate(source: &str) -> Option<Diagnostic> {
 }
 
 fn parse_with(source: &str, idx: &LineIndex) -> Parsed {
-    let (doc, diagnostics) = parse_tokens(source, idx, &lex(source));
+    let (toks, mut diagnostics) = lex(source, idx);
+    let (doc, syntax) = parse_tokens(source, idx, &toks);
+    diagnostics.extend(syntax);
     Parsed {
         ast: Some(doc),
         diagnostics,

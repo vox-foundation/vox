@@ -34,7 +34,8 @@ impl Parser<'_> {
 
     fn ident(&mut self, expected: &str) -> Option<Ident> {
         let tok = self.peek().clone();
-        if let TokenKind::Ident(name) = tok.kind {
+        // A bad identifier was already reported by the lexer; accept it to avoid a second error.
+        if let TokenKind::Ident(name) | TokenKind::BadIdent(name) = tok.kind {
             self.bump();
             Some(Ident {
                 name,
@@ -48,7 +49,7 @@ impl Parser<'_> {
 
     fn label(&mut self) -> Option<Label> {
         let tok = self.peek().clone();
-        if let TokenKind::Str(value) = tok.kind {
+        if let TokenKind::Str { value, .. } = tok.kind {
             self.bump();
             Some(Label {
                 value,

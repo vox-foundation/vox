@@ -12,6 +12,15 @@ pub const NOT_A_CONTAINER: &str = "diagram/not-a-container";
 /// An edge endpoint resolves to a container; edges connect nodes.
 pub const CONTAINER_ENDPOINT: &str = "diagram/container-endpoint";
 
+/// A string reached the end of its line without a closing quote.
+pub const UNTERMINATED_STRING: &str = "diagram/unterminated-string";
+/// A backslash escape other than `\"`, `\\` or `\n`.
+pub const INVALID_ESCAPE: &str = "diagram/invalid-escape";
+/// A control or bidirectional-override character inside a label.
+pub const FORBIDDEN_CHAR: &str = "diagram/forbidden-char";
+/// A word that is not a valid identifier.
+pub const INVALID_IDENTIFIER: &str = "diagram/invalid-identifier";
+
 /// Every code the crate can emit.
 pub const ALL_CODES: &[&str] = &[
     UNEXPECTED_TOKEN,
@@ -19,6 +28,10 @@ pub const ALL_CODES: &[&str] = &[
     LIMIT_SOURCE,
     NOT_A_CONTAINER,
     CONTAINER_ENDPOINT,
+    UNTERMINATED_STRING,
+    INVALID_ESCAPE,
+    FORBIDDEN_CHAR,
+    INVALID_IDENTIFIER,
 ];
 
 #[cfg(test)]
@@ -38,6 +51,6 @@ mod tests {
             );
             assert!(!ALL_CODES[..i].contains(code), "{code} is duplicated");
         }
-        assert_eq!(ALL_CODES.len(), 5);
+        assert_eq!(ALL_CODES.len(), 9);
     }
 }
