@@ -17337,6 +17337,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-diagram"
+version = "0.6.0"
+dependencies = [
+ "insta",
+ "proptest",
+ "pulldown-cmark",
+ "serde",
+ "serde_json",
+ "strsim",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vox-doc-inventory"
 version = "0.6.0"
 dependencies = [
