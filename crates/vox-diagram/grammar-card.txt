@@ -1,0 +1,39 @@
+VoxDiagram graph. Put it in a vox-diagram fenced block. EVERY label is "double quoted".
+
+graph {
+    direction: right // down | right | up | left (optional, default down)
+
+    node client: "Desktop Client"
+    node db: "Task DB" { shape: cylinder } // rect (default) rounded diamond cylinder start end
+
+    container backend: "Orchestrator" { // containers nest, max depth 4
+        node gateway: "Gateway"
+        node engine: "Agent Runtime"
+        gateway -> engine: "dispatch" // edge label optional
+        engine -> engine: "retry" // self-loop ok
+    }
+
+    client -> backend.gateway: "TLS" // dotted path reaches inside a container
+    backend.engine -> db
+}
+
+Rules
+1. Declare every node: node id: "Label". An edge never creates a node.
+2. The arrow is exactly ->. Endpoints are nodes, never containers (use container.node).
+3. Ids: letters, digits, _ and -; start with a letter or _. Reserved: graph sequence direction node container shape
+4. One statement per line, one arrow per statement. Comments are // only. Escapes in labels: \" \\ \n.
+5. Limits: 64 KiB, 500 nodes, 1000 edges, depth 4, labels 200 chars.
+
+Do NOT write Mermaid (each is an error):
+  A[Label] --> B           => node a: "Label" then a -> b
+  subgraph X ... end       => container x: "X" { ... }
+  graph TD                 => graph { direction: down }
+  flowchart LR             => graph { direction: right }
+  a -->|text| b            => a -> b: "text"
+  a -- text --> b          => a -> b: "text"
+  a & b --> c              => a -> c and b -> c on two lines
+  %% comment               => // comment
+  node a: "A";             => no semicolon
+  style a fill:red         => styling is not supported
+
+Run the validator; apply every fixes[] entry; repeat until valid.

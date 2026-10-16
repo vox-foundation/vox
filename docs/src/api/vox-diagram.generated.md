@@ -48,7 +48,15 @@ a -> b
 | `ast` | Syntax tree produced by the parser. |
 | `codes` | Stable `diagram/*` diagnostic codes. |
 | `diag` | Diagnostics, fixes and the check report. |
+| `fence` | Markdown fenced-block scanner shared by every diagram consumer. |
 | `ir` | Resolved serialisable diagram IR. |
 | `limits` | Named input caps. |
+| `sequence_ir` | Sequence diagram IR types (parser arrives in Phase 86). |
 | `span` | Byte spans and line/col locations. |
+
+### Constants
+
+| Constant | Description |
+|---|---|
+| `GRAMMAR_CARD` | Draft VoxDiagram grammar card for agent authoring guidance (finalized in Phase 88). |
 

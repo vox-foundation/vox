@@ -42,6 +42,9 @@ mod parser;
 mod print;
 mod resolve;
 
+/// Draft VoxDiagram grammar card for agent authoring guidance (finalized in Phase 88).
+pub const GRAMMAR_CARD: &str = include_str!("../grammar-card.txt");
+
 pub use check::{Parsed, check, parse};
 pub use fixes::{FixOutcome, Repaired, apply_fixes, repair};
 pub use print::fmt;

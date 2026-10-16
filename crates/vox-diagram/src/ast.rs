@@ -1,4 +1,4 @@
-//! Syntax tree produced by the parser. Every node carries its byte [`Span`].
+//! Syntax tree produced by the parser. Every node carries its byte [`Span`](crate::span::Span).
 
 use serde::Serialize;
 
