@@ -4,18 +4,18 @@ milestone: v1.7
 milestone_name: VoxDiagram
 current_phase: 85
 current_phase_name: Graph Layout & Deterministic SVG
-current_plan: 2
+current_plan: 3
 status: executing
-stopped_at: Completed 85-01-PLAN.md
-last_updated: "2026-10-17T07:54:32.847Z"
+stopped_at: Completed 85-02-PLAN.md
+last_updated: "2026-10-17T08:09:08.971Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 85 execution started
-state_head: 3a769b162ed5e7a75ac0cf457d3eb7a01a6b907f
+state_head: 474efbeb1c6ad7bc2fc2890e2d335ec390b10dcb
 progress:
   total_phases: 9
   completed_phases: 2
   total_plans: 17
-  completed_plans: 13
+  completed_plans: 14
 ---
 
 # Project State: VoxDiagram (`voxdiagram`)
@@ -30,7 +30,7 @@ See: `.planning/PROJECT.md` (shared, owned by the `unified` workstream, not edit
 ## Current Position
 
 Phase: 85 (Graph Layout & Deterministic SVG) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
 Last activity: 2026-10-17 — Phase 85 execution started
 
@@ -39,7 +39,7 @@ Progress: [██░░░░░░░░] 22% (0/9 phases)
 ## Progress
 
 **Phases Complete:** 0
-**Current Plan:** 2
+**Current Plan:** 3
 
 ## Key Decisions (milestone-level)
 
@@ -64,9 +64,9 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-10-17T07:54:32.805Z
+**Last session:** 2026-10-17T08:09:08.936Z
 
-**Stopped At:** Completed 85-01-PLAN.md
+**Stopped At:** Completed 85-02-PLAN.md
 **Resume File:** None
 
 ## Performance Metrics
@@ -86,6 +86,7 @@ None yet.
 | Phase 84 P04 | 45min | 2 tasks | 10 files |
 | Phase 84 P05 | ~1h | 3 tasks | 60 files |
 | Phase 85 P01 | 45min | 2 tasks | 23 files |
+| Phase 85 P02 | 40min | 2 tasks | 14 files |
 
 ## Decisions
 
@@ -112,3 +113,4 @@ None yet.
 - [Phase 84]: 84-05: F2 sequence fixpoint draws text from DSL-legal characters; the importer refuses forbidden chars even as numeric entities by design
 - [Phase 85]: 85-01: dagre confined to layout/dagre_impl.rs behind the Engine seam; all coordinates quantized to integer half-pixels at the seam
 - [Phase 85]: 85-01: desc/endpoint-label truncation counts the ellipsis inside the limit (24 / 300); cylinder drawn as one rect plus a vd-node-rim path
+- [Phase 85]: 85-02: verify padding rule w>=tw+4*PAD_X, h>=th+4*PAD_Y (diamond half-extent); vd-edge-labels group only emitted when an edge has a label
