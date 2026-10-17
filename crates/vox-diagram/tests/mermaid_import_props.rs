@@ -4,11 +4,32 @@
 
 use proptest::prelude::*;
 use vox_diagram::mermaid::{ImportOpts, import};
+use vox_diagram::sequence_ir::SeqEvent;
 use vox_diagram::{check, fmt};
 
-const FRAGMENTS: [&str; 60] = [
+const FRAGMENTS: [&str; 80] = [
     "flowchart TD\n",
     "graph LR\n",
+    "stateDiagram-v2\n",
+    "sequenceDiagram\n",
+    "[*] --> A",
+    "A --> [*]",
+    "A --> B: t",
+    "A : d",
+    "state X {",
+    "<<fork>>",
+    "participant A as Alice",
+    "participant B",
+    "A->>B: hi",
+    "B-->>A: ",
+    "Note over A,B: n",
+    "Note left of A: n",
+    "loop x",
+    "activate A",
+    "A-)B: x",
+    "accTitle: t",
+    "wrap: x",
+    "#59;",
     "subgraph s",
     "subgraph t [Title]",
     "end",
@@ -82,7 +103,31 @@ fn check_report(block: &str, opts: ImportOpts) -> Result<(), TestCaseError> {
         "{:?}",
         r
     );
-    prop_assert!(r.sequence.is_none());
+    prop_assert!(
+        r.source.is_none() || r.sequence.is_none(),
+        "both set: {:?}",
+        r
+    );
+    if let Some(seq) = &r.sequence {
+        let ids: Vec<&str> = seq.actors.iter().map(|a| a.id.as_str()).collect();
+        let mut uniq = ids.clone();
+        uniq.sort_unstable();
+        uniq.dedup();
+        prop_assert_eq!(uniq.len(), ids.len(), "duplicate actors {:?}", ids);
+        for e in &seq.events {
+            let (refs, span) = match e {
+                SeqEvent::Message { from, to, span, .. } => (vec![from, to], span),
+                SeqEvent::Note { over, span, .. } => (over.iter().collect(), span),
+            };
+            prop_assert!(
+                refs.iter().all(|r| ids.contains(&r.as_str())),
+                "undeclared actor in {:?}",
+                e
+            );
+            prop_assert!(span.start <= span.end && span.end as usize <= block.len());
+            prop_assert!((1..=lines).contains(&span.line), "{:?}", span);
+        }
+    }
     for list in [&r.unsupported, &r.dropped] {
         let keys: Vec<(u32, &str)> = list
             .iter()
@@ -120,11 +165,17 @@ proptest! {
     fn import_is_total_on_arbitrary_text(s in "\\PC{0,400}") {
         check_report(&s, ImportOpts::default())?;
         check_report(&format!("flowchart TD\n{s}"), ImportOpts { drop_styling: true })?;
+        for head in ["stateDiagram-v2", "sequenceDiagram"] {
+            check_report(&format!("{head}\n{s}"), ImportOpts::default())?;
+            check_report(&format!("{head}\n{s}"), ImportOpts { drop_styling: true })?;
+        }
     }
 
     #[test]
     fn import_is_total_on_mermaid_fragment_soup(s in soup()) {
         check_report(&format!("flowchart LR\n{s}"), ImportOpts::default())?;
+        check_report(&format!("stateDiagram-v2\n{s}"), ImportOpts::default())?;
+        check_report(&format!("sequenceDiagram\n{s}"), ImportOpts::default())?;
         check_report(&s, ImportOpts { drop_styling: true })?;
     }
 }

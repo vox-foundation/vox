@@ -103,12 +103,13 @@ const DIRECTIONS: (&str, u64) = (
     238,
 );
 
-/// 84-03/84-04 expectations: 29 of the 30 flowchart blocks and the state block import; the
-/// sequence and gantt blocks report their header until the next tasks; the markdown-string
-/// block is rejected by the real parser.
+/// 84-03/84-04 expectations: 29 of the 30 flowchart blocks, the state block and the sequence
+/// block import; the gantt block reports its header and the markdown-string block is rejected
+/// by the real parser (31 of 33 import).
 #[test]
 fn corpus_blocks_import_or_fail_closed_as_expected() {
     use vox_diagram::mermaid::{ImportOpts, import};
+    use vox_diagram::sequence_ir::SeqEvent;
     use vox_diagram::{check, fmt};
     let dir = fixtures().join("corpus");
     let Ok(raw) = fs::read_to_string(dir.join("MANIFEST.json")) else {
@@ -133,16 +134,29 @@ fn corpus_blocks_import_or_fail_closed_as_expected() {
             .iter()
             .map(|u| (u.line, u.construct.as_str()))
             .collect();
-        let want_header = [
-            (GANTT, "header:gantt"),
-            (SEQUENCE, "header:sequenceDiagram"),
-        ]
-        .into_iter()
-        .find(|(k, _)| *k == key);
+        let want_header = [(GANTT, "header:gantt")]
+            .into_iter()
+            .find(|(k, _)| *k == key);
         if let Some((_, header)) = want_header {
             assert_eq!(got, vec![(1, header)], "{fixture}");
             assert_eq!((&report.source, &report.sequence), (&None, &None));
             failed_closed += 1;
+        } else if key == SEQUENCE {
+            assert!(got.is_empty(), "{fixture}: {got:?}");
+            assert_eq!(report.source, None);
+            let Some(seq) = &report.sequence else {
+                panic!("{fixture}: no sequence");
+            };
+            let notes = seq
+                .events
+                .iter()
+                .filter(|e| matches!(e, SeqEvent::Note { .. }))
+                .count();
+            assert_eq!(
+                (seq.actors.len(), seq.events.len() - notes, notes),
+                (8, 8, 1),
+                "{fixture}"
+            );
         } else if key == MARKDOWN {
             assert!(
                 !got.is_empty(),
@@ -180,5 +194,8 @@ fn corpus_blocks_import_or_fail_closed_as_expected() {
             assert!(dropped.is_empty(), "{fixture}: {dropped:?}");
         }
     }
-    assert_eq!(failed_closed, 3, "exactly three blocks fail closed");
+    assert_eq!(
+        failed_closed, 2,
+        "exactly the gantt and markdown-string blocks fail closed"
+    );
 }

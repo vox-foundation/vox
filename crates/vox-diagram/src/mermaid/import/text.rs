@@ -145,15 +145,8 @@ pub(super) fn decode(raw: &str, quoted: bool, special: &str) -> Result<String, &
 /// All rejection checks run on the RAW text, so `#59;`, `#119;rap:` and `#96;` import as text.
 /// The result may be empty.
 pub(super) fn free(raw: &str, wrap: bool) -> Result<String, &'static str> {
-    // A `;` that terminates an entity (`#59;`) is text; any other ends the statement.
-    let mut i = 0;
-    while let Some(c) = raw[i..].chars().next() {
-        i += c.len_utf8();
-        match c {
-            '#' => i += entity(&raw[i..])?.map_or(0, |(_, n)| n),
-            ';' => return Err("semicolon"),
-            _ => {}
-        }
+    if semicolon(raw)? {
+        return Err("semicolon");
     }
     if raw.contains("%%") {
         return Err("comment");
@@ -166,6 +159,20 @@ pub(super) fn free(raw: &str, wrap: bool) -> Result<String, &'static str> {
         }
     }
     decode(raw, true, "")
+}
+
+/// True when `raw` has a `;` that does not terminate a `#59;`-style entity.
+pub(super) fn semicolon(raw: &str) -> Result<bool, &'static str> {
+    let mut i = 0;
+    while let Some(c) = raw[i..].chars().next() {
+        i += c.len_utf8();
+        match c {
+            '#' => i += entity(&raw[i..])?.map_or(0, |(_, n)| n),
+            ';' => return Ok(true),
+            _ => {}
+        }
+    }
+    Ok(false)
 }
 
 #[cfg(test)]

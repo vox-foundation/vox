@@ -72,3 +72,27 @@ fn adversarial_comment_soup() {
     assert_eq!(r.source, None);
     assert_eq!(constructs(&r, "comment"), 11_000);
 }
+
+#[test]
+fn adversarial_state_and_sequence_blocks() {
+    let r = bounded(format!(
+        "stateDiagram-v2\n{}",
+        "[*] --> A: x\n".repeat(4_000)
+    ));
+    assert_eq!(r.source, None);
+    assert_eq!(constructs(&r, "limit-edges"), 1);
+    let r = bounded(format!("stateDiagram-v2\n{}", "%% x\n".repeat(11_000)));
+    assert_eq!(constructs(&r, "comment"), 11_000);
+    let r = bounded(format!("sequenceDiagram\n{}", "A->>B: x\n".repeat(6_000)));
+    assert_eq!((&r.sequence, constructs(&r, "limit-edges")), (&None, 1));
+    let r = bounded(format!(
+        "sequenceDiagram\n{}",
+        "participant P\n".repeat(4_000)
+    ));
+    assert_eq!(constructs(&r, "redeclared-participant"), 3_999);
+    let soup = "#a&\"-(|)>{@:`<".repeat(4_000);
+    let r = bounded(format!("sequenceDiagram\nA->>B: {soup}\n"));
+    assert!(!r.unsupported.is_empty() && r.sequence.is_none());
+    let r = bounded(format!("stateDiagram-v2\nA --> B: {soup}\n"));
+    assert!(!r.unsupported.is_empty() && r.source.is_none());
+}

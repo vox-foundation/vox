@@ -2,7 +2,7 @@
 //! terminal, as a target the `end` terminal, transitions are labelled edges. The DSL is
 //! printed by `flow::to_dsl`, so state blocks share the scoped builder with flowcharts.
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use super::flow::{GEdge, GNode, Graph};
 use super::lines::{id_run, styling_head};
@@ -102,7 +102,7 @@ fn scan(line: &str, opts: ImportOpts, dropped: &mut Vec<String>) -> Result<Optio
     if let Some(c) = keyword(line, word) {
         return Err(c.to_owned());
     }
-    if line.contains(';') {
+    if text::semicolon(line).unwrap_or(false) {
         return Err("semicolon".to_owned());
     }
     transition(line).map(Some)
@@ -111,7 +111,7 @@ fn scan(line: &str, opts: ImportOpts, dropped: &mut Vec<String>) -> Result<Optio
 /// Node index for a state or terminal, created at its first mention.
 struct Nodes {
     nodes: Vec<GNode>,
-    index: HashMap<String, usize>,
+    index: BTreeMap<String, usize>,
     full: bool,
 }
 
@@ -139,7 +139,7 @@ pub(super) fn state(body: Vec<(u32, &str)>, opts: ImportOpts) -> ImportReport {
     let mut dropped = Vec::new();
     let mut ns = Nodes {
         nodes: Vec::new(),
-        index: HashMap::new(),
+        index: BTreeMap::new(),
         full: false,
     };
     let mut edges: Vec<GEdge> = Vec::new();

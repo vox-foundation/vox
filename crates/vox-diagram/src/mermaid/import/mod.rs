@@ -10,6 +10,7 @@ use crate::{fmt, ir::Direction};
 mod build;
 mod flow;
 mod lines;
+mod seq;
 mod state;
 mod text;
 
@@ -103,20 +104,33 @@ pub fn import(block: &str, opts: ImportOpts) -> ImportReport {
     if block.len() > MAX_SOURCE_BYTES {
         return refused(1, "limit-source");
     }
-    let mut lines = block
-        .lines()
-        .enumerate()
-        .map(|(i, l)| (u32::try_from(i + 1).unwrap_or(u32::MAX), l.trim()))
-        .filter(|(_, l)| !l.is_empty());
-    let Some((hline, head)) = lines.next() else {
+    // (line number, byte offset of the trimmed text, trimmed text) for every non-blank line.
+    let mut offset = 0;
+    let mut lines = Vec::new();
+    for (i, seg) in block.split_inclusive('\n').enumerate() {
+        let text = seg.trim();
+        if !text.is_empty() {
+            let at = offset + seg.len() - seg.trim_start().len();
+            lines.push((u32::try_from(i + 1).unwrap_or(u32::MAX), at, text));
+        }
+        offset += seg.len();
+    }
+    let mut lines = lines.into_iter();
+    let Some((hline, _, head)) = lines.next() else {
         return refused(1, "header:");
     };
     let word = head.split_whitespace().next().unwrap_or_default();
     match (word.trim_end_matches(';'), header(head)) {
         ("graph" | "flowchart", _) if head.ends_with(';') => refused(hline, "semicolon"),
-        ("graph" | "flowchart", Some(dir)) => flowchart(dir, lines.collect(), opts),
+        ("graph" | "flowchart", Some(dir)) => {
+            flowchart(dir, lines.map(|(n, _, l)| (n, l)).collect(), opts)
+        }
         ("stateDiagram-v2", _) if head.ends_with(';') => refused(hline, "semicolon"),
-        ("stateDiagram-v2", _) if head == word => state::state(lines.collect(), opts),
+        ("stateDiagram-v2", _) if head == word => {
+            state::state(lines.map(|(n, _, l)| (n, l)).collect(), opts)
+        }
+        ("sequenceDiagram", _) if head.ends_with(';') => refused(hline, "semicolon"),
+        ("sequenceDiagram", _) if head == word => seq::sequence(block, lines.collect(), opts),
         _ => refused(hline, &format!("header:{word}")),
     }
 }
