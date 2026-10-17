@@ -239,6 +239,7 @@ mod noisy;
 pub mod roundtrip;
 pub mod svgcheck;
 pub mod svgnum;
+pub mod theme;
 
 /// S2: print `m` with `n`'s layout noise. The text is always valid and denotes `m`.
 pub fn noisy_source(m: &Model, n: &Noise) -> String {

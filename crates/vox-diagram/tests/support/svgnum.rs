@@ -35,7 +35,7 @@ pub fn half(s: &str) -> R<i64> {
 }
 
 pub fn pairs(nums: &[i64]) -> R<Vec<(i64, i64)>> {
-    if nums.is_empty() || nums.len() % 2 != 0 {
+    if nums.is_empty() || !nums.len().is_multiple_of(2) {
         return bad(format!("odd coordinate count {}", nums.len()));
     }
     Ok(nums.chunks(2).map(|c| (c[0], c[1])).collect())
