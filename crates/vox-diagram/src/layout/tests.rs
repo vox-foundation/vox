@@ -323,3 +323,42 @@ fn an_empty_container_is_at_least_its_title_strut_wide() {
 fn measure_title(s: &str) -> Half {
     text::measure(s)
 }
+
+/// A leaf far outside its container on every rung.
+struct ContainerAlwaysBad(Cell<usize>);
+
+impl Engine for ContainerAlwaysBad {
+    fn solve(&self, _: &LayoutInput, _: Separations) -> Result<RawLayout, LayoutError> {
+        self.0.set(self.0.get() + 1);
+        let at = |cx, cy, w, h| RawBox {
+            cx: Some(cx),
+            cy: Some(cy),
+            w: Some(w),
+            h: Some(h),
+        };
+        Ok(RawLayout {
+            nodes: vec![at(500.0, 500.0, 64.0, 38.0)],
+            containers: vec![at(100.0, 100.0, 100.0, 100.0)],
+            edges: vec![],
+        })
+    }
+}
+
+#[test]
+fn a_leaf_outside_its_container_on_every_rung_is_a_geometry_error() {
+    let mut input = one_node();
+    input.nodes[0].container = Some(0);
+    input.containers = vec![LContainer {
+        parent: None,
+        depth: 1,
+        title_lines: vec!["T".into()],
+        strut_w: 40,
+    }];
+    let e = ContainerAlwaysBad(Cell::new(0));
+    let r = lay_out(&e, &input);
+    assert!(
+        matches!(&r, Err(RenderError::Geometry(m)) if m.contains("OutsideContainer")),
+        "{r:?}"
+    );
+    assert_eq!(e.0.get(), 3);
+}
