@@ -24256,6 +24256,22 @@ curated:
   mcp_tool: vox_undo
   cli_path: null
   parameters: null
+- id: mcp.vox_validate_diagram
+  title: VoxDiagram Validation
+  description_human: null
+  description_model: Validate a VoxDiagram (graph or sequence) and return every diagnostic with machine-applicable fixes, the canonical source and stats; optionally convert a Mermaid block or emit SVG or Mermaid. Deterministic, no model calls, writes nothing.
+  intent_tags: []
+  side_effect_class: none
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_validate_diagram
+  cli_path: null
+  parameters: null
 - id: mcp.vox_validate_file
   title: Validate File
   description_human: null

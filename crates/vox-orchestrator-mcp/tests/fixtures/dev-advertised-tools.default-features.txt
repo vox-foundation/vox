@@ -273,6 +273,7 @@ vox_tool_search
 vox_transfer_file
 vox_trust_override
 vox_undo
+vox_validate_diagram
 vox_validate_file
 vox_validate_source
 vox_validate_vuv

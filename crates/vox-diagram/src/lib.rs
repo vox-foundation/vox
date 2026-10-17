@@ -36,6 +36,8 @@ pub mod sequence_ir;
 pub mod span;
 /// Deterministic, injection-safe, themeable SVG rendering of graph and sequence diagrams (graph layout through the dagre adapter).
 pub mod svg;
+/// One-call validation envelope (check, canonical form, optional Mermaid import and SVG/Mermaid emit) shared by the MCP tool and the CLI.
+pub mod validate;
 
 mod check;
 /// Machine-applicable fixes and the bounded repair loop.
@@ -54,3 +56,4 @@ pub const GRAMMAR_CARD: &str = include_str!("../grammar-card.txt");
 pub use check::{Parsed, check, parse};
 pub use fixes::{FixOutcome, Repaired, apply_fixes, repair};
 pub use print::fmt;
+pub use validate::{ValidateOpts, Validation, validate};

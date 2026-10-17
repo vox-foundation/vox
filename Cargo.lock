@@ -18248,6 +18248,7 @@ dependencies = [
  "vox-corpus",
  "vox-crypto",
  "vox-db",
+ "vox-diagram",
  "vox-foundation",
  "vox-gamify",
  "vox-grammar-export",

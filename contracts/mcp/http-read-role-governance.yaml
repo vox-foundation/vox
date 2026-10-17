@@ -37,5 +37,6 @@ read_role_tools:
   - vox_task_status
   - vox_test_decision
   - vox_tool_search
+  - vox_validate_diagram
   - vox_validate_vuv
   - vox_workspace_modules

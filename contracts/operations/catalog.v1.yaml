@@ -27748,6 +27748,29 @@ operations:
     requires:
     - compiler
   cli: null
+- id: diagram.validate
+  title: VoxDiagram Validation
+  description: Validate a VoxDiagram (graph or sequence) and return every diagnostic
+    with machine-applicable fixes, the canonical source and stats; optionally convert
+    a Mermaid block or emit SVG or Mermaid. Deterministic, no model calls, writes nothing.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: none
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_validate_diagram
+    http_read_role_eligible: true
+    exposure: public
+    requires: []
+  cli: null
 - id: gui.rules
   title: GUI Design Rules
   description: List the registered GUI design rules (gui-design-rule/*) so a generator
