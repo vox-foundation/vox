@@ -226,11 +226,19 @@ impl Parser<'_> {
 
     pub(super) fn report_caps(&mut self) {
         if let Some(span) = self.first_extra_node {
-            let msg = format!("diagram has {} nodes; the limit is {MAX_NODES}", self.nodes);
+            let what = if self.seq { "actors" } else { "nodes" };
+            let msg = format!(
+                "diagram has {} {what}; the limit is {MAX_NODES}",
+                self.nodes
+            );
             self.report(codes::LIMIT_NODES, span, msg);
         }
         if let Some(span) = self.first_extra_edge {
-            let msg = format!("diagram has {} edges; the limit is {MAX_EDGES}", self.edges);
+            let what = if self.seq { "events" } else { "edges" };
+            let msg = format!(
+                "diagram has {} {what}; the limit is {MAX_EDGES}",
+                self.edges
+            );
             self.report(codes::LIMIT_EDGES, span, msg);
         }
     }

@@ -121,6 +121,23 @@ pub(crate) fn insert_decl(src: &str, open: Span, close: Span, decl: &str) -> Opt
     Some(replace(Span { start: at, end: at }, replacement))
 }
 
+/// An insert at the end of the line holding byte `at` (before any line break), whose text is
+/// a new line `decl` indented like that line. A trailing comment stays where it is. `None`
+/// when `at` is past the end of `src` or off a character boundary.
+pub(crate) fn insert_after_line(src: &str, at: u32, decl: &str) -> Option<Fix> {
+    let from = at as usize;
+    let rest = src.get(from..)?;
+    let eol = to_u32(from + rest.find(['\n', '\r']).unwrap_or(rest.len()));
+    let indent = indent_of(src, at);
+    Some(replace(
+        Span {
+            start: eol,
+            end: eol,
+        },
+        format!("\n{indent}{decl}"),
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -172,5 +189,42 @@ mod tests {
         let (o, c) = (Span { start: 6, end: 7 }, Span { start: 24, end: 25 });
         let f = declare_node(src, o, c, "g").map(|f| (f.span.start, f.replacement));
         assert_eq!(f, Some((7, "\n    node g: \"g\"".to_string())));
+    }
+
+    fn after_line(src: &str, needle: &str, decl: &str) -> Option<(u32, String)> {
+        let at = to_u32(src.find(needle)?);
+        insert_after_line(src, at, decl).map(|f| (f.span.start, f.replacement))
+    }
+
+    #[test]
+    fn insert_after_line_lf_copies_the_indent() {
+        let src = "sequence {\n    actor a: \"A\"\n}\n";
+        let got = after_line(src, "actor", "actor b: \"b\"");
+        assert_eq!(got, Some((27, "\n    actor b: \"b\"".to_string())));
+        assert_eq!(src.get(..27), Some("sequence {\n    actor a: \"A\""));
+    }
+
+    #[test]
+    fn insert_after_line_crlf_goes_before_the_carriage_return() {
+        let src = "sequence {\r\n\tactor a: \"A\"\r\n}\r\n";
+        let got = after_line(src, "actor", "actor b: \"b\"");
+        assert_eq!(got, Some((25, "\n\tactor b: \"b\"".to_string())));
+        assert_eq!(src.get(25..26), Some("\r"));
+    }
+
+    #[test]
+    fn insert_after_line_leaves_a_trailing_comment_on_its_line() {
+        let src = "sequence {\n    actor a: \"A\" // keep\n}\n";
+        let got = after_line(src, "actor", "actor b: \"b\"");
+        assert_eq!(got.map(|g| g.0), Some(35));
+        assert_eq!(src.get(35..36), Some("\n"));
+    }
+
+    #[test]
+    fn insert_after_line_without_a_final_newline_and_out_of_range() {
+        let src = "x";
+        assert_eq!(after_line(src, "x", "d"), Some((1, "\nd".to_string())));
+        assert!(insert_after_line(src, 2, "d").is_none());
+        assert!(insert_after_line("\u{e9}", 1, "d").is_none());
     }
 }
