@@ -13,6 +13,7 @@ mod facets;
 mod lint;
 mod mermaid_base_gate;
 mod mermaid_gate;
+mod render_manifest;
 pub mod types;
 
 pub use diagrams::fence_issues;
@@ -281,6 +282,9 @@ pub fn lint_in(root: &Path, args: &[String]) -> i32 {
     }
     if args.contains(&"--tighten-mermaid-baseline".to_string()) {
         return tool(mermaid_gate::tighten(root));
+    }
+    if args.contains(&"--render-diagrams".to_string()) {
+        return render_manifest::run(root, args);
     }
 
     if corpus_mode {

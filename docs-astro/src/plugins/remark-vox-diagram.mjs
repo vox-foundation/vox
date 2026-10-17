@@ -1,0 +1,226 @@
+/**
+ * remark-vox-diagram -- turns each ```vox-diagram fence into a `<figure class="vd-figure">` holding
+ * the SVG that `cargo run -p vox-doc-pipeline -- --render-diagrams` pre-rendered into the
+ * gitignored manifest (VoxDiagram Phase 89, D-02/D-04/D-13/D-17/D-18/D-19).
+ *
+ * The manifest maps the normalized fence source to its SVG. The SVG is parsed (never pasted as
+ * raw HTML) into hast nodes by a fail-closed parser for exactly the grammar of
+ * crates/vox-diagram/src/svg/writer.rs, then re-prefixed so ids are unique per page.
+ */
+
+import { existsSync, readFileSync } from 'node:fs';
+import { docSlug } from '../utils/doc-slug.mjs';
+
+const TAGS = new Set([
+  'svg', 'title', 'desc', 'defs', 'marker', 'path', 'g', 'rect', 'polygon', 'text', 'tspan',
+]);
+// Whitespace-only text between structural tags is writer formatting, not content.
+const STRUCTURAL = new Set(['svg', 'defs', 'marker', 'g']);
+const ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'" };
+const TAG_RE = /<(\/)?([a-z]+)((?:[ \n]+[A-Za-z][A-Za-z0-9:-]*="[^"<>]*")*)[ \n]*(\/)?>/y;
+const ATTR_RE = /[ \n]+([A-Za-z][A-Za-z0-9:-]*)="([^"<>]*)"/g;
+const TEXT_RE = /[^<]+/y;
+const PREFIX_RE = /^[a-z][a-z0-9-]*$/;
+const ID_FAMILIES = ['title', 'desc', 'arrow'];
+
+/** Mirror of Rust `fence::normalize`: CRLF and lone CR to LF, then trim trailing White_Space. */
+export function normalizeSource(body) {
+  return body.replace(/\r\n?/g, '\n').replace(/\p{White_Space}+$/u, '');
+}
+
+function decode(raw, what) {
+  if (/&(?!(?:amp|lt|gt|quot|#39);)/.test(raw)) {
+    throw new Error(`remark-vox-diagram: unknown entity in ${what}: ${JSON.stringify(raw)}`);
+  }
+  return raw.replace(/&(amp|lt|gt|quot|#39);/g, (_, name) => ENTITIES[name]);
+}
+
+function attrProperties(attrText, tag) {
+  const properties = {};
+  for (const [, name, raw] of attrText.matchAll(ATTR_RE)) {
+    if (/^on/i.test(name) || /href$/i.test(name)) {
+      throw new Error(`remark-vox-diagram: attribute ${name} on <${tag}> is not in the writer grammar`);
+    }
+    const value = decode(raw, `${tag}@${name}`);
+    properties[name === 'class' ? 'className' : name] =
+      name === 'class' ? value.split(/\s+/).filter(Boolean) : value;
+  }
+  return properties;
+}
+
+/**
+ * Parse the writer's SVG into one hast `svg` element. Throws on any construct outside the
+ * writer grammar: unknown tag or entity, unbalanced tags, text outside the root, comments.
+ */
+export function svgToHast(svg) {
+  const stack = [];
+  let root = null;
+  let i = 0;
+  while (i < svg.length) {
+    if (svg[i] === '<') {
+      TAG_RE.lastIndex = i;
+      const m = TAG_RE.exec(svg);
+      if (!m) throw new Error(`remark-vox-diagram: unparsable markup at offset ${i}: ${JSON.stringify(svg.slice(i, i + 40))}`);
+      i = TAG_RE.lastIndex;
+      const [, closing, tag, attrText, selfClosing] = m;
+      if (!TAGS.has(tag)) throw new Error(`remark-vox-diagram: <${tag}> is not in the writer grammar`);
+      if (closing) {
+        const open = stack.pop();
+        if (selfClosing || !open || open.tagName !== tag) {
+          throw new Error(`remark-vox-diagram: unbalanced </${tag}>`);
+        }
+        continue;
+      }
+      const el = { type: 'element', tagName: tag, properties: attrProperties(attrText, tag), children: [] };
+      if (stack.length) stack[stack.length - 1].children.push(el);
+      else if (root) throw new Error('remark-vox-diagram: more than one root element');
+      else root = el;
+      if (!selfClosing) stack.push(el);
+      continue;
+    }
+    TEXT_RE.lastIndex = i;
+    const t = TEXT_RE.exec(svg);
+    i = TEXT_RE.lastIndex;
+    const parent = stack[stack.length - 1];
+    if (!parent) {
+      if (t[0].trim() !== '') throw new Error('remark-vox-diagram: text outside the root element');
+      continue;
+    }
+    if (STRUCTURAL.has(parent.tagName) && t[0].trim() === '') continue;
+    parent.children.push({ type: 'text', value: decode(t[0], `<${parent.tagName}> text`) });
+  }
+  if (stack.length) throw new Error(`remark-vox-diagram: unclosed <${stack[stack.length - 1].tagName}>`);
+  if (!root || root.tagName !== 'svg') throw new Error('remark-vox-diagram: no <svg> root');
+  return root;
+}
+
+/** Slug of the page a markdown file becomes (Astro entry slug), as `[a-z0-9-]+`. */
+export function pageSlug(filePath) {
+  const p = (filePath || '').replace(/\\/g, '/');
+  let rel;
+  for (const marker of ['/src/content/docs/', '/docs/src/']) {
+    const at = p.lastIndexOf(marker);
+    if (at >= 0) { rel = p.slice(at + marker.length); break; }
+  }
+  rel ??= p.split('/').slice(-2).join('/');
+  const slug = docSlug(rel).replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return slug || 'index';
+}
+
+function walk(node, fn) {
+  if (node.type === 'element') {
+    fn(node);
+    for (const c of node.children) walk(c, fn);
+  }
+}
+
+/**
+ * Rewrite the three writer id families (`vd-title`, `vd-desc`, `vd-arrow`) and every reference
+ * to them to `<prefix>-title` etc., in place. Throws if any id stays outside `<prefix>-`.
+ */
+export function reprefix(root, prefix) {
+  const map = (id) => {
+    const family = ID_FAMILIES.find((f) => id === `vd-${f}`);
+    if (!family) throw new Error(`remark-vox-diagram: unexpected id reference ${JSON.stringify(id)}`);
+    return `${prefix}-${family}`;
+  };
+  walk(root, (el) => {
+    const p = el.properties;
+    if (p.id !== undefined) p.id = map(p.id);
+    if (p['aria-labelledby'] !== undefined) {
+      p['aria-labelledby'] = p['aria-labelledby'].split(/\s+/).filter(Boolean).map(map).join(' ');
+    }
+    if (p['marker-end'] !== undefined) {
+      const m = /^url\(#([^)]+)\)$/.exec(p['marker-end']);
+      if (!m) throw new Error(`remark-vox-diagram: unexpected marker-end ${JSON.stringify(p['marker-end'])}`);
+      p['marker-end'] = `url(#${map(m[1])})`;
+    }
+  });
+  walk(root, (el) => {
+    const id = el.properties.id;
+    if (id !== undefined && !id.startsWith(`${prefix}-`)) {
+      throw new Error(`remark-vox-diagram: id ${JSON.stringify(id)} does not start with ${prefix}-`);
+    }
+  });
+  return root;
+}
+
+function loadManifest(manifestPath) {
+  const map = new Map();
+  if (!manifestPath || !existsSync(manifestPath)) return map;
+  const json = JSON.parse(readFileSync(manifestPath, 'utf8'));
+  if (json.schema_version !== 1 || !Array.isArray(json.diagrams)) {
+    throw new Error(`remark-vox-diagram: ${manifestPath} is not a schema_version 1 manifest`);
+  }
+  for (const d of json.diagrams) map.set(d.source, d.svg);
+  return map;
+}
+
+function visit(tree, type, fn) {
+  if (tree.type === type) fn(tree);
+  if (Array.isArray(tree.children)) for (const c of tree.children) visit(c, type, fn);
+}
+
+const el = (tagName, properties, ...children) => ({ type: 'element', tagName, properties, children });
+const txt = (value) => ({ type: 'text', value });
+
+function figureChildren(svgEl, source) {
+  const details = el(
+    'details', { className: ['vd-source'] },
+    el('summary', {}, txt('Diagram source')),
+    el('pre', {}, el('code', { className: ['language-vox-diagram'] }, txt(source))),
+  );
+  return [svgEl, details];
+}
+
+/**
+ * Remark plugin factory. `strict` and `digest` are carried in the options so the build guard and
+ * Astro's data-store invalidation (digest changes with the manifest) hang off one registration.
+ */
+export function remarkVoxDiagram({ manifestPath } = {}) {
+  const manifest = loadManifest(manifestPath);
+  const parsed = new Map();
+  const parse = (svg) => {
+    if (!parsed.has(svg)) parsed.set(svg, svgToHast(svg));
+    return structuredClone(parsed.get(svg));
+  };
+
+  return function transformer(tree, file) {
+    const page = pageSlug(file.path);
+    let n = 0;
+    visit(tree, 'code', (node) => {
+      if (node.lang !== 'vox-diagram' || node.meta) return;
+      n += 1;
+      const source = normalizeSource(node.value);
+      const svg = manifest.get(source);
+      if (svg === undefined) {
+        throw new Error(
+          `remark-vox-diagram: diagram ${n} on page ${page} (${file.path}) is not in the manifest. Run \`pnpm diagrams\`.`,
+        );
+      }
+      const prefix = `vd-${page}-${n}`;
+      if (!PREFIX_RE.test(prefix)) throw new Error(`remark-vox-diagram: bad id prefix ${prefix}`);
+      const svgEl = reprefix(parse(svg), prefix);
+      const width = /^0 0 (\S+) \S+$/.exec(svgEl.properties.viewBox ?? '')?.[1];
+      if (!width || !/^\d+(\.\d+)?$/.test(width)) {
+        throw new Error(`remark-vox-diagram: bad viewBox ${JSON.stringify(svgEl.properties.viewBox)}`);
+      }
+      svgEl.properties.dataPagefindIgnore = '';
+      node.type = 'vdFigure';
+      delete node.value;
+      delete node.lang;
+      delete node.meta;
+      node.data = {
+        hName: 'figure',
+        hProperties: {
+          className: ['vd-figure'],
+          style: `--vd-w:${width}px`,
+          tabIndex: 0,
+          role: 'region',
+          ariaLabelledBy: `${prefix}-title`,
+        },
+        hChildren: figureChildren(svgEl, source),
+      };
+    });
+  };
+}

@@ -1,4 +1,7 @@
 // @ts-check
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import starlightLlmsTxt from 'starlight-llms-txt';
@@ -7,12 +10,20 @@ import { voxGrammar } from './src/plugins/vox-grammar.mjs';
 import { getSidebar } from './src/utils/sidebar.mjs';
 import { remarkVoxInclude } from './src/plugins/remark-vox-include.mjs';
 import { remarkDocLinks } from './src/plugins/remark-doc-links.mjs';
+import { remarkVoxDiagram } from './src/plugins/remark-vox-diagram.mjs';
 import { listDocPages, noindexRoutes, internalsDocIds } from './src/utils/page-index.mjs';
 
 const docsSrc = new URL('../docs/src', import.meta.url).pathname;
 const docPages = listDocPages(docsSrc);
 const noindex = noindexRoutes(docPages);
 const internalsExcluded = internalsDocIds(docPages);
+
+// VoxDiagram pre-render output (gitignored; `pnpm diagrams` writes it). Its sha256 rides in the
+// plugin options so Astro's content data store is invalidated whenever a diagram changes (D-15).
+const manifestFile = new URL('./.vox-diagram/manifest.json', import.meta.url);
+const manifestDigest = existsSync(manifestFile)
+  ? createHash('sha256').update(readFileSync(manifestFile)).digest('hex')
+  : 'none';
 
 export default defineConfig({
   site: 'https://voxlang.org/',
@@ -25,6 +36,24 @@ export default defineConfig({
     ],
   },
   integrations: [
+    {
+      name: 'vox-diagram',
+      hooks: {
+        'astro:config:setup': ({ command, updateConfig, addWatchFile }) => {
+          addWatchFile(manifestFile);
+          updateConfig({
+            markdown: {
+              remarkPlugins: [
+                [
+                  remarkVoxDiagram,
+                  { manifestPath: fileURLToPath(manifestFile), strict: command === 'build', digest: manifestDigest },
+                ],
+              ],
+            },
+          });
+        },
+      },
+    },
     sitemap({
       filter: (page) => {
         const p = new URL(page).pathname;
@@ -51,6 +80,8 @@ export default defineConfig({
       expressiveCode: {
         shiki: {
           langs: [voxGrammar],
+          // Fences are replaced by the remark plugin; the alias keeps stray ones highlight-safe.
+          langAlias: { 'vox-diagram': 'text' },
         },
       },
       plugins: [
