@@ -4,7 +4,10 @@
 
 mod support;
 
-use support::svgcheck::seq::assert_sequence_geometry;
+use std::cell::Cell;
+
+use proptest::test_runner::{Config, TestCaseError, TestRunner};
+use support::svgcheck::seq::{assert_sequence_geometry, sequence_ir};
 use support::svgcheck::{self, Svg};
 use vox_diagram::check;
 use vox_diagram::ir::Ir;
@@ -167,4 +170,85 @@ fn half_px(h: i64) -> String {
     } else {
         format!("{}.5", h / 2)
     }
+}
+
+#[test]
+fn self_message_label_stays_before_the_next_lifeline() {
+    let label = "retry with backoff and add some jitter";
+    assert_eq!(label.chars().count(), 38);
+    let read = drawn(&seq(&["a", "b"], vec![message("a", "a", label)]));
+    let l = read.edge_labels[0];
+    assert!(
+        l.x + l.w <= read.lifelines[1].0 - CLEAR,
+        "{l:?} {:?}",
+        read.lifelines
+    );
+}
+
+#[test]
+fn last_lane_self_message_widens_the_canvas() {
+    let label = "flush the log to disk before acknowledging the commit";
+    let read = drawn(&seq(&["a", "b"], vec![message("b", "b", label)]));
+    let l = read.edge_labels[0];
+    assert!(l.x + l.w <= read.width, "{l:?} {}", read.width);
+    assert!(read.lifelines[1].0 < l.x, "{l:?}");
+}
+
+#[test]
+fn notes_cover_their_lanes() {
+    let hundred = ["word"; 20].join(" ");
+    assert_eq!(hundred.chars().count(), 99);
+    let s = seq(
+        &["a", "b", "c"],
+        vec![
+            note(&["a"], &hundred),
+            note(&["a", "c"], "spans the outer lanes"),
+            note(&["c", "b"], "reversed"),
+            note(&["b", "b"], "twice the same lane"),
+        ],
+    );
+    let read = drawn(&s);
+    let note_labels: Vec<_> = read
+        .labels
+        .iter()
+        .filter(|l| l.class == "vd-note-label")
+        .collect();
+    assert_eq!(note_labels.len(), 4);
+    assert_eq!(note_labels[0].lines.len(), 2, "{:?}", note_labels[0].lines);
+    assert_eq!(read.notes.len(), 4);
+}
+
+#[test]
+fn generated_sequences_never_overlap_or_clip() {
+    let drawn_count = Cell::new(0);
+    let mut runner = TestRunner::new(Config::with_cases(128));
+    let result = runner.run(&sequence_ir(), |s| {
+        let svg = match render(&Ir::Sequence(s.clone()), &SvgOpts::default()) {
+            Ok(svg) => svg,
+            Err(e) => return Err(TestCaseError::fail(format!("render failed: {e}\n{s:?}"))),
+        };
+        let read = svgcheck::check(&svg, "vd")
+            .map_err(|e| TestCaseError::fail(format!("checker: {e}\n{svg}")))?;
+        drawn_count.set(drawn_count.get() + 1);
+        assert_sequence_geometry(&read, &s)
+            .map_err(|e| TestCaseError::fail(format!("{e}\n{s:?}\n{svg}")))
+    });
+    if let Err(e) = result {
+        panic!("{e}");
+    }
+    assert_eq!(drawn_count.get(), 128, "a case was rejected");
+}
+
+#[test]
+fn sequence_goldens_pass_the_oracle() {
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/svg/cases");
+    let mut seen = 0;
+    for stem in support::roundtrip::stems(&dir, "vdg") {
+        let src = std::fs::read_to_string(dir.join(format!("{stem}.vdg"))).unwrap_or_default();
+        if let Some(Ir::Sequence(s)) = check(&src).ir {
+            drawn(&s);
+            seen += 1;
+        }
+    }
+    assert!(seen >= 4, "only {seen} sequence cases");
 }

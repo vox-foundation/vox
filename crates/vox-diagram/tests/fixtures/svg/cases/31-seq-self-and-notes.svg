@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1294 496" role="img" aria-labelledby="vd-title vd-desc" class="vd-diagram" style="font-family:var(--vd-font,system-ui,sans-serif);font-size:14px">
+<title id="vd-title">Diagram</title>
+<desc id="vd-desc">3 actors, 4 messages, 3 notes: First → First; Middle → Middle; Last → Last; Middle → Last</desc>
+<defs>
+<marker id="vd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+<path d="M0 0L10 5L0 10z" style="fill:var(--vd-edge,#57606a)"/>
+</marker>
+</defs>
+<g class="vd-lifelines" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1;stroke-dasharray:4 4">
+<path class="vd-lifeline" d="M213.5 54L213.5 480"/>
+<path class="vd-lifeline" d="M658 54L658 480"/>
+<path class="vd-lifeline" d="M844.5 54L844.5 480"/>
+</g>
+<g class="vd-nodes">
+<g class="vd-node">
+<rect class="vd-node-shape" x="181.5" y="16" width="64" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="213.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="213.5" dy="0">First</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="621.5" y="16" width="73" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="658" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="658" dy="0">Middle</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="812.5" y="16" width="64" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="844.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="844.5" dy="0">Last</tspan></text>
+</g>
+</g>
+<g class="vd-notes">
+<rect class="vd-note" x="16" y="236" width="395.5" height="56" rx="3" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
+<text class="vd-note-label" x="213.5" y="260" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="213.5" dy="0">A note over a single lane with enough text that it has to</tspan><tspan x="213.5" dy="18">wrap onto a second line at sixty cells</tspan></text>
+<rect class="vd-note" x="197.5" y="308" width="663" height="56" rx="3" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
+<text class="vd-note-label" x="529" y="332" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="529" dy="0">A note spanning the first and the last lane, wide enough to</tspan><tspan x="529" dy="18">cover the middle lane as well</tspan></text>
+<rect class="vd-note" x="602.5" y="380" width="297" height="38" rx="3" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
+<text class="vd-note-label" x="751" y="404" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="751" dy="0">Reversed operands still span both lanes</tspan></text>
+</g>
+<g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
+<path class="vd-edge" d="M213.5 86L243.5 86L243.5 106L213.5 106" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M658 137L688 137L688 157L658 157" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M844.5 188L874.5 188L874.5 208L844.5 208" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M658 464L844.5 464" marker-end="url(#vd-arrow)"/>
+</g>
+<g class="vd-edge-labels">
+<rect class="vd-edge-label-bg" x="249.5" y="74" width="400.5" height="44" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="449.5" y="92" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="449.5" dy="0">retry the request up to three times with exponential backoff</tspan><tspan x="449.5" dy="18">and jitter</tspan></text>
+<rect class="vd-edge-label-bg" x="694" y="134" width="142.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="765" y="152" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="765" dy="0">validate the payload</tspan></text>
+<rect class="vd-edge-label-bg" x="880.5" y="176" width="397.5" height="44" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="1079" y="194" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="1079" dy="0">flush the write-ahead log to disk before acknowledging the</tspan><tspan x="1079" dy="18">commit to the caller</tspan></text>
+<rect class="vd-edge-label-bg" x="735" y="434" width="32" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="751" y="452" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="751" dy="0">ack</tspan></text>
+</g>
+</svg>

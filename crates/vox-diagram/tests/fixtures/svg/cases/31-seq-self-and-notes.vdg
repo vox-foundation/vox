@@ -1,0 +1,13 @@
+sequence {
+    actor first: "First"
+    actor middle: "Middle"
+    actor last: "Last"
+
+    first -> first: "retry the request up to three times with exponential backoff and jitter"
+    middle -> middle: "validate the payload"
+    last -> last: "flush the write-ahead log to disk before acknowledging the commit to the caller"
+    note over first: "A note over a single lane with enough text that it has to wrap onto a second line at sixty cells"
+    note over first, last: "A note spanning the first and the last lane, wide enough to cover the middle lane as well"
+    note over last, middle: "Reversed operands still span both lanes"
+    middle -> last: "ack"
+}

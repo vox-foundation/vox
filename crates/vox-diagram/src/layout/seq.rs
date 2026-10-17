@@ -4,7 +4,8 @@
 //! narrowed to [`Half`], so no input can overflow.
 //!
 //! Each gap between adjacent lanes is at least wide enough for the widest message label that
-//! crosses it plus [`LANE_CLEAR`] on each side.
+//! crosses it plus [`LANE_CLEAR`] on each side, and for the loop and label of a self-message on
+//! its left lane.
 
 use std::collections::BTreeMap;
 
@@ -178,15 +179,21 @@ fn lane_xs(widths: &[W], steps: &[Step]) -> Vec<W> {
         .map(|p| p[0] / 2 + p[1] / 2 + ACTOR_GAP)
         .collect();
     for st in steps {
-        if let Step::Msg {
+        let Step::Msg {
             from,
             to,
             label: Some(l),
             ..
         } = st
-            && from != to
-            && let Some(span) = gaps.get_mut(*from.min(to)..*from.max(to))
-        {
+        else {
+            continue;
+        };
+        if from == to {
+            // A self-message label sits right of its loop; the last lane has no gap, the canvas grows.
+            if let Some(g) = gaps.get_mut(*from) {
+                *g = (*g).max(SELF_W + SELF_LABEL_GAP + l.w + LANE_CLEAR);
+            }
+        } else if let Some(span) = gaps.get_mut(*from.min(to)..*from.max(to)) {
             for g in span {
                 *g = (*g).max(l.w + 2 * LANE_CLEAR);
             }

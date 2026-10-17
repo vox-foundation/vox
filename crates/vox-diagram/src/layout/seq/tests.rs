@@ -130,3 +130,15 @@ fn message_lines_wrap_at_60() {
     let kept = label_box("one\ntwo").map(|l| l.lines);
     assert_eq!(kept, Some(vec!["one".to_owned(), "two".to_owned()]));
 }
+
+#[test]
+fn self_gap_rule() {
+    let text = "retry with backoff and add some jitter";
+    let lbl = label_box(text).map_or(0, |l| l.w);
+    let p = placed(&seq(&["a", "b"], vec![msg("a", "a", text)]));
+    let gap = W::from(p.lifelines[1].0 - p.lifelines[0].0);
+    assert!(
+        gap >= SELF_W + SELF_LABEL_GAP + lbl + LANE_CLEAR,
+        "{gap} {lbl}"
+    );
+}
