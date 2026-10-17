@@ -27,12 +27,12 @@
 - [ ] **REND-03**: SVG is safe and accessible: all labels escaped by one writer, generated per-diagram id prefixes, no `<style>`/`foreignObject`/user-derived attributes, `<title>`/`<desc>` from the IR, text as `<text>`; the escape guard is proven by mutation
 - [ ] **REND-04**: One inline SVG themes correctly in light and dark mode via CSS variables mapped to Starlight tokens
 - [ ] **REND-05**: A `sequence` diagram renders to SVG with width-aware lanes
-- [ ] **REND-06**: Any diagram exports to Mermaid that a real (pinned) Mermaid parser accepts (the sole oracle — no dependency on the uncommitted `mermaid.rs` validator)
+- [x] **REND-06**: Any diagram exports to Mermaid that a real (pinned) Mermaid parser accepts (the sole oracle — no dependency on the uncommitted `mermaid.rs` validator)
 
 ### Import & Migration (MIG)
 
-- [ ] **MIG-01**: Maintainer can import a Mermaid flowchart/graph/state/sequence block to VoxDiagram; unsupported constructs fail closed with a by-line `unsupported` list (nothing silently dropped)
-- [ ] **MIG-02**: Import is verified by node/edge-set equality through an import → Mermaid-export round trip over the corpus
+- [x] **MIG-01**: Maintainer can import a Mermaid flowchart/graph/state/sequence block to VoxDiagram; unsupported constructs fail closed with a by-line `unsupported` list (nothing silently dropped)
+- [x] **MIG-02**: Import is verified by node/edge-set equality through an import → Mermaid-export round trip over the corpus
 - [ ] **MIG-03**: All convertible ```` ```mermaid ```` fences in `docs/src` (33 fences / 21 files at committed HEAD 2026-10-16, plus any landed before migration; `archive/` excluded and untouched) are migrated to ```` ```vox-diagram ````, reviewed in small batches with a contact sheet
 - [ ] **MIG-04**: After migration the legacy-Mermaid baseline is tightened to the allowlist (the Gantt, plus any block MIG-01 cannot convert)
 
@@ -89,9 +89,9 @@
 | REND-03 | Phase 85 | Pending |
 | REND-04 | Phase 85 | Pending |
 | REND-05 | Phase 86 | Pending |
-| REND-06 | Phase 84 | Pending |
-| MIG-01 | Phase 84 | Pending |
-| MIG-02 | Phase 84 | Pending |
+| REND-06 | Phase 84 | Complete |
+| MIG-01 | Phase 84 | Complete |
+| MIG-02 | Phase 84 | Complete |
 | MIG-03 | Phase 90 | Pending |
 | MIG-04 | Phase 90 | Pending |
 | DOCS-01 | Phase 87 | Pending |

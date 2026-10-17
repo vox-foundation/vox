@@ -5,17 +5,17 @@ milestone_name: VoxDiagram
 current_phase: 84
 current_phase_name: Mermaid Emitter & Strict Importer
 current_plan: 5
-status: executing
-stopped_at: Completed 84-04-PLAN.md
-last_updated: "2026-10-17T01:49:21.894Z"
+status: verifying
+stopped_at: Completed 84-05-PLAN.md
+last_updated: "2026-10-17T02:01:37.273Z"
 last_activity: 2026-10-16
 last_activity_desc: Phase 84 execution started
-state_head: 3b674a5b27ca06a22bdfa9228925914a4c748555
+state_head: 5866f19fd39e6a1d2d4aaca95ae11931330ddd1e
 progress:
   total_phases: 9
   completed_phases: 1
   total_plans: 12
-  completed_plans: 11
+  completed_plans: 12
 ---
 
 # Project State: VoxDiagram (`voxdiagram`)
@@ -31,7 +31,7 @@ See: `.planning/PROJECT.md` (shared, owned by the `unified` workstream, not edit
 
 Phase: 84 (Mermaid Emitter & Strict Importer) — EXECUTING
 Plan: 5 of 5
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-10-16 — Phase 84 execution started
 
 Progress: [█░░░░░░░░░] 11% (0/9 phases)
@@ -64,9 +64,9 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-10-17T01:49:21.873Z
+**Last session:** 2026-10-17T02:01:37.252Z
 
-**Stopped At:** Completed 84-04-PLAN.md
+**Stopped At:** Completed 84-05-PLAN.md
 **Resume File:** None
 
 ## Performance Metrics
@@ -84,6 +84,7 @@ None yet.
 | Phase 84 P02 | 45min | 3 tasks | 15 files |
 | Phase 84 P03 | 50min | 3 tasks | 10 files |
 | Phase 84 P04 | 45min | 2 tasks | 10 files |
+| Phase 84 P05 | ~1h | 3 tasks | 60 files |
 
 ## Decisions
 
@@ -107,3 +108,4 @@ None yet.
 - [Phase 84]: stateDiagram-v2 imports into the graph kind: [*] as source/target becomes start/end terminals, printed via flow::to_dsl
 - [Phase 84]: sequenceDiagram imports into ImportReport.sequence with LineIndex spans; participant-after-use and redeclared-participant fail closed instead of last-wins
 - [Phase 84]: Free-text semicolon check is entity-aware (#59; is text); HTML entities in state/sequence text report semicolon
+- [Phase 84]: 84-05: F2 sequence fixpoint draws text from DSL-legal characters; the importer refuses forbidden chars even as numeric entities by design
