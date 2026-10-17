@@ -96,7 +96,22 @@ Plans:
   2. Importing a Mermaid flowchart/graph/state/sequence block produces a diagram, or fails closed with a by-line `unsupported` list (e.g. `classDef`, `click`, Gantt); the documented leniencies (unquoted labels, `&` fan-out and chain expansion, `<br>` to newline) work and nothing else is dropped without being listed.
   3. Over the frozen live corpus (all `docs/src` fences at committed HEAD, archive excluded — 33 fences / 21 files on 2026-10-16), import then Mermaid export gives node/edge-set equality against the original block, with the original's sets extracted by an independent path (the pinned Mermaid parser); the Gantt block and the markdown-string block (`how-to-rust-crate-imports.md:53`, rejected by real Mermaid) are reported unsupported, not mangled.
 
-**Plans**: TBD
+**Plans**: 5 plans
+
+Plans:
+**Wave 1**
+- [ ] 84-01-PLAN.md — Tracer round trip (import, DSL, export, pinned real-Mermaid oracle), oracle for all three kinds, docs-quality wiring, corpus freeze (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 84-02-PLAN.md — Exporter: subgraph nesting, totality, hostile fixtures accepted by the oracle, sequence export (wave 2)
+- [ ] 84-03-PLAN.md — Strict flowchart importer: dotted-path scope rewrite, leniencies, unsupported catalogue, drop_styling, caps (wave 2, parallel with 02)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 84-04-PLAN.md — stateDiagram-v2 and sequenceDiagram importers (wave 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 84-05-PLAN.md — Corpus and import-case three-way round trips, import/export fixpoint property, governance closure (wave 4)
+
 **Research flag**: standard patterns. Node-side parse oracle lives with the existing `docs-astro` `node --test` suites.
 **Parallelism**: can run in parallel with Phases 85 and 87.
 
