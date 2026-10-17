@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 185 720" role="img" aria-labelledby="vd-title vd-desc" class="vd-diagram" style="font-family:var(--vd-font,system-ui,sans-serif);font-size:14px">
+<title id="vd-title">Diagram</title>
+<desc id="vd-desc">6 nodes, 5 edges: Start → Rect; Rect → Rounded; Rounded → Decide?; Decide? → Store; Store → End</desc>
+<defs>
+<marker id="vd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+<path d="M0 0L10 5L0 10z" style="fill:var(--vd-edge,#57606a)"/>
+</marker>
+</defs>
+<g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
+<path class="vd-edge" d="M92.5 72L92.5 102L92.5 132" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M92.5 188L92.5 218L92.5 248" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M92.5 304L92.5 334L92.5 364" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M92.5 456L92.5 486L92.5 516" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M92.5 588L92.5 618L92.5 648" marker-end="url(#vd-arrow)"/>
+</g>
+<g class="vd-nodes">
+<g class="vd-node">
+<rect class="vd-node-shape" x="56.5" y="16" width="72" height="56" rx="28" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="92.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="92.5" dy="0">Start</tspan><tspan x="92.5" dy="18">here</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="60.5" y="132" width="64" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="92.5" y="156" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="92.5" dy="0">Rect</tspan><tspan x="92.5" dy="18">box</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="48" y="248" width="89.5" height="56" rx="10" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="92.5" y="272" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="92.5" dy="0">Rounded</tspan><tspan x="92.5" dy="18">box</tspan></text>
+</g>
+<g class="vd-node">
+<polygon class="vd-node-shape" points="92.5,364 169,410 92.5,456 16,410" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="92.5" y="406" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="92.5" dy="0">Decide?</tspan><tspan x="92.5" dy="18">yes or no</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="60.5" y="516" width="64.5" height="72" rx="32" ry="8" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<path class="vd-node-rim" d="M60.5 524A32 8 0 0 0 125 524" style="fill:none;stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="92.5" y="548" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="92.5" dy="0">Store</tspan><tspan x="92.5" dy="18">data</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="55.5" y="648" width="74" height="56" rx="28" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:3"/>
+<text class="vd-label" x="92.5" y="672" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="92.5" dy="0">End</tspan><tspan x="92.5" dy="18">done</tspan></text>
+</g>
+</g>
+</svg>

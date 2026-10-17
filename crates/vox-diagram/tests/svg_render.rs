@@ -201,6 +201,14 @@ fn degenerate_empty_graph() {
 }
 
 #[test]
+fn shapes_case_has_one_polygon() {
+    let path = fixtures().join("svg/cases/01-shapes.svg");
+    let svg = fs::read_to_string(&path).unwrap_or_default();
+    assert_eq!(svg.matches("<polygon").count(), 1);
+    assert_eq!(svg.matches("class=\"vd-node-shape\"").count(), 6);
+}
+
+#[test]
 fn svg_cases() {
     let dir = fixtures().join("svg/cases");
     let inputs = stems(&dir, "vdg");

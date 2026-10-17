@@ -2,13 +2,14 @@
 //! single writer in [`writer`]; every paint is a `var(--vd-NAME,FALLBACK)` built from
 //! [`THEME_VARS`]; no attribute value is derived from a label.
 
+mod shapes;
 pub(crate) mod writer;
 
 use std::fmt;
 
 use crate::ir::{GraphIr, Ir};
 use crate::layout::dagre_impl::DagreEngine;
-use crate::layout::{self, Engine, Half, LEdge, LayoutInput, Placed};
+use crate::layout::{self, Engine, LEdge, LayoutInput, Placed};
 use writer::{Writer, num};
 
 /// Options for [`render`].
@@ -83,7 +84,7 @@ pub const THEME_VARS: [(&str, &str); 9] = [
 ];
 
 /// `var(NAME,FALLBACK)` for a name in [`THEME_VARS`].
-fn paint(name: &str) -> String {
+pub(super) fn paint(name: &str) -> String {
     THEME_VARS
         .iter()
         .find(|(n, _)| *n == name)
@@ -190,49 +191,9 @@ fn write_edges(w: &mut Writer, placed: &Placed, arrow_id: &str) {
 }
 
 fn write_nodes(w: &mut Writer, input: &LayoutInput, placed: &Placed) {
-    let shape_style = format!(
-        "fill:{};stroke:{};stroke-width:1.5",
-        paint("--vd-node-fill"),
-        paint("--vd-node-stroke")
-    );
-    let text_style = format!("fill:{};stroke:none", paint("--vd-text"));
     w.open("g", &[("class", "vd-nodes")]);
     for (n, r) in input.nodes.iter().zip(&placed.nodes) {
-        let lines = &n.lines;
-        w.open("g", &[("class", "vd-node")]);
-        let (x, y, bw, bh) = (num(r.x), num(r.y), num(r.w), num(r.h));
-        w.empty(
-            "rect",
-            &[
-                ("class", "vd-node-shape"),
-                ("x", &x),
-                ("y", &y),
-                ("width", &bw),
-                ("height", &bh),
-                ("rx", "3"),
-                ("style", &shape_style),
-            ],
-        );
-        let cx = num(r.x + r.w / 2);
-        let count = Half::try_from(lines.len()).unwrap_or(0);
-        let first = num(r.y + r.h / 2 - (count - 1) * 18 + 10);
-        w.start(
-            "text",
-            &[
-                ("class", "vd-label"),
-                ("x", &cx),
-                ("y", &first),
-                ("text-anchor", "middle"),
-                ("style", &text_style),
-            ],
-        );
-        for (i, line) in lines.iter().enumerate() {
-            let dy = if i == 0 { "0" } else { "18" };
-            w.leaf("tspan", &[("x", &cx), ("dy", dy)], line);
-        }
-        w.end("text");
-        w.nl();
-        w.close("g");
+        shapes::write_node(w, n, *r);
     }
     w.close("g");
 }

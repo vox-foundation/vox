@@ -42,11 +42,10 @@ fn adv1000(c: char, next_is_vs16: bool) -> u64 {
         '\t' | '\r' => u64::from(ADV[0]),
         ' '..='~' => ADV.get(cp as usize - 32).copied().map_or(1000, u64::from),
         '\u{a0}'..='\u{17f}' => 600,
-        _ => match c.width() {
-            Some(0) => 0,
-            // Two cells of 500 per 1000 em.
-            _ => 1000,
-        },
+        // Zero-width marks take no room; wide chars are two cells of 500 and every other
+        // char, controls included (they print as U+FFFD), is 1000.
+        _ if c.width() == Some(0) => 0,
+        _ => 1000,
     }
 }
 
@@ -61,49 +60,89 @@ pub(crate) fn measure(line: &str) -> Half {
     Half::try_from(scaled.div_ceil(100_000)).unwrap_or(Half::MAX)
 }
 
-/// Split a label into lines. The tracer splits on explicit newlines only; wrapping lands next.
-pub(crate) fn wrap(label: &str) -> Vec<String> {
-    label.split('\n').map(str::to_owned).collect()
+/// Cells per wrapped line.
+pub(crate) const WRAP_CELLS: usize = 28;
+
+/// Terminal cells of `s`: wide chars 2, zero-width 0, everything else (controls included, which
+/// print as U+FFFD) 1.
+pub(crate) fn cells(s: &str) -> usize {
+    s.chars().map(cell).sum()
 }
 
-/// Size `(w, h)` of a node holding `lines`, in half-pixels.
+fn cell(c: char) -> usize {
+    c.width().unwrap_or(1)
+}
+
+fn is_separator(c: char) -> bool {
+    matches!(c, ' ' | '\t' | '\r')
+}
+
+/// Break an over-long word into chunks of at most [`WRAP_CELLS`]; a zero-width char never starts
+/// a chunk, so it stays with the char before it.
+fn hard_break(word: &str) -> Vec<String> {
+    let mut chunks = vec![String::new()];
+    let mut used = 0;
+    for c in word.chars() {
+        let w = cell(c);
+        if w > 0 && used + w > WRAP_CELLS {
+            chunks.push(String::new());
+            used = 0;
+        }
+        if let Some(last) = chunks.last_mut() {
+            last.push(c);
+        }
+        used += w;
+    }
+    chunks
+}
+
+/// Wrap a label: explicit newlines are kept, words (split on space, tab and CR only) are filled
+/// greedily up to [`WRAP_CELLS`], and only a word longer than that is broken mid-word. Runs of
+/// separators collapse, lines are trimmed and blank lines are dropped.
+pub(crate) fn wrap(label: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    for line in label.split('\n') {
+        let mut cur = String::new();
+        for word in line.split(is_separator).filter(|w| !w.is_empty()) {
+            let wc = cells(word);
+            if wc > WRAP_CELLS {
+                if !cur.is_empty() {
+                    out.push(std::mem::take(&mut cur));
+                }
+                let mut chunks = hard_break(word);
+                cur = chunks.pop().unwrap_or_default();
+                out.extend(chunks);
+            } else if cur.is_empty() {
+                cur = word.to_owned();
+            } else if cells(&cur) + 1 + wc <= WRAP_CELLS {
+                cur.push(' ');
+                cur.push_str(word);
+            } else {
+                out.push(std::mem::replace(&mut cur, word.to_owned()));
+            }
+        }
+        if !cur.is_empty() {
+            out.push(cur);
+        }
+    }
+    out
+}
+
+/// Size `(w, h)` of a node holding `lines`, in half-pixels. The text block is the widest line by
+/// `LINE_H` per line; a diamond contains every corner of it.
 pub(crate) fn node_size(shape: Shape, lines: &[String]) -> (Half, Half) {
     let tw = lines.iter().map(|l| measure(l)).max().unwrap_or(0);
     let th = Half::try_from(lines.len()).unwrap_or(0) * LINE_H * 2;
-    let (w, h) = (tw + 4 * PAD_X, th + 4 * PAD_Y);
-    // Task 2 gives every shape its own formula; the tracer draws rectangles only.
-    let _ = shape;
-    (w.max(2 * 64), h.max(2 * 38))
+    let (px, py) = (PAD_X * 2, PAD_Y * 2);
+    // (w, h, min w px, min h px)
+    let (w, h, min_w, min_h) = match shape {
+        Shape::Rect | Shape::Rounded => (tw + 2 * px, th + 2 * py, 64, 38),
+        Shape::Diamond => (2 * (tw + px), 2 * (th + py), 96, 64),
+        Shape::Cylinder => (tw + 2 * px, th + 36 * 2, 64, 54),
+        Shape::Start | Shape::End => (tw + 40 * 2, th + 2 * py, 72, 38),
+    };
+    (w.max(min_w * 2), h.max(min_h * 2))
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn table_has_the_arimo_anchors() {
-        assert_eq!(ADV.len(), 95);
-        assert_eq!((ADV[0], ADV[b'A' as usize - 32], ADV[94]), (278, 667, 584));
-        assert_eq!(ADV[b'm' as usize - 32], 833);
-    }
-
-    #[test]
-    fn measure_ascii_and_empty() {
-        assert_eq!(measure("A"), 21);
-        assert_eq!(measure(""), 0);
-    }
-
-    #[test]
-    fn wrap_splits_on_newlines() {
-        assert_eq!(wrap("a\nb"), ["a", "b"]);
-    }
-
-    #[test]
-    fn rect_has_minimum_and_grows() {
-        let one = ["A".to_owned()];
-        assert_eq!(node_size(Shape::Rect, &one), (128, 76));
-        let wide = ["W".repeat(30)];
-        let (w, h) = node_size(Shape::Rect, &wide);
-        assert!(w > 128 && h == 76, "{w}x{h}");
-    }
-}
+mod tests;
