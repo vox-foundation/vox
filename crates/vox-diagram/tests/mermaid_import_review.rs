@@ -101,3 +101,29 @@ fn sequence_text_with_encoded_hashes_and_state_text_with_a_bare_hash_still_impor
     let s = source("stateDiagram-v2\n  A --> B: item #3\n");
     assert!(s.contains("item #3"), "{s}");
 }
+
+// WR-01: Mermaid rewrites every `#\w+;` into an entity, not only all-letter or all-digit ones.
+// Anything the importer cannot decode with certainty is refused as `entity`.
+
+#[test]
+fn mixed_and_hex_entity_spellings_are_refused() {
+    for text in ["x#a1b;c", "#x41;", "#_a;", "#12ab;"] {
+        refused_as(
+            &format!("flowchart TD\n  A[\"{text}\"] --> B\n"),
+            2,
+            "entity",
+        );
+        refused_as(
+            &format!("stateDiagram-v2\n  A --> B: {text}\n"),
+            2,
+            "entity",
+        );
+        refused_as(&format!("sequenceDiagram\n  A->>B: {text}\n"), 2, "entity");
+    }
+}
+
+#[test]
+fn hash_runs_without_a_terminating_semicolon_stay_literal() {
+    let s = source("flowchart TD\n  A[\"C# x #a1b #3 #\"] --> B\n");
+    assert!(s.contains("C# x #a1b #3 #"), "{s}");
+}

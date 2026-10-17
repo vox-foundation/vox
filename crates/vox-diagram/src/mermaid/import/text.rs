@@ -58,14 +58,25 @@ fn html_entity(s: &str) -> bool {
     n > 0 && lead && body[n..].starts_with(';')
 }
 
-/// A `#name;` or `#digits;` Mermaid entity right after the `#`; `Err` for an unknown one.
+/// A `#name;` or `#digits;` Mermaid entity right after the `#`. Mermaid rewrites every `#\w+;`,
+/// so any other word run before a `;` (mixed, `x41`, `_a`) or an unknown name is `Err`: refuse
+/// rather than guess. A `#` not followed by such a run and `;` is plain text (`None`).
 fn entity(after_hash: &str) -> Result<Option<(char, usize)>, &'static str> {
-    let letters = after_hash
-        .chars()
-        .take_while(char::is_ascii_alphabetic)
+    let run = after_hash
+        .bytes()
+        .take_while(|b| b.is_ascii_alphanumeric() || *b == b'_')
         .count();
-    if letters > 0 && after_hash[letters..].starts_with(';') {
-        let c = match &after_hash[..letters] {
+    if run == 0 || !after_hash[run..].starts_with(';') {
+        return Ok(None);
+    }
+    let word = &after_hash[..run];
+    let c = if word.bytes().all(|b| b.is_ascii_digit()) {
+        word.parse::<u32>()
+            .ok()
+            .and_then(char::from_u32)
+            .ok_or("entity")?
+    } else {
+        match word {
             "quot" => '"',
             "lt" => '<',
             "gt" => '>',
@@ -73,19 +84,9 @@ fn entity(after_hash: &str) -> Result<Option<(char, usize)>, &'static str> {
             "apos" => '\'',
             "nbsp" => '\u{a0}',
             _ => return Err("entity"),
-        };
-        return Ok(Some((c, letters + 1)));
-    }
-    let digits = after_hash.chars().take_while(char::is_ascii_digit).count();
-    if digits > 0 && after_hash[digits..].starts_with(';') {
-        let c = after_hash[..digits]
-            .parse::<u32>()
-            .ok()
-            .and_then(char::from_u32)
-            .ok_or("entity")?;
-        return Ok(Some((c, digits + 1)));
-    }
-    Ok(None)
+        }
+    };
+    Ok(Some((c, run + 1)))
 }
 
 /// Validate and decode one piece of Mermaid text. `quoted` text sat between double quotes;
