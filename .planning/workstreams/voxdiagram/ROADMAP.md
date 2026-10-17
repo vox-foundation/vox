@@ -39,7 +39,7 @@ v1.7 retires Mermaid as the primary diagram *authoring* format. A new pure L2 cr
 
 - [x] **Phase 83: Core Crate - Parser, IR & Diagnostics** - Registered L2 `vox-diagram` crate: graph DSL, recovering parser, typed IR, all-errors diagnostics with fixes, canonical `fmt`, input caps (completed 2026-10-16)
 - [x] **Phase 84: Mermaid Emitter & Strict Importer** - Sanitized Mermaid export that real Mermaid accepts; fail-closed importer verified by corpus round trip (completed 2026-10-16)
-- [ ] **Phase 85: Graph Layout & Deterministic SVG** - `dagre` seam behind a go/no-go spike; byte-identical, injection-safe, themeable SVG
+- [x] **Phase 85: Graph Layout & Deterministic SVG** - `dagre` seam behind a go/no-go spike; byte-identical, injection-safe, themeable SVG (completed 2026-10-17)
 - [ ] **Phase 86: Sequence Kind** - `sequence` DSL, width-aware lane SVG, and DSL round trip for the corpus sequence blocks
 - [ ] **Phase 87: Doc-Pipeline Consumer & Legacy-Mermaid Ratchet** - Doc lint validates `vox-diagram` fences and rejects new Mermaid fences via a shrink-only baseline; first authorized crate edge
 - [ ] **Phase 88: MCP Tool, CLI & Agent Guidance** - `vox_validate_diagram`, `vox diagram` CLI, and the grammar card agents author from; second authorized crate edge
@@ -127,7 +127,7 @@ Plans:
   4. Hostile labels (`<script>`, quotes, `&`, `]]>`) are escaped by the single SVG writer; output has no `<style>`, `foreignObject`, or user-derived attributes, per-diagram generated id prefixes, IR-derived `<title>`/`<desc>`, and text as `<text>`; removing the escape makes the guard test fail (mutation-proven).
   5. The same single inline SVG is legible when mounted under light and dark Starlight token sets via CSS variables (`--vd-*` mapped to `--sl-*`), with no duplicated per-theme markup.
 
-**Plans**: 5/5 plans executed
+**Plans**: 5/5 plans complete
 
 Plans:
 **Wave 1**
@@ -250,7 +250,7 @@ Phases execute in numeric order, with the parallel opportunities noted under Ove
 |-------|----------------|--------|-----------|
 | 83. Core Crate - Parser, IR & Diagnostics | 7/7 | Complete    | 2026-10-16 |
 | 84. Mermaid Emitter & Strict Importer | 5/5 | Complete    | 2026-10-16 |
-| 85. Graph Layout & Deterministic SVG | 5/5 | In Progress | - |
+| 85. Graph Layout & Deterministic SVG | 5/5 | Complete    | 2026-10-17 |
 | 86. Sequence Kind | 0/TBD | Not started | - |
 | 87. Doc-Pipeline Consumer & Legacy-Mermaid Ratchet | 0/TBD | Not started | - |
 | 88. MCP Tool, CLI & Agent Guidance | 0/TBD | Not started | - |
