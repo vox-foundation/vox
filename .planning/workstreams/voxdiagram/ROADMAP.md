@@ -190,9 +190,15 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
+**Wave 1**
 - [ ] 87-01-PLAN.md — crate edge + `vox-diagram` fence lint (`diagram/*` at file:line:col, doctest-runner proof, near-miss info strings, exception, re-export, `orphan_exempt` removal) (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 87-02-PLAN.md — legacy-Mermaid ratchet in doc lint (fence-aware whole-tree count, seed/tighten, real baseline seeded 33/21) (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 87-03-PLAN.md — base-ref compare in the fast pre-push tier, docs rows, phase closing gates (wave 3)
+
 **Research flag**: standard patterns (ratchet copies `facet_backlog.rs`; keep `pipeline/mod.rs` edits small, it is already over the 500-line limit).
 **Folded decisions**: no other crate edge is added without fresh user approval; the baseline is never regenerated to admit anything.
 **Parallelism**: can run in parallel with Phases 84 and 85.

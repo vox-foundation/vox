@@ -4,19 +4,18 @@ milestone: v1.7
 milestone_name: VoxDiagram
 current_phase: 87
 current_phase_name: Doc-Pipeline Consumer & Legacy-Mermaid Ratchet
-current_plan: 4
-status: planning
+current_plan: 1
+status: executing
 stopped_at: Phase 86 complete, ready to plan Phase 87
-last_updated: "2026-10-17T17:14:42.040Z"
+last_updated: "2026-10-17T17:48:48.748Z"
 last_activity: 2026-10-17
-last_activity_desc: Phase 86 complete, transitioned to Phase 87
-state_head: 26ea928baac9c4bc814b4e8471b7843019d06b49
+last_activity_desc: Phase 87 execution started
+state_head: e5bb1076804d1f8234425d5ef1821377eb3d4aea
 progress:
   total_phases: 9
   completed_phases: 4
-  total_plans: 21
+  total_plans: 24
   completed_plans: 21
-  percent: 44
 ---
 
 # Project State: VoxDiagram (`voxdiagram`)
@@ -26,21 +25,21 @@ progress:
 See: `.planning/PROJECT.md` (shared, owned by the `unified` workstream, not edited here) and `.planning/workstreams/voxdiagram/PROJECT-MILESTONE.md`.
 
 **Core value:** For this milestone, agents and humans author diagrams that cannot render-crash, and every live docs diagram renders deterministically.
-**Current focus:** Phase 86 — Sequence Kind
+**Current focus:** Phase 87 — Doc-Pipeline Consumer & Legacy-Mermaid Ratchet
 
 ## Current Position
 
-Phase: 87 — Doc-Pipeline Consumer & Legacy-Mermaid Ratchet
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-10-17 — Phase 86 complete, transitioned to Phase 87
+Phase: 87 (Doc-Pipeline Consumer & Legacy-Mermaid Ratchet) — EXECUTING
+Plan: 1 of 3
+Status: Executing Phase 87
+Last activity: 2026-10-17 — Phase 87 execution started
 
 Progress: [████░░░░░░] 44% (0/9 phases)
 
 ## Progress
 
 **Phases Complete:** 0
-**Current Plan:** 4
+**Current Plan:** 1
 
 ## Key Decisions (milestone-level)
 
