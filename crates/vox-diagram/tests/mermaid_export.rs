@@ -149,7 +149,9 @@ fn export_hostile_goldens() {
     let dir = fixtures().join("export-hostile");
     let table = cases();
     for (stem, ir) in &table {
-        let Ir::Graph(g) = ir;
+        let Ir::Graph(g) = ir else {
+            panic!("expected a graph ir");
+        };
         assert_golden(&dir.join(format!("{stem}.export.mmd")), &export(ir));
         assert_golden(
             &dir.join(format!("{stem}.sets.json")),

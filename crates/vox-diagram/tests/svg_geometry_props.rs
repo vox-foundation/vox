@@ -281,7 +281,9 @@ struct Tally {
 }
 
 fn hold(ir: &Ir, tally: &Tally) -> Result<(), TestCaseError> {
-    let Ir::Graph(g) = ir;
+    let Ir::Graph(g) = ir else {
+        panic!("expected a graph ir");
+    };
     let svg = match render(ir, &SvgOpts::default()) {
         Ok(s) => s,
         Err(RenderError::Geometry(_)) => {

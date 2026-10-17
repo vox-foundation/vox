@@ -9,7 +9,7 @@
 //! resolver is O(edges * depth * log nodes) and `LineIndex` lookups are O(log lines).
 //! Diagnostics are capped by the collector, and the parser stops once it is full.
 
-use crate::ast::{Block, Comment, Document, Entry, Item, ItemKind};
+use crate::ast::{Block, Comment, DiagramKind, Document, Entry, Item, ItemKind};
 use crate::codes;
 use crate::diag::{Collector, Diagnostic, Fix, clip};
 use crate::lexer::{Token, TokenKind};
@@ -20,6 +20,7 @@ mod edges;
 mod frame;
 mod mermaid;
 mod recover;
+mod seq;
 mod stmt;
 #[cfg(test)]
 mod tests;
@@ -36,6 +37,8 @@ struct Parser<'a> {
     halted: bool,
     /// A `direction` statement was already seen in the graph block.
     seen_direction: bool,
+    /// The header word is `sequence`: statements are actors, messages and notes.
+    seq: bool,
     /// Containers currently being parsed; capped at `MAX_DEPTH`, which bounds recursion.
     depth: usize,
     nodes: usize,
@@ -72,6 +75,7 @@ fn run(src: &str, idx: &LineIndex, toks: &[Token], diags: &mut Collector, fuel: 
         fuel,
         halted,
         seen_direction: false,
+        seq: false,
         depth: 0,
         nodes: 0,
         edges: 0,
@@ -210,7 +214,8 @@ impl Parser<'_> {
                 close_trailing = self.trailing_comment();
                 self.report_header(header, dir);
             }
-            (None, TokenKind::Ident(s)) if s == "graph" => {
+            (None, TokenKind::Ident(s)) if s == "graph" || s == "sequence" => {
+                self.seq = s == "sequence";
                 self.bump();
                 let open = if matches!(self.peek().kind, TokenKind::LBrace) {
                     Some(self.bump().span)
@@ -224,7 +229,7 @@ impl Parser<'_> {
             }
             (None, TokenKind::Ident(s)) => {
                 let msg = format!(
-                    "unknown diagram kind `{}`; only `graph` is supported (`sequence` arrives in a later release)",
+                    "unknown diagram kind `{}`; the supported kinds are `graph` and `sequence`",
                     clip(s)
                 );
                 self.report(codes::UNKNOWN_DIAGRAM_KIND, head.span, msg);
@@ -242,6 +247,11 @@ impl Parser<'_> {
             self.trailing_content();
         }
         Document {
+            kind: if self.seq {
+                DiagramKind::Sequence
+            } else {
+                DiagramKind::Graph
+            },
             leading,
             body,
             header_trailing,

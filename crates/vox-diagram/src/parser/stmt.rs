@@ -31,6 +31,22 @@ impl Parser<'_> {
             self.styling();
             return None;
         }
+        let kind = if self.seq {
+            self.sequence_statement()?
+        } else {
+            self.graph_statement(root)?
+        };
+        Some((
+            kind,
+            Span {
+                start,
+                end: self.toks[self.pos - 1].span.end,
+            },
+        ))
+    }
+
+    /// One statement of a `graph` block.
+    fn graph_statement(&mut self, root: bool) -> Option<ItemKind> {
         let kw = match &self.peek().kind {
             TokenKind::Ident(s) => s.clone(),
             _ => String::new(),
@@ -40,20 +56,13 @@ impl Parser<'_> {
         let dir_next = matches!(next, TokenKind::Colon)
             || matches!(next, TokenKind::Ident(w) if mermaid_dir(w).is_some());
         let ident_next = matches!(next, TokenKind::Ident(_));
-        let kind = match kw.as_str() {
-            "node" if !edge_next => self.node_decl()?,
-            "container" if !edge_next => self.container_decl()?,
-            "direction" if dir_next => self.direction_stmt(root)?,
-            "subgraph" if ident_next => self.subgraph()?,
-            _ => self.edge_stmt()?,
-        };
-        Some((
-            kind,
-            Span {
-                start,
-                end: self.toks[self.pos - 1].span.end,
-            },
-        ))
+        match kw.as_str() {
+            "node" if !edge_next => self.node_decl(),
+            "container" if !edge_next => self.container_decl(),
+            "direction" if dir_next => self.direction_stmt(root),
+            "subgraph" if ident_next => self.subgraph(),
+            _ => self.edge_stmt(),
+        }
     }
 
     pub(super) fn ident(&mut self, expected: &str) -> Option<Ident> {

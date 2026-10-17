@@ -176,7 +176,10 @@ impl<'a> Resolver<'a> {
                     self.bracket_endpoint(scope, &e.from);
                     self.bracket_endpoint(scope, &e.to);
                 }
-                ItemKind::Direction(_) => {}
+                ItemKind::Direction(_)
+                | ItemKind::Actor(_)
+                | ItemKind::Message(_)
+                | ItemKind::Note(_) => {}
             }
         }
     }
@@ -220,7 +223,11 @@ impl<'a> Resolver<'a> {
                         });
                     }
                 }
-                ItemKind::Direction(_) | ItemKind::Node(_) => {}
+                ItemKind::Direction(_)
+                | ItemKind::Node(_)
+                | ItemKind::Actor(_)
+                | ItemKind::Message(_)
+                | ItemKind::Note(_) => {}
             }
         }
     }
@@ -347,5 +354,6 @@ fn qualify(path: &str, name: &str) -> String {
 }
 
 mod mermaid;
+pub(crate) mod seq;
 #[cfg(test)]
 mod tests;

@@ -3,14 +3,17 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::sequence_ir::SequenceIr;
 use crate::span::Location;
 
-/// Resolved diagram. Phase 86 adds a `Sequence` variant additively.
+/// Resolved diagram: a graph or a sequence diagram.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum Ir {
     /// A `graph` diagram.
     Graph(GraphIr),
+    /// A `sequence` diagram.
+    Sequence(SequenceIr),
 }
 
 /// Flow direction of a graph.

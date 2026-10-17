@@ -1,5 +1,5 @@
-//! Sequence diagram IR types. Phase 86 adds the parser and the `Ir::Sequence` variant
-//! additively; nothing here parses.
+//! Sequence diagram IR types: the payload of [`Ir::Sequence`](crate::ir::Ir::Sequence). The
+//! `sequence { ... }` DSL resolves into these; nothing here parses.
 
 use crate::span::Location;
 use serde::{Deserialize, Serialize};

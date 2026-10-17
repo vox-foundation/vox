@@ -6,7 +6,9 @@
 
 use std::fmt::Write as _;
 
-use crate::ast::{Block, Comment, ContainerDecl, Document, Entry, ItemKind, Label, Ref};
+use crate::ast::{
+    Block, Comment, ContainerDecl, DiagramKind, Document, Entry, ItemKind, Label, Ref,
+};
 use crate::check::{check, parse};
 use crate::ir::{Direction, Shape};
 
@@ -23,7 +25,10 @@ pub fn fmt(source: &str) -> Option<String> {
 pub(crate) fn to_source(doc: &Document) -> String {
     let mut out = String::new();
     own_line_comments(&mut out, &doc.leading, 0);
-    out.push_str("graph {");
+    out.push_str(match doc.kind {
+        DiagramKind::Graph => "graph {",
+        DiagramKind::Sequence => "sequence {",
+    });
     trailing(&mut out, doc.header_trailing.as_ref());
     out.push('\n');
     block(&mut out, &doc.body, 1);
@@ -144,6 +149,23 @@ fn block(out: &mut String, b: &Block, level: usize) {
                             out.push_str(": ");
                             label(out, l);
                         }
+                    }
+                    ItemKind::Actor(a) => {
+                        let _ = write!(out, "actor {}: ", a.id.name);
+                        label(out, &a.label);
+                    }
+                    ItemKind::Message(m) => {
+                        let reply = if m.reply { "reply " } else { "" };
+                        let _ = write!(out, "{reply}{} -> {}", m.from.name, m.to.name);
+                        if let Some(l) = &m.label {
+                            out.push_str(": ");
+                            label(out, l);
+                        }
+                    }
+                    ItemKind::Note(n) => {
+                        let who: Vec<&str> = n.over.iter().map(|i| i.name.as_str()).collect();
+                        let _ = write!(out, "note over {}: ", who.join(", "));
+                        label(out, &n.label);
                     }
                 }
                 trailing(out, item.trailing.as_ref());

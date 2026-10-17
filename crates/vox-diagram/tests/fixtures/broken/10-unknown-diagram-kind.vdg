@@ -1,4 +1,4 @@
 // expect: diagram/unknown-diagram-kind
-sequence {
+pie {
     a -> b
 }

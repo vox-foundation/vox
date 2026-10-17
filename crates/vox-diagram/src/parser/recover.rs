@@ -208,13 +208,13 @@ impl Parser<'_> {
     /// the total and the IR is withheld.
     pub(super) fn count(&mut self, kind: &ItemKind, span: Span) {
         match kind {
-            ItemKind::Node(_) => {
+            ItemKind::Node(_) | ItemKind::Actor(_) => {
                 self.nodes += 1;
                 if self.nodes == MAX_NODES + 1 {
                     self.first_extra_node = Some(span);
                 }
             }
-            ItemKind::Edge(_) => {
+            ItemKind::Edge(_) | ItemKind::Message(_) | ItemKind::Note(_) => {
                 self.edges += 1;
                 if self.edges == MAX_EDGES + 1 {
                     self.first_extra_edge = Some(span);

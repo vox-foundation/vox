@@ -15,6 +15,7 @@ use crate::ir::{Direction, GraphIr, Ir, Shape};
 pub fn export(ir: &Ir) -> String {
     match ir {
         Ir::Graph(g) => graph(g),
+        Ir::Sequence(s) => super::export_seq::export_sequence(s),
     }
 }
 

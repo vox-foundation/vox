@@ -290,14 +290,13 @@ fn the_public_path_is_guarded_too() {
         Err(RenderError::Layout("engine panic"))
     );
     let a = AlwaysOverlap(RefCell::default());
-    let two = Ir::Graph(match graph_ir() {
-        Ir::Graph(mut g) => {
-            let mut second = g.nodes[0].clone();
-            second.id = "b".into();
-            g.nodes.push(second);
-            g
-        }
-    });
+    let Ir::Graph(mut g) = graph_ir() else {
+        panic!("expected a graph ir");
+    };
+    let mut second = g.nodes[0].clone();
+    second.id = "b".into();
+    g.nodes.push(second);
+    let two = Ir::Graph(g);
     assert!(matches!(
         render_with(&a, &two, &SvgOpts::default()),
         Err(RenderError::Geometry(_))

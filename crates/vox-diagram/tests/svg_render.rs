@@ -216,7 +216,9 @@ fn case_svg(stem: &str) -> String {
 #[test]
 fn edges_case_draws_every_edge_and_label() {
     let src = fs::read_to_string(fixtures().join("svg/cases/10-edges.vdg")).unwrap_or_default();
-    let Ir::Graph(g) = ir_of(&src);
+    let Ir::Graph(g) = ir_of(&src) else {
+        panic!("expected a graph ir");
+    };
     let labelled = g.edges.iter().filter(|e| e.label.is_some()).count();
     let svg = case_svg("10-edges");
     assert_eq!(svg.matches("class=\"vd-edge\"").count(), g.edges.len());
@@ -262,7 +264,9 @@ fn every_direction_has_a_golden_with_all_edges() {
 #[test]
 fn nested_case_draws_every_container_before_edges_and_nodes() {
     let src = fs::read_to_string(fixtures().join("svg/cases/21-nested.vdg")).unwrap_or_default();
-    let Ir::Graph(g) = ir_of(&src);
+    let Ir::Graph(g) = ir_of(&src) else {
+        panic!("expected a graph ir");
+    };
     let svg = case_svg("21-nested");
     assert_eq!(g.containers.len(), 6);
     assert_eq!(

@@ -176,16 +176,17 @@ impl Collector {
     }
 }
 
-/// Size counters of a checked document.
+/// Size counters of a checked document. For a `sequence`, `nodes` counts actors, `edges` counts
+/// events (messages plus notes) and `containers` and `max_depth` are 0.
 #[derive(Serialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Stats {
-    /// Declared nodes.
+    /// Declared nodes (actors in a sequence).
     pub nodes: u32,
-    /// Declared containers.
+    /// Declared containers (always 0 in a sequence).
     pub containers: u32,
-    /// Edge statements.
+    /// Edge statements (messages plus notes in a sequence).
     pub edges: u32,
-    /// Deepest container nesting.
+    /// Deepest container nesting (always 0 in a sequence).
     pub max_depth: u32,
 }
 

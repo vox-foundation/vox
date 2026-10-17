@@ -60,7 +60,9 @@ fn corpus_graphs() -> Vec<(String, Ir)> {
 }
 
 fn graph(ir: &Ir) -> &GraphIr {
-    let Ir::Graph(g) = ir;
+    let Ir::Graph(g) = ir else {
+        panic!("expected a graph ir");
+    };
     g
 }
 

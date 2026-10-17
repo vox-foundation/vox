@@ -5,9 +5,22 @@ use serde::Serialize;
 use crate::ir::{Direction, Shape};
 use crate::span::Span;
 
-/// A parsed `graph { ... }` document, with the comments around it.
+/// Which diagram kind a document's header names.
+#[derive(Serialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum DiagramKind {
+    /// `graph { ... }` (also every Mermaid-style header).
+    #[default]
+    Graph,
+    /// `sequence { ... }`.
+    Sequence,
+}
+
+/// A parsed `graph { ... }` or `sequence { ... }` document, with the comments around it.
 #[derive(Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct Document {
+    /// The diagram kind named by the header.
+    pub kind: DiagramKind,
     /// Own-line comments before `graph`.
     pub leading: Vec<Comment>,
     /// Statements of the graph block.
@@ -78,6 +91,43 @@ pub enum ItemKind {
     Container(ContainerDecl),
     /// `a -> b` with optional `: "label"`.
     Edge(EdgeStmt),
+    /// `actor id: "label"` (sequence).
+    Actor(ActorDecl),
+    /// `a -> b` or `reply a -> b`, with an optional `: "label"` (sequence).
+    Message(MessageStmt),
+    /// `note over a: "text"` or `note over a, b: "text"` (sequence).
+    Note(NoteStmt),
+}
+
+/// A sequence actor declaration.
+#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
+pub struct ActorDecl {
+    /// Declared id.
+    pub id: Ident,
+    /// Display label.
+    pub label: Label,
+}
+
+/// A sequence message.
+#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
+pub struct MessageStmt {
+    /// Sending actor.
+    pub from: Ident,
+    /// Receiving actor (the sender again for a self-message).
+    pub to: Ident,
+    /// Optional message text.
+    pub label: Option<Label>,
+    /// Written with `reply`: a dashed return arrow.
+    pub reply: bool,
+}
+
+/// A sequence note over one or two actors.
+#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
+pub struct NoteStmt {
+    /// One or two actors (a repeat is allowed).
+    pub over: Vec<Ident>,
+    /// Note text.
+    pub label: Label,
 }
 
 /// `direction: <down|right|up|left>`.

@@ -3,6 +3,7 @@
 //! `THEME_VARS`; no attribute value is derived from a label.
 
 mod paths;
+mod seq;
 mod shapes;
 pub(crate) mod writer;
 
@@ -10,7 +11,7 @@ use std::fmt;
 
 use crate::ir::{GraphIr, Ir};
 use crate::layout::dagre_impl::DagreEngine;
-use crate::layout::{self, Engine, LEdge, LayoutInput, Placed};
+use crate::layout::{self, Engine, Half, LEdge, LayoutInput, Placed};
 use writer::{Writer, num};
 
 /// Options for [`render`].
@@ -109,6 +110,7 @@ pub(crate) fn render_with(
     valid_prefix(&opts.id_prefix)?;
     match ir {
         Ir::Graph(g) => render_graph(engine, g, opts),
+        Ir::Sequence(s) => seq::render_sequence(s, opts),
     }
 }
 
@@ -124,19 +126,18 @@ fn valid_prefix(p: &str) -> Result<(), RenderError> {
     }
 }
 
-fn render_graph(engine: &dyn Engine, g: &GraphIr, opts: &SvgOpts) -> Result<String, RenderError> {
-    let input = layout::input::build(g)?;
-    let placed = layout::lay_out(engine, &input)?;
+/// Write the `<svg>` start tag, `<title>`, `<desc>` and the `<defs>` holding the arrow marker,
+/// shared by every diagram kind; returns the id of the arrow marker.
+fn open_document(w: &mut Writer, opts: &SvgOpts, width: Half, height: Half, desc: &str) -> String {
     let p = opts.id_prefix.as_str();
     let (title_id, desc_id, arrow_id) = (
         format!("{p}-title"),
         format!("{p}-desc"),
         format!("{p}-arrow"),
     );
-    let view_box = format!("0 0 {} {}", num(placed.width), num(placed.height));
+    let view_box = format!("0 0 {} {}", num(width), num(height));
     let labelled_by = format!("{title_id} {desc_id}");
     let root_style = format!("font-family:{};font-size:14px", paint("--vd-font"));
-    let mut w = Writer::new();
     w.open(
         "svg",
         &[
@@ -153,7 +154,7 @@ fn render_graph(engine: &dyn Engine, g: &GraphIr, opts: &SvgOpts) -> Result<Stri
         &[("id", &title_id)],
         opts.title.as_deref().unwrap_or("Diagram"),
     );
-    w.text("desc", &[("id", &desc_id)], &describe(g, &input.edges));
+    w.text("desc", &[("id", &desc_id)], desc);
     w.open("defs", &[]);
     w.open(
         "marker",
@@ -171,6 +172,20 @@ fn render_graph(engine: &dyn Engine, g: &GraphIr, opts: &SvgOpts) -> Result<Stri
     w.empty("path", &[("d", "M0 0L10 5L0 10z"), ("style", &arrow_style)]);
     w.close("marker");
     w.close("defs");
+    arrow_id
+}
+
+fn render_graph(engine: &dyn Engine, g: &GraphIr, opts: &SvgOpts) -> Result<String, RenderError> {
+    let input = layout::input::build(g)?;
+    let placed = layout::lay_out(engine, &input)?;
+    let mut w = Writer::new();
+    let arrow_id = open_document(
+        &mut w,
+        opts,
+        placed.width,
+        placed.height,
+        &describe(g, &input.edges),
+    );
     write_containers(&mut w, &input, &placed);
     paths::write_edges(&mut w, &input, &placed, &arrow_id);
     write_nodes(&mut w, &input, &placed);
@@ -208,13 +223,13 @@ fn write_nodes(w: &mut Writer, input: &LayoutInput, placed: &Placed) {
 }
 
 /// Collapse whitespace of the first label line and cut it to at most `max` chars with `…`.
-fn short(label: &str, max: usize) -> String {
+pub(super) fn short(label: &str, max: usize) -> String {
     let first = label.split('\n').next().unwrap_or_default();
     cut(&first.split_whitespace().collect::<Vec<_>>().join(" "), max)
 }
 
 /// `s` itself, or its first `max - 1` chars plus `…` when longer than `max` chars.
-fn cut(s: &str, max: usize) -> String {
+pub(super) fn cut(s: &str, max: usize) -> String {
     if s.chars().count() <= max {
         return s.to_owned();
     }

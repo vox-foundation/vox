@@ -4,6 +4,7 @@
 pub(crate) mod dagre_impl;
 pub(crate) mod finish;
 pub(crate) mod input;
+pub(crate) mod seq;
 pub(crate) mod text;
 pub(crate) mod verify;
 

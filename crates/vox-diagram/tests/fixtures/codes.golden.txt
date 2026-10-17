@@ -22,6 +22,7 @@ diagram/reserved-word
 diagram/shadowed-id
 diagram/trailing-content
 diagram/unclosed-brace
+diagram/undeclared-actor
 diagram/undeclared-node
 diagram/unexpected-token
 diagram/unknown-attribute

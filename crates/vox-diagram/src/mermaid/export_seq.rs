@@ -36,7 +36,7 @@ enum Step<'a> {
 /// `loop` and `opt` break as actor ids. A repeated actor id resolves to its first occurrence.
 /// Total over any `SequenceIr`. A note whose `over` is empty or longer than two is degenerate
 /// (neither the importer nor the parser produces one): it exports with at most its first two
-/// ids and is outside the acceptance guarantee. Phase 86 routes `Ir::Sequence` here.
+/// ids and is outside the acceptance guarantee. `export` routes `Ir::Sequence` here.
 pub fn export_sequence(ir: &SequenceIr) -> String {
     let mut ids: Vec<&str> = ir.actors.iter().map(|a| a.id.as_str()).collect();
     let steps: Vec<Step<'_>> = ir

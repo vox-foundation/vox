@@ -26,6 +26,12 @@ pub struct Svg {
     pub nodes: Vec<Shape>,
     pub containers: Vec<Shape>,
     pub edge_points: Vec<(i64, i64)>,
+    /// The points of each `path.vd-edge`, in document order.
+    pub edge_paths: Vec<Vec<(i64, i64)>>,
+    /// `(x, top, bottom)` of each vertical `path.vd-lifeline`.
+    pub lifelines: Vec<(i64, i64, i64)>,
+    /// Each `rect.vd-note`.
+    pub notes: Vec<Shape>,
     pub edge_labels: Vec<Shape>,
     pub labels: Vec<Label>,
     /// `(class, decoded text)`: `title`, `desc`, and each `text` element by class (lines joined
@@ -38,52 +44,8 @@ pub struct Svg {
     pub paints: Vec<(String, String)>,
 }
 
-const ELEMENTS: [&str; 11] = [
-    "svg", "title", "desc", "defs", "marker", "path", "rect", "polygon", "text", "tspan", "g",
-];
-const ATTRS: [&str; 23] = [
-    "xmlns",
-    "viewBox",
-    "role",
-    "aria-labelledby",
-    "class",
-    "style",
-    "id",
-    "refX",
-    "refY",
-    "markerWidth",
-    "markerHeight",
-    "orient",
-    "d",
-    "marker-end",
-    "x",
-    "y",
-    "width",
-    "height",
-    "rx",
-    "ry",
-    "points",
-    "text-anchor",
-    "dy",
-];
-const CLASSES: [&str; 14] = [
-    "vd-diagram",
-    "vd-containers",
-    "vd-container",
-    "vd-container-label",
-    "vd-edges",
-    "vd-edge",
-    "vd-nodes",
-    "vd-node",
-    "vd-node-shape",
-    "vd-node-rim",
-    "vd-label",
-    "vd-edge-labels",
-    "vd-edge-label-bg",
-    "vd-edge-label",
-];
-const STYLE_PROPS: [&str; 5] = ["fill", "stroke", "stroke-width", "font-family", "font-size"];
-const ENTITIES: [&str; 5] = ["amp", "lt", "gt", "quot", "#39"];
+mod allow;
+use allow::{ATTRS, CLASSES, ELEMENTS, ENTITIES, STYLE_PROPS};
 
 pub use super::svgnum::Shape;
 use super::svgnum::{R, bad, half, path_points, polygon_box};
@@ -266,13 +228,26 @@ impl Walk {
             ("rect", Some("vd-edge-label-bg")) => self.out.edge_labels.push(boxed()?),
             ("path", Some("vd-edge")) => {
                 let pts = path_points(get("d").unwrap_or(""))?;
-                self.out.edge_points.extend(pts);
+                self.out.edge_points.extend(pts.iter().copied());
+                self.out.edge_paths.push(pts);
             }
+            ("path", Some("vd-lifeline")) => {
+                let pts = path_points(get("d").unwrap_or(""))?;
+                let [(x, top), (x2, bottom)] = pts[..] else {
+                    return bad("a lifeline is one straight segment");
+                };
+                if x != x2 || top > bottom {
+                    return bad(format!("lifeline {pts:?} is not a downward vertical"));
+                }
+                self.out.lifelines.push((x, top, bottom));
+            }
+            ("rect", Some("vd-note")) => self.out.notes.push(boxed()?),
             ("text", Some(class)) => {
                 let owner = match class {
                     "vd-label" => self.out.nodes.len(),
                     "vd-edge-label" => self.out.edge_labels.len(),
                     "vd-container-label" => self.out.containers.len(),
+                    "vd-note-label" => self.out.notes.len(),
                     _ => return bad(format!("text class {class:?}")),
                 }
                 .saturating_sub(1);

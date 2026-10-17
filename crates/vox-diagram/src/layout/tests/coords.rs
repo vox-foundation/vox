@@ -28,7 +28,9 @@ impl Engine for BigDiamond {
 }
 
 fn diamond_loop() -> Ir {
-    let Ir::Graph(mut g) = graph_ir();
+    let Ir::Graph(mut g) = graph_ir() else {
+        panic!("expected a graph ir");
+    };
     g.nodes[0].shape = Shape::Diamond;
     g.edges.push(crate::ir::IrEdge {
         from: "a".into(),

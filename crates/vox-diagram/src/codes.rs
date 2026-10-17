@@ -4,6 +4,8 @@
 pub const UNEXPECTED_TOKEN: &str = "diagram/unexpected-token";
 /// An edge endpoint names a node that is not declared.
 pub const UNDECLARED_NODE: &str = "diagram/undeclared-node";
+/// A message or note names an actor that is not declared.
+pub const UNDECLARED_ACTOR: &str = "diagram/undeclared-actor";
 /// The source exceeds `limits::MAX_SOURCE_BYTES`.
 pub const LIMIT_SOURCE: &str = "diagram/limit-source";
 
@@ -70,6 +72,7 @@ pub const LIMIT_DIAGNOSTICS: &str = "diagram/limit-diagnostics";
 pub const ALL_CODES: &[&str] = &[
     UNEXPECTED_TOKEN,
     UNDECLARED_NODE,
+    UNDECLARED_ACTOR,
     LIMIT_SOURCE,
     NOT_A_CONTAINER,
     CONTAINER_ENDPOINT,
@@ -116,6 +119,6 @@ mod tests {
             );
             assert!(!ALL_CODES[..i].contains(code), "{code} is duplicated");
         }
-        assert_eq!(ALL_CODES.len(), 29);
+        assert_eq!(ALL_CODES.len(), 30);
     }
 }

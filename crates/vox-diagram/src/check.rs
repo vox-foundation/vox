@@ -1,6 +1,6 @@
 //! Public entry points: [`check`] (full report) and [`parse`] (best-effort AST).
 
-use crate::ast::Document;
+use crate::ast::{DiagramKind, Document};
 use crate::codes;
 use crate::diag::{CheckReport, Collector, Diagnostic, Stats};
 use crate::ir::Ir;
@@ -8,6 +8,7 @@ use crate::lexer::lex;
 use crate::limits::MAX_SOURCE_BYTES;
 use crate::parser::parse_tokens;
 use crate::resolve::resolve;
+use crate::resolve::seq::resolve_sequence;
 use crate::span::{LineIndex, Location, Span, to_u32};
 
 /// Result of [`parse`].
@@ -78,12 +79,21 @@ pub fn check(source: &str) -> CheckReport {
     let idx = LineIndex::new(source);
     let mut sink = Collector::new();
     let doc = parse_into(source, &idx, &mut sink);
-    let (graph, stats, semantic) = resolve(&doc, source, &idx);
+    let (resolved, stats, semantic) = match doc.kind {
+        DiagramKind::Graph => {
+            let (graph, stats, semantic) = resolve(&doc, source, &idx);
+            (Ir::Graph(graph), stats, semantic)
+        }
+        DiagramKind::Sequence => {
+            let (seq, stats, semantic) = resolve_sequence(&doc, source, &idx);
+            (Ir::Sequence(seq), stats, semantic)
+        }
+    };
     sink.extend(semantic);
     // Read before `finish`: a dropped Error still invalidates the report.
     let has_error = sink.has_error();
     let diagnostics = sink.finish(eof_location(source, &idx));
-    let ir = (!has_error).then_some(Ir::Graph(graph));
+    let ir = (!has_error).then_some(resolved);
     finish(diagnostics, has_error, stats, ir)
 }
 
