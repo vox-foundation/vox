@@ -112,3 +112,13 @@ test('docs-quality push and pull_request paths cover every mounted repo file', (
     assert.deepEqual(missing, [], `add these to docs-quality.yml on.${trigger}.paths`);
   }
 });
+
+test('docs-quality runs the Mermaid oracle when vox-diagram fixtures change', () => {
+  const lists = workflowPaths('docs-quality.yml');
+  for (const trigger of ['push', 'pull_request']) {
+    assert.ok(
+      covered(lists[trigger] ?? [], 'crates/vox-diagram/tests/fixtures/corpus/00-x.mmd'),
+      `docs-quality.yml on.${trigger}.paths must include crates/vox-diagram/tests/fixtures/**`,
+    );
+  }
+});

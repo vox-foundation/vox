@@ -80,10 +80,50 @@ async function canonFlow(src) {
   };
 }
 
+async function canonState(src) {
+  const { db } = await mermaid.mermaidAPI.getDiagramFromText(src);
+  const states = db.getStates();
+  const entries = states instanceof Map ? [...states.entries()] : Object.entries(states);
+  const key = new Map();
+  for (const [id, st] of entries) {
+    // Composite states, notes, forks, choices and dividers are outside the supported subset.
+    if (st.doc || (st.type && st.type !== 'default') || st.note) {
+      throw new Error(`oracle: unsupported state ${json(id)} (${st.type})`);
+    }
+    key.set(id, id === 'root_start' ? ['Start', 'start', []] : id === 'root_end' ? ['End', 'end', []] : [decodeLabel(st.descriptions?.[0] ?? id), 'rect', []]);
+  }
+  const at = (id) => key.get(id) ?? [id, 'rect', []];
+  return {
+    kind: 'graph',
+    direction: DIR[db.getDirection?.() ?? 'TB'],
+    nodes: [...key.values()],
+    edges: db.getRelations().map((r) => [at(r.id1), at(r.id2), decodeLabel(r.relationTitle ?? '')]),
+    containers: [],
+  };
+}
+
+async function canonSeq(src) {
+  const { db } = await mermaid.mermaidAPI.getDiagramFromText(src);
+  const names = [...db.getActors().keys()];
+  const labels = [...db.getActors().values()].map((a) => decodeLabel(a.description ?? a.name));
+  const index = (name) => names.indexOf(name);
+  const events = db.getMessages().map((m) => {
+    if (m.type === 0 || m.type === 1) return ['message', index(m.from), index(m.to), m.type === 1, decodeLabel(m.message ?? '')];
+    if (m.type === 2 && m.placement === 2) {
+      const who = m.from === m.to ? [index(m.from)] : [index(m.from), index(m.to)];
+      return ['note', who, decodeLabel(m.message ?? '')];
+    }
+    throw new Error(`oracle: unsupported sequence event type ${m.type} placement ${m.placement}`);
+  });
+  return { kind: 'sequence', actors: labels, events };
+}
+
 /** Canonical sets of a Mermaid block, dispatched on its first non-blank line. */
 export async function canon(src) {
   const head = src.split('\n').find((l) => l.trim() !== '')?.trim() ?? '';
   if (/^(graph|flowchart)\b/.test(head)) return canonFlow(src);
+  if (/^stateDiagram-v2\b/.test(head)) return canonState(src);
+  if (/^sequenceDiagram\b/.test(head)) return canonSeq(src);
   throw new Error(`oracle: unsupported diagram header ${json(head)}`);
 }
 
