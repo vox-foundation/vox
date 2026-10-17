@@ -26,7 +26,7 @@
 - [x] **REND-02**: SVG output is byte-identical across repeated runs and across macOS and Linux (no `HashMap` order, no transcendental floats, no embedded versions/timestamps)
 - [x] **REND-03**: SVG is safe and accessible: all labels escaped by one writer, generated per-diagram id prefixes, no `<style>`/`foreignObject`/user-derived attributes, `<title>`/`<desc>` from the IR, text as `<text>`; the escape guard is proven by mutation
 - [x] **REND-04**: One inline SVG themes correctly in light and dark mode via CSS variables mapped to Starlight tokens
-- [ ] **REND-05**: A `sequence` diagram renders to SVG with width-aware lanes
+- [x] **REND-05**: A `sequence` diagram renders to SVG with width-aware lanes
 - [x] **REND-06**: Any diagram exports to Mermaid that a real (pinned) Mermaid parser accepts (the sole oracle — no dependency on the uncommitted `mermaid.rs` validator)
 
 ### Import & Migration (MIG)
@@ -88,7 +88,7 @@
 | REND-02 | Phase 85 | Complete |
 | REND-03 | Phase 85 | Complete |
 | REND-04 | Phase 85 | Complete |
-| REND-05 | Phase 86 | Pending |
+| REND-05 | Phase 86 | Complete |
 | REND-06 | Phase 84 | Complete |
 | MIG-01 | Phase 84 | Complete |
 | MIG-02 | Phase 84 | Complete |

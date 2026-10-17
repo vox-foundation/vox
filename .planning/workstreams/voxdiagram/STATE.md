@@ -5,17 +5,17 @@ milestone_name: VoxDiagram
 current_phase: 86
 current_phase_name: Sequence Kind
 current_plan: 4
-status: executing
-stopped_at: Completed 86-03-PLAN.md
-last_updated: "2026-10-17T16:04:21.919Z"
+status: verifying
+stopped_at: Completed 86-04-PLAN.md
+last_updated: "2026-10-17T16:37:44.473Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 86 execution started
-state_head: e1b63240a4a4183fe800a4fc020ec5a655f10c38
+state_head: eb983c30377342f32d4d3932a956e51114e4c922
 progress:
   total_phases: 9
   completed_phases: 3
   total_plans: 21
-  completed_plans: 20
+  completed_plans: 21
 ---
 
 # Project State: VoxDiagram (`voxdiagram`)
@@ -31,7 +31,7 @@ See: `.planning/PROJECT.md` (shared, owned by the `unified` workstream, not edit
 
 Phase: 86 (Sequence Kind) — EXECUTING
 Plan: 4 of 4
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-10-17 — Phase 86 execution started
 
 Progress: [███░░░░░░░] 33% (0/9 phases)
@@ -64,9 +64,9 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-10-17T16:04:21.676Z
+**Last session:** 2026-10-17T16:37:44.431Z
 
-**Stopped At:** Completed 86-03-PLAN.md
+**Stopped At:** Completed 86-04-PLAN.md
 **Resume File:** None
 
 ## Performance Metrics
@@ -93,6 +93,7 @@ None yet.
 | Phase 86 P01 | 1 session | 2 tasks | 38 files |
 | Phase 86 P02 | one session | 3 tasks | 19 files |
 | Phase 86 P03 | 45min | 3 tasks | 15 files |
+| Phase 86 P04 | 55min | 3 tasks | 22 files |
 
 ## Decisions
 
@@ -129,3 +130,4 @@ None yet.
 - [Phase 86]: 86-02: undeclared sequence actors are declared after the last actor line (insert_decl when the closing brace shares it), once per id, keeping first-mention lane order
 - [Phase 86]: 86-02: Mermaid --> in a sequence rewrites to 'reply a -> b' like -->>; other Mermaid links and side notes are reported without a fix
 - [Phase 86]: 86-03: note text soft-wraps at 60 cells like messages; REND-05 left open for 86-04 (corpus block + browser review)
+- [Phase 86]: 86-04: ImportReport.sequence kept; source.is_some() == unsupported.is_empty() for every kind; empty Note text refused as empty-label (DSL has no empty note)
