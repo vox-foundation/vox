@@ -5,17 +5,17 @@ milestone_name: VoxDiagram
 current_phase: 85
 current_phase_name: Graph Layout & Deterministic SVG
 current_plan: 5
-status: executing
-stopped_at: Completed 85-04-PLAN.md
-last_updated: "2026-10-17T08:38:24.077Z"
+status: verifying
+stopped_at: Completed 85-05-PLAN.md
+last_updated: "2026-10-17T08:46:58.454Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 85 execution started
-state_head: 9c413f06e1a62e9d3ef0ac2ff7a41f08d753d21f
+state_head: 13b1257c9b47c2a90b68f664c67f4c4e84a605b9
 progress:
   total_phases: 9
   completed_phases: 2
   total_plans: 17
-  completed_plans: 16
+  completed_plans: 17
 ---
 
 # Project State: VoxDiagram (`voxdiagram`)
@@ -31,7 +31,7 @@ See: `.planning/PROJECT.md` (shared, owned by the `unified` workstream, not edit
 
 Phase: 85 (Graph Layout & Deterministic SVG) — EXECUTING
 Plan: 5 of 5
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-10-17 — Phase 85 execution started
 
 Progress: [██░░░░░░░░] 22% (0/9 phases)
@@ -64,9 +64,9 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-10-17T08:38:24.052Z
+**Last session:** 2026-10-17T08:46:58.405Z
 
-**Stopped At:** Completed 85-04-PLAN.md
+**Stopped At:** Completed 85-05-PLAN.md
 **Resume File:** None
 
 ## Performance Metrics
@@ -89,6 +89,7 @@ None yet.
 | Phase 85 P02 | 40min | 2 tasks | 14 files |
 | Phase 85 P03 | 75min | 2 tasks | 12 files |
 | Phase 85 P04 | 75min | 3 tasks | 9 files |
+| Phase 85 P05 | 70min | 3 tasks | 18 files |
 
 ## Decisions
 
@@ -119,3 +120,4 @@ None yet.
 - [Phase 85]: 85-03: container titles use a 16 px line pitch (band = 10 px + 16 px/line); shapes::label takes a (class, fill) pair and a step; vd-containers group emitted only when containers exist
 - [Phase 85]: 85-03: parent cycle and over-deep nesting share one InvalidIr (depth walk stops after MAX_DEPTH hops); labels over MAX_LABEL_CHARS are InvalidIr for nodes, containers and edges
 - [Phase 85]: 85-04: SVG oracle is an independent quick-xml allowlist checker; label centring asserted within one half-pixel (odd-size boxes have no representable centre); REND-03 ticked, REND-01/02/04 left for 85-05
+- [Phase 85]: GO on dagre 0.1.1 (exact pin, one-file adapter): 30/30 importable corpus graphs render, 0 of 10 need a DSL tweak; edge-through-container-title and ~4% generated-graph Geometry fail-closed recorded as residual risks
