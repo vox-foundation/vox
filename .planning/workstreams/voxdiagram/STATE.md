@@ -4,18 +4,18 @@ milestone: v1.7
 milestone_name: VoxDiagram
 current_phase: 84
 current_phase_name: Mermaid Emitter & Strict Importer
-current_plan: 3
+current_plan: 4
 status: executing
-stopped_at: Completed 84-02-PLAN.md
-last_updated: "2026-10-17T01:19:55.778Z"
+stopped_at: Completed 84-03-PLAN.md
+last_updated: "2026-10-17T01:38:43.641Z"
 last_activity: 2026-10-16
 last_activity_desc: Phase 84 execution started
-state_head: a74b9b0d46fb9ea2788fdc051c2f26abf278f74f
+state_head: 0219f643977cbd94b88e5043174e07c2aac669cb
 progress:
   total_phases: 9
   completed_phases: 1
   total_plans: 12
-  completed_plans: 9
+  completed_plans: 10
 ---
 
 # Project State: VoxDiagram (`voxdiagram`)
@@ -30,7 +30,7 @@ See: `.planning/PROJECT.md` (shared, owned by the `unified` workstream, not edit
 ## Current Position
 
 Phase: 84 (Mermaid Emitter & Strict Importer) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-10-16 — Phase 84 execution started
 
@@ -39,7 +39,7 @@ Progress: [█░░░░░░░░░] 11% (0/9 phases)
 ## Progress
 
 **Phases Complete:** 0
-**Current Plan:** 3
+**Current Plan:** 4
 
 ## Key Decisions (milestone-level)
 
@@ -64,9 +64,9 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-10-17T01:19:55.758Z
+**Last session:** 2026-10-17T01:38:43.612Z
 
-**Stopped At:** Completed 84-02-PLAN.md
+**Stopped At:** Completed 84-03-PLAN.md
 **Resume File:** None
 
 ## Performance Metrics
@@ -82,6 +82,7 @@ None yet.
 | Phase 83 P07 | 3h | 3 tasks | 37 files |
 | Phase 84 P01 | 50min | 3 tasks | 55 files |
 | Phase 84 P02 | 45min | 3 tasks | 15 files |
+| Phase 84 P03 | 50min | 3 tasks | 10 files |
 
 ## Decisions
 
@@ -100,3 +101,5 @@ None yet.
 - [Phase 83]: Lexer caches the line end so a line of links or brackets is scanned once (quadratic scan found by adversarial_mermaid_tokens)
 - [Phase 84]: 84-01: importer id grammar rejects ids ending in '-' so a--->b fails closed; unit tests stay inline in new mermaid src files
 - [Phase 84]: 84-02: Mermaid ids assigned nodes, then containers, then dangling endpoints in one namespace; blank message text prints bare, blank actor and note text prints #32;
+- [Phase 84]: 84-03: unquoted -- text --> edge text allows all but the double quote (measured), the pipe form keeps the full special set
+- [Phase 84]: 84-03: a refused subgraph header still opens a frame so its end balances; limit-* constructs are reported once on the crossing line

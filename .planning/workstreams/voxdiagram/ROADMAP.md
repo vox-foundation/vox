@@ -96,7 +96,7 @@ Plans:
   2. Importing a Mermaid flowchart/graph/state/sequence block produces a diagram, or fails closed with a by-line `unsupported` list (e.g. `classDef`, `click`, Gantt); the documented leniencies (unquoted labels, `&` fan-out and chain expansion, `<br>` to newline) work and nothing else is dropped without being listed.
   3. Over the frozen live corpus (all `docs/src` fences at committed HEAD, archive excluded — 33 fences / 21 files on 2026-10-16), import then Mermaid export gives node/edge-set equality against the original block, with the original's sets extracted by an independent path (the pinned Mermaid parser); the Gantt block and the markdown-string block (`how-to-rust-crate-imports.md:53`, rejected by real Mermaid) are reported unsupported, not mangled.
 
-**Plans**: 2/5 plans executed
+**Plans**: 3/5 plans executed
 
 Plans:
 **Wave 1**
@@ -104,7 +104,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [x] 84-02-PLAN.md — Exporter: subgraph nesting, totality, hostile fixtures accepted by the oracle, sequence export (wave 2)
-- [ ] 84-03-PLAN.md — Strict flowchart importer: dotted-path scope rewrite, leniencies, unsupported catalogue, drop_styling, caps (wave 2, parallel with 02)
+- [x] 84-03-PLAN.md — Strict flowchart importer: dotted-path scope rewrite, leniencies, unsupported catalogue, drop_styling, caps (wave 2, parallel with 02)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 84-04-PLAN.md — stateDiagram-v2 and sequenceDiagram importers (wave 3)
@@ -232,7 +232,7 @@ Phases execute in numeric order, with the parallel opportunities noted under Ove
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 83. Core Crate - Parser, IR & Diagnostics | 7/7 | Complete    | 2026-10-16 |
-| 84. Mermaid Emitter & Strict Importer | 2/5 | In Progress | - |
+| 84. Mermaid Emitter & Strict Importer | 3/5 | In Progress | - |
 | 85. Graph Layout & Deterministic SVG | 0/TBD | Not started | - |
 | 86. Sequence Kind | 0/TBD | Not started | - |
 | 87. Doc-Pipeline Consumer & Legacy-Mermaid Ratchet | 0/TBD | Not started | - |
