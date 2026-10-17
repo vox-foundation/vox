@@ -84,8 +84,11 @@ fn finish(
     g: &flow::Graph,
 ) -> ImportReport {
     let source = if unsupported.is_empty() {
-        match fmt(&flow::to_dsl(g)) {
+        let dsl = flow::to_dsl(g);
+        match fmt(&dsl) {
             Some(s) => Some(s),
+            // The DSL repeats every id per declaration and edge, so an in-limit block can outgrow it.
+            None if dsl.len() > MAX_SOURCE_BYTES => return refused(1, "limit-source"),
             None => return refused(1, "internal"),
         }
     } else {

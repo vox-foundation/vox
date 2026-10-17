@@ -180,3 +180,47 @@ fn state_shorthand_stays_refused_by_default_and_bad_shorthand_is_never_dropped()
         );
     }
 }
+
+// WR-03: in-limit blocks that the DSL cannot hold were refused as a line-1 `internal`.
+
+#[test]
+fn an_id_over_the_dsl_cap_is_refused_at_its_own_line() {
+    let long = "a".repeat(250);
+    refused_as(
+        &format!("flowchart TD\n  ok --> {long}\n"),
+        2,
+        "id-too-long",
+    );
+    refused_as(
+        &format!("stateDiagram-v2\n  ok --> {long}\n"),
+        2,
+        "id-too-long",
+    );
+    refused_as(
+        &format!("sequenceDiagram\n  participant {long}\n"),
+        2,
+        "id-too-long",
+    );
+    // Exactly at the cap is fine.
+    assert!(
+        run(&format!("flowchart TD\n  ok --> {}\n", "a".repeat(200)))
+            .source
+            .is_some()
+    );
+}
+
+#[test]
+fn a_block_whose_dsl_exceeds_the_source_cap_is_limit_source_not_internal() {
+    let id = |i: usize| format!("node{:019}", i % 500);
+    let mut block = String::from("flowchart TD\n");
+    for k in 0..10 {
+        let line: Vec<String> = (0..100).map(|j| id(50 * k + j)).collect();
+        block.push_str(&format!("  {}\n", line.join(" --> ")));
+    }
+    assert!(
+        block.len() < vox_diagram::limits::MAX_SOURCE_BYTES,
+        "{}",
+        block.len()
+    );
+    refused_as(&block, 1, "limit-source");
+}

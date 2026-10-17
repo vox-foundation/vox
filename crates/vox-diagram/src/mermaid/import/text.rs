@@ -25,6 +25,10 @@ pub(super) fn valid_id(s: &str) -> Result<(), &'static str> {
     {
         return Err("invalid-id");
     }
+    if s.len() > MAX_LABEL_CHARS {
+        // The DSL caps an id at the label length; `fmt` would refuse the whole block as `internal`.
+        return Err("id-too-long");
+    }
     if RESERVED.contains(&s) {
         return Err("reserved-id");
     }
