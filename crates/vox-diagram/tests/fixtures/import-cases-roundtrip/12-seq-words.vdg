@@ -1,0 +1,13 @@
+sequence {
+    actor Note: "Note"
+    actor loop: "Looper"
+    actor A: "A"
+    actor title: "title"
+    actor title-a: "title-a"
+    actor Title-b: "Title-b"
+
+    title -> A: "hello"
+    A -> title-a: "back"
+    reply Title-b -> A: "dashed"
+    note over A, A: "twice"
+}

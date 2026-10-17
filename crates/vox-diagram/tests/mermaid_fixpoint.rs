@@ -6,7 +6,7 @@ mod support;
 use proptest::prelude::*;
 use support::hostile::FRAGMENTS;
 use support::roundtrip::{canon_graph, canon_sequence};
-use support::{model_graph, noise, noisy_source};
+use support::{model_graph, noise, noisy_source, strip_spans};
 use vox_diagram::check;
 use vox_diagram::ir::Ir;
 use vox_diagram::mermaid::{ImportOpts, export, export_sequence, import};
@@ -107,9 +107,14 @@ proptest! {
         let exported = export_sequence(&s);
         let report = import(&exported, ImportOpts::default());
         prop_assert!(report.unsupported.is_empty(), "{:?}\n{exported}", report.unsupported);
-        let Some(back) = report.sequence else {
+        let (Some(back), Some(source)) = (report.sequence, report.source) else {
             return Err(TestCaseError::fail(format!("no sequence for:\n{exported}")));
         };
         prop_assert_eq!(canon_sequence(&back), canon_sequence(&s), "{}", exported);
+        let Some(Ir::Sequence(d)) = check(&source).ir else {
+            return Err(TestCaseError::fail(format!("DSL is not a sequence:\n{source}")));
+        };
+        let bare = |s: &SequenceIr| strip_spans(serde_json::to_value(s).unwrap_or_default());
+        prop_assert_eq!(bare(&d), bare(&back), "{}", source);
     }
 }

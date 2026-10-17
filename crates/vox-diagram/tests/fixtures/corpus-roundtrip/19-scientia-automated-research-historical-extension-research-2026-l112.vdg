@@ -1,0 +1,20 @@
+sequence {
+    actor Agent: "CodingAgent"
+    actor RS: "vox_research_shim"
+    actor VS: "vox_search"
+    actor OR: "OpenRouter"
+    actor TV: "Tavily"
+    actor SC: "vox_scientia"
+    actor Human: "Researcher"
+    actor Out: "NanoPub_Zenodo_Manuscript"
+
+    Agent -> RS: "vox research run"
+    RS -> OR: "planner + synthesize"
+    RS -> VS: "CRAG multi-hop"
+    VS -> TV: "Tier4 search optional"
+    RS -> SC: "claim_extractor optional paths"
+    note over RS, SC: "FindingCandidate mesh emission not wired"
+    SC -> Human: "discovery inbox review"
+    Human -> SC: "ApprovalToken"
+    SC -> Out: "nanopub / archive / syndicate"
+}

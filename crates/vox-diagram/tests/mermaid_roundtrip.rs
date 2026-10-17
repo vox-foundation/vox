@@ -7,6 +7,7 @@ use std::fs;
 
 use std::path::Path;
 use support::roundtrip::{assert_golden, canon_graph, canon_sequence, fixtures, sets_json, stems};
+use support::strip_spans;
 use vox_diagram::ir::Ir;
 use vox_diagram::limits::MAX_SOURCE_BYTES;
 
@@ -105,7 +106,7 @@ fn tracer_minimal_export_text() {
 struct Round {
     /// Stems that imported and have goldens.
     done: Vec<String>,
-    /// Stems that wrote a `.vdg` (graph and state blocks, not sequences).
+    /// Stems that wrote a `.vdg` (every block that imports).
     with_vdg: usize,
     /// `(stem, unsupported)` for every refused block.
     refused: Vec<(String, Vec<Unsupported>)>,
@@ -133,8 +134,29 @@ fn roundtrip_dir(input: &Path, output: &Path) -> Round {
         }
         let out = |ext: &str| output.join(format!("{stem}.{ext}"));
         if let Some(seq) = report.sequence {
-            assert_golden(&out("export.mmd"), &export_sequence(&seq));
+            let Some(src) = report.source else {
+                panic!("{stem}: sequence without source");
+            };
+            assert_eq!(
+                fmt(&src).as_deref(),
+                Some(src.as_str()),
+                "{stem}: not a fmt fixed point"
+            );
+            let Some(Ir::Sequence(d)) = check(&src).ir else {
+                panic!("{stem}: imported source does not check as a sequence");
+            };
+            let bare = |s: &_| strip_spans(serde_json::to_value(s).unwrap_or_default());
+            assert_eq!(
+                bare(&d),
+                bare(&seq),
+                "{stem}: DSL IR differs from the import"
+            );
+            let exported = export(&Ir::Sequence(d));
+            assert_eq!(exported, export_sequence(&seq), "{stem}: export differs");
+            assert_golden(&out("vdg"), &src);
+            assert_golden(&out("export.mmd"), &exported);
             assert_golden(&out("sets.json"), &sets_json(&canon_sequence(&seq)));
+            round.with_vdg += 1;
         } else {
             let Some(src) = report.source else {
                 panic!("{stem}: no source and no sequence");
@@ -193,7 +215,10 @@ fn corpus_roundtrip() {
     let root = fixtures();
     let round = roundtrip_dir(&root.join("corpus"), &root.join("corpus-roundtrip"));
     assert_eq!(round.done.len(), 31, "round-tripped: {:?}", round.done);
-    assert_eq!(round.with_vdg, 30, "sequence blocks have no .vdg");
+    assert_eq!(
+        round.with_vdg, 31,
+        "30 graphs and the sequence each write a .vdg"
+    );
     let manifest = fs::read_to_string(root.join("corpus/MANIFEST.json")).unwrap_or_default();
     let Ok(serde_json::Value::Array(entries)) = serde_json::from_str(&manifest) else {
         panic!("corpus/MANIFEST.json unreadable");
