@@ -150,8 +150,8 @@ fn decode_in(raw: &str, quoted: bool, special: &str, flow: bool) -> Result<Strin
 }
 
 /// Free text to end of line (state transition text; sequence aliases, messages, notes). It has
-/// no unquoted-character ban, but a raw `;` or `%%` ends the statement in Mermaid, and with
-/// `wrap` a leading `wrap:` / `nowrap:` (optionally `:`-prefixed) is stripped and sets a flag.
+/// no unquoted-character ban, but a raw `;` or `%%` ends the statement in Mermaid, with `wrap`
+/// (sequence text) so does a `#` that opens no entity, and with `wrap` a leading `wrap:` / `nowrap:` (optionally `:`-prefixed) is stripped and sets a flag.
 /// All rejection checks run on the RAW text, so `#59;`, `#119;rap:` and `#96;` import as text.
 /// The result may be empty.
 pub(super) fn free(raw: &str, wrap: bool) -> Result<String, &'static str> {
@@ -160,6 +160,9 @@ pub(super) fn free(raw: &str, wrap: bool) -> Result<String, &'static str> {
     }
     if raw.contains("%%") {
         return Err("comment");
+    }
+    if wrap && stray_hash(raw)? {
+        return Err("hash");
     }
     if wrap {
         let t = raw.trim();
@@ -180,6 +183,22 @@ pub(super) fn semicolon(raw: &str) -> Result<bool, &'static str> {
             '#' => i += entity(&raw[i..])?.map_or(0, |(_, n)| n),
             ';' => return Ok(true),
             _ => {}
+        }
+    }
+    Ok(false)
+}
+
+/// True when `raw` has a `#` that does not open a complete entity. Mermaid's sequence text rule
+/// is `[^#\n;]*`, so such a `#` silently truncates the text there.
+pub(super) fn stray_hash(raw: &str) -> Result<bool, &'static str> {
+    let mut i = 0;
+    while let Some(c) = raw[i..].chars().next() {
+        i += c.len_utf8();
+        if c == '#' {
+            match entity(&raw[i..])? {
+                Some((_, n)) => i += n,
+                None => return Ok(true),
+            }
         }
     }
     Ok(false)

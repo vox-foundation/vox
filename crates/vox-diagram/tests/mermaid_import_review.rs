@@ -76,3 +76,28 @@ fn sequence_text_may_hold_a_direction_statement() {
     let seq = r.sequence.expect("sequence imports");
     assert!(matches!(&seq.events[0], SeqEvent::Message { text, .. } if text == "go direction LR"));
 }
+
+// CR-02: Mermaid's sequence text rule is `[^#\n;]*`, so a raw `#` that does not open an entity
+// truncates the text. The importer must refuse it (state text tolerates a bare `#`).
+
+#[test]
+fn sequence_text_with_a_stray_hash_is_refused() {
+    for (body, line) in [
+        ("participant B as 100#", 2),
+        ("participant A as x # y", 2),
+        ("A->>B: end #", 2),
+        ("A->>B: item #3", 2),
+        ("Note over A: note # here", 2),
+    ] {
+        refused_as(&format!("sequenceDiagram\n  {body}\n"), line, "hash");
+    }
+}
+
+#[test]
+fn sequence_text_with_encoded_hashes_and_state_text_with_a_bare_hash_still_import() {
+    let r = run("sequenceDiagram\n  A->>B: item #35;3 and #amp; #59;\n");
+    let seq = r.sequence.expect("encoded hashes import");
+    assert!(matches!(&seq.events[0], SeqEvent::Message { text, .. } if text == "item #3 and & ;"));
+    let s = source("stateDiagram-v2\n  A --> B: item #3\n");
+    assert!(s.contains("item #3"), "{s}");
+}
