@@ -90,7 +90,7 @@ pub enum MermaidIssue {
         /// Count the baseline admits.
         allowed: usize,
     },
-    /// The baseline admits more fences than the file still has (warning: run the tighten tool).
+    /// The baseline admits more fences than the file still has (blocking: run the tighten tool, or the slack could be re-spent).
     Stale {
         /// Live fence count of the file.
         count: usize,

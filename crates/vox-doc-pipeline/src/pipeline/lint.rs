@@ -147,15 +147,16 @@ pub(crate) fn collect_lint_errors_target_with_root(
     errors.extend(collected);
 }
 
-/// Recursively collect lintable `.md` paths (skips `SUMMARY.md`, which is tool-generated).
+/// A doc the pipeline lints: `.md`/`.mdx`, except the tool-generated `docs/src/SUMMARY.md`
+/// (matched by exact path, so `x-SUMMARY.md` or `SUMMARY.md.d/y.md` are still linted).
+fn is_lintable_doc(p: &Path) -> bool {
+    p.extension().is_some_and(|e| e == "md" || e == "mdx") && !p.ends_with("docs/src/SUMMARY.md")
+}
+
+/// Recursively collect lintable `.md` paths (skips the generated `docs/src/SUMMARY.md`).
 pub(crate) fn gather_md_files(target: &Path, out: &mut Vec<PathBuf>) {
     if target.is_file() {
-        if target
-            .extension()
-            .map(|e| e == "md" || e == "mdx")
-            .unwrap_or(false)
-            && !target.to_str().unwrap_or_default().contains("SUMMARY.md")
-        {
+        if is_lintable_doc(target) {
             out.push(target.to_path_buf());
         }
         return;
@@ -168,12 +169,7 @@ pub(crate) fn gather_md_files(target: &Path, out: &mut Vec<PathBuf>) {
             let path = entry.path();
             if path.is_dir() {
                 gather_md_files(&path, out);
-            } else if path
-                .extension()
-                .map(|e| e == "md" || e == "mdx")
-                .unwrap_or(false)
-                && !path.to_str().unwrap_or_default().contains("SUMMARY.md")
-            {
+            } else if is_lintable_doc(&path) {
                 out.push(path);
             }
         }

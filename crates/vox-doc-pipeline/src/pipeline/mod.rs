@@ -11,11 +11,13 @@ pub mod doctest;
 mod facet_backlog;
 mod facets;
 mod lint;
+mod mermaid_base_gate;
 mod mermaid_gate;
 pub mod types;
 
 pub use facet_backlog::facet_backlog_gate_failures;
-pub use mermaid_gate::{MERMAID_BASELINE_REL, mermaid_baseline_gate_failures};
+pub use mermaid_base_gate::{Rename, mermaid_baseline_gate_failures};
+pub use mermaid_gate::MERMAID_BASELINE_REL;
 pub use vox_kb_facets::BACKLOG_REL as FACET_BACKLOG_REL;
 
 use std::fs;
@@ -350,41 +352,50 @@ pub fn lint_in(root: &Path, args: &[String]) -> i32 {
     }
 
     let mut lint_errors: Vec<LintError> = Vec::new();
-    // Taxonomy + backlog load once, before the parallel file pass. A missing or invalid
-    // contract is one hard error (fail closed), never "no facet rules apply".
-    let facet_ctx = match facets::FacetCtx::load(root) {
-        Ok(ctx) => Some(ctx),
-        Err(issue) => {
-            lint_errors.push(LintError {
-                file: root.to_path_buf(),
-                line: 0,
-                kind: LintKind::Facet(issue),
-            });
-            None
-        }
-    };
-    if lint_targets.is_empty() {
-        collect_lint_errors_target_with_root(&docs_src, &mut lint_errors, root, facet_ctx.as_ref());
-    } else {
-        for target in &lint_targets {
+    // `--mermaid-only` (fast tier) skips everything but the whole-tree ratchet below, so a change
+    // to any extension (.md, .mdx, none) is still held to the baseline.
+    if !args.contains(&"--mermaid-only".to_string()) {
+        // Taxonomy + backlog load once, before the parallel file pass. A missing or invalid
+        // contract is one hard error (fail closed), never "no facet rules apply".
+        let facet_ctx = match facets::FacetCtx::load(root) {
+            Ok(ctx) => Some(ctx),
+            Err(issue) => {
+                lint_errors.push(LintError {
+                    file: root.to_path_buf(),
+                    line: 0,
+                    kind: LintKind::Facet(issue),
+                });
+                None
+            }
+        };
+        if lint_targets.is_empty() {
             collect_lint_errors_target_with_root(
-                target,
+                &docs_src,
                 &mut lint_errors,
                 root,
                 facet_ctx.as_ref(),
             );
+        } else {
+            for target in &lint_targets {
+                collect_lint_errors_target_with_root(
+                    target,
+                    &mut lint_errors,
+                    root,
+                    facet_ctx.as_ref(),
+                );
+            }
         }
+        // Always run, even in scoped mode: it's two cheap file reads (README.md,
+        // index.mdx), not a directory walk, so there's no cost reason to gate it
+        // behind an unscoped run — and gating it was the reason the local
+        // (scoped-by-default) `vox ci pre-push` never caught README<->homepage
+        // drift, only CI did.
+        lint::lint_readme_sync_paths(
+            &root.join("README.md"),
+            &docs_src.join("index.mdx"),
+            &mut lint_errors,
+        );
     }
-    // Always run, even in scoped mode: it's two cheap file reads (README.md,
-    // index.mdx), not a directory walk, so there's no cost reason to gate it
-    // behind an unscoped run — and gating it was the reason the local
-    // (scoped-by-default) `vox ci pre-push` never caught README<->homepage
-    // drift, only CI did.
-    lint::lint_readme_sync_paths(
-        &root.join("README.md"),
-        &docs_src.join("index.mdx"),
-        &mut lint_errors,
-    );
     // Always scans the whole docs/src tree so files nobody changed are still held to the baseline.
     mermaid_gate::lint(root, &mut lint_errors);
 
@@ -556,9 +567,9 @@ pub fn lint_in(root: &Path, args: &[String]) -> i32 {
                     i.render(e.file.strip_prefix(root).unwrap_or(&e.file))
                 ),
                 LintKind::LegacyMermaid(i) => {
+                    // every legacy-Mermaid finding blocks, stale slack included (it could be re-spent)
                     eprintln!(
-                        "  {}  {}:{} — {} ({})",
-                        if i.is_hard() { "ERROR" } else { "WARN " },
+                        "  ERROR  {}:{} — {} ({})",
                         rel.display(),
                         e.line,
                         i.message(),
@@ -573,7 +584,7 @@ pub fn lint_in(root: &Path, args: &[String]) -> i32 {
             .filter(|e| {
                 matches!(&e.kind, LintKind::Facet(i) if i.is_hard())
                     || matches!(&e.kind, LintKind::Diagram(i) if i.is_hard())
-                    || matches!(&e.kind, LintKind::LegacyMermaid(i) if i.is_hard())
+                    || matches!(&e.kind, LintKind::LegacyMermaid(_))
                     || matches!(
                         e.kind,
                         LintKind::UnclosedCodeFence

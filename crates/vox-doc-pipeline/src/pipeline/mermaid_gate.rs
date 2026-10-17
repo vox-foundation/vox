@@ -31,17 +31,19 @@ HEAL: the legacy-Mermaid baseline only shrinks. Legal moves:
   1. Author new diagrams as ```vox-diagram, not ```mermaid.
   2. After migrating a diagram away, run
        cargo run -p vox-doc-pipeline -- --tighten-mermaid-baseline
-  3. Raising a count or adding a file is USER-AUTHORIZED-ONLY. Propose it in the PR description and stop.
+  3. Moved or renamed a doc? `git mv` it, then run the same tighten command: the quota follows a
+     git-detected rename (the base-ref gate checks the pairing); it never grows.
+  4. Raising a count or adding a file is USER-AUTHORIZED-ONLY. Propose it in the PR description and stop.
 Never hand-edit contracts/documentation/legacy-mermaid-baseline.v1.yaml.";
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
-struct Baseline {
-    schema_version: u32,
-    files: BTreeMap<String, usize>,
+pub(super) struct Baseline {
+    pub(super) schema_version: u32,
+    pub(super) files: BTreeMap<String, usize>,
 }
 
-fn parse(text: &str) -> Result<Baseline, String> {
+pub(super) fn parse(text: &str) -> Result<Baseline, String> {
     let b: Baseline = serde_yaml::from_str(text).map_err(|e| e.to_string())?;
     if b.schema_version != 1 {
         return Err(format!("unsupported schema_version {}", b.schema_version));
@@ -91,14 +93,37 @@ fn docs(root: &Path) -> Result<Vec<(String, String)>, MermaidIssue> {
     Ok(out)
 }
 
+/// A raw line that opens a `mermaid` fence, with no CommonMark context (`` ``` `` or `~~~`, 3+).
+fn is_raw_opener(line: &str) -> bool {
+    let t = line.trim_start();
+    ['`', '~'].into_iter().any(|c| {
+        let rest = t.trim_start_matches(c);
+        t.len() - rest.len() >= 3 && rest.trim_start().starts_with("mermaid")
+    })
+}
+
 /// Path -> 1-based opener lines of its `mermaid` fences (paths with none omitted).
+///
+/// MDX treats a fence directly inside a JSX/HTML block (no blank line around it) as a code block,
+/// but CommonMark parsing sees HTML, so `.mdx` also gets a raw line scan and the larger count wins.
+/// That fails closed: a mermaid opener quoted inside a longer example fence over-counts.
 fn counts(docs: &[(String, String)]) -> BTreeMap<String, Vec<usize>> {
     docs.iter()
         .filter_map(|(path, text)| {
-            let lines: Vec<usize> = fence::extract(text, "mermaid")
+            let mut lines: Vec<usize> = fence::extract(text, "mermaid")
                 .iter()
                 .map(|f| f.open_line as usize)
                 .collect();
+            if path.ends_with(".mdx") {
+                let raw: Vec<usize> = (1..)
+                    .zip(text.lines())
+                    .filter(|(_, l)| is_raw_opener(l))
+                    .map(|(n, _)| n)
+                    .collect();
+                if raw.len() > lines.len() {
+                    lines = raw;
+                }
+            }
             (!lines.is_empty()).then(|| (path.clone(), lines))
         })
         .collect()
@@ -197,20 +222,39 @@ pub(crate) fn seed(root: &Path) -> Result<String, String> {
 }
 
 /// Lower counts and drop entries to match the tree; refuses (writing nothing) on any growth.
+/// A baselined doc that no longer exists (moved or deleted) hands its quota to one unlisted path
+/// that fits, so a `git mv` never deadlocks; the base-ref gate then demands a git-detected rename.
 pub(crate) fn tighten(root: &Path) -> Result<String, String> {
     let prior = load(root)?
         .ok_or_else(|| format!("{MERMAID_BASELINE_REL} is missing; nothing to tighten"))?;
     let live = live_counts(root)?;
-    let over: Vec<String> = live
+    let mut vanished: Vec<(&String, usize)> = prior
+        .files
         .iter()
-        .filter(|(p, n)| **n > prior.files.get(*p).copied().unwrap_or(0))
-        .map(|(p, n)| {
-            format!(
-                "  {p}: {n} > {}\n",
-                prior.files.get(p).copied().unwrap_or(0)
-            )
-        })
+        .filter(|(p, _)| !root.join(p).exists())
+        .map(|(p, a)| (p, *a))
         .collect();
+    vanished.sort_by_key(|(_, a)| *a);
+    let mut moved: BTreeMap<String, usize> = BTreeMap::new();
+    let mut over: Vec<String> = Vec::new();
+    for (p, &n) in &live {
+        let allowed = prior.files.get(p).copied();
+        if n <= allowed.unwrap_or(0) {
+            continue;
+        }
+        let slot = if allowed.is_none() {
+            vanished.iter().position(|(_, a)| *a >= n)
+        } else {
+            None
+        };
+        match slot {
+            Some(i) => {
+                vanished.remove(i);
+                moved.insert(p.clone(), n);
+            }
+            None => over.push(format!("  {p}: {n} > {}\n", allowed.unwrap_or(0))),
+        }
+    }
     if !over.is_empty() {
         let mut msg = format!(
             "refusing to tighten: {} file(s) exceed the legacy-Mermaid baseline:\n",
@@ -223,12 +267,13 @@ pub(crate) fn tighten(root: &Path) -> Result<String, String> {
         msg.push_str(MERMAID_HEAL);
         return Err(msg);
     }
-    let files: BTreeMap<String, usize> = prior
+    let mut files: BTreeMap<String, usize> = prior
         .files
         .iter()
         .map(|(p, a)| (p.clone(), live.get(p).copied().unwrap_or(0).min(*a)))
         .filter(|(_, n)| *n > 0)
         .collect();
+    files.extend(moved);
     let next = Baseline {
         schema_version: 1,
         files,
@@ -247,45 +292,6 @@ pub(crate) fn tighten(root: &Path) -> Result<String, String> {
     ))
 }
 
-/// Base-ref compare for the shrink-only ratchet (R4): the head baseline may not exceed the base
-/// baseline for any path. `None` is an absent file. Pre-seed and bootstrap (absent at base) pass;
-/// a baseline deleted after it existed at base, or an unparsable side, fails.
-#[must_use]
-pub fn mermaid_baseline_gate_failures(
-    base_text: Option<&str>,
-    head_text: Option<&str>,
-) -> Vec<String> {
-    let side = |name: &str, text: &str| {
-        parse(text).map_err(|e| vec![format!("[legacy-mermaid] {name} baseline invalid: {e}")])
-    };
-    let base = match base_text.map(|t| side("base", t)).transpose() {
-        Ok(b) => b,
-        Err(f) => return f,
-    };
-    let head = match head_text.map(|t| side("head", t)).transpose() {
-        Ok(h) => h,
-        Err(f) => return f,
-    };
-    let (Some(base), Some(head)) = (base, head) else {
-        // pre-seed or bootstrap pass; a baseline deleted after it existed at base fails
-        return match (base_text, head_text) {
-            (Some(_), None) => vec!["[legacy-mermaid] baseline deleted".to_string()],
-            _ => Vec::new(),
-        };
-    };
-    head.files
-        .iter()
-        .filter_map(|(path, &n)| {
-            let was = base.files.get(path).copied().unwrap_or(0);
-            (n > was).then(|| {
-                format!(
-                    "[legacy-mermaid] {path}: {was} -> {n} fences (the baseline only shrinks against the base ref)"
-                )
-            })
-        })
-        .collect()
-}
-
 impl MermaidIssue {
     pub(crate) fn rule_id(&self) -> &'static str {
         match self {
@@ -294,11 +300,6 @@ impl MermaidIssue {
             Self::InfoString { .. } => "legacy-mermaid-info",
             Self::Unreadable { .. } => "legacy-mermaid-unreadable",
         }
-    }
-
-    /// Everything but a stale baseline entry blocks.
-    pub(crate) fn is_hard(&self) -> bool {
-        !matches!(self, Self::Stale { .. })
     }
 
     pub(crate) fn workflow(&self) -> &'static str {
@@ -362,50 +363,6 @@ mod tests {
         assert!(parse("schema_version: 2\nfiles: {}\n").is_err());
         assert!(parse("schema_version: 1\nfiles: {}\nextra: 1\n").is_err());
         assert!(parse("schema_version: 1\nfiles: {}\n").is_ok());
-    }
-
-    fn bl(files: &[(&str, usize)]) -> String {
-        let rows: String = files.iter().map(|(p, n)| format!("\n  {p}: {n}")).collect();
-        let body = if rows.is_empty() { " {}".into() } else { rows };
-        format!("schema_version: 1\nfiles:{body}\n")
-    }
-
-    #[test]
-    fn gate_text_cases() {
-        let a1 = bl(&[("docs/src/a.md", 1)]);
-        let gate = mermaid_baseline_gate_failures;
-        assert!(gate(None, None).is_empty(), "pre-seed");
-        assert!(gate(None, Some(&a1)).is_empty(), "bootstrap");
-        assert!(gate(Some(&a1), Some(&a1)).is_empty(), "identical");
-        let a2 = bl(&[("docs/src/a.md", 2)]);
-        assert!(gate(Some(&a2), Some(&a1)).is_empty(), "lowered");
-        assert!(gate(Some(&a1), Some(&bl(&[]))).is_empty(), "entry removed");
-
-        let up = gate(Some(&a1), Some(&a2));
-        assert_eq!(up.len(), 1, "{up:?}");
-        assert!(up[0].contains("docs/src/a.md: 1 -> 2"), "{up:?}");
-
-        let b = bl(&[("docs/src/a.md", 1), ("docs/src/b.md", 1)]);
-        let added = gate(Some(&a1), Some(&b));
-        assert_eq!(added.len(), 1, "{added:?}");
-        assert!(added[0].contains("docs/src/b.md: 0 -> 1"), "{added:?}");
-
-        assert_eq!(
-            gate(Some(&a1), None),
-            ["[legacy-mermaid] baseline deleted".to_string()]
-        );
-        let bad_head = gate(Some(&a1), Some("not: [valid"));
-        assert_eq!(bad_head.len(), 1, "{bad_head:?}");
-        assert!(
-            bad_head[0].contains("head baseline invalid"),
-            "{bad_head:?}"
-        );
-        let bad_base = gate(Some("schema_version: 2\nfiles: {}\n"), Some(&a1));
-        assert_eq!(bad_base.len(), 1, "{bad_base:?}");
-        assert!(
-            bad_base[0].contains("base baseline invalid"),
-            "{bad_base:?}"
-        );
     }
 }
 

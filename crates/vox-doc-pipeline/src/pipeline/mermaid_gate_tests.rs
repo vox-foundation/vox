@@ -157,21 +157,76 @@ fn near_miss_mermaid_info_is_a_hard_error() {
 }
 
 #[test]
-fn stale_entry_warns_but_exits_zero() {
+fn stale_entry_is_a_hard_error() {
+    // WR-02: slack left by a migrated diagram could be re-spent, so it blocks until tightened.
     let r = root("stale");
     baseline(&r, "\n  docs/src/a.md: 2");
     put(&r, "docs/src/a.md", &doc(FENCE));
+    let stale = MermaidIssue::Stale {
+        count: 1,
+        allowed: 2,
+    };
+    assert!(stale.message().contains("--tighten-mermaid-baseline"));
+    assert_eq!(issues(&r), [(0, stale)]);
+    assert_eq!(run(&r, "a.md"), 1);
+    assert_eq!(flag(&r, "--tighten-mermaid-baseline"), 0);
+    assert_eq!(run(&r, "a.md"), 0);
+    std::fs::remove_dir_all(&r).unwrap();
+}
+
+#[test]
+fn only_the_generated_summary_is_skipped() {
+    // WR-01: a substring match hid `x-SUMMARY.md` and `SUMMARY.md.d/` from the ratchet.
+    let r = root("summary");
+    baseline(&r, " {}");
+    std::fs::create_dir_all(r.join("docs/src/SUMMARY.md.d")).unwrap();
+    put(&r, "docs/src/x-SUMMARY.md", &doc(FENCE));
+    put(&r, "docs/src/SUMMARY.md.d/y.md", &doc(FENCE));
+    put(&r, "docs/src/SUMMARY.md", FENCE);
+    let got: Vec<_> = issues(&r).into_iter().map(|(l, _)| l).collect();
+    assert_eq!(got, [15, 15], "generated docs/src/SUMMARY.md stays exempt");
+    std::fs::remove_dir_all(&r).unwrap();
+}
+
+#[test]
+fn mdx_fences_inside_jsx_blocks_are_counted() {
+    // WR-03: no blank line around the fence makes it an HTML block to CommonMark.
+    let r = root("jsx");
+    baseline(&r, " {}");
+    let jsx = format!("<Tabs>\n<TabItem label=\"a\">\n{FENCE}</TabItem>\n</Tabs>\n");
+    put(&r, "docs/src/tabs.mdx", &doc(&jsx));
     assert_eq!(
         issues(&r),
         [(
-            0,
-            MermaidIssue::Stale {
+            17,
+            MermaidIssue::Growth {
                 count: 1,
-                allowed: 2
+                allowed: 0
             }
         )]
     );
-    assert_eq!(run(&r, "a.md"), 0);
+    // a fence nested in a longer example fence over-counts in .mdx: fail closed, never under-count
+    put(&r, "docs/src/tabs.mdx", &doc("clean\n"));
+    let nested = format!("````markdown\n{FENCE}````\n");
+    put(&r, "docs/src/ex.mdx", &doc(&nested));
+    assert_eq!(issues(&r).len(), 1);
+    std::fs::remove_dir_all(&r).unwrap();
+}
+
+#[test]
+fn mermaid_only_runs_the_ratchet_for_any_extension() {
+    // CR-01: the fast tier's scoped skip must not let an .mdx-only change bypass the ratchet.
+    let r = root("only");
+    std::fs::remove_dir_all(r.join("contracts")).unwrap();
+    baseline(&r, " {}");
+    put(&r, "docs/src/new.mdx", "---\ntitle: x\n---\n# T\n");
+    assert_eq!(
+        flag(&r, "--mermaid-only"),
+        0,
+        "clean tree needs no facet contracts"
+    );
+    put(&r, "docs/src/new.mdx", &format!("# T\n\n{FENCE}"));
+    assert_eq!(flag(&r, "--mermaid-only"), 1);
     std::fs::remove_dir_all(&r).unwrap();
 }
 
@@ -242,5 +297,40 @@ fn tighten_without_baseline_is_an_error() {
     assert!(err.contains("is missing"), "{err}");
     assert_eq!(flag(&r, "--tighten-mermaid-baseline"), 1);
     assert!(!r.join(MERMAID_BASELINE_REL).exists());
+    std::fs::remove_dir_all(&r).unwrap();
+}
+
+#[test]
+fn tighten_hands_a_moved_docs_quota_to_its_new_path_only() {
+    // WR-04: a `git mv` of a baselined doc must not deadlock the author.
+    let r = root("move");
+    baseline(&r, "\n  docs/src/a.md: 2\n  docs/src/keep.md: 1");
+    put(&r, "docs/src/keep.md", &doc(FENCE));
+    put(&r, "docs/src/b.md", &doc(&format!("{FENCE}\n{FENCE}")));
+    assert!(!r.join("docs/src/a.md").exists());
+    assert_eq!(
+        run(&r, "b.md"),
+        1,
+        "lint blocks until the baseline follows the move"
+    );
+    assert_eq!(flag(&r, "--tighten-mermaid-baseline"), 0);
+    assert_eq!(
+        files(&r),
+        [("docs/src/b.md".into(), 2), ("docs/src/keep.md".into(), 1)]
+    );
+    assert_eq!(run(&r, "b.md"), 0);
+
+    // a bigger doc, or an existing doc's quota, is not a move: nothing is written
+    baseline(&r, "\n  docs/src/a.md: 1\n  docs/src/keep.md: 1");
+    let before = read(&r);
+    let err = tighten(&r).unwrap_err();
+    assert!(err.contains("docs/src/b.md: 2 > 0"), "{err}");
+    put(&r, "docs/src/a.md", &doc("clean\n"));
+    put(&r, "docs/src/b.md", &doc(FENCE));
+    assert!(
+        tighten(&r).is_err(),
+        "a.md still exists, so its quota is not up for grabs"
+    );
+    assert_eq!(read(&r), before);
     std::fs::remove_dir_all(&r).unwrap();
 }
