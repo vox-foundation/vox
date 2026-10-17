@@ -314,6 +314,7 @@
     "vox-doc-pipeline": [
       "vox-bounded-fs",
       "vox-compiler",
+      "vox-diagram",
       "vox-kb-facets",
       "workspace-hack"
     ],
