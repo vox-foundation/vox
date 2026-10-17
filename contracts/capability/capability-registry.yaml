@@ -7403,6 +7403,41 @@ curated:
   - diag
   - doctor
   parameters: null
+- id: cli.diagram
+  title: Diagram
+  description_human: null
+  description_model: Check, format, render, export and import VoxDiagram diagrams from a file or stdin
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - diagram
+  parameters: null
+- id: cli.diagram.check
+  title: Diagram Check
+  description_human: null
+  description_model: Check a diagram file or stdin and print each diagnostic as file:line:col with its code (exit 1 on any error)
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - diagram
+  - check
+  parameters: null
 - id: cli.dispatch
   title: Dispatch
   description_human: null

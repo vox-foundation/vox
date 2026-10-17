@@ -1626,6 +1626,14 @@
       "feature_gate": null
     },
     {
+      "path": "diagram",
+      "feature_gate": null
+    },
+    {
+      "path": "diagram check",
+      "feature_gate": null
+    },
+    {
       "path": "dispatch",
       "feature_gate": null
     },
@@ -4540,6 +4548,8 @@
     "dev",
     "diag",
     "diag.doctor",
+    "diagram",
+    "diagram.check",
     "diagram.validate",
     "dispatch",
     "dispatch.preview",

@@ -4965,6 +4965,29 @@ operations:
   handler_rust: null
 - surface: vox-cli
   path:
+  - diagram
+  status: active
+  latin_ns: null
+  product_lane: ai
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::diagram::run
+- surface: vox-cli
+  path:
+  - diagram
+  - check
+  status: active
+  latin_ns: null
+  product_lane: ai
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
   - dispatch
   status: active
   latin_ns: null

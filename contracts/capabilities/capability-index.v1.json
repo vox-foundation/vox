@@ -19661,6 +19661,101 @@
       }
     },
     {
+      "id": "cli.diagram",
+      "kind": "cli",
+      "title": "Diagram",
+      "summary": "Check, format, render, export and import VoxDiagram diagrams from a file or stdin",
+      "op_id": "diagram",
+      "status": "active",
+      "domain": "platform",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "diagram"
+        ],
+        "invocation": "vox diagram",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "none",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-diagram",
+        "layer": 2,
+        "rule": "crate_name_match"
+      },
+      "source_path": "crates/vox-cli/src/commands/diagram.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "top-level commands are cli-group nodes; the graph has no per-command coverage"
+      }
+    },
+    {
+      "id": "cli.diagram.check",
+      "kind": "cli",
+      "title": "Diagram Check",
+      "summary": "Check a diagram file or stdin and print each diagnostic as file:line:col with its code (exit 1 on any error)",
+      "op_id": "diagram.check",
+      "status": "active",
+      "domain": "platform",
+      "product_lane": "ai",
+      "side_effect_class": "read_only",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "diagram",
+          "check"
+        ],
+        "invocation": "vox diagram check",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "none",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-diagram",
+        "layer": 2,
+        "rule": "crate_name_match"
+      },
+      "source_path": "crates/vox-diagram/",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no cli:<group>:<leaf> node in the vox-gui-surface snapshot"
+      }
+    },
+    {
       "id": "cli.dispatch",
       "kind": "cli",
       "title": "Dispatch",
@@ -63703,7 +63798,12 @@
       "mcp": {
         "name": "vox_validate_diagram"
       },
-      "gui": null,
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "none",
+        "catalog_form": false
+      },
       "owner": {
         "crate": "vox-orchestrator-mcp",
         "layer": 3,

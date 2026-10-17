@@ -13,6 +13,7 @@ audit
 audit/arch
 audit/code
 audit/core
+audit/docs
 audit/effort
 audit/effort-route
 audit/research-parity
@@ -78,6 +79,7 @@ ci/coolify-eval/discover
 ci/coolify-eval/sync-compose
 ci/corpus-decl-coverage
 ci/coverage-gates
+ci/crate-api-sync
 ci/crate-budget
 ci/crate-build-map-parity
 ci/crate-edges
@@ -311,6 +313,8 @@ deploy
 dev
 diag
 diag/doctor
+diagram
+diagram/check
 dispatch
 dispatch/preview
 doctor
@@ -586,3 +590,4 @@ workflow
 workflow/drain
 workflow/ls
 workflow/preview
+workflow/signal

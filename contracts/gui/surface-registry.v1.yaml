@@ -354,6 +354,14 @@ surfaces:
   parent_surface: null
   notes: null
 - view_key: null
+  cli_group: diagram
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  parent_surface: null
+  notes: null
+- view_key: null
   cli_group: dispatch
   representation_tier: none
   nav_label: null

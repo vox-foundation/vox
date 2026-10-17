@@ -27771,6 +27771,59 @@ operations:
     exposure: public
     requires: []
   cli: null
+- id: diagram
+  title: Diagram
+  description: Check, format, render, export and import VoxDiagram diagrams from a file or stdin
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - diagram
+    status: active
+    latin_ns: null
+    handler_rust: commands::diagram::run
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: diagram.check
+  title: Diagram Check
+  description: Check a diagram file or stdin and print each diagnostic as file:line:col with its code (exit 1 on any error)
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - diagram
+    - check
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
 - id: gui.rules
   title: GUI Design Rules
   description: List the registered GUI design rules (gui-design-rule/*) so a generator

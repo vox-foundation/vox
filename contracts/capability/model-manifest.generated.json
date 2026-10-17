@@ -8248,6 +8248,29 @@
       "curated": true
     },
     {
+      "capability_id": "cli.diagram",
+      "cli_path": [
+        "diagram"
+      ],
+      "implicit": false,
+      "title": "Diagram",
+      "description_model": "Check, format, render, export and import VoxDiagram diagrams from a file or stdin",
+      "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.diagram.check",
+      "cli_path": [
+        "diagram",
+        "check"
+      ],
+      "implicit": false,
+      "title": "Diagram Check",
+      "description_model": "Check a diagram file or stdin and print each diagnostic as file:line:col with its code (exit 1 on any error)",
+      "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
       "capability_id": "cli.dispatch",
       "cli_path": [
         "dispatch"

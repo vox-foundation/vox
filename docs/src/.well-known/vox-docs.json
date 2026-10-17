@@ -192,7 +192,7 @@
       {
         "id": "platform",
         "label": "Platform (other)",
-        "cli": 34,
+        "cli": 36,
         "mcp": 97,
         "surfaces": 2
       }

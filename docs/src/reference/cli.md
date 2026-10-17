@@ -204,6 +204,20 @@ Corpus registry and freshness status/ingest operations for Vox Graph knowledge m
 | `vox graph rebuild` | Rebuild the base AST code graph and cluster it. |
 | `vox graph history <log\|focus\|forgotten\|search\|timeline\|brief>` | First-parent history of `origin/main` (else `main`) with rename/split/merge lineage. Mechanical (fmt/generated/import-only) changes are flagged and hidden unless `--include-mechanical`. Every subcommand except `brief` catches up on new commits first. One store is shared by all worktrees, at `<git-common-dir>/vox-cache/repo-history/`. `brief` prints one line from disk and says how many commits it is behind. Forms: `vox graph history log`, `vox graph history focus`, `vox graph history forgotten`, `vox graph history search`, `vox graph history timeline`, `vox graph history brief`. |
 
+### `vox diagram`
+
+Check VoxDiagram sources (the `graph` and `sequence` diagram languages) from a file or from stdin (`-`). The command reaches the diagram core through `vox_doc_pipeline::diagram`, and the global `--json` prints the same envelope the `vox_validate_diagram` MCP tool returns.
+
+| Subcommand | Role |
+|------------|------|
+| `vox diagram check <file\|->` | Print every diagnostic as `<file>:<line>:<col>: <code>: <message>` on stderr (`<stdin>` for `-`). Warnings print and do not fail. |
+
+| Exit code | Meaning |
+|-----------|---------|
+| 0 | The diagram is valid (warnings allowed) |
+| 1 | At least one Error diagnostic |
+| 2 | Usage error, unreadable input, or a refused flag combination |
+
 ### `vox kb eval`
 
 Deterministic retrieval eval over the golden set in `contracts/kb/eval/` (scored on doc and chunk ids through the Library index, `library-tantivy-v1`, over the frozen corpus snapshot). Plain `vox kb eval` prints the metric report for the chosen split.
@@ -892,6 +906,7 @@ The sections above document 50 of the 76 top-level `vox` commands. The remaining
 | `vox container` | Manage OCI containers: build/run the current project with resource limits |
 | `vox dispatch` | Dispatch-time routing preview — project what the dispatcher would do (P2-T6) |
 | `vox drift-check` | Workspace drift and pattern-repetition linter |
+| `vox diagram` | Check, format, render, export and import VoxDiagram diagrams from a file or stdin |
 | `vox ext` | Extensions lane — unified entry for legacy and ML subcommands (`ext`) |
 | `vox grammar` | Export the Vox language grammar in various formats for MENS training |
 | `vox harness` | Evaluate the harness itself (not a model) against a golden task set with a pass^k multi-sample gate (`vox harness eval`) |
@@ -935,6 +950,7 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `ext` | default | `commands::ext` |
 | `graph` | default | `commands::graphify` (aliases: `graphify`, `search`) |
 | `grammar` | default | `commands::grammar::handle` |
+| `diagram` | default | `commands::diagram::run` |
 | `gui` | `gui` | `commands::gui` — launch Axis; `vox gui drive` is `commands::gui::drive` |
 | `harness` | default | `commands::harness` |
 | `mcp` | `mcp-server` | `commands::mcp::run` — start the Model Context Protocol server; without the feature it fails with a rebuild instruction |
