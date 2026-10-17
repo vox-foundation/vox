@@ -1,0 +1,34 @@
+{
+  "kind": "sequence",
+  "actors": [
+    "Note",
+    "Looper",
+    "A",
+    "title",
+    "title-a",
+    "Title-b"
+  ],
+  "events": [
+    [
+      "message",
+      3,
+      2,
+      false,
+      "hello"
+    ],
+    [
+      "message",
+      2,
+      4,
+      false,
+      "back"
+    ],
+    [
+      "message",
+      5,
+      2,
+      true,
+      "dashed"
+    ]
+  ]
+}

@@ -96,7 +96,7 @@ async function threeWay(original, exported, rust) {
   sameSets(await canon(exported), await canon(original), 'C(E) == C(B)');
 }
 
-family('import-cases-roundtrip', '.sets.json', 10, async (stem) => {
+family('import-cases-roundtrip', '.sets.json', 13, async (stem) => {
   await threeWay(
     read('import-cases', `${stem}.mmd`),
     read('import-cases-roundtrip', `${stem}.export.mmd`),

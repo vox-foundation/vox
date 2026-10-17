@@ -1,0 +1,16 @@
+flowchart TD
+    start(("Start"))
+    Idle["Idle"]
+    Scale["Scale"]
+    n3["Style"]
+    n4["Class"]
+    State["State"]
+    Done["Done"]
+    n7((("End")))
+    start --> Idle
+    Idle -->|"busy"| Scale
+    Idle -->|"styled"| n3
+    Idle -->|"classy"| n4
+    Idle -->|"named"| State
+    Idle --> Done
+    Done --> n7
