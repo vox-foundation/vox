@@ -24,7 +24,7 @@
 
 - [ ] **REND-01**: A `graph` diagram renders to SVG via `dagre` layout behind a one-file adapter, with containers, edge labels, cycles, and self-loops; the 10 largest corpus diagrams pass a go/no-go spike (fallback `dugong`)
 - [ ] **REND-02**: SVG output is byte-identical across repeated runs and across macOS and Linux (no `HashMap` order, no transcendental floats, no embedded versions/timestamps)
-- [ ] **REND-03**: SVG is safe and accessible: all labels escaped by one writer, generated per-diagram id prefixes, no `<style>`/`foreignObject`/user-derived attributes, `<title>`/`<desc>` from the IR, text as `<text>`; the escape guard is proven by mutation
+- [x] **REND-03**: SVG is safe and accessible: all labels escaped by one writer, generated per-diagram id prefixes, no `<style>`/`foreignObject`/user-derived attributes, `<title>`/`<desc>` from the IR, text as `<text>`; the escape guard is proven by mutation
 - [ ] **REND-04**: One inline SVG themes correctly in light and dark mode via CSS variables mapped to Starlight tokens
 - [ ] **REND-05**: A `sequence` diagram renders to SVG with width-aware lanes
 - [x] **REND-06**: Any diagram exports to Mermaid that a real (pinned) Mermaid parser accepts (the sole oracle — no dependency on the uncommitted `mermaid.rs` validator)
@@ -86,7 +86,7 @@
 | DGM-06 | Phase 83 | Complete |
 | REND-01 | Phase 85 | Pending |
 | REND-02 | Phase 85 | Pending |
-| REND-03 | Phase 85 | Pending |
+| REND-03 | Phase 85 | Complete |
 | REND-04 | Phase 85 | Pending |
 | REND-05 | Phase 86 | Pending |
 | REND-06 | Phase 84 | Complete |

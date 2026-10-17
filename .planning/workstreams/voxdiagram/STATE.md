@@ -4,18 +4,18 @@ milestone: v1.7
 milestone_name: VoxDiagram
 current_phase: 85
 current_phase_name: Graph Layout & Deterministic SVG
-current_plan: 4
+current_plan: 5
 status: executing
-stopped_at: Completed 85-03-PLAN.md
-last_updated: "2026-10-17T08:24:41.183Z"
+stopped_at: Completed 85-04-PLAN.md
+last_updated: "2026-10-17T08:38:24.077Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 85 execution started
-state_head: eb633f9eedb3f4bd6ce29e68cf8bbaeccb389e0c
+state_head: 9c413f06e1a62e9d3ef0ac2ff7a41f08d753d21f
 progress:
   total_phases: 9
   completed_phases: 2
   total_plans: 17
-  completed_plans: 15
+  completed_plans: 16
 ---
 
 # Project State: VoxDiagram (`voxdiagram`)
@@ -30,7 +30,7 @@ See: `.planning/PROJECT.md` (shared, owned by the `unified` workstream, not edit
 ## Current Position
 
 Phase: 85 (Graph Layout & Deterministic SVG) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Ready to execute
 Last activity: 2026-10-17 — Phase 85 execution started
 
@@ -39,7 +39,7 @@ Progress: [██░░░░░░░░] 22% (0/9 phases)
 ## Progress
 
 **Phases Complete:** 0
-**Current Plan:** 4
+**Current Plan:** 5
 
 ## Key Decisions (milestone-level)
 
@@ -64,9 +64,9 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-10-17T08:24:41.150Z
+**Last session:** 2026-10-17T08:38:24.052Z
 
-**Stopped At:** Completed 85-03-PLAN.md
+**Stopped At:** Completed 85-04-PLAN.md
 **Resume File:** None
 
 ## Performance Metrics
@@ -88,6 +88,7 @@ None yet.
 | Phase 85 P01 | 45min | 2 tasks | 23 files |
 | Phase 85 P02 | 40min | 2 tasks | 14 files |
 | Phase 85 P03 | 75min | 2 tasks | 12 files |
+| Phase 85 P04 | 75min | 3 tasks | 9 files |
 
 ## Decisions
 
@@ -117,3 +118,4 @@ None yet.
 - [Phase 85]: 85-02: verify padding rule w>=tw+4*PAD_X, h>=th+4*PAD_Y (diamond half-extent); vd-edge-labels group only emitted when an edge has a label
 - [Phase 85]: 85-03: container titles use a 16 px line pitch (band = 10 px + 16 px/line); shapes::label takes a (class, fill) pair and a step; vd-containers group emitted only when containers exist
 - [Phase 85]: 85-03: parent cycle and over-deep nesting share one InvalidIr (depth walk stops after MAX_DEPTH hops); labels over MAX_LABEL_CHARS are InvalidIr for nodes, containers and edges
+- [Phase 85]: 85-04: SVG oracle is an independent quick-xml allowlist checker; label centring asserted within one half-pixel (odd-size boxes have no representable centre); REND-03 ticked, REND-01/02/04 left for 85-05

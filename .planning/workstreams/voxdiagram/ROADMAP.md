@@ -127,7 +127,7 @@ Plans:
   4. Hostile labels (`<script>`, quotes, `&`, `]]>`) are escaped by the single SVG writer; output has no `<style>`, `foreignObject`, or user-derived attributes, per-diagram generated id prefixes, IR-derived `<title>`/`<desc>`, and text as `<text>`; removing the escape makes the guard test fail (mutation-proven).
   5. The same single inline SVG is legible when mounted under light and dark Starlight token sets via CSS variables (`--vd-*` mapped to `--sl-*`), with no duplicated per-theme markup.
 
-**Plans**: 3/5 plans executed
+**Plans**: 4/5 plans executed
 
 Plans:
 **Wave 1**
@@ -140,7 +140,7 @@ Plans:
 - [x] 85-03-PLAN.md — Containers (title strut, finishing, drawing), containment checks, hostile hand-built IR validation (wave 3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 85-04-PLAN.md — quick-xml allowlist checker, hostile suite and per-arm escape mutation proof; determinism and geometry read-back properties, source guards; theme vars and Starlight contrast (wave 4)
+- [x] 85-04-PLAN.md — quick-xml allowlist checker, hostile suite and per-arm escape mutation proof; determinism and geometry read-back properties, source guards; theme vars and Starlight contrast (wave 4)
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 85-05-PLAN.md — Corpus top-10 goldens and light/dark contact sheet; visual review, Linux golden check, go/no-go decision doc; API page, where-things-live, closing gates (wave 5)
@@ -250,7 +250,7 @@ Phases execute in numeric order, with the parallel opportunities noted under Ove
 |-------|----------------|--------|-----------|
 | 83. Core Crate - Parser, IR & Diagnostics | 7/7 | Complete    | 2026-10-16 |
 | 84. Mermaid Emitter & Strict Importer | 5/5 | Complete    | 2026-10-16 |
-| 85. Graph Layout & Deterministic SVG | 3/5 | In Progress | - |
+| 85. Graph Layout & Deterministic SVG | 4/5 | In Progress | - |
 | 86. Sequence Kind | 0/TBD | Not started | - |
 | 87. Doc-Pipeline Consumer & Legacy-Mermaid Ratchet | 0/TBD | Not started | - |
 | 88. MCP Tool, CLI & Agent Guidance | 0/TBD | Not started | - |
