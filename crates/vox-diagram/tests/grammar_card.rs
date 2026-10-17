@@ -106,6 +106,24 @@ fn grammar_card_size_budget() {
 }
 
 #[test]
+fn grammar_card_states_the_render_caps() {
+    use vox_diagram::limits::{MAX_RENDER_EDGES, MAX_RENDER_NODES};
+    let tail = GRAMMAR_CARD
+        .split("SVG render caps")
+        .nth(1)
+        .unwrap_or_else(|| panic!("card does not state the SVG render caps"));
+    let rule = tail.lines().next().unwrap_or_default();
+    assert!(
+        rule.contains(&format!("{MAX_RENDER_NODES} nodes")),
+        "{rule}"
+    );
+    assert!(
+        rule.contains(&format!("{MAX_RENDER_EDGES} edges")),
+        "{rule}"
+    );
+}
+
+#[test]
 fn grammar_card_sequence_example_checks_clean() {
     let src = sequence_example();
     let report = check(&src);

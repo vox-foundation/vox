@@ -586,8 +586,8 @@ free-tier flow above, and change them only in a PR that is about them.
 ### Diagrams in docs (VoxDiagram)
 
 New diagrams under `docs/src/` use a `vox-diagram` fenced block ([reference and grammar card](docs/src/reference/vox-diagram.md)).
-Validate with the `vox_validate_diagram` MCP tool or `vox diagram check <file|->`, apply every `fixes[]` entry, and re-check until
-valid (doc lint rejects an invalid fence). Do not add fences with the `mermaid` info string: the legacy-Mermaid baseline only
+Validate with the `vox_validate_diagram` MCP tool or `vox --json diagram check <file|->` (`fixes[]` appear only in the JSON
+envelope), apply every `fixes[]` entry, and re-check until valid (doc lint rejects an invalid fence). Do not add fences with the `mermaid` info string: the legacy-Mermaid baseline only
 shrinks (convert one with `vox diagram import`).
 
 ## Retired Surfaces (LLM Guard)

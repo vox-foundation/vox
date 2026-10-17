@@ -32,6 +32,7 @@ Rules
 4. One statement per line, one arrow per statement. Comments are // only. Escapes in labels: \" \\ \n.
 5. Sequences: declare every actor first. a -> b: "text" is a message, reply a -> b: "text" a dashed return, note over a[, b]: "text" a note.
 6. Limits: 64 KiB, 500 nodes, 1000 edges, depth 4, labels 200 chars.
+   SVG render caps: 100 nodes+containers, 200 edges (sequence: 100 actors, 200 events).
 
 Do NOT write Mermaid (each is an error):
   A[Label] --> B           => node a: "Label" then a -> b

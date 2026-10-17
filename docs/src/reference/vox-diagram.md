@@ -54,6 +54,7 @@ Rules
 4. One statement per line, one arrow per statement. Comments are // only. Escapes in labels: \" \\ \n.
 5. Sequences: declare every actor first. a -> b: "text" is a message, reply a -> b: "text" a dashed return, note over a[, b]: "text" a note.
 6. Limits: 64 KiB, 500 nodes, 1000 edges, depth 4, labels 200 chars.
+   SVG render caps: 100 nodes+containers, 200 edges (sequence: 100 actors, 200 events).
 
 Do NOT write Mermaid (each is an error):
   A[Label] --> B           => node a: "Label" then a -> b
@@ -133,7 +134,9 @@ Output (`schema_version` is always 1):
 
 After a Mermaid import, diagnostic spans point into `normalized_source`, the converted text, not into the original Mermaid.
 
-Repair loop: apply every `fixes[]` entry (each is a byte span plus a replacement in the text you sent), call the tool again, and stop when `valid` is true. Use `normalized_source` as the final text.
+Repair loop: apply every `fixes[]` entry (each is a byte span plus a replacement in the text you sent), call the tool again, and stop when `valid` is true. Use `normalized_source` as the final text. From a shell, use `vox --json diagram check` to get `fixes[]`.
+
+The tool's response wraps the table above as `{"success": true, "data": {...}}`; invalid arguments return `{"success": false, "error": "..."}` instead of `data`.
 
 ## CLI: vox diagram
 
@@ -141,13 +144,13 @@ The command reads a file or stdin (`-`). See [cli.md](cli.md) for the full comma
 
 | Subcommand | Role |
 |------------|------|
-| `vox diagram check <file\|->` | Print each diagnostic as `file:line:col: code: message` on stderr. |
-| `vox diagram fmt <file\|-> [--check \| --write]` | Print the canonical form; `--check` exits 1 when not canonical; `--write` rewrites atomically (temp file and rename), only for a valid source. |
-| `vox diagram render <file\|-> [-o FILE]` | Deterministic SVG. |
+| `vox diagram check <file\|->` | Print each diagnostic as `file:line:col: error\|warning: code: message` on stderr. Fix spans are only in the `--json` envelope. |
+| `vox diagram fmt <file\|-> [--check \| --write]` | Print the canonical form; `--check` exits 1 when not canonical; `--write` rewrites atomically (exclusive temp file and rename, source mode kept), only for a valid source. It writes through a symlink to the real file and refuses a read-only file (exit 2). |
+| `vox diagram render <file\|-> [-o FILE]` | Deterministic SVG. `-o` is written the same atomic way and may not be the input file (exit 2). |
 | `vox diagram export <file\|-> [-o FILE]` | Mermaid text. |
 | `vox diagram import <file\|-> [-o FILE]` | One Mermaid block to canonical VoxDiagram. |
 
-Exit codes: 0 valid (warnings allowed), 1 at least one error, non-canonical `fmt --check`, unsupported import lines or a failed render, 2 usage or I/O error. The global `--json` prints the same envelope as the MCP tool.
+Exit codes: 0 valid (warnings allowed), 1 at least one error, non-canonical `fmt --check`, unsupported import lines or a failed render, 2 usage or I/O error. The global `--json` prints the bare envelope, which is the MCP tool's `data` field.
 
 ```text
 vox diagram check diagram.txt
