@@ -2905,6 +2905,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "dagre"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9468ae6a4b98e7102e0e59ba8f9aacd2266cec71817c19b62b2d61ee260524c1"
+dependencies = [
+ "log",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "darling"
 version = "0.20.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -17340,12 +17351,15 @@ dependencies = [
 name = "vox-diagram"
 version = "0.6.0"
 dependencies = [
+ "dagre",
  "insta",
  "proptest",
  "pulldown-cmark",
+ "quick-xml 0.41.0",
  "serde",
  "serde_json",
  "strsim",
+ "unicode-width 0.2.2",
  "workspace-hack",
 ]
 

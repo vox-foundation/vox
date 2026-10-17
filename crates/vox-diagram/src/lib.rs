@@ -1,5 +1,6 @@
 //! VoxDiagram core: graph DSL lexer, error-recovering parser, resolved IR, `diagram/*`
-//! diagnostics with machine-applicable fixes, canonical formatter and markdown fence scanner.
+//! diagnostics with machine-applicable fixes, canonical formatter, markdown fence scanner,
+//! graph layout and deterministic SVG rendering.
 //! Pure and synchronous: no I/O, no async runtime, no workspace dependencies.
 //!
 //! ```text
@@ -33,11 +34,14 @@ pub mod mermaid;
 pub mod sequence_ir;
 /// Byte spans and line/col locations.
 pub mod span;
+/// Deterministic, injection-safe, themeable SVG rendering of graph diagrams (layout through the dagre adapter).
+pub mod svg;
 
 mod check;
 /// Machine-applicable fixes and the bounded repair loop.
 mod fixes;
 mod fixgen;
+mod layout;
 mod lexer;
 mod parser;
 /// Canonical formatter.

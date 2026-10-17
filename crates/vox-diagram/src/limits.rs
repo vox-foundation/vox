@@ -12,3 +12,9 @@ pub const MAX_DEPTH: usize = 4;
 pub const MAX_LABEL_CHARS: usize = 200;
 /// Maximum diagnostics reported by one check.
 pub const MAX_DIAGNOSTICS: usize = 100;
+/// Maximum IR nodes plus containers the SVG renderer lays out (every container is a layout
+/// node). Lower than the parse caps because dagre has no work budget and is super-quadratic.
+pub const MAX_RENDER_NODES: usize = 100;
+/// Maximum IR edges the SVG renderer lays out; see [`MAX_RENDER_NODES`] for why this is lower
+/// than the parse cap.
+pub const MAX_RENDER_EDGES: usize = 200;
