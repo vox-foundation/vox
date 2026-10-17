@@ -122,7 +122,7 @@ fn reference(cur: &mut &str, cx: &mut Cx) -> Res<Ref> {
     if id.is_empty() {
         return bad(stop(cur));
     }
-    text::valid_id(id)?;
+    text::flow_id(id)?;
     *cur = after;
     if let Some(o) = OTHER_SHAPES.iter().find(|o| cur.starts_with(*o)) {
         return bad(format!("shape:{o}"));
@@ -244,7 +244,7 @@ fn subgraph(rest: &str) -> Res<Stmt> {
     if id.is_empty() {
         return bad("subgraph-title");
     }
-    text::valid_id(id)?;
+    text::flow_id(id)?;
     let mut cur = after.trim_start();
     let mut title = None;
     if let Some(r) = cur.strip_prefix('[') {

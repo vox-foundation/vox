@@ -243,7 +243,9 @@ fn import_subgraph_direction_equal_is_dropped() {
 
 #[test]
 fn import_styling_head_words_can_still_be_ids() {
-    for line in ["class --> b", "style --> b", "click"] {
+    // Mermaid's flowchart keywords are case-sensitive; bare `class`/`style` ids are refused
+    // (`84-REVIEW` WR-04, mermaid_import_review.rs).
+    for line in ["Class --> b", "Style --> b", "click --> b", "click"] {
         let r = run(&format!("flowchart TD\n    {line}\n"));
         assert!(r.source.is_some(), "{line}: {:?}", r.unsupported);
     }

@@ -124,14 +124,18 @@ fn state_header_forms_and_text() {
         refused("stateDiagram-v2;\n"),
         vec![(1, "semicolon".to_owned())]
     );
-    // Empty transition text is no label; `A: x` text keeps its characters.
+    // `A: x` text keeps its characters; a bare trailing colon is a Mermaid parse error.
     let r = import(
-        "stateDiagram-v2\n    A --> B:\n    B --> A:a: b (c) + d\n",
+        "stateDiagram-v2\n    A --> B\n    B --> A:a: b (c) + d\n",
         ImportOpts::default(),
     );
     let src = r.source.unwrap_or_default();
     assert!(src.contains("A -> B\n"), "{src}");
     assert!(src.contains("B -> A: \"a: b (c) + d\""), "{src}");
+    assert_eq!(
+        refused("stateDiagram-v2\n    A --> B:\n"),
+        vec![(2, "empty-label".to_owned())]
+    );
 }
 
 #[test]

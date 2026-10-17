@@ -16,7 +16,7 @@ const BLOCKS: [&str; 11] = [
     "loop", "alt", "else", "opt", "par", "and", "critical", "option", "break", "rect", "end",
 ];
 /// Other statement keywords that cannot be participant ids.
-const KEYWORDS: [&str; 9] = [
+const KEYWORDS: [&str; 15] = [
     "actor",
     "participant",
     "autonumber",
@@ -26,6 +26,12 @@ const KEYWORDS: [&str; 9] = [
     "destroy",
     "activate",
     "deactivate",
+    "note",
+    "over",
+    "link",
+    "links",
+    "properties",
+    "details",
 ];
 /// Arrow tokens, longest first; `Some(dashed)` for the two accepted ones.
 const ARROWS: [(&str, Option<bool>); 10] = [
@@ -61,7 +67,13 @@ enum Stmt {
 
 fn id(s: &str) -> Result<String, String> {
     text::valid_id(s).map_err(str::to_owned)?;
-    if BLOCKS.contains(&s) || KEYWORDS.contains(&s) {
+    // Mermaid's sequence lexer is case-insensitive, and reads `end-x` as the keyword `end`.
+    let lower = s.to_ascii_lowercase();
+    let head = lower.split('-').next().unwrap_or(&lower);
+    if [lower.as_str(), head]
+        .iter()
+        .any(|w| BLOCKS.contains(w) || KEYWORDS.contains(w))
+    {
         return Err("reserved-id".to_owned());
     }
     Ok(s.to_owned())

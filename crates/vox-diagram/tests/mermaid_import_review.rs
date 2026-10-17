@@ -224,3 +224,116 @@ fn a_block_whose_dsl_exceeds_the_source_cap_is_limit_source_not_internal() {
     );
     refused_as(&block, 1, "limit-source");
 }
+
+// WR-04: ids and texts the pinned Mermaid parser rejects, which the importer used to accept.
+
+#[test]
+fn sequence_ids_that_mermaid_reads_as_keywords_are_refused_in_any_case() {
+    let words = [
+        "End",
+        "Loop",
+        "Alt",
+        "Opt",
+        "Par",
+        "Rect",
+        "Break",
+        "Critical",
+        "Option",
+        "And",
+        "Else",
+        "Title",
+        "Box",
+        "Actor",
+        "Participant",
+        "Activate",
+        "Autonumber",
+        "Links",
+        "link",
+        "properties",
+        "details",
+        "Note",
+        "Over",
+        "over",
+        "Create",
+        "Destroy",
+        "Deactivate",
+        "loop-x",
+    ];
+    for w in words {
+        refused_as(
+            &format!("sequenceDiagram\n  A->>{w}: x\n"),
+            2,
+            "reserved-id",
+        );
+        refused_as(
+            &format!("sequenceDiagram\n  {w}->>A: x\n"),
+            2,
+            "reserved-id",
+        );
+    }
+    assert!(
+        run("sequenceDiagram\n  A->>x-loop: x\n  A->>Ender: y\n")
+            .sequence
+            .is_some()
+    );
+}
+
+#[test]
+fn flowchart_ids_that_mermaid_reads_as_statements_are_refused() {
+    for w in [
+        "end",
+        "style",
+        "class",
+        "graph",
+        "flowchart",
+        "subgraph",
+        "interpolate",
+        "classDef",
+        "linkStyle",
+        "end-x",
+    ] {
+        // `subgraph --> a` is refused earlier, as a malformed subgraph header.
+        let want = if w == "subgraph" {
+            "subgraph-title"
+        } else {
+            "reserved-id"
+        };
+        refused_as(&format!("flowchart TD\n  a --> {w}\n"), 2, "reserved-id");
+        assert_eq!(
+            refused(&format!("flowchart TD\n  {w} --> a\n"))[0],
+            (2, want.to_owned())
+        );
+    }
+    // Mermaid's flowchart keywords are case-sensitive, and `my-end` is an ordinary id.
+    let s = source("flowchart TD\n  a --> End\n  End --> Default\n  Default --> my-end\n");
+    assert!(s.contains("my-end"), "{s}");
+}
+
+#[test]
+fn state_ids_and_labels_that_mermaid_rejects_are_refused() {
+    for (target, construct) in [
+        ("click", "reserved-id"),
+        ("Default", "reserved-id"),
+        ("State", "reserved-id"),
+        ("Scale", "reserved-id"),
+        ("a-b", "invalid-id"),
+        ("end-x", "invalid-id"),
+    ] {
+        refused_as(
+            &format!("stateDiagram-v2\n  A --> {target}\n"),
+            2,
+            construct,
+        );
+        refused_as(
+            &format!("stateDiagram-v2\n  {target} --> A\n"),
+            2,
+            construct,
+        );
+    }
+    // `note` heads are refused earlier, as a note statement.
+    refused_as("stateDiagram-v2\n  A --> note\n", 2, "reserved-id");
+    refused_as("stateDiagram-v2\n  Note --> A\n", 2, "state:note");
+    // A bare trailing colon is a Mermaid parse error.
+    refused_as("stateDiagram-v2\n  A --> B:\n", 2, "empty-label");
+    assert!(source("stateDiagram-v2\n  Idle --> a_b: go\n").contains("go"));
+}

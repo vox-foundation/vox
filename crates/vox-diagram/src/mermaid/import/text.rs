@@ -35,6 +35,47 @@ pub(super) fn valid_id(s: &str) -> Result<(), &'static str> {
     Ok(())
 }
 
+/// Words Mermaid's flowchart lexer reads as statements in every id position (exact case), alone
+/// or before a `-`. `click`, `href` and `call` are left out: Mermaid rejects them only as an edge
+/// target, and refusing them everywhere would refuse valid sources.
+const FLOW_WORDS: [&str; 9] = [
+    "end",
+    "style",
+    "class",
+    "graph",
+    "flowchart",
+    "subgraph",
+    "interpolate",
+    "classDef",
+    "linkStyle",
+];
+
+/// Words Mermaid's state lexer reads as statements (any case).
+const STATE_WORDS: [&str; 9] = [
+    "note", "style", "class", "click", "default", "state", "href", "classdef", "scale",
+];
+
+/// [`valid_id`] plus the flowchart ids Mermaid itself rejects.
+pub(super) fn flow_id(s: &str) -> Result<(), &'static str> {
+    valid_id(s)?;
+    if FLOW_WORDS.contains(&s.split('-').next().unwrap_or(s)) {
+        return Err("reserved-id");
+    }
+    Ok(())
+}
+
+/// [`valid_id`] plus the state ids Mermaid itself rejects (it has no `-` in ids).
+pub(super) fn state_id(s: &str) -> Result<(), &'static str> {
+    valid_id(s)?;
+    if s.contains('-') {
+        return Err("invalid-id");
+    }
+    if STATE_WORDS.contains(&s.to_ascii_lowercase().as_str()) {
+        return Err("reserved-id");
+    }
+    Ok(())
+}
+
 /// Length in bytes of a `<br>`, `<br/>` or `<br />` (any case) at the start of `s`.
 fn br_len(s: &str) -> Option<usize> {
     ["<br>", "<br/>", "<br />"].into_iter().find_map(|p| {

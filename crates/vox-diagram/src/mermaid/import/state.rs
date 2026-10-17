@@ -27,7 +27,7 @@ fn endpoint(s: &str) -> Result<Option<String>, String> {
     if matches!(s, "start" | "end") {
         return Err("id-clash".to_owned());
     }
-    text::valid_id(s).map_err(str::to_owned)?;
+    text::state_id(s).map_err(str::to_owned)?;
     Ok(Some(s.to_owned()))
 }
 
@@ -106,6 +106,8 @@ fn transition(line: &str, dropped: &mut Vec<String>) -> Result<Trans, String> {
     }
     let (from, to) = (endpoint(left)?, endpoint(target)?);
     let label = match label {
+        // Mermaid rejects a transition whose `:` is followed by nothing.
+        Some(l) if l.trim().is_empty() => return Err("empty-label".to_owned()),
         Some(l) => Some(text::free(l, false).map_err(str::to_owned)?).filter(|l| !l.is_empty()),
         None => None,
     };
