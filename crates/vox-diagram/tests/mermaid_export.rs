@@ -135,7 +135,13 @@ fn export_survives_a_deep_chain_without_recursion() {
 
 /// Cases whose export is judged by the Node oracle: `(stem, ir)`.
 fn cases() -> Vec<(&'static str, Ir)> {
-    vec![("g00-nested", Ir::Graph(graph_of(NESTED)))]
+    let mut all = vec![("g00-nested", Ir::Graph(graph_of(NESTED)))];
+    all.extend(
+        support::hostile::graph_cases()
+            .into_iter()
+            .map(|(stem, g)| (stem, Ir::Graph(g))),
+    );
+    all
 }
 
 #[test]

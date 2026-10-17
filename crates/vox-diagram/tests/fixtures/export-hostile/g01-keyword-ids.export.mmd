@@ -1,0 +1,49 @@
+flowchart TD
+    n0["kw end"]
+    n1["kw End"]
+    n2["kw END"]
+    n3["kw graph"]
+    n4["kw subgraph"]
+    n5["kw style"]
+    n6["kw class"]
+    n7["kw classDef"]
+    n8["kw linkStyle"]
+    n9["kw click"]
+    n10["kw default"]
+    n11["kw interpolate"]
+    n12["kw call"]
+    n13["kw href"]
+    n14["kw direction"]
+    n15["kw flowchart"]
+    subgraph n20 ["Click box"]
+        in0["inside 0"]
+        subgraph n22 ["Interpolate box"]
+            in2["inside 2"]
+        end
+    end
+    subgraph n21 ["Default box"]
+        in1["inside 1"]
+        subgraph n23 ["End box"]
+            in3["inside 3"]
+        end
+    end
+    n0 --> n1
+    n1 --> n2
+    n2 --> n3
+    n3 --> n4
+    n4 --> n5
+    n5 --> n6
+    n6 --> n7
+    n7 --> n8
+    n8 --> n9
+    n9 --> n10
+    n10 --> n11
+    n11 --> n12
+    n12 --> n13
+    n13 --> n14
+    n14 --> n15
+    n15 --> in0
+    in0 --> in1
+    in1 --> in2
+    in2 --> in3
+    n0 -->|"to the end box"| in3

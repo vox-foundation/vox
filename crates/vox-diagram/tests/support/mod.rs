@@ -232,6 +232,7 @@ pub fn strip_spans(v: Value) -> Value {
     }
 }
 
+pub mod hostile;
 pub mod mermaid;
 mod noisy;
 pub mod roundtrip;
