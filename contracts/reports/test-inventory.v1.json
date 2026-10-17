@@ -4,10 +4,10 @@
     "workspace_crate_count": 132,
     "rust_files_scanned": 4424,
     "cargo_unit_test_functions": 12491,
-    "cargo_integration_test_functions": 3642,
+    "cargo_integration_test_functions": 3644,
     "cargo_bench_functions": 0,
     "cargo_ignored_test_functions": 96,
-    "cargo_test_functions_total": 16133,
+    "cargo_test_functions_total": 16135,
     "webir_related_ignored_tests": 1,
     "webir_ignored_tests_likely_retired_note": 0
   },
@@ -262,7 +262,7 @@
     },
     "vox-diagram": {
       "unit_tests": 207,
-      "integration_tests": 372,
+      "integration_tests": 374,
       "bench_tests": 0,
       "ignored_tests": 3,
       "has_integration_dir": true,

@@ -62,5 +62,5 @@ a -> b
 
 | Constant | Description |
 |---|---|
-| `GRAMMAR_CARD` | Draft VoxDiagram grammar card for agent authoring guidance (finalized in Phase 88). |
+| `GRAMMAR_CARD` | The VoxDiagram grammar card (graph and sequence) for agent authoring guidance. It is appended to the `vox_validate_diagram` MCP tool description and published verbatim in `docs/src/reference/vox-diagram.md`; `tests/grammar_card.rs` keeps the two in sync. |
 
