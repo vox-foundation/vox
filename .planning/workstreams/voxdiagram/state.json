@@ -36,7 +36,7 @@
     {
       "number": "89",
       "name": "Docs-Astro Integration",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "number": "90",
@@ -51,8 +51,8 @@
   ],
   "next": {
     "command": "/gsd:progress --next",
-    "label": "Advance to the next step (plan phase 89)",
-    "reason": "Phase 89 of 9 — needs a plan"
+    "label": "Advance to the next step",
+    "reason": "Phase 89 of 9 · executing"
   },
-  "updated_at": "2026-10-17T21:34:22.534Z"
+  "updated_at": "2026-10-17T23:47:37.912Z"
 }

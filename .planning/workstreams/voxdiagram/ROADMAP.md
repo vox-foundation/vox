@@ -241,7 +241,19 @@ Plans:
   2. Playwright against the built site shows no duplicate ids on a page with several diagrams, every `<text>` within its box under two font stacks, and contrast passing in both light and dark themes (forced-colors stays legible), exercised on fixture diagrams covering both kinds.
   3. The docs deploy and quality workflows run the pre-render step before `pnpm build` and trigger on `crates/vox-diagram/**` changes.
 
-**Plans**: TBD
+**Plans**: 4 plans in 3 waves
+
+Plans:
+**Wave 1**
+- [ ] 89-01-PLAN.md — Tracer (`--render-diagrams` manifest → wrapper → remark plugin → inline figure on the built reference page) + production pre-render, fence-key parity corpus, `pnpm diagrams`/`predev`/`prebuild`, docs-deploy/docs-quality path filters and pre-render step (wave 1)
+- [ ] 89-02-PLAN.md — Rust horizontal padding floor (~21% wider fonts fit) on every padded text box, deliberate golden re-bless, oracles and determinism green, font policy updated (wave 1, parallel with 01)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 89-03-PLAN.md — Fail-closed build (md guard + mdx throw, mutation-proven), dev placeholder, closed-grammar SVG parser, ids/slug/parity tests, theme CSS + wide-diagram sizing, llms-full source retention, built-site spec (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 89-04-PLAN.md — Stress examples on the reference page, Playwright ids/fit (three stacks)/contrast/forced-colors/wide-policy spec, CI browser step, by-eye review, closing gates (wave 3)
+
 **Research flag**: DEEP. Astro 6/MDX hast `hChildren` on `index.mdx`, `llms-full.txt` retention, Expressive Code/Shiki ordering and `vox-diagram` alias, `astro dev` needing a manual re-render after fence edits.
 **Folded decisions**: coordinate with the owner of the uncommitted jsdelivr `mermaid@11` loader in `docs-astro/src/components/PageSidebar.astro` (another session's checkout) so it never processes `vox-diagram` figures; confirm the font-policy decision from Phase 85 in a real browser.
 **Parallelism**: can run in parallel with Phase 88.
@@ -289,7 +301,7 @@ Phases execute in numeric order, with the parallel opportunities noted under Ove
 | 86. Sequence Kind | 4/4 | Complete    | 2026-10-17 |
 | 87. Doc-Pipeline Consumer & Legacy-Mermaid Ratchet | 3/3 | Complete    | 2026-10-17 |
 | 88. MCP Tool, CLI & Agent Guidance | 3/3 | Complete    | 2026-10-17 |
-| 89. Docs-Astro Integration | 0/TBD | Not started | - |
+| 89. Docs-Astro Integration | 0/4 | Planned | - |
 | 90. Corpus Migration & Gate Tightening | 0/TBD | Not started | - |
 | 91. Measurement Harness & Advisory Closure | 0/TBD | Not started | - |
 
