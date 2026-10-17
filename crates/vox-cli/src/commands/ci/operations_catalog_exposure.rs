@@ -64,6 +64,8 @@ mod tests {
             title: String::new(),
             description: String::new(),
             description_human: None,
+            owner_crate: None,
+            domain: None,
             product_lane: "ai".to_string(),
             intent_tags: Vec::new(),
             side_effect_class: side_effect_class.map(str::to_string),
