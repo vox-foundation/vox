@@ -16,7 +16,7 @@
     {
       "number": "85",
       "name": "Graph Layout & Deterministic SVG",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "number": "86",
@@ -51,8 +51,8 @@
   ],
   "next": {
     "command": "/gsd:progress --next",
-    "label": "Advance to the next step (plan phase 85)",
-    "reason": "Phase 85 of 9 — needs a plan"
+    "label": "Advance to the next step",
+    "reason": "Phase 85 of 9 · executing"
   },
-  "updated_at": "2026-10-17T03:28:18.541Z"
+  "updated_at": "2026-10-17T07:40:17.840Z"
 }
