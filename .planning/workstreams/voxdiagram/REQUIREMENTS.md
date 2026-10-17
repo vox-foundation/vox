@@ -45,7 +45,7 @@
 
 ### Agent & CLI Surface (TOOL)
 
-- [ ] **TOOL-01**: Agent can call `vox_validate_diagram` and get diagnostics, fixes, `normalized_source`, `stats`, and optional `from_mermaid` conversion; registered through the operations catalog with all generated artifacts and GUI coverage (no new exemption)
+- [x] **TOOL-01**: Agent can call `vox_validate_diagram` and get diagnostics, fixes, `normalized_source`, `stats`, and optional `from_mermaid` conversion; registered through the operations catalog with all generated artifacts and GUI coverage (no new exemption)
 - [ ] **TOOL-02**: Developer can run `vox diagram check|fmt|render|export|import` from the CLI
 - [ ] **TOOL-03**: Agents receive a short (≤~600-token) VoxDiagram grammar card with examples in their authoring guidance, and AGENTS.md directs new docs diagrams to ```` ```vox-diagram ````
 
@@ -98,7 +98,7 @@
 | DOCS-02 | Phase 87 | Complete |
 | DOCS-03 | Phase 89 | Pending |
 | DOCS-04 | Phase 89 | Pending |
-| TOOL-01 | Phase 88 | Pending |
+| TOOL-01 | Phase 88 | Complete |
 | TOOL-02 | Phase 88 | Pending |
 | TOOL-03 | Phase 88 | Pending |
 | EVAL-01 | Phase 91 | Pending |
