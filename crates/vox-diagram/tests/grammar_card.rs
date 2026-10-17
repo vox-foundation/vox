@@ -1,6 +1,7 @@
 //! The grammar card is dogfooded: its example checks clean and is a `fmt` fixed point, every
 //! "Do NOT write" example is flagged as Mermaid, and it stays inside its size budget.
 
+use vox_diagram::ir::Ir;
 use vox_diagram::{GRAMMAR_CARD, check, codes, fmt};
 
 /// The example block: from the `graph {` line to the first column-0 `}`.
@@ -12,6 +13,19 @@ fn example() -> String {
     let end = rest
         .find("\n}")
         .unwrap_or_else(|| panic!("example never closes"));
+    format!("{}\n}}\n", rest.get(..end).unwrap_or_default())
+}
+
+/// The sequence example: from the `sequence {` line to the next column-0 `}`.
+fn sequence_example() -> String {
+    let start = GRAMMAR_CARD
+        .find("\nsequence {")
+        .unwrap_or_else(|| panic!("no sequence example"))
+        + 1;
+    let rest = GRAMMAR_CARD.get(start..).unwrap_or_default();
+    let end = rest
+        .find("\n}")
+        .unwrap_or_else(|| panic!("sequence example never closes"));
     format!("{}\n}}\n", rest.get(..end).unwrap_or_default())
 }
 
@@ -89,4 +103,39 @@ fn grammar_card_size_budget() {
     // About 600 tokens at about 4 bytes per token (no tokenizer is available here).
     assert!(GRAMMAR_CARD.len() <= 2_600, "{} bytes", GRAMMAR_CARD.len());
     assert!(!GRAMMAR_CARD.lines().any(|l| l.starts_with("```")));
+}
+
+#[test]
+fn grammar_card_sequence_example_checks_clean() {
+    let src = sequence_example();
+    let report = check(&src);
+    assert!(
+        report.valid && report.diagnostics.is_empty(),
+        "{:?}",
+        report.diagnostics
+    );
+    assert_eq!(
+        fmt(&src).as_deref(),
+        Some(src.as_str()),
+        "the sequence example is not canonical"
+    );
+    let Some(Ir::Sequence(seq)) = report.ir else {
+        panic!("the example is not a sequence");
+    };
+    assert!(seq.actors.len() >= 2);
+    let json = serde_json::to_value(&seq.events)
+        .unwrap_or_default()
+        .to_string();
+    assert!(json.contains("\"dashed\":true"), "no reply: {json}");
+    assert!(json.contains("note"), "no note: {json}");
+}
+
+#[test]
+fn reference_page_publishes_the_card_verbatim() {
+    let page = include_str!("../../../docs/src/reference/vox-diagram.md");
+    let fenced = format!("```text\n{GRAMMAR_CARD}```");
+    assert!(
+        page.contains(&fenced),
+        "docs/src/reference/vox-diagram.md does not carry GRAMMAR_CARD verbatim in a text fence"
+    );
 }

@@ -50,7 +50,9 @@ mod parser;
 mod print;
 mod resolve;
 
-/// Draft VoxDiagram grammar card for agent authoring guidance (finalized in Phase 88).
+/// The VoxDiagram grammar card (graph and sequence) for agent authoring guidance. It is appended
+/// to the `vox_validate_diagram` MCP tool description and published verbatim in
+/// `docs/src/reference/vox-diagram.md`; `tests/grammar_card.rs` keeps the two in sync.
 pub const GRAMMAR_CARD: &str = include_str!("../grammar-card.txt");
 
 pub use check::{Parsed, check, parse};

@@ -1,4 +1,4 @@
-VoxDiagram graph. Put it in a vox-diagram fenced block. EVERY label is "double quoted".
+VoxDiagram: graph or sequence. Put it in a vox-diagram fenced block. EVERY label is "double quoted".
 
 graph {
     direction: right // down | right | up | left (optional, default down)
@@ -17,12 +17,21 @@ graph {
     backend.engine -> db
 }
 
+sequence {
+    actor ui: "Desktop Client"
+    actor api: "Gateway"
+    ui -> api: "POST /run"
+    note over api: "validates input"
+    reply api -> ui: "202 Accepted" // reply is the dashed return
+}
+
 Rules
 1. Declare every node: node id: "Label". An edge never creates a node.
 2. The arrow is exactly ->. Endpoints are nodes, never containers (use container.node).
 3. Ids: letters, digits, _ and -; start with a letter or _. Reserved: graph sequence direction node container shape
 4. One statement per line, one arrow per statement. Comments are // only. Escapes in labels: \" \\ \n.
-5. Limits: 64 KiB, 500 nodes, 1000 edges, depth 4, labels 200 chars.
+5. Sequences: declare every actor first. a -> b: "text" is a message, reply a -> b: "text" a dashed return, note over a[, b]: "text" a note.
+6. Limits: 64 KiB, 500 nodes, 1000 edges, depth 4, labels 200 chars.
 
 Do NOT write Mermaid (each is an error):
   A[Label] --> B           => node a: "Label" then a -> b
