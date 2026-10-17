@@ -43,7 +43,7 @@
 - Gamification: 50 CLI commands, 16 MCP tools, 1 GUI surfaces
 - Build & deploy: 27 CLI commands, 0 MCP tools, 0 GUI surfaces
 - Docs: 0 CLI commands, 0 MCP tools, 0 GUI surfaces
-- Platform (other): 36 CLI commands, 97 MCP tools, 2 GUI surfaces
+- Platform (other): 40 CLI commands, 97 MCP tools, 2 GUI surfaces
 
 - [MCP tool reference](https://voxlang.org/reference/mcp-tool-registry-contract/): every MCP tool, its schema and contract
 - [GUI navigation](https://voxlang.org/reference/gui-navigation/): desktop app surfaces and how to reach them

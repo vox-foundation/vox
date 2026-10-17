@@ -1634,6 +1634,22 @@
       "feature_gate": null
     },
     {
+      "path": "diagram export",
+      "feature_gate": null
+    },
+    {
+      "path": "diagram fmt",
+      "feature_gate": null
+    },
+    {
+      "path": "diagram import",
+      "feature_gate": null
+    },
+    {
+      "path": "diagram render",
+      "feature_gate": null
+    },
+    {
       "path": "dispatch",
       "feature_gate": null
     },
@@ -4550,6 +4566,10 @@
     "diag.doctor",
     "diagram",
     "diagram.check",
+    "diagram.export",
+    "diagram.fmt",
+    "diagram.import",
+    "diagram.render",
     "diagram.validate",
     "dispatch",
     "dispatch.preview",

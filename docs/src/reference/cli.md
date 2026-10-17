@@ -211,12 +211,16 @@ Check VoxDiagram sources (the `graph` and `sequence` diagram languages) from a f
 | Subcommand | Role |
 |------------|------|
 | `vox diagram check <file\|->` | Print every diagnostic as `<file>:<line>:<col>: <code>: <message>` on stderr (`<stdin>` for `-`). Warnings print and do not fail. |
+| `vox diagram fmt <file\|-> [--check \| --write]` | Print the canonical form. `--check` exits 1 when the file is not canonical. `--write` rewrites the file in place through a sibling temp file and rename, only for a valid source, and refuses `-`. |
+| `vox diagram render <file\|-> [-o FILE]` | Write deterministic SVG to stdout or `FILE`. A diagram over the render caps exits 1 with the reason. |
+| `vox diagram export <file\|-> [-o FILE]` | Write Mermaid to stdout or `FILE`. |
+| `vox diagram import <file\|-> [-o FILE]` | Convert one Mermaid block to canonical VoxDiagram, or print `<file>:<line>: unsupported: <construct>` lines and exit 1. |
 
 | Exit code | Meaning |
 |-----------|---------|
 | 0 | The diagram is valid (warnings allowed) |
-| 1 | At least one Error diagnostic |
-| 2 | Usage error, unreadable input, or a refused flag combination |
+| 1 | At least one Error diagnostic, a non-canonical `fmt --check`, unsupported `import` lines, or a failed render |
+| 2 | Usage error, unreadable input or unwritable output, or `--json` combined with `-o`, `--write` or `--check` |
 
 ### `vox kb eval`
 

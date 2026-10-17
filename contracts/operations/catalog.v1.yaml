@@ -27824,6 +27824,114 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: null
+- id: diagram.fmt
+  title: Diagram Fmt
+  description: Print the canonical form of a diagram, or verify (--check) or rewrite (--write) the file
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - diagram
+    - fmt
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: diagram.render
+  title: Diagram Render
+  description: Render a diagram as deterministic SVG to stdout or -o FILE
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - diagram
+    - render
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: diagram.export
+  title: Diagram Export
+  description: Export a diagram as Mermaid to stdout or -o FILE
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - diagram
+    - export
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: diagram.import
+  title: Diagram Import
+  description: Convert a Mermaid block to canonical VoxDiagram and list unsupported lines (exit 1)
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - diagram
+    - import
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
 - id: gui.rules
   title: GUI Design Rules
   description: List the registered GUI design rules (gui-design-rule/*) so a generator

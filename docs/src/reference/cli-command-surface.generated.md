@@ -21,7 +21,7 @@ category: "Language Reference"
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml) (itself projected from [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml)).
 
-**schema_version:** `1` · **vox-cli operations:** 1007
+**schema_version:** `1` · **vox-cli operations:** 1011
 
 | Path | Status | Feature gate | Latin ns | Product lane | Catalog group |
 |------|--------|--------------|----------|--------------|----------------|
@@ -433,6 +433,10 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox diag doctor` | active | — | diag | platform | — |
 | `vox diagram` | active | — | — | ai | — |
 | `vox diagram check` | active | — | — | ai | — |
+| `vox diagram export` | active | — | — | ai | — |
+| `vox diagram fmt` | active | — | — | ai | — |
+| `vox diagram import` | active | — | — | ai | — |
+| `vox diagram render` | active | — | — | ai | — |
 | `vox dispatch` | active | — | — | platform | — |
 | `vox dispatch preview` | active | — | — | platform | — |
 | `vox doctor` | active | — | diag | platform | — |

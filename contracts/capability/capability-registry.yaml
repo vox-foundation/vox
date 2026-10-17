@@ -7438,6 +7438,78 @@ curated:
   - diagram
   - check
   parameters: null
+- id: cli.diagram.export
+  title: Diagram Export
+  description_human: null
+  description_model: Export a diagram as Mermaid to stdout or -o FILE
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - diagram
+  - export
+  parameters: null
+- id: cli.diagram.fmt
+  title: Diagram Fmt
+  description_human: null
+  description_model: Print the canonical form of a diagram, or verify (--check) or rewrite (--write) the file
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - diagram
+  - fmt
+  parameters: null
+- id: cli.diagram.import
+  title: Diagram Import
+  description_human: null
+  description_model: Convert a Mermaid block to canonical VoxDiagram and list unsupported lines (exit 1)
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - diagram
+  - import
+  parameters: null
+- id: cli.diagram.render
+  title: Diagram Render
+  description_human: null
+  description_model: Render a diagram as deterministic SVG to stdout or -o FILE
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - diagram
+  - render
+  parameters: null
 - id: cli.dispatch
   title: Dispatch
   description_human: null

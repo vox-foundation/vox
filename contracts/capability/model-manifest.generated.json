@@ -8271,6 +8271,54 @@
       "curated": true
     },
     {
+      "capability_id": "cli.diagram.export",
+      "cli_path": [
+        "diagram",
+        "export"
+      ],
+      "implicit": false,
+      "title": "Diagram Export",
+      "description_model": "Export a diagram as Mermaid to stdout or -o FILE",
+      "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.diagram.fmt",
+      "cli_path": [
+        "diagram",
+        "fmt"
+      ],
+      "implicit": false,
+      "title": "Diagram Fmt",
+      "description_model": "Print the canonical form of a diagram, or verify (--check) or rewrite (--write) the file",
+      "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.diagram.import",
+      "cli_path": [
+        "diagram",
+        "import"
+      ],
+      "implicit": false,
+      "title": "Diagram Import",
+      "description_model": "Convert a Mermaid block to canonical VoxDiagram and list unsupported lines (exit 1)",
+      "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.diagram.render",
+      "cli_path": [
+        "diagram",
+        "render"
+      ],
+      "implicit": false,
+      "title": "Diagram Render",
+      "description_model": "Render a diagram as deterministic SVG to stdout or -o FILE",
+      "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
       "capability_id": "cli.dispatch",
       "cli_path": [
         "dispatch"

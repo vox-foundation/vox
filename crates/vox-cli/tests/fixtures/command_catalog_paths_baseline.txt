@@ -315,6 +315,10 @@ diag
 diag/doctor
 diagram
 diagram/check
+diagram/export
+diagram/fmt
+diagram/import
+diagram/render
 dispatch
 dispatch/preview
 doctor

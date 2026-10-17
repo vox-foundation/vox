@@ -96,8 +96,6 @@
     "workflow"
   ],
   "surface_count": 117,
-  "unclassified_backfilled": [
-    "diagram"
-  ],
+  "unclassified_backfilled": [],
   "wiring_violations": []
 }
