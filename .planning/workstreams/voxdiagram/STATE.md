@@ -132,3 +132,7 @@ None yet.
 - [Phase 86]: 86-02: Mermaid --> in a sequence rewrites to 'reply a -> b' like -->>; other Mermaid links and side notes are reported without a fix
 - [Phase 86]: 86-03: note text soft-wraps at 60 cells like messages; REND-05 left open for 86-04 (corpus block + browser review)
 - [Phase 86]: 86-04: ImportReport.sequence kept; source.is_some() == unsupported.is_empty() for every kind; empty Note text refused as empty-label (DSL has no empty note)
+
+## Pending Todos (voxdiagram)
+
+- At the next merge of local `main` (`ceb1b5d1a`, other session's v1.5/v1.6) into `milestone/v1.7-voxdiagram`: (1) call `vox_doc_pipeline::diagrams::fence_issues(md)` from `self_heal_bot::validate_bot_patch_scope_and_gates` + one test; (2) re-seed `contracts/documentation/legacy-mermaid-baseline.v1.yaml` (user re-seeds; main has 40 fences / 25 files) — decided 2026-10-17.

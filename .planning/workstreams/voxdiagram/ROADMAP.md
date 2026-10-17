@@ -185,9 +185,14 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. Adding a new ```` ```mermaid ```` fence anywhere under `docs/src` (excluding `archive/`) fails doc lint with a clear message; the baseline is seeded from the committed tree at implementation time (33 fences / 21 files on 2026-10-16), can only be tightened (shrink-only), and the pre-push base-ref compare fails if it grows; prose mentions and 4-backtick example blocks are not counted.
   2. A malformed ```` ```vox-diagram ```` fence fails doc lint with the `diagram/*` diagnostic and file:line span, and a valid one passes; the `vox` doctest runner never compiles it (exact info-string matching verified against the `lint.rs` comma-split vs `doctest.rs` whole-string behavior).
-  3. `vox-doc-pipeline` re-exports `vox_diagram` (so the CLI needs no third edge), the self-heal-bot pre-PR check also validates `vox-diagram` fences, and `vox ci crate-edges` passes with exactly one new edge, `vox-doc-pipeline -> vox-diagram`, recorded as an exception citing the 2026-10-16 chat authorization; `orphan_exempt` is removed.
+  3. `vox-doc-pipeline` re-exports `vox_diagram` (so the CLI needs no third edge), the doc pipeline exposes `fence_issues(md)` for the self-heal bot (bot wiring deferred to the next merge of local `main`, which is where the bot lives — user decision 2026-10-17), and `vox ci crate-edges` passes with exactly one new edge, `vox-doc-pipeline -> vox-diagram`, recorded as an exception citing the 2026-10-16 chat authorization; `orphan_exempt` is removed.
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 87-01-PLAN.md — crate edge + `vox-diagram` fence lint (`diagram/*` at file:line:col, doctest-runner proof, near-miss info strings, exception, re-export, `orphan_exempt` removal) (wave 1)
+- [ ] 87-02-PLAN.md — legacy-Mermaid ratchet in doc lint (fence-aware whole-tree count, seed/tighten, real baseline seeded 33/21) (wave 2)
+- [ ] 87-03-PLAN.md — base-ref compare in the fast pre-push tier, docs rows, phase closing gates (wave 3)
 **Research flag**: standard patterns (ratchet copies `facet_backlog.rs`; keep `pipeline/mod.rs` edits small, it is already over the 500-line limit).
 **Folded decisions**: no other crate edge is added without fresh user approval; the baseline is never regenerated to admit anything.
 **Parallelism**: can run in parallel with Phases 84 and 85.

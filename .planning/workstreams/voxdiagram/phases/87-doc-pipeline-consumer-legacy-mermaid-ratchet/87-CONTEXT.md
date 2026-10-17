@@ -27,7 +27,7 @@ Requirements: DOCS-01, DOCS-02.
 - Crate edge (USER-AUTHORIZED in chat 2026-10-16): add exactly `vox-doc-pipeline -> vox-diagram` with ONE `exceptions` entry in `contracts/ci/crate-edges.allow.v1.json` citing that authorization. No other edge. Never regenerate a baseline to admit anything.
 - `pub use vox_diagram as diagram;` re-export from `vox-doc-pipeline` (so the CLI in Phase 88 needs no third edge).
 - Remove `orphan_exempt` for `vox-diagram` in `docs/src/architecture/layers.toml`.
-- Self-heal bot's pre-PR check also runs the `vox-diagram` fence validation.
+- Self-heal bot: the bot (`claims/self_heal_bot.rs`) exists only in local `main`'s unpushed commit `ceb1b5d1a`, not on this branch. User decision 2026-10-17: expose `diagrams::fence_issues(md)` now; wire the bot (~3 lines + test) and re-seed the Mermaid baseline when this branch next merges `main`.
 - Keep `pipeline/mod.rs` edits small (already over the 500-line limit) — new logic in new modules.
 
 ### Roadmap correction (2026-10-17)
