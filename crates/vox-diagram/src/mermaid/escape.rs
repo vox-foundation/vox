@@ -3,8 +3,9 @@
 use std::fmt::Write as _;
 
 /// Ids Mermaid rejects, or silently mishandles, wherever they appear (lowercase compare;
-/// a deliberate superset because `End` and `END` are accepted by Mermaid).
-const KEYWORDS: [&str; 14] = [
+/// a deliberate superset because `End` and `END` are accepted by Mermaid). `_self`, `_blank`,
+/// `_parent` and `_top` are the link targets of `click`, and fail as ids.
+const KEYWORDS: [&str; 18] = [
     "end",
     "graph",
     "flowchart",
@@ -19,6 +20,10 @@ const KEYWORDS: [&str; 14] = [
     "call",
     "href",
     "direction",
+    "_self",
+    "_blank",
+    "_parent",
+    "_top",
 ];
 
 /// Mermaid's direction words, lowercase.
@@ -128,7 +133,10 @@ pub(crate) fn keeps_id(id: &str) -> bool {
         && id
             .strip_prefix('n')
             .is_some_and(|d| !d.is_empty() && d.bytes().all(|b| b.is_ascii_digit()));
+    // A line that ends in `direction` and a next line that starts `LR` (or `TB`, ...) are one
+    // statement to the flowchart lexer; an id is the only unquoted text that can end a line.
     !(KEYWORDS.contains(&lower.as_str())
+        || lower.ends_with("direction")
         || lower.contains("style")
         || lower.contains("classdef")
         || id.starts_with(['o', 'x'])
@@ -204,6 +212,24 @@ mod tests {
             "Default", "graph",
         ] {
             assert!(!keeps_id(id), "{id}");
+        }
+    }
+
+    #[test]
+    fn keeps_id_rejects_link_targets_and_direction_endings() {
+        for id in [
+            "_self",
+            "_blank",
+            "_parent",
+            "_top",
+            "_Self",
+            "adirection",
+            "my_Direction",
+        ] {
+            assert!(!keeps_id(id), "{id}");
+        }
+        for id in ["_selfie", "top", "direction_x", "dir"] {
+            assert!(keeps_id(id), "{id}");
         }
     }
 

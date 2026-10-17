@@ -15,17 +15,26 @@ flowchart TD
     n13["kw href"]
     n14["kw direction"]
     n15["kw flowchart"]
-    subgraph n20 ["Click box"]
+    n16["kw _self"]
+    n17["kw _blank"]
+    n18["kw _parent"]
+    n19["kw _top"]
+    n20["kw adirection"]
+    LR1["kw LR1"]
+    subgraph n27 ["Click box"]
         in0["inside 0"]
-        subgraph n22 ["Interpolate box"]
+        subgraph n29 ["Interpolate box"]
             in2["inside 2"]
         end
     end
-    subgraph n21 ["Default box"]
+    subgraph n28 ["Default box"]
         in1["inside 1"]
-        subgraph n23 ["End box"]
+        subgraph n30 ["End box"]
             in3["inside 3"]
         end
+    end
+    subgraph n31 ["Top box"]
+        in4["inside 4"]
     end
     n0 --> n1
     n1 --> n2
@@ -42,8 +51,17 @@ flowchart TD
     n12 --> n13
     n13 --> n14
     n14 --> n15
-    n15 --> in0
+    n15 --> n16
+    n16 --> n17
+    n17 --> n18
+    n18 --> n19
+    n19 --> n20
+    n20 --> LR1
+    LR1 --> in0
     in0 --> in1
     in1 --> in2
     in2 --> in3
+    in3 --> in4
     n0 -->|"to the end box"| in3
+    n0 --> n20
+    LR1 --> n0

@@ -33,12 +33,49 @@
       ]
     ],
     [
+      "inside 4",
+      "rect",
+      [
+        "Top box"
+      ]
+    ],
+    [
       "kw END",
       "rect",
       []
     ],
     [
       "kw End",
+      "rect",
+      []
+    ],
+    [
+      "kw LR1",
+      "rect",
+      []
+    ],
+    [
+      "kw _blank",
+      "rect",
+      []
+    ],
+    [
+      "kw _parent",
+      "rect",
+      []
+    ],
+    [
+      "kw _self",
+      "rect",
+      []
+    ],
+    [
+      "kw _top",
+      "rect",
+      []
+    ],
+    [
+      "kw adirection",
       "rect",
       []
     ],
@@ -170,6 +207,24 @@
     ],
     [
       [
+        "inside 3",
+        "rect",
+        [
+          "Default box",
+          "End box"
+        ]
+      ],
+      [
+        "inside 4",
+        "rect",
+        [
+          "Top box"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
         "kw END",
         "rect",
         []
@@ -189,6 +244,99 @@
       ],
       [
         "kw END",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "kw LR1",
+        "rect",
+        []
+      ],
+      [
+        "inside 0",
+        "rect",
+        [
+          "Click box"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "kw LR1",
+        "rect",
+        []
+      ],
+      [
+        "kw end",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "kw _blank",
+        "rect",
+        []
+      ],
+      [
+        "kw _parent",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "kw _parent",
+        "rect",
+        []
+      ],
+      [
+        "kw _top",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "kw _self",
+        "rect",
+        []
+      ],
+      [
+        "kw _blank",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "kw _top",
+        "rect",
+        []
+      ],
+      [
+        "kw adirection",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "kw adirection",
+        "rect",
+        []
+      ],
+      [
+        "kw LR1",
         "rect",
         []
       ],
@@ -303,16 +451,27 @@
     ],
     [
       [
+        "kw end",
+        "rect",
+        []
+      ],
+      [
+        "kw adirection",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
         "kw flowchart",
         "rect",
         []
       ],
       [
-        "inside 0",
+        "kw _self",
         "rect",
-        [
-          "Click box"
-        ]
+        []
       ],
       ""
     ],
@@ -409,6 +568,9 @@
     ],
     [
       "Default box"
+    ],
+    [
+      "Top box"
     ]
   ]
 }

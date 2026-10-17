@@ -154,29 +154,41 @@ fn keyword_ids() -> GraphIr {
         "href",
         "direction",
         "flowchart",
+        "_self",
+        "_blank",
+        "_parent",
+        "_top",
+        "adirection",
+        "LR1",
     ];
     let mut nodes: Vec<Node_> = words
         .iter()
         .map(|w| rect(w, &format!("kw {w}"), None))
         .collect();
-    let boxes: [Box_; 4] = [
+    let boxes: [Box_; 5] = [
         ("click", "Click box", None),
         ("default", "Default box", None),
         ("interpolate", "Interpolate box", Some(0)),
         ("end", "End box", Some(1)),
+        ("_top", "Top box", None),
     ];
-    for (i, c) in [Some(0usize), Some(1), Some(2), Some(3)]
+    for (i, c) in [Some(0usize), Some(1), Some(2), Some(3), Some(4)]
         .into_iter()
         .enumerate()
     {
         nodes.push(rect(
-            ["in0", "in1", "in2", "in3"][i],
+            ["in0", "in1", "in2", "in3", "in4"][i],
             &format!("inside {i}"),
             c,
         ));
     }
     let mut edges = chain(&nodes);
-    edges.push((0, nodes.len() - 1, Some("to the end box".into())));
+    edges.push((0, nodes.len() - 2, Some("to the end box".into())));
+    // A line ending in `adirection` right before a line starting `LR1`: Mermaid's flowchart lexer
+    // reads `direction` + newline + `LR` as one statement and drops the next hop.
+    let last = |w: &str| nodes.iter().position(|n| n.0 == w).unwrap_or(0);
+    edges.push((0, last("adirection"), None));
+    edges.push((last("LR1"), 0, None));
     build(&boxes, &nodes, &edges)
 }
 

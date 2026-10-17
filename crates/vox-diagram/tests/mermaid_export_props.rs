@@ -12,7 +12,7 @@ use vox_diagram::ir::{Direction, GraphIr, Ir, IrContainer, IrEdge, IrNode, Shape
 use vox_diagram::mermaid::export;
 
 /// Lowercase Mermaid words an emitted id must never equal.
-const KEYWORDS: [&str; 14] = [
+const KEYWORDS: [&str; 18] = [
     "end",
     "graph",
     "flowchart",
@@ -27,11 +27,39 @@ const KEYWORDS: [&str; 14] = [
     "call",
     "href",
     "direction",
+    "_self",
+    "_blank",
+    "_parent",
+    "_top",
 ];
 
-const POOL: [&str; 22] = [
-    "end", "End", "click", "default", "o", "x", "ox", "n0", "n7", "a-b", "\u{fc}", "a", "b", "c",
-    "kb", "ok", "my_style", "graph", "ghost", "a.b", "", "k1",
+const POOL: [&str; 26] = [
+    "end",
+    "End",
+    "click",
+    "default",
+    "o",
+    "x",
+    "ox",
+    "n0",
+    "n7",
+    "a-b",
+    "\u{fc}",
+    "a",
+    "b",
+    "c",
+    "kb",
+    "ok",
+    "my_style",
+    "graph",
+    "ghost",
+    "a.b",
+    "",
+    "k1",
+    "_self",
+    "_Top",
+    "adirection",
+    "LR1",
 ];
 
 fn id() -> impl Strategy<Value = String> {
@@ -125,6 +153,8 @@ fn assert_safe_id(s: &str) -> Result<(), TestCaseError> {
     let lower = s.to_ascii_lowercase();
     prop_assert!(is_id_shaped(s), "id shape: {s:?}");
     prop_assert!(!KEYWORDS.contains(&lower.as_str()), "keyword id {s:?}");
+    // A line ending in `direction` and a next line starting `LR` are one statement to Mermaid.
+    prop_assert!(!lower.ends_with("direction"), "direction-ending id {s:?}");
     prop_assert!(
         !lower.contains("style") && !lower.contains("classdef"),
         "style-ish id {s:?}"
