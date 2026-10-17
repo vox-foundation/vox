@@ -6,6 +6,15 @@
 //! large diagram can export validly yet fail to render; the exporter cannot fix that.
 //! [`import()`](crate::mermaid::import()) is fail-closed: a block it cannot read in full yields no output, only the list
 //! of offending lines. `Unsupported::line` is 1-based within the block.
+//!
+//! The importer must agree with Mermaid's own parser (pinned at 11.17.2 and checked by the
+//! `docs-astro` oracle): it reads exactly what Mermaid accepts, with the same meaning, and refuses
+//! the rest. Reserved words are position-aware (`subgraph style` and `A --> Note: hi` import,
+//! `A --> Note` does not). Deliberate over-refusals: `direction <TB|TD|LR|RL|BT>` in any case
+//! inside text or split across lines (Mermaid's flowchart lexer is case-sensitive, its state
+//! lexer is not); a state transition `A --> B: ` whose label is only a space (lines are trimmed
+//! before scanning); a lone `o` / `x` id fused to an arrow. Render-only semantics (`fa:` icons,
+//! `$$` maths, the 50,000-character text limit) are outside the parser and not checked.
 
 use crate::sequence_ir::SequenceIr;
 

@@ -146,3 +146,57 @@ fn dash_edge_text_with_single_dashes_and_quoted_text_still_imports() {
     // The first `-->` closes the text; the rest is the next hop (Mermaid reads it the same way).
     imports(&flow("A -- a-->b --> B"));
 }
+
+// Found by differential fuzzing against the oracle (iteration 3): more silent accepts.
+
+#[test]
+fn more_than_one_space_after_a_pipe_label_is_refused() {
+    for body in [
+        "a -->|t|  b",
+        "a -->|t| \tb",
+        "a -->|t|\t\tb",
+        "a -->|t|   b",
+        "a -->|t|  b & c",
+        "a -->| t |  b",
+        "a --> |t|  b",
+        "a -->|\"t\"|  b",
+    ] {
+        refused_as(&flow(body), 2, "edge-label");
+    }
+    // Zero or one whitespace after the closing pipe, and any amount before the opening one.
+    for body in [
+        "a -->|t| b",
+        "a -->|t|\tb",
+        "a -->|t|b",
+        "a -->  |t| b",
+        "a -->|t| b & c",
+    ] {
+        imports(&flow(body));
+    }
+}
+
+#[test]
+fn a_bare_o_or_x_id_fused_to_an_arrow_is_refused() {
+    // `o--` and `x--` start a circle / cross link in Mermaid's lexer.
+    for body in ["o-->b", "x-->b", "b-->o-->c", "a & x-->b"] {
+        refused_as(&flow(body), 2, "invalid-id");
+    }
+    for body in [
+        "o --> b",
+        "o -->b",
+        "ox-->b",
+        "xa-->b",
+        "a-->o",
+        "a-->o ",
+        "o[\"x\"]-->b",
+    ] {
+        imports(&flow(body));
+    }
+}
+
+#[test]
+fn sequence_title_followed_by_a_space_is_a_title_statement_in_any_case() {
+    for line in ["Title ->> A: x", "TITLE  ->>  A: x", "title ->> A: x"] {
+        refused_as(&format!("sequenceDiagram\n  {line}\n"), 2, "title");
+    }
+}

@@ -126,7 +126,9 @@ pub fn canon_sequence(s: &SequenceIr) -> Value {
                 json!(["message", f, t, dashed, text.trim()])
             }
             SeqEvent::Note { over, text, .. } => {
-                let who: Vec<usize> = over.iter().take(2).map(|id| at(id)).collect();
+                let mut who: Vec<usize> = over.iter().take(2).map(|id| at(id)).collect();
+                // Mermaid lists `Note over A,A` as a note over A.
+                who.dedup();
                 json!(["note", who, text.trim()])
             }
         })

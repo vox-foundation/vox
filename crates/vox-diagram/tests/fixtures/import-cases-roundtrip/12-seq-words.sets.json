@@ -29,6 +29,13 @@
       2,
       true,
       "dashed"
+    ],
+    [
+      "note",
+      [
+        2
+      ],
+      "twice"
     ]
   ]
 }

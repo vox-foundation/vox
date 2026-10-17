@@ -160,6 +160,14 @@ fn edge_text(raw: &str, quoted: bool, special: &str) -> Res<Option<String>> {
     Ok((!label.is_empty()).then_some(label))
 }
 
+/// Mermaid rejects more than one whitespace character between a closing pipe and what follows.
+fn pipe_gap(rest: &str) -> Res<()> {
+    if rest.chars().take_while(|c| c.is_whitespace()).count() > 1 {
+        return bad("edge-label");
+    }
+    Ok(())
+}
+
 /// Mermaid rejects zero-length quoted and pipe text (`""`, `||`) as a parse error.
 fn non_empty(raw: &str) -> Res<&str> {
     if raw.is_empty() {
@@ -179,10 +187,12 @@ fn arrow(cur: &mut &str) -> Res<Option<String>> {
         if let Some(q) = p.strip_prefix('"') {
             let end = q.find('"').ok_or("edge-label")?;
             *cur = q[end + 1..].strip_prefix('|').ok_or("edge-label")?;
+            pipe_gap(cur)?;
             return edge_text(non_empty(&q[..end])?, true, "");
         }
         let end = p.find('|').ok_or("edge-label")?;
         *cur = &p[end + 1..];
+        pipe_gap(cur)?;
         return edge_text(non_empty(&p[..end])?, false, NODE_SPECIAL);
     }
     if let Some(r) = s

@@ -63,6 +63,10 @@ const FLOW_BARE_WORDS: [&str; 3] = ["click", "href", "call"];
 /// A flowchart node reference; `after` is the text right behind the id.
 pub(super) fn flow_ref(id: &str, after: &str) -> Check {
     valid_id(id)?;
+    // `o--` and `x--` start a circle or cross link, so a lone `o` / `x` fused to an arrow is lost.
+    if matches!(id, "o" | "x") && after.starts_with('-') {
+        return Err("invalid-id");
+    }
     let shaped = after.starts_with(['[', '(', '{']);
     reserved(FLOW_WORDS.contains(&head(id)) || (!shaped && FLOW_BARE_WORDS.contains(&id)))
 }

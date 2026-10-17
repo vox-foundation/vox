@@ -103,6 +103,10 @@ fn note(tail: &str) -> Result<Stmt, String> {
 
 fn message(line: &str) -> Result<Stmt, String> {
     let (from, rest) = id_run(line);
+    // `title` followed by whitespace is a title statement, whatever follows it, in any case.
+    if from.eq_ignore_ascii_case("title") && rest.starts_with(char::is_whitespace) {
+        return Err("title".to_owned());
+    }
     let rest = rest.trim_start();
     let Some(&(token, dashed)) = ARROWS.iter().find(|(t, _)| rest.starts_with(t)) else {
         return Err("statement".to_owned());
