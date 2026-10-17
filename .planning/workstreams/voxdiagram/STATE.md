@@ -4,18 +4,18 @@ milestone: v1.7
 milestone_name: VoxDiagram
 current_phase: 87
 current_phase_name: Doc-Pipeline Consumer & Legacy-Mermaid Ratchet
-current_plan: 1
+current_plan: 2
 status: executing
-stopped_at: Phase 86 complete, ready to plan Phase 87
-last_updated: "2026-10-17T17:48:48.748Z"
+stopped_at: Completed 87-01-PLAN.md
+last_updated: "2026-10-17T18:08:23.273Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 87 execution started
-state_head: e5bb1076804d1f8234425d5ef1821377eb3d4aea
+state_head: 80ee4f58d3639c9f7e4054e3d2878c98679a404e
 progress:
   total_phases: 9
   completed_phases: 4
   total_plans: 24
-  completed_plans: 21
+  completed_plans: 22
 ---
 
 # Project State: VoxDiagram (`voxdiagram`)
@@ -30,8 +30,8 @@ See: `.planning/PROJECT.md` (shared, owned by the `unified` workstream, not edit
 ## Current Position
 
 Phase: 87 (Doc-Pipeline Consumer & Legacy-Mermaid Ratchet) — EXECUTING
-Plan: 1 of 3
-Status: Executing Phase 87
+Plan: 2 of 3
+Status: Ready to execute
 Last activity: 2026-10-17 — Phase 87 execution started
 
 Progress: [████░░░░░░] 44% (0/9 phases)
@@ -39,7 +39,7 @@ Progress: [████░░░░░░] 44% (0/9 phases)
 ## Progress
 
 **Phases Complete:** 0
-**Current Plan:** 1
+**Current Plan:** 2
 
 ## Key Decisions (milestone-level)
 
@@ -64,9 +64,9 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-10-17T16:37:44.431Z
+**Last session:** 2026-10-17T18:08:23.240Z
 
-**Stopped At:** Phase 86 complete, ready to plan Phase 87
+**Stopped At:** Completed 87-01-PLAN.md
 **Resume File:** None
 
 ## Performance Metrics
@@ -94,6 +94,7 @@ None yet.
 | Phase 86 P02 | one session | 3 tasks | 19 files |
 | Phase 86 P03 | 45min | 3 tasks | 15 files |
 | Phase 86 P04 | 55min | 3 tasks | 22 files |
+| Phase 87 P01 | 50min | 3 tasks | 13 files |
 
 ## Decisions
 
@@ -131,6 +132,7 @@ None yet.
 - [Phase 86]: 86-02: Mermaid --> in a sequence rewrites to 'reply a -> b' like -->>; other Mermaid links and side notes are reported without a fix
 - [Phase 86]: 86-03: note text soft-wraps at 60 cells like messages; REND-05 left open for 86-04 (corpus block + browser review)
 - [Phase 86]: 86-04: ImportReport.sequence kept; source.is_some() == unsupported.is_empty() for every kind; empty Note text refused as empty-label (DSL has no empty note)
+- [Phase 87]: 87-01: one exceptions entry admits vox-doc-pipeline -> vox-diagram (2026-10-16 authorization); near-miss vox-diagram info strings are hard diagram-fence-info errors
 
 ## Pending Todos (voxdiagram)
 
