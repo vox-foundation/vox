@@ -23,6 +23,8 @@ const fn px(n: W) -> W {
     n * 2
 }
 
+/// Cells per line of message and note text; longer lines soft-wrap (explicit `\n` is kept).
+const MSG_WRAP_CELLS: usize = 60;
 /// Minimum clearance between two neighbouring actor boxes.
 const ACTOR_GAP: W = px(24);
 /// Clearance between a crossing label box and each lifeline it lies between.
@@ -110,9 +112,9 @@ fn block(n: usize) -> W {
     count(n) * px(W::from(LINE_H))
 }
 
-/// The label box of a message: all lines kept as written, no soft wrap.
+/// The label box of a message: explicit newlines kept, lines soft-wrapped at [`MSG_WRAP_CELLS`].
 fn label_box(text: &str) -> Option<Lbl> {
-    let lines = wrap_at(text, usize::MAX);
+    let lines = wrap_at(text, MSG_WRAP_CELLS);
     if lines.is_empty() {
         return None;
     }
@@ -156,7 +158,7 @@ fn steps(s: &SequenceIr, lanes: &BTreeMap<&str, usize>) -> Result<Vec<Step>, Ren
                         "event {i}: note over no actor"
                     )));
                 };
-                let lines = wrap_at(text, usize::MAX);
+                let lines = wrap_at(text, MSG_WRAP_CELLS);
                 Step::Note {
                     lo,
                     hi,

@@ -112,3 +112,21 @@ fn a_huge_canvas_is_rejected_not_wrapped() {
     let r = place(&seq(&["a", "b"], vec![msg("a", "b", &wide)]));
     assert!(matches!(r, Err(RenderError::Geometry(_))), "{r:?}");
 }
+
+#[test]
+fn message_lines_wrap_at_60() {
+    let text =
+        "The order service confirms the payment with the billing provider before releasing stock";
+    let Some(l) = label_box(text) else {
+        panic!("no label box");
+    };
+    assert_eq!(l.lines.len(), 2, "{:?}", l.lines);
+    assert!(
+        l.lines
+            .iter()
+            .all(|s| crate::layout::text::cells(s) <= MSG_WRAP_CELLS)
+    );
+    assert_eq!(l.lines.join(" "), text);
+    let kept = label_box("one\ntwo").map(|l| l.lines);
+    assert_eq!(kept, Some(vec!["one".to_owned(), "two".to_owned()]));
+}

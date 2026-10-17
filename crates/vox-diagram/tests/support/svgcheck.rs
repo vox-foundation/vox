@@ -45,6 +45,7 @@ pub struct Svg {
 }
 
 mod allow;
+pub mod seq;
 use allow::{ATTRS, CLASSES, ELEMENTS, ENTITIES, STYLE_PROPS};
 
 pub use super::svgnum::Shape;

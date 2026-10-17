@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1328.5 450" role="img" aria-labelledby="vd-title vd-desc" class="vd-diagram" style="font-family:var(--vd-font,system-ui,sans-serif);font-size:14px">
+<title id="vd-title">Diagram</title>
+<desc id="vd-desc">4 actors, 6 messages: Client → Gateway; Gateway → Stock; Stock → Gateway; Client → Stock; Gateway → Billing; Billing → Client</desc>
+<defs>
+<marker id="vd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+<path d="M0 0L10 5L0 10z" style="fill:var(--vd-edge,#57606a)"/>
+</marker>
+</defs>
+<g class="vd-lifelines" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1;stroke-dasharray:4 4">
+<path class="vd-lifeline" d="M49.5 54L49.5 434"/>
+<path class="vd-lifeline" d="M459.5 54L459.5 434"/>
+<path class="vd-lifeline" d="M869.5 54L869.5 434"/>
+<path class="vd-lifeline" d="M1279.5 54L1279.5 434"/>
+</g>
+<g class="vd-nodes">
+<g class="vd-node">
+<rect class="vd-node-shape" x="16" y="16" width="67" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="49.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="49.5" dy="0">Client</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="415.5" y="16" width="88" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="459.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="459.5" dy="0">Gateway</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="835.5" y="16" width="68.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="869.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="869.5" dy="0">Billing</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="1246.5" y="16" width="66" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="1279.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1279.5" dy="0">Stock</tspan></text>
+</g>
+</g>
+<g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
+<path class="vd-edge" d="M49.5 122L459.5 122" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M459.5 204L1279.5 204" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M1279.5 250L459.5 250" marker-end="url(#vd-arrow)" style="stroke-dasharray:6 4"/>
+<path class="vd-edge" d="M49.5 332L1279.5 332" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M459.5 354L869.5 354" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M869.5 418L49.5 418" marker-end="url(#vd-arrow)" style="stroke-dasharray:6 4"/>
+</g>
+<g class="vd-edge-labels">
+<rect class="vd-edge-label-bg" x="67.5" y="74" width="374" height="44" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="254.5" y="92" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="254.5" dy="0">The order service confirms the payment with the billing</tspan><tspan x="254.5" dy="18">provider before releasing stock</tspan></text>
+<rect class="vd-edge-label-bg" x="685" y="138" width="369" height="62" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="869.5" y="156" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="869.5" dy="0">Reserve every line item of the basket, then keep the</tspan><tspan x="869.5" dy="18">reservation alive for the whole fifteen minute checkout</tspan><tspan x="869.5" dy="18">window while the customer is paying</tspan></text>
+<rect class="vd-edge-label-bg" x="857.5" y="220" width="24" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="869.5" y="238" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="869.5" dy="0">ok</tspan></text>
+<rect class="vd-edge-label-bg" x="467.5" y="266" width="394" height="62" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="664.5" y="284" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="664.5" dy="0">Cancel the reservation as soon as the payment fails three</tspan><tspan x="664.5" dy="18">times in a row, release the stock back to the shared pool,</tspan><tspan x="664.5" dy="18">notify the warehouse team and write an audit entry</tspan></text>
+<rect class="vd-edge-label-bg" x="429" y="370" width="61" height="44" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="459.5" y="388" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="459.5" dy="0">line one</tspan><tspan x="459.5" dy="18">line two</tspan></text>
+</g>
+</svg>
