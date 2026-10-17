@@ -4,18 +4,18 @@ milestone: v1.7
 milestone_name: VoxDiagram
 current_phase: 84
 current_phase_name: Mermaid Emitter & Strict Importer
-current_plan: 4
+current_plan: 5
 status: executing
-stopped_at: Completed 84-03-PLAN.md
-last_updated: "2026-10-17T01:38:43.641Z"
+stopped_at: Completed 84-04-PLAN.md
+last_updated: "2026-10-17T01:49:21.894Z"
 last_activity: 2026-10-16
 last_activity_desc: Phase 84 execution started
-state_head: 0219f643977cbd94b88e5043174e07c2aac669cb
+state_head: 3b674a5b27ca06a22bdfa9228925914a4c748555
 progress:
   total_phases: 9
   completed_phases: 1
   total_plans: 12
-  completed_plans: 10
+  completed_plans: 11
 ---
 
 # Project State: VoxDiagram (`voxdiagram`)
@@ -30,7 +30,7 @@ See: `.planning/PROJECT.md` (shared, owned by the `unified` workstream, not edit
 ## Current Position
 
 Phase: 84 (Mermaid Emitter & Strict Importer) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Ready to execute
 Last activity: 2026-10-16 — Phase 84 execution started
 
@@ -39,7 +39,7 @@ Progress: [█░░░░░░░░░] 11% (0/9 phases)
 ## Progress
 
 **Phases Complete:** 0
-**Current Plan:** 4
+**Current Plan:** 5
 
 ## Key Decisions (milestone-level)
 
@@ -64,9 +64,9 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-10-17T01:38:43.612Z
+**Last session:** 2026-10-17T01:49:21.873Z
 
-**Stopped At:** Completed 84-03-PLAN.md
+**Stopped At:** Completed 84-04-PLAN.md
 **Resume File:** None
 
 ## Performance Metrics
@@ -83,6 +83,7 @@ None yet.
 | Phase 84 P01 | 50min | 3 tasks | 55 files |
 | Phase 84 P02 | 45min | 3 tasks | 15 files |
 | Phase 84 P03 | 50min | 3 tasks | 10 files |
+| Phase 84 P04 | 45min | 2 tasks | 10 files |
 
 ## Decisions
 
@@ -103,3 +104,6 @@ None yet.
 - [Phase 84]: 84-02: Mermaid ids assigned nodes, then containers, then dangling endpoints in one namespace; blank message text prints bare, blank actor and note text prints #32;
 - [Phase 84]: 84-03: unquoted -- text --> edge text allows all but the double quote (measured), the pipe form keeps the full special set
 - [Phase 84]: 84-03: a refused subgraph header still opens a frame so its end balances; limit-* constructs are reported once on the crossing line
+- [Phase 84]: stateDiagram-v2 imports into the graph kind: [*] as source/target becomes start/end terminals, printed via flow::to_dsl
+- [Phase 84]: sequenceDiagram imports into ImportReport.sequence with LineIndex spans; participant-after-use and redeclared-participant fail closed instead of last-wins
+- [Phase 84]: Free-text semicolon check is entity-aware (#59; is text); HTML entities in state/sequence text report semicolon
