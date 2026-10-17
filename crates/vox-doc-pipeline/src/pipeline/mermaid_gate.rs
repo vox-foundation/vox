@@ -247,6 +247,45 @@ pub(crate) fn tighten(root: &Path) -> Result<String, String> {
     ))
 }
 
+/// Base-ref compare for the shrink-only ratchet (R4): the head baseline may not exceed the base
+/// baseline for any path. `None` is an absent file. Pre-seed and bootstrap (absent at base) pass;
+/// a baseline deleted after it existed at base, or an unparsable side, fails.
+#[must_use]
+pub fn mermaid_baseline_gate_failures(
+    base_text: Option<&str>,
+    head_text: Option<&str>,
+) -> Vec<String> {
+    let side = |name: &str, text: &str| {
+        parse(text).map_err(|e| vec![format!("[legacy-mermaid] {name} baseline invalid: {e}")])
+    };
+    let base = match base_text.map(|t| side("base", t)).transpose() {
+        Ok(b) => b,
+        Err(f) => return f,
+    };
+    let head = match head_text.map(|t| side("head", t)).transpose() {
+        Ok(h) => h,
+        Err(f) => return f,
+    };
+    let (Some(base), Some(head)) = (base, head) else {
+        // pre-seed or bootstrap pass; a baseline deleted after it existed at base fails
+        return match (base_text, head_text) {
+            (Some(_), None) => vec!["[legacy-mermaid] baseline deleted".to_string()],
+            _ => Vec::new(),
+        };
+    };
+    head.files
+        .iter()
+        .filter_map(|(path, &n)| {
+            let was = base.files.get(path).copied().unwrap_or(0);
+            (n > was).then(|| {
+                format!(
+                    "[legacy-mermaid] {path}: {was} -> {n} fences (the baseline only shrinks against the base ref)"
+                )
+            })
+        })
+        .collect()
+}
+
 impl MermaidIssue {
     pub(crate) fn rule_id(&self) -> &'static str {
         match self {
@@ -323,6 +362,50 @@ mod tests {
         assert!(parse("schema_version: 2\nfiles: {}\n").is_err());
         assert!(parse("schema_version: 1\nfiles: {}\nextra: 1\n").is_err());
         assert!(parse("schema_version: 1\nfiles: {}\n").is_ok());
+    }
+
+    fn bl(files: &[(&str, usize)]) -> String {
+        let rows: String = files.iter().map(|(p, n)| format!("\n  {p}: {n}")).collect();
+        let body = if rows.is_empty() { " {}".into() } else { rows };
+        format!("schema_version: 1\nfiles:{body}\n")
+    }
+
+    #[test]
+    fn gate_text_cases() {
+        let a1 = bl(&[("docs/src/a.md", 1)]);
+        let gate = mermaid_baseline_gate_failures;
+        assert!(gate(None, None).is_empty(), "pre-seed");
+        assert!(gate(None, Some(&a1)).is_empty(), "bootstrap");
+        assert!(gate(Some(&a1), Some(&a1)).is_empty(), "identical");
+        let a2 = bl(&[("docs/src/a.md", 2)]);
+        assert!(gate(Some(&a2), Some(&a1)).is_empty(), "lowered");
+        assert!(gate(Some(&a1), Some(&bl(&[]))).is_empty(), "entry removed");
+
+        let up = gate(Some(&a1), Some(&a2));
+        assert_eq!(up.len(), 1, "{up:?}");
+        assert!(up[0].contains("docs/src/a.md: 1 -> 2"), "{up:?}");
+
+        let b = bl(&[("docs/src/a.md", 1), ("docs/src/b.md", 1)]);
+        let added = gate(Some(&a1), Some(&b));
+        assert_eq!(added.len(), 1, "{added:?}");
+        assert!(added[0].contains("docs/src/b.md: 0 -> 1"), "{added:?}");
+
+        assert_eq!(
+            gate(Some(&a1), None),
+            ["[legacy-mermaid] baseline deleted".to_string()]
+        );
+        let bad_head = gate(Some(&a1), Some("not: [valid"));
+        assert_eq!(bad_head.len(), 1, "{bad_head:?}");
+        assert!(
+            bad_head[0].contains("head baseline invalid"),
+            "{bad_head:?}"
+        );
+        let bad_base = gate(Some("schema_version: 2\nfiles: {}\n"), Some(&a1));
+        assert_eq!(bad_base.len(), 1, "{bad_base:?}");
+        assert!(
+            bad_base[0].contains("base baseline invalid"),
+            "{bad_base:?}"
+        );
     }
 }
 

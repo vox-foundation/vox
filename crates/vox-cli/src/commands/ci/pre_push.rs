@@ -530,6 +530,11 @@ fn build_steps(root: &Path, opts: &PrePushOpts) -> Result<Vec<OwnedStep>> {
             scope: None,
             run: Box::new(step_facet_backlog_gate),
         },
+        OwnedStep {
+            label: "vox-doc-pipeline legacy-Mermaid baseline (shrink-only vs base)".into(),
+            scope: None,
+            run: Box::new(step_mermaid_baseline_gate),
+        },
     ];
 
     if run_complete_static(opts) {
@@ -1118,6 +1123,10 @@ fn step_kb_eval_gate(root: &Path) -> Result<()> {
 
 fn step_facet_backlog_gate(root: &Path) -> Result<()> {
     crate::commands::kb::facet_backlog::run_facet_backlog_gate(root, &prepush_base_ref())
+}
+
+fn step_mermaid_baseline_gate(root: &Path) -> Result<()> {
+    super::mermaid_baseline::run_mermaid_baseline_gate(root, &prepush_base_ref())
 }
 
 fn step_doc_inventory(root: &Path) -> Result<()> {

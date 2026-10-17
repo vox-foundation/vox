@@ -10,6 +10,7 @@ mod gui_catalog_parity;
 mod gui_command_backends;
 mod gui_surface_coverage;
 pub mod gui_surface_registry;
+mod mermaid_baseline;
 mod operations_catalog;
 mod operations_catalog_exposure;
 mod pipeline_parity;

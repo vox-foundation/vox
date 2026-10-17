@@ -15,6 +15,7 @@ mod mermaid_gate;
 pub mod types;
 
 pub use facet_backlog::facet_backlog_gate_failures;
+pub use mermaid_gate::{MERMAID_BASELINE_REL, mermaid_baseline_gate_failures};
 pub use vox_kb_facets::BACKLOG_REL as FACET_BACKLOG_REL;
 
 use std::fs;
