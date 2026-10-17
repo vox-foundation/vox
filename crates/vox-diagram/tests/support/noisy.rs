@@ -17,27 +17,38 @@ const COMMENTS: [&str; 10] = [
     " { } \" '",
 ];
 
-struct Printer {
-    out: String,
-    dice: Vec<u32>,
-    i: usize,
+pub(super) struct Printer {
+    pub(super) out: String,
+    pub(super) dice: Vec<u32>,
+    pub(super) i: usize,
     paths: Vec<String>,
     ctr: usize,
 }
 
 impl Printer {
-    fn d(&mut self, n: usize) -> usize {
+    /// A printer drawing its dice from `n` and carrying no graph paths (sequence printing).
+    pub(super) fn new(n: &Noise) -> Self {
+        Printer {
+            out: String::new(),
+            dice: n.dice.clone(),
+            i: 0,
+            paths: Vec::new(),
+            ctr: 0,
+        }
+    }
+
+    pub(super) fn d(&mut self, n: usize) -> usize {
         let v = self.dice[self.i % self.dice.len()] as usize % n;
         self.i += 1;
         v
     }
 
     /// True once in `k` rolls; never on a zero die, so shrinking drops the noise.
-    fn chance(&mut self, k: usize) -> bool {
+    pub(super) fn chance(&mut self, k: usize) -> bool {
         self.d(k) == k - 1
     }
 
-    fn blanks(&mut self) {
+    pub(super) fn blanks(&mut self) {
         let n = match self.d(8) {
             5 => 1,
             6 => 2,
@@ -47,19 +58,19 @@ impl Printer {
         self.out.push_str(&"\n".repeat(n));
     }
 
-    fn sp(&mut self) -> String {
+    pub(super) fn sp(&mut self) -> String {
         " ".repeat(1 + self.d(3))
     }
 
-    fn sp0(&mut self) -> String {
+    pub(super) fn sp0(&mut self) -> String {
         " ".repeat(self.d(3))
     }
 
-    fn ind(&mut self, level: usize) -> String {
+    pub(super) fn ind(&mut self, level: usize) -> String {
         ["    ", "  ", "\t", " ", ""][self.d(5)].repeat(level)
     }
 
-    fn comment_text(&mut self) -> &'static str {
+    pub(super) fn comment_text(&mut self) -> &'static str {
         COMMENTS[self.d(COMMENTS.len())]
     }
 
@@ -69,7 +80,7 @@ impl Printer {
     }
 
     /// Blank lines, maybe an own-line comment, then the indent of the statement line.
-    fn begin(&mut self, level: usize) {
+    pub(super) fn begin(&mut self, level: usize) {
         self.blanks();
         if self.chance(6) {
             self.own_comment(level);
@@ -82,7 +93,7 @@ impl Printer {
     }
 
     /// Spaces, maybe a trailing comment, then the newline.
-    fn end_line(&mut self) {
+    pub(super) fn end_line(&mut self) {
         let pad = self.sp0();
         self.out.push_str(&pad);
         if self.chance(4) {
@@ -92,7 +103,7 @@ impl Printer {
         self.out.push('\n');
     }
 
-    fn label(&mut self, l: &str) {
+    pub(super) fn label(&mut self, l: &str) {
         self.out.push('"');
         for c in l.chars() {
             match c {
@@ -105,7 +116,7 @@ impl Printer {
         self.out.push('"');
     }
 
-    fn colon(&mut self) {
+    pub(super) fn colon(&mut self) {
         let (a, b) = (self.sp0(), self.sp0());
         self.out.push_str(&format!("{a}:{b}"));
     }
@@ -216,7 +227,7 @@ impl Printer {
         }
     }
 
-    fn comment_lines(&mut self, k: usize) {
+    pub(super) fn comment_lines(&mut self, k: usize) {
         for _ in 0..2 {
             if self.chance(k) {
                 self.blanks();

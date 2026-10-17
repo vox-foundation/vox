@@ -68,7 +68,7 @@ fn allowed(c: char) -> bool {
             | '\u{2028}' | '\u{2029}' | '\u{202a}'..='\u{202e}' | '\u{2066}'..='\u{2069}')
 }
 
-fn label() -> impl Strategy<Value = String> {
+pub fn label() -> impl Strategy<Value = String> {
     let ch = prop_oneof![
         8 => proptest::char::range(' ', '~'),
         2 => any::<char>().prop_filter("allowed label char", |c| allowed(*c)),
@@ -237,6 +237,7 @@ pub mod hostile;
 pub mod mermaid;
 mod noisy;
 pub mod roundtrip;
+pub mod seq;
 pub mod svgcheck;
 pub mod svgnum;
 pub mod theme;
