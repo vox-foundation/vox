@@ -61,8 +61,18 @@ impl Parser<'_> {
             (decoded, quoted)
         };
         let span = Span { start, end };
-        // A lexically bad id was reported already; rewriting it would only repeat the error.
-        let fixes = if bad {
+        // A lexically bad id was reported already; rewriting it would only repeat the error. An
+        // unterminated alias string is closed by the lexer's own fix first; rewriting the same
+        // span in this round would quote the stray `"` into the label.
+        let open_str = raw.is_some()
+            && matches!(
+                self.toks.get(self.pos.wrapping_sub(1)).map(|t| &t.kind),
+                Some(TokenKind::Str {
+                    terminated: false,
+                    ..
+                })
+            );
+        let fixes = if bad || open_str {
             Vec::new()
         } else {
             vec![replace(span, format!("actor {}: {quoted}", id.name))]
@@ -214,6 +224,21 @@ mod tests {
         let p = parse("sequence {\n    participant a \"x\"\n    a -> a\n}\n");
         assert_eq!(p.diagnostics.len(), 1, "{:?}", p.diagnostics);
         assert_eq!(p.diagnostics[0].code, "diagram/unexpected-token");
+    }
+
+    #[test]
+    fn an_unterminated_alias_is_left_to_the_lexer_fix_first() {
+        let p = parse("sequence {\n    participant a as \"open\n}\n");
+        let ms: Vec<_> = p
+            .diagnostics
+            .iter()
+            .filter(|d| d.code == "diagram/mermaid-syntax")
+            .collect();
+        assert!(
+            ms.len() == 1 && ms[0].fixes.is_empty(),
+            "{:?}",
+            p.diagnostics
+        );
     }
 
     #[test]
