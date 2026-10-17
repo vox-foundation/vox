@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1311.5 1162" role="img" aria-labelledby="vd-title vd-desc" class="vd-diagram" style="font-family:var(--vd-font,system-ui,sans-serif);font-size:14px">
+<title id="vd-title">Diagram</title>
+<desc id="vd-desc">12 nodes, 8 edges: Fast Snippet Relevance … → Atomic Claim Extraction…; Atomic Claim Extraction… → First-Pass NLI Filter (…; Multi-Source Long-Form … → Quality Evaluation &amp; Ru…; Quality Evaluation &amp; Ru… → CoVE Adversarial Verifi…; UserQuery → Query Normalization &amp; S…; Query Normalization &amp; S… → Web…</desc>
+<defs>
+<marker id="vd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+<path d="M0 0L10 5L0 10z" style="fill:var(--vd-edge,#57606a)"/>
+</marker>
+</defs>
+<g class="vd-containers">
+<rect class="vd-container" x="490.5" y="72" width="805" height="630" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#d0d7de);stroke-width:1.5"/>
+<text class="vd-container-label" x="893" y="90" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="893" dy="0">Local Models: MENS / Ollama</tspan><tspan x="893" dy="16">/ Candle Metal / CUDA</tspan></text>
+<rect class="vd-container" x="16" y="712" width="1049.5" height="434" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#d0d7de);stroke-width:1.5"/>
+<text class="vd-container-label" x="540.5" y="730" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="540.5" dy="0">OpenRouter / Frontier Cloud</tspan><tspan x="540.5" dy="16">Models</tspan></text>
+</g>
+<g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
+<path class="vd-edge" d="M896.5 414L896.5 444L896.5 474" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M896.5 530L896.5 560L896.5 590" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M896.5 858L896.5 888L896.5 918" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M896.5 974L896.5 1004L896.5 1034" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M893 54L893 84L893 114L893 144" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M893 200L893 222Q893 230 885.5 230.5L443.5 269" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M443.5 288.5L889 327.5Q896.5 328 896.5 336L896.5 358" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M896.5 664L896.5 694L896.5 724L896.5 754L896.5 784" marker-end="url(#vd-arrow)"/>
+</g>
+<g class="vd-nodes">
+<g class="vd-node">
+<rect class="vd-node-shape" x="842" y="16" width="101.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="892.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="892.5" dy="0">UserQuery</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="219.5" y="260" width="224" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="331.5" y="284" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="331.5" dy="0">Web / Local Search Retrieval</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="802.5" y="144" width="180.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="892.5" y="168" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="892.5" dy="0">Query Normalization &amp;</tspan><tspan x="892.5" dy="18">Synonym Expansion</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="799" y="358" width="194.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="896" y="382" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="896" dy="0">Fast Snippet Relevance</tspan><tspan x="896" dy="18">Scoring &amp; De-duplication</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="785" y="474" width="223" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="896.5" y="498" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="896.5" dy="0">Atomic Claim Extraction from</tspan><tspan x="896.5" dy="18">Search Snippets</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="815.5" y="590" width="162" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="896.5" y="614" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="896.5" dy="0">First-Pass NLI Filter</tspan><tspan x="896.5" dy="18">(Eliminate obvious</tspan><tspan x="896.5" dy="18">Non-Entailment)</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="1017.5" y="599" width="215" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="1125" y="623" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1125" dy="0">Local Vector Embeddings &amp;</tspan><tspan x="1125" dy="18">Indexing</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="330" y="1043" width="220.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="440" y="1067" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="440" dy="0">Complex Strategic Multi-Hop</tspan><tspan x="440" dy="18">Planning (when ambiguous)</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="798" y="784" width="196.5" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="896" y="808" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="896" dy="0">Multi-Source Long-Form</tspan><tspan x="896" dy="18">Synthesis with Grounded</tspan><tspan x="896" dy="18">Citations</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="590.5" y="1034" width="182" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="681.5" y="1058" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="681.5" dy="0">Nuanced Contradiction</tspan><tspan x="681.5" dy="18">Arbitration (resolving</tspan><tspan x="681.5" dy="18">conflicting claims)</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="790" y="918" width="212.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="896" y="942" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="896" dy="0">Quality Evaluation &amp; Rubric</tspan><tspan x="896" dy="18">Scoring (LLM Judge)</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="812.5" y="1034" width="167.5" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="896" y="1058" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="896" dy="0">CoVE Adversarial</tspan><tspan x="896" dy="18">Verification Question</tspan><tspan x="896" dy="18">Generation</tspan></text>
+</g>
+</g>
+</svg>

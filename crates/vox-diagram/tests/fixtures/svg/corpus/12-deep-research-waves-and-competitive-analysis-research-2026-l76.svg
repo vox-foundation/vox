@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1438 684" role="img" aria-labelledby="vd-title vd-desc" class="vd-diagram" style="font-family:var(--vd-font,system-ui,sans-serif);font-size:14px">
+<title id="vd-title">Diagram</title>
+<desc id="vd-desc">13 nodes, 16 edges: User Query → Lead Researcher (Superv…; Lead Researcher (Superv… → Task Decomposition &amp; Ro…; Task Decomposition &amp; Ro… → Worker Subagent 1: Topi…; Task Decomposition &amp; Ro… → Worker Subagent 2: Topi…; Task Decomposition &amp; Ro… → Worker Subagent N: Topi…; Worker Subagent 1: Topi… → W…</desc>
+<defs>
+<marker id="vd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+<path d="M0 0L10 5L0 10z" style="fill:var(--vd-edge,#57606a)"/>
+</marker>
+</defs>
+<g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
+<path class="vd-edge" d="M366 54L366 84L366 114" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M479 151.5L1047.5 199.5Q1055 200 1055 208L1055 230" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M1169.5 283.5L1305.5 314.5Q1313 316 1313 324L1313 359" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M1055 286L1055 316L1055 359" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M940.5 283.5L802.5 314.5Q795 316 795 324L795 359" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M1313 397L1313 453L1313 496" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M1055 397L1055 453L1055 496" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M795 397L795 453L795 496" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M1313 552L1313 574Q1313 582 1305.5 582.5L902.5 628" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M1055 552L1055 574Q1055 582 1047.5 583.5L902.5 616" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M795 552L795 582L795 612" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M687.5 632L23.5 582.5Q16 582 16 574L16 524L16 453L16 378L16 316L16 258L16 208Q16 200 23.5 199L253.5 160.5" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M366 170L366 200L366 258L366 316L366 346" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M410 403L490 449Q496.5 453 496.5 461L496.5 496" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M496.5 552L496.5 574Q496.5 582 504 583.5L687.5 619" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M322 403L242.5 449Q236 453 236 461L236 496" marker-end="url(#vd-arrow)"/>
+</g>
+<g class="vd-nodes">
+<g class="vd-node">
+<rect class="vd-node-shape" x="313.5" y="16" width="105.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="366" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="366" dy="0">User Query</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="253.5" y="114" width="225.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="366" y="138" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="366" dy="0">Lead Researcher (Supervisor</tspan><tspan x="366" dy="18">Agent)</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="940.5" y="230" width="229" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="1055" y="254" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1055" dy="0">Task Decomposition &amp; Router</tspan><tspan x="1055" dy="18">(Claude Haiku)</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="1204" y="359" width="218" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="1313" y="383" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1313" dy="0">Worker Subagent 1: Topic A</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="946" y="359" width="218" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="1055" y="383" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1055" dy="0">Worker Subagent 2: Topic B</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="684.5" y="359" width="221.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="795" y="383" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="795" dy="0">Worker Subagent N: Topic C</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="1227.5" y="496" width="171" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="1313" y="520" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1313" dy="0">Write Notes to Virtual</tspan><tspan x="1313" dy="18">Filesystem</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="969.5" y="496" width="171" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="1055" y="520" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1055" dy="0">Write Notes to Virtual</tspan><tspan x="1055" dy="18">Filesystem</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="709.5" y="496" width="171" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="795" y="520" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="795" dy="0">Write Notes to Virtual</tspan><tspan x="795" dy="18">Filesystem</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="687.5" y="612" width="215" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="795" y="636" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="795" dy="0">Subagents Distill Structured</tspan><tspan x="795" dy="18">Findings</tspan></text>
+</g>
+<g class="vd-node">
+<polygon class="vd-node-shape" points="366,346 581,378 366,410 151,378" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="366" y="383" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="366" dy="0">Gaps / Contradictions Found?</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="390" y="496" width="212.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="496" y="520" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="496" dy="0">Spawn Specialist Subagent</tspan><tspan x="496" dy="18">(Tie-Breaker)</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="121.5" y="496" width="228.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="235.5" y="520" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="235.5" dy="0">Synthesize Comprehensive</tspan><tspan x="235.5" dy="18">Report (Claude Opus/Sonnet)</tspan></text>
+</g>
+</g>
+<g class="vd-edge-labels">
+<rect class="vd-edge-label-bg" x="479" y="440" width="34.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="496" y="458" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="496" dy="0">Yes</tspan></text>
+<rect class="vd-edge-label-bg" x="222" y="440" width="27.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="235.5" y="458" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="235.5" dy="0">No</tspan></text>
+</g>
+</svg>

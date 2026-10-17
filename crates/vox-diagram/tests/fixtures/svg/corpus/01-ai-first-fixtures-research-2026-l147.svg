@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 247.5 1194" role="img" aria-labelledby="vd-title vd-desc" class="vd-diagram" style="font-family:var(--vd-font,system-ui,sans-serif);font-size:14px">
+<title id="vd-title">Diagram</title>
+<desc id="vd-desc">11 nodes, 10 edges: voxSource (.vox) → lexer voxCompilerLexer; lexer voxCompilerLexer → parser parseFnDecl head…; parser parseFnDecl head… → hir lower decl.rs; hir lower decl.rs → typeck effect_deps_lint…; typeck effect_deps_lint… → codegen vox_codegen emi…; codegen vox_codegen emi… → runtime vox_a…</desc>
+<defs>
+<marker id="vd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+<path d="M0 0L10 5L0 10z" style="fill:var(--vd-edge,#57606a)"/>
+</marker>
+</defs>
+<g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
+<path class="vd-edge" d="M124 54L124 84L124 114" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M124 152L124 182L124 212" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M124 250L124 280L124 310" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M124 348L124 378L124 408" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M124 464L124 494L124 524" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M124 580L124 610L124 640" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M124 696L124 726L124 756" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M124 830L124 860L124 890" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M124 946L124 976L124 1006" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M124 1062L124 1092L124 1122" marker-end="url(#vd-arrow)"/>
+</g>
+<g class="vd-nodes">
+<g class="vd-node">
+<rect class="vd-node-shape" x="53" y="16" width="141.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="123.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="123.5" dy="0">voxSource (.vox)</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="30.5" y="114" width="187" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="124" y="138" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="124" dy="0">lexer voxCompilerLexer</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="16" y="212" width="215.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="123.5" y="236" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="123.5" dy="0">parser parseFnDecl head.rs</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="57" y="310" width="134" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="124" y="334" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="124" dy="0">hir lower decl.rs</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="26.5" y="408" width="194.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="123.5" y="432" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="123.5" dy="0">typeck effect_deps_lint</tspan><tspan x="123.5" dy="18">cuda_gate ast_decl_lints</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="17.5" y="524" width="213" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="124" y="548" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="124" dy="0">codegen vox_codegen emit</tspan><tspan x="124" dy="18">workflow.rs</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="20.5" y="640" width="207" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="124" y="664" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="124" dy="0">runtime vox_actor_runtime</tspan><tspan x="124" dy="18">llm chat cascade stream</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="46.5" y="756" width="155" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="124" y="780" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="124" dy="0">orchestrator</tspan><tspan x="124" dy="18">subagent_dispatch</tspan><tspan x="124" dy="18">tier_cascade</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="53.5" y="890" width="141" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="124" y="914" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="124" dy="0">mcp dispatch aci</tspan><tspan x="124" dy="18">mutation_kind</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="32.5" y="1006" width="183" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="124" y="1030" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="124" dy="0">telemetry record_event</tspan><tspan x="124" dy="18">fixture_catalog</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="31" y="1122" width="186" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="124" y="1146" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="124" dy="0">vox_db llm_interactions</tspan><tspan x="124" dy="18">research_metrics</tspan></text>
+</g>
+</g>
+</svg>

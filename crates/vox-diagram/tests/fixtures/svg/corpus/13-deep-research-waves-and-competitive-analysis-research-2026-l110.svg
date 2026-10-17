@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1346.5 2070" role="img" aria-labelledby="vd-title vd-desc" class="vd-diagram" style="font-family:var(--vd-font,system-ui,sans-serif);font-size:14px">
+<title id="vd-title">Diagram</title>
+<desc id="vd-desc">18 nodes, 20 edges: Wave 1: Reconnaissance → MENS Local Claim Extrac…; MENS Local Claim Extrac… → Gap &amp; Contradiction Ana…; Gap &amp; Contradiction Ana… → Wave 2: Targeted Deep-D…; Wave 2: Targeted Deep-D… → MENS Local Evidence Tri…; MENS Local Evidence Tri… → Adversarial Bar Met?; Adversarial Bar Met?…</desc>
+<defs>
+<marker id="vd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+<path d="M0 0L10 5L0 10z" style="fill:var(--vd-edge,#57606a)"/>
+</marker>
+</defs>
+<g class="vd-containers">
+<rect class="vd-container" x="16" y="222" width="793" height="1242" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#d0d7de);stroke-width:1.5"/>
+<text class="vd-container-label" x="412.5" y="240" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="412.5" dy="0">Autonomous Multi-Wave DAG</tspan><tspan x="412.5" dy="16">Engine</tspan></text>
+</g>
+<g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
+<path class="vd-edge" d="M440 341L440 380L440 410" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M440 466L440 496L440 526" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M462.5 586.5L502 636Q506.5 642 506.5 650L506.5 694" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M506.5 750L506.5 780L506.5 810" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M506.5 866L506.5 896L506.5 926" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M531.5 984.5L581 1036.5Q586.5 1042 586.5 1050L586.5 1094" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M586.5 1168L586.5 1211L586.5 1254" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M586.5 1310L586.5 1332Q586.5 1340 579.5 1342.5L511 1370" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M381.5 581L234.5 639.5Q227.5 642 227.5 650L227.5 722L227.5 780L227.5 838L227.5 896L227.5 958L227.5 1042L227.5 1131L227.5 1211L227.5 1282L227.5 1332Q227.5 1340 235 1342L342.5 1371.5" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M481.5 984.5L432 1036.5Q426.5 1042 426.5 1050L426.5 1131L426.5 1211L426.5 1282L426.5 1332Q426.5 1340 428 1347.5L433.5 1370" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M919.5 54L919.5 84L919.5 114" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M995 165L1211.5 219.5Q1219 221 1219 229L1219 264L1219 294" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M935.5 175L958 214.5Q962 221 962 229L962 264L962 294" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M845.5 165L639 219Q631.5 221 631.5 229L631.5 256Q631.5 264 624 266L503 303" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M805 158L236 220.5Q228.5 221 228.5 229L228.5 256Q228.5 264 236 266L370.5 303" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M440 1426L440 1456L440 1486L440 1516" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M440 1572L440 1602L440 1632" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M440 1706L440 1736L440 1766" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M440 1822L440 1852L440 1882" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M440 1938L440 1968L440 1998" marker-end="url(#vd-arrow)"/>
+</g>
+<g class="vd-nodes">
+<g class="vd-node">
+<rect class="vd-node-shape" x="844.5" y="16" width="150" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="919.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="919.5" dy="0">User / Chat Query</tspan></text>
+</g>
+<g class="vd-node">
+<polygon class="vd-node-shape" points="919.5,114 1106,146 919.5,178 733,146" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="919.5" y="151" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="919.5" dy="0">Dynamic Triage Classifier</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="1108" y="294" width="222.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="1219" y="318" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1219" dy="0">Return VoxDB FTS5 Cached</tspan><tspan x="1219" dy="18">Knowledge (&lt;50ms)</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="856" y="294" width="212" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="962" y="318" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="962" dy="0">Fast 1-Hop Search + Direct</tspan><tspan x="962" dy="18">Synth (&lt;1s)</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="338" y="1516" width="204" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="440" y="1540" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="440" dy="0">Context Window Budgeter</tspan><tspan x="440" dy="18">(Top-K Spans)</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="342.5" y="1632" width="195.5" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="440" y="1656" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="440" dy="0">Frontier Model Synthesis</tspan><tspan x="440" dy="18">(OpenRouter / Claude /</tspan><tspan x="440" dy="18">Gemini)</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="324.5" y="1766" width="231" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="440" y="1790" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="440" dy="0">Post-Hoc Citation Span &amp; DOI</tspan><tspan x="440" dy="18">Audit</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="341" y="1882" width="198" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="440" y="1906" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="440" dy="0">Persist to VoxDB FTS5 &amp;</tspan><tspan x="440" dy="18">Claim Cache</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="328" y="1998" width="224.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="440" y="2022" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="440" dy="0">Interactive GUI Report +</tspan><tspan x="440" dy="18">Claim Accordion + Chat Card</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="340.5" y="303" width="199.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="440" y="327" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="440" dy="0">Wave 1: Reconnaissance</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="327" y="410" width="226.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="440" y="434" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="440" dy="0">MENS Local Claim Extraction</tspan><tspan x="440" dy="18">&amp; Triplets</tspan></text>
+</g>
+<g class="vd-node">
+<polygon class="vd-node-shape" points="440,526 653.5,558 440,590 226.5,558" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="440" y="563" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="440" dy="0">Gap &amp; Contradiction Analyzer</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="387.5" y="694" width="238.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="506.5" y="718" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="506.5" dy="0">Wave 2: Targeted Deep-Dive &amp;</tspan><tspan x="506.5" dy="18">Citation Crawling</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="417.5" y="810" width="178.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="506.5" y="834" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="506.5" dy="0">MENS Local Evidence</tspan><tspan x="506.5" dy="18">Triangulation</tspan></text>
+</g>
+<g class="vd-node">
+<polygon class="vd-node-shape" points="506.5,926 662,958 506.5,990 351,958" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="506.5" y="963" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="506.5" dy="0">Adversarial Bar Met?</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="496" y="1094" width="181" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="586.5" y="1118" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="586.5" dy="0">Wave 3: Adversarial</tspan><tspan x="586.5" dy="18">Verification &amp; Sandbox</tspan><tspan x="586.5" dy="18">Execution</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="481.5" y="1254" width="210" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="586.5" y="1278" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="586.5" dy="0">Run Sandboxed Compiler /</tspan><tspan x="586.5" dy="18">Schema Validator</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="342.5" y="1370" width="195.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="440" y="1394" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="440" dy="0">Consolidated Knowledge</tspan><tspan x="440" dy="18">Subgraph</tspan></text>
+</g>
+</g>
+<g class="vd-edge-labels">
+<rect class="vd-edge-label-bg" x="426" y="620" width="161" height="44" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="506.5" y="638" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="506.5" dy="0">Contradiction / Missing</tspan><tspan x="506.5" dy="18">Depth</tspan></text>
+<rect class="vd-edge-label-bg" x="502.5" y="1020" width="168.5" height="44" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="586.5" y="1038" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="586.5" dy="0">High Uncertainty / Code</tspan><tspan x="586.5" dy="18">Query</tspan></text>
+<rect class="vd-edge-label-bg" x="159" y="945" width="137" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="227.5" y="963" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="227.5" dy="0">Sufficient Evidence</tspan></text>
+<rect class="vd-edge-label-bg" x="391.5" y="1198" width="70.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="426.5" y="1216" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="426.5" dy="0">Sufficient</tspan></text>
+<rect class="vd-edge-label-bg" x="1143" y="208" width="152" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="1219" y="226" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="1219" dy="0">Tier 0: Exact Memory</tspan></text>
+<rect class="vd-edge-label-bg" x="891" y="208" width="142" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="962" y="226" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="962" dy="0">Tier 1: Shallow Fact</tspan></text>
+<rect class="vd-edge-label-bg" x="553" y="208" width="157" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="631.5" y="226" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="631.5" dy="0">Tier 2: Standard Deep</tspan></text>
+<rect class="vd-edge-label-bg" x="163" y="208" width="131" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="228.5" y="226" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="228.5" dy="0">Tier 3: Multi-Wave</tspan></text>
+</g>
+</svg>
