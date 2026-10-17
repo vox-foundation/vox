@@ -2,9 +2,14 @@
 //! panics, keeps the `ImportReport` invariant, lists entries in order without duplicates and
 //! never reports `internal` (that would mean the importer emitted DSL that `fmt` refused).
 
+mod support;
+
 use proptest::prelude::*;
+use serde_json::to_value;
+use support::strip_spans;
+use vox_diagram::ir::Ir;
 use vox_diagram::mermaid::{ImportOpts, import};
-use vox_diagram::sequence_ir::SeqEvent;
+use vox_diagram::sequence_ir::{SeqEvent, SequenceIr};
 use vox_diagram::{check, fmt};
 
 const FRAGMENTS: [&str; 80] = [
@@ -97,17 +102,7 @@ fn soup() -> impl Strategy<Value = String> {
 fn check_report(block: &str, opts: ImportOpts) -> Result<(), TestCaseError> {
     let r = import(block, opts);
     let lines = block.lines().count().max(1) as u32;
-    prop_assert_eq!(
-        r.unsupported.is_empty(),
-        r.source.is_some() || r.sequence.is_some(),
-        "{:?}",
-        r
-    );
-    prop_assert!(
-        r.source.is_none() || r.sequence.is_none(),
-        "both set: {:?}",
-        r
-    );
+    prop_assert_eq!(r.unsupported.is_empty(), r.source.is_some(), "{:?}", r);
     if let Some(seq) = &r.sequence {
         let ids: Vec<&str> = seq.actors.iter().map(|a| a.id.as_str()).collect();
         let mut uniq = ids.clone();
@@ -154,6 +149,13 @@ fn check_report(block: &str, opts: ImportOpts) -> Result<(), TestCaseError> {
         let again = fmt(src);
         prop_assert_eq!(again.as_deref(), Some(src.as_str()), "{:?}", block);
         prop_assert!(check(src).valid, "{block:?}\n=>\n{src}");
+        if let Some(seq) = &r.sequence {
+            let Some(Ir::Sequence(d)) = check(src).ir else {
+                return Err(TestCaseError::fail(format!("not a sequence: {src}")));
+            };
+            let bare = |s: &SequenceIr| strip_spans(to_value(s).unwrap_or_default());
+            prop_assert_eq!(bare(&d), bare(seq), "{}", src);
+        }
     }
     Ok(())
 }

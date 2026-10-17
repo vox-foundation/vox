@@ -6,9 +6,10 @@ use std::collections::BTreeMap;
 
 use super::ids::{self, SeqAt};
 use super::lines::{id_run, styling_head};
-use super::{entries, text};
+use super::{entries, formatted, text};
 use crate::limits::{MAX_EDGES, MAX_NODES};
 use crate::mermaid::{ImportOpts, ImportReport};
+use crate::print::sequence_source;
 use crate::sequence_ir::{Actor, SeqEvent, SequenceIr};
 use crate::span::{LineIndex, Span, to_u32};
 
@@ -98,6 +99,10 @@ fn note(tail: &str) -> Result<Stmt, String> {
         .map(|s| id(s, SeqAt::Receiver))
         .collect::<Result<Vec<_>, _>>()?;
     let text = text::free(body, true).map_err(str::to_owned)?;
+    // The DSL has no empty note: `note over a: ""` is an `empty-label` error.
+    if text.is_empty() {
+        return Err("empty-label".to_owned());
+    }
     Ok(Stmt::Note { over, text })
 }
 
@@ -304,14 +309,27 @@ pub(super) fn sequence(
         }
     }
     let unsupported = entries(b.errors);
-    let sequence = unsupported.is_empty().then_some(SequenceIr {
+    let dropped = entries(dropped);
+    if !unsupported.is_empty() {
+        return ImportReport {
+            source: None,
+            sequence: None,
+            unsupported,
+            dropped,
+        };
+    }
+    let ir = SequenceIr {
         actors: b.actors,
         events: b.events,
-    });
-    ImportReport {
-        source: None,
-        sequence,
-        unsupported,
-        dropped: entries(dropped),
+    };
+    // Fail closed: the IR is reported only together with DSL that `fmt` accepts.
+    match formatted(&sequence_source(&ir)) {
+        Ok(source) => ImportReport {
+            source: Some(source),
+            sequence: Some(ir),
+            unsupported,
+            dropped,
+        },
+        Err(refusal) => refusal,
     }
 }

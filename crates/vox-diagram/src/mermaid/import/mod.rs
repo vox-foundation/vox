@@ -88,6 +88,16 @@ fn flowchart(dir: Direction, body: Vec<(u32, &str)>, opts: ImportOpts) -> Import
     finish(entries(errors), entries(dropped), &built.graph)
 }
 
+/// `fmt` of printed DSL, or the fail-closed refusal: the DSL repeats every id per declaration
+/// and edge, so an in-limit block can outgrow `MAX_SOURCE_BYTES`.
+fn formatted(dsl: &str) -> Result<String, ImportReport> {
+    match fmt(dsl) {
+        Some(s) => Ok(s),
+        None if dsl.len() > MAX_SOURCE_BYTES => Err(refused(1, "limit-source")),
+        None => Err(refused(1, "internal")),
+    }
+}
+
 /// Report for a graph-shaped block: `source` only when nothing was refused.
 fn finish(
     unsupported: Vec<Unsupported>,
@@ -95,12 +105,9 @@ fn finish(
     g: &flow::Graph,
 ) -> ImportReport {
     let source = if unsupported.is_empty() {
-        let dsl = flow::to_dsl(g);
-        match fmt(&dsl) {
-            Some(s) => Some(s),
-            // The DSL repeats every id per declaration and edge, so an in-limit block can outgrow it.
-            None if dsl.len() > MAX_SOURCE_BYTES => return refused(1, "limit-source"),
-            None => return refused(1, "internal"),
+        match formatted(&flow::to_dsl(g)) {
+            Ok(s) => Some(s),
+            Err(refusal) => return refusal,
         }
     } else {
         None
@@ -187,5 +194,20 @@ mod tests {
             "header:flowchart"
         );
         assert!(import("", ImportOpts::default()).source.is_none());
+    }
+
+    #[test]
+    fn import_fails_closed_when_the_dsl_is_refused() {
+        let line = format!("A->>B: {}\n", "x".repeat(200));
+        let block = format!("sequenceDiagram\n{}", line.repeat(312));
+        assert!(block.len() <= MAX_SOURCE_BYTES);
+        let r = import(&block, ImportOpts::default());
+        let got: Vec<(u32, &str)> = r
+            .unsupported
+            .iter()
+            .map(|u| (u.line, u.construct.as_str()))
+            .collect();
+        assert_eq!(got, vec![(1, "limit-source")]);
+        assert_eq!((r.source, r.sequence), (None, None));
     }
 }

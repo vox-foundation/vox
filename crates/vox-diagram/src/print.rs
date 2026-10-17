@@ -11,6 +11,7 @@ use crate::ast::{
 };
 use crate::check::{check, parse};
 use crate::ir::{Direction, Shape};
+use crate::sequence_ir::{SeqEvent, SequenceIr};
 
 /// Canonical formatter. `Some(text)` iff `source` checks with no `Error` (warnings are fine);
 /// `None` otherwise, so formatting can never change a broken document's meaning. Never panics.
@@ -175,9 +176,50 @@ fn block(out: &mut String, b: &Block, level: usize) {
     }
 }
 
+/// Canonical `sequence { ... }` text for `ir`: actors in order, a blank line, then the events.
+/// Labels are quoted by `push_quoted`; an empty message text prints no `: "..."` part.
+pub(crate) fn sequence_source(ir: &SequenceIr) -> String {
+    let mut out = String::from("sequence {\n");
+    for a in &ir.actors {
+        let _ = write!(out, "    actor {}: ", a.id);
+        push_quoted(&mut out, &a.label);
+        out.push('\n');
+    }
+    if !ir.actors.is_empty() && !ir.events.is_empty() {
+        out.push('\n');
+    }
+    for e in &ir.events {
+        match e {
+            SeqEvent::Message {
+                from,
+                to,
+                text,
+                dashed,
+                ..
+            } => {
+                let reply = if *dashed { "reply " } else { "" };
+                let _ = write!(out, "    {reply}{from} -> {to}");
+                if !text.is_empty() {
+                    out.push_str(": ");
+                    push_quoted(&mut out, text);
+                }
+            }
+            SeqEvent::Note { over, text, .. } => {
+                let _ = write!(out, "    note over {}: ", over.join(", "));
+                push_quoted(&mut out, text);
+            }
+        }
+        out.push('\n');
+    }
+    out.push_str("}\n");
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ir::Ir;
+    use crate::span::Location;
 
     const CANONICAL: &str = include_str!("../tests/fixtures/valid/canonical.vdg");
 
@@ -205,5 +247,59 @@ mod tests {
         assert_eq!(fmt("graph {\n    node a \"A\"\n}\n"), None);
         let shadow = "graph {\n    node a: \"A\"\n    container c: \"C\" {\n        node a: \"A2\"\n    }\n}\n";
         assert_eq!(fmt(shadow).as_deref(), Some(shadow));
+    }
+
+    #[test]
+    fn sequence_source_prints_every_event_kind() {
+        let actor = |id: &str, label: &str| crate::sequence_ir::Actor {
+            id: id.into(),
+            label: label.into(),
+            span: Location::default(),
+        };
+        let msg = |from: &str, to: &str, text: &str, dashed: bool| SeqEvent::Message {
+            from: from.into(),
+            to: to.into(),
+            text: text.into(),
+            dashed,
+            span: Location::default(),
+        };
+        let note = |over: &[&str], text: &str| SeqEvent::Note {
+            over: over.iter().map(|s| (*s).into()).collect(),
+            text: text.into(),
+            span: Location::default(),
+        };
+        let ir = SequenceIr {
+            actors: vec![actor("a", "A \"q\""), actor("b", "B")],
+            events: vec![
+                msg("a", "b", "hi", false),
+                msg("b", "a", "", false),
+                msg("b", "a", "back", true),
+                msg("a", "a", "self", false),
+                note(&["a"], "one"),
+                note(&["a", "b"], "two"),
+            ],
+        };
+        let want = "sequence {\n    actor a: \"A \\\"q\\\"\"\n    actor b: \"B\"\n\n    a -> b: \"hi\"\n    b -> a\n    reply b -> a: \"back\"\n    a -> a: \"self\"\n    note over a: \"one\"\n    note over a, b: \"two\"\n}\n";
+        let text = sequence_source(&ir);
+        assert_eq!(text, want);
+        assert_eq!(fmt(&text).as_deref(), Some(want));
+        let Some(Ir::Sequence(back)) = check(&text).ir else {
+            panic!("does not check: {text}");
+        };
+        let strip = |s: &SequenceIr| {
+            let mut s = s.clone();
+            s.actors
+                .iter_mut()
+                .for_each(|a| a.span = Location::default());
+            for e in &mut s.events {
+                match e {
+                    SeqEvent::Message { span, .. } | SeqEvent::Note { span, .. } => {
+                        *span = Location::default();
+                    }
+                }
+            }
+            s
+        };
+        assert_eq!(strip(&back), strip(&ir));
     }
 }

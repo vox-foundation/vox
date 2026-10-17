@@ -6,8 +6,11 @@ mod support;
 use std::collections::BTreeSet;
 use std::fs;
 
-use serde_json::Value;
+use serde_json::{Value, to_value};
 use support::roundtrip::{fixtures, stems};
+use support::strip_spans;
+use vox_diagram::ir::Ir;
+use vox_diagram::sequence_ir::SequenceIr;
 
 fn text<'a>(entry: &'a Value, key: &str) -> &'a str {
     entry.get(key).and_then(Value::as_str).unwrap_or_default()
@@ -143,10 +146,18 @@ fn corpus_blocks_import_or_fail_closed_as_expected() {
             failed_closed += 1;
         } else if key == SEQUENCE {
             assert!(got.is_empty(), "{fixture}: {got:?}");
-            assert_eq!(report.source, None);
             let Some(seq) = &report.sequence else {
                 panic!("{fixture}: no sequence");
             };
+            let Some(src) = &report.source else {
+                panic!("{fixture}: no source");
+            };
+            assert_eq!(fmt(src).as_deref(), Some(src.as_str()), "{fixture}");
+            let Some(Ir::Sequence(d)) = check(src).ir else {
+                panic!("{fixture}: DSL is not a sequence");
+            };
+            let bare = |s: &SequenceIr| strip_spans(to_value(s).unwrap_or_default());
+            assert_eq!(bare(&d), bare(seq), "{fixture}");
             let notes = seq
                 .events
                 .iter()

@@ -1,16 +1,27 @@
 //! sequenceDiagram import into `SequenceIr`: the accepted subset, text rules, participant
 //! ordering rules and the fail-closed catalogue. `source` stays `None` for sequence blocks.
 
+use serde_json::to_value;
+use vox_diagram::ir::Ir;
 use vox_diagram::mermaid::{ImportOpts, import};
 use vox_diagram::sequence_ir::{SeqEvent, SequenceIr};
+use vox_diagram::{check, fmt};
+
+mod support;
+use support::strip_spans;
 
 fn seq(block: &str) -> SequenceIr {
     let r = import(block, ImportOpts::default());
     assert!(r.unsupported.is_empty(), "{r:?}");
-    assert_eq!(r.source, None);
-    let Some(s) = r.sequence else {
-        panic!("not imported: {r:?}");
+    let (Some(source), Some(s)) = (r.source, r.sequence) else {
+        panic!("not imported: {block}");
     };
+    assert_eq!(fmt(&source).as_deref(), Some(source.as_str()));
+    let Some(Ir::Sequence(d)) = check(&source).ir else {
+        panic!("DSL does not check as a sequence:\n{source}");
+    };
+    let bare = |s: &SequenceIr| strip_spans(to_value(s).unwrap_or_default());
+    assert_eq!(bare(&d), bare(&s), "{source}");
     s
 }
 
@@ -100,7 +111,8 @@ fn seq_text_rules() {
         SeqEvent::Message { text, .. } | SeqEvent::Note { text, .. } => text,
     };
     assert_eq!(t("A->>B:"), "");
-    assert_eq!(t("Note over A:"), "");
+    // The DSL cannot hold an empty note, so the import refuses it rather than lose it.
+    assert_eq!(one("Note over A:"), "empty-label");
     assert_eq!(t("A->>B: say #quot;hi#quot;"), "say \"hi\"");
     assert_eq!(t("A->>B: a #59; b #119;rap: #96;x#96;"), "a ; b wrap: `x`");
     assert_eq!(
