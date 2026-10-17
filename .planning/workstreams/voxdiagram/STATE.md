@@ -5,17 +5,17 @@ milestone_name: VoxDiagram
 current_phase: 87
 current_phase_name: Doc-Pipeline Consumer & Legacy-Mermaid Ratchet
 current_plan: 3
-status: executing
-stopped_at: Completed 87-02-PLAN.md
-last_updated: "2026-10-17T18:20:54.053Z"
+status: verifying
+stopped_at: Completed 87-03-PLAN.md
+last_updated: "2026-10-17T18:31:57.505Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 87 execution started
-state_head: e55ee4ac12b78b045aa35b84456fa3007734ad10
+state_head: 38852a4952eda807df6df284102fb175a683cf1b
 progress:
   total_phases: 9
   completed_phases: 4
   total_plans: 24
-  completed_plans: 23
+  completed_plans: 24
 ---
 
 # Project State: VoxDiagram (`voxdiagram`)
@@ -31,7 +31,7 @@ See: `.planning/PROJECT.md` (shared, owned by the `unified` workstream, not edit
 
 Phase: 87 (Doc-Pipeline Consumer & Legacy-Mermaid Ratchet) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-10-17 — Phase 87 execution started
 
 Progress: [████░░░░░░] 44% (0/9 phases)
@@ -64,9 +64,9 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-10-17T18:20:54.020Z
+**Last session:** 2026-10-17T18:31:57.471Z
 
-**Stopped At:** Completed 87-02-PLAN.md
+**Stopped At:** Completed 87-03-PLAN.md
 **Resume File:** None
 
 ## Performance Metrics
@@ -96,6 +96,7 @@ None yet.
 | Phase 86 P04 | 55min | 3 tasks | 22 files |
 | Phase 87 P01 | 50min | 3 tasks | 13 files |
 | Phase 87 P02 | 35min | 2 tasks | 7 files |
+| Phase 87 P03 | 40min | 2 tasks | 8 files |
 
 ## Decisions
 
@@ -135,6 +136,7 @@ None yet.
 - [Phase 86]: 86-04: ImportReport.sequence kept; source.is_some() == unsupported.is_empty() for every kind; empty Note text refused as empty-label (DSL has no empty note)
 - [Phase 87]: 87-01: one exceptions entry admits vox-doc-pipeline -> vox-diagram (2026-10-16 authorization); near-miss vox-diagram info strings are hard diagram-fence-info errors
 - [Phase 87]: 87-02: legacy-Mermaid baseline seeded 33 fences/21 files from committed tree; missing baseline admits nothing, invalid is one hard error; tighten refuses before writing on growth
+- [Phase 87]: 87-03: capability-index staleness (no crate.vox-diagram row) predates the plan; left to hosted-CI ssot-autoregen, not hand-committed
 
 ## Pending Todos (voxdiagram)
 
