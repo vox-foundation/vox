@@ -206,7 +206,7 @@ Corpus registry and freshness status/ingest operations for Vox Graph knowledge m
 
 ### `vox diagram`
 
-Check VoxDiagram sources (the `graph` and `sequence` diagram languages) from a file or from stdin (`-`). The command reaches the diagram core through `vox_doc_pipeline::diagram`, and the global `--json` prints the same envelope the `vox_validate_diagram` MCP tool returns.
+Check VoxDiagram sources (the `graph` and `sequence` diagram languages) from a file or from stdin (`-`). The command reaches the diagram core through `vox_doc_pipeline::diagram`, and the global `--json` prints the same envelope the `vox_validate_diagram` MCP tool returns. See the [VoxDiagram reference](vox-diagram.md) for the grammar card and the tool envelope.
 
 | Subcommand | Role |
 |------------|------|

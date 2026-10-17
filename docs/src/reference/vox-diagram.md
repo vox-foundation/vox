@@ -103,3 +103,62 @@ sequence {
     reply api -> ui: "202 Accepted"
 }
 ```
+
+## Validate from an agent: vox_validate_diagram
+
+`vox_validate_diagram` checks one diagram and returns everything needed to repair it in one round trip. It is deterministic, makes no model calls, and writes nothing. It is in the `lang` capability profile and is eligible for the read role.
+
+Input:
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `source` | string, required | The diagram text, or one Mermaid block when `from_mermaid` is true. |
+| `from_mermaid` | bool, default false | Convert the Mermaid block first, then validate the conversion. |
+| `emit` | `"svg"` or `"mermaid"`, optional | Also render a valid diagram. |
+
+Unknown fields are refused.
+
+Output (`schema_version` is always 1):
+
+| Field | Present | Meaning |
+|-------|---------|---------|
+| `valid` | always | No error diagnostic remains (and, for Mermaid input, the import was complete). |
+| `diagnostics` | always | Every diagnostic in source order: `code`, `severity`, `message`, `span` (line and column), and `fixes[]`, which is omitted when no mechanical fix exists. |
+| `normalized_source` | always | The canonical `fmt` text once valid; `null` until then. |
+| `stats` | always | `nodes`, `containers`, `edges`, `max_depth`. |
+| `emitted` | when `emit` was requested and the diagram is valid | The SVG or Mermaid text. |
+| `emit_error` | when an SVG could not be rendered | Why (for example a render cap). Never silently dropped. |
+| `unsupported` | when `from_mermaid` | Mermaid lines the importer refused, as `{line, construct}`; empty when the import was complete. |
+| `dropped` | when non-empty | Mermaid lines deliberately dropped (styling). |
+
+After a Mermaid import, diagnostic spans point into `normalized_source`, the converted text, not into the original Mermaid.
+
+Repair loop: apply every `fixes[]` entry (each is a byte span plus a replacement in the text you sent), call the tool again, and stop when `valid` is true. Use `normalized_source` as the final text.
+
+## CLI: vox diagram
+
+The command reads a file or stdin (`-`). See [cli.md](cli.md) for the full command surface.
+
+| Subcommand | Role |
+|------------|------|
+| `vox diagram check <file\|->` | Print each diagnostic as `file:line:col: code: message` on stderr. |
+| `vox diagram fmt <file\|-> [--check \| --write]` | Print the canonical form; `--check` exits 1 when not canonical; `--write` rewrites atomically (temp file and rename), only for a valid source. |
+| `vox diagram render <file\|-> [-o FILE]` | Deterministic SVG. |
+| `vox diagram export <file\|-> [-o FILE]` | Mermaid text. |
+| `vox diagram import <file\|-> [-o FILE]` | One Mermaid block to canonical VoxDiagram. |
+
+Exit codes: 0 valid (warnings allowed), 1 at least one error, non-canonical `fmt --check`, unsupported import lines or a failed render, 2 usage or I/O error. The global `--json` prints the same envelope as the MCP tool.
+
+```text
+vox diagram check diagram.txt
+vox diagram fmt --check - < diagram.txt
+vox --json diagram check diagram.txt
+```
+
+## Importing Mermaid
+
+Import is fail-closed. It converts a block only when every line maps onto VoxDiagram; otherwise `source` stays empty and `unsupported` lists each refused line with its 1-based line number and a short construct name. Lines that carry only styling are listed in `dropped` and do not block the import. Run `vox diagram import <file|->` for a human-readable list, or call the tool with `from_mermaid: true`.
+
+## Legacy Mermaid fences
+
+Existing fences with the `mermaid` info string under `docs/src` are recorded per file in `contracts/documentation/legacy-mermaid-baseline.v1.yaml`. The baseline only shrinks: the doc lint rejects a new Mermaid fence. New diagrams use a `vox-diagram` fence, which the doc lint validates with the same checker as this tool. VoxDiagram has no Gantt kind, so Gantt charts stay Mermaid.

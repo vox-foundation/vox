@@ -583,6 +583,13 @@ free-tier flow above, and change them only in a PR that is about them.
 - If rendering invalid code for illustrative reasons, disable validation explicitly by using `// vox:skip` inside the snippet. 
 - You MUST enforce syntax correctness programmatically over legacy include files. 
 
+### Diagrams in docs (VoxDiagram)
+
+New diagrams under `docs/src/` use a `vox-diagram` fenced block ([reference and grammar card](docs/src/reference/vox-diagram.md)).
+Validate with the `vox_validate_diagram` MCP tool or `vox diagram check <file|->`, apply every `fixes[]` entry, and re-check until
+valid (doc lint rejects an invalid fence). Do not add fences with the `mermaid` info string: the legacy-Mermaid baseline only
+shrinks (convert one with `vox diagram import`).
+
 ## Retired Surfaces (LLM Guard)
 
 Do **NOT** use the following retired symbols, crates, or env vars. Using them will result in hallucinations and broken integration:
