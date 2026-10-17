@@ -5,7 +5,9 @@
 //!
 //! Each gap between adjacent lanes is at least wide enough for the widest message label that
 //! crosses it plus [`LANE_CLEAR`] on each side, and for the loop and label of a self-message on
-//! its left lane.
+//! its left lane. A message label sits inside one gap, so it never covers a lifeline it crosses;
+//! the gaps beside a note are at least its overhang plus [`LANE_CLEAR`], so a note never covers
+//! a lifeline of an actor it is not over.
 
 use std::collections::BTreeMap;
 
@@ -17,6 +19,7 @@ use crate::limits::{MAX_RENDER_ACTORS, MAX_RENDER_EVENTS};
 use crate::sequence_ir::{SeqEvent, SequenceIr};
 use crate::svg::RenderError;
 use canvas::{Bx, Raw, finish};
+use lanes::{lane_xs, note_w};
 
 /// Working coordinate: half-pixels in 64 bits.
 type W = i64;
@@ -174,49 +177,17 @@ fn steps(s: &SequenceIr, lanes: &BTreeMap<&str, usize>) -> Result<Vec<Step>, Ren
     Ok(out)
 }
 
-/// Lane centres: lane 0 at 0, each gap wide enough for its actors and every crossing label.
-fn lane_xs(widths: &[W], steps: &[Step]) -> Vec<W> {
-    let mut gaps: Vec<W> = widths
-        .windows(2)
-        .map(|p| p[0] / 2 + p[1] / 2 + ACTOR_GAP)
-        .collect();
-    for st in steps {
-        let Step::Msg {
-            from,
-            to,
-            label: Some(l),
-            ..
-        } = st
-        else {
-            continue;
-        };
-        if from == to {
-            // A self-message label sits right of its loop; the last lane has no gap, the canvas grows.
-            if let Some(g) = gaps.get_mut(*from) {
-                *g = (*g).max(SELF_W + SELF_LABEL_GAP + l.w + LANE_CLEAR);
-            }
-        } else if let Some(span) = gaps.get_mut(*from.min(to)..*from.max(to)) {
-            for g in span {
-                *g = (*g).max(l.w + 2 * LANE_CLEAR);
-            }
-        }
-    }
-    let mut x = 0;
-    let mut xs = Vec::with_capacity(widths.len());
-    for i in 0..widths.len() {
-        xs.push(x);
-        x += gaps.get(i).copied().unwrap_or(0);
-    }
-    xs
-}
-
 fn at(xs: &[W], i: usize) -> W {
     xs.get(i).copied().unwrap_or(0)
 }
 
-/// A message between two lanes: label box on top, arrow below it.
-fn between(l: &Lbl, a: W, b: W, cursor: W) -> (Bx, W) {
-    let mid = (a + b) / 2;
+/// A message between lanes `from` and `to` (different): label box on top, arrow below it. The
+/// box is centred in the gap at the middle of the span, which `lane_xs` made wide enough, so it
+/// stays clear of every lifeline including those the arrow crosses.
+fn between(l: &Lbl, xs: &[W], (from, to): (usize, usize), cursor: W) -> (Bx, W) {
+    let (lo, hi) = (from.min(to), from.max(to));
+    let gap = lo + (hi - lo).saturating_sub(1) / 2;
+    let mid = (at(xs, gap) + at(xs, gap + 1)) / 2;
     (
         Bx {
             x: mid - l.w / 2,
@@ -319,7 +290,7 @@ pub(crate) fn place(s: &SequenceIr) -> Result<SeqPlaced, RenderError> {
                 let (a, b) = (at(&xs, *from), at(&xs, *to));
                 let (bx, y) = match label {
                     Some(l) => {
-                        let (bx, y) = between(l, a, b, cursor);
+                        let (bx, y) = between(l, &xs, (*from, *to), cursor);
                         (Some((l.lines.clone(), bx)), y)
                     }
                     None => (None, cursor + ARROW_BARE),
@@ -338,9 +309,7 @@ pub(crate) fn place(s: &SequenceIr) -> Result<SeqPlaced, RenderError> {
                 text_w,
             } => {
                 let (l, r) = (at(&xs, *lo), at(&xs, *hi));
-                let w = (text_w + 2 * px(W::from(PAD_X)))
-                    .max(NOTE_MIN_W)
-                    .max(r - l + 2 * NOTE_OVERHANG);
+                let w = note_w(*text_w, r - l);
                 let h = block(lines.len()) + 2 * px(W::from(PAD_Y));
                 let bx = Bx {
                     x: (l + r) / 2 - w / 2,
@@ -375,5 +344,6 @@ pub(crate) fn place(s: &SequenceIr) -> Result<SeqPlaced, RenderError> {
 }
 
 mod canvas;
+mod lanes;
 #[cfg(test)]
 mod tests;

@@ -41,7 +41,7 @@
 <text class="vd-edge-label" x="692.5" y="210" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="692.5" dy="0">query</tspan></text>
 <rect class="vd-edge-label-bg" x="275.5" y="260" width="70.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
 <text class="vd-edge-label" x="310.5" y="278" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="310.5" dy="0">response</tspan></text>
-<rect class="vd-edge-label-bg" x="318.5" y="350" width="366" height="44" style="fill:var(--vd-bg,#fff);stroke:none"/>
-<text class="vd-edge-label" x="501.5" y="368" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="501.5" dy="0">a direct read that skips the server and has to cross its</tspan><tspan x="501.5" dy="18">lane</tspan></text>
+<rect class="vd-edge-label-bg" x="127.5" y="350" width="366" height="44" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="310.5" y="368" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="310.5" dy="0">a direct read that skips the server and has to cross its</tspan><tspan x="310.5" dy="18">lane</tspan></text>
 </g>
 </svg>

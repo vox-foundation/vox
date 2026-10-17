@@ -144,3 +144,28 @@ fn self_gap_rule() {
         "{gap} {lbl}"
     );
 }
+
+#[test]
+fn a_note_widens_the_gaps_beside_it() {
+    let text = "word ".repeat(20);
+    let note = SeqEvent::Note {
+        over: vec!["b".into()],
+        text,
+        span: Default::default(),
+    };
+    let Some(Step::Note { text_w, .. }) = steps(
+        &seq(&["a", "b", "c"], vec![note.clone()]),
+        &BTreeMap::from([("a", 0), ("b", 1), ("c", 2)]),
+    )
+    .ok()
+    .and_then(|s| s.into_iter().next()) else {
+        panic!("no note step");
+    };
+    let p = placed(&seq(&["a", "b", "c"], vec![note]));
+    let xs: Vec<W> = p.lifelines.iter().map(|l| W::from(l.0)).collect();
+    let side = note_w(text_w, 0) / 2 + LANE_CLEAR;
+    assert!(
+        xs[1] - xs[0] >= side && xs[2] - xs[1] >= side,
+        "{xs:?} {side}"
+    );
+}

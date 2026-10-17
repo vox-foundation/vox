@@ -9,7 +9,7 @@ use vox_diagram::sequence_ir::{Actor, SeqEvent, SequenceIr};
 
 use super::{Shape, Svg};
 
-/// 8 px in half-pixels: the clearance a label keeps from its lifelines.
+/// 8 px in half-pixels: the clearance a label or note keeps from lifelines it does not span.
 const CLEAR: i64 = 16;
 
 fn right(s: &Shape) -> i64 {
@@ -80,6 +80,18 @@ fn message(
         {
             return Err(format!("label {l:?} not clear of lifelines {ax} and {bx}"));
         }
+        // A multi-hop label must also keep off every lifeline it crosses on the way.
+        if let Some(l) = label {
+            let crossed = |x: i64| x > ax.min(bx) && x < ax.max(bx);
+            if let Some((i, &(x, ..))) = svg
+                .lifelines
+                .iter()
+                .enumerate()
+                .find(|&(_, &(x, ..))| crossed(x) && l.x < x + CLEAR && x < right(l) + CLEAR)
+            {
+                return Err(format!("label {l:?} covers lifeline {i} at {x}"));
+            }
+        }
         return Ok(());
     }
     let [p, _, _, q] = path[..] else {
@@ -119,6 +131,17 @@ fn note(svg: &Svg, ir: &SequenceIr, over: &[String], n: &Shape) -> Result<(), St
         }
     } else if n.x >= lo || right(n) <= hi {
         return Err(format!("note {n:?} does not span lifelines {lo} and {hi}"));
+    }
+    // No lifeline of an actor the note is not over may run under it.
+    let foreign = svg
+        .lifelines
+        .iter()
+        .enumerate()
+        .find(|&(_, &(x, ..))| (x < lo || x > hi) && n.x < x + CLEAR && x < right(n) + CLEAR);
+    if let Some((i, &(x, ..))) = foreign {
+        return Err(format!(
+            "note {n:?} covers lifeline {i} at {x} outside {lo}..{hi}"
+        ));
     }
     Ok(())
 }

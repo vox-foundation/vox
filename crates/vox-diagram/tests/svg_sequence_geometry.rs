@@ -252,3 +252,56 @@ fn sequence_goldens_pass_the_oracle() {
     }
     assert!(seen >= 4, "only {seen} sequence cases");
 }
+
+/// Forge `class` box `from` -> a box whose left edge is `x`, in the document text itself.
+fn forged(svg: &str, class: &str, old: i64, new: i64) -> Svg {
+    let marker = format!("class=\"{class}\" x=\"{}\"", half_px(old));
+    assert!(svg.contains(&marker), "no {marker} in {svg}");
+    let text = svg.replace(
+        &marker,
+        &format!("class=\"{class}\" x=\"{}\"", half_px(new)),
+    );
+    match svgcheck::check(&text, "vd") {
+        Ok(r) => r,
+        Err(e) => panic!("{e}"),
+    }
+}
+
+#[test]
+fn a_multi_hop_label_keeps_off_the_lifelines_it_crosses() {
+    let text = "confirm the order with billing";
+    let s = seq(&["a", "b", "c"], vec![message("a", "c", text)]);
+    let read = drawn(&s);
+    let l = read.edge_labels[0];
+    let b = read.lifelines[1].0;
+    assert!(
+        l.x + l.w + CLEAR <= b || b + CLEAR <= l.x,
+        "{l:?} over lifeline {b}"
+    );
+    // The oracle sees it: the old centred placement is rejected.
+    let mid = (read.lifelines[0].0 + read.lifelines[2].0) / 2;
+    let svg = svg_of(&s);
+    let over = forged(&svg, "vd-edge-label-bg", l.x, mid - l.w / 2);
+    assert!(assert_sequence_geometry(&over, &s).is_err());
+}
+
+#[test]
+fn a_wide_single_actor_note_keeps_neighbour_lifelines_clear() {
+    let text = ["word"; 20].join(" ");
+    let s = seq(&["a", "b", "c"], vec![note(&["b"], &text)]);
+    let read = drawn(&s);
+    let n = read.notes[0];
+    let (a, c) = (read.lifelines[0].0, read.lifelines[2].0);
+    assert!(a + CLEAR <= n.x && n.x + n.w + CLEAR <= c, "{n:?} {a} {c}");
+}
+
+#[test]
+fn the_oracle_rejects_a_note_over_a_foreign_lifeline() {
+    let s = seq(&["a", "b", "c"], vec![note(&["b", "c"], "two lanes")]);
+    let read = drawn(&s);
+    let n = read.notes[0];
+    let svg = svg_of(&s);
+    // Still spans b and c, but now also runs under a.
+    let over = forged(&svg, "vd-note", n.x, read.lifelines[0].0 - 2);
+    assert!(assert_sequence_geometry(&over, &s).is_err());
+}
