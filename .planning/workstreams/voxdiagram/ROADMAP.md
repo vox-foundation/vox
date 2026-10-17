@@ -183,7 +183,7 @@ Plans:
 **Depends on**: Phase 83
 **Requirements**: DOCS-01, DOCS-02
 **Success Criteria** (what must be TRUE):
-  1. Adding a new ```` ```mermaid ```` fence anywhere under `docs/src` (excluding `archive/`) fails doc lint with a clear message; the baseline is seeded at 41 fences / 26 files, can only be tightened (shrink-only), and the pre-push base-ref compare fails if it grows; prose mentions and 4-backtick example blocks are not counted.
+  1. Adding a new ```` ```mermaid ```` fence anywhere under `docs/src` (excluding `archive/`) fails doc lint with a clear message; the baseline is seeded from the committed tree at implementation time (33 fences / 21 files on 2026-10-16), can only be tightened (shrink-only), and the pre-push base-ref compare fails if it grows; prose mentions and 4-backtick example blocks are not counted.
   2. A malformed ```` ```vox-diagram ```` fence fails doc lint with the `diagram/*` diagnostic and file:line span, and a valid one passes; the `vox` doctest runner never compiles it (exact info-string matching verified against the `lint.rs` comma-split vs `doctest.rs` whole-string behavior).
   3. `vox-doc-pipeline` re-exports `vox_diagram` (so the CLI needs no third edge), the self-heal-bot pre-PR check also validates `vox-diagram` fences, and `vox ci crate-edges` passes with exactly one new edge, `vox-doc-pipeline -> vox-diagram`, recorded as an exception citing the 2026-10-16 chat authorization; `orphan_exempt` is removed.
 
