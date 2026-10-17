@@ -30,11 +30,19 @@ pub(super) enum Stmt {
     /// A `subgraph` header that was refused; it still opens a frame so its `end` balances.
     BadOpen,
     Direction(Direction),
+    /// A styling line dropped under `drop_styling`.
+    Skip,
 }
 
 pub(super) struct Scanned {
     pub stmt: Stmt,
     pub dropped: Vec<String>,
+}
+
+/// Per-line scanning context: whether styling is dropped, and what was dropped on this line.
+struct Cx {
+    drop_styling: bool,
+    dropped: Vec<String>,
 }
 
 /// A refused line. `opens` marks a `subgraph` header, so its `end` still balances.
@@ -101,13 +109,24 @@ const SHAPES: [(&str, Shape, &str); 6] = [
     ("{", Shape::Diamond, "}"),
 ];
 
-fn reference(cur: &mut &str) -> Res<Ref> {
+/// Shapes Mermaid has and VoxDiagram does not.
+const OTHER_SHAPES: [&str; 7] = ["([", "[[", "{{", ">", "[/", "[\\", "@{"];
+
+/// Mermaid's link tokens other than `-->`, longest first.
+const LINKS: [&str; 12] = [
+    "<-->", "--->", "-.->", "-.-", "==>", "===", "--o", "--x", "---", "~~~", "o--o", "x--x",
+];
+
+fn reference(cur: &mut &str, cx: &mut Cx) -> Res<Ref> {
     let (id, after) = id_run(cur);
     if id.is_empty() {
         return bad(stop(cur));
     }
     text::valid_id(id)?;
     *cur = after;
+    if let Some(o) = OTHER_SHAPES.iter().find(|o| cur.starts_with(*o)) {
+        return bad(format!("shape:{o}"));
+    }
     let mut decl = None;
     if let Some(&(open, shape, close)) = SHAPES.iter().find(|(o, _, _)| cur.starts_with(o)) {
         *cur = &cur[open.len()..];
@@ -116,6 +135,17 @@ fn reference(cur: &mut &str) -> Res<Ref> {
             return bad("empty-label");
         }
         decl = Some((shape, label));
+    }
+    if let Some(r) = cur.strip_prefix(":::") {
+        if !cx.drop_styling {
+            return bad("styling:shorthand");
+        }
+        let (name, after) = id_run(r);
+        if name.is_empty() {
+            return bad("statement");
+        }
+        *cur = after;
+        cx.dropped.push("styling:shorthand".to_owned());
     }
     Ok(Ref {
         id: id.to_owned(),
@@ -161,28 +191,42 @@ fn arrow(cur: &mut &str) -> Res<Option<String>> {
         *cur = &t[end + 3..];
         return edge_text(&t[..end], false, DASH_SPECIAL);
     }
+    if let Some(t) = LINKS.iter().find(|t| s.starts_with(*t)) {
+        return bad(format!("edge-type:{t}"));
+    }
     bad(stop(s))
 }
 
 /// One reference, then `&`-joined references.
-fn group(cur: &mut &str) -> Res<Vec<Ref>> {
-    let mut refs = vec![reference(cur)?];
+fn group(cur: &mut &str, cx: &mut Cx) -> Res<Vec<Ref>> {
+    let mut refs = vec![reference(cur, cx)?];
     loop {
         *cur = cur.trim_start();
         let Some(r) = cur.strip_prefix('&') else {
             return Ok(refs);
         };
         *cur = r.trim_start();
-        refs.push(reference(cur)?);
+        refs.push(reference(cur, cx)?);
     }
 }
 
-fn chain(line: &str) -> Res<Stmt> {
+/// Edges one statement may expand to (`&` fan-out and chains).
+const MAX_EXPANSION: usize = 100;
+
+fn chain(line: &str, cx: &mut Cx) -> Res<Stmt> {
     let mut cur = line;
-    let mut groups = Vec::new();
+    let mut groups: Vec<Vec<Ref>> = Vec::new();
     let mut arrows = Vec::new();
+    let mut edges = 0usize;
     loop {
-        groups.push(group(&mut cur)?);
+        let g = group(&mut cur, cx)?;
+        if let Some(prev) = groups.last() {
+            edges = edges.saturating_add(prev.len().saturating_mul(g.len()));
+            if edges > MAX_EXPANSION {
+                return bad("expansion-cap");
+            }
+        }
+        groups.push(g);
         if cur.is_empty() {
             break;
         }
@@ -230,23 +274,76 @@ fn direction(token: &str) -> Res<Stmt> {
     }
 }
 
+/// Statement heads that start a styling line.
+const HEADS: [&str; 8] = [
+    "style",
+    "classDef",
+    "class",
+    "linkStyle",
+    "click",
+    "callback",
+    "accTitle",
+    "accDescr",
+];
+
+/// True when `s` starts like a link or a fan-out, so a head word before it is a plain id.
+fn arrowish(s: &str) -> bool {
+    s.starts_with(['-', '=', '~', '&']) || s.starts_with("<-")
+}
+
+fn styling_head(line: &str) -> Option<&'static str> {
+    HEADS.into_iter().find(|h| {
+        line.strip_prefix(h)
+            .is_some_and(|rest| match rest.chars().next() {
+                Some(c) if c.is_whitespace() => !arrowish(rest.trim_start()),
+                Some(':' | '{') => h.starts_with("acc"),
+                _ => false,
+            })
+    })
+}
+
+fn statement(line: &str, word: &str, cx: &mut Cx) -> (Res<Stmt>, bool) {
+    if line == "end" {
+        return (Ok(Stmt::End), false);
+    }
+    if let Some(h) = styling_head(line) {
+        let c = format!("styling:{h}");
+        if !cx.drop_styling {
+            return (bad(c), false);
+        }
+        cx.dropped.push(c);
+        return (Ok(Stmt::Skip), false);
+    }
+    let tail = line[word.len()..].trim_start();
+    match word {
+        "subgraph" => (subgraph(tail), true),
+        "direction" if !tail.is_empty() && !arrowish(tail) => (direction(tail), false),
+        _ => (chain(line, cx), false),
+    }
+}
+
 /// Scan one trimmed, non-blank line.
-pub(super) fn scan(line: &str, _opts: ImportOpts) -> Result<Scanned, Bad> {
+pub(super) fn scan(line: &str, opts: ImportOpts) -> Result<Scanned, Bad> {
+    if line.starts_with("%%{") {
+        return Err(Bad {
+            construct: "directive".to_owned(),
+            opens: false,
+        });
+    }
     let word = line.split_whitespace().next().unwrap_or_default();
-    let opens = word == "subgraph";
-    let res = if line == "end" {
-        Ok(Stmt::End)
-    } else if word == "direction" && line.len() > word.len() {
-        direction(line[word.len()..].trim())
-    } else if opens {
-        subgraph(line[word.len()..].trim_start())
+    let mut cx = Cx {
+        drop_styling: opts.drop_styling,
+        dropped: Vec::new(),
+    };
+    let (res, opens) = if line.starts_with("%%") {
+        (bad("comment"), false)
     } else {
-        chain(line)
+        statement(line, word, &mut cx)
     };
     match res {
         Ok(stmt) => Ok(Scanned {
             stmt,
-            dropped: Vec::new(),
+            dropped: cx.dropped,
         }),
         Err(construct) => Err(Bad { construct, opens }),
     }

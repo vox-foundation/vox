@@ -240,3 +240,11 @@ fn import_subgraph_direction_equal_is_dropped() {
         );
     }
 }
+
+#[test]
+fn import_styling_head_words_can_still_be_ids() {
+    for line in ["class --> b", "style --> b", "click"] {
+        let r = run(&format!("flowchart TD\n    {line}\n"));
+        assert!(r.source.is_some(), "{line}: {:?}", r.unsupported);
+    }
+}

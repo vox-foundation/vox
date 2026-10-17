@@ -178,6 +178,7 @@ pub(super) fn build(direction: Direction, items: Vec<(u32, Stmt)>) -> Built {
             Stmt::End => b.close(line),
             Stmt::BadOpen => b.open(line, None, None),
             Stmt::Direction(d) => b.direction(line, d),
+            Stmt::Skip => {}
         }
     }
     let open: Vec<u32> = b.stack.iter().map(|f| f.line).collect();
