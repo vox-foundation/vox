@@ -10,6 +10,7 @@ use crate::{fmt, ir::Direction};
 mod build;
 mod flow;
 mod lines;
+mod state;
 mod text;
 
 fn refused(line: u32, construct: &str) -> ImportReport {
@@ -72,10 +73,17 @@ fn flowchart(dir: Direction, body: Vec<(u32, &str)>, opts: ImportOpts) -> Import
     let built = build::build(dir, stmts);
     errors.extend(built.errors);
     dropped.extend(built.dropped);
-    let (unsupported, dropped) = (entries(errors), entries(dropped));
+    finish(entries(errors), entries(dropped), &built.graph)
+}
+
+/// Report for a graph-shaped block: `source` only when nothing was refused.
+fn finish(
+    unsupported: Vec<Unsupported>,
+    dropped: Vec<Unsupported>,
+    g: &flow::Graph,
+) -> ImportReport {
     let source = if unsupported.is_empty() {
-        let raw = flow::to_dsl(&built.graph);
-        match fmt(&raw) {
+        match fmt(&flow::to_dsl(g)) {
             Some(s) => Some(s),
             None => return refused(1, "internal"),
         }
@@ -107,6 +115,8 @@ pub fn import(block: &str, opts: ImportOpts) -> ImportReport {
     match (word.trim_end_matches(';'), header(head)) {
         ("graph" | "flowchart", _) if head.ends_with(';') => refused(hline, "semicolon"),
         ("graph" | "flowchart", Some(dir)) => flowchart(dir, lines.collect(), opts),
+        ("stateDiagram-v2", _) if head.ends_with(';') => refused(hline, "semicolon"),
+        ("stateDiagram-v2", _) if head == word => state::state(lines.collect(), opts),
         _ => refused(hline, &format!("header:{word}")),
     }
 }

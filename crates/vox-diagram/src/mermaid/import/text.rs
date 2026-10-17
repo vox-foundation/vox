@@ -139,6 +139,35 @@ pub(super) fn decode(raw: &str, quoted: bool, special: &str) -> Result<String, &
     Ok(out)
 }
 
+/// Free text to end of line (state transition text; sequence aliases, messages, notes). It has
+/// no unquoted-character ban, but a raw `;` or `%%` ends the statement in Mermaid, and with
+/// `wrap` a leading `wrap:` / `nowrap:` (optionally `:`-prefixed) is stripped and sets a flag.
+/// All rejection checks run on the RAW text, so `#59;`, `#119;rap:` and `#96;` import as text.
+/// The result may be empty.
+pub(super) fn free(raw: &str, wrap: bool) -> Result<String, &'static str> {
+    // A `;` that terminates an entity (`#59;`) is text; any other ends the statement.
+    let mut i = 0;
+    while let Some(c) = raw[i..].chars().next() {
+        i += c.len_utf8();
+        match c {
+            '#' => i += entity(&raw[i..])?.map_or(0, |(_, n)| n),
+            ';' => return Err("semicolon"),
+            _ => {}
+        }
+    }
+    if raw.contains("%%") {
+        return Err("comment");
+    }
+    if wrap {
+        let t = raw.trim();
+        let t = t.strip_prefix(':').unwrap_or(t);
+        if t.starts_with("wrap:") || t.starts_with("nowrap:") {
+            return Err("wrap");
+        }
+    }
+    decode(raw, true, "")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -177,6 +206,23 @@ mod tests {
         assert_eq!(decode("x `y`", true, "").as_deref(), Ok("x `y`"));
         assert_eq!(decode(&"x".repeat(201), true, ""), Err("label-too-long"));
         assert_eq!(decode("a#13;b", true, ""), Err("forbidden-char"));
+    }
+
+    #[test]
+    fn free_text_rules() {
+        assert_eq!(
+            free("lease expiry (swept)", false).as_deref(),
+            Ok("lease expiry (swept)")
+        );
+        assert_eq!(free("", true).as_deref(), Ok(""));
+        assert_eq!(free("a; b", false), Err("semicolon"));
+        assert_eq!(free("a %% b", false), Err("comment"));
+        for t in ["wrap: x", " nowrap:x", ":wrap: x", ":nowrap:"] {
+            assert_eq!(free(t, true), Err("wrap"), "{t}");
+            assert!(free(t, false).is_ok(), "{t}");
+        }
+        assert_eq!(free("#59; #119;rap:", true).as_deref(), Ok("; wrap:"));
+        assert_eq!(free("x wrap: y", true).as_deref(), Ok("x wrap: y"));
     }
 
     #[test]

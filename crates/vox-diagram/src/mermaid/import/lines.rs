@@ -56,7 +56,7 @@ fn bad<T>(c: impl Into<String>) -> Res<T> {
 }
 
 /// Longest id-shaped prefix: alphanumerics and `_`, plus `-` only between id characters.
-fn id_run(s: &str) -> (&str, &str) {
+pub(super) fn id_run(s: &str) -> (&str, &str) {
     let mut end = 0;
     let mut it = s.char_indices().peekable();
     while let Some((i, c)) = it.next() {
@@ -291,7 +291,7 @@ fn arrowish(s: &str) -> bool {
     s.starts_with(['-', '=', '~', '&']) || s.starts_with("<-")
 }
 
-fn styling_head(line: &str) -> Option<&'static str> {
+pub(super) fn styling_head(line: &str) -> Option<&'static str> {
     HEADS.into_iter().find(|h| {
         line.strip_prefix(h)
             .is_some_and(|rest| match rest.chars().next() {

@@ -94,7 +94,6 @@ const GANTT: (&str, u64) = (
     485,
 );
 const MARKDOWN: (&str, u64) = ("docs/src/how-to/how-to-rust-crate-imports.md", 53);
-const STATE: (&str, u64) = ("docs/src/reference/populi.md", 211);
 const SEQUENCE: (&str, u64) = (
     "docs/src/architecture/scientia-automated-research-historical-extension-research-2026.md",
     112,
@@ -104,8 +103,9 @@ const DIRECTIONS: (&str, u64) = (
     238,
 );
 
-/// 84-03 expectations: 29 of the 30 flowchart blocks import; the non-flowchart blocks report
-/// their header until plan 84-04; the markdown-string block is rejected by the real parser.
+/// 84-03/84-04 expectations: 29 of the 30 flowchart blocks and the state block import; the
+/// sequence and gantt blocks report their header until the next tasks; the markdown-string
+/// block is rejected by the real parser.
 #[test]
 fn corpus_blocks_import_or_fail_closed_as_expected() {
     use vox_diagram::mermaid::{ImportOpts, import};
@@ -135,7 +135,6 @@ fn corpus_blocks_import_or_fail_closed_as_expected() {
             .collect();
         let want_header = [
             (GANTT, "header:gantt"),
-            (STATE, "header:stateDiagram-v2"),
             (SEQUENCE, "header:sequenceDiagram"),
         ]
         .into_iter()
@@ -181,5 +180,5 @@ fn corpus_blocks_import_or_fail_closed_as_expected() {
             assert!(dropped.is_empty(), "{fixture}: {dropped:?}");
         }
     }
-    assert_eq!(failed_closed, 4, "exactly four blocks fail closed");
+    assert_eq!(failed_closed, 3, "exactly three blocks fail closed");
 }
