@@ -21,6 +21,7 @@ mod frame;
 mod mermaid;
 mod recover;
 mod seq;
+mod seq_mermaid;
 mod stmt;
 #[cfg(test)]
 mod tests;

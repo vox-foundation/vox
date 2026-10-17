@@ -17,15 +17,19 @@ impl Parser<'_> {
         };
         let next = &self.peek_at(1).kind;
         let ident_next = matches!(next, TokenKind::Ident(_) | TokenKind::BadIdent(_));
-        let over_next = matches!(next, TokenKind::Ident(s) if s == "over");
+        let arrow_next = matches!(next, TokenKind::Arrow | TokenKind::MArrow { .. });
+        let note = kw.eq_ignore_ascii_case("note");
         match kw.as_str() {
+            "participant" if ident_next => self.mermaid_actor(),
+            "actor" if ident_next && self.mermaid_actor_ahead() => self.mermaid_actor(),
             "actor" if ident_next => self.actor_decl(),
-            "note" if over_next => self.note_stmt(),
+            _ if note && self.note_over_ahead() => self.note_stmt(),
+            _ if note && self.note_side_ahead() => self.note_side(),
             "reply" if ident_next => {
                 self.bump(); // `reply`
                 self.message(true)
             }
-            "reply" if !matches!(next, TokenKind::Arrow) => {
+            "reply" if !arrow_next => {
                 self.bump(); // `reply`
                 self.unexpected("a message after `reply`");
                 None
@@ -36,8 +40,8 @@ impl Parser<'_> {
 
     /// `note over <id>[, <id>]: "<text>"`. A third actor is reported where the `:` belongs.
     fn note_stmt(&mut self) -> Option<ItemKind> {
-        self.bump(); // `note`
-        self.bump(); // `over`
+        let (note, over) = (self.bump(), self.bump()); // `note over`, any case
+        self.note_case(&note, &over);
         let mut over = vec![self.ident("an actor id")?];
         if matches!(self.peek().kind, TokenKind::Comma) {
             self.bump();
@@ -75,7 +79,7 @@ impl Parser<'_> {
     /// `<from> -> <to>` with an optional `: "<text>"`; `reply` marks a dashed return.
     pub(super) fn message(&mut self, reply: bool) -> Option<ItemKind> {
         let from: Ident = self.ident("an actor id")?;
-        self.expect(&TokenKind::Arrow, "`->`")?;
+        let reply = self.arrow(&from, reply)?;
         let to = self.ident("an actor id")?;
         let mut label = None;
         if matches!(self.peek().kind, TokenKind::Colon) {

@@ -32,19 +32,22 @@ impl Parser<'_> {
         self.report_full(codes::MERMAID_SYNTAX, span, msg.into(), None, fixes);
     }
 
-    /// M5: a `graph`/`flowchart` header with an optional direction word and `;` but no `{`.
-    /// Consumes the header and returns its span and direction word.
+    /// M5: a `graph`/`flowchart` header with an optional direction word and `;` but no `{`, or a
+    /// `sequenceDiagram` line (which makes the document a sequence). Consumes the header and
+    /// returns its span and direction word.
     pub(super) fn mermaid_header(&mut self) -> Option<(Span, Option<&'static str>)> {
         let TokenKind::Ident(head) = &self.peek().kind else {
             return None;
         };
-        if head != "graph" && head != "flowchart" {
+        let sequence = head == "sequenceDiagram";
+        if head != "graph" && head != "flowchart" && !sequence {
             return None;
         }
         let start = self.peek().span.start;
         let mut n = 1;
         let mut dir = None;
-        if let TokenKind::Ident(w) = &self.peek_at(n).kind
+        if !sequence
+            && let TokenKind::Ident(w) = &self.peek_at(n).kind
             && let Some((_, word)) = mermaid_dir(w)
         {
             dir = Some(word);
@@ -70,15 +73,17 @@ impl Parser<'_> {
         }
         let end = self.peek_at(n - 1).span.end;
         self.pos += n;
+        self.seq |= sequence;
         Some((Span { start, end }, dir))
     }
 
-    /// The M5 diagnostic: the header becomes `graph {` (+ `direction`) and a `}` closes the
-    /// block at the end of the input.
+    /// The M5 diagnostic: the header becomes `graph {` (+ `direction`) or `sequence {` and a
+    /// `}` closes the block at the end of the input.
     pub(super) fn report_header(&mut self, header: Span, dir: Option<&'static str>) {
+        let kind = if self.seq { "sequence" } else { "graph" };
         let open = match dir {
             Some(w) => format!("graph {{\n    direction: {w}"),
-            None => "graph {".to_string(),
+            None => format!("{kind} {{"),
         };
         let eof = self.toks.last().map_or(0, |t| t.span.start);
         let close = if self.src.ends_with('\n') {
@@ -96,8 +101,8 @@ impl Parser<'_> {
                 close,
             ),
         ];
-        let msg = "Mermaid header; start with `graph {` and close the block with `}`";
-        self.report_full(codes::MERMAID_SYNTAX, header, msg.into(), None, fixes);
+        let msg = format!("Mermaid header; start with `{kind} {{` and close the block with `}}`");
+        self.report_full(codes::MERMAID_SYNTAX, header, msg, None, fixes);
     }
 
     /// M8: `;` ends the statement. Trailing, it is deleted; mid-line, it becomes a line break.
