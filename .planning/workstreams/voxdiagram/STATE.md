@@ -4,18 +4,18 @@ milestone: v1.7
 milestone_name: VoxDiagram
 current_phase: 86
 current_phase_name: Sequence Kind
-current_plan: 5
+current_plan: 2
 status: executing
-stopped_at: Phase 85 complete, ready to plan Phase 86
-last_updated: "2026-10-17T14:36:34.435Z"
+stopped_at: Completed 86-01-PLAN.md
+last_updated: "2026-10-17T14:55:30.913Z"
 last_activity: 2026-10-17
-last_activity_desc: Phase 85 complete, transitioned to Phase 86
-state_head: 883a3e4b1b5f58a7734515bf991af9cef7b80aa8
+last_activity_desc: Phase 86 execution started
+state_head: f1f80142151f3bd3800d1674691b44168472adbd
 progress:
   total_phases: 9
   completed_phases: 3
   total_plans: 21
-  completed_plans: 17
+  completed_plans: 18
 ---
 
 # Project State: VoxDiagram (`voxdiagram`)
@@ -25,21 +25,21 @@ progress:
 See: `.planning/PROJECT.md` (shared, owned by the `unified` workstream, not edited here) and `.planning/workstreams/voxdiagram/PROJECT-MILESTONE.md`.
 
 **Core value:** For this milestone, agents and humans author diagrams that cannot render-crash, and every live docs diagram renders deterministically.
-**Current focus:** Phase 85 — Graph Layout & Deterministic SVG
+**Current focus:** Phase 86 — Sequence Kind
 
 ## Current Position
 
-Phase: 86 (Sequence Kind) — READY TO EXECUTE
-Plan: Not started
+Phase: 86 (Sequence Kind) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-10-17 — Phase 85 complete, transitioned to Phase 86
+Last activity: 2026-10-17 — Phase 86 execution started
 
 Progress: [███░░░░░░░] 33% (0/9 phases)
 
 ## Progress
 
 **Phases Complete:** 0
-**Current Plan:** 5
+**Current Plan:** 2
 
 ## Key Decisions (milestone-level)
 
@@ -64,9 +64,9 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-10-17T08:46:58.405Z
+**Last session:** 2026-10-17T14:55:30.884Z
 
-**Stopped At:** Phase 85 complete, ready to plan Phase 86
+**Stopped At:** Completed 86-01-PLAN.md
 **Resume File:** None
 
 ## Performance Metrics
@@ -90,6 +90,7 @@ None yet.
 | Phase 85 P03 | 75min | 2 tasks | 12 files |
 | Phase 85 P04 | 75min | 3 tasks | 9 files |
 | Phase 85 P05 | 70min | 3 tasks | 18 files |
+| Phase 86 P01 | 1 session | 2 tasks | 38 files |
 
 ## Decisions
 
@@ -121,3 +122,5 @@ None yet.
 - [Phase 85]: 85-03: parent cycle and over-deep nesting share one InvalidIr (depth walk stops after MAX_DEPTH hops); labels over MAX_LABEL_CHARS are InvalidIr for nodes, containers and edges
 - [Phase 85]: 85-04: SVG oracle is an independent quick-xml allowlist checker; label centring asserted within one half-pixel (odd-size boxes have no representable centre); REND-03 ticked, REND-01/02/04 left for 85-05
 - [Phase 85]: GO on dagre 0.1.1 (exact pin, one-file adapter): 30/30 importable corpus graphs render, 0 of 10 need a DSL tweak; edge-through-container-title and ~4% generated-graph Geometry fail-closed recorded as residual risks
+- [Phase 86]: 86-01: actor, reply, note and over are contextual keywords (plain identifiers unless the next token says otherwise); RESERVED stays the only reserved list
+- [Phase 86]: 86-01: sequence geometry runs in i64 half-pixels and fails closed past a 100000 px canvas (RenderError::Geometry)

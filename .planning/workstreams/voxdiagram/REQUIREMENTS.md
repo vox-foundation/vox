@@ -14,7 +14,7 @@
 ### Language & Diagnostics (DGM)
 
 - [x] **DGM-01**: Author can write a `graph` diagram with `direction`, quoted `node` labels (with escapes), `container` brace nesting, `a -> b` / `a -> b: "label"` edges, dotted refs, shapes `rect`/`rounded`/`diamond`/`cylinder`/`start`/`end`, self-loops, and `//` comments
-- [ ] **DGM-02**: Author can write a `sequence` diagram with actors, ordered messages, dashed returns, and `note over`
+- [x] **DGM-02**: Author can write a `sequence` diagram with actors, ordered messages, dashed returns, and `note over`
 - [x] **DGM-03**: A single check reports every error in a diagram (parser recovery), each with a stable `diagram/*` code, severity, and exact source span
 - [x] **DGM-04**: Diagnostics carry machine-applicable `fixes[]` (`{span, replacement}`) that an agent can apply without re-prompting
 - [x] **DGM-05**: Author can canonically format a diagram (idempotent `fmt`)
@@ -79,7 +79,7 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | DGM-01 | Phase 83 | Complete |
-| DGM-02 | Phase 86 | Pending |
+| DGM-02 | Phase 86 | Complete |
 | DGM-03 | Phase 83 | Complete |
 | DGM-04 | Phase 83 | Complete |
 | DGM-05 | Phase 83 | Complete |
