@@ -7,7 +7,14 @@ use crate::svg::{SvgOpts, render_with};
 #[test]
 fn quantize_rejects_missing_and_non_finite() {
     assert_eq!(quantize(None), Err(LayoutError::Missing));
-    for v in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY, 1.0e7, -1.0e7] {
+    for v in [
+        f64::NAN,
+        f64::INFINITY,
+        f64::NEG_INFINITY,
+        1.0e5,
+        -1.0e5,
+        1.0e7,
+    ] {
         assert_eq!(quantize(Some(v)), Err(LayoutError::NonFinite), "{v}");
     }
 }
@@ -17,7 +24,7 @@ fn quantize_rounds_to_half_pixels_without_negative_zero() {
     assert_eq!(quantize(Some(1.24)), Ok(2));
     assert_eq!(quantize(Some(1.25)), Ok(3));
     assert_eq!(quantize(Some(-0.2)), Ok(0));
-    assert_eq!(quantize(Some(9_999_999.0)), Ok(19_999_998));
+    assert_eq!(quantize(Some(99_999.0)), Ok(199_998));
 }
 
 #[test]
@@ -362,3 +369,5 @@ fn a_leaf_outside_its_container_on_every_rung_is_a_geometry_error() {
     );
     assert_eq!(e.0.get(), 3);
 }
+
+mod coords;

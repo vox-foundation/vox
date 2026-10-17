@@ -160,10 +160,16 @@ pub(crate) fn guarded<T>(f: impl FnOnce() -> T) -> Result<T, LayoutError> {
     catch_unwind(AssertUnwindSafe(f)).map_err(|_| LayoutError::EnginePanic)
 }
 
-/// Convert an engine coordinate to half-pixels: present, finite and below 1e7.
+/// Largest engine coordinate or size accepted, px. Real layouts stay far below it (the render
+/// caps bound them to a few tens of thousands of px). It keeps every product the drawing code
+/// forms from a coordinate triple (`clip_diamond`'s `dx * w * h`, at most about 2.4e16 here) well
+/// inside `i64`, and the sums in `place` inside `i32`.
+const MAX_COORD_PX: f64 = 1.0e5;
+
+/// Convert an engine coordinate to half-pixels: present, finite and below [`MAX_COORD_PX`].
 pub(crate) fn quantize(v: Option<f64>) -> Result<Half, LayoutError> {
     let v = v.ok_or(LayoutError::Missing)?;
-    if !v.is_finite() || v.abs() >= 1.0e7 {
+    if !v.is_finite() || v.abs() >= MAX_COORD_PX {
         return Err(LayoutError::NonFinite);
     }
     Ok((v * 2.0).round() as Half)
