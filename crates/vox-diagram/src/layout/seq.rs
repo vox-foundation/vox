@@ -9,9 +9,11 @@
 
 use std::collections::BTreeMap;
 
+use super::input::check_label;
 use super::text::{LINE_H, PAD_X, PAD_Y, measure, node_size, wrap, wrap_at};
 use super::{Half, Rect};
 use crate::ir::Shape;
+use crate::limits::{MAX_RENDER_ACTORS, MAX_RENDER_EVENTS};
 use crate::sequence_ir::{SeqEvent, SequenceIr};
 use crate::svg::RenderError;
 use canvas::{Bx, Raw, finish};
@@ -226,12 +228,42 @@ fn between(l: &Lbl, a: W, b: W, cursor: W) -> (Bx, W) {
     )
 }
 
-/// Place `s`. An event naming an actor that is not declared is [`RenderError::InvalidIr`].
-pub(crate) fn place(s: &SequenceIr) -> Result<SeqPlaced, RenderError> {
+/// Reject oversized or inconsistent IR before anything is placed, in this order: the render
+/// caps, duplicate actor ids, label lengths, note arity. Returns the lane of each actor id.
+fn validate(s: &SequenceIr) -> Result<BTreeMap<&str, usize>, RenderError> {
+    if s.actors.len() > MAX_RENDER_ACTORS || s.events.len() > MAX_RENDER_EVENTS {
+        return Err(RenderError::TooLarge {
+            nodes: s.actors.len(),
+            edges: s.events.len(),
+        });
+    }
     let mut lanes = BTreeMap::new();
     for (i, a) in s.actors.iter().enumerate() {
-        lanes.entry(a.id.as_str()).or_insert(i);
+        if lanes.insert(a.id.as_str(), i).is_some() {
+            return Err(RenderError::InvalidIr(format!("actor {i}: duplicate id")));
+        }
+        check_label(&format!("actor {i}"), &a.label)?;
     }
+    for (i, e) in s.events.iter().enumerate() {
+        let (SeqEvent::Message { text, .. } | SeqEvent::Note { text, .. }) = e;
+        check_label(&format!("event {i}"), text)?;
+    }
+    for (i, e) in s.events.iter().enumerate() {
+        if let SeqEvent::Note { over, .. } = e
+            && !(1..=2).contains(&over.len())
+        {
+            return Err(RenderError::InvalidIr(format!(
+                "event {i}: a note covers one or two actors"
+            )));
+        }
+    }
+    Ok(lanes)
+}
+
+/// Place `s`. Oversized or inconsistent IR, including an event naming an actor that is not
+/// declared, is rejected as described on [`validate`] and [`RenderError::InvalidIr`].
+pub(crate) fn place(s: &SequenceIr) -> Result<SeqPlaced, RenderError> {
+    let lanes = validate(s)?;
     let labels: Vec<Vec<String>> = s.actors.iter().map(|a| wrap(&a.label)).collect();
     let sizes: Vec<(Half, Half)> = labels.iter().map(|l| node_size(Shape::Rect, l)).collect();
     let widths: Vec<W> = sizes.iter().map(|&(w, _)| W::from(w)).collect();

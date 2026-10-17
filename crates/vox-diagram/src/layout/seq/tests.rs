@@ -107,10 +107,12 @@ fn an_unknown_actor_is_invalid_ir() {
 }
 
 #[test]
-fn a_huge_canvas_is_rejected_not_wrapped() {
+fn a_huge_label_is_rejected_before_layout() {
+    // The canvas bound is unreachable through valid IR (the label and actor caps keep the widest
+    // diagram under it); `canvas::tests` covers the bound itself.
     let wide = "w".repeat(2_000_000);
     let r = place(&seq(&["a", "b"], vec![msg("a", "b", &wide)]));
-    assert!(matches!(r, Err(RenderError::Geometry(_))), "{r:?}");
+    assert!(matches!(r, Err(RenderError::InvalidIr(_))), "{r:?}");
 }
 
 #[test]

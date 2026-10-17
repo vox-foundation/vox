@@ -34,7 +34,7 @@ fn edge_label(label: Option<&str>) -> Option<LLabel> {
 }
 
 /// Reject a label over [`MAX_LABEL_CHARS`] characters; `what` names the item.
-fn check_label(what: &str, label: &str) -> Result<(), RenderError> {
+pub(crate) fn check_label(what: &str, label: &str) -> Result<(), RenderError> {
     if label.chars().count() > MAX_LABEL_CHARS {
         return Err(RenderError::InvalidIr(format!("{what}: label too long")));
     }

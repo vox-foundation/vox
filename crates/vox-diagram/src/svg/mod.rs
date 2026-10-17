@@ -1,4 +1,4 @@
-//! Deterministic, injection-safe, themeable SVG for graph diagrams. All text goes through the
+//! Deterministic, injection-safe, themeable SVG for graph and sequence diagrams. All text goes through the
 //! single writer in `writer`; every paint is a `var(--vd-NAME,FALLBACK)` built from
 //! `THEME_VARS`; no attribute value is derived from a label.
 
@@ -38,11 +38,12 @@ impl Default for SvgOpts {
 pub enum RenderError {
     /// `id_prefix` is not `[a-z][a-z0-9-]*` or is longer than 32 characters.
     InvalidIdPrefix,
-    /// More than `MAX_RENDER_NODES` nodes plus containers or `MAX_RENDER_EDGES` edges.
+    /// More than `MAX_RENDER_NODES` nodes plus containers or `MAX_RENDER_EDGES` edges (graph),
+    /// or `MAX_RENDER_ACTORS` actors or `MAX_RENDER_EVENTS` events (sequence).
     TooLarge {
-        /// Nodes plus containers in the IR.
+        /// Nodes plus containers (graph) or actors (sequence) in the IR.
         nodes: usize,
-        /// Edges in the IR.
+        /// Edges (graph) or events (sequence) in the IR.
         edges: usize,
     },
     /// The IR is inconsistent (names the offending item by kind and index).
@@ -95,9 +96,10 @@ pub(super) fn paint(name: &str) -> String {
 
 /// Render `ir` to an SVG document.
 ///
-/// Synchronous, with no timeout: layout is super-quadratic in the number of ranks an edge spans,
-/// and a structured diagram at the render caps can take several seconds. Call it off the request
-/// path.
+/// Synchronous, with no timeout: graph layout is super-quadratic in the number of ranks an edge
+/// spans, and a structured diagram at the render caps can take several seconds. Call it off the
+/// request path. A sequence diagram has no layout engine: it renders in time linear in actors
+/// times events.
 pub fn render(ir: &Ir, opts: &SvgOpts) -> Result<String, RenderError> {
     render_with(&DagreEngine, ir, opts)
 }

@@ -18,3 +18,9 @@ pub const MAX_RENDER_NODES: usize = 100;
 /// Maximum IR edges the SVG renderer lays out; see [`MAX_RENDER_NODES`] for why this is lower
 /// than the parse cap.
 pub const MAX_RENDER_EDGES: usize = 200;
+/// Maximum actors the SVG renderer lays out in one sequence diagram. Sequence layout is plain
+/// integer arithmetic (no engine), so these render caps only bound output size.
+pub const MAX_RENDER_ACTORS: usize = 100;
+/// Maximum events (messages plus notes) the SVG renderer lays out in one sequence diagram; see
+/// [`MAX_RENDER_ACTORS`].
+pub const MAX_RENDER_EVENTS: usize = 200;

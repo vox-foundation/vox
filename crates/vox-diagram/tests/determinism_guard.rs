@@ -119,3 +119,24 @@ fn layout_seam_guard_dagre_only_in_adapter() {
         .collect();
     assert_eq!(importers, [PathBuf::from("layout").join("dagre_impl.rs")]);
 }
+
+#[test]
+fn sequence_geometry_is_integer_only() {
+    let needles = [concat!("f", "32"), concat!("f", "64")];
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+    let files = [
+        ["layout", "seq.rs"],
+        ["layout", "seq/canvas.rs"],
+        ["layout", "seq/tests.rs"],
+        ["svg", "seq.rs"],
+    ];
+    for [dir, file] in files {
+        let path = root.join(dir).join(file);
+        let Ok(text) = fs::read_to_string(&path) else {
+            panic!("cannot read {path:?}");
+        };
+        for needle in needles {
+            assert!(!text.contains(needle), "{path:?} names {needle}");
+        }
+    }
+}
