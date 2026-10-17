@@ -127,3 +127,56 @@ fn hash_runs_without_a_terminating_semicolon_stay_literal() {
     let s = source("flowchart TD\n  A[\"C# x #a1b #3 #\"] --> B\n");
     assert!(s.contains("C# x #a1b #3 #"), "{s}");
 }
+
+// WR-02: under `drop_styling`, a `:::class` shorthand on a state endpoint is dropped and the
+// transition kept; it used to delete the whole transition and its states.
+
+fn dropping(block: &str) -> ImportReport {
+    import(block, ImportOpts { drop_styling: true })
+}
+
+#[test]
+fn state_shorthand_is_dropped_but_the_transition_is_kept() {
+    let r = dropping("stateDiagram-v2\n A:::foo --> B\n B --> C\n");
+    assert!(r.unsupported.is_empty(), "{r:?}");
+    let s = r.source.expect("imports");
+    assert_eq!(s, source("stateDiagram-v2\n A --> B\n B --> C\n"));
+    assert_eq!(
+        r.dropped
+            .iter()
+            .map(|d| (d.line, d.construct.as_str()))
+            .collect::<Vec<_>>(),
+        [(2, "styling:shorthand")]
+    );
+    for block in [
+        "stateDiagram-v2\n A --> B:::foo\n",
+        "stateDiagram-v2\n A:::foo --> B:::bar\n",
+    ] {
+        assert_eq!(
+            dropping(block).source,
+            Some(source("stateDiagram-v2\n A --> B\n"))
+        );
+    }
+    let labelled = dropping("stateDiagram-v2\n A --> B:::foo: lbl\n");
+    assert_eq!(
+        labelled.source,
+        Some(source("stateDiagram-v2\n A --> B: lbl\n"))
+    );
+}
+
+#[test]
+fn state_shorthand_stays_refused_by_default_and_bad_shorthand_is_never_dropped() {
+    refused_as("stateDiagram-v2\n A:::foo --> B\n", 2, "styling:shorthand");
+    // Mermaid itself rejects `:::` inside a label, so there is nothing to drop.
+    for block in [
+        "stateDiagram-v2\n A --> B: see x:::y\n",
+        "stateDiagram-v2\n A:::foo bar --> B\n",
+        "stateDiagram-v2\n A:::: --> B\n",
+    ] {
+        let r = dropping(block);
+        assert!(
+            r.source.is_none() && !r.unsupported.is_empty(),
+            "{block}: {r:?}"
+        );
+    }
+}

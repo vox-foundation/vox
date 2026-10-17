@@ -58,7 +58,21 @@ fn keyword(line: &str, word: &str) -> Option<&'static str> {
     }
 }
 
-fn transition(line: &str) -> Result<Trans, String> {
+/// Split a trailing `:::class` shorthand off an endpoint: `(endpoint, had_class)`.
+fn shorthand(s: &str) -> Result<(&str, bool), String> {
+    let Some((endpoint, class)) = s.split_once(":::") else {
+        return Ok((s, false));
+    };
+    let (name, rest) = id_run(class.trim());
+    if name.is_empty() || !rest.is_empty() {
+        return Err("statement".to_owned());
+    }
+    Ok((endpoint, true))
+}
+
+/// One transition. A `:::class` shorthand is only reached under `drop_styling` (the default mode
+/// refuses it first); it is stripped from the endpoints and reported in `dropped`.
+fn transition(line: &str, dropped: &mut Vec<String>) -> Result<Trans, String> {
     let Some((left, right)) = line.split_once("-->") else {
         let (id, rest) = id_run(line);
         let desc = !id.is_empty() && rest.trim_start().starts_with(':');
@@ -69,10 +83,27 @@ fn transition(line: &str) -> Result<Trans, String> {
         }
         .to_owned());
     };
-    let (target, label) = match right.split_once(':') {
-        Some((t, l)) => (t, Some(l)),
-        None => (right, None),
+    // A `:::` right after the target is the shorthand; the label starts at the next lone `:`.
+    let (target, label, t_class) = match right.find(':') {
+        Some(p) if right[p..].starts_with(":::") => {
+            let (name, rest) = id_run(&right[p + 3..]);
+            let rest = rest.trim_start();
+            match rest.strip_prefix(':') {
+                Some(l) if !name.is_empty() => (&right[..p], Some(l), true),
+                None if !name.is_empty() && rest.is_empty() => (&right[..p], None, true),
+                _ => return Err("statement".to_owned()),
+            }
+        }
+        Some(p) => (&right[..p], Some(&right[p + 1..]), false),
+        None => (right, None, false),
     };
+    let (left, l_class) = shorthand(left)?;
+    if label.is_some_and(|l| l.contains(":::")) {
+        return Err("styling:shorthand".to_owned());
+    }
+    if l_class || t_class {
+        dropped.push("styling:shorthand".to_owned());
+    }
     let (from, to) = (endpoint(left)?, endpoint(target)?);
     let label = match label {
         Some(l) => Some(text::free(l, false).map_err(str::to_owned)?).filter(|l| !l.is_empty()),
@@ -90,7 +121,10 @@ fn scan(line: &str, opts: ImportOpts, dropped: &mut Vec<String>) -> Result<Optio
         return Err("comment".to_owned());
     }
     let styling = styling_head(line).map(|h| format!("styling:{h}"));
-    let styling = styling.or_else(|| line.contains(":::").then(|| "styling:shorthand".to_owned()));
+    // Under `drop_styling` a `:::class` suffix is stripped by `transition`, which keeps the edge.
+    let styling = styling.or_else(|| {
+        (line.contains(":::") && !opts.drop_styling).then(|| "styling:shorthand".to_owned())
+    });
     if let Some(c) = styling {
         if !opts.drop_styling {
             return Err(c);
@@ -105,7 +139,7 @@ fn scan(line: &str, opts: ImportOpts, dropped: &mut Vec<String>) -> Result<Optio
     if text::semicolon(line).unwrap_or(false) {
         return Err("semicolon".to_owned());
     }
-    transition(line).map(Some)
+    transition(line, dropped).map(Some)
 }
 
 /// Node index for a state or terminal, created at its first mention.
