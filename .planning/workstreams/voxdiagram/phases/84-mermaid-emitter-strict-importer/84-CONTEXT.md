@@ -39,6 +39,13 @@ Requirements: REND-06, MIG-01, MIG-02.
 - No HashMap/HashSet in `src/`; byte-deterministic output; tests first (tdd-guard file-level); files < 400 non-blank lines; no new crate edges.
 - Known gap from 83-07: an edge from outside a Mermaid subgraph to a node inside it currently becomes `undeclared-node` in the lenient Mermaid-ism path — the importer's dotted-path rewrite resolves this for imports.
 
+### Post-research decisions (user, 2026-10-16)
+- npm devDependencies APPROVED by user in chat: `mermaid` exact `11.17.2` and `jsdom` exact `30.0.1` in `docs-astro` (jsdom shim loaded before `await import('mermaid')`). No human-verify checkpoint needed before install.
+- Corpus block `docs/src/how-to/how-to-rust-crate-imports.md:53` (markdown-string label) is rejected by real Mermaid → importer reports `unsupported: markdown-string`; Phase 90 fixes the source block. ROADMAP SC3 exceptions = Gantt + this block.
+- `IrContainer` has no direction: a subgraph `direction` equal to the diagram direction is dropped and listed in `dropped`; any other subgraph direction → `unsupported`.
+- Sequence imports: `ImportReport` gains `sequence: Option<SequenceIr>`; `Ir` unchanged until Phase 86.
+- Corpus at HEAD: 33 fences / 21 files = 30 flowchart/graph, 1 stateDiagram-v2, 1 sequenceDiagram, 1 gantt (Phase 86 SC3's "2 sequence" is stale).
+
 ### Claude's Discretion
 - Internal module split (`mermaid/export.rs`, `mermaid/import/*.rs`), exact keyword list, error/`unsupported` construct naming, fixture file layout.
 
