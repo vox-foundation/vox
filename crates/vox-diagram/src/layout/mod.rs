@@ -4,6 +4,7 @@
 pub(crate) mod dagre_impl;
 pub(crate) mod input;
 pub(crate) mod text;
+pub(crate) mod verify;
 
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
@@ -245,10 +246,22 @@ fn place(input: &LayoutInput, raw: &RawLayout) -> Result<Placed, LayoutError> {
     })
 }
 
-/// Lay `input` out through `engine` and quantize the result.
+/// Lay `input` out through `engine`: try each [`RUNGS`] separation in order and return the first
+/// quantized layout that passes [`verify::verify`]. An engine failure is final (no further rung
+/// is tried); a layout failing on every rung is [`RenderError::Geometry`], never drawn.
 pub(crate) fn lay_out(engine: &dyn Engine, input: &LayoutInput) -> Result<Placed, RenderError> {
-    let raw = guarded(|| engine.solve(input, RUNGS[0]))??;
-    Ok(place(input, &raw)?)
+    let mut last = None;
+    for sep in RUNGS {
+        let raw = guarded(|| engine.solve(input, sep))??;
+        let placed = place(input, &raw)?;
+        match verify::verify(input, &placed) {
+            Ok(()) => return Ok(placed),
+            Err(v) => last = Some(v),
+        }
+    }
+    Err(RenderError::Geometry(
+        last.map_or_else(String::new, |v| v.to_string()),
+    ))
 }
 
 /// Minimum and maximum of `it`, `(0, 0)` when empty.

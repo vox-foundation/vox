@@ -1,4 +1,8 @@
+use std::cell::{Cell, RefCell};
+
 use super::*;
+use crate::ir::{GraphIr, Ir, IrNode};
+use crate::svg::{SvgOpts, render_with};
 
 #[test]
 fn quantize_rejects_missing_and_non_finite() {
@@ -29,14 +33,6 @@ struct Canned(Result<RawLayout, LayoutError>);
 impl Engine for Canned {
     fn solve(&self, _: &LayoutInput, _: Separations) -> Result<RawLayout, LayoutError> {
         self.0.clone()
-    }
-}
-
-struct Panicky;
-
-impl Engine for Panicky {
-    fn solve(&self, _: &LayoutInput, _: Separations) -> Result<RawLayout, LayoutError> {
-        panic!("boom")
     }
 }
 
@@ -95,13 +91,202 @@ fn lay_out_fails_closed_on_engine_misbehaviour() {
         lay_out(&missing, &one_node()),
         Err(RenderError::Layout("missing coordinate"))
     );
-    assert_eq!(
-        lay_out(&Panicky, &one_node()),
-        Err(RenderError::Layout("engine panic"))
-    );
     let short = Canned(Ok(RawLayout::default()));
     assert_eq!(
         lay_out(&short, &one_node()),
         Err(RenderError::Layout("missing coordinate"))
     );
+}
+
+fn two_nodes() -> LayoutInput {
+    let n = || LNode {
+        shape: Shape::Rect,
+        lines: vec!["A".into()],
+        w: 128,
+        h: 76,
+    };
+    LayoutInput {
+        direction: Direction::Down,
+        nodes: vec![n(), n()],
+        edges: vec![],
+    }
+}
+
+/// Raw boxes at the given x centres, each at its input size; edges get a one-point route.
+fn raw_at(input: &LayoutInput, cx: impl Fn(usize) -> Option<f64>) -> RawLayout {
+    RawLayout {
+        nodes: input
+            .nodes
+            .iter()
+            .enumerate()
+            .map(|(i, n)| RawBox {
+                cx: cx(i),
+                cy: Some(19.0),
+                w: Some(f64::from(n.w) / 2.0),
+                h: Some(f64::from(n.h) / 2.0),
+            })
+            .collect(),
+        edges: input
+            .edges
+            .iter()
+            .map(|e| RawEdge {
+                points: vec![(0.0, 0.0)],
+                label: e.label.as_ref().map(|_| (Some(0.0), Some(0.0))),
+            })
+            .collect(),
+    }
+}
+
+/// Two 64 px nodes 100 px apart: clean.
+fn clean(input: &LayoutInput) -> RawLayout {
+    raw_at(input, |i| Some(32.0 + 100.0 * i as f64))
+}
+
+/// Every node on the same spot: overlapping.
+fn stacked(input: &LayoutInput) -> RawLayout {
+    raw_at(input, |_| Some(32.0))
+}
+
+fn graph_ir() -> Ir {
+    Ir::Graph(GraphIr {
+        direction: Direction::Down,
+        nodes: vec![IrNode {
+            id: "a".into(),
+            local_id: "a".into(),
+            label: "A".into(),
+            shape: Shape::Rect,
+            container: None,
+            span: Default::default(),
+        }],
+        containers: vec![],
+        edges: vec![],
+    })
+}
+
+struct PanicEngine(Cell<usize>);
+
+impl Engine for PanicEngine {
+    fn solve(&self, _: &LayoutInput, _: Separations) -> Result<RawLayout, LayoutError> {
+        self.0.set(self.0.get() + 1);
+        panic!("boom")
+    }
+}
+
+struct NanEngine(Cell<usize>);
+
+impl Engine for NanEngine {
+    fn solve(&self, i: &LayoutInput, _: Separations) -> Result<RawLayout, LayoutError> {
+        self.0.set(self.0.get() + 1);
+        Ok(raw_at(i, |n| Some(if n == 0 { f64::NAN } else { 32.0 })))
+    }
+}
+
+struct HugeEngine(Cell<usize>);
+
+impl Engine for HugeEngine {
+    fn solve(&self, i: &LayoutInput, _: Separations) -> Result<RawLayout, LayoutError> {
+        self.0.set(self.0.get() + 1);
+        Ok(raw_at(i, |n| Some(if n == 0 { 1.0e8 } else { 32.0 })))
+    }
+}
+
+struct MissingEngine(Cell<usize>);
+
+impl Engine for MissingEngine {
+    fn solve(&self, i: &LayoutInput, _: Separations) -> Result<RawLayout, LayoutError> {
+        self.0.set(self.0.get() + 1);
+        Ok(raw_at(i, |n| if n == 0 { None } else { Some(32.0) }))
+    }
+}
+
+/// Overlapping on the first rung, clean on every later one.
+struct OverlapThenClean(RefCell<Vec<Separations>>);
+
+impl Engine for OverlapThenClean {
+    fn solve(&self, i: &LayoutInput, sep: Separations) -> Result<RawLayout, LayoutError> {
+        self.0.borrow_mut().push(sep);
+        Ok(if self.0.borrow().len() == 1 {
+            stacked(i)
+        } else {
+            clean(i)
+        })
+    }
+}
+
+struct AlwaysOverlap(RefCell<Vec<Separations>>);
+
+impl Engine for AlwaysOverlap {
+    fn solve(&self, i: &LayoutInput, sep: Separations) -> Result<RawLayout, LayoutError> {
+        self.0.borrow_mut().push(sep);
+        Ok(stacked(i))
+    }
+}
+
+#[test]
+fn broken_engines_fail_closed_with_a_single_call() {
+    let input = two_nodes();
+    let panic_e = PanicEngine(Cell::new(0));
+    assert_eq!(
+        lay_out(&panic_e, &input),
+        Err(RenderError::Layout("engine panic"))
+    );
+    assert_eq!(panic_e.0.get(), 1);
+    let nan = NanEngine(Cell::new(0));
+    assert_eq!(
+        lay_out(&nan, &input),
+        Err(RenderError::Layout("non-finite coordinate"))
+    );
+    assert_eq!(nan.0.get(), 1);
+    let huge = HugeEngine(Cell::new(0));
+    assert_eq!(
+        lay_out(&huge, &input),
+        Err(RenderError::Layout("non-finite coordinate"))
+    );
+    assert_eq!(huge.0.get(), 1);
+    let missing = MissingEngine(Cell::new(0));
+    assert_eq!(
+        lay_out(&missing, &input),
+        Err(RenderError::Layout("missing coordinate"))
+    );
+    assert_eq!(missing.0.get(), 1);
+}
+
+#[test]
+fn an_overlap_escalates_to_the_next_rung() {
+    let e = OverlapThenClean(RefCell::default());
+    assert!(lay_out(&e, &two_nodes()).is_ok());
+    assert_eq!(*e.0.borrow(), vec![RUNGS[0], RUNGS[1]]);
+}
+
+#[test]
+fn an_unfixable_overlap_is_a_geometry_error_after_three_rungs() {
+    let e = AlwaysOverlap(RefCell::default());
+    let r = lay_out(&e, &two_nodes());
+    assert!(
+        matches!(&r, Err(RenderError::Geometry(m)) if m.contains("NodeOverlap")),
+        "{r:?}"
+    );
+    assert_eq!(*e.0.borrow(), RUNGS.to_vec());
+}
+
+#[test]
+fn the_public_path_is_guarded_too() {
+    let e = PanicEngine(Cell::new(0));
+    assert_eq!(
+        render_with(&e, &graph_ir(), &SvgOpts::default()),
+        Err(RenderError::Layout("engine panic"))
+    );
+    let a = AlwaysOverlap(RefCell::default());
+    let two = Ir::Graph(match graph_ir() {
+        Ir::Graph(mut g) => {
+            let mut second = g.nodes[0].clone();
+            second.id = "b".into();
+            g.nodes.push(second);
+            g
+        }
+    });
+    assert!(matches!(
+        render_with(&a, &two, &SvgOpts::default()),
+        Err(RenderError::Geometry(_))
+    ));
 }
