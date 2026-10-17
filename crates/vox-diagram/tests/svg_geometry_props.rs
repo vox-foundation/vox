@@ -73,6 +73,9 @@ fn container_index(g: &GraphIr, id: &str) -> Option<usize> {
     g.containers.iter().position(|c| c.id == id)
 }
 
+/// Floor on successful renders out of 128 cases (a reject-everything verifier fails it).
+const MIN_DRAWN: usize = 96;
+
 fn fail<T>(m: String) -> Result<T, TestCaseError> {
     Err(TestCaseError::fail(m))
 }
@@ -115,6 +118,97 @@ fn boxes_hold(g: &GraphIr, s: &Svg) -> Result<(), TestCaseError> {
         };
         if !inside(&s.containers[pos[i]], &s.containers[pos[p]]) {
             return fail(format!("container {} leaves its parent", c.id));
+        }
+    }
+    Ok(())
+}
+
+/// IR indices of container `i` and all its ancestors, from parent links only.
+fn chain(g: &GraphIr, i: usize) -> Vec<usize> {
+    let mut out = vec![i];
+    let mut cur = g.containers[i].parent.as_deref();
+    while let Some(k) = cur.and_then(|id| container_index(g, id)) {
+        if out.contains(&k) {
+            break;
+        }
+        out.push(k);
+        cur = g.containers[k].parent.as_deref();
+    }
+    out
+}
+
+/// The title band of each IR container, from the drawn title lines: 10 px plus 16 px a line.
+fn bands(g: &GraphIr, s: &Svg) -> Vec<Shape> {
+    let pos = svg_positions(g);
+    (0..g.containers.len())
+        .map(|i| {
+            let lines = s
+                .labels
+                .iter()
+                .find(|l| l.class == "vd-container-label" && l.owner == pos[i])
+                .map_or(0, |l| i64::try_from(l.lines.len()).unwrap_or(0));
+            let c = &s.containers[pos[i]];
+            Shape {
+                h: 20 + 32 * lines,
+                ..*c
+            }
+        })
+        .collect()
+}
+
+/// Sibling containers disjoint, foreign nodes clear of a frame, children below the title band.
+fn frames_hold(g: &GraphIr, s: &Svg) -> Result<(), TestCaseError> {
+    let pos = svg_positions(g);
+    let band = bands(g, s);
+    for (i, a) in g.containers.iter().enumerate() {
+        for (j, b) in g.containers.iter().enumerate().skip(i + 1) {
+            if a.parent == b.parent && overlaps(&s.containers[pos[i]], &s.containers[pos[j]]) {
+                return fail(format!("sibling containers {} and {} overlap", a.id, b.id));
+            }
+        }
+        let parent = a.parent.as_deref().and_then(|p| container_index(g, p));
+        if parent.is_some_and(|p| overlaps(&s.containers[pos[i]], &band[p])) {
+            return fail(format!(
+                "container {} sits in its parent's title band",
+                a.id
+            ));
+        }
+    }
+    for (k, n) in g.nodes.iter().enumerate() {
+        let own = n.container.as_deref().and_then(|c| container_index(g, c));
+        let held = own.map(|c| chain(g, c)).unwrap_or_default();
+        for (j, c) in g.containers.iter().enumerate() {
+            if !held.contains(&j) && overlaps(&s.nodes[k], &s.containers[pos[j]]) {
+                return fail(format!("node {k} overlaps foreign container {}", c.id));
+            }
+        }
+        if own.is_some_and(|c| overlaps(&s.nodes[k], &band[c])) {
+            return fail(format!("node {k} sits in its container's title band"));
+        }
+    }
+    Ok(())
+}
+
+/// Edge-label boxes clear of every node box, every other label box and every title band.
+fn edge_labels_clear(g: &GraphIr, s: &Svg) -> Result<(), TestCaseError> {
+    let band = bands(g, s);
+    for (e, l) in s.edge_labels.iter().enumerate() {
+        if let Some(k) = s.nodes.iter().position(|n| overlaps(l, n)) {
+            return fail(format!("edge label {e} {l:?} covers node {k}"));
+        }
+        if let Some(k) = band.iter().position(|b| overlaps(l, b)) {
+            return fail(format!(
+                "edge label {e} {l:?} covers title band of {}",
+                g.containers[k].id
+            ));
+        }
+        if let Some(o) = s
+            .edge_labels
+            .iter()
+            .skip(e + 1)
+            .position(|o| overlaps(l, o))
+        {
+            return fail(format!("edge labels {e} and {} overlap", e + 1 + o));
         }
     }
     Ok(())
@@ -179,12 +273,19 @@ fn labels_hold(s: &Svg) -> Result<(), TestCaseError> {
     Ok(())
 }
 
-fn hold(ir: &Ir, errs: &Cell<usize>) -> Result<(), TestCaseError> {
+/// Counts of rejected (`Err(Geometry)`) and drawn (`Ok`) renders.
+#[derive(Default)]
+struct Tally {
+    rejected: Cell<usize>,
+    drawn: Cell<usize>,
+}
+
+fn hold(ir: &Ir, tally: &Tally) -> Result<(), TestCaseError> {
     let Ir::Graph(g) = ir;
     let svg = match render(ir, &SvgOpts::default()) {
         Ok(s) => s,
         Err(RenderError::Geometry(_)) => {
-            errs.set(errs.get() + 1);
+            tally.rejected.set(tally.rejected.get() + 1);
             return Ok(());
         }
         Err(e) => return fail(format!("render failed with {e:?}")),
@@ -193,27 +294,33 @@ fn hold(ir: &Ir, errs: &Cell<usize>) -> Result<(), TestCaseError> {
         Ok(p) => p,
         Err(e) => return fail(format!("{e}\n{svg}")),
     };
+    tally.drawn.set(tally.drawn.get() + 1);
     boxes_hold(g, &parsed)?;
+    frames_hold(g, &parsed)?;
+    edge_labels_clear(g, &parsed)?;
     view_box_holds(&parsed)?;
     labels_hold(&parsed)
 }
 
 #[test]
 fn geometry_holds() {
-    let errs = Cell::new(0);
+    let tally = Tally::default();
     let mut runner = TestRunner::new(Config::with_cases(128));
     let result = runner.run(&(model_graph(), noise()), |(m, n)| {
         let src = noisy_source(&m, &n);
         match check(&src).ir {
-            Some(ir) => hold(&ir, &errs).map_err(|e| TestCaseError::fail(format!("{e}\n{src}"))),
+            Some(ir) => hold(&ir, &tally).map_err(|e| TestCaseError::fail(format!("{e}\n{src}"))),
             None => fail(format!("does not check:\n{src}")),
         }
     });
-    println!(
-        "geometry_holds: {} of 128 cases were Err(Geometry)",
-        errs.get()
-    );
+    let (rejected, drawn) = (tally.rejected.get(), tally.drawn.get());
+    println!("geometry_holds: {rejected} Err(Geometry), {drawn} drawn of 128 cases");
     if let Err(e) = result {
         panic!("{e}");
     }
+    // A verifier that rejects everything would otherwise leave the oracle above with nothing to read.
+    assert!(
+        drawn >= MIN_DRAWN,
+        "only {drawn} of 128 cases rendered ({rejected} rejected)"
+    );
 }
