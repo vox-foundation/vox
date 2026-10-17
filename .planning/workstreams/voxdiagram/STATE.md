@@ -140,4 +140,4 @@ None yet.
 
 ## Pending Todos (voxdiagram)
 
-- At the next merge of local `main` (`ceb1b5d1a`, other session's v1.5/v1.6) into `milestone/v1.7-voxdiagram`: (1) call `vox_doc_pipeline::diagrams::fence_issues(md)` from `self_heal_bot::validate_bot_patch_scope_and_gates` + one test; (2) re-seed `contracts/documentation/legacy-mermaid-baseline.v1.yaml` (user re-seeds; main has 40 fences / 25 files) — decided 2026-10-17.
+- At the next merge of local `main` (`ceb1b5d1a`, other session's v1.5/v1.6) into `milestone/v1.7-voxdiagram`: (1) call `vox_doc_pipeline::pipeline::fence_issues(md)` from `self_heal_bot::validate_bot_patch_scope_and_gates` + one test; (2) re-seed `contracts/documentation/legacy-mermaid-baseline.v1.yaml` (user re-seeds; main has 40 fences / 25 files) — decided 2026-10-17.
