@@ -1,0 +1,71 @@
+{
+  "kind": "graph",
+  "direction": "down",
+  "nodes": [
+    [
+      "Inside one",
+      "rect",
+      [
+        "First scope"
+      ]
+    ],
+    [
+      "Other",
+      "rect",
+      [
+        "Second scope"
+      ]
+    ],
+    [
+      "Used first at root",
+      "rect",
+      [
+        "First scope"
+      ]
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "Other",
+        "rect",
+        [
+          "Second scope"
+        ]
+      ],
+      [
+        "Used first at root",
+        "rect",
+        [
+          "First scope"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "Used first at root",
+        "rect",
+        [
+          "First scope"
+        ]
+      ],
+      [
+        "Inside one",
+        "rect",
+        [
+          "First scope"
+        ]
+      ],
+      ""
+    ]
+  ],
+  "containers": [
+    [
+      "First scope"
+    ],
+    [
+      "Second scope"
+    ]
+  ]
+}

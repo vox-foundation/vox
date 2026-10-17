@@ -1,0 +1,173 @@
+{
+  "kind": "graph",
+  "direction": "down",
+  "nodes": [
+    [
+      "Decision",
+      "diamond",
+      []
+    ],
+    [
+      "End",
+      "end",
+      []
+    ],
+    [
+      "Plain quoted",
+      "rect",
+      []
+    ],
+    [
+      "Quoted decision",
+      "diamond",
+      []
+    ],
+    [
+      "Quoted end",
+      "end",
+      []
+    ],
+    [
+      "Quoted start",
+      "start",
+      []
+    ],
+    [
+      "Quoted store",
+      "cylinder",
+      []
+    ],
+    [
+      "Rounded quoted",
+      "rounded",
+      []
+    ],
+    [
+      "Rounded unquoted",
+      "rounded",
+      []
+    ],
+    [
+      "Start",
+      "start",
+      []
+    ],
+    [
+      "Store",
+      "cylinder",
+      []
+    ],
+    [
+      "Unquoted rect",
+      "rect",
+      []
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "Decision",
+        "diamond",
+        []
+      ],
+      [
+        "Quoted decision",
+        "diamond",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "End",
+        "end",
+        []
+      ],
+      [
+        "Quoted end",
+        "end",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Plain quoted",
+        "rect",
+        []
+      ],
+      [
+        "Rounded unquoted",
+        "rounded",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Quoted end",
+        "end",
+        []
+      ],
+      [
+        "Unquoted rect",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Quoted start",
+        "start",
+        []
+      ],
+      [
+        "End",
+        "end",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Quoted store",
+        "cylinder",
+        []
+      ],
+      [
+        "Start",
+        "start",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Rounded unquoted",
+        "rounded",
+        []
+      ],
+      [
+        "Rounded quoted",
+        "rounded",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Store",
+        "cylinder",
+        []
+      ],
+      [
+        "Quoted store",
+        "cylinder",
+        []
+      ],
+      ""
+    ]
+  ],
+  "containers": []
+}

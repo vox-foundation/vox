@@ -1,0 +1,9 @@
+stateDiagram-v2
+    [*] --> Idle
+    [*] --> Waking
+    Idle --> Idle : tick
+    Idle --> Busy : start job, now!
+    Waking --> Busy
+    Busy --> [*]
+    Busy --> Idle : done (ok)
+    Idle --> [*] : shutdown

@@ -1,0 +1,14 @@
+flowchart TD
+    start(("Start"))
+    Idle["Idle"]
+    Waking["Waking"]
+    Busy["Busy"]
+    n4((("End")))
+    start --> Idle
+    start --> Waking
+    Idle -->|"tick"| Idle
+    Idle -->|"start job, now!"| Busy
+    Waking --> Busy
+    Busy --> n4
+    Busy -->|"done (ok)"| Idle
+    Idle -->|"shutdown"| n4

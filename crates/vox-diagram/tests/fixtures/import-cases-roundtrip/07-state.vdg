@@ -1,0 +1,15 @@
+graph {
+    node start: "Start" { shape: start }
+    node Idle: "Idle"
+    node Waking: "Waking"
+    node Busy: "Busy"
+    node end: "End" { shape: end }
+    start -> Idle
+    start -> Waking
+    Idle -> Idle: "tick"
+    Idle -> Busy: "start job, now!"
+    Waking -> Busy
+    Busy -> end
+    Busy -> Idle: "done (ok)"
+    Idle -> end: "shutdown"
+}

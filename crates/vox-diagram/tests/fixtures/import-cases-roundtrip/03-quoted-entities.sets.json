@@ -1,0 +1,81 @@
+{
+  "kind": "graph",
+  "direction": "down",
+  "nodes": [
+    [
+      "Ampersand & more",
+      "rect",
+      []
+    ],
+    [
+      "Hash # and heart ♥",
+      "rect",
+      []
+    ],
+    [
+      "Line one\nline two\nline three",
+      "rect",
+      []
+    ],
+    [
+      "Say \"hi\"",
+      "rect",
+      []
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "Hash # and heart ♥",
+        "rect",
+        []
+      ],
+      [
+        "Line one\nline two\nline three",
+        "rect",
+        []
+      ],
+      "plain text"
+    ],
+    [
+      [
+        "Line one\nline two\nline three",
+        "rect",
+        []
+      ],
+      [
+        "Ampersand & more",
+        "rect",
+        []
+      ],
+      "pipe free"
+    ],
+    [
+      [
+        "Say \"hi\"",
+        "rect",
+        []
+      ],
+      [
+        "Ampersand & more",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Say \"hi\"",
+        "rect",
+        []
+      ],
+      [
+        "Hash # and heart ♥",
+        "rect",
+        []
+      ],
+      "a|b"
+    ]
+  ],
+  "containers": []
+}
