@@ -34,6 +34,14 @@ Requirements: REND-01, REND-02, REND-03, REND-04.
 - API: `vox_diagram::svg::render(&Ir, &SvgOpts) -> Result<String, RenderError>`.
 - Single escaping writer for all text/attribute output; escape guard mutation-proven.
 
+### Post-research decisions (user, 2026-10-17)
+- Spike result: GO for dagre 0.1.1 (0/10 largest corpus diagrams needed DSL tweaks; byte-identical across macOS arm64, Linux arm64, Linux x86_64). Use dagre with DEFAULT features (`default-features = false` does not compile).
+- Render caps 100 nodes / 200 edges as new constants in `limits.rs` (parse caps unchanged); larger diagrams still parse/check but `render` returns `RenderError::TooLarge`.
+- Container handling: invisible title-strut leaf per container + 3-rung deterministic separation ladder + fail-closed geometry verifier; residual failures return `RenderError::Geometry` (never a drawn overlap).
+- Finite/present coordinate check on every dagre output (dagre fails silently, never panics); `catch_unwind` still wraps the engine call, tested via an `Engine` test double.
+- Decision record lives at `docs/src/architecture/voxdiagram-layout-go-no-go-2026.md` (full frontmatter + kb:summary per AGENTS.md); it links the committed SVG goldens and the contact sheet.
+- Claude's discretion accepted: "wide = 2" means 2 half-em cells (unicode-width semantics); `<desc>` uses labels; `<title>` comes from `SvgOpts.title` (GraphIr has no title); ASCII widths from Arimo Regular (OFL) as numeric data with a provenance comment.
+
 ### Carried forward
 - No HashMap/HashSet in `src/`; no transcendental floats; no versions/timestamps in output; tests first; files < 400 non-blank lines; crate-api-sync --write after pub API changes; no workspace crate edges.
 - UI-SPEC generation skipped: this phase's visual contract is the theming decisions above; browser verification lands in Phase 89.
