@@ -35,20 +35,38 @@ pub(crate) fn quote(text: &str) -> String {
     out
 }
 
+/// `s` with every `<br>`, `<br/>` and `<br />` (any case) turned into a line break, exactly as
+/// the Mermaid importer decodes them.
+fn decode_br(s: &str) -> String {
+    let lower = s.to_ascii_lowercase(); // same byte offsets as `s`
+    let (mut out, mut i) = (String::with_capacity(s.len()), 0);
+    while let Some(c) = s.get(i..).and_then(|r| r.chars().next()) {
+        let br = ["<br>", "<br/>", "<br />"]
+            .into_iter()
+            .find(|p| lower.get(i..).is_some_and(|r| r.starts_with(p)));
+        if let Some(p) = br {
+            out.push('\n');
+            i += p.len();
+        } else {
+            out.push(c);
+            i += c.len_utf8();
+        }
+    }
+    out
+}
+
 /// A Mermaid label as `(decoded text, canonical quoted spelling)`: trimmed, surrounding
-/// double quotes stripped, `<br>` and `<br/>` turned into line breaks (the `\n` escape in the
-/// quoted form), then escaped like [`quote`].
+/// double quotes stripped, `<br>` forms turned into line breaks (the `\n` escape in the
+/// quoted form), trimmed again, then escaped like [`quote`].
 pub(crate) fn mermaid_label(raw: &str) -> (String, String) {
     let t = raw.trim();
     let t = t
         .strip_prefix('"')
         .and_then(|r| r.strip_suffix('"'))
         .unwrap_or(t);
-    let t = t
-        .replace("<br/>", "\n")
-        .replace("<br />", "\n")
-        .replace("<br>", "\n");
+    let t = decode_br(t);
     let decoded: String = t
+        .trim()
         .chars()
         .filter(|&c| c != '\r' && !is_forbidden(c))
         .collect();
@@ -164,6 +182,10 @@ mod tests {
             ("say \"hi\" \\".into(), "\"say \\\"hi\\\" \\\\\"".into())
         );
         assert_eq!(q(""), (String::new(), "\"\"".into()));
+        assert_eq!(
+            q("a<BR>b <br /> c<br>"),
+            ("a\nb \n c".into(), "\"a\\nb \\n c\"".into())
+        );
     }
 
     #[test]

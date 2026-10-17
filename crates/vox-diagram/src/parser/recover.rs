@@ -6,7 +6,7 @@ use super::Parser;
 use crate::ast::{ItemKind, Label};
 use crate::codes;
 use crate::diag::{Fix, clip};
-use crate::fixgen::{quote, replace};
+use crate::fixgen::{mermaid_label, quote, replace};
 use crate::lexer::TokenKind;
 use crate::limits::{MAX_EDGES, MAX_NODES};
 use crate::span::Span;
@@ -33,6 +33,14 @@ pub(super) fn describe(kind: &TokenKind) -> String {
         TokenKind::Unknown(c) => format!("`{}`", c.escape_default()),
         TokenKind::Eof => "end of input".into(),
     }
+}
+
+/// True when the `;` at `semi` closes a `#name;` / `#digits;` entity opened inside `src[from..]`.
+fn entity_end(src: &str, from: u32, semi: u32) -> bool {
+    let before = src.get(from as usize..semi as usize).unwrap_or_default();
+    before.rsplit_once('#').is_some_and(|(_, run)| {
+        !run.is_empty() && run.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+    })
 }
 
 impl Parser<'_> {
@@ -162,7 +170,9 @@ impl Parser<'_> {
     }
 
     /// Label text without double quotes (`Label text`, `'x'`): tokens up to the end of the
-    /// line, or up to `{` when `stop_lbrace`. Reports `expected-quoted-label` and returns the
+    /// line, or up to `{` when `stop_lbrace`. In a `sequence` the text also ends at a `;` (a
+    /// Mermaid statement terminator, unless it closes a `#59;` entity) and decodes like the
+    /// importer (`<br>` becomes a line break). Reports `expected-quoted-label` and returns the
     /// recovered label; `None` when no such tokens exist.
     pub(super) fn unquoted_label(&mut self, stop_lbrace: bool) -> Option<Label> {
         let start = self.peek().span.start;
@@ -174,6 +184,7 @@ impl Parser<'_> {
                     true
                 }
                 TokenKind::LBrace => stop_lbrace,
+                TokenKind::Semi => self.seq && !entity_end(self.src, start, t.span.start),
                 _ => false,
             };
             if stop {
@@ -185,17 +196,19 @@ impl Parser<'_> {
         let span = Span { start, end: end? };
         let raw = self.src.get(span.start as usize..span.end as usize);
         let raw = raw.unwrap_or_default();
-        let text = raw
-            .strip_prefix('\'')
-            .and_then(|r| r.strip_suffix('\''))
-            .unwrap_or(raw);
-        let msg = format!("labels must be double-quoted; write \"{}\"", clip(text));
-        let fixes = vec![replace(span, quote(text))];
+        let (value, quoted) = if self.seq {
+            mermaid_label(raw)
+        } else {
+            let text = raw
+                .strip_prefix('\'')
+                .and_then(|r| r.strip_suffix('\''))
+                .unwrap_or(raw);
+            (text.to_string(), quote(text))
+        };
+        let msg = format!("labels must be double-quoted; write \"{}\"", clip(&value));
+        let fixes = vec![replace(span, quoted)];
         self.report_full(codes::EXPECTED_QUOTED_LABEL, span, msg, None, fixes);
-        Some(Label {
-            value: text.to_string(),
-            span,
-        })
+        Some(Label { value, span })
     }
 
     /// True when the token after the current newline begins a `node`/`container` declaration.

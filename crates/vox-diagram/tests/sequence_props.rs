@@ -5,9 +5,11 @@ mod support;
 
 use proptest::prelude::*;
 use serde_json::{Value, to_value};
-use support::seq::{SeqModel, model_seq_ir_json, model_sequence, noisy_seq_source};
+use support::seq::{
+    SeqItem, SeqModel, actor_id, model_seq_ir_json, model_sequence, noisy_seq_source,
+};
 use support::{noise, strip_spans};
-use vox_diagram::ast::{Entry, Item, ItemKind};
+use vox_diagram::ast::{Entry, Item, ItemKind, Label};
 use vox_diagram::diag::CheckReport;
 use vox_diagram::{check, fmt, parse, repair};
 
@@ -121,11 +123,94 @@ fn corrupt(src: &str, kind: usize, pick: usize) -> String {
     let Some(site) = found.get(pick % found.len().max(1)) else {
         return src.to_string();
     };
-    let mut edits = site.clone();
+    apply(src, site)
+}
+
+fn apply(src: &str, site: &[Edit]) -> String {
+    let mut edits = site.to_vec();
     edits.sort_by_key(|e| std::cmp::Reverse(e.0));
     let mut out = src.to_string();
     for (start, end, text) in edits {
         out.replace_range(start..end, &text);
+    }
+    out
+}
+
+/// A model every event of which has a plain label (`word<i> beta`, or `word<i>\nbeta` when
+/// `multiline`) and whose last actor is labelled with its own id and mentioned by an event: the
+/// shape the [`sites2`] corruptions need to repair back to an identical IR.
+fn tidy(mut m: SeqModel, multiline: bool) -> SeqModel {
+    if m.actors.is_empty() {
+        m.actors.push((7, String::new()));
+    }
+    let last = m.actors.len() - 1;
+    m.actors[last].1 = actor_id(m.actors[last].0, last);
+    for _ in 0..2 {
+        m.events.push(SeqItem::Message {
+            from: last,
+            to: last,
+            label: None,
+            reply: false,
+        });
+    }
+    let sep = if multiline { '\n' } else { ' ' };
+    for (i, e) in m.events.iter_mut().enumerate() {
+        let text = format!("word{i}{sep}beta");
+        match e {
+            SeqItem::Message { label, .. } => *label = Some(text),
+            SeqItem::Note { label, .. } => *label = text,
+        }
+    }
+    m
+}
+
+fn label_of(kind: &ItemKind) -> Option<&Label> {
+    match kind {
+        ItemKind::Message(m) => m.label.as_ref(),
+        ItemKind::Note(n) => Some(&n.label),
+        _ => None,
+    }
+}
+
+/// Review-driven corruptions, each a single-site edit set. 0 a message or note label left
+/// unquoted and joined to the next statement with `;`; 1 an unquoted label ended by a trailing
+/// `;`; 2 a quoted `\n` written as an unquoted `<br>` / `<br/>` / `<BR>`; 3 the last actor's
+/// declaration deleted while an event still mentions it.
+fn sites2(src: &str, kind: usize, pick: usize) -> Vec<Vec<Edit>> {
+    let at = |s: u32| s as usize;
+    let all = items(src);
+    if kind == 3 {
+        let last = all
+            .iter()
+            .rev()
+            .find(|i| matches!(i.kind, ItemKind::Actor(_)));
+        return last
+            .map(|i| vec![(at(i.span.start), at(i.span.end), String::new())])
+            .into_iter()
+            .collect();
+    }
+    let br = ["<br>", "<br/>", "<BR>"][pick % 3];
+    let mut out = Vec::new();
+    for (n, item) in all.iter().enumerate() {
+        let Some(l) = label_of(&item.kind) else {
+            continue;
+        };
+        if !ends_line(src, l.span.end) || item.trailing.is_some() {
+            continue;
+        }
+        let (start, end) = (at(l.span.start), at(l.span.end));
+        let bare = (start, end, l.value.replace('\n', br));
+        match kind {
+            0 => {
+                let next = all.get(n + 1).map_or(end, |i| at(i.span.start));
+                let gap = src.get(end..next).and_then(|g| g.strip_prefix('\n'));
+                if gap.is_some_and(|g| g.chars().all(|c| matches!(c, ' ' | '\t'))) {
+                    out.push(vec![bare, (end, next, "; ".to_string())]);
+                }
+            }
+            1 => out.push(vec![bare, (end, end, ";".to_string())]),
+            _ => out.push(vec![bare]),
+        }
     }
     out
 }
@@ -190,6 +275,36 @@ proptest! {
     }
 }
 
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(128))]
+
+    /// S5: `;` statement terminators after unquoted labels, Mermaid `<br>` in unquoted labels
+    /// and a deleted actor declaration all repair back to the original IR.
+    #[test]
+    fn s5_semicolons_br_and_undeclared_actors_repair(
+        m in model_sequence(), n in noise(), kind in 0usize..4, pick in 0usize..64,
+    ) {
+        let src = canonical(&tidy(m, kind == 2), &n);
+        let original = check(&src);
+        prop_assert!(original.valid, "{:?}\n{src}", original.diagnostics);
+        let mut found = sites2(&src, kind, pick);
+        if found.is_empty() {
+            found = sites2(&src, 1, pick);
+        }
+        prop_assume!(!found.is_empty());
+        let bad = apply(&src, &found[pick % found.len()]);
+        prop_assert_ne!(&bad, &src, "the corruption changed nothing");
+        prop_assert!(!check(&bad).valid, "stayed valid:\n{bad}");
+        let fixed = repair(&bad, 5);
+        prop_assert!(fixed.report.valid, "{:?}\n{bad}\n=>\n{}", fixed.report.diagnostics, fixed.text);
+        prop_assert_eq!(
+            report_ir(&fixed.report),
+            report_ir(&original),
+            "{}\n=>\n{}\n=>\n{}", src, bad, fixed.text
+        );
+    }
+}
+
 /// Every corruption kind has a real site in a plain document, changes the text, invalidates
 /// it and repairs back, so S4 can never pass by always falling back to the same corruption.
 #[test]
@@ -224,6 +339,44 @@ fn every_corruption_kind_applies_and_repairs() {
                 report_ir(&fixed.report),
                 report_ir(&original),
                 "kind {kind} pick {pick}"
+            );
+        }
+    }
+}
+
+/// The review corruptions have a site in a plain document and repair back to its IR.
+#[test]
+fn every_review_corruption_applies_and_repairs() {
+    let src = concat!(
+        "sequence {\n",
+        "    actor a: \"a\"\n",
+        "    actor b: \"b\"\n",
+        "    a -> b: \"go\\nnow\"\n",
+        "    b -> a: \"back\"\n",
+        "    note over a, b: \"both\"\n",
+        "}\n",
+    );
+    let original = check(src);
+    assert!(original.valid, "{:?}", original.diagnostics);
+    for kind in 0..4 {
+        for pick in 0..3 {
+            let found = sites2(src, kind, pick);
+            assert!(!found.is_empty(), "kind {kind} has no site");
+            let bad = apply(src, &found[pick % found.len()]);
+            assert!(
+                !check(&bad).valid,
+                "kind {kind} pick {pick} stayed valid:\n{bad}"
+            );
+            let fixed = repair(&bad, 5);
+            assert!(
+                fixed.report.valid,
+                "kind {kind} pick {pick}:\n{bad}\n=>\n{}",
+                fixed.text
+            );
+            assert_eq!(
+                report_ir(&fixed.report),
+                report_ir(&original),
+                "kind {kind} pick {pick}\n{bad}"
             );
         }
     }
