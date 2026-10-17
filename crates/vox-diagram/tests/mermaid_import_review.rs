@@ -181,6 +181,59 @@ fn state_shorthand_stays_refused_by_default_and_bad_shorthand_is_never_dropped()
     }
 }
 
+// Iteration-2 WR-01: under `drop_styling` a state line that only declares a class (`Run:::bad`)
+// is a declaration: the class is dropped and the state kept, as Mermaid reads it.
+
+fn dropped_at(r: &ImportReport) -> Vec<(u32, &str)> {
+    r.dropped
+        .iter()
+        .map(|d| (d.line, d.construct.as_str()))
+        .collect()
+}
+
+#[test]
+fn state_class_only_line_is_a_declaration_under_drop_styling() {
+    let r = dropping("stateDiagram-v2\n classDef bad fill:#f00\n Idle --> Run\n Run:::bad\n");
+    assert!(r.unsupported.is_empty(), "{r:?}");
+    assert_eq!(r.source, Some(source("stateDiagram-v2\n Idle --> Run\n")));
+    assert_eq!(
+        dropped_at(&r),
+        [(2, "styling:classDef"), (4, "styling:shorthand")]
+    );
+    // The declaration alone still creates the state (the pinned Mermaid lists it as a node).
+    for line in ["Solo:::c", "Solo :::c"] {
+        let r = dropping(&format!("stateDiagram-v2\n {line}\n A --> B\n"));
+        assert!(r.unsupported.is_empty(), "{line}: {r:?}");
+        let s = r.source.clone().unwrap_or_default();
+        assert!(s.contains("node Solo: \"Solo\""), "{line}: {s}");
+        assert_eq!(dropped_at(&r), [(2, "styling:shorthand")], "{line}");
+    }
+    // `state Solo:::c` declares nothing Mermaid lists as a node, so it is only dropped.
+    let r = dropping("stateDiagram-v2\n state Solo:::c\n A --> B\n");
+    assert!(r.unsupported.is_empty(), "{r:?}");
+    assert_eq!(r.source, Some(source("stateDiagram-v2\n A --> B\n")));
+    assert_eq!(dropped_at(&r), [(2, "styling:shorthand")]);
+}
+
+#[test]
+fn state_class_only_line_stays_refused_by_default_and_when_malformed() {
+    refused_as("stateDiagram-v2\n Run:::bad\n", 2, "styling:shorthand");
+    // A description is a description, with or without the class.
+    let r = dropping("stateDiagram-v2\n Run:::bad : desc\n");
+    assert_eq!(refused_in(&r), [(2, "state:description".to_owned())]);
+    for line in ["Run:::", "Run:::bad x", "[*]:::c", "end:::c", "a-b:::c"] {
+        let r = dropping(&format!("stateDiagram-v2\n {line}\n"));
+        assert!(r.source.is_none() && !r.unsupported.is_empty(), "{line}");
+    }
+}
+
+fn refused_in(r: &ImportReport) -> Vec<(u32, String)> {
+    r.unsupported
+        .iter()
+        .map(|u| (u.line, u.construct.clone()))
+        .collect()
+}
+
 // WR-03: in-limit blocks that the DSL cannot hold were refused as a line-1 `internal`.
 
 #[test]

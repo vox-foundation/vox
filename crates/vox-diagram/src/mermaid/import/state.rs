@@ -18,6 +18,12 @@ struct Trans {
     label: Option<String>,
 }
 
+/// One accepted line: a transition, or a state declared alone (`Run:::bad` under `drop_styling`).
+enum Item {
+    Edge(Trans),
+    State(String),
+}
+
 /// An endpoint: `[*]` or a state id. `start` / `end` are the terminals' ids, so they clash.
 fn endpoint(s: &str) -> Result<Option<String>, String> {
     let s = s.trim();
@@ -114,8 +120,33 @@ fn transition(line: &str, dropped: &mut Vec<String>) -> Result<Trans, String> {
     Ok(Trans { from, to, label })
 }
 
+/// A `drop_styling` line with a class shorthand and no arrow: `Run:::bad` declares the state Run
+/// (the pinned Mermaid lists it); `state Run:::bad` declares nothing it lists, so only the line goes.
+fn declaration(line: &str, dropped: &mut Vec<String>) -> Result<Option<Item>, String> {
+    let (body, keyword) = match line.strip_prefix("state") {
+        Some(r) if r.starts_with(char::is_whitespace) => (r.trim_start(), true),
+        _ => (line, false),
+    };
+    let (id, class) = body.split_once(":::").unwrap_or((body, ""));
+    let (name, rest) = id_run(class.trim());
+    if name.is_empty() {
+        return Err("statement".to_owned());
+    }
+    if rest.trim_start().starts_with(':') {
+        return Err("state:description".to_owned());
+    }
+    if !rest.is_empty() {
+        return Err("statement".to_owned());
+    }
+    let Some(id) = endpoint(id)? else {
+        return Err("statement".to_owned());
+    };
+    dropped.push("styling:shorthand".to_owned());
+    Ok((!keyword).then_some(Item::State(id)))
+}
+
 /// Scan one trimmed line: `Ok(None)` for a dropped styling line.
-fn scan(line: &str, opts: ImportOpts, dropped: &mut Vec<String>) -> Result<Option<Trans>, String> {
+fn scan(line: &str, opts: ImportOpts, dropped: &mut Vec<String>) -> Result<Option<Item>, String> {
     if line.starts_with("%%{") {
         return Err("directive".to_owned());
     }
@@ -134,6 +165,9 @@ fn scan(line: &str, opts: ImportOpts, dropped: &mut Vec<String>) -> Result<Optio
         dropped.push(c);
         return Ok(None);
     }
+    if opts.drop_styling && line.contains(":::") && !line.contains("-->") {
+        return declaration(line, dropped);
+    }
     let word = line.split_whitespace().next().unwrap_or_default();
     if let Some(c) = keyword(line, word) {
         return Err(c.to_owned());
@@ -141,7 +175,7 @@ fn scan(line: &str, opts: ImportOpts, dropped: &mut Vec<String>) -> Result<Optio
     if text::semicolon(line).unwrap_or(false) {
         return Err("semicolon".to_owned());
     }
-    transition(line, dropped).map(Some)
+    transition(line, dropped).map(|t| Some(Item::Edge(t)))
 }
 
 /// Node index for a state or terminal, created at its first mention.
@@ -190,7 +224,17 @@ pub(super) fn state(body: Vec<(u32, &str)>, opts: ImportOpts) -> ImportReport {
             }
         };
         dropped.extend(d.into_iter().map(|c| (n, c)));
-        let Some(t) = t else { continue };
+        let t = match t {
+            None => continue,
+            Some(Item::State(id)) => {
+                if ns.get(&id, &id, Shape::Rect).is_none() && !ns.full {
+                    ns.full = true;
+                    errors.push((n, "limit-nodes".to_owned()));
+                }
+                continue;
+            }
+            Some(Item::Edge(t)) => t,
+        };
         let from = match &t.from {
             None => ns.get("start", "Start", Shape::Start),
             Some(id) => ns.get(id, id, Shape::Rect),
