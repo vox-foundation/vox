@@ -22,7 +22,8 @@ covered_files:
   - "crates/vox-doc-pipeline/src/pipeline/mod.rs"
   - "crates/vox-doc-pipeline/src/pipeline/types.rs"
   - "docs/src/architecture/layers.toml"
-covered_digest: "v3:sha256:3a13ee973d162232715a0feee021774b6a7c559f8f667f6090a970f3df1acfcf"
+  - "crates/vox-doc-pipeline/tests/fence_issues_public.rs"
+covered_digest: "v3:sha256:b779c2a71b92e24cb918bc84fca9d7679638b4252d27eb3d62e9333a2199d84e"
 behavior_unverified: 0
 overrides_applied: 0
 gaps:

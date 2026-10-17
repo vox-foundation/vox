@@ -26,7 +26,7 @@
     {
       "number": "87",
       "name": "Doc-Pipeline Consumer & Legacy-Mermaid Ratchet",
-      "status": "in_progress"
+      "status": "complete"
     },
     {
       "number": "88",
@@ -51,8 +51,8 @@
   ],
   "next": {
     "command": "/gsd:progress --next",
-    "label": "Advance to the next step (verify)",
-    "reason": "Phase 87 of 9 · ready to verify"
+    "label": "Advance to the next step (plan phase 88)",
+    "reason": "Phase 88 of 9 — needs a plan"
   },
-  "updated_at": "2026-10-17T18:31:56.856Z"
+  "updated_at": "2026-10-17T19:06:41.859Z"
 }

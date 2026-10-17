@@ -41,7 +41,7 @@ v1.7 retires Mermaid as the primary diagram *authoring* format. A new pure L2 cr
 - [x] **Phase 84: Mermaid Emitter & Strict Importer** - Sanitized Mermaid export that real Mermaid accepts; fail-closed importer verified by corpus round trip (completed 2026-10-16)
 - [x] **Phase 85: Graph Layout & Deterministic SVG** - `dagre` seam behind a go/no-go spike; byte-identical, injection-safe, themeable SVG (completed 2026-10-17)
 - [x] **Phase 86: Sequence Kind** - `sequence` DSL, width-aware lane SVG, and DSL round trip for the corpus sequence blocks (completed 2026-10-17)
-- [ ] **Phase 87: Doc-Pipeline Consumer & Legacy-Mermaid Ratchet** - Doc lint validates `vox-diagram` fences and rejects new Mermaid fences via a shrink-only baseline; first authorized crate edge
+- [x] **Phase 87: Doc-Pipeline Consumer & Legacy-Mermaid Ratchet** - Doc lint validates `vox-diagram` fences and rejects new Mermaid fences via a shrink-only baseline; first authorized crate edge (completed 2026-10-17)
 - [ ] **Phase 88: MCP Tool, CLI & Agent Guidance** - `vox_validate_diagram`, `vox diagram` CLI, and the grammar card agents author from; second authorized crate edge
 - [ ] **Phase 89: Docs-Astro Integration** - Pre-render to manifest, remark inline, Playwright proof of ids, label fit and contrast
 - [ ] **Phase 90: Corpus Migration & Gate Tightening** - Migrate all convertible live fences in small reviewed batches, then tighten the baseline to the allowlist
@@ -187,7 +187,7 @@ Plans:
   2. A malformed ```` ```vox-diagram ```` fence fails doc lint with the `diagram/*` diagnostic and file:line span, and a valid one passes; the `vox` doctest runner never compiles it (exact info-string matching verified against the `lint.rs` comma-split vs `doctest.rs` whole-string behavior).
   3. `vox-doc-pipeline` re-exports `vox_diagram` (so the CLI needs no third edge), the doc pipeline exposes `fence_issues(md)` for the self-heal bot (bot wiring deferred to the next merge of local `main`, which is where the bot lives — user decision 2026-10-17), and `vox ci crate-edges` passes with exactly one new edge, `vox-doc-pipeline -> vox-diagram`, recorded as an exception citing the 2026-10-16 chat authorization; `orphan_exempt` is removed.
 
-**Plans**: 3/3 plans executed
+**Plans**: 3/3 plans complete
 
 Plans:
 **Wave 1**
@@ -276,7 +276,7 @@ Phases execute in numeric order, with the parallel opportunities noted under Ove
 | 84. Mermaid Emitter & Strict Importer | 5/5 | Complete    | 2026-10-16 |
 | 85. Graph Layout & Deterministic SVG | 5/5 | Complete    | 2026-10-17 |
 | 86. Sequence Kind | 4/4 | Complete    | 2026-10-17 |
-| 87. Doc-Pipeline Consumer & Legacy-Mermaid Ratchet | 3/3 | In Progress | - |
+| 87. Doc-Pipeline Consumer & Legacy-Mermaid Ratchet | 3/3 | Complete    | 2026-10-17 |
 | 88. MCP Tool, CLI & Agent Guidance | 0/TBD | Not started | - |
 | 89. Docs-Astro Integration | 0/TBD | Not started | - |
 | 90. Corpus Migration & Gate Tightening | 0/TBD | Not started | - |
