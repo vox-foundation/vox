@@ -112,6 +112,9 @@ fn assert_pairs(label: &str, color: Palette<'_>) {
         ("--vd-edge", "--vd-container-fill"),
         ("--vd-node-stroke", "--vd-bg"),
         ("--vd-node-stroke", "--vd-container-fill"),
+        // The frame is the only visual cue that nodes are grouped (WCAG 1.4.11).
+        ("--vd-container-stroke", "--vd-bg"),
+        ("--vd-container-stroke", "--vd-container-fill"),
     ];
     for (pairs, min) in [(text.as_slice(), 4.5), (graphic.as_slice(), 3.0)] {
         for (fg, bg) in pairs {

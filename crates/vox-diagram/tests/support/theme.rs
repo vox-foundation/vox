@@ -40,7 +40,7 @@ pub const STARLIGHT_MAP: [(&str, &str); 8] = [
     ("--vd-node-stroke", "--sl-color-gray-3"),
     ("--vd-edge", "--sl-color-gray-3"),
     ("--vd-container-fill", "--sl-color-gray-6"),
-    ("--vd-container-stroke", "--sl-color-gray-5"),
+    ("--vd-container-stroke", "--sl-color-gray-3"),
     ("--vd-bg", "--sl-color-black"),
 ];
 

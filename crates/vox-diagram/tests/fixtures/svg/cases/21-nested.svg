@@ -7,17 +7,17 @@
 </marker>
 </defs>
 <g class="vd-containers">
-<rect class="vd-container" x="16" y="300" width="1113" height="647" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#d0d7de);stroke-width:1.5"/>
+<rect class="vd-container" x="16" y="300" width="1113" height="647" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
 <text class="vd-container-label" x="572.5" y="318" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="572.5" dy="0">Outer layer</tspan></text>
-<rect class="vd-container" x="401.5" y="16" width="472" height="248" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#d0d7de);stroke-width:1.5"/>
+<rect class="vd-container" x="401.5" y="16" width="472" height="248" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
 <text class="vd-container-label" x="637.5" y="34" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="637.5" dy="0">Sibling group</tspan></text>
-<rect class="vd-container" x="16" y="1020" width="297" height="174" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#d0d7de);stroke-width:1.5"/>
+<rect class="vd-container" x="16" y="1020" width="297" height="174" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
 <text class="vd-container-label" x="164.5" y="1038" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="164.5" dy="0">Nothing here yet</tspan></text>
-<rect class="vd-container" x="401.5" y="951" width="273.5" height="280" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#d0d7de);stroke-width:1.5"/>
+<rect class="vd-container" x="401.5" y="951" width="273.5" height="280" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
 <text class="vd-container-label" x="538" y="969" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="538" dy="0">A very long title that keeps</tspan><tspan x="538" dy="16">going on and on for sixty</tspan><tspan x="538" dy="16">chars</tspan></text>
-<rect class="vd-container" x="46" y="370" width="1053" height="388" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#d0d7de);stroke-width:1.5"/>
+<rect class="vd-container" x="46" y="370" width="1053" height="388" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
 <text class="vd-container-label" x="572.5" y="388" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="572.5" dy="0">Middle layer</tspan></text>
-<rect class="vd-container" x="76" y="440" width="207" height="248" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#d0d7de);stroke-width:1.5"/>
+<rect class="vd-container" x="76" y="440" width="207" height="248" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
 <text class="vd-container-label" x="179.5" y="458" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="179.5" dy="0">Innermost layer</tspan></text>
 </g>
 <g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">

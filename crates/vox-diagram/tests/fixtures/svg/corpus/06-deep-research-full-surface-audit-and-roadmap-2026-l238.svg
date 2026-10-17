@@ -7,9 +7,9 @@
 </marker>
 </defs>
 <g class="vd-containers">
-<rect class="vd-container" x="490.5" y="72" width="805" height="630" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#d0d7de);stroke-width:1.5"/>
+<rect class="vd-container" x="490.5" y="72" width="805" height="630" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
 <text class="vd-container-label" x="893" y="90" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="893" dy="0">Local Models: MENS / Ollama</tspan><tspan x="893" dy="16">/ Candle Metal / CUDA</tspan></text>
-<rect class="vd-container" x="16" y="712" width="1049.5" height="434" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#d0d7de);stroke-width:1.5"/>
+<rect class="vd-container" x="16" y="712" width="1049.5" height="434" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
 <text class="vd-container-label" x="540.5" y="730" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="540.5" dy="0">OpenRouter / Frontier Cloud</tspan><tspan x="540.5" dy="16">Models</tspan></text>
 </g>
 <g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">

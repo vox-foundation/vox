@@ -7,13 +7,13 @@
 </marker>
 </defs>
 <g class="vd-containers">
-<rect class="vd-container" x="16" y="32" width="287.5" height="467" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#d0d7de);stroke-width:1.5"/>
+<rect class="vd-container" x="16" y="32" width="287.5" height="467" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
 <text class="vd-container-label" x="159.5" y="50" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="159.5" dy="0">Loquela &amp; Model Selector</tspan></text>
-<rect class="vd-container" x="16" y="535" width="287.5" height="427" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#d0d7de);stroke-width:1.5"/>
+<rect class="vd-container" x="16" y="535" width="287.5" height="427" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
 <text class="vd-container-label" x="159.5" y="553" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="159.5" dy="0">Live Orchestrator Telemetry</tspan></text>
-<rect class="vd-container" x="347.5" y="16" width="312.5" height="952" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#d0d7de);stroke-width:1.5"/>
+<rect class="vd-container" x="347.5" y="16" width="312.5" height="952" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
 <text class="vd-container-label" x="503.5" y="34" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="503.5" dy="0">Pure Correlation Layer</tspan><tspan x="503.5" dy="16">(riverMath.ts)</tspan></text>
-<rect class="vd-container" x="704" y="37.5" width="304" height="946" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#d0d7de);stroke-width:1.5"/>
+<rect class="vd-container" x="704" y="37.5" width="304" height="946" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
 <text class="vd-container-label" x="856" y="55.5" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="856" dy="0">HarnessRiverPanel (Dockable</tspan><tspan x="856" dy="16">+ Full Surface)</tspan></text>
 </g>
 <g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">

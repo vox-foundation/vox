@@ -7,7 +7,7 @@
 </marker>
 </defs>
 <g class="vd-containers">
-<rect class="vd-container" x="16" y="114" width="375" height="272" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#d0d7de);stroke-width:1.5"/>
+<rect class="vd-container" x="16" y="114" width="375" height="272" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
 <text class="vd-container-label" x="203.5" y="132" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="203.5" dy="0">Backend services</tspan></text>
 </g>
 <g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">

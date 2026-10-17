@@ -79,7 +79,7 @@ pub const THEME_VARS: [(&str, &str); 9] = [
     ("--vd-node-stroke", "#57606a"),
     ("--vd-edge", "#57606a"),
     ("--vd-container-fill", "#f6f8fa"),
-    ("--vd-container-stroke", "#d0d7de"),
+    ("--vd-container-stroke", "#848d97"),
     ("--vd-bg", "#fff"),
     ("--vd-font", "system-ui,sans-serif"),
 ];
