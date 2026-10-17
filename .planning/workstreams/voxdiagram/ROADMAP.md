@@ -42,7 +42,7 @@ v1.7 retires Mermaid as the primary diagram *authoring* format. A new pure L2 cr
 - [x] **Phase 85: Graph Layout & Deterministic SVG** - `dagre` seam behind a go/no-go spike; byte-identical, injection-safe, themeable SVG (completed 2026-10-17)
 - [x] **Phase 86: Sequence Kind** - `sequence` DSL, width-aware lane SVG, and DSL round trip for the corpus sequence blocks (completed 2026-10-17)
 - [x] **Phase 87: Doc-Pipeline Consumer & Legacy-Mermaid Ratchet** - Doc lint validates `vox-diagram` fences and rejects new Mermaid fences via a shrink-only baseline; first authorized crate edge (completed 2026-10-17)
-- [ ] **Phase 88: MCP Tool, CLI & Agent Guidance** - `vox_validate_diagram`, `vox diagram` CLI, and the grammar card agents author from; second authorized crate edge
+- [x] **Phase 88: MCP Tool, CLI & Agent Guidance** - `vox_validate_diagram`, `vox diagram` CLI, and the grammar card agents author from; second authorized crate edge (completed 2026-10-17)
 - [ ] **Phase 89: Docs-Astro Integration** - Pre-render to manifest, remark inline, Playwright proof of ids, label fit and contrast
 - [ ] **Phase 90: Corpus Migration & Gate Tightening** - Migrate all convertible live fences in small reviewed batches, then tighten the baseline to the allowlist
 - [ ] **Phase 91: Measurement Harness & Advisory Closure** - Paired NL-to-diagram harness with CIs; annotate the advisory's unsourced table
@@ -214,7 +214,7 @@ Plans:
   3. A developer can run `vox diagram check|fmt|render|export|import` on files or stdin with exit codes that reflect diagnostics, with catalog rows, needles, and `cli.md` updated and no `vox-cli -> vox-diagram` edge.
   4. The grammar card (<=~600 tokens by measurement, with examples that each pass `check`) is in agent authoring guidance, and `AGENTS.md` directs new docs diagrams to ```` ```vox-diagram ````.
 
-**Plans**: 3/3 plans executed
+**Plans**: 3/3 plans complete
 
 Plans:
 **Wave 1**
@@ -288,7 +288,7 @@ Phases execute in numeric order, with the parallel opportunities noted under Ove
 | 85. Graph Layout & Deterministic SVG | 5/5 | Complete    | 2026-10-17 |
 | 86. Sequence Kind | 4/4 | Complete    | 2026-10-17 |
 | 87. Doc-Pipeline Consumer & Legacy-Mermaid Ratchet | 3/3 | Complete    | 2026-10-17 |
-| 88. MCP Tool, CLI & Agent Guidance | 3/3 | In Progress | - |
+| 88. MCP Tool, CLI & Agent Guidance | 3/3 | Complete    | 2026-10-17 |
 | 89. Docs-Astro Integration | 0/TBD | Not started | - |
 | 90. Corpus Migration & Gate Tightening | 0/TBD | Not started | - |
 | 91. Measurement Harness & Advisory Closure | 0/TBD | Not started | - |

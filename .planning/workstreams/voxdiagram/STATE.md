@@ -2,20 +2,21 @@
 gsd_state_version: "1.0"
 milestone: v1.7
 milestone_name: VoxDiagram
-current_phase: 88
-current_phase_name: MCP Tool, CLI & Agent Guidance
+current_phase: 89
+current_phase_name: Docs-Astro Integration
 current_plan: 3
-status: verifying
-stopped_at: Completed 88-03-PLAN.md
-last_updated: "2026-10-17T20:48:53.692Z"
+status: planning
+stopped_at: Phase 88 complete, ready to plan Phase 89
+last_updated: "2026-10-17T21:34:22.522Z"
 last_activity: 2026-10-17
-last_activity_desc: Phase 88 execution started
-state_head: 910d8a08c3f56374afcb70fa14e3553dc9f9c063
+last_activity_desc: Phase 88 complete, transitioned to Phase 89
+state_head: f3f54b435eeea74837312b9dfc6e0999dce7f1bb
 progress:
   total_phases: 9
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 27
   completed_plans: 27
+  percent: 67
 ---
 
 # Project State: VoxDiagram (`voxdiagram`)
@@ -29,12 +30,12 @@ See: `.planning/PROJECT.md` (shared, owned by the `unified` workstream, not edit
 
 ## Current Position
 
-Phase: 88 (MCP Tool, CLI & Agent Guidance) — EXECUTING
-Plan: 3 of 3
-Status: Phase complete — ready for verification
-Last activity: 2026-10-17 — Phase 88 execution started
+Phase: 89 — Docs-Astro Integration
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-10-17 — Phase 88 complete, transitioned to Phase 89
 
-Progress: [██████░░░░] 56% (0/9 phases)
+Progress: [███████░░░] 67% (0/9 phases)
 
 ## Progress
 
@@ -66,7 +67,7 @@ None yet.
 
 **Last session:** 2026-10-17T20:48:53.644Z
 
-**Stopped At:** Completed 88-03-PLAN.md
+**Stopped At:** Phase 88 complete, ready to plan Phase 89
 **Resume File:** None
 
 ## Performance Metrics
@@ -147,3 +148,4 @@ None yet.
 ## Pending Todos (voxdiagram)
 
 - At the next merge of local `main` (`ceb1b5d1a`, other session's v1.5/v1.6) into `milestone/v1.7-voxdiagram`: (1) call `vox_doc_pipeline::pipeline::fence_issues(md)` from `self_heal_bot::validate_bot_patch_scope_and_gates` + one test; (2) re-seed `contracts/documentation/legacy-mermaid-baseline.v1.yaml` (user re-seeds; main has 40 fences / 25 files) — decided 2026-10-17.
+- Before opening the milestone PR: `vox-orchestrator-mcp` `profile_backcompat_tests` (2) fail at the phase base because the advertised-tools fixture lacks 14 already-registered tools; this PR touches the crate, so hosted `tests` will run them — fix the fixture (or confirm they are quarantined) in PR prep. Also expect `cargo clippy -p vox-doc-pipeline` to flag 26 pre-existing `claims/` findings on the affected-crate clippy step. — noted 2026-10-17.
