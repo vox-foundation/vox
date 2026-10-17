@@ -11,6 +11,7 @@ pub mod doctest;
 mod facet_backlog;
 mod facets;
 mod lint;
+mod mermaid_gate;
 pub mod types;
 
 pub use facet_backlog::facet_backlog_gate_failures;
@@ -83,6 +84,7 @@ fn workflow_for_kind(kind: &LintKind) -> &'static str {
         }
         LintKind::Facet(i) => i.workflow(),
         LintKind::Diagram(i) => i.workflow(),
+        LintKind::LegacyMermaid(i) => i.workflow(),
     }
 }
 
@@ -112,6 +114,7 @@ fn kind_label(kind: &LintKind) -> &'static str {
         LintKind::ReadmeSyncSourceMissing { .. } => "readme-sync-source-missing",
         LintKind::Facet(i) => i.rule_id(),
         LintKind::Diagram(i) => i.rule_id(),
+        LintKind::LegacyMermaid(i) => i.rule_id(),
     }
 }
 
@@ -375,6 +378,8 @@ pub fn lint_in(root: &Path, args: &[String]) -> i32 {
         &docs_src.join("index.mdx"),
         &mut lint_errors,
     );
+    // Always scans the whole docs/src tree so files nobody changed are still held to the baseline.
+    mermaid_gate::lint(root, &mut lint_errors);
 
     if !lint_errors.is_empty() {
         eprintln!("\n── vox-doc-pipeline: doc lint errors ──────────────────────────────");
@@ -543,6 +548,16 @@ pub fn lint_in(root: &Path, args: &[String]) -> i32 {
                     if i.is_hard() { "ERROR" } else { "WARN " },
                     i.render(e.file.strip_prefix(root).unwrap_or(&e.file))
                 ),
+                LintKind::LegacyMermaid(i) => {
+                    eprintln!(
+                        "  {}  {}:{} — {} ({})",
+                        if i.is_hard() { "ERROR" } else { "WARN " },
+                        rel.display(),
+                        e.line,
+                        i.message(),
+                        i.rule_id()
+                    );
+                }
             }
         }
 
@@ -551,6 +566,7 @@ pub fn lint_in(root: &Path, args: &[String]) -> i32 {
             .filter(|e| {
                 matches!(&e.kind, LintKind::Facet(i) if i.is_hard())
                     || matches!(&e.kind, LintKind::Diagram(i) if i.is_hard())
+                    || matches!(&e.kind, LintKind::LegacyMermaid(i) if i.is_hard())
                     || matches!(
                         e.kind,
                         LintKind::UnclosedCodeFence

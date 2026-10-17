@@ -76,6 +76,39 @@ pub enum LintKind {
     Facet(FacetIssue),
     /// A `vox-diagram` fence problem (see `diagrams.rs`).
     Diagram(DiagramIssue),
+    /// A legacy-Mermaid ratchet finding (see `mermaid_gate.rs`).
+    LegacyMermaid(MermaidIssue),
+}
+
+/// One finding of the shrink-only legacy-Mermaid baseline gate.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MermaidIssue {
+    /// A file holds more `mermaid` fences than the baseline allows (0 when unlisted).
+    Growth {
+        /// Live fence count of the file.
+        count: usize,
+        /// Count the baseline admits.
+        allowed: usize,
+    },
+    /// The baseline admits more fences than the file still has (warning: run the tighten tool).
+    Stale {
+        /// Live fence count of the file.
+        count: usize,
+        /// Count the baseline admits.
+        allowed: usize,
+    },
+    /// A fence whose first info token is `mermaid` but whose info string is not exactly that.
+    InfoString {
+        /// The trimmed info string as written.
+        info: String,
+    },
+    /// The baseline or a doc could not be read or validated (fail closed).
+    Unreadable {
+        /// Repo-relative path of the unreadable file.
+        path: String,
+        /// Why it failed.
+        error: String,
+    },
 }
 
 /// One finding about a `vox-diagram` fence; positions are 1-based file coordinates.

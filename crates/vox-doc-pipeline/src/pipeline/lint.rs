@@ -148,7 +148,7 @@ pub(crate) fn collect_lint_errors_target_with_root(
 }
 
 /// Recursively collect lintable `.md` paths (skips `SUMMARY.md`, which is tool-generated).
-fn gather_md_files(target: &Path, out: &mut Vec<PathBuf>) {
+pub(crate) fn gather_md_files(target: &Path, out: &mut Vec<PathBuf>) {
     if target.is_file() {
         if target
             .extension()
