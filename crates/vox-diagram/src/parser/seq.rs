@@ -1,25 +1,54 @@
-//! Statements of a `sequence { ... }` block: actor declarations and messages. The words `actor`,
-//! `reply`, `note` and `over` are contextual: `actor <id>` declares, anything else is
-//! `<id> -> <id>`, so a word is still usable as an actor id.
+//! Statements of a `sequence { ... }` block: actor declarations, messages and notes. The words
+//! `actor`, `reply`, `note` and `over` are contextual: `actor <id>` declares, `reply <id> ->`
+//! is a dashed message, `note over` starts a note, and the same words followed by `->` are
+//! plain actor ids.
 
 use super::Parser;
 use super::stmt::Owner;
-use crate::ast::{ActorDecl, Ident, ItemKind, Label, MessageStmt};
+use crate::ast::{ActorDecl, Ident, ItemKind, Label, MessageStmt, NoteStmt};
 use crate::lexer::TokenKind;
 
 impl Parser<'_> {
     /// One statement of a `sequence` block.
     pub(super) fn sequence_statement(&mut self) -> Option<ItemKind> {
-        let is_actor = matches!(&self.peek().kind, TokenKind::Ident(s) if s == "actor")
-            && matches!(
-                self.peek_at(1).kind,
-                TokenKind::Ident(_) | TokenKind::BadIdent(_)
-            );
-        if is_actor {
-            self.actor_decl()
-        } else {
-            self.message(false)
+        let kw = match &self.peek().kind {
+            TokenKind::Ident(s) => s.clone(),
+            _ => String::new(),
+        };
+        let next = &self.peek_at(1).kind;
+        let ident_next = matches!(next, TokenKind::Ident(_) | TokenKind::BadIdent(_));
+        let over_next = matches!(next, TokenKind::Ident(s) if s == "over");
+        match kw.as_str() {
+            "actor" if ident_next => self.actor_decl(),
+            "note" if over_next => self.note_stmt(),
+            "reply" if ident_next => {
+                self.bump(); // `reply`
+                self.message(true)
+            }
+            "reply" if !matches!(next, TokenKind::Arrow) => {
+                self.bump(); // `reply`
+                self.unexpected("a message after `reply`");
+                None
+            }
+            _ => self.message(false),
         }
+    }
+
+    /// `note over <id>[, <id>]: "<text>"`. A third actor is reported where the `:` belongs.
+    fn note_stmt(&mut self) -> Option<ItemKind> {
+        self.bump(); // `note`
+        self.bump(); // `over`
+        let mut over = vec![self.ident("an actor id")?];
+        if matches!(self.peek().kind, TokenKind::Comma) {
+            self.bump();
+            over.push(self.ident("an actor id")?);
+        }
+        if self.expect(&TokenKind::Colon, "`:`").is_none() {
+            self.skip_to_stmt_end();
+            return None;
+        }
+        let label = self.label(false, Owner::Note)?;
+        Some(ItemKind::Note(NoteStmt { over, label }))
     }
 
     /// Declare-then-diagnose, like `node_decl`: once `actor <id>` was read the actor is

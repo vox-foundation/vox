@@ -19,6 +19,8 @@ pub(super) enum Owner<'a> {
     Id(&'a str),
     /// An edge: an empty label is deleted back to `from`, the end of the last token before the colon.
     Edge { from: u32 },
+    /// A sequence note: no text is a mechanical replacement, so an empty label gets no fix.
+    Note,
 }
 
 const SHAPES: [&str; 6] = ["rect", "rounded", "diamond", "cylinder", "start", "end"];
@@ -99,7 +101,7 @@ impl Parser<'_> {
                         };
                         vec![replace(span, "")]
                     }
-                    Owner::Id(_) => Vec::new(),
+                    Owner::Id(_) | Owner::Note => Vec::new(),
                 };
                 self.report_full(codes::EMPTY_LABEL, tok.span, msg, None, fixes);
             }
