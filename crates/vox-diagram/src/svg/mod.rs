@@ -93,6 +93,10 @@ pub(super) fn paint(name: &str) -> String {
 }
 
 /// Render `ir` to an SVG document.
+///
+/// Synchronous, with no timeout: layout is super-quadratic in the number of ranks an edge spans,
+/// and a structured diagram at the render caps can take several seconds. Call it off the request
+/// path.
 pub fn render(ir: &Ir, opts: &SvgOpts) -> Result<String, RenderError> {
     render_with(&DagreEngine, ir, opts)
 }

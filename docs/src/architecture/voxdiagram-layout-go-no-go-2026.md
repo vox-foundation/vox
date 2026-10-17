@@ -12,7 +12,7 @@ status: "current"
 # VoxDiagram Layout Go/No-Go: dagre 0.1.1 and the Deterministic SVG Contract
 
 <!-- kb:summary -->
-Decision record for the VoxDiagram layout engine. Dagre 0.1.1 is adopted, pinned exactly and confined to one adapter file behind the layout seam, with dugong 0.9.0 as the fallback. The ten largest frozen corpus graphs and all 30 importable corpus graphs render with zero DSL tweaks against a threshold of two. The record also fixes the font-measurement policy, render caps, the SVG theming contract and the honest limits: about 4% of generated compound graphs fail closed, and an edge can cross a container title.
+Decision record for the VoxDiagram layout engine. Dagre 0.1.1 is adopted, pinned exactly and confined to one adapter file behind the layout seam, with dugong 0.9.0 as the fallback. The ten largest frozen corpus graphs and all 30 importable corpus graphs render with zero DSL tweaks against a threshold of two. The record also fixes the font-measurement policy, render caps, the SVG theming contract and the honest limits: about 4 to 8% of generated compound graphs fail closed, and an edge can cross a container title.
 <!-- /kb:summary -->
 
 ## Decision
@@ -39,7 +39,7 @@ All 30 importable graphs render `Ok` and pass an independent quick-xml allowlist
 
 | # | Fixture (corpus stem suffix) | Nodes / edges / containers | Dir | viewBox px | Scale | Result | DSL tweaks | Review notes |
 |---|------------------------------|----------------------------|-----|-----------|-------|--------|-----------|--------------|
-| 1 | `13-deep-research-waves-...-l110` | 18 / 20 / 1 | down | 1346.5 x 2070 | 56% | Ok | 0 | Labels inside shapes, container title inside its band, arrowheads visible in both panes. Two edge labels sit on the band's top border (soft). |
+| 1 | `13-deep-research-waves-...-l110` | 18 / 20 / 1 | down | 1541 x 2550 | 49% | Ok | 0 | Labels inside shapes, container title inside its band, arrowheads visible in both panes. The first separation rung put two edge labels on the title band, which the verifier now rejects, so this diagram settles on the second rung. |
 | 2 | `04-deep-research-full-surface-...-l46` | 17 / 16 / 0 | down | 534.5 x 2052 | 100% | Ok | 0 | Clean. A 31-character identifier in the last node is hard-broken mid-word by the 28-cell wrap (soft). |
 | 3 | `21-unified-workstream-execution-plan-...-l45` | 14 / 17 / 0 | down | 1440.5 x 758 | 52% | Ok | 0 | Clean fan-out, no overlap. |
 | 4 | `12-deep-research-waves-...-l76` | 13 / 16 / 0 | down | 1438 x 684 | 52% | Ok | 0 | Clean; the long supervisor-to-router edge and the loop-back edge are legible. |
@@ -77,32 +77,32 @@ Layout measures text itself, without a browser.
 
 Dagre cannot size or title containers: a container's box comes from its border nodes and ignores the title. The adapter therefore adds a title strut leaf per container, then tries three separation rungs in order, nodesep/ranksep/edgesep of 40/60/70, 50/90/120 and 60/140/200. The first rung whose result passes the geometry verifier wins.
 
-The verifier is exact integer arithmetic with no epsilon. It rejects a node overlap, a node outside its container, a foreign or sibling container overlap, a container outside its parent and a non-finite coordinate. If every rung fails, `RenderError::Geometry` is returned and no SVG is drawn. A panic or a missing coordinate from the engine is `RenderError::Layout`.
+The verifier is exact integer arithmetic with no epsilon. It rejects a node overlap, a node text block that does not fit its box, a node outside its container, a foreign or sibling container overlap, a container outside its parent, a child inside a container's title band, an edge-label box that overlaps a title band, a node or another label (labels are drawn on an opaque background, so any overlap hides what is underneath) and anything outside the view box. A missing, non-finite or oversized (1e5 px or more) engine coordinate is refused earlier, when the engine output is quantized. If every rung fails, `RenderError::Geometry` is returned and no SVG is drawn. A panic or a missing coordinate from the engine is `RenderError::Layout`.
 
 Measured limits, stated plainly:
 
-- All 30 corpus graphs pass on the first rung.
-- Generated compound graphs do not. In the 85-04 property test, about 4% of generated graphs fail closed with `Geometry` (5 of 128 in the recorded run; the count varies with the seed and is deliberately not asserted). The corpus result is 30 of 30, but a generated graph is not guaranteed to render.
-- The research fuzz measured 0 failures in about 10,000 corpus-density graphs and rates from 0.02% (up to 40 nodes) to 0.7% (up to 100 nodes) for larger random ones. The 4% property-test rate comes from denser, more adversarial generation with long titles.
+- 29 of the 30 corpus graphs pass on the first rung; one (diagram 1) needs the second. None fails closed.
+- Generated compound graphs do not. In the 85-04 property test, about 4 to 8% of generated graphs fail closed with `Geometry` (5 to 10 of 128 across the review-fix runs; the count varies with the seed, and the test only requires that at least 96 of 128 render). The corpus result is 30 of 30, but a generated graph is not guaranteed to render.
+- The research fuzz measured 0 failures in about 10,000 corpus-density graphs and rates from 0.02% (up to 40 nodes) to 0.7% (up to 100 nodes) for larger random ones. The property-test rate comes from denser, more adversarial generation with long titles.
 - Soft defects, an edge through a non-endpoint node or a label touching a node, are deliberately not checked.
 
 ## Render caps
 
-`MAX_RENDER_NODES = 100` (nodes plus containers) and `MAX_RENDER_EDGES = 200` apply to rendering and are lower than the 500 / 1,000 parse caps. Dagre has no work budget and is super-quadratic: the spike measured about 0.2 s for 100 nodes and 200 edges, 3 s for 300 and 600, and 16.6 s for 500 and 1,000. Larger diagrams get `RenderError::TooLarge`. The ten corpus diagrams lay out in 0.8 to 4.5 ms each.
+`MAX_RENDER_NODES = 100` (nodes plus containers) and `MAX_RENDER_EDGES = 200` apply to rendering and are lower than the 500 / 1,000 parse caps. Dagre has no work budget and is super-quadratic: the spike measured about 0.2 s for 100 nodes and 200 edges with random edges, 3 s for 300 and 600, and 16.6 s for 500 and 1,000. Random edges are the best case. At exactly the caps, structured inputs are slower because every edge that spans several ranks adds one dummy node per rank crossed (release build, loaded machine, whole `render` call): a 100-node chain plus 100 long-span edges took 1.1 s; a chain plus 100 full-span labelled edges took 3.4 to 4.1 s (5.6 s in the unoptimised test profile); 50 four-deep containers with 50 nodes took 0.7 s; 40 containers with 60 nodes and labelled edges took 1.4 s. A layout that fails verification repeats the solve on up to three rungs, so treat about 4 s as the worst case at the caps, not 0.2 s. `render` is synchronous and has no timeout, so callers must run it off the request path (Phases 87 to 89). Larger diagrams get `RenderError::TooLarge`. The ten corpus diagrams lay out in 0.8 to 4.5 ms each. The caps are a user decision and were not changed; lowering them, or budgeting dummy-node growth, is the lever if a latency target is set.
 
 ## SVG and theming contract
 
 - One writer produces the SVG, and every text and attribute value goes through a single escaper. Output uses only `svg`, `title`, `desc`, `defs`, `marker`, `path`, `rect`, `polygon`, `text`, `tspan` and `g`, a fixed class set (`vd-*`) and inline styles limited to `fill`, `stroke`, `stroke-width`, `font-family` and `font-size`. No `<style>`, script, `foreignObject`, comment or user-derived id or class.
 - Ids are `<prefix>-title`, `-desc` and `-arrow`; the prefix matches `[a-z][a-z0-9-]*` and is at most 32 characters, so several diagrams can share a page.
 - Every colour is `var(--vd-NAME, fallback)` from the nine entries in `THEME_VARS` (text, muted, node fill, node stroke, edge, container fill, container stroke, background, font). Inline style outranks stylesheet rules, so a site themes diagrams only through the variables.
-- Candidate map for Phase 89, proven in the contact sheet from one markup in two panes: text to `--sl-color-white`, muted to `--sl-color-gray-2`, node fill and background to `--sl-color-black`, node stroke and edge to `--sl-color-gray-3`, container fill to `--sl-color-gray-6`, container stroke to `--sl-color-gray-5`, font to `--sl-font-system`.
-- WCAG contrast from the Starlight 0.38.3 token values: dark text 17.70 (container title 15.10), muted 10.01, graphics at least 4.47; light text 17.70 (title 15.29), muted 11.74, graphics at least 6.07; the fallback palette gives text 15.80, muted 6.39 and graphics at least 6.00. All text is at least 4.5 and all graphics at least 3, in both themes.
+- Candidate map for Phase 89, proven in the contact sheet from one markup in two panes: text to `--sl-color-white`, muted to `--sl-color-gray-2`, node fill and background to `--sl-color-black`, node stroke and edge to `--sl-color-gray-3`, container fill to `--sl-color-gray-6`, container stroke to `--sl-color-gray-3`, font to `--sl-font-system`.
+- WCAG contrast from the Starlight 0.38.3 token values: dark text 17.70 (container title 15.10), muted 10.01, graphics at least 4.47; light text 17.70 (title 15.29), muted 11.74, graphics at least 6.07; the fallback palette gives text 15.80, muted 6.39 and graphics at least 3.16. "Graphics" means the edge, node stroke and container stroke, each against the page background and the container fill; `contrast_holds` asserts every one of those pairs. The container frame is the only visual cue that nodes are grouped, so its stroke counts as an informative graphic (WCAG 1.4.11) and is held to 3:1 like the others; the fallback is `#848d97` (3.37 on white, 3.16 on the container fill). All text is at least 4.5 and all graphics at least 3, in both themes and in the fallback.
 
 ## Residual risks
 
 - **Edge through a container title.** An edge from outside a container to a node near its top crosses the title strip (diagram 10). Fixing it needs title-aware routing, a text halo or a different title placement; it is a Phase 89 or later decision.
-- **Single maintainer, no work budget.** Dagre 0.1.1 has a single maintainer and no cap on work, so the render caps are the only protection against slow inputs. The exact pin and the seam keep a swap to `dugong` local to one file.
-- **Fail-closed rate.** About 4% of generated compound graphs return `Geometry`; callers must treat `RenderError` as a normal outcome and show the source or a message.
+- **Single maintainer, no work budget.** Dagre 0.1.1 has a single maintainer and no cap on work, so the render caps are the only protection against slow inputs, and at the caps a structured input can still take about 4 s (see Render caps). The exact pin and the seam keep a swap to `dugong` local to one file.
+- **Fail-closed rate.** About 4 to 8% of generated compound graphs return `Geometry`; callers must treat `RenderError` as a normal outcome and show the source or a message.
 - **Edges grazing nodes** and soft mid-word breaks remain, as in Mermaid's own dagre output.
 - **Tall and wide diagrams scale down.** Five of the ten render below 60% at a 760 px column; legibility policy belongs to Phase 89.
 - **Research assumptions that still stand:** the Arimo-derived width table is treated as facts rather than font software, and QEMU matches real x86_64 floats. Every other premise is exercised by a test in the crate.
