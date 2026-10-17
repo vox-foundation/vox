@@ -4,18 +4,18 @@ milestone: v1.7
 milestone_name: VoxDiagram
 current_phase: 85
 current_phase_name: Graph Layout & Deterministic SVG
-current_plan: 5
+current_plan: 2
 status: executing
-stopped_at: Phase 84 complete, ready to plan Phase 85
-last_updated: "2026-10-17T07:40:17.820Z"
-last_activity: 2026-10-16
-last_activity_desc: Phase 84 complete, transitioned to Phase 85
-state_head: 5247a56eaf74568fc5dc985d4b109b63aa057866
+stopped_at: Completed 85-01-PLAN.md
+last_updated: "2026-10-17T07:54:32.847Z"
+last_activity: 2026-10-17
+last_activity_desc: Phase 85 execution started
+state_head: 3a769b162ed5e7a75ac0cf457d3eb7a01a6b907f
 progress:
   total_phases: 9
   completed_phases: 2
   total_plans: 17
-  completed_plans: 12
+  completed_plans: 13
 ---
 
 # Project State: VoxDiagram (`voxdiagram`)
@@ -25,21 +25,21 @@ progress:
 See: `.planning/PROJECT.md` (shared, owned by the `unified` workstream, not edited here) and `.planning/workstreams/voxdiagram/PROJECT-MILESTONE.md`.
 
 **Core value:** For this milestone, agents and humans author diagrams that cannot render-crash, and every live docs diagram renders deterministically.
-**Current focus:** Phase 84 — Mermaid Emitter & Strict Importer
+**Current focus:** Phase 85 — Graph Layout & Deterministic SVG
 
 ## Current Position
 
-Phase: 85 (Graph Layout & Deterministic SVG) — READY TO EXECUTE
-Plan: Not started
+Phase: 85 (Graph Layout & Deterministic SVG) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
-Last activity: 2026-10-16 — Phase 84 complete, transitioned to Phase 85
+Last activity: 2026-10-17 — Phase 85 execution started
 
 Progress: [██░░░░░░░░] 22% (0/9 phases)
 
 ## Progress
 
 **Phases Complete:** 0
-**Current Plan:** 5
+**Current Plan:** 2
 
 ## Key Decisions (milestone-level)
 
@@ -64,9 +64,9 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-10-17T02:01:37.252Z
+**Last session:** 2026-10-17T07:54:32.805Z
 
-**Stopped At:** Phase 84 complete, ready to plan Phase 85
+**Stopped At:** Completed 85-01-PLAN.md
 **Resume File:** None
 
 ## Performance Metrics
@@ -85,6 +85,7 @@ None yet.
 | Phase 84 P03 | 50min | 3 tasks | 10 files |
 | Phase 84 P04 | 45min | 2 tasks | 10 files |
 | Phase 84 P05 | ~1h | 3 tasks | 60 files |
+| Phase 85 P01 | 45min | 2 tasks | 23 files |
 
 ## Decisions
 
@@ -109,3 +110,5 @@ None yet.
 - [Phase 84]: sequenceDiagram imports into ImportReport.sequence with LineIndex spans; participant-after-use and redeclared-participant fail closed instead of last-wins
 - [Phase 84]: Free-text semicolon check is entity-aware (#59; is text); HTML entities in state/sequence text report semicolon
 - [Phase 84]: 84-05: F2 sequence fixpoint draws text from DSL-legal characters; the importer refuses forbidden chars even as numeric entities by design
+- [Phase 85]: 85-01: dagre confined to layout/dagre_impl.rs behind the Engine seam; all coordinates quantized to integer half-pixels at the seam
+- [Phase 85]: 85-01: desc/endpoint-label truncation counts the ellipsis inside the limit (24 / 300); cylinder drawn as one rect plus a vd-node-rim path
