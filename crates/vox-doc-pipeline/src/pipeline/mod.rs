@@ -15,6 +15,7 @@ mod mermaid_base_gate;
 mod mermaid_gate;
 pub mod types;
 
+pub use diagrams::fence_issues;
 pub use facet_backlog::facet_backlog_gate_failures;
 pub use mermaid_base_gate::{Rename, mermaid_baseline_gate_failures};
 pub use mermaid_gate::MERMAID_BASELINE_REL;

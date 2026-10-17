@@ -13,7 +13,7 @@ use crate::pipeline::types::{DiagramIssue, LintError, LintKind};
 const INFO: &str = "vox-diagram";
 
 /// Every problem in the `vox-diagram` fences of `md`, ordered by file line.
-pub(crate) fn fence_issues(md: &str) -> Vec<DiagramIssue> {
+pub fn fence_issues(md: &str) -> Vec<DiagramIssue> {
     let mut out = Vec::new();
     let lines: Vec<&str> = md.lines().collect();
     for f in fence::extract(md, INFO) {
