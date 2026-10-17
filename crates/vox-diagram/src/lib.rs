@@ -56,4 +56,4 @@ pub const GRAMMAR_CARD: &str = include_str!("../grammar-card.txt");
 pub use check::{Parsed, check, parse};
 pub use fixes::{FixOutcome, Repaired, apply_fixes, repair};
 pub use print::fmt;
-pub use validate::{ValidateOpts, Validation, validate};
+pub use validate::{Emit, ValidateOpts, Validation, validate};

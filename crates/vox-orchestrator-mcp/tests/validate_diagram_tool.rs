@@ -3,17 +3,21 @@
 use std::sync::Arc;
 
 use serde_json::{Value, json};
-use vox_diagram::{ValidateOpts, validate};
+use vox_diagram::{Emit, ValidateOpts, validate};
 use vox_orchestrator_mcp::{ServerState, handle_tool_call, load_config};
 
 const BROKEN: &str = "graph {\n    node a: \"A\"\n    a -> b\n    node c: C\n}\n";
 
-async fn call(name: &str, args: Value) -> Value {
+async fn call_raw(name: &str, args: Value) -> String {
     // Multi-thread callers: the dispatch path resolves secrets through `block_in_place`.
     let state = Arc::new(ServerState::new_full(load_config()));
-    let raw = handle_tool_call(&state, name, args)
+    handle_tool_call(&state, name, args)
         .await
-        .expect("dispatch ok");
+        .expect("dispatch ok")
+}
+
+async fn call(name: &str, args: Value) -> Value {
+    let raw = call_raw(name, args).await;
     serde_json::from_str(&raw).unwrap_or_else(|e| panic!("not JSON ({e}): {raw}"))
 }
 
@@ -65,4 +69,71 @@ async fn missing_source_is_an_error() {
     let v = call("vox_validate_diagram", json!({})).await;
     assert_eq!(v["success"], false, "{v}");
     assert!(v["error"].as_str().unwrap().contains("source"), "{v}");
+}
+
+const FLOW: &str = "flowchart TD\n    a[Start] --> b{Ok?}\n";
+const OK: &str = "graph {\n    node a: \"A\"\n    node b: \"B\"\n    a -> b\n}\n";
+
+fn expect(src: &str, opts: ValidateOpts) -> Value {
+    serde_json::to_value(validate(src, opts)).unwrap()
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn from_mermaid_returns_conversion_or_unsupported() {
+    let o = ValidateOpts {
+        from_mermaid: true,
+        emit: None,
+    };
+    let v = call(
+        "vox_validate_diagram",
+        json!({"source": FLOW, "from_mermaid": true}),
+    )
+    .await;
+    assert_eq!(v["data"], expect(FLOW, o), "{v}");
+    assert_eq!(v["data"]["unsupported"], json!([]));
+    assert!(v["data"]["normalized_source"].is_string());
+
+    let bad = "gantt\n    title X\n";
+    let v = call(
+        "vox_validate_diagram",
+        json!({"source": bad, "from_mermaid": true}),
+    )
+    .await;
+    assert_eq!(v["data"], expect(bad, o), "{v}");
+    assert_eq!(v["data"]["valid"], false);
+    assert!(v["data"]["normalized_source"].is_null());
+    assert!(!v["data"]["unsupported"].as_array().unwrap().is_empty());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn emit_svg_and_mermaid_match_the_crate() {
+    for (name, emit) in [("svg", Emit::Svg), ("mermaid", Emit::Mermaid)] {
+        let v = call("vox_validate_diagram", json!({"source": OK, "emit": name})).await;
+        let o = ValidateOpts {
+            from_mermaid: false,
+            emit: Some(emit),
+        };
+        assert_eq!(v["data"], expect(OK, o), "{name}");
+        assert!(v["data"]["emitted"].as_str().is_some_and(|s| !s.is_empty()));
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn rejects_unknown_fields_and_bad_emit() {
+    let v = call(
+        "vox_validate_diagram",
+        json!({"source": "graph {\n}\n", "extra": 1}),
+    )
+    .await;
+    assert_eq!(v["success"], false, "{v}");
+    let v = call("vox_validate_diagram", json!({"source": OK, "emit": "png"})).await;
+    assert_eq!(v["success"], false, "{v}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn deterministic_across_calls() {
+    let args = json!({"source": OK, "emit": "svg"});
+    let a = call_raw("vox_validate_diagram", args.clone()).await;
+    let b = call_raw("vox_validate_diagram", args).await;
+    assert_eq!(a, b);
 }

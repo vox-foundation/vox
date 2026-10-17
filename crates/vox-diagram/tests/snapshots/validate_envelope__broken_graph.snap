@@ -1,0 +1,61 @@
+---
+source: crates/vox-diagram/tests/validate_envelope.rs
+expression: "validate(BROKEN, ValidateOpts::default())"
+---
+{
+  "schema_version": 1,
+  "valid": false,
+  "diagnostics": [
+    {
+      "code": "diagram/undeclared-node",
+      "severity": "error",
+      "message": "node `b` is not declared",
+      "span": {
+        "start": 33,
+        "end": 34,
+        "line": 3,
+        "col": 10,
+        "end_line": 3,
+        "end_col": 11
+      },
+      "fixes": [
+        {
+          "span": {
+            "start": 7,
+            "end": 7
+          },
+          "replacement": "\n    node b: \"b\""
+        }
+      ]
+    },
+    {
+      "code": "diagram/expected-quoted-label",
+      "severity": "error",
+      "message": "labels must be double-quoted; write \"C\"",
+      "span": {
+        "start": 47,
+        "end": 48,
+        "line": 4,
+        "col": 13,
+        "end_line": 4,
+        "end_col": 14
+      },
+      "fixes": [
+        {
+          "span": {
+            "start": 47,
+            "end": 48
+          },
+          "replacement": "\"C\""
+        }
+      ]
+    }
+  ],
+  "normalized_source": null,
+  "stats": {
+    "nodes": 2,
+    "containers": 0,
+    "edges": 0,
+    "max_depth": 0
+  }
+}
