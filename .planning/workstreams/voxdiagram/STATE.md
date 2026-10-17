@@ -2,20 +2,21 @@
 gsd_state_version: "1.0"
 milestone: v1.7
 milestone_name: VoxDiagram
-current_phase: 84
-current_phase_name: Mermaid Emitter & Strict Importer
+current_phase: 85
+current_phase_name: Graph Layout & Deterministic SVG
 current_plan: 5
-status: verifying
-stopped_at: Completed 84-05-PLAN.md
-last_updated: "2026-10-17T02:01:37.273Z"
+status: planning
+stopped_at: Phase 84 complete, ready to plan Phase 85
+last_updated: "2026-10-17T03:28:18.530Z"
 last_activity: 2026-10-16
-last_activity_desc: Phase 84 execution started
-state_head: 5866f19fd39e6a1d2d4aaca95ae11931330ddd1e
+last_activity_desc: Phase 84 complete, transitioned to Phase 85
+state_head: 2fcb378a9dd2d6b993e11e9c04b89293eeb9e925
 progress:
   total_phases: 9
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 12
   completed_plans: 12
+  percent: 22
 ---
 
 # Project State: VoxDiagram (`voxdiagram`)
@@ -29,12 +30,12 @@ See: `.planning/PROJECT.md` (shared, owned by the `unified` workstream, not edit
 
 ## Current Position
 
-Phase: 84 (Mermaid Emitter & Strict Importer) — EXECUTING
-Plan: 5 of 5
-Status: Phase complete — ready for verification
-Last activity: 2026-10-16 — Phase 84 execution started
+Phase: 85 — Graph Layout & Deterministic SVG
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-10-16 — Phase 84 complete, transitioned to Phase 85
 
-Progress: [█░░░░░░░░░] 11% (0/9 phases)
+Progress: [██░░░░░░░░] 22% (0/9 phases)
 
 ## Progress
 
@@ -66,7 +67,7 @@ None yet.
 
 **Last session:** 2026-10-17T02:01:37.252Z
 
-**Stopped At:** Completed 84-05-PLAN.md
+**Stopped At:** Phase 84 complete, ready to plan Phase 85
 **Resume File:** None
 
 ## Performance Metrics

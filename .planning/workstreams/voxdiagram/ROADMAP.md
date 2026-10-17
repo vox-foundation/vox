@@ -38,7 +38,7 @@ v1.7 retires Mermaid as the primary diagram *authoring* format. A new pure L2 cr
 - Decimal phases (e.g. 85.1): Urgent insertions (marked INSERTED)
 
 - [x] **Phase 83: Core Crate - Parser, IR & Diagnostics** - Registered L2 `vox-diagram` crate: graph DSL, recovering parser, typed IR, all-errors diagnostics with fixes, canonical `fmt`, input caps (completed 2026-10-16)
-- [ ] **Phase 84: Mermaid Emitter & Strict Importer** - Sanitized Mermaid export that real Mermaid accepts; fail-closed importer verified by corpus round trip
+- [x] **Phase 84: Mermaid Emitter & Strict Importer** - Sanitized Mermaid export that real Mermaid accepts; fail-closed importer verified by corpus round trip (completed 2026-10-16)
 - [ ] **Phase 85: Graph Layout & Deterministic SVG** - `dagre` seam behind a go/no-go spike; byte-identical, injection-safe, themeable SVG
 - [ ] **Phase 86: Sequence Kind** - `sequence` DSL, width-aware lane SVG, and DSL round trip for the corpus sequence blocks
 - [ ] **Phase 87: Doc-Pipeline Consumer & Legacy-Mermaid Ratchet** - Doc lint validates `vox-diagram` fences and rejects new Mermaid fences via a shrink-only baseline; first authorized crate edge
@@ -96,7 +96,7 @@ Plans:
   2. Importing a Mermaid flowchart/graph/state/sequence block produces a diagram, or fails closed with a by-line `unsupported` list (e.g. `classDef`, `click`, Gantt); the documented leniencies (unquoted labels, `&` fan-out and chain expansion, `<br>` to newline) work and nothing else is dropped without being listed.
   3. Over the frozen live corpus (all `docs/src` fences at committed HEAD, archive excluded — 33 fences / 21 files on 2026-10-16), import then Mermaid export gives node/edge-set equality against the original block, with the original's sets extracted by an independent path (the pinned Mermaid parser); the Gantt block and the markdown-string block (`how-to-rust-crate-imports.md:53`, rejected by real Mermaid) are reported unsupported, not mangled.
 
-**Plans**: 5/5 plans executed
+**Plans**: 5/5 plans complete
 
 Plans:
 **Wave 1**
@@ -232,7 +232,7 @@ Phases execute in numeric order, with the parallel opportunities noted under Ove
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 83. Core Crate - Parser, IR & Diagnostics | 7/7 | Complete    | 2026-10-16 |
-| 84. Mermaid Emitter & Strict Importer | 5/5 | In Progress | - |
+| 84. Mermaid Emitter & Strict Importer | 5/5 | Complete    | 2026-10-16 |
 | 85. Graph Layout & Deterministic SVG | 0/TBD | Not started | - |
 | 86. Sequence Kind | 0/TBD | Not started | - |
 | 87. Doc-Pipeline Consumer & Legacy-Mermaid Ratchet | 0/TBD | Not started | - |

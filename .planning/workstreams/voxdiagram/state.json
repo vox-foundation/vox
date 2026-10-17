@@ -11,7 +11,7 @@
     {
       "number": "84",
       "name": "Mermaid Emitter & Strict Importer",
-      "status": "in_progress"
+      "status": "complete"
     },
     {
       "number": "85",
@@ -51,8 +51,8 @@
   ],
   "next": {
     "command": "/gsd:progress --next",
-    "label": "Advance to the next step (verify)",
-    "reason": "Phase 84 of 9 · ready to verify"
+    "label": "Advance to the next step (plan phase 85)",
+    "reason": "Phase 85 of 9 — needs a plan"
   },
-  "updated_at": "2026-10-17T02:01:27.571Z"
+  "updated_at": "2026-10-17T03:28:18.541Z"
 }
