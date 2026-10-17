@@ -26,7 +26,7 @@
     {
       "number": "87",
       "name": "Doc-Pipeline Consumer & Legacy-Mermaid Ratchet",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "number": "88",
@@ -54,5 +54,5 @@
     "label": "Advance to the next step",
     "reason": "Phase 87 of 9 · executing"
   },
-  "updated_at": "2026-10-17T18:08:19.644Z"
+  "updated_at": "2026-10-17T18:20:53.446Z"
 }

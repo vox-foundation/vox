@@ -187,14 +187,14 @@ Plans:
   2. A malformed ```` ```vox-diagram ```` fence fails doc lint with the `diagram/*` diagnostic and file:line span, and a valid one passes; the `vox` doctest runner never compiles it (exact info-string matching verified against the `lint.rs` comma-split vs `doctest.rs` whole-string behavior).
   3. `vox-doc-pipeline` re-exports `vox_diagram` (so the CLI needs no third edge), the doc pipeline exposes `fence_issues(md)` for the self-heal bot (bot wiring deferred to the next merge of local `main`, which is where the bot lives — user decision 2026-10-17), and `vox ci crate-edges` passes with exactly one new edge, `vox-doc-pipeline -> vox-diagram`, recorded as an exception citing the 2026-10-16 chat authorization; `orphan_exempt` is removed.
 
-**Plans**: 1/3 plans executed
+**Plans**: 2/3 plans executed
 
 Plans:
 **Wave 1**
 - [x] 87-01-PLAN.md — crate edge + `vox-diagram` fence lint (`diagram/*` at file:line:col, doctest-runner proof, near-miss info strings, exception, re-export, `orphan_exempt` removal) (wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 87-02-PLAN.md — legacy-Mermaid ratchet in doc lint (fence-aware whole-tree count, seed/tighten, real baseline seeded 33/21) (wave 2)
+- [x] 87-02-PLAN.md — legacy-Mermaid ratchet in doc lint (fence-aware whole-tree count, seed/tighten, real baseline seeded 33/21) (wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 87-03-PLAN.md — base-ref compare in the fast pre-push tier, docs rows, phase closing gates (wave 3)
@@ -276,7 +276,7 @@ Phases execute in numeric order, with the parallel opportunities noted under Ove
 | 84. Mermaid Emitter & Strict Importer | 5/5 | Complete    | 2026-10-16 |
 | 85. Graph Layout & Deterministic SVG | 5/5 | Complete    | 2026-10-17 |
 | 86. Sequence Kind | 4/4 | Complete    | 2026-10-17 |
-| 87. Doc-Pipeline Consumer & Legacy-Mermaid Ratchet | 1/3 | In Progress | - |
+| 87. Doc-Pipeline Consumer & Legacy-Mermaid Ratchet | 2/3 | In Progress | - |
 | 88. MCP Tool, CLI & Agent Guidance | 0/TBD | Not started | - |
 | 89. Docs-Astro Integration | 0/TBD | Not started | - |
 | 90. Corpus Migration & Gate Tightening | 0/TBD | Not started | - |
