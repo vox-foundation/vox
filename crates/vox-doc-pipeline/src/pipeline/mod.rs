@@ -272,6 +272,12 @@ pub fn lint_in(root: &Path, args: &[String]) -> i32 {
     if args.contains(&"--tighten-facet-backlog".to_string()) {
         return tool(facet_backlog::tighten(root));
     }
+    if args.contains(&"--seed-mermaid-baseline".to_string()) {
+        return tool(mermaid_gate::seed(root));
+    }
+    if args.contains(&"--tighten-mermaid-baseline".to_string()) {
+        return tool(mermaid_gate::tighten(root));
+    }
 
     if corpus_mode {
         let mut md_files = Vec::new();

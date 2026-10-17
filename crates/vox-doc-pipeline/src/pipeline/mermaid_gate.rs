@@ -164,6 +164,89 @@ pub(crate) fn lint(root: &Path, errors: &mut Vec<LintError>) {
     }
 }
 
+/// Live fence count per file, or the failure as a tool message.
+fn live_counts(root: &Path) -> Result<BTreeMap<String, usize>, String> {
+    let docs = docs(root).map_err(|i| i.message())?;
+    Ok(counts(&docs)
+        .into_iter()
+        .map(|(p, l)| (p, l.len()))
+        .collect())
+}
+
+fn write(root: &Path, b: &Baseline) -> Result<(), String> {
+    let p = root.join(MERMAID_BASELINE_REL);
+    if let Some(dir) = p.parent() {
+        std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(&p, render(b)?).map_err(|e| format!("cannot write {MERMAID_BASELINE_REL}: {e}"))
+}
+
+/// Write the baseline from the live tree (the only way to raise it; user-authorized-only).
+pub(crate) fn seed(root: &Path) -> Result<String, String> {
+    let files = live_counts(root)?;
+    let fences: usize = files.values().sum();
+    let n = files.len();
+    write(
+        root,
+        &Baseline {
+            schema_version: 1,
+            files,
+        },
+    )?;
+    Ok(format!("seeded {fences} fences in {n} files"))
+}
+
+/// Lower counts and drop entries to match the tree; refuses (writing nothing) on any growth.
+pub(crate) fn tighten(root: &Path) -> Result<String, String> {
+    let prior = load(root)?
+        .ok_or_else(|| format!("{MERMAID_BASELINE_REL} is missing; nothing to tighten"))?;
+    let live = live_counts(root)?;
+    let over: Vec<String> = live
+        .iter()
+        .filter(|(p, n)| **n > prior.files.get(*p).copied().unwrap_or(0))
+        .map(|(p, n)| {
+            format!(
+                "  {p}: {n} > {}\n",
+                prior.files.get(p).copied().unwrap_or(0)
+            )
+        })
+        .collect();
+    if !over.is_empty() {
+        let mut msg = format!(
+            "refusing to tighten: {} file(s) exceed the legacy-Mermaid baseline:\n",
+            over.len()
+        );
+        over.iter().take(20).for_each(|l| msg.push_str(l));
+        if over.len() > 20 {
+            msg.push_str(&format!("  ... and {} more\n", over.len() - 20));
+        }
+        msg.push_str(MERMAID_HEAL);
+        return Err(msg);
+    }
+    let files: BTreeMap<String, usize> = prior
+        .files
+        .iter()
+        .map(|(p, a)| (p.clone(), live.get(p).copied().unwrap_or(0).min(*a)))
+        .filter(|(_, n)| *n > 0)
+        .collect();
+    let next = Baseline {
+        schema_version: 1,
+        files,
+    };
+    if next == prior {
+        return Ok("legacy-Mermaid baseline already tight".into());
+    }
+    write(root, &next)?;
+    let sum = |b: &Baseline| b.files.values().sum::<usize>();
+    Ok(format!(
+        "tightened: {} -> {} fences, {} -> {} files",
+        sum(&prior),
+        sum(&next),
+        prior.files.len(),
+        next.files.len()
+    ))
+}
+
 impl MermaidIssue {
     pub(crate) fn rule_id(&self) -> &'static str {
         match self {

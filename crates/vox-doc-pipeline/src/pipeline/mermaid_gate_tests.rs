@@ -174,3 +174,73 @@ fn stale_entry_warns_but_exits_zero() {
     assert_eq!(run(&r, "a.md"), 0);
     std::fs::remove_dir_all(&r).unwrap();
 }
+
+fn flag(r: &Path, f: &str) -> i32 {
+    lint_in(r, &[f.to_string()])
+}
+
+fn read(r: &Path) -> String {
+    std::fs::read_to_string(r.join(MERMAID_BASELINE_REL)).unwrap()
+}
+
+fn files(r: &Path) -> Vec<(String, usize)> {
+    parse(&read(r)).unwrap().files.into_iter().collect()
+}
+
+#[test]
+fn seed_then_tighten_then_refuse_growth() {
+    let r = root("flow");
+    put(&r, "docs/src/a.md", &doc(&format!("{FENCE}\n{FENCE}")));
+    put(&r, "docs/src/b.md", &doc(FENCE));
+    put(&r, "docs/src/archive/old.md", FENCE);
+    assert_eq!(flag(&r, "--seed-mermaid-baseline"), 0);
+    let first = read(&r);
+    assert!(first.starts_with("# GENERATED"), "{first}");
+    assert_eq!(render(&parse(&first).unwrap()).unwrap(), first);
+    assert_eq!(seed(&r).unwrap(), "seeded 3 fences in 2 files");
+    assert_eq!(read(&r), first, "re-seeding must write identical bytes");
+    assert_eq!(
+        files(&r),
+        [("docs/src/a.md".into(), 2), ("docs/src/b.md".into(), 1)]
+    );
+
+    put(&r, "docs/src/a.md", &doc(FENCE));
+    assert_eq!(flag(&r, "--tighten-mermaid-baseline"), 0);
+    assert_eq!(
+        files(&r),
+        [("docs/src/a.md".into(), 1), ("docs/src/b.md".into(), 1)]
+    );
+    std::fs::remove_file(r.join("docs/src/b.md")).unwrap();
+    assert_eq!(
+        tighten(&r).unwrap(),
+        "tightened: 2 -> 1 fences, 2 -> 1 files"
+    );
+    assert_eq!(files(&r), [("docs/src/a.md".into(), 1)]);
+    assert_eq!(
+        tighten(&r).unwrap(),
+        "legacy-Mermaid baseline already tight"
+    );
+
+    put(&r, "docs/src/a.md", &doc(&format!("{FENCE}\n{FENCE}")));
+    let before = read(&r);
+    let err = tighten(&r).unwrap_err();
+    assert!(err.contains("docs/src/a.md: 2 > 1"), "{err}");
+    assert!(err.contains("USER-AUTHORIZED-ONLY"), "{err}");
+    assert_eq!(flag(&r, "--tighten-mermaid-baseline"), 1);
+    assert_eq!(
+        read(&r),
+        before,
+        "a refused tighten must not touch the file"
+    );
+    std::fs::remove_dir_all(&r).unwrap();
+}
+
+#[test]
+fn tighten_without_baseline_is_an_error() {
+    let r = root("notighten");
+    let err = tighten(&r).unwrap_err();
+    assert!(err.contains("is missing"), "{err}");
+    assert_eq!(flag(&r, "--tighten-mermaid-baseline"), 1);
+    assert!(!r.join(MERMAID_BASELINE_REL).exists());
+    std::fs::remove_dir_all(&r).unwrap();
+}
