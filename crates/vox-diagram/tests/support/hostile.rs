@@ -346,3 +346,36 @@ pub fn graph_cases() -> Vec<(&'static str, GraphIr)> {
         ("g15-edge-labels", edge_labels()),
     ]
 }
+
+/// Why `p` is not a safe encoded Mermaid label payload, or `None` when it is. Safe means: no raw
+/// `"`, `<`, `>`, `&`, backtick or control character (apart from `<br>`, the newline encoding),
+/// every `#` opens an entity, and, when `no_semicolon`, no `;` outside an entity terminator.
+pub fn payload_problem(p: &str, no_semicolon: bool) -> Option<String> {
+    let bare = p.replace("<br>", "");
+    if let Some(c) = bare
+        .chars()
+        .find(|c| matches!(c, '"' | '<' | '>' | '&' | '`') || c.is_control())
+    {
+        return Some(format!("raw {c:?} in {p:?}"));
+    }
+    let mut left = String::new();
+    let mut rest = bare.as_str();
+    while let Some(at) = rest.find('#') {
+        left.push_str(&rest[..at]);
+        let tail = &rest[at + 1..];
+        let named = ["amp;", "quot;", "lt;", "gt;"]
+            .iter()
+            .find(|n| tail.starts_with(**n));
+        let digits = tail
+            .find(';')
+            .filter(|e| *e > 0 && tail[..*e].bytes().all(|b| b.is_ascii_digit()));
+        let len = match (named, digits) {
+            (Some(n), _) => n.len(),
+            (None, Some(e)) => e + 1,
+            (None, None) => return Some(format!("bare # in {p:?}")),
+        };
+        rest = &tail[len..];
+    }
+    left.push_str(rest);
+    (no_semicolon && left.contains(';')).then(|| format!("raw ; in {p:?}"))
+}

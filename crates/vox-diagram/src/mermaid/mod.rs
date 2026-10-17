@@ -11,9 +11,12 @@ use crate::sequence_ir::SequenceIr;
 
 mod escape;
 mod export;
+mod export_seq;
 mod import;
 
 pub use export::export;
+/// Sequence IR to Mermaid text; Phase 86 routes `Ir::Sequence` here.
+pub use export_seq::export_sequence;
 pub use import::import;
 
 /// Options for [`import`].

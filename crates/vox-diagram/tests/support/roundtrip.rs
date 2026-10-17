@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{Value, json};
 use vox_diagram::ir::{GraphIr, Shape};
+use vox_diagram::sequence_ir::{SeqEvent, SequenceIr};
 
 /// `tests/fixtures` of this crate.
 pub fn fixtures() -> PathBuf {
@@ -93,6 +94,44 @@ pub fn canon_graph(g: &GraphIr) -> Value {
         "edges": sorted(edges),
         "containers": sorted(containers),
     })
+}
+
+/// Canonical sets of a sequence IR: actor labels by participant index (declared actors in
+/// order, then ids used by events but never declared, labelled with the id) and ordered events
+/// as `["message", from, to, dashed, text]` / `["note", [idx, ..], text]`. Texts are trimmed; an
+/// id used twice resolves to its first occurrence; a note keeps its first two ids.
+pub fn canon_sequence(s: &SequenceIr) -> Value {
+    let mut ids: Vec<String> = s.actors.iter().map(|a| a.id.clone()).collect();
+    let mut labels: Vec<String> = s.actors.iter().map(|a| a.label.trim().to_owned()).collect();
+    let mut at = |id: &str| -> usize {
+        if let Some(i) = ids.iter().position(|x| x == id) {
+            return i;
+        }
+        ids.push(id.to_owned());
+        labels.push(id.trim().to_owned());
+        ids.len() - 1
+    };
+    let events: Vec<Value> = s
+        .events
+        .iter()
+        .map(|e| match e {
+            SeqEvent::Message {
+                from,
+                to,
+                text,
+                dashed,
+                ..
+            } => {
+                let (f, t) = (at(from), at(to));
+                json!(["message", f, t, dashed, text.trim()])
+            }
+            SeqEvent::Note { over, text, .. } => {
+                let who: Vec<usize> = over.iter().take(2).map(|id| at(id)).collect();
+                json!(["note", who, text.trim()])
+            }
+        })
+        .collect();
+    json!({"kind": "sequence", "actors": labels, "events": events})
 }
 
 /// `*.sets.json` text: pretty JSON plus a trailing newline.

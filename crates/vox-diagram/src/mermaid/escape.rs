@@ -21,12 +21,23 @@ const KEYWORDS: [&str; 14] = [
     "direction",
 ];
 
-/// Encode `s` for a quoted Mermaid label (node, edge or subgraph title).
-pub(crate) fn label(s: &str) -> String {
+/// Shared encoder. `seq` adds the sequence-diagram rules: `;` ends a statement there, and a text
+/// starting with `wrap:`, `nowrap:`, `:wrap:` or `:nowrap:` is stripped and changes wrapping.
+fn encode(s: &str, seq: bool) -> String {
     let colon = s.contains("style") || s.contains("classDef");
     let percent = s.contains("%%");
+    let trimmed = s.trim_start();
+    let wrap_at = (seq
+        && ["wrap:", "nowrap:", ":wrap:", ":nowrap:"]
+            .iter()
+            .any(|p| trimmed.starts_with(p)))
+    .then(|| s.len() - trimmed.len());
     let mut out = String::with_capacity(s.len());
-    for c in s.chars() {
+    for (at, c) in s.char_indices() {
+        if wrap_at == Some(at) {
+            let _ = write!(out, "#{};", u32::from(c));
+            continue;
+        }
         match c {
             '&' => out.push_str("#amp;"),
             '"' => out.push_str("#quot;"),
@@ -35,6 +46,7 @@ pub(crate) fn label(s: &str) -> String {
             '#' => out.push_str("#35;"),
             '`' => out.push_str("#96;"),
             '\n' => out.push_str("<br>"),
+            ';' if seq => out.push_str("#59;"),
             '%' if percent => out.push_str("#37;"),
             ':' if colon => out.push_str("#58;"),
             '\u{0}'..='\u{1f}' | '\u{7f}' | '\u{2028}' | '\u{2029}' | '\u{fb02}' | '\u{b6}' => {
@@ -43,10 +55,23 @@ pub(crate) fn label(s: &str) -> String {
             c => out.push(c),
         }
     }
-    if out.trim().is_empty() {
-        out = " ".to_owned();
-    }
     out
+}
+
+/// Encode `s` for a quoted Mermaid label (node, edge or subgraph title). Blank becomes one space.
+pub(crate) fn label(s: &str) -> String {
+    let out = encode(s, false);
+    if out.trim().is_empty() {
+        " ".to_owned()
+    } else {
+        out
+    }
+}
+
+/// Encode `s` as unquoted sequence-diagram text (actor alias, message or note). Blank text stays
+/// blank; the exporter decides how to print it.
+pub(crate) fn seq_text(s: &str) -> String {
+    encode(s, true)
 }
 
 /// True when `id` can be written into Mermaid text unchanged (see the 84-01 id policy).
@@ -129,5 +154,30 @@ mod tests {
         ] {
             assert!(!keeps_id(id), "{id}");
         }
+    }
+
+    #[test]
+    fn seq_text_encodes_semicolons_and_hashes() {
+        assert_eq!(seq_text("a; b"), "a#59; b");
+        assert_eq!(seq_text("a # b"), "a #35; b");
+        assert_eq!(
+            seq_text("say \"hi\" & <b>"),
+            "say #quot;hi#quot; #amp; #lt;b#gt;"
+        );
+        assert_eq!(seq_text("a\nb"), "a<br>b");
+        assert_eq!(seq_text(""), "");
+    }
+
+    #[test]
+    fn seq_text_defuses_wrap_prefixes() {
+        assert_eq!(seq_text("wrap: x"), "#119;rap: x");
+        assert_eq!(seq_text("nowrap: x"), "#110;owrap: x");
+        assert_eq!(seq_text(":wrap: x"), "#58;wrap: x");
+        assert_eq!(seq_text(":nowrap:x"), "#58;nowrap:x");
+        assert_eq!(seq_text("  wrap: x"), "  #119;rap: x");
+        // Only a prefix, only at the start, only exact case.
+        assert_eq!(seq_text("a wrap: x"), "a wrap: x");
+        assert_eq!(seq_text("Wrap: x"), "Wrap: x");
+        assert_eq!(seq_text("wrapper"), "wrapper");
     }
 }

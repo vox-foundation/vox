@@ -5,7 +5,7 @@
 mod support;
 
 use proptest::prelude::*;
-use support::hostile::FRAGMENTS;
+use support::hostile::{FRAGMENTS, payload_problem};
 use support::{model_graph, noise, noisy_source};
 use vox_diagram::check;
 use vox_diagram::ir::{Direction, GraphIr, Ir, IrContainer, IrEdge, IrNode, Shape};
@@ -133,27 +133,11 @@ fn assert_safe_id(s: &str) -> Result<(), TestCaseError> {
     Ok(())
 }
 
-/// A label payload holds no raw `"`, `<`, `>`, `&`, backtick or control character, apart from
-/// the `<br>` that encodes a newline, and every `#` opens an entity.
 fn assert_safe_payload(p: &str) -> Result<(), TestCaseError> {
-    let bare = p.replace("<br>", "");
-    for c in bare.chars() {
-        prop_assert!(
-            !matches!(c, '"' | '<' | '>' | '&' | '`') && !c.is_control(),
-            "raw {c:?} in {p:?}"
-        );
+    match payload_problem(p, false) {
+        None => Ok(()),
+        Some(why) => Err(TestCaseError::fail(why)),
     }
-    for (at, _) in bare.match_indices('#') {
-        let rest = &bare[at + 1..];
-        let named = ["amp;", "quot;", "lt;", "gt;"]
-            .iter()
-            .any(|n| rest.starts_with(n));
-        let digits = rest
-            .find(';')
-            .is_some_and(|e| e > 0 && rest[..e].bytes().all(|b| b.is_ascii_digit()));
-        prop_assert!(named || digits, "bare # in {p:?}");
-    }
-    Ok(())
 }
 
 fn payload<'a>(line: &'a str, open: &str, close: &str) -> &'a str {
