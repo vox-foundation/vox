@@ -21,8 +21,30 @@ const KEYWORDS: [&str; 14] = [
     "direction",
 ];
 
+/// Byte offsets of the `d` of every `direction` that Mermaid's flowchart/state lexer reads as a
+/// direction statement: `direction`, whitespace, then `TB`, `TD`, `LR`, `RL` or `BT`. The lexer
+/// swallows the whole line, quoted label or not. Compared case-insensitively (a deliberate
+/// superset). Shared by the exporter (defuse) and the importer (refuse).
+pub(crate) fn direction_traps(s: &str) -> Vec<usize> {
+    let lower = s.to_ascii_lowercase();
+    let space = |c: char| c.is_whitespace() || c == '\u{feff}';
+    lower
+        .match_indices("direction")
+        .filter(|(i, w)| {
+            let tail = &lower[i + w.len()..];
+            let rest = tail.trim_start_matches(space);
+            rest.len() < tail.len()
+                && ["tb", "td", "lr", "rl", "bt"]
+                    .iter()
+                    .any(|t| rest.starts_with(t))
+        })
+        .map(|(i, _)| i)
+        .collect()
+}
+
 /// Shared encoder. `seq` adds the sequence-diagram rules: `;` ends a statement there, and a text
 /// starting with `wrap:`, `nowrap:`, `:wrap:` or `:nowrap:` is stripped and changes wrapping.
+/// Flowchart text (`!seq`) also numerically encodes the `d` of a [`direction_traps`] hit.
 fn encode(s: &str, seq: bool) -> String {
     let colon = s.contains("style") || s.contains("classDef");
     let percent = s.contains("%%");
@@ -32,9 +54,10 @@ fn encode(s: &str, seq: bool) -> String {
             .iter()
             .any(|p| trimmed.starts_with(p)))
     .then(|| s.len() - trimmed.len());
+    let traps = if seq { Vec::new() } else { direction_traps(s) };
     let mut out = String::with_capacity(s.len());
     for (at, c) in s.char_indices() {
-        if wrap_at == Some(at) {
+        if wrap_at == Some(at) || traps.contains(&at) {
             let _ = write!(out, "#{};", u32::from(c));
             continue;
         }
@@ -131,6 +154,18 @@ mod tests {
         assert_eq!(label("a\u{2028}b"), "a#8232;b");
         assert_eq!(label("\u{fb02}"), "#64258;");
         assert_eq!(label("a\u{b6}b"), "a#182;b");
+    }
+
+    #[test]
+    fn direction_statement_text_is_defused_in_flowchart_labels_only() {
+        assert_eq!(label("p direction LR q"), "p #100;irection LR q");
+        assert_eq!(label("go Direction td"), "go #68;irection td");
+        assert_eq!(label("xdirection BT"), "x#100;irection BT");
+        assert_eq!(label("direction LRX"), "#100;irection LRX");
+        assert_eq!(label("direction"), "direction");
+        assert_eq!(label("direction XY"), "direction XY");
+        // Sequence text has no `direction` statement.
+        assert_eq!(seq_text("direction LR"), "direction LR");
     }
 
     #[test]

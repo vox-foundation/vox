@@ -1,4 +1,4 @@
-//! Hand-built hostile `GraphIr` cases for the exporter (`export-hostile/g01..g15`). The labels
+//! Hand-built hostile `GraphIr` cases for the exporter (`export-hostile/g01..g16`). The labels
 //! and ids here are the ones that broke a naive emitter in research (84-RESEARCH).
 #![allow(dead_code)]
 
@@ -32,6 +32,8 @@ pub const FRAGMENTS: &[&str] = &[
     "end",
     "subgraph",
     "click a call alert(1)",
+    "x direction LR y",
+    "direction TB",
     "\n",
     "\r",
     "\t",
@@ -253,7 +255,7 @@ fn edge_labels() -> GraphIr {
     build(&[], &nodes, &edges)
 }
 
-/// The `g01..g15` case table (`g00-nested` lives in `mermaid_export.rs`, built from DSL).
+/// The `g01..g16` case table (`g00-nested` lives in `mermaid_export.rs`, built from DSL).
 pub fn graph_cases() -> Vec<(&'static str, GraphIr)> {
     vec![
         ("g01-keyword-ids", keyword_ids()),
@@ -344,6 +346,7 @@ pub fn graph_cases() -> Vec<(&'static str, GraphIr)> {
         ),
         ("g14-shapes", shapes()),
         ("g15-edge-labels", edge_labels()),
+        ("g16-direction-text", super::direction::graph()),
     ]
 }
 
@@ -361,7 +364,9 @@ pub fn payload_problem(p: &str, no_semicolon: bool) -> Option<String> {
     let mut left = String::new();
     let mut rest = bare.as_str();
     while let Some(at) = rest.find('#') {
+        // An entity is one opaque non-space character to the lexer (a placeholder).
         left.push_str(&rest[..at]);
+        left.push('\u{1}');
         let tail = &rest[at + 1..];
         let named = ["amp;", "quot;", "lt;", "gt;"]
             .iter()
@@ -377,5 +382,8 @@ pub fn payload_problem(p: &str, no_semicolon: bool) -> Option<String> {
         rest = &tail[len..];
     }
     left.push_str(rest);
+    if !no_semicolon && super::direction::trap(&left) {
+        return Some(format!("direction statement in {p:?}"));
+    }
     (no_semicolon && left.contains(';')).then(|| format!("raw ; in {p:?}"))
 }
