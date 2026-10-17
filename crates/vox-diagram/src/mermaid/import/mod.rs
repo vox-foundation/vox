@@ -5,9 +5,12 @@ use std::collections::BTreeSet;
 
 use super::{ImportOpts, ImportReport, Unsupported};
 use crate::limits::MAX_SOURCE_BYTES;
-use crate::print::push_quoted;
-use crate::resolve::RESERVED;
 use crate::{fmt, ir::Direction};
+
+mod build;
+mod flow;
+mod lines;
+mod text;
 
 fn refused(line: u32, construct: &str) -> ImportReport {
     ImportReport {
@@ -37,34 +40,58 @@ fn header(line: &str) -> Option<Direction> {
     words.next().is_none().then_some(dir)
 }
 
-fn is_id(s: &str) -> bool {
-    let mut chars = s.chars();
-    chars
-        .next()
-        .is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
-        && chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
-        && !s.ends_with('-')
-        && !RESERVED.contains(&s)
+fn entries(list: Vec<(u32, String)>) -> Vec<Unsupported> {
+    let mut list = list;
+    list.sort_by_key(|e| e.0);
+    let mut seen = BTreeSet::new();
+    list.into_iter()
+        .filter(|e| seen.insert(e.clone()))
+        .map(|(line, construct)| Unsupported { line, construct })
+        .collect()
 }
 
-/// `a --> b` (spaces optional) as its two ids.
-fn edge(line: &str) -> Option<(&str, &str)> {
-    let (from, to) = line.split_once("-->")?;
-    let (from, to) = (from.trim(), to.trim());
-    (is_id(from) && is_id(to)).then_some((from, to))
-}
-
-fn direction_word(d: Direction) -> Option<&'static str> {
-    match d {
-        Direction::Down => None,
-        Direction::Right => Some("right"),
-        Direction::Up => Some("up"),
-        Direction::Left => Some("left"),
+/// The flowchart body: every line is scanned (no early exit), then the semantic pass runs.
+fn flowchart(dir: Direction, body: Vec<(u32, &str)>, opts: ImportOpts) -> ImportReport {
+    let mut errors = Vec::new();
+    let mut dropped = Vec::new();
+    let mut stmts = Vec::new();
+    for (n, text) in body {
+        match lines::scan(text, opts) {
+            Ok(s) => {
+                dropped.extend(s.dropped.into_iter().map(|c| (n, c)));
+                stmts.push((n, s.stmt));
+            }
+            Err(b) => {
+                errors.push((n, b.construct));
+                if b.opens {
+                    stmts.push((n, lines::Stmt::BadOpen));
+                }
+            }
+        }
+    }
+    let built = build::build(dir, stmts);
+    errors.extend(built.errors);
+    dropped.extend(built.dropped);
+    let (unsupported, dropped) = (entries(errors), entries(dropped));
+    let source = if unsupported.is_empty() {
+        let raw = flow::to_dsl(&built.graph);
+        match fmt(&raw) {
+            Some(s) => Some(s),
+            None => return refused(1, "internal"),
+        }
+    } else {
+        None
+    };
+    ImportReport {
+        source,
+        sequence: None,
+        unsupported,
+        dropped,
     }
 }
 
 /// Import one Mermaid block. Fail-closed: `source` is `Some` only when every line was read.
-pub fn import(block: &str, _opts: ImportOpts) -> ImportReport {
+pub fn import(block: &str, opts: ImportOpts) -> ImportReport {
     if block.len() > MAX_SOURCE_BYTES {
         return refused(1, "limit-source");
     }
@@ -76,59 +103,11 @@ pub fn import(block: &str, _opts: ImportOpts) -> ImportReport {
     let Some((hline, head)) = lines.next() else {
         return refused(1, "header:");
     };
-    let Some(dir) = header(head) else {
-        let word = head.split_whitespace().next().unwrap_or_default();
-        return refused(hline, &format!("header:{word}"));
-    };
-    let mut nodes: Vec<&str> = Vec::new();
-    let mut seen = BTreeSet::new();
-    let mut edges = Vec::new();
-    let mut bad = Vec::new();
-    for (n, text) in lines {
-        match edge(text) {
-            Some((a, b)) => {
-                for id in [a, b] {
-                    if seen.insert(id) {
-                        nodes.push(id);
-                    }
-                }
-                edges.push((a, b));
-            }
-            None => bad.push(Unsupported {
-                line: n,
-                construct: "statement".to_owned(),
-            }),
-        }
-    }
-    if !bad.is_empty() {
-        return ImportReport {
-            source: None,
-            sequence: None,
-            unsupported: bad,
-            dropped: Vec::new(),
-        };
-    }
-    let mut raw = String::from("graph {\n");
-    if let Some(w) = direction_word(dir) {
-        raw.push_str(&format!("    direction: {w}\n"));
-    }
-    for id in &nodes {
-        raw.push_str(&format!("    node {id}: "));
-        push_quoted(&mut raw, id);
-        raw.push('\n');
-    }
-    for (a, b) in &edges {
-        raw.push_str(&format!("    {a} -> {b}\n"));
-    }
-    raw.push_str("}\n");
-    match fmt(&raw) {
-        Some(source) => ImportReport {
-            source: Some(source),
-            sequence: None,
-            unsupported: Vec::new(),
-            dropped: Vec::new(),
-        },
-        None => refused(1, "internal"),
+    let word = head.split_whitespace().next().unwrap_or_default();
+    match (word.trim_end_matches(';'), header(head)) {
+        ("graph" | "flowchart", _) if head.ends_with(';') => refused(hline, "semicolon"),
+        ("graph" | "flowchart", Some(dir)) => flowchart(dir, lines.collect(), opts),
+        _ => refused(hline, &format!("header:{word}")),
     }
 }
 
@@ -147,7 +126,7 @@ mod tests {
     #[test]
     fn every_bad_line_is_listed_with_its_line_number() {
         let r = import(
-            "graph\n\n  a --> b\n  nope\n  a --- b\n",
+            "graph\n\n  a --> b\n  no pe\n  a --- b\n",
             ImportOpts::default(),
         );
         let lines: Vec<u32> = r.unsupported.iter().map(|u| u.line).collect();
@@ -156,8 +135,8 @@ mod tests {
     }
 
     #[test]
-    fn reserved_words_and_chained_edges_are_refused() {
-        for body in ["node --> b", "a --> b --> c", "a -->|x| b", "a- --> b"] {
+    fn reserved_words_and_dangling_hyphens_are_refused() {
+        for body in ["node --> b", "a- --> b"] {
             let r = import(&format!("flowchart TD\n  {body}\n"), ImportOpts::default());
             assert!(r.source.is_none(), "{body}");
         }
