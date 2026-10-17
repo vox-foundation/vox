@@ -1,0 +1,22 @@
+flowchart TB
+  subgraph eras [Historical eras]
+    E1["1960s-80s: IR and bibliographic DBs"]
+    E2["1990s-2000s: Systematic review and citation graphs"]
+    E3["2010s: Reproducibility and preregistration"]
+    E4["2018-2023: Semantic search and ML screening"]
+    E5["2024-2026: LLM agent deep research"]
+  end
+  subgraph vox [Vox SCIENTIA layers]
+    L1[Signal producers and scout]
+    L2[Retrieval: CRAG Tavily Tantivy Graphify]
+    L3[Claim and novelty verdict ladder]
+    L4[Human gate nanopub RO-Crate]
+    L5[Scholarly syndication Zenodo]
+  end
+  E1 --> L2
+  E2 --> L3
+  E3 --> L4
+  E4 --> L2
+  E4 --> L3
+  E5 --> L1
+  E5 --> L2

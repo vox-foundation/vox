@@ -1,0 +1,7 @@
+graph TD
+  A[Push to main] --> B[smoke-ci]
+  B -->|Success or skipped| D[deploy-coolify]
+  D -->|Poll & verify| E[health-check]
+  E --> F[notify]
+  D -->|Failure| G[Fetch logs & artifact]
+  G --> F

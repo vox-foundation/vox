@@ -1,0 +1,6 @@
+flowchart LR
+    RawHits["Raw Web Pages (100k+ tokens)"] --> LocalMENS["Local MENS Model (Fast)"]
+    LocalMENS --> FactTriplets["Structured Claim Triplets & Evidence Spans"]
+    FactTriplets --> GraphStore["Factual Subgraph & Corroboration Matrix"]
+    GraphStore --> RAGBudgeter["RAG Context Budgeter (Top-K Verified Spans)"]
+    RAGBudgeter --> PackedPrompt["Dense, High-Density Synthesis Prompt (<8k tokens)"]

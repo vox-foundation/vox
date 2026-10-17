@@ -1,0 +1,19 @@
+sequenceDiagram
+  participant Agent as CodingAgent
+  participant RS as vox_research_shim
+  participant VS as vox_search
+  participant OR as OpenRouter
+  participant TV as Tavily
+  participant SC as vox_scientia
+  participant Human as Researcher
+  participant Out as NanoPub_Zenodo_Manuscript
+
+  Agent->>RS: vox research run
+  RS->>OR: planner + synthesize
+  RS->>VS: CRAG multi-hop
+  VS->>TV: Tier4 search optional
+  RS->>SC: claim_extractor optional paths
+  Note over RS,SC: FindingCandidate mesh emission not wired
+  SC->>Human: discovery inbox review
+  Human->>SC: ApprovalToken
+  SC->>Out: nanopub / archive / syndicate
