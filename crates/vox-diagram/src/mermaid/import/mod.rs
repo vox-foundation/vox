@@ -9,6 +9,7 @@ use crate::{fmt, ir::Direction};
 
 mod build;
 mod flow;
+mod ids;
 mod lines;
 mod seq;
 mod state;

@@ -1,4 +1,4 @@
-//! Shared importer text rules: the DSL id rule and label/edge-text validation and decoding.
+//! Shared importer text rules: label and edge-text validation and decoding.
 //! Every rejection except the length, emptiness and forbidden-character ones runs on the RAW
 //! text, so the exporter's encoded forms (`#96;`, `#lt;`, `#amp;`, `#35;`) import back as
 //! plain text.
@@ -6,75 +6,11 @@
 use crate::lexer::is_forbidden;
 use crate::limits::MAX_LABEL_CHARS;
 use crate::mermaid::escape::has_direction_trap;
-use crate::resolve::RESERVED;
 
 /// Characters Mermaid's parser rejects in unquoted node, title and pipe-edge text.
 pub(super) const NODE_SPECIAL: &str = "()[]{}|\"@";
 /// Only the quote is rejected in unquoted `-- text -->` edge text.
 pub(super) const DASH_SPECIAL: &str = "\"";
-
-/// `Ok` when `s` is a legal DSL id; otherwise the construct name.
-pub(super) fn valid_id(s: &str) -> Result<(), &'static str> {
-    let mut chars = s.chars();
-    let first_ok = chars
-        .next()
-        .is_some_and(|c| c.is_ascii_alphabetic() || c == '_');
-    if !first_ok
-        || !chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
-        || s.ends_with('-')
-    {
-        return Err("invalid-id");
-    }
-    if s.len() > MAX_LABEL_CHARS {
-        // The DSL caps an id at the label length; `fmt` would refuse the whole block as `internal`.
-        return Err("id-too-long");
-    }
-    if RESERVED.contains(&s) {
-        return Err("reserved-id");
-    }
-    Ok(())
-}
-
-/// Words Mermaid's flowchart lexer reads as statements in every id position (exact case), alone
-/// or before a `-`. `click`, `href` and `call` are left out: Mermaid rejects them only as an edge
-/// target, and refusing them everywhere would refuse valid sources.
-const FLOW_WORDS: [&str; 9] = [
-    "end",
-    "style",
-    "class",
-    "graph",
-    "flowchart",
-    "subgraph",
-    "interpolate",
-    "classDef",
-    "linkStyle",
-];
-
-/// Words Mermaid's state lexer reads as statements (any case).
-const STATE_WORDS: [&str; 9] = [
-    "note", "style", "class", "click", "default", "state", "href", "classdef", "scale",
-];
-
-/// [`valid_id`] plus the flowchart ids Mermaid itself rejects.
-pub(super) fn flow_id(s: &str) -> Result<(), &'static str> {
-    valid_id(s)?;
-    if FLOW_WORDS.contains(&s.split('-').next().unwrap_or(s)) {
-        return Err("reserved-id");
-    }
-    Ok(())
-}
-
-/// [`valid_id`] plus the state ids Mermaid itself rejects (it has no `-` in ids).
-pub(super) fn state_id(s: &str) -> Result<(), &'static str> {
-    valid_id(s)?;
-    if s.contains('-') {
-        return Err("invalid-id");
-    }
-    if STATE_WORDS.contains(&s.to_ascii_lowercase().as_str()) {
-        return Err("reserved-id");
-    }
-    Ok(())
-}
 
 /// Length in bytes of a `<br>`, `<br/>` or `<br />` (any case) at the start of `s`.
 fn br_len(s: &str) -> Option<usize> {
@@ -305,12 +241,5 @@ mod tests {
         }
         assert_eq!(free("#59; #119;rap:", true).as_deref(), Ok("; wrap:"));
         assert_eq!(free("x wrap: y", true).as_deref(), Ok("x wrap: y"));
-    }
-
-    #[test]
-    fn id_rule() {
-        assert_eq!(valid_id("a-b_1"), Ok(()));
-        assert_eq!(valid_id("1a"), Err("invalid-id"));
-        assert_eq!(valid_id("node"), Err("reserved-id"));
     }
 }

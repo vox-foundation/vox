@@ -5,6 +5,7 @@
 use std::collections::BTreeMap;
 
 use super::flow::{GEdge, GNode, Graph};
+use super::ids::{StateAt, state_id};
 use super::lines::{id_run, styling_head};
 use super::{entries, finish, text};
 use crate::ir::{Direction, Shape};
@@ -25,7 +26,7 @@ enum Item {
 }
 
 /// An endpoint: `[*]` or a state id. `start` / `end` are the terminals' ids, so they clash.
-fn endpoint(s: &str) -> Result<Option<String>, String> {
+fn endpoint(s: &str, at: StateAt) -> Result<Option<String>, String> {
     let s = s.trim();
     if s == "[*]" {
         return Ok(None);
@@ -33,7 +34,7 @@ fn endpoint(s: &str) -> Result<Option<String>, String> {
     if matches!(s, "start" | "end") {
         return Err("id-clash".to_owned());
     }
-    text::state_id(s).map_err(str::to_owned)?;
+    state_id(s, at).map_err(str::to_owned)?;
     Ok(Some(s.to_owned()))
 }
 
@@ -110,7 +111,12 @@ fn transition(line: &str, dropped: &mut Vec<String>) -> Result<Trans, String> {
     if l_class || t_class {
         dropped.push("styling:shorthand".to_owned());
     }
-    let (from, to) = (endpoint(left)?, endpoint(target)?);
+    let at = if label.is_some() {
+        StateAt::Labelled
+    } else {
+        StateAt::Target
+    };
+    let (from, to) = (endpoint(left, StateAt::Source)?, endpoint(target, at)?);
     let label = match label {
         // Mermaid rejects a transition whose `:` is followed by nothing.
         Some(l) if l.trim().is_empty() => return Err("empty-label".to_owned()),
@@ -138,7 +144,7 @@ fn declaration(line: &str, dropped: &mut Vec<String>) -> Result<Option<Item>, St
     if !rest.is_empty() {
         return Err("statement".to_owned());
     }
-    let Some(id) = endpoint(id)? else {
+    let Some(id) = endpoint(id, StateAt::Source)? else {
         return Err("statement".to_owned());
     };
     dropped.push("styling:shorthand".to_owned());

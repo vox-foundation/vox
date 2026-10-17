@@ -2,6 +2,7 @@
 //! name. Only text outside quotes, brackets and edge text can be a construct; the scanner is
 //! a single left-to-right pass over borrowed slices.
 
+use super::ids;
 use super::text::{self, DASH_SPECIAL, NODE_SPECIAL};
 use crate::ir::{Direction, Shape};
 use crate::mermaid::ImportOpts;
@@ -122,7 +123,7 @@ fn reference(cur: &mut &str, cx: &mut Cx) -> Res<Ref> {
     if id.is_empty() {
         return bad(stop(cur));
     }
-    text::flow_id(id)?;
+    ids::flow_ref(id, after)?;
     *cur = after;
     if let Some(o) = OTHER_SHAPES.iter().find(|o| cur.starts_with(*o)) {
         return bad(format!("shape:{o}"));
@@ -244,8 +245,8 @@ fn subgraph(rest: &str) -> Res<Stmt> {
     if id.is_empty() {
         return bad("subgraph-title");
     }
-    text::flow_id(id)?;
     let mut cur = after.trim_start();
+    ids::subgraph_id(id, cur.starts_with('['))?;
     let mut title = None;
     if let Some(r) = cur.strip_prefix('[') {
         cur = r;

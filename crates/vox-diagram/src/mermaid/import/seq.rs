@@ -4,6 +4,7 @@
 
 use std::collections::BTreeMap;
 
+use super::ids::{self, SeqAt};
 use super::lines::{id_run, styling_head};
 use super::{entries, text};
 use crate::limits::{MAX_EDGES, MAX_NODES};
@@ -11,27 +12,9 @@ use crate::mermaid::{ImportOpts, ImportReport};
 use crate::sequence_ir::{Actor, SeqEvent, SequenceIr};
 use crate::span::{LineIndex, Span, to_u32};
 
-/// Mermaid block keywords (`block:<keyword>`); they are also unusable as participant ids.
+/// Mermaid block keywords (`block:<keyword>`).
 const BLOCKS: [&str; 11] = [
     "loop", "alt", "else", "opt", "par", "and", "critical", "option", "break", "rect", "end",
-];
-/// Other statement keywords that cannot be participant ids.
-const KEYWORDS: [&str; 15] = [
-    "actor",
-    "participant",
-    "autonumber",
-    "title",
-    "box",
-    "create",
-    "destroy",
-    "activate",
-    "deactivate",
-    "note",
-    "over",
-    "link",
-    "links",
-    "properties",
-    "details",
 ];
 /// Arrow tokens, longest first; `Some(dashed)` for the two accepted ones.
 const ARROWS: [(&str, Option<bool>); 10] = [
@@ -65,17 +48,8 @@ enum Stmt {
     Skip,
 }
 
-fn id(s: &str) -> Result<String, String> {
-    text::valid_id(s).map_err(str::to_owned)?;
-    // Mermaid's sequence lexer is case-insensitive, and reads `end-x` as the keyword `end`.
-    let lower = s.to_ascii_lowercase();
-    let head = lower.split('-').next().unwrap_or(&lower);
-    if [lower.as_str(), head]
-        .iter()
-        .any(|w| BLOCKS.contains(w) || KEYWORDS.contains(w))
-    {
-        return Err("reserved-id".to_owned());
-    }
+fn id(s: &str, at: SeqAt) -> Result<String, String> {
+    ids::seq_id(s, at).map_err(str::to_owned)?;
     Ok(s.to_owned())
 }
 
@@ -84,7 +58,7 @@ fn participant(tail: &str) -> Result<Stmt, String> {
     if name.is_empty() {
         return Err("statement".to_owned());
     }
-    let name = id(name)?;
+    let name = id(name, SeqAt::Declared)?;
     let rest = rest.trim_start();
     let alias = match rest.strip_prefix("as") {
         _ if rest.is_empty() => None,
@@ -119,7 +93,10 @@ fn note(tail: &str) -> Result<Stmt, String> {
     if ids.len() > 2 {
         return Err("note-actors".to_owned());
     }
-    let over = ids.into_iter().map(id).collect::<Result<Vec<_>, _>>()?;
+    let over = ids
+        .into_iter()
+        .map(|s| id(s, SeqAt::Receiver))
+        .collect::<Result<Vec<_>, _>>()?;
     let text = text::free(body, true).map_err(str::to_owned)?;
     Ok(Stmt::Note { over, text })
 }
@@ -130,7 +107,7 @@ fn message(line: &str) -> Result<Stmt, String> {
     let Some(&(token, dashed)) = ARROWS.iter().find(|(t, _)| rest.starts_with(t)) else {
         return Err("statement".to_owned());
     };
-    let from = id(from)?;
+    let from = id(from, SeqAt::Sender)?;
     let Some(dashed) = dashed else {
         return Err(format!("arrow:{token}"));
     };
@@ -146,7 +123,7 @@ fn message(line: &str) -> Result<Stmt, String> {
     else {
         return Err("message-syntax".to_owned());
     };
-    let to = id(to)?;
+    let to = id(to, SeqAt::Receiver)?;
     let text = text::free(body, true).map_err(str::to_owned)?;
     Ok(Stmt::Message {
         from,
