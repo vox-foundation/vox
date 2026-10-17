@@ -158,11 +158,11 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. An author can write a `sequence` diagram with actors, ordered messages, dashed returns, and `note over`; `check` and `fmt` behave exactly as for `graph` (all errors at once with codes, spans and fixes; idempotent canonical form).
   2. A `sequence` diagram renders to SVG with lane widths driven by the longest message label, so 80+ character messages neither overlap nor clip; output goes through the same safe writer and is byte-identical across runs and platforms.
-  3. The 2 corpus sequence blocks import (Phase 84), print as DSL, re-parse to the same IR, render, and re-export to Mermaid that passes the zero-repair check.
+  3. The corpus sequence block (1 at committed HEAD on 2026-10-16) imports (Phase 84), prints as DSL, re-parses to the same IR, renders, and re-exports to Mermaid accepted by the pinned real Mermaid parser.
 
 **Plans**: TBD
 **Research flag**: standard patterns.
-**Parallelism**: DSL parser/printer half may start after Phase 83; the render half needs Phase 85's writer. If this phase slips, the 2 sequence blocks stay on the Phase 90 allowlist (needs user sign-off).
+**Parallelism**: DSL parser/printer half may start after Phase 83; the render half needs Phase 85's writer. If this phase slips, the sequence block stays on the Phase 90 allowlist (needs user sign-off).
 **UI hint**: yes
 
 ### Phase 87: Doc-Pipeline Consumer & Legacy-Mermaid Ratchet
