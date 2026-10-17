@@ -237,6 +237,8 @@ pub mod hostile;
 pub mod mermaid;
 mod noisy;
 pub mod roundtrip;
+pub mod svgcheck;
+pub mod svgnum;
 
 /// S2: print `m` with `n`'s layout noise. The text is always valid and denotes `m`.
 pub fn noisy_source(m: &Model, n: &Noise) -> String {
