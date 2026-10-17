@@ -2,20 +2,21 @@
 gsd_state_version: "1.0"
 milestone: v1.7
 milestone_name: VoxDiagram
-current_phase: 86
-current_phase_name: Sequence Kind
+current_phase: 87
+current_phase_name: Doc-Pipeline Consumer & Legacy-Mermaid Ratchet
 current_plan: 4
-status: verifying
-stopped_at: Completed 86-04-PLAN.md
-last_updated: "2026-10-17T16:37:44.473Z"
+status: planning
+stopped_at: Phase 86 complete, ready to plan Phase 87
+last_updated: "2026-10-17T17:14:42.040Z"
 last_activity: 2026-10-17
-last_activity_desc: Phase 86 execution started
-state_head: eb983c30377342f32d4d3932a956e51114e4c922
+last_activity_desc: Phase 86 complete, transitioned to Phase 87
+state_head: 26ea928baac9c4bc814b4e8471b7843019d06b49
 progress:
   total_phases: 9
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 21
   completed_plans: 21
+  percent: 44
 ---
 
 # Project State: VoxDiagram (`voxdiagram`)
@@ -29,12 +30,12 @@ See: `.planning/PROJECT.md` (shared, owned by the `unified` workstream, not edit
 
 ## Current Position
 
-Phase: 86 (Sequence Kind) — EXECUTING
-Plan: 4 of 4
-Status: Phase complete — ready for verification
-Last activity: 2026-10-17 — Phase 86 execution started
+Phase: 87 — Doc-Pipeline Consumer & Legacy-Mermaid Ratchet
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-10-17 — Phase 86 complete, transitioned to Phase 87
 
-Progress: [███░░░░░░░] 33% (0/9 phases)
+Progress: [████░░░░░░] 44% (0/9 phases)
 
 ## Progress
 
@@ -66,7 +67,7 @@ None yet.
 
 **Last session:** 2026-10-17T16:37:44.431Z
 
-**Stopped At:** Completed 86-04-PLAN.md
+**Stopped At:** Phase 86 complete, ready to plan Phase 87
 **Resume File:** None
 
 ## Performance Metrics

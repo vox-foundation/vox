@@ -21,7 +21,7 @@
     {
       "number": "86",
       "name": "Sequence Kind",
-      "status": "in_progress"
+      "status": "complete"
     },
     {
       "number": "87",
@@ -51,8 +51,8 @@
   ],
   "next": {
     "command": "/gsd:progress --next",
-    "label": "Advance to the next step (verify)",
-    "reason": "Phase 86 of 9 · ready to verify"
+    "label": "Advance to the next step (plan phase 87)",
+    "reason": "Phase 87 of 9 — needs a plan"
   },
-  "updated_at": "2026-10-17T16:37:39.877Z"
+  "updated_at": "2026-10-17T17:14:42.053Z"
 }

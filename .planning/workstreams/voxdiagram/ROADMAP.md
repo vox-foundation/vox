@@ -40,7 +40,7 @@ v1.7 retires Mermaid as the primary diagram *authoring* format. A new pure L2 cr
 - [x] **Phase 83: Core Crate - Parser, IR & Diagnostics** - Registered L2 `vox-diagram` crate: graph DSL, recovering parser, typed IR, all-errors diagnostics with fixes, canonical `fmt`, input caps (completed 2026-10-16)
 - [x] **Phase 84: Mermaid Emitter & Strict Importer** - Sanitized Mermaid export that real Mermaid accepts; fail-closed importer verified by corpus round trip (completed 2026-10-16)
 - [x] **Phase 85: Graph Layout & Deterministic SVG** - `dagre` seam behind a go/no-go spike; byte-identical, injection-safe, themeable SVG (completed 2026-10-17)
-- [ ] **Phase 86: Sequence Kind** - `sequence` DSL, width-aware lane SVG, and DSL round trip for the corpus sequence blocks
+- [x] **Phase 86: Sequence Kind** - `sequence` DSL, width-aware lane SVG, and DSL round trip for the corpus sequence blocks (completed 2026-10-17)
 - [ ] **Phase 87: Doc-Pipeline Consumer & Legacy-Mermaid Ratchet** - Doc lint validates `vox-diagram` fences and rejects new Mermaid fences via a shrink-only baseline; first authorized crate edge
 - [ ] **Phase 88: MCP Tool, CLI & Agent Guidance** - `vox_validate_diagram`, `vox diagram` CLI, and the grammar card agents author from; second authorized crate edge
 - [ ] **Phase 89: Docs-Astro Integration** - Pre-render to manifest, remark inline, Playwright proof of ids, label fit and contrast
@@ -160,7 +160,7 @@ Plans:
   2. A `sequence` diagram renders to SVG with lane widths driven by the longest message label, so 80+ character messages neither overlap nor clip; output goes through the same safe writer and is byte-identical across runs and platforms.
   3. The corpus sequence block (1 at committed HEAD on 2026-10-16) imports (Phase 84), prints as DSL, re-parses to the same IR, renders, and re-exports to Mermaid accepted by the pinned real Mermaid parser.
 
-**Plans**: 4/4 plans executed in 3 waves
+**Plans**: 4/4 plans complete in 3 waves
 
 Plans:
 **Wave 1**
@@ -213,6 +213,7 @@ Plans:
 **Goal**: voxlang.org builds and shows every `vox-diagram` fence as an inline, accessible, themed SVG, and the build breaks rather than shipping a missing render.
 **Depends on**: Phase 85, Phase 86, Phase 87
 **Requirements**: DOCS-03, DOCS-04
+**Carried from Phase 86**: by-eye light/dark browser review of the sequence goldens (`86-CONTACT-SHEET.html`), incl. multi-hop label placement.
 **Success Criteria** (what must be TRUE):
   1. `pnpm build` in `docs-astro` pre-renders every ```` ```vox-diagram ```` fence through `vox-doc-pipeline --render-diagrams` into a gitignored manifest and inlines each SVG via the remark plugin in both `.md` and `.mdx`; a fence with no render fails the build with a message naming the file and the exact command.
   2. Playwright against the built site shows no duplicate ids on a page with several diagrams, every `<text>` within its box under two font stacks, and contrast passing in both light and dark themes (forced-colors stays legible), exercised on fixture diagrams covering both kinds.
@@ -263,7 +264,7 @@ Phases execute in numeric order, with the parallel opportunities noted under Ove
 | 83. Core Crate - Parser, IR & Diagnostics | 7/7 | Complete    | 2026-10-16 |
 | 84. Mermaid Emitter & Strict Importer | 5/5 | Complete    | 2026-10-16 |
 | 85. Graph Layout & Deterministic SVG | 5/5 | Complete    | 2026-10-17 |
-| 86. Sequence Kind | 4/4 | In Progress | - |
+| 86. Sequence Kind | 4/4 | Complete    | 2026-10-17 |
 | 87. Doc-Pipeline Consumer & Legacy-Mermaid Ratchet | 0/TBD | Not started | - |
 | 88. MCP Tool, CLI & Agent Guidance | 0/TBD | Not started | - |
 | 89. Docs-Astro Integration | 0/TBD | Not started | - |
