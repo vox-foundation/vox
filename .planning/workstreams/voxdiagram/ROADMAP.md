@@ -160,7 +160,18 @@ Plans:
   2. A `sequence` diagram renders to SVG with lane widths driven by the longest message label, so 80+ character messages neither overlap nor clip; output goes through the same safe writer and is byte-identical across runs and platforms.
   3. The corpus sequence block (1 at committed HEAD on 2026-10-16) imports (Phase 84), prints as DSL, re-parses to the same IR, renders, and re-exports to Mermaid accepted by the pinned real Mermaid parser.
 
-**Plans**: TBD
+**Plans**: 4 plans in 3 waves
+
+Plans:
+**Wave 1**
+- [ ] 86-01-PLAN.md — Tracer (sequence DSL actors + message through check, `Ir::Sequence`, fmt, export, width-aware lane SVG via the shared writer) + `reply`, self-messages, `note over` (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 86-02-PLAN.md — check/fmt parity: undeclared-actor declare fix, reserved ids, caps, all-errors, Mermaid-isms with rewrites, corpus repair cross-check, S1-S4 properties (wave 2)
+- [ ] 86-03-PLAN.md — Render hardening: 60-char soft wrap, self-message/note geometry, independent geometry oracle + property, render caps, IR validation, hostile text, determinism, goldens (wave 2, parallel with 02)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 86-04-PLAN.md — Corpus round trip (import → DSL → re-parse → render → export, Node oracle), `ImportReport.source` for sequences, docs rows, API page, closing gates, visual review (wave 3)
 **Research flag**: standard patterns.
 **Parallelism**: DSL parser/printer half may start after Phase 83; the render half needs Phase 85's writer. If this phase slips, the sequence block stays on the Phase 90 allowlist (needs user sign-off).
 **UI hint**: yes
