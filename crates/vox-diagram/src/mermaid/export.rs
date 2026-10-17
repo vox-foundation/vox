@@ -1,4 +1,4 @@
-//! Graph to Mermaid `flowchart` text: header, node declarations, then every edge.
+//! Graph to Mermaid `flowchart` text: header, top-level nodes, nested subgraphs, then every edge.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -7,8 +7,10 @@ use crate::ir::{Direction, GraphIr, Ir, Shape};
 
 /// Export `ir` as Mermaid text, one statement per line (4 spaces per nesting level).
 ///
-/// Total over any `Ir`: an edge endpoint that is not a node is emitted as an implicit Mermaid
-/// node, and containers are the subgraph slice of plan 84-02 (flat graphs only for now).
+/// Total over any `Ir` (hand-built ones included): never panics and never recurses. A node
+/// naming no container is top level; a container nests only under an earlier one; an edge
+/// endpoint that is neither node nor container becomes an implicit Mermaid node. Every node and
+/// container is emitted exactly once, so the output has `1 + nodes + 2 * containers + edges` lines.
 /// Mermaid's default configuration rejects more than 500 edges.
 pub fn export(ir: &Ir) -> String {
     match ir {
@@ -57,18 +59,116 @@ impl Ids {
     }
 }
 
+/// Which container each node and container belongs to, as positions in `g.containers`.
+struct Tree {
+    top_nodes: Vec<usize>,
+    top_containers: Vec<usize>,
+    members: Vec<Vec<usize>>,
+    children: Vec<Vec<usize>>,
+}
+
+impl Tree {
+    /// A container nests under its `parent` only when that parent comes EARLIER in the list
+    /// (true for every `check()` IR), which makes cycles impossible; anything unresolvable is
+    /// top level. A repeated container id resolves to its first occurrence.
+    fn of(g: &GraphIr) -> Self {
+        let mut pos: BTreeMap<&str, usize> = BTreeMap::new();
+        for (k, c) in g.containers.iter().enumerate() {
+            pos.entry(c.id.as_str()).or_insert(k);
+        }
+        let mut t = Tree {
+            top_nodes: Vec::new(),
+            top_containers: Vec::new(),
+            members: vec![Vec::new(); g.containers.len()],
+            children: vec![Vec::new(); g.containers.len()],
+        };
+        for (i, n) in g.nodes.iter().enumerate() {
+            match n.container.as_deref().and_then(|c| pos.get(c)) {
+                Some(&k) => t.members[k].push(i),
+                None => t.top_nodes.push(i),
+            }
+        }
+        for (k, c) in g.containers.iter().enumerate() {
+            match c.parent.as_deref().and_then(|p| pos.get(p)) {
+                Some(&p) if p < k => t.children[p].push(k),
+                _ => t.top_containers.push(k),
+            }
+        }
+        t
+    }
+}
+
+/// One pending step of the explicit emission stack (no recursion: depth is attacker-sized).
+enum Step {
+    Open(usize),
+    Close,
+}
+
+fn line(out: &mut String, depth: usize, text: &str) {
+    out.push_str(&"    ".repeat(depth + 1));
+    out.push_str(text);
+    out.push('\n');
+}
+
 fn graph(g: &GraphIr) -> String {
     let mut ids = Ids {
         taken: BTreeSet::new(),
         by_path: BTreeMap::new(),
     };
+    // Mermaid ids are ONE namespace across nodes and subgraphs, so assign nodes first, then
+    // containers, then (below) fresh ids for dangling edge endpoints.
+    let node_ids: Vec<String> = g
+        .nodes
+        .iter()
+        .enumerate()
+        .map(|(i, n)| ids.assign(&n.id, &n.local_id, i))
+        .collect();
+    let box_ids: Vec<String> = g
+        .containers
+        .iter()
+        .enumerate()
+        .map(|(k, c)| ids.assign(&c.id, &c.local_id, g.nodes.len() + k))
+        .collect();
+    let tree = Tree::of(g);
+    let node_line = |i: usize| {
+        let n = &g.nodes[i];
+        let (open, close) = brackets(n.shape);
+        format!("{}{open}{}{close}", node_ids[i], label(&n.label))
+    };
     let mut out = String::new();
     out.push_str(header(g.direction));
     out.push('\n');
-    for (i, n) in g.nodes.iter().enumerate() {
-        let id = ids.assign(&n.id, &n.local_id, i);
-        let (open, close) = brackets(n.shape);
-        out.push_str(&format!("    {id}{open}{}{close}\n", label(&n.label)));
+    for &i in &tree.top_nodes {
+        line(&mut out, 0, &node_line(i));
+    }
+    let mut stack: Vec<Step> = tree
+        .top_containers
+        .iter()
+        .rev()
+        .map(|&k| Step::Open(k))
+        .collect();
+    let mut depth = 0;
+    while let Some(step) = stack.pop() {
+        match step {
+            Step::Open(k) => {
+                let head = format!(
+                    "subgraph {} [\"{}\"]",
+                    box_ids[k],
+                    label(&g.containers[k].label)
+                );
+                line(&mut out, depth, &head);
+                for &i in &tree.members[k] {
+                    line(&mut out, depth + 1, &node_line(i));
+                }
+                depth += 1;
+                stack.push(Step::Close);
+                stack.extend(tree.children[k].iter().rev().map(|&c| Step::Open(c)));
+            }
+            Step::Close => {
+                depth -= 1;
+                line(&mut out, depth, "end");
+            }
+        }
     }
     let mut next = g.nodes.len() + g.containers.len();
     for e in &g.edges {
@@ -80,10 +180,11 @@ fn graph(g: &GraphIr) -> String {
             ids.assign(path, path, next - 1)
         };
         let (from, to) = (end(&e.from), end(&e.to));
-        out.push_str(&match e.label.as_deref() {
-            Some(l) if !l.is_empty() => format!("    {from} -->|\"{}\"| {to}\n", label(l)),
-            _ => format!("    {from} --> {to}\n"),
-        });
+        let text = match e.label.as_deref() {
+            Some(l) if !l.is_empty() => format!("{from} -->|\"{}\"| {to}", label(l)),
+            _ => format!("{from} --> {to}"),
+        };
+        line(&mut out, 0, &text);
     }
     out
 }
