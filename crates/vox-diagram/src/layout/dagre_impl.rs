@@ -32,6 +32,22 @@ impl Engine for DagreEngine {
             multigraph: true,
             compound: true,
         });
+        for i in 0..input.containers.len() {
+            g.set_node(format!("c{i}"), Some(NodeLabel::default()));
+        }
+        for (i, c) in input.containers.iter().enumerate() {
+            // The strut keeps the container at least as wide as its title; its position is unused.
+            let strut = NodeLabel {
+                width: px(c.strut_w),
+                height: 1.0,
+                ..NodeLabel::default()
+            };
+            g.set_node(format!("t{i}"), Some(strut));
+            g.set_parent(&format!("t{i}"), Some(&format!("c{i}")));
+            if let Some(p) = c.parent {
+                g.set_parent(&format!("c{i}"), Some(&format!("c{p}")));
+            }
+        }
         for (i, n) in input.nodes.iter().enumerate() {
             let label = NodeLabel {
                 width: px(n.w),
@@ -39,6 +55,9 @@ impl Engine for DagreEngine {
                 ..NodeLabel::default()
             };
             g.set_node(format!("n{i}"), Some(label));
+            if let Some(c) = n.container {
+                g.set_parent(&format!("n{i}"), Some(&format!("c{c}")));
+            }
         }
         for (i, e) in input.edges.iter().enumerate() {
             let name = format!("e{i}");
@@ -68,16 +87,19 @@ impl Engine for DagreEngine {
             ..LayoutOptions::default()
         };
         dagre::layout(&mut g, Some(opts));
-        let nodes = (0..input.nodes.len())
-            .map(|i| {
-                g.node(&format!("n{i}"))
-                    .map_or_else(RawBox::default, |l| RawBox {
-                        cx: l.x,
-                        cy: l.y,
-                        w: Some(l.width),
-                        h: Some(l.height),
-                    })
+        let read = |name: String| {
+            g.node(&name).map_or_else(RawBox::default, |l| RawBox {
+                cx: l.x,
+                cy: l.y,
+                w: Some(l.width),
+                h: Some(l.height),
             })
+        };
+        let nodes = (0..input.nodes.len())
+            .map(|i| read(format!("n{i}")))
+            .collect();
+        let containers = (0..input.containers.len())
+            .map(|i| read(format!("c{i}")))
             .collect();
         let edges = input
             .edges
@@ -96,7 +118,11 @@ impl Engine for DagreEngine {
                 }
             })
             .collect();
-        Ok(RawLayout { nodes, edges })
+        Ok(RawLayout {
+            nodes,
+            containers,
+            edges,
+        })
     }
 }
 
@@ -112,6 +138,7 @@ mod tests {
             lines: vec!["A".into()],
             w: 128,
             h: 76,
+            container: None,
         }
     }
 
@@ -120,6 +147,7 @@ mod tests {
         let input = LayoutInput {
             direction: Direction::Down,
             nodes: vec![node(), node()],
+            containers: vec![],
             edges: vec![LEdge {
                 from: 0,
                 to: 1,
@@ -151,6 +179,7 @@ mod tests {
         let input = LayoutInput {
             direction: Direction::Down,
             nodes: vec![node(), node()],
+            containers: vec![],
             edges: vec![edge(Some(label)), edge(None)],
         };
         let Ok(raw) = DagreEngine.solve(&input, RUNGS[0]) else {

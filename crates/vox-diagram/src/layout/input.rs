@@ -4,13 +4,19 @@
 use std::collections::BTreeMap;
 
 use super::text::{LINE_H, measure, node_size, wrap};
-use super::{Half, LEdge, LLabel, LNode, LayoutInput};
+use super::{Half, LContainer, LEdge, LLabel, LNode, LayoutInput};
 use crate::ir::GraphIr;
-use crate::limits::{MAX_RENDER_EDGES, MAX_RENDER_NODES};
+use crate::limits::{MAX_DEPTH, MAX_LABEL_CHARS, MAX_RENDER_EDGES, MAX_RENDER_NODES};
 use crate::svg::RenderError;
 
 /// Padding around an edge label's text block on each side: 4 px.
 const EDGE_LABEL_PAD: Half = 8;
+
+/// Room around a container title inside its strut: 10 px each side, in half-pixels.
+const TITLE_PAD: Half = 20;
+
+/// Widest a container title strut gets: 260 px, in half-pixels.
+const MAX_STRUT: Half = 520;
 
 /// The wrapped label box of an edge; a missing, empty or blank label draws nothing.
 fn edge_label(label: Option<&str>) -> Option<LLabel> {
@@ -27,6 +33,62 @@ fn edge_label(label: Option<&str>) -> Option<LLabel> {
     })
 }
 
+/// Reject a label over [`MAX_LABEL_CHARS`] characters; `what` names the item.
+fn check_label(what: &str, label: &str) -> Result<(), RenderError> {
+    if label.chars().count() > MAX_LABEL_CHARS {
+        return Err(RenderError::InvalidIr(format!("{what}: label too long")));
+    }
+    Ok(())
+}
+
+/// Resolve containers: parent indices through an id map, depth from the parent links (the IR
+/// `depth` and `local_id` are never read). A cycle never ends before [`MAX_DEPTH`], so the walk
+/// is bounded by it.
+fn containers(g: &GraphIr) -> Result<(Vec<LContainer>, BTreeMap<&str, usize>), RenderError> {
+    let mut index: BTreeMap<&str, usize> = BTreeMap::new();
+    for (i, c) in g.containers.iter().enumerate() {
+        check_label(&format!("container {i}"), &c.label)?;
+        if index.insert(c.id.as_str(), i).is_some() {
+            return Err(RenderError::InvalidIr(format!(
+                "container {i}: duplicate id"
+            )));
+        }
+    }
+    let mut parents = Vec::with_capacity(g.containers.len());
+    for (i, c) in g.containers.iter().enumerate() {
+        parents.push(match &c.parent {
+            None => None,
+            Some(p) => {
+                Some(*index.get(p.as_str()).ok_or_else(|| {
+                    RenderError::InvalidIr(format!("container {i}: unknown parent"))
+                })?)
+            }
+        });
+    }
+    let mut out = Vec::with_capacity(parents.len());
+    for (i, c) in g.containers.iter().enumerate() {
+        let (mut depth, mut cur) = (1usize, i);
+        while let Some(p) = parents.get(cur).copied().flatten() {
+            depth += 1;
+            if depth > MAX_DEPTH {
+                return Err(RenderError::InvalidIr(format!(
+                    "container {i}: nesting deeper than {MAX_DEPTH} or a parent cycle"
+                )));
+            }
+            cur = p;
+        }
+        let title_lines = wrap(&c.label);
+        let widest = title_lines.iter().map(|l| measure(l)).max().unwrap_or(0);
+        out.push(LContainer {
+            parent: parents.get(i).copied().flatten(),
+            depth: u32::try_from(depth).unwrap_or(u32::MAX),
+            title_lines,
+            strut_w: (widest + 2 * TITLE_PAD).min(MAX_STRUT),
+        });
+    }
+    Ok((out, index))
+}
+
 /// Validate `g` against the render caps and build the layout input.
 pub(crate) fn build(g: &GraphIr) -> Result<LayoutInput, RenderError> {
     let boxes = g.nodes.len() + g.containers.len();
@@ -36,14 +98,10 @@ pub(crate) fn build(g: &GraphIr) -> Result<LayoutInput, RenderError> {
             edges: g.edges.len(),
         });
     }
-    // Plan 85-03 owns containers; until then refuse rather than silently drop what would be drawn.
-    if !g.containers.is_empty() {
-        return Err(RenderError::InvalidIr(
-            "container 0: containers are not drawn yet".into(),
-        ));
-    }
+    let (containers, container_index) = containers(g)?;
     let mut index: BTreeMap<&str, usize> = BTreeMap::new();
     for (i, n) in g.nodes.iter().enumerate() {
+        check_label(&format!("node {i}"), &n.label)?;
         if index.insert(n.id.as_str(), i).is_some() {
             return Err(RenderError::InvalidIr(format!("node {i}: duplicate id")));
         }
@@ -56,29 +114,36 @@ pub(crate) fn build(g: &GraphIr) -> Result<LayoutInput, RenderError> {
                 "edge {i}: unknown endpoint"
             )));
         };
+        check_label(&format!("edge {i}"), e.label.as_deref().unwrap_or_default())?;
         edges.push(LEdge {
             from,
             to,
             label: edge_label(e.label.as_deref()),
         });
     }
-    let nodes = g
-        .nodes
-        .iter()
-        .map(|n| {
-            let lines = wrap(&n.label);
-            let (w, h) = node_size(n.shape, &lines);
-            LNode {
-                shape: n.shape,
-                lines,
-                w,
-                h,
-            }
-        })
-        .collect();
+    let mut nodes = Vec::with_capacity(g.nodes.len());
+    for (i, n) in g.nodes.iter().enumerate() {
+        let container =
+            match &n.container {
+                None => None,
+                Some(c) => Some(*container_index.get(c.as_str()).ok_or_else(|| {
+                    RenderError::InvalidIr(format!("node {i}: unknown container"))
+                })?),
+            };
+        let lines = wrap(&n.label);
+        let (w, h) = node_size(n.shape, &lines);
+        nodes.push(LNode {
+            shape: n.shape,
+            lines,
+            w,
+            h,
+            container,
+        });
+    }
     Ok(LayoutInput {
         direction: g.direction,
         nodes,
+        containers,
         edges,
     })
 }
@@ -86,7 +151,7 @@ pub(crate) fn build(g: &GraphIr) -> Result<LayoutInput, RenderError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ir::{Direction, IrEdge, IrNode, Shape};
+    use crate::ir::{Direction, IrContainer, IrEdge, IrNode, Shape};
 
     fn node(id: &str) -> IrNode {
         IrNode {
@@ -95,6 +160,18 @@ mod tests {
             label: id.into(),
             shape: Shape::Rect,
             container: None,
+            span: Default::default(),
+        }
+    }
+
+    fn boxed(id: &str, parent: Option<&str>, label: &str) -> IrContainer {
+        IrContainer {
+            id: id.into(),
+            local_id: id.into(),
+            label: label.into(),
+            parent: parent.map(Into::into),
+            // Hand-built IR may carry any depth; the renderer must never read it.
+            depth: 99,
             span: Default::default(),
         }
     }
@@ -159,5 +236,90 @@ mod tests {
             panic!("no label");
         };
         assert_eq!((two.w, two.h), (measure("bb") + 16, 72 + 16));
+    }
+
+    #[test]
+    fn parent_links_resolve_and_depth_is_derived_from_them() {
+        let mut g = graph(vec![node("a")], vec![]);
+        g.nodes[0].container = Some("c".into());
+        g.containers = vec![
+            boxed("a", None, "A"),
+            boxed("b", Some("a"), "B"),
+            boxed("c", Some("b"), "C"),
+        ];
+        let Ok(input) = build(&g) else {
+            panic!("build failed");
+        };
+        let parents: Vec<_> = input.containers.iter().map(|c| c.parent).collect();
+        let depths: Vec<_> = input.containers.iter().map(|c| c.depth).collect();
+        assert_eq!(parents, vec![None, Some(0), Some(1)]);
+        assert_eq!(depths, vec![1, 2, 3]);
+        assert_eq!(input.nodes[0].container, Some(2));
+    }
+
+    #[test]
+    fn a_title_is_wrapped_and_the_strut_is_title_plus_20px_capped_at_260px() {
+        let mut g = graph(vec![], vec![]);
+        g.containers = vec![
+            boxed("a", None, "Backend services"),
+            boxed("b", None, &"W".repeat(60)),
+        ];
+        let Ok(input) = build(&g) else {
+            panic!("build failed");
+        };
+        let c = &input.containers;
+        assert_eq!(c[0].title_lines, wrap("Backend services"));
+        assert_eq!(c[0].strut_w, measure("Backend services") + 40);
+        assert_eq!(c[1].strut_w, 520);
+    }
+
+    #[test]
+    fn unknown_duplicate_cyclic_and_too_deep_containers_are_invalid_ir() {
+        let invalid = |g: &GraphIr| matches!(build(g), Err(RenderError::InvalidIr(_)));
+        let mut unknown_parent = graph(vec![], vec![]);
+        unknown_parent.containers = vec![boxed("a", Some("zz"), "A")];
+        assert!(invalid(&unknown_parent));
+        let mut dup = graph(vec![], vec![]);
+        dup.containers = vec![boxed("a", None, "A"), boxed("a", None, "B")];
+        assert!(invalid(&dup));
+        let mut selfie = graph(vec![], vec![]);
+        selfie.containers = vec![boxed("a", Some("a"), "A")];
+        assert!(invalid(&selfie));
+        let mut deep = graph(vec![], vec![]);
+        deep.containers = vec![
+            boxed("a", None, "A"),
+            boxed("b", Some("a"), "B"),
+            boxed("c", Some("b"), "C"),
+            boxed("d", Some("c"), "D"),
+            boxed("e", Some("d"), "E"),
+        ];
+        assert!(invalid(&deep));
+        deep.containers.pop();
+        assert!(build(&deep).is_ok());
+        let mut unknown_node = graph(vec![node("a")], vec![]);
+        unknown_node.nodes[0].container = Some("zz".into());
+        assert!(invalid(&unknown_node));
+    }
+
+    #[test]
+    fn labels_over_the_cap_are_invalid_ir() {
+        let long = "x".repeat(MAX_LABEL_CHARS + 1);
+        let mut n = graph(vec![node("a")], vec![]);
+        n.nodes[0].label = long.clone();
+        let mut c = graph(vec![], vec![]);
+        c.containers = vec![boxed("a", None, &long)];
+        let mut e = graph(vec![node("a"), node("b")], vec![]);
+        e.edges = vec![IrEdge {
+            from: "a".into(),
+            to: "b".into(),
+            label: Some(long),
+            span: Default::default(),
+        }];
+        for g in [n, c, e] {
+            assert!(matches!(build(&g), Err(RenderError::InvalidIr(_))));
+        }
+        let mut ok = graph(vec![node("a")], vec![]);
+        ok.nodes[0].label = "x".repeat(MAX_LABEL_CHARS);
+        assert!(build(&ok).is_ok());
     }
 }

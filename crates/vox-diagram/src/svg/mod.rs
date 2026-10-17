@@ -167,11 +167,32 @@ fn render_graph(engine: &dyn Engine, g: &GraphIr, opts: &SvgOpts) -> Result<Stri
     w.empty("path", &[("d", "M0 0L10 5L0 10z"), ("style", &arrow_style)]);
     w.close("marker");
     w.close("defs");
+    write_containers(&mut w, &input, &placed);
     paths::write_edges(&mut w, &input, &placed, &arrow_id);
     write_nodes(&mut w, &input, &placed);
     paths::write_edge_labels(&mut w, &input, &placed);
     w.close("svg");
     Ok(w.finish())
+}
+
+/// The container frames, a parent before its children (derived depth, then IR order); nothing
+/// when the diagram has none.
+fn write_containers(w: &mut Writer, input: &LayoutInput, placed: &Placed) {
+    let mut order: Vec<_> = input
+        .containers
+        .iter()
+        .zip(&placed.containers)
+        .enumerate()
+        .collect();
+    if order.is_empty() {
+        return;
+    }
+    order.sort_by_key(|(i, (c, _))| (c.depth, *i));
+    w.open("g", &[("class", "vd-containers")]);
+    for (_, (_, c)) in order {
+        shapes::write_container(w, c);
+    }
+    w.close("g");
 }
 
 fn write_nodes(w: &mut Writer, input: &LayoutInput, placed: &Placed) {

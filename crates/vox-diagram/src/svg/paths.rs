@@ -142,7 +142,13 @@ pub(super) fn write_edge_labels(w: &mut Writer, input: &LayoutInput, placed: &Pl
                 ("style", &bg),
             ],
         );
-        shapes::label(w, &l.lines, r, "vd-edge-label", "--vd-muted");
+        shapes::label(
+            w,
+            &l.lines,
+            r,
+            ("vd-edge-label", "--vd-muted"),
+            shapes::LABEL_STEP,
+        );
     }
     w.close("g");
 }

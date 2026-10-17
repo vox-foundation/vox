@@ -44,7 +44,9 @@ fn one_node() -> LayoutInput {
             lines: vec!["A".into()],
             w: 128,
             h: 76,
+            container: None,
         }],
+        containers: vec![],
         edges: vec![],
     }
 }
@@ -57,6 +59,7 @@ fn boxed(cx: Option<f64>) -> RawLayout {
             w: Some(64.0),
             h: Some(38.0),
         }],
+        containers: vec![],
         edges: vec![],
     }
 }
@@ -104,10 +107,12 @@ fn two_nodes() -> LayoutInput {
         lines: vec!["A".into()],
         w: 128,
         h: 76,
+        container: None,
     };
     LayoutInput {
         direction: Direction::Down,
         nodes: vec![n(), n()],
+        containers: vec![],
         edges: vec![],
     }
 }
@@ -126,6 +131,7 @@ fn raw_at(input: &LayoutInput, cx: impl Fn(usize) -> Option<f64>) -> RawLayout {
                 h: Some(f64::from(n.h) / 2.0),
             })
             .collect(),
+        containers: vec![],
         edges: input
             .edges
             .iter()
@@ -289,4 +295,31 @@ fn the_public_path_is_guarded_too() {
         render_with(&a, &two, &SvgOpts::default()),
         Err(RenderError::Geometry(_))
     ));
+}
+
+#[test]
+fn an_empty_container_is_at_least_its_title_strut_wide() {
+    use crate::layout::dagre_impl::DagreEngine;
+    let strut_w = measure_title("An empty container title") + 40;
+    let input = LayoutInput {
+        direction: Direction::Down,
+        nodes: vec![],
+        containers: vec![LContainer {
+            parent: None,
+            depth: 1,
+            title_lines: vec!["An empty container title".into()],
+            strut_w,
+        }],
+        edges: vec![],
+    };
+    let Ok(p) = lay_out(&DagreEngine, &input) else {
+        panic!("lay_out failed");
+    };
+    assert_eq!(p.containers.len(), 1);
+    assert!(p.containers[0].rect.w >= strut_w, "{:?}", p.containers[0]);
+    assert_eq!(p.containers[0].title_lines.len(), 1);
+}
+
+fn measure_title(s: &str) -> Half {
+    text::measure(s)
 }

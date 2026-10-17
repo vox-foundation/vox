@@ -2,6 +2,7 @@
 //! [`quantize`] is integer half-pixels, so no float is ever formatted and no `-0` exists.
 
 pub(crate) mod dagre_impl;
+pub(crate) mod finish;
 pub(crate) mod input;
 pub(crate) mod text;
 pub(crate) mod verify;
@@ -60,6 +61,21 @@ pub(crate) struct LNode {
     pub lines: Vec<String>,
     pub w: Half,
     pub h: Half,
+    /// Index of the enclosing container, if any.
+    pub container: Option<usize>,
+}
+
+/// A container as the renderer resolved it from the IR (never from its `depth` field).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct LContainer {
+    /// Index of the enclosing container, if any.
+    pub parent: Option<usize>,
+    /// Nesting depth derived from parent links, a top-level container being 1.
+    pub depth: u32,
+    /// The wrapped title.
+    pub title_lines: Vec<String>,
+    /// Width of the invisible strut that keeps the container as wide as its title.
+    pub strut_w: Half,
 }
 
 /// A wrapped edge label and its box (text block plus padding), half-pixels.
@@ -83,6 +99,8 @@ pub(crate) struct LEdge {
 pub(crate) struct LayoutInput {
     pub direction: Direction,
     pub nodes: Vec<LNode>,
+    /// Containers in IR order.
+    pub containers: Vec<LContainer>,
     pub edges: Vec<LEdge>,
 }
 
@@ -107,6 +125,8 @@ pub(crate) struct RawEdge {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct RawLayout {
     pub nodes: Vec<RawBox>,
+    /// One entry per input container: the engine's own rect, before padding and title band.
+    pub containers: Vec<RawBox>,
     pub edges: Vec<RawEdge>,
 }
 
@@ -157,12 +177,20 @@ pub(crate) struct PlacedEdge {
     pub label: Option<Rect>,
 }
 
+/// A container frame: its final rect (padding and title band included) and its title lines.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PlacedContainer {
+    pub rect: Rect,
+    pub title_lines: Vec<String>,
+}
+
 /// Final geometry, shifted so the minimum of everything drawn sits at the margin.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Placed {
     pub width: Half,
     pub height: Half,
     pub nodes: Vec<Rect>,
+    pub containers: Vec<PlacedContainer>,
     pub edges: Vec<PlacedEdge>,
 }
 
@@ -174,7 +202,10 @@ fn top_left(centre: Option<f64>, size: Option<f64>) -> Option<f64> {
 /// Quantize one raw engine layout into [`Placed`], shifted so everything drawn starts at the
 /// margin. Fails closed on a missing, non-finite or huge coordinate or a wrong item count.
 fn place(input: &LayoutInput, raw: &RawLayout) -> Result<Placed, LayoutError> {
-    if raw.nodes.len() != input.nodes.len() || raw.edges.len() != input.edges.len() {
+    if raw.nodes.len() != input.nodes.len()
+        || raw.containers.len() != input.containers.len()
+        || raw.edges.len() != input.edges.len()
+    {
         return Err(LayoutError::Missing);
     }
     let mut nodes = Vec::with_capacity(raw.nodes.len());
@@ -185,6 +216,16 @@ fn place(input: &LayoutInput, raw: &RawLayout) -> Result<Placed, LayoutError> {
             w: quantize(b.w)?,
             h: quantize(b.h)?,
         });
+    }
+    let mut containers = Vec::with_capacity(raw.containers.len());
+    for (b, c) in raw.containers.iter().zip(&input.containers) {
+        let engine = Rect {
+            x: quantize(top_left(b.cx, b.w))?,
+            y: quantize(top_left(b.cy, b.h))?,
+            w: quantize(b.w)?,
+            h: quantize(b.h)?,
+        };
+        containers.push(finish::frame(c, engine));
     }
     let mut edges = Vec::with_capacity(raw.edges.len());
     for (e, le) in raw.edges.iter().zip(&input.edges) {
@@ -213,12 +254,14 @@ fn place(input: &LayoutInput, raw: &RawLayout) -> Result<Placed, LayoutError> {
     let xs = nodes
         .iter()
         .copied()
+        .chain(containers.iter().map(|c| c.rect))
         .chain(labels.clone())
         .flat_map(|r| [r.x, r.x + r.w])
         .chain(edges.iter().flat_map(|e| e.points.iter().map(|p| p.0)));
     let ys = nodes
         .iter()
         .copied()
+        .chain(containers.iter().map(|c| c.rect))
         .chain(labels)
         .flat_map(|r| [r.y, r.y + r.h])
         .chain(edges.iter().flat_map(|e| e.points.iter().map(|p| p.1)));
@@ -228,6 +271,10 @@ fn place(input: &LayoutInput, raw: &RawLayout) -> Result<Placed, LayoutError> {
     for r in &mut nodes {
         r.x += dx;
         r.y += dy;
+    }
+    for c in &mut containers {
+        c.rect.x += dx;
+        c.rect.y += dy;
     }
     for e in &mut edges {
         for p in &mut e.points {
@@ -242,6 +289,7 @@ fn place(input: &LayoutInput, raw: &RawLayout) -> Result<Placed, LayoutError> {
         width: max_x + dx + MARGIN,
         height: max_y + dy + MARGIN,
         nodes,
+        containers,
         edges,
     })
 }

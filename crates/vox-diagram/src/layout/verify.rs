@@ -87,6 +87,7 @@ mod tests {
             lines: vec![text.to_owned()],
             w,
             h,
+            container: None,
         }
     }
 
@@ -94,6 +95,7 @@ mod tests {
         LayoutInput {
             direction: crate::ir::Direction::Down,
             nodes,
+            containers: vec![],
             edges: vec![],
         }
     }
@@ -107,6 +109,7 @@ mod tests {
             width: 400,
             height: 300,
             nodes,
+            containers: vec![],
             edges,
         }
     }

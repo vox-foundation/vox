@@ -260,6 +260,34 @@ fn every_direction_has_a_golden_with_all_edges() {
 }
 
 #[test]
+fn nested_case_draws_every_container_before_edges_and_nodes() {
+    let src = fs::read_to_string(fixtures().join("svg/cases/21-nested.vdg")).unwrap_or_default();
+    let Ir::Graph(g) = ir_of(&src);
+    let svg = case_svg("21-nested");
+    assert_eq!(g.containers.len(), 6);
+    assert_eq!(
+        svg.matches("class=\"vd-container\"").count(),
+        g.containers.len()
+    );
+    assert_eq!(
+        svg.matches("class=\"vd-container-label\"").count(),
+        g.containers.len()
+    );
+    let at = |needle: &str| svg.find(needle).unwrap_or(usize::MAX);
+    assert!(at("class=\"vd-containers\"") < at("class=\"vd-edges\""));
+    assert!(at("class=\"vd-edges\"") < at("class=\"vd-nodes\""));
+    // A parent is painted before its children: outer (depth 1) precedes inner (depth 3).
+    assert!(at(">Outer layer<") < at(">Innermost layer<"));
+}
+
+#[test]
+fn a_container_renders_ok_and_the_interim_refusal_is_gone() {
+    let src = fs::read_to_string(fixtures().join("svg/cases/20-container.vdg")).unwrap_or_default();
+    assert!(render(&ir_of(&src), &SvgOpts::default()).is_ok());
+    assert!(case_svg("20-container").contains("class=\"vd-container\""));
+}
+
+#[test]
 fn svg_cases() {
     let dir = fixtures().join("svg/cases");
     let inputs = stems(&dir, "vdg");

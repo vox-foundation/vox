@@ -4,10 +4,15 @@
 use super::paint;
 use super::writer::{Writer, num};
 use crate::ir::Shape;
-use crate::layout::{Half, LNode, Rect};
+use crate::layout::finish::{TITLE_STEP, title_band};
+use crate::layout::{Half, LNode, PlacedContainer, Rect};
 
 /// Corner radius of a rounded rectangle, px.
 const ROUND_RX: &str = "10";
+/// Corner radius of a container frame, px.
+const CONTAINER_RX: &str = "6";
+/// Line pitch of node and edge labels, px.
+pub(super) const LABEL_STEP: Half = 18;
 /// Corner radius of a plain rectangle, px.
 const RECT_RX: &str = "3";
 /// Vertical radius of a cylinder cap, px.
@@ -70,7 +75,7 @@ pub(crate) fn write_node(w: &mut Writer, n: &LNode, r: Rect) {
             );
         }
     }
-    label(w, &n.lines, r, "vd-label", "--vd-text");
+    label(w, &n.lines, r, ("vd-label", "--vd-text"), LABEL_STEP);
     w.close("g");
 }
 
@@ -88,16 +93,57 @@ fn rect(w: &mut Writer, [x, y, bw, bh]: [&str; 4], extra: &[(&'static str, &str)
     w.empty("rect", &attrs);
 }
 
-/// Centred label of class `class` painted with theme variable `fill`, one `tspan` per line,
-/// first baseline `cy - (n-1)*9 + 5` px; nothing when empty.
-pub(super) fn label(w: &mut Writer, lines: &[String], r: Rect, class: &'static str, fill: &str) {
+/// Draw one container frame, then its title centred in the title band above the children.
+pub(crate) fn write_container(w: &mut Writer, c: &PlacedContainer) {
+    let r = c.rect;
+    let style = format!(
+        "fill:{};stroke:{};stroke-width:1.5",
+        paint("--vd-container-fill"),
+        paint("--vd-container-stroke")
+    );
+    let (x, y, bw, bh) = (num(r.x), num(r.y), num(r.w), num(r.h));
+    w.empty(
+        "rect",
+        &[
+            ("class", "vd-container"),
+            ("x", &x),
+            ("y", &y),
+            ("width", &bw),
+            ("height", &bh),
+            ("rx", CONTAINER_RX),
+            ("style", &style),
+        ],
+    );
+    let band = Rect {
+        h: title_band(c.title_lines.len()),
+        ..r
+    };
+    label(
+        w,
+        &c.title_lines,
+        band,
+        ("vd-container-label", "--vd-text"),
+        TITLE_STEP,
+    );
+}
+
+/// Centred label, `(class, theme variable of its fill)`, one `tspan` per line `step` px apart,
+/// first baseline `cy - (n-1)*step/2 + 5` px; nothing when empty.
+pub(super) fn label(
+    w: &mut Writer,
+    lines: &[String],
+    r: Rect,
+    (class, fill): (&'static str, &str),
+    step: Half,
+) {
     if lines.is_empty() {
         return;
     }
     let style = format!("fill:{};stroke:none", paint(fill));
     let cx = num(r.x + r.w / 2);
     let count = Half::try_from(lines.len()).unwrap_or(1);
-    let first = num(r.y + r.h / 2 - (count - 1) * 18 + 10);
+    let first = num(r.y + r.h / 2 - (count - 1) * step + 10);
+    let dy = step.to_string();
     w.start(
         "text",
         &[
@@ -111,7 +157,7 @@ pub(super) fn label(w: &mut Writer, lines: &[String], r: Rect, class: &'static s
     for (i, line) in lines.iter().enumerate() {
         w.leaf(
             "tspan",
-            &[("x", &cx), ("dy", if i == 0 { "0" } else { "18" })],
+            &[("x", &cx), ("dy", if i == 0 { "0" } else { &dy })],
             line,
         );
     }
@@ -129,6 +175,7 @@ mod tests {
             lines: lines.iter().map(|s| (*s).to_owned()).collect(),
             w: 128,
             h: 76,
+            container: None,
         }
     }
 
