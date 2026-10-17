@@ -1,6 +1,6 @@
 //! Deterministic, injection-safe, themeable SVG for graph diagrams. All text goes through the
-//! single writer in [`writer`]; every paint is a `var(--vd-NAME,FALLBACK)` built from
-//! [`THEME_VARS`]; no attribute value is derived from a label.
+//! single writer in `writer`; every paint is a `var(--vd-NAME,FALLBACK)` built from
+//! `THEME_VARS`; no attribute value is derived from a label.
 
 mod paths;
 mod shapes;

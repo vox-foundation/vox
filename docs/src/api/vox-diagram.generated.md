@@ -1,6 +1,6 @@
 ---
 title: "vox-diagram API Reference (generated)"
-description: "Pure VoxDiagram core: graph DSL lexer, error-recovering parser, resolved IR, diagnostics with machine-applicable fixes, canonical formatter, and markdown fence scanner."
+description: "Pure VoxDiagram core: graph DSL lexer, error-recovering parser, resolved IR, diagnostics with machine-applicable fixes, canonical formatter, markdown fence scanner, dagre graph layout and a deterministic SVG renderer."
 category: "API Reference — Crates"
 status: current
 ---
@@ -22,12 +22,13 @@ status: current
 
 **Crate:** `vox-diagram` · **Version:** `0.6.0` · **Target:** Library (`lib.rs`)
 
-Pure VoxDiagram core: graph DSL lexer, error-recovering parser, resolved IR, diagnostics with machine-applicable fixes, canonical formatter, and markdown fence scanner.
+Pure VoxDiagram core: graph DSL lexer, error-recovering parser, resolved IR, diagnostics with machine-applicable fixes, canonical formatter, markdown fence scanner, dagre graph layout and a deterministic SVG renderer.
 
 ## Crate Overview
 
 VoxDiagram core: graph DSL lexer, error-recovering parser, resolved IR, `diagram/*`
-diagnostics with machine-applicable fixes, canonical formatter and markdown fence scanner.
+diagnostics with machine-applicable fixes, canonical formatter, markdown fence scanner,
+graph layout and deterministic SVG rendering.
 Pure and synchronous: no I/O, no async runtime, no workspace dependencies.
 
 ```text
@@ -54,6 +55,7 @@ a -> b
 | `mermaid` | Mermaid export (verified against a pinned real Mermaid parser) and strict, fail-closed Mermaid import. |
 | `sequence_ir` | Sequence diagram IR types (parser arrives in Phase 86). |
 | `span` | Byte spans and line/col locations. |
+| `svg` | Deterministic, injection-safe, themeable SVG rendering of graph diagrams (layout through the dagre adapter). |
 
 ### Constants
 
