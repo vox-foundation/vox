@@ -42,6 +42,11 @@ pub(crate) fn direction_traps(s: &str) -> Vec<usize> {
         .collect()
 }
 
+/// True when `s` holds a [`direction_traps`] hit.
+pub(crate) fn has_direction_trap(s: &str) -> bool {
+    !direction_traps(s).is_empty()
+}
+
 /// Shared encoder. `seq` adds the sequence-diagram rules: `;` ends a statement there, and a text
 /// starting with `wrap:`, `nowrap:`, `:wrap:` or `:nowrap:` is stripped and changes wrapping.
 /// Flowchart text (`!seq`) also numerically encodes the `d` of a [`direction_traps`] hit.

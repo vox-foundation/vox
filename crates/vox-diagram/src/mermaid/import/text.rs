@@ -5,6 +5,7 @@
 
 use crate::lexer::is_forbidden;
 use crate::limits::MAX_LABEL_CHARS;
+use crate::mermaid::escape::has_direction_trap;
 use crate::resolve::RESERVED;
 
 /// Characters Mermaid's parser rejects in unquoted node, title and pipe-edge text.
@@ -91,6 +92,15 @@ fn entity(after_hash: &str) -> Result<Option<(char, usize)>, &'static str> {
 /// unquoted text must avoid every character of `special`. The result is trimmed and may be
 /// empty (the caller decides what an empty label means).
 pub(super) fn decode(raw: &str, quoted: bool, special: &str) -> Result<String, &'static str> {
+    decode_in(raw, quoted, special, true)
+}
+
+/// [`decode`]; `flow` is false for sequence text, which has no `direction` statement.
+fn decode_in(raw: &str, quoted: bool, special: &str, flow: bool) -> Result<String, &'static str> {
+    // Mermaid's lexer swallows the whole line (or flips the direction), so this is not text.
+    if flow && has_direction_trap(raw) {
+        return Err("direction-in-text");
+    }
     if quoted && raw.starts_with('`') {
         return Err("markdown-string");
     }
@@ -158,7 +168,7 @@ pub(super) fn free(raw: &str, wrap: bool) -> Result<String, &'static str> {
             return Err("wrap");
         }
     }
-    decode(raw, true, "")
+    decode_in(raw, true, "", !wrap)
 }
 
 /// True when `raw` has a `;` that does not terminate a `#59;`-style entity.
