@@ -4540,6 +4540,7 @@
     "dev",
     "diag",
     "diag.doctor",
+    "diagram.validate",
     "dispatch",
     "dispatch.preview",
     "doctor",

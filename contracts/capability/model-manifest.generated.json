@@ -3498,6 +3498,17 @@
       "curated": true
     },
     {
+      "capability_id": "mcp.vox_validate_diagram",
+      "mcp_tool": "vox_validate_diagram",
+      "implicit": false,
+      "title": "VoxDiagram Validation",
+      "description_model": "Validate a VoxDiagram (graph or sequence) and return every diagnostic with machine-applicable fixes, the canonical source and stats; optionally convert a Mermaid block or emit SVG or Mermaid. Deterministic, no model calls, writes nothing.",
+      "side_effect_class": "none",
+      "scope_kind": "session",
+      "reversible": false,
+      "curated": true
+    },
+    {
       "capability_id": "mcp.vox_validate_file",
       "mcp_tool": "vox_validate_file",
       "implicit": false,

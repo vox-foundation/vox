@@ -63689,6 +63689,44 @@
       }
     },
     {
+      "id": "mcp.vox_validate_diagram",
+      "kind": "mcp_tool",
+      "title": "VoxDiagram Validation",
+      "summary": "Validate a VoxDiagram (graph or sequence) and return every diagnostic with machine-applicable fixes, the canonical source and stats; optionally convert a Mermaid block or emit SVG or Mermaid. Deterministic, no model calls, writes nothing.",
+      "op_id": "diagram.validate",
+      "status": null,
+      "domain": "compiler",
+      "product_lane": "ai",
+      "side_effect_class": "none",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_validate_diagram"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
       "id": "mcp.vox_validate_file",
       "kind": "mcp_tool",
       "title": "Validate File",
@@ -66802,6 +66840,37 @@
         "rule": "self"
       },
       "source_path": "crates/vox-deploy-codegen/",
+      "docs": [
+        {
+          "path": "docs/src/architecture/where-things-live.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "crate.vox-diagram",
+      "kind": "crate",
+      "title": "vox-diagram",
+      "summary": "Pure VoxDiagram core: graph DSL lexer, error-recovering parser, resolved IR, diagnostics with machine-applicable fixes, canonical formatter, markdown fence scanner, dagre graph layout and a deterministic SVG renderer.",
+      "op_id": null,
+      "status": null,
+      "domain": "platform",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": {
+        "crate": "vox-diagram",
+        "layer": 2,
+        "rule": "self"
+      },
+      "source_path": "crates/vox-diagram/",
       "docs": [
         {
           "path": "docs/src/architecture/where-things-live.md",

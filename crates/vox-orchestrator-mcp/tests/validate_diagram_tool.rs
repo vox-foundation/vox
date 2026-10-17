@@ -137,3 +137,33 @@ async fn deterministic_across_calls() {
     let b = call_raw("vox_validate_diagram", args).await;
     assert_eq!(a, b);
 }
+
+#[test]
+fn tool_list_advertises_the_card() {
+    let base = vox_orchestrator_mcp::TOOL_REGISTRY
+        .iter()
+        .find(|e| e.name == "vox_validate_diagram")
+        .expect("registered")
+        .description;
+    let tool = vox_orchestrator_mcp::registry::tool_registry()
+        .into_iter()
+        .find(|t| t.name == "vox_validate_diagram")
+        .expect("advertised");
+    let d = tool.description.expect("description");
+    assert!(d.starts_with(base), "{d}");
+    assert!(d.ends_with(vox_diagram::GRAMMAR_CARD), "{d}");
+}
+
+#[test]
+fn grammar_card_fits_600_tokens() {
+    let n = tiktoken_rs::o200k_base_singleton()
+        .encode_with_special_tokens(vox_diagram::GRAMMAR_CARD)
+        .len();
+    assert!(n <= 600, "grammar card is {n} o200k tokens, budget is 600");
+}
+
+#[test]
+fn lang_profile_lists_the_tool() {
+    let p = vox_mcp_registry::ActiveProfile::resolve(&["lang"]).expect("lang resolves");
+    assert!(p.contains_tool("vox_validate_diagram"));
+}

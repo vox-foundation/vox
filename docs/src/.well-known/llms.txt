@@ -27,7 +27,7 @@
 
 <!-- BEGIN GENERATED capability-index: vox ci capability-index --write -->
 ## Capabilities (generated from the capability index)
-- Compiler: 30 CLI commands, 9 MCP tools, 0 GUI surfaces
+- Compiler: 30 CLI commands, 10 MCP tools, 0 GUI surfaces
 - Orchestrator & agents: 28 CLI commands, 72 MCP tools, 2 GUI surfaces
 - Mesh / Populi: 6 CLI commands, 3 MCP tools, 2 GUI surfaces
 - ML / Mens: 53 CLI commands, 0 MCP tools, 2 GUI surfaces

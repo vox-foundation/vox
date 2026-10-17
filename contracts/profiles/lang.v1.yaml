@@ -8,6 +8,7 @@ tools:
     - vox_check_workspace
     - vox_validate_file
     - vox_validate_source
+    - vox_validate_diagram
     - vox_validate_vuv
     - vox_run_tests
     - vox_test_all

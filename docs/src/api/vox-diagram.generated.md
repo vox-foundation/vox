@@ -56,6 +56,7 @@ a -> b
 | `sequence_ir` | Sequence diagram IR types, the payload of `Ir::Sequence`. |
 | `span` | Byte spans and line/col locations. |
 | `svg` | Deterministic, injection-safe, themeable SVG rendering of graph and sequence diagrams (graph layout through the dagre adapter). |
+| `validate` | One-call validation envelope (check, canonical form, optional Mermaid import and SVG/Mermaid emit) shared by the MCP tool and the CLI. |
 
 ### Constants
 

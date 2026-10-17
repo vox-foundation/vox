@@ -19,6 +19,16 @@ struct Args {
     emit: Option<vox_diagram::Emit>,
 }
 
+/// The description agents see in `tools/list`: for `vox_validate_diagram` the catalog text
+/// followed by the one grammar card (D-05); every other tool is unchanged.
+pub fn advertised_description(name: &str, base: &str) -> String {
+    if name == "vox_validate_diagram" {
+        format!("{base}\n\n{}", vox_diagram::GRAMMAR_CARD)
+    } else {
+        base.to_string()
+    }
+}
+
 /// Validate a VoxDiagram `source` and return the shared `vox_diagram::Validation` envelope.
 pub async fn vox_validate_diagram(_state: &ServerState, args: Value) -> String {
     run(args).await.to_json()
@@ -64,6 +74,15 @@ mod tests {
     async fn present_source_is_validated() {
         let r = out(json!({"source": "graph {\n    node a: \"A\"\n}\n"})).await;
         assert_eq!(r["data"]["valid"], true, "{r}");
+    }
+
+    #[test]
+    fn advertised_description_appends_the_card() {
+        assert_eq!(
+            advertised_description("vox_validate_diagram", "d"),
+            format!("d\n\n{}", vox_diagram::GRAMMAR_CARD)
+        );
+        assert_eq!(advertised_description("vox_validate_vuv", "d"), "d");
     }
 
     #[tokio::test]
