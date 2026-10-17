@@ -6,6 +6,7 @@
 //! USER-AUTHORIZED-ONLY); `--tighten-facet-backlog` only removes rows and rule ids.
 
 pub mod anchors;
+mod diagrams;
 pub mod doctest;
 mod facet_backlog;
 mod facets;
@@ -81,6 +82,7 @@ fn workflow_for_kind(kind: &LintKind) -> &'static str {
             "restore README.md and docs/src/index.mdx — the sync check can't run without both"
         }
         LintKind::Facet(i) => i.workflow(),
+        LintKind::Diagram(i) => i.workflow(),
     }
 }
 
@@ -109,6 +111,7 @@ fn kind_label(kind: &LintKind) -> &'static str {
         LintKind::ReadmeSyncMissingAnchor { .. } => "readme-sync-missing-anchor",
         LintKind::ReadmeSyncSourceMissing { .. } => "readme-sync-source-missing",
         LintKind::Facet(i) => i.rule_id(),
+        LintKind::Diagram(i) => i.rule_id(),
     }
 }
 
@@ -535,6 +538,11 @@ pub fn lint_in(root: &Path, args: &[String]) -> i32 {
                         i.rule_id()
                     );
                 }
+                LintKind::Diagram(i) => eprintln!(
+                    "  {}  {}",
+                    if i.is_hard() { "ERROR" } else { "WARN " },
+                    i.render(e.file.strip_prefix(root).unwrap_or(&e.file))
+                ),
             }
         }
 
@@ -542,6 +550,7 @@ pub fn lint_in(root: &Path, args: &[String]) -> i32 {
             .iter()
             .filter(|e| {
                 matches!(&e.kind, LintKind::Facet(i) if i.is_hard())
+                    || matches!(&e.kind, LintKind::Diagram(i) if i.is_hard())
                     || matches!(
                         e.kind,
                         LintKind::UnclosedCodeFence
@@ -639,7 +648,7 @@ mod tests {
     /// block) under `root`, in the exact marker shapes
     /// `lint::lint_readme_sync_paths` / `readme_anchor` / `mdx_sync_block`
     /// expect (`why_vox` is the sole entry in `lint::SYNCED_BLOCKS`).
-    fn write_readme_sync_fixture(root: &Path, readme_body: &str, mdx_body: &str) {
+    pub(super) fn write_readme_sync_fixture(root: &Path, readme_body: &str, mdx_body: &str) {
         std::fs::write(
             root.join("README.md"),
             format!("<!-- ANCHOR: why_vox -->\n{readme_body}\n<!-- ANCHOR_END: why_vox -->\n"),
@@ -675,7 +684,7 @@ mod tests {
     const FACET_TAXONOMY: &str =
         include_str!("../../../../contracts/documentation/kb-taxonomy.v1.yaml");
 
-    fn write_facet_contracts(root: &Path, backlog_docs: &str) {
+    pub(super) fn write_facet_contracts(root: &Path, backlog_docs: &str) {
         let c = root.join("contracts/documentation");
         std::fs::create_dir_all(&c).unwrap();
         std::fs::write(c.join("kb-taxonomy.v1.yaml"), FACET_TAXONOMY).unwrap();
@@ -686,7 +695,7 @@ mod tests {
         .unwrap();
     }
 
-    const BASE_FM: &str = "title: \"Doc\"\ndescription: \"A specific hand-written description for this fixture page.\"\ncategory: \"Concepts\"";
+    pub(super) const BASE_FM: &str = "title: \"Doc\"\ndescription: \"A specific hand-written description for this fixture page.\"\ncategory: \"Concepts\"";
 
     #[test]
     fn lint_in_facet_backlog_tracer() {

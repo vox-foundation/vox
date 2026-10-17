@@ -74,6 +74,33 @@ pub enum LintKind {
     },
     /// A KB facet finding; the rule id is the backlog key.
     Facet(FacetIssue),
+    /// A `vox-diagram` fence problem (see `diagrams.rs`).
+    Diagram(DiagramIssue),
+}
+
+/// One finding about a `vox-diagram` fence; positions are 1-based file coordinates.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DiagramIssue {
+    /// A `vox_diagram::check` diagnostic mapped onto the file.
+    Check {
+        /// File line of the diagnostic.
+        line: usize,
+        /// File column (chars) of the diagnostic.
+        col: usize,
+        /// Stable `diagram/*` code.
+        code: &'static str,
+        /// Human-readable description.
+        message: String,
+        /// `true` for an Error, `false` for a Warning (printed, never blocking).
+        error: bool,
+    },
+    /// A fence whose language token is `vox-diagram` but whose info string is not exactly that.
+    InfoString {
+        /// File line of the opening fence.
+        line: usize,
+        /// The trimmed info string as written.
+        info: String,
+    },
 }
 
 /// One facet-lint finding (KB Phase 4). The stable rule id (see `facets.rs`) is also the key

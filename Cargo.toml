@@ -99,6 +99,7 @@ vox-db                    = { path = "crates/vox-db" }
 vox-sql                   = { path = "crates/vox-sql" }
 vox-db-types              = { path = "crates/vox-db-types" }
 vox-kb-facets             = { path = "crates/vox-kb-facets" }
+vox-diagram               = { path = "crates/vox-diagram" }
 vox-eval                  = { path = "crates/vox-eval" }
 
 vox-forge                 = { path = "crates/vox-forge" }

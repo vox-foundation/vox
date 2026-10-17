@@ -190,6 +190,7 @@ fn lint_one_file(path: &Path, repo_root: &Path, facet_ctx: Option<&FacetCtx>) ->
         super::facets::lint_facets(path, &content, repo_root, ctx, &mut errors);
     }
     crate::pipeline::doctest::check_doctests(path, &content, &mut errors);
+    super::diagrams::check_diagram_fences(path, &content, &mut errors);
     errors
 }
 
