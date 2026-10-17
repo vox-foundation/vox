@@ -1,10 +1,10 @@
 //! Mermaid export and strict import.
 //!
-//! [`export`] writes one Mermaid statement per output line, so a label can never smuggle a
+//! [`export()`](crate::mermaid::export()) writes one Mermaid statement per output line, so a label can never smuggle a
 //! second statement; every label goes through the single encoder in `escape`. Mermaid's
 //! default configuration rejects more than 500 edges while the DSL allows 1000, so a very
 //! large diagram can export validly yet fail to render; the exporter cannot fix that.
-//! [`import`] is fail-closed: a block it cannot read in full yields no output, only the list
+//! [`import()`](crate::mermaid::import()) is fail-closed: a block it cannot read in full yields no output, only the list
 //! of offending lines. `Unsupported::line` is 1-based within the block.
 
 use crate::sequence_ir::SequenceIr;

@@ -5,27 +5,33 @@
 
 use std::fs;
 use std::path::Path;
-use std::process::Command;
 
 use serde_json::json;
 use vox_diagram::fence::{extract, normalize};
 
+/// Markdown files under `docs/src`, relative to `root`, sorted. Plain directory walk: the arch
+/// guard forbids raw `git` invocations, and the freezer runs from a clean checkout of HEAD.
 fn tracked_docs(root: &Path) -> Vec<String> {
-    let Ok(out) = Command::new("git")
-        .args(["ls-files", "-z", "--", "docs/src"])
-        .current_dir(root)
-        .output()
-    else {
-        panic!("cannot run git ls-files");
-    };
-    assert!(out.status.success(), "git ls-files failed");
-    let mut files: Vec<String> = String::from_utf8_lossy(&out.stdout)
-        .split('\0')
-        .filter(|p| p.ends_with(".md") || p.ends_with(".mdx"))
-        // Archival protocol: tombstoned docs are never ingested.
-        .filter(|p| !p.starts_with("docs/src/archive/"))
-        .map(str::to_owned)
-        .collect();
+    fn walk(dir: &Path, root: &Path, out: &mut Vec<String>) {
+        for entry in fs::read_dir(dir).into_iter().flatten().flatten() {
+            let path = entry.path();
+            let Ok(rel) = path.strip_prefix(root) else {
+                continue;
+            };
+            let rel = rel.to_string_lossy().replace('\\', "/");
+            // Archival protocol: tombstoned docs are never ingested.
+            if rel == "docs/src/archive" {
+                continue;
+            }
+            if path.is_dir() {
+                walk(&path, root, out);
+            } else if rel.ends_with(".md") || rel.ends_with(".mdx") {
+                out.push(rel);
+            }
+        }
+    }
+    let mut files = Vec::new();
+    walk(&root.join("docs/src"), root, &mut files);
     files.sort();
     files
 }
