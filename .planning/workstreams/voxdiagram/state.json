@@ -31,7 +31,7 @@
     {
       "number": "88",
       "name": "MCP Tool, CLI & Agent Guidance",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "number": "89",
@@ -54,5 +54,5 @@
     "label": "Advance to the next step",
     "reason": "Phase 88 of 9 · executing"
   },
-  "updated_at": "2026-10-17T20:14:39.228Z"
+  "updated_at": "2026-10-17T20:32:44.661Z"
 }

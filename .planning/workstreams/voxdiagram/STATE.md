@@ -4,18 +4,18 @@ milestone: v1.7
 milestone_name: VoxDiagram
 current_phase: 88
 current_phase_name: MCP Tool, CLI & Agent Guidance
-current_plan: 2
+current_plan: 3
 status: executing
-stopped_at: Completed 88-01-PLAN.md
-last_updated: "2026-10-17T20:14:40.295Z"
+stopped_at: Completed 88-02-PLAN.md
+last_updated: "2026-10-17T20:32:45.358Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 88 execution started
-state_head: eae2146e3b704332ed5688ec05297fb0198e6eca
+state_head: 6047fc158cc7934313eb50fd167f5f7106bdeb0e
 progress:
   total_phases: 9
   completed_phases: 5
   total_plans: 27
-  completed_plans: 25
+  completed_plans: 26
 ---
 
 # Project State: VoxDiagram (`voxdiagram`)
@@ -30,7 +30,7 @@ See: `.planning/PROJECT.md` (shared, owned by the `unified` workstream, not edit
 ## Current Position
 
 Phase: 88 (MCP Tool, CLI & Agent Guidance) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-10-17 — Phase 88 execution started
 
@@ -39,7 +39,7 @@ Progress: [██████░░░░] 56% (0/9 phases)
 ## Progress
 
 **Phases Complete:** 0
-**Current Plan:** 2
+**Current Plan:** 3
 
 ## Key Decisions (milestone-level)
 
@@ -64,9 +64,9 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-10-17T20:14:40.226Z
+**Last session:** 2026-10-17T20:32:45.312Z
 
-**Stopped At:** Completed 88-01-PLAN.md
+**Stopped At:** Completed 88-02-PLAN.md
 **Resume File:** None
 
 ## Performance Metrics
@@ -98,6 +98,7 @@ None yet.
 | Phase 87 P02 | 35min | 2 tasks | 7 files |
 | Phase 87 P03 | 40min | 2 tasks | 8 files |
 | Phase 88 P01 | 75min | 3 tasks | 40 files |
+| Phase 88 P02 | 70min | 2 tasks | 22 files |
 
 ## Decisions
 
@@ -139,6 +140,7 @@ None yet.
 - [Phase 87]: 87-02: legacy-Mermaid baseline seeded 33 fences/21 files from committed tree; missing baseline admits nothing, invalid is one hard error; tighten refuses before writing on growth
 - [Phase 87]: 87-03: capability-index staleness (no crate.vox-diagram row) predates the plan; left to hosted-CI ssot-autoregen, not hand-committed
 - [Phase 88]: 88-01: vox_validate_diagram envelope is vox_diagram::validate serialized as-is; Mermaid input validates the converted DSL; only edge vox-orchestrator-mcp -> vox-diagram (user-authorized 2026-10-16)
+- [Phase 88]: 88-02: vox diagram CLI rows carry side_effect_class (writes_files / read_only) so the side-effect ratchet stays untouched
 
 ## Pending Todos (voxdiagram)
 

@@ -214,14 +214,14 @@ Plans:
   3. A developer can run `vox diagram check|fmt|render|export|import` on files or stdin with exit codes that reflect diagnostics, with catalog rows, needles, and `cli.md` updated and no `vox-cli -> vox-diagram` edge.
   4. The grammar card (<=~600 tokens by measurement, with examples that each pass `check`) is in agent authoring guidance, and `AGENTS.md` directs new docs diagrams to ```` ```vox-diagram ````.
 
-**Plans**: 1/3 plans executed
+**Plans**: 2/3 plans executed
 
 Plans:
 **Wave 1**
 - [x] 88-01-PLAN.md — `vox_validate_diagram` end to end: shared `vox_diagram::validate` envelope (from_mermaid, emit, goldens), MCP handler, the one ledgered edge, catalog row + projections, read-role/profile, grammar card in the advertised description with a measured token budget (wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 88-02-PLAN.md — `vox diagram check|fmt|render|export|import` over the `vox_doc_pipeline::diagram` re-export: exit codes 0/1/2, `--json` = MCP envelope, catalog rows, `cli.md`, surface registry, paths baseline (wave 2)
+- [x] 88-02-PLAN.md — `vox diagram check|fmt|render|export|import` over the `vox_doc_pipeline::diagram` re-export: exit codes 0/1/2, `--json` = MCP envelope, catalog rows, `cli.md`, surface registry, paths baseline (wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 88-03-PLAN.md — finalized graph + sequence grammar card, `docs/src/reference/vox-diagram.md`, AGENTS.md directive, where-things-live rows, final regeneration and phase gates (wave 3)
@@ -288,7 +288,7 @@ Phases execute in numeric order, with the parallel opportunities noted under Ove
 | 85. Graph Layout & Deterministic SVG | 5/5 | Complete    | 2026-10-17 |
 | 86. Sequence Kind | 4/4 | Complete    | 2026-10-17 |
 | 87. Doc-Pipeline Consumer & Legacy-Mermaid Ratchet | 3/3 | Complete    | 2026-10-17 |
-| 88. MCP Tool, CLI & Agent Guidance | 1/3 | In Progress | - |
+| 88. MCP Tool, CLI & Agent Guidance | 2/3 | In Progress | - |
 | 89. Docs-Astro Integration | 0/TBD | Not started | - |
 | 90. Corpus Migration & Gate Tightening | 0/TBD | Not started | - |
 | 91. Measurement Harness & Advisory Closure | 0/TBD | Not started | - |
