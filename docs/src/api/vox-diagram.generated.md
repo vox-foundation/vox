@@ -51,6 +51,7 @@ a -> b
 | `fence` | Markdown fenced-block scanner shared by every diagram consumer. |
 | `ir` | Resolved serialisable diagram IR. |
 | `limits` | Named input caps. |
+| `mermaid` | Mermaid export (verified against a pinned real Mermaid parser) and strict, fail-closed Mermaid import. |
 | `sequence_ir` | Sequence diagram IR types (parser arrives in Phase 86). |
 | `span` | Byte spans and line/col locations. |
 
